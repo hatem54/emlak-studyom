@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
@@ -1835,6 +1835,7 @@
     <!-- Supabase JS Library -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="js/supabase-client.js" defer></script>
+    <script src="js/auth.js" defer></script>
 </head>
 <body>
     <!-- Background Animation -->
@@ -1860,8 +1861,8 @@
             <li><a href="#faq">SSS</a></li>
         </ul>
         <div class="nav-buttons">
-            <button class="btn-ghost" onclick="window.location.href='app.html'">Giriş Yap</button>
-            <button class="btn-primary" onclick="window.location.href='app.html'">Ücretsiz Dene</button>
+            <button class="btn-ghost" onclick="openModal('login')">Giriş Yap</button>
+            <button class="btn-primary" onclick="goToDemo()">Ücretsiz Dene</button>
         </div>
         <button class="mobile-menu-btn" onclick="toggleMobileMenu()">
             <i class="fas fa-bars"></i>
@@ -1892,10 +1893,10 @@
                     Fotoğraf düzenleme, yazı ekleme, şablon uygulama ve çıktı alma süreçlerinin tamamını tek bir yerden yönetin.
                 </p>
                 <div class="hero-actions">
-                    <button class="btn-hero btn-hero-primary" onclick="window.location.href='app.html'">
+                    <button class="btn-hero btn-hero-primary" onclick="openModal('register')">
                         <i class="fas fa-rocket"></i> Ücretsiz Başla
                     </button>
-                    <button class="btn-hero btn-hero-secondary" onclick="window.location.href='app.html'">
+                    <button class="btn-hero btn-hero-secondary" onclick="goToDemo()">
                         <i class="fas fa-play"></i> Demo İzle
                     </button>
                 </div>
@@ -2277,10 +2278,10 @@
             <h2>Hemen Başlamaya <span style="background:var(--gradient-1);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">Hazır mısınız?</span></h2>
             <p>7 gün ücretsiz deneyin. Kredi kartı gerekmez.</p>
             <div class="cta-buttons">
-                <button class="btn-hero btn-hero-primary" onclick="window.location.href='app.html'">
+                <button class="btn-hero btn-hero-primary" onclick="openModal('register')">
                     <i class="fas fa-rocket"></i> Ücretsiz Dene
                 </button>
-                <button class="btn-hero btn-hero-secondary" onclick="window.location.href='app.html'">
+                <button class="btn-hero btn-hero-secondary" onclick="goToDemo()">
                     <i class="fas fa-calendar"></i> Demo Talep Et
                 </button>
             </div>
@@ -2360,7 +2361,7 @@
                     <label><input type="checkbox"> Beni hatırla</label>
                     <a href="#">Şifremi unuttum</a>
                 </div>
-                <button class="btn-submit" onclick="window.location.href='app.html'">Giriş Yap</button>
+                <button class="btn-submit" onclick="handleLogin(event)">Giriş Yap</button>
                 <div class="divider">veya</div>
                 <div class="social-login">
                     <button class="btn-social"><i class="fab fa-google"></i></button>
@@ -2388,7 +2389,7 @@
                     <label>Şifre</label>
                     <input type="password" placeholder="Min. 8 karakter">
                 </div>
-                <button class="btn-submit" onclick="window.location.href='app.html'">Ücretsiz Başla</button>
+                <button class="btn-submit" onclick="handleRegister(event)">Ücretsiz Başla</button>
                 <div class="divider">veya</div>
                 <div class="social-login">
                     <button class="btn-social"><i class="fab fa-google"></i></button>

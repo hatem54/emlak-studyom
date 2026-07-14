@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="tr">
 <head>
 <script>
@@ -46,16 +46,18 @@ window.addEventListener('error', function(e) {
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="js/supabase-client.js" defer></script>
     <script src="js/mode-manager.js" defer></script>
+    <script src="js/saber-animation.js" defer></script>
 </head>
 <body>
     <button class="tour-restart-btn" onclick="if(window.OnboardingTour) window.OnboardingTour.restartTour()">Turu Tekrar İzle</button>
-<div style="width: 100%; max-width: 1800px; display: flex; justify-content: center; margin: 15px 0 10px 0;">
+  <div style="width: 100%; max-width: 1800px; display: flex; justify-content: center; margin: 15px 0 10px 0; align-items: center;">
   <a href="index.html" class="logo">
     <img src="assets/logo/logo.jpg" 
          alt="EmlakStüdyom" 
          height="40"
          style="border-radius: 8px;">
   </a>
+  <a href="admin.html" id="adminNavBtn" class="admin-nav-btn" style="display:none; margin-left:20px; padding:6px 14px; border-radius:20px; background:linear-gradient(135deg,#8b5cf6,#7c3aed); color:white; text-decoration:none; font-size:12px; font-weight:600; vertical-align:middle;" title="Admin Panel">🛡️ Admin</a>
 </div>
 <div class="container">
 <div class="panel">

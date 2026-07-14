@@ -15,6 +15,25 @@ async function checkUserMode() {
       APP_MODE = 'pro';
       CURRENT_USER = session.user;
       console.log('✅ Pro modu aktif:', session.user.email);
+      
+      // Admin kontrolü
+      try {
+          const { data: profile } = await window.supabaseClient
+              .from('profiles')
+              .select('role')
+              .eq('id', session.user.id)
+              .single();
+          
+          if (profile && profile.role === 'admin') {
+              const adminBtn = document.getElementById('adminNavBtn');
+              if (adminBtn) {
+                  adminBtn.style.display = 'inline-block';
+                  console.log('🛡️ Admin yetkileri aktif');
+              }
+          }
+      } catch (e) {
+          console.warn('Admin kontrolü yapılamadı:', e);
+      }
     } else {
       APP_MODE = 'demo';
       CURRENT_USER = null;

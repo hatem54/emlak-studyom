@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel - EmlakStüdyom</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/supabase-client.js" defer></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background: linear-gradient(135deg, #0f172a, #1e293b);
+            color: white; min-height: 100vh; padding: 20px;
+        }
+        .container { max-width: 1400px; margin: 0 auto; }
+        .header {
+            display: flex; justify-content: space-between; align-items: center;
+            background: rgba(30,41,59,0.8); backdrop-filter: blur(10px);
+            padding: 20px 30px; border-radius: 16px; margin-bottom: 24px;
+            border: 1px solid rgba(148,163,184,0.2);
+        }
+        .header h1 {
+            font-size: 24px; background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+        .header-actions { display: flex; gap: 12px; align-items: center; }
+        .user-info { color: #94a3b8; font-size: 14px; }
+        .btn {
+            padding: 10px 18px; border-radius: 8px; border: none;
+            font-weight: 600; cursor: pointer; font-size: 13px;
+            transition: all 0.2s; display: inline-flex; align-items: center; gap: 6px;
+        }
+        .btn-primary { background: linear-gradient(135deg, #3b82f6, #2563eb); color: white; }
+        .btn-secondary { background: rgba(148,163,184,0.15); color: #cbd5e1; }
+        .btn-danger { background: linear-gradient(135deg, #ef4444, #dc2626); color: white; }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
+        
+        .stats-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px; margin-bottom: 24px;
+        }
+        .stat-card {
+            background: rgba(30,41,59,0.8); backdrop-filter: blur(10px);
+            padding: 24px; border-radius: 16px; text-align: center;
+            border: 1px solid rgba(148,163,184,0.2);
+            transition: all 0.3s;
+        }
+        .stat-card:hover { transform: translateY(-4px); border-color: rgba(59,130,246,0.5); }
+        .stat-icon { font-size: 32px; margin-bottom: 8px; }
+        .stat-value { font-size: 36px; font-weight: 800; color: white; }
+        .stat-label { color: #94a3b8; font-size: 13px; margin-top: 4px; }
+        .stat-card.pro { background: linear-gradient(135deg, rgba(16,185,129,0.15), rgba(5,150,105,0.15)); }
+        .stat-card.demo { background: linear-gradient(135deg, rgba(245,158,11,0.15), rgba(217,119,6,0.15)); }
+        .stat-card.today { background: linear-gradient(135deg, rgba(59,130,246,0.15), rgba(37,99,235,0.15)); }
+        
+        .section {
+            background: rgba(30,41,59,0.8); backdrop-filter: blur(10px);
+            padding: 24px; border-radius: 16px; margin-bottom: 24px;
+            border: 1px solid rgba(148,163,184,0.2);
+        }
+        .section h2 {
+            font-size: 18px; margin-bottom: 16px; color: #e2e8f0;
+            display: flex; align-items: center; gap: 8px;
+        }
+        table {
+            width: 100%; border-collapse: collapse; font-size: 13px;
+        }
+        th, td {
+            padding: 12px 16px; text-align: left;
+            border-bottom: 1px solid rgba(148,163,184,0.1);
+        }
+        th { color: #94a3b8; font-weight: 600; text-transform: uppercase; font-size: 11px; }
+        td { color: #e2e8f0; }
+        tr:hover { background: rgba(59,130,246,0.05); }
+        .badge {
+            padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 700;
+            display: inline-block;
+        }
+        .badge-pro { background: rgba(16,185,129,0.2); color: #10b981; }
+        .badge-demo { background: rgba(245,158,11,0.2); color: #f59e0b; }
+        .badge-admin { background: rgba(139,92,246,0.2); color: #a78bfa; }
+        
+        .loading {
+            text-align: center; padding: 60px 20px; color: #94a3b8;
+        }
+        .loading::before {
+            content: '⏳'; display: block; font-size: 48px; margin-bottom: 12px;
+        }
+        .access-denied {
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            min-height: 80vh; text-align: center;
+        }
+        .access-denied-icon { font-size: 80px; margin-bottom: 20px; }
+        .access-denied h2 { font-size: 32px; margin-bottom: 12px; color: #ef4444; }
+        .access-denied p { color: #94a3b8; margin-bottom: 24px; max-width: 400px; }
+        
+        @media (max-width: 768px) {
+            .header { flex-direction: column; gap: 12px; text-align: center; }
+            .stat-value { font-size: 28px; }
+            table { font-size: 11px; }
+            th, td { padding: 8px; }
+        }
+    </style>
+</head>
+<body>
+    <div id="loadingScreen" class="loading">Yükleniyor...</div>
+    
+    <div id="accessDenied" class="access-denied" style="display:none;">
+        <div class="access-denied-icon">🚫</div>
+        <h2>Yetkiniz Yok</h2>
+        <p>Bu sayfayı görüntülemek için admin yetkisine sahip olmanız gerekir.</p>
+        <a href="index.html" class="btn btn-primary">🏠 Ana Sayfaya Dön</a>
+    </div>
+    
+    <div id="adminPanel" class="container" style="display:none;">
+        <div class="header">
+            <div>
+                <h1>🛡️ EmlakStüdyom Admin Panel</h1>
+                <div class="user-info" id="adminUserInfo">Yükleniyor...</div>
+            </div>
+            <div class="header-actions">
+                <button class="btn btn-secondary" onclick="loadAllData()">🔄 Yenile</button>
+                <a href="app.html" class="btn btn-primary" style="text-decoration:none;">🎨 Uygulamaya Git</a>
+                <button class="btn btn-danger" onclick="adminLogout()">🚪 Çıkış</button>
+            </div>
+        </div>
+        
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-icon">👥</div>
+                <div class="stat-value" id="statTotal">-</div>
+                <div class="stat-label">Toplam Kullanıcı</div>
+            </div>
+            <div class="stat-card today">
+                <div class="stat-icon">🆕</div>
+                <div class="stat-value" id="statToday">-</div>
+                <div class="stat-label">Bugün Kayıt</div>
+            </div>
+            <div class="stat-card pro">
+                <div class="stat-icon">✨</div>
+                <div class="stat-value" id="statPro">-</div>
+                <div class="stat-label">Pro Kullanıcı</div>
+            </div>
+            <div class="stat-card demo">
+                <div class="stat-icon">🟡</div>
+                <div class="stat-value" id="statDemo">-</div>
+                <div class="stat-label">Demo Kullanıcı</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">📅</div>
+                <div class="stat-value" id="statThisWeek">-</div>
+                <div class="stat-label">Bu Hafta</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">💬</div>
+                <div class="stat-value" id="statFeedback">-</div>
+                <div class="stat-label">Feedback</div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>👥 Son Kayıtlar (Son 20)</h2>
+            <div style="overflow-x:auto;">
+                <table id="usersTable">
+                    <thead>
+                        <tr>
+                            <th>Ad Soyad</th>
+                            <th>Email</th>
+                            <th>Plan</th>
+                            <th>Rol</th>
+                            <th>Kayıt Tarihi</th>
+                        </tr>
+                    </thead>
+                    <tbody id="usersTableBody">
+                        <tr><td colspan="5" style="text-align:center; padding:24px;">Yükleniyor...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>💬 Son Feedbackler</h2>
+            <div style="overflow-x:auto;">
+                <table id="feedbackTable">
+                    <thead>
+                        <tr>
+                            <th>Email</th>
+                            <th>Mesaj</th>
+                            <th>Puan</th>
+                            <th>Tarih</th>
+                        </tr>
+                    </thead>
+                    <tbody id="feedbackTableBody">
+                        <tr><td colspan="4" style="text-align:center; padding:24px;">Henüz feedback yok</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <div class="section" style="text-align:center; color:#64748b; font-size:12px;">
+            <p>🛡️ EmlakStüdyom Admin Panel v1.0 | Verileriniz güvende - RLS ile korunmaktadır</p>
+        </div>
+    </div>
+    
+    <script>
+        let CURRENT_ADMIN = null;
+        
+        async function checkAdminAccess() {
+            try {
+                await new Promise(resolve => setTimeout(resolve, 300));
+                
+                if (!window.supabaseClient) {
+                    throw new Error('Supabase bağlantısı yok');
+                }
+                
+                const { data: { session } } = await window.supabaseClient.auth.getSession();
+                
+                if (!session || !session.user) {
+                    showAccessDenied('Giriş yapmalısınız');
+                    setTimeout(() => window.location.href = 'index.html', 2000);
+                    return;
+                }
+                
+                const { data: profile, error } = await window.supabaseClient
+                    .from('profiles')
+                    .select('*')
+                    .eq('id', session.user.id)
+                    .single();
+                
+                if (error || !profile) {
+                    showAccessDenied('Profil bulunamadı');
+                    return;
+                }
+                
+                if (profile.role !== 'admin') {
+                    showAccessDenied('Admin yetkisi gerekli');
+                    return;
+                }
+                
+                CURRENT_ADMIN = profile;
+                document.getElementById('adminUserInfo').textContent = 
+                    'Hoş geldin, ' + (profile.full_name || profile.email);
+                
+                document.getElementById('loadingScreen').style.display = 'none';
+                document.getElementById('adminPanel').style.display = 'block';
+                
+                loadAllData();
+                
+            } catch (e) {
+                console.error('Admin erişim hatası:', e);
+                showAccessDenied('Bir hata oluştu: ' + e.message);
+            }
+        }
+        
+        function showAccessDenied(reason) {
+            document.getElementById('loadingScreen').style.display = 'none';
+            document.getElementById('adminPanel').style.display = 'none';
+            document.getElementById('accessDenied').style.display = 'flex';
+            const p = document.querySelector('#accessDenied p');
+            if (reason) p.textContent = reason;
+        }
+        
+        async function loadAllData() {
+            await Promise.all([
+                loadStats(),
+                loadUsers(),
+                loadFeedback()
+            ]);
+        }
+        
+        async function loadStats() {
+            try {
+                const { data: profiles } = await window.supabaseClient
+                    .from('profiles')
+                    .select('*');
+                
+                if (!profiles) return;
+                
+                document.getElementById('statTotal').textContent = profiles.length;
+                
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                const todayCount = profiles.filter(p => new Date(p.created_at) >= today).length;
+                document.getElementById('statToday').textContent = todayCount;
+                
+                const weekAgo = new Date();
+                weekAgo.setDate(weekAgo.getDate() - 7);
+                const weekCount = profiles.filter(p => new Date(p.created_at) >= weekAgo).length;
+                document.getElementById('statThisWeek').textContent = weekCount;
+                
+                const proCount = profiles.filter(p => p.plan === 'pro' || p.plan === 'premium' || p.plan === 'elite').length;
+                document.getElementById('statPro').textContent = proCount;
+                
+                const demoCount = profiles.filter(p => p.plan === 'demo' || !p.plan).length;
+                document.getElementById('statDemo').textContent = demoCount;
+                
+                const { data: feedbacks } = await window.supabaseClient
+                    .from('feedback')
+                    .select('id');
+                document.getElementById('statFeedback').textContent = feedbacks?.length || 0;
+                
+            } catch (e) {
+                console.error('Stats yükleme hatası:', e);
+            }
+        }
+        
+        async function loadUsers() {
+            try {
+                const { data: users, error } = await window.supabaseClient
+                    .from('profiles')
+                    .select('*')
+                    .order('created_at', { ascending: false })
+                    .limit(20);
+                
+                const tbody = document.getElementById('usersTableBody');
+                
+                if (error || !users || users.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:24px; color:#94a3b8;">Kullanıcı bulunamadı</td></tr>';
+                    return;
+                }
+                
+                tbody.innerHTML = users.map(u => {
+                    const planBadge = u.plan === 'pro' ? '<span class="badge badge-pro">✨ Pro</span>' : '<span class="badge badge-demo">🟡 Demo</span>';
+                    const roleBadge = u.role === 'admin' ? '<span class="badge badge-admin">🛡️ Admin</span>' : '<span style="color:#64748b;">User</span>';
+                    const date = new Date(u.created_at).toLocaleString('tr-TR', { 
+                        year: 'numeric', month: 'short', day: 'numeric', 
+                        hour: '2-digit', minute: '2-digit' 
+                    });
+                    return `<tr>
+                        <td>${u.full_name || '<span style="color:#64748b;">-</span>'}</td>
+                        <td style="color:#93c5fd;">${u.email}</td>
+                        <td>${planBadge}</td>
+                        <td>${roleBadge}</td>
+                        <td style="color:#94a3b8;">${date}</td>
+                    </tr>`;
+                }).join('');
+                
+            } catch (e) {
+                console.error('Users yükleme hatası:', e);
+            }
+        }
+        
+        async function loadFeedback() {
+            try {
+                const { data: feedbacks, error } = await window.supabaseClient
+                    .from('feedback')
+                    .select('*')
+                    .order('created_at', { ascending: false })
+                    .limit(10);
+                
+                const tbody = document.getElementById('feedbackTableBody');
+                
+                if (error || !feedbacks || feedbacks.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:24px; color:#94a3b8;">Henüz feedback yok</td></tr>';
+                    return;
+                }
+                
+                tbody.innerHTML = feedbacks.map(f => {
+                    const stars = f.rating ? '⭐'.repeat(f.rating) : '-';
+                    const date = new Date(f.created_at).toLocaleString('tr-TR');
+                    return `<tr>
+                        <td style="color:#93c5fd;">${f.email || 'Anonim'}</td>
+                        <td>${f.message}</td>
+                        <td>${stars}</td>
+                        <td style="color:#94a3b8;">${date}</td>
+                    </tr>`;
+                }).join('');
+                
+            } catch (e) {
+                console.error('Feedback yükleme hatası:', e);
+            }
+        }
+        
+        async function adminLogout() {
+            if (confirm('Çıkış yapmak istediğinize emin misiniz?')) {
+                await window.supabaseClient.auth.signOut();
+                window.location.href = 'index.html';
+            }
+        }
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            setTimeout(checkAdminAccess, 500);
+        });
+    </script>
+</body>
+</html>

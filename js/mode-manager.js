@@ -218,10 +218,25 @@ function observeTemplateGrid() {
     cards.forEach(card => {
       const dataId = card.dataset.id || '';
       // canvaC1, canvaD5, canvaM2 gibi... "canva" kelimesinden sonraki ilk harf
-      const match = dataId.match(/^canva([A-Z])/);
-      const prefix = match ? match[1] : null;
-      
-      const isAllowed = prefix && DEMO_TEMPLATE_PREFIXES.includes(prefix);
+      // Prefix'i bul (canvaC1 -> C, canvaK5 -> K, canva1 -> "NUM")
+      const match = dataId.match(/^canva([A-Z]|[0-9])/);
+      let prefix = match ? match[1] : null;
+
+      // Sayısal ID'ler (canva1, canva2 vs.) NUM olarak işaretle
+      if (prefix && /[0-9]/.test(prefix)) {
+          prefix = 'NUM';
+      }
+
+      // canva1 (Boş Sayfa) özel istisna - açık kalsın
+      const isBosSayfa = dataId === 'canva1';
+
+      const isAllowed = isBosSayfa || (prefix && DEMO_TEMPLATE_PREFIXES.includes(prefix));
+
+      // Debug: engellenen ID'yi logla (sadece bir kez)
+      if (!isAllowed && !window._lockedLogged) {
+          console.log('🔒 Kilitlenen ID örneği:', dataId, 'prefix:', prefix);
+          window._lockedLogged = true;
+      }
       
       if (!isAllowed && !card.querySelector('.pro-overlay')) {
         card.style.position = 'relative';

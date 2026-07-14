@@ -72,8 +72,29 @@ function applyModeRestrictions() {
   
   // Saber kilitlerini periyodik uygula (element dinamik gelir)
   const lockSaberElements = () => {
-      ['elTextSaber', 'deSaberToggle'].forEach(id => {
-          const el = document.getElementById(id);
+      // Tüm Saber ile ilgili checkbox'ları bul (id veya class ile)
+      const findSaberInputs = () => {
+          const inputs = [];
+          // ID'ye göre ara
+          ['elTextSaber', 'deSaberToggle', 'saberToggle', 'drawSaber'].forEach(id => {
+              const el = document.getElementById(id);
+              if (el) inputs.push(el);
+          });
+          // Class veya name'e göre ara
+          document.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+              const id = (cb.id || '').toLowerCase();
+              const name = (cb.name || '').toLowerCase();
+              const parentText = (cb.closest('label')?.textContent || '').toLowerCase();
+              if (id.includes('saber') || name.includes('saber') || 
+                  parentText.includes('saber') || parentText.includes('neon')) {
+                  if (!inputs.includes(cb)) inputs.push(cb);
+              }
+          });
+          return inputs;
+      };
+
+      const saberInputs = findSaberInputs();
+      saberInputs.forEach(el => {
           if (el && !el.dataset.proLocked) {
               el.disabled = true;
               el.checked = false;
@@ -131,9 +152,8 @@ function applyModeRestrictions() {
                   const text = opt.textContent.toLowerCase();
                   const val = opt.value.toLowerCase();
                   // 1920x1080 veya "varsayılan" veya "default" içerenler açık
-                  const isDefault = text.includes('1920') || text.includes('1080') || 
-                                   text.includes('varsayılan') || text.includes('default') ||
-                                   val.includes('1920') || val.includes('default');
+                  const isDefault = text.includes('1920×1080') || text.includes('1920x1080') || 
+                                   (text.includes('1920') && text.includes('1080'));
                   if (!isDefault && !opt.disabled) {
                       opt.disabled = true;
                       if (!opt.textContent.includes('🔒')) {
@@ -147,8 +167,8 @@ function applyModeRestrictions() {
           const formatButtons = document.querySelectorAll('[data-format], [data-ratio], .format-btn, .aspect-btn');
           formatButtons.forEach(btn => {
               const format = btn.dataset.format || btn.dataset.ratio || btn.textContent;
-              const isDefault = format && (format.includes('1920') || format.includes('1080') || 
-                               format.toLowerCase().includes('varsay') || format.toLowerCase().includes('default'));
+              const isDefault = format && (format.includes('1920×1080') || format.includes('1920x1080') || 
+                                          (format.includes('1920') && format.includes('1080')));
               if (!isDefault && !btn.querySelector('.format-lock')) {
                   btn.style.position = 'relative';
                   btn.style.opacity = '0.5';
@@ -175,14 +195,26 @@ function applyModeRestrictions() {
   observeTemplateGrid();
 }
 
-// Demo'da açık olacak şablon prefix'leri (baş harfleri)
+// Demo'da açık olacak şablon prefix'leri
 // C=Klasik, D=Dinamik, M=Minimal
+// KİLİTLİ: K=Kurumsal, O=Özel, P=Portföy, S=Sosyal, L=Lüks, E=Elit, Ko=Kolaj
 const DEMO_TEMPLATE_PREFIXES = ['C', 'D', 'M'];
+
+// Not: Şablon dosyalarındaki gerçek data-id değerlerini kontrol et.
+// Eğer Lüks canvaL1 diye başlıyorsa ve açık görünüyorsa, muhtemelen 
+// başka bir grupta olabilir. Debug için console'a yaz.
 
 function observeTemplateGrid() {
   // Tüm canva-tpl-card elementlerini kilitle
   const lockAllTemplates = () => {
     const cards = document.querySelectorAll('.canva-tpl-card');
+    
+    // Debug: Bulunan tüm kartların data-id'sini yaz (İLK KEZ)
+    if (!window._templatesLogged) {
+        const allIds = Array.from(cards).map(c => c.dataset.id || 'noId');
+        console.log('🔍 Bulunan şablon ID leri:', allIds);
+        window._templatesLogged = true;
+    }
     cards.forEach(card => {
       const dataId = card.dataset.id || '';
       // canvaC1, canvaD5, canvaM2 gibi... "canva" kelimesinden sonraki ilk harf

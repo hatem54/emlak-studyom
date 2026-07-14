@@ -195,7 +195,7 @@ function addWatermark(canvas) {
       
       ctx.globalAlpha = 0.7;
       const fontSize = Math.max(10, Math.floor(canvas.width / 80));
-      ctx.font = \`bold \${fontSize}px system-ui, sans-serif\`;
+      ctx.font = `bold ${fontSize}px system-ui, sans-serif`;
       ctx.fillStyle = 'white';
       ctx.strokeStyle = 'rgba(0,0,0,0.6)';
       ctx.lineWidth = 2;
@@ -211,7 +211,7 @@ function addWatermark(canvas) {
     
     logo.onerror = () => {
       const fontSize = Math.max(16, Math.floor(canvas.width / 40));
-      ctx.font = \`bold \${fontSize}px system-ui, sans-serif\`;
+      ctx.font = `bold ${fontSize}px system-ui, sans-serif`;
       ctx.fillStyle = 'rgba(255,255,255,0.8)';
       ctx.strokeStyle = 'rgba(0,0,0,0.6)';
       ctx.lineWidth = 2;

@@ -2073,80 +2073,75 @@
     <section class="section pricing-section" id="pricing">
         <div class="section-header">
             <div class="section-label"><i class="fas fa-tag"></i> Fiyatlandırma</div>
-            <h2 class="section-title">Planınızı Seçin</h2>
-            <p class="section-desc">Her bütçeye uygun, esnek planlar</p>
+            <h2 class="section-title">Sana Uygun Planı Seç</h2>
+            <p class="section-desc" style="max-width: 600px; margin: 0 auto;">Beta döneminde tüm özellikler ücretsiz! Kayıt olan herkes şimdilik Pro'yu kullanabilir.</p>
         </div>
-        <div class="pricing-toggle">
-            <span id="monthlyLabel" class="active">Aylık</span>
-            <div class="toggle-switch" id="pricingToggle" onclick="togglePricing()">
-                <div class="toggle-knob"></div>
+        
+        <div class="pricing-grid" style="align-items: center; margin-top: 40px;">
+            <!-- KART 1: ÜCRETSİZ -->
+            <div class="pricing-card" style="border-top: 4px solid #f59e0b;">
+                <div style="color: #f59e0b; font-weight: bold; font-size: 14px; margin-bottom: 8px;">🟡 Hemen Dene</div>
+                <div class="pricing-plan-name">ÜCRETSİZ</div>
+                <div class="pricing-plan-desc">Kayıt gerekmez</div>
+                <div class="pricing-amount">
+                    <span class="pricing-price" style="font-size: 42px;">0 TL</span>
+                </div>
+                <ul class="pricing-features">
+                    <li><i class="fas fa-check" style="color:#10b981;"></i> 3 temel şablon (Klasik, Dinamik, Minimal)</li>
+                    <li><i class="fas fa-check" style="color:#10b981;"></i> Callout ve ikon kütüphanesi</li>
+                    <li><i class="fas fa-check" style="color:#10b981;"></i> Temel düzenleme araçları</li>
+                    <li><i class="fas fa-check" style="color:#10b981;"></i> Sınırsız kullanım</li>
+                    <li><i class="fas fa-droplet" style="color:#3b82f6;"></i> Watermark var</li>
+                    <li><i class="fas fa-arrow-trend-down" style="color:#f59e0b;"></i> Max 720p export</li>
+                    <li class="disabled"><i class="fas fa-xmark"></i> Saber efektleri kilitli</li>
+                </ul>
+                <button class="btn-pricing outline" style="border-color:#f59e0b; color:#f59e0b;" onclick="goToDemo()" onmouseover="this.style.background='#f59e0b'; this.style.color='#fff';" onmouseout="this.style.background='transparent'; this.style.color='#f59e0b';">🚀 Hemen Dene</button>
             </div>
-            <span id="yearlyLabel">Yıllık</span>
-            <span class="save-badge">%20 İndirim</span>
+            
+            <!-- KART 2: PRO BETA -->
+            <div class="pricing-card featured" style="transform: scale(1.05); z-index: 10; border: 2px solid #8b5cf6; background: linear-gradient(180deg, rgba(30,41,59,1) 0%, rgba(15,23,42,1) 100%);">
+                <div class="popular-badge" style="background: linear-gradient(135deg, #3b82f6, #8b5cf6);">⭐ EN POPÜLER</div>
+                <div style="color: #8b5cf6; font-weight: 800; font-size: 16px; margin-bottom: 8px;">🎉 BETA - ŞİMDİ ÜCRETSİZ</div>
+                <div class="pricing-plan-name">PRO</div>
+                <div class="pricing-plan-desc">Beta döneminde kayıt ol, tüm özellikleri ücretsiz kullan</div>
+                <div class="pricing-amount" style="margin: 15px 0;">
+                    <span class="pricing-price" style="font-size: 42px; background: linear-gradient(135deg, #3b82f6, #8b5cf6); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">ÜCRETSİZ</span>
+                </div>
+                <ul class="pricing-features">
+                    <li><i class="fas fa-check" style="color:#10b981;"></i> Tüm 80 şablon açık</li>
+                    <li><i class="fas fa-check" style="color:#10b981;"></i> Saber efektleri (Yangın, Neon, Glow, Elektrik)</li>
+                    <li><i class="fas fa-check" style="color:#10b981;"></i> 4K/8K export</li>
+                    <li><i class="fas fa-check" style="color:#10b981;"></i> Watermark YOK</li>
+                    <li><i class="fas fa-check" style="color:#10b981;"></i> Tüm formatlar (Instagram, Facebook, A4 vs.)</li>
+                    <li><i class="fas fa-check" style="color:#10b981;"></i> Sınırsız kullanım</li>
+                    <li><i class="fas fa-check" style="color:#10b981;"></i> Öncelikli destek</li>
+                </ul>
+                <button class="btn-pricing filled" style="background: linear-gradient(135deg, #3b82f6, #8b5cf6); border:none;" onclick="openModal('register')">✨ Ücretsiz Kayıt Ol</button>
+            </div>
+            
+            <!-- KART 3: PREMIUM -->
+            <div class="pricing-card" style="border-top: 4px solid #ec4899; opacity: 0.9;">
+                <div style="color: #ec4899; font-weight: bold; font-size: 14px; margin-bottom: 8px;">🔜 Yakında</div>
+                <div class="pricing-plan-name">PREMIUM</div>
+                <div class="pricing-plan-desc">Profesyonel emlakçılar için</div>
+                <div class="pricing-amount">
+                    <span class="pricing-price" style="font-size: 24px; color: #94a3b8;">Yakında Açıklanacak</span>
+                </div>
+                <ul class="pricing-features">
+                    <li><i class="fas fa-check" style="color:#10b981;"></i> Pro'nun tüm özellikleri</li>
+                    <li><i class="fas fa-robot" style="color:#ec4899;"></i> AI destekli düzenleme</li>
+                    <li><i class="fas fa-layer-group" style="color:#ec4899;"></i> Toplu işlem (Batch processing)</li>
+                    <li><i class="fas fa-video" style="color:#ec4899;"></i> Video export</li>
+                    <li><i class="fas fa-users" style="color:#ec4899;"></i> Ekip hesabı (5 kullanıcı)</li>
+                    <li><i class="fas fa-chart-line" style="color:#ec4899;"></i> Detaylı istatistikler</li>
+                    <li><i class="fas fa-bolt" style="color:#ec4899;"></i> Öncelikli destek (WhatsApp)</li>
+                </ul>
+                <button class="btn-pricing outline" style="border-color:#ec4899; color:#ec4899; cursor: not-allowed; opacity: 0.7;" disabled>📧 Haber Ver</button>
+            </div>
         </div>
-        <div class="pricing-grid">
-            <!-- Starter -->
-            <div class="pricing-card">
-                <div class="pricing-plan-name">Başlangıç</div>
-                <div class="pricing-plan-desc">Deneme amaçlı ücretsiz kullanım</div>
-                <div class="pricing-amount">
-                    <span class="pricing-currency" style="display:none;">₺</span>
-                    <span class="pricing-price" data-monthly="Ücretsiz" data-yearly="Ücretsiz" style="font-size: 32px;">Ücretsiz</span>
-                    <span class="pricing-period" style="display:none;">/ay</span>
-                </div>
-                <div class="pricing-yearly-note" id="yearlyNote1">&nbsp;</div>
-                <ul class="pricing-features">
-                    <li><i class="fas fa-check"></i> Watermarklı (Filigranlı) Çıktı</li>
-                    <li><i class="fas fa-check"></i> Maks. 480p / 720p Çözünürlük</li>
-                    <li><i class="fas fa-check"></i> Kısıtlı Şablon Erişimi</li>
-                    <li><i class="fas fa-check"></i> Kısıtlı İkon Erişimi</li>
-                    <li class="disabled"><i class="fas fa-xmark"></i> Saber (Neon) Vurguları</li>
-                    <li class="disabled"><i class="fas fa-xmark"></i> Toplu (Batch) Export</li>
-                </ul>
-                <button class="btn-pricing outline" onclick="window.location.href='app.html'">Ücretsiz Dene</button>
-            </div>
-            <!-- Basic -->
-            <div class="pricing-card">
-                <div class="pricing-plan-name">Giriş Seviye</div>
-                <div class="pricing-plan-desc">Bireysel emlakçılar için</div>
-                <div class="pricing-amount">
-                    <span class="pricing-currency">₺</span>
-                    <span class="pricing-price" data-monthly="250" data-yearly="200">250</span>
-                    <span class="pricing-period">/ay</span>
-                </div>
-                <div class="pricing-yearly-note" id="yearlyNote2">&nbsp;</div>
-                <ul class="pricing-features">
-                    <li><i class="fas fa-check"></i> Watermarksız Net Çıktı</li>
-                    <li><i class="fas fa-check"></i> 4K Yüksek Çözünürlüklü Export</li>
-                    <li><i class="fas fa-check"></i> Tüm Emlak Şablonları</li>
-                    <li><i class="fas fa-check"></i> Tüm Lucide İkonları</li>
-                    <li><i class="fas fa-check"></i> Çokgen Arsa Çizimi</li>
-                    <li class="disabled"><i class="fas fa-xmark"></i> Saber (Neon) & Özel Callout</li>
-                    <li class="disabled"><i class="fas fa-xmark"></i> Toplu (Batch) Export</li>
-                </ul>
-                <button class="btn-pricing outline" onclick="window.location.href='app.html'">Hemen Başla</button>
-            </div>
-            <!-- Pro -->
-            <div class="pricing-card featured">
-                <div class="popular-badge">En Profesyonel</div>
-                <div class="pricing-plan-name">Profesyonel (Pro)</div>
-                <div class="pricing-plan-desc">Emlak ofisleri ve uzmanlar için</div>
-                <div class="pricing-amount">
-                    <span class="pricing-currency">₺</span>
-                    <span class="pricing-price" data-monthly="350" data-yearly="280">350</span>
-                    <span class="pricing-period">/ay</span>
-                </div>
-                <div class="pricing-yearly-note" id="yearlyNote3">&nbsp;</div>
-                <ul class="pricing-features">
-                    <li><i class="fas fa-check"></i> Sınırsız Kullanım</li>
-                    <li><i class="fas fa-check"></i> 8K Ultra HD Export</li>
-                    <li><i class="fas fa-check"></i> Saber (Neon) & Özel Callout'lar</li>
-                    <li><i class="fas fa-check"></i> Toplu (Batch) Export Desteği</li>
-                    <li><i class="fas fa-check"></i> AI Otomatik Fotoğraf İyileştirme</li>
-                    <li><i class="fas fa-check"></i> Öncelikli Teknik Destek</li>
-                </ul>
-                <button class="btn-pricing filled" onclick="window.location.href='app.html'">Pro'ya Geç</button>
-            </div>
+        
+        <div style="text-align: center; max-width: 650px; margin: 40px auto 0 auto; padding: 15px 20px; background: rgba(59,130,246,0.1); border-radius: 12px; border: 1px solid rgba(59,130,246,0.2);">
+            <p style="color: #93c5fd; font-size: 14px; line-height: 1.6; margin: 0;">💡 <strong>Bilgi:</strong> Beta dönemi 3-6 ay sürecek. Bu süre içinde kayıtlı tüm kullanıcılar Pro özelliklerini ücretsiz kullanır. İleride ücretlendirme başladığında mevcut kullanıcılara özel indirim uygulanacak.</p>
         </div>
     </section>
 

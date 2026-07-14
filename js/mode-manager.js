@@ -46,7 +46,7 @@ function updateModeUI() {
       z-index: 99998; box-shadow: 0 4px 12px rgba(0,0,0,0.2); cursor: pointer;
       display: flex; align-items: center; gap: 10px;
     `;
-    bannerDiv.innerHTML = '🟡 Demo Modu • <span style="text-decoration:underline">Pro\'ya Yükselt</span>';
+    bannerDiv.innerHTML = "🟡 Demo Modu • <span style=\"text-decoration:underline\">Pro'ya Yükselt</span>";
     bannerDiv.onclick = () => { window.location.href = 'index.html#pricing'; };
     document.body.appendChild(bannerDiv);
   } else {

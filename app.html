@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="tr">
 <head>
 <script>
@@ -45,11 +45,12 @@ window.addEventListener('error', function(e) {
     <!-- Supabase JS Library -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="js/supabase-client.js" defer></script>
+    <script src="js/mode-manager.js" defer></script>
 </head>
 <body>
     <button class="tour-restart-btn" onclick="if(window.OnboardingTour) window.OnboardingTour.restartTour()">Turu Tekrar İzle</button>
 <div style="width: 100%; max-width: 1800px; display: flex; justify-content: center; margin: 15px 0 10px 0;">
-  <a href="landing.html" class="logo">
+  <a href="index.html" class="logo">
     <img src="assets/logo/logo.jpg" 
          alt="EmlakStüdyom" 
          height="40"
@@ -1446,3 +1447,4 @@ if (document.readyState === 'loading') {
 </script>
 </body>
 </html>
+

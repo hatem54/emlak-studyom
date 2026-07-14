@@ -70,25 +70,37 @@ function updateModeUI() {
 function applyModeRestrictions() {
   if (APP_MODE === 'pro') return;
   
-  setTimeout(() => {
-    const elTextSaber = document.getElementById('elTextSaber');
-    const deSaberToggle = document.getElementById('deSaberToggle');
-    
-    [elTextSaber, deSaberToggle].forEach(el => {
-      if (el) {
-        el.disabled = true;
-        el.checked = false;
-        const parent = el.closest('label') || el.parentElement;
-        if (parent && !parent.querySelector('.pro-lock')) {
-          const lock = document.createElement('span');
-          lock.className = 'pro-lock';
-          lock.innerHTML = ' 🔒 Pro';
-          lock.style.cssText = 'color:#f59e0b; font-size:11px; font-weight:600;';
-          parent.appendChild(lock);
-        }
-      }
-    });
-  }, 500);
+  // Saber kilitlerini periyodik uygula (element dinamik gelir)
+  const lockSaberElements = () => {
+      ['elTextSaber', 'deSaberToggle'].forEach(id => {
+          const el = document.getElementById(id);
+          if (el && !el.dataset.proLocked) {
+              el.disabled = true;
+              el.checked = false;
+              el.dataset.proLocked = 'true';
+              
+              const parent = el.closest('label') || el.parentElement;
+              if (parent && !parent.querySelector('.pro-lock')) {
+                  const lock = document.createElement('span');
+                  lock.className = 'pro-lock';
+                  lock.innerHTML = ' 🔒 Pro';
+                  lock.style.cssText = 'color:#f59e0b; font-size:11px; font-weight:600; margin-left:4px;';
+                  parent.appendChild(lock);
+              }
+              
+              // Tıklamayı engelle ve toast göster
+              el.addEventListener('click', (e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  showProUpgradeToast();
+                  return false;
+              }, true);
+          }
+      });
+  };
+
+  lockSaberElements();
+  setInterval(lockSaberElements, 2000); // Her 2 saniyede kontrol et
   
   setTimeout(() => {
     const exportScale = document.getElementById('exportScale');
@@ -108,48 +120,106 @@ function applyModeRestrictions() {
     }
   }, 500);
   
+  // FORMAT KİLİTLEME - Sadece varsayılan 1920x1080 açık
+  setTimeout(() => {
+      const lockFormats = () => {
+          // Format seçimi genelde select veya button grubu olur
+          // Olası ID'ler: canvasFormat, formatSelect, aspectRatio
+          const formatSelectors = document.querySelectorAll('select[id*="ormat"], select[id*="spect"], select[id*="anvas"]');
+          formatSelectors.forEach(sel => {
+              Array.from(sel.options).forEach(opt => {
+                  const text = opt.textContent.toLowerCase();
+                  const val = opt.value.toLowerCase();
+                  // 1920x1080 veya "varsayılan" veya "default" içerenler açık
+                  const isDefault = text.includes('1920') || text.includes('1080') || 
+                                   text.includes('varsayılan') || text.includes('default') ||
+                                   val.includes('1920') || val.includes('default');
+                  if (!isDefault && !opt.disabled) {
+                      opt.disabled = true;
+                      if (!opt.textContent.includes('🔒')) {
+                          opt.textContent = opt.textContent + ' 🔒 Pro';
+                      }
+                  }
+              });
+          });
+          
+          // Buton grubu format seçimi (varsa)
+          const formatButtons = document.querySelectorAll('[data-format], [data-ratio], .format-btn, .aspect-btn');
+          formatButtons.forEach(btn => {
+              const format = btn.dataset.format || btn.dataset.ratio || btn.textContent;
+              const isDefault = format && (format.includes('1920') || format.includes('1080') || 
+                               format.toLowerCase().includes('varsay') || format.toLowerCase().includes('default'));
+              if (!isDefault && !btn.querySelector('.format-lock')) {
+                  btn.style.position = 'relative';
+                  btn.style.opacity = '0.5';
+                  const lock = document.createElement('span');
+                  lock.className = 'format-lock';
+                  lock.innerHTML = ' 🔒';
+                  lock.style.cssText = 'margin-left:4px; color:#f59e0b;';
+                  btn.appendChild(lock);
+                  
+                  btn.addEventListener('click', (e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      showProUpgradeToast();
+                      return false;
+                  }, true);
+              }
+          });
+      };
+      
+      lockFormats();
+      setInterval(lockFormats, 3000);
+  }, 800);
+
   observeTemplateGrid();
 }
 
+// Demo'da açık olacak şablon prefix'leri (baş harfleri)
+// C=Klasik, D=Dinamik, M=Minimal
+const DEMO_TEMPLATE_PREFIXES = ['C', 'D', 'M'];
+
 function observeTemplateGrid() {
-  const grid = document.getElementById('templateGrid');
-  if (!grid) {
-    setTimeout(observeTemplateGrid, 1000);
-    return;
-  }
-  
-  const lockTemplates = () => {
-    const items = grid.querySelectorAll('[data-template], .template-item, .tpl-item');
-    items.forEach(item => {
-      const tplName = item.dataset.template || item.dataset.tpl || item.className;
-      const isAllowed = DEMO_TEMPLATES.some(allowed => 
-        (tplName && tplName.includes(allowed))
-      );
+  // Tüm canva-tpl-card elementlerini kilitle
+  const lockAllTemplates = () => {
+    const cards = document.querySelectorAll('.canva-tpl-card');
+    cards.forEach(card => {
+      const dataId = card.dataset.id || '';
+      // canvaC1, canvaD5, canvaM2 gibi... "canva" kelimesinden sonraki ilk harf
+      const match = dataId.match(/^canva([A-Z])/);
+      const prefix = match ? match[1] : null;
       
-      if (!isAllowed && !item.querySelector('.pro-overlay')) {
-        item.style.position = 'relative';
+      const isAllowed = prefix && DEMO_TEMPLATE_PREFIXES.includes(prefix);
+      
+      if (!isAllowed && !card.querySelector('.pro-overlay')) {
+        card.style.position = 'relative';
         const overlay = document.createElement('div');
         overlay.className = 'pro-overlay';
         overlay.style.cssText = `
-          position: absolute; inset: 0; background: rgba(0,0,0,0.7);
-          display: flex; align-items: center; justify-content: center;
-          color: white; font-weight: 700; font-size: 13px; z-index: 10;
-          cursor: pointer; border-radius: 8px; text-align: center;
+          position: absolute; inset: 0; background: rgba(0,0,0,0.75);
+          display: flex; flex-direction: column; align-items: center; 
+          justify-content: center; color: white; font-weight: 700; 
+          font-size: 16px; z-index: 100; cursor: pointer; 
+          border-radius: 6px; text-align: center; gap: 4px;
         `;
-        overlay.innerHTML = '🔒<br>Pro';
+        overlay.innerHTML = '<div style="font-size:24px">🔒</div><div style="font-size:11px">Pro</div>';
         overlay.onclick = (e) => {
           e.stopPropagation();
           e.preventDefault();
           showProUpgradeToast();
         };
-        item.appendChild(overlay);
+        card.appendChild(overlay);
       }
     });
   };
   
-  lockTemplates();
-  const observer = new MutationObserver(lockTemplates);
-  observer.observe(grid, { childList: true, subtree: true });
+  lockAllTemplates();
+  
+  // Body'de değişiklik olduğunda kilitleri tekrar uygula (dinamik yükleme için)
+  const observer = new MutationObserver(() => {
+    lockAllTemplates();
+  });
+  observer.observe(document.body, { childList: true, subtree: true });
 }
 
 function showProUpgradeToast() {

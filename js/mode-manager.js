@@ -200,37 +200,32 @@ function applyModeRestrictions() {
 // KİLİTLİ: K=Kurumsal, O=Özel, P=Portföy, S=Sosyal, L=Lüks, E=Elit, Ko=Kolaj
 const DEMO_TEMPLATE_PREFIXES = ['C', 'D', 'M'];
 
-// Not: Şablon dosyalarındaki gerçek data-id değerlerini kontrol et.
-// Eğer Lüks canvaL1 diye başlıyorsa ve açık görünüyorsa, muhtemelen 
-// başka bir grupta olabilir. Debug için console'a yaz.
+// Not: Lüks, Kolaj ve Elit(NUM) KİLİTLİ, Klasik(C), Dinamik(D), Minimal(M) AÇIK
 
 function observeTemplateGrid() {
-  // Tüm canva-tpl-card elementlerini kilitle
   const lockAllTemplates = () => {
+    // 1. canva-tpl-card olanlar (Klasik, Dinamik, Minimal, Kurumsal, Özel, Portföy, Sosyal, Elit)
     const cards = document.querySelectorAll('.canva-tpl-card');
     
     // Debug: Bulunan tüm kartların data-id'sini yaz (İLK KEZ)
     if (!window._templatesLogged) {
         const allIds = Array.from(cards).map(c => c.dataset.id || 'noId');
-        console.log('🔍 Bulunan şablon ID leri:', allIds);
+        console.log('🔍 Bulunan şablon ID leri (canva-tpl-card):', allIds);
         window._templatesLogged = true;
     }
+    
     cards.forEach(card => {
       const dataId = card.dataset.id || '';
-      // canvaC1, canvaD5, canvaM2 gibi... "canva" kelimesinden sonraki ilk harf
       // Prefix'i bul (canvaC1 -> C, canvaK5 -> K, canva1 -> "NUM")
       const match = dataId.match(/^canva([A-Z]|[0-9])/);
       let prefix = match ? match[1] : null;
 
       // Sayısal ID'ler (canva1, canva2 vs.) NUM olarak işaretle
       if (prefix && /[0-9]/.test(prefix)) {
-          prefix = 'NUM';
+          prefix = 'NUM'; // Elit şablonları
       }
 
-      // canva1 (Boş Sayfa) özel istisna - açık kalsın
-      const isBosSayfa = dataId === 'canva1';
-
-      const isAllowed = isBosSayfa || (prefix && DEMO_TEMPLATE_PREFIXES.includes(prefix));
+      const isAllowed = prefix && DEMO_TEMPLATE_PREFIXES.includes(prefix);
 
       // Debug: engellenen ID'yi logla (sadece bir kez)
       if (!isAllowed && !window._lockedLogged) {
@@ -257,6 +252,42 @@ function observeTemplateGrid() {
         };
         card.appendChild(overlay);
       }
+    });
+
+    // 2. template-btn olanlar (Lüks, Kolaj ve Boş Sayfa)
+    const btnCards = document.querySelectorAll('.template-btn');
+    btnCards.forEach(btn => {
+        // Boş Sayfa'yı her zaman es geç
+        if (btn.id === 'tpl-empty' || btn.textContent.includes('Boş Sayfa')) return;
+        
+        // Eğer Buton Lüks veya Kolaj grid'inin içindeyse kilitle
+        const isLuks = btn.closest('#tpl-content-luks') || btn.closest('#luksTemplateGrid');
+        const isKolaj = btn.closest('#tpl-content-kolaj') || btn.closest('#kolajGrid');
+        
+        if ((isLuks || isKolaj) && !btn.querySelector('.pro-lock')) {
+            btn.style.position = 'relative';
+            btn.style.opacity = '0.6';
+            const lock = document.createElement('span');
+            lock.className = 'pro-lock';
+            lock.innerHTML = '🔒 PRO';
+            lock.style.position = 'absolute';
+            lock.style.right = '5px';
+            lock.style.top = '5px';
+            lock.style.fontSize = '10px';
+            lock.style.background = '#dc2626';
+            lock.style.color = '#fff';
+            lock.style.padding = '2px 6px';
+            lock.style.borderRadius = '4px';
+            lock.style.pointerEvents = 'none'; // Kilit etiketinin tıklamayı engellememesi için
+            btn.appendChild(lock);
+            
+            // Tıklamayı engelle
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                showProUpgradeToast();
+            }, true);
+        }
     });
   };
   

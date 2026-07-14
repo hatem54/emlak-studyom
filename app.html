@@ -1,0 +1,1445 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<script>
+window.addEventListener('error', function(e) {
+    if (e.error) {
+        const errDiv = document.createElement('div');
+        errDiv.style.position = 'fixed'; errDiv.style.top = '10px'; errDiv.style.left = '10px';
+        errDiv.style.background = 'black'; errDiv.style.color = 'lime'; errDiv.style.zIndex = '999999';
+        errDiv.innerText = "CUSTOM ERROR: " + e.error.stack;
+        document.body.appendChild(errDiv);
+    }
+});
+</script>
+
+<script>
+window.addEventListener('error', function(e) {
+    const errDiv = document.createElement('div');
+    errDiv.style.position = 'fixed';
+    errDiv.style.top = '0';
+    errDiv.style.left = '0';
+    errDiv.style.zIndex = '999999';
+    errDiv.style.background = 'red';
+    errDiv.style.color = 'white';
+    errDiv.style.padding = '10px';
+    errDiv.style.fontSize = '20px';
+    errDiv.innerText = 'ERROR: ' + e.message + ' at ' + e.filename + ':' + e.lineno;
+    document.body.appendChild(errDiv);
+});
+</script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Emlak Tasarım Stüdyosu - Pro v14 Modüler</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js???v=82"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@100;300;400;500;700;800;900&family=Playfair+Display:wght@400;700;800;900&family=Roboto:wght@100;300;400;500;700;900&family=Oswald:wght@200;400;500;700&family=Poppins:wght@100;300;400;500;700;800;900&family=Raleway:wght@100;300;400;500;700;800;900&family=Bebas+Neue&family=Archivo+Black&family=Libre+Baskerville:wght@400;700&family=Inter:wght@100;300;400;500;700;800;900&family=Nunito:wght@200;400;600;700;800;900&family=Lora:wght@400;500;600;700&family=Merriweather:wght@300;400;700;900&family=Dancing+Script:wght@400;500;600;700&family=Great+Vibes&family=Pacifico&family=Satisfy&family=Allura&family=Sacramento&family=Yellowtail&family=Kaushan+Script&family=Alex+Brush&family=Parisienne&family=Marck+Script&family=Cookie&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Cinzel:wght@400;500;600;700;800;900&family=Cinzel+Decorative:wght@400;700;900&family=Italiana&family=Prata&family=Josefin+Sans:wght@100;300;400;600;700&family=Abril+Fatface&family=Yeseva+One&family=Amatic+SC:wght@400;700&family=Caveat:wght@400;500;600;700&family=Shrikhand&family=Tangerine:wght@400;700&family=Berkshire+Swash&family=Yesteryear&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,300,0,0" />
+    <link rel="icon" type="image/jpeg" href="assets/logo/logo-icon.jpg">
+    <link rel="stylesheet" href="styles.css?v=991341238">
+    <!-- ⚡ SABER EFFECT ENGINE - PixiJS + Filters -->
+    <script src="https://cdn.jsdelivr.net/npm/pixi.js@7.4.0/dist/pixi.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/pixi-filters@5.2.1/dist/browser/pixi-filters.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/simplex-noise@4.0.1/dist/cjs/simplex-noise.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+    <button class="tour-restart-btn" onclick="if(window.OnboardingTour) window.OnboardingTour.restartTour()">Turu Tekrar İzle</button>
+<div style="width: 100%; max-width: 1800px; display: flex; justify-content: center; margin: 15px 0 10px 0;">
+  <a href="landing.html" class="logo">
+    <img src="assets/logo/logo.jpg" 
+         alt="EmlakStüdyom" 
+         height="40"
+         style="border-radius: 8px;">
+  </a>
+</div>
+<div class="container">
+<div class="panel">
+    <div class="tabs" id="mainTabs">
+    <button class="tab-btn active" data-tab="data" onclick="switchTab('data')" data-tooltip="Emlak detaylarını (fiyat, durum) girin">📝 Giriş</button>
+    <button class="tab-btn" data-tab="photo" onclick="switchTab('photo')" data-tooltip="Fotoğraf ayarlamaları ve filtreler">📷 Foto</button>
+    <button class="tab-btn" data-tab="draw" onclick="switchTab('draw')" data-tooltip="Serbest çizim ve ok ekleme">✏️ Çizim</button>
+    <button class="tab-btn" data-tab="canva" onclick="switchTab('canva')" data-tooltip="Kolaj ve özel şablonlar">🎨 Şablonlar</button>
+    <button class="tab-btn" data-tab="callout" onclick="switchTab('callout')" data-tooltip="Dikkat çekici etiketler">💬 Callout</button>
+    <button class="tab-btn" data-tab="icons" onclick="switchTab('icons')" data-tooltip="Emlak & iletişim ikonları">✨ İkon</button>
+    <button class="tab-btn" data-tab="font" onclick="switchTab('font')" data-tooltip="Genel yazı tipini değiştirin">🔤 Font</button>
+    <button class="tab-btn" data-tab="element" onclick="switchTab('element')" data-tooltip="Seçili nesneleri düzenleyin">🎯 Element</button>
+    <button class="tab-btn" onclick="addCustomTextOnly()" data-tooltip="Serbest şeffaf yazı ekler">✍️ Yazı Ekle</button>
+    <button class="tab-btn" onclick="addCustomTextBox()" data-tooltip="Arkaplanlı yazı kutusu ekler">🔲 Kutulu Yazı Ekle</button>
+    <button class="tab-btn" onclick="undoGlobal()" data-tooltip="Son işlemi geri alır">↩️ Geri Al</button>
+    <button class="tab-btn" onclick="redoGlobal()" data-tooltip="Geri alınan işlemi yineler">↪️ İleri Al</button>
+    <button class="tab-btn" data-tab="batch" onclick="switchTab('batch')" data-tooltip="Toplu veya farklı formatta indirin">📤 Çıktı</button>
+</div>
+
+    <!-- VERİLER -->
+    <div id="tab-data" class="dynamic-field show">
+        <div class="tabs" style="background:#1e293b;border:1px solid #334155">
+            <button class="tab-btn active" id="subKonut" onclick="switchMode('konut')">🏠 Emlak</button>
+                        <button class="tab-btn" id="subArazi" onclick="switchMode('arazi')">🌳 Arazi</button>
+            <button class="tab-btn" id="subCustom" onclick="switchMode('custom')">🛠️ Özel</button>
+        </div>
+        <div class="ai-box">
+            <textarea id="aiText" placeholder="İlan metnini yapıştır..." rows="5" style="height:110px; resize:vertical;"></textarea>
+            <button class="btn-ai" onclick="smartParse()">🤖 Metni Süz</button>
+        </div>
+        <div class="input-group"><label>📁 Arka Plan Fotoğrafı</label><input type="file" id="imageInput" accept="image/*"></div>
+        <div class="input-group" style="margin-bottom:8px"><label>🖼️ Firma Logosu (Opsiyonel)</label><input type="file" id="logoInput" accept="image/*"></div>
+        <div class="row-2">
+            <div class="input-group"><label>Durum</label><input type="text" id="statusInput" value="SATILIK EV"></div>
+            <div class="input-group"><label>Fiyat</label><input type="text" id="priceInput" value="6.750.000 TL"></div>
+        </div>
+        <div class="input-group">
+            <label>Açıklama / Ek Bilgiler</label>
+            <textarea id="descInput" rows="2" style="width:100%;padding:10px;background:rgba(0,0,0,0.2);border:1px solid #334155;color:#fff;border-radius:8px;font-size:12px;resize:vertical;transition:border-color 0.2s;" oninput="renderData()" placeholder="Örn: Merkezi konum, masrafsız..."></textarea>
+        </div>
+        <div class="section-title">📐 Standart Şablonlar</div>
+        <div class="template-grid" id="templateGrid"></div>
+        <div id="konutForm">
+            <div class="section-title">🏠 Emlak Bilgileri</div>
+            <div class="row-2"><div class="input-group"><label>Oda</label><input type="text" id="roomsInput" value="4+1"></div><div class="input-group"><label>m²</label><input type="text" id="sizeInput" value="180 m²"></div></div>
+            <div class="row-2"><div class="input-group"><label>Kat</label><input type="text" id="floorInput" value="5. Kat"></div><div class="input-group"><label>Bina Yaşı</label><input type="text" id="ageInput" value="3"></div></div>
+            <div class="row-2"><div class="input-group"><label>Isıtma</label><input type="text" id="heatingInput" value="Doğalgaz"></div><div class="input-group"><label>Banyo</label><input type="text" id="bathInput" value="2"></div></div>
+            <div id="konutExtraFields"></div>
+            <button class="btn-action btn-cyan" onclick="addExtraField('konut')">+ Bilgi Ekle</button>
+        </div>
+        <div id="araziForm" style="display:none">
+            <div class="section-title">🌳 Arazi Bilgileri</div>
+            <div class="row-2"><div class="input-group"><label>Alan</label><input type="text" id="araziSizeInput" value="2.500 m²"></div><div class="input-group"><label>İmar</label><input type="text" id="imarInput" value="Konut İmarlı"></div></div>
+            <div class="row-2"><div class="input-group"><label>Ada/Parsel</label><input type="text" id="adaParselInput" value="112 / 6"></div><div class="input-group"><label>Gabari</label><input type="text" id="gabariInput" value="3 Kat"></div></div>
+            <div class="row-2"><div class="input-group"><label>TAKS</label><input type="text" id="taksInput" value="0.30"></div><div class="input-group"><label>KAKS</label><input type="text" id="kaksInput" value="0.90"></div></div>
+            <div class="row-2"><div class="input-group"><label>Cephe</label><input type="text" id="cepheInput" value="Güney"></div><div class="input-group"><label>Tapu</label><input type="text" id="tapuInput" value="Müstakil"></div></div>
+            <div id="araziExtraFields"></div>
+            <button class="btn-action btn-cyan" onclick="addExtraField('arazi')">+ Bilgi Ekle</button>
+        </div>
+        <div id="customForm" style="display:none">
+    <div class="section-title">🛠️ Özel Emlak & Arazi Bilgileri</div>
+    <div class="row-2"><div class="input-group"><label>Oda</label><input type="text" id="c_rooms" value=""></div><div class="input-group"><label>m²</label><input type="text" id="c_size" value=""></div></div>
+    <div class="row-2"><div class="input-group"><label>Kat</label><input type="text" id="c_floor" value=""></div><div class="input-group"><label>Bina Yaşı</label><input type="text" id="c_age" value=""></div></div>
+    <div class="row-2"><div class="input-group"><label>Isıtma</label><input type="text" id="c_heating" value=""></div><div class="input-group"><label>Banyo</label><input type="text" id="c_bath" value=""></div></div>
+    <div class="row-2"><div class="input-group"><label>Arazi Alan</label><input type="text" id="c_araziSize" value=""></div><div class="input-group"><label>İmar</label><input type="text" id="c_imar" value=""></div></div>
+    <div class="row-2"><div class="input-group"><label>Ada/Parsel</label><input type="text" id="c_adaParsel" value=""></div><div class="input-group"><label>Gabari</label><input type="text" id="c_gabari" value=""></div></div>
+    <div class="row-2"><div class="input-group"><label>TAKS</label><input type="text" id="c_taks" value=""></div><div class="input-group"><label>KAKS</label><input type="text" id="c_kaks" value=""></div></div>
+    <div class="row-2"><div class="input-group"><label>Cephe</label><input type="text" id="c_cephe" value=""></div><div class="input-group"><label>Tapu</label><input type="text" id="c_tapu" value=""></div></div>
+    
+    <div class="section-title">➕ Boş Alanlar (Ekstra)</div>
+    <div class="row-2"><div class="input-group"><label>Başlık 1</label><input type="text" id="c_l1" value=""></div><div class="input-group"><label>Değer 1</label><input type="text" id="c_v1" value=""></div></div>
+    <div class="row-2"><div class="input-group"><label>Başlık 2</label><input type="text" id="c_l2" value=""></div><div class="input-group"><label>Değer 2</label><input type="text" id="c_v2" value=""></div></div>
+    <div class="row-2"><div class="input-group"><label>Başlık 3</label><input type="text" id="c_l3" value=""></div><div class="input-group"><label>Değer 3</label><input type="text" id="c_v3" value=""></div></div>
+    <div class="row-2"><div class="input-group"><label>Başlık 4</label><input type="text" id="c_l4" value=""></div><div class="input-group"><label>Değer 4</label><input type="text" id="c_v4" value=""></div></div>
+
+    <div class="section-title">💻 Gelişmiş</div>
+    <div class="input-group"><label>Özel HTML Kodu</label><textarea id="customHtml" style="height:60px"></textarea></div>
+    <button class="btn-action btn-purple" onclick="applyCustomCode()">Uygula</button>
+</div>
+</div>
+
+    <!-- İKONLAR -->
+    <div id="tab-icons" class="dynamic-field">
+        <p class="info-text">Kategori seç → İkona tıkla ekle → "🎯 Eleman" ile düzenle</p>
+        <div class="input-group">
+            <label>Kategori</label>
+            <select id="iconCategory" onchange="renderIconPool()"></select>
+        </div>
+        <div id="lucideSearchWrapper" class="input-group" style="display:none; margin-top:5px;">
+            <input type="text" id="lucideSearch" placeholder="İkon Ara (örn: ev, araba, home)" oninput="filterLucideIcons(this.value)" style="width:100%; padding:8px; border-radius:5px; border:1px solid #cbd5e1;">
+        </div>
+        <div class="icon-pool" id="iconPool"></div>
+        <div class="row-2"><button class="btn-action btn-red" onclick="deleteSelected()">🗑️ Seçili Sil</button><button class="btn-action btn-red" style="opacity:.7" onclick="deleteAllIcons()">🗑️ Tümü Sil</button></div>
+        <p class="info-text" style="margin-top:4px">Eklenen: <strong id="iconCount">0</strong></p>
+    </div>
+
+    <!-- FOTO -->
+    <div id="tab-photo" class="dynamic-field">
+        <div class="section-title">✨ Yapay Zeka & Presetler</div>
+<button class="btn-action btn-blue" onclick="autoEnhancePhoto()" style="margin-bottom:8px; width:100%; display:flex; align-items:center; justify-content:center; gap:8px; background: linear-gradient(45deg, #3b82f6, #8b5cf6); border: none; font-weight: bold; padding: 10px; border-radius: 6px;">
+    <i class="fa-solid fa-wand-magic-sparkles"></i> Otomatik İyileştir (AI)
+</button>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:3px;margin-bottom:6px">
+            <button class="preset-btn" onclick="applyPreset('original')">🔄 Orijinal</button>
+            <button class="preset-btn" onclick="applyPreset('bright')">☀️ Aydınlık</button>
+            <button class="preset-btn" onclick="applyPreset('dark')">🌙 Karanlık</button>
+            <button class="preset-btn" onclick="applyPreset('vivid')">🎨 Canlı</button>
+            <button class="preset-btn" onclick="applyPreset('warm')">🔥 Sıcak</button>
+            <button class="preset-btn" onclick="applyPreset('cool')">❄️ Soğuk</button>
+            <button class="preset-btn" onclick="applyPreset('cinematic')">🎬 Sinema</button>
+            <button class="preset-btn" onclick="applyPreset('vintage')">📷 Vintage</button>
+            <button class="preset-btn" onclick="applyPreset('luxury')">💎 Lüks</button>
+          </div>
+          <button id="btnBeforeAfter" class="btn-action" style="margin-top:6px; margin-bottom:6px; width:100%; background-color:#334155; color:#cbd5e1; border:1px solid #475569; padding:8px; border-radius:6px; cursor:pointer; font-size:13px; transition:all 0.2s;" onclick="toggleBeforeAfter()">
+              <i class="fa-solid fa-code-compare"></i> Öncesi / Sonrası Karşılaştır
+          </button>
+        
+        <div class="section-title">💡 Işık Ayarları (PRO)</div>
+        <div class="slider-group"><label><span>☀️ Parlaklık</span><span id="exposureVal">100%</span></label><input type="range" id="exposure" min="0" max="300" value="100"></div>
+        <div class="slider-group"><label><span>🌙 Kontrast</span><span id="contrastVal">100%</span></label><input type="range" id="contrast" min="0" max="300" value="100"></div>
+        <div class="slider-group"><label><span>🌑 Gölgeleri Aç/Kapa</span><span id="shadowsVal">0</span></label><input type="range" id="shadowsCtrl" min="-100" max="100" value="0"></div>
+        <div class="slider-group"><label><span>☀️ Parlak Alanları Kıs</span><span id="highlightsVal">0</span></label><input type="range" id="highlightsCtrl" min="-100" max="100" value="0"></div>
+        <div class="slider-group"><label><span>⚫ Siyahlar</span><span id="blacksVal">0</span></label><input type="range" id="blacksCtrl" min="-100" max="100" value="0"></div>
+        <div class="slider-group"><label><span>⚪ Beyazlar</span><span id="whitesVal">0</span></label><input type="range" id="whitesCtrl" min="-100" max="100" value="0"></div>
+        <div class="section-title">🎨 Renk & Ton (PRO)</div>
+        <div class="slider-group"><label><span>🎨 Doygunluk</span><span id="saturateVal">100%</span></label><input type="range" id="saturate" min="0" max="400" value="100"></div>
+        <div class="slider-group"><label><span>🔥 Canlılık (Vibrance)</span><span id="vibranceVal">0</span></label><input type="range" id="vibranceCtrl" min="-100" max="100" value="0"></div>
+          
+<style>
+.hsl-tab-btn { flex:1; background:#334155; color:#cbd5e1; border:none; padding:6px; border-radius:4px; cursor:pointer; font-size:11px; font-weight:bold; }
+.hsl-tab-btn.active { background:#3b82f6; color:#fff; }
+details.hsl-accordion > summary::-webkit-details-marker { display: none; }
+</details>
+
+/* Zoom ayarı ile Callout Pool ve Neon Pool içi görünümler küçültülür */
+#calloutPool .callout-item, #neonCalloutPool .co-neon-block {
+    zoom: 0.55;
+    margin: 10px !important;
+}
+</style>
+<details class="hsl-accordion" style="margin-bottom: 15px; margin-top: 10px; background: #0f172a; border-radius: 6px; overflow: hidden; border: 1px solid #1e293b;">
+    <summary style="padding: 12px; cursor: pointer; color: #e2e8f0; font-weight: bold; list-style: none; display: flex; justify-content: space-between; align-items: center;" onclick="this.querySelector('i').classList.toggle('fa-chevron-up'); this.querySelector('i').classList.toggle('fa-chevron-down');">
+        <span><i class="fa-solid fa-palette"></i> Ayrıntılı Renk (HSL)</span>
+        <i class="fa-solid fa-chevron-down" style="font-size:12px; color:#94a3b8;"></i>
+    </summary>
+    <div style="padding: 12px; border-top: 1px solid #1e293b;">
+        <div style="display: flex; gap: 5px; margin-bottom: 15px;">
+            <button class="hsl-tab-btn active" onclick="switchHSLTab(this, 'h')">Ton (Hue)</button>
+            <button class="hsl-tab-btn" onclick="switchHSLTab(this, 's')">Doygun</button>
+            <button class="hsl-tab-btn" onclick="switchHSLTab(this, 'l')">Işık</button>
+        </div>
+        <div id="hsl-tab-h" class="hsl-tab-content">
+            <div class="slider-group"><label><span style="color:#ef4444">🔴 Kırmızı</span><span id="hsl_h_redVal">0</span></label><input type="range" class="hsl-slider" data-type="h" data-color="red" min="-100" max="100" value="0"></div>
+<div class="slider-group"><label><span style="color:#f97316">🟠 Turuncu</span><span id="hsl_h_orangeVal">0</span></label><input type="range" class="hsl-slider" data-type="h" data-color="orange" min="-100" max="100" value="0"></div>
+<div class="slider-group"><label><span style="color:#eab308">🟡 Sarı</span><span id="hsl_h_yellowVal">0</span></label><input type="range" class="hsl-slider" data-type="h" data-color="yellow" min="-100" max="100" value="0"></div>
+<div class="slider-group"><label><span style="color:#22c55e">🟢 Yeşil</span><span id="hsl_h_greenVal">0</span></label><input type="range" class="hsl-slider" data-type="h" data-color="green" min="-100" max="100" value="0"></div>
+<div class="slider-group"><label><span style="color:#3b82f6">🔵 Mavi</span><span id="hsl_h_blueVal">0</span></label><input type="range" class="hsl-slider" data-type="h" data-color="blue" min="-100" max="100" value="0"></div>
+<div class="slider-group"><label><span style="color:#a855f7">🟣 Mor</span><span id="hsl_h_purpleVal">0</span></label><input type="range" class="hsl-slider" data-type="h" data-color="purple" min="-100" max="100" value="0"></div>
+
+        </div>
+        <div id="hsl-tab-s" class="hsl-tab-content" style="display:none;">
+            <div class="slider-group"><label><span style="color:#ef4444">🔴 Kırmızı</span><span id="hsl_s_redVal">0</span></label><input type="range" class="hsl-slider" data-type="s" data-color="red" min="-100" max="100" value="0"></div>
+<div class="slider-group"><label><span style="color:#f97316">🟠 Turuncu</span><span id="hsl_s_orangeVal">0</span></label><input type="range" class="hsl-slider" data-type="s" data-color="orange" min="-100" max="100" value="0"></div>
+<div class="slider-group"><label><span style="color:#eab308">🟡 Sarı</span><span id="hsl_s_yellowVal">0</span></label><input type="range" class="hsl-slider" data-type="s" data-color="yellow" min="-100" max="100" value="0"></div>
+<div class="slider-group"><label><span style="color:#22c55e">🟢 Yeşil</span><span id="hsl_s_greenVal">0</span></label><input type="range" class="hsl-slider" data-type="s" data-color="green" min="-100" max="100" value="0"></div>
+<div class="slider-group"><label><span style="color:#3b82f6">🔵 Mavi</span><span id="hsl_s_blueVal">0</span></label><input type="range" class="hsl-slider" data-type="s" data-color="blue" min="-100" max="100" value="0"></div>
+<div class="slider-group"><label><span style="color:#a855f7">🟣 Mor</span><span id="hsl_s_purpleVal">0</span></label><input type="range" class="hsl-slider" data-type="s" data-color="purple" min="-100" max="100" value="0"></div>
+
+        </div>
+        <div id="hsl-tab-l" class="hsl-tab-content" style="display:none;">
+            <div class="slider-group"><label><span style="color:#ef4444">🔴 Kırmızı</span><span id="hsl_l_redVal">0</span></label><input type="range" class="hsl-slider" data-type="l" data-color="red" min="-100" max="100" value="0"></div>
+<div class="slider-group"><label><span style="color:#f97316">🟠 Turuncu</span><span id="hsl_l_orangeVal">0</span></label><input type="range" class="hsl-slider" data-type="l" data-color="orange" min="-100" max="100" value="0"></div>
+<div class="slider-group"><label><span style="color:#eab308">🟡 Sarı</span><span id="hsl_l_yellowVal">0</span></label><input type="range" class="hsl-slider" data-type="l" data-color="yellow" min="-100" max="100" value="0"></div>
+<div class="slider-group"><label><span style="color:#22c55e">🟢 Yeşil</span><span id="hsl_l_greenVal">0</span></label><input type="range" class="hsl-slider" data-type="l" data-color="green" min="-100" max="100" value="0"></div>
+<div class="slider-group"><label><span style="color:#3b82f6">🔵 Mavi</span><span id="hsl_l_blueVal">0</span></label><input type="range" class="hsl-slider" data-type="l" data-color="blue" min="-100" max="100" value="0"></div>
+<div class="slider-group"><label><span style="color:#a855f7">🟣 Mor</span><span id="hsl_l_purpleVal">0</span></label><input type="range" class="hsl-slider" data-type="l" data-color="purple" min="-100" max="100" value="0"></div>
+
+        </div>
+    </div>
+</details>
+
+<script>
+function switchHSLTab(btn, type) {
+    btn.parentElement.querySelectorAll('.hsl-tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('.hsl-tab-content').forEach(c => c.style.display = 'none');
+    document.getElementById('hsl-tab-' + type).style.display = 'block';
+}
+</script>
+<div class="slider-group"><label><span>🌡️ Sıcaklık (Warm/Cool)</span><span id="tempVal">0</span></label><input type="range" id="tempCtrl" min="-100" max="100" value="0"></div>
+        <div class="slider-group"><label><span>💚 Ton (Magenta/Green)</span><span id="tintVal">0</span></label><input type="range" id="tintCtrl" min="-100" max="100" value="0"></div>
+        <div class="slider-group"><label><span>🔄 Renk Kaydırma (Hue)</span><span id="hueRotateVal">0°</span></label><input type="range" id="hueRotate" min="-180" max="180" value="0"></div>
+        <div class="section-title">🔬 Netlik & Detay (PRO)</div>
+        <div class="slider-group"><label><span>🔬 Keskinlik</span><span id="sharpnessVal">0</span></label><input type="range" id="sharpnessCtrl" min="0" max="100" value="0"></div>
+        <div class="slider-group"><label><span>💧 Bulanıklık</span><span id="fblurVal">0px</span></label><input type="range" id="fblur" min="0" max="50" value="0"></div>
+        <div class="slider-group"><label><span>📐 Netlik (Clarity)</span><span id="clarityVal">0</span></label><input type="range" id="clarityCtrl" min="0" max="100" value="0"></div>
+        <div class="slider-group"><label><span>🌫️ Sis Gider</span><span id="dehazeVal">0</span></label><input type="range" id="dehazeCtrl" min="0" max="100" value="0"></div>
+        <div class="section-title">🎭 Efektler</div>
+        <div class="slider-group"><label><span>📷 Sepia</span><span id="sepiaVal">0%</span></label><input type="range" id="sepia" min="0" max="100" value="0"></div>
+        <div class="slider-group"><label><span>⬛ Siyah-Beyaz</span><span id="grayscaleVal">0%</span></label><input type="range" id="grayscale" min="0" max="100" value="0"></div>
+        <div class="slider-group"><label><span>🔃 Negatif (Invert)</span><span id="invertVal">0%</span></label><input type="range" id="invertCtrl" min="0" max="100" value="0"></div>
+        <div class="slider-group"><label><span>🌑 Vignette Yoğunluk</span><span id="vignetteVal">0%</span></label><input type="range" id="vignette" min="0" max="100" value="0"></div>
+        <button class="btn-action btn-yellow" onclick="resetFilters()">🔄 Tüm Filtreleri Sıfırla</button>
+    </div>
+
+    <!-- ELEMAN -->
+    <div id="tab-element" class="dynamic-field">
+        <div id="noSelMsg" class="no-sel-msg">Eleman seçilmedi.<br>Tuvalde bir öğeye <b>tek tıkla seç</b>, <b>çift tıkla düzenle</b>.</div>
+        <div id="elSettings" style="display:none">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+                <span class="section-title" style="margin:0;border:none">🎯 <span id="elLabel">Eleman</span></span>
+                <button class="btn-action btn-red" style="width:auto;margin:0;padding:3px 8px;font-size:9px" onclick="deleteSelected()">🗑️ Sil</button>
+            </div>
+            <div class="edit-hint">✍️ Yazıyı değiştirmek için tuvalde ÇİFT TIKLA</div>
+            <div class="settings-box">
+                <div class="section-title" style="margin-top:0">📏 Boyut & Konum</div>
+                <div class="slider-group"><label><span>Yazı Boyutu</span><span id="elFontSizeVal">32</span></label><input type="range" id="elFontSize" min="12" max="300" value="32"></div>
+                <div class="slider-group"><label><span>İç Boşluk (Padding)</span><span id="elPaddingVal">15</span></label><input type="range" id="elPadding" min="0" max="150" value="15"></div>
+                <div class="slider-group"><label><span>Genişlik (Panel)</span><span id="elWidthVal">Otomatik</span></label><input type="range" id="elWidth" min="0" max="1920" value="0"></div>
+                <div class="slider-group"><label><span>Yükseklik (Panel)</span><span id="elHeightVal">Otomatik</span></label><input type="range" id="elHeight" min="0" max="1080" value="0"></div>
+                <div class="section-title">🎨 Renkler</div>
+                <div class="color-row"><label>Yazı Rengi</label><input type="color" id="elTextColor" value="#ffffff"></div>
+                <div class="color-row"><label>Arka Plan Rengi</label><input type="color" id="elBgColor" value="#0f172a"></div>
+                <div class="slider-group"><label><span>Arka Plan Opaklık</span><span id="elBgOpacityVal">85%</span></label><input type="range" id="elBgOpacity" min="0" max="100" value="85"></div>
+                <div class="section-title">✨ Görünüm & Köşeler</div>
+                <div class="slider-group"><label><span>Köşe Yuvarlaklığı (Oval)</span><span id="elRadiusVal">8</span></label><input type="range" id="elRadius" min="0" max="200" value="8"></div>
+                <div class="slider-group"><label><span>Genel Opaklık</span><span id="elOpacityVal">100%</span></label><input type="range" id="elOpacity" min="0" max="100" value="100"></div>
+                <div class="slider-group"><label><span>Döndürme</span><span id="elRotateVal">0°</span></label><input type="range" id="elRotate" min="-180" max="180" value="0"></div>
+                <div class="slider-group"><label><span>Gölge</span><span id="elShadowVal">0</span></label><input type="range" id="elShadow" min="0" max="100" value="0"></div>
+                <div class="slider-group"><label><span>Bulanıklık (Blur)</span><span id="elBlurVal">0</span></label><input type="range" id="elBlur" min="0" max="60" value="0"></div>
+                <div class="section-title">🔲 Kenarlık (Border)</div>
+                <div class="color-row"><label>Kenarlık Rengi</label><input type="color" id="elBorderColor" value="#38bdf8"></div>
+                <div class="slider-group"><label><span>Kalınlık</span><span id="elBorderWidthVal">0</span></label><input type="range" id="elBorderWidth" min="0" max="30" value="0"></div>
+            </div>
+            <div class="el-font-box">
+                <div class="section-title" style="margin-top:0">🔤 Bu Elemanın Fontu</div>
+                <p class="info-text">Boş bırakırsan genel font kullanılır</p>
+                <div class="input-group"><label>Font Ailesi</label>
+                    <select id="elFontFamily" onchange="applyElFont()"><option value="">-- Genel Font --</option></select>
+                </div>
+                <div class="row-2">
+                    <div class="input-group"><label>Kalınlık (Preset)</label>
+                        <select id="elFontWeight2" onchange="applyElFont()">
+                            <option value="">-- Genel --</option>
+                            <option value="100">100 - Thin</option>
+                            <option value="200">200 - Extra Light</option>
+                            <option value="300">300 - Light</option>
+                            <option value="400">400 - Normal</option>
+                            <option value="500">500 - Medium</option>
+                            <option value="600">600 - Semi Bold</option>
+                            <option value="700">700 - Bold</option>
+                            <option value="800">800 - Extra Bold</option>
+                            <option value="900">900 - Black</option>
+                        </select>
+                    </div>
+                    <div class="input-group"><label>Stil</label>
+                        <select id="elFontStyle2" onchange="applyElFont()"><option value="">Genel</option><option value="normal">Normal</option><option value="italic">İtalik</option></select>
+                    </div>
+                </div>
+                <div class="slider-group"><label><span>Kalınlık İnce Ayar</span><span id="elWeightVal">700</span></label><input type="range" id="elWeightSlider" min="100" max="900" step="100" value="700" oninput="applyElWeight()"></div>
+                <div class="slider-group"><label><span>Harf Aralığı</span><span id="elLetterSpVal">0</span></label><input type="range" id="elLetterSp" min="-10" max="30" value="0" oninput="applyElFont()"></div>
+            </div>
+            <!-- YAZI ICIN SABER UI -->
+            <div class="saber-settings-panel" style="margin-top:10px; border-top:1px solid #334155; padding-top:10px;">
+                <div class="section-title" style="margin-top:0">⚡ Saber Ekle</div>
+                <label style="display:flex;align-items:center;gap:6px;font-size:12px;margin-bottom:8px;cursor:pointer">
+                    <input type="checkbox" id="elTextSaber" onchange="applyTextSaberToggle()"> Saber Aktif
+                </label>
+                
+                <div id="textSaberOptions" style="display:none; background:rgba(0,0,0,0.2); padding:10px; border-radius:6px; margin-bottom:10px;">
+                    <div>
+                        <div style="font-size:11px; font-weight:800; color:rgba(0,206,201,0.9); margin-bottom:8px; text-transform:uppercase; letter-spacing:1px;">Efekt Tipi</div>
+                        <div id="textSaberPresets" class="sep-preset-grid"></div>
+                    </div>
+                    
+                    <div style="margin-top:12px;">
+                        <div style="font-size:11px; font-weight:800; color:rgba(0,206,201,0.9); margin-bottom:8px; text-transform:uppercase; letter-spacing:1px;">Renk</div>
+                        <div id="textSaberColors" class="sep-color-grid"></div>
+                        <div class="saber-custom-color" style="margin-top:8px">
+                            <label style="font-size:10px">Parlama: <input type="color" id="textSaberCustomGlow" value="#00AAFF" oninput="applyTextSaberOpts()"></label>
+                            <label style="font-size:10px">Core: <input type="color" id="textSaberCustomCore" value="#FFFFFF" oninput="applyTextSaberOpts()"></label>
+                        </div>
+                    </div>
+
+                    <div style="margin-top:12px;">
+                        <div class="sep-slider-row">
+                            <label>Kalınlık</label>
+                            <input type="range" id="textSaberCoreSize" min="1" max="20" value="4" oninput="applyTextSaberOpts()">
+                            <span id="textSaberCoreSizeVal" style="width:20px;text-align:right">4</span>
+                        </div>
+                        <div class="sep-slider-row">
+                            <label>Parlama</label>
+                            <input type="range" id="textSaberGlowSize" min="5" max="80" value="30" oninput="applyTextSaberOpts()">
+                            <span id="textSaberGlowSizeVal" style="width:20px;text-align:right">30</span>
+                        </div>
+                        <div class="sep-slider-row">
+                            <label>Şiddet</label>
+                            <input type="range" id="textSaberIntensity" min="1" max="6" step="0.1" value="2.5" oninput="applyTextSaberOpts()">
+                            <span id="textSaberIntensityVal" style="width:20px;text-align:right">2.5</span>
+                        </div>
+                        <div class="sep-slider-row">
+                            <label>Titreme</label>
+                            <input type="range" id="textSaberFlicker" min="0" max="50" value="5" oninput="applyTextSaberOpts()">
+                            <span id="textSaberFlickerVal" style="width:20px;text-align:right">5</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+        <div class="row-2" style="margin-top:6px">
+                <button class="btn-action btn-blue" onclick="undoGlobal()">↩️ Geri Al</button>
+                <button class="btn-action btn-blue" onclick="redoGlobal()">↪️ İleri Al</button>
+            </div>
+            <div class="row-2" style="margin-top:6px">
+                <button class="btn-action btn-yellow" onclick="resetElSettings()">🔄 Sıfırla</button>
+                <button class="btn-action btn-purple" onclick="duplicateSelected()">📋 Kopyala</button>
+            </div>
+    </div>
+
+    <!-- FONT -->
+    <div id="tab-font" class="dynamic-field">
+        <div class="section-title">🔤 Genel Yazı Tipi</div>
+        <p class="info-text">40+ şık font ile Canva kalitesinde tasarım</p>
+        <div class="input-group"><label>Hızlı Seçim</label>
+            <select id="fontQuickSelect" onchange="applyFontFromSelect()"><option value="">-- Font Seçin --</option></select>
+        </div>
+        <div class="section-title">📋 Font Önizleme (Kategorize)</div>
+        <div class="font-grid" id="fontGrid"></div>
+        <div class="section-title">🎛️ Genel Metin Stil</div>
+        <div class="row-2">
+            <div class="input-group"><label>Kalınlık</label>
+                <select id="fontWeight">
+                    <option value="100">100 - Thin</option><option value="200">200 - Extra Light</option>
+                    <option value="300">300 - Light</option><option value="400">400 - Normal</option>
+                    <option value="500">500 - Medium</option><option value="600">600 - Semi Bold</option>
+                    <option value="700" selected>700 - Bold</option><option value="800">800 - Extra Bold</option>
+                    <option value="900">900 - Black</option>
+                </select>
+            </div>
+            <div class="input-group"><label>Stil</label><select id="fontStyle"><option value="normal">Normal</option><option value="italic">İtalik</option></select></div>
+        </div>
+        <div class="slider-group"><label><span>Genel Kalınlık Slider</span><span id="fontWeightSliderVal">700</span></label><input type="range" id="fontWeightSlider" min="100" max="900" step="100" value="700"></div>
+        <div class="slider-group"><label><span>Harf Aralığı</span><span id="letterSpacingVal">0px</span></label><input type="range" id="letterSpacing" min="-10" max="40" value="0"></div>
+        <div class="slider-group"><label><span>Satır Yüksekliği</span><span id="lineHeightVal">1.6</span></label><input type="range" id="lineHeight" min="8" max="40" value="16"></div>
+        <div class="input-group"><label>Metin Hizalama</label><select id="textAlign"><option value="left">Sola</option><option value="center">Ortala</option><option value="right">Sağa</option></select></div>
+        <div class="section-title">✨ Metin Efektleri</div>
+        <div class="color-row"><label>Gölge Rengi</label><input type="color" id="textShadowColor" value="#000000"></div>
+        <div class="slider-group"><label><span>Gölge</span><span id="textShadowVal">0</span></label><input type="range" id="textShadow" min="0" max="40" value="0"></div>
+        <div class="input-group"><label>Dönüşüm</label><select id="textTransform"><option value="none">Normal</option><option value="uppercase" selected>BÜYÜK HARF</option><option value="lowercase">küçük</option><option value="capitalize">İlk Büyük</option></select></div>
+    </div>
+
+
+    <!-- ÇİZİM -->
+    <div id="tab-draw" class="dynamic-field">
+        <div class="section-title">✏️ Çizim Modu</div>
+        <div class="draw-mode-btns">
+            <button class="draw-mode-btn active" id="dmOff" onclick="setDrawMode('off')">🚫 Kapalı</button>
+            <button class="draw-mode-btn" id="dmFree" onclick="setDrawMode('free')">✏️ Serbest</button>
+            <button class="draw-mode-btn" id="dmLine" onclick="setDrawMode('line')">📏 Düz</button>
+            <button class="draw-mode-btn" id="dmArrow" onclick="setDrawMode('arrow')">➡️ Ok</button>
+            <button class="draw-mode-btn" id="dmRect" onclick="setDrawMode('rect')">⬜ Kare</button>
+            <button class="draw-mode-btn" id="dmCircle" onclick="setDrawMode('circle')">⭕ Daire</button>
+            <button class="draw-mode-btn" id="dmPoly" onclick="setDrawMode('polygon')">🔷 Çokgen</button>
+        </div>
+        <div class="draw-indicator" id="drawIndicator">✏️ ÇİZİM AKTİF — Tuval üzerinde çizin</div>
+        <div id="polyInfo" style="display:none;background:#1e293b;border:1px solid #f59e0b;border-radius:5px;padding:6px;margin-bottom:6px;font-size:10px;color:#fbbf24">
+            🔷 <b>Çokgen:</b> Tıklayarak köşe ekle. <b>Çift tıkla</b> veya butona bas.<br>
+            <button class="btn-action btn-yellow" style="margin-top:4px;padding:5px" onclick="closePolygon()">✅ Çokgeni Kapat</button>
+            <label style="display:flex; align-items:center; gap:8px; margin-top:8px; cursor:pointer; font-size:13px; color:#e2e8f0;"><input type="checkbox" id="polyShowVertices" checked> Köşelerde Nokta Bırak</label>
+        </div>
+        <!-- ⚡ SABER EFEKTİ - AÇILIR BÖLÜM -->
+        <div class="saber-accordion">
+            <button class="saber-accordion-header" id="saberAccordionToggle" type="button">
+                <span class="saber-accordion-icon">⚡</span>
+                <span class="saber-accordion-title">SABER EFEKTİ</span>
+                <span class="saber-accordion-badge">PRO</span>
+                <span class="saber-accordion-arrow">▼</span>
+            </button>
+            
+            <div class="saber-accordion-content" id="saberAccordionContent" style="display:none;">
+                
+                <div class="saber-header">
+                    <label class="saber-toggle">
+                        <input type="checkbox" id="saberModeToggle">
+                        <span class="saber-toggle-slider"></span>
+                        <span class="saber-toggle-label">Saber Modunu Aktifleştir</span>
+                    </label>
+                </div>
+
+                <div class="saber-section">
+                    <div class="saber-section-title">✨ EFEKT TİPİ</div>
+                    <div class="saber-preset-grid" id="saberPresetGrid">
+                        <!-- JS ile doldurulacak -->
+                    </div>
+                </div>
+
+                <div class="saber-section">
+                    <div class="saber-section-title">🎨 RENK</div>
+                    <div class="saber-color-grid" id="saberColorGrid">
+                        <!-- JS ile doldurulacak -->
+                    </div>
+                    <div class="saber-custom-color">
+                        <label>Parlama: <input type="color" id="saberCustomGlow" value="#00AAFF"></label>
+                        <label>Core: <input type="color" id="saberCustomCore" value="#FFFFFF"></label>
+                    </div>
+                </div>
+
+                <div class="saber-section">
+                    <div class="saber-section-title">⚙️ AYARLAR</div>
+                    
+                    <div class="saber-slider-row">
+                        <label>Kalınlık</label>
+                        <input type="range" id="saberCoreSize" min="1" max="20" value="4">
+                        <span id="saberCoreSizeVal">4</span>
+                    </div>
+                    
+                    <div class="saber-slider-row">
+                        <label>Parlama</label>
+                        <input type="range" id="saberGlowSize" min="5" max="80" value="30">
+                        <span id="saberGlowSizeVal">30</span>
+                    </div>
+                    
+                    <div class="saber-slider-row">
+                        <label>Şiddet</label>
+                        <input type="range" id="saberIntensity" min="1" max="6" step="0.1" value="2.5">
+                        <span id="saberIntensityVal">2.5</span>
+                    </div>
+                    
+                    <div class="saber-slider-row">
+                        <label>Titreme</label>
+                        <input type="range" id="saberFlicker" min="0" max="50" value="5">
+                        <span id="saberFlickerVal">5</span>
+                    </div>
+                    
+                    <div class="saber-slider-row">
+                        <label>Nabız Hızı</label>
+                        <input type="range" id="saberPulse" min="0" max="10" step="0.5" value="0">
+                        <span id="saberPulseVal">0</span>
+                    </div>
+                </div>
+
+                <div class="saber-section">
+                    <button id="saberClearBtn" class="saber-btn saber-btn-danger">
+                        🗑️ Tüm Saber Çizimlerini Sil
+                    </button>
+                </div>
+
+                <div class="saber-info">
+                    💡 Saber Modu aktifken çizdiğiniz her şey 
+                    seçtiğiniz efektle uygulanır.
+                </div>
+            </div>
+        </div>
+
+        <div class="section-title">🎨 Çizim Ayarları</div>
+        <div class="color-row"><label>Çizgi Rengi</label><input type="color" id="drawColor" value="#ef4444"></div>
+        <div class="slider-group"><label><span>Kalınlık</span><span id="drawWidthVal">4px</span></label><input type="range" id="drawWidth" min="1" max="40" value="4"></div>
+        <div class="slider-group"><label><span>Opaklık</span><span id="drawOpacityVal">100%</span></label><input type="range" id="drawOpacity" min="10" max="100" value="100"></div>
+        <div class="input-group"><label>Çizgi Stili</label>
+            <select id="drawDash"><option value="solid">Düz</option><option value="dashed">Kesikli</option><option value="dotted">Noktalı</option></select>
+        </div>
+        <div class="section-title">🔲 Dolgu</div>
+        <div class="color-row"><label>Dolgu Rengi</label><input type="color" id="fillColor" value="#ef4444"></div>
+        <div class="slider-group"><label><span>Dolgu Opaklık</span><span id="fillOpacityVal">0%</span></label><input type="range" id="fillOpacity" min="0" max="100" value="0"></div>
+        <div class="section-title">📜 Çizim Geçmişi</div>
+        <div class="draw-history" id="drawHistory"><div style="text-align:center;color:#475569;font-size:10px;padding:8px">Henüz çizim yok</div></div>
+        <div id="drawEditPanel" style="display:none" class="settings-box">
+            <div class="section-title" style="margin-top:0">✏️ Düzenle — <span id="drawEditLabel">#1</span></div>
+            <div class="color-row"><label>Çizgi Rengi</label><input type="color" id="deColor" value="#ef4444"></div>
+            <div class="slider-group"><label><span>Kalınlık</span><span id="deWidthVal">4</span></label><input type="range" id="deWidth" min="1" max="40" value="4"></div>
+            <div class="slider-group"><label><span>Opaklık</span><span id="deOpacityVal">100%</span></label><input type="range" id="deOpacity" min="10" max="100" value="100"></div>
+            <div class="color-row"><label>Dolgu Rengi</label><input type="color" id="deFillColor" value="#ef4444"></div>
+            <div class="slider-group"><label><span>Dolgu Opaklık</span><span id="deFillOpVal">0%</span></label><input type="range" id="deFillOp" min="0" max="100" value="0"></div>
+            <label style="display:flex; align-items:center; gap:8px; margin-top:8px; cursor:pointer; font-size:13px; color:#e2e8f0;"><input type="checkbox" id="dePolyShowVertices" checked> Köşelerde Nokta Bırak</label>
+            
+            <hr style="border:0;border-top:1px solid rgba(108, 92, 231, 0.2);margin:16px 0 12px 0;">
+            <div class="section-title" style="color:#00CEC9; margin-top:0">⚡ SABER EFEKTİ</div>
+            <label style="display:flex; align-items:center; gap:8px; margin-bottom:12px; cursor:pointer; font-size:13px; color:#e2e8f0; font-weight:bold;">
+                <input type="checkbox" id="deSaberToggle" onchange="liveUpdateDrawEdit()"> Aktif
+            </label>
+            
+            <div id="deSaberSettings" style="display:none; flex-direction:column; gap:12px;">
+                <div>
+                    <div style="font-size:11px; font-weight:800; color:rgba(0,206,201,0.9); margin-bottom:8px; text-transform:uppercase; letter-spacing:1px;">Efekt Tipi</div>
+                    <div id="deSaberPresets" class="sep-preset-grid"></div>
+                </div>
+                
+                <div>
+                    <div style="font-size:11px; font-weight:800; color:rgba(0,206,201,0.9); margin-bottom:8px; text-transform:uppercase; letter-spacing:1px;">Renk</div>
+                    <div id="deSaberColors" class="sep-color-grid"></div>
+                </div>
+                
+                <div>
+                    <div class="sep-slider-row">
+                        <label>Kalınlık</label>
+                        <input type="range" id="deSaberCoreSize" min="1" max="20" value="4" oninput="liveUpdateDrawEdit()">
+                        <span id="deSaberCoreSizeVal">4</span>
+                    </div>
+                    <div class="sep-slider-row">
+                        <label>Parlama</label>
+                        <input type="range" id="deSaberGlowSize" min="5" max="80" value="30" oninput="liveUpdateDrawEdit()">
+                        <span id="deSaberGlowSizeVal">30</span>
+                    </div>
+                    <div class="sep-slider-row">
+                        <label>Şiddet</label>
+                        <input type="range" id="deSaberIntensity" min="1" max="6" step="0.1" value="2.5" oninput="liveUpdateDrawEdit()">
+                        <span id="deSaberIntensityVal">2.5</span>
+                    </div>
+                    <div class="sep-slider-row">
+                        <label>Titreme</label>
+                        <input type="range" id="deSaberFlicker" min="0" max="50" value="5" oninput="liveUpdateDrawEdit()">
+                        <span id="deSaberFlickerVal">5</span>
+                    </div>
+                    <div class="sep-slider-row">
+                        <label>Nabız Hızı</label>
+                        <input type="range" id="deSaberPulse" min="0" max="10" step="0.5" value="0" oninput="liveUpdateDrawEdit()">
+                        <span id="deSaberPulseVal">0</span>
+                    </div>
+                </div>
+            </div>
+            <hr style="border:0;border-top:1px solid rgba(108, 92, 231, 0.2);margin:12px 0 16px 0;">
+
+            <div class="row-2">
+                <button class="btn-action btn-green" onclick="applyDrawEdit()">✅ Güncelle</button>
+                <button class="btn-action btn-yellow" onclick="cancelDrawEdit()">❌ İptal</button>
+            </div>
+        </div>
+        <div class="row-2" style="margin-top:6px"><button class="btn-action btn-red" onclick="undoLastDraw()">↩️ Geri</button><button class="btn-action btn-red" style="opacity:.7" onclick="clearAllDrawings()">🗑️ Temizle</button></div>
+
+    </div>
+
+    <!-- CANVA -->
+<div id="tab-canva" class="dynamic-field">
+    <div class="edit-hint" style="margin-bottom:8px">💡 İlgili kategorinin üstüne tıklayarak şablonları görebilirsiniz.</div>
+    <div id="template-accordion-container" class="accordion-container"></div>
+</div>
+
+<!-- ✅ CALLOUT PANEL -->
+<div id="tab-callout" class="dynamic-field">
+
+    <!-- İKON AYARLARI PANELİ (seçilince açılır) -->
+    <div id="calloutSettingsPanel" style="display:none; background:#1e293b; border:1px solid #334155; border-radius:10px; padding:12px; margin-bottom:12px;">
+        <div style="font-size:11px; font-weight:700; color:#60a5fa; text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">⚙️ Seçili İkon Ayarları</div>
+
+        <!-- İkon Rengi -->
+        <div class="color-row">
+            <label ondblclick="resetCalloutSetting('iconColor')" style="cursor:pointer;" title="Varsayılana dönmek için çift tıklayın">🎨 İkon Rengi</label>
+            <input type="color" id="coIconColor" value="#93c5fd" oninput="applyCalloutSettings()">
+        </div>
+        <!-- Metin Rengi -->
+        <div class="color-row">
+            <label ondblclick="resetCalloutSetting('textColor')" style="cursor:pointer;" title="Varsayılana dönmek için çift tıklayın">🔤 Metin Rengi</label>
+            <input type="color" id="coTextColor" value="#ffffff" oninput="applyCalloutSettings()">
+        </div>
+        <!-- Arka Plan Rengi -->
+        <div class="color-row">
+            <label ondblclick="resetCalloutSetting('bgColor')" style="cursor:pointer;" title="Varsayılana dönmek için çift tıklayın">🟦 Arkaplan Rengi</label>
+            <input type="color" id="coBgColor" value="#0d1b2e" oninput="applyCalloutSettings()">
+        </div>
+        <!-- Arka Plan Opaklığı -->
+        <div class="slider-group">
+            <label ondblclick="resetCalloutSetting('bgOpacity')" style="cursor:pointer;" title="Varsayılana dönmek için çift tıklayın"><span>🌫️ Arkaplan Saydamlığı</span><span id="coBgOpacityVal">0%</span></label>
+            <input type="range" id="coBgOpacity" min="0" max="100" value="0" oninput="document.getElementById('coBgOpacityVal').textContent=this.value+'%'; applyCalloutSettings()">
+        </div>
+        <!-- İkon Boyutu -->
+        <div class="slider-group">
+            <label ondblclick="resetCalloutSetting('iconSize')" style="cursor:pointer;" title="Varsayılana dönmek için çift tıklayın"><span>📐 İkon Boyutu</span><span id="coIconSizeVal">64px</span></label>
+            <input type="range" id="coIconSize" min="32" max="150" value="64" oninput="document.getElementById('coIconSizeVal').textContent=this.value+'px'; applyCalloutSettings()">
+        </div>
+        <!-- Metin Boyutu -->
+        <div class="slider-group">
+            <label ondblclick="resetCalloutSetting('textSize')" style="cursor:pointer;" title="Varsayılana dönmek için çift tıklayın"><span>🔡 Metin Boyutu</span><span id="coTextSizeVal">14px</span></label>
+            <input type="range" id="coTextSize" min="8" max="48" value="14" oninput="document.getElementById('coTextSizeVal').textContent=this.value+'px'; applyCalloutSettings()">
+        </div>
+        <!-- Parlama Yoğunluğu -->
+        <div class="slider-group">
+            <label ondblclick="resetCalloutSetting('glow')" style="cursor:pointer;" title="Varsayılana dönmek için çift tıklayın"><span>✨ Parlama Yoğunluğu</span><span id="coGlowVal">80%</span></label>
+            <input type="range" id="coGlow" min="0" max="100" value="80" oninput="document.getElementById('coGlowVal').textContent=this.value+'%'; applyCalloutSettings()">
+        </div>
+        <!-- Border Radius -->
+        <div class="slider-group">
+            <label ondblclick="resetCalloutSetting('radius')" style="cursor:pointer;" title="Varsayılana dönmek için çift tıklayın"><span>🔲 Kenar Yuvarlama</span><span id="coRadiusVal">12px</span></label>
+            <input type="range" id="coRadius" min="0" max="50" value="12" oninput="document.getElementById('coRadiusVal').textContent=this.value+'px'; applyCalloutSettings()">
+        </div>
+        <!-- Padding -->
+        <div class="slider-group">
+            <label ondblclick="resetCalloutSetting('padding')" style="cursor:pointer;" title="Varsayılana dönmek için çift tıklayın"><span>📦 İç Boşluk</span><span id="coPaddingVal">10px</span></label>
+            <input type="range" id="coPadding" min="0" max="40" value="10" oninput="document.getElementById('coPaddingVal').textContent=this.value+'px'; applyCalloutSettings()">
+        </div>
+        <!-- Metin Düzenle -->
+        <div class="input-group" style="margin-top:6px;">
+            <label>📝 İkon Başlığı</label>
+            <input type="text" id="coLabelText" placeholder="Metin..." oninput="applyCalloutSettings()" style="background:#0f172a; border:1px solid #334155; color:#e2e8f0; border-radius:6px; padding:6px 8px; font-size:12px; width:100%;">
+        </div>
+        <!-- Sil Butonu -->
+        <button class="btn-action btn-red" onclick="deleteSelectedCallout()" style="margin-top:8px; width:100%;">🗑️ Bu İkonu Sil</button>
+    </div>
+
+    <div class="section-title" style="margin-top: 15px; border-top:1px solid rgba(255,255,255,0.1); padding-top:15px;">✨ Callout Şablonları</div>
+    
+    <div id="calloutAccordion" class="accordion-container" style="margin-top:10px; max-height:45vh; overflow-y:auto; border-radius:8px; border:1px solid #cbd5e1; background:#f8fafc; padding:5px;"></div>
+
+
+
+</div>
+
+    <!-- TOPLU / ÇIKTI FORMATLARI -->
+    <div id="tab-batch" class="dynamic-field">
+    <p class="info-text">Farklı platformlar için farklı boyutlarda önizle ve indir</p>
+    
+    <div class="input-group">
+        <label>📏 Format (Önizleme + İndirme)</label>
+        <select id="exportFormat" onchange="document.getElementById('previewFormat').value = this.value; switchPreviewFormat();"></select>
+    </div>
+    
+    <div class="input-group">
+        <label>Kadraj Modu</label>
+        <select id="exportFitMode">
+            <option value="cover">📐 Doldur (Kırpma olabilir)</option>
+            <option value="contain">🔲 Sığdır (Boşluk kalabilir)</option>
+            <option value="stretch">↔️ Ger (Deforme olabilir)</option>
+        </select>
+    </div>
+    
+    <div class="color-row">
+        <label>Boşluk Rengi (Sığdır modu)</label>
+        <input type="color" id="exportBgColor" value="#ffffff">
+    </div>
+    
+    <div class="input-group">
+        <label>Ölçek (Kalite)</label>
+        <select id="exportScale">
+            <option value="0.5">0.5x (Düşük Kalite / ~480p)</option>
+            <option value="0.75">0.75x (Orta Kalite / ~720p)</option>
+            <option value="1">1x (Standart / ~1080p)</option>
+            <option value="1.5" selected>1.5x (Yüksek Kalite / ~1440p)</option>
+            <option value="2">2x (Ultra HD / 4K)</option>
+            <option value="3">3x (Baskı Kalitesi / 8K+)</option>
+        </select>
+    </div>
+    
+    <!-- Gizli - eski kodla uyumluluk için -->
+    <select id="previewFormat" style="display:none;"></select>
+    
+    <div class="section-title">💾 Şablon Yönetimi</div>
+    <p class="info-text">Tasarımınızı ve şablonunuzu bilgisayara kaydedip daha sonra yükleyebilirsiniz.</p>
+    <div class="row-2" style="margin-bottom: 15px;">
+        <button class="btn-action btn-blue" onclick="saveProject()">💾 Şablonu Kaydet</button>
+        <button class="btn-action btn-green" onclick="loadProject()">📂 Şablon Aç</button>
+    </div>
+    
+    <div class="section-title">📦 Toplu Çıktı</div>
+    <p class="info-text">Çoklu resim yükle, hepsini seçili formatta indir.</p>
+    <div class="input-group"><label>📁 Çoklu Resim</label><input type="file" id="batchInput" accept="image/*" multiple></div>
+    <div class="batch-file-list" id="batchFileList"></div>
+    <div class="row-2" style="margin-top:6px">
+        <button class="btn-action btn-blue" onclick="startBatchExport()">📸 Toplu Çıktı</button>
+        <button class="btn-action btn-red" onclick="clearBatchFiles()">🗑️ Temizle</button>
+    </div>
+    <div class="batch-progress" id="batchProgress">
+        <div style="font-size:11px;color:#94a3b8"><span id="batchStatus">...</span> <span id="batchPercent">0%</span></div>
+        <div class="bar"><div class="bar-fill" id="batchBar"></div></div>
+    </div>
+    <!-- SEÇİLİ FORMATTA İNDİR -->
+    <div class="section-title" style="margin-top:20px; border-top:1px solid rgba(255,255,255,0.1); padding-top:15px;">⬇️ İndir</div>
+    <button class="btn-action btn-blue" onclick="saveImage()" style="margin-top:8px; padding: 16px; font-size: 16px; font-weight: bold; box-shadow: 0 4px 15px rgba(108,92,231,0.4); display: flex; align-items: center; justify-content: center; gap: 10px;">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+        Seçili Formatta İndir
+    </button>
+    
+    <!-- PAYLAŞ BÖLÜMÜ -->
+    <details class="hsl-accordion" style="margin-top: 20px; background: #0f172a; border-radius: 6px; overflow: hidden; border: 1px solid #1e293b;">
+        <summary style="padding: 12px; cursor: pointer; color: #e2e8f0; font-weight: bold; list-style: none; display: flex; justify-content: space-between; align-items: center;" onclick="this.querySelector('i').classList.toggle('fa-chevron-up'); this.querySelector('i').classList.toggle('fa-chevron-down');">
+            <span>🌐 Paylaş</span>
+            <i class="fa-solid fa-chevron-down" style="font-size:12px; color:#94a3b8;"></i>
+        </summary>
+        <div style="padding: 12px; border-top: 1px solid #1e293b;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                <button class="btn-action" onclick="shareImage('whatsapp')" style="background: #25D366; color: white; display: flex; align-items: center; justify-content: center; gap: 8px; border: none;">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z"/></svg>
+                    WhatsApp
+                </button>
+                <button class="btn-action" onclick="shareImage('facebook')" style="background: #1877F2; color: white; display: flex; align-items: center; justify-content: center; gap: 8px; border: none;">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.469h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.469h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+                    Facebook
+                </button>
+                <button class="btn-action" onclick="shareImage('instagram')" style="background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%); color: white; display: flex; align-items: center; justify-content: center; gap: 8px; border: none;">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 1 0 0 12.324 6.162 6.162 0 0 0 0-12.324zM12 16a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm6.406-11.845a1.44 1.44 0 1 0 0 2.881 1.44 1.44 0 0 0 0-2.881z"/></svg>
+                    Instagram
+                </button>
+                <button class="btn-action" onclick="shareImage('twitter')" style="background: #000000; color: white; display: flex; align-items: center; justify-content: center; gap: 8px; border: none;">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+                    X (Twitter)
+                </button>
+                <button class="btn-action" onclick="shareImage('sahibinden')" style="background: #ffe800; color: #000; display: flex; align-items: center; justify-content: center; gap: 8px; border: none; font-weight: bold; grid-column: span 2;">
+                    <i class="fa-solid fa-house"></i> Sahibinden.com
+                </button>
+            </div>
+        </div>
+    </details>
+
+</div>
+</div> <!--
+        <!-- Close left panel -->
+
+<!-- SAĞ ÖNİZLEME ALANI -->
+<div class="preview-area">
+    <p class="info-text" id="canvasHint">💡 Tek tık: Seç | Çift tık: Yazıyı Düzenle | Sürükle: Taşı</p>
+    <div class="canvas-wrapper">
+        <div id="canvas-container">
+            <div id="photo-layer"></div>
+            <div id="shadow-overlay"></div>
+            <div id="highlight-overlay"></div>
+            <div id="vignette-layer"></div>
+            <div id="mask-layer"></div>
+            <div id="canva-render-layer"></div>
+            <div id="ui-layer">
+                <div id="elBadge" class="draggable sh-badge canvas-el normal-el" data-label="Durum" data-default-font="32" style="visibility: hidden;">SATILIK EV</div>
+                <div id="elPrice" class="draggable sh-price canvas-el normal-el" data-label="Fiyat" data-default-font="64" style="visibility: hidden;">6.750.000 TL</div>
+                <div id="elDetails" class="draggable sh-box canvas-el normal-el" data-label="Detay" data-default-font="26" style="visibility: hidden;"><div id="infoLineText"></div></div>
+                <img id="elLogo" class="draggable sh-logo canvas-el" data-label="Firma Logosu" style="display:none; position:absolute; bottom:50px; right:50px; width:150px; height:auto; border-radius:0;">
+            </div>
+            <canvas id="draw-layer" width="1920" height="1080"></canvas>
+        </div>
+    </div>
+</div>
+
+</div>
+
+<!-- MODÜLER JS DOSYALARI (SIRAYLA YÜKLENMELİ) -->
+<script src="config.js???v=991341231"></script>
+<script src="core/utils.js"></script>
+<script src="core/drag.js"></script>
+<script src="modules/photo.js"></script>
+<script src="modules/colors.js"></script>
+<script src="modules/callouts-library.js?v=1"></script>
+<script src="modules/export.js?v=991341239"></script>
+<script src="modules/callout.js?v=991341238"></script>
+<script src="modules/draw.js?v=991341256"></script>
+<script src="modules/saber.js"></script>
+<script src="ui/saber-ui.js"></script>
+<script src="ui/fonts.js?v=991341243"></script>
+<script src="modules/icon-library.js"></script>
+<script src="ui/icons.js"></script>
+<script src="ui/element.js?v=991341243"></script>
+<script src="modules/export.js?v=991341243"></script>
+<script src="core.js???v=991341231"></script>
+<script src="js/templateManager.js?v=991341241"></script>
+<script src="tpl_elit/elit.js?v=991341242"></script>
+<script src="tpl_kolaj/kolaj.js???v=991341231"></script>
+<script src="tpl_minimal/minimal.js???v=991341231"></script>
+<script src="tpl_luks/luks.js???v=991341231"></script>
+<script src="tpl_kurumsal/kurumsal.js???v=991341231"></script>
+<script src="tpl_dinamik/dinamik.js???v=991341231"></script>
+<script src="tpl_klasik/klasik.js???v=991341231"></script>
+<script src="tpl_sosyal/sosyal.js???v=991341231"></script>
+<script src="tpl_portfoy/portfoy.js???v=991341231"></script>
+<script src="tpl_ozel/ozel.js???v=991341231"></script>
+<script src="main.js?v=991341256"></script>
+
+<!-- Gizli inputlar: Fotoğraf zoom ve pan ayarlarının arka planda çalışabilmesi için -->
+<div style="display:none;">
+    <input type="range" id="photoZoomCtrl" min="10" max="300" value="100">
+    <input type="range" id="photoXCtrl" min="0" max="100" value="50">
+    <input type="range" id="photoYCtrl" min="0" max="100" value="50">
+    <span id="photoZoomVal">100%</span>
+    <span id="photoXVal">50%</span>
+    <span id="photoYVal">50%</span>
+</div>
+
+    
+<script>
+/**
+ * ============================================
+ * ONBOARDING TOUR / ÜRÜN TURU
+ * ui/onboarding-tour.js
+ * ============================================
+ * 
+ * Amaç: Kullanıcı uygulamaya ilk girdiğinde hafif ve hızlı bir rehber sunmak.
+ * Özellikler: Modüler, güvenli (try/catch), kural tabanlı, performansı etkilemez.
+ */
+
+window.onboardingTourState = {
+    isOpen: false,
+    currentStep: 0,
+    hasSeenTour: false,
+    dismissed: false,
+    steps: [
+        {
+            title: "1. Giriş",
+            text: "Uygulamaya hoş geldiniz! Buradan gayrimenkul detaylarını ve fotoğraflarını yükleyebilirsiniz.",
+            targetSelector: "button[data-tab='data']"
+        },
+        {
+            title: "2. Foto & Yapay Zeka",
+            text: "Görsellerinizi düzenleyip, yapay zeka ile otomatik arka plan filtreleri ve iyileştirmeler uygulayabilirsiniz.",
+            targetSelector: "button[data-tab='photo']"
+        },
+        {
+            title: "3. Ölçü ve Çizim",
+            text: "Oda alanlarını veya bahçe sınırlarını işaretlemek, ölçü çizgileri çekmek için serbest çizim araçlarını kullanın.",
+            targetSelector: "button[data-tab='draw']"
+        },
+        {
+            title: "4. Şablonlar",
+            text: "Gönderileriniz ve sunumlarınız için profesyonel tasarımlı hazır şablonları (Instagram, A4 vs.) kullanabilirsiniz.",
+            targetSelector: "button[data-tab='canva']"
+        },
+        {
+            title: "5. Callout & İkonlar",
+            text: "Dikkat çekici bilgi etiketlerini, şık okları ve emlak ikonlarını buradan ekleyebilirsiniz.",
+            targetSelector: "button[data-tab='callout']"
+        },
+        {
+            title: "6. Çıktı Alma",
+            text: "Tasarımınız bittiğinde tek tuşla yüksek kalitede (HD/4K) dışa aktarabilirsiniz.",
+            targetSelector: "button[data-tab='batch']"
+        }
+    ]
+};
+
+const OnboardingTour = {
+    overlayEl: null,
+    cardEl: null,
+    highlightEl: null,
+    resizeHandler: null,
+
+    init: function() {
+        try {
+            // localStorage check temporarily removed for testing
+            setTimeout(() => {
+                this.startTour();
+            }, 1000);
+        } catch(e) {
+            console.error("Onboarding init error:", e);
+        }
+    },
+
+    startTour: function() {
+        try {
+            if (window.onboardingTourState.isOpen) return;
+            if (!document.body) return;
+
+            window.onboardingTourState.isOpen = true;
+            window.onboardingTourState.currentStep = 0;
+
+            this.createElements();
+            this.showStep();
+
+            document.body.classList.add('onboarding-active-body');
+            this.resizeHandler = this.updatePositions.bind(this);
+            window.addEventListener('resize', this.resizeHandler);
+
+        } catch(e) {
+            console.error("Onboarding start error:", e);
+            this.endTour();
+        }
+    },
+
+    createElements: function() {
+        this.overlayEl = document.createElement('div');
+        this.overlayEl.className = 'onboarding-overlay';
+        
+        this.highlightEl = document.createElement('div');
+        this.highlightEl.className = 'onboarding-highlight';
+
+        this.cardEl = document.createElement('div');
+        this.cardEl.className = 'onboarding-card';
+        
+        document.body.appendChild(this.overlayEl);
+        document.body.appendChild(this.highlightEl);
+        document.body.appendChild(this.cardEl);
+    },
+
+    showStep: function() {
+        try {
+            const state = window.onboardingTourState;
+            const step = state.steps[state.currentStep];
+            
+            if (!step) {
+                this.endTour();
+                return;
+            }
+
+            let targetEl = document.querySelector(step.targetSelector);
+            
+            if (!targetEl || targetEl.offsetParent === null) {
+                console.warn("Onboarding target not found or hidden:", step.targetSelector);
+                state.currentStep++;
+                if (state.currentStep >= state.steps.length) {
+                    this.endTour();
+                } else {
+                    this.showStep();
+                }
+                return;
+            }
+
+            let html = `
+                <div class="onboarding-card-header">
+                    <h3 class="onboarding-card-title">${step.title}</h3>
+                    <span class="onboarding-card-counter">${state.currentStep + 1} / ${state.steps.length}</span>
+                </div>
+                <div class="onboarding-card-body">
+                    <p>${step.text}</p>
+                </div>
+                <div class="onboarding-card-footer">
+            `;
+
+            if (state.currentStep > 0) {
+                html += `<button class="onboarding-btn btn-secondary" onclick="OnboardingTour.prevStep()">Geri</button>`;
+            } else {
+                html += `<button class="onboarding-btn btn-text" onclick="OnboardingTour.endTour()">Geç</button>`;
+            }
+
+            if (state.currentStep < state.steps.length - 1) {
+                html += `<button class="onboarding-btn btn-primary" onclick="OnboardingTour.nextStep()">İleri</button>`;
+            } else {
+                html += `<button class="onboarding-btn btn-primary" onclick="OnboardingTour.endTour()">Turu Bitir</button>`;
+            }
+
+            html += `</div>`;
+            this.cardEl.innerHTML = html;
+
+            this.updatePositions();
+            
+        } catch(e) {
+            console.error("Onboarding showStep error:", e);
+            this.endTour();
+        }
+    },
+
+    updatePositions: function() {
+        if (!window.onboardingTourState.isOpen) return;
+        const step = window.onboardingTourState.steps[window.onboardingTourState.currentStep];
+        if (!step) return;
+        
+        const targetEl = document.querySelector(step.targetSelector);
+        if (!targetEl) return;
+
+        const rect = targetEl.getBoundingClientRect();
+        const padding = 8;
+        const isMobile = window.innerWidth <= 768;
+
+        if (isMobile) {
+            this.highlightEl.style.display = 'none';
+            this.overlayEl.style.clipPath = 'none';
+            this.cardEl.style.top = 'auto';
+            this.cardEl.style.bottom = '20px';
+            this.cardEl.style.left = '50%';
+            this.cardEl.style.transform = 'translateX(-50%)';
+            this.cardEl.style.width = '90%';
+        } else {
+            this.highlightEl.style.display = 'block';
+            
+            const hTop = rect.top - padding;
+            const hLeft = rect.left - padding;
+            const hWidth = rect.width + (padding * 2);
+            const hHeight = rect.height + (padding * 2);
+
+            this.highlightEl.style.top = hTop + 'px';
+            this.highlightEl.style.left = hLeft + 'px';
+            this.highlightEl.style.width = hWidth + 'px';
+            this.highlightEl.style.height = hHeight + 'px';
+
+            this.overlayEl.style.clipPath = `polygon(
+                0% 0%, 0% 100%, 100% 100%, 100% 0%, 0% 0%,
+                ${hLeft}px 0%, 
+                ${hLeft}px ${hTop}px, 
+                ${hLeft + hWidth}px ${hTop}px, 
+                ${hLeft + hWidth}px ${hTop + hHeight}px, 
+                ${hLeft}px ${hTop + hHeight}px, 
+                ${hLeft}px 0%
+            )`;
+
+            this.cardEl.style.width = '300px';
+            this.cardEl.style.transform = 'none';
+            
+            let cardTop = hTop + hHeight + 15;
+            let cardLeft = hLeft;
+
+            if (cardLeft + 300 > window.innerWidth) {
+                cardLeft = window.innerWidth - 320;
+            }
+            if (cardTop + 150 > window.innerHeight) {
+                cardTop = hTop - 165; 
+            }
+            if (cardTop < 10) cardTop = 10;
+            if (hLeft > window.innerWidth - 350) {
+                 cardLeft = hLeft - 320;
+                 cardTop = hTop;
+            }
+
+            this.cardEl.style.top = cardTop + 'px';
+            this.cardEl.style.left = cardLeft + 'px';
+            this.cardEl.style.bottom = 'auto';
+        }
+    },
+
+    nextStep: function() {
+        window.onboardingTourState.currentStep++;
+        this.showStep();
+    },
+
+    prevStep: function() {
+        if (window.onboardingTourState.currentStep > 0) {
+            window.onboardingTourState.currentStep--;
+            this.showStep();
+        }
+    },
+
+    endTour: function() {
+        try {
+            window.onboardingTourState.isOpen = false;
+            window.onboardingTourState.hasSeenTour = true;
+            localStorage.setItem('emlakstudiom_onboarding_seen', 'true');
+
+            if (this.overlayEl && this.overlayEl.parentNode) this.overlayEl.parentNode.removeChild(this.overlayEl);
+            if (this.highlightEl && this.highlightEl.parentNode) this.highlightEl.parentNode.removeChild(this.highlightEl);
+            if (this.cardEl && this.cardEl.parentNode) this.cardEl.parentNode.removeChild(this.cardEl);
+            
+            this.overlayEl = null;
+            this.highlightEl = null;
+            this.cardEl = null;
+
+            document.body.classList.remove('onboarding-active-body');
+
+            if (this.resizeHandler) {
+                window.removeEventListener('resize', this.resizeHandler);
+                this.resizeHandler = null;
+            }
+        } catch(e) {
+            console.error("Onboarding end error:", e);
+        }
+    },
+    
+    restartTour: function() {
+        this.startTour();
+    }
+};
+
+window.OnboardingTour = OnboardingTour;
+
+if (document.readyState === 'loading') {
+    window.addEventListener('DOMContentLoaded', () => {
+        OnboardingTour.init();
+    });
+} else {
+    OnboardingTour.init();
+}
+
+</script>
+<script>
+/**
+ * ============================================
+ * AKILLI YARDIMCI (SMART ASSISTANT)
+ * ui/help-assistant.js
+ * ============================================
+ * 
+ * Amaç: Kullanıcının uygulamadaki mevcut durumunu okuyup sorunlarına mantıklı çözümler üretmek.
+ * Sürekli çalışan observer kullanılmamıştır, sadece chat esnasında anlık (event-based) okuma yapar.
+ */
+
+window.helpAssistantState = {
+    isOpen: false,
+    isEnabled: true,
+    lastQuestion: "",
+    lastAnswer: "",
+    activeTab: "",
+    hasPhoto: false,
+    hasSelectedPath: false,
+    hasSelectedText: false,
+    hasSaberOnSelection: false,
+    selectedPreset: "",
+    exportAttemptCount: 0,
+    lastKnownIssue: "",
+    userPlan: "free",
+    conversationHistory: [],
+    dismissedHints: []
+};
+
+const HelpAssistant = {
+    fabEl: null,
+    panelEl: null,
+    chatBodyEl: null,
+    inputEl: null,
+    
+    init: function() {
+        try {
+            // Check if disabled by user globally (future setting)
+            const enabled = localStorage.getItem('emlakstudiom_help_enabled');
+            if (enabled === 'false') {
+                window.helpAssistantState.isEnabled = false;
+                return;
+            }
+
+            // Track errors silently to give better context
+            window.addEventListener('error', (e) => {
+                window.helpAssistantState.lastKnownIssue = e.message || "Bilinmeyen JS Hatası";
+            });
+
+            this.createUI();
+            this.addSystemMessage("Merhaba! 👋 EmlakStüdyom'da size nasıl yardımcı olabilirim?", [
+                "Fotoğraf nasıl yüklenir?", 
+                "Saber (neon) efekti nasıl eklenir?", 
+                "Tasarımı nasıl indirebilirim?"
+            ]);
+
+            // Add notification dot initially
+            setTimeout(() => {
+                if (this.fabEl && !window.helpAssistantState.isOpen) {
+                    this.fabEl.classList.add('has-notification');
+                }
+            }, 2000);
+
+        } catch(e) {
+            console.error("Help Assistant init error:", e);
+        }
+    },
+
+    createUI: function() {
+        // Floating Action Button
+        this.fabEl = document.createElement('div');
+        this.fabEl.className = 'help-assistant-fab';
+        this.fabEl.innerHTML = '✨';
+        this.fabEl.title = "Akıllı Yardımcı";
+        this.fabEl.onclick = () => this.togglePanel();
+        document.body.appendChild(this.fabEl);
+
+        // Chat Panel
+        this.panelEl = document.createElement('div');
+        this.panelEl.className = 'help-assistant-panel';
+        
+        let html = `
+            <div class="ha-header">
+                <h4 class="ha-header-title">✨ Akıllı Yardımcı</h4>
+                <button class="ha-close-btn" onclick="HelpAssistant.togglePanel()">✖</button>
+            </div>
+            <div class="ha-body" id="ha-chat-body"></div>
+            <div class="ha-footer">
+                <input type="text" class="ha-input" id="ha-input" placeholder="Bir soru sorun..." onkeypress="if(event.key==='Enter') HelpAssistant.handleUserInput()">
+                <button class="ha-send-btn" onclick="HelpAssistant.handleUserInput()">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                </button>
+            </div>
+        `;
+        
+        this.panelEl.innerHTML = html;
+        document.body.appendChild(this.panelEl);
+
+        this.chatBodyEl = document.getElementById('ha-chat-body');
+        this.inputEl = document.getElementById('ha-input');
+    },
+
+    togglePanel: function() {
+        const state = window.helpAssistantState;
+        state.isOpen = !state.isOpen;
+        
+        if (state.isOpen) {
+            this.panelEl.classList.add('open');
+            this.fabEl.classList.remove('has-notification');
+            this.inputEl.focus();
+            // Scroll to bottom
+            this.chatBodyEl.scrollTop = this.chatBodyEl.scrollHeight;
+        } else {
+            this.panelEl.classList.remove('open');
+        }
+    },
+
+    addSystemMessage: function(text, suggestions = [], actionBtn = null) {
+        const msgDiv = document.createElement('div');
+        msgDiv.className = 'ha-message system';
+        msgDiv.innerHTML = text;
+
+        if (actionBtn) {
+            const btn = document.createElement('button');
+            btn.className = 'ha-action-btn';
+            btn.innerText = actionBtn.label;
+            btn.onclick = actionBtn.onClick;
+            msgDiv.appendChild(document.createElement('br'));
+            msgDiv.appendChild(btn);
+        }
+
+        if (suggestions && suggestions.length > 0) {
+            const suggDiv = document.createElement('div');
+            suggDiv.className = 'ha-suggestions';
+            suggestions.forEach(s => {
+                const b = document.createElement('button');
+                b.className = 'ha-sugg-btn';
+                b.innerText = s;
+                b.onclick = () => {
+                    this.inputEl.value = s;
+                    this.handleUserInput();
+                };
+                suggDiv.appendChild(b);
+            });
+            msgDiv.appendChild(suggDiv);
+        }
+
+        this.chatBodyEl.appendChild(msgDiv);
+        this.chatBodyEl.scrollTop = this.chatBodyEl.scrollHeight;
+        
+        // Save history
+        window.helpAssistantState.conversationHistory.push({ role: 'system', text: text });
+    },
+
+    addUserMessage: function(text) {
+        const msgDiv = document.createElement('div');
+        msgDiv.className = 'ha-message user';
+        msgDiv.innerText = text;
+        this.chatBodyEl.appendChild(msgDiv);
+        this.chatBodyEl.scrollTop = this.chatBodyEl.scrollHeight;
+        
+        window.helpAssistantState.conversationHistory.push({ role: 'user', text: text });
+        window.helpAssistantState.lastQuestion = text;
+    },
+
+    handleUserInput: function() {
+        const val = this.inputEl.value.trim();
+        if (!val) return;
+        
+        this.addUserMessage(val);
+        this.inputEl.value = '';
+        
+        // Disable input briefly
+        this.inputEl.disabled = true;
+        
+        // Simulate processing time
+        setTimeout(() => {
+            this.processIntent(val);
+            this.inputEl.disabled = false;
+            this.inputEl.focus();
+        }, 400);
+    },
+
+    // --- CONTEXT COLLECTION ---
+    collectContext: function() {
+        const state = window.helpAssistantState;
+        
+        // 1. Active Tab
+        const activeTabBtn = document.querySelector('#mainTabs .tab-btn.active');
+        state.activeTab = activeTabBtn ? activeTabBtn.getAttribute('data-tab') : 'bilinmiyor';
+
+        // 2. Photo loaded
+        const photoEl = document.getElementById('photoLayer');
+        state.hasPhoto = (photoEl && photoEl.src && photoEl.src.length > 100 && photoEl.style.display !== 'none');
+
+        // 3. Selection state (Draw / Saber engine)
+        // Access window.SaberEngine if exists
+        state.hasSelectedText = false;
+        state.hasSelectedPath = false;
+        state.hasSaberOnSelection = false;
+
+        if (typeof window.selectedLineId !== 'undefined' && window.selectedLineId !== null) {
+            state.hasSelectedPath = true;
+        }
+
+        if (window.SaberEngine && typeof window.SaberEngine.getApp === 'function') {
+            const app = window.SaberEngine.getApp();
+            if (app && app.selectedId) {
+                state.hasSelectedText = true;
+                // Check if it has saber filter
+                if (app.textObjects && app.textObjects[app.selectedId]) {
+                    const obj = app.textObjects[app.selectedId];
+                    if (obj.saberData && obj.saberData.active) {
+                        state.hasSaberOnSelection = true;
+                    }
+                }
+            }
+        }
+        
+        // Toggle checks
+        const elTextSaber = document.getElementById('elTextSaber');
+        const deSaberToggle = document.getElementById('deSaberToggle');
+        
+        if ((elTextSaber && elTextSaber.checked) || (deSaberToggle && deSaberToggle.checked)) {
+            state.hasSaberOnSelection = true; // Fallback check
+        }
+    },
+
+    // --- INTENT ENGINE ---
+    processIntent: function(query) {
+        try {
+            this.collectContext();
+            const state = window.helpAssistantState;
+            const q = query.toLowerCase();
+            
+            // Rules engine
+            let answer = "";
+            let actionBtn = null;
+            let suggestions = [];
+
+            // 1. FOTO YÜKLEME
+            if (q.includes("foto") || q.includes("resim") || q.includes("yükle")) {
+                if (state.hasPhoto) {
+                    answer = "Şu anda zaten bir fotoğraf yüklü görünüyor. Yeni bir fotoğraf yüklemek isterseniz **Giriş** sekmesindeki 'Arka Plan Fotoğrafı' kısmından seçebilirsiniz.";
+                    actionBtn = { label: "Giriş Sekmesine Git", onClick: () => window.switchTab('data') };
+                } else {
+                    answer = "Tasarım yapabilmek için önce arka plan fotoğrafı yüklemeniz gerekir. Lütfen **Giriş** sekmesindeki dosya seçme alanını kullanın.";
+                    actionBtn = { label: "Fotoğraf Yükle (Giriş)", onClick: () => window.switchTab('data') };
+                }
+                suggestions = ["Çizim nasıl yapılır?", "Yazı nasıl eklenir?"];
+            }
+            
+            // 2. SABER (NEON) EFEKTİ
+            else if (q.includes("saber") || q.includes("parlak") || q.includes("neon") || q.includes("ışık") || q.includes("yanmıyor")) {
+                if (!state.hasSelectedText && !state.hasSelectedPath) {
+                    answer = "Saber efektini (neon parlaklığı) uygulayabilmek için **önce ekrandan bir yazıya veya çizgiye tıklayıp seçmeniz** gerekir. Şu an hiçbir obje seçili değil.";
+                    suggestions = ["Yazı nasıl eklenir?", "Çizgi nasıl çizilir?"];
+                } else if (state.hasSaberOnSelection) {
+                    answer = "Seçili objede zaten Saber efekti aktif görünüyor! Eğer parlamayı göremiyorsanız efekt panelinden **Parlaklık (Intensity)** veya **Yayılma (Glow Size)** ayarını artırmayı deneyin.";
+                } else {
+                    if (state.hasSelectedText) {
+                        answer = "Bir yazı seçtiniz! Saber efekti vermek için sol menüden **Saber Aktif** kutucuğunu işaretleyin.";
+                    } else if (state.hasSelectedPath) {
+                        answer = "Bir çizgi seçtiniz! Sağ menüden **Saber (Parlaklık)** kutucuğunu işaretleyerek neon görünümü verebilirsiniz.";
+                    }
+                }
+            }
+
+            // 3. YAZI EKLEME
+            else if (q.includes("yazı") || q.includes("metin") || q.includes("text")) {
+                answer = "Üst menüdeki **Yazı Ekle** veya **Kutulu Yazı Ekle** butonlarını kullanarak tasarımınıza metin ekleyebilir, ardından üstüne çift tıklayarak içeriğini değiştirebilirsiniz.";
+                actionBtn = { label: "Yazı Ekle", onClick: () => window.addCustomTextOnly() };
+                suggestions = ["Yazıya saber nasıl eklenir?", "Yazı rengi nasıl değişir?"];
+            }
+
+            // 4. ÇIKTI / İNDİRME
+            else if (q.includes("çıktı") || q.includes("indir") || q.includes("export") || q.includes("kayıt") || q.includes("kaydet")) {
+                answer = "**Çıktı** sekmesine giderek tasarımınızı bilgisayarınıza indirebilirsiniz. Görsellerinizin daha net olması için Export panelinden '2x' veya '3x' kalite seçeneğini kullanabilirsiniz.";
+                actionBtn = { label: "Çıktı Sekmesine Git", onClick: () => window.switchTab('batch') };
+            }
+
+            // 5. UYGULAMA TURU / REHBER
+            else if (q.includes("tur") || q.includes("rehber") || q.includes("eğitim")) {
+                answer = "Uygulamanın arayüzünü anlatan interaktif tanıtım turunu sizin için hemen başlatabilirim.";
+                actionBtn = { label: "Turu Başlat", onClick: () => { if(window.OnboardingTour) window.OnboardingTour.restartTour(); this.togglePanel(); } };
+            }
+
+            // 6. HATA BİLDİRİMİ
+            else if (q.includes("hata") || q.includes("çalışmıyor") || q.includes("bozuk")) {
+                if (state.lastKnownIssue) {
+                    answer = `Sistemde son olarak şu hatayı tespit ettim: <code>${state.lastKnownIssue}</code>. Sayfayı yenilemek (CTRL+F5) genelde bu sorunları çözer.`;
+                } else {
+                    answer = "Sistemde şu an teknik bir hata tespit etmedim. Uygulama doğru çalışmıyorsa sayfayı yenileyebilir veya farklı bir fotoğraf ile tekrar deneyebilirsiniz.";
+                }
+            }
+
+            // DEFAULT (Anlaşılamadı)
+            else {
+                // If it's a generic hi/hello
+                if (q === "selam" || q === "merhaba") {
+                    answer = "Merhaba! EmlakStüdyom'da size yardımcı olmak için buradayım. Tasarım yaparken takıldığınız bir yer olursa bana sorabilirsiniz.";
+                    suggestions = ["Fotoğraf nasıl yüklenir?", "Saber efekti nedir?", "Tasarım nasıl indirilir?"];
+                } else {
+                    answer = "Bu soruyu tam anlayamadım, ancak üst menüdeki sekmelerde (Foto, Çizim, Şablonlar) aradığınız birçok özelliği bulabilirsiniz.";
+                    actionBtn = { label: "Uygulama Turunu İzle", onClick: () => { if(window.OnboardingTour) window.OnboardingTour.restartTour(); this.togglePanel(); } };
+                }
+            }
+
+            this.addSystemMessage(answer, suggestions, actionBtn);
+
+        } catch(e) {
+            console.error("Assistant process error:", e);
+            this.addSystemMessage("Üzgünüm, şu an sistemde geçici bir hata var. Lütfen daha sonra tekrar sorun.");
+        }
+    },
+
+    // --- GELECEK AI API HAZIRLIĞI ---
+    buildAssistantContext: function() {
+        // This function prepares a JSON payload that can be sent to ChatGPT or Claude in the future.
+        this.collectContext();
+        return JSON.stringify({
+            appState: window.helpAssistantState,
+            timestamp: new Date().toISOString()
+        });
+    }
+};
+
+window.HelpAssistant = HelpAssistant;
+
+// Init when safe
+if (document.readyState === 'loading') {
+    window.addEventListener('DOMContentLoaded', () => { HelpAssistant.init(); });
+} else {
+    HelpAssistant.init();
+}
+
+</script>
+</body>
+</html>

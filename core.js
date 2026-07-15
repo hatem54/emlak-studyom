@@ -22,17 +22,57 @@ let uploadedImgH = 1080;
 function trackImageSize(url) {
     const img = new Image();
     img.onload = function() {
-        uploadedImgW = img.naturalWidth || 1920;
-        uploadedImgH = img.naturalHeight || 1080;
+        uploadedImgW = img.naturalWidth || (window.innerWidth <= 768 ? 1080 : 1920);
+        uploadedImgH = img.naturalHeight || (window.innerWidth <= 768 ? 1920 : 1080);
         const pl = document.getElementById('photo-layer');
         if (pl) {
             pl.dataset.naturalW = uploadedImgW;
             pl.dataset.naturalH = uploadedImgH;
         }
+        
+        // Auto-adjust format
+        if (typeof autoAdjustFormat === 'function') {
+            autoAdjustFormat(uploadedImgW, uploadedImgH);
+        }
+        
         if(typeof redrawAll === 'function') redrawAll();
     };
     img.src = url;
 }
+
+function autoAdjustFormat(imgW, imgH) {
+    if (typeof EXPORT_FORMATS === 'undefined' || !imgW || !imgH) return;
+    
+    const imgRatio = imgW / imgH;
+    let closestFormatName = '';
+    let smallestDiff = Infinity;
+    
+    for (const [name, data] of Object.entries(EXPORT_FORMATS)) {
+        const formatRatio = data.w / data.h;
+        const diff = Math.abs(imgRatio - formatRatio);
+        if (diff < smallestDiff) {
+            smallestDiff = diff;
+            closestFormatName = name;
+        }
+    }
+    
+    if (closestFormatName) {
+        console.log('Auto-adjusting format to:', closestFormatName, 'based on image size:', imgW, imgH);
+        const formatSelect = document.getElementById('previewFormat');
+        const exportSelect = document.getElementById('exportFormat');
+        
+        if (formatSelect) {
+            formatSelect.value = closestFormatName;
+            if (typeof switchPreviewFormat === 'function') {
+                switchPreviewFormat();
+            }
+        }
+        if (exportSelect) {
+            exportSelect.value = closestFormatName;
+        }
+    }
+}
+
 
 
 
@@ -75,19 +115,51 @@ function initCoreRefs(){
 }
 
 function switchTab(name){
-    document.querySelectorAll('#mainTabs .tab-btn').forEach(b=>b.classList.toggle('active',b.dataset.tab===name));
+    const isMobile = window.innerWidth <= 768;
+    const btn = document.querySelector('#mainTabs .tab-btn[data-tab="'+name+'"]');
+    const isAlreadyActive = btn && btn.classList.contains('active');
+
+    if (isMobile && isAlreadyActive) {
+        // Toggle OFF if already active on mobile
+        btn.classList.remove('active');
+        const panel = document.getElementById('tab-'+name);
+        if (panel) panel.classList.remove('show');
+        
+        // Hide overlay if it exists
+        const mo = document.getElementById('mobileSheetOverlay');
+        if (mo) { mo.style.display = 'none'; mo.style.opacity = '0'; }
+        return; // stop execution
+    }
+
+    document.querySelectorAll('#mainTabs .tab-btn').forEach(b => {
+        if(b.dataset.tab === name) b.classList.add('active');
+        else b.classList.remove('active');
+    });
+    
     document.querySelectorAll('.panel>.dynamic-field').forEach(f=>f.classList.remove('show'));
-    $('tab-'+name).classList.add('show');
-    if(name!=='draw'&&drawMode!=='off')setDrawMode('off');
-    if(name!=='draw'&&typeof cancelDrawEdit==='function')cancelDrawEdit();
+    const targetPanel = document.getElementById('tab-'+name);
+    if(targetPanel) targetPanel.classList.add('show');
+    
+    // Show overlay on mobile when a tab opens
+    if (isMobile) {
+        const mo = document.getElementById('mobileSheetOverlay');
+        if (mo) { mo.style.display = 'block'; mo.style.opacity = '1'; }
+    }
+
+    if(name!=='draw' && typeof drawMode !== 'undefined' && drawMode!=='off') setDrawMode('off');
+    if(name!=='draw' && typeof cancelDrawEdit==='function') cancelDrawEdit();
     if(name==='callout' && typeof renderCalloutPanel==='function') renderCalloutPanel();
 
     if(document.getElementById('kolaj-wrapper')){
-        photoLayer.style.display = 'block';
-        canvaRenderLayer.style.display = 'none';
+        const photoLayer = document.getElementById('photo-layer');
+        const canvaRenderLayer = document.getElementById('canva-render-layer');
+        if(photoLayer) photoLayer.style.display = 'block';
+        if(canvaRenderLayer) canvaRenderLayer.style.display = 'none';
     } else if(typeof isCanvaMode !== 'undefined' && isCanvaMode) {
-        canvaRenderLayer.style.display = 'block';
-        photoLayer.style.display = 'none';
+        const photoLayer = document.getElementById('photo-layer');
+        const canvaRenderLayer = document.getElementById('canva-render-layer');
+        if(canvaRenderLayer) canvaRenderLayer.style.display = 'block';
+        if(photoLayer) photoLayer.style.display = 'none';
     }
 }
 
@@ -158,15 +230,31 @@ function switchTab(name){
 
 
 function resizeCanvas(){
-    const w=document.querySelector('.canvas-wrapper');
-    const pa=document.querySelector('.preview-area');
-    if(!w || !pa) return;
+    const w = document.querySelector('.canvas-wrapper');
+    const pa = document.querySelector('.preview-area');
+    if (!w || !pa) return;
     
-    const canvasW=parseInt(canvasEl.style.width)||1920;
-    const canvasH=parseInt(canvasEl.style.height)||1080;
+    let canvasW = 1920;
+    let canvasH = 1080;
     
-    const availableW = pa.clientWidth - 40; // padding
-    const availableH = window.innerHeight - 150; // padding for top bar/margins
+    const formatSelect = document.getElementById('previewFormat');
+    if (formatSelect && typeof EXPORT_FORMATS !== 'undefined' && EXPORT_FORMATS[formatSelect.value]) {
+        canvasW = EXPORT_FORMATS[formatSelect.value].w;
+        canvasH = EXPORT_FORMATS[formatSelect.value].h;
+    } else {
+        if (window.innerWidth <= 768) {
+            canvasW = 1080;
+            canvasH = 1920;
+        }
+    }
+    
+    if (typeof canvasEl !== 'undefined' && canvasEl) {
+        canvasEl.style.width = canvasW + 'px';
+        canvasEl.style.height = canvasH + 'px';
+    }
+    
+    const availableW = pa.clientWidth - 0;
+    const availableH = window.innerHeight - 150;
     
     const scaleW = availableW / canvasW;
     const scaleH = availableH / canvasH;
@@ -175,9 +263,12 @@ function resizeCanvas(){
     
     w.style.width = (canvasW * scaleFactor) + 'px';
     w.style.height = (canvasH * scaleFactor) + 'px';
-    w.style.aspectRatio = 'auto'; // Remove aspect ratio since height is fixed
+    w.style.aspectRatio = 'auto';
     
-    canvasEl.style.transform='scale('+scaleFactor+')';
+    if(typeof canvasEl !== 'undefined' && canvasEl) {
+        canvasEl.style.transformOrigin = 'top left';
+        canvasEl.style.transform = 'scale(' + scaleFactor + ')';
+    }
 }
 
 // Global click tracker for templates
@@ -946,4 +1037,57 @@ document.addEventListener('dblclick', function(e) {
 
 document.addEventListener('DOMContentLoaded', () => {
     setTimeout(initUndoSystem, 1000); // Uygulama tamamen yüklendikten sonra geçmişi dinlemeye başla
+});
+
+
+// ==========================================
+// DRAGGABLE BOTTOM SHEET LOGIC
+// ==========================================
+document.addEventListener('DOMContentLoaded', () => {
+    const panels = document.querySelectorAll('.dynamic-field');
+    
+    panels.forEach(panel => {
+        // Create drag handle
+        const handle = document.createElement('div');
+        handle.className = 'drag-handle';
+        panel.insertBefore(handle, panel.firstChild);
+
+        let startY = 0;
+        let startHeight = 0;
+        let isDragging = false;
+
+        handle.addEventListener('touchstart', (e) => {
+            if(window.innerWidth > 768) return; // Only on mobile
+            isDragging = true;
+            startY = e.touches[0].clientY;
+            startHeight = panel.getBoundingClientRect().height;
+            panel.classList.add('dragging');
+        }, {passive: true});
+
+        handle.addEventListener('touchmove', (e) => {
+            if (!isDragging) return;
+            const currentY = e.touches[0].clientY;
+            const deltaY = currentY - startY;
+            let newHeight = startHeight - deltaY;
+            
+            // Clamp between 20vh and 85vh
+            const minHeight = window.innerHeight * 0.2;
+            const maxHeight = window.innerHeight * 0.85;
+            
+            if (newHeight < minHeight) newHeight = minHeight;
+            if (newHeight > maxHeight) newHeight = maxHeight;
+            
+            panel.style.setProperty('height', newHeight + 'px', 'important');
+        }, {passive: true});
+
+        handle.addEventListener('touchend', () => {
+            isDragging = false;
+            panel.classList.remove('dragging');
+        });
+        
+        handle.addEventListener('touchcancel', () => {
+            isDragging = false;
+            panel.classList.remove('dragging');
+        });
+    });
 });

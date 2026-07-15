@@ -1514,15 +1514,13 @@
             background: rgba(0, 0, 0, 0.7);
             backdrop-filter: blur(10px);
             z-index: 10000;
-            display: none;
+            display: none !important;
             align-items: center;
             justify-content: center;
             animation: fadeIn 0.3s ease;
         }
 
-        .modal-overlay.active {
-            display: flex;
-        }
+        .modal-overlay.active { display: flex !important; }
 
         @keyframes fadeIn {
             from { opacity: 0; }
@@ -1703,8 +1701,7 @@
         }
 
         /* ===== MOBILE MENU ===== */
-        .mobile-menu-btn {
-            display: none;
+        .mobile-menu-btn { display: none;
             background: none;
             border: none;
             color: white;
@@ -1712,130 +1709,268 @@
             cursor: pointer;
         }
 
+        
+        
+        /* ===== DESKTOP HAMBURGER HIDER ===== */
+        @media (min-width: 993px) {
+            .mobile-menu-panel, .mobile-menu-backdrop { display: none !important; }
+        }
+
         /* ===== RESPONSIVE ===== */
-        @media (max-width: 1024px) {
+        
+        /* Utility for mobile menu open state */
+        body.menu-open {
+            overflow: hidden;
+        }
+
+        @media (max-width: 1200px) {
+            .hero-content { padding: 0 20px; }
+            .hero h1 { font-size: 56px; }
+            .navbar { padding: 12px 30px !important; }
+        }
+
+        @media (max-width: 992px) {
+            .navbar {
+                padding: 12px 20px !important;
+            }
+            .navbar .nav-links, .navbar .nav-buttons { display: none !important; }
+            .mobile-menu-btn {
+                display: block;
+                z-index: 1001;
+            }
+
+            
+            /* Mobile Menu Panel */
+            .mobile-menu-backdrop {
+                position: fixed;
+                top: 0; left: 0; right: 0; bottom: 0;
+                background: rgba(0, 0, 0, 0.7);
+                backdrop-filter: blur(4px);
+                z-index: 1000;
+                opacity: 0;
+                pointer-events: none;
+                transition: opacity 0.3s ease;
+            }
+            .mobile-menu-backdrop.active {
+                opacity: 1;
+                pointer-events: auto;
+            }
+
+            .mobile-menu-panel {
+                position: fixed;
+                top: 0; right: -280px;
+                width: 280px;
+                height: 100vh;
+                background: #0a0a1a !important;
+                z-index: 1001;
+                opacity: 1 !important;
+                box-shadow: -5px 0 25px rgba(0,0,0,0.5);
+                transition: right 0.3s ease;
+                display: flex;
+                flex-direction: column;
+            }
+            .mobile-menu-panel.active {
+                right: 0;
+            }
+
+            .mobile-menu-header {
+                display: flex;
+                justify-content: flex-end;
+                padding: 20px;
+            }
+            
+            .mobile-close-btn {
+                background: transparent;
+                border: none;
+                color: white;
+                font-size: 24px;
+                cursor: pointer;
+                width: 40px;
+                height: 40px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                border-radius: 50%;
+                background: rgba(255,255,255,0.05);
+            }
+
+            .mobile-menu-content {
+                padding: 0 20px 20px 20px;
+                flex: 1;
+                overflow-y: auto;
+            }
+
+            .mobile-menu-divider {
+                height: 1px;
+                background: rgba(255,255,255,0.1);
+                margin: 20px 0;
+            }
+
+            .mobile-nav-links {
+                list-style: none;
+                padding: 0;
+                margin: 0;
+                display: flex;
+                flex-direction: column;
+                gap: 5px;
+            }
+
+            .mobile-nav-links li a {
+                color: var(--text);
+                text-decoration: none;
+                font-size: 18px;
+                font-weight: 500;
+                display: flex;
+                align-items: center;
+                min-height: 48px;
+                padding: 0 10px;
+                border-radius: 8px;
+                transition: background 0.2s;
+            }
+
+            .mobile-nav-links li a:active {
+                background: rgba(255,255,255,0.05);
+            }
+
+
+            /* Hero Section */
+            .hero {
+                padding-top: 100px;
+                min-height: auto !important;
+                padding-bottom: 60px;
+            }
             .hero-content {
                 grid-template-columns: 1fr;
                 text-align: center;
+                gap: 40px;
             }
-
+            .hero-left {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+            }
             .hero h1 {
                 font-size: 48px;
             }
-
+            .hero-desc {
+                max-width: 100% !important;
+                margin-left: auto;
+                margin-right: auto;
+            }
             .hero-actions {
                 justify-content: center;
+                flex-wrap: wrap;
+                gap: 15px;
             }
-
             .hero-stats {
                 justify-content: center;
+                flex-wrap: wrap;
             }
-
             .hero-visual {
-                max-width: 600px;
+                max-width: 100%;
                 margin: 0 auto;
             }
+            .hero-float-card {
+                display: none; /* Hide floating cards on tablet/mobile to prevent overflow */
+            }
 
+            /* Sections & Grids */
+            .section {
+                padding: 60px 20px;
+            }
+            .features-grid, .pricing-grid, .testimonials-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 20px;
+            }
+            .steps-grid {
+                grid-template-columns: 1fr;
+                gap: 30px;
+            }
+            .steps-line {
+                display: none;
+            }
+            .footer-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 30px;
+            }
+        }
+
+        @media (max-width: 768px) {
+
+            .hero-visual {
+                display: none !important;
+            }
+            .hero {
+                padding-bottom: 40px !important;
+            }
+
+            .hero h1 {
+                font-size: 36px !important;
+            }
+            .hero-actions {
+                flex-direction: column;
+                width: 100%;
+            }
+            .btn-hero {
+                width: 100%;
+                justify-content: center;
+            }
+            .hero-stat-number {
+                font-size: 24px;
+            }
+            
             .features-grid, .pricing-grid, .testimonials-grid {
                 grid-template-columns: 1fr;
                 max-width: 500px;
                 margin: 0 auto;
             }
-
+            
             .pricing-card.featured {
                 transform: none;
             }
-
             .pricing-card.featured:hover {
                 transform: translateY(-8px);
             }
 
-            .steps-grid {
-                grid-template-columns: repeat(2, 1fr);
+            .section-title {
+                font-size: 28px;
             }
-
-            .steps-line {
-                display: none;
-            }
-
+            
             .footer-grid {
-                grid-template-columns: 1fr 1fr;
+                grid-template-columns: 1fr;
+                text-align: center;
+            }
+            .footer-links ul {
+                align-items: center;
             }
         }
 
-        @media (max-width: 768px) {
-            .navbar {
-                padding: 16px 24px;
-            }
-
-            .nav-links {
-                display: none;
-            }
-
-            .mobile-menu-btn {
-                display: block;
-            }
-
+        @media (max-width: 576px) {
             .hero {
-                padding: 120px 24px 80px;
+                padding-top: 90px;
             }
-
             .hero h1 {
-                font-size: 36px;
+                font-size: 32px !important;
             }
-
-            .section {
-                padding: 80px 24px;
-            }
-
             .section-title {
-                font-size: 32px;
+                font-size: 24px;
             }
-
-            .hero-float-card {
-                display: none;
+            .mockup-header {
+                padding: 8px 12px;
             }
-
-            .hero-stats {
-                gap: 24px;
+            .mockup-body {
+                height: 300px;
             }
-
-            .hero-stat-number {
-                font-size: 28px;
-            }
-
-            .steps-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .footer-grid {
-                grid-template-columns: 1fr;
-                gap: 40px;
-            }
-
-            .footer-bottom {
-                flex-direction: column;
-                gap: 12px;
-                text-align: center;
-            }
-
-            .cta-box {
-                padding: 60px 30px;
-            }
-
-            .cta-box h2 {
-                font-size: 32px;
-            }
-
-            .cta-buttons {
-                flex-direction: column;
+            .btn-ghost, .btn-primary {
+                padding: 10px 16px;
+                font-size: 14px;
             }
         }
     </style>
     <!-- Supabase JS Library -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="js/supabase-client.js" defer></script>
-    <script src="js/auth.js" defer></script>
+    <script src="js/auth.js?v=1784103826414" defer></script>
 </head>
 <body>
     <!-- Background Animation -->
@@ -1868,6 +2003,31 @@
             <i class="fas fa-bars"></i>
         </button>
     </nav>
+
+    
+    
+    <div class="mobile-menu-backdrop" id="mobileMenuBackdrop" onclick="toggleMobileMenu()"></div>
+    <div class="mobile-menu-panel" id="mobileMenuPanel">
+        <div class="mobile-menu-header">
+            <button class="mobile-close-btn" onclick="toggleMobileMenu()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="mobile-menu-content">
+            <div class="mobile-menu-actions">
+                <button class="btn-ghost" onclick="toggleMobileMenu(); openModal('login')" style="width: 100%; justify-content: center; margin-bottom: 10px; border: 1px solid rgba(0, 206, 201, 0.3); color: #00CEC9;">Giriş Yap</button>
+                <button class="btn-primary" onclick="toggleMobileMenu(); goToDemo()" style="width: 100%; justify-content: center;">Ücretsiz Dene</button>
+            </div>
+            
+            <div class="mobile-menu-divider"></div>
+            
+            <ul class="mobile-nav-links">
+                <li><a href="#features" onclick="toggleMobileMenu()">Özellikler</a></li>
+                <li><a href="#pricing" onclick="toggleMobileMenu()">Fiyatlandırma</a></li>
+                <li><a href="#faq" onclick="toggleMobileMenu()">SSS</a></li>
+            </ul>
+        </div>
+    </div>
 
     <!-- Hero -->
     <section class="hero" style="min-height: 85vh; padding-top: 140px;">
@@ -1916,7 +2076,7 @@
                         <div class="mockup-before-after after">
                             <span class="label">Sonra</span>
                             <div style="width:80%;height:80%;border-radius:8px;overflow:hidden;position:relative;background:linear-gradient(135deg,#4a3bd1,#6C5CE7);">
-                                <img id="mockupAfterImg" src="assets/demo/mockup-step1.jpg" style="width:100%;height:100%;object-fit:cover;display:none;" onload="this.style.display='block'; document.getElementById('mockupFallback').style.display='none';" onerror="this.style.display='none'; document.getElementById('mockupFallback').style.display='flex';">
+                                <img id="mockupAfterImg" src="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=" style="width:100%;height:100%;object-fit:cover;display:none;" onload="this.style.display='block'; document.getElementById('mockupFallback').style.display='none';" onerror="this.style.display='none'; document.getElementById('mockupFallback').style.display='flex';">
                                 <div id="mockupFallback" style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;flex-direction:column;color:rgba(255,255,255,0.9);text-align:center;">
                                     <i id="mockupFallbackIcon" class="fas fa-magic" style="font-size:36px;margin-bottom:10px;"></i>
                                     <div id="mockupFallbackText" style="font-size:12px;font-weight:600;padding:0 10px;">Adım 1 Görseli Yüklenmedi</div>
@@ -1959,34 +2119,44 @@
         </div>
         <div class="features-grid">
             <div class="feature-card">
-                <div class="feature-icon purple"><i class="fas fa-brain"></i></div>
-                <h3>Akıllı Veri Süzme Teknolojisi</h3>
-                <p>İlan metninizi kopyalayın, sistemimiz fiyat, metrekare, oda sayısı gibi bilgileri otomatik analiz edip tasarımınıza saniyeler içinde yerleştirsin.</p>
+                <div class="feature-icon purple"><i class="fas fa-palette"></i></div>
+                <h3>80+ Profesyonel Şablon</h3>
+                <p>Klasik, Dinamik, Minimal, Lüks gibi her stil ve kategoriye uygun, doğrudan kullanıma hazır harika tasarımlar.</p>
             </div>
             <div class="feature-card">
-                <div class="feature-icon teal"><i class="fas fa-layer-group"></i></div>
-                <h3>100+ Premium Tasarım Şablonu</h3>
-                <p>Modern Elit, Altın Lüks, Cam Efekt gibi sektörel trendlere uygun, saniyeler içinde uygulanabilen yüzlerce profesyonel şablon seçeneği.</p>
+                <div class="feature-icon teal"><i class="fas fa-bolt"></i></div>
+                <h3>Saber Efektleri</h3>
+                <p>Yangın, neon, glow ve elektrik gibi göz alıcı çarpıcı ışık efektleriyle emlak fotoğraflarınıza hareket katın.</p>
             </div>
             <div class="feature-card">
-                <div class="feature-icon pink"><i class="fas fa-sliders-h"></i></div>
-                <h3>Kapsamlı Fotoğraf Düzenleme Stüdyosu</h3>
-                <p>Başka bir uygulamaya ihtiyaç duymadan; ışık, renk, kontrast ayarlarını ve gelişmiş HSL filtrelerini doğrudan platform üzerinden uygulayın.</p>
+                <div class="feature-icon pink"><i class="fas fa-icons"></i></div>
+                <h3>270 Callout & 200 İkon</h3>
+                <p>Dikkat çekmek istediğiniz detayları vurgulamak için devasa ve özenle seçilmiş işaretçi ve sembol kütüphanesi.</p>
             </div>
             <div class="feature-card">
-                <div class="feature-icon teal"><i class="fas fa-comment-dots"></i></div>
-                <h3>Neon Callout & Akıllı Çizim</h3>
-                <p>7 farklı çizim aracı, çokgen köşe işaretleme ve dikkat çekici parlak Neon Callout etiketleri ile detayları vurgulayın.</p>
+                <div class="feature-icon purple"><i class="fas fa-robot"></i></div>
+                <h3>AI Asistan</h3>
+                <p>İlan metninizi yapıştırın. Yapay zeka fiyat, oda sayısı, m² gibi bilgileri otomatik ayrıştırır, sizi büyük bir yükten kurtarır.</p>
             </div>
             <div class="feature-card">
-                <div class="feature-icon purple"><i class="fas fa-font"></i></div>
-                <h3>40+ Premium Tipografi</h3>
-                <p>Tasarımınıza en uygun yazı tipini (font) seçin. Satır aralığından gölge efektine kadar Canva esnekliğinde düzenleyin.</p>
+                <div class="feature-icon teal"><i class="fas fa-expand"></i></div>
+                <h3>Çoklu Format (4K/8K)</h3>
+                <p>Instagram, Facebook, A4 gibi formatlara anında uyum sağlar. Görsellerinizi 4K/8K kalitesinde net olarak dışa aktarın.</p>
             </div>
             <div class="feature-card">
-                <div class="feature-icon pink"><i class="fas fa-file-export"></i></div>
-                <h3>HD/4K/8K Kusursuz Çıktı & Toplu İşlem</h3>
-                <p>Tasarımınızı sosyal medya ve baskı standartlarına uygun, kayıpsız 4K/8K kalitesinde indirin veya onlarca fotoğrafı tek tıkla toplu işleyin.</p>
+                <div class="feature-icon pink"><i class="fas fa-hand-pointer"></i></div>
+                <h3>Sürükle-Bırak Kolaylık</h3>
+                <p>Hiçbir Photoshop veya tasarım bilgisi gerekmez. Tamamen Türkçe, kolay ve hızlı arayüz ile herkes kullanabilir.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon purple"><i class="fas fa-globe"></i></div>
+                <h3>%100 Türkçe Destek</h3>
+                <p>Uygulama arayüzü ve destek sistemi tamamen Türkçedir, takıldığınız yerde hızlıca yardım alabilirsiniz.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon teal"><i class="fas fa-mobile-alt"></i></div>
+                <h3>Her Cihazdan Erişim</h3>
+                <p>Bilgisayar, tablet veya telefon fark etmez. Tarayıcı üzerinden dilediğiniz yerde, program indirmeden çalışın.</p>
             </div>
         </div>
     </section>
@@ -1995,8 +2165,8 @@
     <section class="section before-after-section" id="demo">
         <div class="section-header">
             <div class="section-label"><i class="fas fa-eye"></i> Canlı Demo</div>
-            <h2 class="section-title">Farkı Görün</h2>
-            <p class="section-desc">Kaydırıcıyı sürükleyerek önce ve sonra farkını keşfedin</p>
+            <h2 class="section-title">Saniyeler İçinde Tasarlayın</h2>
+            <p class="section-desc">Uygulamamızı kayıt olmadan hemen deneyebilirsiniz. Gerçek özellikler, gerçek arayüz.</p>
         </div>
         <div class="ba-container">
             <div class="ba-demo">
@@ -2028,6 +2198,13 @@
                 </div>
             </div>
         </div>
+        
+        <div style="text-align: center; margin-top: 40px;">
+            <button class="btn-hero btn-hero-secondary" style="background: linear-gradient(135deg, #10b981, #059669); color: white; border: none; padding: 16px 32px; font-size: 18px; border-radius: 12px; cursor: pointer; font-weight: bold; box-shadow: 0 10px 25px rgba(16, 185, 129, 0.4);" onclick="goToDemo()">
+                🚀 Demoyu Şimdi Dene
+            </button>
+            <p style="margin-top: 16px; color: #94a3b8; font-size: 14px;">Kayıt gerekmez • Ücretsiz • 3 şablon açık</p>
+        </div>
     </section>
 
     <!-- How It Works -->
@@ -2035,35 +2212,30 @@
         <div class="section-header">
             <div class="section-label"><i class="fas fa-route"></i> Adımlar</div>
             <h2 class="section-title">Nasıl Çalışır?</h2>
-            <p class="section-desc">5 kolay adımda profesyonel emlak sunumları oluşturun</p>
+            <p class="section-desc">Sadece 4 adımda profesyonel emlak görselleri oluşturun</p>
         </div>
         <div class="steps-container">
             <div class="steps-line"></div>
             <div class="steps-grid">
                 <div class="step-card">
-                    <div class="step-number">1</div>
-                    <h3>Akıllı Veri ve Görsel Girişi</h3>
-                    <p>Emlak ilan metnini Akıllı Asistan'a aktarın ve gayrimenkulünüze ait yüksek çözünürlüklü arka plan fotoğrafını sisteme yükleyin</p>
+                    <div class="step-number">📸</div>
+                    <h3>Adım 1: Fotoğrafı Yükle</h3>
+                    <p>Emlak fotoğrafınızı sürükleyip bırakın veya galeriden seçin. Tüm popüler formatları destekler (JPG, PNG, WEBP).</p>
                 </div>
                 <div class="step-card">
-                    <div class="step-number">2</div>
-                    <h3>Gelişmiş Düzenleme ve Sınır Çizimi</h3>
-                    <p>Entegre HSL araçlarıyla renkleri profesyonelce optimize edin, akıllı çokgen aracıyla arsa sınırlarını milimetrik hassasiyetle çizin</p>
+                    <div class="step-number">🎨</div>
+                    <h3>Adım 2: Şablon Seç</h3>
+                    <p>80+ profesyonel şablondan birini seçin veya boş sayfa ile sıfırdan başlayın. Her stil ve platform için uygun tasarımlar mevcut.</p>
                 </div>
                 <div class="step-card">
-                    <div class="step-number">3</div>
-                    <h3>Şablon Seçimi ve İkon Yerleşimi</h3>
-                    <p>Kurumsal kimliğinize en uygun premium lüks şablonu uygulayın, yüzlerce SVG emlak ikonu ile önemli özellikleri vurgulayın</p>
+                    <div class="step-number">✏️</div>
+                    <h3>Adım 3: Düzenle</h3>
+                    <p>İlan metninizi yapıştırın, AI asistanımız fiyat, oda sayısı, m² gibi bilgileri otomatik ayrıştırır. Ekstra metin, ikon veya efekt ekleyin.</p>
                 </div>
                 <div class="step-card">
-                    <div class="step-number">4</div>
-                    <h3>Çıktı ve Toplu Dışa Aktarım</h3>
-                    <p>Tüm tasarımlarınızı saniyeler içinde, ister tekli ister projeler halinde toplu olarak 4K/8K ultra yüksek kalitede cihazınıza indirin</p>
-                </div>
-                <div class="step-card">
-                    <div class="step-number">5</div>
-                    <h3>Hızlı Paylaşım Seçenekleri</h3>
-                    <p>Hazırladığınız profesyonel sunumları tek tıkla sosyal medya platformlarında, iletişim kanallarında veya doğrudan müşterilerinizle paylaşın</p>
+                    <div class="step-number">📥</div>
+                    <h3>Adım 4: İndir ve Paylaş</h3>
+                    <p>İnstagram, Facebook veya A4 formatlarında yüksek çözünürlükte indirin. Doğrudan sosyal medyada paylaşmaya hazır.</p>
                 </div>
             </div>
         </div>
@@ -2203,49 +2375,48 @@
         </div>
         <div class="faq-container">
             <div class="faq-item">
-                <div class="faq-question" onclick="toggleFaq(this)">
-                    Ücretsiz deneme süresi var mı?
-                    <i class="fas fa-chevron-down"></i>
-                </div>
-                <div class="faq-answer">
-                    <p>Evet! 7 gün boyunca tüm Pro özelliklerini ücretsiz deneyebilirsiniz. Kredi kartı gerekmez.</p>
-                </div>
+                <div class="faq-question" onclick="toggleFaq(this)">EmlakStüdyom nedir?<i class="fas fa-chevron-down"></i></div>
+                <div class="faq-answer"><p>EmlakStüdyom, emlakçılar için özel tasarlanmış web tabanlı bir emlak fotoğraf düzenleme ve tasarım platformudur. Photoshop veya benzeri programlara ihtiyaç duymadan profesyonel emlak ilanı görselleri oluşturmanızı sağlar.</p></div>
             </div>
             <div class="faq-item">
-                <div class="faq-question" onclick="toggleFaq(this)">
-                    Fotoğraflarım güvende mi?
-                    <i class="fas fa-chevron-down"></i>
-                </div>
-                <div class="faq-answer">
-                    <p>Kesinlikle. Tüm fotoğraflar 256-bit SSL şifrelemesi ile korunur ve KVKK uyumlu sunucularda saklanır.</p>
-                </div>
+                <div class="faq-question" onclick="toggleFaq(this)">Kullanmak için indirmem gerekiyor mu?<i class="fas fa-chevron-down"></i></div>
+                <div class="faq-answer"><p>Hayır, tamamen web tabanlıdır. Herhangi bir modern tarayıcıdan (Chrome, Edge, Safari, Firefox) direkt kullanabilirsiniz.</p></div>
             </div>
             <div class="faq-item">
-                <div class="faq-question" onclick="toggleFaq(this)">
-                    Hangi formatlarda indirebilirim?
-                    <i class="fas fa-chevron-down"></i>
-                </div>
-                <div class="faq-answer">
-                    <p>JPG, PNG ve WebP formatlarında, orijinal çözünürlükte veya optimize edilmiş boyutlarda indirebilirsiniz.</p>
-                </div>
+                <div class="faq-question" onclick="toggleFaq(this)">Ücretsiz mi?<i class="fas fa-chevron-down"></i></div>
+                <div class="faq-answer"><p>Evet, iki farklı seçenek sunuyoruz. Kayıt olmadan sınırlı bir demo sürümünü hemen kullanabilirsiniz. Beta döneminde kayıt olan kullanıcılar tüm Pro özelliklerine ücretsiz erişebilir.</p></div>
             </div>
             <div class="faq-item">
-                <div class="faq-question" onclick="toggleFaq(this)">
-                    Aboneliğimi istediğim zaman iptal edebilir miyim?
-                    <i class="fas fa-chevron-down"></i>
-                </div>
-                <div class="faq-answer">
-                    <p>Evet, taahhüt yoktur. Aboneliğinizi istediğiniz zaman tek tıkla iptal edebilirsiniz.</p>
-                </div>
+                <div class="faq-question" onclick="toggleFaq(this)">Kayıt olmak zorunda mıyım?<i class="fas fa-chevron-down"></i></div>
+                <div class="faq-answer"><p>Zorunlu değil ama önerilir. Kayıtsız kullanımda 3 şablon açık ve watermark bulunur. Kayıt olduğunuzda 80+ şablon, Saber efektleri, watermarksız 4K export gibi tüm özelliklere erişirsiniz.</p></div>
             </div>
             <div class="faq-item">
-                <div class="faq-question" onclick="toggleFaq(this)">
-                    Toplu fotoğraf düzenleyebilir miyim?
-                    <i class="fas fa-chevron-down"></i>
-                </div>
-                <div class="faq-answer">
-                    <p>Pro ve Kurumsal planlarda toplu düzenleme özelliği mevcuttur. Birden fazla fotoğrafı aynı anda işleyebilirsiniz.</p>
-                </div>
+                <div class="faq-question" onclick="toggleFaq(this)">Hangi cihazlardan kullanabilirim?<i class="fas fa-chevron-down"></i></div>
+                <div class="faq-answer"><p>Bilgisayar, tablet ve telefon fark etmez. Modern tarayıcı olan tüm cihazlardan kullanılabilir. En iyi deneyim için masaüstü bilgisayar veya tablet önerilir.</p></div>
+            </div>
+            <div class="faq-item">
+                <div class="faq-question" onclick="toggleFaq(this)">Fotoğraflarım güvende mi?<i class="fas fa-chevron-down"></i></div>
+                <div class="faq-answer"><p>Evet, fotoğraflarınız tamamen sizin tarayıcınızda işlenir. Sunucumuza yüklenmez, kaydedilmez. %100 güvenlidir.</p></div>
+            </div>
+            <div class="faq-item">
+                <div class="faq-question" onclick="toggleFaq(this)">Photoshop bilmiyorum, kullanabilir miyim?<i class="fas fa-chevron-down"></i></div>
+                <div class="faq-answer"><p>Kesinlikle! EmlakStüdyom sürükle-bırak mantığı ile çalışır. Hiçbir teknik bilgi gerekmez. Hazır şablonları seçip birkaç tıklamayla profesyonel görsel oluşturursunuz.</p></div>
+            </div>
+            <div class="faq-item">
+                <div class="faq-question" onclick="toggleFaq(this)">AI Asistan ne işe yarar?<i class="fas fa-chevron-down"></i></div>
+                <div class="faq-answer"><p>İlan metninizi yapıştırdığınızda AI Asistan otomatik olarak fiyat, oda sayısı, metrekare, konum gibi bilgileri ayrıştırır ve form alanlarını doldurur. Böylece dakikalarınızı kurtarır.</p></div>
+            </div>
+            <div class="faq-item">
+                <div class="faq-question" onclick="toggleFaq(this)">Şu an tam olarak neler dahil?<i class="fas fa-chevron-down"></i></div>
+                <div class="faq-answer"><p>Beta döneminde kayıt olan tüm kullanıcılar: 80+ şablon, Saber efektleri, tüm export formatları (Full HD, 4K, 8K), Instagram/Facebook/A4 boyutları, callout ve ikon kütüphanesi ile sınırsız kullanım hakkı kazanır. Ücretsiz.</p></div>
+            </div>
+            <div class="faq-item">
+                <div class="faq-question" onclick="toggleFaq(this)">Ödeme yapmam gerekiyor mu?<i class="fas fa-chevron-down"></i></div>
+                <div class="faq-answer"><p>Şu anda beta dönemindeyiz ve tüm özellikler ücretsiz. İleride premium abonelik planları eklenecek ancak mevcut kullanıcılarımıza özel indirimler uygulanacaktır.</p></div>
+            </div>
+            <div class="faq-item">
+                <div class="faq-question" onclick="toggleFaq(this)">Destek nasıl alabilirim?<i class="fas fa-chevron-down"></i></div>
+                <div class="faq-answer"><p>Herhangi bir sorunuz veya sorununuz için bize email gönderebilirsiniz. Beta döneminde geri bildirimlerinize hızlıca dönüş yaparız.</p></div>
             </div>
         </div>
     </section>
@@ -2333,7 +2504,17 @@
                 </div>
                 <div class="form-group">
                     <label>Şifre</label>
-                    <input type="password" placeholder="••••••••">
+                    <div style="position:relative;">
+                        <input type="password" placeholder="••••••••" style="padding-right: 40px;">
+                        <button type="button" 
+                                class="password-toggle-btn" 
+                                onclick="togglePasswordVisibility(this)"
+                                style="position:absolute; right:10px; top:50%; transform:translateY(-50%); 
+                                       background:transparent; border:none; cursor:pointer; 
+                                       font-size:20px; padding:0; z-index:2; color:#94a3b8;">
+                          👁️
+                        </button>
+                    </div>
                 </div>
                 <div class="form-options">
                     <label><input type="checkbox"> Beni hatırla</label>
@@ -2365,7 +2546,17 @@
                 </div>
                 <div class="form-group">
                     <label>Şifre</label>
-                    <input type="password" placeholder="Min. 8 karakter">
+                    <div style="position:relative;">
+                        <input type="password" placeholder="Min. 8 karakter" style="padding-right: 40px;">
+                        <button type="button" 
+                                class="password-toggle-btn" 
+                                onclick="togglePasswordVisibility(this)"
+                                style="position:absolute; right:10px; top:50%; transform:translateY(-50%); 
+                                       background:transparent; border:none; cursor:pointer; 
+                                       font-size:20px; padding:0; z-index:2; color:#94a3b8;">
+                          👁️
+                        </button>
+                    </div>
                 </div>
                 <button class="btn-submit" onclick="handleRegister(event)">Ücretsiz Başla</button>
                 <div class="divider">veya</div>
@@ -2544,18 +2735,21 @@
 
         // Mobile menu
         function toggleMobileMenu() {
-            // Simple mobile menu toggle - could be expanded
-            const links = document.querySelector('.nav-links');
-            links.style.display = links.style.display === 'flex' ? 'none' : 'flex';
-            links.style.position = 'absolute';
-            links.style.top = '100%';
-            links.style.left = '0';
-            links.style.right = '0';
-            links.style.flexDirection = 'column';
-            links.style.background = 'rgba(10, 10, 26, 0.98)';
-            links.style.padding = '20px';
-            links.style.gap = '20px';
-            links.style.borderBottom = '1px solid rgba(108, 92, 231, 0.2)';
+            const panel = document.getElementById('mobileMenuPanel');
+            const backdrop = document.getElementById('mobileMenuBackdrop');
+            const icon = document.querySelector('.mobile-menu-btn i');
+            
+            if (panel.classList.contains('active')) {
+                panel.classList.remove('active');
+                if(backdrop) backdrop.classList.remove('active');
+                document.body.classList.remove('menu-open');
+                if(icon) icon.className = 'fas fa-bars';
+            } else {
+                panel.classList.add('active');
+                if(backdrop) backdrop.classList.add('active');
+                document.body.classList.add('menu-open');
+                if(icon) icon.className = 'fas fa-times';
+            }
         }
 
         function changeMockupStep(step, el) {

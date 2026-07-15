@@ -69,7 +69,7 @@ function bindInputs(){
                 };
                 r.readAsDataURL(f);
             }
-            e.target.value = ''; // Reset the input so the same file can be selected again
+            // e.target.value reset removed to show filename
         });
     }
 
@@ -89,7 +89,7 @@ function bindInputs(){
                 };
                 r.readAsDataURL(f);
             }
-            e.target.value = ''; // Reset the input so the same file can be selected again
+            // e.target.value reset removed to show filename
         });
     }
 }
@@ -204,6 +204,25 @@ setTimeout(function(){
     if(infoLine) infoLine.style.visibility = 'hidden';
     console.log('🎨 Boş başlangıç');
 }, 100);
+        
+        // Close all tabs by default on mobile
+        if(window.innerWidth <= 768) {
+            // Set default format to 9:16 on mobile load
+            const formatSelect = document.getElementById('previewFormat');
+            const exportSelect = document.getElementById('exportFormat');
+            if (formatSelect) {
+                formatSelect.value = '9:16 Instagram/TikTok Story';
+                if (typeof switchPreviewFormat === 'function') switchPreviewFormat();
+            }
+            if (exportSelect) {
+                exportSelect.value = '9:16 Instagram/TikTok Story';
+            }
+            document.querySelectorAll('#mainTabs .tab-btn').forEach(b=>b.classList.remove('active'));
+            document.querySelectorAll('.panel>.dynamic-field').forEach(f=>f.classList.remove('show'));
+            const mo = document.getElementById('mobileSheetOverlay');
+            if(mo) { mo.style.display='none'; mo.style.opacity='0'; }
+        }
+        
         console.log('🎉 Init tamamlandı');
     } catch(err){
         console.error('❌ INIT HATASI:',err);
@@ -502,3 +521,20 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
+
+
+// Mobile Double-Tap to Reset Sliders
+let lastSliderTap = 0;
+document.addEventListener('touchstart', function(e) {
+    if (e.target.tagName && e.target.tagName.toLowerCase() === 'input' && e.target.type === 'range') {
+        const currentTime = new Date().getTime();
+        const tapLength = currentTime - lastSliderTap;
+        if (tapLength < 600 && tapLength > 0) {
+            // Double tap detected, trigger dblclick and PREVENT default browser behavior
+            e.preventDefault(); 
+            const evt = new MouseEvent('dblclick', { bubbles: true, cancelable: true, view: window });
+            e.target.dispatchEvent(evt);
+        }
+        lastSliderTap = currentTime;
+    }
+}, {passive: false});

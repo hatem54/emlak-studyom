@@ -36,7 +36,7 @@ window.addEventListener('error', function(e) {
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,300,0,0" />
     <link rel="icon" type="image/jpeg" href="assets/logo/logo-icon.jpg">
-    <link rel="stylesheet" href="styles.css?v=991341238">
+    <link rel="stylesheet" href="styles.css?v=1784101961448">
     <!-- ⚡ SABER EFFECT ENGINE - PixiJS + Filters -->
     <script src="https://cdn.jsdelivr.net/npm/pixi.js@7.4.0/dist/pixi.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/pixi-filters@5.2.1/dist/browser/pixi-filters.min.js"></script>
@@ -49,15 +49,24 @@ window.addEventListener('error', function(e) {
     <script src="js/saber-animation.js" defer></script>
 </head>
 <body>
+    <div id="mobileSheetOverlay" class="mobile-overlay" onclick="closeBottomSheet()"></div>
     <button class="tour-restart-btn" onclick="if(window.OnboardingTour) window.OnboardingTour.restartTour()">Turu Tekrar İzle</button>
-  <div style="width: 100%; max-width: 1800px; display: flex; justify-content: center; margin: 15px 0 10px 0; align-items: center;">
-  <a href="index.html" class="logo">
-    <img src="assets/logo/logo.jpg" 
-         alt="EmlakStüdyom" 
-         height="40"
-         style="border-radius: 8px;">
-  </a>
-  <a href="admin.html" id="adminNavBtn" class="admin-nav-btn" style="display:none; margin-left:20px; padding:6px 14px; border-radius:20px; background:linear-gradient(135deg,#8b5cf6,#7c3aed); color:white; text-decoration:none; font-size:12px; font-weight:600; vertical-align:middle;" title="Admin Panel">🛡️ Admin</a>
+  <div class="app-header">
+  <div class="header-left">
+    <a href="index.html" class="logo">
+      <img src="assets/logo/logo.jpg" alt="EmlakStüdyom" height="35" style="border-radius: 8px;">
+    </a>
+    <div class="mobile-undo-redo">
+      <button class="icon-btn" onclick="undoGlobal()">↩️</button>
+      <button class="icon-btn" onclick="redoGlobal()">↪️</button>
+    </div>
+  </div>
+  <div class="header-right">
+    <a href="admin.html" id="adminNavBtn" class="admin-nav-btn" style="display:none; margin-left:10px; padding:6px 14px; border-radius:20px; background:linear-gradient(135deg,#8b5cf6,#7c3aed); color:white; text-decoration:none; font-size:12px; font-weight:600; vertical-align:middle;" title="Admin Panel">🛡️ Admin</a>
+    <button class="mobile-menu-btn" onclick="toggleMobileMenu()">
+        <i class="fas fa-bars"></i>
+    </button>
+  </div>
 </div>
 <div class="container">
 <div class="panel">
@@ -81,14 +90,14 @@ window.addEventListener('error', function(e) {
     <div id="tab-data" class="dynamic-field show">
         <div class="tabs" style="background:#1e293b;border:1px solid #334155">
             <button class="tab-btn active" id="subKonut" onclick="switchMode('konut')">🏠 Emlak</button>
-                        <button class="tab-btn" id="subArazi" onclick="switchMode('arazi')">🌳 Arazi</button>
+            <button class="tab-btn" id="subArazi" onclick="switchMode('arazi')">🌳 Arazi</button>
             <button class="tab-btn" id="subCustom" onclick="switchMode('custom')">🛠️ Özel</button>
         </div>
         <div class="ai-box">
             <textarea id="aiText" placeholder="İlan metnini yapıştır..." rows="5" style="height:110px; resize:vertical;"></textarea>
             <button class="btn-ai" onclick="smartParse()">🤖 Metni Süz</button>
         </div>
-        <div class="input-group"><label>📁 Arka Plan Fotoğrafı</label><input type="file" id="imageInput" accept="image/*"></div>
+        <div class="input-group"><label>📁 Arka Plan Fotoğrafı</label><input type="file" id="imageInput" onclick="this.value=null" accept="image/*"></div>
         <div class="input-group" style="margin-bottom:8px"><label>🖼️ Firma Logosu (Opsiyonel)</label><input type="file" id="logoInput" accept="image/*"></div>
         <div class="row-2">
             <div class="input-group"><label>Durum</label><input type="text" id="statusInput" value="SATILIK EV"></div>
@@ -805,7 +814,7 @@ function switchHSLTab(btn, type) {
 <script src="ui/icons.js"></script>
 <script src="ui/element.js?v=991341243"></script>
 <script src="modules/export.js?v=991341243"></script>
-<script src="core.js???v=991341231"></script>
+<script src="core.js?v=1784101961448"></script>
 <script src="js/templateManager.js?v=991341241"></script>
 <script src="tpl_elit/elit.js?v=991341242"></script>
 <script src="tpl_kolaj/kolaj.js???v=991341231"></script>
@@ -817,7 +826,7 @@ function switchHSLTab(btn, type) {
 <script src="tpl_sosyal/sosyal.js???v=991341231"></script>
 <script src="tpl_portfoy/portfoy.js???v=991341231"></script>
 <script src="tpl_ozel/ozel.js???v=991341231"></script>
-<script src="main.js?v=991341256"></script>
+<script src="main.js?v=1784102833438"></script>
 
 <!-- Gizli inputlar: Fotoğraf zoom ve pan ayarlarının arka planda çalışabilmesi için -->
 <div style="display:none;">
@@ -1447,6 +1456,82 @@ if (document.readyState === 'loading') {
 }
 
 </script>
+
+<script>
+// Dummy function for toggleMobileMenu to prevent Uncaught ReferenceError
+function toggleMobileMenu() {
+    let menu = document.getElementById('mobileMenuPanel');
+    let overlay = document.getElementById('mobileMenuOverlay');
+    
+    if (!menu) {
+        menu = document.createElement('div');
+        menu.id = 'mobileMenuPanel';
+        menu.className = 'mobile-menu-panel';
+        menu.innerHTML = `
+            <div class="menu-header">
+                <div style="font-weight:bold; font-size:18px; color:#fff;">Menü</div>
+                <button class="close-menu-btn" onclick="toggleMobileMenu()">×</button>
+            </div>
+            <div class="menu-content" id="mobileMenuContent" style="display:flex; flex-direction:column; gap: 15px; padding-top:15px;">
+                <a href="index.html" class="menu-link" style="display:block; padding:0 20px; color:#cbd5e1; text-decoration:none; font-size: 16px;"><i class="fa-solid fa-home"></i> Ana Sayfa</a>
+                <hr style="border-color: rgba(255,255,255,0.1); margin: 5px 20px;">
+            </div>
+        `;
+        document.body.appendChild(menu);
+        
+        overlay = document.createElement('div');
+        overlay.id = 'mobileMenuOverlay';
+        overlay.className = 'mobile-menu-overlay';
+        overlay.onclick = toggleMobileMenu;
+        document.body.appendChild(overlay);
+    }
+
+    const isActive = menu.classList.contains('active');
+    
+    if (isActive) {
+        menu.classList.remove('active');
+        overlay.classList.remove('active');
+    } else {
+        menu.classList.add('active');
+        overlay.classList.add('active');
+        
+        // Move banner and assistant into the menu content
+        const banner = document.getElementById('modeBanner');
+        const assistant = document.querySelector('.help-assistant-fab');
+        const content = document.getElementById('mobileMenuContent');
+        
+        if (banner && banner.parentNode !== content) {
+            content.appendChild(banner);
+        }
+        
+        if (assistant && assistant.parentNode !== content) {
+            assistant.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> Akıllı Asistan';
+            content.appendChild(assistant);
+        }
+    }
+}
+</script>
+
+
+<!-- GUARANTEED MOBILE FIXES -->
+<style>
+@media (max-width: 768px) {
+    /* Fix dark overlay hiding the active tab */
+    .panel { z-index: 200 !important; }
+    .mobile-overlay { z-index: 150 !important; background: transparent !important; backdrop-filter: none !important; }
+    
+    /* Force canvas-wrapper to be perfectly centered */
+    .canvas-wrapper {
+        margin: 0 auto !important;
+        position: relative !important;
+        display: flex !important;
+        justify-content: center !important;
+        align-items: center !important;
+    }
+}
+</style>
+
 </body>
+
 </html>
 

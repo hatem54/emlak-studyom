@@ -1603,7 +1603,7 @@ h2 .vb{background:var(--gradient-1);color:#fff;font-size:9px;padding:2px 8px;bor
     .controls, .sidebar, .settings-panel { display: none !important; }
 
     /* 2. Container & Canvas Vertical Flow */
-    .container { flex-direction: column !important; gap: 0 !important; display: flex !important; height: calc(100vh - 50px - 60px); overflow: hidden; }
+    .container { flex-direction: column !important; gap: 0 !important; display: flex !important; height: calc(100vh - 50px - 90px); overflow: hidden; }
     
     .preview-area {
         padding: 0 !important; margin: 0 !important; width: 100% !important; order: 1 !important; flex: 1 1 auto !important; 
@@ -1618,7 +1618,7 @@ h2 .vb{background:var(--gradient-1);color:#fff;font-size:9px;padding:2px 8px;bor
         padding: 0 !important; margin: 0 !important; border: none !important; position: relative !important; z-index: 100;
     }
     #mainTabs {
-        display: flex !important; flex-wrap: nowrap !important; overflow-x: auto !important; height: 60px !important; margin: 0 !important; padding: 0 !important;
+        display: flex !important; flex-wrap: nowrap !important; overflow-x: auto !important; height: 90px !important; margin: 0 !important; padding: 0 0 30px 0 !important;
         background: #16162a !important; scrollbar-width: none; align-items: center; position: fixed; bottom: 0; left: 0; right: 0; z-index: 100;
     }
     #mainTabs::-webkit-scrollbar { display: none; }
@@ -1627,7 +1627,7 @@ h2 .vb{background:var(--gradient-1);color:#fff;font-size:9px;padding:2px 8px;bor
         border-radius: 6px !important; margin-right: 5px !important; white-space: nowrap !important;
     }
     .panel::after {
-        content: ''; position: fixed; right: 0; bottom: 0; height: 60px; width: 30px; background: linear-gradient(to right, transparent, #16162a); pointer-events: none; z-index: 101 !important;
+        content: ''; position: fixed; right: 0; bottom: 0; height: 90px; width: 30px; background: linear-gradient(to right, transparent, #16162a); pointer-events: none; z-index: 101 !important;
     }
     /* Hide desktop Undo/Redo in tab bar */
     #mainTabs .tab-btn[onclick="undoGlobal()"], #mainTabs .tab-btn[onclick="redoGlobal()"] { display: none !important; }
@@ -1639,7 +1639,7 @@ h2 .vb{background:var(--gradient-1);color:#fff;font-size:9px;padding:2px 8px;bor
         box-shadow: 0 -5px 25px rgba(0,0,0,0.5) !important; transition: bottom 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) !important;
         padding: 30px 20px 20px 20px !important; overflow-y: auto !important; display: block !important; box-sizing: border-box !important;
     }
-    .dynamic-field.show { bottom: 60px !important; }
+    .dynamic-field.show { bottom: 90px !important; }
     
     /* Drag Handle for Bottom Sheet */
     .drag-handle { position: absolute; top: 0; left: 0; right: 0; height: 35px; display: flex; justify-content: center; align-items: flex-start; padding-top: 10px; cursor: grab; z-index: 10; touch-action: none; }

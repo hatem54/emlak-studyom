@@ -1091,3 +1091,14 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 });
+
+
+// Expose closeBottomSheet to global scope
+window.closeBottomSheet = function() {
+    if (window.innerWidth <= 768) {
+        document.querySelectorAll('.panel>.dynamic-field').forEach(f => f.classList.remove('show'));
+        document.querySelectorAll('#mainTabs .tab-btn').forEach(b => b.classList.remove('active'));
+        const mo = document.getElementById('mobileSheetOverlay');
+        if (mo) { mo.style.display = 'none'; mo.style.opacity = '0'; }
+    }
+};

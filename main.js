@@ -538,3 +538,28 @@ document.addEventListener('touchstart', function(e) {
         lastSliderTap = currentTime;
     }
 }, {passive: false});
+
+// Open in Browser Button Logic
+document.addEventListener('click', (e) => {
+    if (e.target.closest('#openInBrowserBtn')) {
+        const currentUrl = window.location.href;
+        if (/Android/i.test(navigator.userAgent)) {
+            window.open(currentUrl, '_system');
+        } else if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+            window.open(currentUrl, '_blank');
+        } else {
+            window.open(currentUrl, '_blank');
+        }
+        if (typeof toggleMobileMenu === 'function') toggleMobileMenu();
+    }
+});
+
+// Visual Viewport API for Chrome AI bar
+if (window.visualViewport && window.innerWidth <= 640) {
+  const adjustLayout = () => {
+    const offset = window.innerHeight - window.visualViewport.height;
+    document.documentElement.style.setProperty('--browser-bar-height', `${offset}px`);
+  };
+  window.visualViewport.addEventListener('resize', adjustLayout);
+  window.addEventListener('load', adjustLayout);
+}

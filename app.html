@@ -29,7 +29,7 @@ window.addEventListener('error', function(e) {
 });
 </script>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <title>Emlak Tasarım Stüdyosu - Pro v14 Modüler</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js???v=82"></script>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@100;300;400;500;700;800;900&family=Playfair+Display:wght@400;700;800;900&family=Roboto:wght@100;300;400;500;700;900&family=Oswald:wght@200;400;500;700&family=Poppins:wght@100;300;400;500;700;800;900&family=Raleway:wght@100;300;400;500;700;800;900&family=Bebas+Neue&family=Archivo+Black&family=Libre+Baskerville:wght@400;700&family=Inter:wght@100;300;400;500;700;800;900&family=Nunito:wght@200;400;600;700;800;900&family=Lora:wght@400;500;600;700&family=Merriweather:wght@300;400;700;900&family=Dancing+Script:wght@400;500;600;700&family=Great+Vibes&family=Pacifico&family=Satisfy&family=Allura&family=Sacramento&family=Yellowtail&family=Kaushan+Script&family=Alex+Brush&family=Parisienne&family=Marck+Script&family=Cookie&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Cinzel:wght@400;500;600;700;800;900&family=Cinzel+Decorative:wght@400;700;900&family=Italiana&family=Prata&family=Josefin+Sans:wght@100;300;400;600;700&family=Abril+Fatface&family=Yeseva+One&family=Amatic+SC:wght@400;700&family=Caveat:wght@400;500;600;700&family=Shrikhand&family=Tangerine:wght@400;700&family=Berkshire+Swash&family=Yesteryear&display=swap" rel="stylesheet">
@@ -826,7 +826,7 @@ function switchHSLTab(btn, type) {
 <script src="tpl_sosyal/sosyal.js???v=991341231"></script>
 <script src="tpl_portfoy/portfoy.js???v=991341231"></script>
 <script src="tpl_ozel/ozel.js???v=991341231"></script>
-<script src="main.js?v=1784102833438"></script>
+<script src="main.js?v=1784182631417"></script>
 
 <!-- Gizli inputlar: Fotoğraf zoom ve pan ayarlarının arka planda çalışabilmesi için -->
 <div style="display:none;">
@@ -1474,7 +1474,11 @@ function toggleMobileMenu() {
             </div>
             <div class="menu-content" id="mobileMenuContent" style="display:flex; flex-direction:column; gap: 15px; padding-top:15px;">
                 <a href="index.html" class="menu-link" style="display:block; padding:0 20px; color:#cbd5e1; text-decoration:none; font-size: 16px;"><i class="fa-solid fa-home"></i> Ana Sayfa</a>
+                
                 <hr style="border-color: rgba(255,255,255,0.1); margin: 5px 20px;">
+                <button id="openInBrowserBtn" class="menu-link mobile-only" style="display:none; padding:0 20px; color:#cbd5e1; text-decoration:none; font-size: 16px; background:transparent; border:none; text-align:left; cursor:pointer; width:100%; margin-top:10px;">
+                    <i class="fa-solid fa-globe"></i> Tarayıcıda Aç
+                </button>
             </div>
         `;
         document.body.appendChild(menu);

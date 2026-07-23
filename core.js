@@ -1,5 +1,282 @@
+window.getCurrentPhotoState = function() {
+    const pnl = typeof getActivePhotoPanel === 'function' ? getActivePhotoPanel() : null;
+    const pl = typeof getActiveV4Element === 'function' ? getActiveV4Element() : null;
+    const sx = parseFloat(document.getElementById('photoXCtrl') ? document.getElementById('photoXCtrl').value : 50);
+    const sy = parseFloat(document.getElementById('photoYCtrl') ? document.getElementById('photoYCtrl').value : 50);
+    
+    if (pl && pl.dataset.zpReady === '1') {
+        return {
+            v4: true,
+            z: parseFloat(pl.dataset.zpScale) || 1,
+            px: parseFloat(pl.dataset.zpX) || 0,
+            py: parseFloat(pl.dataset.zpY) || 0,
+            panelW: pnl ? pnl.w : 1920,
+            panelH: pnl ? pnl.h : 1080,
+            panelL: pnl ? pnl.left : 0,
+            panelT: pnl ? pnl.top : 0,
+            sliderX: sx,
+            sliderY: sy
+        };
+    } else {
+        const pLayer = document.getElementById('photo-layer');
+        return {
+            v4: false,
+            z: parseInt(document.getElementById('photoZoomCtrl') ? document.getElementById('photoZoomCtrl').value : 100),
+            px: sx,
+            py: sy,
+            panelW: pnl ? pnl.w : 1920,
+            panelH: pnl ? pnl.h : 1080,
+            panelL: pnl ? pnl.left : 0,
+            panelT: pnl ? pnl.top : 0,
+            sliderX: sx,
+            sliderY: sy,
+            extraZ: (pLayer && pLayer.dataset.zpReady === '1') ? (parseFloat(pLayer.dataset.zpScale) || 1) : 1,
+            extraPx: (pLayer && pLayer.dataset.zpReady === '1') ? (parseFloat(pLayer.dataset.zpX) || 0) : 0,
+            extraPy: (pLayer && pLayer.dataset.zpReady === '1') ? (parseFloat(pLayer.dataset.zpY) || 0) : 0
+        };
+    }
+};
 
+window.getSnapGuides = function(px, py, excludeEl, isDrawingMode) {
+    const snapToggle = document.getElementById('drawSnapToggle');
+    if (!snapToggle || !snapToggle.checked) return { x: px, y: py, guides: [] };
+    
+    const pointSnapThreshold = 40 / (typeof scaleFactor !== "undefined" ? scaleFactor : 1);
+    const lineSnapThreshold = 10 / (typeof scaleFactor !== "undefined" ? scaleFactor : 1);
+    
+    const drawCanvas = document.getElementById('draw-layer') || document.getElementById('drawCanvas');
+    const baseW = drawCanvas ? drawCanvas.width : 1080;
+    const baseH = drawCanvas ? drawCanvas.height : 1080;
 
+    let points = []; 
+    let vLines = []; 
+    let hLines = []; 
+
+    // Always allow canvas center and edges
+    if (!isDrawingMode) {
+        points.push({x: baseW/2, y: baseH/2, type: 'canvas-center'});
+        vLines.push(0, baseW/2, baseW);
+        hLines.push(0, baseH/2, baseH);
+    } else if (window.polygonPoints?.length === 0) {
+        points.push({x: baseW/2, y: baseH/2, type: 'canvas-center'});
+    }
+
+    const allEls = document.querySelectorAll('.editable-text, .canvas-el, .cvi-item, .callout-wrap, .svg-callout');
+    allEls.forEach(el => {
+        if (el === excludeEl || el.dataset.locked === 'true' || el.style.display === 'none') return;
+        let left = parseFloat(el.style.left);
+        let top = parseFloat(el.style.top);
+        let w = el.offsetWidth;
+        let h = el.offsetHeight;
+        if (!isNaN(left) && !isNaN(top) && w > 0 && h > 0) {
+            points.push({x: left + w/2, y: top + h/2, type: 'obj-center'});
+            
+            let svg = el.querySelector('svg');
+            let isVector = false;
+            if (svg) {
+                let line = svg.querySelector('line');
+                if (line) {
+                    isVector = true;
+                    let x1 = parseFloat(line.getAttribute('x1'));
+                    let y1 = parseFloat(line.getAttribute('y1'));
+                    let x2 = parseFloat(line.getAttribute('x2'));
+                    let y2 = parseFloat(line.getAttribute('y2'));
+                    if(!isNaN(x1) && !isNaN(y1)) points.push({x: left + x1, y: top + y1, type: 'line-end'});
+                    if(!isNaN(x2) && !isNaN(y2)) points.push({x: left + x2, y: top + y2, type: 'line-end'});
+                }
+                let poly = svg.querySelector('polyline') || svg.querySelector('polygon');
+                if (poly) {
+                    isVector = true;
+                    let ptsStr = poly.getAttribute('points');
+                    if (ptsStr) {
+                        let pts = ptsStr.split(' ').map(p => {
+                            let coords = p.split(',');
+                            return {x: parseFloat(coords[0]), y: parseFloat(coords[1])};
+                        }).filter(p => !isNaN(p.x) && !isNaN(p.y));
+                        if (pts.length > 0) {
+                            points.push({x: left + pts[0].x, y: top + pts[0].y, type: 'path-end'});
+                            points.push({x: left + pts[pts.length-1].x, y: top + pts[pts.length-1].y, type: 'path-end'});
+                            pts.forEach(pt => points.push({x: left + pt.x, y: top + pt.y, type: 'polygon-vertex'}));
+                        }
+                    }
+                }
+                let ellipse = svg.querySelector('ellipse');
+                if (ellipse) {
+                    isVector = true;
+                    let cx = parseFloat(ellipse.getAttribute('cx'));
+                    let cy = parseFloat(ellipse.getAttribute('cy'));
+                    let rx = parseFloat(ellipse.getAttribute('rx'));
+                    let ry = parseFloat(ellipse.getAttribute('ry'));
+                    if (!isNaN(cx) && !isNaN(cy) && !isNaN(rx) && !isNaN(ry)) {
+                        points.push({x: left + cx, y: top + cy - ry, type: 'ellipse-quadrant'});
+                        points.push({x: left + cx, y: top + cy + ry, type: 'ellipse-quadrant'});
+                        points.push({x: left + cx - rx, y: top + cy, type: 'ellipse-quadrant'});
+                        points.push({x: left + cx + rx, y: top + cy, type: 'ellipse-quadrant'});
+                        points.push({x: left + cx, y: top + cy, type: 'ellipse-center'});
+                    }
+                }
+                let path = svg.querySelector('path');
+                if (path) {
+                    isVector = true;
+                    let d = path.getAttribute('d');
+                    if (d) {
+                        const matches = [...d.matchAll(/([ML])\s+([-.\d]+)\s+([-.\d]+)/g)];
+                        matches.forEach(m => {
+                            points.push({x: left + parseFloat(m[2]), y: top + parseFloat(m[3]), type: 'path-point'});
+                        });
+                    }
+                }
+            }
+
+            if (isDrawingMode && !isVector) {
+                // When drawing, allow snapping to corners of non-vector objects (rects, text, images)
+                points.push({x: left, y: top, type: 'obj-corner'});
+                points.push({x: left + w, y: top, type: 'obj-corner'});
+                points.push({x: left, y: top + h, type: 'obj-corner'});
+                points.push({x: left + w, y: top + h, type: 'obj-corner'});
+                // And edge midpoints
+                points.push({x: left + w/2, y: top, type: 'obj-edge'});
+                points.push({x: left + w/2, y: top + h, type: 'obj-edge'});
+                points.push({x: left, y: top + h/2, type: 'obj-edge'});
+                points.push({x: left + w, y: top + h/2, type: 'obj-edge'});
+            }
+
+            if (!isDrawingMode) {
+                // Sadece obje ortalarina ve kenarlarina cizgi cek (karmasikligi onlemek icin köselere nokta atama)
+                vLines.push(left, left + w / 2, left + w);
+                hLines.push(top, top + h / 2, top + h);
+            }
+        }
+    });
+
+    const currObj = window.getCurrentPhotoState ? window.getCurrentPhotoState() : null;
+
+    if (window.drawPaths) {
+        window.drawPaths.forEach(p => {
+            if (p.el && p.el === excludeEl) return;
+            
+            let tScale = 1, tDx = 0, tDy = 0;
+            // Eger resim transformu varsa
+            if (p.photoRef && currObj && typeof calculateTransformParams === 'function') {
+                const tParams = calculateTransformParams(p.photoRef, currObj);
+                tScale = tParams.scale;
+                tDx = tParams.dx;
+                tDy = tParams.dy;
+            }
+            
+            if (p.type === 'free' && p.points && p.points.length > 0) {
+                points.push({x: p.points[0].x * tScale + tDx, y: p.points[0].y * tScale + tDy, type: 'path-end'});
+                points.push({x: p.points[p.points.length-1].x * tScale + tDx, y: p.points[p.points.length-1].y * tScale + tDy, type: 'path-end'});
+            } else if (p.type === 'polygon' && p.points) {
+                p.points.forEach(pt => { points.push({x: pt.x * tScale + tDx, y: pt.y * tScale + tDy, type: 'polygon-vertex'}); });
+            } else if (p.x1 !== undefined && p.x2 !== undefined) {
+                let px1 = p.x1 * tScale + tDx;
+                let py1 = p.y1 * tScale + tDy;
+                let px2 = p.x2 * tScale + tDx;
+                let py2 = p.y2 * tScale + tDy;
+                points.push({x: px1, y: py1, type: 'line-end'});
+                points.push({x: px2, y: py2, type: 'line-end'});
+                points.push({x: (px1+px2)/2, y: (py1+py2)/2, type: 'line-mid'});
+            }
+        });
+    }
+
+    if (window.polygonPoints && window.polygonPoints.length > 0) {
+        window.polygonPoints.forEach(pt => {
+            points.push({x: pt.x, y: pt.y, type: 'polygon-vertex'});
+        });
+    }
+
+    let closestPoint = null;
+    let minPointDist = pointSnapThreshold;
+    points.forEach(pt => {
+        let dist = Math.sqrt(Math.pow(pt.x - px, 2) + Math.pow(pt.y - py, 2));
+        if (dist < minPointDist) {
+            minPointDist = dist;
+            closestPoint = pt;
+        }
+    });
+
+    let finalX = px, finalY = py;
+    const guides = [];
+
+    if (closestPoint) {
+        finalX = closestPoint.x;
+        finalY = closestPoint.y;
+        guides.push({ type: 'point', x: finalX, y: finalY });
+    } else if (!isDrawingMode) {
+        let closestX = null, closestY = null;
+        let minDistX = lineSnapThreshold, minDistY = lineSnapThreshold;
+
+        vLines.forEach(tx => {
+            if (Math.abs(tx - px) < minDistX) { minDistX = Math.abs(tx - px); closestX = tx; }
+        });
+
+        hLines.forEach(ty => {
+            if (Math.abs(ty - py) < minDistY) { minDistY = Math.abs(ty - py); closestY = ty; }
+        });
+
+        if (closestX !== null) { finalX = closestX; guides.push({ type: 'v', x: closestX }); }
+        if (closestY !== null) { finalY = closestY; guides.push({ type: 'h', y: closestY }); }
+    }
+
+    return { x: finalX, y: finalY, guides };
+};
+
+window.drawSnapGuides = function(guides) {
+    const container = document.getElementById('photo-layer') || document.body;
+    const drawCanvas = document.getElementById('draw-layer') || document.getElementById('drawCanvas');
+    const logicW = drawCanvas ? drawCanvas.width : 1080;
+    const logicH = drawCanvas ? drawCanvas.height : 1080;
+    document.querySelectorAll('.snap-guide-line, .snap-guide-point').forEach(e => e.remove());
+    
+    if (!guides || guides.length === 0) return;
+    
+    guides.forEach(g => {
+        if (g.type === 'point') {
+            const pt = document.createElement('div');
+            pt.className = 'snap-guide-point';
+            pt.style.position = 'absolute';
+            pt.style.left = (g.x / logicW * 100) + '%';
+            pt.style.top = (g.y / logicH * 100) + '%';
+            pt.style.width = '12px';
+            pt.style.height = '12px';
+            pt.style.transform = 'translate(-50%, -50%)';
+            pt.style.border = '2px solid #f59e0b';
+            pt.style.borderRadius = '50%';
+            pt.style.background = 'rgba(245, 158, 11, 0.3)';
+            pt.style.zIndex = '9999';
+            pt.style.pointerEvents = 'none';
+            container.appendChild(pt);
+        } else {
+            const line = document.createElement('div');
+            line.className = 'snap-guide-line';
+            line.style.position = 'absolute';
+            line.style.background = 'transparent';
+            line.style.zIndex = '9999';
+            line.style.pointerEvents = 'none';
+            
+            if (g.type === 'v') {
+                line.style.left = (g.x / logicW * 100) + '%';
+                line.style.top = '0';
+                line.style.width = '1px';
+                line.style.height = '100%';
+                line.style.borderLeft = '1px dashed rgba(245, 158, 11, 0.4)';
+            } else {
+                line.style.top = (g.y / logicH * 100) + '%';
+                line.style.left = '0';
+                line.style.width = '100%';
+                line.style.height = '1px';
+                line.style.borderTop = '1px dashed rgba(245, 158, 11, 0.4)';
+            }
+            container.appendChild(line);
+        }
+    });
+};
+
+window.clearSnapGuides = function() {
+    document.querySelectorAll('.snap-guide-line, .snap-guide-point').forEach(e => e.remove());
+};
 
 
 
@@ -9,8 +286,8 @@
 
 const $=id=>document.getElementById(id);
 
-let currentMode='konut',activeLayout='',scaleFactor=1,selectedEl=null,allIcons=[];
-let drawMode='off',isDrawing=false,drawStartX=0,drawStartY=0,drawPaths=[],currentPath=[];
+let currentMode='satilik_daire',activeLayout='',scaleFactor=1,selectedEl=null,allIcons=[];
+let drawMode='off',isDrawing=false,drawStartX=0,drawStartY=0,drawPaths=[],drawRedoPaths=[],currentPath=[];
 let extraFieldCounter=0,editingDrawIndex=-1,isCanvaMode=false,activeCanvaId='';
 let polygonPoints=[],polygonBuilding=false,lastClickTime=0;
 const extraFieldsData={konut:[],arazi:[]};
@@ -407,6 +684,52 @@ function applyStylePos(el,c){
     el.dataset.storedBorderWidth='0';
 }
 
+window.switchPropertyType = function(type) {
+    const config = window.propertyForms && window.propertyForms[type];
+    if(!config) {
+        if(type === 'custom') {
+            window.switchMode('custom');
+            if(document.getElementById('statusInput')) document.getElementById('statusInput').value = 'ÖZEL İLAN';
+            if(document.getElementById('canvaTitle')) document.getElementById('canvaTitle').value = 'ÖZEL İLAN';
+            return;
+        }
+        return;
+    }
+    
+    if(document.getElementById('customForm')) document.getElementById('customForm').style.display = 'none';
+    const container = document.getElementById('dynamicFormContainer');
+    if(!container) return;
+    
+    let html = `<input type="hidden" id="statusInput" value="${config.badge}">`;
+    html += `<div class="section-title">✨ ${config.badge} BİLGİLERİ</div>`;
+    
+    for(let i=0; i<config.fields.length; i+=2) {
+        let f1 = config.fields[i];
+        let f2 = config.fields[i+1];
+        html += '<div class="row-2">';
+        html += `<div class="input-group"><label>${f1.label}</label><input type="text" id="${f1.id}" value="${f1.value}" oninput="renderData()"></div>`;
+        if(f2) {
+            html += `<div class="input-group"><label>${f2.label}</label><input type="text" id="${f2.id}" value="${f2.value}" oninput="renderData()"></div>`;
+        }
+        html += '</div>';
+    }
+    
+    html += `<div id="dynamicExtraFields"></div>`;
+    html += `<button class="btn-action btn-cyan" onclick="addExtraField('dynamic')">+ Bilgi Ekle</button>`;
+    
+    container.innerHTML = html;
+    
+    if(document.getElementById('canvaTitle')) document.getElementById('canvaTitle').value = config.badge;
+    // Lüks, Elit, Dinamik, Minimal, Kurumsal, Sosyal vs. tüm şablonların başlık alanlarını güncelle
+    const allTitleIds = ['canvaLTitle','canvaDTitle','canvaCTitle','canvaKTitle','canvaMTitle','canvaOTitle','canvaPTitle','canvaSTitle','canvaETitle'];
+    allTitleIds.forEach(tid => {
+        const el = document.getElementById(tid);
+        if(el) el.value = config.badge;
+    });
+    window.currentMode = type;
+    renderData();
+};
+
 window.switchMode = function(m) {
     currentMode = m;
     
@@ -435,21 +758,39 @@ window.switchMode = function(m) {
 
 function renderData(){
     try {
-        elBadge.innerText=$('statusInput').value;
-        elPrice.innerText=$('priceInput').value || 'FİYAT İÇİN BİZE ULAŞIN';
+        elBadge.innerText= $('statusInput') ? $('statusInput').value : '';
+        elPrice.innerText= $('priceInput') ? ($('priceInput').value || 'FİYAT İÇİN BİZE ULAŞIN') : 'FİYAT İÇİN BİZE ULAŞIN';
 
         const v=i=>document.getElementById(i)?document.getElementById(i).value:'';
         let canvaLines=[];
-        if(currentMode==='konut'){
-            if(v('roomsInput'))canvaLines.push(v('roomsInput')+' Geniş Salon');
-            if(v('sizeInput'))canvaLines.push(v('sizeInput')+' Net Kullanım');
-            if(v('heatingInput'))canvaLines.push(v('heatingInput'));
-            if(v('floorInput')||v('ageInput'))canvaLines.push((v('floorInput')?v('floorInput'):'')+(v('ageInput')?' / '+v('ageInput')+' Yaşında':''));
-        }else if(currentMode==='arazi'){
-            if(v('araziSizeInput'))canvaLines.push(v('araziSizeInput')+' Geniş Alan');
-            if(v('imarInput'))canvaLines.push(v('imarInput'));
-            if(v('adaParselInput'))canvaLines.push('Ada/Parsel: '+v('adaParselInput'));
-            if(v('tapuInput'))canvaLines.push(v('tapuInput')+' Tapu');
+        if (window.currentMode === 'custom') {
+            if(v('c_l1')&&v('c_v1'))canvaLines.push(v('c_l1')+': '+v('c_v1'));
+            if(v('c_l2')&&v('c_v2'))canvaLines.push(v('c_l2')+': '+v('c_v2'));
+            if(v('c_l3')&&v('c_v3'))canvaLines.push(v('c_l3')+': '+v('c_v3'));
+            if(v('c_l4')&&v('c_v4'))canvaLines.push(v('c_l4')+': '+v('c_v4'));
+        } else if (window.propertyForms && window.propertyForms[window.currentMode]) {
+            const config = window.propertyForms[window.currentMode];
+            config.fields.forEach(f => {
+                if (f.id === 'priceInput') return;
+                const val = document.getElementById(f.id) ? document.getElementById(f.id).value : '';
+                if (val && val.toLowerCase() !== 'yok') {
+                    if (f.canvasFormat) {
+                        canvaLines.push(f.canvasFormat.replace('{value}', val));
+                    } else {
+                        canvaLines.push(val);
+                    }
+                }
+            });
+            const extraContainer = document.getElementById('dynamicExtraFields');
+            if (extraContainer) {
+                const rows = extraContainer.querySelectorAll('.row-2');
+                rows.forEach(r => {
+                    const inputs = r.querySelectorAll('input');
+                    if (inputs.length === 2 && inputs[0].value && inputs[1].value) {
+                        canvaLines.push(inputs[0].value + ': ' + inputs[1].value);
+                    }
+                });
+            }
         }
         
         if(document.getElementById('descInput') && document.getElementById('descInput').value.trim()){
@@ -460,8 +801,10 @@ function renderData(){
         }
         
         if(currentMode!=='custom'){
-            const featsStr = canvaLines.filter(l=>l.trim().length>0).join('\n');
-            const featsInputs = ['canvaFeatures', 'canvaDFeats', 'canvaCFeats', 'canvaKFeats', 'canvaLFeats', 'canvaMFeats', 'canvaOFeats', 'canvaPFeats', 'canvaSFeats', 'kolajAciklama'];
+            const allLines = canvaLines.filter(l=>l.trim().length>0);
+            // Tüm şablonlar için en fazla 5 satır (çerçeve taşmasını önler)
+            const featsStr = allLines.slice(0,5).join('\n');
+            const featsInputs = ['canvaFeatures', 'canvaDFeats', 'canvaCFeats', 'canvaKFeats', 'canvaMFeats', 'canvaOFeats', 'canvaPFeats', 'canvaSFeats', 'kolajAciklama', 'canvaLFeats'];
             featsInputs.forEach(id => {
                 if(document.getElementById(id)) document.getElementById(id).value = featsStr;
             });
@@ -473,22 +816,52 @@ function renderData(){
 
         let h='';
         
-        if(currentMode==='konut'){
-            h+='<div><i class="fas fa-bed"></i> Oda: <b>'+v('roomsInput')+'</b></div><div><i class="fas fa-ruler-combined"></i> Alan: <b>'+v('sizeInput')+'</b></div>';
-            if(v('floorInput'))h+='<div><i class="fas fa-layer-group"></i> Kat: <b>'+v('floorInput')+'</b></div>';
-            if(v('ageInput'))h+='<div><i class="fas fa-calendar-alt"></i> Yaş: <b>'+v('ageInput')+'</b></div>';
-            if(v('heatingInput'))h+='<div><i class="fas fa-fire"></i> Isıtma: <b>'+v('heatingInput')+'</b></div>';
-            if(v('bathInput'))h+='<div><i class="fas fa-bath"></i> Banyo: <b>'+v('bathInput')+'</b></div>';
-            extraFieldsData.konut.forEach(id=>{const l=$('lbl_'+id),vl=$('val_'+id);if(l&&vl&&(l.value||vl.value))h+='<div><i class="fas fa-check-circle"></i> '+l.value+': <b>'+vl.value+'</b></div>'});
-        }else{
-            h+='<div><i class="fas fa-ruler-combined"></i> Alan: <b>'+v('araziSizeInput')+'</b></div><div><i class="fas fa-map"></i> İmar: <b>'+v('imarInput')+'</b></div><div><i class="fas fa-layer-group"></i> Ada/P: <b>'+v('adaParselInput')+'</b></div>';
-            if(v('gabariInput'))h+='<div><i class="fas fa-building"></i> Gabari: <b>'+v('gabariInput')+'</b></div>';
-            if(v('taksInput'))h+='<div><i class="fas fa-chart-area"></i> TAKS: <b>'+v('taksInput')+'</b></div>';
-            if(v('kaksInput'))h+='<div><i class="fas fa-chart-bar"></i> KAKS: <b>'+v('kaksInput')+'</b></div>';
-            if(v('cepheInput'))h+='<div><i class="fas fa-compass"></i> Cephe: <b>'+v('cepheInput')+'</b></div>';
-            if(v('tapuInput'))h+='<div><i class="fas fa-file-contract"></i> Tapu: <b>'+v('tapuInput')+'</b></div>';
-            extraFieldsData.arazi.forEach(id=>{const l=$('lbl_'+id),vl=$('val_'+id);if(l&&vl&&(l.value||vl.value))h+='<div><i class="fas fa-check-circle"></i> '+l.value+': <b>'+vl.value+'</b></div>'});
+        if (window.propertyForms && window.propertyForms[window.currentMode]) {
+            const config = window.propertyForms[window.currentMode];
+            config.fields.forEach(f => {
+                if(f.id === 'priceInput') return; // fiyatı yukarda basıyoruz
+                const val = v(f.id);
+                if (val && val.toLowerCase() !== 'yok') {
+                    let icon = 'fa-check-circle';
+                    const lbl = f.label.toLowerCase();
+                    if(lbl.includes('oda') || lbl.includes('daire')) icon = 'fa-bed';
+                    else if(lbl.includes('m²') || lbl.includes('alan')) icon = 'fa-ruler-combined';
+                    else if(lbl.includes('kat') || lbl.includes('gabari')) icon = 'fa-layer-group';
+                    else if(lbl.includes('yaş') || lbl.includes('tarih')) icon = 'fa-calendar-alt';
+                    else if(lbl.includes('ısıtma') || lbl.includes('enerji')) icon = 'fa-fire';
+                    else if(lbl.includes('banyo')) icon = 'fa-bath';
+                    else if(lbl.includes('havuz')) icon = 'fa-swimming-pool';
+                    else if(lbl.includes('imar') || lbl.includes('ada') || lbl.includes('parsel') || lbl.includes('konum') || lbl.includes('lokasyon')) icon = 'fa-map-marker-alt';
+                    else if(lbl.includes('cephe')) icon = 'fa-compass';
+                    else if(lbl.includes('tapu') || lbl.includes('emsal') || lbl.includes('kaks')) icon = 'fa-file-contract';
+                    else if(lbl.includes('otopark')) icon = 'fa-car';
+                    else if(lbl.includes('asansör')) icon = 'fa-sort-numeric-up';
+                    else if(lbl.includes('deniz') || lbl.includes('manzara') || lbl.includes('su')) icon = 'fa-water';
+                    else if(lbl.includes('ağaç') || lbl.includes('bahçe') || lbl.includes('peyzaj') || lbl.includes('ahır')) icon = 'fa-tree';
+                    else if(lbl.includes('akıllı') || lbl.includes('elektrik')) icon = 'fa-bolt';
+
+                    let cleanLabel = f.label.replace(' Sayısı', '').replace(' Durumu', '').replace(' Alanı', '').replace(' Türü', '').replace(' Ölçüsü', '').replace(' Bedeli', '');
+                    h += '<div><i class="fas ' + icon + '"></i> ' + cleanLabel + ': <b>' + val + '</b></div>';
+                }
+            });
+            
+            const extraContainer = document.getElementById('dynamicExtraFields');
+            if (extraContainer) {
+                const rows = extraContainer.querySelectorAll('.row-2');
+                rows.forEach(r => {
+                    const inputs = r.querySelectorAll('input');
+                    if (inputs.length === 2 && inputs[0].value && inputs[1].value) {
+                        h += '<div><i class="fas fa-check-circle"></i> ' + inputs[0].value + ': <b>' + inputs[1].value + '</b></div>';
+                    }
+                });
+            }
+        } else if (window.currentMode === 'custom') {
+            if(v('c_rooms')) h += '<div><i class="fas fa-bed"></i> Oda: <b>' + v('c_rooms') + '</b></div>';
+            if(v('c_size')) h += '<div><i class="fas fa-ruler-combined"></i> Alan: <b>' + v('c_size') + '</b></div>';
+            if(v('c_floor')) h += '<div><i class="fas fa-layer-group"></i> Kat: <b>' + v('c_floor') + '</b></div>';
+            if(v('c_age')) h += '<div><i class="fas fa-calendar-alt"></i> Yaş: <b>' + v('c_age') + '</b></div>';
         }
+        
         $('infoLineText').innerHTML=h;
     } catch(err) {
         console.error("renderData HATA:", err);
@@ -562,22 +935,47 @@ function smartParse(){
     if (/günlük/i.test(t)) status = 'GÜNLÜK KİRALIK';
     
     // Arazi mi Konut mu?
-    const araziMatch = t.match(/(arsa|arazi|tarla|bahçe|zeytinlik)/i);
-    const isArazi = araziMatch !== null;
-    if (isArazi) {
-        switchMode('arazi');
-        status += ' ' + araziMatch[1].toUpperCase();
-    } else {
-        switchMode('konut');
-        const dukkanMatch = t.match(/(dükkan|işyeri|mağaza)/i);
-        if (/daire/i.test(t)) status += ' DAİRE';
-        else if (/villa/i.test(t)) status += ' VİLLA';
-        else if (dukkanMatch) status += ' ' + dukkanMatch[1].toUpperCase();
-        else status += ' EV';
-    }
-    
-    // Temizle
-    const finalStatus = status.toUpperCase();
+    const propMapping = {
+            'daire': t.includes('kiralık') ? 'kiralik_daire' : 'satilik_daire',
+            'villa': t.includes('kiralık') ? 'kiralik_villa' : (t.includes('lüks') ? 'satilik_luks_villa' : 'satilik_villa'),
+            'müstakil ev': 'satilik_mustakil_ev',
+            'köy evi': 'satilik_koy_evi',
+            'residence': 'satilik_residence',
+            'yazlık': 'satilik_yazlik',
+            'bungalov': 'satilik_bungalov',
+            'dükkan': t.includes('kiralık') ? 'kiralik_dukkan' : 'satilik_dukkan',
+            'işyeri': t.includes('kiralık') ? 'kiralik_dukkan' : 'satilik_dukkan',
+            'ofis': t.includes('kiralık') ? 'kiralik_ofis' : 'satilik_ofis',
+            'arsa': 'satilik_arsa',
+            'tarla': 'satilik_tarla',
+            'bağ': 'satilik_bag_bahce',
+            'bahçe': 'satilik_bag_bahce'
+        };
+        
+        let foundType = 'satilik_daire';
+        for (const [key, val] of Object.entries(propMapping)) {
+            if (new RegExp(key, 'i').test(t)) {
+                foundType = val;
+                break;
+            }
+        }
+        
+        document.querySelectorAll('.cat-item').forEach(item => item.classList.remove('active'));
+        const targetEl = document.querySelector(`.cat-item[onclick*="${foundType}"]`);
+        if(targetEl) {
+            targetEl.classList.add('active');
+            targetEl.closest('.cat-body').classList.add('open');
+            const icon = targetEl.closest('.cat-group').querySelector('i');
+            if(icon) {
+                icon.classList.remove('fa-chevron-down');
+                icon.classList.add('fa-chevron-up');
+            }
+        }
+        
+        window.switchPropertyType(foundType);
+        
+        // Temizle
+        const finalStatus = status.toUpperCase();
     $('statusInput').value = finalStatus;
     
     const titleInputs = ['canvaTitle', 'canvaDTitle', 'canvaCTitle', 'canvaKTitle', 'canvaLTitle', 'canvaMTitle', 'canvaOTitle', 'canvaPTitle', 'canvaSTitle', 'kolajBaslik'];
@@ -809,19 +1207,19 @@ function calculateTransformParams(ref, curr) {
                 offsetY = (pH - imgH * coverScale) * (sY / 100);
             }
             
-            let BaseAbsCX = pL + offsetX + (imgW * coverScale) / 2;
-            let BaseAbsCY = pT + offsetY + (imgH * coverScale) / 2;
+            let BaseLocalCX = offsetX + (imgW * coverScale) / 2;
+            let BaseLocalCY = offsetY + (imgH * coverScale) / 2;
             
             // Apply scale distance transform
-            let DistX = BaseAbsCX - (pL + pW / 2);
-            let DistY = BaseAbsCY - (pT + pH / 2);
+            let DistX = BaseLocalCX - pW / 2;
+            let DistY = BaseLocalCY - pH / 2;
             
-            let ScaledAbsCX = pL + pW / 2 + DistX * s.z;
-            let ScaledAbsCY = pT + pH / 2 + DistY * s.z;
+            let ScaledLocalCX = pW / 2 + DistX * s.z;
+            let ScaledLocalCY = pH / 2 + DistY * s.z;
             
             // Apply translation (scaled by z since it's a DOM transform)
-            AbsCX = ScaledAbsCX + s.px * s.z;
-            AbsCY = ScaledAbsCY + s.py * s.z;
+            AbsCX = ScaledLocalCX + s.px * s.z;
+            AbsCY = ScaledLocalCY + s.py * s.z;
         } else {
             let coverScale = Math.max(pW / imgW, pH / imgH);
             if (s.z != 100) coverScale = (pW * (s.z / 100)) / imgW;
@@ -835,17 +1233,17 @@ function calculateTransformParams(ref, curr) {
             if (imgH * coverScale > pH) {
                 offsetY = (pH - imgH * coverScale) * (s.py / 100);
             }
-            let BaseAbsCX = pL + offsetX + (imgW * coverScale) / 2;
-            let BaseAbsCY = pT + offsetY + (imgH * coverScale) / 2;
+            let BaseLocalCX = offsetX + (imgW * coverScale) / 2;
+            let BaseLocalCY = offsetY + (imgH * coverScale) / 2;
             
-            let DistX = BaseAbsCX - (pL + pW / 2);
-            let DistY = BaseAbsCY - (pT + pH / 2);
+            let DistX = BaseLocalCX - pW / 2;
+            let DistY = BaseLocalCY - pH / 2;
             
-            let ScaledAbsCX = pL + pW / 2 + DistX * (s.extraZ || 1);
-            let ScaledAbsCY = pT + pH / 2 + DistY * (s.extraZ || 1);
+            let ScaledLocalCX = pW / 2 + DistX * (s.extraZ || 1);
+            let ScaledLocalCY = pH / 2 + DistY * (s.extraZ || 1);
             
-            AbsCX = ScaledAbsCX + (s.extraPx || 0) * (s.extraZ || 1);
-            AbsCY = ScaledAbsCY + (s.extraPy || 0) * (s.extraZ || 1);
+            AbsCX = ScaledLocalCX + (s.extraPx || 0) * (s.extraZ || 1);
+            AbsCY = ScaledLocalCY + (s.extraPy || 0) * (s.extraZ || 1);
         }
         return { AbsCX, AbsCY, TotalScale };
     }

@@ -148,7 +148,19 @@ window.filterLucideIcons = function(query) {
 function addIcon(ch){
     const icon=document.createElement('div');
     icon.className='draggable added-icon canvas-el';
-    if (ch && ch.trim().startsWith('<svg')) { icon.innerHTML = ch; } else { icon.textContent=ch; }
+    if (ch && ch.trim().startsWith('<svg')) { 
+        // Force SVG to use em sizing so it scales properly with font-size
+        let modSvg = ch;
+        if(modSvg.includes('width=')) modSvg = modSvg.replace(/width="[^"]*"/, 'width="1em"');
+        else modSvg = modSvg.replace('<svg', '<svg width="1em"');
+        if(modSvg.includes('height=')) modSvg = modSvg.replace(/height="[^"]*"/, 'height="1em"');
+        else modSvg = modSvg.replace('<svg', '<svg height="1em"');
+        
+        icon.innerHTML = modSvg;
+        icon.classList.add('is-svg-icon');
+    } else { 
+        icon.textContent=ch; 
+    }
     icon.dataset.label='İkon: ' + (ch.length > 50 ? 'SVG' : ch);
     icon.dataset.defaultFont='60';
     icon.dataset.rotation='0';

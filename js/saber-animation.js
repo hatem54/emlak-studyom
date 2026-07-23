@@ -137,6 +137,7 @@ function initSaberAnimToggles() {
                 cb.id !== 'elTextSaber' && 
                 cb.id !== 'saberModeToggle' && 
                 cb.id !== 'deSaberToggle' && 
+                cb.id !== 'drawSnapToggle' &&
                 !cb.id.endsWith('Anim')) {
                 
                 const html = (cb.outerHTML || '').toLowerCase();

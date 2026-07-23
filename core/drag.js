@@ -82,21 +82,38 @@ function _getZoomTarget(target){
 }
 
 function bindDrag(el){
-    let dragging=false, resizing=false, sx, sy, il, it, iw, ih, moved=false, downTime=0;
+    let dragging=false, resizing=false, sx, sy, il, it, iw, ih, moved=false, downTime=0, multiSelectKey=false;
     
     el.addEventListener('mousemove', e => {
         const rect = el.getBoundingClientRect();
         if (e.clientX >= rect.right - 20 && e.clientY >= rect.bottom - 20) {
             el.style.cursor = 'se-resize';
         } else {
-            el.style.cursor = dragging ? 'grabbing' : (el.dataset.editingText ? 'text' : 'move');
+            el.style.cursor = dragging ? 'grabbing' : (el.dataset.editingText ? 'text' : 'grab');
         }
     });
 
     function down(e){
-        if(drawMode!=='off')return;
-        if(el.contentEditable==='true')return;
+        if (typeof drawMode !== 'undefined' && drawMode !== null && drawMode !== 'off') return;
+        
+        multiSelectKey = e.ctrlKey || e.shiftKey;
+        if (e.touches && typeof longPressTimer !== 'undefined') { /* mobile long press logic handled separately */ }
+          
+          if(el.dataset.locked === 'true') {
+                if (typeof selectElement === 'function') selectElement(el, multiSelectKey);
+                e.preventDefault();
+                return;
+            }
+          if(el.contentEditable==='true')return;
         if(el.dataset.editingText)return;
+          
+          let wasSelected = true;
+          if (!window.selectedElements || !window.selectedElements.includes(el)) {
+              wasSelected = false;
+              if (typeof selectElement === 'function') selectElement(el, multiSelectKey);
+              e.preventDefault();
+          }
+          
         e.preventDefault();
         e.stopPropagation();
         moved=false;
@@ -109,6 +126,7 @@ function bindDrag(el){
             resizing = true;
             iw = el.offsetWidth;
             ih = el.offsetHeight;
+            el.dataset.startFontSize = parseFloat(window.getComputedStyle(el).fontSize) || 16;
             if (el.classList.contains('co-neon-block')) {
                 el.dataset.startIconSize = el.dataset.coIconSize || 64;
                 el.dataset.startTextSize = el.dataset.coTextSize || 14;
@@ -126,6 +144,16 @@ function bindDrag(el){
         const cs=getComputedStyle(el);
         il=parseFloat(cs.left)||0;
         it=parseFloat(cs.top)||0;
+        
+        if (window.selectedElements && window.selectedElements.includes(el)) {
+            window.selectedElements.forEach(selEl => {
+                const s_cs = getComputedStyle(selEl);
+                selEl.dataset.dragStartX = parseFloat(s_cs.left) || 0;
+                selEl.dataset.dragStartY = parseFloat(s_cs.top) || 0;
+                selEl.dataset.dragStartWidth = selEl.offsetWidth;
+                selEl.dataset.dragStartHeight = selEl.offsetHeight;
+            });
+        }
     }
     function move(e){
         if(!dragging && !resizing)return;
@@ -137,11 +165,13 @@ function bindDrag(el){
         if (resizing) {
             const dx = (c.clientX - sx) / scaleFactor;
             const dy = (c.clientY - sy) / scaleFactor;
-            const newW = Math.max(20, iw + dx);
-            const newH = Math.max(20, ih + dy);
+            let newW = Math.max(20, iw + dx);
+            let newH = Math.max(20, ih + dy);
             
             if (el.classList.contains('co-neon-block')) {
-                const ratio = newW / iw;
+                const ratio = Math.max(newW / iw, newH / ih);
+                newW = iw * ratio;
+                newH = ih * ratio;
                 const newIconSize = Math.max(10, Math.round(parseFloat(el.dataset.startIconSize) * ratio));
                 const newTextSize = Math.max(5, Math.round(parseFloat(el.dataset.startTextSize) * ratio));
                 const newPadding = Math.round(parseFloat(el.dataset.startPadding) * ratio);
@@ -169,6 +199,21 @@ function bindDrag(el){
                     if (pd) { pd.value = newPadding; document.getElementById('coPaddingVal').textContent = newPadding + 'px'; }
                 }
             } else {
+                if (el.classList.contains('editable-text') || el.classList.contains('canvas-el') || el.classList.contains('cvi-item')) {
+                    const ratio = Math.max(newW / iw, newH / ih);
+                    newW = iw * ratio;
+                    newH = ih * ratio;
+                    
+                    const newFontSize = Math.max(8, parseFloat(el.dataset.startFontSize) * ratio);
+                    el.style.fontSize = newFontSize + 'px';
+                    
+                    if (typeof selectedEl !== 'undefined' && selectedEl === el) {
+                        const fsInput = document.getElementById('elFontSize');
+                        const fsVal = document.getElementById('elFontSizeVal');
+                        if(fsInput) { fsInput.value = newFontSize; if(fsVal) fsVal.textContent = Math.round(newFontSize); }
+                    }
+                }
+                
                 el.style.width = newW + 'px';
                 if (el.tagName !== 'IMG') {
                     el.style.height = newH + 'px';
@@ -184,29 +229,127 @@ function bindDrag(el){
                 }
             }
         } else {
-            el.style.left=(il+(c.clientX-sx)/scaleFactor)+'px';
-            el.style.top=(it+(c.clientY-sy)/scaleFactor)+'px';
-            el.style.bottom='auto';
-            el.style.right='auto';
-            const rot=el.dataset.rotation||0;
-            el.style.transform='rotate('+rot+'deg)';
+            const deltaX = (c.clientX - sx) / scaleFactor;
+            const deltaY = (c.clientY - sy) / scaleFactor;
+            
+            let newL = il + deltaX;
+            let newT = it + deltaY;
+            
+            if (window.getSnapGuides && !multiSelectKey && !resizing) {
+                // Determine logic dimensions based on parent container scale if v4
+                const rect = el.getBoundingClientRect();
+                const snap = window.getSnapGuides(newL + (el.offsetWidth)/2, newT + (el.offsetHeight)/2, el, false);
+                newL = snap.x - (el.offsetWidth)/2;
+                newT = snap.y - (el.offsetHeight)/2;
+                if (window.drawSnapGuides) window.drawSnapGuides(snap.guides);
+            }
+
+            el.style.left = newL + 'px';
+            el.style.top = newT + 'px';
+            el.style.bottom = 'auto';
+            el.style.right = 'auto';
+            const rot = el.dataset.rotation || 0;
+            el.style.transform = 'rotate(' + rot + 'deg)';
+            
+            if (window.selectedElements && window.selectedElements.length > 1 && window.selectedElements.includes(el)) {
+                window.selectedElements.forEach(selEl => {
+                    if (selEl !== el) {
+                        const s_il = parseFloat(selEl.dataset.dragStartX) || 0;
+                        const s_it = parseFloat(selEl.dataset.dragStartY) || 0;
+                        selEl.style.left = (s_il + deltaX) + 'px';
+                        selEl.style.top = (s_it + deltaY) + 'px';
+                        selEl.style.bottom = 'auto';
+                        selEl.style.right = 'auto';
+                    }
+                });
+            }
         }
     }
     function up(){
+        if (window.clearSnapGuides) window.clearSnapGuides();
         if(!dragging && !resizing)return;
         dragging=false;
         resizing=false;
         el.classList.remove('dragging');
         const clickDuration=Date.now()-downTime;
-        if(!moved && drawMode==='off' && clickDuration<200){
-            setTimeout(()=>{
-                if(!el.dataset.editingText && typeof selectElement === 'function'){
-                    selectElement(el);
+        if(!moved && drawMode==='off' && typeof selectElement === 'function') {
+                if (!multiSelectKey) {
+                    selectElement(el, false);
                 }
-            },220);
-        } else if(!moved && drawMode==='off' && typeof selectElement === 'function'){
-            selectElement(el);
-        }
+            }
+            
+            // --- ADDED LOGIC FOR DRAWING STICKINESS AFTER DRAG ---
+            if (moved && window.selectedElements) {
+                let photoRefUpdated = false;
+                let currentRef = null;
+                if (typeof getActivePhotoPanel === 'function') {
+                    const pnl = getActivePhotoPanel();
+                    const pl = typeof getActiveV4Element === 'function' ? getActiveV4Element() : null;
+                    if (pl && pl.dataset.zpReady === '1') {
+                        currentRef = { v4: true, z: parseFloat(pl.dataset.zpScale) || 1, px: parseFloat(pl.dataset.zpX) || 0, py: parseFloat(pl.dataset.zpY) || 0, panelW: pnl.w, panelH: pnl.h, panelL: pnl.left, panelT: pnl.top, sliderX: parseFloat(document.getElementById('photoXCtrl') ? document.getElementById('photoXCtrl').value : 50), sliderY: parseFloat(document.getElementById('photoYCtrl') ? document.getElementById('photoYCtrl').value : 50) };
+                    } else {
+                        currentRef = { v4: false, z: parseInt(document.getElementById('photoZoomCtrl') ? document.getElementById('photoZoomCtrl').value : 100), px: parseFloat(document.getElementById('photoXCtrl') ? document.getElementById('photoXCtrl').value : 50), py: parseFloat(document.getElementById('photoYCtrl') ? document.getElementById('photoYCtrl').value : 50), panelW: pnl.w, panelH: pnl.h, panelL: pnl.left, panelT: pnl.top };
+                    }
+                }
+                
+                window.selectedElements.forEach(selEl => {
+                    if (selEl.classList.contains('editable-draw')) {
+                        let startW = parseFloat(selEl.dataset.dragStartWidth) || 1;
+                        let bW = parseFloat(selEl.dataset.baseWidth) || 1;
+                        let bH = parseFloat(selEl.dataset.baseHeight) || 1;
+                        let bL = parseFloat(selEl.dataset.baseLeft) || 0;
+                        let bT = parseFloat(selEl.dataset.baseTop) || 0;
+                        
+                        let currentW = selEl.offsetWidth;
+                        
+                        let newBL = parseFloat(selEl.style.left) || 0;
+                        let newBT = parseFloat(selEl.style.top) || 0;
+                        selEl.dataset.baseLeft = newBL;
+                        selEl.dataset.baseTop = newBT;
+                        
+                        let ratio = startW ? (currentW / startW) : 1;
+                        if (ratio > 0 && !isNaN(ratio)) {
+                            selEl.dataset.baseWidth = bW * ratio;
+                            selEl.dataset.baseHeight = bH * ratio;
+                            
+                            if (typeof drawPaths !== 'undefined') {
+                                const pathObj = drawPaths.find(p => p.el === selEl);
+                                if (pathObj && pathObj.points && Array.isArray(pathObj.points)) {
+                                    let relPointsForDataset = [];
+                                    pathObj.points.forEach(pt => {
+                                        let relX = pt.x - bL;
+                                        let relY = pt.y - bT;
+                                        pt.x = newBL + relX * ratio;
+                                        pt.y = newBT + relY * ratio;
+                                        relPointsForDataset.push({x: pt.x - newBL, y: pt.y - newBT});
+                                    });
+                                    selEl.dataset.polygonPoints = JSON.stringify(relPointsForDataset);
+                                } else if (pathObj && typeof pathObj.x1 !== 'undefined') {
+                                    let relX1 = pathObj.x1 - bL;
+                                    let relY1 = pathObj.y1 - bT;
+                                    let relX2 = pathObj.x2 - bL;
+                                    let relY2 = pathObj.y2 - bT;
+                                    pathObj.x1 = newBL + relX1 * ratio;
+                                    pathObj.y1 = newBT + relY1 * ratio;
+                                    pathObj.x2 = newBL + relX2 * ratio;
+                                    pathObj.y2 = newBT + relY2 * ratio;
+                                }
+                            }
+                        }
+                        
+                        if (typeof drawPaths !== 'undefined' && currentRef) {
+                            const pathObj = drawPaths.find(p => p.el === selEl);
+                            if (pathObj) {
+                                pathObj.photoRef = currentRef;
+                                photoRefUpdated = true;
+                            }
+                        }
+                    }
+                });
+                if (photoRefUpdated && typeof updateDrawHistory === 'function') {
+                    updateDrawHistory();
+                }
+            }
     }
     el.addEventListener('mousedown',down);
     el.addEventListener('touchstart',down,{passive:false});
@@ -216,27 +359,100 @@ function bindDrag(el){
     document.addEventListener('touchend',up);
 }
 
-function selectElement(el){
-    if(el && el.classList.contains('co-neon-block')) {
+window.selectedElements = window.selectedElements || [];
+function selectElement(el, isMulti = false){
+    /* removed lock check to allow unlocking */
+    if(el && (el.classList.contains('co-neon-block') || el.classList.contains('callout-wrap') || el.classList.contains('svg-callout') || el.classList.contains('callout-item'))) {
         if(typeof selectCalloutEl === 'function') selectCalloutEl(el);
-        return;
     }
-    deselectAll();
-    selectedEl=el;
-    el.classList.add('el-selected');
-    $('noSelMsg').style.display='none';
-    $('elSettings').style.display='block';
-    $('elLabel').textContent=el.dataset.label||'Eleman';
-    loadElSettings(el);
-    loadElFont(el);
-    switchTab('element');
+    
+    const groupId = el.dataset.groupId;
+    if(groupId && !isMulti) {
+        deselectAll();
+        window.selectedElements = Array.from(document.querySelectorAll(`[data-group-id="${groupId}"]`));
+        window.selectedElements.forEach(e => e.classList.add('el-selected'));
+        selectedEl = el;
+    } else if (groupId && isMulti) {
+        const groupEls = Array.from(document.querySelectorAll(`[data-group-id="${groupId}"]`));
+        const adding = !window.selectedElements.includes(el);
+        groupEls.forEach(e => {
+            if (adding) {
+                if(!window.selectedElements.includes(e)) {
+                    window.selectedElements.push(e);
+                    e.classList.add('el-selected');
+                }
+            } else {
+                const idx = window.selectedElements.indexOf(e);
+                if(idx > -1) window.selectedElements.splice(idx, 1);
+                e.classList.remove('el-selected');
+            }
+        });
+        selectedEl = window.selectedElements.length > 0 ? window.selectedElements[window.selectedElements.length - 1] : null;
+        if(window.selectedElements.length === 0) deselectAll();
+    } else if(isMulti) {
+        if(!window.selectedElements.includes(el)) {
+            window.selectedElements.push(el);
+            el.classList.add('el-selected');
+        } else {
+            // deselect if already selected?
+            const idx = window.selectedElements.indexOf(el);
+            if(idx > -1) window.selectedElements.splice(idx, 1);
+            el.classList.remove('el-selected');
+            if(window.selectedElements.length === 0) {
+                deselectAll();
+                return;
+            }
+        }
+        selectedEl = window.selectedElements[window.selectedElements.length - 1]; // last one selected is primary
+    } else {
+        deselectAll();
+        window.selectedElements = [el];
+        selectedEl=el;
+        el.classList.add('el-selected');
+    }
+    
+    // Restore visuals for all selected callouts
+    if (window.selectedElements && window.selectedElements.length > 0) {
+        window.selectedElements.forEach(selEl => {
+            if(selEl.classList.contains('co-neon-block')) {
+                selEl.style.outline = '1px dashed rgba(255,255,255,0.4)';
+            } 
+            
+            const ctl = selEl.querySelector('.callout-controls');
+            const res = selEl.querySelector('.callout-resizer');
+            const rot = selEl.querySelector('.callout-rotator');
+            const brd = selEl.querySelector('.callout-select-border');
+            if(ctl) ctl.style.display = 'flex';
+            if(res) res.style.display = 'block';
+            if(rot) rot.style.display = 'block';
+            if(brd) brd.style.display = 'block';
+        });
+    }
+
+    // Check if grouping is active or can be activated
+    if(typeof updateGroupUI === 'function') updateGroupUI();
+    
+    if(el.classList.contains('editable-draw')) {
+        if(typeof switchTab === 'function') switchTab('draw');
+        if(typeof loadDrawSettings === 'function') loadDrawSettings(el);
+        if(typeof showVertexHandles === 'function') showVertexHandles(el);
+    } else {
+        if(document.getElementById('noSelMsg')) document.getElementById('noSelMsg').style.display='none';
+        if(document.getElementById('elSettings')) document.getElementById('elSettings').style.display='block';
+        if(document.getElementById('elLabel')) document.getElementById('elLabel').textContent=el.dataset.label||'Eleman';
+        if(typeof loadElSettings === 'function') loadElSettings(el);
+        if(typeof loadElFont === 'function') loadElFont(el);
+        if(typeof switchTab === 'function' && !el.classList.contains('co-neon-block') && !el.classList.contains('callout-wrap') && !el.classList.contains('svg-callout') && !el.classList.contains('callout-item')) switchTab('element');
+    }
 }
 
 function deselectAll(){
     document.querySelectorAll('.el-selected').forEach(e=>e.classList.remove('el-selected'));
     selectedEl=null;
+    window.selectedElements = [];
     $('noSelMsg').style.display='block';
     $('elSettings').style.display='none';
+    if(typeof hideVertexHandles === 'function') hideVertexHandles();
 }
 
 function makeDraggable(el){
@@ -244,3 +460,265 @@ function makeDraggable(el){
     bindDrag(el);
 }
 
+
+window.groupSelected = function() {
+    if(!window.selectedElements || window.selectedElements.length < 2) return;
+    const groupId = 'group_' + Date.now();
+    window.selectedElements.forEach(el => {
+        el.dataset.groupId = groupId;
+    });
+    if(typeof renderLayers === 'function') renderLayers();
+    updateGroupUI();
+};
+
+window.ungroupSelected = function() {
+    if(!window.selectedElements || window.selectedElements.length === 0) return;
+    window.selectedElements.forEach(el => {
+        delete el.dataset.groupId;
+    });
+    if(typeof renderLayers === 'function') renderLayers();
+    updateGroupUI();
+};
+
+window.updateGroupUI = function() {
+    if (typeof checkConvertPolygonButton === "function") checkConvertPolygonButton();
+
+    const isLocked = window.selectedElements && window.selectedElements.length > 0 && window.selectedElements[0].dataset.locked === 'true';
+    const lockText = isLocked ? '🔓 Kilidi Aç' : '🔒 Kilitle';
+    const lockBtns = ['btnLock', 'coBtnLock', 'lpBtnLock', 'drawBtnLock'];
+    lockBtns.forEach(id => {
+        const b = document.getElementById(id);
+        if(b) b.innerHTML = lockText;
+    });
+    const btnGroup = document.getElementById('btnGroup');
+    const btnUngroup = document.getElementById('btnUngroup');
+    const lpBtnGroup = document.getElementById('lpBtnGroup');
+    const lpBtnUngroup = document.getElementById('lpBtnUngroup');
+    const lpGroupActions = document.getElementById('lpGroupActions');
+    const coBtnGroup = document.getElementById('coBtnGroup');
+    const coBtnUngroup = document.getElementById('coBtnUngroup');
+    const drawBtnGroup = document.getElementById('drawBtnGroup');
+    const drawBtnUngroup = document.getElementById('drawBtnUngroup');
+    
+    if(window.selectedElements && window.selectedElements.length > 1) {
+        const firstGroup = window.selectedElements[0].dataset.groupId;
+        let allSameGroup = firstGroup ? true : false;
+        if(firstGroup) {
+            for(let i=1; i<window.selectedElements.length; i++) {
+                if(window.selectedElements[i].dataset.groupId !== firstGroup) {
+                    allSameGroup = false; break;
+                }
+            }
+        }
+        if(allSameGroup) {
+            if(btnGroup) btnGroup.style.display = 'none';
+            if(btnUngroup) btnUngroup.style.display = 'inline-block';
+            if(lpBtnGroup) lpBtnGroup.style.display = 'none';
+            if(lpBtnUngroup) lpBtnUngroup.style.display = 'inline-block';
+            if(lpGroupActions) lpGroupActions.style.display = 'flex';
+            if(coBtnGroup) coBtnGroup.style.display = 'none';
+            if(coBtnUngroup) coBtnUngroup.style.display = 'inline-block';
+            if(drawBtnGroup) drawBtnGroup.style.display = 'none';
+            if(drawBtnUngroup) drawBtnUngroup.style.display = 'inline-block';
+        } else {
+            if(btnGroup) btnGroup.style.display = 'inline-block';
+            if(btnUngroup) btnUngroup.style.display = 'none';
+            if(lpBtnGroup) lpBtnGroup.style.display = 'inline-block';
+            if(lpBtnUngroup) lpBtnUngroup.style.display = 'none';
+            if(coBtnGroup) coBtnGroup.style.display = 'inline-block';
+            if(coBtnUngroup) coBtnUngroup.style.display = 'none';
+            if(drawBtnGroup) drawBtnGroup.style.display = 'inline-block';
+            if(drawBtnUngroup) drawBtnUngroup.style.display = 'none';
+            if(lpGroupActions) lpGroupActions.style.display = 'flex';
+            if(coBtnGroup) coBtnGroup.style.display = 'none';
+            if(coBtnUngroup) coBtnUngroup.style.display = 'inline-block';
+        }
+    } else if (window.selectedElements && window.selectedElements.length === 1) {
+        if(btnGroup) btnGroup.style.display = 'none';
+        const showUngroup = window.selectedElements[0].dataset.groupId ? 'inline-block' : 'none';
+        if(btnUngroup) btnUngroup.style.display = showUngroup;
+        if(lpBtnGroup) lpBtnGroup.style.display = 'none';
+        if(lpBtnUngroup) lpBtnUngroup.style.display = showUngroup;
+        if(coBtnGroup) coBtnGroup.style.display = 'none';
+        if(coBtnUngroup) coBtnUngroup.style.display = showUngroup;
+        if(drawBtnGroup) drawBtnGroup.style.display = 'none';
+        if(drawBtnUngroup) drawBtnUngroup.style.display = showUngroup;
+        if(lpGroupActions) lpGroupActions.style.display = showUngroup === 'inline-block' ? 'flex' : 'none';
+    } else {
+        if(btnGroup) btnGroup.style.display = 'none';
+        if(btnUngroup) btnUngroup.style.display = 'none';
+        if(lpGroupActions) lpGroupActions.style.display = 'none';
+        if(coBtnGroup) coBtnGroup.style.display = 'none';
+        if(coBtnUngroup) coBtnUngroup.style.display = 'none';
+        if(drawBtnGroup) drawBtnGroup.style.display = 'none';
+        if(drawBtnUngroup) drawBtnUngroup.style.display = 'none';
+    }
+};
+
+window.toggleLockSelected = function() {
+    if(!window.selectedElements || window.selectedElements.length === 0) return;
+    const isLocked = window.selectedElements[0].dataset.locked === 'true';
+    const newState = isLocked ? 'false' : 'true';
+    window.selectedElements.forEach(el => {
+        el.dataset.locked = newState;
+    });
+    // Do NOT deselect, so user can see it's selected and unlocked!
+    updateGroupUI();
+    if(typeof renderLayers === 'function') renderLayers();
+    if(window.LayerPanelV2 && window.LayerPanelV2.refresh) window.LayerPanelV2.refresh();
+};
+
+
+
+// --- CONVERT TO POLYGON ---
+function createPolygonFromSelectedLines() {
+    if (!window.selectedElements || window.selectedElements.length < 2) return;
+    
+    // Sadece line (Düz Çizgi) olanları filtrele
+    const lines = window.selectedElements.filter(el => {
+        if (!el.classList.contains('editable-draw')) return false;
+        const pObj = drawPaths.find(p => p.el === el);
+        return pObj && pObj.type === 'line';
+    });
+    
+    if (lines.length < 2) {
+        alert('Çokgene çevirmek için en az 2 düz çizgi seçili olmalıdır.');
+        return;
+    }
+    
+    // Çizgilerin noktalarını topla
+    let points = [];
+    lines.forEach((el, index) => {
+        const pObj = drawPaths.find(p => p.el === el);
+        if (pObj) {
+            if (pObj.points && pObj.points.length >= 2) {
+                points.push({x: pObj.points[0].x, y: pObj.points[0].y});
+                points.push({x: pObj.points[pObj.points.length-1].x, y: pObj.points[pObj.points.length-1].y});
+            } else if (pObj.x1 !== undefined && pObj.x2 !== undefined) {
+                points.push({x: pObj.x1, y: pObj.y1});
+                points.push({x: pObj.x2, y: pObj.y2});
+            }
+        }
+    });
+    
+    // Çizgileri kaldır
+    lines.forEach(el => {
+        const idx = drawPaths.findIndex(p => p.el === el);
+        if (idx > -1) drawPaths.splice(idx, 1);
+        if (el.parentNode) el.parentNode.removeChild(el);
+    });
+    
+    // Noktaları birleştirme algoritması
+    let orderedPoints = [points[0], points[1]];
+    points.splice(0, 2);
+    
+    while(points.length > 0) {
+        let lastPt = orderedPoints[orderedPoints.length - 1];
+        let closestIdx = -1;
+        let closestDist = Infinity;
+        let p1_or_p2 = 0; // 0 for p1, 1 for p2
+        
+        for(let i=0; i<points.length; i+=2) {
+            let d1 = Math.hypot(points[i].x - lastPt.x, points[i].y - lastPt.y);
+            let d2 = Math.hypot(points[i+1].x - lastPt.x, points[i+1].y - lastPt.y);
+            
+            if (d1 < closestDist) { closestDist = d1; closestIdx = i; p1_or_p2 = 0; }
+            if (d2 < closestDist) { closestDist = d2; closestIdx = i; p1_or_p2 = 1; }
+        }
+        
+        if (closestIdx !== -1) {
+            if (p1_or_p2 === 0) {
+                orderedPoints.push(points[closestIdx], points[closestIdx+1]);
+            } else {
+                orderedPoints.push(points[closestIdx+1], points[closestIdx]);
+            }
+            points.splice(closestIdx, 2);
+        } else {
+            break;
+        }
+    }
+    
+    // Yeni bir çokgen (polygon) oluştur
+    const firstLineObj = drawPaths.find(p => p.el === lines[0]) || { color: '#ef4444', size: 4, opacity: 1 };
+    
+    const pObj = {
+        type: 'polygon',
+        closed: true,
+        points: orderedPoints,
+        color: firstLineObj.color || '#ef4444',
+        size: firstLineObj.size || 4,
+        opacity: firstLineObj.opacity || 1,
+        fillColor: 'transparent',
+        fillOpacity: 0
+    };
+    
+    if (typeof isCanvaMode !== 'undefined' && isCanvaMode) {
+        const pnl = getActivePhotoPanel();
+        pObj.photoRef = { v4: true, z: parseFloat(getActiveV4Element().dataset.zpScale)||1, px: parseFloat(getActiveV4Element().dataset.zpX)||0, py: parseFloat(getActiveV4Element().dataset.zpY)||0, panelW: pnl.w, panelH: pnl.h, panelL: pnl.left, panelT: pnl.top, sliderX: 50, sliderY: 50 };
+    } else {
+        const pnl = getActivePhotoPanel();
+        pObj.photoRef = { v4: false, z: 100, px: 50, py: 50, panelW: pnl.w, panelH: pnl.h, panelL: pnl.left, panelT: pnl.top };
+    }
+    
+    drawPaths.push(pObj);
+    if(typeof drawSinglePath === 'function') drawSinglePath(pObj);
+    if(typeof createSVGFromPath === 'function') {
+        const svgEl = createSVGFromPath(pObj);
+        if(svgEl) {
+            pObj.el = svgEl;
+            const container = getActiveV4Element();
+            if(container) container.appendChild(svgEl);
+        }
+    }
+    
+    if(typeof updateDrawHistory === 'function') updateDrawHistory();
+    deselectAll();
+    if(pObj.el && typeof selectElement === 'function') selectElement(pObj.el);
+}
+
+// Float butonu gösterme/gizleme mantığı
+function checkConvertPolygonButton() {
+    let btn = document.getElementById('btnConvertPolygon');
+    if (!window.selectedElements || window.selectedElements.length < 2) {
+        if (btn) btn.style.display = 'none';
+        return;
+    }
+    
+    const lines = window.selectedElements.filter(el => {
+        if (!el.classList.contains('editable-draw')) return false;
+        if (typeof drawPaths !== 'undefined') {
+            const pObj = drawPaths.find(p => p.el === el);
+            return pObj && pObj.type === 'line';
+        }
+        return false;
+    });
+    
+    if (lines.length >= 2) {
+        if (!btn) {
+            btn = document.createElement('button');
+            btn.id = 'btnConvertPolygon';
+            btn.innerHTML = '🔷 Çokgene Çevir';
+            btn.style.position = 'absolute';
+            btn.style.zIndex = '9999999';
+            btn.style.background = '#6366f1';
+            btn.style.color = '#fff';
+            btn.style.border = 'none';
+            btn.style.padding = '8px 12px';
+            btn.style.borderRadius = '6px';
+            btn.style.cursor = 'pointer';
+            btn.style.fontWeight = 'bold';
+            btn.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)';
+            btn.onclick = createPolygonFromSelectedLines;
+            document.body.appendChild(btn);
+        }
+        
+        // Butonu son seçili elemanın yanına yerleştir
+        const lastEl = window.selectedElements[window.selectedElements.length - 1];
+        const rect = lastEl.getBoundingClientRect();
+        btn.style.left = (rect.right + 10) + 'px';
+        btn.style.top = rect.top + 'px';
+        btn.style.display = 'block';
+    } else {
+        if (btn) btn.style.display = 'none';
+    }
+}

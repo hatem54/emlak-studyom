@@ -96,10 +96,22 @@ function applyPhotoPos(){
     photoLayer.style.backgroundSize=sizeStr;
     photoLayer.style.backgroundPosition=posStr;
     photoLayer.style.backgroundRepeat='no-repeat';
+    photoLayer.style.backgroundColor='#12122a';
+    
+    // Kesin çözüm: Canva modundaysa orijinal fotoğraf katmanını zorla gizle
+    if (typeof isCanvaMode !== 'undefined' && isCanvaMode) {
+        photoLayer.style.setProperty('display', 'none', 'important');
+        photoLayer.style.opacity = '0';
+    } else {
+        photoLayer.style.display = 'block';
+        photoLayer.style.opacity = '1';
+    }
+
     document.querySelectorAll('.photo-panel').forEach(p=>{
         p.style.backgroundSize=sizeStr;
         p.style.backgroundPosition=posStr;
         p.style.backgroundRepeat='no-repeat';
+        p.style.backgroundColor='#12122a';
     });
     if(typeof redrawAll === 'function') redrawAll();
 }

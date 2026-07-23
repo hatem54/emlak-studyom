@@ -1,6 +1,7 @@
 console.log('🚀 templateManager.js yükleniyor...');
 
 const TEMPLATE_CATEGORIES = [
+    { id: 'favorites', name: '⭐ Favori Şablonlar' },
     { id: 'elit', name: '💎 Elit (Canva)' },
     { id: 'kolaj', name: '🖼️ Kolaj' },
     { id: 'minimal', name: '✨ Minimal' },
@@ -12,6 +13,135 @@ const TEMPLATE_CATEGORIES = [
     { id: 'portfoy', name: '📁 Portföy' },
     { id: 'ozel', name: '🎯 Özel' }
 ];
+
+window.getFavoriteTemplates = function() {
+    try {
+        return JSON.parse(localStorage.getItem('canvaFavorites')) || [];
+    } catch(e) { return []; }
+};
+
+window.isTemplateFavorited = function(cat, idx) {
+    const favs = getFavoriteTemplates();
+    return favs.some(f => f.cat === cat && f.idx === idx);
+};
+
+window.toggleFavoriteTemplate = function(cat, idx, cardElement) {
+    let favs = getFavoriteTemplates();
+    const existingIdx = favs.findIndex(f => f.cat === cat && f.idx === idx);
+    
+    if (existingIdx >= 0) {
+        favs.splice(existingIdx, 1);
+        if (cardElement) {
+            const star = cardElement.querySelector('.fav-star');
+            if (star) star.classList.remove('active');
+        }
+    } else {
+        favs.push({ cat, idx });
+        if (cardElement) {
+            const star = cardElement.querySelector('.fav-star');
+            if (star) star.classList.add('active');
+        }
+    }
+    
+    localStorage.setItem('canvaFavorites', JSON.stringify(favs));
+    
+    renderFavoritesTab();
+};
+
+window.injectFavoriteStars = function() {
+    const cards = document.querySelectorAll('.accordion-content:not(#tpl-content-favorites) .template-btn, .accordion-content:not(#tpl-content-favorites) .canva-tpl-card');
+    
+    cards.forEach(card => {
+        if (!card.querySelector('.fav-star')) {
+            card.style.position = 'relative';
+            
+            const star = document.createElement('div');
+            star.className = 'fav-star';
+            star.innerHTML = '⭐';
+            star.title = 'Favorilere Ekle / Çıkar';
+            
+            const accordionContent = card.closest('.accordion-content');
+            if (!accordionContent) return;
+            
+            const cat = accordionContent.id.replace('tpl-content-', '');
+            if (cat === 'favorites') return;
+            
+            const siblings = Array.from(card.parentNode.children).filter(c => c.classList.contains('template-btn') || c.classList.contains('canva-tpl-card'));
+            const idx = siblings.indexOf(card);
+            
+            if (isTemplateFavorited(cat, idx)) {
+                star.classList.add('active');
+            }
+            
+            star.onclick = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                toggleFavoriteTemplate(cat, idx, card);
+            };
+            
+            card.appendChild(star);
+        }
+    });
+};
+
+window.renderFavoritesTab = function() {
+    const favContainer = document.getElementById('tpl-content-favorites');
+    if (!favContainer) return;
+    
+    const favs = getFavoriteTemplates();
+    
+    if (favs.length === 0) {
+        favContainer.innerHTML = '<div style="padding:15px; text-align:center; color:#94a3b8; font-size:12px; line-height:1.5;">Henüz favori şablonunuz yok.</div>';
+        return;
+    }
+    
+    favContainer.innerHTML = '';
+    const grid = document.createElement('div');
+    grid.className = 'canva-tpl-grid';
+    grid.style.display = 'grid';
+    grid.style.gridTemplateColumns = 'repeat(2, 1fr)';
+    grid.style.gap = '10px';
+    grid.style.padding = '10px';
+    
+    let renderedCount = 0;
+    
+    favs.forEach(fav => {
+        const originalContainer = document.getElementById(`tpl-content-${fav.cat}`);
+        if (!originalContainer) return;
+        
+        const originalCards = Array.from(originalContainer.querySelectorAll('.template-btn, .canva-tpl-card'));
+        const originalCard = originalCards[fav.idx];
+        
+        if (originalCard) {
+            renderedCount++;
+            const clone = originalCard.cloneNode(true);
+            clone.classList.remove('active');
+            
+            clone.onclick = (e) => {
+                grid.querySelectorAll('.template-btn, .canva-tpl-card').forEach(c => c.classList.remove('active'));
+                clone.classList.add('active');
+                originalCard.click();
+            };
+            
+            const cloneStar = clone.querySelector('.fav-star');
+            if (cloneStar) {
+                cloneStar.onclick = (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    toggleFavoriteTemplate(fav.cat, fav.idx, originalCard);
+                };
+            }
+            
+            grid.appendChild(clone);
+        }
+    });
+    
+    if (renderedCount === 0) {
+        favContainer.innerHTML = '<div style="padding:15px; text-align:center; color:#94a3b8; font-size:12px; line-height:1.5;">Şablonlar yükleniyor...</div>';
+    } else {
+        favContainer.appendChild(grid);
+    }
+};
 
 function initTemplateManager() {
     const container = document.getElementById('template-accordion-container');
@@ -34,16 +164,9 @@ function initTemplateManager() {
         content.className = 'accordion-content';
         content.id = `tpl-content-${cat.id}`;
         
-        
-
         header.onclick = () => {
-            // Toggle active state
             const isActive = item.classList.contains('active');
-            
-            // Close all
             document.querySelectorAll('.accordion-item').forEach(i => i.classList.remove('active'));
-            
-            // Open this one if it wasn't active
             if (!isActive) {
                 item.classList.add('active');
             }
@@ -54,13 +177,40 @@ function initTemplateManager() {
         container.appendChild(item);
     });
     
+    const observer = new MutationObserver((mutations) => {
+        let shouldUpdate = false;
+        mutations.forEach(mut => {
+            // Ignore mutations happening inside the favorites tab itself to prevent infinite loops
+            if (mut.target && (mut.target.id === 'tpl-content-favorites' || mut.target.closest('#tpl-content-favorites'))) return;
+            
+            if (mut.addedNodes.length > 0) {
+                // Ignore if the ONLY added nodes are the .fav-star elements we inject
+                let hasNonStarNode = false;
+                mut.addedNodes.forEach(n => {
+                    if (n.nodeType === 1 && n.classList && !n.classList.contains('fav-star')) {
+                        hasNonStarNode = true;
+                    }
+                });
+                if (hasNonStarNode) shouldUpdate = true;
+            }
+        });
+        if (shouldUpdate) {
+            if (typeof injectFavoriteStars === 'function') injectFavoriteStars();
+            if (typeof renderFavoritesTab === 'function') renderFavoritesTab();
+        }
+    });
+    observer.observe(container, { childList: true, subtree: true });
+    
+    setTimeout(() => {
+        if (typeof injectFavoriteStars === 'function') injectFavoriteStars();
+        if (typeof renderFavoritesTab === 'function') renderFavoritesTab();
+    }, 1000);
+    
     console.log('✅ Akordiyon yapısı başarıyla oluşturuldu.');
 }
 
-// Start immediately
 initTemplateManager();
 
-// ========================================
 // KATMAN DÜZENLEYİCİ
 // Şablon her yüklendiğinde çizim şablonun altında kalır
 // Foto (z:1) → Çizim (z:5) → Şablon süslemeleri (z:10)

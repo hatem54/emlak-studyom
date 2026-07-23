@@ -84,8 +84,90 @@ function buildExportFormats(){
     });
 }
 
+
+function drawMasterPhotoManually(ctx, el, masterImg, outputScale, canvasRect) {
+    const rect = el.getBoundingClientRect();
+    const x = (rect.left - canvasRect.left) * outputScale;
+    const y = (rect.top - canvasRect.top) * outputScale;
+    const w = rect.width * outputScale;
+    const h = rect.height * outputScale;
+
+    // Parse border-radius
+    const style = window.getComputedStyle(el);
+    let br = style.borderRadius;
+    let radius = 0;
+    if (br && br.indexOf('px') !== -1) {
+        radius = parseFloat(br) * outputScale;
+    }
+
+    ctx.save();
+    ctx.beginPath();
+    if (radius > 0) {
+        ctx.moveTo(x + radius, y);
+        ctx.lineTo(x + w - radius, y);
+        ctx.quadraticCurveTo(x + w, y, x + w, y + radius);
+        ctx.lineTo(x + w, y + h - radius);
+        ctx.quadraticCurveTo(x + w, y + h, x + w - radius, y + h);
+        ctx.lineTo(x + radius, y + h);
+        ctx.quadraticCurveTo(x, y + h, x, y + h - radius);
+        ctx.lineTo(x, y + radius);
+        ctx.quadraticCurveTo(x, y, x + radius, y);
+    } else {
+        ctx.rect(x, y, w, h);
+    }
+    ctx.closePath();
+    ctx.clip();
+
+    let bgSize = el.style.backgroundSize;
+    let bgPos = el.style.backgroundPosition;
+    
+    let drawW, drawH, drawX, drawY;
+    
+    if (bgSize && bgSize.indexOf('px') !== -1 && bgPos && bgPos.indexOf('px') !== -1 && bgSize.indexOf('cover') === -1) {
+        // Pixel based positioning (user dragged or zoomed)
+        const sizeParts = bgSize.split(' ');
+        const posParts = bgPos.split(' ');
+        
+        const cssW = parseFloat(sizeParts[0]);
+        const cssH = parseFloat(sizeParts[1] || sizeParts[0]);
+        const cssX = parseFloat(posParts[0]);
+        const cssY = parseFloat(posParts[1] || posParts[0]);
+        
+        drawW = cssW * outputScale;
+        drawH = cssH * outputScale;
+        drawX = x + (cssX * outputScale);
+        drawY = y + (cssY * outputScale);
+    } else {
+        // Fallback to "cover" and "center center"
+        const imgRatio = masterImg.width / masterImg.height;
+        const boxRatio = w / h;
+        
+        if (imgRatio > boxRatio) {
+            drawH = h;
+            drawW = masterImg.width * (h / masterImg.height);
+            drawX = x + (w - drawW) / 2;
+            drawY = y;
+        } else {
+            drawW = w;
+            drawH = masterImg.height * (w / masterImg.width);
+            drawX = x;
+            drawY = y + (h - drawH) / 2;
+        }
+    }
+    
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    const computedFilter = window.getComputedStyle(el).filter;
+    if (computedFilter && computedFilter !== 'none') {
+        ctx.filter = computedFilter;
+    }
+    ctx.drawImage(masterImg, drawX, drawY, drawW, drawH);
+    ctx.filter = 'none'; // reset
+    ctx.restore();
+}
+
 async function saveImage(){
-    document.querySelectorAll('.el-selected').forEach(e=>e.classList.remove('el-selected'));
+    if(typeof deselectAll === 'function') deselectAll(); else document.querySelectorAll('.el-selected').forEach(e=>e.classList.remove('el-selected'));
     const wz=drawCanvas.style.zIndex,wp=drawCanvas.style.pointerEvents;
     drawCanvas.style.zIndex='7';
     drawCanvas.style.pointerEvents='none';
@@ -93,9 +175,31 @@ async function saveImage(){
     const format=EXPORT_FORMATS[formatName]||{w:1920,h:1080};
     const fitMode=$('exportFitMode')?$('exportFitMode').value:'cover';
     const bgColor=$('exportBgColor')?$('exportBgColor').value:'#ffffff';
-    const outputScale=parseFloat($('exportScale')?$('exportScale').value:'1.5');
+    let outputScale = 1.5;
+    const scaleVal1 = $('exportScale')?$('exportScale').value:'1.5';
+
+    let safeMasterImage = window.uploadedImgUrl || window.masterImageBase64;
+    if (!safeMasterImage) {
+        const pLayer = document.getElementById('photo-layer');
+        if (pLayer && pLayer.style.backgroundImage && pLayer.style.backgroundImage !== 'none') {
+            safeMasterImage = pLayer.style.backgroundImage.replace(/^url\(['"]?/, '').replace(/['"]?\)$/, '');
+        }
+    }
+
+    if (scaleVal1 === 'original' && safeMasterImage) {
+        outputScale = 1; // Temporary sync value, async will fix it below
+    } else {
+        outputScale = parseFloat(scaleVal1) || 1.5;
+    }
     const currentW=parseInt(canvasEl.style.width)||1920;
     const currentH=parseInt(canvasEl.style.height)||1080;
+      if (scaleVal1 === 'original' && safeMasterImage) {
+          const tempImg = new Image();
+          await new Promise(r => { tempImg.onload = r; tempImg.onerror = r; tempImg.src = safeMasterImage; });
+          if (tempImg.width > 0) {
+              outputScale = Math.min(tempImg.width / currentW, tempImg.height / currentH);
+          }
+      }
     
     // Geçişi tamamen kapat
     canvasEl.style.transition='none';
@@ -124,7 +228,7 @@ async function saveImage(){
     overlay.style.gap = '15px';
     overlay.innerHTML = '<div style="width: 50px; height: 50px; border: 5px solid #fbbf24; border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite;"></div><div>Görsel Hazırlanıyor...</div><style>@keyframes spin { 100% { transform: rotate(360deg); } }</style>';
     document.body.appendChild(overlay);
-    setTimeout(() => { const o = document.getElementById('download-overlay-mask'); if(o) o.remove(); }, 5000);
+    setTimeout(async () => { const o = document.getElementById('download-overlay-mask'); if(o) o.remove(); }, 5000);
 
     const oldPosition = canvasEl.style.position;
     const oldLeft = canvasEl.style.left;
@@ -136,7 +240,7 @@ async function saveImage(){
     canvasEl.style.top = '0px';
     canvasEl.style.margin = '0px';
     
-    setTimeout(() => {
+    setTimeout(async () => {
 
 
         const __allEls = canvasEl.querySelectorAll('*');
@@ -151,12 +255,80 @@ async function saveImage(){
         });
 
         if (window.SaberEngine && typeof window.SaberEngine.updateTextSaberPositions === "function") window.SaberEngine.updateTextSaberPositions();
-  html2canvas(canvasEl,{width:currentW,height:currentH,scale:1,useCORS:true,allowTaint:true,imageTimeout:0,letterRendering:true,logging:false,backgroundColor:null,ignoreElements:el=>(el.classList&&el.classList.contains('el-selected'))||el.tagName==='CANVAS'||el.tagName==='canvas'}).then(sourceCanvas=>{
+        
+        
+        // DUAL-LAYER SWAP LOGIC
+        
+        // DUAL-LAYER MANUAL DRAW LOGIC
+        const swapTargets = canvasEl.querySelectorAll('#photo-layer, .canva-bg, .photo-panel');
+        const originalStyles = new Map();
+        let masterImgElement = null;
+        
+
+          if (safeMasterImage && outputScale > 1.5) {
+            // Preload master image
+            masterImgElement = new Image();
+            const loadPromise = new Promise(r => {
+                masterImgElement.onload = r;
+                masterImgElement.onerror = r;
+            });
+            masterImgElement.src = safeMasterImage;
+            await loadPromise;
+            
+            originalStyles.set(canvasEl, { bg: canvasEl.style.backgroundImage, bgColor: canvasEl.style.backgroundColor });
+              canvasEl.style.backgroundColor = 'transparent';
+              
+              swapTargets.forEach(el => {
+                const bg = el.style.backgroundImage;
+                if (bg && bg !== 'none' && bg !== '') {
+                    originalStyles.set(el, {
+                        bg: bg,
+                        bgColor: el.style.backgroundColor
+                    });
+                    el.style.setProperty('background-image', 'none', 'important');
+                    el.style.setProperty('background-color', 'transparent', 'important');
+                }
+            });
+        }
+
+
+  html2canvas(canvasEl,{width:currentW,height:currentH,scale:outputScale,useCORS:true,allowTaint:true,imageTimeout:0,letterRendering:true,logging:false,backgroundColor:null,ignoreElements:el=>(el.classList&&el.classList.contains('el-selected'))||el.tagName==='CANVAS'||el.tagName==='canvas'}).then(async sourceCanvas=>{
+            
+            
+            
+            // RESTORE DUAL-LAYER SWAP
+            originalStyles.forEach((styles, el) => {
+                el.style.setProperty('background-image', styles.bg);
+                if (styles.bgColor) el.style.setProperty('background-color', styles.bgColor);
+                else el.style.removeProperty('background-color');
+            });
+
+
+
+            const targetW = Math.round(currentW * outputScale);
+            const targetH = Math.round(currentH * outputScale);
+
+            // RESTORE DOM STATE EARLY SO REDRAW LOGIC READS CORRECT MEASUREMENTS
+            __snapshots.forEach(snap => {
+                if (snap.shadow) snap.el.style.setProperty('box-shadow', snap.shadow, 'important');
+                else snap.el.style.removeProperty('box-shadow');
+            });
+            canvasEl.style.position = oldPosition;
+            canvasEl.style.left = oldLeft;
+            canvasEl.style.top = oldTop;
+            canvasEl.style.margin = oldMargin;
+            canvasEl.style.transition = 'transform 0.2s';
+            if (typeof resizeCanvas === 'function') resizeCanvas();
+
             // Draw the drawCanvas manually over the sourceCanvas to avoid html2canvas canvas bugs
             const sCtx = sourceCanvas.getContext('2d');
               sCtx.imageSmoothingEnabled=true;
               sCtx.imageSmoothingQuality='high';
-            sCtx.drawImage(drawCanvas, 0, 0, currentW, currentH);
+            if (window.redrawAllToContext) {
+                window.redrawAllToContext(sCtx, outputScale);
+            } else {
+                sCtx.drawImage(drawCanvas, 0, 0, targetW, targetH);
+            }
             
             // Draw Saber Layer manually to ensure it's captured
             if (window.SaberEngine && typeof window.SaberEngine.getApp === 'function') {
@@ -164,60 +336,71 @@ async function saveImage(){
                 if (saberApp && saberApp.view) {
                     // Zorla senkron render yaparak arka plan silinmeden yakala (preserveDrawingBuffer gerektirmez)
                     if (saberApp.renderer && saberApp.stage) saberApp.renderer.render(saberApp.stage);
-                    sCtx.drawImage(saberApp.view, 0, 0, currentW, currentH);
+                    sCtx.drawImage(saberApp.view, 0, 0, targetW, targetH);
                 }
             }
-            
-            // Restore position fixes
-            
-            __snapshots.forEach(snap => {
-                if (snap.shadow) snap.el.style.setProperty('box-shadow', snap.shadow, 'important');
-                else snap.el.style.removeProperty('box-shadow');
-            });
 
-            canvasEl.style.position = oldPosition;
-            canvasEl.style.left = oldLeft;
-            canvasEl.style.top = oldTop;
-            canvasEl.style.margin = oldMargin;
-
-
-            const targetW=Math.round(format.w*outputScale);
-            const targetH=Math.round(format.h*outputScale);
             const finalCanvas=document.createElement('canvas');
             finalCanvas.width=targetW;
             finalCanvas.height=targetH;
             const ctx=finalCanvas.getContext('2d');
             ctx.imageSmoothingEnabled=true;
             ctx.imageSmoothingQuality='high';
-            if(fitMode==='contain'){ctx.fillStyle=bgColor;ctx.fillRect(0,0,targetW,targetH)}
-            if(fitMode==='stretch'){ctx.drawImage(sourceCanvas,0,0,targetW,targetH)}
-            else if(fitMode==='cover'){
-                const scale=Math.max(targetW/currentW,targetH/currentH);
-                const sw=targetW/scale,sh=targetH/scale;
-                const sx=(currentW-sw)/2,sy=(currentH-sh)/2;
-                ctx.drawImage(sourceCanvas,sx,sy,sw,sh,0,0,targetW,targetH);
-            }else{
-                const scale=Math.min(targetW/currentW,targetH/currentH);
-                const dw=currentW*scale,dh=currentH*scale;
-                const dx=(targetW-dw)/2,dy=(targetH-dh)/2;
-                ctx.drawImage(sourceCanvas,0,0,currentW,currentH,dx,dy,dw,dh);
+            
+            if(bgColor && bgColor !== 'transparent') {
+                ctx.fillStyle=bgColor;
+                ctx.fillRect(0,0,targetW,targetH);
             }
+            
+            
+            
+            // sourceCanvas zaten outputScale ile natively büyütüldüğü için sündürme YOK.
+            
+              // DUAL-LAYER: Draw Master Photo manually at the bottom
+              if (masterImgElement && masterImgElement.complete && masterImgElement.width > 0) {
+                  const canvasRect = canvasEl.getBoundingClientRect();
+                  if (originalStyles.size === 0) {
+                      alert("DEBUG: originalStyles is EMPTY! The photo was not hidden by swapTargets!");
+                  }
+                  originalStyles.forEach((styles, el) => {
+                      drawMasterPhotoManually(ctx, el, masterImgElement, outputScale, canvasRect);
+                  });
+              }
+
+              // Birebir kopyaliyoruz.
+              ctx.drawImage(sourceCanvas, 0, 0, targetW, targetH);
+
+            
             const a=document.createElement('a');
             const fmtSafe=formatName.replace(/[^a-z0-9]/gi,'-').toLowerCase();
-            a.download='emlak-'+fmtSafe+'-'+targetW+'x'+targetH+'.png';
-            a.href=finalCanvas.toDataURL('image/png', 1.0);
+            const fileType = document.getElementById('exportFileType') ? document.getElementById('exportFileType').value : 'jpg';
+            if (fileType === 'jpg') {
+                a.download='emlak-'+fmtSafe+'-'+targetW+'x'+targetH+'.jpg';
+                a.href=finalCanvas.toDataURL('image/jpeg', 1.0);
+            } else {
+                a.download='emlak-'+fmtSafe+'-'+targetW+'x'+targetH+'.png';
+                a.href=finalCanvas.toDataURL('image/png', 1.0);
+            }
             a.click();
             drawCanvas.style.zIndex=wz;
             drawCanvas.style.pointerEvents=wp;
             canvasEl.style.transition='transform 0.2s';
             resizeCanvas();
-            setTimeout(() => { const o = document.getElementById('download-overlay-mask'); if(o) o.remove(); }, 300);
+            setTimeout(async () => { const o = document.getElementById('download-overlay-mask'); if(o) o.remove(); }, 300);
                 }).catch(err => {
             console.error("html2canvas hatası:", err);
             
-            // --- CLEANUP RESTORE ON ERROR ---
             
-            __snapshots.forEach(snap => {
+            
+            // --- CLEANUP RESTORE ON ERROR ---
+            originalStyles.forEach((styles, el) => {
+                el.style.setProperty('background-image', styles.bg);
+                if (styles.bgColor) el.style.setProperty('background-color', styles.bgColor);
+                else el.style.removeProperty('background-color');
+            });
+
+            __snapshots
+.forEach(snap => {
                 if (snap.shadow) snap.el.style.setProperty('box-shadow', snap.shadow, 'important');
                 else snap.el.style.removeProperty('box-shadow');
             });
@@ -264,10 +447,32 @@ async function startBatchExport(){
     const format=EXPORT_FORMATS[formatName]||{w:1920,h:1080};
     const fitMode=$('exportFitMode').value;
     const bgColor=$('exportBgColor').value;
-    const outputScale=parseFloat($('exportScale').value);
+    let outputScale = 1.5;
+    const scaleVal2 = $('exportScale').value;
+
+    let safeMasterImage = window.uploadedImgUrl || window.masterImageBase64;
+    if (!safeMasterImage) {
+        const pLayer = document.getElementById('photo-layer');
+        if (pLayer && pLayer.style.backgroundImage && pLayer.style.backgroundImage !== 'none') {
+            safeMasterImage = pLayer.style.backgroundImage.replace(/^url\(['"]?/, '').replace(/['"]?\)$/, '');
+        }
+    }
+
+    if (scaleVal2 === 'original' && safeMasterImage) {
+        outputScale = 1; // Temporary
+    } else {
+        outputScale = parseFloat(scaleVal2) || 1.5;
+    }
     const currentW=parseInt(canvasEl.style.width)||1920;
     const currentH=parseInt(canvasEl.style.height)||1080;
-    for(let i=0;i<batchFiles.length;i++){
+    if (scaleVal2 === 'original' && safeMasterImage) {
+          const tempImg = new Image();
+          await new Promise(r => { tempImg.onload = r; tempImg.onerror = r; tempImg.src = safeMasterImage; });
+          if (tempImg.width > 0) {
+              outputScale = Math.min(tempImg.width / currentW, tempImg.height / currentH);
+          }
+      }
+      for(let i=0;i<batchFiles.length;i++){
         $('batchStatus').textContent=batchFiles[i].name;
         $('batchPercent').textContent=Math.round(i/batchFiles.length*100)+'%';
         $('batchBar').style.width=Math.round(i/batchFiles.length*100)+'%';
@@ -277,7 +482,7 @@ async function startBatchExport(){
         if(isCanvaMode && typeof refreshActiveCanvaTemplate === 'function') refreshActiveCanvaTemplate();
         else if(isCanvaMode) buildCanvaRender();
         await sleep(400);
-        document.querySelectorAll('.el-selected').forEach(e=>e.classList.remove('el-selected'));
+        if(typeof deselectAll === 'function') deselectAll(); else document.querySelectorAll('.el-selected').forEach(e=>e.classList.remove('el-selected'));
         drawCanvas.style.zIndex='7';
         drawCanvas.style.pointerEvents='none';
         canvasEl.style.transition='none';
@@ -299,19 +504,78 @@ async function startBatchExport(){
         });
 
         if (window.SaberEngine && typeof window.SaberEngine.updateTextSaberPositions === "function") window.SaberEngine.updateTextSaberPositions();
-            sourceCanvas=await html2canvas(canvasEl,{width:currentW,height:currentH,scale:1,useCORS:true,allowTaint:true,imageTimeout:0,letterRendering:true,logging:false,backgroundColor:null,ignoreElements:el=>(el.classList&&el.classList.contains('el-selected'))||el.tagName==='CANVAS'||el.tagName==='canvas'});
+            const targetW = Math.round(currentW * outputScale);
+            const targetH = Math.round(currentH * outputScale);
+            
+            
+        // DUAL-LAYER SWAP LOGIC FOR BATCH
+        
+        // DUAL-LAYER MANUAL DRAW LOGIC FOR BATCH
+        const swapTargetsBatch = canvasEl.querySelectorAll('#photo-layer, .canva-bg, .photo-panel');
+        const originalStylesBatch = new Map();
+        let masterImgElementBatch = null;
+        
+        if (safeMasterImage && outputScale > 1.5) {
+            masterImgElementBatch = new Image();
+            const loadPromiseBatch = new Promise(r => {
+                masterImgElementBatch.onload = r;
+                masterImgElementBatch.onerror = r;
+            });
+            masterImgElementBatch.src = safeMasterImage;
+            await loadPromiseBatch;
+            
+            originalStylesBatch.set(canvasEl, { bg: canvasEl.style.backgroundImage, bgColor: canvasEl.style.backgroundColor });
+              canvasEl.style.backgroundColor = 'transparent';
+              
+              swapTargetsBatch.forEach(el => {
+                const bg = el.style.backgroundImage;
+                if (bg && bg !== 'none' && bg !== '') {
+                    originalStylesBatch.set(el, {
+                        bg: bg,
+                        bgColor: el.style.backgroundColor
+                    });
+                    el.style.setProperty('background-image', 'none', 'important');
+                    el.style.setProperty('background-color', 'transparent', 'important');
+                }
+            });
+        }
+
+
+            sourceCanvas=await html2canvas(canvasEl,{width:currentW,height:currentH,scale:outputScale,useCORS:true,allowTaint:true,imageTimeout:0,letterRendering:true,logging:false,backgroundColor:null,ignoreElements:el=>(el.classList&&el.classList.contains('el-selected'))||el.tagName==='CANVAS'||el.tagName==='canvas'});
+            
+            
+            
+            // RESTORE DUAL-LAYER SWAP FOR BATCH
+            originalStylesBatch.forEach((styles, el) => {
+                el.style.setProperty('background-image', styles.bg);
+                if (styles.bgColor) el.style.setProperty('background-color', styles.bgColor);
+                else el.style.removeProperty('background-color');
+            });
+
+
+
+            // RESTORE DOM STATE EARLY SO REDRAW LOGIC READS CORRECT MEASUREMENTS
+            canvasEl.style.position = oldPos;
+            canvasEl.style.left = oldL;
+            canvasEl.style.top = oldT;
+            canvasEl.style.margin = oldM;
+            canvasEl.style.transition = 'transform 0.2s';
+            if (typeof resizeCanvas === 'function') resizeCanvas();
+
             const sCtx = sourceCanvas.getContext('2d');
               sCtx.imageSmoothingEnabled=true;
               sCtx.imageSmoothingQuality='high';
-            sCtx.drawImage(drawCanvas, 0, 0, currentW, currentH);
-            // Draw Saber Layer manually to ensure it's captured
-            // Draw Saber Layer manually to ensure it's captured
+            if (window.redrawAllToContext) {
+                window.redrawAllToContext(sCtx, outputScale);
+            } else {
+                sCtx.drawImage(drawCanvas, 0, 0, targetW, targetH);
+            }
+            
             if (window.SaberEngine && typeof window.SaberEngine.getApp === 'function') {
                 const saberApp = window.SaberEngine.getApp();
                 if (saberApp && saberApp.view) {
-                    // Zorla senkron render yaparak arka plan silinmeden yakala (preserveDrawingBuffer gerektirmez)
                     if (saberApp.renderer && saberApp.stage) saberApp.renderer.render(saberApp.stage);
-                    sCtx.drawImage(saberApp.view, 0, 0, currentW, currentH);
+                    sCtx.drawImage(saberApp.view, 0, 0, targetW, targetH);
                 }
             }
         } catch(err) {
@@ -324,11 +588,6 @@ async function startBatchExport(){
             resizeCanvas();
             return;
         }
-        
-        canvasEl.style.position = oldPos;
-        canvasEl.style.left = oldL;
-        canvasEl.style.top = oldT;
-        canvasEl.style.margin = oldM;
 
         const targetW=Math.round(format.w*outputScale);
         const targetH=Math.round(format.h*outputScale);
@@ -336,21 +595,49 @@ async function startBatchExport(){
         finalCanvas.width=targetW;
         finalCanvas.height=targetH;
         const ctx=finalCanvas.getContext('2d');
-            ctx.imageSmoothingEnabled=true;
-            ctx.imageSmoothingQuality='high';
-        if(fitMode==='contain'){ctx.fillStyle=bgColor;ctx.fillRect(0,0,targetW,targetH)}
-        if(fitMode==='stretch')ctx.drawImage(sourceCanvas,0,0,targetW,targetH);
-        else if(fitMode==='cover'){
-            const scale=Math.max(targetW/currentW,targetH/currentH);
-            const sw=targetW/scale,sh=targetH/scale;
-            const sx=(currentW-sw)/2,sy=(currentH-sh)/2;
-            ctx.drawImage(sourceCanvas,sx,sy,sw,sh,0,0,targetW,targetH);
-        }else{
-            const scale=Math.min(targetW/currentW,targetH/currentH);
-            const dw=currentW*scale,dh=currentH*scale;
-            const dx=(targetW-dw)/2,dy=(targetH-dh)/2;
-            ctx.drawImage(sourceCanvas,0,0,currentW,currentH,dx,dy,dw,dh);
+        ctx.imageSmoothingEnabled=true;
+        ctx.imageSmoothingQuality='high';
+        
+        if(bgColor && bgColor !== 'transparent') {
+            ctx.fillStyle=bgColor;
+            ctx.fillRect(0,0,targetW,targetH);
         }
+        
+        const pLayer = document.getElementById('photo-layer');
+        if (pLayer && pLayer.style.backgroundImage && pLayer.style.backgroundImage !== 'none') {
+            const imgUrl = pLayer.style.backgroundImage.replace(/^url\(["']?/, '').replace(/["']?\)$/, '');
+            if (imgUrl && imgUrl.trim() !== '') {
+                try {
+                    const originalImg = new Image();
+                    if (imgUrl.startsWith('http')) { originalImg.crossOrigin = 'anonymous'; }
+                    await new Promise((resolve) => {
+                        originalImg.onload = resolve;
+                        originalImg.onerror = resolve;
+                        originalImg.src = imgUrl;
+                    });
+                    if (originalImg.width > 0) {
+                        const imgRatio = originalImg.width / originalImg.height;
+                        const canvasRatio = targetW / targetH;
+                        let drawW, drawH, drawX, drawY;
+                        if (imgRatio > canvasRatio) {
+                            drawH = targetH;
+                            drawW = originalImg.width * (targetH / originalImg.height);
+                            drawX = (targetW - drawW) / 2;
+                            drawY = 0;
+                        } else {
+                            drawW = targetW;
+                            drawH = originalImg.height * (targetW / originalImg.width);
+                            drawX = 0;
+                            drawY = (targetH - drawH) / 2;
+                        }
+                        ctx.drawImage(originalImg, drawX, drawY, drawW, drawH);
+                    }
+                } catch(e) { console.error('Photo draw error:', e); }
+            }
+        }
+        
+        ctx.drawImage(sourceCanvas, 0, 0, targetW, targetH);
+        
         const a=document.createElement('a');
         const fmtSafe=formatName.replace(/[^a-z0-9]/gi,'-').toLowerCase();
         a.download='emlak-'+batchFiles[i].name.replace(/\.[^/.]+$/,'')+'-'+fmtSafe+'.png';
@@ -616,4 +903,5 @@ function loadProject() {
     };
     input.click();
 }
+
 

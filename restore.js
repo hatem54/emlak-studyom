@@ -1,0 +1,1 @@
+const fs = require('fs'); const code = fs.readFileSync('js/main.js', 'utf8'); console.log(code.substring(code.indexOf('function _getZoomTarget(target)') - 100, code.indexOf('document.addEventListener(\\'mouseup\\', function()') + 100));

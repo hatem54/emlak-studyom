@@ -28,10 +28,33 @@ function buildTemplates(){
     g.appendChild(emptyBtn);
     
     // Diğer şablonlar
-    Object.keys(TPL).forEach(function(k){
+        // Favorileri localStorage'dan al
+    let favTpls = [];
+    try { favTpls = JSON.parse(localStorage.getItem('favTemplates') || '[]'); } catch(e){}
+
+    // TPL nesnesinin anahtarlarini favori durumuna gore sirala (Favoriler ustte)
+    const sortedKeys = Object.keys(TPL).sort((a, b) => {
+        const aFav = favTpls.includes(a);
+        const bFav = favTpls.includes(b);
+        if (aFav && !bFav) return -1;
+        if (!aFav && bFav) return 1;
+        return 0; // Kendi iclerindeki sira ayni kalir
+    });
+
+    // Diger sablonlar
+    sortedKeys.forEach(function(k){
+        const isFav = favTpls.includes(k);
+        
+        const btnWrapper = document.createElement('div');
+        btnWrapper.style.position = 'relative';
+        btnWrapper.style.width = '100%';
+        btnWrapper.style.display = 'flex';
+        
         const b=document.createElement('button');
         b.className='template-btn';
         b.id='tpl-'+k;
+        b.style.flex = '1';
+        b.style.paddingRight = '20px';
         b.textContent=TPL[k].name;
         b.onclick=function(){
             if(typeof clearAllTemplates === 'function') clearAllTemplates();
@@ -43,7 +66,49 @@ function buildTemplates(){
             if(il)il.style.visibility='visible';
             setTemplate(k);
         };
-        g.appendChild(b);
+        
+        const starBtn = document.createElement('div');
+        starBtn.innerHTML = isFav ? '⭐' : '☆';
+        starBtn.style.position = 'absolute';
+        starBtn.style.right = '5px';
+        starBtn.style.top = '50%';
+        starBtn.style.transform = 'translateY(-50%)';
+        starBtn.style.cursor = 'pointer';
+        starBtn.style.fontSize = '14px';
+        starBtn.style.zIndex = '2';
+        starBtn.style.color = isFav ? '#ffd700' : '#cbd5e1';
+        starBtn.style.padding = '5px';
+        starBtn.title = isFav ? 'Favorilerden Çikar' : 'Favorilere Ekle';
+        starBtn.onclick = function(e) {
+            e.stopPropagation(); // Buton tiklamasini engelle
+            if (isFav) {
+                favTpls = favTpls.filter(id => id !== k);
+            } else {
+                favTpls.push(k);
+            }
+            localStorage.setItem('favTemplates', JSON.stringify(favTpls));
+            
+            // Aktif butonu bul
+            const activeBtn = document.querySelector('.template-btn.active');
+            const activeId = activeBtn ? activeBtn.id : null;
+            
+            buildTemplates();
+            
+            // Aktif butonu geri yukle
+            if (activeId) {
+                setTimeout(() => {
+                    const newBtn = document.getElementById(activeId);
+                    if (newBtn) {
+                        document.querySelectorAll('.template-btn').forEach(b => b.classList.remove('active'));
+                        newBtn.classList.add('active');
+                    }
+                }, 10);
+            }
+        };
+        
+        btnWrapper.appendChild(b);
+        btnWrapper.appendChild(starBtn);
+        g.appendChild(btnWrapper);
     });
     
     console.log('✅ Şablonlar oluşturuldu (Boş Sayfa dahil)');
@@ -182,7 +247,7 @@ function init(){
         if(canvasEl){
             canvasEl.addEventListener('mousedown',e=>{
                 if(drawMode!=='off')return;
-                if(!e.target.closest('.canvas-el')&&!e.target.closest('.added-icon')&&!e.target.closest('.draggable'))deselectAll();
+                if(!e.target.closest('.canvas-el')&&!e.target.closest('.added-icon')&&!e.target.closest('.draggable')&&!e.target.closest('.editable-draw'))deselectAll();
             });
         }
         if(photoLayer)enablePhotoDrag(photoLayer);
@@ -275,10 +340,26 @@ document.addEventListener('wheel', function(e){
 // ========== SÜRÜKLEME ==========
 var _dragEl = null, _dsx, _dsy, _dix, _diy;
 
+window.spaceBarPressed = false;
+window.addEventListener('keydown', e => { 
+    if (e.code === 'Space') { 
+        window.spaceBarPressed = true; 
+        if(document.activeElement && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') e.preventDefault(); 
+    } 
+});
+window.addEventListener('keyup', e => { 
+    if (e.code === 'Space') window.spaceBarPressed = false; 
+});
+
 document.addEventListener('mousedown', function(e){
     var el = _getZoomTarget(e.target);
     if(!el) return;
-    if(e.button !== 0) return;
+    
+    const isModifierPressed = e.ctrlKey || e.altKey || e.metaKey;
+    const canPanWithLeftClick = (typeof drawMode === 'undefined' || drawMode === 'off' || drawMode === null) && !isModifierPressed;
+    
+    if(e.button === 0 && !window.spaceBarPressed && !canPanWithLeftClick) return;
+    if(e.button !== 0 && e.button !== 1) return;
     
     _preparePhoto(el);
     
@@ -483,6 +564,25 @@ document.addEventListener('keydown', function(e) {
             if (typeof deleteSelected === 'function') deleteSelected();
         }
     }
+    
+    // Geri Al (Undo) - Ctrl+Z
+    if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 'z') {
+        e.preventDefault();
+        if (typeof undoLastDraw === 'function') undoLastDraw();
+    }
+    
+    // İleri Al (Redo) - Ctrl+Y veya Ctrl+Shift+Z
+    if (((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') || 
+        ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'z')) {
+        e.preventDefault();
+        if (typeof redoLastDraw === 'function') redoLastDraw();
+    }
+    
+    // İptal / Seçimi Bırak - Escape
+    if (e.key === 'Escape') {
+        if (typeof deselectAll === 'function') deselectAll();
+        if (typeof closePolygon === 'function') closePolygon(); // Eğer çokgen çizimi yarım kaldıysa
+    }
 });
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -563,3 +663,284 @@ if (window.visualViewport && window.innerWidth <= 640) {
   window.visualViewport.addEventListener('resize', adjustLayout);
   window.addEventListener('load', adjustLayout);
 }
+
+
+
+// ========== CONVERT TO POLYGON ==========
+function createPolygonFromSelectedLines() {
+    if (!window.selectedElements || window.selectedElements.length < 2) return;
+    
+    const lines = window.selectedElements.filter(el => {
+        if (!el.classList.contains('editable-draw')) return false;
+        const pObj = typeof drawPaths !== 'undefined' ? drawPaths.find(p => p.el === el) : null;
+        return pObj && (pObj.type === 'line' || pObj.x1 !== undefined);
+    });
+    
+    if (lines.length < 2) {
+        alert('Çokgene çevirmek için en az 2 düz çizgi seçili olmalıdır.');
+        return;
+    }
+    
+    let linesData = [];
+    lines.forEach((el) => {
+        const pObj = drawPaths.find(p => p.el === el);
+        if (pObj) {
+            if (pObj.points && pObj.points.length >= 2) {
+                linesData.push({ el, p1: {x: pObj.points[0].x, y: pObj.points[0].y}, p2: {x: pObj.points[pObj.points.length-1].x, y: pObj.points[pObj.points.length-1].y} });
+            } else if (pObj.x1 !== undefined && pObj.x2 !== undefined) {
+                linesData.push({ el, p1: {x: pObj.x1, y: pObj.y1}, p2: {x: pObj.x2, y: pObj.y2} });
+            }
+        }
+    });
+    
+    if (linesData.length < 2) {
+        alert('Çokgene çevirmek için en az 2 düz çizgi seçili olmalıdır.');
+        return;
+    }
+    
+    let firstLine = linesData.shift();
+    let orderedPoints = [firstLine.p1, firstLine.p2];
+    let usedEls = [firstLine.el];
+    
+    while(linesData.length > 0) {
+        let lastPt = orderedPoints[orderedPoints.length - 1];
+        let closestIdx = -1;
+        let closestDist = Infinity;
+        let p1_or_p2 = 0;
+        
+        for(let i=0; i<linesData.length; i++) {
+            let lData = linesData[i];
+            let d1 = Math.hypot(lData.p1.x - lastPt.x, lData.p1.y - lastPt.y);
+            let d2 = Math.hypot(lData.p2.x - lastPt.x, lData.p2.y - lastPt.y);
+            
+            if (d1 < closestDist) { closestDist = d1; closestIdx = i; p1_or_p2 = 0; }
+            if (d2 < closestDist) { closestDist = d2; closestIdx = i; p1_or_p2 = 1; }
+        }
+        
+        if (closestIdx !== -1 && closestDist <= 30) {
+            let closestLine = linesData[closestIdx];
+            usedEls.push(closestLine.el);
+            if (p1_or_p2 === 0) {
+                orderedPoints.push(closestLine.p2);
+            } else {
+                orderedPoints.push(closestLine.p1);
+            }
+            linesData.splice(closestIdx, 1);
+        } else {
+            break; // No connected line found nearby
+        }
+    }
+    
+    if (usedEls.length < 2) {
+        alert('Bağlanabilecek yeterli çizgi bulunamadı. Çizgilerinizin birbirine (en az 30px) yakın olduğundan emin olun.');
+        return;
+    }
+
+    const firstLineObj = Object.assign({}, drawPaths.find(p => p.el === usedEls[0]) || { color: '#ef4444', width: 4, opacity: 1 });
+    
+    usedEls.forEach(el => {
+        const idx = drawPaths.findIndex(p => p.el === el);
+        if (idx > -1) drawPaths.splice(idx, 1);
+        if (el.parentNode) el.parentNode.removeChild(el);
+    });
+    
+    if (orderedPoints.length > 2) {
+        let firstPt = orderedPoints[0];
+        let lastPt = orderedPoints[orderedPoints.length - 1];
+        if (Math.hypot(firstPt.x - lastPt.x, firstPt.y - lastPt.y) <= 30) {
+            orderedPoints.pop();
+        }
+    }
+    
+    const pObj = {
+        type: 'polygon',
+        closed: true,
+        points: orderedPoints,
+        color: firstLineObj.color || '#ef4444',
+        width: firstLineObj.width || 4,
+        opacity: firstLineObj.opacity || 1,
+        dashStyle: firstLineObj.dashStyle || 'solid',
+        glow: firstLineObj.glow || 0,
+        fillColor: 'transparent',
+        fillOpacity: 0
+    };
+    
+    if (typeof isCanvaMode !== 'undefined' && isCanvaMode) {
+        const pnl = getActivePhotoPanel();
+        if(pnl) pObj.photoRef = { v4: true, z: parseFloat(getActiveV4Element().dataset.zpScale)||1, px: parseFloat(getActiveV4Element().dataset.zpX)||0, py: parseFloat(getActiveV4Element().dataset.zpY)||0, panelW: pnl.w, panelH: pnl.h, panelL: pnl.left, panelT: pnl.top, sliderX: 50, sliderY: 50 };
+    } else {
+        const pnl = typeof getActivePhotoPanel === 'function' ? getActivePhotoPanel() : null;
+        if(pnl) pObj.photoRef = { v4: false, z: 100, px: 50, py: 50, panelW: pnl.w, panelH: pnl.h, panelL: pnl.left, panelT: pnl.top };
+    }
+    
+    drawPaths.push(pObj);
+    if(typeof createSVGFromPath === 'function') {
+        const svgEl = createSVGFromPath(pObj);
+        if(svgEl) {
+            pObj.el = svgEl;
+            const container = typeof getActiveV4Element === 'function' ? getActiveV4Element() : document.getElementById('photo-layer');
+            if(container) container.appendChild(svgEl);
+        }
+    }
+    
+    if(typeof updateDrawHistory === 'function') updateDrawHistory();
+    if(typeof redrawAll === 'function') redrawAll();
+    if(typeof deselectAll === 'function') deselectAll();
+    if(pObj.el && typeof selectElement === 'function') selectElement(pObj.el, true);
+}
+
+function checkConvertPolygonButton() {
+    let btn = document.getElementById('btnConvertPolygon');
+    if (!window.selectedElements || window.selectedElements.length < 2) {
+        if (btn) btn.style.display = 'none';
+        return;
+    }
+    
+    const lines = window.selectedElements.filter(el => {
+        if (!el.classList.contains('editable-draw')) return false;
+        if (typeof drawPaths !== 'undefined') {
+            const pObj = drawPaths.find(p => p.el === el);
+            return pObj && (pObj.type === 'line' || pObj.x1 !== undefined);
+        }
+        return false;
+    });
+    
+    if (lines.length >= 2) {
+        if (!btn) {
+            btn = document.createElement('button');
+            btn.id = 'btnConvertPolygon';
+            btn.innerHTML = '🔷 Çokgene Çevir';
+            btn.style.position = 'absolute';
+            btn.style.zIndex = '9999999';
+            btn.style.background = '#6366f1';
+            btn.style.color = '#fff';
+            btn.style.border = 'none';
+            btn.style.padding = '8px 12px';
+            btn.style.borderRadius = '6px';
+            btn.style.cursor = 'pointer';
+            btn.style.fontWeight = 'bold';
+            btn.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.1)';
+            btn.onclick = createPolygonFromSelectedLines;
+            document.body.appendChild(btn);
+        }
+        
+        const lastEl = window.selectedElements[window.selectedElements.length - 1];
+        const rect = lastEl.getBoundingClientRect();
+        btn.style.left = (rect.right + 10) + 'px';
+        btn.style.top = rect.top + 'px';
+        btn.style.display = 'block';
+    } else {
+        if (btn) btn.style.display = 'none';
+    }
+}
+
+// Override or inject into selection changes
+const originalSelectElement = window.selectElement;
+window.selectElement = function(el, multi) {
+    if (originalSelectElement) originalSelectElement(el, multi);
+    setTimeout(checkConvertPolygonButton, 10);
+};
+
+const originalDeselectAll = window.deselectAll;
+window.deselectAll = function() {
+    if (originalDeselectAll) originalDeselectAll();
+    setTimeout(checkConvertPolygonButton, 10);
+};
+
+// ========== MARQUEE SELECTION ==========
+let marqueeBox = null;
+let marqueeStartX = 0;
+let marqueeStartY = 0;
+
+document.addEventListener('mousedown', e => {
+    if(typeof drawMode !== 'undefined' && drawMode !== 'off') return;
+    if(!e.target || !e.target.closest) return;
+    const cTarget = e.target.closest('.canvas-el, .added-icon, .draggable, .cvi-item, .co-neon-block, .vertex-handle, .lp-item, .panel, .lp-header, .editable-draw');
+    
+    if (e.target.closest('.panel, .lp-header')) return;
+    
+    // Instead of duplicating deselectAll logic here, we just start the marquee if we clicked on the background
+    // Since canvasEl already calls deselectAll() for clicks that aren't on items, we just check if it IS on the background
+    const isBackground = e.target.id === 'photo-layer' || e.target.id === 'drawCanvas' || e.target.id === 'canva-render-layer' || e.target.classList.contains('photo-wrap') || e.target.classList.contains('workspace');
+    
+    if(!cTarget && isBackground && (e.ctrlKey || e.altKey || e.metaKey)) {
+        marqueeStartX = e.clientX;
+        marqueeStartY = e.clientY;
+        
+        marqueeBox = document.createElement('div');
+        marqueeBox.style.position = 'fixed';
+        marqueeBox.style.border = '1px dashed #3b82f6';
+        marqueeBox.style.backgroundColor = 'rgba(59, 130, 246, 0.1)';
+        marqueeBox.style.zIndex = '9999';
+        marqueeBox.style.pointerEvents = 'none';
+        marqueeBox.style.left = marqueeStartX + 'px';
+        marqueeBox.style.top = marqueeStartY + 'px';
+        marqueeBox.style.width = '0px';
+        marqueeBox.style.height = '0px';
+        document.body.appendChild(marqueeBox);
+    }
+});
+
+document.addEventListener('mousemove', function(e) {
+    if(marqueeBox) {
+        const currentX = e.clientX;
+        const currentY = e.clientY;
+        const left = Math.min(marqueeStartX, currentX);
+        const top = Math.min(marqueeStartY, currentY);
+        const width = Math.abs(currentX - marqueeStartX);
+        const height = Math.abs(currentY - marqueeStartY);
+        
+        marqueeBox.style.left = left + 'px';
+        marqueeBox.style.top = top + 'px';
+        marqueeBox.style.width = width + 'px';
+        marqueeBox.style.height = height + 'px';
+    }
+});
+
+document.addEventListener('mouseup', function(e) {
+    if(marqueeBox) {
+        const mRect = marqueeBox.getBoundingClientRect();
+        marqueeBox.remove();
+        marqueeBox = null;
+        
+        if (mRect.width > 5 && mRect.height > 5) {
+            const multiSelectKey = e.ctrlKey || e.shiftKey;
+            if (!multiSelectKey && typeof deselectAll === 'function') {
+                deselectAll();
+            }
+            const elements = document.querySelectorAll('.cvi-item, .co-neon-block, .draggable, .added-icon, .canvas-el, .editable-draw');
+            let selectedAny = false;
+            let lastEl = null;
+            
+            elements.forEach(el => {
+                if(el.style.display === 'none' || el.style.visibility === 'hidden' || el.dataset.locked === 'true') return;
+                let rect = el.getBoundingClientRect();
+                if (rect.width === 0 || rect.height === 0) {
+                    const inner = el.querySelector('svg, .callout-svg-container, div');
+                    if (inner) rect = inner.getBoundingClientRect();
+                }
+                
+                if (rect.left < mRect.right &&
+                    rect.right > mRect.left &&
+                    rect.top < mRect.bottom &&
+                    rect.bottom > mRect.top) {
+                    
+                    if (typeof selectElement === 'function') {
+                          selectElement(el, true);
+                          lastEl = el;
+                          selectedAny = true;
+                      }
+                }
+            });
+            
+            if(selectedAny && lastEl) {
+                if(typeof window.selectedEl !== 'undefined') window.selectedEl = lastEl;
+                if(typeof updateGroupUI === 'function') updateGroupUI();
+                
+                if(window.LayerPanelV2 && window.LayerPanelV2.highlightActiveLayer) {
+                    setTimeout(() => window.LayerPanelV2.highlightActiveLayer(), 80);
+                }
+            }
+        }
+    }
+});

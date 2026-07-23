@@ -492,8 +492,8 @@ const CALLOUT_CATEGORIES = {
     '🌟 Premium Etiketler': [
         { text: 'PREMIUM', bg: 'linear-gradient(45deg, #fbbf24, #d97706)', color: '#fff', border: 'none', radius: 4, padding: '10px 25px', fontSize: 20, fontWeight: 800, letterSpacing: '2px', shadow: '0 4px 15px rgba(217,119,6,0.5)' },
         { text: 'VIP', bg: 'linear-gradient(45deg, #000, #333)', color: '#fbbf24', border: '1px solid #fbbf24', radius: 4, padding: '10px 25px', fontSize: 20, fontWeight: 800, letterSpacing: '2px', shadow: '0 4px 15px rgba(0,0,0,0.5)' },
-        { text: 'LUXURY', bg: 'linear-gradient(45deg, #e2e8f0, #94a3b8)', color: '#0f172a', border: 'none', radius: 4, padding: '10px 25px', fontSize: 20, fontWeight: 800, letterSpacing: '2px', shadow: '0 4px 15px rgba(148,163,184,0.5)' },
-        { text: 'EXCLUSIVE', bg: 'linear-gradient(45deg, #1e3a8a, #3b82f6)', color: '#fff', border: 'none', radius: 4, padding: '10px 25px', fontSize: 20, fontWeight: 800, letterSpacing: '2px', shadow: '0 4px 15px rgba(59,130,246,0.5)' },
+        { text: 'LÜKS', bg: 'linear-gradient(45deg, #e2e8f0, #94a3b8)', color: '#0f172a', border: 'none', radius: 4, padding: '10px 25px', fontSize: 20, fontWeight: 800, letterSpacing: '2px', shadow: '0 4px 15px rgba(148,163,184,0.5)' },
+        { text: 'AYRICALIKLI', bg: 'linear-gradient(45deg, #1e3a8a, #3b82f6)', color: '#fff', border: 'none', radius: 4, padding: '10px 25px', fontSize: 20, fontWeight: 800, letterSpacing: '2px', shadow: '0 4px 15px rgba(59,130,246,0.5)' },
         { text: 'ELİT', bg: 'linear-gradient(45deg, #7f1d1d, #ef4444)', color: '#fff', border: 'none', radius: 4, padding: '10px 25px', fontSize: 20, fontWeight: 800, letterSpacing: '2px', shadow: '0 4px 15px rgba(239,68,68,0.5)' }
     ],
     '✨ Modern Şeffaf': [

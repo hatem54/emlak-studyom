@@ -1,0 +1,66 @@
+﻿<div id="tab-batch" class="dynamic-field">
+    <p class="info-text">Farklı platformlar için farklı boyutlarda önizle ve indir</p>
+    
+    <div class="input-group">
+        <label>📏 Format (Önizleme + İndirme)</label>
+        <select id="exportFormat" onchange="document.getElementById('previewFormat').value = this.value; switchPreviewFormat();"></select>
+    </div>
+    
+    <div class="input-group">
+        <label>Kadraj Modu</label>
+        <select id="exportFitMode">
+            <option value="cover">📐 Doldur (Kırpma olabilir)</option>
+            <option value="contain">🔲 Sığdır (Boşluk kalabilir)</option>
+            <option value="stretch">↔️ Ger (Deforme olabilir)</option>
+        </select>
+    </div>
+    
+    <div class="color-row">
+        <label>Boşluk Rengi (Sığdır modu)</label>
+        <input type="color" id="exportBgColor" value="#ffffff">
+    </div>
+    
+    <div class="input-group">
+        <label>Dosya Tipi</label>
+        <select id="exportFileType">
+            <option value="jpg">JPG (En iyi Optimizasyon)</option>
+            <option value="png">PNG (Kayıpsız / Şeffaf)</option>
+        </select>
+    </div>
+
+    <div class="input-group">
+        <label>Ölçek (Kalite)</label>
+        <select id="exportScale">
+            <option value="0.5">0.5x (Düşük Kalite / ~480p)</option>
+            <option value="0.75">0.75x (Orta Kalite / ~720p)</option>
+            <option value="original">Orijinal Fotoğraf Çözünürlüğü (Birebir Kayıpsız)</option>
+              <option value="1">1x (Standart / ~1080p)</option>
+            <option value="1.5" selected>1.5x (Yüksek Kalite / ~1440p)</option>
+            <option value="2">2x (Ultra HD / 4K)</option>
+            <option value="3">3x (Baskı Kalitesi / 8K+)</option>
+        </select>
+    </div>
+    
+    <!-- Gizli - eski kodla uyumluluk için -->
+    <select id="previewFormat" style="display:none;"></select>
+    
+    <div class="section-title">💾 Şablon Yönetimi</div>
+    <p class="info-text">Tasarımınızı ve şablonunuzu bilgisayara kaydedip daha sonra yükleyebilirsiniz.</p>
+    <div class="row-2" style="margin-bottom: 15px;">
+        <button class="btn-action btn-blue" onclick="saveProject()">💾 Şablonu Kaydet</button>
+        <button class="btn-action btn-green" onclick="loadProject()">📂 Şablon Aç</button>
+    </div>
+    
+    <div class="section-title">📦 Toplu Çıktı</div>
+    <p class="info-text">Çoklu resim yükle, hepsini seçili formatta indir.</p>
+    <div class="input-group"><label>📁 Çoklu Resim</label><input type="file" id="batchInput" accept="image/*" multiple></div>
+    <div class="batch-file-list" id="batchFileList"></div>
+    <div class="row-2" style="margin-top:6px">
+        <button class="btn-action btn-blue" onclick="startBatchExport()">📸 Toplu Çıktı</button>
+        <button class="btn-action btn-red" onclick="clearBatchFiles()">🗑️ Temizle</button>
+    </div>
+    <div class="batch-progress" id="batchProgress">
+        <div style="font-size:11px;color:#94a3b8"><span id="batchStatus">...</span> <span id="batchPercent">0%</span></div>
+        <div class="bar"><div class="bar-fill" id="batchBar"></div></div>
+    </div>
+    <!-- SEÇİLİ FORMATTA İNDİR -->

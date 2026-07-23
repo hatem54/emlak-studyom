@@ -45,6 +45,15 @@ async function checkUserMode() {
     CURRENT_USER = null;
   }
   
+  // TEST MODU OVERRIDE (SADECE GELİŞTİRİCİ İÇİN)
+  if (localStorage.getItem('isDeveloper') === 'true') {
+      const forcedMode = localStorage.getItem('userMode');
+      if (forcedMode === 'demo' || forcedMode === 'pro') {
+          APP_MODE = forcedMode;
+          console.log(`🛠️ TEST MODU AKTİF: Zorlanan Mod -> ${forcedMode.toUpperCase()}`);
+      }
+  }
+  
   applyModeRestrictions();
   updateModeUI();
   return APP_MODE;
@@ -59,18 +68,18 @@ function updateModeUI() {
   
   if (APP_MODE === 'demo') {
     bannerDiv.style.cssText = `
-      position: fixed; top: 10px; left: 50%; transform: translateX(-50%);
+      position: fixed; top: 15px; left: 20px;
       background: linear-gradient(135deg, #f59e0b, #d97706); color: white;
       padding: 8px 20px; border-radius: 20px; font-weight: 600; font-size: 13px;
       z-index: 99998; box-shadow: 0 4px 12px rgba(0,0,0,0.2); cursor: pointer;
       display: flex; align-items: center; gap: 10px;
     `;
-    bannerDiv.innerHTML = "🟡 Demo Modu • <span style=\"text-decoration:underline\">Pro'ya Yükselt</span>";
+    bannerDiv.innerHTML = "🌟 Demo Modu • <span style=\"text-decoration:underline\">Pro'ya Yükselt</span>";
     bannerDiv.onclick = () => { window.location.href = 'index.html#pricing'; };
     document.body.appendChild(bannerDiv);
   } else {
     bannerDiv.style.cssText = `
-      position: fixed; top: 10px; left: 50%; transform: translateX(-50%);
+      position: fixed; top: 15px; left: 20px;
       background: linear-gradient(135deg, #10b981, #059669); color: white;
       padding: 6px 16px; border-radius: 20px; font-weight: 600; font-size: 12px;
       z-index: 99998; box-shadow: 0 4px 12px rgba(0,0,0,0.2);
@@ -389,7 +398,7 @@ function addWatermark(canvas) {
       resolve(canvas);
     };
     
-    logo.src = 'assets/logo/logo.jpg';
+    logo.src = 'assets/logo/logo.png';
   });
 }
 

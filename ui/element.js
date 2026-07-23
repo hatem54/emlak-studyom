@@ -18,6 +18,17 @@ function loadElSettings(el){
     const cs=getComputedStyle(el);
     $('elFontSize').value=parseInt(cs.fontSize)||32;
     $('elFontSizeVal').textContent=parseInt(cs.fontSize)||32;
+    
+    // Dinamik etiket: İkon ise İkon Boyutu, değilse Yazı Boyutu
+    const fsLabel = $('elFontSizeLabel');
+    if (fsLabel) {
+        if (el.classList.contains('added-icon') || el.classList.contains('is-svg-icon')) {
+            fsLabel.textContent = 'İkon Boyutu';
+        } else {
+            fsLabel.textContent = 'Yazı Boyutu';
+        }
+    }
+    
     $('elPadding').value=parseInt(cs.paddingTop)||0;
     $('elPaddingVal').textContent=parseInt(cs.paddingTop)||0;
     const hasW=el.style.width&&el.style.width!=='auto';
@@ -27,8 +38,10 @@ function loadElSettings(el){
     $('elHeight').value=hasH?parseInt(el.style.height):0;
     $('elHeightVal').textContent=hasH?parseInt(el.style.height)+'px':'Otomatik';
     $('elTextColor').value=rgbToHex(cs.color);
-    $('elBgColor').value=el.dataset.storedBgHex||'#0f172a';
-    const bgOp=el.dataset.storedBgOpacity||85;
+    
+    // Eğer elemanın özel bir arkaplanı tanımlanmamışsa (şablon yazısı vb.), şeffaf (0) kabul et.
+    $('elBgColor').value=el.dataset.storedBgHex||'#000000';
+    const bgOp=el.dataset.storedBgOpacity !== undefined ? el.dataset.storedBgOpacity : 0;
     $('elBgOpacity').value=bgOp;
     $('elBgOpacityVal').textContent=bgOp+'%';
     $('elOpacity').value=Math.round((parseFloat(cs.opacity)||1)*100);
@@ -64,6 +77,10 @@ function applyElSettings(){
     el.style.fontSize=fs+'px';
     el.style.padding=pd+'px';
     el.style.color=tc;
+    if (typeof applyElWeight === 'function') {
+        const w = parseInt(document.getElementById('elWeightSlider').value);
+        if (w > 900) { applyElWeight(); }
+    }
     if(el.dataset.saberActive === 'true') { el.style.color = 'transparent'; }
     el.style.opacity=op/100;
     const rgb=hexToRgb(bc);
@@ -167,6 +184,7 @@ function addCustomTextBox(){
     el.style.color='#ffffff';
     el.style.border='2px solid #38bdf8';
     el.style.boxShadow='0 10px 20px rgba(0,0,0,0.5)';
+    el.style.zIndex='100';
     el.style.zIndex='9999';
     el.style.fontFamily=currentFont;
     uiLayer.appendChild(el);
@@ -411,3 +429,35 @@ window.applyTextSaberOpts = function() {
         SaberEngine.addTextSaber(id, selectedEl, opts);
     }
 };
+
+/**
+ * ============================================
+ * STATE MANAGER EVENT LISTENER (Reactivity)
+ * ============================================
+ */
+if (window.EmlakState) {
+    window.EmlakState.addEventListener('selectionChanged', (e) => {
+        const { newEl } = e.detail;
+        if (newEl) {
+            // Bir eleman seçildi, arayüzü güncelle
+            const noSelMsg = document.getElementById('noSelMsg');
+            const elSettings = document.getElementById('elSettings');
+            const elLabel = document.getElementById('elLabel');
+            
+            if(noSelMsg) noSelMsg.style.display = 'none';
+            if(elSettings) elSettings.style.display = 'block';
+            if(elLabel) elLabel.textContent = newEl.dataset.label || 'Eleman';
+            
+            if (typeof loadElSettings === 'function') loadElSettings(newEl);
+            if (typeof loadElFont === 'function') loadElFont(newEl);
+            if (typeof switchTab === 'function') switchTab('element');
+        } else {
+            // Seçim kaldırıldı, paneli gizle
+            const noSelMsg = document.getElementById('noSelMsg');
+            const elSettings = document.getElementById('elSettings');
+            
+            if(noSelMsg) noSelMsg.style.display = 'block';
+            if(elSettings) elSettings.style.display = 'none';
+        }
+    });
+}

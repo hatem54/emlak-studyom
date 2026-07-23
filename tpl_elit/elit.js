@@ -108,8 +108,8 @@ function _elitInit(){
     
     // Inject the HTML structure for Canva/Elit settings
     container.innerHTML = `
-        <div class="edit-hint">💡 Yazıya/panele ÇİFT TIKLA düzenle, TEK TIKLA seç!</div>
-        <button class="btn-action btn-purple" onclick="addCustomTextBox()" style="margin-bottom:8px">�• Özel Çerçeveli Kutu / Metin Ekle</button>
+        
+        
         <div class="canva-tpl-grid" id="canvaTplGrid"></div>
         <div id="canvaSettings" class="settings-box">
             <div class="section-title" style="margin-top:0">✏ Hızlı Metin Düzenleyici</div>
@@ -119,7 +119,7 @@ function _elitInit(){
 • 180 m² Brüt / 155 m² Net
 • Site İçi Ebeveyn Banyolu
 • Serdivan AVM Karşısı</textarea></div>
-            <div class="input-group"><label>İletişim</label><input type="text" id="canvaContact" value="SÜMER GAYRİMENKUL | 0532 790 74 86"></div>
+            <div class="input-group"><label>İletişim</label><input type="text" id="canvaContact" value="emlakstudyomtr@gmail.com"></div>
         </div>
         <button class="btn-action btn-green" onclick="buildCanvaRender()">✅ Seçili Şablonu Uygula</button>
         <button class="btn-action btn-yellow" onclick="clearCanvaTemplate()" style="margin-top:3px">🔄 Şablonu Kaldır (Normal Dön)</button>
@@ -179,7 +179,13 @@ function buildCanvaRender(){
     
         const title = $('canvaTitle').value;
         const price = $('canvaPrice').value || 'FİYAT İÇİN BİZE ULAŞIN';
-        const contact = $('canvaContact').value;
+        let contactInput = $('canvaContact').value.trim();
+        let contact = '';
+        if (contactInput === '' || contactInput.includes('emlakstudyomtr@gmail.com')) {
+            contact = `<div style="line-height:1;"><img src="assets/logo/logo-icon.png" style="height:6em; width:6em; object-fit:contain; vertical-align:middle; margin-left:-2.2em; margin-right:-1.8em; margin-top:-2.5em; margin-bottom:-2.5em; pointer-events:none;"> <span style="vertical-align:middle; position:relative; z-index:2;">emlakstudyomtr@gmail.com</span></div>`;
+        } else {
+            contact = contactInput;
+        }
         const feats = $('canvaFeatures').value.split('\n').map(l => `<div style="margin-bottom:4px">${l}</div>`).join('');
         const bgImg = uploadedImgUrl ? `background-image:url('${uploadedImgUrl}')` : 'background-color:#94a3b8';
         const x = $('photoXCtrl').value, y = $('photoYCtrl').value;
@@ -199,8 +205,8 @@ function buildCanvaRender(){
             </div>`;
         addCanvaItem('LÜKS YAŞAM', 80, 80, 36, '#4a3b32', 'transparent', 0, 0);
         addCanvaItem(title, 80, 140, 85, '#2c1e15', 'transparent', 0, 0, 650);
-        addCanvaItem(price, 80, 380, 54, '#b45309', 'transparent', 0, 0);
-        addCanvaItem(feats, 80, 510, 28, '#4a3b32', 'transparent', 16, 0, 640);
+        addCanvaItem(price, 80, 260, 72, '#b45309', 'transparent', 0, 0);
+        addCanvaItem(feats, 80, 500, 38, '#4a3b32', 'transparent', 24, 0, 640);
         addCanvaItem(contact, 80, 980, 26, '#2c1e15', 'transparent', 0, 0);
     }
     else if(activeCanvaId === 'canva2'){
@@ -212,7 +218,7 @@ function buildCanvaRender(){
         addCanvaItem(title, 60, 60, 95, '#18181b', 'transparent', 0, 0, 1800, 'center');
         addCanvaItem(price, 750, 640, 48, '#ffffff', '#f59e0b', 50, 15, 420, 'center');
         addCanvaItem(`<div style="color:#f59e0b;font-weight:900;font-size:${scaleSize(36)}px;margin-bottom:10px">MÜLK ÖZELLİKLERİ</div>` + feats, 80, 750, 30, '#3f3f46', 'transparent', 0, 0, 900);
-        addCanvaItem(`<div style="font-weight:900;margin-bottom:10px">DAHA FAZLA BİLGİ İÇİN</div><div>${contact}</div>`, 1150, 770, 30, '#18181b', 'rgba(245,158,11,0.15)', 16, 20, 650, 'right');
+        addCanvaItem(`<div style="font-weight:900;margin-bottom:10px;padding-top:10px;">DAHA FAZLA BİLGİ İÇİN</div><div style="padding-bottom:15px;">${contact}</div>`, 1220, 830, 30, '#18181b', 'rgba(245,158,11,0.15)', 16, 20, 600, 'right');
     }
     else if(activeCanvaId === 'canva3'){
         const bluePanelW = scaleX(680), fullH = canvasSize.h;
@@ -252,8 +258,8 @@ function buildCanvaRender(){
     addCanvaItem(words[0] || 'YENİ', 60, 80, 90, '#38bdf8', 'transparent', 0, 0);
     addCanvaItem(words.slice(1).join(' ') || 'İLAN', 60, 180, 32, '#94a3b8', 'transparent', 0, 0);
     addCanvaItem(feats, 60, 300, 26, '#f1f5f9', 'transparent', 0, 0, 500);
-    addCanvaItem(price, 60, 820, 52, '#38bdf8', 'rgba(56,189,248,0.12)', 12, 15, 500, 'center');
-    addCanvaItem(contact, 60, 960, 22, '#94a3b8', 'transparent', 0, 0, 500, 'center');
+    addCanvaItem(price, 60, 820, 52, '#38bdf8', 'rgba(56,189,248,0.12)', 12, 15, 0, 'left');
+    addCanvaItem(contact, 60, 960, 22, '#94a3b8', 'transparent', 0, 0, 0, 'left');
 }
     else if(activeCanvaId === 'canva4'){
     const fullW = canvasSize.w, fullH = canvasSize.h;
@@ -307,7 +313,7 @@ function buildCanvaRender(){
     addCanvaPanel(1220 + 310 - 100, 920, 200, 1, 'rgba(251,191,36,0.4)', 0, null, null);
     
     // İletişim
-    addCanvaItem('✆ ' + contact, 1240, 950, 20, '#a7f3d0', 'transparent', 0, 0, 580, 'center');
+    addCanvaItem(contact, 1240, 935, 20, '#a7f3d0', 'transparent', 0, 0, 580, 'center');
 }
     else if(activeCanvaId === 'canva5'){
     const fullW = canvasSize.w, fullH = canvasSize.h;
@@ -342,22 +348,22 @@ function buildCanvaRender(){
         '1px solid rgba(251,191,36,0.4)', '0 20px 40px rgba(0,0,0,.5)');
     
     // Sol bölüm: Başlık + Fiyat
-    addCanvaItem(title, infoX + 50, infoY + 40, 48, '#ffffff', 'transparent', 0, 0, 700);
-    addCanvaItem(price, infoX + 50, infoY + 110, 42, '#fbbf24', 'transparent', 0, 0, 700);
+    addCanvaItem(title, infoX + 50, infoY + 35, 48, '#ffffff', 'transparent', 0, 0, 700);
+    addCanvaItem(price, infoX + 50, infoY + 105, 42, '#fbbf24', 'transparent', 0, 0, 700);
     
     // Dikey ayırıcı çizgi (ortada)
-    addCanvaPanel(infoX + 900, infoY + 30, 1, 150, 
+    addCanvaPanel(infoX + 900, infoY + 30, 1, 145, 
         'rgba(251,191,36,0.3)', 0, null, null);
     
     // Sağ bölüm: Özellikler
-    addCanvaItem(feats, infoX + 925, infoY + 30, 24, '#e5e5e5', 'transparent', 0, 0, 750);
+    addCanvaItem(feats, infoX + 925, infoY + 15, 21, '#e5e5e5', 'transparent', 0, 0, 750);
     
     // Alt ayırıcı çizgi
-    addCanvaPanel(infoX + 50, infoY + 180, 1660, 1, 
+    addCanvaPanel(infoX + 50, infoY + 175, 1660, 1, 
         'rgba(251,191,36,0.3)', 0, null, null);
     
     // İletişim (alt orta)
-    addCanvaItem('✆ ' + contact, infoX + 50, infoY + 190, 20, '#fbbf24', 'transparent', 0, 0, 1660, 'center');
+    addCanvaItem(contact, infoX + 50, infoY + 185, 20, '#fbbf24', 'transparent', 0, 0, 1660, 'right');
 }
     else if(activeCanvaId === 'canva6'){
     const photoW = scaleX(1050), photoH = scaleY(880);
@@ -393,10 +399,10 @@ function buildCanvaRender(){
     // Yazılar - textMaxW ile taşma engellendi
     addCanvaItem('✔ PROPERTY', 110, 220, 28, '#64748b', 'transparent', 0, 0);
     addCanvaItem(title, 110, 270, 80, '#0f172a', 'transparent', 0, 0, Math.min(780, textMaxW));
-    addCanvaItem(price, 110, 500, 58, '#ffffff', 'linear-gradient(135deg,#0f172a 0%,#334155 100%)', 12, 20);
-    addCanvaItem('▸ ÖZELLİKLER', 110, 630, 18, '#64748b', 'transparent', 0, 0);
-    addCanvaItem(feats, 110, 675, 26, '#334155', 'transparent', 0, 0, Math.min(750, textMaxW));
-    addCanvaItem('★ ' + contact, 110, 960, 22, '#0f172a', 'transparent', 0, 0);
+    addCanvaItem(price, 110, 400, 58, '#ffffff', 'linear-gradient(135deg,#0f172a 0%,#334155 100%)', 12, 20);
+    addCanvaItem('▸ ÖZELLİKLER', 110, 600, 20, '#64748b', 'transparent', 0, 0);
+    addCanvaItem(feats, 110, 650, 32, '#334155', 'transparent', 0, 0, Math.min(750, textMaxW));
+    addCanvaItem(contact, 110, 960, 22, '#0f172a', 'transparent', 0, 0);
 }
     else if(activeCanvaId === 'canva7'){
         const bordoW = scaleX(760), photoW = scaleX(1160), fullH = canvasSize.h;
@@ -409,9 +415,9 @@ function buildCanvaRender(){
             </div>`;
         addCanvaItem('◆ EXCLUSIVE', 80, 180, 26, '#fbbf24', 'transparent', 0, 0);
         addCanvaItem(title, 80, 230, 72, '#ffffff', 'transparent', 0, 0, 640);
-        addCanvaItem(price, 80, 470, 56, '#fef08a', 'rgba(0,0,0,0.35)', 12, 20, 620);
-        addCanvaItem(feats, 80, 610, 26, '#fecaca', 'transparent', 0, 0, 620);
-        addCanvaItem('✆ ' + contact, 80, 960, 22, '#fbbf24', 'transparent', 0, 0);
+        addCanvaItem(price, 80, 350, 56, '#fef08a', 'rgba(0,0,0,0.35)', 12, 20, 620);
+        addCanvaItem(feats, 80, 600, 32, '#fecaca', 'transparent', 0, 0, 620);
+        addCanvaItem(contact, 80, 960, 22, '#fbbf24', 'transparent', 0, 0);
     }
     else if(activeCanvaId === 'canva8'){
     const fullW = canvasSize.w, fullH = canvasSize.h;
@@ -419,18 +425,19 @@ function buildCanvaRender(){
         <div class="cvr-base cvr-c8" style="width:100%;height:100%;position:relative;overflow:hidden">
             <div class="photo-panel" style="width:${fullW}px;height:${fullH}px;position:absolute;left:0;top:0;${bgPos}"></div>
         </div>`;
-    addCanvaPanel(80, 80, 820, 180, 'rgba(255,255,255,0.12)', 20, '1px solid rgba(255,255,255,0.25)', '0 20px 50px rgba(0,0,0,0.3)');
+    addCanvaPanel(80, 80, 860, 140, 'rgba(255,255,255,0.12)', 20, '1px solid rgba(255,255,255,0.25)', '0 20px 50px rgba(0,0,0,0.3)');
+    // addCanvaPanel(1240, 80, 600, 140, 'rgba(255,255,255,0.12)', 20, '1px solid rgba(255,255,255,0.25)', '0 20px 50px rgba(0,0,0,0.3)');
     
     // ✅ Alt panel: Üst panelle aynı açık tonlu buzlu cam
-    addCanvaPanel(80, 850, 1760, 180, 'rgba(255,255,255,0.12)', 24, '1px solid rgba(255,255,255,0.25)', '0 20px 50px rgba(0,0,0,0.4)');
+    addCanvaPanel(80, 800, 1760, 240, 'rgba(255,255,255,0.12)', 24, '1px solid rgba(255,255,255,0.25)', '0 20px 50px rgba(0,0,0,0.4)');
     
     // Mavi iletişim şeridi
-    addCanvaPanel(1230, 970, 590, 50, 'rgba(56,189,248,0.85)', 12, '1px solid rgba(125,211,252,0.6)', '0 10px 30px rgba(0,0,0,0.3)');
+    addCanvaPanel(1230, 960, 590, 50, 'rgba(56,189,248,0.85)', 12, '1px solid rgba(125,211,252,0.6)', '0 10px 30px rgba(0,0,0,0.3)');
     
-    addCanvaItem(title, 110, 115, 60, '#ffffff', 'transparent', 0, 0, 760);
-    addCanvaItem(price, 110, 205, 40, '#38bdf8', 'transparent', 0, 0, 760);
-    addCanvaItem(feats, 120, 865, 24, '#f1f5f9', 'transparent', 0, 0, 1100);
-    addCanvaItem(contact, 1250, 980, 24, '#0f172a', 'transparent', 0, 0, 550, 'center');
+    addCanvaItem(title, 110, 110, 64, '#ffffff', 'transparent', 0, 0, 800);
+    addCanvaItem(price, 1260, 115, 54, '#38bdf8', 'transparent', 0, 0, 560, 'center');
+    addCanvaItem(feats, 120, 830, 28, '#f1f5f9', 'transparent', 0, 0, 1100);
+    addCanvaItem(contact, 1250, 970, 24, '#0f172a', 'transparent', 0, 0, 550, 'center');
 }
     else if(activeCanvaId === 'canva9'){
         const photoW = canvasSize.w, photoH = scaleY(720);
@@ -444,8 +451,8 @@ function buildCanvaRender(){
             </div>`;
         addCanvaItem(title, 80, 760, 72, '#ffffff', 'transparent', 0, 0, 900);
         addCanvaItem(price, 80, 880, 52, '#22d3ee', 'transparent', 0, 0);
-        addCanvaItem(feats, 1100, 760, 24, '#d1d5db', 'transparent', 0, 0, 750);
-        addCanvaItem('▸ ' + contact, 80, 1000, 22, '#06b6d4', 'transparent', 0, 0);
+        addCanvaItem(feats, 1000, 760, 32, '#d1d5db', 'transparent', 0, 0, 850, 'center');
+        addCanvaItem(contact, 80, 1000, 22, '#06b6d4', 'transparent', 0, 0);
     }
     else if(activeCanvaId === 'canva10'){
     // ═══════════════════════════════════════════
@@ -556,7 +563,7 @@ function buildCanvaRender(){
                 width:${scaleX(60)}px;height:2px;
                 background:${C.accent};z-index:6;"></div>
 
-            <div style="position:absolute;top:${scaleY(630)}px;left:${scaleX(1260)}px;
+            <div style="position:absolute;top:${scaleY(560)}px;left:${scaleX(1260)}px;
                 width:${scaleX(580)}px;height:1px;
                 background:linear-gradient(90deg, ${C.accent} 0%, transparent 100%);
                 z-index:6;"></div>
@@ -571,10 +578,10 @@ function buildCanvaRender(){
     // METİN YERLEŞİMİ - Renk değişkenli
     addCanvaItem('◆ SAHİL EVLERİ KOLEKSİYONU', 1260, 195, 24, C.accent, 'transparent', 0, 0);
     addCanvaItem(title, 1260, 275, 66, C.text, 'transparent', 0, 0, 600);
-    addCanvaItem(price, 1260, 490, 52, '#ffffff', C.primary, 55, 18, 520, 'center');
-    addCanvaItem('▸ ÖZELLİKLER', 1260, 660, 18, C.accent, 'transparent', 0, 0);
-    addCanvaItem(feats, 1260, 705, 25, C.text, 'transparent', 0, 0, 580);
-    addCanvaItem('✆ ' + contact, 1285, 985, 22, C.textSoft, 'transparent', 0, 0, 550);
+    addCanvaItem(price, 1260, 370, 52, '#ffffff', C.primary, 55, 18, 520, 'center');
+    addCanvaItem('▸ ÖZELLİKLER', 1260, 600, 22, C.accent, 'transparent', 0, 0);
+    addCanvaItem(feats, 1260, 650, 30, C.text, 'transparent', 0, 0, 580);
+    addCanvaItem(contact, 1285, 985, 22, C.textSoft, 'transparent', 0, 0, 550);
 }
 
     document.querySelectorAll('.photo-panel').forEach(p => enablePhotoDrag(p));

@@ -265,7 +265,7 @@ async function saveImage(){
         let masterImgElement = null;
         
 
-          if (safeMasterImage && outputScale > 1.5) {
+          if (safeMasterImage && (outputScale > 1.5 || scaleVal1 === 'original')) {
             // Preload master image
             masterImgElement = new Image();
             const loadPromise = new Promise(r => {
@@ -515,7 +515,7 @@ async function startBatchExport(){
         const originalStylesBatch = new Map();
         let masterImgElementBatch = null;
         
-        if (safeMasterImage && outputScale > 1.5) {
+        if (safeMasterImage && (outputScale > 1.5 || scaleVal2 === 'original')) {
             masterImgElementBatch = new Image();
             const loadPromiseBatch = new Promise(r => {
                 masterImgElementBatch.onload = r;

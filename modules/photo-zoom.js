@@ -119,6 +119,9 @@ document.addEventListener('dblclick', function(e){
         return; // İşlemi burada kes, foto zoom sıfırlamasına gitme
     }
 
+    // Çizim modundaysa fotoğrafı sıfırlama (Çift tık çizimi bitirir, fotoğrafı değil)
+    if (typeof drawMode !== 'undefined' && drawMode !== 'off') return;
+
     // Orijinal Zoom Sıfırlama Mantığı
     var el = _getZoomTarget(e.target);
     if(!el) {

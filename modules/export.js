@@ -85,15 +85,16 @@ function buildExportFormats(){
 }
 
 
-function drawMasterPhotoManually(ctx, el, masterImg, outputScale, canvasRect) {
-    const rect = el.getBoundingClientRect();
+function drawMasterPhotoManually(ctx, el, masterImg, outputScale, canvasRect, actualElement = null) {
+    if(!actualElement) actualElement = el; // Fallback
+    const rect = actualElement.getBoundingClientRect();
     const x = (rect.left - canvasRect.left) * outputScale;
     const y = (rect.top - canvasRect.top) * outputScale;
     const w = rect.width * outputScale;
     const h = rect.height * outputScale;
 
     // Parse border-radius
-    const style = window.getComputedStyle(el);
+    const style = window.getComputedStyle(actualElement);
     let br = style.borderRadius;
     let radius = 0;
     if (br && br.indexOf('px') !== -1) {
@@ -118,46 +119,87 @@ function drawMasterPhotoManually(ctx, el, masterImg, outputScale, canvasRect) {
     ctx.closePath();
     ctx.clip();
 
-    let bgSize = el.style.backgroundSize;
-    let bgPos = el.style.backgroundPosition;
-    
     let drawW, drawH, drawX, drawY;
-    
-    if (bgSize && bgSize.indexOf('px') !== -1 && bgPos && bgPos.indexOf('px') !== -1 && bgSize.indexOf('cover') === -1) {
-        // Pixel based positioning (user dragged or zoomed)
-        const sizeParts = bgSize.split(' ');
-        const posParts = bgPos.split(' ');
+
+    if (el.classList.contains('photo-inner-zoom')) {
+        // Handle photo-zoom.js math
+        const parent = actualElement;
+        const s = parseFloat(parent.dataset.zpScale) || 1;
+        const pX = parseFloat(parent.dataset.zpX) || 0;
+        const pY = parseFloat(parent.dataset.zpY) || 0;
         
-        const cssW = parseFloat(sizeParts[0]);
-        const cssH = parseFloat(sizeParts[1] || sizeParts[0]);
-        const cssX = parseFloat(posParts[0]);
-        const cssY = parseFloat(posParts[1] || posParts[0]);
-        
-        drawW = cssW * outputScale;
-        drawH = cssH * outputScale;
-        drawX = x + (cssX * outputScale);
-        drawY = y + (cssY * outputScale);
-    } else {
-        // Fallback to "cover" and "center center"
+        let sX = 50, sY = 50;
+        const xCtrl = document.getElementById('photoXCtrl');
+        const yCtrl = document.getElementById('photoYCtrl');
+        if (xCtrl) sX = parseFloat(xCtrl.value) || 50;
+        if (yCtrl) sY = parseFloat(yCtrl.value) || 50;
+
         const imgRatio = masterImg.width / masterImg.height;
         const boxRatio = w / h;
         
+        let coverW, coverH;
         if (imgRatio > boxRatio) {
-            drawH = h;
-            drawW = masterImg.width * (h / masterImg.height);
-            drawX = x + (w - drawW) / 2;
-            drawY = y;
+            coverH = h;
+            coverW = masterImg.width * (h / masterImg.height);
         } else {
-            drawW = w;
-            drawH = masterImg.height * (w / masterImg.width);
-            drawX = x;
-            drawY = y + (h - drawH) / 2;
+            coverW = w;
+            coverH = masterImg.height * (w / masterImg.width);
+        }
+
+        const offsetX_percent = (w - coverW) * (sX / 100);
+        const offsetY_percent = (h - coverH) * (sY / 100);
+        
+        const unscaledX = x + offsetX_percent + (pX * outputScale);
+        const unscaledY = y + offsetY_percent + (pY * outputScale);
+
+        const cx = x + w/2;
+        const cy = y + h/2;
+
+        drawW = coverW * s;
+        drawH = coverH * s;
+        drawX = cx + (unscaledX - cx) * s;
+        drawY = cy + (unscaledY - cy) * s;
+
+    } else {
+        let bgSize = el.style.backgroundSize;
+        let bgPos = el.style.backgroundPosition;
+        
+        if (bgSize && bgSize.indexOf('px') !== -1 && bgPos && bgPos.indexOf('px') !== -1 && bgSize.indexOf('cover') === -1) {
+            // Pixel based positioning (user dragged or zoomed)
+            const sizeParts = bgSize.split(' ');
+            const posParts = bgPos.split(' ');
+            
+            const cssW = parseFloat(sizeParts[0]);
+            const cssH = parseFloat(sizeParts[1] || sizeParts[0]);
+            const cssX = parseFloat(posParts[0]);
+            const cssY = parseFloat(posParts[1] || posParts[0]);
+            
+            drawW = cssW * outputScale;
+            drawH = cssH * outputScale;
+            drawX = x + (cssX * outputScale);
+            drawY = y + (cssY * outputScale);
+        } else {
+            // Fallback to "cover" and "center center"
+            const imgRatio = masterImg.width / masterImg.height;
+            const boxRatio = w / h;
+            
+            if (imgRatio > boxRatio) {
+                drawH = h;
+                drawW = masterImg.width * (h / masterImg.height);
+                drawX = x + (w - drawW) / 2;
+                drawY = y;
+            } else {
+                drawW = w;
+                drawH = masterImg.height * (w / masterImg.width);
+                drawX = x;
+                drawY = y + (h - drawH) / 2;
+            }
         }
     }
     
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = 'high';
-    const computedFilter = window.getComputedStyle(el).filter;
+    const computedFilter = window.getComputedStyle(actualElement).filter;
     if (computedFilter && computedFilter !== 'none') {
         ctx.filter = computedFilter;
     }
@@ -260,7 +302,7 @@ async function saveImage(){
         // DUAL-LAYER SWAP LOGIC
         
         // DUAL-LAYER MANUAL DRAW LOGIC
-        const swapTargets = canvasEl.querySelectorAll('#photo-layer, .canva-bg, .photo-panel');
+        const swapTargets = canvasEl.querySelectorAll('#photo-layer, .canva-bg, .photo-panel, .photo-inner-zoom');
         const originalStyles = new Map();
         let masterImgElement = null;
         
@@ -363,7 +405,11 @@ async function saveImage(){
                       alert("DEBUG: originalStyles is EMPTY! The photo was not hidden by swapTargets!");
                   }
                   originalStyles.forEach((styles, el) => {
-                      drawMasterPhotoManually(ctx, el, masterImgElement, outputScale, canvasRect);
+                      let actualElement = el;
+                      if (el.classList.contains('photo-inner-zoom')) {
+                          actualElement = el.parentElement;
+                      }
+                      drawMasterPhotoManually(ctx, el, masterImgElement, outputScale, canvasRect, actualElement);
                   });
               }
 
@@ -511,7 +557,7 @@ async function startBatchExport(){
         // DUAL-LAYER SWAP LOGIC FOR BATCH
         
         // DUAL-LAYER MANUAL DRAW LOGIC FOR BATCH
-        const swapTargetsBatch = canvasEl.querySelectorAll('#photo-layer, .canva-bg, .photo-panel');
+        const swapTargetsBatch = canvasEl.querySelectorAll('#photo-layer, .canva-bg, .photo-panel, .photo-inner-zoom');
         const originalStylesBatch = new Map();
         let masterImgElementBatch = null;
         
@@ -604,8 +650,16 @@ async function startBatchExport(){
         }
         
         const pLayer = document.getElementById('photo-layer');
-        if (pLayer && pLayer.style.backgroundImage && pLayer.style.backgroundImage !== 'none') {
-            const imgUrl = pLayer.style.backgroundImage.replace(/^url\(["']?/, '').replace(/["']?\)$/, '');
+        let bgElement = pLayer;
+        if (pLayer) {
+            const innerZoom = pLayer.querySelector('.photo-inner-zoom');
+            if (innerZoom && innerZoom.style.backgroundImage && innerZoom.style.backgroundImage !== 'none') {
+                bgElement = innerZoom;
+            }
+        }
+        
+        if (bgElement && bgElement.style.backgroundImage && bgElement.style.backgroundImage !== 'none') {
+            const imgUrl = bgElement.style.backgroundImage.replace(/^url\(["']?/, '').replace(/["']?\)$/, '');
             if (imgUrl && imgUrl.trim() !== '') {
                 try {
                     const originalImg = new Image();
@@ -616,21 +670,7 @@ async function startBatchExport(){
                         originalImg.src = imgUrl;
                     });
                     if (originalImg.width > 0) {
-                        const imgRatio = originalImg.width / originalImg.height;
-                        const canvasRatio = targetW / targetH;
-                        let drawW, drawH, drawX, drawY;
-                        if (imgRatio > canvasRatio) {
-                            drawH = targetH;
-                            drawW = originalImg.width * (targetH / originalImg.height);
-                            drawX = (targetW - drawW) / 2;
-                            drawY = 0;
-                        } else {
-                            drawW = targetW;
-                            drawH = originalImg.height * (targetW / originalImg.width);
-                            drawX = 0;
-                            drawY = (targetH - drawH) / 2;
-                        }
-                        ctx.drawImage(originalImg, drawX, drawY, drawW, drawH);
+                        drawMasterPhotoManually(ctx, bgElement, originalImg, outputScale, canvasEl.getBoundingClientRect(), pLayer);
                     }
                 } catch(e) { console.error('Photo draw error:', e); }
             }

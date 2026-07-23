@@ -1790,3 +1790,60 @@ h2 .vb{background:var(--gradient-1);color:#fff;font-size:9px;padding:2px 8px;bor
 }
 
 
+
+/* =========================================================
+   ?? MOBÝL TAM UYUM (PRO SEVÝYE)
+   ========================================================= */
+@media (max-width: 768px) {
+    /* Buton boyutlarý Apple standardý min 44x44 */
+    button, .btn-action, .preset-btn, .draw-mode-btn, .tab-btn {
+        min-height: 44px;
+        min-width: 44px;
+        padding: 10px;
+        font-size: 14px;
+    }
+    
+    /* Girdi (Input) ve Select alanlarý */
+    input[type='text'], input[type='number'], select {
+        min-height: 44px;
+        font-size: 16px; /* Mobilde zoom yapmasýný engeller */
+        padding: 8px 12px;
+    }
+
+    /* Range sliderlar daha kalýn */
+    input[type='range'] {
+        height: 30px;
+    }
+    input[type='range']::-webkit-slider-thumb {
+        height: 24px;
+        width: 24px;
+    }
+
+    /* Canvas Alaný Dokunmatik Hassasiyeti */
+    #canvas-wrapper {
+        touch-action: none; /* Mobilde istemsiz kaydýrmalarý kapat */
+    }
+    
+    #photo-layer {
+        touch-action: none;
+    }
+
+    /* Yan panelleri mobilde tam geniþlik yap */
+    .sidebar, .right-sidebar {
+        width: 100% !important;
+        height: auto;
+        max-height: 50vh;
+        overflow-y: auto;
+    }
+
+    /* Ana düzeni alt alta al */
+    .main-container {
+        flex-direction: column;
+    }
+
+    /* Menü açýlýp kapanma animasyonlarý */
+    .mobile-menu-active {
+        display: block !important;
+        animation: slideUp 0.3s ease;
+    }
+}

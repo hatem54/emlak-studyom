@@ -83,6 +83,72 @@ document.addEventListener('mouseup', function(){
     _dragEl = null;
 });
 
+// ========== TOUCH: PINCH TO ZOOM & PAN ==========
+var _initialPinchDist = null;
+var _initialPinchScale = null;
+
+document.addEventListener('touchstart', function(e){
+    var el = _getZoomTarget(e.target);
+    if(!el) return;
+
+    if(e.touches.length === 2) {
+        // Pinch to zoom başladı
+        e.preventDefault();
+        _initialPinchDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+        _preparePhoto(el);
+        _initialPinchScale = parseFloat(el.dataset.zpScale) || 1;
+        _dragEl = null; // Pinch yaparken pan iptal
+    } else if(e.touches.length === 1) {
+        const canPanWithLeftClick = (typeof drawMode === 'undefined' || drawMode === 'off' || drawMode === null);
+        if(!canPanWithLeftClick) return;
+        
+        _preparePhoto(el);
+        _dragEl = el;
+        _dsx = e.touches[0].clientX;
+        _dsy = e.touches[0].clientY;
+        _dix = parseFloat(el.dataset.zpX) || 0;
+        _diy = parseFloat(el.dataset.zpY) || 0;
+    }
+}, {passive: false});
+
+document.addEventListener('touchmove', function(e){
+    if(e.touches.length === 2 && _initialPinchDist !== null) {
+        e.preventDefault();
+        var el = _getZoomTarget(e.target);
+        if(!el) return;
+        
+        var currentDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+        var ratio = currentDist / _initialPinchDist;
+        var s = _initialPinchScale * ratio;
+        
+        if(s < 0.3) s = 0.3;
+        if(s > 5) s = 5;
+        
+        el.dataset.zpScale = s;
+        _applyPhotoTransform(el);
+        if(typeof redrawAll === 'function') redrawAll();
+    } else if(e.touches.length === 1 && _dragEl) {
+        e.preventDefault();
+        var x = _dix + (e.touches[0].clientX - _dsx);
+        var y = _diy + (e.touches[0].clientY - _dsy);
+        
+        _dragEl.dataset.zpX = x;
+        _dragEl.dataset.zpY = y;
+        _applyPhotoTransform(_dragEl);
+        if(typeof redrawAll === 'function') redrawAll();
+    }
+}, {passive: false});
+
+document.addEventListener('touchend', function(e){
+    if(e.touches.length < 2) {
+        _initialPinchDist = null;
+        _initialPinchScale = null;
+    }
+    if(e.touches.length === 0) {
+        _dragEl = null;
+    }
+});
+
 // ========== ÇİFT TIK - SIFIRLA ==========
 document.addEventListener('dblclick', function(e){
     // Sürgülere (Slider) çift tıklanınca varsayılan değere dönme mantığı

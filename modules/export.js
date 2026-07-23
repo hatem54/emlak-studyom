@@ -178,7 +178,7 @@ async function saveImage(){
     let outputScale = 1.5;
     const scaleVal1 = $('exportScale')?$('exportScale').value:'1.5';
 
-    let safeMasterImage = window.uploadedImgUrl || window.masterImageBase64;
+    let safeMasterImage = (typeof uploadedImgUrl !== 'undefined' ? uploadedImgUrl : null) || (typeof masterImageBase64 !== 'undefined' ? masterImageBase64 : null);
     if (!safeMasterImage) {
         const pLayer = document.getElementById('photo-layer');
         if (pLayer && pLayer.style.backgroundImage && pLayer.style.backgroundImage !== 'none') {
@@ -450,7 +450,7 @@ async function startBatchExport(){
     let outputScale = 1.5;
     const scaleVal2 = $('exportScale').value;
 
-    let safeMasterImage = window.uploadedImgUrl || window.masterImageBase64;
+    let safeMasterImage = (typeof uploadedImgUrl !== 'undefined' ? uploadedImgUrl : null) || (typeof masterImageBase64 !== 'undefined' ? masterImageBase64 : null);
     if (!safeMasterImage) {
         const pLayer = document.getElementById('photo-layer');
         if (pLayer && pLayer.style.backgroundImage && pLayer.style.backgroundImage !== 'none') {

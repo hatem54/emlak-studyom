@@ -1,41 +1,5 @@
-window.getCurrentPhotoState = function() {
-    const pnl = typeof getActivePhotoPanel === 'function' ? getActivePhotoPanel() : null;
-    const pl = typeof getActiveV4Element === 'function' ? getActiveV4Element() : null;
-    const sx = parseFloat(document.getElementById('photoXCtrl') ? document.getElementById('photoXCtrl').value : 50);
-    const sy = parseFloat(document.getElementById('photoYCtrl') ? document.getElementById('photoYCtrl').value : 50);
-    
-    if (pl && pl.dataset.zpReady === '1') {
-        return {
-            v4: true,
-            z: parseFloat(pl.dataset.zpScale) || 1,
-            px: parseFloat(pl.dataset.zpX) || 0,
-            py: parseFloat(pl.dataset.zpY) || 0,
-            panelW: pnl ? pnl.w : 1920,
-            panelH: pnl ? pnl.h : 1080,
-            panelL: pnl ? pnl.left : 0,
-            panelT: pnl ? pnl.top : 0,
-            sliderX: sx,
-            sliderY: sy
-        };
-    } else {
-        const pLayer = document.getElementById('photo-layer');
-        return {
-            v4: false,
-            z: parseInt(document.getElementById('photoZoomCtrl') ? document.getElementById('photoZoomCtrl').value : 100),
-            px: sx,
-            py: sy,
-            panelW: pnl ? pnl.w : 1920,
-            panelH: pnl ? pnl.h : 1080,
-            panelL: pnl ? pnl.left : 0,
-            panelT: pnl ? pnl.top : 0,
-            sliderX: sx,
-            sliderY: sy,
-            extraZ: (pLayer && pLayer.dataset.zpReady === '1') ? (parseFloat(pLayer.dataset.zpScale) || 1) : 1,
-            extraPx: (pLayer && pLayer.dataset.zpReady === '1') ? (parseFloat(pLayer.dataset.zpX) || 0) : 0,
-            extraPy: (pLayer && pLayer.dataset.zpReady === '1') ? (parseFloat(pLayer.dataset.zpY) || 0) : 0
-        };
-    }
-};
+// Moved getCurrentPhotoState to module
+;
 
 // Snap logic moved to modules/snap.js
 
@@ -135,71 +99,13 @@ let batchFiles=[];
 let canvasEl,photoLayer,vignetteLayer,uiLayer,shadowOverlay,highlightOverlay,maskLayer,canvaRenderLayer;
 let elBadge,elPrice,elDetails,elLogo,drawCanvas,drawCtx;
 
-function initCoreRefs(){
-    canvasEl=$('canvas-container');
-    photoLayer=$('photo-layer');
-    vignetteLayer=$('vignette-layer');
-    uiLayer=$('ui-layer');
-    shadowOverlay=$('shadow-overlay');
-    highlightOverlay=$('highlight-overlay');
-    maskLayer=$('mask-layer');
-    canvaRenderLayer=$('canva-render-layer');
-    elBadge=$('elBadge');
-    elPrice=$('elPrice');
-    elDetails=$('elDetails');
-    elLogo=$('elLogo');
-    drawCanvas=$('draw-layer');
-    drawCtx=drawCanvas.getContext('2d');
-}
+// Moved initCoreRefs to module
 
-function switchTab(name){
-    const isMobile = window.innerWidth <= 768;
-    const btn = document.querySelector('#mainTabs .tab-btn[data-tab="'+name+'"]');
-    const isAlreadyActive = btn && btn.classList.contains('active');
 
-    if (isMobile && isAlreadyActive) {
-        // Toggle OFF if already active on mobile
-        btn.classList.remove('active');
-        const panel = document.getElementById('tab-'+name);
-        if (panel) panel.classList.remove('show');
-        
-        // Hide overlay if it exists
-        const mo = document.getElementById('mobileSheetOverlay');
-        if (mo) { mo.style.display = 'none'; mo.style.opacity = '0'; }
-        return; // stop execution
-    }
+// Moved switchTab to module
 
-    document.querySelectorAll('#mainTabs .tab-btn').forEach(b => {
-        if(b.dataset.tab === name) b.classList.add('active');
-        else b.classList.remove('active');
-    });
-    
-    document.querySelectorAll('.panel>.dynamic-field').forEach(f=>f.classList.remove('show'));
-    const targetPanel = document.getElementById('tab-'+name);
-    if(targetPanel) targetPanel.classList.add('show');
-    
-    // Show overlay on mobile when a tab opens
-    if (isMobile) {
-        const mo = document.getElementById('mobileSheetOverlay');
-        if (mo) { mo.style.display = 'block'; mo.style.opacity = '1'; }
-    }
 
-    if(name!=='draw' && typeof drawMode !== 'undefined' && drawMode!=='off') setDrawMode('off');
-    if(name!=='draw' && typeof cancelDrawEdit==='function') cancelDrawEdit();
-    if(name==='callout' && typeof renderCalloutPanel==='function') renderCalloutPanel();
 
-    if(document.getElementById('kolaj-wrapper')){
-        const photoLayer = document.getElementById('photo-layer');
-        const canvaRenderLayer = document.getElementById('canva-render-layer');
-        if(photoLayer) photoLayer.style.display = 'block';
-        if(canvaRenderLayer) canvaRenderLayer.style.display = 'none';
-    } else if(typeof isCanvaMode !== 'undefined' && isCanvaMode) {
-        const photoLayer = document.getElementById('photo-layer');
-        const canvaRenderLayer = document.getElementById('canva-render-layer');
-        if(canvaRenderLayer) canvaRenderLayer.style.display = 'block';
-        if(photoLayer) photoLayer.style.display = 'none';
-    }
-}
 
 
 
@@ -265,49 +171,8 @@ function switchTab(name){
 
 
 
+// Moved resizeCanvas to module
 
-
-function resizeCanvas(){
-    const w = document.querySelector('.canvas-wrapper');
-    const pa = document.querySelector('.preview-area');
-    if (!w || !pa) return;
-    
-    let canvasW = 1920;
-    let canvasH = 1080;
-    
-    const formatSelect = document.getElementById('previewFormat');
-    if (formatSelect && typeof EXPORT_FORMATS !== 'undefined' && EXPORT_FORMATS[formatSelect.value]) {
-        canvasW = EXPORT_FORMATS[formatSelect.value].w;
-        canvasH = EXPORT_FORMATS[formatSelect.value].h;
-    } else {
-        if (window.innerWidth <= 768) {
-            canvasW = 1080;
-            canvasH = 1920;
-        }
-    }
-    
-    if (typeof canvasEl !== 'undefined' && canvasEl) {
-        canvasEl.style.width = canvasW + 'px';
-        canvasEl.style.height = canvasH + 'px';
-    }
-    
-    const availableW = pa.clientWidth - 0;
-    const availableH = window.innerHeight - 150;
-    
-    const scaleW = availableW / canvasW;
-    const scaleH = availableH / canvasH;
-    
-    scaleFactor = Math.min(scaleW, scaleH);
-    
-    w.style.width = (canvasW * scaleFactor) + 'px';
-    w.style.height = (canvasH * scaleFactor) + 'px';
-    w.style.aspectRatio = 'auto';
-    
-    if(typeof canvasEl !== 'undefined' && canvasEl) {
-        canvasEl.style.transformOrigin = 'top left';
-        canvasEl.style.transform = 'scale(' + scaleFactor + ')';
-    }
-}
 
 // Global click tracker for templates
 document.addEventListener('click', function(e){
@@ -315,47 +180,7 @@ document.addEventListener('click', function(e){
     if(card) window.lastClickedTemplateElement = card;
 }, true);
 
-function refreshActiveCanvaTemplate(){
-    if(document.getElementById('kolaj-wrapper')){
-        if(typeof _kolajFormatGuncelle === 'function') _kolajFormatGuncelle();
-        return;
-    }
-
-    if(typeof isCanvaMode === 'undefined' || !isCanvaMode) return;
-
-    if(window.lastClickedTemplateElement) {
-        window.lastClickedTemplateElement.classList.remove('active');
-        window.lastClickedTemplateElement.click();
-        return;
-    }
-
-    if (typeof activeCanvaId !== 'undefined' && activeCanvaId) {
-        const exactCard = document.querySelector('.canva-tpl-card[data-id="' + activeCanvaId + '"]');
-        if (exactCard) {
-            exactCard.classList.remove('active');
-            exactCard.click();
-            return;
-        }
-    }
-
-    const luksBtn = document.querySelector('#tpl-content-luks .template-btn.active');
-    if(luksBtn){
-        luksBtn.classList.remove('active');
-        luksBtn.click();
-        return;
-    }
-
-    const activeCard = document.querySelector('.canva-tpl-card.active');
-    if(activeCard){
-        activeCard.classList.remove('active');
-        activeCard.click();
-        return;
-    }
-
-    if(typeof activeCanvaId !== 'undefined' && activeCanvaId && typeof buildCanvaRender === 'function'){
-        buildCanvaRender();
-    }
-}
+// Moved refreshActiveCanvaTemplate to module
 
 
 
@@ -364,305 +189,33 @@ function refreshActiveCanvaTemplate(){
 
 
 
-window.showGlobalLoadingOverlay = function(durationMs, text) {
-    if (document.getElementById('global-loading-mask')) return;
-    const overlay = document.createElement('div');
-    overlay.id = 'global-loading-mask';
-    overlay.style.position = 'fixed';
-    overlay.style.top = '0';
-    overlay.style.left = '0';
-    overlay.style.width = '100vw';
-    overlay.style.height = '100vh';
-    overlay.style.backgroundColor = '#0f172a';
-    overlay.style.zIndex = '9999999';
-    overlay.style.display = 'flex';
-    overlay.style.alignItems = 'center';
-    overlay.style.justifyContent = 'center';
-    overlay.style.color = '#fbbf24';
-    overlay.style.fontSize = '24px';
-    overlay.style.fontWeight = 'bold';
-    overlay.style.fontFamily = 'sans-serif';
-    overlay.style.flexDirection = 'column';
-    overlay.style.gap = '15px';
-    const displayTxt = text || 'Şablon Yükleniyor...';
-    overlay.innerHTML = '<div style="width: 50px; height: 50px; border: 5px solid #fbbf24; border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite;"></div><div>' + displayTxt + '</div><style>@keyframes spin { 100% { transform: rotate(360deg); } }</style>';
-    document.body.appendChild(overlay);
-    setTimeout(() => { if(overlay) overlay.remove(); }, durationMs || 500);
-};
 
-function setTemplate(k){
-    try {
-        if(window.showGlobalLoadingOverlay) window.showGlobalLoadingOverlay(400, "Görsel Hazırlanıyor...");
-        if(typeof isCanvaMode !== 'undefined' && isCanvaMode) {
-            isCanvaMode = false;
-            if(typeof clearCanvaTemplate === 'function') clearCanvaTemplate(true);
-        }
-        activeLayout=k;
-        document.querySelectorAll('.template-btn').forEach(b=>b.classList.toggle('active',b.id==='tpl-'+k));
-        const t=TPL[k];
-        if(!t) return; // Güvenlik kontrolü, eğer boş şablon veya geçersiz bir k geldiyse dur.
-        applyStylePos(elBadge,t.badge);
-        applyStylePos(elPrice,t.price);
-        applyStylePos(elDetails,t.details);
-        if(typeof elLogo !== 'undefined' && elLogo && t.logo) {
-            applyStylePos(elLogo, t.logo);
-        }
-        deselectAll();
-        renderData();
-    } catch(err) {
-        console.error("setTemplate HATA:", err);
-        const errDiv = document.createElement('div');
-        errDiv.style.position = 'fixed'; errDiv.style.top = '50px'; errDiv.style.left = '10px';
-        errDiv.style.background = 'red'; errDiv.style.color = 'white'; errDiv.style.zIndex = '999999';
-        errDiv.style.padding = '10px'; errDiv.style.fontSize = '14px';
-        errDiv.innerText = "setTemplate HATA: " + err.message + "\n\n" + err.stack;
-        document.body.appendChild(errDiv);
-    }
-}
+// Moved showGlobalLoadingOverlay to module
+;
 
-function applyStylePos(el,c){
-    el.style.top='';
-    el.style.bottom='';
-    el.style.left='';
-    el.style.right='';
-    el.style.transform='';
-    if(c.top!==undefined)el.style.top=typeof c.top==='number'?c.top+'px':c.top;
-    if(c.bottom!==undefined)el.style.bottom=typeof c.bottom==='number'?c.bottom+'px':c.bottom;
-    if(c.left!==undefined)el.style.left=typeof c.left==='number'?c.left+'px':c.left;
-    if(c.right!==undefined)el.style.right=typeof c.right==='number'?c.right+'px':c.right;
-    if(c.transform)el.style.transform=c.transform;
-    if(c.bg)el.style.background=c.bg;
-    if(c.color)el.style.color=c.color;
-    if(c.radius!==undefined)el.style.borderRadius=c.radius+'px';
-    if(c.border)el.style.border=c.border;
-    if(c.padding)el.style.padding=c.padding;
-    el.dataset.storedBgHex='#0f172a';
-    el.dataset.storedBgOpacity='85';
-    el.dataset.rotation='0';
-    el.dataset.shadowVal='0';
-    el.dataset.blurVal='0';
-    el.dataset.storedBorderColor='#38bdf8';
-    el.dataset.storedBorderWidth='0';
-}
+// Moved setTemplate to module
 
-window.switchPropertyType = function(type) {
-    const config = window.propertyForms && window.propertyForms[type];
-    if(!config) {
-        if(type === 'custom') {
-            window.switchMode('custom');
-            if(document.getElementById('statusInput')) document.getElementById('statusInput').value = 'ÖZEL İLAN';
-            if(document.getElementById('canvaTitle')) document.getElementById('canvaTitle').value = 'ÖZEL İLAN';
-            return;
-        }
-        return;
-    }
-    
-    if(document.getElementById('customForm')) document.getElementById('customForm').style.display = 'none';
-    const container = document.getElementById('dynamicFormContainer');
-    if(!container) return;
-    
-    let html = `<input type="hidden" id="statusInput" value="${config.badge}">`;
-    html += `<div class="section-title">✨ ${config.badge} BİLGİLERİ</div>`;
-    
-    for(let i=0; i<config.fields.length; i+=2) {
-        let f1 = config.fields[i];
-        let f2 = config.fields[i+1];
-        html += '<div class="row-2">';
-        html += `<div class="input-group"><label>${f1.label}</label><input type="text" id="${f1.id}" value="${f1.value}" oninput="renderData()"></div>`;
-        if(f2) {
-            html += `<div class="input-group"><label>${f2.label}</label><input type="text" id="${f2.id}" value="${f2.value}" oninput="renderData()"></div>`;
-        }
-        html += '</div>';
-    }
-    
-    html += `<div id="dynamicExtraFields"></div>`;
-    html += `<button class="btn-action btn-cyan" onclick="addExtraField('dynamic')">+ Bilgi Ekle</button>`;
-    
-    container.innerHTML = html;
-    
-    if(document.getElementById('canvaTitle')) document.getElementById('canvaTitle').value = config.badge;
-    // Lüks, Elit, Dinamik, Minimal, Kurumsal, Sosyal vs. tüm şablonların başlık alanlarını güncelle
-    const allTitleIds = ['canvaLTitle','canvaDTitle','canvaCTitle','canvaKTitle','canvaMTitle','canvaOTitle','canvaPTitle','canvaSTitle','canvaETitle'];
-    allTitleIds.forEach(tid => {
-        const el = document.getElementById(tid);
-        if(el) el.value = config.badge;
-    });
-    window.currentMode = type;
-    renderData();
-};
 
-window.switchMode = function(m) {
-    currentMode = m;
-    
-    if (m === 'konut') {
-        if(document.getElementById('statusInput')) document.getElementById('statusInput').value = 'SATILIK EV';
-        if(document.getElementById('canvaTitle')) document.getElementById('canvaTitle').value = 'SATILIK EV';
-    } else if (m === 'arazi') {
-        if(document.getElementById('statusInput')) document.getElementById('statusInput').value = 'SATILIK ARAZİ';
-        if(document.getElementById('canvaTitle')) document.getElementById('canvaTitle').value = 'SATILIK ARAZİ';
-    }
+// Moved applyStylePos to module
 
-    ['subKonut','subArazi','subCustom'].forEach(id=>{
-        if(document.getElementById(id)) document.getElementById(id).classList.remove('active');
-    });
-    const b = {konut:'subKonut', arazi:'subArazi', custom:'subCustom'};
-    if(document.getElementById(b[m])) document.getElementById(b[m]).classList.add('active');
 
-    ['konutForm','araziForm','customForm'].forEach(id=>{
-        if(document.getElementById(id)) document.getElementById(id).style.display='none';
-    });
-    const f = {konut:'konutForm', arazi:'araziForm', custom:'customForm'};
-    if(document.getElementById(f[m])) document.getElementById(f[m]).style.display='block';
+// Moved switchPropertyType to module
+;
 
-    renderData();
-};
+// Moved switchMode to module
+;
 
-function renderData(){
-    try {
-        elBadge.innerText= $('statusInput') ? $('statusInput').value : '';
-        elPrice.innerText= $('priceInput') ? ($('priceInput').value || 'FİYAT İÇİN BİZE ULAŞIN') : 'FİYAT İÇİN BİZE ULAŞIN';
+// Moved renderData to module
 
-        const v=i=>document.getElementById(i)?document.getElementById(i).value:'';
-        let canvaLines=[];
-        if (window.currentMode === 'custom') {
-            if(v('c_l1')&&v('c_v1'))canvaLines.push(v('c_l1')+': '+v('c_v1'));
-            if(v('c_l2')&&v('c_v2'))canvaLines.push(v('c_l2')+': '+v('c_v2'));
-            if(v('c_l3')&&v('c_v3'))canvaLines.push(v('c_l3')+': '+v('c_v3'));
-            if(v('c_l4')&&v('c_v4'))canvaLines.push(v('c_l4')+': '+v('c_v4'));
-        } else if (window.propertyForms && window.propertyForms[window.currentMode]) {
-            const config = window.propertyForms[window.currentMode];
-            config.fields.forEach(f => {
-                if (f.id === 'priceInput') return;
-                const val = document.getElementById(f.id) ? document.getElementById(f.id).value : '';
-                if (val && val.toLowerCase() !== 'yok') {
-                    if (f.canvasFormat) {
-                        canvaLines.push(f.canvasFormat.replace('{value}', val));
-                    } else {
-                        canvaLines.push(val);
-                    }
-                }
-            });
-            const extraContainer = document.getElementById('dynamicExtraFields');
-            if (extraContainer) {
-                const rows = extraContainer.querySelectorAll('.row-2');
-                rows.forEach(r => {
-                    const inputs = r.querySelectorAll('input');
-                    if (inputs.length === 2 && inputs[0].value && inputs[1].value) {
-                        canvaLines.push(inputs[0].value + ': ' + inputs[1].value);
-                    }
-                });
-            }
-        }
-        
-        if(document.getElementById('descInput') && document.getElementById('descInput').value.trim()){
-            const dLines = document.getElementById('descInput').value.split('\n');
-            dLines.forEach(l => {
-                if(l.trim()) canvaLines.push(l.trim());
-            });
-        }
-        
-        if(currentMode!=='custom'){
-            const allLines = canvaLines.filter(l=>l.trim().length>0);
-            // Tüm şablonlar için en fazla 5 satır (çerçeve taşmasını önler)
-            const featsStr = allLines.slice(0,5).join('\n');
-            const featsInputs = ['canvaFeatures', 'canvaDFeats', 'canvaCFeats', 'canvaKFeats', 'canvaMFeats', 'canvaOFeats', 'canvaPFeats', 'canvaSFeats', 'kolajAciklama', 'canvaLFeats'];
-            featsInputs.forEach(id => {
-                if(document.getElementById(id)) document.getElementById(id).value = featsStr;
-            });
-            if(typeof refreshActiveCanvaTemplate === 'function') {
-                refreshActiveCanvaTemplate();
-            }
-        }
-        if(currentMode==='custom')return;
 
-        let h='';
-        
-        if (window.propertyForms && window.propertyForms[window.currentMode]) {
-            const config = window.propertyForms[window.currentMode];
-            config.fields.forEach(f => {
-                if(f.id === 'priceInput') return; // fiyatı yukarda basıyoruz
-                const val = v(f.id);
-                if (val && val.toLowerCase() !== 'yok') {
-                    let icon = 'fa-check-circle';
-                    const lbl = f.label.toLowerCase();
-                    if(lbl.includes('oda') || lbl.includes('daire')) icon = 'fa-bed';
-                    else if(lbl.includes('m²') || lbl.includes('alan')) icon = 'fa-ruler-combined';
-                    else if(lbl.includes('kat') || lbl.includes('gabari')) icon = 'fa-layer-group';
-                    else if(lbl.includes('yaş') || lbl.includes('tarih')) icon = 'fa-calendar-alt';
-                    else if(lbl.includes('ısıtma') || lbl.includes('enerji')) icon = 'fa-fire';
-                    else if(lbl.includes('banyo')) icon = 'fa-bath';
-                    else if(lbl.includes('havuz')) icon = 'fa-swimming-pool';
-                    else if(lbl.includes('imar') || lbl.includes('ada') || lbl.includes('parsel') || lbl.includes('konum') || lbl.includes('lokasyon')) icon = 'fa-map-marker-alt';
-                    else if(lbl.includes('cephe')) icon = 'fa-compass';
-                    else if(lbl.includes('tapu') || lbl.includes('emsal') || lbl.includes('kaks')) icon = 'fa-file-contract';
-                    else if(lbl.includes('otopark')) icon = 'fa-car';
-                    else if(lbl.includes('asansör')) icon = 'fa-sort-numeric-up';
-                    else if(lbl.includes('deniz') || lbl.includes('manzara') || lbl.includes('su')) icon = 'fa-water';
-                    else if(lbl.includes('ağaç') || lbl.includes('bahçe') || lbl.includes('peyzaj') || lbl.includes('ahır')) icon = 'fa-tree';
-                    else if(lbl.includes('akıllı') || lbl.includes('elektrik')) icon = 'fa-bolt';
+// Moved addExtraField to module
 
-                    let cleanLabel = f.label.replace(' Sayısı', '').replace(' Durumu', '').replace(' Alanı', '').replace(' Türü', '').replace(' Ölçüsü', '').replace(' Bedeli', '');
-                    h += '<div><i class="fas ' + icon + '"></i> ' + cleanLabel + ': <b>' + val + '</b></div>';
-                }
-            });
-            
-            const extraContainer = document.getElementById('dynamicExtraFields');
-            if (extraContainer) {
-                const rows = extraContainer.querySelectorAll('.row-2');
-                rows.forEach(r => {
-                    const inputs = r.querySelectorAll('input');
-                    if (inputs.length === 2 && inputs[0].value && inputs[1].value) {
-                        h += '<div><i class="fas fa-check-circle"></i> ' + inputs[0].value + ': <b>' + inputs[1].value + '</b></div>';
-                    }
-                });
-            }
-        } else if (window.currentMode === 'custom') {
-            if(v('c_rooms')) h += '<div><i class="fas fa-bed"></i> Oda: <b>' + v('c_rooms') + '</b></div>';
-            if(v('c_size')) h += '<div><i class="fas fa-ruler-combined"></i> Alan: <b>' + v('c_size') + '</b></div>';
-            if(v('c_floor')) h += '<div><i class="fas fa-layer-group"></i> Kat: <b>' + v('c_floor') + '</b></div>';
-            if(v('c_age')) h += '<div><i class="fas fa-calendar-alt"></i> Yaş: <b>' + v('c_age') + '</b></div>';
-        }
-        
-        $('infoLineText').innerHTML=h;
-    } catch(err) {
-        console.error("renderData HATA:", err);
-        const errDiv = document.createElement('div');
-        errDiv.style.position = 'fixed'; errDiv.style.top = '100px'; errDiv.style.left = '10px';
-        errDiv.style.background = 'blue'; errDiv.style.color = 'white'; errDiv.style.zIndex = '999999';
-        errDiv.style.padding = '10px'; errDiv.style.fontSize = '14px';
-        errDiv.innerText = "renderData HATA: " + err.message + "\n\n" + err.stack;
-        document.body.appendChild(errDiv);
-    }
-}
 
-function addExtraField(mode){
-    extraFieldCounter++;
-    const id='ex'+extraFieldCounter;
-    const c=$(mode+'ExtraFields');
-    const row=document.createElement('div');
-    row.className='extra-field-row';
-    row.id='row_'+id;
-    row.innerHTML='<input type="text" id="lbl_'+id+'" placeholder="Başlık"><input type="text" id="val_'+id+'" placeholder="Değer"><button class="remove-field" onclick="removeExtraField(\''+id+'\',\''+mode+'\')">✕</button>';
-    c.appendChild(row);
-    extraFieldsData[mode].push(id);
-    $('lbl_'+id).addEventListener('input',renderData);
-    $('val_'+id).addEventListener('input',renderData);
-    renderData();
-}
+// Moved removeExtraField to module
 
-function removeExtraField(id,mode){
-    const r=$('row_'+id);
-    if(r)r.remove();
-    extraFieldsData[mode]=extraFieldsData[mode].filter(x=>x!==id);
-    renderData();
-}
 
-function applyCustomCode(){
-    const c=document.createElement('div');
-    c.innerHTML=$('customHtml').value;
-    c.style.cssText='position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none';
-    uiLayer.appendChild(c);
-}
+// Moved applyCustomCode to module
+
 
 function smartParse(){
     let t = $('aiText').value;
@@ -939,85 +492,8 @@ document.addEventListener('click', function(e){
 
 
 
-function calculateTransformParams(ref, curr) {
-    if(!ref || !curr) return { scale: 1, dx: 0, dy: 0, v4: false };
-    
-    let imgW = typeof uploadedImgW !== 'undefined' ? uploadedImgW : 1920;
-    let imgH = typeof uploadedImgH !== 'undefined' ? uploadedImgH : 1080;
-    
-    function getMetricsForState(s) {
-        let AbsCX, AbsCY, TotalScale;
-        let pW = s.panelW || 1920;
-        let pH = s.panelH || 1080;
-        let pL = s.panelL || 0;
-        let pT = s.panelT || 0;
-        let sX = s.sliderX !== undefined ? s.sliderX : 50;
-        let sY = s.sliderY !== undefined ? s.sliderY : 50;
-        
-        if (s.v4) {
-            let coverScale = Math.max(pW / imgW, pH / imgH);
-            TotalScale = coverScale * s.z;
-            
-            // Calculate base offset due to background-position
-            let offsetX = pW / 2 - (imgW * coverScale) / 2;
-            let offsetY = pH / 2 - (imgH * coverScale) / 2;
-            if (imgW * coverScale > pW) {
-                offsetX = (pW - imgW * coverScale) * (sX / 100);
-            }
-            if (imgH * coverScale > pH) {
-                offsetY = (pH - imgH * coverScale) * (sY / 100);
-            }
-            
-            let BaseLocalCX = offsetX + (imgW * coverScale) / 2;
-            let BaseLocalCY = offsetY + (imgH * coverScale) / 2;
-            
-            // Apply scale distance transform
-            let DistX = BaseLocalCX - pW / 2;
-            let DistY = BaseLocalCY - pH / 2;
-            
-            let ScaledLocalCX = pW / 2 + DistX * s.z;
-            let ScaledLocalCY = pH / 2 + DistY * s.z;
-            
-            // Apply translation (scaled by z since it's a DOM transform)
-            AbsCX = ScaledLocalCX + s.px * s.z;
-            AbsCY = ScaledLocalCY + s.py * s.z;
-        } else {
-            let coverScale = Math.max(pW / imgW, pH / imgH);
-            if (s.z != 100) coverScale = (pW * (s.z / 100)) / imgW;
-            TotalScale = coverScale * (s.extraZ || 1);
-            
-            let offsetX = pW / 2 - (imgW * coverScale) / 2;
-            let offsetY = pH / 2 - (imgH * coverScale) / 2;
-            if (imgW * coverScale > pW) {
-                offsetX = (pW - imgW * coverScale) * (s.px / 100);
-            }
-            if (imgH * coverScale > pH) {
-                offsetY = (pH - imgH * coverScale) * (s.py / 100);
-            }
-            let BaseLocalCX = offsetX + (imgW * coverScale) / 2;
-            let BaseLocalCY = offsetY + (imgH * coverScale) / 2;
-            
-            let DistX = BaseLocalCX - pW / 2;
-            let DistY = BaseLocalCY - pH / 2;
-            
-            let ScaledLocalCX = pW / 2 + DistX * (s.extraZ || 1);
-            let ScaledLocalCY = pH / 2 + DistY * (s.extraZ || 1);
-            
-            AbsCX = ScaledLocalCX + (s.extraPx || 0) * (s.extraZ || 1);
-            AbsCY = ScaledLocalCY + (s.extraPy || 0) * (s.extraZ || 1);
-        }
-        return { AbsCX, AbsCY, TotalScale };
-    }
-    
-    let m1 = getMetricsForState(ref);
-    let m2 = getMetricsForState(curr);
-    
-    let relScale = m1.TotalScale === 0 ? 1 : m2.TotalScale / m1.TotalScale;
-    let dx = m2.AbsCX - m1.AbsCX * relScale;
-    let dy = m2.AbsCY - m1.AbsCY * relScale;
-    
-    return { scale: relScale, dx: dx, dy: dy, v4: curr.v4 };
-}
+// Moved calculateTransformParams to module
+
 
 
 
@@ -1098,90 +574,4 @@ function duplicateSelected(){
 
 // State and Undo logic moved to modules/state.js
 
-// Global Event Delegates (Undo sonrasi yeniden baglanmayan eventleri yakalamak icin)
-document.addEventListener('contextmenu', function(e) {
-    const callout = e.target.closest('.callout-item, .callout-wrap, .co-neon-block, .canvas-icon');
-    if (callout) {
-        e.preventDefault();
-        if (confirm('Bu öğeyi silmek istediğinize emin misiniz?')) {
-            callout.remove();
-        }
-    }
-});
-
-document.addEventListener('dblclick', function(e) {
-    const callout = e.target.closest('.callout-item');
-    if (callout && !callout.classList.contains('callout-wrap')) {
-        e.stopPropagation();
-        const newText = prompt('Metni düzenle:', callout.textContent);
-        if(newText !== null && newText.trim()) callout.textContent = newText;
-    }
-});
-
-document.addEventListener('DOMContentLoaded', () => {
-    setTimeout(initUndoSystem, 1000); // Uygulama tamamen yüklendikten sonra geçmişi dinlemeye başla
-});
-
-
-// ==========================================
-// DRAGGABLE BOTTOM SHEET LOGIC
-// ==========================================
-document.addEventListener('DOMContentLoaded', () => {
-    const panels = document.querySelectorAll('.dynamic-field');
-    
-    panels.forEach(panel => {
-        // Create drag handle
-        const handle = document.createElement('div');
-        handle.className = 'drag-handle';
-        panel.insertBefore(handle, panel.firstChild);
-
-        let startY = 0;
-        let startHeight = 0;
-        let isDragging = false;
-
-        handle.addEventListener('touchstart', (e) => {
-            if(window.innerWidth > 768) return; // Only on mobile
-            isDragging = true;
-            startY = e.touches[0].clientY;
-            startHeight = panel.getBoundingClientRect().height;
-            panel.classList.add('dragging');
-        }, {passive: true});
-
-        handle.addEventListener('touchmove', (e) => {
-            if (!isDragging) return;
-            const currentY = e.touches[0].clientY;
-            const deltaY = currentY - startY;
-            let newHeight = startHeight - deltaY;
-            
-            // Clamp between 20vh and 85vh
-            const minHeight = window.innerHeight * 0.2;
-            const maxHeight = window.innerHeight * 0.85;
-            
-            if (newHeight < minHeight) newHeight = minHeight;
-            if (newHeight > maxHeight) newHeight = maxHeight;
-            
-            panel.style.setProperty('height', newHeight + 'px', 'important');
-        }, {passive: true});
-
-        handle.addEventListener('touchend', () => {
-            isDragging = false;
-            panel.classList.remove('dragging');
-        });
-        
-        handle.addEventListener('touchcancel', () => {
-            isDragging = false;
-            panel.classList.remove('dragging');
-        });
-    });
-});
-
-
-// Expose closeBottomSheet to global scope
-window.closeBottomSheet = function() {
-    if (window.innerWidth <= 768) {
-        document.querySelectorAll('.panel>.dynamic-field').forEach(f => f.classList.remove('show'));
-        document.querySelectorAll('#mainTabs .tab-btn').forEach(b => b.classList.remove('active'));
-        const mo = document.getElementById('mobileSheetOverlay');
-        if (mo) { mo.style.display = 'none'; mo.style.opacity = '0'; }
-    }
-};
+// Event listeners moved to modules/events.js

@@ -159,6 +159,7 @@ function drawMasterPhotoManually(ctx, el, masterImg, outputScale, canvasRect, ac
         drawH = coverH * s;
         drawX = cx + (unscaledX - cx) * s;
         drawY = cy + (unscaledY - cy) * s;
+        window.lastDrawDebug = { s, pX, pY, sX, sY, coverW, coverH, drawX, drawY, drawW, drawH, w, h, outputScale };
 
     } else {
         let bgSize = el.style.backgroundSize;
@@ -225,6 +226,11 @@ async function saveImage(){
         const pLayer = document.getElementById('photo-layer');
         if (pLayer && pLayer.style.backgroundImage && pLayer.style.backgroundImage !== 'none') {
             safeMasterImage = pLayer.style.backgroundImage.replace(/^url\(['"]?/, '').replace(/['"]?\)$/, '');
+        } else {
+            const innerZoom = document.querySelector('.photo-inner-zoom');
+            if (innerZoom && innerZoom.style.backgroundImage && innerZoom.style.backgroundImage !== 'none') {
+                safeMasterImage = innerZoom.style.backgroundImage.replace(/^url\(['"]?/, '').replace(/['"]?\)$/, '');
+            }
         }
     }
 
@@ -311,11 +317,18 @@ async function saveImage(){
             // Preload master image
             masterImgElement = new Image();
             const loadPromise = new Promise(r => {
-                masterImgElement.onload = r;
-                masterImgElement.onerror = r;
+                masterImgElement.onload = () => { r(); };
+                masterImgElement.onerror = (e) => { 
+                    alert('masterImgElement failed to load! ' + safeMasterImage.substring(0, 50));
+                    r(); 
+                };
             });
             masterImgElement.src = safeMasterImage;
             await loadPromise;
+            
+            if (masterImgElement.width === 0) {
+                alert('masterImgElement width is 0!');
+            }
             
             originalStyles.set(canvasEl, { bg: canvasEl.style.backgroundImage, bgColor: canvasEl.style.backgroundColor });
               canvasEl.style.backgroundColor = 'transparent';

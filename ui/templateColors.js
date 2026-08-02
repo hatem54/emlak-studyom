@@ -13,9 +13,21 @@ function showTemplateColorModal() {
         return hex.length === 1 ? '0' + hex : hex; 
     }).join('');
     
+    const colorNames = {
+        'white': '#ffffff', 'black': '#000000', 'red': '#ff0000', 'green': '#008000', 
+        'blue': '#0000ff', 'yellow': '#ffff00', 'transparent': 'none'
+    };
+    
     const addColor = (c) => {
         if(!c || c === 'none' || c === 'transparent' || c === 'rgba(0, 0, 0, 0)') return;
         let hex = '';
+        
+        // Convert basic colors to hex if present
+        if(colorNames[c.toLowerCase()]) {
+            c = colorNames[c.toLowerCase()];
+            if (c === 'none') return;
+        }
+
         if(c.startsWith('#')) {
             hex = c;
             if(hex.length === 4) hex = '#' + hex[1]+hex[1]+hex[2]+hex[2]+hex[3]+hex[3];
@@ -121,7 +133,7 @@ function showTemplateColorModal() {
                 typeName = 'İkon'; groupName = 'icon'; icon = 'fas fa-star';
             }
         } 
-        else if (el.classList.contains('editable-text') || el.classList.contains('lp-item') || el.classList.contains('sh-badge') || el.classList.contains('sh-price') || el.classList.contains('sh-box')) {
+        else if (el.classList.contains('editable-text') || el.classList.contains('lp-item') || el.classList.contains('sh-badge') || el.classList.contains('sh-price') || el.classList.contains('sh-box') || el.classList.contains('cvi-item') || el.classList.contains('canva-el') || el.classList.contains('canvas-el')) {
             typeName = 'Yazı/Etiket'; groupName = 'text'; icon = 'fas fa-font';
         }
         else {
@@ -140,12 +152,8 @@ function showTemplateColorModal() {
         return a.domIndex - b.domIndex;
     });
 
-    // Assign sequential names (e.g. Callout 1, Callout 2)
-    const typeCounters = {};
+    // Assign Names (User wants raw text without numbering)
     targetEls = targetEls.map(t => {
-        if (!typeCounters[t.type]) typeCounters[t.type] = 1;
-        else typeCounters[t.type]++;
-        
         let contentText = '';
         if (t.group === 'callout') {
             const txt = t.el.querySelector('.callout-text');
@@ -155,11 +163,11 @@ function showTemplateColorModal() {
         }
         
         if(contentText && contentText.trim().length > 0) {
-            let shortText = contentText.trim();
-            if(shortText.length > 15) shortText = shortText.substring(0, 15) + '...';
-            t.displayName = `${t.type} ${typeCounters[t.type]} ("${shortText}")`;
+            let shortText = contentText.trim().replace(/\n/g, ' ');
+            if(shortText.length > 25) shortText = shortText.substring(0, 25) + '...';
+            t.displayName = shortText;
         } else {
-            t.displayName = `${t.type} ${typeCounters[t.type]}`;
+            t.displayName = t.type;
         }
         return t;
     });
@@ -188,12 +196,12 @@ function showTemplateColorModal() {
             let itemsHtml = '';
             
             items.forEach((t) => {
-                itemsHtml += '<div style="display:flex; align-items:center; justify-content:space-between; padding:10px 12px; background:#1e1b38; margin-bottom:6px; border-radius:6px; font-size:13px; color:#e2e8f0; border:1px solid #2d264f; transition:background 0.2s;" onmouseover="this.style.background=\'#2a254d\'" onmouseout="this.style.background=\'#1e1b38\'">' +
-                    '<div style="display:flex; align-items:center; gap:10px;">' +
-                        '<i class="' + t.icon + '" style="color:#6366f1; width:16px; text-align:center;"></i> <span style="font-weight:500;">' + t.displayName + '</span>' +
+                itemsHtml += `<div class="tc-item-row" data-id="${t.id}" style="display:flex; align-items:center; justify-content:space-between; padding:10px 12px; background:#1e1b38; margin-bottom:6px; border-radius:6px; font-size:13px; color:#e2e8f0; border:1px solid #2d264f; transition:background 0.2s, border 0.2s; cursor:pointer;" onmouseover="if(this.style.borderColor !== 'rgb(168, 85, 247)') this.style.background='#2a254d'" onmouseout="if(this.style.borderColor !== 'rgb(168, 85, 247)') this.style.background='#1e1b38'" onclick="if(typeof selectElement === 'function' && event.target.tagName !== 'INPUT' && !event.target.classList.contains('tc-slider')) { selectElement(document.getElementById('${t.id}')); }">` +
+                    '<div style="display:flex; align-items:center; gap:10px; flex:1; overflow:hidden;">' +
+                        '<i class="' + t.icon + '" style="color:#6366f1; width:16px; text-align:center; flex-shrink:0;"></i> <span style="font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="' + t.displayName + '">' + t.displayName + '</span>' +
                     '</div>' +
                     // Toggle Switch
-                    '<label class="tc-switch">' +
+                    '<label class="tc-switch" style="flex-shrink:0;">' +
                         '<input type="checkbox" class="tc-target-cb" value="' + t.id + '" checked>' +
                         '<span class="tc-slider"></span>' +
                     '</label>' +
@@ -512,4 +520,25 @@ function showTemplateColorModal() {
         isDragging = false;
         document.body.style.userSelect = '';
     });
+    
+    // Highlight currently selected element in the list
+    const syncInterval = setInterval(() => {
+        if(!document.getElementById('proColorMatcherPanel')) {
+            clearInterval(syncInterval);
+            return;
+        }
+        
+        const activeEl = typeof selectedCalloutEl !== 'undefined' ? selectedCalloutEl : 
+                         (typeof selectedElement !== 'undefined' ? selectedElement : null);
+                         
+        document.querySelectorAll('.tc-item-row').forEach(row => {
+            if(activeEl && row.getAttribute('data-id') === activeEl.id) {
+                row.style.borderColor = '#a855f7';
+                row.style.background = '#2a254d';
+            } else {
+                row.style.borderColor = '#2d264f';
+                row.style.background = '#1e1b38';
+            }
+        });
+    }, 500);
 }

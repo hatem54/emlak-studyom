@@ -49,21 +49,7 @@ function showTemplateColorModal() {
         }
     });
 
-    // Extract dominant colors from background image (#masterImage or .photo-inner-img)
-    try {
-        const img = document.getElementById('masterImage') || document.querySelector('.photo-inner-img');
-        if(img && img.src && !img.src.startsWith('data:image/svg')) {
-            const cvs = document.createElement('canvas');
-            const ctx = cvs.getContext('2d');
-            cvs.width = 50; cvs.height = 50;
-            ctx.drawImage(img, 0, 0, 50, 50);
-            const data = ctx.getImageData(0, 0, 50, 50).data;
-            for(let i=0; i<data.length; i+=16) { // step by 4 pixels to speed up
-                const r = data[i], g = data[i+1], b = data[i+2], a = data[i+3];
-                if(a > 128) addColor(`rgb(${r},${g},${b})`);
-            }
-        }
-    } catch(e) { console.log('Image extraction error:', e); }
+
     
     // Sort colors by frequency
     const sortedColors = Array.from(colorsMap.entries())

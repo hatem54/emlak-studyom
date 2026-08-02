@@ -46,6 +46,16 @@ function showTemplateColorModal() {
     
     // Extract from DOM elements
     document.querySelectorAll('#kolaj-wrapper *, #canvas-container *').forEach(el => {
+        // Ignore UI control elements
+        if(el.classList.contains('callout-select-border') || 
+           el.classList.contains('callout-controls') || 
+           el.classList.contains('callout-resizer') || 
+           el.classList.contains('callout-rotator') || 
+           el.classList.contains('text-handle') || 
+           el.classList.contains('text-lock-handle') || 
+           el.classList.contains('resize-handle') || 
+           el.classList.contains('rot-handle')) return;
+
         if(el.style && el.style.color) addColor(el.style.color);
         if(el.style && el.style.backgroundColor) addColor(el.style.backgroundColor);
         if(el.style && el.style.borderColor) addColor(el.style.borderColor);
@@ -78,7 +88,7 @@ function showTemplateColorModal() {
 
     // 2. Extract Canvas User Elements (All possible objects)
     let targetEls = [];
-    const elements = document.querySelectorAll('#kolaj-wrapper > *, #canvas-container > *, #ui-layer > *, .editable-text, .canvas-el, .cvi-item, .canva-el, .callout-wrapper, .callout-wrap, .saber-text, .dynamic-box, .svg-icon, .lp-item');
+    const elements = document.querySelectorAll('#kolaj-wrapper > *, #canvas-container > *, #ui-layer > *, .editable-text, .canvas-el, .cvi-item, .canva-el, .callout-wrapper, .callout-wrap, .co-neon-block, .saber-text, .dynamic-box, .svg-icon, .lp-item');
     let uniqueElements = Array.from(new Set(elements));
     
     // First, REMOVE structural layers from the list so they don't act as parents and accidentally filter out their children
@@ -116,7 +126,7 @@ function showTemplateColorModal() {
         let groupName = 'shape';
         let icon = 'fas fa-layer-group';
         
-        if(el.classList.contains('callout-wrapper') || el.classList.contains('callout-wrap')) {
+        if(el.classList.contains('callout-wrapper') || el.classList.contains('callout-wrap') || el.classList.contains('co-neon-block')) {
             typeName = 'Callout'; groupName = 'callout'; icon = 'fas fa-comment-dots'; 
         }
         else if(el.classList.contains('editable-draw')) {
@@ -407,7 +417,7 @@ function showTemplateColorModal() {
             // If the element is currently selected globally, update global inputs too
             const isSelected = (typeof selectedCalloutEl !== 'undefined' && selectedCalloutEl === el);
             
-            if(el.classList.contains('callout-wrapper') || el.classList.contains('callout-wrap')) {
+            if(el.classList.contains('callout-wrapper') || el.classList.contains('callout-wrap') || el.classList.contains('co-neon-block')) {
                 if(applyBg) {
                     const bgEl = el.querySelector('.callout-bg');
                     if(bgEl) bgEl.style.fill = bgCol;

@@ -48,8 +48,6 @@ function showTemplateColorModal() {
             if(style.fill) addColor(style.fill);
         }
     });
-
-
     
     // Sort colors by frequency
     const sortedColors = Array.from(colorsMap.entries())
@@ -66,9 +64,17 @@ function showTemplateColorModal() {
         paletteHtml += '<div class="tc-palette-color" data-color="' + c + '" style="width:24px; height:24px; border-radius:50%; background-color:' + c + '; cursor:pointer; border:2px solid #fff; box-shadow:0 0 5px rgba(0,0,0,0.5); transition:transform 0.2s;"></div>';
     });
 
-    // 2. Extract Elements to target (and show their text)
+    // 2. Extract ALL Canvas User Elements
     const targetEls = [];
-    document.querySelectorAll('.callout-wrapper, .saber-text, .dynamic-box').forEach((el, index) => {
+    const mainChildren = document.querySelectorAll('#kolaj-wrapper > *, #canvas-container > *');
+    
+    mainChildren.forEach((el, index) => {
+        // Skip template overlays or main images
+        if(el.id === 'masterImage' || el.id === 'masterImageContainer' || 
+           el.classList.contains('photo-inner-img') || el.classList.contains('canva-tpl-card')) {
+            return; 
+        }
+        
         if(!el.id) el.id = 'tc_target_' + index + '_' + Date.now();
         
         let typeName = 'Öğe';
@@ -88,6 +94,17 @@ function showTemplateColorModal() {
             typeName = 'Özel Kutu'; icon = 'fas fa-square'; 
             contentText = el.innerText || el.textContent;
         }
+        else if(el.querySelector('svg') || el.tagName.toLowerCase() === 'svg' || el.classList.contains('icon-wrapper') || el.classList.contains('svg-icon')) {
+            typeName = 'İkon'; icon = 'fas fa-star';
+            contentText = 'Vektörel Grafik';
+        } 
+        else {
+            // Any other element placed by user (e.g. shapes, lines)
+            typeName = 'Şekil/Öğe'; icon = 'fas fa-shapes';
+            if (el.innerText && el.innerText.trim()) {
+                contentText = el.innerText.trim();
+            }
+        }
         
         if(contentText && contentText.length > 20) contentText = contentText.substring(0, 20) + '...';
         const displayName = contentText ? `${typeName}: "${contentText}"` : typeName;
@@ -97,13 +114,19 @@ function showTemplateColorModal() {
 
     let targetsHtml = '';
     if (targetEls.length === 0) {
-        targetsHtml = '<div style="padding:10px; text-align:center; color:#94a3b8; font-size:12px;">Tuvalde öğe bulunamadı. Lütfen önce yazı veya etiket ekleyin.</div>';
+        targetsHtml = '<div style="padding:10px; text-align:center; color:#94a3b8; font-size:12px;">Tuvalde uygun öğe bulunamadı. Lütfen önce yazı, ikon veya etiket ekleyin.</div>';
     } else {
         targetEls.forEach((t) => {
-            targetsHtml += '<label style="display:flex; align-items:center; gap:10px; padding:10px 12px; background:#1e1b38; margin-bottom:6px; border-radius:6px; cursor:pointer; font-size:13px; color:#e2e8f0; border:1px solid #2d264f; transition:background 0.2s;" onmouseover="this.style.background=\'#2a254d\'" onmouseout="this.style.background=\'#1e1b38\'">' +
-                '<input type="checkbox" class="tc-target-cb" value="' + t.id + '" checked style="accent-color:#6366f1; width:16px; height:16px;"> ' +
-                '<i class="' + t.icon + '" style="color:#6366f1; width:16px; text-align:center;"></i> <span style="font-weight:500;">' + t.name + '</span>' +
-            '</label>';
+            targetsHtml += '<div style="display:flex; align-items:center; justify-content:space-between; padding:10px 12px; background:#1e1b38; margin-bottom:6px; border-radius:6px; font-size:13px; color:#e2e8f0; border:1px solid #2d264f; transition:background 0.2s;" onmouseover="this.style.background=\'#2a254d\'" onmouseout="this.style.background=\'#1e1b38\'">' +
+                '<div style="display:flex; align-items:center; gap:10px;">' +
+                    '<i class="' + t.icon + '" style="color:#6366f1; width:16px; text-align:center;"></i> <span style="font-weight:500;">' + t.name + '</span>' +
+                '</div>' +
+                // Toggle Switch
+                '<label class="tc-switch">' +
+                    '<input type="checkbox" class="tc-target-cb" value="' + t.id + '" checked>' +
+                    '<span class="tc-slider"></span>' +
+                '</label>' +
+            '</div>';
         });
     }
 
@@ -142,7 +165,13 @@ function showTemplateColorModal() {
         '<div class="tc-section" style="background:#1a1630; padding:15px; border-radius:10px; border:1px solid #2d264f;">' +
             '<div style="font-size:11px; font-weight:700; color:#a5b4fc; margin-bottom:12px; letter-spacing:1px; display:flex; justify-content:space-between;">' +
                 '<span>ANA ARKA PLAN</span>' +
-                '<label style="display:flex; align-items:center; gap:5px; cursor:pointer; color:#fff; text-transform:none; letter-spacing:0;"><input type="checkbox" id="tcHasBg" checked style="accent-color:#a5b4fc;"> Aktif</label>' +
+                '<div style="display:flex; align-items:center; gap:8px;">' +
+                    '<span style="font-size:10px; color:#94a3b8; text-transform:none; letter-spacing:0;">Aktif</span>' +
+                    '<label class="tc-switch">' +
+                        '<input type="checkbox" id="tcHasBg" checked>' +
+                        '<span class="tc-slider"></span>' +
+                    '</label>' +
+                '</div>' +
             '</div>' +
             '<div id="tcBgContainer" style="display:flex; justify-content:space-between; align-items:center; transition:opacity 0.2s;">' +
                 '<div style="display:flex; gap:8px; align-items:center;" class="tc-palettes-container" data-target="tcBgColor">' +
@@ -178,7 +207,7 @@ function showTemplateColorModal() {
         '<div style="margin-top:5px;">' +
             '<div style="font-size:12px; font-weight:600; color:#fff; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;">' +
                 '<span>Hedef Ögeleri Seçin</span>' +
-                '<button id="tcSelectAll" style="background:transparent; border:none; color:#a5b4fc; cursor:pointer; font-size:11px; font-weight:bold;">Tümünü Seç</button>' +
+                '<button id="tcSelectAll" style="background:transparent; border:none; color:#a5b4fc; cursor:pointer; font-size:11px; font-weight:bold; transition:color 0.2s;" onmouseover="this.style.color=\'#fff\'" onmouseout="this.style.color=\'#a5b4fc\'">Tümünü Seç / Kaldır</button>' +
             '</div>' +
             '<div style="max-height:200px; overflow-y:auto; padding-right:5px; border-radius:6px;" class="tc-scrollbar">' +
                 targetsHtml +
@@ -193,13 +222,21 @@ function showTemplateColorModal() {
 
     panel.innerHTML = headerHtml + bodyHtml;
     
-    // Add custom styles
+    // Add custom styles (including the Toggle Switch styling!)
     const style = document.createElement('style');
     style.innerHTML = `
         .tc-scrollbar::-webkit-scrollbar { width: 8px; } 
         .tc-scrollbar::-webkit-scrollbar-track { background: #110c22; border-radius: 4px; }
         .tc-scrollbar::-webkit-scrollbar-thumb { background: #322659; border-radius: 4px; border: 2px solid #110c22; }
         .tc-palette-color:hover { transform: scale(1.2); }
+        
+        /* Custom Toggle Switch CSS */
+        .tc-switch { position: relative; display: inline-block; width: 36px; height: 20px; margin: 0; }
+        .tc-switch input { opacity: 0; width: 0; height: 0; }
+        .tc-slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #334155; transition: .4s; border-radius: 34px; border: 1px solid #1e293b; }
+        .tc-slider:before { position: absolute; content: ""; height: 14px; width: 14px; left: 2px; bottom: 2px; background-color: white; transition: .4s; border-radius: 50%; }
+        .tc-switch input:checked + .tc-slider { background-color: #6366f1; border-color: #4f46e5; }
+        .tc-switch input:checked + .tc-slider:before { transform: translateX(16px); }
     `;
     panel.appendChild(style);
 
@@ -222,9 +259,9 @@ function showTemplateColorModal() {
     if(tcSelectAllBtn) {
         tcSelectAllBtn.addEventListener('click', () => {
             const allCbs = document.querySelectorAll('.tc-target-cb');
+            // If all are checked, uncheck all. Otherwise, check all.
             const allChecked = Array.from(allCbs).every(cb => cb.checked);
             allCbs.forEach(cb => cb.checked = !allChecked);
-            tcSelectAllBtn.innerText = allChecked ? "Tümünü Seç" : "Hiçbirini Seçme";
         });
     }
 
@@ -277,10 +314,35 @@ function showTemplateColorModal() {
             }
             else if(el.classList.contains('saber-text')) {
                 el.style.color = txtCol;
-                el.style.textShadow = '0 0 10px ' + acCol;
+                el.style.textShadow = '0 0 10px ' + acCol; // Custom effect for text
             }
             else if(el.classList.contains('dynamic-box')) {
                 if(applyBg) el.style.backgroundColor = bgCol;
+                el.style.color = txtCol;
+                el.style.borderColor = acCol;
+            }
+            else {
+                // Generic handler for SVGs, Icons, Shapes
+                // Change Fill if applies
+                if(applyBg) {
+                    if (el.tagName.toLowerCase() === 'svg' || el.querySelector('svg')) {
+                        const svg = el.tagName.toLowerCase() === 'svg' ? el : el.querySelector('svg');
+                        if (svg.getAttribute('fill') && svg.getAttribute('fill') !== 'none') {
+                            svg.setAttribute('fill', bgCol);
+                        }
+                        const paths = svg.querySelectorAll('path, rect, circle, polygon');
+                        paths.forEach(p => {
+                            if (p.getAttribute('fill') && p.getAttribute('fill') !== 'none') {
+                                p.setAttribute('fill', bgCol);
+                            }
+                            // If icon/shape has stroke, maybe color it with accent?
+                            if (p.getAttribute('stroke') && p.getAttribute('stroke') !== 'none') {
+                                p.setAttribute('stroke', acCol);
+                            }
+                        });
+                    }
+                    el.style.backgroundColor = bgCol;
+                }
                 el.style.color = txtCol;
                 el.style.borderColor = acCol;
             }

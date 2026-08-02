@@ -79,15 +79,10 @@ function showTemplateColorModal() {
     // 2. Extract Canvas User Elements (All possible objects)
     let targetEls = [];
     const elements = document.querySelectorAll('#kolaj-wrapper > *, #canvas-container > *, #ui-layer > *, .editable-text, .canvas-el, .cvi-item, .canva-el, .callout-wrapper, .saber-text, .dynamic-box, .svg-icon, .lp-item');
-    const uniqueElements = Array.from(new Set(elements));
+    let uniqueElements = Array.from(new Set(elements));
     
-    // Filter out nested duplicates (e.g. an svg-icon inside a callout-wrapper)
-    const topLevelElements = uniqueElements.filter(el => {
-        return !uniqueElements.some(parentEl => parentEl !== el && parentEl.contains(el));
-    });
-    
-    topLevelElements.forEach((el, index) => {
-        // Strict filter to ignore ALL structural, background, or utility layers
+    // First, REMOVE structural layers from the list so they don't act as parents and accidentally filter out their children
+    uniqueElements = uniqueElements.filter(el => {
         const id = el.id || '';
         if(id === 'masterImage' || id === 'masterImageContainer' || 
            id === 'workArea' || id === 'drawCanvas' || id === 'draw-layer' ||
@@ -95,19 +90,26 @@ function showTemplateColorModal() {
            id === 'highlight-overlay' || id === 'vignette-layer' || 
            id === 'mask-layer' || id === 'canva-render-layer' || 
            id === 'ui-layer') {
-            return; 
+            return false; 
         }
         
-        // Skip specific unwanted structural classes
         if(el.classList.contains('photo-inner-img') || 
            el.classList.contains('canva-tpl-card') ||
            el.classList.contains('drawing-layer') ||
            el.classList.contains('resize-handle') || 
            el.classList.contains('rot-handle') ||
            el.tagName.toLowerCase() === 'canvas') {
-            return; 
+            return false; 
         }
-        
+        return true;
+    });
+
+    // Now filter out nested duplicates (e.g. an svg-icon inside a callout-wrapper)
+    const topLevelElements = uniqueElements.filter(el => {
+        return !uniqueElements.some(parentEl => parentEl !== el && parentEl.contains(el));
+    });
+    
+    topLevelElements.forEach((el, index) => {
         if(!el.id) el.id = 'tc_target_' + index + '_' + Date.now();
         
         let typeName = 'Öge';

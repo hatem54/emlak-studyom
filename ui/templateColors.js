@@ -162,6 +162,8 @@ function showTemplateColorModal() {
             t.displayName = `${t.type} ${typeCounters[t.type]}`;
         }
         return t;
+    });
+
     let targetsHtml = '';
     if (targetEls.length === 0) {
         targetsHtml = '<div style="padding:10px; text-align:center; color:#94a3b8; font-size:12px;">Tuvalde uygun öge bulunamadı. Lütfen önce yazı, ikon veya etiket ekleyin.</div>';

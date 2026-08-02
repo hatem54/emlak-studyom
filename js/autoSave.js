@@ -414,6 +414,8 @@ async function applyRestoredState(state) {
         if(urlToRestore) {
             if(pl) pl.style.backgroundImage = "url('" + urlToRestore + "')";
             if(typeof trackImageSize === 'function') trackImageSize(urlToRestore);
+            const clearBgBtn = document.getElementById('clearBgBtn');
+            if (clearBgBtn) clearBgBtn.style.display = 'block';
         } else {
             if(pl) pl.style.backgroundImage = "none";
         }

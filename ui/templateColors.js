@@ -64,13 +64,13 @@ function showTemplateColorModal() {
         paletteHtml += '<div class="tc-palette-color" data-color="' + c + '" style="width:24px; height:24px; border-radius:50%; background-color:' + c + '; cursor:pointer; border:2px solid #fff; box-shadow:0 0 5px rgba(0,0,0,0.5); transition:transform 0.2s;"></div>';
     });
 
-    // 2. Extract ALL Canvas User Elements
+    // 2. Extract Canvas User Elements only
     let targetEls = [];
-    const mainChildren = document.querySelectorAll('#kolaj-wrapper > *, #canvas-container > *');
+    const mainChildren = document.querySelectorAll('.canva-el, .callout-wrapper, .saber-text, .dynamic-box, .svg-icon');
     
     mainChildren.forEach((el, index) => {
-        // Skip template overlays or main images
-        if(el.id === 'masterImage' || el.id === 'masterImageContainer' || 
+        // Skip template overlays, main images, or full canvas elements
+        if(el.id === 'masterImage' || el.id === 'masterImageContainer' || el.id === 'workArea' || el.id === 'drawCanvas' ||
            el.classList.contains('photo-inner-img') || el.classList.contains('canva-tpl-card') ||
            el.tagName.toLowerCase() === 'canvas') {
             return; 
@@ -92,7 +92,6 @@ function showTemplateColorModal() {
             typeName = 'Özel Kutu'; groupName = 'box'; icon = 'fas fa-square'; 
         }
         else if(el.querySelector('svg') || el.tagName.toLowerCase() === 'svg' || el.classList.contains('icon-wrapper') || el.classList.contains('svg-icon')) {
-            // Identify specific basic shapes
             const svgEl = el.tagName.toLowerCase() === 'svg' ? el : el.querySelector('svg');
             if (svgEl) {
                 if (svgEl.querySelector('circle') && !svgEl.querySelector('rect') && !svgEl.querySelector('path')) {
@@ -374,7 +373,7 @@ function showTemplateColorModal() {
                                 p.setAttribute('stroke', acCol);
                             }
                         });
-                    } else if(!el.classList.contains('drawing-layer') && !el.classList.contains('icon-wrapper')) {
+                    } else if(!el.classList.contains('drawing-layer') && !el.classList.contains('icon-wrapper') && !el.classList.contains('canva-el')) {
                         // Only apply background color if it's a pure HTML element that is meant to have a background
                         el.style.backgroundColor = bgCol;
                     }
@@ -383,6 +382,18 @@ function showTemplateColorModal() {
                 if(!isSvgWrapper) {
                     el.style.color = txtCol;
                     el.style.borderColor = acCol;
+                }
+                
+                // Keep drawing paths in sync so it survives redraws!
+                if(typeof drawPaths !== 'undefined' && Array.isArray(drawPaths)) {
+                    const pObj = drawPaths.find(p => p.el === el || (el.id && p.el && p.el.id === el.id));
+                    if(pObj) {
+                        if(applyBg) {
+                            pObj.fillColor = bgCol;
+                            pObj.fillOpacity = 1; // Force opacity so redraw shows the fill
+                        }
+                        pObj.color = acCol; // Stroke color
+                    }
                 }
             }
         });

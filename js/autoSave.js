@@ -1,4 +1,4 @@
-﻿// autoSave.js
+// autoSave.js
 // Handles background Auto-Save using IndexedDB to prevent localStorage limits
 
 const DB_NAME = 'CanvaAutoSaveDB';
@@ -141,34 +141,57 @@ const HISTORY_INTERVAL = 5 * 60 * 1000; // 5 minutes
 // Background Task
 async function performAutoSave() {
     try {
-        // We only save if there is an active canvas setup and at least a photo or canva mode
-        if (typeof isCanvaMode === 'undefined') return; 
+        const isCanvaModeActive = typeof isCanvaMode !== 'undefined' ? isCanvaMode : (window.isCanvaMode || false);
         
         // Check if there is anything to save
         const photoEl = document.getElementById('photo-layer');
         const hasPhoto = (photoEl && photoEl.style.backgroundImage !== 'none' && photoEl.style.backgroundImage !== '');
-        if (!hasPhoto && !isCanvaMode) return; // Nothing meaningful to save
+        const activeDrawPaths = typeof drawPaths !== 'undefined' ? drawPaths : (window.drawPaths || []);
+        const hasDrawings = activeDrawPaths && activeDrawPaths.length > 0;
         
+        let hasInputs = false;
+        const formContainer = document.getElementById('dynamicFormContainer');
+        if(formContainer) {
+            const inputs = formContainer.querySelectorAll('input[type="text"]');
+            for(let i=0; i<inputs.length; i++) {
+                if(inputs[i].value.trim() !== '') {
+                    hasInputs = true;
+                    break;
+                }
+            }
+        }
+        
+        if (!hasPhoto && !isCanvaModeActive && !hasDrawings && !hasInputs) return; // Nothing meaningful to save
+        
+        const activeUploadedImgUrl = typeof uploadedImgUrl !== 'undefined' ? uploadedImgUrl : window.uploadedImgUrl;
         const state = {
             version: 1,
-            currentMode: window.currentMode,
-            propertyType: window.currentMode || 'satilik_daire',
-            activeLayout: window.activeLayout, 
-            isCanvaMode: window.isCanvaMode, 
-            activeCanvaId: window.activeCanvaId,
-            uploadedImgW: window.uploadedImgW, 
-            uploadedImgH: window.uploadedImgH,
-            drawMode: window.drawMode, 
-            drawPaths: window.drawPaths || [], 
-            extraFieldCounter: window.extraFieldCounter || 0, 
-            extraFieldsData: window.extraFieldsData || {konut:[], arazi:[]},
+            currentMode: typeof currentMode !== 'undefined' ? currentMode : window.currentMode,
+            propertyType: typeof currentMode !== 'undefined' ? currentMode : (window.currentMode || 'satilik_daire'),
+            activeLayout: typeof activeLayout !== 'undefined' ? activeLayout : window.activeLayout, 
+            isCanvaMode: isCanvaModeActive, 
+            activeCanvaId: typeof activeCanvaId !== 'undefined' ? activeCanvaId : window.activeCanvaId,
+            uploadedImgW: typeof uploadedImgW !== 'undefined' ? uploadedImgW : window.uploadedImgW, 
+            uploadedImgH: typeof uploadedImgH !== 'undefined' ? uploadedImgH : window.uploadedImgH,
+            drawMode: typeof drawMode !== 'undefined' ? drawMode : window.drawMode, 
+            drawPaths: activeDrawPaths.map(p => {
+                const clone = Object.assign({}, p);
+                if (clone.el) {
+                    if (!clone.el.id) clone.el.id = 'draw_el_' + Math.random().toString(36).substr(2, 9);
+                    clone.elId = clone.el.id;
+                    delete clone.el;
+                }
+                return clone;
+            }), 
+            extraFieldCounter: typeof extraFieldCounter !== 'undefined' ? extraFieldCounter : (window.extraFieldCounter || 0), 
+            extraFieldsData: typeof extraFieldsData !== 'undefined' ? extraFieldsData : (window.extraFieldsData || {konut:[], arazi:[]}),
             inputs: {},
             customElements: []
         };
 
         // Resimleri Base64'e çevir (Eğer getBase64FromBlobUrl tanımlıysa)
-        if (typeof getBase64FromBlobUrl === 'function' && window.uploadedImgUrl) {
-            state.uploadedImgUrl = await getBase64FromBlobUrl(window.uploadedImgUrl);
+        if (typeof getBase64FromBlobUrl === 'function' && activeUploadedImgUrl) {
+            state.uploadedImgUrl = await getBase64FromBlobUrl(activeUploadedImgUrl);
         }
 
         const elLogo = document.getElementById('elLogo');
@@ -185,15 +208,24 @@ async function performAutoSave() {
         });
 
         // Tüm özel elemanları kaydet
-        document.querySelectorAll('#photo-layer .draggable').forEach(el => {
-            if(['badge', 'price', 'details', 'logo_overlay'].includes(el.id)) return;
+        document.querySelectorAll('#photo-layer .draggable, #ui-layer .draggable, #photo-layer .cvi-item, #ui-layer .cvi-item, #photo-layer .canvas-el, #ui-layer .canvas-el, #ui-layer .callout-wrapper, #photo-layer .callout-wrapper, #ui-layer .saber-text, #photo-layer .saber-text, #ui-layer .dynamic-box, #photo-layer .dynamic-box, #ui-layer .svg-icon, #photo-layer .svg-icon, #ui-layer .icon-wrapper, #photo-layer .icon-wrapper').forEach(el => {
+            if(['badge', 'price', 'details', 'logo_overlay', 'elLogo'].includes(el.id)) return;
+            
+            // Remove selection handles before saving
+            const handles = Array.from(el.querySelectorAll('.text-handle'));
+            handles.forEach(h => h.remove());
+            
             state.customElements.push({
                 id: el.id,
+                parentId: el.parentElement ? el.parentElement.id : 'ui-layer',
                 className: el.className,
                 innerHTML: el.innerHTML,
                 style: el.getAttribute('style'),
                 dataset: Object.assign({}, el.dataset)
             });
+            
+            // Restore handles
+            handles.forEach(h => el.appendChild(h));
         });        await saveStateToDB(state);
         
         if (Date.now() - lastHistorySaveTime > HISTORY_INTERVAL) {
@@ -240,42 +272,64 @@ async function applyRestoredState(state) {
     try {
         if(!state.version) throw new Error("Geçersiz proje dosyası");
 
-        window.currentMode = state.currentMode || 'daire';
-        if (window.currentMode === 'konut') window.currentMode = 'daire';
+        if(typeof currentMode !== 'undefined') {
+            currentMode = state.currentMode || 'daire';
+            if(currentMode === 'konut') currentMode = 'daire';
+        } else {
+            window.currentMode = state.currentMode || 'daire';
+            if(window.currentMode === 'konut') window.currentMode = 'daire';
+        }
+        
         if(state.propertyType) {
             // Restore accordion active state
             document.querySelectorAll('.cat-item').forEach(item => item.classList.remove('active'));
             const targetEl = document.querySelector('.cat-item[onclick*="' + state.propertyType + '"]');
             if(targetEl) {
                 targetEl.classList.add('active');
-                if (targetEl.closest('.cat-body')) {
-                    targetEl.closest('.cat-body').classList.add('open');
-                    const icon = targetEl.closest('.cat-group').querySelector('i');
-                    if(icon) {
-                        icon.classList.remove('fa-chevron-down');
-                        icon.classList.add('fa-chevron-up');
-                    }
-                }
             }
-            window.switchPropertyType(state.propertyType);
+            if(typeof switchPropertyType === 'function') switchPropertyType(state.propertyType);
+            else if(window.switchPropertyType) window.switchPropertyType(state.propertyType);
         }
-        window.activeLayout = typeof state.activeLayout !== 'undefined' ? state.activeLayout : 't1';
-        window.isCanvaMode = !!state.isCanvaMode;
-        window.activeCanvaId = state.activeCanvaId || '';
-        if(window.isCanvaMode && !window.activeCanvaId) window.isCanvaMode = false;
-        window.uploadedImgW = state.uploadedImgW || 1920;
-        window.uploadedImgH = state.uploadedImgH || 1080;
-        window.drawPaths = state.drawPaths || [];
-        window.extraFieldCounter = state.extraFieldCounter || 0;
+        
+        if(typeof activeLayout !== 'undefined') activeLayout = typeof state.activeLayout !== 'undefined' ? state.activeLayout : 't1';
+        else window.activeLayout = typeof state.activeLayout !== 'undefined' ? state.activeLayout : 't1';
+        
+        let activeIsCanvaMode = !!state.isCanvaMode;
+        let activeCanvaIdVal = state.activeCanvaId || '';
+        if (activeIsCanvaMode && !activeCanvaIdVal) activeIsCanvaMode = false;
+        
+        if (typeof isCanvaMode !== 'undefined') isCanvaMode = activeIsCanvaMode;
+        else window.isCanvaMode = activeIsCanvaMode;
+        
+        if (typeof activeCanvaId !== 'undefined') activeCanvaId = activeCanvaIdVal;
+        else window.activeCanvaId = activeCanvaIdVal;
+        
+        if (typeof uploadedImgW !== 'undefined') uploadedImgW = state.uploadedImgW || 1920;
+        else window.uploadedImgW = state.uploadedImgW || 1920;
+        
+        if (typeof uploadedImgH !== 'undefined') uploadedImgH = state.uploadedImgH || 1080;
+        else window.uploadedImgH = state.uploadedImgH || 1080;
+        
+        if (typeof drawPaths !== 'undefined') {
+            drawPaths = state.drawPaths || [];
+        } else {
+            window.drawPaths = state.drawPaths || [];
+        }
+        
+        if (typeof extraFieldCounter !== 'undefined') extraFieldCounter = state.extraFieldCounter || 0;
+        else window.extraFieldCounter = state.extraFieldCounter || 0;
         
         const newExtra = state.extraFieldsData || {konut:[],arazi:[]};
-        if(window.extraFieldsData) {
+        if(typeof extraFieldsData !== 'undefined') {
+            extraFieldsData.konut = newExtra.konut || [];
+            extraFieldsData.arazi = newExtra.arazi || [];
+        } else if (window.extraFieldsData) {
             window.extraFieldsData.konut = newExtra.konut || [];
             window.extraFieldsData.arazi = newExtra.arazi || [];
         }
 
-        document.querySelectorAll('#photo-layer .draggable').forEach(el => {
-            if(['badge', 'price', 'details', 'logo_overlay'].includes(el.id)) return;
+        document.querySelectorAll('#photo-layer .draggable, #ui-layer .draggable, #photo-layer .cvi-item, #ui-layer .cvi-item, #photo-layer .canvas-el, #ui-layer .canvas-el').forEach(el => {
+            if(['badge', 'price', 'details', 'logo_overlay', 'elLogo'].includes(el.id)) return;
             el.remove();
         });
         
@@ -285,8 +339,13 @@ async function applyRestoredState(state) {
             Object.keys(state.inputs).forEach(id => {
                 const el = document.getElementById(id);
                 if(el && el.type !== 'file') {
-                    if(el.type === 'checkbox' || el.type === 'radio') el.checked = state.inputs[id];
-                    else el.value = state.inputs[id];
+                    if(el.type === 'checkbox' || el.type === 'radio') {
+                        el.checked = state.inputs[id];
+                    } else {
+                        el.value = state.inputs[id];
+                    }
+                    el.dispatchEvent(new Event('change', { bubbles: true }));
+                    el.dispatchEvent(new Event('input', { bubbles: true }));
                 }
             });
         }
@@ -322,20 +381,36 @@ async function applyRestoredState(state) {
                 if(data.dataset) {
                     Object.keys(data.dataset).forEach(k => el.dataset[k] = data.dataset[k]);
                 }
-                const pl = document.getElementById('photo-layer');
-                if (pl) pl.appendChild(el);
+                const parent = document.getElementById(data.parentId || 'ui-layer');
+                if (parent) parent.appendChild(el);
+                else {
+                    const pl = document.getElementById('photo-layer');
+                    if (pl) pl.appendChild(el);
+                }
                 if (typeof window.makeDraggable === 'function') window.makeDraggable(el);
-                if(el.classList.contains('icon-el') && typeof allIcons !== 'undefined') {
+                if (el.classList.contains('canvas-el') && typeof window.enableInlineEdit === 'function') window.enableInlineEdit(el);
+                if (el.classList.contains('icon-el') && typeof allIcons !== 'undefined') {
                     window.allIcons.push(el);
                 }
             });
         }
+        
+        // Re-link DOM elements in drawPaths
+        const activeDrawPaths = typeof drawPaths !== 'undefined' ? drawPaths : (window.drawPaths || []);
+        if (activeDrawPaths && activeDrawPaths.length > 0) {
+            activeDrawPaths.forEach(p => {
+                if (p.elId) p.el = document.getElementById(p.elId);
+            });
+        }
 
-        window.uploadedImgUrl = state.uploadedImgUrl || '';
+        const urlToRestore = state.uploadedImgUrl || '';
+        if (typeof uploadedImgUrl !== 'undefined') uploadedImgUrl = urlToRestore;
+        else window.uploadedImgUrl = urlToRestore;
+        
         const pl = document.getElementById('photo-layer');
-        if(window.uploadedImgUrl) {
-            if(pl) pl.style.backgroundImage = "url('" + window.uploadedImgUrl + "')";
-            if(typeof trackImageSize === 'function') trackImageSize(window.uploadedImgUrl);
+        if(urlToRestore) {
+            if(pl) pl.style.backgroundImage = "url('" + urlToRestore + "')";
+            if(typeof trackImageSize === 'function') trackImageSize(urlToRestore);
         } else {
             if(pl) pl.style.backgroundImage = "none";
         }
@@ -346,13 +421,17 @@ async function applyRestoredState(state) {
             elLogo.src = state.logoImgUrl; 
         }
 
-        if(typeof switchMode === 'function') switchMode(window.currentMode);
+        const restoredCurrentMode = typeof currentMode !== 'undefined' ? currentMode : window.currentMode;
+        if(typeof switchMode === 'function') switchMode(restoredCurrentMode);
         
-        if(window.isCanvaMode) {
+        const restoredIsCanvaMode = typeof isCanvaMode !== 'undefined' ? isCanvaMode : window.isCanvaMode;
+        const restoredActiveLayout = typeof activeLayout !== 'undefined' ? activeLayout : window.activeLayout;
+        
+        if(restoredIsCanvaMode) {
             if(typeof refreshActiveCanvaTemplate === 'function') refreshActiveCanvaTemplate();
         } else {
-            if(window.activeLayout) {
-                if(typeof setTemplate === 'function') setTemplate(window.activeLayout);
+            if(restoredActiveLayout) {
+                if(typeof setTemplate === 'function') setTemplate(restoredActiveLayout);
             } else {
                 if(typeof clearAllTemplates === 'function') clearAllTemplates();
                 const elBadge = document.getElementById('badge');

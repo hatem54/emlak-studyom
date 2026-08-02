@@ -113,10 +113,10 @@ function showTemplateColorModal() {
             typeName = 'Callout'; groupName = 'callout'; icon = 'fas fa-comment-dots'; 
         }
         else if(el.classList.contains('saber-text')) { 
-            typeName = 'Serbest Yazı'; groupName = 'text'; icon = 'fas fa-font'; 
+            typeName = 'Serbest Yazı'; groupName = 'free-text'; icon = 'fas fa-font'; 
         }
         else if(el.classList.contains('dynamic-box')) { 
-            typeName = 'Özel Kutu'; groupName = 'box'; icon = 'fas fa-square'; 
+            typeName = 'Özel Kutu'; groupName = 'free-text'; icon = 'fas fa-square'; 
         }
         else if(el.querySelector('svg') || el.tagName.toLowerCase() === 'svg' || el.classList.contains('icon-wrapper') || el.classList.contains('svg-icon')) {
             // Check if it's a drawPaths element for perfect naming
@@ -158,7 +158,7 @@ function showTemplateColorModal() {
         if (t.group === 'callout') {
             const txt = t.el.querySelector('.callout-text');
             if (txt) contentText = txt.innerText || txt.textContent;
-        } else if (t.group === 'text' || t.group === 'box') {
+        } else if (t.group === 'text' || t.group === 'box' || t.group === 'free-text') {
             contentText = t.el.innerText || t.el.textContent;
         }
         
@@ -178,6 +178,7 @@ function showTemplateColorModal() {
     } else {
         const groupTitles = {
             'text': 'Şablon Öğeleri (Yazılar)',
+            'free-text': 'Serbest Yazılar',
             'draw': 'Çizim ve Şekiller',
             'callout': 'Callout Etiketleri',
             'box': 'Özel Kutular',
@@ -193,6 +194,10 @@ function showTemplateColorModal() {
 
         for (const [gKey, items] of Object.entries(groupedEls)) {
             const title = groupTitles[gKey] || 'Öğeler';
+            const isTemplate = (gKey === 'text');
+            const displayStyle = isTemplate ? 'none' : 'block';
+            const chevronTransform = isTemplate ? 'rotate(0deg)' : 'rotate(180deg)';
+            const isCheckedStr = isTemplate ? '' : 'checked';
             let itemsHtml = '';
             
             items.forEach((t) => {
@@ -202,7 +207,7 @@ function showTemplateColorModal() {
                     '</div>' +
                     // Toggle Switch
                     '<label class="tc-switch" style="flex-shrink:0;">' +
-                        '<input type="checkbox" class="tc-target-cb" value="' + t.id + '" checked>' +
+                        '<input type="checkbox" class="tc-target-cb" value="' + t.id + '" ' + isCheckedStr + '>' +
                         '<span class="tc-slider"></span>' +
                     '</label>' +
                 '</div>';
@@ -215,9 +220,9 @@ function showTemplateColorModal() {
                         <span>${title}</span>
                         <span style="background:#322659; color:#e2e8f0; padding:2px 6px; border-radius:10px; font-size:10px;">${items.length}</span>
                     </div>
-                    <i class="fas fa-chevron-down" style="transition:transform 0.3s; transform:rotate(180deg);"></i>
+                    <i class="fas fa-chevron-down" style="transition:transform 0.3s; transform:${chevronTransform};"></i>
                 </div>
-                <div class="tc-accordion-content" style="padding:8px; background:#110c22; display:block;">
+                <div class="tc-accordion-content" style="padding:8px; background:#110c22; display:${displayStyle};">
                     ${itemsHtml}
                 </div>
             </div>`;

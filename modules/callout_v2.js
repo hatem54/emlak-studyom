@@ -415,9 +415,33 @@ function addSVGCalloutToCanvas(item) {
     workArea.appendChild(wrap);
     if(typeof window.renderLayers === 'function') window.renderLayers();
     setTimeout(function(){ selectCallout(); }, 50);
-    
+    if (typeof performAutoSave === 'function') performAutoSave();
     console.log('✅ Callout eklendi:', item.name);
 }
+
+window.rebindNeonCallout = function(el) {
+    if (!el || !el.classList.contains('co-neon-block')) return;
+    
+    // Sürükleme
+    if (typeof makeDraggable === 'function') makeDraggable(el);
+
+    // Tek tık → seç + panel aç
+    el.addEventListener('mousedown', function(e) {
+        if (e.button !== 0) return;
+        if (typeof selectCalloutEl === 'function') selectCalloutEl(el);
+        e.stopPropagation();
+    });
+
+    // Sağ tık → sil
+    el.addEventListener('contextmenu', function(e) {
+        e.preventDefault();
+        const idx = typeof allIcons !== 'undefined' ? allIcons.indexOf(el) : -1;
+        if (idx > -1) allIcons.splice(idx, 1);
+        el.remove();
+        if (typeof closeCalloutPanel === 'function') closeCalloutPanel();
+        if (typeof performAutoSave === 'function') performAutoSave();
+    });
+};
 
 function renderNeonCallouts() {
     const pool = document.getElementById('neonCalloutPool');
@@ -566,6 +590,7 @@ function addNeonToCanvas(n) {
     workArea.appendChild(el);
     if(typeof window.renderLayers === 'function') window.renderLayers();
     selectCalloutEl(el);
+    if (typeof performAutoSave === 'function') performAutoSave();
 }
 
 function selectCalloutEl(el) {

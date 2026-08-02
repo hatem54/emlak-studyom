@@ -112,10 +112,10 @@ function showTemplateColorModal() {
         if(el.classList.contains('callout-wrapper')) { 
             typeName = 'Callout'; groupName = 'callout'; icon = 'fas fa-comment-dots'; 
         }
-        else if(el.classList.contains('saber-text')) { 
+        else if(el.classList.contains('saber-text') || el.dataset.label === 'Serbest Yazı') { 
             typeName = 'Serbest Yazı'; groupName = 'free-text'; icon = 'fas fa-font'; 
         }
-        else if(el.classList.contains('dynamic-box')) { 
+        else if(el.classList.contains('dynamic-box') || el.dataset.label === 'Özel Kutu') { 
             typeName = 'Özel Kutu'; groupName = 'free-text'; icon = 'fas fa-square'; 
         }
         else if(el.querySelector('svg') || el.tagName.toLowerCase() === 'svg' || el.classList.contains('icon-wrapper') || el.classList.contains('svg-icon')) {
@@ -250,7 +250,10 @@ function showTemplateColorModal() {
     // Panel Header (Draggable)
     const headerHtml = '<div id="tcPanelHeader" style="padding:16px 20px; background:linear-gradient(90deg, #1e1b38, #110c22); display:flex; justify-content:space-between; align-items:center; cursor:move; border-bottom:1px solid #322659;">' +
         '<div style="font-weight:bold; font-size:16px; display:flex; align-items:center; gap:10px;"><i class="fas fa-magic" style="color:#a855f7;"></i> PRO Renk Eşleştirici</div>' +
-        '<button id="tcCloseBtn" style="background:transparent; border:none; color:#94a3b8; font-size:18px; cursor:pointer; padding:0; transition:color 0.2s;" onmouseover="this.style.color=\'#fff\'" onmouseout="this.style.color=\'#94a3b8\'"><i class="fas fa-times"></i></button>' +
+        '<div style="display:flex; align-items:center; gap:15px;">' +
+            '<button id="tcRefreshBtn" title="Listeyi Yenile" style="background:transparent; border:none; color:#94a3b8; font-size:16px; cursor:pointer; padding:0; transition:color 0.2s;" onmouseover="this.style.color=\'#fff\'" onmouseout="this.style.color=\'#94a3b8\'" onclick="document.getElementById(\'proColorMatcherPanel\').remove(); setTimeout(() => showTemplateColorModal(), 10)"><i class="fas fa-sync-alt"></i></button>' +
+            '<button id="tcCloseBtn" style="background:transparent; border:none; color:#94a3b8; font-size:18px; cursor:pointer; padding:0; transition:color 0.2s;" onmouseover="this.style.color=\'#fff\'" onmouseout="this.style.color=\'#94a3b8\'"><i class="fas fa-times"></i></button>' +
+        '</div>' +
     '</div>';
 
     // Extract dominant color to be default (or palette[0])

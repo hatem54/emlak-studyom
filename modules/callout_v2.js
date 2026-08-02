@@ -898,7 +898,7 @@ function resetCalloutToDefault() {
         }
     }
 }
-\n
+
 window.rebindSVGCallout = function(wrap) {
     const el = wrap.querySelector('.callout-item');
     const controls = wrap.querySelector('.callout-controls');
@@ -1078,7 +1078,7 @@ window.rebindSVGCallout = function(wrap) {
         }
     });
 };
-\n
+
 window.rebindNeonCallout = function(el) {
     el.addEventListener('mousedown', function(e) {
         if (e.button !== 0) return;

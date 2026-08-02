@@ -64,21 +64,36 @@ function showTemplateColorModal() {
         paletteHtml += '<div class="tc-palette-color" data-color="' + c + '" style="width:24px; height:24px; border-radius:50%; background-color:' + c + '; cursor:pointer; border:2px solid #fff; box-shadow:0 0 5px rgba(0,0,0,0.5); transition:transform 0.2s;"></div>';
     });
 
-    // 2. Extract Canvas User Elements only
+    // 2. Extract Canvas User Elements (All possible objects)
     let targetEls = [];
-    const mainChildren = document.querySelectorAll('.canva-el, .callout-wrapper, .saber-text, .dynamic-box, .svg-icon');
+    const elements = document.querySelectorAll('#kolaj-wrapper > *, #canvas-container > *, #ui-layer > *, .editable-text, .canvas-el, .cvi-item, .canva-el, .callout-wrapper, .saber-text, .dynamic-box, .svg-icon, .lp-item');
+    const uniqueElements = Array.from(new Set(elements));
     
-    mainChildren.forEach((el, index) => {
-        // Skip template overlays, main images, or full canvas elements
-        if(el.id === 'masterImage' || el.id === 'masterImageContainer' || el.id === 'workArea' || el.id === 'drawCanvas' ||
-           el.classList.contains('photo-inner-img') || el.classList.contains('canva-tpl-card') ||
+    uniqueElements.forEach((el, index) => {
+        // Strict filter to ignore ALL structural, background, or utility layers
+        const id = el.id || '';
+        if(id === 'masterImage' || id === 'masterImageContainer' || 
+           id === 'workArea' || id === 'drawCanvas' || id === 'draw-layer' ||
+           id === 'photo-layer' || id === 'shadow-overlay' || 
+           id === 'highlight-overlay' || id === 'vignette-layer' || 
+           id === 'mask-layer' || id === 'canva-render-layer' || 
+           id === 'ui-layer') {
+            return; 
+        }
+        
+        // Skip specific unwanted structural classes
+        if(el.classList.contains('photo-inner-img') || 
+           el.classList.contains('canva-tpl-card') ||
+           el.classList.contains('drawing-layer') ||
+           el.classList.contains('resize-handle') || 
+           el.classList.contains('rot-handle') ||
            el.tagName.toLowerCase() === 'canvas') {
             return; 
         }
         
         if(!el.id) el.id = 'tc_target_' + index + '_' + Date.now();
         
-        let typeName = 'Şekil';
+        let typeName = 'Öge';
         let groupName = 'shape';
         let icon = 'fas fa-shapes';
         
@@ -106,8 +121,11 @@ function showTemplateColorModal() {
                 typeName = 'İkon'; groupName = 'icon'; icon = 'fas fa-star';
             }
         } 
+        else if (el.classList.contains('editable-text') || el.classList.contains('lp-item') || el.classList.contains('sh-badge') || el.classList.contains('sh-price') || el.classList.contains('sh-box')) {
+            typeName = 'Yazı/Etiket'; groupName = 'text'; icon = 'fas fa-font';
+        }
         else {
-            typeName = 'Çizim'; groupName = 'draw'; icon = 'fas fa-pen';
+            typeName = 'Öge'; groupName = 'shape'; icon = 'fas fa-layer-group';
         }
         
         targetEls.push({ id: el.id, type: typeName, group: groupName, icon: icon, el: el, domIndex: index });

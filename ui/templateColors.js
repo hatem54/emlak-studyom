@@ -119,6 +119,20 @@ function showTemplateColorModal() {
         if(el.classList.contains('callout-wrapper')) { 
             typeName = 'Callout'; groupName = 'callout'; icon = 'fas fa-comment-dots'; 
         }
+        else if(el.classList.contains('editable-draw')) {
+            let pObj = null;
+            if(typeof drawPaths !== 'undefined') pObj = drawPaths.find(p => p.el === el || (el.id && p.el && p.el.id === el.id));
+            if (!pObj) {
+                // This is a zombie clone restored by autoSave! Clean it up.
+                el.remove();
+                return;
+            }
+            if(pObj.type === 'rect') { typeName = 'Kare'; groupName = 'draw'; icon = 'fas fa-square'; }
+            else if(pObj.type === 'circle') { typeName = 'Daire'; groupName = 'draw'; icon = 'fas fa-circle'; }
+            else if(pObj.type === 'polygon') { typeName = 'Çokgen'; groupName = 'draw'; icon = 'fas fa-draw-polygon'; }
+            else if(pObj.type === 'arrow' || pObj.type === 'line') { typeName = 'Çizgi/Ok'; groupName = 'draw'; icon = 'fas fa-arrow-right'; }
+            else { typeName = 'Çizim'; groupName = 'draw'; icon = 'fas fa-pen'; }
+        }
         else if(el.classList.contains('saber-text') || el.dataset.label === 'Serbest Yazı') { 
             typeName = 'Serbest Yazı'; groupName = 'free-text'; icon = 'fas fa-font'; 
         }
@@ -126,19 +140,7 @@ function showTemplateColorModal() {
             typeName = 'Özel Kutu'; groupName = 'free-text'; icon = 'fas fa-square'; 
         }
         else if(el.querySelector('svg') || el.tagName.toLowerCase() === 'svg' || el.classList.contains('icon-wrapper') || el.classList.contains('svg-icon')) {
-            // Check if it's a drawPaths element for perfect naming
-            let pObj = null;
-            if(typeof drawPaths !== 'undefined') pObj = drawPaths.find(p => p.el === el || (el.id && p.el && p.el.id === el.id));
-            
-            if (pObj) {
-                if(pObj.type === 'rect') { typeName = 'Kare'; groupName = 'draw'; icon = 'fas fa-square'; }
-                else if(pObj.type === 'circle') { typeName = 'Daire'; groupName = 'draw'; icon = 'fas fa-circle'; }
-                else if(pObj.type === 'polygon') { typeName = 'Çokgen'; groupName = 'draw'; icon = 'fas fa-draw-polygon'; }
-                else if(pObj.type === 'arrow' || pObj.type === 'line') { typeName = 'Çizgi/Ok'; groupName = 'draw'; icon = 'fas fa-arrow-right'; }
-                else { typeName = 'Çizim'; groupName = 'draw'; icon = 'fas fa-pen'; }
-            } else {
-                typeName = 'İkon'; groupName = 'icon'; icon = 'fas fa-star';
-            }
+            typeName = 'İkon'; groupName = 'icon'; icon = 'fas fa-star';
         } 
         else if (el.classList.contains('editable-text') || el.classList.contains('lp-item') || el.classList.contains('sh-badge') || el.classList.contains('sh-price') || el.classList.contains('sh-box') || el.classList.contains('cvi-item') || el.classList.contains('canva-el') || el.classList.contains('canvas-el')) {
             typeName = 'Yazı/Etiket'; groupName = 'text'; icon = 'fas fa-font';

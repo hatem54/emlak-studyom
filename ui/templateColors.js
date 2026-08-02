@@ -65,51 +65,85 @@ function showTemplateColorModal() {
     });
 
     // 2. Extract ALL Canvas User Elements
-    const targetEls = [];
+    let targetEls = [];
     const mainChildren = document.querySelectorAll('#kolaj-wrapper > *, #canvas-container > *');
     
     mainChildren.forEach((el, index) => {
         // Skip template overlays or main images
         if(el.id === 'masterImage' || el.id === 'masterImageContainer' || 
-           el.classList.contains('photo-inner-img') || el.classList.contains('canva-tpl-card')) {
+           el.classList.contains('photo-inner-img') || el.classList.contains('canva-tpl-card') ||
+           el.tagName.toLowerCase() === 'canvas') {
             return; 
         }
         
         if(!el.id) el.id = 'tc_target_' + index + '_' + Date.now();
         
-        let typeName = 'Öğe';
-        let icon = 'fas fa-cube';
-        let contentText = '';
+        let typeName = 'Şekil';
+        let groupName = 'shape';
+        let icon = 'fas fa-shapes';
         
         if(el.classList.contains('callout-wrapper')) { 
-            typeName = 'Callout Etiketi'; icon = 'fas fa-comment-dots'; 
-            const txt = el.querySelector('.callout-text');
-            if(txt) contentText = txt.innerText || txt.textContent;
+            typeName = 'Callout'; groupName = 'callout'; icon = 'fas fa-comment-dots'; 
         }
         else if(el.classList.contains('saber-text')) { 
-            typeName = 'Serbest Yazı'; icon = 'fas fa-font'; 
-            contentText = el.innerText || el.textContent;
+            typeName = 'Serbest Yazı'; groupName = 'text'; icon = 'fas fa-font'; 
         }
         else if(el.classList.contains('dynamic-box')) { 
-            typeName = 'Özel Kutu'; icon = 'fas fa-square'; 
-            contentText = el.innerText || el.textContent;
+            typeName = 'Özel Kutu'; groupName = 'box'; icon = 'fas fa-square'; 
         }
         else if(el.querySelector('svg') || el.tagName.toLowerCase() === 'svg' || el.classList.contains('icon-wrapper') || el.classList.contains('svg-icon')) {
-            typeName = 'İkon'; icon = 'fas fa-star';
-            contentText = 'Vektörel Grafik';
+            // Identify specific basic shapes
+            const svgEl = el.tagName.toLowerCase() === 'svg' ? el : el.querySelector('svg');
+            if (svgEl) {
+                if (svgEl.querySelector('circle') && !svgEl.querySelector('rect') && !svgEl.querySelector('path')) {
+                    typeName = 'Daire'; groupName = 'shape'; icon = 'fas fa-circle';
+                } else if (svgEl.querySelector('rect') && !svgEl.querySelector('circle') && !svgEl.querySelector('path')) {
+                    typeName = 'Kare'; groupName = 'shape'; icon = 'fas fa-square';
+                } else {
+                    typeName = 'İkon'; groupName = 'icon'; icon = 'fas fa-star';
+                }
+            } else {
+                typeName = 'İkon'; groupName = 'icon'; icon = 'fas fa-star';
+            }
         } 
         else {
-            // Any other element placed by user (e.g. shapes, lines)
-            typeName = 'Şekil/Öğe'; icon = 'fas fa-shapes';
-            if (el.innerText && el.innerText.trim()) {
-                contentText = el.innerText.trim();
-            }
+            typeName = 'Çizim'; groupName = 'draw'; icon = 'fas fa-pen';
         }
         
-        if(contentText && contentText.length > 20) contentText = contentText.substring(0, 20) + '...';
-        const displayName = contentText ? `${typeName}: "${contentText}"` : typeName;
+        targetEls.push({ id: el.id, type: typeName, group: groupName, icon: icon, el: el, domIndex: index });
+    });
+
+    // Sort: First by Group, then by DOM index (insertion order)
+    const groupOrder = { 'callout': 1, 'text': 2, 'box': 3, 'icon': 4, 'shape': 5, 'draw': 6 };
+    targetEls.sort((a, b) => {
+        if (groupOrder[a.group] !== groupOrder[b.group]) {
+            return groupOrder[a.group] - groupOrder[b.group];
+        }
+        return a.domIndex - b.domIndex;
+    });
+
+    // Assign sequential names (e.g. Callout 1, Callout 2)
+    const typeCounters = {};
+    targetEls = targetEls.map(t => {
+        if (!typeCounters[t.type]) typeCounters[t.type] = 1;
+        else typeCounters[t.type]++;
         
-        targetEls.push({ id: el.id, name: displayName, icon: icon, el: el });
+        let contentText = '';
+        if (t.group === 'callout') {
+            const txt = t.el.querySelector('.callout-text');
+            if (txt) contentText = txt.innerText || txt.textContent;
+        } else if (t.group === 'text' || t.group === 'box') {
+            contentText = t.el.innerText || t.el.textContent;
+        }
+        
+        if(contentText && contentText.trim().length > 0) {
+            let shortText = contentText.trim();
+            if(shortText.length > 15) shortText = shortText.substring(0, 15) + '...';
+            t.displayName = `${t.type} ${typeCounters[t.type]} ("${shortText}")`;
+        } else {
+            t.displayName = `${t.type} ${typeCounters[t.type]}`;
+        }
+        return t;
     });
 
     let targetsHtml = '';
@@ -119,7 +153,7 @@ function showTemplateColorModal() {
         targetEls.forEach((t) => {
             targetsHtml += '<div style="display:flex; align-items:center; justify-content:space-between; padding:10px 12px; background:#1e1b38; margin-bottom:6px; border-radius:6px; font-size:13px; color:#e2e8f0; border:1px solid #2d264f; transition:background 0.2s;" onmouseover="this.style.background=\'#2a254d\'" onmouseout="this.style.background=\'#1e1b38\'">' +
                 '<div style="display:flex; align-items:center; gap:10px;">' +
-                    '<i class="' + t.icon + '" style="color:#6366f1; width:16px; text-align:center;"></i> <span style="font-weight:500;">' + t.name + '</span>' +
+                    '<i class="' + t.icon + '" style="color:#6366f1; width:16px; text-align:center;"></i> <span style="font-weight:500;">' + t.displayName + '</span>' +
                 '</div>' +
                 // Toggle Switch
                 '<label class="tc-switch">' +

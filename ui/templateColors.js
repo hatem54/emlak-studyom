@@ -92,15 +92,16 @@ function showTemplateColorModal() {
             typeName = 'Özel Kutu'; groupName = 'box'; icon = 'fas fa-square'; 
         }
         else if(el.querySelector('svg') || el.tagName.toLowerCase() === 'svg' || el.classList.contains('icon-wrapper') || el.classList.contains('svg-icon')) {
-            const svgEl = el.tagName.toLowerCase() === 'svg' ? el : el.querySelector('svg');
-            if (svgEl) {
-                if (svgEl.querySelector('circle') && !svgEl.querySelector('rect') && !svgEl.querySelector('path')) {
-                    typeName = 'Daire'; groupName = 'shape'; icon = 'fas fa-circle';
-                } else if (svgEl.querySelector('rect') && !svgEl.querySelector('circle') && !svgEl.querySelector('path')) {
-                    typeName = 'Kare'; groupName = 'shape'; icon = 'fas fa-square';
-                } else {
-                    typeName = 'İkon'; groupName = 'icon'; icon = 'fas fa-star';
-                }
+            // Check if it's a drawPaths element for perfect naming
+            let pObj = null;
+            if(typeof drawPaths !== 'undefined') pObj = drawPaths.find(p => p.el === el || (el.id && p.el && p.el.id === el.id));
+            
+            if (pObj) {
+                if(pObj.type === 'rect') { typeName = 'Kare'; groupName = 'draw'; icon = 'fas fa-square'; }
+                else if(pObj.type === 'circle') { typeName = 'Daire'; groupName = 'draw'; icon = 'fas fa-circle'; }
+                else if(pObj.type === 'polygon') { typeName = 'Çokgen'; groupName = 'draw'; icon = 'fas fa-draw-polygon'; }
+                else if(pObj.type === 'arrow' || pObj.type === 'line') { typeName = 'Çizgi/Ok'; groupName = 'draw'; icon = 'fas fa-arrow-right'; }
+                else { typeName = 'Çizim'; groupName = 'draw'; icon = 'fas fa-pen'; }
             } else {
                 typeName = 'İkon'; groupName = 'icon'; icon = 'fas fa-star';
             }
@@ -358,25 +359,30 @@ function showTemplateColorModal() {
                 // Generic handler for SVGs, Icons, Shapes
                 let isSvgWrapper = (el.tagName.toLowerCase() === 'svg' || el.querySelector('svg'));
                 
-                if(applyBg) {
-                    if (isSvgWrapper) {
-                        const svg = el.tagName.toLowerCase() === 'svg' ? el : el.querySelector('svg');
+                if (isSvgWrapper) {
+                    const svg = el.tagName.toLowerCase() === 'svg' ? el : el.querySelector('svg');
+                    const paths = svg.querySelectorAll('path, rect, circle, polygon, ellipse, line, polyline');
+                    
+                    if (applyBg) {
                         if (svg.getAttribute('fill') && svg.getAttribute('fill') !== 'none') {
                             svg.setAttribute('fill', bgCol);
                         }
-                        const paths = svg.querySelectorAll('path, rect, circle, polygon');
                         paths.forEach(p => {
                             if (p.getAttribute('fill') && p.getAttribute('fill') !== 'none') {
                                 p.setAttribute('fill', bgCol);
                             }
-                            if (p.getAttribute('stroke') && p.getAttribute('stroke') !== 'none') {
-                                p.setAttribute('stroke', acCol);
-                            }
                         });
-                    } else if(!el.classList.contains('drawing-layer') && !el.classList.contains('icon-wrapper') && !el.classList.contains('canva-el')) {
-                        // Only apply background color if it's a pure HTML element that is meant to have a background
-                        el.style.backgroundColor = bgCol;
                     }
+                    
+                    // Stroke color should always apply, regardless of applyBg (since it's a separate option)
+                    paths.forEach(p => {
+                        if (p.getAttribute('stroke') && p.getAttribute('stroke') !== 'none') {
+                            p.setAttribute('stroke', acCol);
+                        }
+                    });
+                } else if(applyBg && !el.classList.contains('drawing-layer') && !el.classList.contains('icon-wrapper') && !el.classList.contains('canva-el')) {
+                    // Only apply background color if it's a pure HTML element that is meant to have a background
+                    el.style.backgroundColor = bgCol;
                 }
                 
                 if(!isSvgWrapper) {
@@ -400,6 +406,7 @@ function showTemplateColorModal() {
         
         if(typeof applyCalloutSettings === 'function') applyCalloutSettings();
         if(typeof updateDrawHistory === 'function') updateDrawHistory();
+        if(typeof redrawAll === 'function') redrawAll();
 
         const btn = document.getElementById('tcBtnApply');
         const origText = btn.innerText;

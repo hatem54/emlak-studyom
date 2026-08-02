@@ -162,24 +162,56 @@ function showTemplateColorModal() {
             t.displayName = `${t.type} ${typeCounters[t.type]}`;
         }
         return t;
-    });
-
     let targetsHtml = '';
     if (targetEls.length === 0) {
-        targetsHtml = '<div style="padding:10px; text-align:center; color:#94a3b8; font-size:12px;">Tuvalde uygun öğe bulunamadı. Lütfen önce yazı, ikon veya etiket ekleyin.</div>';
+        targetsHtml = '<div style="padding:10px; text-align:center; color:#94a3b8; font-size:12px;">Tuvalde uygun öge bulunamadı. Lütfen önce yazı, ikon veya etiket ekleyin.</div>';
     } else {
-        targetEls.forEach((t) => {
-            targetsHtml += '<div style="display:flex; align-items:center; justify-content:space-between; padding:10px 12px; background:#1e1b38; margin-bottom:6px; border-radius:6px; font-size:13px; color:#e2e8f0; border:1px solid #2d264f; transition:background 0.2s;" onmouseover="this.style.background=\'#2a254d\'" onmouseout="this.style.background=\'#1e1b38\'">' +
-                '<div style="display:flex; align-items:center; gap:10px;">' +
-                    '<i class="' + t.icon + '" style="color:#6366f1; width:16px; text-align:center;"></i> <span style="font-weight:500;">' + t.displayName + '</span>' +
-                '</div>' +
-                // Toggle Switch
-                '<label class="tc-switch">' +
-                    '<input type="checkbox" class="tc-target-cb" value="' + t.id + '" checked>' +
-                    '<span class="tc-slider"></span>' +
-                '</label>' +
-            '</div>';
+        const groupTitles = {
+            'text': 'Şablon Öğeleri (Yazılar)',
+            'draw': 'Çizim ve Şekiller',
+            'callout': 'Callout Etiketleri',
+            'box': 'Özel Kutular',
+            'icon': 'İkonlar',
+            'shape': 'Diğer Öğeler'
+        };
+
+        const groupedEls = {};
+        targetEls.forEach(t => {
+            if(!groupedEls[t.group]) groupedEls[t.group] = [];
+            groupedEls[t.group].push(t);
         });
+
+        for (const [gKey, items] of Object.entries(groupedEls)) {
+            const title = groupTitles[gKey] || 'Öğeler';
+            let itemsHtml = '';
+            
+            items.forEach((t) => {
+                itemsHtml += '<div style="display:flex; align-items:center; justify-content:space-between; padding:10px 12px; background:#1e1b38; margin-bottom:6px; border-radius:6px; font-size:13px; color:#e2e8f0; border:1px solid #2d264f; transition:background 0.2s;" onmouseover="this.style.background=\'#2a254d\'" onmouseout="this.style.background=\'#1e1b38\'">' +
+                    '<div style="display:flex; align-items:center; gap:10px;">' +
+                        '<i class="' + t.icon + '" style="color:#6366f1; width:16px; text-align:center;"></i> <span style="font-weight:500;">' + t.displayName + '</span>' +
+                    '</div>' +
+                    // Toggle Switch
+                    '<label class="tc-switch">' +
+                        '<input type="checkbox" class="tc-target-cb" value="' + t.id + '" checked>' +
+                        '<span class="tc-slider"></span>' +
+                    '</label>' +
+                '</div>';
+            });
+            
+            targetsHtml += `
+            <div class="tc-accordion" style="margin-bottom:8px; border:1px solid #2d264f; border-radius:6px; overflow:hidden;">
+                <div class="tc-accordion-header" style="padding:10px 12px; background:#1a1630; cursor:pointer; display:flex; justify-content:space-between; align-items:center; color:#a5b4fc; font-weight:600; font-size:12px; transition:background 0.2s;" onclick="const content = this.nextElementSibling; const icon = this.querySelector('i'); if(content.style.display === 'none') { content.style.display = 'block'; icon.style.transform = 'rotate(180deg)'; } else { content.style.display = 'none'; icon.style.transform = 'rotate(0deg)'; }">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <span>${title}</span>
+                        <span style="background:#322659; color:#e2e8f0; padding:2px 6px; border-radius:10px; font-size:10px;">${items.length}</span>
+                    </div>
+                    <i class="fas fa-chevron-down" style="transition:transform 0.3s; transform:rotate(180deg);"></i>
+                </div>
+                <div class="tc-accordion-content" style="padding:8px; background:#110c22; display:block;">
+                    ${itemsHtml}
+                </div>
+            </div>`;
+        }
     }
 
     // 3. Create Floating Panel

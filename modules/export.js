@@ -308,7 +308,7 @@ async function saveImage(){
         // DUAL-LAYER SWAP LOGIC
         
         // DUAL-LAYER MANUAL DRAW LOGIC
-        const swapTargets = canvasEl.querySelectorAll('#photo-layer, .photo-inner-zoom');
+        const swapTargets = canvasEl.querySelectorAll('#photo-layer, .photo-inner-zoom, .photo-panel, .photo-bg');
         const originalStyles = new Map();
         let masterImgElement = null;
         
@@ -570,7 +570,7 @@ async function startBatchExport(){
         // DUAL-LAYER SWAP LOGIC FOR BATCH
         
         // DUAL-LAYER MANUAL DRAW LOGIC FOR BATCH
-        const swapTargetsBatch = canvasEl.querySelectorAll('#photo-layer, .photo-inner-zoom');
+        const swapTargetsBatch = canvasEl.querySelectorAll('#photo-layer, .photo-inner-zoom, .photo-panel, .photo-bg');
         const originalStylesBatch = new Map();
         let masterImgElementBatch = null;
         

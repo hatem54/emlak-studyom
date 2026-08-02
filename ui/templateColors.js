@@ -81,7 +81,12 @@ function showTemplateColorModal() {
     const elements = document.querySelectorAll('#kolaj-wrapper > *, #canvas-container > *, #ui-layer > *, .editable-text, .canvas-el, .cvi-item, .canva-el, .callout-wrapper, .saber-text, .dynamic-box, .svg-icon, .lp-item');
     const uniqueElements = Array.from(new Set(elements));
     
-    uniqueElements.forEach((el, index) => {
+    // Filter out nested duplicates (e.g. an svg-icon inside a callout-wrapper)
+    const topLevelElements = uniqueElements.filter(el => {
+        return !uniqueElements.some(parentEl => parentEl !== el && parentEl.contains(el));
+    });
+    
+    topLevelElements.forEach((el, index) => {
         // Strict filter to ignore ALL structural, background, or utility layers
         const id = el.id || '';
         if(id === 'masterImage' || id === 'masterImageContainer' || 
@@ -107,7 +112,7 @@ function showTemplateColorModal() {
         
         let typeName = 'Öge';
         let groupName = 'shape';
-        let icon = 'fas fa-shapes';
+        let icon = 'fas fa-layer-group';
         
         if(el.classList.contains('callout-wrapper')) { 
             typeName = 'Callout'; groupName = 'callout'; icon = 'fas fa-comment-dots'; 

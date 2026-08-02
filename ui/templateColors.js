@@ -78,7 +78,7 @@ function showTemplateColorModal() {
 
     // 2. Extract Canvas User Elements (All possible objects)
     let targetEls = [];
-    const elements = document.querySelectorAll('#kolaj-wrapper > *, #canvas-container > *, #ui-layer > *, .editable-text, .canvas-el, .cvi-item, .canva-el, .callout-wrapper, .saber-text, .dynamic-box, .svg-icon, .lp-item');
+    const elements = document.querySelectorAll('#kolaj-wrapper > *, #canvas-container > *, #ui-layer > *, .editable-text, .canvas-el, .cvi-item, .canva-el, .callout-wrapper, .callout-wrap, .saber-text, .dynamic-box, .svg-icon, .lp-item');
     let uniqueElements = Array.from(new Set(elements));
     
     // First, REMOVE structural layers from the list so they don't act as parents and accidentally filter out their children
@@ -104,7 +104,7 @@ function showTemplateColorModal() {
         return true;
     });
 
-    // Now filter out nested duplicates (e.g. an svg-icon inside a callout-wrapper)
+    // Now filter out nested duplicates (e.g. an svg-icon inside a callout-wrapper or callout-wrap)
     const topLevelElements = uniqueElements.filter(el => {
         return !uniqueElements.some(parentEl => parentEl !== el && parentEl.contains(el));
     });
@@ -116,7 +116,7 @@ function showTemplateColorModal() {
         let groupName = 'shape';
         let icon = 'fas fa-layer-group';
         
-        if(el.classList.contains('callout-wrapper')) { 
+        if(el.classList.contains('callout-wrapper') || el.classList.contains('callout-wrap')) {
             typeName = 'Callout'; groupName = 'callout'; icon = 'fas fa-comment-dots'; 
         }
         else if(el.classList.contains('editable-draw')) {
@@ -407,7 +407,7 @@ function showTemplateColorModal() {
             // If the element is currently selected globally, update global inputs too
             const isSelected = (typeof selectedCalloutEl !== 'undefined' && selectedCalloutEl === el);
             
-            if(el.classList.contains('callout-wrapper')) {
+            if(el.classList.contains('callout-wrapper') || el.classList.contains('callout-wrap')) {
                 if(applyBg) {
                     const bgEl = el.querySelector('.callout-bg');
                     if(bgEl) bgEl.style.fill = bgCol;

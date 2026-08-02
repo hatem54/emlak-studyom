@@ -359,47 +359,59 @@ function showTemplateColorModal() {
                 // Generic handler for SVGs, Icons, Shapes
                 let isSvgWrapper = (el.tagName.toLowerCase() === 'svg' || el.querySelector('svg'));
                 
-                if (isSvgWrapper) {
+                // Find if this is a draw.js managed shape
+                let pObj = null;
+                if(typeof drawPaths !== 'undefined' && Array.isArray(drawPaths)) {
+                    pObj = drawPaths.find(p => p.el === el || (el.id && p.el && p.el.id === el.id));
+                }
+                
+                if (pObj) {
+                    // Update backend state
+                    if(applyBg) {
+                        pObj.fillColor = bgCol;
+                        pObj.fillOpacity = 1;
+                    }
+                    pObj.color = acCol;
+                    
+                    // Rebuild the perfect SVG from the engine and inject it!
+                    if (typeof createSVGFromPath === 'function') {
+                        const newEl = createSVGFromPath(pObj);
+                        if (newEl && newEl.innerHTML) {
+                            el.innerHTML = newEl.innerHTML;
+                        }
+                    }
+                } 
+                else if (isSvgWrapper) {
+                    // Normal non-drawn SVG (e.g. static icons in template)
                     const svg = el.tagName.toLowerCase() === 'svg' ? el : el.querySelector('svg');
                     const paths = svg.querySelectorAll('path, rect, circle, polygon, ellipse, line, polyline');
                     
                     if (applyBg) {
-                        if (svg.getAttribute('fill') && svg.getAttribute('fill') !== 'none') {
+                        if (svg.hasAttribute('fill') && svg.getAttribute('fill') !== 'none') {
                             svg.setAttribute('fill', bgCol);
+                            svg.setAttribute('fill-opacity', '1');
                         }
                         paths.forEach(p => {
-                            if (p.getAttribute('fill') && p.getAttribute('fill') !== 'none') {
+                            if (p.hasAttribute('fill') && p.getAttribute('fill') !== 'none') {
                                 p.setAttribute('fill', bgCol);
+                                p.setAttribute('fill-opacity', '1');
                             }
                         });
                     }
                     
-                    // Stroke color should always apply, regardless of applyBg (since it's a separate option)
                     paths.forEach(p => {
                         if (p.getAttribute('stroke') && p.getAttribute('stroke') !== 'none') {
                             p.setAttribute('stroke', acCol);
                         }
                     });
-                } else if(applyBg && !el.classList.contains('drawing-layer') && !el.classList.contains('icon-wrapper') && !el.classList.contains('canva-el')) {
-                    // Only apply background color if it's a pure HTML element that is meant to have a background
+                } 
+                else if(applyBg && !el.classList.contains('drawing-layer') && !el.classList.contains('icon-wrapper') && !el.classList.contains('canva-el')) {
                     el.style.backgroundColor = bgCol;
                 }
                 
                 if(!isSvgWrapper) {
                     el.style.color = txtCol;
                     el.style.borderColor = acCol;
-                }
-                
-                // Keep drawing paths in sync so it survives redraws!
-                if(typeof drawPaths !== 'undefined' && Array.isArray(drawPaths)) {
-                    const pObj = drawPaths.find(p => p.el === el || (el.id && p.el && p.el.id === el.id));
-                    if(pObj) {
-                        if(applyBg) {
-                            pObj.fillColor = bgCol;
-                            pObj.fillOpacity = 1; // Force opacity so redraw shows the fill
-                        }
-                        pObj.color = acCol; // Stroke color
-                    }
                 }
             }
         });

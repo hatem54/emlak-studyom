@@ -357,9 +357,10 @@ function showTemplateColorModal() {
             }
             else {
                 // Generic handler for SVGs, Icons, Shapes
-                // Change Fill if applies
+                let isSvgWrapper = (el.tagName.toLowerCase() === 'svg' || el.querySelector('svg'));
+                
                 if(applyBg) {
-                    if (el.tagName.toLowerCase() === 'svg' || el.querySelector('svg')) {
+                    if (isSvgWrapper) {
                         const svg = el.tagName.toLowerCase() === 'svg' ? el : el.querySelector('svg');
                         if (svg.getAttribute('fill') && svg.getAttribute('fill') !== 'none') {
                             svg.setAttribute('fill', bgCol);
@@ -369,16 +370,20 @@ function showTemplateColorModal() {
                             if (p.getAttribute('fill') && p.getAttribute('fill') !== 'none') {
                                 p.setAttribute('fill', bgCol);
                             }
-                            // If icon/shape has stroke, maybe color it with accent?
                             if (p.getAttribute('stroke') && p.getAttribute('stroke') !== 'none') {
                                 p.setAttribute('stroke', acCol);
                             }
                         });
+                    } else if(!el.classList.contains('drawing-layer') && !el.classList.contains('icon-wrapper')) {
+                        // Only apply background color if it's a pure HTML element that is meant to have a background
+                        el.style.backgroundColor = bgCol;
                     }
-                    el.style.backgroundColor = bgCol;
                 }
-                el.style.color = txtCol;
-                el.style.borderColor = acCol;
+                
+                if(!isSvgWrapper) {
+                    el.style.color = txtCol;
+                    el.style.borderColor = acCol;
+                }
             }
         });
         

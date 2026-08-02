@@ -374,8 +374,9 @@ function showTemplateColorModal() {
                 el.style.borderColor = acCol;
             }
             else {
-                // Generic handler for SVGs, Icons, Shapes
+                // Categorize the element
                 let isSvgWrapper = (el.tagName.toLowerCase() === 'svg' || el.querySelector('svg'));
+                let isPureText = el.classList.contains('editable-text') || el.classList.contains('lp-item') || el.classList.contains('cvi-item') || el.classList.contains('sh-price') || el.classList.contains('sh-badge');
                 
                 // Find if this is a draw.js managed shape
                 let pObj = null;
@@ -384,11 +385,9 @@ function showTemplateColorModal() {
                 }
                 
                 if (pObj) {
-                    // Update backend state
-                    if(applyBg) {
-                        pObj.fillColor = bgCol;
-                        pObj.fillOpacity = 1;
-                    }
+                    // Drawn Shapes (Kare, Daire, vb)
+                    // User explicit request: "çizimlerin içi boyanmasın sadece rengi degişecek"
+                    // ONLY update stroke color (acCol). Do NOT touch fillColor or fillOpacity.
                     pObj.color = acCol;
                     
                     // Rebuild the perfect SVG from the engine and inject it!
@@ -423,11 +422,16 @@ function showTemplateColorModal() {
                         }
                     });
                 } 
-                else if(applyBg && !el.classList.contains('drawing-layer') && !el.classList.contains('icon-wrapper') && !el.classList.contains('canva-el')) {
-                    el.style.backgroundColor = bgCol;
+                else if (isPureText) {
+                    // Pure text elements
+                    // User explicit request: "sadece yazı varsa yazı rengi seçilen ona uygulanacak"
+                    el.style.color = txtCol;
                 }
-                
-                if(!isSvgWrapper) {
+                else {
+                    // Generic HTML elements
+                    if(applyBg && !el.classList.contains('drawing-layer') && !el.classList.contains('icon-wrapper') && !el.classList.contains('canva-el')) {
+                        el.style.backgroundColor = bgCol;
+                    }
                     el.style.color = txtCol;
                     el.style.borderColor = acCol;
                 }

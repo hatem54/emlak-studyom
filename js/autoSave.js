@@ -208,7 +208,7 @@ async function performAutoSave() {
         });
 
         // Tüm özel elemanları kaydet
-        document.querySelectorAll('#photo-layer .draggable, #ui-layer .draggable, #photo-layer .cvi-item, #ui-layer .cvi-item, #photo-layer .canvas-el, #ui-layer .canvas-el, #ui-layer .callout-wrapper, #photo-layer .callout-wrapper, #ui-layer .callout-wrap, #photo-layer .callout-wrap, #ui-layer .saber-text, #photo-layer .saber-text, #ui-layer .dynamic-box, #photo-layer .dynamic-box, #ui-layer .svg-icon, #photo-layer .svg-icon, #ui-layer .icon-wrapper, #photo-layer .icon-wrapper').forEach(el => {
+        document.querySelectorAll('#photo-layer .draggable, #ui-layer .draggable, #photo-layer .cvi-item, #ui-layer .cvi-item, #photo-layer .canvas-el, #ui-layer .canvas-el, #ui-layer .callout-wrapper, #photo-layer .callout-wrapper, #ui-layer .callout-wrap, #photo-layer .callout-wrap, #canvas-container .callout-wrap, #canvas-container .co-neon-block, #canvas-container .callout-wrapper, #ui-layer .saber-text, #photo-layer .saber-text, #ui-layer .dynamic-box, #photo-layer .dynamic-box, #ui-layer .svg-icon, #photo-layer .svg-icon, #ui-layer .icon-wrapper, #photo-layer .icon-wrapper').forEach(el => {
             if(['badge', 'price', 'details', 'logo_overlay', 'elLogo'].includes(el.id)) return;
             if(el.classList.contains('editable-draw')) return; // Zaten drawPaths üzerinden yeniden oluşturuluyor, DOM kopyasını kaydetme!
             
@@ -329,7 +329,7 @@ async function applyRestoredState(state) {
             window.extraFieldsData.arazi = newExtra.arazi || [];
         }
 
-        document.querySelectorAll('#photo-layer .draggable, #ui-layer .draggable, #photo-layer .cvi-item, #ui-layer .cvi-item, #photo-layer .canvas-el, #ui-layer .canvas-el').forEach(el => {
+        document.querySelectorAll('#photo-layer .draggable, #ui-layer .draggable, #photo-layer .cvi-item, #ui-layer .cvi-item, #photo-layer .canvas-el, #ui-layer .canvas-el, #canvas-container .callout-wrap, #canvas-container .co-neon-block').forEach(el => {
             if(['badge', 'price', 'details', 'logo_overlay', 'elLogo'].includes(el.id)) return;
             el.remove();
         });
@@ -390,6 +390,8 @@ async function applyRestoredState(state) {
                 }
                 if (typeof window.makeDraggable === 'function') window.makeDraggable(el);
                 if (el.classList.contains('canvas-el') && typeof window.enableInlineEdit === 'function') window.enableInlineEdit(el);
+                if (el.classList.contains('callout-wrap') && typeof window.rebindSVGCallout === 'function') window.rebindSVGCallout(el);
+                if (el.classList.contains('co-neon-block') && typeof window.rebindNeonCallout === 'function') window.rebindNeonCallout(el);
                 if (el.classList.contains('icon-el') && typeof allIcons !== 'undefined') {
                     window.allIcons.push(el);
                 }

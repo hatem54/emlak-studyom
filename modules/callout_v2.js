@@ -240,6 +240,7 @@ function addSVGCalloutToCanvas(item) {
     
     function selectCallout(){
         document.querySelectorAll('.callout-controls').forEach(function(c){ c.style.display = 'none'; });
+        document.querySelectorAll('.callout-wrap .text-lock-handle').forEach(function(h){ h.remove(); });
         document.querySelectorAll('.callout-resizer').forEach(function(c){ c.style.display = 'none'; });
         document.querySelectorAll('.callout-rotator').forEach(function(c){ c.style.display = 'none'; });
         document.querySelectorAll('.callout-select-border').forEach(function(c){ c.style.display = 'none'; });
@@ -263,6 +264,7 @@ function addSVGCalloutToCanvas(item) {
             resizer.style.display = 'none';
             if(typeof rotator !== 'undefined') rotator.style.display = 'none';
             selectBorder.style.display = 'none';
+              const lk = wrap.querySelector('.text-lock-handle'); if(lk) lk.remove();
         }
     });
     
@@ -411,6 +413,7 @@ function addSVGCalloutToCanvas(item) {
     // Doğrudan workArea'ya ekle (canvas-container).
     // ui-layer (z-index:50) içine eklersek şablon elemanları (z-index:100+) arkasında kalır.
     workArea.appendChild(wrap);
+    if(typeof window.renderLayers === 'function') window.renderLayers();
     setTimeout(function(){ selectCallout(); }, 50);
     
     console.log('✅ Callout eklendi:', item.name);
@@ -561,6 +564,7 @@ function addNeonToCanvas(n) {
     if (typeof allIcons !== 'undefined') allIcons.push(el);
 
     workArea.appendChild(el);
+    if(typeof window.renderLayers === 'function') window.renderLayers();
     selectCalloutEl(el);
 }
 
@@ -583,6 +587,38 @@ function selectCalloutEl(el) {
     });
     el.style.outline = '1px dashed rgba(255,255,255,0.4)';
     selectedCalloutEl = el;
+
+    const wrap = el.closest('.callout-wrap');
+    if (wrap) {
+        if(!wrap.querySelector('.text-lock-handle')) {
+            const lock = document.createElement('div');
+            lock.className = 'text-handle text-lock-handle';
+            lock.contentEditable = 'false';
+            lock.title = 'Kilitle / Aç';
+            const isLocked = wrap.dataset.locked === 'true';
+            lock.innerHTML = isLocked ? '🔒' : '🔓';
+            
+            const lockAction = function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                if (window.layerToggleLock) {
+                    if (!wrap.dataset.layerUid) {
+                        wrap.dataset.layerUid = 'layer_' + Math.random().toString(36).substr(2, 9);
+                    }
+                    window.layerToggleLock(wrap.dataset.layerUid);
+                    const nowLocked = wrap.dataset.locked === 'true';
+                    lock.innerHTML = nowLocked ? '🔒' : '🔓';
+                }
+            };
+            lock.addEventListener('mousedown', lockAction);
+            lock.addEventListener('touchstart', lockAction, {passive: false});
+            wrap.appendChild(lock);
+        } else {
+            const lk = wrap.querySelector('.text-lock-handle');
+            lk.style.display = 'flex';
+            lk.innerHTML = (wrap.dataset.locked === 'true') ? '🔒' : '🔓';
+        }
+    }
 
     const panel = document.getElementById('calloutSettingsPanel');
     if (!panel) return;
@@ -862,3 +898,212 @@ function resetCalloutToDefault() {
         }
     }
 }
+\n
+window.rebindSVGCallout = function(wrap) {
+    const el = wrap.querySelector('.callout-item');
+    const controls = wrap.querySelector('.callout-controls');
+    const resizer = wrap.querySelector('.callout-resizer');
+    const rotator = wrap.querySelector('.callout-rotator');
+    const selectBorder = wrap.querySelector('.callout-select-border');
+    
+    if(!el || !controls || !resizer || !rotator || !selectBorder) return;
+
+    function applyScale(scale){
+        el.dataset.scale = scale;
+        wrap.dataset.scale = scale;
+        const rot = wrap.dataset.rotation || 0;
+        wrap.style.transform = `rotate(${rot}deg) scale(${scale})`;
+        setTimeout(() => {
+            if(window.selectedEl === el || window.selectedEl === wrap) selectCallout();
+        }, 10);
+    }
+    
+    function selectCallout(){
+        document.querySelectorAll('.callout-controls').forEach(function(c){ c.style.display = 'none'; });
+        document.querySelectorAll('.callout-wrap .text-lock-handle').forEach(function(h){ h.remove(); });
+        document.querySelectorAll('.callout-resizer').forEach(function(c){ c.style.display = 'none'; });
+        document.querySelectorAll('.callout-rotator').forEach(function(c){ c.style.display = 'none'; });
+        document.querySelectorAll('.callout-select-border').forEach(function(c){ c.style.display = 'none'; });
+        controls.style.display = 'flex';
+        resizer.style.display = 'block';
+        rotator.style.display = 'block';
+        selectBorder.style.display = 'block';
+        if (typeof selectCalloutEl === 'function') selectCalloutEl(el);
+    }
+
+    wrap.addEventListener('mousedown', function(e){
+        if(!e.target.closest('.callout-controls') && !e.target.closest('.callout-resizer') && !e.target.closest('.callout-rotator')){
+            selectCallout();
+        }
+    });
+    
+    document.addEventListener('mousedown', function(e){
+        if(!wrap.contains(e.target)){
+            controls.style.display = 'none';
+            resizer.style.display = 'none';
+            if(typeof rotator !== 'undefined') rotator.style.display = 'none';
+            selectBorder.style.display = 'none';
+            const lk = wrap.querySelector('.text-lock-handle'); if(lk) lk.remove();
+        }
+    });
+    
+    controls.querySelector('.cbtn-del').addEventListener('click', function(e){
+        e.stopPropagation();
+        wrap.remove();
+    });
+    
+    wrap.addEventListener('contextmenu', function(e){
+        e.preventDefault();
+        e.stopPropagation();
+        wrap.remove();
+    });
+    
+    el.addEventListener('dblclick', function(e){
+        e.stopPropagation();
+        if (e.target.tagName === 'text' || e.target.tagName === 'tspan') {
+            const newText = prompt('Metni düzenle (Silmek için boş bırakın):', e.target.textContent);
+            if(newText !== null) e.target.textContent = newText.trim();
+        } else {
+            const texts = Array.from(el.querySelectorAll('text, tspan'));
+            if (texts.length > 0) {
+                 texts.forEach(t => {
+                     const val = prompt('Metni düzenle (Silmek için boş bırakın):', t.textContent);
+                     if (val !== null) t.textContent = val.trim();
+                 });
+            }
+        }
+    });
+    
+    let isDragging = false, dsx, dsy, dix, diy;
+    let isInnerDragging = false, innerTarget = null, innerStartX, innerStartY, innerStartTx = 0, innerStartTy = 0;
+
+    wrap.addEventListener('mousedown', function(e){
+        if(e.button !== 0) return;
+        if(e.target.closest('.callout-controls') || e.target.closest('.callout-resizer') || e.target.closest('.callout-rotator')) return;
+        
+        if (e.altKey && e.target !== wrap && e.target !== el && e.target.tagName !== 'svg' && !e.target.classList.contains('callout-svg-container')) {
+            isInnerDragging = true;
+            innerTarget = e.target;
+            innerStartX = e.clientX;
+            innerStartY = e.clientY;
+            innerStartTx = parseFloat(innerTarget.dataset.tx) || 0;
+            innerStartTy = parseFloat(innerTarget.dataset.ty) || 0;
+            e.stopPropagation();
+            e.preventDefault();
+            return;
+        }
+
+        isDragging = true;
+        dsx = e.clientX;
+        dsy = e.clientY;
+        dix = parseFloat(wrap.style.left) || 0;
+        diy = parseFloat(wrap.style.top) || 0;
+        e.stopPropagation();
+    });
+
+    document.addEventListener('mousemove', function(e){
+        if (isInnerDragging && innerTarget) {
+            let z = typeof getZoom === 'function' ? getZoom() : 1;
+            let scale = parseFloat(el.dataset.scale) || 1;
+            let dx = (e.clientX - innerStartX) / (z * scale);
+            let dy = (e.clientY - innerStartY) / (z * scale);
+            let newTx = innerStartTx + dx;
+            let newTy = innerStartTy + dy;
+            innerTarget.dataset.tx = newTx;
+            innerTarget.dataset.ty = newTy;
+            innerTarget.style.transform = `translate(${newTx}px, ${newTy}px)`;
+            return;
+        }
+        if(!isDragging) return;
+        let z = typeof getZoom === 'function' ? getZoom() : 1;
+        wrap.style.left = (dix + (e.clientX - dsx)/z) + 'px';
+        wrap.style.top = (diy + (e.clientY - dsy)/z) + 'px';
+    });
+
+    document.addEventListener('mouseup', function(){
+        isDragging = false;
+        if (isInnerDragging) {
+            isInnerDragging = false;
+            innerTarget = null;
+        }
+    });
+
+    let isResizing = false, rsx, rsy, startWidth, startScale;
+    resizer.addEventListener('mousedown', function(e){
+        e.stopPropagation();
+        e.preventDefault();
+        isResizing = true;
+        rsx = e.clientX;
+        rsy = e.clientY;
+        startWidth = el.getBoundingClientRect().width;
+        startScale = parseFloat(el.dataset.scale) || 1;
+    });
+    document.addEventListener('mousemove', function(e){
+        if(!isResizing) return;
+        const dx = e.clientX - rsx;
+        const dy = e.clientY - rsy;
+        const delta = (dx + dy) / 2;
+        const newScale = Math.max(0.3, Math.min(4, startScale + (delta / 200)));
+        applyScale(newScale);
+    });
+    document.addEventListener('mouseup', function(){ isResizing = false; });
+    
+    let isRotating = false;
+    rotator.addEventListener('mousedown', function(e){
+        e.stopPropagation();
+        e.preventDefault();
+        isRotating = true;
+        rotator.style.cursor = 'grabbing';
+    });
+    
+    document.addEventListener('mousemove', function(e){
+        if(!isRotating) return;
+        const rect = wrap.getBoundingClientRect();
+        const centerX = rect.left + rect.width / 2;
+        const centerY = rect.top + rect.height / 2;
+        const dx = e.clientX - centerX;
+        const dy = e.clientY - centerY;
+        let angle = Math.atan2(dy, dx) * (180 / Math.PI);
+        angle += 90;
+        
+        wrap.dataset.rotation = angle;
+        const scale = parseFloat(el.dataset.scale) || 1;
+        wrap.style.transform = `rotate(${angle}deg) scale(${scale})`;
+    });
+    
+    document.addEventListener('mouseup', function(){ 
+        if(isRotating) {
+            isRotating = false; 
+            rotator.style.cursor = 'grab';
+        }
+    });
+};
+\n
+window.rebindNeonCallout = function(el) {
+    el.addEventListener('mousedown', function(e) {
+        if (e.button !== 0) return;
+        if (typeof selectCalloutEl === 'function') selectCalloutEl(el);
+        e.stopPropagation();
+    });
+
+    el.addEventListener('contextmenu', function(e) {
+        e.preventDefault();
+        const idx = typeof allIcons !== 'undefined' ? window.allIcons.indexOf(el) : -1;
+        if (idx > -1) window.allIcons.splice(idx, 1);
+        
+        if (typeof selectedCalloutEl !== 'undefined' && selectedCalloutEl === el) {
+            const cp = document.getElementById('proColorPanel');
+            if(cp) cp.classList.remove('active');
+        }
+        el.remove();
+    });
+    
+    el.addEventListener('dblclick', function(e) {
+        e.stopPropagation();
+        const textEl = el.querySelector('.neon-text');
+        if (textEl) {
+            const newText = prompt('Neon metni düzenle:', textEl.textContent);
+            if (newText !== null) textEl.textContent = newText.trim();
+        }
+    });
+};

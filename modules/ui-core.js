@@ -49,7 +49,7 @@ function switchTab(name){
     }
 
     if(name!=='draw' && typeof drawMode !== 'undefined' && drawMode!=='off') setDrawMode('off');
-    if(name!=='draw' && typeof cancelDrawEdit==='function') cancelDrawEdit();
+    if(name!=='draw' && typeof applyDrawEdit==='function') applyDrawEdit();
     if(name==='callout' && typeof renderCalloutPanel==='function') renderCalloutPanel();
 
     if(document.getElementById('kolaj-wrapper')){

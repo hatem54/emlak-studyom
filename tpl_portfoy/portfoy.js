@@ -10,14 +10,14 @@ function _portfoyInit(){
     }
     container.innerHTML = `
         
-        <div class="section-title" style="margin-top:0">✍️ Hızlı Metin Düzenleyici</div>
-        <div class="input-group"><label>Ana Başlık (Title)</label><input type="text" id="canvaPTitle" value="SATILIK MÜSTAKİL EV"></div>
+        <div class="section-title" style="margin-top:0">&#10024; H&#305;zl&#305; Metin D&#252;zenleyici</div>
+        <div class="input-group"><label>Ana Ba&#351;l&#305;k (Title)</label><input type="text" id="canvaPTitle" value="SATILIK M&#220;STAK&#304;L EV"></div>
         <div class="input-group"><label>Fiyat</label><input type="text" id="canvaPPrice" value="12.500.000 TL"></div>
-        <div class="input-group"><label>Marka / İletişim</label><input type="text" id="canvaPContact" value="EMLAK STUDYOM | 0532 000 0000"></div>
-        <div class="input-group"><label>Özellikler (Alt alta)</label><textarea id="canvaPFeats" rows="4">Yeni Yapı\nLüks Donanım\nMerkezi Konum</textarea></div>
-        <button class="btn-action btn-green" onclick="renderPTemplate(activeCanvaId)">✔️ Seçili Şablonu Uygula</button>
+        <div class="input-group"><label>&#304;leti&#351;im</label><input type="text" id="canvaPContact" value="EMLAK STUDYOM | 0532 000 0000"></div>
+        <div class="input-group"><label>&#214;zellikler (Alt alta)</label><textarea id="canvaPFeats" rows="4">Yeni Yap&#305;\nL&#252;ks Donan&#305;m\nMerkezi Konum</textarea></div>
         
-        <button class="btn-action btn-yellow" onclick="clearCanvaTemplate()" style="margin-top:8px">❌ Şablonu Kaldır</button>`;
+        
+        `;
 
     ['canvaPTitle','canvaPPrice','canvaPContact','canvaPFeats'].forEach(id=>{
         const el = document.getElementById(id);
@@ -42,7 +42,7 @@ function buildPCards(){
             card.className = 'canva-tpl-card';
             card.dataset.id = c.id;
             const tBg = 'linear-gradient(135deg, '+c.bg1+', '+c.bg2+')';
-            card.innerHTML = '<div class="tpl-preview" style="display:flex;gap:0;border-radius:4px;overflow:hidden;background:'+tBg+'"><div style="flex:1;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:2px;padding:4px;background:rgba(0,0,0,0.3)"><div style="font-size:9px;font-weight:900;color:'+c.accent+'">PRO</div><div style="font-size:7px;color:#fff">YENİ KALIP '+(idx+1)+'</div></div></div><div class="tpl-name">'+c.name+'</div>';
+            card.innerHTML = '<div class="tpl-preview" style="display:flex;gap:0;border-radius:4px;overflow:hidden;background:'+tBg+'"><div style="flex:1;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:2px;padding:4px;background:rgba(0,0,0,0.3)"><div style="font-size:9px;font-weight:900;color:'+c.accent+'">PRO</div><div style="font-size:7px;color:#fff">YEN&#304; KALIP '+(idx+1)+'</div></div></div>';
             card.onclick = () => {
                 if(card.classList.contains('active')) return;
                 document.querySelectorAll('#canvaTplGridP .canva-tpl-card').forEach(x => x.classList.remove('active'));

@@ -1,14 +1,27 @@
 /**
+ * ============================================================
+ * V8 EXPORT ENGINE - Native Canvas API Migration
+ * ============================================================
+ * 
+ * MIMARI: html2canvas artÄ±k SADECE text/UI iÃ§in kullanÄ±lÄ±r.
+ * FotoÄŸraflar native Canvas API ile Ã§izilir.
+ * Koordinat hesabÄ± offsetLeft/offsetTop Ã¼zerinden yapÄ±lÄ±r.
+ * 
+ * Migration Phase: 0 (Cleanup)
+ * Next Phase: 1 (Export Engine Rewrite)
+ * ============================================================
+ */
+/**
  * ============================================
  * EXPORT & IMPORT MODULE
  * modules/export.js
  * ============================================
  * 
- * Bağımlılıklar:
+ * BaÃ„Å¸Ã„Â±mlÃ„Â±lÃ„Â±klar:
  * - config.js
  * - core/drag.js
  * 
- * Kullanılan yerler:
+ * KullanÃ„Â±lan yerler:
  * - main.js
  */
 
@@ -22,6 +35,46 @@ function switchPreviewFormat(){
     const newW = format.w;
     const newH = format.h;
 
+    // YÃ¼kleme ekranÄ± ekle
+    let overlay = document.getElementById('format-transition-overlay');
+    if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'format-transition-overlay';
+        overlay.style.position = 'absolute';
+        overlay.style.top = '0';
+        overlay.style.left = '0';
+        overlay.style.width = '100%';
+        overlay.style.height = '100%';
+        overlay.style.backgroundColor = 'rgba(15, 23, 42, 0.9)'; // Koyu tema rengi
+        overlay.style.zIndex = '9999';
+        overlay.style.display = 'flex';
+        overlay.style.flexDirection = 'column';
+        overlay.style.alignItems = 'center';
+        overlay.style.justifyContent = 'center';
+        overlay.style.color = '#38bdf8'; // AÃ§Ä±k mavi
+        overlay.style.fontSize = '1.3rem';
+        overlay.style.fontWeight = 'bold';
+        overlay.style.transition = 'opacity 0.2s ease-out';
+        overlay.innerHTML = `
+            <style>
+                @keyframes ft-pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .5; transform: scale(0.95); } }
+                .ft-loading-icon { animation: ft-pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite; font-size: 3rem; margin-bottom: 15px; display: block; }
+            </style>
+            <span class="ft-loading-icon">✨</span>
+            <div style="letter-spacing: 2px;">FORMAT AYARLANIYOR...</div>
+        `;
+        const pa = document.querySelector('.preview-area');
+        if (pa) {
+            pa.style.position = 'relative';
+            pa.appendChild(overlay);
+        }
+    } else {
+        overlay.style.opacity = '1';
+        overlay.style.display = 'flex';
+    }
+
+    const oldPhotoState = window.getCurrentPhotoState ? window.getCurrentPhotoState() : null;
+
     canvasEl.style.width=format.w+'px';
     canvasEl.style.height=format.h+'px';
     drawCanvas.width=format.w;
@@ -33,25 +86,163 @@ function switchPreviewFormat(){
     if (window.SaberEngine && typeof SaberEngine.resize === 'function') {
         SaberEngine.resize(format.w, format.h);
     }
-
-    // Scale custom draggable items (Callouts, Texts, Icons) to maintain relative position
+    
+    // Defer scaling of custom draggable items so the new photo template layout applies first
     if (oldW && oldH && newW && newH && (oldW !== newW || oldH !== newH)) {
-        const scaleX = newW / oldW;
-        const scaleY = newH / oldH;
-        
-        // Find custom elements wrapper classes
-        const customItems = document.querySelectorAll('#canvas-container .draggable, #canvas-container .callout-wrap');
-        customItems.forEach(el => {
-            if (el.style.left) el.style.left = (parseFloat(el.style.left) * scaleX) + 'px';
-            if (el.style.top) el.style.top = (parseFloat(el.style.top) * scaleY) + 'px';
-        });
+        setTimeout(() => {
+            try {
+                const isTemplateMode = (typeof isCanvaMode !== 'undefined' && isCanvaMode);
+
+                // 1. Canva Åablonu Aktifse, ÅŸablonu (Ã§erÃ§eveler, rozetler vb.) yeni formata gÃ¶re TAM BOYUTTA yeniden oluÅŸtur!
+                if (isTemplateMode && typeof refreshActiveCanvaTemplate === 'function') {
+                    refreshActiveCanvaTemplate();
+                }
+
+                // 2. FotoÄŸraf panellerini (eski veya yeni oluÅŸan) gÃ¼ncelle ve native canvas'a Ã§iz (redrawAll tetiklenir)
+                document.querySelectorAll('.photo-panel, #photo-layer').forEach(p => { 
+                    if (typeof _applyPhotoTransform === 'function') _applyPhotoTransform(p); 
+                });
+                
+                const newPhotoState = window.getCurrentPhotoState ? window.getCurrentPhotoState() : null;
+                
+                // Select all UI text items (Callouts, Neon Blocks, Free Texts)
+                const customItems = document.querySelectorAll('#canvas-container .draggable, #canvas-container .callout-wrap, #canvas-container .co-neon-block');
+                
+                let tParams = null;
+                if (oldPhotoState && newPhotoState && typeof calculateTransformParams === 'function') {
+                    tParams = calculateTransformParams(oldPhotoState, newPhotoState);
+                }
+                
+                customItems.forEach(el => {
+                    if (el.classList.contains('canva-generated') || el.classList.contains('canva-panel')) return;
+
+                    const isWrap = el.classList.contains('callout-wrap') || el.classList.contains('co-neon-block') || el.classList.contains('svg-callout');
+                    
+                    el.style.maxWidth = 'none';
+                    if (isWrap) {
+                        el.style.whiteSpace = 'nowrap';
+                    }
+                    
+                    void el.offsetHeight;
+                    
+                    if (isTemplateMode) {
+                        if (tParams) {
+                            const oldLeft = parseFloat(el.style.left || 0);
+                            const oldTop = parseFloat(el.style.top || 0);
+                            
+                            if (isWrap) {
+                                const W = parseFloat(el.style.width) || el.offsetWidth || 0;
+                                const H = parseFloat(el.style.height) || el.offsetHeight || 0;
+                                
+                                const cx_old = oldLeft + W / 2;
+                                const cy_old = oldTop + H / 2;
+                                
+                                const cx_new = cx_old * tParams.scale + tParams.dx;
+                                const cy_new = cy_old * tParams.scale + tParams.dy;
+                                
+                                el.style.left = (cx_new - W / 2) + 'px';
+                                el.style.top = (cy_new - H / 2) + 'px';
+                                
+                                const currentScale = parseFloat(el.dataset.scale) || 1;
+                                const newScale = currentScale * tParams.scale;
+                                el.dataset.scale = newScale;
+                                const rot = el.dataset.rotation || 0;
+                                el.style.transform = `rotate(${rot}deg) scale(${newScale})`;
+                            } else {
+                                el.style.left = (oldLeft * tParams.scale + tParams.dx) + 'px';
+                                el.style.top = (oldTop * tParams.scale + tParams.dy) + 'px';
+                                
+                                if (el.style.width) el.style.width = (parseFloat(el.style.width) * tParams.scale) + 'px';
+                                if (el.style.height) el.style.height = (parseFloat(el.style.height) * tParams.scale) + 'px';
+                                if (el.style.fontSize) el.style.fontSize = (parseFloat(el.style.fontSize) * tParams.scale) + 'px';
+                                if (el.style.padding) el.style.padding = (parseFloat(el.style.padding) * tParams.scale) + 'px';
+                            }
+                        }
+                    } else {
+                        const oldLeft = parseFloat(el.style.left || 0);
+                        const oldTop = parseFloat(el.style.top || 0);
+                        const W = parseFloat(el.style.width) || el.offsetWidth || 0;
+                        const H = parseFloat(el.style.height) || el.offsetHeight || 0;
+                        
+                        if (isWrap) {
+                            const cx_old = oldLeft + W / 2;
+                            const cy_old = oldTop + H / 2;
+                            
+                            const percX = cx_old / oldW;
+                            const percY = cy_old / oldH;
+                            
+                            const cx_new = percX * newW;
+                            const cy_new = percY * newH;
+                            
+                            el.style.left = (cx_new - W / 2) + 'px';
+                            el.style.top = (cy_new - H / 2) + 'px';
+                        } else {
+                            const percX = oldLeft / oldW;
+                            const percY = oldTop / oldH;
+                            
+                            el.style.left = (percX * newW) + 'px';
+                            el.style.top = (percY * newH) + 'px';
+                        }
+                        
+                        if (!el.dataset.origCanvasW) {
+                            el.dataset.origCanvasW = oldW;
+                            el.dataset.origCanvasH = oldH;
+                        }
+                        const origW = parseFloat(el.dataset.origCanvasW);
+                        const origH = parseFloat(el.dataset.origCanvasH);
+                        
+                        const oldFormatScale = Math.min(oldW / origW, oldH / origH);
+                        const newFormatScale = Math.min(newW / origW, newH / origH);
+                        const incrementalScale = oldFormatScale > 0 ? (newFormatScale / oldFormatScale) : 1;
+                        
+                        if (isWrap) {
+                            const currentScale = parseFloat(el.dataset.scale) || 1;
+                            const newScale = currentScale * incrementalScale;
+                            el.dataset.scale = newScale;
+                            const rot = el.dataset.rotation || 0;
+                            el.style.transform = `rotate(${rot}deg) scale(${newScale})`;
+                        } else {
+                            if (el.style.width) el.style.width = (parseFloat(el.style.width) * incrementalScale) + 'px';
+                            if (el.style.height) el.style.height = (parseFloat(el.style.height) * incrementalScale) + 'px';
+                            if (el.style.fontSize) el.style.fontSize = (parseFloat(el.style.fontSize) * incrementalScale) + 'px';
+                            if (el.style.padding) el.style.padding = (parseFloat(el.style.padding) * incrementalScale) + 'px';
+                        }
+                    }
+                });
+            } catch (err) {
+                console.error("Format transform error:", err);
+            } finally {
+                if(typeof redrawAll === 'function') redrawAll();
+                // YÃ¼kleme ekranÄ±nÄ± kaldÄ±r (GeÃ§iÅŸ tamamen bittikten 50ms sonra veya hata olsa bile)
+                setTimeout(() => {
+                    const overlay = document.getElementById('format-transition-overlay');
+                    if (overlay) {
+                        overlay.style.opacity = '0';
+                        setTimeout(() => {
+                            if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+                        }, 200);
+                    }
+                }, 50);
+            }
+        }, 350);
+    } else {
+        // EÄŸer format boyutlarÄ± aynÄ±ysa direkt kapat
+        setTimeout(() => {
+            const overlay = document.getElementById('format-transition-overlay');
+            if (overlay) {
+                overlay.style.opacity = '0';
+                setTimeout(() => {
+                    if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+                }, 200);
+            }
+        }, 50);
     }
 
     resizeCanvas();
     redrawAll();
     if(window.SaberEngine && typeof window.SaberEngine.resize === 'function') window.SaberEngine.resize(format.w, format.h);
 
-    // Standart rozet/fiyat/detay katmanları yalnızca 1920x1080'de göster
+    // Standart rozet/fiyat/detay katmanlarÃ„Â± yalnÃ„Â±zca 1920x1080'de gÃƒÂ¶ster
     var isBase = (format.w===1920 && format.h===1080);
     var hasStandardTemplate = (typeof activeLayout !== 'undefined' && activeLayout !== '');
     var vis = (hasStandardTemplate && !(typeof isCanvaMode !== 'undefined' && isCanvaMode)) ? '' : 'hidden';
@@ -61,8 +252,6 @@ function switchPreviewFormat(){
     if(typeof elLogo !== 'undefined' && elLogo) elLogo.style.visibility = vis;
     var _iL = document.getElementById('infoLineText');
     if(_iL) _iL.style.visibility = vis;
-
-    setTimeout(refreshActiveCanvaTemplate, 50);
 }
 
 function buildExportFormats(){
@@ -180,46 +369,116 @@ function drawMasterPhotoManually(ctx, el, masterImg, outputScale, canvasRect, ac
             drawX = x + (cssX * outputScale);
             drawY = y + (cssY * outputScale);
         } else {
-            // Fallback to "cover" and "center center"
+            // Fallback to "cover" but respect background-position percentages
+            let sX = 50, sY = 50;
+            let bgPosStr = el.style.backgroundPosition || '';
+            let m = bgPosStr.match(/([\d.]+)%\s+([\d.]+)%/);
+            if (m) {
+                sX = parseFloat(m[1]);
+                sY = parseFloat(m[2]);
+            }
+
             const imgRatio = masterImg.width / masterImg.height;
             const boxRatio = w / h;
             
             if (imgRatio > boxRatio) {
                 drawH = h;
                 drawW = masterImg.width * (h / masterImg.height);
-                drawX = x + (w - drawW) / 2;
+                drawX = x + (w - drawW) * (sX / 100);
                 drawY = y;
             } else {
                 drawW = w;
                 drawH = masterImg.height * (w / masterImg.width);
                 drawX = x;
-                drawY = y + (h - drawH) / 2;
+                drawY = y + (h - drawH) * (sY / 100);
             }
         }
     }
     
-    ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = 'high';
-    const computedFilter = window.getComputedStyle(actualElement).filter;
-    if (computedFilter && computedFilter !== 'none') {
-        ctx.filter = computedFilter;
+
+    let imageToDraw = masterImg;
+    // Apply pixel-level shadows/highlights/HSL to the high-res master image!
+    if (window.applyPixelAdjustmentsToImageData && masterImg.width > 0) {
+        const tmpCanvas = document.createElement('canvas');
+        tmpCanvas.width = masterImg.width;
+        tmpCanvas.height = masterImg.height;
+        const tCtx = tmpCanvas.getContext('2d', {willReadFrequently:true});
+        tCtx.drawImage(masterImg, 0, 0);
+        
+        try {
+            const imgData = tCtx.getImageData(0, 0, tmpCanvas.width, tmpCanvas.height);
+            const newImgData = tCtx.createImageData(tmpCanvas.width, tmpCanvas.height);
+            if (window.applyPixelAdjustmentsToImageData(imgData.data, newImgData.data, tmpCanvas.width, tmpCanvas.height)) {
+                tCtx.putImageData(newImgData, 0, 0);
+                imageToDraw = tmpCanvas;
+            }
+        } catch(e) {
+            console.error('Error applying high-res pixel adjustments: ', e);
+        }
     }
-    ctx.drawImage(masterImg, drawX, drawY, drawW, drawH);
+
+    let computedFilter = window.getComputedStyle(actualElement).filter;
+    if (computedFilter && computedFilter !== 'none') {
+        computedFilter = computedFilter.replace(/drop-shadow\([^)]+\)/g, '').trim();
+        if (computedFilter.length > 0) {
+            ctx.filter = computedFilter;
+        } else {
+            ctx.filter = 'none';
+        }
+    }
+    
+    ctx.drawImage(imageToDraw, drawX, drawY, drawW, drawH);
     ctx.filter = 'none'; // reset
     ctx.restore();
 }
 
 async function saveImage(){
+
+      console.log('SAVEIMAGE CALISTI');
+      const debugSlots = document.querySelectorAll('[data-photo-slot]');
+      console.log('--- EXPORT DEBUG ---');
+      console.log('Bulunan [data-photo-slot] sayisi:', debugSlots.length);
+      debugSlots.forEach((slot, i) => {
+          console.log(`Slot ${i} inline background-image:`, slot.style.backgroundImage);
+          console.log(`Slot ${i} computed background-image:`, window.getComputedStyle(slot).backgroundImage);
+          const rc = slot.querySelector('.photo-render-canvas');
+          console.log(`Slot ${i} renderCanvas var mi:`, !!rc);
+      });
+      console.log('--------------------');
+
     if(typeof deselectAll === 'function') deselectAll(); else document.querySelectorAll('.el-selected').forEach(e=>e.classList.remove('el-selected'));
+    
+    // ZORUNLU PREPARE (SABLON VEYA LAYER ICIN)
+    let needsPrep = false;
+    document.querySelectorAll('.photo-panel, #photo-layer').forEach(p => {
+        if (!p.querySelector('.photo-render-canvas') && p.style.backgroundImage && p.style.backgroundImage !== 'none') {
+            if (typeof _preparePhoto === 'function') {
+                _preparePhoto(p);
+                needsPrep = true;
+            }
+        }
+    });
+        document.querySelectorAll('.photo-panel, #photo-layer').forEach(p => {
+        if (typeof _applyPhotoTransform === 'function') _applyPhotoTransform(p);
+    });
+
+    if (needsPrep) {
+        // _applyPhotoTransform async calistigi icin image yuklenmesini biraz bekliyoruz.
+        await new Promise(r => setTimeout(r, 150));
+    }
+
     const wz=drawCanvas.style.zIndex,wp=drawCanvas.style.pointerEvents;
     drawCanvas.style.zIndex='7';
     drawCanvas.style.pointerEvents='none';
-    const formatName=$('exportFormat')?$('exportFormat').value:'16:9 Full HD';
+    
+    const formatName=exportFormat?exportFormat.value:'16:9 Full HD';
     const format=EXPORT_FORMATS[formatName]||{w:1920,h:1080};
-    const fitMode=$('exportFitMode')?$('exportFitMode').value:'cover';
-    const bgColor=$('exportBgColor')?$('exportBgColor').value:'#ffffff';
+    const fitMode=exportFitMode?exportFitMode.value:'cover';
+    const bgColor=exportBgColor?exportBgColor.value:'#ffffff';
     let outputScale = 1.5;
-    const scaleVal1 = $('exportScale')?$('exportScale').value:'1.5';
+    const scaleVal1 = exportScale?exportScale.value:'1.5';
 
     let safeMasterImage = (typeof uploadedImgUrl !== 'undefined' ? uploadedImgUrl : null) || (typeof masterImageBase64 !== 'undefined' ? masterImageBase64 : null);
     if (!safeMasterImage) {
@@ -234,250 +493,345 @@ async function saveImage(){
         }
     }
 
+    let masterImgObj = null;
+    if (safeMasterImage) {
+        masterImgObj = new Image();
+        if (!safeMasterImage.startsWith('data:') && !safeMasterImage.startsWith('blob:')) { masterImgObj.crossOrigin = 'anonymous'; }
+        await new Promise(r => { masterImgObj.onload = r; masterImgObj.onerror = r; masterImgObj.src = safeMasterImage; });
+    }
+
     if (scaleVal1 === 'original' && safeMasterImage) {
-        outputScale = 1; // Temporary sync value, async will fix it below
+        outputScale = 1; 
     } else {
         outputScale = parseFloat(scaleVal1) || 1.5;
     }
     const currentW=parseInt(canvasEl.style.width)||1920;
     const currentH=parseInt(canvasEl.style.height)||1080;
-      if (scaleVal1 === 'original' && safeMasterImage) {
-          const tempImg = new Image();
-          await new Promise(r => { tempImg.onload = r; tempImg.onerror = r; tempImg.src = safeMasterImage; });
-          if (tempImg.width > 0) {
-              outputScale = Math.min(tempImg.width / currentW, tempImg.height / currentH);
-          }
-      }
     
-    // Geçişi tamamen kapat
-    canvasEl.style.transition='none';
-    canvasEl.style.transform='none';
+    if (scaleVal1 === 'original' && masterImgObj && masterImgObj.width > 0) {
+        outputScale = Math.min(masterImgObj.width / currentW, masterImgObj.height / currentH);
+    }
     
-    // html2canvas offset/shift bug fix:
-    // Ekrandaki ortalama (margin/flex) nedeniyle html2canvas resmi kaydırarak (offset ile) çekiyor.
-    // Bunu engellemek için capture anında tuvali sol üste sabitliyoruz.
-    const overlay = document.createElement('div');
-    overlay.id = 'download-overlay-mask';
-    overlay.style.position = 'fixed';
-    overlay.style.top = '0';
-    overlay.style.left = '0';
-    overlay.style.width = '100vw';
-    overlay.style.height = '100vh';
-    overlay.style.backgroundColor = '#0f172a';
-    overlay.style.zIndex = '9999999';
-    overlay.style.display = 'flex';
-    overlay.style.alignItems = 'center';
-    overlay.style.justifyContent = 'center';
-    overlay.style.color = '#fbbf24';
-    overlay.style.fontSize = '24px';
-    overlay.style.fontWeight = 'bold';
-    overlay.style.fontFamily = 'sans-serif';
-    overlay.style.flexDirection = 'column';
-    overlay.style.gap = '15px';
-    overlay.innerHTML = '<div style="width: 50px; height: 50px; border: 5px solid #fbbf24; border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite;"></div><div>Görsel Hazırlanıyor...</div><style>@keyframes spin { 100% { transform: rotate(360deg); } }</style>';
-    document.body.appendChild(overlay);
-    setTimeout(async () => { const o = document.getElementById('download-overlay-mask'); if(o) o.remove(); }, 5000);
-
-    const oldPosition = canvasEl.style.position;
-    const oldLeft = canvasEl.style.left;
-    const oldTop = canvasEl.style.top;
-    const oldMargin = canvasEl.style.margin;
-    
-    canvasEl.style.position = 'fixed';
-    canvasEl.style.left = '0px';
-    canvasEl.style.top = '0px';
-    canvasEl.style.margin = '0px';
-    
-    setTimeout(async () => {
-
-
-        const __allEls = canvasEl.querySelectorAll('*');
-        const __snapshots = [];
-        __allEls.forEach(el => {
-            const cs = el.style;
-            const computed = window.getComputedStyle(el);
-            if (computed.boxShadow && computed.boxShadow !== 'none') {
-                __snapshots.push({ el: el, shadow: cs.getPropertyValue('box-shadow') });
-                cs.setProperty('box-shadow', 'none', 'important');
-            }
-        });
-
-        if (window.SaberEngine && typeof window.SaberEngine.updateTextSaberPositions === "function") window.SaberEngine.updateTextSaberPositions();
-        
-        
-        // DUAL-LAYER SWAP LOGIC
-        
-        // DUAL-LAYER MANUAL DRAW LOGIC
-        const swapTargets = canvasEl.querySelectorAll('#photo-layer, .photo-inner-zoom, .photo-panel, .photo-bg');
-        const originalStyles = new Map();
-        let masterImgElement = null;
-        
-
-          if (safeMasterImage && (outputScale > 1.5 || scaleVal1 === 'original')) {
-            // Preload master image
-            masterImgElement = new Image();
-            const loadPromise = new Promise(r => {
-                masterImgElement.onload = () => { r(); };
-                masterImgElement.onerror = (e) => { 
-                    alert('masterImgElement failed to load! ' + safeMasterImage.substring(0, 50));
-                    r(); 
-                };
-            });
-            masterImgElement.src = safeMasterImage;
-            await loadPromise;
-            
-            if (masterImgElement.width === 0) {
-                alert('masterImgElement width is 0!');
-            }
-            
-            originalStyles.set(canvasEl, { bg: canvasEl.style.backgroundImage, bgColor: canvasEl.style.backgroundColor });
-              canvasEl.style.backgroundColor = 'transparent';
-              
-              swapTargets.forEach(el => {
-                const bg = el.style.backgroundImage;
-                if (bg && bg !== 'none' && bg !== '') {
-                    originalStyles.set(el, {
-                        bg: bg,
-                        bgColor: el.style.backgroundColor
-                    });
-                    el.style.setProperty('background-image', 'none', 'important');
-                    el.style.setProperty('background-color', 'transparent', 'important');
-                }
-            });
+    if (typeof window.isMobileDevice === 'function' && window.isMobileDevice()) {
+        const maxMobileScale = 1.5;
+        if (outputScale > maxMobileScale) {
+            console.warn('Mobile memory lock active: Reduced export scale from ' + outputScale + ' to ' + maxMobileScale);
+            outputScale = maxMobileScale;
         }
+    }
 
+    const targetW = Math.round((window.isMobileDevice && window.isMobileDevice() ? currentW : format.w) * outputScale);
+    const targetH = Math.round((window.isMobileDevice && window.isMobileDevice() ? currentH : format.h) * outputScale);
+    const finalCanvas = document.createElement('canvas');
+    finalCanvas.width = targetW;
+    finalCanvas.height = targetH;
+    const ctx = finalCanvas.getContext('2d');
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
 
-  html2canvas(canvasEl,{width:currentW,height:currentH,scale:outputScale,useCORS:true,allowTaint:true,imageTimeout:0,letterRendering:true,logging:false,backgroundColor:null,ignoreElements:el=>(el.classList&&el.classList.contains('el-selected'))||el.tagName==='CANVAS'||el.tagName==='canvas'}).then(async sourceCanvas=>{
-            
-            
-            
-            // RESTORE DUAL-LAYER SWAP
-            originalStyles.forEach((styles, el) => {
-                el.style.setProperty('background-image', styles.bg);
-                if (styles.bgColor) el.style.setProperty('background-color', styles.bgColor);
-                else el.style.removeProperty('background-color');
-            });
+    // Sablonlu Mod kontrolu
+    const cvrBase = document.querySelector('.cvr-base');
+    const isTemplateMode = !!cvrBase || document.querySelector('.photo-panel');
 
+    if (isTemplateMode) {
+        // ==========================================
+        // SABLONLU MOD
+        // ==========================================
+        
+        // ==========================================
+        // SABLONLU MOD - 3 KATMANLI (SANDWICH) RENDER
+        // ==========================================
+        
+        canvasEl.style.transition='none';
+        canvasEl.style.transform='none';
+        
+        const overlay = document.createElement('div');
+        overlay.id = 'download-overlay-mask';
+        overlay.style.position = 'fixed';
+        overlay.style.top = '0';
+        overlay.style.left = '0';
+        overlay.style.width = '100vw';
+        overlay.style.height = '100vh';
+        overlay.style.backgroundColor = '#0f172a';
+        overlay.style.zIndex = '9999999';
+        overlay.style.display = 'flex';
+        overlay.style.alignItems = 'center';
+        overlay.style.justifyContent = 'center';
+        
+        overlay.style.color = '#fbbf24';
+        overlay.style.fontSize = '24px';
+        overlay.style.fontWeight = 'bold';
+        overlay.style.fontFamily = 'sans-serif';
+        overlay.style.flexDirection = 'column';
+        overlay.style.gap = '15px';
+        overlay.innerHTML = '<div style="width: 50px; height: 50px; border: 5px solid #fbbf24; border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite;"></div><div>Görsel Hazırlanıyor...</div><style>@keyframes spin { 100% { transform: rotate(360deg); } }</style>';
+        document.body.appendChild(overlay);
 
+        const oldPosition = canvasEl.style.position;
+        const oldLeft = canvasEl.style.left;
+        const oldTop = canvasEl.style.top;
+        const oldMargin = canvasEl.style.margin;
+        const oldZIndex = canvasEl.style.zIndex;
 
-            const targetW = Math.round(currentW * outputScale);
-            const targetH = Math.round(currentH * outputScale);
+        canvasEl.style.position = 'fixed';
+        canvasEl.style.left = '0px';
+        canvasEl.style.top = '0px';
+        canvasEl.style.margin = '0px';
+        canvasEl.style.zIndex = '9999998';
 
-            // RESTORE DOM STATE EARLY SO REDRAW LOGIC READS CORRECT MEASUREMENTS
-            __snapshots.forEach(snap => {
-                if (snap.shadow) snap.el.style.setProperty('box-shadow', snap.shadow, 'important');
-                else snap.el.style.removeProperty('box-shadow');
-            });
-            canvasEl.style.position = oldPosition;
-            canvasEl.style.left = oldLeft;
-            canvasEl.style.top = oldTop;
-            canvasEl.style.margin = oldMargin;
-            canvasEl.style.transition = 'transform 0.2s';
-            if (typeof resizeCanvas === 'function') resizeCanvas();
-
-            // Draw the drawCanvas manually over the sourceCanvas to avoid html2canvas canvas bugs
-            const sCtx = sourceCanvas.getContext('2d');
-              sCtx.imageSmoothingEnabled=true;
-              sCtx.imageSmoothingQuality='high';
-            if (window.redrawAllToContext) {
-                window.redrawAllToContext(sCtx, outputScale);
-            } else {
-                sCtx.drawImage(drawCanvas, 0, 0, targetW, targetH);
-            }
-            
-            // Draw Saber Layer manually to ensure it's captured
+        try {
+            // 1. Çizimlerin kaymasını ve bulanık çıkmasını önlemek için PixiJS motorunu Yüksek Çözünürlüğe hazırla
             if (window.SaberEngine && typeof window.SaberEngine.getApp === 'function') {
                 const saberApp = window.SaberEngine.getApp();
-                if (saberApp && saberApp.view) {
-                    // Zorla senkron render yaparak arka plan silinmeden yakala (preserveDrawingBuffer gerektirmez)
-                    if (saberApp.renderer && saberApp.stage) saberApp.renderer.render(saberApp.stage);
-                    sCtx.drawImage(saberApp.view, 0, 0, targetW, targetH);
+                if (saberApp && saberApp.view && saberApp.renderer && saberApp.stage) {
+                    saberApp.renderer.resize(targetW, targetH);
+                    saberApp.stage.scale.set(outputScale);
+                    saberApp.renderer.render(saberApp.stage);
+                    // html2canvas'ın doğru yakalaması için CSS boyutlarını ana ekranla aynı tutuyoruz (iç çözünürlük 4K kalıyor)
+                    saberApp.view.style.width = currentW + 'px';
+                    saberApp.view.style.height = currentH + 'px';
                 }
             }
 
-            const finalCanvas=document.createElement('canvas');
-            finalCanvas.width=targetW;
-            finalCanvas.height=targetH;
-            const ctx=finalCanvas.getContext('2d');
-            ctx.imageSmoothingEnabled=true;
-            ctx.imageSmoothingQuality='high';
+            // 2. --- SINGLE PASS RENDER V2 ---
+            // ÇİFT FİLTRE (DOUBLE-FILTER) ÖNLEMİ:
+            // Sadece export işlemi sırasında filtrenin fiziksel canvasa çizilmesi için bayrak:
+            window.isExportingNow = true;
+            window.exportingScale = outputScale;
+
+            // Sistem '.photo-render-canvas' içine zaten donanım seviyesinde filtreleri bastığı için,
+            // HTML2Canvas'ın '.photo-panel' üzerindeki CSS filtrelerini tekrar uygulamasını engelliyoruz.
+            const filterPanels = document.querySelectorAll('.photo-panel, #photo-layer');
+            const savedFilters = new Map();
+            filterPanels.forEach(p => {
+                savedFilters.set(p, p.style.filter);
+                if (typeof _applyPhotoTransform === 'function') _applyPhotoTransform(p); // Filtreyi fiziksel canvasa bas (okuyabilmesi için ÖNCE çalışmalı)
+                p.style.filter = 'none'; // HTML2Canvas çift göstermesin diye SONRA sıfırla
+            });
+
+            const finalHtml2Canvas = await html2canvas(canvasEl, {
+                width: currentW,
+                height: currentH,
+                scale: outputScale,
+                useCORS: true,
+                allowTaint: false,
+                imageTimeout: 0,
+                letterRendering: true,
+                logging: false,
+                backgroundColor: bgColor && bgColor !== 'transparent' ? bgColor : null,
+                ignoreElements: (el) => {
+                    if (el.classList && el.classList.contains('el-selected')) return true;
+                    // MUAZZAM ÇÖZÜM: Filtresiz resmi sakla, böylece sistemin ürettiği filtreli 'photo-render-canvas' görünür!
+                    if (el.classList && el.classList.contains('text-handle')) return true;
+                          if (el.classList && el.classList.contains('photo-inner-zoom')) return true;
+                    return false;
+                }
+            });
+            ctx.drawImage(finalHtml2Canvas, 0, 0, targetW, targetH);
             
-            if(bgColor && bgColor !== 'transparent') {
-                ctx.fillStyle=bgColor;
-                ctx.fillRect(0,0,targetW,targetH);
+            // Filtreleri eski haline döndür
+            window.isExportingNow = false;
+            window.exportingScale = null;
+            filterPanels.forEach(p => {
+                p.style.filter = savedFilters.get(p) || '';
+                if (typeof _applyPhotoTransform === 'function') _applyPhotoTransform(p); // Tekrar preview çözünürlüğünde ve filtresiz fiziksel canvas olarak geri yükle
+            });
+            
+            // 3. PixiJS motorunu eski haline (düşük çözünürlüğe) geri getir
+            if (window.SaberEngine && typeof window.SaberEngine.getApp === 'function') {
+                const saberApp = window.SaberEngine.getApp();
+                if (saberApp && saberApp.view && saberApp.renderer && saberApp.stage) {
+                    saberApp.renderer.resize(currentW, currentH);
+                    saberApp.stage.scale.set(1);
+                    saberApp.renderer.render(saberApp.stage);
+                    saberApp.view.style.width = '100%';
+                    saberApp.view.style.height = '100%';
+                }
             }
-            
-            
-            
-            // sourceCanvas zaten outputScale ile natively büyütüldüğü için sündürme YOK.
-            
-              // DUAL-LAYER: Draw Master Photo manually at the bottom
-              if (masterImgElement && masterImgElement.complete && masterImgElement.width > 0) {
-                  const canvasRect = canvasEl.getBoundingClientRect();
-                  if (originalStyles.size === 0) {
-                      alert("DEBUG: originalStyles is EMPTY! The photo was not hidden by swapTargets!");
-                  }
-                  originalStyles.forEach((styles, el) => {
-                      let actualElement = el;
-                      if (el.classList.contains('photo-inner-zoom')) {
-                          actualElement = el.parentElement;
-                      }
-                      drawMasterPhotoManually(ctx, el, masterImgElement, outputScale, canvasRect, actualElement);
-                  });
-              }
 
-              // Birebir kopyaliyoruz.
-              ctx.drawImage(sourceCanvas, 0, 0, targetW, targetH);
+        } catch (e) {
+            console.error("Single Pass V2 Render Error:", e);
+        }
+        
+        window.isExportingNow = false;
 
+        canvasEl.style.position = oldPosition;
+        canvasEl.style.left = oldLeft;
+        canvasEl.style.top = oldTop;
+        canvasEl.style.margin = oldMargin;
+        canvasEl.style.zIndex = oldZIndex;
+        document.body.removeChild(overlay);
+        if (typeof resizeCanvas === 'function') resizeCanvas();
+
+        // --- UI RESTORE ---
+        document.querySelectorAll('.photo-panel, #photo-layer').forEach(p => { if (typeof _applyPhotoTransform === 'function') _applyPhotoTransform(p); });
+        
+    } else {
+        // ==========================================
+        // SABLONSUZ MOD
+        // ==========================================
+        
+        // Fill the background color of the canvas first (so it's exported)
+        let customBg = window.getComputedStyle(canvasEl).backgroundColor;
+        if (customBg && customBg !== 'rgba(0, 0, 0, 0)' && customBg !== 'transparent') {
+            ctx.fillStyle = customBg;
+            ctx.fillRect(0, 0, targetW, targetH);
+        }
+        
+        // 1. Fallback fotograf ciz
+        if (masterImgObj && masterImgObj.width > 0) {
+            const panel = document.getElementById('photo-layer');
+            if (panel) {
+            const w = targetW;
+            const h = targetH;
             
-            const a=document.createElement('a');
-            const fmtSafe=formatName.replace(/[^a-z0-9]/gi,'-').toLowerCase();
-            const fileType = document.getElementById('exportFileType') ? document.getElementById('exportFileType').value : 'jpg';
-            if (fileType === 'jpg') {
-                a.download='emlak-'+fmtSafe+'-'+targetW+'x'+targetH+'.jpg';
-                a.href=finalCanvas.toDataURL('image/jpeg', 1.0);
+            ctx.save();
+            ctx.beginPath();
+            ctx.rect(0, 0, w, h);
+            ctx.clip();
+            const style = window.getComputedStyle(panel);
+            let filter = style.filter;
+            if (filter && filter !== 'none') {
+                filter = filter.replace(/drop-shadow\([^)]+\)/g, '').trim();
+                if (filter !== '') ctx.filter = filter;
+            }
+            if (fitMode === 'contain') {
+                const ratio = Math.min(w / masterImgObj.width, h / masterImgObj.height);
+                const dw = masterImgObj.width * ratio;
+                const dh = masterImgObj.height * ratio;
+                const dx = (w - dw) / 2;
+                const dy = (h - dh) / 2;
+                ctx.drawImage(masterImgObj, dx, dy, dw, dh);
             } else {
-                a.download='emlak-'+fmtSafe+'-'+targetW+'x'+targetH+'.png';
-                a.href=finalCanvas.toDataURL('image/png', 1.0);
+                const imgRatio = masterImgObj.width / masterImgObj.height;
+                const panelRatio = w / h;
+                let dw = w;
+                let dh = h;
+                let dx = 0;
+                let dy = 0;
+                if (imgRatio > panelRatio) {
+                    dw = h * imgRatio;
+                    dx = (w - dw) / 2;
+                } else {
+                    dh = w / imgRatio;
+                    dy = (h - dh) / 2;
+                }
+                ctx.drawImage(masterImgObj, dx, dy, dw, dh);
             }
-            a.click();
-            drawCanvas.style.zIndex=wz;
-            drawCanvas.style.pointerEvents=wp;
-            canvasEl.style.transition='transform 0.2s';
-            resizeCanvas();
-            setTimeout(async () => { const o = document.getElementById('download-overlay-mask'); if(o) o.remove(); }, 300);
-                }).catch(err => {
-            console.error("html2canvas hatası:", err);
-            
-            
-            
-            // --- CLEANUP RESTORE ON ERROR ---
-            originalStyles.forEach((styles, el) => {
-                el.style.setProperty('background-image', styles.bg);
-                if (styles.bgColor) el.style.setProperty('background-color', styles.bgColor);
-                else el.style.removeProperty('background-color');
+            ctx.filter = 'none';
+            ctx.restore();
+        }
+        } // Close the masterImgObj condition
+
+        // 2. ui-layer custom items render using html2canvas
+        const overlay = document.createElement('div');
+        overlay.style.position = 'fixed';
+        overlay.style.top = '0';
+        overlay.style.left = '0';
+        overlay.style.width = '100vw';
+        overlay.style.height = '100vh';
+        overlay.style.backgroundColor = '#0f172a';
+        overlay.style.zIndex = '9999999';
+        overlay.style.display = 'flex';
+        overlay.style.alignItems = 'center';
+        overlay.style.justifyContent = 'center';
+        document.body.appendChild(overlay);
+
+        const oldPosition = canvasEl.style.position;
+        const oldLeft = canvasEl.style.left;
+        const oldTop = canvasEl.style.top;
+        const oldMargin = canvasEl.style.margin;
+        const oldZIndex = canvasEl.style.zIndex;
+        const oldBg = canvasEl.style.backgroundColor;
+        const oldTransform = canvasEl.style.transform;
+        const oldTransition = canvasEl.style.transition;
+
+        canvasEl.style.position = 'fixed';
+        canvasEl.style.left = '0px';
+        canvasEl.style.top = '0px';
+        canvasEl.style.margin = '0px';
+        canvasEl.style.zIndex = '9999998';
+        canvasEl.style.setProperty('background-color', 'transparent', 'important');
+        canvasEl.style.transform = 'none';
+        canvasEl.style.transition = 'none';
+
+        try {
+            const finalHtml2Canvas = await html2canvas(canvasEl, {
+                width: currentW,
+                height: currentH,
+                scale: outputScale,
+                useCORS: true,
+                allowTaint: false,
+                imageTimeout: 0,
+                letterRendering: true,
+                logging: false,
+                backgroundColor: null,
+                ignoreElements: (el) => {
+                    if (el.classList && el.classList.contains('el-selected')) return true;
+                    // Removed ignore for editable-draw to export SVG drawings
+                    if (el.id === 'photo-layer') return true;
+                    if (el.classList && el.classList.contains('text-handle')) return true;
+                          if (el.classList && el.classList.contains('photo-inner-zoom')) return true;
+                    return false;
+                }
             });
+            ctx.drawImage(finalHtml2Canvas, 0, 0, targetW, targetH);
+        } catch (e) {
+            console.error("Non-template HTML2Canvas Error:", e);
+        }
 
-            __snapshots
-.forEach(snap => {
-                if (snap.shadow) snap.el.style.setProperty('box-shadow', snap.shadow, 'important');
-                else snap.el.style.removeProperty('box-shadow');
-            });
+        canvasEl.style.position = oldPosition;
+        canvasEl.style.left = oldLeft;
+        canvasEl.style.top = oldTop;
+        canvasEl.style.margin = oldMargin;
+        canvasEl.style.zIndex = oldZIndex;
+        if(oldBg) { canvasEl.style.backgroundColor = oldBg; } else { canvasEl.style.removeProperty('background-color'); }
+        canvasEl.style.transform = oldTransform;
+        canvasEl.style.transition = oldTransition;
+        document.body.removeChild(overlay);
+        resizeCanvas();
 
-            canvasEl.style.position = oldPosition;
-            canvasEl.style.left = oldLeft;
-            canvasEl.style.top = oldTop;
-            canvasEl.style.margin = oldMargin;
-            // --- END CLEANUP ---
+        
+        // --- UI RESTORE ---
+        document.querySelectorAll('.photo-panel, #photo-layer').forEach(p => { if (typeof _applyPhotoTransform === 'function') _applyPhotoTransform(p); });
 
-            alert("İndirme sırasında bir hata oluştu. Bazı harici görseller engelliyor olabilir.");
-            drawCanvas.style.zIndex=wz;
-            drawCanvas.style.pointerEvents=wp;
-            canvasEl.style.transition='transform 0.2s';
-            resizeCanvas();
-            setTimeout(() => { const o = document.getElementById('download-overlay-mask'); if(o) o.remove(); }, 300);
-        });
-    }, 50);
+        
+        // 3. PixiJS ekle
+        if (window.SaberEngine && typeof window.SaberEngine.getApp === 'function') {
+            const saberApp = window.SaberEngine.getApp();
+            if (saberApp && saberApp.view) {
+                if (saberApp.renderer && saberApp.stage) {
+                    saberApp.renderer.resize(targetW, targetH);
+                    saberApp.stage.scale.set(outputScale);
+                    saberApp.renderer.render(saberApp.stage);
+                    ctx.drawImage(saberApp.view, 0, 0, targetW, targetH);
+                    saberApp.renderer.resize(currentW, currentH);
+                    saberApp.stage.scale.set(1);
+                    saberApp.renderer.render(saberApp.stage);
+                } else {
+                    ctx.drawImage(saberApp.view, 0, 0, targetW, targetH);
+                }
+            }
+        }
+    }
+
+    drawCanvas.style.zIndex=wz;
+    drawCanvas.style.pointerEvents=wp;
+
+    // INDIRME
+    const a = document.createElement('a');
+    const fmtSafe = formatName.replace(/[^a-z0-9]/gi, '-').toLowerCase();
+    const fileType = document.getElementById('exportFileType') ? document.getElementById('exportFileType').value : 'jpg';
+    if (fileType === 'jpg') {
+        a.download = 'emlak-studiom-' + fmtSafe + '-' + targetW + 'x' + targetH + '.jpg';
+        a.href = finalCanvas.toDataURL('image/jpeg', 1.0);
+    } else {
+        a.download = 'emlak-studiom-' + fmtSafe + '-' + targetW + 'x' + targetH + '.png';
+        a.href = finalCanvas.toDataURL('image/png', 1.0);
+    }
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
 }
 
 function renderBatchList(){
@@ -500,208 +854,366 @@ function clearBatchFiles(){
 
 async function startBatchExport(){
     if(!batchFiles.length){alert('Dosya ekleyin!');return}
-    $('batchProgress').style.display='block';
+
+      console.log('--- STARTBATCHEXPORT ÇALIŞTI ---');
+      const debugSlots = document.querySelectorAll('[data-photo-slot]');
+      console.log('Bulunan [data-photo-slot] sayisi:', debugSlots.length);
+      debugSlots.forEach((slot, i) => {
+          console.log(`Slot ${i} HTML İçi:`, slot.innerHTML);
+          console.log(`Slot ${i} inline background-image:`, slot.style.backgroundImage);
+          console.log(`Slot ${i} computed background-image:`, window.getComputedStyle(slot).backgroundImage);
+          const rc = slot.querySelector('.photo-render-canvas');
+          console.log(`Slot ${i} .photo-render-canvas var mi:`, !!rc);
+      });
+      console.log('--------------------');
+
+    
+    batchProgress.style.display='block';
     if(drawMode!=='off')setDrawMode('off');
-    const formatName=$('exportFormat').value;
+    
+    if(typeof deselectAll === 'function') deselectAll(); else document.querySelectorAll('.el-selected').forEach(e=>e.classList.remove('el-selected'));
+    
+    const wz=drawCanvas.style.zIndex,wp=drawCanvas.style.pointerEvents;
+    drawCanvas.style.zIndex='7';
+    drawCanvas.style.pointerEvents='none';
+    
+    const formatName=exportFormat?exportFormat.value:'16:9 Full HD';
     const format=EXPORT_FORMATS[formatName]||{w:1920,h:1080};
-    const fitMode=$('exportFitMode').value;
-    const bgColor=$('exportBgColor').value;
-    let outputScale = 1.5;
-    const scaleVal2 = $('exportScale').value;
-
-    let safeMasterImage = (typeof uploadedImgUrl !== 'undefined' ? uploadedImgUrl : null) || (typeof masterImageBase64 !== 'undefined' ? masterImageBase64 : null);
-    if (!safeMasterImage) {
-        const pLayer = document.getElementById('photo-layer');
-        if (pLayer && pLayer.style.backgroundImage && pLayer.style.backgroundImage !== 'none') {
-            safeMasterImage = pLayer.style.backgroundImage.replace(/^url\(['"]?/, '').replace(/['"]?\)$/, '');
-        }
-    }
-
-    if (scaleVal2 === 'original' && safeMasterImage) {
-        outputScale = 1; // Temporary
-    } else {
-        outputScale = parseFloat(scaleVal2) || 1.5;
-    }
+    const fitMode=exportFitMode?exportFitMode.value:'cover';
+    const bgColor=exportBgColor?exportBgColor.value:'#ffffff';
+    const scaleVal1 = exportScale?exportScale.value:'1.5';
     const currentW=parseInt(canvasEl.style.width)||1920;
     const currentH=parseInt(canvasEl.style.height)||1080;
-    if (scaleVal2 === 'original' && safeMasterImage) {
-          const tempImg = new Image();
-          await new Promise(r => { tempImg.onload = r; tempImg.onerror = r; tempImg.src = safeMasterImage; });
-          if (tempImg.width > 0) {
-              outputScale = Math.min(tempImg.width / currentW, tempImg.height / currentH);
-          }
-      }
-      for(let i=0;i<batchFiles.length;i++){
-        $('batchStatus').textContent=batchFiles[i].name;
-        $('batchPercent').textContent=Math.round(i/batchFiles.length*100)+'%';
-        $('batchBar').style.width=Math.round(i/batchFiles.length*100)+'%';
-        const url=await readFileUrl(batchFiles[i]);
-        uploadedImgUrl=url; if(typeof trackImageSize==='function') trackImageSize(uploadedImgUrl);
-        photoLayer.style.backgroundImage="url('"+url+"')";
-        if(isCanvaMode && typeof refreshActiveCanvaTemplate === 'function') refreshActiveCanvaTemplate();
-        else if(isCanvaMode) buildCanvaRender();
-        await sleep(400);
-        if(typeof deselectAll === 'function') deselectAll(); else document.querySelectorAll('.el-selected').forEach(e=>e.classList.remove('el-selected'));
-        drawCanvas.style.zIndex='7';
-        drawCanvas.style.pointerEvents='none';
-        canvasEl.style.transition='none';
-        canvasEl.style.transform='none';
-        await new Promise(r => setTimeout(r, 50));
+
+    for(let i=0;i<batchFiles.length;i++){
+        batchStatus.textContent=batchFiles[i].name;
+        batchPercent.textContent=Math.round(i/batchFiles.length*100)+'%';
+        batchBar.style.width=Math.round(i/batchFiles.length*100)+'%';
         
-        let sourceCanvas;
-        try {
-            
-        const __allEls = canvasEl.querySelectorAll('*');
-        const __snapshots = [];
-        __allEls.forEach(el => {
-            const cs = el.style;
-            const computed = window.getComputedStyle(el);
-            if (computed.boxShadow && computed.boxShadow !== 'none') {
-                __snapshots.push({ el: el, shadow: cs.getPropertyValue('box-shadow') });
-                cs.setProperty('box-shadow', 'none', 'important');
+        const url=await readFileUrl(batchFiles[i]);
+        if(typeof uploadedImgUrl !== 'undefined') uploadedImgUrl=url; 
+        if(typeof trackImageSize==='function') trackImageSize(url);
+        
+        const pLayer = document.getElementById('photo-layer');
+        if (pLayer) pLayer.style.backgroundImage="url('"+url+"')";
+        
+        if(typeof isCanvaMode !== 'undefined' && isCanvaMode && typeof refreshActiveCanvaTemplate === 'function') refreshActiveCanvaTemplate();
+        else if(typeof isCanvaMode !== 'undefined' && isCanvaMode) buildCanvaRender();
+        
+        // Gorsel panele yerlestirildikten sonra hazirla
+        let needsPrep = false;
+        document.querySelectorAll('.photo-panel, #photo-layer').forEach(p => {
+            if (!p.querySelector('.photo-render-canvas') && p.style.backgroundImage && p.style.backgroundImage !== 'none') {
+                if (typeof _preparePhoto === 'function') {
+                    _preparePhoto(p);
+                    needsPrep = true;
+                }
             }
         });
+        
+        // Her iterasyonda photo-render-canvas'i yeniden cizmeye zorluyoruz (cunku arkaplan degisti)
+        document.querySelectorAll('.photo-panel, #photo-layer').forEach(p => {
+            if (typeof _applyPhotoTransform === 'function') _applyPhotoTransform(p);
+        });
+        
+        await new Promise(r => setTimeout(r, 200));
 
-        if (window.SaberEngine && typeof window.SaberEngine.updateTextSaberPositions === "function") window.SaberEngine.updateTextSaberPositions();
-            const targetW = Math.round(currentW * outputScale);
-            const targetH = Math.round(currentH * outputScale);
-            
-            
-        // DUAL-LAYER SWAP LOGIC FOR BATCH
+        let masterImgObj = new Image();
+        masterImgObj.crossOrigin = 'anonymous';
+        await new Promise(r => { masterImgObj.onload = r; masterImgObj.onerror = r; masterImgObj.src = url; });
+
+        let outputScale = 1.5;
+        if (scaleVal1 === 'original') {
+            if (masterImgObj.width > 0) {
+                outputScale = Math.min(masterImgObj.width / currentW, masterImgObj.height / currentH);
+            } else {
+                outputScale = 1;
+            }
+        } else {
+            outputScale = parseFloat(scaleVal1) || 1.5;
+        }
         
-        // DUAL-LAYER MANUAL DRAW LOGIC FOR BATCH
-        const swapTargetsBatch = canvasEl.querySelectorAll('#photo-layer, .photo-inner-zoom, .photo-panel, .photo-bg');
-        const originalStylesBatch = new Map();
-        let masterImgElementBatch = null;
-        
-        if (safeMasterImage && (outputScale > 1.5 || scaleVal2 === 'original')) {
-            masterImgElementBatch = new Image();
-            const loadPromiseBatch = new Promise(r => {
-                masterImgElementBatch.onload = r;
-                masterImgElementBatch.onerror = r;
-            });
-            masterImgElementBatch.src = safeMasterImage;
-            await loadPromiseBatch;
-            
-            originalStylesBatch.set(canvasEl, { bg: canvasEl.style.backgroundImage, bgColor: canvasEl.style.backgroundColor });
-              canvasEl.style.backgroundColor = 'transparent';
-              
-              swapTargetsBatch.forEach(el => {
-                const bg = el.style.backgroundImage;
-                if (bg && bg !== 'none' && bg !== '') {
-                    originalStylesBatch.set(el, {
-                        bg: bg,
-                        bgColor: el.style.backgroundColor
-                    });
-                    el.style.setProperty('background-image', 'none', 'important');
-                    el.style.setProperty('background-color', 'transparent', 'important');
-                }
-            });
+        if (typeof window.isMobileDevice === 'function' && window.isMobileDevice()) {
+            const maxMobileScale = 1.5;
+            if (outputScale > maxMobileScale) {
+                outputScale = maxMobileScale;
+            }
         }
 
+        const targetW = Math.round((window.isMobileDevice && window.isMobileDevice() ? currentW : format.w) * outputScale);
+        const targetH = Math.round((window.isMobileDevice && window.isMobileDevice() ? currentH : format.h) * outputScale);
+        let finalCanvas = document.createElement('canvas');
+        finalCanvas.width = targetW;
+        finalCanvas.height = targetH;
+        let ctx = finalCanvas.getContext('2d');
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
 
-            sourceCanvas=await html2canvas(canvasEl,{width:currentW,height:currentH,scale:outputScale,useCORS:true,allowTaint:true,imageTimeout:0,letterRendering:true,logging:false,backgroundColor:null,ignoreElements:el=>(el.classList&&el.classList.contains('el-selected'))||el.tagName==='CANVAS'||el.tagName==='canvas'});
-            
-            
-            
-            // RESTORE DUAL-LAYER SWAP FOR BATCH
-            originalStylesBatch.forEach((styles, el) => {
-                el.style.setProperty('background-image', styles.bg);
-                if (styles.bgColor) el.style.setProperty('background-color', styles.bgColor);
-                else el.style.removeProperty('background-color');
-            });
+        const cvrBase = document.querySelector('.cvr-base');
+        const isTemplateMode = !!cvrBase || document.querySelector('.photo-panel');
 
+        if (isTemplateMode) {
+            // ==========================================
+              // SABLONLU MOD - 3 KATMANLI (SANDWICH) RENDER
+              // ==========================================
+              
+              canvasEl.style.transition='none';
+              canvasEl.style.transform='none';
+              
+              const overlay = document.createElement('div');
+              overlay.id = 'download-overlay-mask';
+              overlay.style.position = 'fixed';
+              overlay.style.top = '0';
+              overlay.style.left = '0';
+              overlay.style.width = '100vw';
+              overlay.style.height = '100vh';
+              overlay.style.backgroundColor = '#0f172a';
+              overlay.style.zIndex = '9999999';
+              overlay.style.display = 'flex';
+              overlay.style.alignItems = 'center';
+              overlay.style.justifyContent = 'center';
+              
+              overlay.style.color = '#fbbf24';
+              overlay.style.fontSize = '24px';
+              overlay.style.fontWeight = 'bold';
+              overlay.style.fontFamily = 'sans-serif';
+              overlay.style.flexDirection = 'column';
+              overlay.style.gap = '15px';
+              overlay.innerHTML = '<div style="width: 50px; height: 50px; border: 5px solid #fbbf24; border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite;"></div><div>Görsel Hazırlanıyor...</div><style>@keyframes spin { 100% { transform: rotate(360deg); } }</style>';
+              document.body.appendChild(overlay);
 
+              const oldPosition = canvasEl.style.position;
+              const oldLeft = canvasEl.style.left;
+              const oldTop = canvasEl.style.top;
+              const oldMargin = canvasEl.style.margin;
+              const oldZIndex = canvasEl.style.zIndex;
 
-            // RESTORE DOM STATE EARLY SO REDRAW LOGIC READS CORRECT MEASUREMENTS
-            canvasEl.style.position = oldPos;
-            canvasEl.style.left = oldL;
-            canvasEl.style.top = oldT;
-            canvasEl.style.margin = oldM;
-            canvasEl.style.transition = 'transform 0.2s';
-            if (typeof resizeCanvas === 'function') resizeCanvas();
+              canvasEl.style.position = 'fixed';
+              canvasEl.style.left = '0px';
+              canvasEl.style.top = '0px';
+              canvasEl.style.margin = '0px';
+              canvasEl.style.zIndex = '9999998';
 
-            const sCtx = sourceCanvas.getContext('2d');
-              sCtx.imageSmoothingEnabled=true;
-              sCtx.imageSmoothingQuality='high';
-            if (window.redrawAllToContext) {
-                window.redrawAllToContext(sCtx, outputScale);
-            } else {
-                sCtx.drawImage(drawCanvas, 0, 0, targetW, targetH);
-            }
+              try {
+                  // --- SINGLE PASS RENDER ---
+                    const finalHtml2Canvas = await html2canvas(canvasEl, {
+                        width: currentW,
+                        height: currentH,
+                        scale: outputScale,
+                        useCORS: true,
+                        allowTaint: false,
+                        imageTimeout: 0,
+                        letterRendering: true,
+                        logging: false,
+                        backgroundColor: null,
+                        ignoreElements: (el) => {
+                            if (el.classList && el.classList.contains('el-selected')) return true;
+                            // Removed ignore for editable-draw to export SVG drawings
+                            return false;
+                        }
+                    });
+                    ctx.drawImage(finalHtml2Canvas, 0, 0, targetW, targetH);
+                  
+                  
+
+              } catch (e) {
+                  console.error("Sandwich Render Error:", e);
+              }
+
+              canvasEl.style.position = oldPosition;
+              canvasEl.style.left = oldLeft;
+              canvasEl.style.top = oldTop;
+              canvasEl.style.margin = oldMargin;
+              canvasEl.style.zIndex = oldZIndex;
+              document.body.removeChild(overlay);
+            resizeCanvas();
+        // --- UI RESTORE ---
+        document.querySelectorAll('.photo-panel, #photo-layer').forEach(p => { if (typeof _applyPhotoTransform === 'function') _applyPhotoTransform(p); });
+
             
             if (window.SaberEngine && typeof window.SaberEngine.getApp === 'function') {
                 const saberApp = window.SaberEngine.getApp();
                 if (saberApp && saberApp.view) {
-                    if (saberApp.renderer && saberApp.stage) saberApp.renderer.render(saberApp.stage);
-                    sCtx.drawImage(saberApp.view, 0, 0, targetW, targetH);
+                    if (saberApp.renderer && saberApp.stage) {
+                        saberApp.renderer.resize(targetW, targetH);
+                        saberApp.stage.scale.set(outputScale);
+                        saberApp.renderer.render(saberApp.stage);
+                        ctx.drawImage(saberApp.view, 0, 0, targetW, targetH);
+                        saberApp.renderer.resize(currentW, currentH);
+                        saberApp.stage.scale.set(1);
+                        saberApp.renderer.render(saberApp.stage);
+                    } else {
+                        ctx.drawImage(saberApp.view, 0, 0, targetW, targetH);
+                    }
                 }
             }
-        } catch(err) {
-            canvasEl.style.position = oldPos;
-            canvasEl.style.left = oldL;
-            canvasEl.style.top = oldT;
-            canvasEl.style.margin = oldM;
-            console.error(err);
-            alert("Toplu çıkarma hatası (Resim " + (i+1) + ").");
+        } else if (masterImgObj && masterImgObj.width > 0) {
+            // SABLONSUZ MOD
+            const panel = document.getElementById('photo-layer');
+            if (panel) {
+                const w = targetW;
+                const h = targetH;
+                
+                ctx.save();
+                ctx.beginPath();
+                ctx.rect(0, 0, w, h);
+                ctx.clip();
+                
+                // Faz 3: CSS Filter Korunmasi
+                const style = window.getComputedStyle(panel);
+                let filter = style.filter;
+                if (filter && filter !== 'none') {
+                    filter = filter.replace(/drop-shadow\([^)]+\)/g, '').trim();
+                    if (filter !== '') ctx.filter = filter;
+                }
+
+                if (fitMode === 'contain') {
+                    const ratio = Math.min(w / masterImgObj.width, h / masterImgObj.height);
+                    const dw = masterImgObj.width * ratio;
+                    const dh = masterImgObj.height * ratio;
+                    const dx = (w - dw) / 2;
+                    const dy = (h - dh) / 2;
+                    ctx.drawImage(masterImgObj, dx, dy, dw, dh);
+                } else {
+                    const imgRatio = masterImgObj.width / masterImgObj.height;
+                    const panelRatio = w / h;
+                    let dw = w;
+                    let dh = h;
+                    let dx = 0;
+                    let dy = 0;
+                    if (imgRatio > panelRatio) {
+                        dw = h * imgRatio;
+                        dx = (w - dw) / 2;
+                    } else {
+                        dh = w / imgRatio;
+                        dy = (h - dh) / 2;
+                    }
+                    ctx.drawImage(masterImgObj, dx, dy, dw, dh);
+                }
+                ctx.filter = 'none'; // Sifirla
+                ctx.restore();
+            }
+
+            // 2. ui-layer custom items render using html2canvas (SABLONSUZ MOD - Batch)
+            const overlay = document.createElement('div');
+            overlay.style.position = 'fixed';
+            overlay.style.top = '0';
+            overlay.style.left = '0';
+            overlay.style.width = '100vw';
+            overlay.style.height = '100vh';
+            overlay.style.backgroundColor = '#0f172a';
+            overlay.style.zIndex = '9999999';
+            overlay.style.display = 'flex';
+            overlay.style.alignItems = 'center';
+            overlay.style.justifyContent = 'center';
+            document.body.appendChild(overlay);
+
+            const oldPosition = canvasEl.style.position;
+            const oldLeft = canvasEl.style.left;
+            const oldTop = canvasEl.style.top;
+            const oldMargin = canvasEl.style.margin;
+            const oldZIndex = canvasEl.style.zIndex;
+            const oldBg = canvasEl.style.backgroundColor;
+            const oldTransform = canvasEl.style.transform;
+            const oldTransition = canvasEl.style.transition;
+
+            canvasEl.style.position = 'fixed';
+            canvasEl.style.left = '0px';
+            canvasEl.style.top = '0px';
+            canvasEl.style.margin = '0px';
+            canvasEl.style.zIndex = '9999998';
+            canvasEl.style.setProperty('background-color', 'transparent', 'important');
+            canvasEl.style.transform = 'none';
+            canvasEl.style.transition = 'none';
+
+            try {
+                const finalHtml2Canvas = await html2canvas(canvasEl, {
+                    width: currentW,
+                    height: currentH,
+                    scale: outputScale,
+                    useCORS: true,
+                    allowTaint: false,
+                    imageTimeout: 0,
+                    letterRendering: true,
+                    logging: false,
+                    backgroundColor: null,
+                    ignoreElements: (el) => {
+                        if (el.classList && el.classList.contains('el-selected')) return true;
+                        // Removed ignore for editable-draw to export SVG drawings
+                        if (el.id === 'photo-layer') return true;
+                        if (el.classList && el.classList.contains('text-handle')) return true;
+                          if (el.classList && el.classList.contains('photo-inner-zoom')) return true;
+                        return false;
+                    }
+                });
+                ctx.drawImage(finalHtml2Canvas, 0, 0, targetW, targetH);
+            } catch (e) {
+                console.error("Non-template HTML2Canvas Error:", e);
+            }
+
+            canvasEl.style.position = oldPosition;
+            canvasEl.style.left = oldLeft;
+            canvasEl.style.top = oldTop;
+            canvasEl.style.margin = oldMargin;
+            canvasEl.style.zIndex = oldZIndex;
+            if(oldBg) { canvasEl.style.backgroundColor = oldBg; } else { canvasEl.style.removeProperty('background-color'); }
+            canvasEl.style.transform = oldTransform;
+            canvasEl.style.transition = oldTransition;
+            document.body.removeChild(overlay);
             resizeCanvas();
-            return;
+
+            
+            // --- UI RESTORE ---
+        document.querySelectorAll('.photo-panel, #photo-layer').forEach(p => { if (typeof _applyPhotoTransform === 'function') _applyPhotoTransform(p); });
+
+            
+            if (window.SaberEngine && typeof window.SaberEngine.getApp === 'function') {
+                const saberApp = window.SaberEngine.getApp();
+                if (saberApp && saberApp.view) {
+                    if (saberApp.renderer && saberApp.stage) {
+                        saberApp.renderer.resize(targetW, targetH);
+                        saberApp.stage.scale.set(outputScale);
+                        saberApp.renderer.render(saberApp.stage);
+                        ctx.drawImage(saberApp.view, 0, 0, targetW, targetH);
+                        saberApp.renderer.resize(currentW, currentH);
+                        saberApp.stage.scale.set(1);
+                        saberApp.renderer.render(saberApp.stage);
+                    } else {
+                        ctx.drawImage(saberApp.view, 0, 0, targetW, targetH);
+                    }
+                }
+            }
         }
 
-        const targetW=Math.round(format.w*outputScale);
-        const targetH=Math.round(format.h*outputScale);
-        const finalCanvas=document.createElement('canvas');
-        finalCanvas.width=targetW;
-        finalCanvas.height=targetH;
-        const ctx=finalCanvas.getContext('2d');
-        ctx.imageSmoothingEnabled=true;
-        ctx.imageSmoothingQuality='high';
-        
-        if(bgColor && bgColor !== 'transparent') {
-            ctx.fillStyle=bgColor;
-            ctx.fillRect(0,0,targetW,targetH);
+        // INDIRME
+        const a = document.createElement('a');
+        const fmtSafe = formatName.replace(/[^a-z0-9]/gi, '-').toLowerCase();
+        const fileType = document.getElementById('exportFileType') ? document.getElementById('exportFileType').value : 'jpg';
+        const batchName = batchFiles[i].name.replace(/\.[^/.]+$/, ""); // strip original extension
+        if (fileType === 'jpg') {
+            a.download = batchName + '-' + fmtSafe + '-' + targetW + 'x' + targetH + '.jpg';
+            a.href = finalCanvas.toDataURL('image/jpeg', 1.0);
+        } else {
+            a.download = batchName + '-' + fmtSafe + '-' + targetW + 'x' + targetH + '.png';
+            a.href = finalCanvas.toDataURL('image/png', 1.0);
         }
-        
-        const pLayer = document.getElementById('photo-layer');
-        let bgElement = pLayer;
-        if (pLayer) {
-            const innerZoom = pLayer.querySelector('.photo-inner-zoom');
-            if (innerZoom && innerZoom.style.backgroundImage && innerZoom.style.backgroundImage !== 'none') {
-                bgElement = innerZoom;
-            }
-        }
-        
-        if (bgElement && bgElement.style.backgroundImage && bgElement.style.backgroundImage !== 'none') {
-            const imgUrl = bgElement.style.backgroundImage.replace(/^url\(["']?/, '').replace(/["']?\)$/, '');
-            if (imgUrl && imgUrl.trim() !== '') {
-                try {
-                    const originalImg = new Image();
-                    if (imgUrl.startsWith('http')) { originalImg.crossOrigin = 'anonymous'; }
-                    await new Promise((resolve) => {
-                        originalImg.onload = resolve;
-                        originalImg.onerror = resolve;
-                        originalImg.src = imgUrl;
-                    });
-                    if (originalImg.width > 0) {
-                        drawMasterPhotoManually(ctx, bgElement, originalImg, outputScale, canvasEl.getBoundingClientRect(), pLayer);
-                    }
-                } catch(e) { console.error('Photo draw error:', e); }
-            }
-        }
-        
-        ctx.drawImage(sourceCanvas, 0, 0, targetW, targetH);
-        
-        const a=document.createElement('a');
-        const fmtSafe=formatName.replace(/[^a-z0-9]/gi,'-').toLowerCase();
-        a.download='emlak-'+batchFiles[i].name.replace(/\.[^/.]+$/,'')+'-'+fmtSafe+'.png';
-        a.href=finalCanvas.toDataURL('image/png', 1.0);
+        document.body.appendChild(a);
         a.click();
-        resizeCanvas();
-        await sleep(200);
-    }
-    $('batchStatus').textContent='Tamamlandı!';
-    $('batchPercent').textContent='100%';
-    $('batchBar').style.width='100%';
+        document.body.removeChild(a);
+        
+        // Memory leak temizligi
+        finalCanvas = null;
+        ctx = null;
+        masterImgObj = null;
+    } // for loop end
+
+    drawCanvas.style.zIndex=wz;
+    drawCanvas.style.pointerEvents=wp;
+    
+    batchProgress.style.display='none';
+    batchStatus.textContent='Tamamlandı';
+    batchPercent.textContent='100%';
+    batchBar.style.width='100%';
 }
 
 function readFileUrl(f){
@@ -713,18 +1225,22 @@ function readFileUrl(f){
 }
 
 async function shareImage(platform) {
-    if(!window.html2canvas) return alert('html2canvas yklenmedi!');
+    if(!window.html2canvas) return alert('html2canvas yüklenmedi!');
     try {
         const c = await html2canvas(canvasEl, {
             useCORS: true,
-            allowTaint: true,
+            allowTaint: false,
             scale: 1, // just standard scale for sharing to be fast
-            backgroundColor: null
+              backgroundColor: null,
+              ignoreElements: (el) => {
+                  if(el.classList && (el.classList.contains('text-handle') || el.classList.contains('el-selected') || el.classList.contains('photo-inner-zoom'))) return true;
+                  return false;
+              }
         });
         
         c.toBlob(async (blob) => {
             if (!blob) {
-                return alert('Resim oluturulamad!');
+                return alert('Resim oluşturulamadı!');
             }
             const file = new File([blob], 'emlak_tasarimi.jpg', { type: 'image/jpeg' });
             
@@ -732,35 +1248,46 @@ async function shareImage(platform) {
             if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
                 try {
                     await navigator.share({
-                        title: 'Emlak Tasarm',
-                        text: 'Yeni emlak tasarmma gz atn!',
+                        title: 'Emlak Tasarımı',
+                        text: 'Yeni emlak tasarımına göz atın!',
                         files: [file]
                     });
                 } catch (err) {
                     console.log('Share API iptal veya hata:', err);
                 }
             } else {
-                alert(platform.charAt(0).toUpperCase() + platform.slice(1) + ' iin dorudan paylama taraycnzda desteklenmiyor. Ltfen resmi indirip manuel paylan.');
+                alert(platform.charAt(0).toUpperCase() + platform.slice(1) + ' için doğrudan paylaşma tarayıcınızda desteklenmiyor. Lütfen resmi indirip manuel paylaşın.');
             }
         }, 'image/jpeg', 0.9);
     } catch(err) {
         console.error(err);
-        alert('Paylama hatas: ' + err.message);
+        alert('Paylaşma hatası: ' + err.message);
     }
 }
 
-async function getBase64FromBlobUrl(blobUrl) {
+async function getBase64FromBlobUrl(blobUrl, maxWidth = null) {
     if(!blobUrl || !blobUrl.startsWith('blob:')) return blobUrl;
     return new Promise((resolve) => {
         const img = new Image();
         img.crossOrigin = "Anonymous";
         img.onload = () => {
+            let targetW = img.width;
+            let targetH = img.height;
+            
+            if (maxWidth && img.width > maxWidth) {
+                targetW = maxWidth;
+                targetH = (img.height / img.width) * maxWidth;
+            }
+            
             const canvas = document.createElement('canvas');
-            canvas.width = img.width;
-            canvas.height = img.height;
+            canvas.width = targetW;
+            canvas.height = targetH;
             const ctx = canvas.getContext('2d');
-            ctx.drawImage(img, 0, 0);
-            resolve(canvas.toDataURL('image/jpeg', 0.8));
+            ctx.drawImage(img, 0, 0, targetW, targetH);
+            
+            // Eğer küçültme yapıldıysa (taslak), kaliteyi de 0.6 yap. Aksi halde orijinal kalite.
+            const quality = maxWidth ? 0.6 : 0.8;
+            resolve(canvas.toDataURL('image/jpeg', quality));
         };
         img.onerror = () => resolve('');
         img.src = blobUrl;
@@ -803,23 +1330,15 @@ async function saveProject() {
         });
 
         // Tüm özel elemanları (ikonlar ve yazılar) kaydet
-        document.querySelectorAll('#photo-layer .draggable, #ui-layer .draggable, #photo-layer .cvi-item, #ui-layer .cvi-item, #photo-layer .canvas-el, #ui-layer .canvas-el, #ui-layer .callout-wrapper, #photo-layer .callout-wrapper, #ui-layer .callout-wrap, #photo-layer .callout-wrap, #canvas-container .callout-wrap, #canvas-container .co-neon-block, #canvas-container .callout-wrapper, #ui-layer .saber-text, #photo-layer .saber-text, #ui-layer .dynamic-box, #photo-layer .dynamic-box, #ui-layer .svg-icon, #photo-layer .svg-icon, #ui-layer .icon-wrapper, #photo-layer .icon-wrapper').forEach(el => {
-            if(['badge', 'price', 'details', 'logo_overlay', 'elLogo'].includes(el.id)) return;
-            if(el.classList.contains('editable-draw')) return;
-            
-            const handles = Array.from(el.querySelectorAll('.text-handle'));
-            handles.forEach(h => h.remove());
-            
+        document.querySelectorAll('#photo-layer .draggable').forEach(el => {
+            if(['badge', 'price', 'details', 'logo_overlay'].includes(el.id)) return;
             state.customElements.push({
                 id: el.id,
-                parentId: el.parentElement ? el.parentElement.id : 'ui-layer',
                 className: el.className,
                 innerHTML: el.innerHTML,
                 style: el.getAttribute('style'),
                 dataset: Object.assign({}, el.dataset)
             });
-            
-            handles.forEach(h => el.appendChild(h));
         });
 
         // JSON olarak indir
@@ -867,8 +1386,8 @@ function loadProject() {
                 extraFieldsData.konut = newExtra.konut || [];
                 extraFieldsData.arazi = newExtra.arazi || [];
 
-                document.querySelectorAll('#photo-layer .draggable, #ui-layer .draggable, #photo-layer .cvi-item, #ui-layer .cvi-item, #photo-layer .canvas-el, #ui-layer .canvas-el, #canvas-container .callout-wrap, #canvas-container .co-neon-block').forEach(el => {
-                    if(['badge', 'price', 'details', 'logo_overlay', 'elLogo'].includes(el.id)) return;
+                document.querySelectorAll('#photo-layer .draggable').forEach(el => {
+                    if(['badge', 'price', 'details', 'logo_overlay'].includes(el.id)) return;
                     el.remove();
                 });
                 allIcons = [];
@@ -912,18 +1431,11 @@ function loadProject() {
                         if(data.dataset) {
                             Object.keys(data.dataset).forEach(k => el.dataset[k] = data.dataset[k]);
                         }
-                        const parent = document.getElementById(data.parentId || 'ui-layer');
-                        if (parent) parent.appendChild(el);
-                        else {
-                            const pl = document.getElementById('photo-layer');
-                            if (pl) pl.appendChild(el);
-                        }
-                        if (typeof window.makeDraggable === 'function') window.makeDraggable(el);
-                        if (el.classList.contains('canvas-el') && typeof window.enableInlineEdit === 'function') window.enableInlineEdit(el);
-                        if (el.classList.contains('callout-wrap') && typeof window.rebindSVGCallout === 'function') window.rebindSVGCallout(el);
-                        if (el.classList.contains('co-neon-block') && typeof window.rebindNeonCallout === 'function') window.rebindNeonCallout(el);
-                        if (el.classList.contains('icon-el') && typeof allIcons !== 'undefined') {
-                            window.allIcons.push(el);
+                        const pl = document.getElementById('photo-layer');
+                        if (pl) pl.appendChild(el);
+                        makeDraggable(el);
+                        if(el.classList.contains('icon-el')) {
+                            allIcons.push(el);
                         }
                     });
                 }
@@ -933,8 +1445,6 @@ function loadProject() {
                 if(uploadedImgUrl) {
                     if(pl) pl.style.backgroundImage = "url('" + uploadedImgUrl + "')";
                     if(typeof trackImageSize === 'function') trackImageSize(uploadedImgUrl);
-                    const clearBgBtn = document.getElementById('clearBgBtn');
-                    if (clearBgBtn) clearBgBtn.style.display = 'block';
                 } else {
                     if(pl) pl.style.backgroundImage = "none";
                 }
@@ -973,5 +1483,10 @@ function loadProject() {
     };
     input.click();
 }
+
+
+
+
+
 
 

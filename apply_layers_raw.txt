@@ -1,0 +1,17 @@
+python -c "
+import json
+with open(r'C:\Users\Hatemi\.gemini\antigravity\brain\b734be0a-7f24-4c0a-a443-23df71e8341f\.system_generated\logs\transcript_full.jsonl', 'r', encoding='utf-8') as f:
+    for line in f:
+        data = json.loads(line)
+        if data.get('type') == 'PLANNER_RESPONSE':
+            tool_calls = data.get('tool_calls', [])
+            for call in tool_calls:
+                if call.get('name') == 'run_command':
+                    cmd = call.get('args', {}).get('CommandLine', '')
+                    if 'Set-Content apply_layers.py' in cmd or 'Out-File apply_layers.py' in cmd or 'apply_layers.py' in cmd:
+                        if 'window.renderLayers = function() {' in cmd and '${' in cmd:
+                            print('Found the raw apply_layers.py content!')
+                            with open('apply_layers_raw.txt', 'w', encoding='utf-8') as out:
+                                out.write(cmd)
+                            exit(0)
+"

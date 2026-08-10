@@ -98,12 +98,8 @@ function createPolygonFromSelectedLines() {
         fillOpacity: 0
     };
     
-    if (typeof isCanvaMode !== 'undefined' && isCanvaMode) {
-        const pnl = getActivePhotoPanel();
-        if(pnl) pObj.photoRef = { v4: true, z: parseFloat(getActiveV4Element().dataset.zpScale)||1, px: parseFloat(getActiveV4Element().dataset.zpX)||0, py: parseFloat(getActiveV4Element().dataset.zpY)||0, panelW: pnl.w, panelH: pnl.h, panelL: pnl.left, panelT: pnl.top, sliderX: 50, sliderY: 50 };
-    } else {
-        const pnl = typeof getActivePhotoPanel === 'function' ? getActivePhotoPanel() : null;
-        if(pnl) pObj.photoRef = { v4: false, z: 100, px: 50, py: 50, panelW: pnl.w, panelH: pnl.h, panelL: pnl.left, panelT: pnl.top };
+    if (typeof getActivePhotoPanel === 'function' && window.getCurrentPhotoState) {
+        pObj.photoRef = window.getCurrentPhotoState();
     }
     
     drawPaths.push(pObj);
@@ -181,9 +177,9 @@ window.deselectAll = function() {
 };
 
 // ========== MARQUEE SELECTION ==========
-let marqueeBox = null;
-let marqueeStartX = 0;
-let marqueeStartY = 0;
+let polyMarqueeBox = null;
+let polyMarqueeStartX = 0;
+let polyMarqueeStartY = 0;
 
 document.addEventListener('mousedown', e => {
     if(typeof drawMode !== 'undefined' && drawMode !== 'off') return;
@@ -197,44 +193,44 @@ document.addEventListener('mousedown', e => {
     const isBackground = e.target.id === 'photo-layer' || e.target.id === 'drawCanvas' || e.target.id === 'canva-render-layer' || e.target.classList.contains('photo-wrap') || e.target.classList.contains('workspace');
     
     if(!cTarget && isBackground && (e.ctrlKey || e.altKey || e.metaKey)) {
-        marqueeStartX = e.clientX;
-        marqueeStartY = e.clientY;
+        polyMarqueeStartX = e.clientX;
+        polyMarqueeStartY = e.clientY;
         
-        marqueeBox = document.createElement('div');
-        marqueeBox.style.position = 'fixed';
-        marqueeBox.style.border = '1px dashed #3b82f6';
-        marqueeBox.style.backgroundColor = 'rgba(59, 130, 246, 0.1)';
-        marqueeBox.style.zIndex = '9999';
-        marqueeBox.style.pointerEvents = 'none';
-        marqueeBox.style.left = marqueeStartX + 'px';
-        marqueeBox.style.top = marqueeStartY + 'px';
-        marqueeBox.style.width = '0px';
-        marqueeBox.style.height = '0px';
-        document.body.appendChild(marqueeBox);
+        polyMarqueeBox = document.createElement('div');
+        polyMarqueeBox.style.position = 'fixed';
+        polyMarqueeBox.style.border = '1px dashed #3b82f6';
+        polyMarqueeBox.style.backgroundColor = 'rgba(59, 130, 246, 0.1)';
+        polyMarqueeBox.style.zIndex = '9999';
+        polyMarqueeBox.style.pointerEvents = 'none';
+        polyMarqueeBox.style.left = polyMarqueeStartX + 'px';
+        polyMarqueeBox.style.top = polyMarqueeStartY + 'px';
+        polyMarqueeBox.style.width = '0px';
+        polyMarqueeBox.style.height = '0px';
+        document.body.appendChild(polyMarqueeBox);
     }
 });
 
 document.addEventListener('mousemove', function(e) {
-    if(marqueeBox) {
+    if(polyMarqueeBox) {
         const currentX = e.clientX;
         const currentY = e.clientY;
-        const left = Math.min(marqueeStartX, currentX);
-        const top = Math.min(marqueeStartY, currentY);
-        const width = Math.abs(currentX - marqueeStartX);
-        const height = Math.abs(currentY - marqueeStartY);
+        const left = Math.min(polyMarqueeStartX, currentX);
+        const top = Math.min(polyMarqueeStartY, currentY);
+        const width = Math.abs(currentX - polyMarqueeStartX);
+        const height = Math.abs(currentY - polyMarqueeStartY);
         
-        marqueeBox.style.left = left + 'px';
-        marqueeBox.style.top = top + 'px';
-        marqueeBox.style.width = width + 'px';
-        marqueeBox.style.height = height + 'px';
+        polyMarqueeBox.style.left = left + 'px';
+        polyMarqueeBox.style.top = top + 'px';
+        polyMarqueeBox.style.width = width + 'px';
+        polyMarqueeBox.style.height = height + 'px';
     }
 });
 
 document.addEventListener('mouseup', function(e) {
-    if(marqueeBox) {
-        const mRect = marqueeBox.getBoundingClientRect();
-        marqueeBox.remove();
-        marqueeBox = null;
+    if(polyMarqueeBox) {
+        const mRect = polyMarqueeBox.getBoundingClientRect();
+        polyMarqueeBox.remove();
+        polyMarqueeBox = null;
         
         if (mRect.width > 5 && mRect.height > 5) {
             const multiSelectKey = e.ctrlKey || e.shiftKey;

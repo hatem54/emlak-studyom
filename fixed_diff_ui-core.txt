@@ -1,0 +1,132 @@
+diff --git a/modules/ui-core.js b/modules/ui-core.js
+index 2abff4f..0f9742d 100644
+--- a/modules/ui-core.js
++++ b/modules/ui-core.js
+@@ -1,4 +1,4 @@
+-// ==================== UI CORE ====================
++´╗┐// ==================== UI CORE ====================
+ function initCoreRefs(){
+     canvasEl=$('canvas-container');
+     photoLayer=$('photo-layer');
+@@ -34,16 +34,103 @@ function switchTab(name){
+     }
+ 
+     document.querySelectorAll('#mainTabs .tab-btn').forEach(b => {
+-        if(b.dataset.tab === name) b.classList.add('active');
++        if(b.dataset.tab === name) {
++            b.classList.add('active');
++            // Scroll the tab bar so the active button is visible
++            b.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
++        }
+         else b.classList.remove('active');
+     });
+     
+-    document.querySelectorAll('.panel>.dynamic-field').forEach(f=>f.classList.remove('show'));
++    // In floating mode, capture current panel's geometry to apply to the incoming panel
++    const isFloating = document.body.classList.contains('floating-panels-active');
++    let geom = null;
++    if (isFloating) {
++        const currentPanel = document.querySelector('.dynamic-field.show');
++        if (currentPanel) {
++            geom = {
++                width: currentPanel.style.width,
++                height: currentPanel.style.height,
++                left: currentPanel.style.left,
++                top: currentPanel.style.top
++            };
++            const currentWrapper = currentPanel.querySelector('.panel-content-wrapper');
++            if (currentWrapper) {
++                geom.zoom = currentWrapper.style.zoom;
++            }
++        }
++    }
++
++    let isSlideAnim = false;
++    let oldPanel = null;
++    let animDir = 'right';
++    if (isMobile && !isFloating) {
++        oldPanel = document.querySelector('.dynamic-field.show');
++        if (oldPanel && oldPanel.id !== 'tab-'+name) {
++            const tabs = Array.from(document.querySelectorAll('#mainTabs .tab-btn[data-tab]'));
++            const oldTabName = oldPanel.id.replace('tab-', '');
++            const oldIndex = tabs.findIndex(t => t.dataset.tab === oldTabName);
++            const newIndex = tabs.findIndex(t => t.dataset.tab === name);
++            if (oldIndex !== -1 && newIndex !== -1) {
++                isSlideAnim = true;
++                animDir = newIndex > oldIndex ? 'right' : 'left';
++            }
++        }
++    }
++
++    if (isSlideAnim && oldPanel) {
++        oldPanel.classList.remove('anim-slide-in-right', 'anim-slide-in-left', 'anim-slide-out-right', 'anim-slide-out-left');
++        oldPanel.classList.add(animDir === 'right' ? 'anim-slide-out-left' : 'anim-slide-out-right');
++        setTimeout(() => {
++            if (oldPanel.id !== 'tab-'+name) {
++                oldPanel.classList.remove('show');
++                // We purposefully do NOT remove the slide-out classes here.
++                // Keeping them ensures the panel stays off-screen (translateX) and retains transition:none,
++                // so it doesn't flash back to the center and animate downwards!
++            }
++        }, 300);
++    } else {
++        document.querySelectorAll('.dynamic-field').forEach(f=> {
++            if (f.id !== 'tab-'+name) {
++                f.classList.remove('show', 'anim-slide-in-right', 'anim-slide-in-left', 'anim-slide-out-right', 'anim-slide-out-left');
++            }
++        });
++    }
++
+     const targetPanel = document.getElementById('tab-'+name);
+-    if(targetPanel) targetPanel.classList.add('show');
++    if(targetPanel) {
++        if (isSlideAnim) {
++            targetPanel.classList.remove('anim-slide-in-right', 'anim-slide-in-left', 'anim-slide-out-right', 'anim-slide-out-left');
++            // Prevent flash by setting initial transform inline before showing
++            targetPanel.style.transform = animDir === 'right' ? 'translateX(100%)' : 'translateX(-100%)';
++            targetPanel.classList.add('show');
++            
++            // Wait for next paint to add animation and remove inline transform
++            requestAnimationFrame(() => {
++                requestAnimationFrame(() => {
++                    targetPanel.style.transform = '';
++                    targetPanel.classList.add(animDir === 'right' ? 'anim-slide-in-right' : 'anim-slide-in-left');
++                });
++            });
++        } else {
++            targetPanel.classList.remove('anim-slide-in-right', 'anim-slide-in-left', 'anim-slide-out-right', 'anim-slide-out-left');
++            targetPanel.classList.add('show');
++        }
++        
++        if (isFloating && geom) {
++            if (geom.width) targetPanel.style.setProperty('width', geom.width, 'important');
++            if (geom.height) targetPanel.style.setProperty('height', geom.height, 'important');
++            if (geom.left) targetPanel.style.setProperty('left', geom.left, 'important');
++            if (geom.top) targetPanel.style.setProperty('top', geom.top, 'important');
++            const targetWrapper = targetPanel.querySelector('.panel-content-wrapper');
++            if (targetWrapper && geom.zoom) {
++                targetWrapper.style.zoom = geom.zoom;
++            }
++        }
++    }
+     
+     // Show overlay on mobile when a tab opens
+-    if (isMobile) {
++    if (isMobile && !document.body.classList.contains('floating-panels-active')) {
+         const mo = document.getElementById('mobileSheetOverlay');
+         if (mo) { mo.style.display = 'block'; mo.style.opacity = '1'; }
+     }
+@@ -292,9 +379,10 @@ function applyCustomCode(){
+ 
+ window.closeBottomSheet = function() {
+     if (window.isMobileDevice()) {
+-        document.querySelectorAll('.panel>.dynamic-field').forEach(f => f.classList.remove('show'));
++        document.querySelectorAll('.dynamic-field').forEach(f => f.classList.remove('show'));
+         document.querySelectorAll('#mainTabs .tab-btn').forEach(b => b.classList.remove('active'));
+         const mo = document.getElementById('mobileSheetOverlay');
+         if (mo) { mo.style.display = 'none'; mo.style.opacity = '0'; }
+     }
+-}
+\ No newline at end of file
++}
++

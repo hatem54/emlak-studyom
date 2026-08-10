@@ -14,28 +14,28 @@ function _luksInit(){
         <div class="edit-hint" style="display:none;">💡 Yazıya/panele ÇİFT TIKLA | Sürükle Bırak | Sağ Tık (Ayarlar)</div>
         <div class="template-grid" id="luksTemplateGrid" style="margin-top:10px;"></div>
         <div class="section-title">💎 Lüks Tasarımlar (Aşırı Detaylı)</div>
-        <div class="section-title" style="margin-top:0">⚡ Hızlı Metin Düzenleyici</div>
+        <div class="section-title" style="margin-top:0">&#10024; H&#305;zl&#305; Metin D&#252;zenleyici</div>
         
         <div class="input-group">
-            <label>Ana Başlık (Title)</label>
-            <input type="text" id="canvaLTitle" value="SATILIK MÜSTAKİL EV">
+            <label>Ana Ba&#351;l&#305;k (Title)</label>
+            <input type="text" id="canvaLTitle" value="SATILIK M&#220;STAK&#304;L EV">
         </div>
         <div class="input-group">
             <label>Fiyat</label>
             <input type="text" id="canvaLPrice" value="12.500.000 TL">
         </div>
         <div class="input-group">
-            <label>Marka / İletişim</label>
+            <label>&#304;leti&#351;im</label>
             <input type="text" id="canvaLContact" value="EMLAK STUDIO | 0532 000 0000">
         </div>
         <div class="input-group">
-            <label>Özellikler (Alt alta)</label>
+            <label>&#214;zellikler (Alt alta)</label>
             <textarea id="canvaLFeats" rows="4">Geniş Bahçe
 Müstakil Havuz
 Doğa İçinde
 Özel Otopark</textarea>
         </div>
-        <button class="btn-action btn-green" onclick="var b=document.querySelector('#luksTemplateGrid .canva-tpl-card.active'); if(b){b.classList.remove('active'); b.click();}">🎯 Seçili Şablonu Uygula</button>
+        
 
         
     `;
@@ -63,7 +63,7 @@ Doğa İçinde
         btn.className = 'canva-tpl-card';
         btn.dataset.id = c.id;
         const tBg = 'linear-gradient(135deg, '+c.bg1+', '+c.bg2+')';
-        btn.innerHTML = '<div class="tpl-preview" style="display:flex;gap:0;border-radius:4px;overflow:hidden;background:'+tBg+'"><div style="flex:1;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:2px;padding:4px;background:rgba(0,0,0,0.3)"><div style="font-size:13px;font-weight:900;color:'+c.accent+'">PRO</div><div style="font-size:10px;color:#fff">YENİ KALIP '+(idx+1)+'</div></div></div><div class="tpl-name">'+c.name+'</div>';
+        btn.innerHTML = '<div class="tpl-preview" style="display:flex;gap:0;border-radius:4px;overflow:hidden;background:'+tBg+'"><div style="flex:1;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:2px;padding:4px;background:rgba(0,0,0,0.3)"><div style="font-size:13px;font-weight:900;color:'+c.accent+'">PRO</div><div style="font-size:10px;color:#fff">YEN&#304; KALIP '+(idx+1)+'</div></div></div>';
         
         btn.onclick = () => {
             if(btn.classList.contains('active')) return;

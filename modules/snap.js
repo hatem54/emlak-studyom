@@ -113,8 +113,8 @@ window.getSnapGuides = function(px, py, excludeEl, isDrawingMode) {
 
     const currObj = window.getCurrentPhotoState ? window.getCurrentPhotoState() : null;
 
-    if (window.drawPaths) {
-        window.drawPaths.forEach(p => {
+    if (typeof drawPaths !== 'undefined') {
+        drawPaths.forEach(p => {
             if (p.el && p.el === excludeEl) return;
             
             let tScale = 1, tDx = 0, tDy = 0;

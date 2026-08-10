@@ -243,7 +243,8 @@ function renderData(){
             if(v('c_age')) h += '<div><i class="fas fa-calendar-alt"></i> Yaş: <b>' + v('c_age') + '</b></div>';
         }
         
-        $('infoLineText').innerHTML=h;
+        const infoLine = $('infoLineText');
+        if (infoLine) infoLine.innerHTML = h;
     } catch(err) {
         console.error("renderData HATA:", err);
         const errDiv = document.createElement('div');

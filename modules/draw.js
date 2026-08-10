@@ -4,10 +4,10 @@
  * modules/draw.js
  * ============================================
  * 
- * Bağımlılıklar:
+ * BaÃ„Å¸Ã„Â±mlÃ„Â±lÃ„Â±klar:
  * - config.js
  * 
- * Kullanılan yerler:
+ * KullanÃ„Â±lan yerler:
  * - main.js
  */
 
@@ -57,6 +57,9 @@ function applyGlowAndStroke(ctx, p) {
 }
 
 function drawSinglePath(p){
+
+    if(p.hidden) return;
+
 
     drawCtx.save();
     let tParams = null;
@@ -112,7 +115,7 @@ function drawSinglePath(p){
         drawCtx.translate(tParams.dx, tParams.dy);
         drawCtx.scale(tParams.scale, tParams.scale);
         
-        if (p.el && p.el.dataset.baseLeft !== undefined) {
+        if (p.el && p.el.dataset && p.el.dataset.baseLeft !== undefined) {
             const baseL = parseFloat(p.el.dataset.baseLeft);
             const baseT = parseFloat(p.el.dataset.baseTop);
             const baseW = parseFloat(p.el.dataset.baseWidth);
@@ -128,6 +131,17 @@ function drawSinglePath(p){
             SaberEngine.setSaberTransform(p.saberRef, tParams.scale, tParams.dx, tParams.dy);
         }
     } else {
+        if (p.el && p.el.dataset && p.el.dataset.baseLeft !== undefined) {
+            const baseL = parseFloat(p.el.dataset.baseLeft);
+            const baseT = parseFloat(p.el.dataset.baseTop);
+            const baseW = parseFloat(p.el.dataset.baseWidth);
+            const baseH = parseFloat(p.el.dataset.baseHeight);
+            
+            p.el.style.left = baseL + 'px';
+            p.el.style.top = baseT + 'px';
+            p.el.style.width = baseW + 'px';
+            p.el.style.height = baseH + 'px';
+        }
         if (p.hasSaber && p.saberRef && window.SaberEngine && SaberEngine.setSaberTransform) {
             SaberEngine.setSaberTransform(p.saberRef, 1, 0, 0);
         }
@@ -289,7 +303,7 @@ function setDrawMode(mode){
     if (mode === 'off') {
         document.querySelectorAll('.editable-draw').forEach(el => {
             el.style.pointerEvents = 'none';
-            // İçindeki çizim elemanları tıklanabilsin diye
+            // Ã„Â°ÃƒÂ§indeki ÃƒÂ§izim elemanlarÃ„Â± tÃ„Â±klanabilsin diye
             const children = el.querySelectorAll('*');
             children.forEach(child => child.style.pointerEvents = 'all');
         });
@@ -317,7 +331,7 @@ function setDrawMode(mode){
         // z-index handled by CSS (#draw-layer z:5, below canva-render-layer z:10)
         drawCanvas.style.cursor='default';
         $('drawIndicator').classList.add('show');
-        $('canvasHint').textContent=mode==='polygon'?'🔷 Tıklayarak köşe ekle, çift tıkla kapat':'✏️ ÇİZİM AKTİF';
+        $('canvasHint').textContent=mode==='polygon'?'📍 Tıklayarak köşe ekle, çift tıkla kapat':'✏️ ÇİZİM AKTİF';
     }
 }
 
@@ -340,16 +354,38 @@ function getDash(s,w){
     return[];
 }
 
-function canvasXY(e){
-    const r=drawCanvas.getBoundingClientRect();
-    return{x:(e.clientX-r.left)/scaleFactor,y:(e.clientY-r.top)/scaleFactor};
+function canvasXY(e) {
+    const rect = drawCanvas.getBoundingClientRect();
+    let src = e;
+    if (e.touches && e.touches.length > 0) src = e.touches[0];
+    else if (e.changedTouches && e.changedTouches.length > 0) src = e.changedTouches[0];
+    
+    const x = (src.clientX - rect.left) * (drawCanvas.width / rect.width);
+    const y = (src.clientY - rect.top) * (drawCanvas.height / rect.height);
+    
+    return { x: x, y: y };
 }
 
+let lastGlobalDStartTime = 0;
 function dStart(e){
     if(drawMode==='off')return;
-    e.preventDefault();
-    e.stopPropagation();
-    let p=canvasXY(e.touches?e.touches[0]:e);
+    const nowGlobal = Date.now();
+    if (nowGlobal - lastGlobalDStartTime < 50) {
+        if(e.cancelable !== false) e.preventDefault();
+        e.stopPropagation();
+        return;
+    }
+    lastGlobalDStartTime = nowGlobal;
+    // Pointer events: sadece pen ve touch işle (mouse zaten ayrıca bağlı)
+    if (e.type === 'pointerdown') {
+        if (e.pointerType === 'mouse') return; // mouse zaten mousedown ile işleniyor
+        e.preventDefault();
+        e.stopPropagation();
+    } else {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+    let p=canvasXY(e);
     if(window.clearSnapGuides) window.clearSnapGuides();
     if(window.getSnapGuides && (drawMode==='line' || drawMode==='arrow' || drawMode==='polygon' || drawMode==='free')) {
         const snap = window.getSnapGuides(p.x, p.y, null, true);
@@ -359,11 +395,13 @@ function dStart(e){
     if(drawMode==='polygon'){
         const now=Date.now();
         
-        // Akıllı hizalama ile başlangıç noktasına tıklandığında (veya çok yakınsa) direkt kapat
+        // AkÃ„Â±llÃ„Â± hizalama ile baÃ…Å¸langÃ„Â±ÃƒÂ§ noktasÃ„Â±na tÃ„Â±klandÃ„Â±Ã„Å¸Ã„Â±nda (veya ÃƒÂ§ok yakÃ„Â±nsa) direkt kapat
         if (polygonPoints.length >= 3) {
             let firstPt = polygonPoints[0];
             let dist = Math.sqrt(Math.pow(p.x - firstPt.x, 2) + Math.pow(p.y - firstPt.y, 2));
-            if (dist < 20 / (typeof scaleFactor !== "undefined" ? scaleFactor : 1)) {
+            // Touch ve kalem için toleransı genişlet (40px), mouse için 20px
+            const polyTolerance = (typeof window.isMobileDevice === 'function' && window.isMobileDevice()) ? 40 : 20;
+            if (dist < polyTolerance / (typeof scaleFactor !== "undefined" ? scaleFactor : 1)) {
                 closePolygon();
                 return;
             }
@@ -386,17 +424,31 @@ function dStart(e){
 
 function dMove(e){
     if(drawMode==='off')return;
-    e.preventDefault();
-    e.stopPropagation();
-    let p=canvasXY(e.touches?e.touches[0]:e);
+    
+    // PC mouse pointermove zaten mousemove ile yakalanıyor, çift tetiklemeyi atla
+    if (e.type === 'pointermove' && e.pointerType === 'mouse') return;
+    
+    if (e.cancelable !== false) {
+        e.preventDefault();
+    }
+    if (e.stopPropagation) {
+        e.stopPropagation();
+    }
+    
+    let p=canvasXY(e);
     if(window.getSnapGuides && (drawMode==='line' || drawMode==='arrow' || drawMode==='polygon' || drawMode==='free' || drawMode==='rect' || drawMode==='circle')) {
         const snap = window.getSnapGuides(p.x, p.y, null, true);
         p.x = snap.x;
         p.y = snap.y;
         if(window.drawSnapGuides) window.drawSnapGuides(snap.guides);
     }
+    
+    // SADECE mobilde çokgen çiziminde parmak takibi (preview line)
     if(drawMode==='polygon'){
-        if(polygonBuilding&&polygonPoints.length>0){redrawAll();drawTempPolygon(p)}
+        if(polygonBuilding && polygonPoints.length > 0){
+            redrawAll();
+            drawTempPolygon(p);
+        }
         return;
     }
     if(!isDrawing)return;
@@ -467,6 +519,8 @@ function dMove(e){
 }
 
 function dEnd(e){
+    // pointerup'ta mouse tipi geliyorsa mouseup zaten ele alıyor, atla
+    if (e && e.type === 'pointerup' && e.pointerType === 'mouse') return;
     if(window.clearSnapGuides) window.clearSnapGuides();
     if(drawMode==='off'||drawMode==='polygon')return;
     if(!isDrawing)return;
@@ -555,7 +609,7 @@ function dEnd(e){
     redrawAll();
     updateDrawHistory();
 
-    // ═══ ⚡ SABER HOOK ═══
+    // Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â Ã¢Å¡Â¡ SABER HOOK Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â
     if (window.saberState && window.saberState.active && window.applySaberToPath) {
         window.applySaberToPath(drawPaths.length - 1, JSON.parse(JSON.stringify(window.saberState)));
     }
@@ -646,7 +700,7 @@ function closePolygon(){
     }
 
     
-    // ═══ ⚡ SABER HOOK ═══
+    // Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â Ã¢Å¡Â¡ SABER HOOK Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â
     if (window.saberState && window.saberState.active && window.applySaberToPath) {
         window.applySaberToPath(drawPaths.length - 1, JSON.parse(JSON.stringify(window.saberState)));
     }
@@ -672,21 +726,21 @@ function arrowHead(ctx,x1,y1,x2,y2,w,color,op,style){
     ctx.beginPath();
     const s = parseInt(style) || 1;
     switch(s) {
-        case 1: // Standart Içi Dolu
+        case 1: // Standart IÃƒÂ§i Dolu
             ctx.moveTo(x2,y2);
             ctx.lineTo(x2-h*Math.cos(a-Math.PI/6),y2-h*Math.sin(a-Math.PI/6));
             ctx.lineTo(x2-h*Math.cos(a+Math.PI/6),y2-h*Math.sin(a+Math.PI/6));
             ctx.closePath();
             ctx.fill();
             break;
-        case 2: // Ince V (Içi Bos)
+        case 2: // Ince V (IÃƒÂ§i Bos)
             h = w*6;
             ctx.moveTo(x2-h*Math.cos(a-Math.PI/6),y2-h*Math.sin(a-Math.PI/6));
             ctx.lineTo(x2,y2);
             ctx.lineTo(x2-h*Math.cos(a+Math.PI/6),y2-h*Math.sin(a+Math.PI/6));
             ctx.stroke();
             break;
-        case 3: // Genis Üçgen
+        case 3: // Genis ÃƒÅ“ÃƒÂ§gen
             h = w*5;
             ctx.moveTo(x2,y2);
             ctx.lineTo(x2-h*Math.cos(a-Math.PI/4),y2-h*Math.sin(a-Math.PI/4));
@@ -694,7 +748,7 @@ function arrowHead(ctx,x1,y1,x2,y2,w,color,op,style){
             ctx.closePath();
             ctx.fill();
             break;
-        case 4: // Stealth (Içe Kivrik)
+        case 4: // Stealth (IÃƒÂ§e Kivrik)
             h = w*6;
             ctx.moveTo(x2,y2);
             ctx.lineTo(x2-h*Math.cos(a-Math.PI/6),y2-h*Math.sin(a-Math.PI/6));
@@ -725,7 +779,7 @@ function arrowHead(ctx,x1,y1,x2,y2,w,color,op,style){
             ctx.fillRect(-h, -h, h*2, h*2);
             ctx.restore();
             break;
-        case 8: // Çift Yönlü Ok
+        case 8: // Ãƒâ€¡ift YÃƒÂ¶nlÃƒÂ¼ Ok
             ctx.moveTo(x2,y2);
             ctx.lineTo(x2-h*Math.cos(a-Math.PI/6),y2-h*Math.sin(a-Math.PI/6));
             ctx.lineTo(x2-h*Math.cos(a+Math.PI/6),y2-h*Math.sin(a+Math.PI/6));
@@ -744,7 +798,7 @@ function arrowHead(ctx,x1,y1,x2,y2,w,color,op,style){
             ctx.lineTo(x2+h*Math.cos(a+Math.PI/2),y2+h*Math.sin(a+Math.PI/2));
             ctx.stroke();
             break;
-        case 10: // Düz Çizgi (Basliksiz)
+        case 10: // DÃƒÂ¼z Ãƒâ€¡izgi (Basliksiz)
             break;
     }
     ctx.restore();
@@ -800,7 +854,7 @@ function undoLastDraw() {
                     sabers.splice(saberIdx, 1);
                 }
                 last.saberRef = null;
-            } catch(e) { console.warn('Saber undo hatası:', e); }
+            } catch(e) { console.warn('Saber undo hatasÃ„Â±:', e); }
         }
     }
     redrawAll();
@@ -841,7 +895,7 @@ function clearAllDrawings(){
                     if (s.branchContainer && s.branchContainer.parent) s.branchContainer.parent.removeChild(s.branchContainer);
                     sabers.splice(saberIdx, 1);
                 }
-            } catch(e) { console.warn('Saber temizleme hatası:', e); }
+            } catch(e) { console.warn('Saber temizleme hatasÃ„Â±:', e); }
         }
         if (path.el) {
             path.el.remove();
@@ -867,12 +921,12 @@ function updateDrawHistory(){
     if(!drawPaths.length){
     h.innerHTML='<div style="text-align:center;color:#475569;font-size:10px;padding:8px">Henüz çizim yok</div>';return}
     h.innerHTML='';
-    const names={free:'✏️ Serbest',line:'📏 Çizgi',arrow:'➡️ Ok',rect:'⬜ Kare',circle:'⭕ Daire',polygon:'🔷 Çokgen'};
+    const names={free:'<i class="fas fa-pencil-alt"></i> Serbest',line:'<i class="fas fa-grip-lines"></i> Çizgi',arrow:'<i class="fas fa-arrow-right"></i> Ok',rect:'<i class="far fa-square"></i> Kare',circle:'<i class="far fa-circle"></i> Daire',polygon:'<i class="fas fa-draw-polygon"></i> Çokgen'};
     drawPaths.forEach((p,i)=>{
         const item=document.createElement('div');
-        item.className='draw-history-item';
-        const saberBtn = p.hasSaber ? `<button class="dh-btn dh-saber" onclick="startDrawEdit(${i})" title="Saber Ayarları">⚡</button>` : `<button class="dh-btn dh-saber-add" onclick="addSaberToPath(${i})" title="Saber Ekle">✨</button>`;
-        item.innerHTML='<span><span class="dh-color" style="background:'+p.color+'"></span>'+(names[p.type]||p.type)+' #'+(i+1)+(p.fillOpacity>0?' 🎨':'')+'</span><span>'+saberBtn+'<button class="dh-btn dh-edit" onclick="startDrawEdit('+i+')">✏️</button><button class="dh-btn dh-del" onclick="deleteDrawItem('+i+')">✕</button></span>';
+        item.className='draw-history-item' + (i === editingDrawIndex ? ' active' : '');
+        const saberBtn = p.hasSaber ? `<button class="dh-btn dh-saber" onclick="startDrawEdit(${i})" title="Saber AyarlarÄ±"><i class="fas fa-magic"></i></button>` : `<button class="dh-btn dh-saber-add" onclick="addSaberToPath(${i})" title="Saber Ekle"><i class="fas fa-bolt"></i></button>`;
+        item.innerHTML='<span><span class="dh-color" style="background:'+p.color+'"></span>'+(names[p.type]||p.type)+' #'+(i+1)+(p.fillOpacity>0?' <i class="fas fa-fill-drip" style="font-size:10px; margin-left:4px;"></i>':'')+'</span><span>'+saberBtn+'<button class="dh-btn dh-edit" onclick="startDrawEdit('+i+')" title="Düzenle"><i class="fas fa-pen" style="font-size:11px;"></i></button><button class="dh-btn dh-del" onclick="deleteDrawItem('+i+')" title="Sil"><i class="fas fa-trash" style="font-size:11px;"></i></button></span>';
         h.appendChild(item);
     });
 }
@@ -892,7 +946,7 @@ function deleteDrawItem(i){
                     if (s.branchContainer && s.branchContainer.parent) s.branchContainer.parent.removeChild(s.branchContainer);
                     sabers.splice(saberIdx, 1);
                 }
-            } catch(e) { console.warn('Saber temizleme hatası:', e); }
+            } catch(e) { console.warn('Saber temizleme hatasÄ±:', e); }
         }
         if (path.el) {
             path.el.remove();
@@ -917,7 +971,15 @@ function startDrawEdit(i){
     // Backup original state without circular refs
     const backup = { ...p };
     delete backup.saberRef; 
-    originalDrawState = JSON.parse(JSON.stringify(backup));
+    delete backup.el;
+      delete backup.photoRef;
+      try {
+          originalDrawState = JSON.parse(JSON.stringify(backup));
+          originalDrawState.photoRef = p.photoRef;
+      } catch (err) {
+          console.error('startDrawEdit JSON error:', err);
+          originalDrawState = backup;
+      }
     originalDrawState.hasSaber = p.hasSaber;
     if (p.saberOptions) originalDrawState.saberOptions = JSON.parse(JSON.stringify(p.saberOptions));
     
@@ -976,8 +1038,9 @@ function startDrawEdit(i){
     }
     
     if($('drawEditPanel'))$('drawEditPanel').style.display='block';
-    const names={free:'Serbest',line:'Çizgi',arrow:'Ok',rect:'Kare',circle:'Daire',polygon:'Çokgen'};
+    const names={free:'<i class="fas fa-pencil-alt"></i> Serbest',line:'<i class="fas fa-grip-lines"></i> Çizgi',arrow:'<i class="fas fa-arrow-right"></i> Ok',rect:'<i class="far fa-square"></i> Kare',circle:'<i class="far fa-circle"></i> Daire',polygon:'<i class="fas fa-draw-polygon"></i> Çokgen'};
     if($('drawEditLabel'))$('drawEditLabel').textContent='#'+(i+1)+' '+(names[p.type]||'');
+    if(typeof updateDrawHistory === 'function') updateDrawHistory();
 }
 
 window.setDrawEditSaberPreset = function(key) {
@@ -1080,6 +1143,20 @@ window.liveUpdateDrawEdit = function(){
         }
     }
     
+    // Update SVG element if it exists
+    if (p.el && p.el.parentNode) {
+        const oldEl = p.el;
+        const newEl = createSVGFromPath(p);
+        if (newEl) {
+            oldEl.parentNode.replaceChild(newEl, oldEl);
+            p.el = newEl;
+            if (window.selectedEl === oldEl) {
+                window.selectedEl = newEl;
+                newEl.classList.add('el-selected');
+            }
+        }
+    }
+    
     redrawAll();
 };
 
@@ -1087,11 +1164,27 @@ function cancelDrawEdit(){
     if (originalDrawState && editingDrawIndex >= 0 && editingDrawIndex < drawPaths.length) {
         const currentPath = drawPaths[editingDrawIndex];
         const oldRef = currentPath.saberRef;
+        const oldEl = currentPath.el;
+        const oldPhotoRef = currentPath.photoRef;
         
         // Revert to backup
         drawPaths[editingDrawIndex] = JSON.parse(JSON.stringify(originalDrawState));
-        // Restore reference for cleaning up
+        // Restore references
         drawPaths[editingDrawIndex].saberRef = oldRef;
+        drawPaths[editingDrawIndex].photoRef = oldPhotoRef;
+        
+        // Recreate SVG with original state to visually revert
+        const newEl = createSVGFromPath(drawPaths[editingDrawIndex]);
+        if (newEl && oldEl && oldEl.parentNode) {
+            oldEl.parentNode.replaceChild(newEl, oldEl);
+            drawPaths[editingDrawIndex].el = newEl;
+            if (window.selectedEl === oldEl) {
+                window.selectedEl = newEl;
+                newEl.classList.add('el-selected');
+            }
+        } else {
+            drawPaths[editingDrawIndex].el = oldEl;
+        }
         
         // Restore saber effect state
         if (originalDrawState.hasSaber && window.applySaberToPath) {
@@ -1167,6 +1260,11 @@ function createSVGFromPath(p) {
     } else if(p.type === 'polygon') {
         let ptStr = pts.map(pt => `${pt.x - minX},${pt.y - minY}`).join(' ');
         body = `<polygon points="${ptStr}" ${styleStr} ${filterAttr} />`;
+        if (p.showVertices) {
+            pts.forEach(pt => {
+                body += `<circle cx="${pt.x - minX}" cy="${pt.y - minY}" r="${p.width + 2}" fill="${p.color}" ${filterAttr} />`;
+            });
+        }
     } else if(p.type === 'rect') {
         const rX = Math.min(p.x1, p.x2) - minX;
         const rY = Math.min(p.y1, p.y2) - minY;
@@ -1322,7 +1420,14 @@ window.updateSelectedDraw = function() {
 };
 
 window.showVertexHandles = function(el) {
-    if (!el || el.dataset.hasHandles === 'true') return;
+    if (!el) return;
+    
+    // YENİ: Eski (stale) container'ları her halükarda tamamen temizle
+    const oldContainers = el.querySelectorAll('.vertex-handles-container');
+    if (oldContainers) oldContainers.forEach(c => c.remove());
+    el.dataset.hasHandles = 'false';
+    
+    if (el.classList.contains('added-icon') || el.classList.contains('callout-wrap') || el.classList.contains('svg-callout')) return;
     const svg = el.querySelector('svg');
     if (!svg) return;
     const polygon = svg.querySelector('polygon');
@@ -1330,7 +1435,7 @@ window.showVertexHandles = function(el) {
     let shape = svg.querySelector('ellipse, path, line, polyline, rect');
     if(!shape && polygon) shape = polygon;
     
-    // YENİ EKLENEN FONKSİYON: Şeklin (özellikle çokgenin) sınırlarını yeniden hesapla
+    // YENÃ„Â° EKLENEN FONKSÃ„Â°YON: Ã…Âeklin (ÃƒÂ¶zellikle ÃƒÂ§okgenin) sÃ„Â±nÃ„Â±rlarÃ„Â±nÃ„Â± yeniden hesapla
     function recalculateShapeBounds(el) {
         const svg = el.querySelector('svg');
         const polygon = svg.querySelector('polygon');
@@ -1380,10 +1485,10 @@ window.showVertexHandles = function(el) {
             y: pt.y + shiftY
         }));
         
-        svg.setAttribute('width', newW);
-        svg.setAttribute('height', newH);
-        svg.style.width = newW + 'px';
-        svg.style.height = newH + 'px';
+        svg.setAttribute('width', '100%');
+        svg.setAttribute('height', '100%');
+        svg.style.width = '100%';
+        svg.style.height = '100%';
         svg.setAttribute('viewBox', `0 0 ${newW} ${newH}`);
         
         let oldBW = parseFloat(el.dataset.baseWidth) || 1;
@@ -1406,16 +1511,24 @@ window.showVertexHandles = function(el) {
         if (polygon) {
             polygon.setAttribute('points', newPts.map(p => `${p.x},${p.y}`).join(' '));
             el.dataset.polygonPoints = JSON.stringify(newPts);
+            
+            // FIX: SVG içindeki circle'ları da yeni shifted (kaydırılmış) koordinatlarla güncelle!
+            const circles = svg.querySelectorAll('circle');
+            circles.forEach((c, idx) => {
+                if (newPts[idx]) {
+                    c.setAttribute('cx', newPts[idx].x);
+                    c.setAttribute('cy', newPts[idx].y);
+                }
+            });
+
             if(pObj) {
                 pObj.points = newPts.map(pt => ({
                     x: pt.x + newBL,
                     y: pt.y + newBT
                 }));
+                if (pObj.type === 'rect') pObj.type = 'polygon';
             }
-            const r = parseFloat(el.dataset.innerRotation || 0);
-            if (r) {
-                polygon.setAttribute('transform', `rotate(${r}, ${cx}, ${cy})`);
-            }
+
         } else if (lineEl) {
             const newX1 = newPts[0].x;
             const newY1 = newPts[0].y;
@@ -1431,10 +1544,7 @@ window.showVertexHandles = function(el) {
                 pObj.x2 = newX2 + newBL; 
                 pObj.y2 = newY2 + newBT; 
             }
-            const r = parseFloat(el.dataset.innerRotation || 0);
-            if (r) {
-                lineEl.setAttribute('transform', `rotate(${r}, ${cx}, ${cy})`);
-            }
+
         }
 
         
@@ -1494,7 +1604,12 @@ window.showVertexHandles = function(el) {
             lineEl.setAttribute('y1', ny);
             let pObj = null;
             if (typeof drawPaths !== 'undefined') pObj = drawPaths.find(p => p.el === el);
-            if (pObj) { pObj.x1 = nx; pObj.y1 = ny; }
+            if (pObj) {
+                let baseLeft = parseFloat(el.dataset.baseLeft) || 0;
+                let baseTop = parseFloat(el.dataset.baseTop) || 0;
+                pObj.x1 = nx + baseLeft;
+                pObj.y1 = ny + baseTop;
+            }
         }, baseW, baseH);
         
         const h2 = createHandle(points[1], (nx, ny) => {
@@ -1502,7 +1617,12 @@ window.showVertexHandles = function(el) {
             lineEl.setAttribute('y2', ny);
             let pObj = null;
             if (typeof drawPaths !== 'undefined') pObj = drawPaths.find(p => p.el === el);
-            if (pObj) { pObj.x2 = nx; pObj.y2 = ny; }
+            if (pObj) {
+                let baseLeft = parseFloat(el.dataset.baseLeft) || 0;
+                let baseTop = parseFloat(el.dataset.baseTop) || 0;
+                pObj.x2 = nx + baseLeft;
+                pObj.y2 = ny + baseTop;
+            }
         }, baseW, baseH);
         
         container.appendChild(h1);
@@ -1513,9 +1633,26 @@ window.showVertexHandles = function(el) {
                 points[i] = {x: nx, y: ny};
                 polygon.setAttribute('points', points.map(p => `${p.x},${p.y}`).join(' '));
                 el.dataset.polygonPoints = JSON.stringify(points);
+                
+                try {
+                    const circles = el.querySelectorAll('circle');
+                    // Geriye dönük uyumluluk veya ekstra circle'lar varsa sadece points kadarını güncelle
+                    for (let cIdx = 0; cIdx < points.length; cIdx++) {
+                        if (circles[cIdx]) {
+                            circles[cIdx].setAttribute('cx', points[cIdx].x);
+                            circles[cIdx].setAttribute('cy', points[cIdx].y);
+                        }
+                    }
+                } catch(e) {}
+                
                 let pObj = null;
                 if (typeof drawPaths !== 'undefined') pObj = drawPaths.find(p => p.el === el);
-                if (pObj) pObj.points = points;
+                if (pObj) {
+                    let baseLeft = parseFloat(el.dataset.baseLeft) || 0;
+                    let baseTop = parseFloat(el.dataset.baseTop) || 0;
+                    let absolutePoints = points.map(p => ({ x: p.x + baseLeft, y: p.y + baseTop }));
+                    pObj.points = absolutePoints;
+                }
             }, baseW, baseH);
             container.appendChild(handle);
         });
@@ -1550,7 +1687,7 @@ window.showVertexHandles = function(el) {
         handle.appendChild(visual);
         
         function handleDown(e) {
-            if (e.type === 'mousedown') { e.preventDefault(); e.stopPropagation(); }
+            if (e.type === 'mousedown' || e.type === 'touchstart') { e.preventDefault(); e.stopPropagation(); }
             const evt = e.touches ? e.touches[0] : e;
             const startX = evt.clientX;
             const startY = evt.clientY;
@@ -1558,16 +1695,36 @@ window.showVertexHandles = function(el) {
             const startPtY = pt.y;
             
             const rect = el.getBoundingClientRect();
-            const sFactor = (typeof scaleFactor !== "undefined" ? scaleFactor : 1) || 1;
-            const scaleX = (rect.width / sFactor) / bW;
-            const scaleY = (rect.height / sFactor) / bH;
+            
+            // FIX #3: Read current base width and height to prevent stale values after shape recalculation
+            const currentBW = parseFloat(el.dataset.baseWidth) || bW;
+            const currentBH = parseFloat(el.dataset.baseHeight) || bH;
+            
+            // FIX #1: The getBoundingClientRect already includes the parent transform's scale factor.
+            // Using it directly with current base width gives the true real-time visual scale.
+            const scaleX = rect.width / currentBW;
+            const scaleY = rect.height / currentBH;
             
             function onMove(me) {
                 const meEvt = me.touches ? me.touches[0] : me;
-                const dx = (meEvt.clientX - startX) / sFactor / scaleX;
-                const dy = (meEvt.clientY - startY) / sFactor / scaleY;
-                let newX = startPtX + dx;
-                let newY = startPtY + dy;
+                const dx = (meEvt.clientX - startX) / scaleX;
+                const dy = (meEvt.clientY - startY) / scaleY;
+                
+                // Element dönmüşse mouse delta'sını element-local koordinatına çevir
+                let localDx = dx;
+                let localDy = dy;
+                const rotDeg = parseFloat(el.dataset.rotation) || 0;
+                if (rotDeg !== 0) {
+                    const rotRad = rotDeg * Math.PI / 180;
+                    const cos = Math.cos(rotRad);
+                    const sin = Math.sin(rotRad);
+                    // FIX #2: Convert global mouse delta back to local unrotated space (Inverse Rotation)
+                    localDx = dx * cos + dy * sin;
+                    localDy = -dx * sin + dy * cos;
+                }
+                
+                let newX = startPtX + localDx;
+                let newY = startPtY + localDy;
                 if(window.getSnapGuides) {
                     let globalX = newX + (parseFloat(el.style.left) || 0);
                     let globalY = newY + (parseFloat(el.style.top) || 0);
@@ -1576,8 +1733,8 @@ window.showVertexHandles = function(el) {
                     newY = snap.y - (parseFloat(el.style.top) || 0);
                     if(window.drawSnapGuides) window.drawSnapGuides(snap.guides);
                 }
-                handle.style.left = (newX / bW * 100) + '%';
-                handle.style.top = (newY / bH * 100) + '%';
+                handle.style.left = (newX / currentBW * 100) + '%';
+                handle.style.top = (newY / currentBH * 100) + '%';
                 onUpdate(newX, newY);
             }
             
@@ -1589,6 +1746,61 @@ window.showVertexHandles = function(el) {
                 document.removeEventListener('touchend', onUp);
                 
                 recalculateShapeBounds(el);
+                
+                if (typeof createSVGFromPath === 'function') {
+                    let pObj = null;
+                    if (typeof drawPaths !== 'undefined') pObj = drawPaths.find(p => p.el === el);
+                    if (pObj) {
+                        const newIcon = createSVGFromPath(pObj);
+                        if (newIcon) {
+                            const oldSvg = el.querySelector('svg');
+                            const newSvg = newIcon.querySelector('svg');
+                            if (oldSvg && newSvg) {
+                                oldSvg.replaceWith(newSvg);
+                            } else if(newSvg) {
+                                el.appendChild(newSvg);
+                            }
+                            
+                            el.style.left = newIcon.style.left;
+                            el.style.top = newIcon.style.top;
+                            el.style.width = newIcon.style.width;
+                            el.style.height = newIcon.style.height;
+                            el.dataset.baseLeft = newIcon.dataset.baseLeft;
+                            el.dataset.baseTop = newIcon.dataset.baseTop;
+                            el.dataset.baseWidth = newIcon.dataset.baseWidth;
+                            el.dataset.baseHeight = newIcon.dataset.baseHeight;
+                            
+                            if (newSvg) {
+                                const poly = newSvg.querySelector('polygon');
+                                if (poly) {
+                                    const ptsStr = poly.getAttribute('points');
+                                    if (ptsStr) {
+                                        const newPoints = ptsStr.split(' ').map(p => {
+                                            const [x,y] = p.split(',').map(Number);
+                                            return {x,y};
+                                        });
+                                        el.dataset.polygonPoints = JSON.stringify(newPoints);
+                                    }
+                                }
+                            }
+                            
+                            if (newIcon.parentNode) {
+                                newIcon.parentNode.removeChild(newIcon);
+                            }
+                        }
+                    }
+                }
+                
+                const isPolyOrLine = el.dataset.polygonPoints || (el.querySelector('svg') && el.querySelector('svg').querySelector('line, polyline'));
+                if (typeof showVertexHandles === 'function' && isPolyOrLine) {
+                    if (typeof hideVertexHandles === 'function') hideVertexHandles();
+                    else {
+                        const oldContainer = el.querySelector('.vertex-handles-container');
+                        if (oldContainer) oldContainer.remove();
+                        delete el.dataset.hasHandles;
+                    }
+                    showVertexHandles(el);
+                }
             }
             document.addEventListener('mousemove', onMove);
             document.addEventListener('mouseup', onUp);
@@ -1638,7 +1850,7 @@ window.showVertexHandles = function(el) {
     container.appendChild(rotLine);
     
     function rotHandleDown(e) {
-        if (e.type === 'mousedown') { e.preventDefault(); e.stopPropagation(); }
+        if (e.type === 'mousedown' || e.type === 'touchstart') { e.preventDefault(); e.stopPropagation(); }
         const evt = e.touches ? e.touches[0] : e;
         rotHandle.style.cursor = 'grabbing';
         
@@ -1647,7 +1859,7 @@ window.showVertexHandles = function(el) {
         const centerY = rect.top + rect.height / 2;
         
         let startAngle = Math.atan2(evt.clientY - centerY, evt.clientX - centerX);
-        let prevAngle = el.dataset.innerRotation ? parseFloat(el.dataset.innerRotation) : 0;
+        let prevAngle = el.dataset.rotation ? parseFloat(el.dataset.rotation) : 0;
         
         let initialPoints = [];
         let points = [];
@@ -1659,42 +1871,99 @@ window.showVertexHandles = function(el) {
         
         function onMove(me) {
             const meEvt = me.touches ? me.touches[0] : me;
-            const currentAngle = Math.atan2(meEvt.clientY - centerY, meEvt.clientX - centerX);
-            let diffAngle = currentAngle - startAngle;
+            const rect = el.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+            const currentAngleRad = Math.atan2(meEvt.clientY - centerY, meEvt.clientX - centerX);
+            const diffRad = currentAngleRad - startAngle;
+
+            // Points matematiksel olarak dönüyor (el div dönmüyor!)
+            const bW = parseFloat(el.dataset.baseWidth) || el.offsetWidth;
+            const bH = parseFloat(el.dataset.baseHeight) || el.offsetHeight;
             
-            const cx = baseW / 2;
-            const cy = baseH / 2;
+            // Merkezi initialPoints ortalamasından hesapla (kümülatif ve sabit)
+            let cx = bW / 2;
+            let cy = bH / 2;
+            if (initialPoints && initialPoints.length > 0) {
+                let sumX = 0, sumY = 0;
+                initialPoints.forEach(p => { sumX += p.x; sumY += p.y; });
+                cx = sumX / initialPoints.length;
+                cy = sumY / initialPoints.length;
+            }
             
-            if (polygon) {
-                points.forEach((pt, i) => {
-                    const ip = initialPoints[i];
-                    const dx = ip.x - cx;
-                    const dy = ip.y - cy;
-                    pt.x = cx + dx * Math.cos(diffAngle) - dy * Math.sin(diffAngle);
-                    pt.y = cy + dx * Math.sin(diffAngle) + dy * Math.cos(diffAngle);
+            const cos = Math.cos(diffRad);
+            const sin = Math.sin(diffRad);
+
+            if (initialPoints && initialPoints.length > 0) {
+                const newPoints = initialPoints.map(pt => {
+                    const dx = pt.x - cx;
+                    const dy = pt.y - cy;
+                    return {
+                        x: cx + dx * cos - dy * sin,
+                        y: cy + dx * sin + dy * cos
+                    };
+                });
+                
+                el.dataset.polygonPoints = JSON.stringify(newPoints);
+                
+                // SVG polygon güncelle
+                const polygon = el.querySelector('svg polygon');
+                if (polygon) {
+                    polygon.setAttribute('points', newPoints.map(p => `${p.x},${p.y}`).join(' '));
                     
-                    const hDiv = container.children[i];
-                    if (hDiv && hDiv.classList.contains('vertex-handle')) {
-                        hDiv.style.left = (pt.x / baseW * 100) + '%';
-                        hDiv.style.top = (pt.y / baseH * 100) + '%';
+                    // SVG içindeki circle'ları (showVertices noktalarını) da güncelle
+                    const circles = el.querySelectorAll('svg circle');
+                    circles.forEach((c, idx) => {
+                        if (newPoints[idx]) {
+                            c.setAttribute('cx', newPoints[idx].x);
+                            c.setAttribute('cy', newPoints[idx].y);
+                        }
+                    });
+                }
+                
+                // Vertex handle'ları güncelle
+                const handles = el.querySelectorAll('.vertex-handle');
+                newPoints.forEach((pt, i) => {
+                    if (handles[i]) {
+                        handles[i].style.left = (pt.x / bW * 100) + '%';
+                        handles[i].style.top = (pt.y / bH * 100) + '%';
                     }
                 });
-                polygon.setAttribute('points', points.map(p => `${p.x},${p.y}`).join(' '));
-                el.dataset.polygonPoints = JSON.stringify(points);
-            } else if (shape) {
-                let totalAngle = prevAngle + (diffAngle * 180 / Math.PI);
-                shape.setAttribute('transform', `rotate(${totalAngle}, ${cx}, ${cy})`);
-                el.dataset.innerRotation = totalAngle;
+            } else {
+                const diffDeg = diffRad * (180 / Math.PI);
+                let newRotation = prevAngle + diffDeg;
+                newRotation = newRotation % 360;
+                if (newRotation > 180) newRotation -= 360;
+                else if (newRotation < -180) newRotation += 360;
+                newRotation = Math.round(newRotation);
+                
+                el.dataset.rotation = newRotation;
+                el.style.transform = `rotate(${newRotation}deg)`;
+                
+                if (typeof selectedEl !== 'undefined' && selectedEl === el) {
+                    const rotSlider = document.getElementById('elRotate');
+                    if (rotSlider) rotSlider.value = newRotation;
+                    const rotVal = document.getElementById('elRotateVal');
+                    if (rotVal) rotVal.textContent = newRotation + '°';
+                }
             }
+            // startAngle BURADA GÜNCELLENMİYOR, kümülatif açı (initial duruma göre) kullanılıyor.
         }
         function onUp() {
-            rotHandle.style.cursor = 'grab';
+            // mouseup/touchend listener'ları temizle
             document.removeEventListener('mousemove', onMove);
             document.removeEventListener('mouseup', onUp);
             document.removeEventListener('touchmove', onMove);
             document.removeEventListener('touchend', onUp);
-            if (polygon) {
-                recalculateShapeBounds(el);
+            
+            recalculateShapeBounds(el);
+            
+            // Handle refresh (kopya oluşmasın)
+            el.dataset.hasHandles = 'false';
+            const oldContainer = el.querySelector('.vertex-handles-container');
+            if (oldContainer) oldContainer.remove();
+            if (typeof showVertexHandles === 'function') {
+                showVertexHandles(el);
             }
         }
         document.addEventListener('mousemove', onMove);
@@ -1706,15 +1975,144 @@ window.showVertexHandles = function(el) {
     rotHandle.addEventListener('touchstart', rotHandleDown, {passive: false});
     container.appendChild(rotHandle);
     
+    const resizeHandle = document.createElement('div');
+    resizeHandle.className = 'text-handle text-resize-handle';
+    resizeHandle.title = 'Boyutlandır';
+    resizeHandle.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"></path></svg>';
+    container.appendChild(resizeHandle);
+    
     el.appendChild(container);
     el.dataset.hasHandles = 'true';
 };
 
+window.recalculateShapeBounds = function(el) {
+        const svg = el.querySelector('svg');
+        const polygon = svg.querySelector('polygon');
+        const lineEl = svg.querySelector('line');
+        const shape = svg.querySelector('ellipse, path, line, polyline, rect') || polygon;
+        
+        let pObj = null;
+        if (typeof drawPaths !== 'undefined') pObj = drawPaths.find(p => p.el === el);
+        
+        const strokeW = pObj ? parseFloat(pObj.width) : (shape ? (parseFloat(shape.getAttribute('stroke-width')) || 4) : 4);
+        const glow = pObj ? parseFloat(pObj.glow || 0) : 0;
+        const padding = strokeW * 10 + glow + 30;
+        
+        let pts = [];
+        if (polygon && el.dataset.polygonPoints) {
+            pts = JSON.parse(el.dataset.polygonPoints);
+        } else if (lineEl) {
+            pts = [
+                {x: parseFloat(lineEl.getAttribute('x1')), y: parseFloat(lineEl.getAttribute('y1'))},
+                {x: parseFloat(lineEl.getAttribute('x2')), y: parseFloat(lineEl.getAttribute('y2'))}
+            ];
+        }
+        if (pts.length === 0) return;
 
-window.hideVertexHandles = function() {
-    document.querySelectorAll('.vertex-handles-container').forEach(c => c.remove());
-    document.querySelectorAll('[data-has-handles="true"]').forEach(el => delete el.dataset.hasHandles);
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        pts.forEach(pt => {
+            if (pt.x < minX) minX = pt.x;
+            if (pt.y < minY) minY = pt.y;
+            if (pt.x > maxX) maxX = pt.x;
+            if (pt.y > maxY) maxY = pt.y;
+        });
+        
+        const shiftX = padding - minX;
+        const shiftY = padding - minY;
+        
+        const newW = (maxX - minX) + padding * 2;
+        const newH = (maxY - minY) + padding * 2;
+        
+        let bL = parseFloat(el.dataset.baseLeft) || 0;
+        let bT = parseFloat(el.dataset.baseTop) || 0;
+        
+        let newBL = bL - shiftX;
+        let newBT = bT - shiftY;
+        
+        const newPts = pts.map(pt => ({
+            x: pt.x + shiftX,
+            y: pt.y + shiftY
+        }));
+        
+        svg.setAttribute('width', '100%');
+        svg.setAttribute('height', '100%');
+        svg.style.width = '100%';
+        svg.style.height = '100%';
+        svg.setAttribute('viewBox', `0 0 ${newW} ${newH}`);
+        
+        let oldBW = parseFloat(el.dataset.baseWidth) || 1;
+        let tScale = parseFloat(el.style.width) / oldBW;
+        if (isNaN(tScale) || tScale <= 0) tScale = 1;
+
+        el.dataset.baseLeft = newBL;
+        el.dataset.baseTop = newBT;
+        el.dataset.baseWidth = newW;
+        el.dataset.baseHeight = newH;
+        
+        el.style.width = (newW * tScale) + 'px';
+        el.style.height = (newH * tScale) + 'px';
+        el.style.left = (parseFloat(el.style.left) - shiftX * tScale) + 'px';
+        el.style.top = (parseFloat(el.style.top) - shiftY * tScale) + 'px';
+        
+        const cx = newW / 2;
+        const cy = newH / 2;
+        
+        if (polygon) {
+            polygon.setAttribute('points', newPts.map(p => `${p.x},${p.y}`).join(' '));
+            el.dataset.polygonPoints = JSON.stringify(newPts);
+            
+            // FIX: SVG içindeki circle'ları da yeni shifted (kaydırılmış) koordinatlarla güncelle!
+            const circles = svg.querySelectorAll('circle');
+            circles.forEach((c, idx) => {
+                if (newPts[idx]) {
+                    c.setAttribute('cx', newPts[idx].x);
+                    c.setAttribute('cy', newPts[idx].y);
+                }
+            });
+
+            if(pObj) {
+                pObj.points = newPts.map(pt => ({
+                    x: pt.x + newBL,
+                    y: pt.y + newBT
+                }));
+                if (pObj.type === 'rect') pObj.type = 'polygon';
+            }
+
+        } else if (lineEl) {
+            const newX1 = newPts[0].x;
+            const newY1 = newPts[0].y;
+            const newX2 = newPts[1].x;
+            const newY2 = newPts[1].y;
+            lineEl.setAttribute('x1', newX1);
+            lineEl.setAttribute('y1', newY1);
+            lineEl.setAttribute('x2', newX2);
+            lineEl.setAttribute('y2', newY2);
+            if(pObj) { 
+                pObj.x1 = newX1 + newBL; 
+                pObj.y1 = newY1 + newBT; 
+                pObj.x2 = newX2 + newBL; 
+                pObj.y2 = newY2 + newBT; 
+            }
+
+        }
+
+        
+        if (typeof updateDrawHistory === 'function') updateDrawHistory();
+        
+        if (window.hideVertexHandles) {
+            const container = el.querySelector('.vertex-handles-container');
+            if (container) {
+                container.remove();
+                delete el.dataset.hasHandles;
+                setTimeout(() => {
+                    if (window.showVertexHandles) window.showVertexHandles(el);
+                }, 10);
+            }
+        }
 };
+
+
+
 
 
     const style = document.createElement('style');
@@ -1746,3 +2144,5 @@ window.hideVertexHandles = function() {
         c.remove();
     });
 };
+
+

@@ -8,6 +8,16 @@ const STORE_NAME = 'autosave_store';
 let dbInstance = null;
 let autoSaveInterval = null;
 
+// Track unsaved changes
+window.autoSaveTimeout = null;
+
+window.requestAutoSave = function() {
+    if (window.autoSaveTimeout) clearTimeout(window.autoSaveTimeout);
+    window.autoSaveTimeout = setTimeout(() => {
+        if(typeof performAutoSave === 'function') performAutoSave();
+    }, 1000);
+};
+
 // Initialize IndexedDB
 function initAutoSaveDB() {
     return new Promise((resolve, reject) => {
@@ -94,8 +104,8 @@ function cleanupOldHistory() {
             const records = e.target.result;
             const historyRecords = records.filter(r => r.id && r.id.startsWith('history_')).sort((a,b) => b.timestamp - a.timestamp);
             
-            if (historyRecords.length > 10) {
-                const toDelete = historyRecords.slice(10);
+            if (historyRecords.length > 3) {
+                const toDelete = historyRecords.slice(3);
                 toDelete.forEach(r => store.delete(r.id));
             }
             resolve();
@@ -191,7 +201,7 @@ async function performAutoSave() {
 
         // Resimleri Base64'e çevir (Eğer getBase64FromBlobUrl tanımlıysa)
         if (typeof getBase64FromBlobUrl === 'function' && activeUploadedImgUrl) {
-            state.uploadedImgUrl = await getBase64FromBlobUrl(activeUploadedImgUrl);
+            state.uploadedImgUrl = await getBase64FromBlobUrl(activeUploadedImgUrl, 1280);
         }
 
         const elLogo = document.getElementById('elLogo');
@@ -212,22 +222,20 @@ async function performAutoSave() {
             if(['badge', 'price', 'details', 'logo_overlay', 'elLogo'].includes(el.id)) return;
             if(el.classList.contains('editable-draw')) return; // Zaten drawPaths üzerinden yeniden oluşturuluyor, DOM kopyasını kaydetme!
             
-            // Remove selection handles before saving
-            const handles = Array.from(el.querySelectorAll('.text-handle'));
-            handles.forEach(h => h.remove());
+            // Clone to avoid removing handles from live DOM
+            const clone = el.cloneNode(true);
+            clone.querySelectorAll('.text-handle').forEach(h => h.remove());
             
             state.customElements.push({
                 id: el.id,
                 parentId: el.parentElement ? el.parentElement.id : 'ui-layer',
                 className: el.className,
-                innerHTML: el.innerHTML,
+                innerHTML: clone.innerHTML,
                 style: el.getAttribute('style'),
                 dataset: Object.assign({}, el.dataset)
             });
-            
-            // Restore handles
-            handles.forEach(h => el.appendChild(h));
-        });        await saveStateToDB(state);
+        });
+        await saveStateToDB(state);
         
         if (Date.now() - lastHistorySaveTime > HISTORY_INTERVAL) {
             await saveHistoryToDB(state);
@@ -271,6 +279,7 @@ function showAutoSaveIndicator() {
 // Restore Logic
 async function applyRestoredState(state) {
     try {
+        window.isRestoringState = true;
         if(!state.version) throw new Error("Geçersiz proje dosyası");
 
         if(typeof currentMode !== 'undefined') {
@@ -459,6 +468,8 @@ async function applyRestoredState(state) {
     } catch(e) {
         console.error("AutoSave Restore error:", e);
         alert("Kurtarma başarısız: " + e.message);
+    } finally {
+        window.isRestoringState = false;
     }
 }
 
@@ -496,7 +507,7 @@ function showRecoveryModal(savedData) {
 
 function startAutoSaveTimer() {
     if (autoSaveInterval) clearInterval(autoSaveInterval);
-    autoSaveInterval = setInterval(performAutoSave, 30000); // 30 seconds
+    autoSaveInterval = setInterval(performAutoSave, 5000); // 5 seconds
 }
 
 // Boot Sequence
@@ -505,7 +516,6 @@ async function bootAutoSave() {
         await initAutoSaveDB();
         const savedData = await loadStateFromDB();
         
-        // If there is a saved state that is less than 24 hours old
         if (savedData && savedData.state && savedData.timestamp > Date.now() - 24 * 60 * 60 * 1000) {
             // Stop immediate auto-saves to prevent overwriting before user decides
             showRecoveryModal(savedData);

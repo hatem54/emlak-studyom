@@ -619,9 +619,11 @@ function selectCalloutEl(el) {
             const lock = document.createElement('div');
             lock.className = 'text-handle text-lock-handle';
             lock.contentEditable = 'false';
-            lock.title = 'Kilitle / Aç';
+            lock.title = 'Kilitle / A�';
+            const lockSvg = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>';
+            const unlockSvg = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 9.9-1"></path></svg>';
             const isLocked = wrap.dataset.locked === 'true';
-            lock.innerHTML = isLocked ? '🔒' : '🔓';
+            lock.innerHTML = isLocked ? lockSvg : unlockSvg;
             
             const lockAction = function(e) {
                 e.preventDefault();
@@ -632,7 +634,7 @@ function selectCalloutEl(el) {
                     }
                     window.layerToggleLock(wrap.dataset.layerUid);
                     const nowLocked = wrap.dataset.locked === 'true';
-                    lock.innerHTML = nowLocked ? '🔒' : '🔓';
+                    lock.innerHTML = nowLocked ? lockSvg : unlockSvg;
                 }
             };
             lock.addEventListener('mousedown', lockAction);
@@ -641,7 +643,10 @@ function selectCalloutEl(el) {
         } else {
             const lk = wrap.querySelector('.text-lock-handle');
             lk.style.display = 'flex';
-            lk.innerHTML = (wrap.dataset.locked === 'true') ? '🔒' : '🔓';
+            const isLocked = wrap.dataset.locked === 'true';
+            const lockSvg = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>';
+            const unlockSvg = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 9.9-1"></path></svg>';
+            lk.innerHTML = isLocked ? lockSvg : unlockSvg;
         }
     }
 
@@ -1132,3 +1137,5 @@ window.rebindNeonCallout = function(el) {
         }
     });
 };
+
+

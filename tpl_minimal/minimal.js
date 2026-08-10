@@ -11,27 +11,27 @@ function _minimalInit(){
     }
     
     container.innerHTML = `
-        <div class="section-title" style="margin-top:0">✍️ Hızlı Metin Düzenleyici</div>
+        <div class="section-title" style="margin-top:0">&#10024; H&#305;zl&#305; Metin D&#252;zenleyici</div>
         
         <div class="input-group">
-            <label>Ana Başlık (Title)</label>
-            <input type="text" id="canvaMTitle" value="SATILIK MÜSTAKİL EV">
+            <label>Ana Ba&#351;l&#305;k (Title)</label>
+            <input type="text" id="canvaMTitle" value="SATILIK M&#220;STAK&#304;L EV">
         </div>
         <div class="input-group">
             <label>Fiyat</label>
             <input type="text" id="canvaMPrice" value="12.500.000 TL">
         </div>
         <div class="input-group">
-            <label>Marka / İletişim</label>
+            <label>&#304;leti&#351;im</label>
             <input type="text" id="canvaMContact" value="EMLAK STUDYOM | 0532 000 0000">
         </div>
         <div class="input-group">
-            <label>Özellikler (Alt alta)</label>
-            <textarea id="canvaMFeats" rows="4">Yeni Yapı\nLüks Donanım\nMerkezi Konum</textarea>
+            <label>&#214;zellikler (Alt alta)</label>
+            <textarea id="canvaMFeats" rows="4">Yeni Yap&#305;\nL&#252;ks Donan&#305;m\nMerkezi Konum</textarea>
         </div>
-        <button class="btn-action btn-green" onclick="renderMTemplate(activeCanvaId)">✔️ Seçili Şablonu Uygula</button>
         
-        <button class="btn-action btn-yellow" onclick="clearCanvaTemplate()" style="margin-top:8px">❌ Şablonu Kaldır (Normal Dön)</button>
+        
+        
     `;
 
     ['canvaMTitle','canvaMPrice','canvaMContact','canvaMFeats'].forEach(id=>{
@@ -73,7 +73,7 @@ function buildMCards(){
             ];
             const tBg = bgs[idx % 10];
 
-            card.innerHTML = '<div class="tpl-preview" style="display:flex;gap:0;border-radius:4px;overflow:hidden;background:'+tBg+'"><div style="flex:1;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:2px;padding:4px;background:rgba(0,0,0,0.3)"><div style="font-size:13px;font-weight:900;color:'+c.accent+'">PRO</div><div style="font-size:10px;color:#fff">TASARIM '+(idx+1)+'</div></div></div><div class="tpl-name">'+c.name+'</div>';
+            card.innerHTML = '<div class="tpl-preview" style="display:flex;gap:0;border-radius:4px;overflow:hidden;background:'+tBg+'"><div style="flex:1;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:2px;padding:4px;background:rgba(0,0,0,0.3)"><div style="font-size:13px;font-weight:900;color:'+c.accent+'">PRO</div><div style="font-size:10px;color:#fff">TASARIM '+(idx+1)+'</div></div></div>';
             
             card.onclick = () => {
                 if(card.classList.contains('active')) return;

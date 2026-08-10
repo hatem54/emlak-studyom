@@ -247,14 +247,42 @@ window.arrangeLayers = function(baseNode) {
         if (typeof bindDrag === 'function') bindDrag(el);
     });
 
+    // FAZ 2: Sablon Foto Enjeksiyonu
+    const zoomLayer = document.querySelector('#photo-layer .photo-inner-zoom');
+    let bgImg = '';
+    if (zoomLayer) {
+        bgImg = window.getComputedStyle(zoomLayer).backgroundImage;
+    } else {
+        const photoLayer = document.getElementById('photo-layer');
+        if (photoLayer) bgImg = window.getComputedStyle(photoLayer).backgroundImage;
+    }
+    
+    console.log('Enjekte edilen arka plan:', bgImg);
+    
+    if (bgImg && bgImg !== 'none' && bgImg !== '') {
+        const slots = baseNode.querySelectorAll('[data-photo-slot]');
+        slots.forEach(slot => {
+            slot.style.backgroundImage = bgImg;
+            if (!slot.style.backgroundSize) slot.style.backgroundSize = 'cover';
+            if (!slot.style.backgroundPosition) slot.style.backgroundPosition = 'center';
+            if (!slot.style.backgroundRepeat) slot.style.backgroundRepeat = 'no-repeat';
+        });
+        
+        if (baseNode.hasAttribute('data-photo-slot')) {
+            baseNode.style.backgroundImage = bgImg;
+            if (!baseNode.style.backgroundSize) baseNode.style.backgroundSize = 'cover';
+            if (!baseNode.style.backgroundPosition) baseNode.style.backgroundPosition = 'center';
+            if (!baseNode.style.backgroundRepeat) baseNode.style.backgroundRepeat = 'no-repeat';
+        }
+    }
+
     for (let child of baseNode.children) {
         if (child.classList.contains('photo-panel') || 
             child.id === 'photo-panel' ||
             child.classList.contains('kolaj-foto') ||
             child.classList.contains('kolaj-cerceve') ||
             child.classList.contains('photo-layer')) {
-            child.style.zIndex = '1';
-            child.style.setProperty('z-index', '1', 'important');
+            // Z-index bilerek kaldirildi (Doğal HTML sirasi kullanilacak)
         }
         else if (child.id === 'draw-layer') {
             child.style.zIndex = '5';
@@ -268,6 +296,15 @@ window.arrangeLayers = function(baseNode) {
             // z:100 — draw canvas (z:5) altında kesinlikle kalır
             child.style.zIndex = '100';
             child.style.setProperty('z-index', '100', 'important');
+            
+            // Düzenlenebilir metin veya canvas objesi ise tıklamaya izin ver, diğer dekoratifleri kitle
+            if (child.classList.contains('editable-text') || child.classList.contains('canvas-el') || child.querySelector('.editable-text') || child.querySelector('.canvas-el')) {
+                child.style.pointerEvents = 'auto';
+                child.style.setProperty('pointer-events', 'auto', 'important');
+            } else {
+                child.style.pointerEvents = 'none';
+                child.style.setProperty('pointer-events', 'none', 'important');
+            }
         }
     }
 };
@@ -289,6 +326,29 @@ window.arrangeLayers = function(baseNode) {
             childList: true,
             subtree: true
         });
+
+        // GLOBAL CANVA ID TRACKER
+        // Prevents autoSave from loading the wrong template if a specific template file
+        // forgot to update activeCanvaId in its click handler.
+        document.addEventListener('click', function(e) {
+            const card = e.target.closest('.canva-tpl-card');
+            if (card && card.dataset && card.dataset.id) {
+                if (typeof activeCanvaId !== 'undefined') {
+                    activeCanvaId = card.dataset.id;
+                } else {
+                    window.activeCanvaId = card.dataset.id;
+                }
+                if (typeof isCanvaMode !== 'undefined') {
+                    isCanvaMode = true;
+                } else {
+                    window.isCanvaMode = true;
+                }
+                // Trigger autoSave to persist the selected template
+                if (typeof requestAutoSave === 'function') {
+                    requestAutoSave();
+                }
+            }
+        }, true); // use capture phase so it runs before any stopPropagation        
         
         console.log('✅ Katman düzenleyici aktif');
     };

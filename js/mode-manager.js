@@ -1,8 +1,8 @@
-// ============================================
+﻿// ============================================
 // Demo/Pro Mod Yöneticisi
 // ============================================
 
-let APP_MODE = 'demo';
+let APP_MODE = 'pro'; // Geçici olarak 'pro' yapıldı
 let CURRENT_USER = null;
 const DEMO_TEMPLATES = ['tpl_klasik', 'tpl_minimal', 'tpl_dinamik'];
 
@@ -35,13 +35,13 @@ async function checkUserMode() {
           console.warn('Admin kontrolü yapılamadı:', e);
       }
     } else {
-      APP_MODE = 'demo';
+      APP_MODE = 'pro'; // Geçici olarak 'pro' yapıldı
       CURRENT_USER = null;
-      console.log('🟡 Demo modu aktif (kayıtsız)');
+      console.log('🟡 Pro modu aktif (geçici)');
     }
   } catch (e) {
-    console.warn('Mod kontrolü hatası, demo moda geçiliyor:', e);
-    APP_MODE = 'demo';
+    console.warn('Mod kontrolü hatası, pro moda geçiliyor:', e);
+    APP_MODE = 'pro'; // Geçici olarak 'pro' yapıldı
     CURRENT_USER = null;
   }
   
@@ -398,7 +398,7 @@ function addWatermark(canvas) {
       resolve(canvas);
     };
     
-    logo.src = 'assets/logo/logo.png';
+    logo.src = 'assets/watermark-logo.png';
   });
 }
 
@@ -423,3 +423,5 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 console.log('✅ Mode Manager yüklendi');
+
+

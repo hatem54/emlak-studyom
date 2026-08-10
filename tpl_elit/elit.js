@@ -112,17 +112,17 @@ function _elitInit(){
         
         <div class="canva-tpl-grid" id="canvaTplGrid"></div>
         <div id="canvaSettings" class="settings-box">
-            <div class="section-title" style="margin-top:0">✏ Hızlı Metin Düzenleyici</div>
-            <div class="input-group"><label>Ana Başlık</label><input type="text" id="canvaTitle" value="SATILIK MÜSTAKİL EV"></div>
+            <div class="section-title" style="margin-top:0">&#10024; H&#305;zl&#305; Metin D&#252;zenleyici</div>
+            <div class="input-group"><label>Ana Ba&#351;l&#305;k</label><input type="text" id="canvaTitle" value="SATILIK M&#220;STAK&#304;L EV"></div>
             <div class="input-group"><label>Fiyat</label><input type="text" id="canvaPrice" value="6.750.000 TL"></div>
-            <div class="input-group"><label>Özellikler</label><textarea id="canvaFeatures" rows="4" style="width:100%;padding:6px;background:#0f172a;border:1px solid #334155;color:#fff;border-radius:5px;font-size:11px;resize:vertical">• 4+1 Geniş Salon
+            <div class="input-group"><label>&#214;zellikler</label><textarea id="canvaFeatures" rows="4" style="width:100%;padding:6px;background:#0f172a;border:1px solid #334155;color:#fff;border-radius:5px;font-size:11px;resize:vertical">• 4+1 Geniş Salon
 • 180 m² Brüt / 155 m² Net
 • Site İçi Ebeveyn Banyolu
 • Serdivan AVM Karşısı</textarea></div>
-            <div class="input-group"><label>İletişim</label><input type="text" id="canvaContact" value="emlakstudyomtr@gmail.com"></div>
+            <div class="input-group"><label>&#304;leti&#351;im</label><input type="text" id="canvaContact" value="emlakstudyomtr@gmail.com"></div>
         </div>
-        <button class="btn-action btn-green" onclick="buildCanvaRender()">✅ Seçili Şablonu Uygula</button>
-        <button class="btn-action btn-yellow" onclick="clearCanvaTemplate()" style="margin-top:3px">🔄 Şablonu Kaldır (Normal Dön)</button>
+        
+        
     `;
     
     // Bind inputs for live update
@@ -144,7 +144,7 @@ function buildCanvaCards(){
         const card = document.createElement('div');
         card.className = 'canva-tpl-card';
         card.dataset.id = c.id;
-        card.innerHTML = `<div class="tpl-preview" style="display:flex;gap:0;border-radius:4px;overflow:hidden"><div style="flex:1.2;background:${c.bg1};display:flex;align-items:center;justify-content:center;flex-direction:column;gap:2px;padding:4px"><div style="font-size:9px;font-weight:900;color:${c.accent}">SATILIK</div><div style="font-size:7px;color:${c.accent}">6.750.000 TL</div></div><div style="flex:1;background:${c.bg2}"></div><span class="tpl-tag">${c.tag}</span></div><div class="tpl-name">${c.name}</div>`;
+        card.innerHTML = `<div class="tpl-preview" style="display:flex;gap:0;border-radius:4px;overflow:hidden"><div style="flex:1.2;background:${c.bg1};display:flex;align-items:center;justify-content:center;flex-direction:column;gap:2px;padding:4px"><div style="font-size:9px;font-weight:900;color:${c.accent}">SATILIK</div><div style="font-size:7px;color:${c.accent}">6.750.000 TL</div></div><div style="flex:1;background:${c.bg2}"></div></div>`;
         card.onclick = () => {
             document.querySelectorAll('.canva-tpl-card').forEach(x => x.classList.remove('active'));
             card.classList.add('active');

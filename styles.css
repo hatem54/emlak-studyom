@@ -13,11 +13,11 @@
     --gradient-3: linear-gradient(135deg, #00CEC9, #6C5CE7, #FD79A8);
 }
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'Inter',sans-serif;background:var(--dark);color:var(--text);padding:10px;display:flex;flex-direction:column;align-items:center;user-select:none;min-height:100vh}
+body{font-family:'Inter',sans-serif;background:var(--dark);color:var(--text);padding:10px;display:flex;flex-direction:column;align-items:center;user-select:none;height:100vh;overflow:hidden;margin:0}
 h2{color:var(--text);font-family:'Space Grotesk',sans-serif;margin-bottom:10px;font-size:17px;display:flex;align-items:center;gap:8px}
 h2 .vb{background:var(--gradient-1);color:#fff;font-size:9px;padding:2px 8px;border-radius:20px;font-weight:800}
-.container{display:flex;gap:14px;max-width:1800px;width:100%}
-.panel{flex:1;max-width:520px;background:var(--dark-2);padding:12px;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.4);border:1px solid rgba(108,92,231,.2);height:92vh;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--primary) transparent}
+.container{display:flex;gap:14px;max-width:1800px;width:100%;flex:1;min-height:0}
+.panel{flex:1;max-width:520px;background:var(--dark-2);padding:12px;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.4);border:1px solid rgba(108,92,231,.2);height:100%;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--primary) transparent}
 .panel::-webkit-scrollbar{width:5px}.panel::-webkit-scrollbar-thumb{background:var(--primary);border-radius:3px}
 .tabs{display:flex;gap:6px;margin-bottom:15px;background:rgba(10,10,26,0.8);padding:6px;border-radius:10px;border:1px solid rgba(108,92,231,0.1);flex-wrap:wrap;box-shadow:inset 0 2px 4px rgba(0,0,0,0.1)}
 .tab-btn {
@@ -119,21 +119,7 @@ h2 .vb{background:var(--gradient-1);color:#fff;font-size:9px;padding:2px 8px;bor
     /* position:relative EKLEME â€” elemanÄ±n kendi position'Ä±nÄ± koru */
     box-shadow:0 0 0 3px #38bdf8, 0 0 0 5px rgba(56,189,248,.3) !important;
 }
-.el-selected::after {
-    content: '';
-    position: absolute;
-    bottom: -8px;
-    right: -8px;
-    width: 20px;
-    height: 20px;
-    background: #38bdf8;
-    border: 3px solid white;
-    border-radius: 50%;
-    cursor: nwse-resize;
-    z-index: 100000;
-    pointer-events: none;
-    box-shadow: 0 0 5px rgba(0,0,0,0.3);
-}
+.el-selected::after { display: none; }
 .canva-panel{cursor:move;transition:box-shadow .15s}
 .canva-panel:hover:not(.el-selected){
     box-shadow:0 0 0 2px rgba(56,189,248,.4) !important;
@@ -306,7 +292,7 @@ h2 .vb{background:var(--gradient-1);color:#fff;font-size:9px;padding:2px 8px;bor
 
 /* Foto Ã¼stÃ¼ne tÄ±klama iÅŸaretÃ§isi */
 .photo-panel::before {
-    content: 'ðŸ” Tekerlek: Zoom | SÃ¼rÃ¼kle: TaÅŸÄ± | Ã‡ift tÄ±k: SÄ±fÄ±rla';
+    content: '??? Tekerlek: Zoom | Sï¿½rï¿½kle: Taï¿½ï¿½ | ï¿½ift tï¿½k: Sï¿½fï¿½rla';
     position: absolute;
     top: 10px;
     left: 10px;
@@ -1622,7 +1608,7 @@ h2 .vb{background:var(--gradient-1);color:#fff;font-size:9px;padding:2px 8px;bor
     
     .preview-area {
         padding: 0 !important; margin: 0 !important; width: 100% !important; order: 1 !important; flex: 1 1 auto !important; 
-        display: flex !important; justify-content: flex-start !important; align-items: center !important; padding-top: 20px !important; overflow: hidden !important; flex-direction: column !important; 
+        display: flex !important; justify-content: flex-start !important; align-items: center !important; padding-top: 2px !important; overflow: hidden !important; flex-direction: column !important; 
     }
     
     
@@ -1633,13 +1619,21 @@ h2 .vb{background:var(--gradient-1);color:#fff;font-size:9px;padding:2px 8px;bor
         padding: 0 !important; margin: 0 !important; border: none !important; position: relative !important; z-index: 100;
     }
     #mainTabs {
-        display: flex !important; flex-wrap: nowrap !important; overflow-x: auto !important; height: 90px !important; margin: 0 !important; padding: 0 0 30px 0 !important;
+        display: flex !important; flex-wrap: nowrap !important; overflow-x: auto !important; height: 95px !important; margin: 0 !important; padding: 0 40px 35px 10px !important;
         background: #16162a !important; scrollbar-width: none; align-items: center; position: fixed; bottom: 0; left: 0; right: 0; z-index: 100;
     }
     #mainTabs::-webkit-scrollbar { display: none; }
     .tab-btn {
-        flex-shrink: 0 !important; min-width: 75px !important; padding: 8px 12px !important; font-size: 11px !important;
-        border-radius: 6px !important; margin-right: 5px !important; white-space: nowrap !important;
+        flex-shrink: 0 !important; 
+        min-width: max-content !important; 
+        padding: 8px 12px !important; 
+        font-size: 11px !important;
+        border-radius: 6px !important; 
+        margin-right: 5px !important; 
+        white-space: nowrap !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
     }
     .panel::after {
         content: ''; position: fixed; right: 0; bottom: 0; height: 90px; width: 30px; background: linear-gradient(to right, transparent, #16162a); pointer-events: none; z-index: 101 !important;
@@ -1792,10 +1786,10 @@ h2 .vb{background:var(--gradient-1);color:#fff;font-size:9px;padding:2px 8px;bor
 
 
 /* =========================================================
-   ?? MOBÝL TAM UYUM (PRO SEVÝYE)
+   ?? MOBï¿½L TAM UYUM (PRO SEVï¿½YE)
    ========================================================= */
 @media (max-width: 768px) {
-    /* Buton boyutlarý Apple standardý min 44x44 */
+    /* Buton boyutlarï¿½ Apple standardï¿½ min 44x44 */
     button, .btn-action, .preset-btn, .draw-mode-btn, .tab-btn {
         min-height: 44px;
         min-width: 44px;
@@ -1803,14 +1797,14 @@ h2 .vb{background:var(--gradient-1);color:#fff;font-size:9px;padding:2px 8px;bor
         font-size: 14px;
     }
     
-    /* Girdi (Input) ve Select alanlarý */
+    /* Girdi (Input) ve Select alanlarï¿½ */
     input[type='text'], input[type='number'], select {
         min-height: 44px;
-        font-size: 16px; /* Mobilde zoom yapmasýný engeller */
+        font-size: 16px; /* Mobilde zoom yapmasï¿½nï¿½ engeller */
         padding: 8px 12px;
     }
 
-    /* Range sliderlar daha kalýn */
+    /* Range sliderlar daha kalï¿½n */
     input[type='range'] {
         height: 30px;
     }
@@ -1819,16 +1813,16 @@ h2 .vb{background:var(--gradient-1);color:#fff;font-size:9px;padding:2px 8px;bor
         width: 24px;
     }
 
-    /* Canvas Alaný Dokunmatik Hassasiyeti */
+    /* Canvas Alanï¿½ Dokunmatik Hassasiyeti */
     #canvas-wrapper {
-        touch-action: none; /* Mobilde istemsiz kaydýrmalarý kapat */
+        touch-action: none; /* Mobilde istemsiz kaydï¿½rmalarï¿½ kapat */
     }
     
     #photo-layer {
         touch-action: none;
     }
 
-    /* Yan panelleri mobilde tam geniþlik yap */
+    /* Yan panelleri mobilde tam geniï¿½lik yap */
     .sidebar, .right-sidebar {
         width: 100% !important;
         height: auto;
@@ -1836,14 +1830,299 @@ h2 .vb{background:var(--gradient-1);color:#fff;font-size:9px;padding:2px 8px;bor
         overflow-y: auto;
     }
 
-    /* Ana düzeni alt alta al */
+    /* Ana dï¿½zeni alt alta al */
     .main-container {
         flex-direction: column;
     }
 
-    /* Menü açýlýp kapanma animasyonlarý */
+    /* Menï¿½ aï¿½ï¿½lï¿½p kapanma animasyonlarï¿½ */
     .mobile-menu-active {
         display: block !important;
         animation: slideUp 0.3s ease;
     }
 }
+
+/* Text and Icon Handles */
+.text-handle {
+    position: absolute;
+    width: max(24px, 0.15em);
+    height: max(24px, 0.15em);
+    background: #1e293b;
+    border: max(1.5px, 0.01em) solid #3b82f6;
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+    cursor: pointer;
+    font-family: 'Segoe UI', Arial, sans-serif !important;
+    z-index: 100;
+}
+.text-handle svg {
+    width: 50%;
+    height: 50%;
+}
+.text-rotate-handle {
+    top: calc(-24px - 0.05em);
+    left: 50%;
+    transform: translateX(-50%);
+    background: #10b981;
+    border-color: #fff;
+}
+
+.text-delete-handle {
+    bottom: -4px;
+    left: -4px;
+    background: #ef4444;
+    border-color: #fff;
+}
+.text-resize-handle {
+    bottom: -4px;
+    right: -4px;
+    cursor: se-resize;
+    background: #3b82f6;
+    border-color: #fff;
+}
+.text-lock-handle {
+    top: -4px;
+    right: -4px;
+    background: #f59e0b;
+    border-color: #fff;
+}
+
+
+
+.added-icon.el-selected::after { display: none; }
+
+
+
+
+
+
+/* YÃ¼zer Panel Butonlari - PC'de gizle, mobilde goster */
+.floating-expand-btn, .floating-close-btn {
+    display: none !important;
+}
+
+body.floating-panels-active .floating-expand-btn,
+body.floating-panels-active .floating-close-btn {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    position: absolute;
+    width: 32px;
+    height: 32px;
+    background: rgba(15, 23, 42, 0.9);
+    color: #cbd5e1;
+    border-radius: 5px;
+    border: 1px solid rgba(108, 92, 231, 0.4);
+    z-index: 9999;
+    cursor: pointer;
+}
+
+body.floating-panels-active .floating-close-btn {
+    top: 5px;
+    left: 5px;
+}
+
+body.floating-panels-active .floating-expand-btn {
+    bottom: 5px;
+    left: 5px;
+}
+
+
+/* Mobilde canvas beyaz arka plan */
+@media (max-width: 768px) {
+    #canvas-container {
+        background-color: #ffffff !important;
+    }
+}
+
+
+
+
+
+/* Mobil container yukseklik flexbox fix */
+@media (max-width: 768px) {
+    .container {
+        height: auto !important;
+        min-height: 0 !important;
+        flex: 1 !important;
+        padding-bottom: 90px !important;
+    }
+    #mainTabs {
+        transform: translateZ(0); /* Donanim hizlandirma, hayalet logolari engeller */
+    }
+    .app-header {
+        transform: translateZ(0); /* Hayalet logolari engeller */
+    }
+}
+
+
+/* ============================================================
+   MOBILE LANDSCAPE OVERRIDES (Canva-like UX) - ESKI SURUMDEN AKTARIM
+============================================================ */
+@media (max-width: 1400px) and (orientation: landscape) {
+    body { padding: 0 !important; }
+    
+    .ha-body {
+        padding: 0 !important;
+        flex-direction: row !important;
+        top: 0; bottom: 0; position: fixed; width: 100%; overflow: hidden !important;
+    }
+
+    /* Sol Toolbar (Ana Sekmeler) */
+    #mainTabs {
+        position: fixed !important;
+        left: 0 !important;
+        top: 0 !important;
+        bottom: 0 !important;
+        width: calc(75px + env(safe-area-inset-left, 0px)) !important;
+        height: 100dvh !important;
+        display: block !important;
+        overflow-y: auto !important;
+        overflow-x: hidden !important;
+        overscroll-behavior-y: contain !important;
+        -webkit-overflow-scrolling: touch !important;
+        touch-action: pan-y !important;
+        pointer-events: auto !important;
+        background: rgba(10,10,26,0.95) !important;
+        z-index: 1000 !important;
+        padding: 10px 12px 10px calc(5px + env(safe-area-inset-left, 0px)) !important;
+        border-radius: 0 !important;
+        border-right: 1px solid rgba(108,92,231,0.2) !important;
+        margin: 0 !important;
+        box-sizing: border-box !important;
+    }
+    
+    .tab-btn {
+        flex: none !important;
+        width: 100% !important;
+        min-width: 0 !important;
+        display: block !important;
+        padding: 10px 8px !important;
+        margin-bottom: 5px !important;
+        margin-right: 0 !important; margin-left: 0 !important;
+        font-size: 9px !important;
+        text-align: center !important;
+        white-space: pre-wrap !important;
+        word-wrap: break-word !important;
+        line-height: 1.2 !important;
+        box-sizing: border-box !important;
+    } 
+
+    /* Sag Cekmece Menu (.dynamic-field) */
+    .dynamic-field { 
+        overflow: hidden !important;
+        position: fixed !important;
+        top: 0 !important;
+        bottom: 0 !important;
+        right: -100% !important; 
+        left: auto !important;
+        width: 320px !important; 
+        height: 100dvh !important;
+        max-width: calc(100vw - 75px) !important;
+        border-radius: 20px 0 0 20px !important;
+        transition: right 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) !important;
+        box-shadow: -5px 0 25px rgba(0,0,0,0.5) !important;
+        padding-top: 15px !important; 
+        padding-right: 20px !important;
+        padding-left: 35px !important;
+        padding-bottom: 20px !important;
+        z-index: 2000 !important;
+        background: var(--dark-2) !important;
+        overflow-y: auto !important;
+        overscroll-behavior-y: contain !important;
+        -webkit-overflow-scrolling: touch !important;
+        box-sizing: border-box !important;
+    }
+    .dynamic-field.show {
+        right: 0 !important;
+        bottom: 0 !important;
+    }
+
+    /* Ana Gorunum Alani */
+    .preview-area {
+        position: absolute !important;
+        top: 0 !important;
+        left: 75px !important; 
+        right: 0 !important;
+        bottom: 0 !important;
+        width: auto !important;
+        height: 100dvh !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: flex-start !important;
+        padding: 20px max(env(safe-area-inset-right, 45px), 45px) 20px 20px !important; 
+        box-sizing: border-box !important;
+    }
+
+    /* Canvas Ortalamasi */
+    #canvas-container {
+        background-color: #ffffff !important; 
+        box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+    }
+
+    /* Ust Menu Duzeni ve BUG FIX */
+    .app-header {
+        position: fixed !important;
+        top: 0 !important;
+        left: 75px !important;
+        right: 0 !important;
+        background: transparent !important;
+        border: none !important;
+        padding: 5px 15px !important;
+        pointer-events: none !important;
+        z-index: 50 !important;
+        box-sizing: border-box !important;
+    }
+    .app-header .logo { display: none !important; }
+    .app-header * {
+        pointer-events: auto;
+    }
+    
+    /* Gereksiz PC ogelerini gizleme */
+    .sidebar, .right-sidebar, .controls, .settings-panel, .ha-body, .ha-footer, #canvasHint, .info-text, body > .help-assistant-fab, .tour-restart-btn { display: none !important; }
+    
+    /* Mobil Menu Butonlari */
+    .mobile-menu-btn { display: block !important; pointer-events: auto !important; }
+    .mobile-undo-redo { display: flex !important; pointer-events: auto !important; }
+    .panel { display: block !important; background: transparent !important; border: none !important; box-shadow: none !important; width: 0; padding: 0; overflow: visible !important;}
+    .panel::after { display: none !important; }
+
+    /* Mod Banner Duzenlemeleri */
+    body > #modeBanner { display: none !important; }
+    .mobile-menu-panel #modeBanner {
+        display: flex !important; position: static !important; width: 90% !important; margin: 20px auto !important; transform: none !important;
+    }
+    .mobile-menu-panel .help-assistant-fab {
+        display: flex !important; position: static !important; width: 90% !important; margin: 0 auto !important; border-radius: 8px !important;
+        justify-content: center; gap: 8px; font-size: 14px; padding: 12px !important; height: auto !important;
+    }
+
+    /* Menu Tutamaci (Surukle birak alani) */
+    .drag-handle {
+        top: 0 !important; left: 0 !important; right: auto !important; bottom: 0 !important;
+        width: 45px !important; height: auto !important; margin-left: -5px !important;
+        display: block !important;
+        padding: 0 !important;
+        background: transparent !important;
+        z-index: 100 !important;
+    }
+    .drag-bar { 
+        width: 5px !important; height: 40px !important; margin-left: 5px !important; 
+        position: absolute !important; top: 50% !important; transform: translateY(-50%) !important; 
+        left: 0 !important; background: rgba(255,255,255,0.8) !important; 
+        z-index: 100 !important; border-radius: 3px !important; 
+    }
+}
+/* Photo Panel Slider Dim Effect */
+#tab-photo { transition: background-color 0.2s ease, box-shadow 0.2s ease; }
+#tab-photo.dimmed { background: transparent !important; box-shadow: none !important; border-color: transparent !important; }
+#tab-photo * { transition: opacity 0.2s ease; }
+#tab-photo.dimmed > *:not(:has(.active-slider)):not(.active-slider) { opacity: 0; pointer-events: none; }
+#tab-photo.dimmed details:has(.active-slider) > *:not(:has(.active-slider)):not(.active-slider) { opacity: 0; pointer-events: none; }
+#tab-photo.dimmed .active-slider ~ * { opacity: 0; pointer-events: none; }
+#tab-photo.dimmed *:has(~ .active-slider) { opacity: 0; pointer-events: none; }
+
+body.photo-slider-active .mobile-overlay { opacity: 0 !important; pointer-events: none !important; }

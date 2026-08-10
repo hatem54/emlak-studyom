@@ -1,0 +1,16 @@
++            console.warn('Mobile memory lock active: Reduced export scale from ' + outputScale + ' to ' + maxMobileScale);
++            outputScale = maxMobileScale;
++        }
++    }
+     
+     // Geçişi tamamen kapat
+     canvasEl.style.transition='none';
+     canvasEl.style.transform='none';
+-    
+-    // html2canvas offset/shift bug fix:
+-    // Ekrandaki ortalama (margin/flex) nedeniyle html2canvas resmi kaydırarak (offset ile) çekiyor.
+-    // Bunu engellemek için capture anında tuvali sol üste sabitliyoruz.
++
+     const overlay = document.createElement('div');
+     overlay.id = 'download-overlay-mask';
+     overlay.style.position = 'fixed';

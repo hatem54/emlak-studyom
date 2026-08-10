@@ -3,49 +3,7 @@
    Bu dosyada sadece VERİ değişir, fonksiyon YOK
 ============================================================ */
 
-// ========== FONTLAR ==========
-const FONTS=[
-    {name:'✒️ Dancing Script',family:"'Dancing Script',cursive",cat:'✒️ Kıvrımlı & Zarif'},
-    {name:'✒️ Great Vibes',family:"'Great Vibes',cursive",cat:'✒️ Kıvrımlı & Zarif'},
-    {name:'✒️ Pacifico',family:"'Pacifico',cursive",cat:'✒️ Kıvrımlı & Zarif'},
-    {name:'✒️ Satisfy',family:"'Satisfy',cursive",cat:'✒️ Kıvrımlı & Zarif'},
-    {name:'✒️ Allura',family:"'Allura',cursive",cat:'✒️ Kıvrımlı & Zarif'},
-    {name:'✒️ Sacramento',family:"'Sacramento',cursive",cat:'✒️ Kıvrımlı & Zarif'},
-    {name:'✒️ Yellowtail',family:"'Yellowtail',cursive",cat:'✒️ Kıvrımlı & Zarif'},
-    {name:'✒️ Kaushan Script',family:"'Kaushan Script',cursive",cat:'✒️ Kıvrımlı & Zarif'},
-    {name:'✒️ Alex Brush',family:"'Alex Brush',cursive",cat:'✒️ Kıvrımlı & Zarif'},
-    {name:'✒️ Parisienne',family:"'Parisienne',cursive",cat:'✒️ Kıvrımlı & Zarif'},
-    {name:'✒️ Marck Script',family:"'Marck Script',cursive",cat:'✒️ Kıvrımlı & Zarif'},
-    {name:'✒️ Cookie',family:"'Cookie',cursive",cat:'✒️ Kıvrımlı & Zarif'},
-    {name:'✒️ Tangerine',family:"'Tangerine',cursive",cat:'✒️ Kıvrımlı & Zarif'},
-    {name:'✒️ Berkshire Swash',family:"'Berkshire Swash',cursive",cat:'✒️ Kıvrımlı & Zarif'},
-    {name:'✒️ Yesteryear',family:"'Yesteryear',cursive",cat:'✒️ Kıvrımlı & Zarif'},
-    {name:'✒️ Caveat',family:"'Caveat',cursive",cat:'✒️ Kıvrımlı & Zarif'},
-    {name:'👑 Playfair Display',family:"'Playfair Display',serif",cat:'👑 Klasik & Lüks'},
-    {name:'👑 Cormorant Garamond',family:"'Cormorant Garamond',serif",cat:'👑 Klasik & Lüks'},
-    {name:'👑 Cinzel',family:"'Cinzel',serif",cat:'👑 Klasik & Lüks'},
-    {name:'👑 Cinzel Decorative',family:"'Cinzel Decorative',serif",cat:'👑 Klasik & Lüks'},
-    {name:'👑 Italiana',family:"'Italiana',serif",cat:'👑 Klasik & Lüks'},
-    {name:'👑 Prata',family:"'Prata',serif",cat:'👑 Klasik & Lüks'},
-    {name:'👑 Abril Fatface',family:"'Abril Fatface',cursive",cat:'👑 Klasik & Lüks'},
-    {name:'👑 Yeseva One',family:"'Yeseva One',serif",cat:'👑 Klasik & Lüks'},
-    {name:'👑 Libre Baskerville',family:"'Libre Baskerville',serif",cat:'👑 Klasik & Lüks'},
-    {name:'👑 Lora',family:"'Lora',serif",cat:'👑 Klasik & Lüks'},
-    {name:'👑 Merriweather',family:"'Merriweather',serif",cat:'👑 Klasik & Lüks'},
-    {name:'👑 Georgia',family:"Georgia,serif",cat:'👑 Klasik & Lüks'},
-    {name:'🚀 Montserrat',family:"'Montserrat',sans-serif",cat:'🚀 Modern Sans-Serif'},
-    {name:'🚀 Poppins',family:"'Poppins',sans-serif",cat:'🚀 Modern Sans-Serif'},
-    {name:'🚀 Raleway',family:"'Raleway',sans-serif",cat:'🚀 Modern Sans-Serif'},
-    {name:'🚀 Inter',family:"'Inter',sans-serif",cat:'🚀 Modern Sans-Serif'},
-    {name:'🚀 Nunito',family:"'Nunito',sans-serif",cat:'🚀 Modern Sans-Serif'},
-    {name:'🚀 Roboto',family:"'Roboto',sans-serif",cat:'🚀 Modern Sans-Serif'},
-    {name:'🚀 Josefin Sans',family:"'Josefin Sans',sans-serif",cat:'🚀 Modern Sans-Serif'},
-    {name:'💥 Bebas Neue',family:"'Bebas Neue',sans-serif",cat:'💥 Bold & Impact'},
-    {name:'💥 Oswald',family:"'Oswald',sans-serif",cat:'💥 Bold & Impact'},
-    {name:'💥 Archivo Black',family:"'Archivo Black',sans-serif",cat:'💥 Bold & Impact'},
-    {name:'💥 Shrikhand',family:"'Shrikhand',cursive",cat:'💥 Bold & Impact'},
-    {name:'🎯 Amatic SC',family:"'Amatic SC',cursive",cat:'🎯 Dekoratif'}
-];
+
 
 // ========== İKONLAR (Kategorize) - EMLAK PRO ==========
 const ICON_CATEGORIES={
@@ -298,21 +256,7 @@ const OZEL_CARDS=[
     {id:'canvaO10',name:'O10. Özel Tasarım',tag:'Özel',bg1:'#000000',bg2:'#27272a',accent:'#a78bfa'}
 ];
 
-// ========== FOTO FİLTRE PRESET'LERİ ==========
-const PRESETS={
-    original:{exposure:100,contrast:100,saturate:100,fblur:0,sepia:0,hueRotate:0,grayscale:0,invertCtrl:0,vignette:0,shadowsCtrl:0,highlightsCtrl:0,blacksCtrl:0,whitesCtrl:0,tempCtrl:0,tintCtrl:0,vibranceCtrl:0,sharpnessCtrl:0,clarityCtrl:0,dehazeCtrl:0},
-    bright:{exposure:130,contrast:110,saturate:115,shadowsCtrl:30,highlightsCtrl:-15,clarityCtrl:20,vibranceCtrl:15},
-    dark:{exposure:80,contrast:130,saturate:110,shadowsCtrl:-40,blacksCtrl:-30,vignette:40,clarityCtrl:30},
-    vivid:{saturate:180,contrast:120,vibranceCtrl:60,clarityCtrl:25,sharpnessCtrl:20},
-    warm:{tempCtrl:40,tintCtrl:15,saturate:115,exposure:105,contrast:105},
-    cool:{tempCtrl:-40,tintCtrl:-10,saturate:110,contrast:110},
-    cinematic:{contrast:135,saturate:85,tempCtrl:-15,shadowsCtrl:-30,vignette:60,clarityCtrl:30,blacksCtrl:-40,highlightsCtrl:-20},
-    vintage:{sepia:40,saturate:70,contrast:90,tempCtrl:30,vignette:50,exposure:110},
-    luxury:{contrast:120,saturate:105,tempCtrl:20,shadowsCtrl:20,highlightsCtrl:-25,clarityCtrl:35,sharpnessCtrl:15,vignette:30}
-};
 
-const FILTER_IDS=['exposure','contrast','saturate','fblur','sepia','hueRotate','grayscale','invertCtrl','vignette','shadowsCtrl','highlightsCtrl','blacksCtrl','whitesCtrl','tempCtrl','tintCtrl','vibranceCtrl','sharpnessCtrl','clarityCtrl','dehazeCtrl'];
-const FILTER_DEFAULTS={exposure:100,contrast:100,saturate:100,fblur:0,sepia:0,hueRotate:0,grayscale:0,invertCtrl:0,vignette:0,shadowsCtrl:0,highlightsCtrl:0,blacksCtrl:0,whitesCtrl:0,tempCtrl:0,tintCtrl:0,vibranceCtrl:0,sharpnessCtrl:0,clarityCtrl:0,dehazeCtrl:0};
 
 // ========== ÇIKTI FORMATLARI (Sosyal Medya + Baskı) ==========
 const EXPORT_FORMATS={

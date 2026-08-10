@@ -1,0 +1,18 @@
+Line 46: <a href="admin.html" id="adminNavBtn" class="admin-nav-btn" style="display:none; margin-left:10px; padding:6px 14px; border-radius:20px; background:linear-gradient(135deg,#8b5cf6,#7c3aed); color:white; text-decoration:none; font-size:12px; font-weight:600; vertical-align:middle;" title="Admin Panel">🛡️ Admin</a>
+Line 60: <button class="tab-btn" data-tab="icons" onclick="switchTab('icons')" data-tooltip="Emlak & iletişim ikonları">✨ İkon</button>
+Line 163: <div class="cat-item" onclick="selectProperty('satilik_dukkan', this)">Satılık Dükkan</div>
+Line 164: <div class="cat-item" onclick="selectProperty('kiralik_dukkan', this)">Kiralık Dükkan</div>
+Line 280: <div class="row-2"><div class="input-group"><label>Arazi Alan</label><input type="text" id="c_araziSize" value=""></div><div class="input-group"><label>İmar</label><input type="text" id="c_imar" value=""></div></div>
+Line 346: <button class="hsl-tab-btn" onclick="switchHSLTab(this, 's')">Doygun</button>
+Line 416: <button class="preset-btn" onclick="applyPreset('indoor')">🏠 İç Mekan</button>
+Line 417: <button class="preset-btn" onclick="applyPreset('outdoor')">🌳 Dış Mekan</button>
+Line 434: <span class="section-title" style="margin:0;border:none">🎯 <span id="elLabel">Eleman</span></span>
+Line 468: <option value="100">100 - Thin</option>
+Line 554: <div class="color-row"><label style="font-size:10px;">Arka Plan</label>
+Line 569: <option value="100">100 - Thin</option><option value="200">200 - Extra Light</option>
+Line 599: <button class="draw-mode-btn" id="dmPoly" onclick="setDrawMode('polygon')">🔷 Çokgen</button>
+Line 611: <div class="draw-indicator" id="drawIndicator">✏️ ÇİZİM AKTİF — Tuval üzerinde çizin</div>
+Line 836: <label>📝 İkon Başlığı / Metin</label>
+Line 847: <button class="btn-action" onclick="resetCalloutToDefault()" style="margin-top:8px; width:100%; background-color:#3b82f6; color:#fff;">🔄 Varsayılana Dön</button>
+Line 1010: <div class="input-group"><label>Telefon</label><input type="text" id="brandPhoneInput" placeholder="Örn: 0532 123 45 67"></div>
+Line 1059: <script src="modules/callouts-library-core.js?v=1785302098411"></script>`n<script src="modules/callouts-library-extra.js"></script>

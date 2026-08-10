@@ -11,10 +11,10 @@
 
 const $=id=>document.getElementById(id);
 
-let currentMode='satilik_daire',activeLayout='',scaleFactor=1,selectedEl=null,allIcons=[];
+var currentMode='satilik_daire',activeLayout='',scaleFactor=1,selectedEl=null,allIcons=[];
 let drawMode='off',isDrawing=false,drawStartX=0,drawStartY=0,drawPaths=[],drawRedoPaths=[],currentPath=[];
 let extraFieldCounter=0,editingDrawIndex=-1,isCanvaMode=false,activeCanvaId='';
-let polygonPoints=[],polygonBuilding=false,lastClickTime=0;
+let polygonPoints=[],polygonRedoPoints=[],polygonBuilding=false,lastClickTime=0;
 const extraFieldsData={konut:[],arazi:[]};
 let uploadedImgUrl=''; if(typeof trackImageSize==='function') trackImageSize(uploadedImgUrl);
 let canvaOverlays=[];
@@ -37,12 +37,15 @@ function trackImageSize(url) {
             autoAdjustFormat(uploadedImgW, uploadedImgH);
         }
         
-        if(typeof redrawAll === 'function') redrawAll();
+        if (typeof resizeCanvas === 'function') resizeCanvas();
+        if (typeof redrawAll === 'function') redrawAll();
     };
     img.src = url;
 }
 
 function autoAdjustFormat(imgW, imgH) {
+    // KULLANICI İSTEĞİ ÜZERİNE OTOMATİK FORMAT DEĞİŞİMİ KAPATILDI
+    return;
     if (typeof EXPORT_FORMATS === 'undefined' || !imgW || !imgH) return;
     
     const imgRatio = imgW / imgH;
@@ -248,31 +251,58 @@ function smartParse(){
     if (/kiralık/i.test(t)) status = 'KİRALIK';
     if (/günlük/i.test(t)) status = 'GÜNLÜK KİRALIK';
     
-    // Arazi mi Konut mu?
-    const propMapping = {
-            'daire': t.includes('kiralık') ? 'kiralik_daire' : 'satilik_daire',
-            'villa': t.includes('kiralık') ? 'kiralik_villa' : (t.includes('lüks') ? 'satilik_luks_villa' : 'satilik_villa'),
-            'müstakil ev': 'satilik_mustakil_ev',
-            'köy evi': 'satilik_koy_evi',
-            'residence': 'satilik_residence',
-            'yazlık': 'satilik_yazlik',
-            'bungalov': 'satilik_bungalov',
-            'dükkan': t.includes('kiralık') ? 'kiralik_dukkan' : 'satilik_dukkan',
-            'işyeri': t.includes('kiralık') ? 'kiralik_dukkan' : 'satilik_dukkan',
-            'ofis': t.includes('kiralık') ? 'kiralik_ofis' : 'satilik_ofis',
-            'arsa': 'satilik_arsa',
-            'tarla': 'satilik_tarla',
-            'bağ': 'satilik_bag_bahce',
-            'bahçe': 'satilik_bag_bahce'
-        };
+    // Arazi mi Konut mu? (Tüm kategoriler için öncelikli eşleştirme)
+    const isKiralik = /kiralık/i.test(t);
+    const mappings = [
+        // PROJELER
+        { regex: /konut projesi/i, val: 'satilik_konut_projesi' },
+        { regex: /villa projesi/i, val: 'satilik_villa_projesi' },
+        { regex: /rezidans projesi/i, val: 'satilik_rezidans_projesi' },
+        { regex: /residence projesi/i, val: 'satilik_rezidans_projesi' },
+        { regex: /ticari proje/i, val: 'satilik_ticari_proje' },
         
-        let foundType = 'satilik_daire';
-        for (const [key, val] of Object.entries(propMapping)) {
-            if (new RegExp(key, 'i').test(t)) {
-                foundType = val;
-                break;
-            }
+        // PREMIUM
+        { regex: /ultra lüks villa/i, val: 'satilik_ultra_luks_villa' },
+        { regex: /lüks villa/i, val: 'satilik_luks_villa' },
+        { regex: /deniz manzaralı/i, val: 'satilik_deniz_manzarali' },
+        { regex: /havuzlu villa/i, val: 'satilik_havuzlu_villa' },
+        { regex: /akıllı ev/i, val: 'satilik_akilli_ev' },
+        
+        // TİCARİ
+        { regex: /plaza ofis/i, val: 'satilik_plaza_ofisi' },
+        { regex: /iş merkezi/i, val: 'satilik_is_merkezi' },
+        { regex: /dükkan/i, val: isKiralik ? 'kiralik_dukkan' : 'satilik_dukkan' },
+        { regex: /iş\s*yeri/i, val: isKiralik ? 'kiralik_dukkan' : 'satilik_dukkan' },
+        { regex: /ofis/i, val: isKiralik ? 'kiralik_ofis' : 'satilik_ofis' },
+        
+        // ARSA
+        { regex: /ticari arsa/i, val: 'satilik_ticari_arsa' },
+        { regex: /sanayi arsası/i, val: 'satilik_sanayi_arsasi' },
+        { regex: /tarla/i, val: 'satilik_tarla' },
+        { regex: /arsa/i, val: 'satilik_arsa' },
+        { regex: /bağ/i, val: 'satilik_tarla' },
+        { regex: /bahçe/i, val: 'satilik_tarla' },
+        { regex: /fındık\s*bahçesi/i, val: 'satilik_tarla' },
+        
+        // KONUTLAR (En genel olanlar sonda)
+        { regex: /rezidans/i, val: 'satilik_residence' },
+        { regex: /residence/i, val: 'satilik_residence' },
+        { regex: /müstakil ev/i, val: 'satilik_mustakil_ev' },
+        { regex: /köy evi/i, val: 'satilik_koy_evi' },
+        { regex: /yazlık/i, val: 'satilik_yazlik' },
+        { regex: /bungalov/i, val: 'satilik_bungalov' },
+        { regex: /villa/i, val: isKiralik ? 'kiralik_villa' : 'satilik_villa' },
+        { regex: /daire/i, val: isKiralik ? 'kiralik_daire' : 'satilik_daire' },
+        { regex: /ev/i, val: isKiralik ? 'kiralik_daire' : 'satilik_daire' }
+    ];
+        
+    let foundType = 'satilik_daire';
+    for (const mapping of mappings) {
+        if (mapping.regex.test(t)) {
+            foundType = mapping.val;
+            break;
         }
+    }
         
         document.querySelectorAll('.cat-item').forEach(item => item.classList.remove('active'));
         const targetEl = document.querySelector(`.cat-item[onclick*="${foundType}"]`);
@@ -285,17 +315,9 @@ function smartParse(){
                 icon.classList.add('fa-chevron-up');
             }
         }
-        
         window.switchPropertyType(foundType);
         
-        // Temizle
-        const finalStatus = status.toUpperCase();
-    $('statusInput').value = finalStatus;
-    
-    const titleInputs = ['canvaTitle', 'canvaDTitle', 'canvaCTitle', 'canvaKTitle', 'canvaLTitle', 'canvaMTitle', 'canvaOTitle', 'canvaPTitle', 'canvaSTitle', 'kolajBaslik'];
-    titleInputs.forEach(id => {
-        if(document.getElementById(id)) document.getElementById(id).value = finalStatus;
-    });
+        const isArazi = foundType.includes('arsa') || foundType.includes('tarla') || foundType.includes('bag_bahce');
 
     // 2. Fiyat Çıkarma
     const priceMatch = t.match(/((?:\d{1,3}(?:[\.\,]\d{3})+|\d+(?:[\.\,]\d+)?))\s*(buçuk|yarım)?\s*(milyon|bin|tl|lira|euro|dolar|€|\$|₺)/i) || 
@@ -330,7 +352,7 @@ function smartParse(){
         }
         
         const finalPrice = finalNumStr + ' ' + currency;
-        $('priceInput').value = finalPrice;
+        if ($('priceInput')) $('priceInput').value = finalPrice;
         
         const priceInputs = ['canvaPrice', 'canvaDPrice', 'canvaCPrice', 'canvaKPrice', 'canvaLPrice', 'canvaMPrice', 'canvaOPrice', 'canvaPPrice', 'canvaSPrice'];
         priceInputs.forEach(id => {
@@ -338,7 +360,7 @@ function smartParse(){
         });
     } else {
         // Eğer metinde fiyat yoksa, ama input'ta varsa bırak. Eğer input tamamen default ise veya boşsa, 'FİYAT İÇİN ARAYINIZ' yap.
-        if ($('priceInput').value === '12.500.000 TL' || $('priceInput').value === '6.750.000 TL' || $('priceInput').value === '') {
+        if ($('priceInput') && ($('priceInput').value === '12.500.000 TL' || $('priceInput').value === '6.750.000 TL' || $('priceInput').value === '')) {
             $('priceInput').value = 'FİYAT İÇİN BİZE ULAŞIN';
             const priceInputs = ['canvaPrice', 'canvaDPrice', 'canvaCPrice', 'canvaKPrice', 'canvaLPrice', 'canvaMPrice', 'canvaOPrice', 'canvaPPrice', 'canvaSPrice'];
             priceInputs.forEach(id => {
@@ -350,21 +372,53 @@ function smartParse(){
     // 3. Konut Detayları
     if (!isArazi) {
         const roomMatch = t.match(/(\d)\s*[\+]\s*(\d)/);
-        if (roomMatch) $('roomsInput').value = `${roomMatch[1]}+${roomMatch[2]}`;
+        if (roomMatch) {
+            let val = `${roomMatch[1]}+${roomMatch[2]}`;
+            if ($('roomsInput')) $('roomsInput').value = val;
+            if ($('c_rooms')) $('c_rooms').value = val;
+            if ($('f_oda')) $('f_oda').value = val;
+        } else {
+            if ($('roomsInput')) $('roomsInput').value = '';
+            if ($('c_rooms')) $('c_rooms').value = '';
+            if ($('f_oda')) $('f_oda').value = '';
+        }
 
         const sizeMatch = t.match(/(\d[\d\.\,]*)\s*(?:m2|m²|metrekare|metre\s*kare)/i);
-        if (sizeMatch) $('sizeInput').value = sizeMatch[1] + ' m²';
+        if (sizeMatch) {
+            let val = sizeMatch[1] + ' m²';
+            if ($('sizeInput')) $('sizeInput').value = val;
+            if ($('c_size')) $('c_size').value = val;
+            if ($('f_brut')) $('f_brut').value = val;
+        } else {
+            if ($('sizeInput')) $('sizeInput').value = '';
+            if ($('c_size')) $('c_size').value = '';
+            if ($('f_brut')) $('f_brut').value = '';
+        }
 
         const floorMatch = t.match(/(\d+)\.?\s*kat/i) || t.match(/(giriş|yüksek giriş|ara kat|zemin|çatı)/i);
         if (floorMatch) {
             let f = floorMatch[1].charAt(0).toUpperCase() + floorMatch[1].slice(1).toLowerCase();
-            $('floorInput').value = isNaN(parseInt(f)) ? f : `${f}. Kat`;
+            let val = isNaN(parseInt(f)) ? f : `${f}. Kat`;
+            if ($('floorInput')) $('floorInput').value = val;
+            if ($('c_floor')) $('c_floor').value = val;
+            if ($('f_kat')) $('f_kat').value = val;
+        } else {
+            if ($('floorInput')) $('floorInput').value = '';
+            if ($('c_floor')) $('c_floor').value = '';
+            if ($('f_kat')) $('f_kat').value = '';
         }
 
         const ageMatch = t.match(/(?:yaş|yaşı)\s*[:=]?\s*(\d+)/i) || t.match(/(\d+)\s*(?:yıllık|yaşında)/i) || t.match(/(sıfır|yeni)/i);
         if (ageMatch) {
             let a = ageMatch[1].toLowerCase();
-            $('ageInput').value = (a === 'sıfır' || a === 'yeni') ? '0' : a;
+            let val = (a === 'sıfır' || a === 'yeni') ? '0' : a;
+            if ($('ageInput')) $('ageInput').value = val;
+            if ($('c_age')) $('c_age').value = val;
+            if ($('f_yas')) $('f_yas').value = (val === '0' ? 'Sıfır' : val);
+        } else {
+            if ($('ageInput')) $('ageInput').value = '';
+            if ($('c_age')) $('c_age').value = '';
+            if ($('f_yas')) $('f_yas').value = '';
         }
     } 
     // 4. Arazi Detayları
@@ -372,17 +426,89 @@ function smartParse(){
         const sizeMatch = t.match(/(\d[\d\.\,]*)\s*(?:m2|m²|metrekare|metre\s*kare|dönüm)/i);
         if (sizeMatch) {
             let unit = /dönüm/i.test(sizeMatch[0]) ? 'Dönüm' : 'm²';
-            $('araziSizeInput').value = sizeMatch[1] + ' ' + unit;
+            let val = sizeMatch[1] + ' ' + unit;
+            if ($('araziSizeInput')) $('araziSizeInput').value = val;
+            if ($('c_araziSize')) $('c_araziSize').value = val;
+            if ($('f_m2')) $('f_m2').value = val;
+        } else {
+            if ($('araziSizeInput')) $('araziSizeInput').value = '';
+            if ($('c_araziSize')) $('c_araziSize').value = '';
+            if ($('f_m2')) $('f_m2').value = '';
         }
 
-        const adaParselMatch = t.match(/(?:ada\s*[:=]?\s*)?(\d+)\s*(?:\/|ve|ile|-)\s*(?:parsel\s*[:=]?\s*)?(\d+)/i) || t.match(/(\d+)\s*ada\s*(\d+)\s*parsel/i);
-        if (adaParselMatch) $('adaParselInput').value = `${adaParselMatch[1]} / ${adaParselMatch[2]}`;
+        const adaParselMatch = t.match(/(?:ada\s*[:=]?\s*)?(\d+)[\s,]*(?:\/|ve|ile|-)*[\s,]*(?:parsel\s*[:=]?\s*)?(\d+)/i) || t.match(/(\d+)\s*ada\s*(\d+)\s*parsel/i) || t.match(/ada\s*[:=]?\s*(\d+)[\s,]*parsel\s*[:=]?\s*(\d+)/i);
+        if (adaParselMatch) {
+            let val = `${adaParselMatch[1]} / ${adaParselMatch[2]}`;
+            if ($('adaParselInput')) $('adaParselInput').value = val;
+            if ($('c_adaParsel')) $('c_adaParsel').value = val;
+            if ($('f_ada')) $('f_ada').value = adaParselMatch[1];
+            if ($('f_parsel')) $('f_parsel').value = adaParselMatch[2];
+        } else {
+            if ($('adaParselInput')) $('adaParselInput').value = '';
+            if ($('c_adaParsel')) $('c_adaParsel').value = '';
+            if ($('f_ada')) $('f_ada').value = '';
+            if ($('f_parsel')) $('f_parsel').value = '';
+        }
+
+        const cepheMatch = t.match(/((?:resmi\s*)?yola\s*cephe)/i);
+        if (cepheMatch) {
+            let val = 'Yola Cephe';
+            if ($('cepheInput')) $('cepheInput').value = val;
+            if ($('c_cephe')) $('c_cephe').value = val;
+            if ($('f_cephe')) $('f_cephe').value = val;
+        } else {
+            if ($('cepheInput')) $('cepheInput').value = '';
+            if ($('c_cephe')) $('c_cephe').value = '';
+            if ($('f_cephe')) $('f_cephe').value = '';
+        }
 
         const imarMatch = t.match(/(konut|ticari|sanayi|tarım|bağ|bahçe)\s*imar/i) || t.match(/imar\s*[:=]?\s*(var|yok)/i);
-        if (imarMatch) $('imarInput').value = imarMatch[1].charAt(0).toUpperCase() + imarMatch[1].slice(1).toLowerCase() + (imarMatch[0].toLowerCase().includes('imar') ? ' İmarlı' : '');
+        if (imarMatch) {
+            let val = imarMatch[1].charAt(0).toUpperCase() + imarMatch[1].slice(1).toLowerCase() + (imarMatch[0].toLowerCase().includes('imar') ? ' İmarlı' : '');
+            if ($('imarInput')) $('imarInput').value = val;
+            if ($('c_imar')) $('c_imar').value = val;
+            if ($('f_imar')) $('f_imar').value = val;
+        } else {
+            if ($('imarInput')) $('imarInput').value = '';
+            if ($('c_imar')) $('c_imar').value = '';
+            if ($('f_imar')) $('f_imar').value = '';
+        }
         
-        const gabariMatch = t.match(/gabari\s*[:=]?\s*(\d+(?:\.\d+)?)/i) || t.match(/emsal\s*[:=]?\s*(\d+(?:\.\d+)?)/i);
-        if (gabariMatch) $('gabariInput').value = gabariMatch[1];
+        const gabariMatch = t.match(/gabari\s*[:=]?\s*(\d+(?:\.\d+)?)/i);
+        if (gabariMatch) {
+            let val = gabariMatch[1];
+            if ($('gabariInput')) $('gabariInput').value = val;
+            if ($('c_gabari')) $('c_gabari').value = val;
+            if ($('f_gabari')) $('f_gabari').value = val;
+        } else {
+            if ($('gabariInput')) $('gabariInput').value = '';
+            if ($('c_gabari')) $('c_gabari').value = '';
+            if ($('f_gabari')) $('f_gabari').value = '';
+        }
+
+        const kaksMatch = t.match(/emsal\s*[:=]?\s*(\d+(?:\.\d+)?)/i) || t.match(/kaks\s*[:=]?\s*(\d+(?:\.\d+)?)/i);
+        if (kaksMatch) {
+            let val = kaksMatch[1];
+            if ($('kaksInput')) $('kaksInput').value = val;
+            if ($('c_kaks')) $('c_kaks').value = val;
+            if ($('f_kaks')) $('f_kaks').value = val;
+        } else {
+            if ($('kaksInput')) $('kaksInput').value = '';
+            if ($('c_kaks')) $('c_kaks').value = '';
+            if ($('f_kaks')) $('f_kaks').value = '';
+        }
+        
+        const taksMatch = t.match(/taks\s*[:=]?\s*(\d+(?:\.\d+)?)/i);
+        if (taksMatch) {
+            let val = taksMatch[1];
+            if ($('taksInput')) $('taksInput').value = val;
+            if ($('c_taks')) $('c_taks').value = val;
+            if ($('f_taks')) $('f_taks').value = val;
+        } else {
+            if ($('taksInput')) $('taksInput').value = '';
+            if ($('c_taks')) $('c_taks').value = '';
+            if ($('f_taks')) $('f_taks').value = '';
+        }
     }
     
     // 5. Ek Açıklamaları Çıkar (Sadece Konum / Temel Özet)
@@ -510,7 +636,17 @@ document.addEventListener('click', function(e){
 
 window.addEventListener('DOMContentLoaded', initGlobalTooltip);
 
-
+// [YENİ] Mobil Sayfa Kayması (Bounce) Engelleyici
+document.addEventListener('touchmove', function(e) {
+    if (typeof window.isMobileDevice === 'function' && window.isMobileDevice()) {
+        const isScrollable = e.target.closest('.sidebar') || e.target.closest('.right-sidebar') || e.target.closest('.draw-mode-btns') || e.target.closest('.cat-items') || e.target.closest('.swal2-popup') || e.target.closest('#mainTabs') || e.target.closest('.tabs') || e.target.closest('.dynamic-field') || e.target.closest('.accordion-container');
+        const isSlider = e.target.tagName === 'INPUT' && e.target.type === 'range';
+        
+        if (!isScrollable && !isSlider && e.cancelable) {
+            e.preventDefault();
+        }
+    }
+}, { passive: false });
 
 // ========== YZ OTOMATIK IYILESTIRME ==========
 
@@ -525,6 +661,10 @@ let isShowingBefore = false;
 let originalImageData = null;
 let workingCanvas = null;
 let workingCtx = null;
+let previewImageData = null;
+let previewWorkingCanvas = null;
+let previewWorkingCtx = null;
+let isQualityPreviewMode = false;
 let pixelTimeout = null;
 
 
@@ -575,3 +715,14 @@ function duplicateSelected(){
 // State and Undo logic moved to modules/state.js
 
 // Event listeners moved to modules/events.js
+
+// PC'de yn tularnn sayfay kaydrmasn engelle
+window.addEventListener('keydown', function(e) {
+    if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) {
+        if (document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA' || document.activeElement.isContentEditable)) {
+            return;
+        }
+        e.preventDefault();
+    }
+}, {passive: false});
+

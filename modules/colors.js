@@ -28,13 +28,162 @@ function processHSL() {
     processPixels();
 }
 
+
+window.applyPixelAdjustmentsToImageData = function(src, dst, width, height) {
+    const sv = document.getElementById('shadowsCtrl') ? +document.getElementById('shadowsCtrl').value : 0;
+    const hv = document.getElementById('highlightsCtrl') ? +document.getElementById('highlightsCtrl').value : 0;
+    const bl = document.getElementById('blacksCtrl') ? +document.getElementById('blacksCtrl').value : 0;
+    const wh = document.getElementById('whitesCtrl') ? +document.getElementById('whitesCtrl').value : 0;
+    const tmp = document.getElementById('tempCtrl') ? +document.getElementById('tempCtrl').value : 0;
+    const tnt = document.getElementById('tintCtrl') ? +document.getElementById('tintCtrl').value : 0;
+    const vbr = document.getElementById('vibranceCtrl') ? +document.getElementById('vibranceCtrl').value : 0;
+    const shp = document.getElementById('sharpnessCtrl') ? +document.getElementById('sharpnessCtrl').value : 0;
+    
+    // HSL Values
+    const hslColors = ['red','orange','yellow','green','blue','purple','magenta'];
+    let hasHsl = false;
+    let vals = {h:{}, s:{}, l:{}};
+    hslColors.forEach(cl => {
+        let hEl = document.querySelector('.hsl-slider[data-type="h"][data-color="'+cl+'"]');
+        let sEl = document.querySelector('.hsl-slider[data-type="s"][data-color="'+cl+'"]');
+        let lEl = document.querySelector('.hsl-slider[data-type="l"][data-color="'+cl+'"]');
+        let h = hEl ? +hEl.value : 0;
+        let s = sEl ? +sEl.value : 0;
+        let l = lEl ? +lEl.value : 0;
+        vals.h[cl] = h; vals.s[cl] = s; vals.l[cl] = l;
+        if(h!==0 || s!==0 || l!==0) hasHsl = true;
+    });
+
+    if(sv === 0 && hv === 0 && bl === 0 && wh === 0 && tmp === 0 && tnt === 0 && vbr === 0 && shp === 0 && !hasHsl) return false;
+
+    // Safety checks for 1D arrays
+    if (!width || !height) {
+        width = Math.sqrt(src.length / 4);
+        height = width;
+    }
+
+    const shadowFactor = sv / 100;
+    const highlightFactor = hv / 100;
+    const blackFactor = bl / 100;
+    const whiteFactor = wh / 100;
+    const tempFactor = tmp / 100;
+    const tintFactor = tnt / 100;
+    const vibranceFactor = vbr / 100;
+    const sharpFactor = shp / 100;
+
+    for(let y=0; y<height; y++) {
+        for(let x=0; x<width; x++) {
+            let i = (y * width + x) * 4;
+            let r = src[i], g = src[i+1], b = src[i+2], a = src[i+3];
+            
+            if(a === 0) {
+                dst[i]=0; dst[i+1]=0; dst[i+2]=0; dst[i+3]=0;
+                continue;
+            }
+            
+            // SHARPEN (Convolution Matrix)
+            if (sharpFactor > 0 && y > 0 && y < height-1 && x > 0 && x < width-1) {
+                let c = 1 + 4 * sharpFactor;
+                let n = -sharpFactor;
+                
+                let up = i - width * 4;
+                let down = i + width * 4;
+                let left = i - 4;
+                let right = i + 4;
+                
+                let sharpR = src[i]*c + (src[up]+src[down]+src[left]+src[right])*n;
+                let sharpG = src[i+1]*c + (src[up+1]+src[down+1]+src[left+1]+src[right+1])*n;
+                let sharpB = src[i+2]*c + (src[up+2]+src[down+2]+src[left+2]+src[right+2])*n;
+                
+                r = Math.min(255, Math.max(0, sharpR));
+                g = Math.min(255, Math.max(0, sharpG));
+                b = Math.min(255, Math.max(0, sharpB));
+            }
+            
+            // WHITE BALANCE
+            if (tempFactor > 0) {
+                r += tempFactor * 50; g += tempFactor * 20; b -= tempFactor * 40;
+            } else if (tempFactor < 0) {
+                r += tempFactor * 40; b -= tempFactor * 50;
+            }
+            if (tintFactor > 0) {
+                r += tintFactor * 30; b += tintFactor * 30; g -= tintFactor * 40;
+            } else if (tintFactor < 0) {
+                g -= tintFactor * 40; r += tintFactor * 30; b += tintFactor * 30;
+            }
+            r = Math.min(255, Math.max(0, r)); g = Math.min(255, Math.max(0, g)); b = Math.min(255, Math.max(0, b));
+            
+            let hsl = rgbToHslFast(r, g, b);
+            
+            // VIBRANCE
+            if (vibranceFactor !== 0) {
+                let s = hsl[1]; let hue = hsl[0]; let protect = 1.0;
+                
+                // Emlak korumaları
+                if (hue >= 0.25 && hue <= 0.45) protect = 0.5; // Yeşiller (Bahçe)
+                else if (hue >= 0.55 && hue <= 0.70) protect = 0.6; // Maviler (Gökyüzü/Havuz)
+                else if (hue >= 0.05 && hue <= 0.15) protect = 0.5; // Kahverengi/Sarı (Ahşap/Tuğla)
+
+                let adjustedFactor = vibranceFactor * 0.7; // Genel etkiyi yumuşat
+
+                if (adjustedFactor > 0) s += adjustedFactor * (1 - s) * protect;
+                else s += adjustedFactor * s;
+                
+                hsl[1] = Math.min(1, Math.max(0, s));
+            }
+            
+            // TONE
+            let lum = hsl[2];
+            if(shadowFactor !== 0) {
+                let weight = 1 - lum; weight = weight * weight * weight; 
+                lum += shadowFactor * weight * 0.7;
+            }
+            if(highlightFactor !== 0) {
+                let weight = lum; weight = weight * weight * weight;
+                lum += highlightFactor * weight * 0.7;
+            }
+            if (blackFactor !== 0) lum += blackFactor * (1 - lum) * 0.2;
+            if (whiteFactor !== 0) lum += whiteFactor * lum * 0.2;
+            if(lum < 0) lum = 0; if(lum > 1) lum = 1;
+            hsl[2] = lum;
+
+            if (hasHsl) {
+                let category = getColorCategory(hsl[0]);
+                let hShift = vals.h[category], sShift = vals.s[category], lShift = vals.l[category];
+                if(hShift !== 0 || sShift !== 0 || lShift !== 0) {
+                    hsl[0] += (hShift * 0.3) / 360;
+                    if(hsl[0] < 0) hsl[0] += 1; if(hsl[0] > 1) hsl[0] -= 1;
+                    hsl[1] += (sShift / 100);
+                    if(hsl[1] < 0) hsl[1] = 0; if(hsl[1] > 1) hsl[1] = 1;
+                    hsl[2] += (lShift / 200);
+                    if(hsl[2] < 0) hsl[2] = 0; if(hsl[2] > 1) hsl[2] = 1;
+                }
+            }
+            let rgb = hslToRgbFast(hsl[0], hsl[1], hsl[2]);
+            dst[i] = rgb[0]; dst[i+1] = rgb[1]; dst[i+2] = rgb[2]; dst[i+3] = a;
+        }
+    }
+    return true;
+};
+
 function applyPixelAdjustments() {
+
     if(typeof isShowingBefore !== 'undefined' && isShowingBefore) {
         if(typeof uploadedImgUrl !== 'undefined') photoLayer.style.backgroundImage = 'url("'+uploadedImgUrl+'")';
         return;
     }
     
-    if(!originalImageData || !workingCtx) {
+    let activeImageData = originalImageData;
+    let activeCtx = workingCtx;
+    let activeCanvas = workingCanvas;
+    
+    if (isQualityPreviewMode && previewImageData && previewWorkingCtx && previewWorkingCanvas) {
+        activeImageData = previewImageData;
+        activeCtx = previewWorkingCtx;
+        activeCanvas = previewWorkingCanvas;
+    }
+
+    if(!activeImageData || !activeCtx) {
         cacheOriginalImageForPixels();
         return;
     }
@@ -43,6 +192,10 @@ function applyPixelAdjustments() {
     const hv = document.getElementById('highlightsCtrl') ? +document.getElementById('highlightsCtrl').value : 0;
     const bl = document.getElementById('blacksCtrl') ? +document.getElementById('blacksCtrl').value : 0;
     const wh = document.getElementById('whitesCtrl') ? +document.getElementById('whitesCtrl').value : 0;
+    const tmp = document.getElementById('tempCtrl') ? +document.getElementById('tempCtrl').value : 0;
+    const tnt = document.getElementById('tintCtrl') ? +document.getElementById('tintCtrl').value : 0;
+    const vbr = document.getElementById('vibranceCtrl') ? +document.getElementById('vibranceCtrl').value : 0;
+    const shp = document.getElementById('sharpnessCtrl') ? +document.getElementById('sharpnessCtrl').value : 0;
     
     // UI values update
     if(document.getElementById('shadowsVal')) document.getElementById('shadowsVal').textContent = sv;
@@ -65,93 +218,29 @@ function applyPixelAdjustments() {
         if(h!==0 || s!==0 || l!==0) hasHsl = true;
     });
 
-    if(sv === 0 && hv === 0 && bl === 0 && wh === 0 && !hasHsl) {
+    if(sv === 0 && hv === 0 && bl === 0 && wh === 0 && tmp === 0 && tnt === 0 && vbr === 0 && shp === 0 && !hasHsl) {
         if(typeof uploadedImgUrl !== 'undefined') photoLayer.style.backgroundImage = 'url("'+uploadedImgUrl+'")';
         return;
     }
 
-    const src = originalImageData.data;
-    const w = originalImageData.width;
-    const h = originalImageData.height;
-    const newImgData = workingCtx.createImageData(w, h);
+    const src = activeImageData.data;
+    const w = activeImageData.width;
+    const h = activeImageData.height;
+    const newImgData = activeCtx.createImageData(w, h);
     const dst = newImgData.data;
 
-    // Shadows/Highlights logic factors
-    const shadowFactor = sv / 100; // -1 to 1
-    const highlightFactor = hv / 100; // -1 to 1
-    const blackFactor = bl / 100; // -1 to 1
-    const whiteFactor = wh / 100; // -1 to 1
-
-    for(let i=0; i<src.length; i+=4) {
-        let r = src[i], g = src[i+1], b = src[i+2], a = src[i+3];
-        if(a === 0) {
-            dst[i]=0; dst[i+1]=0; dst[i+2]=0; dst[i+3]=0;
-            continue;
-        }
-        
-        let hsl = rgbToHslFast(r, g, b);
-        
-        // --- 1. SHADOWS & HIGHLIGHTS ---
-        let lum = hsl[2];
-        
-        // Shadows: affect only darker pixels (lum < 0.5)
-        if (shadowFactor !== 0) {
-            let weight = 1 - Math.min(1, lum / 0.5); // 1 at lum=0, 0 at lum=0.5
-            weight = weight * weight; // ease-out
-            lum += shadowFactor * weight * 0.4;
-        }
-        
-        // Highlights: affect only brighter pixels (lum > 0.5)
-        if (highlightFactor !== 0) {
-            let weight = Math.max(0, (lum - 0.5) / 0.5); // 0 at lum=0.5, 1 at lum=1.0
-            weight = weight * weight;
-            lum += highlightFactor * weight * 0.4;
-        }
-
-        // Blacks & Whites
-        if (blackFactor !== 0) {
-            lum += blackFactor * (1 - lum) * 0.2;
-        }
-        if (whiteFactor !== 0) {
-            lum += whiteFactor * lum * 0.2;
-        }
-
-        // Clamp
-        if(lum < 0) lum = 0;
-        if(lum > 1) lum = 1;
-        hsl[2] = lum;
-
-        // --- 2. HSL ADJUSTMENTS ---
-        if (hasHsl) {
-            let category = getColorCategory(hsl[0]);
-            let hShift = vals.h[category];
-            let sShift = vals.s[category];
-            let lShift = vals.l[category];
-            
-            if(hShift !== 0 || sShift !== 0 || lShift !== 0) {
-                hsl[0] += (hShift * 0.3) / 360;
-                if(hsl[0] < 0) hsl[0] += 1;
-                if(hsl[0] > 1) hsl[0] -= 1;
-                
-                hsl[1] += (sShift / 100);
-                if(hsl[1] < 0) hsl[1] = 0;
-                if(hsl[1] > 1) hsl[1] = 1;
-                
-                hsl[2] += (lShift / 200);
-                if(hsl[2] < 0) hsl[2] = 0;
-                if(hsl[2] > 1) hsl[2] = 1;
-            }
-        }
-        
-        let rgb = hslToRgbFast(hsl[0], hsl[1], hsl[2]);
-        dst[i] = rgb[0];
-        dst[i+1] = rgb[1];
-        dst[i+2] = rgb[2];
-        dst[i+3] = a;
-    }
     
-    workingCtx.putImageData(newImgData, 0, 0);
-    photoLayer.style.backgroundImage = 'url("' + workingCanvas.toDataURL('image/jpeg', 0.9) + '")';
+    const wasAdjusted = window.applyPixelAdjustmentsToImageData(src, dst, activeCanvas.width, activeCanvas.height);
+    if (!wasAdjusted) {
+        let targetEl = photoLayer.querySelector('.photo-inner-zoom') || photoLayer;
+        if(typeof uploadedImgUrl !== 'undefined') targetEl.style.backgroundImage = 'url("'+uploadedImgUrl+'")';
+        return;
+    }
+
+    
+    activeCtx.putImageData(newImgData, 0, 0);
+    let targetEl = photoLayer.querySelector('.photo-inner-zoom') || photoLayer;
+    targetEl.style.backgroundImage = 'url("' + activeCanvas.toDataURL('image/jpeg', isQualityPreviewMode ? 0.7 : 0.9) + '")';
 }
 
 function applyShadowHighlight(){
@@ -274,34 +363,74 @@ function autoEnhancePhoto() {
 function toggleBeforeAfter() {
     isShowingBefore = !isShowingBefore;
     const btn = document.getElementById('btnBeforeAfter');
-    if(!btn) return;
     
     if(isShowingBefore) {
         if(typeof photoLayer !== 'undefined' && photoLayer) {
             photoLayer.style.filter = 'none';
-            if(typeof uploadedImgUrl !== 'undefined' && uploadedImgUrl) photoLayer.style.backgroundImage = 'url("'+uploadedImgUrl+'")';
+            let targetEl = photoLayer.querySelector('.photo-inner-zoom') || photoLayer;
+            if(typeof uploadedImgUrl !== 'undefined' && uploadedImgUrl) targetEl.style.backgroundImage = 'url("'+uploadedImgUrl+'")';
         }
         if(typeof vignetteLayer !== 'undefined' && vignetteLayer) vignetteLayer.style.opacity = '0';
         document.querySelectorAll('.photo-panel').forEach(p=>p.style.filter='none');
         
-        btn.style.backgroundColor = '#f59e0b';
-        btn.style.color = '#fff';
-        btn.innerHTML = '<i class="fa-solid fa-eye"></i> Orijinal Haline Bakıyorsunuz (Tıkla Dön)';
+        ['draw-layer', 'mask-layer', 'canva-render-layer', 'ui-layer', 'shadow-overlay', 'highlight-overlay'].forEach(id => {
+            const el = document.getElementById(id);
+            if(el) el.style.opacity = '0';
+        });
+        document.querySelectorAll('.canvas-el').forEach(el => el.style.opacity = '0');
+        
+        let badge = document.getElementById('originalViewBadge');
+        if(!badge) {
+            badge = document.createElement('div');
+            badge.id = 'originalViewBadge';
+            badge.innerHTML = '<i class="fa-solid fa-eye"></i> ORİJİNAL';
+            badge.style.cssText = 'position:absolute; top:20px; left:50%; transform:translateX(-50%); background:rgba(0,0,0,0.75); color:#fff; padding:8px 16px; border-radius:20px; font-size:14px; font-weight:bold; z-index:999999; pointer-events:none; font-family:sans-serif; transition:opacity 0.2s; box-shadow:0 4px 12px rgba(0,0,0,0.3);';
+            const container = document.getElementById('canvas-container');
+            if(container) container.appendChild(badge);
+        }
+        if(badge) badge.style.opacity = '1';
+        
+        if (btn) {
+            btn.style.backgroundColor = '#f59e0b';
+            btn.style.color = '#fff';
+            btn.innerHTML = '<i class="fa-solid fa-eye"></i> Orijinal Haline Bakıyorsunuz (Tıkla Dön)';
+        }
     } else {
-        btn.style.backgroundColor = '#334155';
-        btn.style.color = '#cbd5e1';
-        btn.innerHTML = '<i class="fa-solid fa-code-compare"></i> Öncesi / Sonrası Karşılaştır';
+        if (btn) {
+            btn.style.backgroundColor = '#334155';
+            btn.style.color = '#cbd5e1';
+            btn.innerHTML = '<i class="fa-solid fa-code-compare"></i> Öncesi / Sonrası Karşılaştır';
+        }
+        
+        ['draw-layer', 'mask-layer', 'canva-render-layer', 'ui-layer', 'shadow-overlay', 'highlight-overlay'].forEach(id => {
+            const el = document.getElementById(id);
+            if(el) el.style.opacity = '1';
+        });
+        document.querySelectorAll('.canvas-el').forEach(el => el.style.opacity = '1');
+        
+        let badge = document.getElementById('originalViewBadge');
+        if(badge) badge.style.opacity = '0';
         
         if(typeof applyPhotoFilters === 'function') applyPhotoFilters();
         const v = document.getElementById('vignette') ? +document.getElementById('vignette').value : 0;
         if(typeof vignetteLayer !== 'undefined' && vignetteLayer) vignetteLayer.style.opacity = v / 100;
-        if(typeof processHSL === 'function') processHSL();
+        if(typeof processPixels === 'function') processPixels(true);
     }
 }
 
 function cacheOriginalImageForPixels() {
-    const bg = photoLayer.style.backgroundImage;
-    if(!bg || bg === 'none') return;
+    if (window._isCachingOriginalImage) return;
+    window._isCachingOriginalImage = true;
+    
+    let targetEl = photoLayer.querySelector('.photo-inner-zoom') || photoLayer;
+    let bg = targetEl.style.backgroundImage;
+    if((!bg || bg === 'none') && typeof uploadedImgUrl !== 'undefined' && uploadedImgUrl) {
+        bg = 'url("' + uploadedImgUrl + '")';
+    }
+    if(!bg || bg === 'none') {
+        window._isCachingOriginalImage = false;
+        return;
+    }
     const url = bg.slice(5, -2).replace(/['"]/g, '');
     
     let img = new Image();
@@ -310,19 +439,76 @@ function cacheOriginalImageForPixels() {
         let w = img.width;
         let h = img.height;
         const MAX_SIZE = 1600; // Limit processing resolution for 60fps performance
+        const PREVIEW_SIZE = 400; // Low-res preview size for sliding
+        
+        let ratio = 1;
+        let pRatio = 1;
+
         if(w > MAX_SIZE || h > MAX_SIZE) {
-            let ratio = Math.min(MAX_SIZE/w, MAX_SIZE/h);
-            w = Math.round(w * ratio);
-            h = Math.round(h * ratio);
+            ratio = Math.min(MAX_SIZE/w, MAX_SIZE/h);
         }
+        if(w > PREVIEW_SIZE || h > PREVIEW_SIZE) {
+            pRatio = Math.min(PREVIEW_SIZE/w, PREVIEW_SIZE/h);
+        }
+        
+        let wHigh = Math.round(w * ratio);
+        let hHigh = Math.round(h * ratio);
+        
+        let wLow = Math.round(w * pRatio);
+        let hLow = Math.round(h * pRatio);
+
+        // High Res Caching
         workingCanvas = document.createElement('canvas');
-        workingCanvas.width = w;
-        workingCanvas.height = h;
+        workingCanvas.width = wHigh;
+        workingCanvas.height = hHigh;
         workingCtx = workingCanvas.getContext('2d', {willReadFrequently:true});
-        workingCtx.drawImage(img, 0, 0, w, h);
-        originalImageData = workingCtx.getImageData(0, 0, w, h);
+        workingCtx.drawImage(img, 0, 0, wHigh, hHigh);
+        originalImageData = workingCtx.getImageData(0, 0, wHigh, hHigh);
+        
+        // Low Res (Preview) Caching
+        previewWorkingCanvas = document.createElement('canvas');
+        previewWorkingCanvas.width = wLow;
+        previewWorkingCanvas.height = hLow;
+        previewWorkingCtx = previewWorkingCanvas.getContext('2d', {willReadFrequently:true});
+        previewWorkingCtx.drawImage(img, 0, 0, wLow, hLow);
+        previewImageData = previewWorkingCtx.getImageData(0, 0, wLow, hLow);
+
+        window._isCachingOriginalImage = false;
         processPixels();
+    };
+    img.onerror = () => {
+        window._isCachingOriginalImage = false;
     };
     img.src = url;
 }
 
+
+
+// Bulletproof pixel slider bindings (bypasses main.js cache issues)
+setTimeout(() => {
+    const ids = ['shadowsCtrl', 'highlightsCtrl', 'blacksCtrl', 'whitesCtrl', 'tempCtrl', 'tintCtrl', 'vibranceCtrl', 'sharpnessCtrl'];
+    ids.forEach(id => {
+        let el = document.getElementById(id);
+        if (el) {
+            el.addEventListener('input', () => {
+                isQualityPreviewMode = true; // Hızlı önizleme (Low Res) modu
+                if(typeof applyShadowHighlight === 'function') applyShadowHighlight();
+            });
+            el.addEventListener('change', () => {
+                isQualityPreviewMode = false; // İşlem bitince Yüksek Kalite (High Res) modu
+                if(typeof applyShadowHighlight === 'function') applyShadowHighlight();
+            });
+        }
+    });
+
+    document.querySelectorAll('.hsl-slider').forEach(el => {
+        el.addEventListener('input', () => {
+            isQualityPreviewMode = true;
+            if(typeof processHSL === 'function') processHSL();
+        });
+        el.addEventListener('change', () => {
+            isQualityPreviewMode = false;
+            if(typeof processHSL === 'function') processHSL();
+        });
+    });
+}, 1500);

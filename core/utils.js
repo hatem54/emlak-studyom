@@ -84,10 +84,14 @@ function getColorCategory(h) {
 
 function enableInlineEdit(el) {
     if(!el) return;
+    if(el.classList.contains('added-icon') || el.classList.contains('svg-icon') || el.classList.contains('icon-wrapper')) return;
     el.addEventListener('dblclick', function(e) {
         e.stopPropagation();
         
         if (el.isContentEditable) return;
+        
+        // Remove text handles so they don't get deleted by text selection/typing
+        el.querySelectorAll('.text-handle').forEach(h => h.remove());
         
         // Sürüklemeyi geçici olarak durdur (core/drag.js ile uyumlu)
         el.dataset.editingText = '1';
@@ -113,6 +117,11 @@ function enableInlineEdit(el) {
                 el.textContent = 'Metin';
             }
             
+            // Restore handles if still selected
+            if (el.classList.contains('el-selected') && typeof window.addTextHandles === 'function') {
+                window.addTextHandles(el);
+            }
+            
             el.removeEventListener('blur', finishEdit);
             el.removeEventListener('keydown', handleKey);
         };
@@ -132,40 +141,3 @@ function enableInlineEdit(el) {
 }
 
 
-window.getSortedZIndexes = function(excludeEl) {
-    const arr = Array.from(document.querySelectorAll('#ui-layer > *, #canvas-container > *, .callout-wrap, .canvas-el'))
-        .filter(el => el !== excludeEl && el.id !== 'photo-layer' && el.id !== 'canva-render-layer' && !el.id.includes('overlay') && !el.id.includes('mask'))
-        .map(el => parseInt(window.getComputedStyle(el).zIndex) || 0)
-        .filter(z => !isNaN(z));
-    return arr.length > 0 ? arr.sort((a,b) => a - b) : [10];
-};
-
-window.moveLayerUp = function(el) {
-    if (!el) return;
-    const currentZ = parseInt(window.getComputedStyle(el).zIndex) || 10;
-    const sorted = window.getSortedZIndexes(el);
-    const nextZ = sorted.find(z => z > currentZ);
-    el.style.zIndex = nextZ ? nextZ + 1 : currentZ + 1;
-};
-
-window.moveLayerDown = function(el) {
-    if (!el) return;
-    const currentZ = parseInt(window.getComputedStyle(el).zIndex) || 10;
-    const sorted = window.getSortedZIndexes(el);
-    const prevZ = [...sorted].reverse().find(z => z < currentZ);
-    el.style.zIndex = prevZ ? prevZ - 1 : Math.max(1, currentZ - 1);
-};
-
-window.moveLayerFront = function(el) {
-    if (!el) return;
-    const sorted = window.getSortedZIndexes(el);
-    const maxZ = sorted.length > 0 ? sorted[sorted.length - 1] : 10;
-    el.style.zIndex = maxZ + 10;
-};
-
-window.moveLayerBack = function(el) {
-    if (!el) return;
-    const sorted = window.getSortedZIndexes(el);
-    const minZ = sorted.length > 0 ? sorted[0] : 10;
-    el.style.zIndex = Math.max(1, minZ - 10);
-};

@@ -17,7 +17,7 @@ document.addEventListener('wheel', function(e){
     if(!el) return;
     
     e.preventDefault();
-    _preparePhoto(el);
+    _preparePhoto(el); console.log('panel bg:', el.style.backgroundImage);
     
     var s = parseFloat(el.dataset.zpScale) || 1;
     s = e.deltaY < 0 ? s + 0.1 : s - 0.1;
@@ -25,7 +25,10 @@ document.addEventListener('wheel', function(e){
     if(s > 5) s = 5;
     
     el.dataset.zpScale = s;
-    _applyPhotoTransform(el);
+    if (isNaN(window.panX)) window.panX = 0;
+        if (isNaN(window.panY)) window.panY = 0;
+        if (isNaN(window.scaleFactor)) window.scaleFactor = 1;
+        _applyPhotoTransform(el);
     if(typeof redrawAll === 'function') redrawAll();
     console.log('Zoom:', s.toFixed(2));
 }, { passive: false });
@@ -45,14 +48,27 @@ window.addEventListener('keyup', e => {
 });
 
 document.addEventListener('mousedown', function(e){
+    const isObj = e.target.closest && e.target.closest('.draggable, .is-svg-icon, .editable-draw, .callout-wrap, .callout-item, .co-neon-block');
+    const hasImage = typeof uploadedImgUrl !== 'undefined' && uploadedImgUrl;
+    
+    if (!isObj && !hasImage) {
+        return; 
+    }
+
     var el = _getZoomTarget(e.target);
     if(!el) return;
+    
+    if(document.getElementById('photoLockToggle') && document.getElementById('photoLockToggle').checked) return;
     
     const isModifierPressed = e.ctrlKey || e.altKey || e.metaKey;
     const canPanWithLeftClick = (typeof drawMode === 'undefined' || drawMode === 'off' || drawMode === null) && !isModifierPressed;
     
     if(e.button === 0 && !window.spaceBarPressed && !canPanWithLeftClick) return;
     if(e.button !== 0 && e.button !== 1) return;
+    
+    // Eger fotograf yoksa (bos canvas) pan yapma, birak baska seyler (marquee vb) calissin
+    const hasPhoto = el && ((el.style.backgroundImage && el.style.backgroundImage !== 'none') || el.querySelector('.photo-inner-zoom') || el.tagName.toLowerCase() === 'img');
+    if (!hasPhoto) return;
     
     _preparePhoto(el);
     
@@ -68,12 +84,23 @@ document.addEventListener('mousedown', function(e){
 
 document.addEventListener('mousemove', function(e){
     if(!_dragEl) return;
+
+    if (e.pointerType === 'pen' && e.buttons === 0) return;
+    const isMouse = e.pointerType === 'mouse' || typeof e.pointerType === 'undefined';
+    if ((typeof uploadedImgUrl === 'undefined' || !uploadedImgUrl) && !isMouse) return;
     
-    var x = _dix + (e.clientX - _dsx);
-    var y = _diy + (e.clientY - _dsy);
+    var sf = typeof scaleFactor !== 'undefined' ? scaleFactor : 1;
+    if (sf <= 0) sf = 1;
+    var s = parseFloat(_dragEl.dataset.zpScale) || 1;
+    var x = _dix + (e.clientX - _dsx) / (sf * s);
+    var y = _diy + (e.clientY - _dsy) / (sf * s);
     
     _dragEl.dataset.zpX = x;
     _dragEl.dataset.zpY = y;
+        if (window.debugLog) window.debugLog('HATA: photo-zoom pan yapıyor!');
+        if (isNaN(window.panX)) window.panX = 0;
+    if (isNaN(window.panY)) window.panY = 0;
+    if (isNaN(window.scaleFactor)) window.scaleFactor = 1;
     _applyPhotoTransform(_dragEl);
     if(typeof redrawAll === 'function') redrawAll();
 });
@@ -88,8 +115,17 @@ var _initialPinchDist = null;
 var _initialPinchScale = null;
 
 document.addEventListener('touchstart', function(e){
+    const isObj = e.target.closest && e.target.closest('.draggable, .is-svg-icon, .editable-draw, .callout-wrap, .callout-item, .co-neon-block');
+    const hasImage = typeof uploadedImgUrl !== 'undefined' && uploadedImgUrl;
+    
+    if (!isObj && !hasImage) {
+        return; 
+    }
+
     var el = _getZoomTarget(e.target);
     if(!el) return;
+
+    if(document.getElementById('photoLockToggle') && document.getElementById('photoLockToggle').checked) return;
 
     if(e.touches.length === 2) {
         // Pinch to zoom başladı
@@ -125,16 +161,27 @@ document.addEventListener('touchmove', function(e){
         if(s > 5) s = 5;
         
         el.dataset.zpScale = s;
+        if (isNaN(window.panX)) window.panX = 0;
+        if (isNaN(window.panY)) window.panY = 0;
+        if (isNaN(window.scaleFactor)) window.scaleFactor = 1;
         _applyPhotoTransform(el);
         if(typeof redrawAll === 'function') redrawAll();
     } else if(e.touches.length === 1 && _dragEl) {
+        if (typeof uploadedImgUrl === 'undefined' || !uploadedImgUrl) return; // Empty canvas pan guard
         e.preventDefault();
-        var x = _dix + (e.touches[0].clientX - _dsx);
-        var y = _diy + (e.touches[0].clientY - _dsy);
+        var sf = typeof scaleFactor !== 'undefined' ? scaleFactor : 1;
+        if (sf <= 0) sf = 1;
+        var s = parseFloat(_dragEl.dataset.zpScale) || 1;
+        var x = _dix + (e.touches[0].clientX - _dsx) / (sf * s);
+        var y = _diy + (e.touches[0].clientY - _dsy) / (sf * s);
         
         _dragEl.dataset.zpX = x;
         _dragEl.dataset.zpY = y;
-        _applyPhotoTransform(_dragEl);
+        if (window.debugLog) window.debugLog('HATA: photo-zoom pan yapıyor!');
+        if (isNaN(window.panX)) window.panX = 0;
+    if (isNaN(window.panY)) window.panY = 0;
+    if (isNaN(window.scaleFactor)) window.scaleFactor = 1;
+    _applyPhotoTransform(_dragEl);
         if(typeof redrawAll === 'function') redrawAll();
     }
 }, {passive: false});
@@ -208,7 +255,10 @@ document.addEventListener('dblclick', function(e){
     if(xCtrl) { xCtrl.value = 50; xCtrl.dispatchEvent(new Event('input')); }
     if(yCtrl) { yCtrl.value = 50; yCtrl.dispatchEvent(new Event('input')); }
     
-    _applyPhotoTransform(el);
+    if (isNaN(window.panX)) window.panX = 0;
+        if (isNaN(window.panY)) window.panY = 0;
+        if (isNaN(window.scaleFactor)) window.scaleFactor = 1;
+        _applyPhotoTransform(el);
     if(typeof redrawAll === 'function') redrawAll();
     console.log('Sıfırlandı');
 });

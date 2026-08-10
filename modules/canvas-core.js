@@ -1,20 +1,29 @@
 // ==================== CANVAS CORE ====================
 window.getCurrentPhotoState = function() {
-    const pnl = typeof getActivePhotoPanel === 'function' ? getActivePhotoPanel() : null;
     const pl = typeof getActiveV4Element === 'function' ? getActiveV4Element() : null;
     const sx = parseFloat(document.getElementById('photoXCtrl') ? document.getElementById('photoXCtrl').value : 50);
     const sy = parseFloat(document.getElementById('photoYCtrl') ? document.getElementById('photoYCtrl').value : 50);
     
+    const container = document.getElementById('canvas-container');
+    const defaultW = container ? (parseInt(container.style.width) || 1920) : 1920;
+    const defaultH = container ? (parseInt(container.style.height) || 1080) : 1080;
+
+    const pb = window.getPhotoBox ? window.getPhotoBox() : null;
+    const pW = pb ? pb.w : defaultW;
+    const pH = pb ? pb.h : defaultH;
+    const pL = pb ? pb.x : 0;
+    const pT = pb ? pb.y : 0;
+
     if (pl && pl.dataset.zpReady === '1') {
         return {
             v4: true,
             z: parseFloat(pl.dataset.zpScale) || 1,
             px: parseFloat(pl.dataset.zpX) || 0,
             py: parseFloat(pl.dataset.zpY) || 0,
-            panelW: pnl ? pnl.w : 1920,
-            panelH: pnl ? pnl.h : 1080,
-            panelL: pnl ? pnl.left : 0,
-            panelT: pnl ? pnl.top : 0,
+            panelW: pW,
+            panelH: pH,
+            panelL: pL,
+            panelT: pT,
             sliderX: sx,
             sliderY: sy
         };
@@ -25,10 +34,10 @@ window.getCurrentPhotoState = function() {
             z: parseInt(document.getElementById('photoZoomCtrl') ? document.getElementById('photoZoomCtrl').value : 100),
             px: sx,
             py: sy,
-            panelW: pnl ? pnl.w : 1920,
-            panelH: pnl ? pnl.h : 1080,
-            panelL: pnl ? pnl.left : 0,
-            panelT: pnl ? pnl.top : 0,
+            panelW: pW,
+            panelH: pH,
+            panelL: pL,
+            panelT: pT,
             sliderX: sx,
             sliderY: sy,
             extraZ: (pLayer && pLayer.dataset.zpReady === '1') ? (parseFloat(pLayer.dataset.zpScale) || 1) : 1,
@@ -47,14 +56,28 @@ function resizeCanvas(){
     let canvasH = 1080;
     
     const formatSelect = document.getElementById('previewFormat');
-    if (formatSelect && typeof EXPORT_FORMATS !== 'undefined' && EXPORT_FORMATS[formatSelect.value]) {
-        canvasW = EXPORT_FORMATS[formatSelect.value].w;
-        canvasH = EXPORT_FORMATS[formatSelect.value].h;
-    } else {
-        if (window.innerWidth <= 768) {
+    let hasImage = typeof uploadedImgUrl !== 'undefined' && uploadedImgUrl && typeof uploadedImgW !== 'undefined' && uploadedImgW > 0;
+
+    if (!hasImage && window.isMobileDevice()) {
+        const tempPa = document.querySelector('.preview-area');
+        if(tempPa) {
+            const isLand = window.isMobileDevice() && window.innerWidth > window.innerHeight;
+            canvasW = tempPa.clientWidth - (isLand ? 40 : 0);
+            canvasH = window.innerHeight - (isLand ? 40 : 150);
+        } else {
             canvasW = 1080;
             canvasH = 1920;
         }
+    } else if (hasImage && window.isMobileDevice()) {
+        // [MOBİL] Canvas oranı yüklenen görselin orijinal oranını korur
+        canvasW = uploadedImgW;
+        canvasH = uploadedImgH;
+    } else if (formatSelect && typeof EXPORT_FORMATS !== 'undefined' && EXPORT_FORMATS[formatSelect.value]) {
+        canvasW = EXPORT_FORMATS[formatSelect.value].w;
+        canvasH = EXPORT_FORMATS[formatSelect.value].h;
+    } else if (hasImage) {
+        canvasW = uploadedImgW;
+        canvasH = uploadedImgH;
     }
     
     if (typeof canvasEl !== 'undefined' && canvasEl) {
@@ -62,8 +85,9 @@ function resizeCanvas(){
         canvasEl.style.height = canvasH + 'px';
     }
     
-    const availableW = pa.clientWidth - 0;
-    const availableH = window.innerHeight - 150;
+    const isLand = window.isMobileDevice() && window.innerWidth > window.innerHeight;
+    const availableW = pa.clientWidth - (isLand ? 40 : 0);
+    let availableH = window.innerHeight - (isLand ? 40 : (window.isMobileDevice() ? 145 : 220)); // 150 yerine 220, ekrana sığması için daha fazla boşluk bırakıyoruz
     
     const scaleW = availableW / canvasW;
     const scaleH = availableH / canvasH;
@@ -145,8 +169,8 @@ function calculateTransformParams(ref, curr) {
             let ScaledLocalCY = pH / 2 + DistY * s.z;
             
             // Apply translation (scaled by z since it's a DOM transform)
-            AbsCX = ScaledLocalCX + s.px * s.z;
-            AbsCY = ScaledLocalCY + s.py * s.z;
+            AbsCX = ScaledLocalCX + s.px * s.z + pL;
+            AbsCY = ScaledLocalCY + s.py * s.z + pT;
         } else {
             let coverScale = Math.max(pW / imgW, pH / imgH);
             if (s.z != 100) coverScale = (pW * (s.z / 100)) / imgW;
@@ -169,8 +193,8 @@ function calculateTransformParams(ref, curr) {
             let ScaledLocalCX = pW / 2 + DistX * (s.extraZ || 1);
             let ScaledLocalCY = pH / 2 + DistY * (s.extraZ || 1);
             
-            AbsCX = ScaledLocalCX + (s.extraPx || 0) * (s.extraZ || 1);
-            AbsCY = ScaledLocalCY + (s.extraPy || 0) * (s.extraZ || 1);
+            AbsCX = ScaledLocalCX + (s.extraPx || 0) * (s.extraZ || 1) + pL;
+            AbsCY = ScaledLocalCY + (s.extraPy || 0) * (s.extraZ || 1) + pT;
         }
         return { AbsCX, AbsCY, TotalScale };
     }

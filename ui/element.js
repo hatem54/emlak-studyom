@@ -58,6 +58,10 @@ function loadElSettings(el){
     $('elBorderWidth').value=parseInt(el.dataset.storedBorderWidth)||0;
     $('elBorderWidthVal').textContent=parseInt(el.dataset.storedBorderWidth)||0;
     
+    $('elTextStrokeColor').value=el.dataset.storedTextStrokeColor||'#000000';
+    $('elTextStrokeWidth').value=parseFloat(el.dataset.storedTextStrokeWidth)||0;
+    $('elTextStrokeWidthVal').textContent=(parseFloat(el.dataset.storedTextStrokeWidth)||0)+'px';
+    
     if(typeof loadTextSaberSettings === 'function') loadTextSaberSettings(el);
     
     setTimeout(()=>{window._loadingElSettings=false},100);
@@ -73,6 +77,7 @@ function applyElSettings(){
     const op=$('elOpacity').value,rot=$('elRotate').value,rad=$('elRadius').value;
     const sh=$('elShadow').value,bl=$('elBlur').value;
     const brc=$('elBorderColor').value,brw=$('elBorderWidth').value;
+    const tsc=$('elTextStrokeColor').value,tsw=$('elTextStrokeWidth').value;
     const w=$('elWidth').value,h=$('elHeight').value;
     el.style.fontSize=fs+'px';
     el.style.padding=pd+'px';
@@ -97,6 +102,9 @@ function applyElSettings(){
     el.dataset.storedBorderColor=brc;
     el.dataset.storedBorderWidth=brw;
     el.style.border=+brw>0?brw+'px solid '+brc:'none';
+    el.dataset.storedTextStrokeColor=tsc;
+    el.dataset.storedTextStrokeWidth=tsw;
+    el.style.webkitTextStroke=+tsw>0?tsw+'px '+tsc:'';
     if(+w>0){el.style.width=w+'px';$('elWidthVal').textContent=w+'px'}
     else{el.style.width='';$('elWidthVal').textContent='Otomatik'}
     if(+h>0){el.style.height=h+'px';$('elHeightVal').textContent=h+'px'}
@@ -110,12 +118,13 @@ function applyElSettings(){
     $('elShadowVal').textContent=sh;
     $('elBlurVal').textContent=bl;
     $('elBorderWidthVal').textContent=brw;
+    $('elTextStrokeWidthVal').textContent=tsw+'px';
     
     if(el.dataset.saberActive === 'true' && typeof applyTextSaberOpts === 'function') { setTimeout(applyTextSaberOpts, 10); }
 }
 
 function bindElSettings(){
-    const ids=['elFontSize','elPadding','elWidth','elHeight','elTextColor','elBgColor','elBgOpacity','elOpacity','elRotate','elRadius','elShadow','elBlur','elBorderColor','elBorderWidth'];
+    const ids=['elFontSize','elPadding','elWidth','elHeight','elTextColor','elBgColor','elBgOpacity','elOpacity','elRotate','elRadius','elShadow','elBlur','elBorderColor','elBorderWidth','elTextStrokeColor','elTextStrokeWidth'];
     ids.forEach(id=>{
         $(id).addEventListener('input',function(){
             if(window._loadingElSettings)return;
@@ -188,6 +197,7 @@ function addCustomTextBox(){
     el.style.zIndex='9999';
     el.style.fontFamily=currentFont;
     uiLayer.appendChild(el);
+    if(typeof window.renderLayers === 'function') window.renderLayers();
     bindDrag(el);
     enableInlineEdit(el);
     if(typeof isCanvaMode!=='undefined' && isCanvaMode)canvaOverlays.push(el);
@@ -218,6 +228,7 @@ function addCustomTextOnly(){
     el.style.zIndex='9999';
     el.style.fontFamily=currentFont;
     uiLayer.appendChild(el);
+    if(typeof window.renderLayers === 'function') window.renderLayers();
     bindDrag(el);
     enableInlineEdit(el);
     if(typeof isCanvaMode!=='undefined' && isCanvaMode)canvaOverlays.push(el);

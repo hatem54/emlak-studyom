@@ -1,0 +1,120 @@
+$content = @"
+// Katmanlar (Layers) Modülü
+// Ekranda bulunan öğeleri yönetmek, sıralamak ve seçmek için kullanılır
+
+window.layerToggleVisibility = function(uid, isDrawPath = false, pathIndex = 0) {
+    if (isDrawPath) {
+        if (typeof drawPaths !== 'undefined') {
+            let paths = drawPaths;
+            if (paths[pathIndex]) {
+                const p = paths[pathIndex];
+                p.hidden = !p.hidden;
+                if (p.el) {
+                    p.el.style.display = p.hidden ? 'none' : '';
+                }
+                if (window.forceRedrawAll) window.forceRedrawAll();
+                window.renderLayers();
+            }
+        }
+        return;
+    }
+    
+    if (uid === 'canva-render-layer') {
+        const el = document.getElementById(uid);
+        if (!el) return;
+        const isHidden = el.dataset.hiddenLayer === 'true';
+        el.dataset.hiddenLayer = isHidden ? 'false' : 'true';
+        
+        const cvrBases = el.querySelectorAll('.cvr-base, .cvr-main');
+        cvrBases.forEach(base => {
+            if (base.dataset.originalBg === undefined) {
+                base.dataset.originalBg = base.style.background || '';
+            }
+            if (base.dataset.originalBgColor === undefined) {
+                base.dataset.originalBgColor = base.style.backgroundColor || '';
+            }
+            base.style.background = isHidden ? base.dataset.originalBg : 'transparent';
+            base.style.backgroundColor = isHidden ? base.dataset.originalBgColor : 'transparent';
+        });
+
+        const templateElements = el.querySelectorAll('*');
+        templateElements.forEach(child => {
+            if (child.classList.contains('photo-panel') || child.classList.contains('kolaj-foto') || child.classList.contains('cvr-base') || child.classList.contains('cvr-main') || child.closest('.photo-panel') || child.closest('.kolaj-foto')) {
+                return;
+            }
+            if (child.dataset.originalPointerEvents === undefined) {
+                child.dataset.originalPointerEvents = child.style.pointerEvents || '';
+            }
+            child.style.visibility = isHidden ? '' : 'hidden';
+            if (isHidden) {
+                if (child.dataset.originalPointerEvents === 'none') {
+                    child.style.setProperty('pointer-events', 'none', 'important');
+                } else {
+                    child.style.pointerEvents = child.dataset.originalPointerEvents;
+                }
+            } else {
+                child.style.setProperty('pointer-events', 'none', 'important');
+            }
+        });
+        window.renderLayers();
+        return;
+    }
+
+    if (uid === 'photo-layer') {
+        const el = document.getElementById(uid);
+        if (!el) return;
+        const isHidden = el.dataset.hiddenLayer === 'true';
+        el.dataset.hiddenLayer = isHidden ? 'false' : 'true';
+        
+        el.style.display = isHidden ? (el.dataset.oldDisplay || 'block') : 'none';
+        if(!isHidden) el.dataset.oldDisplay = el.style.display;
+
+        document.querySelectorAll('.photo-panel, .kolaj-foto').forEach(p => {
+            p.style.visibility = isHidden ? '' : 'hidden';
+            p.style.pointerEvents = isHidden ? '' : 'none';
+        });
+        window.renderLayers();
+        return;
+    }
+
+    const el = document.querySelector('[data-layer-uid="' + uid + '"]');
+    if (!el) return;
+    if (el.dataset.hiddenLayer === 'true') {
+        el.dataset.hiddenLayer = 'false';
+        el.style.display = el.dataset.oldDisplay || '';
+        if (el.style.display === 'none') el.style.display = 'block'; 
+    } else {
+        el.dataset.hiddenLayer = 'true';
+        el.dataset.oldDisplay = el.style.display;
+        el.style.display = 'none';
+    }
+    window.renderLayers();
+};
+
+window.layerToggleLock = function(uid, isDrawPath = false, pathIndex = 0) {
+    if (isDrawPath) {
+        if (typeof drawPaths !== 'undefined') {
+            let paths = drawPaths;
+            if (paths[pathIndex]) {
+                const p = paths[pathIndex];
+                p.locked = !p.locked;
+                if (p.el) {
+                    p.el.dataset.locked = p.locked ? 'true' : 'false';
+                    if (p.locked) {
+                        p.el.classList.add('locked-el');
+                        p.el.style.pointerEvents = 'none';
+                    } else {
+                        p.el.classList.remove('locked-el');
+                        p.el.style.pointerEvents = 'auto';
+                    }
+                }
+                if (window.forceRedrawAll) window.forceRedrawAll();
+                window.renderLayers();
+            }
+        }
+        return;
+    }
+"@
+$oldContent = Get-Content modules\layers.js -Raw
+$newContent = $oldContent -replace '(?s)// Katmanlar \(Layers\) Modülü.*?(?=    if \(!el\) return;\r?\n    \r?\n    if \(el\.dataset\.locked === ''true''\))', $content
+Set-Content -Path modules\layers.js -Value $newContent -Encoding UTF8

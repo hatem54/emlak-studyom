@@ -138,6 +138,7 @@ function initSaberAnimToggles() {
                 cb.id !== 'saberModeToggle' && 
                 cb.id !== 'deSaberToggle' && 
                 cb.id !== 'drawSnapToggle' &&
+                cb.id !== 'photoLockToggle' &&
                 !cb.id.endsWith('Anim')) {
                 
                 const html = (cb.outerHTML || '').toLowerCase();

@@ -418,29 +418,93 @@ function showTemplateColorModal() {
             const isSelected = (typeof selectedCalloutEl !== 'undefined' && selectedCalloutEl === el);
             
             if(el.classList.contains('callout-wrapper') || el.classList.contains('callout-wrap') || el.classList.contains('co-neon-block')) {
-                if(applyBg) {
-                    const bgEl = el.querySelector('.callout-bg');
-                    if(bgEl) bgEl.style.fill = bgCol;
-                    if(isSelected && document.getElementById('coBgColor')) document.getElementById('coBgColor').value = bgCol;
+                // 1. NEON CALLOUT (.co-neon-block)
+                if (el.classList.contains('co-neon-block')) {
+                    if (applyBg) {
+                        el.style.backgroundColor = bgCol;
+                        if(isSelected && document.getElementById('coBgColor')) document.getElementById('coBgColor').value = bgCol;
+                    }
+                    const iconEl = el.querySelector('.co-icon-wrap i');
+                    if (iconEl) {
+                        iconEl.style.color = acCol;
+                        const glowPct = el.dataset.coGlow || 80;
+                        const glowPx1 = Math.round(glowPct * 0.15);
+                        const glowPx2 = Math.round(glowPct * 0.3);
+                        iconEl.style.filter = `drop-shadow(0 0 ${glowPx1}px ${acCol}) drop-shadow(0 0 ${glowPx2}px ${acCol})`;
+                        el.dataset.coIconColor = acCol;
+                        if(isSelected && document.getElementById('coIconColor')) document.getElementById('coIconColor').value = acCol;
+                    }
+                    const lblEl = el.querySelector('.co-label');
+                    if (lblEl) {
+                        lblEl.style.color = txtCol;
+                        el.dataset.coTextColor = txtCol;
+                        if(isSelected && document.getElementById('coTextColor')) document.getElementById('coTextColor').value = txtCol;
+                    }
+                } 
+                // 2. SVG CALLOUT or Legacy Callout
+                else {
+                    const svg = el.tagName.toLowerCase() === 'svg' ? el : el.querySelector('svg');
+                    if (svg) {
+                        // Text
+                        const txtEls = svg.querySelectorAll('text');
+                        txtEls.forEach(t => {
+                            t.style.fill = txtCol;
+                            t.setAttribute('fill', txtCol);
+                        });
+                        if(isSelected && document.getElementById('coTextColor')) document.getElementById('coTextColor').value = txtCol;
+                        
+                        // Background & Accent
+                        const shapes = svg.querySelectorAll('rect, path, circle, polygon, ellipse');
+                        if (shapes.length > 0) {
+                            if (applyBg) {
+                                // First shape is usually the background
+                                const bgShape = shapes[0];
+                                bgShape.style.fill = bgCol;
+                                bgShape.setAttribute('fill', bgCol);
+                                if(isSelected && document.getElementById('coBgColor')) document.getElementById('coBgColor').value = bgCol;
+                            }
+                            
+                            // Strokes become accent
+                            shapes.forEach(s => {
+                                if (s.hasAttribute('stroke') && s.getAttribute('stroke') !== 'none') {
+                                    s.style.stroke = acCol;
+                                    s.setAttribute('stroke', acCol);
+                                }
+                            });
+                            if(isSelected && document.getElementById('coIconColor')) document.getElementById('coIconColor').value = acCol;
+                        }
+                    } else {
+                        // Fallback for legacy DOM callouts (if any)
+                        if(applyBg) {
+                            const bgEl = el.querySelector('.callout-bg');
+                            if(bgEl) bgEl.style.fill = bgCol;
+                            if(isSelected && document.getElementById('coBgColor')) document.getElementById('coBgColor').value = bgCol;
+                        }
+                        const txtEl = el.querySelector('.callout-text');
+                        if(txtEl) txtEl.style.color = txtCol;
+                        if(isSelected && document.getElementById('coTextColor')) document.getElementById('coTextColor').value = txtCol;
+                        
+                        const iconEl = el.querySelector('.callout-icon');
+                        if(iconEl) iconEl.style.fill = acCol;
+                        const pathEl = el.querySelector('.callout-path');
+                        if(pathEl && pathEl.getAttribute('stroke')) pathEl.setAttribute('stroke', acCol);
+                        if(isSelected && document.getElementById('coIconColor')) document.getElementById('coIconColor').value = acCol;
+                    }
                 }
-                const txtEl = el.querySelector('.callout-text');
-                if(txtEl) txtEl.style.color = txtCol;
-                if(isSelected && document.getElementById('coTextColor')) document.getElementById('coTextColor').value = txtCol;
-                
-                const iconEl = el.querySelector('.callout-icon');
-                if(iconEl) iconEl.style.fill = acCol;
-                const pathEl = el.querySelector('.callout-path');
-                if(pathEl && pathEl.getAttribute('stroke')) pathEl.setAttribute('stroke', acCol);
-                if(isSelected && document.getElementById('coIconColor')) document.getElementById('coIconColor').value = acCol;
             }
             else if(el.classList.contains('saber-text')) {
                 el.style.color = txtCol;
                 el.style.textShadow = '0 0 10px ' + acCol; // Custom effect for text
             }
-            else if(el.classList.contains('dynamic-box')) {
-                if(applyBg) el.style.backgroundColor = bgCol;
+            else if(el.classList.contains('dynamic-box') || el.dataset.label === 'Özel Kutu' || el.dataset.label === 'Serbest Yazı') {
+                if (applyBg) {
+                    el.style.backgroundColor = bgCol;
+                    el.style.background = bgCol; // Shorthand'i de ezmek için
+                }
                 el.style.color = txtCol;
-                el.style.borderColor = acCol;
+                if (el.style.borderColor && el.style.borderColor !== 'none' && el.style.borderColor !== 'transparent') {
+                    el.style.borderColor = acCol;
+                }
             }
             else {
                 // Categorize the element

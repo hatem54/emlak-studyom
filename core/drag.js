@@ -94,6 +94,7 @@ function bindDrag(el){
     });
 
     function down(e){
+        window.isLongPressOpen = false;
         if (typeof drawMode !== 'undefined' && drawMode !== null && drawMode !== 'off') return;
         
         multiSelectKey = e.ctrlKey || e.shiftKey;
@@ -433,7 +434,11 @@ function selectElement(el, isMulti = false){
     if(typeof updateGroupUI === 'function') updateGroupUI();
     
     if(el.classList.contains('editable-draw')) {
-        if(typeof switchTab === 'function') switchTab('draw');
+        const isMobile = typeof window.isMobileDevice === 'function' ? window.isMobileDevice() : window.innerWidth <= 768;
+        // Mobilde sekme değiştirmeyi (panel açılmasını) uzun basmaya bağla
+        if (!isMobile || window.isLongPressOpen) {
+            if(typeof switchTab === 'function') switchTab('draw');
+        }
         if(typeof loadDrawSettings === 'function') loadDrawSettings(el);
         if(typeof showVertexHandles === 'function') showVertexHandles(el);
     } else {

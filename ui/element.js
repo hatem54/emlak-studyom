@@ -180,18 +180,18 @@ function addCustomTextBox(){
     el.dataset.rotation='0';
     el.dataset.shadowVal='10';
     el.dataset.blurVal='0';
-    el.dataset.storedBgHex='#0f172a';
+    el.dataset.storedBgHex='#ffffff';
     el.dataset.storedBgOpacity='90';
-    el.dataset.storedBorderColor='#38bdf8';
+    el.dataset.storedBorderColor='#000000';
     el.dataset.storedBorderWidth='2';
-    el.style.left='600px';
-    el.style.top='400px';
+    el.style.left='10px';
+    el.style.top='50px';
     el.style.fontSize='36px';
     el.style.padding='20px 30px';
     el.style.borderRadius='12px';
-    el.style.background='rgba(15,23,42,0.9)';
-    el.style.color='#ffffff';
-    el.style.border='2px solid #38bdf8';
+    el.style.background='rgba(255,255,255,0.9)';
+    el.style.color='#000000';
+    el.style.border='2px solid #000000';
     el.style.boxShadow='0 10px 20px rgba(0,0,0,0.5)';
     el.style.zIndex='100';
     el.style.zIndex='9999';
@@ -201,7 +201,7 @@ function addCustomTextBox(){
     bindDrag(el);
     enableInlineEdit(el);
     if(typeof isCanvaMode!=='undefined' && isCanvaMode)canvaOverlays.push(el);
-    selectElement(el);
+    // selectElement(el); // Prevent auto-opening Element tab
 }
 
 function addCustomTextOnly(){
@@ -217,14 +217,14 @@ function addCustomTextOnly(){
     el.dataset.storedBgOpacity='0';
     el.dataset.storedBorderColor='#000000';
     el.dataset.storedBorderWidth='0';
-    el.style.left='600px';
-    el.style.top='450px';
+    el.style.left='10px';
+    el.style.top='150px';
     el.style.fontSize='36px';
     el.style.padding='10px';
     el.style.background='transparent';
-    el.style.color='#ffffff';
+    el.style.color='#000000';
     el.style.border='none';
-    el.style.textShadow='0 5px 15px rgba(0,0,0,0.8)';
+    el.style.textShadow='0 5px 15px rgba(255,255,255,0.8)';
     el.style.zIndex='9999';
     el.style.fontFamily=currentFont;
     uiLayer.appendChild(el);
@@ -232,7 +232,6 @@ function addCustomTextOnly(){
     bindDrag(el);
     enableInlineEdit(el);
     if(typeof isCanvaMode!=='undefined' && isCanvaMode)canvaOverlays.push(el);
-    selectElement(el);
 }
 
 function initGlobalTooltip() {

@@ -1,63 +1,9 @@
-/**
+﻿/**
  * ============================================
  * CALLOUT MODULE
  * modules/callout.js
  * ============================================
  * 
- * --- MOBIL DOKUNMATIK DESTEGI ICIN TOUCH-TO-MOUSE PROXY ---
- * (Otomatik enjekte edildi)
- */
-(function() {
-    function touchHandler(event) {
-        const touch = event.changedTouches[0];
-        
-        // Sadece belirli elemanlarda (callout) proxy yap
-        if (!event.target.closest('.callout-wrap, .co-neon-block, .callout-resizer, .callout-rotator, .callout-controls')) {
-            return;
-        }
-
-        const simulatedEvent = new MouseEvent({
-            touchstart: 'mousedown',
-            touchmove: 'mousemove',
-            touchend: 'mouseup'
-        }[event.type], {
-            bubbles: true,
-            cancelable: true,
-            view: window,
-            detail: 1,
-            screenX: touch.screenX,
-            screenY: touch.screenY,
-            clientX: touch.clientX,
-            clientY: touch.clientY,
-            ctrlKey: event.ctrlKey,
-            altKey: event.altKey,
-            shiftKey: event.shiftKey,
-            metaKey: event.metaKey,
-            button: 0,
-            relatedTarget: null
-        });
-
-        touch.target.dispatchEvent(simulatedEvent);
-        
-        // Eger touchmove ise scroll'u engelle (surukleme, dondurme vs.)
-        if (event.type === 'touchmove') {
-            event.preventDefault();
-        }
-    }
-
-    // Listeners'lari document yerine daha gǬvenli bir kapsaycya (ornegin workArea veya body) ekleyelim, 
-    // ama sadece eger eklendiyse. En gǬvenlisi touch eventlerini capture faznda dinlemek veya sadece canvas'a kstlamaktr.
-    // Ancak callout'lar her yere sǬrǬklenebildiYi iin document Ǭzerinde tutmak zorundayz, fakat passive: false global olarak Safari'de click gecikmesi/UI titremesi yapabilir.
-    // Eger olay callout degilse hicbir sey yapmadigimizdan passive true yapmak daha iyidir, ancak touchmove preventDefault gerektirir.
-    // ?zǬm: Sadece callout elementlerine doYrudan listener eklemek en iyisi!
-    
-    // Global dinleyiciyi kaldiralim, cǬnkǬ UI sekme geYilerinde (tabs) Safari'de hover/click buglarna (titremelere) yol aYyor.
-    // Bunun yerine, addSVGCalloutToCanvas iinde her yeni el'e ekleyelim.
-    // Bu global proxy blogunu tamamen iptal ediyoruz!
-})();
-/**
- * 
-
  * Bağımlılıklar:
  * - config.js
  * - core/drag.js
@@ -221,24 +167,16 @@ function addSVGCalloutToCanvas(item) {
         });
     }
     
+    el.innerHTML = svgHtml;
+    el.dataset.originalSvg = encodeURIComponent(svgHtml);
     const wMatch = item.svg.match(/width="(\d+)"/);
     const hMatch = item.svg.match(/height="(\d+)"/);
-    
     if(wMatch && hMatch) {
-        if (!svgHtml.includes('viewBox=')) {
-            svgHtml = svgHtml.replace('<svg ', `<svg viewBox="0 0 ${wMatch[1]} ${hMatch[1]}" `);
-        }
-        svgHtml = svgHtml.replace(/width="\d+"/, 'width="100%"').replace(/height="\d+"/, 'height="100%"');
-        svgHtml = svgHtml.replace('<svg ', '<svg text-rendering="geometricPrecision" ');
-        
         el.style.width = wMatch[1] + 'px';
         el.style.height = hMatch[1] + 'px';
         wrap.style.width = wMatch[1] + 'px';
         wrap.style.height = hMatch[1] + 'px';
     }
-
-    el.innerHTML = svgHtml;
-    el.dataset.originalSvg = encodeURIComponent(svgHtml);
     
     const controls = document.createElement('div');
     controls.className = 'callout-controls';
@@ -284,25 +222,6 @@ function addSVGCalloutToCanvas(item) {
     wrap.appendChild(controls);
     wrap.appendChild(resizer);
     wrap.appendChild(rotator);
-    
-    // Touch Proxy (Mobil iin mousedown simǬlasyonu)
-    function localTouchProxy(event) {
-        const touch = event.changedTouches[0];
-        const simulatedEvent = new MouseEvent({
-            touchstart: 'mousedown',
-            touchmove: 'mousemove',
-            touchend: 'mouseup'
-        }[event.type], {
-            bubbles: true, cancelable: true, view: window,
-            clientX: touch.clientX, clientY: touch.clientY,
-            screenX: touch.screenX, screenY: touch.screenY
-        });
-        wrap.dispatchEvent(simulatedEvent);
-        if (event.type === 'touchmove') event.preventDefault();
-    }
-    wrap.addEventListener('touchstart', localTouchProxy, {passive: false});
-    wrap.addEventListener('touchmove', localTouchProxy, {passive: false});
-    wrap.addEventListener('touchend', localTouchProxy, {passive: false});
     
     wrap.dataset.scale = 1;
     wrap.dataset.rotation = 0;
@@ -660,106 +579,6 @@ function addNeonToCanvas(n) {
             text-shadow: 0 2px 4px rgba(0,0,0,0.8);">${lines.join('<br>')}</div>
     `;
 
-    // KONTROLLER
-    const controls = document.createElement('div');
-    controls.className = 'callout-controls';
-    controls.style.cssText = 'position:absolute; bottom:-30px; left:0px; display:none;';
-    controls.innerHTML = `<button class="cbtn cbtn-del" title="Sil"><i class="fas fa-trash"></i></button>`;
-    
-    const resizer = document.createElement('div');
-    resizer.className = 'callout-resizer';
-    resizer.style.cssText = 'position:absolute; width:16px; height:16px; background:#3b82f6; bottom:-8px; right:-8px; border-radius:50%; cursor:se-resize; border:2px solid #fff; box-shadow:0 1px 3px rgba(0,0,0,0.5); z-index:10; display:none;';
-    
-    const rotator = document.createElement('div');
-    rotator.className = 'callout-rotator';
-    rotator.style.cssText = 'position:absolute; width:16px; height:16px; background:#10b981; border:2px solid #fff; border-radius:50%; top:-25px; left:50%; transform:translateX(-50%); cursor:grab; z-index:100; display:none; box-shadow:0 0 5px rgba(0,0,0,0.5);';
-    rotator.title = 'Döndür';
-
-    el.appendChild(controls);
-    el.appendChild(resizer);
-    el.appendChild(rotator);
-    
-    el.dataset.scale = 1;
-    el.dataset.rotation = 0;
-    
-    function applyScale(scale){
-        el.dataset.scale = scale;
-        const rot = el.dataset.rotation || 0;
-        el.style.transform = `rotate(${rot}deg) scale(${scale})`;
-        setTimeout(() => {
-            if(window.selectedCalloutEl === el) selectCalloutEl(el, true);
-        }, 10);
-    }
-    
-    controls.querySelector('.cbtn-del').onclick = (e) => {
-        e.stopPropagation();
-        el.remove();
-        if(window.selectedCalloutEl === el) closeCalloutPanel();
-    };
-
-    let isResizing = false;
-    let initialW = 0, initialH = 0, initialX = 0, initialY = 0, startScale = 1;
-    function rsDown(e){
-        e.stopPropagation(); e.preventDefault();
-        isResizing = true;
-        const touch = e.touches ? e.touches[0] : e;
-        initialX = touch.clientX; initialY = touch.clientY;
-        const rect = el.getBoundingClientRect();
-        initialW = rect.width; initialH = rect.height;
-        startScale = parseFloat(el.dataset.scale) || 1;
-        document.addEventListener('mousemove', rsMove);
-        document.addEventListener('touchmove', rsMove, {passive: false});
-        document.addEventListener('mouseup', rsUp);
-        document.addEventListener('touchend', rsUp);
-    }
-    resizer.addEventListener('mousedown', rsDown);
-    resizer.addEventListener('touchstart', rsDown, {passive: false});
-    
-    function rsMove(e){
-        if(!isResizing) return;
-        if(e.cancelable) e.preventDefault();
-        const touch = e.touches ? e.touches[0] : e;
-        const dx = touch.clientX - initialX; const dy = touch.clientY - initialY;
-        const maxD = Math.max(dx, dy);
-        const ratio = (initialW + maxD) / initialW;
-        let newScale = startScale * ratio;
-        if(newScale < 0.2) newScale = 0.2;
-        if(newScale > 5) newScale = 5;
-        applyScale(newScale);
-    }
-    function rsUp(){ 
-        isResizing = false; 
-        document.removeEventListener('mousemove', rsMove); document.removeEventListener('touchmove', rsMove);
-        document.removeEventListener('mouseup', rsUp); document.removeEventListener('touchend', rsUp);
-    }
-    
-    let isRotating = false;
-    function rotDown(e){
-        e.stopPropagation(); e.preventDefault();
-        isRotating = true; rotator.style.cursor = 'grabbing';
-        document.addEventListener('mousemove', rotMove); document.addEventListener('touchmove', rotMove, {passive: false});
-        document.addEventListener('mouseup', rotUp); document.addEventListener('touchend', rotUp);
-    }
-    rotator.addEventListener('mousedown', rotDown);
-    rotator.addEventListener('touchstart', rotDown, {passive: false});
-    
-    function rotMove(e){
-        if(!isRotating) return;
-        if(e.cancelable) e.preventDefault();
-        const rect = el.getBoundingClientRect();
-        const centerX = rect.left + rect.width / 2; const centerY = rect.top + rect.height / 2;
-        const cx = e.touches ? e.touches[0].clientX : e.clientX; const cy = e.touches ? e.touches[0].clientY : e.clientY;
-        let angle = Math.atan2(cy - centerY, cx - centerX) * (180 / Math.PI) + 90; 
-        el.dataset.rotation = angle;
-        const scale = parseFloat(el.dataset.scale) || 1;
-        el.style.transform = `rotate(${angle}deg) scale(${scale})`;
-    }
-    function rotUp(){ 
-        isRotating = false; rotator.style.cursor = 'grab';
-        document.removeEventListener('mousemove', rotMove); document.removeEventListener('touchmove', rotMove);
-        document.removeEventListener('mouseup', rotUp); document.removeEventListener('touchend', rotUp);
-    }
-
     // Sürükleme
     makeDraggable(el);
 
@@ -771,6 +590,8 @@ function addNeonToCanvas(n) {
     }
     el.addEventListener('mousedown', elDown);
     el.addEventListener('touchstart', elDown, {passive: true});
+
+
 
     // allIcons'a kaydet
     if (typeof allIcons !== 'undefined') allIcons.push(el);
@@ -796,27 +617,10 @@ function selectCalloutEl(el, isUserClick = false) {
     document.querySelectorAll('.co-neon-block').forEach(e => {
         if (!window.selectedElements || !window.selectedElements.includes(e)) {
             e.style.outline = 'none';
-            // Hide neon controls
-            const ctrls = e.querySelector('.callout-controls');
-            if (ctrls) {
-                ctrls.style.display = 'none';
-                e.querySelector('.callout-resizer').style.display = 'none';
-                e.querySelector('.callout-rotator').style.display = 'none';
-            }
         }
     });
     el.style.outline = '1px dashed rgba(255,255,255,0.4)';
     selectedCalloutEl = el;
-    
-    // Show controls for neon block
-    if (el.classList.contains('co-neon-block')) {
-        const ctrls = el.querySelector('.callout-controls');
-        if (ctrls) {
-            ctrls.style.display = 'flex';
-            el.querySelector('.callout-resizer').style.display = 'block';
-            el.querySelector('.callout-rotator').style.display = 'block';
-        }
-    }
 
     const panel = document.getElementById('calloutSettingsPanel');
     if (!panel) return;
@@ -919,13 +723,6 @@ function closeCalloutPanel() {
     document.querySelectorAll('.co-neon-block').forEach(e => {
         if (!window.selectedElements || !window.selectedElements.includes(e)) {
             e.style.outline = 'none';
-            // Hide neon controls
-            const ctrls = e.querySelector('.callout-controls');
-            if (ctrls) {
-                ctrls.style.display = 'none';
-                e.querySelector('.callout-resizer').style.display = 'none';
-                e.querySelector('.callout-rotator').style.display = 'none';
-            }
         }
     });
     const panel = document.getElementById('calloutSettingsPanel');

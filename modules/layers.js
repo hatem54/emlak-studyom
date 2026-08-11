@@ -100,10 +100,9 @@ window.layerToggleLock = function(uid, isDrawPath = false, pathIndex = 0) {
                     p.el.dataset.locked = p.locked ? 'true' : 'false';
                     if (p.locked) {
                         p.el.classList.add('locked-el');
-                        p.el.style.pointerEvents = 'none';
                     } else {
                         p.el.classList.remove('locked-el');
-                        p.el.style.pointerEvents = 'auto';
+                        if (p.el.style.pointerEvents === 'none') p.el.style.pointerEvents = 'auto'; // Unlock fallback
                     }
                 }
                 if (window.forceRedrawAll) window.forceRedrawAll();
@@ -118,17 +117,14 @@ window.layerToggleLock = function(uid, isDrawPath = false, pathIndex = 0) {
     if (el.dataset.locked === 'true') {
         el.dataset.locked = 'false';
         el.classList.remove('locked-el');
-        el.style.pointerEvents = 'auto'; // Unlock
+        if (el.style.pointerEvents === 'none') el.style.pointerEvents = 'auto'; // Unlock fallback
     } else {
         el.dataset.locked = 'true';
         el.classList.add('locked-el');
-        el.style.pointerEvents = 'none'; // Lock
+        // Do not set pointer-events: none, otherwise on-canvas handles become unclickable
         
         // Deselect if locked
-        if (window.selectedEl === el) {
-            
-        }
-        if (typeof window.deselectAll === 'function') window.deselectAll();
+        // if (typeof window.deselectAll === 'function') window.deselectAll();
     }
     window.renderLayers();
 };

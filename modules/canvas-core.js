@@ -58,15 +58,26 @@ function resizeCanvas(){
     const formatSelect = document.getElementById('previewFormat');
     let hasImage = typeof uploadedImgUrl !== 'undefined' && uploadedImgUrl && typeof uploadedImgW !== 'undefined' && uploadedImgW > 0;
 
-    if (!hasImage && window.isMobileDevice()) {
+    if (!hasImage && window.isMobileDevice() && !window.userHasManuallyChangedFormat) {
+        const isLand = window.innerWidth > window.innerHeight;
+        
+        // Cihaz yönüne göre varsayılan formatı otomatik seç
+        if (formatSelect) {
+            const targetFormat = isLand ? '1920x1080 (Masaüstü, Web, İlan Kapak)' : '9:16 Instagram/TikTok Story';
+            if (formatSelect.value !== targetFormat) {
+                formatSelect.value = targetFormat;
+                const exportSelect = document.getElementById('exportFormat');
+                if(exportSelect) exportSelect.value = targetFormat;
+            }
+        }
+
         const tempPa = document.querySelector('.preview-area');
         if(tempPa) {
-            const isLand = window.isMobileDevice() && window.innerWidth > window.innerHeight;
             canvasW = tempPa.clientWidth - (isLand ? 40 : 0);
             canvasH = window.innerHeight - (isLand ? 40 : 150);
         } else {
-            canvasW = 1080;
-            canvasH = 1920;
+            canvasW = isLand ? 1920 : 1080;
+            canvasH = isLand ? 1080 : 1920;
         }
     } else if (hasImage && window.isMobileDevice()) {
         // [MOBİL] Canvas oranı yüklenen görselin orijinal oranını korur
@@ -169,8 +180,8 @@ function calculateTransformParams(ref, curr) {
             let ScaledLocalCY = pH / 2 + DistY * s.z;
             
             // Apply translation (scaled by z since it's a DOM transform)
-            AbsCX = ScaledLocalCX + s.px * s.z + pL;
-            AbsCY = ScaledLocalCY + s.py * s.z + pT;
+            AbsCX = ScaledLocalCX + s.px * s.z;
+            AbsCY = ScaledLocalCY + s.py * s.z;
         } else {
             let coverScale = Math.max(pW / imgW, pH / imgH);
             if (s.z != 100) coverScale = (pW * (s.z / 100)) / imgW;

@@ -7,21 +7,8 @@
 
 
 window.isMobileDevice = function() {
-
-    if (window.innerWidth <= 768) return true;
-
-    if (window.innerWidth <= 1100 && window.innerWidth > window.innerHeight) return true; // Mobile Landscape
-
-    return false;
-
-};
-
-
-
-
-window.isMobileDevice = function() {
     return window.innerWidth <= 768 || 
-           (window.innerWidth <= 1100 && window.innerHeight < window.innerWidth);
+           (window.innerWidth <= 1400 && window.innerHeight < window.innerWidth);
 };
 
 // Global image validation logic (Format and Size restriction)
@@ -860,9 +847,17 @@ setTimeout(function(){
 
         }
 
-        
-
         console.log('🎉 Init tamamlandı');
+        
+        // Hide initial loader and re-enable format loaders
+        setTimeout(() => {
+            window.isInitialLoad = false;
+            const initLoader = document.getElementById('initialAppLoader');
+            if (initLoader) {
+                initLoader.style.opacity = '0';
+                setTimeout(() => initLoader.remove(), 300);
+            }
+        }, 500);
 
     } catch(err){
 
@@ -1821,33 +1816,41 @@ window.confirmClearDrafts = function() {
     }
 };
 
-// --- PHOTO PANEL SLIDER DIM EFFECT ---
+// --- DYNAMIC PANEL SLIDER DIM EFFECT ---
 document.addEventListener('DOMContentLoaded', () => {
-    const photoTab = document.getElementById('tab-photo');
-    if (!photoTab) return;
+    const dynamicTabs = document.querySelectorAll('.dynamic-field');
     
-    const photoSliders = photoTab.querySelectorAll('input[type="range"]');
-    
-    const restorePanel = () => {
-        photoTab.classList.remove('dimmed');
-        document.body.classList.remove('photo-slider-active');
-        photoTab.querySelectorAll('.active-slider').forEach(el => el.classList.remove('active-slider'));
-    };
-
-    photoSliders.forEach(slider => {
-        const group = slider.closest('.slider-group');
+    dynamicTabs.forEach(tab => {
+        const sliders = tab.querySelectorAll('input[type="range"]');
+        const parentPanel = tab.closest('.panel');
         
-        const dimPanel = () => {
-            if (window.innerWidth > 768) return; // Sadece mobilde çalışsın
-            photoTab.classList.add('dimmed');
-            document.body.classList.add('photo-slider-active');
-            if (group) group.classList.add('active-slider');
+        const restorePanel = () => {
+            tab.classList.remove('dimmed');
+            document.body.classList.remove('photo-slider-active');
+            tab.querySelectorAll('.active-slider').forEach(el => el.classList.remove('active-slider'));
+            if (parentPanel) parentPanel.classList.remove('panel-transparent');
         };
+
+        sliders.forEach(slider => {
+            const group = slider.closest('.slider-group, .color-row, .input-group') || slider.parentElement;
+            
+            // Prevent accidental slider movement while scrolling vertically
+            slider.style.touchAction = 'pan-y';
+            
+            const dimPanel = () => {
+                if (window.innerWidth > 768) return;
+                tab.classList.add('dimmed');
+                document.body.classList.add('photo-slider-active');
+                if (group) group.classList.add('active-slider');
+                if (parentPanel) parentPanel.classList.add('panel-transparent');
+            };
+            
+            slider.addEventListener('input', dimPanel);
+            slider.addEventListener('touchstart', dimPanel, {passive: true});
+        });
         
-        slider.addEventListener('input', dimPanel);
+        window.addEventListener('mouseup', restorePanel);
+        window.addEventListener('touchend', restorePanel);
+        window.addEventListener('touchcancel', restorePanel);
     });
-    
-    window.addEventListener('mouseup', restorePanel);
-    window.addEventListener('touchend', restorePanel);
-    window.addEventListener('touchcancel', restorePanel);
 });

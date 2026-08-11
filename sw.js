@@ -1,4 +1,4 @@
-const CACHE_NAME = 'emlak-studiom-v20';
+const CACHE_NAME = 'emlak-studiom-v33';
 const CORE_ASSETS = [
   './app.html',
   './styles.css',
@@ -52,7 +52,7 @@ self.addEventListener('fetch', (event) => {
       fetch(event.request).catch((err) => {
         console.warn('Dış kaynaklı istek hatası (CORS/Ağ):', url.href, err);
         // Hata durumunda undefined yerine güvenli boş response dönerek 'Failed to convert value to Response' hatasını önle.
-        return new Response('', { status: 204, statusText: 'No Content' });
+        return new Response(null, { status: 204, statusText: 'No Content' });
       })
     );
     return;

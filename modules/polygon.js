@@ -165,8 +165,8 @@ function checkConvertPolygonButton() {
 
 // Override or inject into selection changes
 const originalSelectElement = window.selectElement;
-window.selectElement = function(el, multi) {
-    if (originalSelectElement) originalSelectElement(el, multi);
+window.selectElement = function(...args) {
+    if (originalSelectElement) originalSelectElement(...args);
     setTimeout(checkConvertPolygonButton, 10);
 };
 

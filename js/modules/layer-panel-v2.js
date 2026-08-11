@@ -599,8 +599,8 @@ data-lpid="${id}">
     // selectElement hook: canvas'ta seçim değişince paneli senkronize et
     const _origSel = window.selectElement;
     if (typeof _origSel === 'function') {
-        window.selectElement = function (el, isMulti) {
-        _origSel(el, isMulti);
+        window.selectElement = function (...args) {
+        _origSel(...args);
         setTimeout(() => window.LayerPanelV2?.highlightActiveLayer(), 80);
     };
     }

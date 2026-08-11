@@ -101,7 +101,7 @@ function bindDrag(el){
         if (e.touches && typeof longPressTimer !== 'undefined') { /* mobile long press logic handled separately */ }
           
           if(el.dataset.locked === 'true') {
-                if (typeof selectElement === 'function') selectElement(el, multiSelectKey);
+                if (typeof selectElement === 'function') selectElement(el, multiSelectKey, true);
                 e.preventDefault();
                 return;
             }
@@ -111,7 +111,7 @@ function bindDrag(el){
           let wasSelected = true;
           if (!window.selectedElements || !window.selectedElements.includes(el)) {
               wasSelected = false;
-              if (typeof selectElement === 'function') selectElement(el, multiSelectKey);
+              if (typeof selectElement === 'function') selectElement(el, multiSelectKey, true);
               e.preventDefault();
           }
           
@@ -123,18 +123,13 @@ function bindDrag(el){
         const rect = el.getBoundingClientRect();
         const c = e.touches ? e.touches[0] : e;
         
-        if (c.clientX >= rect.right - 20 && c.clientY >= rect.bottom - 20) {
+        const isCallout = el.classList.contains('callout-wrap') || el.classList.contains('svg-callout') || el.classList.contains('co-neon-block');
+        
+        if (!isCallout && (e.target.closest('.text-resize-handle') || (c.clientX >= rect.right - 20 && c.clientY >= rect.bottom - 20))) {
             resizing = true;
             iw = el.offsetWidth;
             ih = el.offsetHeight;
             el.dataset.startFontSize = parseFloat(window.getComputedStyle(el).fontSize) || 16;
-            if (el.classList.contains('co-neon-block')) {
-                el.dataset.startIconSize = el.dataset.coIconSize || 64;
-                el.dataset.startTextSize = el.dataset.coTextSize || 14;
-                el.dataset.startPadding = el.dataset.coPadding || 10;
-                el.dataset.startRadius = el.dataset.coRadius || 12;
-                el.dataset.startBoxSize = el.dataset.coBoxSize || 140;
-            }
         } else {
             dragging = true;
             el.classList.add('dragging');
@@ -170,9 +165,7 @@ function bindDrag(el){
             let newH = Math.max(20, ih + dy);
             
             if (el.classList.contains('co-neon-block')) {
-                const ratio = Math.max(newW / iw, newH / ih);
-                newW = iw * ratio;
-                newH = ih * ratio;
+                const ratio = Math.min(newW / iw, newH / ih);
                 const newIconSize = Math.max(10, Math.round(parseFloat(el.dataset.startIconSize) * ratio));
                 const newTextSize = Math.max(5, Math.round(parseFloat(el.dataset.startTextSize) * ratio));
                 const newPadding = Math.round(parseFloat(el.dataset.startPadding) * ratio);
@@ -201,23 +194,32 @@ function bindDrag(el){
                 }
             } else {
                 if (el.classList.contains('editable-text') || el.classList.contains('canvas-el') || el.classList.contains('cvi-item')) {
-                    const ratio = Math.max(newW / iw, newH / ih);
-                    newW = iw * ratio;
-                    newH = ih * ratio;
-                    
-                    const newFontSize = Math.max(8, parseFloat(el.dataset.startFontSize) * ratio);
-                    el.style.fontSize = newFontSize + 'px';
-                    
-                    if (typeof selectedEl !== 'undefined' && selectedEl === el) {
-                        const fsInput = document.getElementById('elFontSize');
-                        const fsVal = document.getElementById('elFontSizeVal');
-                        if(fsInput) { fsInput.value = newFontSize; if(fsVal) fsVal.textContent = Math.round(newFontSize); }
+                    if (el.dataset.label === 'Özel Kutu') {
+                        // Kutu serbest boyutlandırılır, yazı boyutu değişmez (Ratcheting / küçülme bug'ını çözer)
+                    } else {
+                        // Serbest yazı veya diğerleri orantılı büyür/küçülür
+                        const ratio = newW / iw;
+                        newH = ih * ratio; // Kutu en-boy oranını korur
+                        
+                        const newFontSize = Math.max(8, parseFloat(el.dataset.startFontSize) * ratio);
+                        el.style.fontSize = newFontSize + 'px';
+                        
+                        if (typeof selectedEl !== 'undefined' && selectedEl === el) {
+                            const fsInput = document.getElementById('elFontSize');
+                            const fsVal = document.getElementById('elFontSizeVal');
+                            if(fsInput) { fsInput.value = newFontSize; if(fsVal) fsVal.textContent = Math.round(newFontSize); }
+                        }
                     }
                 }
                 
                 el.style.width = newW + 'px';
                 if (el.tagName !== 'IMG') {
-                    el.style.height = newH + 'px';
+                    if (el.classList.contains('canvas-el') && !el.classList.contains('co-neon-block')) {
+                        el.style.minHeight = newH + 'px';
+                        el.style.height = 'auto';
+                    } else {
+                        el.style.height = newH + 'px';
+                    }
                 }
                 
                 if (typeof selectedEl !== 'undefined' && selectedEl === el) {
@@ -250,7 +252,8 @@ function bindDrag(el){
             el.style.bottom = 'auto';
             el.style.right = 'auto';
             const rot = el.dataset.rotation || 0;
-            el.style.transform = 'rotate(' + rot + 'deg)';
+            const scale = el.dataset.scale || 1;
+            el.style.transform = `rotate(${rot}deg) scale(${scale})`;
             
             if (window.selectedElements && window.selectedElements.length > 1 && window.selectedElements.includes(el)) {
                 window.selectedElements.forEach(selEl => {
@@ -275,7 +278,7 @@ function bindDrag(el){
         const clickDuration=Date.now()-downTime;
         if(!moved && drawMode==='off' && typeof selectElement === 'function') {
                 if (!multiSelectKey) {
-                    selectElement(el, false);
+                    selectElement(el, false, true);
                 }
             }
             
@@ -361,7 +364,7 @@ function bindDrag(el){
 }
 
 window.selectedElements = window.selectedElements || [];
-function selectElement(el, isMulti = false){
+function selectElement(el, isMulti = false, noTabSwitch = false){
     /* removed lock check to allow unlocking */
     if(el && (el.classList.contains('co-neon-block') || el.classList.contains('callout-wrap') || el.classList.contains('svg-callout') || el.classList.contains('callout-item'))) {
         if(typeof selectCalloutEl === 'function') selectCalloutEl(el);
@@ -447,12 +450,15 @@ function selectElement(el, isMulti = false){
         if(document.getElementById('elLabel')) document.getElementById('elLabel').textContent=el.dataset.label||'Eleman';
         if(typeof loadElSettings === 'function') loadElSettings(el);
         if(typeof loadElFont === 'function') loadElFont(el);
-        if(typeof switchTab === 'function' && !el.classList.contains('co-neon-block') && !el.classList.contains('callout-wrap') && !el.classList.contains('svg-callout') && !el.classList.contains('callout-item')) switchTab('element');
+        if(!noTabSwitch && typeof switchTab === 'function' && !el.classList.contains('co-neon-block') && !el.classList.contains('callout-wrap') && !el.classList.contains('svg-callout') && !el.classList.contains('callout-item')) switchTab('element');
+        if (el.classList.contains('canvas-el') && typeof window.addTextHandles === 'function') window.addTextHandles(el);
     }
 }
 
 function deselectAll(){
     document.querySelectorAll('.el-selected').forEach(e=>e.classList.remove('el-selected'));
+    document.querySelectorAll('.text-handle').forEach(h=>h.remove());
+    document.querySelectorAll('.callout-controls, .callout-resizer, .callout-rotator, .callout-select-border').forEach(c => c.style.display = 'none');
     selectedEl=null;
     window.selectedElements = [];
     $('noSelMsg').style.display='block';

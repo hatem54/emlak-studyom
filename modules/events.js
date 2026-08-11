@@ -94,7 +94,7 @@ document.addEventListener('touchstart', function(e) {
                     const innerEl = callout.classList.contains('callout-wrap') ? callout.querySelector('.callout-svg-container, .callout-item') || callout : callout;
                     if (typeof selectCalloutEl === 'function') selectCalloutEl(innerEl, true);
                 } else {
-                    if (typeof selectElement === 'function') selectElement(callout);
+                    if (typeof selectElement === 'function') selectElement(callout, false, true);
                 }
                 if (typeof switchTab === 'function') switchTab(isCallout ? 'callout' : (callout.classList.contains('editable-draw') ? 'draw' : 'element'));
             } else {
@@ -403,59 +403,10 @@ window.addEventListener('resize', () => {
             });
         }
     }
+
+
+
+
+
+
 });
-
-// ==========================================
-// SWIPE GESTURE FOR TABS (Sekmeler Arası Geçiş)
-// ==========================================
-let swipeStartX = 0;
-let swipeStartY = 0;
-document.addEventListener('touchstart', (e) => {
-    if (e.touches.length === 1) {
-        swipeStartX = e.touches[0].clientX;
-        swipeStartY = e.touches[0].clientY;
-    }
-}, {passive: true});
-
-document.addEventListener('touchend', (e) => {
-    if (typeof window.isMobileDevice === 'function' && !window.isMobileDevice()) return;
-    if (e.changedTouches.length !== 1) return;
-    if (document.body.classList.contains('floating-panels-active')) return;
-    
-    // Ignore swipe if we started on canvas or interactive elements like sliders
-    const target = e.target;
-    if (target.closest('#drawCanvas') || target.closest('.range-slider') || target.closest('input[type="range"]') || target.closest('.color-picker-container') || target.closest('.drag-handle') || target.closest('#mainTabs')) return;
-    
-    const swipeEndX = e.changedTouches[0].clientX;
-    const swipeEndY = e.changedTouches[0].clientY;
-    
-    const deltaX = swipeEndX - swipeStartX;
-    const deltaY = Math.abs(swipeEndY - swipeStartY);
-    
-    // Horizontal swipe threshold: 70px. Vertical delta must be small to ensure it's a left/right swipe.
-    if (Math.abs(deltaX) > 70 && deltaY < 50) {
-        const tabs = Array.from(document.querySelectorAll('.tabs .tab-btn[data-tab]'));
-        const activeTab = document.querySelector('.tabs .tab-btn.active[data-tab]');
-        if (!activeTab || tabs.length === 0) return;
-        
-        let currentIndex = tabs.indexOf(activeTab);
-        
-        if (deltaX < 0) { // Swiped left -> next tab
-            if (currentIndex < tabs.length - 1) {
-                tabs[currentIndex + 1].click();
-            }
-        } else { // Swiped right -> prev tab
-            if (currentIndex > 0) {
-                tabs[currentIndex - 1].click();
-            }
-        }
-    }
-}, {passive: true});
-
-
-
-
-
-
-
-

@@ -1,4 +1,3 @@
-// ==================== PHOTO ZOOM & PAN ====================
 // ========== FOTOĞRAF ZOOM & PAN v4 - TRANSFORM ==========
 console.log('🎬 Zoom modülü v4 başlıyor...');
 
@@ -37,14 +36,33 @@ document.addEventListener('wheel', function(e){
 var _dragEl = null, _dsx, _dsy, _dix, _diy;
 
 window.spaceBarPressed = false;
+
+function isTextInput(el) {
+    if (!el) return false;
+    if (el.tagName === 'TEXTAREA') return true;
+    if (el.tagName === 'INPUT') {
+        const type = el.type.toLowerCase();
+        return ['text', 'password', 'number', 'email', 'url', 'search', 'tel'].includes(type);
+    }
+    return false;
+}
+
 window.addEventListener('keydown', e => { 
     if (e.code === 'Space') { 
         window.spaceBarPressed = true; 
-        if(document.activeElement && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') e.preventDefault(); 
+        if (!isTextInput(document.activeElement)) {
+            e.preventDefault(); 
+            if (document.activeElement) document.activeElement.blur();
+        }
     } 
 });
 window.addEventListener('keyup', e => { 
-    if (e.code === 'Space') window.spaceBarPressed = false; 
+    if (e.code === 'Space') {
+        window.spaceBarPressed = false; 
+        if (!isTextInput(document.activeElement)) {
+            e.preventDefault(); 
+        }
+    }
 });
 
 document.addEventListener('mousedown', function(e){
@@ -56,17 +74,6 @@ document.addEventListener('mousedown', function(e){
     }
 
     var el = _getZoomTarget(e.target);
-    if(!el) return;
-    
-    if(document.getElementById('photoLockToggle') && document.getElementById('photoLockToggle').checked) return;
-    
-    const isModifierPressed = e.ctrlKey || e.altKey || e.metaKey;
-    const canPanWithLeftClick = (typeof drawMode === 'undefined' || drawMode === 'off' || drawMode === null) && !isModifierPressed;
-    
-    if(e.button === 0 && !window.spaceBarPressed && !canPanWithLeftClick) return;
-    if(e.button !== 0 && e.button !== 1) return;
-    
-    // Eger fotograf yoksa (bos canvas) pan yapma, birak baska seyler (marquee vb) calissin
     const hasPhoto = el && ((el.style.backgroundImage && el.style.backgroundImage !== 'none') || el.querySelector('.photo-inner-zoom') || el.tagName.toLowerCase() === 'img');
     if (!hasPhoto) return;
     
@@ -114,6 +121,10 @@ document.addEventListener('mouseup', function(){
 var _initialPinchDist = null;
 var _initialPinchScale = null;
 
+var _touchTimer = null;
+var _touchStartTime = 0;
+var _touchMoved = false;
+
 document.addEventListener('touchstart', function(e){
     const isObj = e.target.closest && e.target.closest('.draggable, .is-svg-icon, .editable-draw, .callout-wrap, .callout-item, .co-neon-block');
     const hasImage = typeof uploadedImgUrl !== 'undefined' && uploadedImgUrl;
@@ -128,22 +139,39 @@ document.addEventListener('touchstart', function(e){
     if(document.getElementById('photoLockToggle') && document.getElementById('photoLockToggle').checked) return;
 
     if(e.touches.length === 2) {
-        // Pinch to zoom başladı
         e.preventDefault();
         _initialPinchDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
         _preparePhoto(el);
         _initialPinchScale = parseFloat(el.dataset.zpScale) || 1;
-        _dragEl = null; // Pinch yaparken pan iptal
+        _dragEl = null;
+        if(_touchTimer) { clearTimeout(_touchTimer); _touchTimer = null; }
     } else if(e.touches.length === 1) {
         const canPanWithLeftClick = (typeof drawMode === 'undefined' || drawMode === 'off' || drawMode === null);
         if(!canPanWithLeftClick) return;
         
         _preparePhoto(el);
-        _dragEl = el;
         _dsx = e.touches[0].clientX;
         _dsy = e.touches[0].clientY;
         _dix = parseFloat(el.dataset.zpX) || 0;
         _diy = parseFloat(el.dataset.zpY) || 0;
+        
+        _touchStartTime = Date.now();
+        _touchMoved = false;
+        
+        if (window.isPhotoLocked) {
+            if (window.longPressUnlocked) {
+                _dragEl = el;
+            } else {
+                _touchTimer = setTimeout(function() {
+                    window.longPressUnlocked = true;
+                    _dragEl = el;
+                    if(navigator.vibrate) navigator.vibrate(50);
+                    console.log("Uzun basma ile kaydırma kalıcı aktif (Mobil)");
+                }, 400);
+            }
+        } else {
+            _dragEl = el;
+        }
     }
 }, {passive: false});
 

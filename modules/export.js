@@ -35,42 +35,44 @@ function switchPreviewFormat(){
     const newW = format.w;
     const newH = format.h;
 
-    // YÃ¼kleme ekranÄ± ekle
+    // Yükleme ekranı ekle (Sadece başlangıç yüklemesi bittikten sonra göster)
     let overlay = document.getElementById('format-transition-overlay');
-    if (!overlay) {
-        overlay = document.createElement('div');
-        overlay.id = 'format-transition-overlay';
-        overlay.style.position = 'absolute';
-        overlay.style.top = '0';
-        overlay.style.left = '0';
-        overlay.style.width = '100%';
-        overlay.style.height = '100%';
-        overlay.style.backgroundColor = 'rgba(15, 23, 42, 0.9)'; // Koyu tema rengi
-        overlay.style.zIndex = '9999';
-        overlay.style.display = 'flex';
-        overlay.style.flexDirection = 'column';
-        overlay.style.alignItems = 'center';
-        overlay.style.justifyContent = 'center';
-        overlay.style.color = '#38bdf8'; // AÃ§Ä±k mavi
-        overlay.style.fontSize = '1.3rem';
-        overlay.style.fontWeight = 'bold';
-        overlay.style.transition = 'opacity 0.2s ease-out';
-        overlay.innerHTML = `
-            <style>
-                @keyframes ft-pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .5; transform: scale(0.95); } }
-                .ft-loading-icon { animation: ft-pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite; font-size: 3rem; margin-bottom: 15px; display: block; }
-            </style>
-            <span class="ft-loading-icon">✨</span>
-            <div style="letter-spacing: 2px;">FORMAT AYARLANIYOR...</div>
-        `;
-        const pa = document.querySelector('.preview-area');
-        if (pa) {
-            pa.style.position = 'relative';
-            pa.appendChild(overlay);
+    if (!window.isInitialLoad) {
+        if (!overlay) {
+            overlay = document.createElement('div');
+            overlay.id = 'format-transition-overlay';
+            overlay.style.position = 'absolute';
+            overlay.style.top = '0';
+            overlay.style.left = '0';
+            overlay.style.width = '100%';
+            overlay.style.height = '100%';
+            overlay.style.backgroundColor = 'rgba(15, 23, 42, 0.9)'; // Koyu tema rengi
+            overlay.style.zIndex = '9999';
+            overlay.style.display = 'flex';
+            overlay.style.flexDirection = 'column';
+            overlay.style.alignItems = 'center';
+            overlay.style.justifyContent = 'center';
+            overlay.style.color = '#38bdf8'; // Açık mavi
+            overlay.style.fontSize = '1.3rem';
+            overlay.style.fontWeight = 'bold';
+            overlay.style.transition = 'opacity 0.2s ease-out';
+            overlay.innerHTML = `
+                <style>
+                    @keyframes ft-pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .5; transform: scale(0.95); } }
+                    .ft-loading-icon { animation: ft-pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite; font-size: 3rem; margin-bottom: 15px; display: block; }
+                </style>
+                <span class="ft-loading-icon">✨</span>
+                <div style="letter-spacing: 2px;">FORMAT AYARLANIYOR...</div>
+            `;
+            const pa = document.querySelector('.preview-area');
+            if (pa) {
+                pa.style.position = 'relative';
+                pa.appendChild(overlay);
+            }
+        } else {
+            overlay.style.opacity = '1';
+            overlay.style.display = 'flex';
         }
-    } else {
-        overlay.style.opacity = '1';
-        overlay.style.display = 'flex';
     }
 
     const oldPhotoState = window.getCurrentPhotoState ? window.getCurrentPhotoState() : null;
@@ -448,7 +450,7 @@ async function saveImage(){
       });
       console.log('--------------------');
 
-    if(typeof deselectAll === 'function') deselectAll(); else document.querySelectorAll('.el-selected').forEach(e=>e.classList.remove('el-selected'));
+    if(typeof deselectAll === 'function') deselectAll(); else { document.querySelectorAll('.el-selected').forEach(e=>e.classList.remove('el-selected')); document.querySelectorAll('.text-handle').forEach(h=>h.remove()); document.querySelectorAll('.callout-controls, .callout-resizer, .callout-rotator, .callout-select-border').forEach(c => c.style.display = 'none'); }
     
     // ZORUNLU PREPARE (SABLON VEYA LAYER ICIN)
     let needsPrep = false;
@@ -871,7 +873,7 @@ async function startBatchExport(){
     batchProgress.style.display='block';
     if(drawMode!=='off')setDrawMode('off');
     
-    if(typeof deselectAll === 'function') deselectAll(); else document.querySelectorAll('.el-selected').forEach(e=>e.classList.remove('el-selected'));
+    if(typeof deselectAll === 'function') deselectAll(); else { document.querySelectorAll('.el-selected').forEach(e=>e.classList.remove('el-selected')); document.querySelectorAll('.text-handle').forEach(h=>h.remove()); document.querySelectorAll('.callout-controls, .callout-resizer, .callout-rotator, .callout-select-border').forEach(c => c.style.display = 'none'); }
     
     const wz=drawCanvas.style.zIndex,wp=drawCanvas.style.pointerEvents;
     drawCanvas.style.zIndex='7';

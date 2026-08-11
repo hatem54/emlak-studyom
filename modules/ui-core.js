@@ -34,9 +34,17 @@ function switchTab(name){
     }
 
     document.querySelectorAll('#mainTabs .tab-btn').forEach(b => {
-        if(b.dataset.tab === name) b.classList.add('active');
-        else b.classList.remove('active');
+        if(b.dataset.tab === name || b === btn) {
+            b.classList.add('active');
+        } else {
+            b.classList.remove('active');
+        }
     });
+
+    // Ana butonu (tab) merkeze kaydır (scroll), böylece mobilde seçili olan net görünsün
+    if (btn && btn.scrollIntoView) {
+        btn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+    }
     
     document.querySelectorAll('.panel>.dynamic-field').forEach(f=>f.classList.remove('show'));
     const targetPanel = document.getElementById('tab-'+name);

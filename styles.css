@@ -250,7 +250,12 @@ h2 .vb{background:var(--gradient-1);color:#fff;font-size:9px;padding:2px 8px;bor
 
 /* Yazı/metin/kutu elemanları en üstte kalsın */
 #ui-layer .canvas-el,
-.canva-generated, .canvas-el { z-index: 20 !important; }
+.canva-generated, .canvas-el { 
+    z-index: 20 !important; 
+    min-width: min-content;
+    min-height: min-content;
+    word-break: break-word;
+}
 #ui-layer .draggable{
     z-index:20 !important;
 }
@@ -407,14 +412,15 @@ h2 .vb{background:var(--gradient-1);color:#fff;font-size:9px;padding:2px 8px;bor
     z-index: 1001;
     margin-top: -4px; /* arrow positioning */
 }
-[data-tooltip]:hover::after,
-[data-tooltip]:hover::before {
-    opacity: 1;
-    visibility: visible;
-    transform: translateX(-50%) translateY(0);
+@media (hover: hover) {
+    [data-tooltip]:hover::after,
+    [data-tooltip]:hover::before {
+        opacity: 1;
+        visibility: visible;
+        transform: translateX(-50%) translateY(0);
+    }
+    [data-tooltip]:hover { z-index: 9999; }
 }
-
-[data-tooltip]:hover { z-index: 9999; }
 
 /* ================= ADVANCED CALLOUT SHAPES ================= */
 .co-tail-b::after {
@@ -1692,13 +1698,22 @@ h2 .vb{background:var(--gradient-1);color:#fff;font-size:9px;padding:2px 8px;bor
         display: none !important;
     }
     
-    /* Show them when moved inside the mobile menu */
-    .mobile-menu-panel #modeBanner {
-        display: flex !important; position: static !important; width: 90% !important; margin: 20px auto !important; transform: none !important;
-    }
-    .mobile-menu-panel .help-assistant-fab {
+    .mobile-menu-panel #modeBanner, .mobile-menu-panel .help-assistant-fab, .mobile-menu-panel .menu-btn {
         display: flex !important; position: static !important; width: 90% !important; margin: 0 auto !important; border-radius: 8px !important;
-        justify-content: center; gap: 8px; font-size: 14px; padding: 12px !important; height: auto !important;
+        justify-content: center; gap: 8px; font-size: 14px !important; padding: 12px !important; height: auto !important;
+        background: linear-gradient(135deg, #00e5ff, #0077ff) !important;
+        color: white !important;
+        box-shadow: 0 4px 15px rgba(0, 229, 255, 0.4) !important;
+        border: none !important;
+        text-decoration: none !important;
+        cursor: pointer;
+        box-sizing: border-box;
+        transform: none !important;
+    }
+    
+    .mobile-menu-panel .menu-btn[style*="display: none"],
+    .mobile-menu-panel .menu-btn[style*="display:none"] {
+        display: none !important;
     }
 }
 
@@ -1800,22 +1815,24 @@ h2 .vb{background:var(--gradient-1);color:#fff;font-size:9px;padding:2px 8px;bor
     /* Girdi (Input) ve Select alanlar� */
     input[type='text'], input[type='number'], select {
         min-height: 44px;
-        font-size: 16px; /* Mobilde zoom yapmas�n� engeller */
+        font-size: 16px; /* Mobilde zoom yapmasn engeller */
         padding: 8px 12px;
     }
 
-    /* Range sliderlar daha kal�n */
+    /* Range sliderlar daha kaln */
     input[type='range'] {
         height: 30px;
+        pointer-events: none; /* Mobilde scroll yaparken yanlislikla tetiklenmesini onler */
     }
     input[type='range']::-webkit-slider-thumb {
-        height: 24px;
-        width: 24px;
+        height: 32px;
+        width: 32px;
+        pointer-events: auto; /* Sadece basligindan tutulabilir */
     }
 
-    /* Canvas Alan� Dokunmatik Hassasiyeti */
+    /* Canvas Alan Dokunmatik Hassasiyeti */
     #canvas-wrapper {
-        touch-action: none; /* Mobilde istemsiz kayd�rmalar� kapat */
+        touch-action: none; /* Mobilde istemsiz kaydrmalar kapat */
     }
     
     #photo-layer {
@@ -2092,12 +2109,21 @@ body.floating-panels-active .floating-expand-btn {
 
     /* Mod Banner Duzenlemeleri */
     body > #modeBanner { display: none !important; }
-    .mobile-menu-panel #modeBanner {
-        display: flex !important; position: static !important; width: 90% !important; margin: 20px auto !important; transform: none !important;
-    }
-    .mobile-menu-panel .help-assistant-fab {
+    .mobile-menu-panel #modeBanner, .mobile-menu-panel .help-assistant-fab, .mobile-menu-panel .menu-btn {
         display: flex !important; position: static !important; width: 90% !important; margin: 0 auto !important; border-radius: 8px !important;
-        justify-content: center; gap: 8px; font-size: 14px; padding: 12px !important; height: auto !important;
+        justify-content: center; gap: 8px; font-size: 14px !important; padding: 12px !important; height: auto !important;
+        background: linear-gradient(135deg, #00e5ff, #0077ff) !important;
+        color: white !important;
+        box-shadow: 0 4px 15px rgba(0, 229, 255, 0.4) !important;
+        border: none !important;
+        text-decoration: none !important;
+        cursor: pointer;
+        box-sizing: border-box;
+        transform: none !important;
+    }
+    .mobile-menu-panel .menu-btn[style*="display: none"],
+    .mobile-menu-panel .menu-btn[style*="display:none"] {
+        display: none !important;
     }
 
     /* Menu Tutamaci (Surukle birak alani) */
@@ -2117,12 +2143,17 @@ body.floating-panels-active .floating-expand-btn {
     }
 }
 /* Photo Panel Slider Dim Effect */
-#tab-photo { transition: background-color 0.2s ease, box-shadow 0.2s ease; }
-#tab-photo.dimmed { background: transparent !important; box-shadow: none !important; border-color: transparent !important; }
-#tab-photo * { transition: opacity 0.2s ease; }
-#tab-photo.dimmed > *:not(:has(.active-slider)):not(.active-slider) { opacity: 0; pointer-events: none; }
-#tab-photo.dimmed details:has(.active-slider) > *:not(:has(.active-slider)):not(.active-slider) { opacity: 0; pointer-events: none; }
-#tab-photo.dimmed .active-slider ~ * { opacity: 0; pointer-events: none; }
-#tab-photo.dimmed *:has(~ .active-slider) { opacity: 0; pointer-events: none; }
+.dynamic-field { transition: background-color 0.2s ease, box-shadow 0.2s ease; }
+.dynamic-field.dimmed, .dynamic-field.dimmed *:has(.active-slider) { 
+    background: transparent !important; 
+    box-shadow: none !important; 
+    border-color: transparent !important; 
+}
+.panel-transparent { background: transparent !important; box-shadow: none !important; border-color: transparent !important; }
+.dynamic-field * { transition: opacity 0.2s ease; }
+.dynamic-field.dimmed :has(.active-slider) > *:not(:has(.active-slider)):not(.active-slider) { 
+    opacity: 0 !important; 
+    pointer-events: none !important; 
+}
 
 body.photo-slider-active .mobile-overlay { opacity: 0 !important; pointer-events: none !important; }

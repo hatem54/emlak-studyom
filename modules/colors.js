@@ -219,7 +219,23 @@ function applyPixelAdjustments() {
     });
 
     if(sv === 0 && hv === 0 && bl === 0 && wh === 0 && tmp === 0 && tnt === 0 && vbr === 0 && shp === 0 && !hasHsl) {
-        if(typeof uploadedImgUrl !== 'undefined') photoLayer.style.backgroundImage = 'url("'+uploadedImgUrl+'")';
+        const rawImg = (typeof uploadedImgUrl !== 'undefined' && uploadedImgUrl) ? uploadedImgUrl : '';
+        let targetEls = document.querySelectorAll('.photo-inner-zoom');
+        if (targetEls.length === 0) {
+            let pl = document.getElementById('photo-layer');
+            if (pl) targetEls = [pl];
+        }
+        targetEls.forEach(targetEl => {
+            if (rawImg) targetEl.style.backgroundImage = 'url("' + rawImg + '")';
+            let parent = targetEl.classList.contains('photo-inner-zoom') ? targetEl.parentElement : targetEl;
+            if (typeof _applyPhotoTransform === 'function') _applyPhotoTransform(parent);
+        });
+        if (typeof photoLayer !== 'undefined' && photoLayer && rawImg) photoLayer.style.backgroundImage = 'url("' + rawImg + '")';
+        document.querySelectorAll('.photo-panel').forEach(p => {
+            let inner = p.querySelector('.photo-inner-zoom') || p;
+            if (rawImg) inner.style.backgroundImage = 'url("' + rawImg + '")';
+            if (typeof _applyPhotoTransform === 'function') _applyPhotoTransform(p);
+        });
         return;
     }
 
@@ -229,18 +245,41 @@ function applyPixelAdjustments() {
     const newImgData = activeCtx.createImageData(w, h);
     const dst = newImgData.data;
 
-    
     const wasAdjusted = window.applyPixelAdjustmentsToImageData(src, dst, activeCanvas.width, activeCanvas.height);
     if (!wasAdjusted) {
-        let targetEl = photoLayer.querySelector('.photo-inner-zoom') || photoLayer;
-        if(typeof uploadedImgUrl !== 'undefined') targetEl.style.backgroundImage = 'url("'+uploadedImgUrl+'")';
+        const rawImg = (typeof uploadedImgUrl !== 'undefined' && uploadedImgUrl) ? uploadedImgUrl : '';
+        let targetEls = document.querySelectorAll('.photo-inner-zoom');
+        if (targetEls.length === 0) {
+            let pl = document.getElementById('photo-layer');
+            if (pl) targetEls = [pl];
+        }
+        targetEls.forEach(targetEl => {
+            if (rawImg) targetEl.style.backgroundImage = 'url("' + rawImg + '")';
+            let parent = targetEl.classList.contains('photo-inner-zoom') ? targetEl.parentElement : targetEl;
+            if (typeof _applyPhotoTransform === 'function') _applyPhotoTransform(parent);
+        });
+        if (typeof photoLayer !== 'undefined' && photoLayer && rawImg) photoLayer.style.backgroundImage = 'url("' + rawImg + '")';
+        document.querySelectorAll('.photo-panel').forEach(p => {
+            let inner = p.querySelector('.photo-inner-zoom') || p;
+            if (rawImg) inner.style.backgroundImage = 'url("' + rawImg + '")';
+            if (typeof _applyPhotoTransform === 'function') _applyPhotoTransform(p);
+        });
         return;
     }
 
-    
     activeCtx.putImageData(newImgData, 0, 0);
-    let targetEl = photoLayer.querySelector('.photo-inner-zoom') || photoLayer;
-    targetEl.style.backgroundImage = 'url("' + activeCanvas.toDataURL('image/jpeg', isQualityPreviewMode ? 0.7 : 0.9) + '")';
+    const dataUrl = activeCanvas.toDataURL('image/jpeg', isQualityPreviewMode ? 0.6 : 0.92);
+    
+    let targetEls = document.querySelectorAll('.photo-inner-zoom');
+    if (targetEls.length === 0) {
+        let pl = document.getElementById('photo-layer');
+        if (pl) targetEls = [pl];
+    }
+    targetEls.forEach(targetEl => {
+        targetEl.style.backgroundImage = 'url("' + dataUrl + '")';
+        let parent = targetEl.classList.contains('photo-inner-zoom') ? targetEl.parentElement : targetEl;
+        if (typeof _applyPhotoTransform === 'function') _applyPhotoTransform(parent);
+    });
 }
 
 function applyShadowHighlight(){
@@ -418,28 +457,43 @@ function toggleBeforeAfter() {
     }
 }
 
+window.resetPixelCache = function() {
+    originalImageData = null;
+    previewImageData = null;
+    workingCanvas = null;
+    workingCtx = null;
+    previewWorkingCanvas = null;
+    previewWorkingCtx = null;
+    window._isCachingOriginalImage = false;
+};
+
 function cacheOriginalImageForPixels() {
     if (window._isCachingOriginalImage) return;
     window._isCachingOriginalImage = true;
     
-    let targetEl = photoLayer.querySelector('.photo-inner-zoom') || photoLayer;
-    let bg = targetEl.style.backgroundImage;
-    if((!bg || bg === 'none') && typeof uploadedImgUrl !== 'undefined' && uploadedImgUrl) {
-        bg = 'url("' + uploadedImgUrl + '")';
+    let url = '';
+    if (typeof uploadedImgUrl !== 'undefined' && uploadedImgUrl) {
+        url = uploadedImgUrl;
+    } else if (typeof masterImageBase64 !== 'undefined' && masterImageBase64) {
+        url = masterImageBase64;
+    } else {
+        let targetEl = document.querySelector('.photo-inner-zoom') || document.getElementById('photo-layer');
+        if (targetEl && targetEl.style.backgroundImage && targetEl.style.backgroundImage !== 'none') {
+            url = targetEl.style.backgroundImage.replace(/^url\(["']?/, '').replace(/["']?\)$/, '');
+        }
     }
-    if(!bg || bg === 'none') {
+    if (!url || url === 'none') {
         window._isCachingOriginalImage = false;
         return;
     }
-    const url = bg.slice(5, -2).replace(/['"]/g, '');
     
     let img = new Image();
-    img.crossOrigin = 'Anonymous';
+    if (url.startsWith('http')) img.crossOrigin = 'Anonymous';
     img.onload = () => {
         let w = img.width;
         let h = img.height;
-        const MAX_SIZE = 1600; // Limit processing resolution for 60fps performance
-        const PREVIEW_SIZE = 400; // Low-res preview size for sliding
+        const MAX_SIZE = 1400; // High-resolution quality
+        const PREVIEW_SIZE = 360; // Fast real-time slider drag resolution
         
         let ratio = 1;
         let pRatio = 1;
@@ -482,33 +536,59 @@ function cacheOriginalImageForPixels() {
     img.src = url;
 }
 
-
-
-// Bulletproof pixel slider bindings (bypasses main.js cache issues)
-setTimeout(() => {
+// Bulletproof pixel slider bindings
+function bindPixelSliders() {
     const ids = ['shadowsCtrl', 'highlightsCtrl', 'blacksCtrl', 'whitesCtrl', 'tempCtrl', 'tintCtrl', 'vibranceCtrl', 'sharpnessCtrl'];
+    let slideTimeout = null;
     ids.forEach(id => {
         let el = document.getElementById(id);
-        if (el) {
+        if (el && !el._boundPixelSlider) {
+            el._boundPixelSlider = true;
             el.addEventListener('input', () => {
                 isQualityPreviewMode = true; // Hızlı önizleme (Low Res) modu
                 if(typeof applyShadowHighlight === 'function') applyShadowHighlight();
+                
+                clearTimeout(slideTimeout);
+                slideTimeout = setTimeout(() => {
+                    isQualityPreviewMode = false;
+                    if(typeof applyShadowHighlight === 'function') applyShadowHighlight();
+                }, 220);
             });
             el.addEventListener('change', () => {
-                isQualityPreviewMode = false; // İşlem bitince Yüksek Kalite (High Res) modu
+                clearTimeout(slideTimeout);
+                isQualityPreviewMode = false; // Bırakınca Yüksek Kalite (High Res) modu
                 if(typeof applyShadowHighlight === 'function') applyShadowHighlight();
             });
         }
     });
 
     document.querySelectorAll('.hsl-slider').forEach(el => {
-        el.addEventListener('input', () => {
-            isQualityPreviewMode = true;
-            if(typeof processHSL === 'function') processHSL();
-        });
-        el.addEventListener('change', () => {
-            isQualityPreviewMode = false;
-            if(typeof processHSL === 'function') processHSL();
-        });
+        if (!el._boundPixelSlider) {
+            el._boundPixelSlider = true;
+            let hslTimeout = null;
+            el.addEventListener('input', () => {
+                isQualityPreviewMode = true;
+                if(typeof processHSL === 'function') processHSL();
+                clearTimeout(hslTimeout);
+                hslTimeout = setTimeout(() => {
+                    isQualityPreviewMode = false;
+                    if(typeof processHSL === 'function') processHSL();
+                }, 220);
+            });
+            el.addEventListener('change', () => {
+                clearTimeout(hslTimeout);
+                isQualityPreviewMode = false;
+                if(typeof processHSL === 'function') processHSL();
+            });
+        }
     });
-}, 1500);
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bindPixelSliders);
+} else {
+    bindPixelSliders();
+}
+setTimeout(bindPixelSliders, 800);
+setTimeout(bindPixelSliders, 2000);
+

@@ -25,54 +25,115 @@
  * - main.js
  */
 
+function isExportIgnoredElement(el) {
+    if (!el) return false;
+    if (el.id === 'photo-layer') return true;
+    if (el.id === 'export-loading-overlay') return true;
+    if (el.id === 'app-custom-context-menu' || el.id === 'native-context-menu' || el.id === 'native-context-overlay') return true;
+    if (el.classList) {
+        if (el.classList.contains('el-selected')) return true;
+        if (el.classList.contains('photo-inner-zoom')) return true;
+        if (el.classList.contains('text-handle') ||
+            el.classList.contains('text-lock-handle') ||
+            el.classList.contains('text-resize-handle') ||
+            el.classList.contains('text-rotate-handle') ||
+            el.classList.contains('text-delete-handle') ||
+            el.classList.contains('callout-lock-btn') ||
+            el.classList.contains('callout-controls') ||
+            el.classList.contains('callout-resizer') ||
+            el.classList.contains('callout-rotator') ||
+            el.classList.contains('callout-select-border') ||
+            el.classList.contains('cbtn-del') ||
+            el.classList.contains('draw-handle') ||
+            el.classList.contains('vertex-handle') ||
+            el.classList.contains('polygon-vertex') ||
+            el.classList.contains('app-context-menu') ||
+            el.classList.contains('draw-selection-box')) {
+            return true;
+        }
+    }
+    return false;
+}
+
+let _appLoadingTimeout = null;
+function showAppLoading(title = 'İşlem Yapılıyor...', subtitle = 'Lütfen bekleyin...') {
+    if (_appLoadingTimeout) clearTimeout(_appLoadingTimeout);
+    let overlay = document.getElementById('export-loading-overlay');
+    if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'export-loading-overlay';
+        overlay.innerHTML = `
+            <div class="export-loader-card">
+                <div class="export-loader-spinner"></div>
+                <div class="export-loader-title">${title}</div>
+                <div class="export-loader-sub">${subtitle}</div>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+    } else {
+        const titleEl = overlay.querySelector('.export-loader-title');
+        const subEl = overlay.querySelector('.export-loader-sub');
+        if (titleEl) titleEl.textContent = title;
+        if (subEl) subEl.textContent = subtitle;
+        overlay.style.display = 'flex';
+    }
+    void overlay.offsetWidth;
+    overlay.classList.add('active');
+
+    // Asla sonsuza kadar dönmemesi için 3 saniye güvenlik zaman aşımı
+    _appLoadingTimeout = setTimeout(() => {
+        hideAppLoading();
+    }, 3000);
+}
+
+function hideAppLoading(delay = 0) {
+    if (_appLoadingTimeout) {
+        clearTimeout(_appLoadingTimeout);
+        _appLoadingTimeout = null;
+    }
+    const doHide = () => {
+        const overlay = document.getElementById('export-loading-overlay');
+        if (overlay) {
+            overlay.classList.remove('active');
+            setTimeout(() => {
+                if (overlay && !overlay.classList.contains('active')) {
+                    overlay.remove();
+                }
+            }, 240);
+        }
+    };
+    if (delay > 0) {
+        setTimeout(doHide, delay);
+    } else {
+        doHide();
+    }
+}
+
+window.showAppLoading = showAppLoading;
+window.hideAppLoading = hideAppLoading;
+window.showExportLoading = showAppLoading;
+window.hideExportLoading = hideAppLoading;
+
 function switchPreviewFormat(){
     const formatName=$('previewFormat').value;
     const format=EXPORT_FORMATS[formatName];
-    if(!format)return;
+    if(!format) {
+        hideAppLoading();
+        return;
+    }
+
+    document.querySelectorAll('.dock-pill-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.format === formatName);
+    });
 
     const oldW = parseInt(canvasEl.style.width) || 1920;
     const oldH = parseInt(canvasEl.style.height) || 1080;
     const newW = format.w;
     const newH = format.h;
 
-    // Yükleme ekranı ekle (Sadece başlangıç yüklemesi bittikten sonra göster)
-    let overlay = document.getElementById('format-transition-overlay');
+    // Şık yükleme ekranı göster
     if (!window.isInitialLoad) {
-        if (!overlay) {
-            overlay = document.createElement('div');
-            overlay.id = 'format-transition-overlay';
-            overlay.style.position = 'absolute';
-            overlay.style.top = '0';
-            overlay.style.left = '0';
-            overlay.style.width = '100%';
-            overlay.style.height = '100%';
-            overlay.style.backgroundColor = 'rgba(15, 23, 42, 0.9)'; // Koyu tema rengi
-            overlay.style.zIndex = '9999';
-            overlay.style.display = 'flex';
-            overlay.style.flexDirection = 'column';
-            overlay.style.alignItems = 'center';
-            overlay.style.justifyContent = 'center';
-            overlay.style.color = '#38bdf8'; // Açık mavi
-            overlay.style.fontSize = '1.3rem';
-            overlay.style.fontWeight = 'bold';
-            overlay.style.transition = 'opacity 0.2s ease-out';
-            overlay.innerHTML = `
-                <style>
-                    @keyframes ft-pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .5; transform: scale(0.95); } }
-                    .ft-loading-icon { animation: ft-pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite; font-size: 3rem; margin-bottom: 15px; display: block; }
-                </style>
-                <span class="ft-loading-icon">✨</span>
-                <div style="letter-spacing: 2px;">FORMAT AYARLANIYOR...</div>
-            `;
-            const pa = document.querySelector('.preview-area');
-            if (pa) {
-                pa.style.position = 'relative';
-                pa.appendChild(overlay);
-            }
-        } else {
-            overlay.style.opacity = '1';
-            overlay.style.display = 'flex';
-        }
+        showAppLoading('Format Ayarlanıyor...', 'Tuval ve katmanlar yeni boyuta uyarlanıyor...');
     }
 
     const oldPhotoState = window.getCurrentPhotoState ? window.getCurrentPhotoState() : null;
@@ -88,35 +149,49 @@ function switchPreviewFormat(){
     if (window.SaberEngine && typeof SaberEngine.resize === 'function') {
         SaberEngine.resize(format.w, format.h);
     }
+
+    if (window.isRestoringState === true) {
+        hideAppLoading();
+        return;
+    }
     
-    // Defer scaling of custom draggable items so the new photo template layout applies first
+    // Scale and adapt custom draggable items immediately
     if (oldW && oldH && newW && newH && (oldW !== newW || oldH !== newH)) {
-        setTimeout(() => {
-            try {
-                const isTemplateMode = (typeof isCanvaMode !== 'undefined' && isCanvaMode);
+        try {
+            const isTemplateMode = (typeof isCanvaMode !== 'undefined' && isCanvaMode);
 
-                // 1. Canva Åablonu Aktifse, ÅŸablonu (Ã§erÃ§eveler, rozetler vb.) yeni formata gÃ¶re TAM BOYUTTA yeniden oluÅŸtur!
-                if (isTemplateMode && typeof refreshActiveCanvaTemplate === 'function') {
-                    refreshActiveCanvaTemplate();
-                }
+            // 1. Canva Şablonu Aktifse, şablonu yeni formata göre TAM BOYUTTA yeniden oluştur
+            if (isTemplateMode && typeof refreshActiveCanvaTemplate === 'function') {
+                refreshActiveCanvaTemplate();
+            } else if (!isTemplateMode && typeof activeLayout !== 'undefined' && activeLayout && typeof TPL !== 'undefined' && TPL[activeLayout]) {
+                // Standart Şablon (Giriş sekmesi) aktifse yeni format boyutlarına göre tam oranla
+                const t = TPL[activeLayout];
+                if (typeof elBadge !== 'undefined' && elBadge && t.badge) applyStylePos(elBadge, t.badge);
+                if (typeof elPrice !== 'undefined' && elPrice && t.price) applyStylePos(elPrice, t.price);
+                if (typeof elDetails !== 'undefined' && elDetails && t.details) applyStylePos(elDetails, t.details);
+                if (typeof elLogo !== 'undefined' && elLogo && t.logo) applyStylePos(elLogo, t.logo);
+            }
 
-                // 2. FotoÄŸraf panellerini (eski veya yeni oluÅŸan) gÃ¼ncelle ve native canvas'a Ã§iz (redrawAll tetiklenir)
-                document.querySelectorAll('.photo-panel, #photo-layer').forEach(p => { 
-                    if (typeof _applyPhotoTransform === 'function') _applyPhotoTransform(p); 
-                });
-                
-                const newPhotoState = window.getCurrentPhotoState ? window.getCurrentPhotoState() : null;
-                
-                // Select all UI text items (Callouts, Neon Blocks, Free Texts)
-                const customItems = document.querySelectorAll('#canvas-container .draggable, #canvas-container .callout-wrap, #canvas-container .co-neon-block');
-                
-                let tParams = null;
-                if (oldPhotoState && newPhotoState && typeof calculateTransformParams === 'function') {
-                    tParams = calculateTransformParams(oldPhotoState, newPhotoState);
-                }
-                
+            // 2. Fotoğraf panellerini güncelle ve native canvas'a çiz (redrawAll tetiklenir)
+            document.querySelectorAll('.photo-panel, #photo-layer').forEach(p => { 
+                if (typeof _applyPhotoTransform === 'function') _applyPhotoTransform(p); 
+            });
+            
+            const newPhotoState = window.getCurrentPhotoState ? window.getCurrentPhotoState() : null;
+            
+            // Select only user-added UI text items (Callouts, Neon Blocks, Free Texts, Icons)
+            const customItems = document.querySelectorAll('#canvas-container .draggable, #canvas-container .callout-wrap, #canvas-container .co-neon-block');
+            
+            let tParams = null;
+            if (oldPhotoState && newPhotoState && typeof calculateTransformParams === 'function') {
+                tParams = calculateTransformParams(oldPhotoState, newPhotoState);
+            }
+            
+            if (window.isRestoringState !== true) {
                 customItems.forEach(el => {
-                    if (el.classList.contains('canva-generated') || el.classList.contains('canva-panel')) return;
+                    // Skip standard template elements and canva panels
+                    if (el.id === 'elBadge' || el.id === 'elPrice' || el.id === 'elDetails' || el.id === 'elLogo' || 
+                        el.classList.contains('normal-el') || el.classList.contains('canva-generated') || el.classList.contains('canva-panel')) return;
 
                     const isWrap = el.classList.contains('callout-wrap') || el.classList.contains('co-neon-block') || el.classList.contains('svg-callout');
                     
@@ -190,16 +265,20 @@ function switchPreviewFormat(){
                             el.dataset.origCanvasW = oldW;
                             el.dataset.origCanvasH = oldH;
                         }
-                        const origW = parseFloat(el.dataset.origCanvasW);
-                        const origH = parseFloat(el.dataset.origCanvasH);
+                        const origW = parseFloat(el.dataset.origCanvasW) || 1920;
+                        const origH = parseFloat(el.dataset.origCanvasH) || 1080;
                         
                         const oldFormatScale = Math.min(oldW / origW, oldH / origH);
                         const newFormatScale = Math.min(newW / origW, newH / origH);
                         const incrementalScale = oldFormatScale > 0 ? (newFormatScale / oldFormatScale) : 1;
                         
                         if (isWrap) {
-                            const currentScale = parseFloat(el.dataset.scale) || 1;
-                            const newScale = currentScale * incrementalScale;
+                            let userScale = parseFloat(el.dataset.userScale);
+                            if (isNaN(userScale) || userScale <= 0) {
+                                userScale = 1;
+                                el.dataset.userScale = 1;
+                            }
+                            const newScale = userScale * newFormatScale;
                             el.dataset.scale = newScale;
                             const rot = el.dataset.rotation || 0;
                             el.style.transform = `rotate(${rot}deg) scale(${newScale})`;
@@ -211,33 +290,10 @@ function switchPreviewFormat(){
                         }
                     }
                 });
-            } catch (err) {
-                console.error("Format transform error:", err);
-            } finally {
-                if(typeof redrawAll === 'function') redrawAll();
-                // YÃ¼kleme ekranÄ±nÄ± kaldÄ±r (GeÃ§iÅŸ tamamen bittikten 50ms sonra veya hata olsa bile)
-                setTimeout(() => {
-                    const overlay = document.getElementById('format-transition-overlay');
-                    if (overlay) {
-                        overlay.style.opacity = '0';
-                        setTimeout(() => {
-                            if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
-                        }, 200);
-                    }
-                }, 50);
             }
-        }, 350);
-    } else {
-        // EÄŸer format boyutlarÄ± aynÄ±ysa direkt kapat
-        setTimeout(() => {
-            const overlay = document.getElementById('format-transition-overlay');
-            if (overlay) {
-                overlay.style.opacity = '0';
-                setTimeout(() => {
-                    if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
-                }, 200);
-            }
-        }, 50);
+        } catch (err) {
+            console.error("Format transform error:", err);
+        }
     }
 
     resizeCanvas();
@@ -254,7 +310,67 @@ function switchPreviewFormat(){
     if(typeof elLogo !== 'undefined' && elLogo) elLogo.style.visibility = vis;
     var _iL = document.getElementById('infoLineText');
     if(_iL) _iL.style.visibility = vis;
+
+    // Format değiştiğinde ölçek çözünürlüklerini dinamik güncelle
+    updateExportScaleDisplay();
+
+    // Yükleme ekranını kapat
+    setTimeout(() => {
+        hideAppLoading(80);
+    }, 200);
 }
+
+function updateExportScaleDisplay() {
+    const scaleSelect = document.getElementById('exportScale');
+    if (!scaleSelect) return;
+
+    const formatSelect = document.getElementById('exportFormat') || document.getElementById('previewFormat');
+    const formatName = formatSelect ? formatSelect.value : '16:9 Full HD';
+    const format = (typeof EXPORT_FORMATS !== 'undefined' && EXPORT_FORMATS[formatName]) 
+        ? EXPORT_FORMATS[formatName] 
+        : { w: 1920, h: 1080 };
+
+    const baseW = format.w || 1920;
+    const baseH = format.h || 1080;
+
+    const scaleConfig = [
+        { val: '0.5', scale: 0.5, label: '0.5x' },
+        { val: '0.75', scale: 0.75, label: '0.75x' },
+        { val: '1', scale: 1.0, label: '1x' },
+        { val: '1.5', scale: 1.5, label: '1.5x' },
+        { val: '2', scale: 2.0, label: '2x' }
+    ];
+
+    const currentVal = scaleSelect.value || '1';
+    const isProUser = (typeof APP_MODE !== 'undefined' && APP_MODE === 'pro');
+
+    scaleSelect.innerHTML = '';
+    scaleConfig.forEach(item => {
+        const targetW = Math.round(baseW * item.scale);
+        const targetH = Math.round(baseH * item.scale);
+        const opt = document.createElement('option');
+        opt.value = item.val;
+        
+        const isLocked = (!isProUser && item.scale > 1.0);
+        opt.textContent = `${item.label} — ${targetW} × ${targetH} px${isLocked ? ' 🔒 Pro' : ''}`;
+        if (isLocked) {
+            opt.disabled = true;
+        }
+        if (item.val === currentVal) {
+            opt.selected = true;
+        }
+        scaleSelect.appendChild(opt);
+    });
+
+    if (!isProUser && parseFloat(scaleSelect.value) > 1.0) {
+        scaleSelect.value = '1';
+    }
+
+    const existingBadge = document.getElementById('exportResolutionBadge');
+    if (existingBadge) existingBadge.remove();
+}
+
+window.updateExportScaleDisplay = updateExportScaleDisplay;
 
 function buildExportFormats(){
     const sel1=$('exportFormat'),sel2=$('previewFormat');
@@ -273,6 +389,7 @@ function buildExportFormats(){
         opt2.textContent=label;
         sel2.appendChild(opt2);
     });
+    updateExportScaleDisplay();
 }
 
 
@@ -436,21 +553,73 @@ function drawMasterPhotoManually(ctx, el, masterImg, outputScale, canvasRect, ac
     ctx.restore();
 }
 
+// ==========================================
+// FONT VE VARLIK DOĞRULAMA (FONT READY SYNC)
+// ==========================================
+async function ensureFontsLoaded() {
+    try {
+        if (document.fonts && typeof document.fonts.ready !== 'undefined') {
+            await document.fonts.ready;
+        }
+        // Tuvaldeki tüm yazı tiplerinin belleğe ve DOM'a oturması için kısa bir layout döngüsü
+        await new Promise(r => requestAnimationFrame(() => setTimeout(r, 60)));
+    } catch (err) {
+        console.warn('Font loading wait warning:', err);
+    }
+}
+
 async function saveImage(){
+    showExportLoading('Görsel Hazırlanıyor...', 'Yazı tipleri ve yüksek çözünürlüklü grafikler işleniyor...');
+    
+    // 1. Yazı tiplerinin (Google Fonts) belleğe tam oturmasını ve render edilmesini bekle
+    await ensureFontsLoaded();
+    // Pro / Demo Yetki ve Kilit Kontrolü
+    if (typeof window.validateExportAllowed === 'function') {
+        const check = window.validateExportAllowed();
+        if (!check.allowed) {
+            hideExportLoading();
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    icon: 'warning',
+                    title: check.title || '🔒 Pro Özellik Kullanımı',
+                    html: `<div style="font-size:14px; line-height:1.6; color:#cbd5e1; text-align:left; margin-top:8px;">${check.message}</div>`,
+                    background: '#1e293b',
+                    color: '#fff',
+                    confirmButtonText: 'Tamam, Anladım',
+                    confirmButtonColor: '#6366f1'
+                });
+            } else if (typeof showProUpgradeToast === 'function') {
+                showProUpgradeToast(check.message);
+            } else {
+                alert('🔒 ' + check.message);
+            }
+            return;
+        }
+    }
 
-      console.log('SAVEIMAGE CALISTI');
-      const debugSlots = document.querySelectorAll('[data-photo-slot]');
-      console.log('--- EXPORT DEBUG ---');
-      console.log('Bulunan [data-photo-slot] sayisi:', debugSlots.length);
-      debugSlots.forEach((slot, i) => {
-          console.log(`Slot ${i} inline background-image:`, slot.style.backgroundImage);
-          console.log(`Slot ${i} computed background-image:`, window.getComputedStyle(slot).backgroundImage);
-          const rc = slot.querySelector('.photo-render-canvas');
-          console.log(`Slot ${i} renderCanvas var mi:`, !!rc);
-      });
-      console.log('--------------------');
+    // Arayüzün yükleniyor kartını çizmesi için küçük bir nefes payı
+    await new Promise(r => setTimeout(r, 60));
 
-    if(typeof deselectAll === 'function') deselectAll(); else { document.querySelectorAll('.el-selected').forEach(e=>e.classList.remove('el-selected')); document.querySelectorAll('.text-handle').forEach(h=>h.remove()); document.querySelectorAll('.callout-controls, .callout-resizer, .callout-rotator, .callout-select-border').forEach(c => c.style.display = 'none'); }
+    try {
+        console.log('SAVEIMAGE CALISTI');
+        const debugSlots = document.querySelectorAll('[data-photo-slot]');
+        console.log('--- EXPORT DEBUG ---');
+        console.log('Bulunan [data-photo-slot] sayisi:', debugSlots.length);
+        debugSlots.forEach((slot, i) => {
+            console.log(`Slot ${i} inline background-image:`, slot.style.backgroundImage);
+            console.log(`Slot ${i} computed background-image:`, window.getComputedStyle(slot).backgroundImage);
+            const rc = slot.querySelector('.photo-render-canvas');
+            console.log(`Slot ${i} renderCanvas var mi:`, !!rc);
+        });
+        console.log('--------------------');
+
+        document.body.classList.add('is-exporting');
+        if(typeof deselectAll === 'function') deselectAll();
+        document.querySelectorAll('.el-selected').forEach(e=>e.classList.remove('el-selected'));
+        document.querySelectorAll('.text-handle').forEach(h=>h.remove());
+        document.querySelectorAll('.callout-controls, .callout-resizer, .callout-rotator, .callout-select-border, .callout-lock-btn, .cbtn-del, .draw-handle, .vertex-handle').forEach(c => c.style.display = 'none');
+        const existingCtxMenu = document.getElementById('app-custom-context-menu');
+        if (existingCtxMenu) existingCtxMenu.remove();
     
     // ZORUNLU PREPARE (SABLON VEYA LAYER ICIN)
     let needsPrep = false;
@@ -515,15 +684,15 @@ async function saveImage(){
     }
     
     if (typeof window.isMobileDevice === 'function' && window.isMobileDevice()) {
-        const maxMobileScale = 1.5;
+        const maxMobileScale = 2.5;
         if (outputScale > maxMobileScale) {
             console.warn('Mobile memory lock active: Reduced export scale from ' + outputScale + ' to ' + maxMobileScale);
             outputScale = maxMobileScale;
         }
     }
 
-    const targetW = Math.round((window.isMobileDevice && window.isMobileDevice() ? currentW : format.w) * outputScale);
-    const targetH = Math.round((window.isMobileDevice && window.isMobileDevice() ? currentH : format.h) * outputScale);
+    const targetW = Math.round(format.w * outputScale);
+    const targetH = Math.round(format.h * outputScale);
     const finalCanvas = document.createElement('canvas');
     finalCanvas.width = targetW;
     finalCanvas.height = targetH;
@@ -554,19 +723,9 @@ async function saveImage(){
         overlay.style.left = '0';
         overlay.style.width = '100vw';
         overlay.style.height = '100vh';
-        overlay.style.backgroundColor = '#0f172a';
-        overlay.style.zIndex = '9999999';
-        overlay.style.display = 'flex';
-        overlay.style.alignItems = 'center';
-        overlay.style.justifyContent = 'center';
-        
-        overlay.style.color = '#fbbf24';
-        overlay.style.fontSize = '24px';
-        overlay.style.fontWeight = 'bold';
-        overlay.style.fontFamily = 'sans-serif';
-        overlay.style.flexDirection = 'column';
-        overlay.style.gap = '15px';
-        overlay.innerHTML = '<div style="width: 50px; height: 50px; border: 5px solid #fbbf24; border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite;"></div><div>Görsel Hazırlanıyor...</div><style>@keyframes spin { 100% { transform: rotate(360deg); } }</style>';
+        overlay.style.backgroundColor = 'transparent';
+        overlay.style.zIndex = '9999990';
+        overlay.style.pointerEvents = 'none';
         document.body.appendChild(overlay);
 
         const oldPosition = canvasEl.style.position;
@@ -611,23 +770,25 @@ async function saveImage(){
                 p.style.filter = 'none'; // HTML2Canvas çift göstermesin diye SONRA sıfırla
             });
 
+            let reqScaleX = targetW / currentW;
+            let reqScaleY = targetH / currentH;
+            let supersamplingScale = Math.max(outputScale, (window.devicePixelRatio || 3), reqScaleX, reqScaleY);
+            const MAX_DIM = 5000;
+            if (currentW * supersamplingScale > MAX_DIM) supersamplingScale = MAX_DIM / currentW;
+            if (currentH * supersamplingScale > MAX_DIM) supersamplingScale = MAX_DIM / currentH;
+            if ((currentW * currentH * supersamplingScale * supersamplingScale) > 16000000) supersamplingScale = Math.sqrt(16000000 / (currentW * currentH));
+            supersamplingScale = Math.floor(supersamplingScale * 10) / 10;
             const finalHtml2Canvas = await html2canvas(canvasEl, {
                 width: currentW,
                 height: currentH,
-                scale: outputScale,
+                scale: supersamplingScale,
                 useCORS: true,
                 allowTaint: false,
                 imageTimeout: 0,
-                letterRendering: true,
+                
                 logging: false,
                 backgroundColor: bgColor && bgColor !== 'transparent' ? bgColor : null,
-                ignoreElements: (el) => {
-                    if (el.classList && el.classList.contains('el-selected')) return true;
-                    // MUAZZAM ÇÖZÜM: Filtresiz resmi sakla, böylece sistemin ürettiği filtreli 'photo-render-canvas' görünür!
-                    if (el.classList && el.classList.contains('text-handle')) return true;
-                          if (el.classList && el.classList.contains('photo-inner-zoom')) return true;
-                    return false;
-                }
+                ignoreElements: (el) => isExportIgnoredElement(el)
             });
             ctx.drawImage(finalHtml2Canvas, 0, 0, targetW, targetH);
             
@@ -697,28 +858,34 @@ async function saveImage(){
                 filter = filter.replace(/drop-shadow\([^)]+\)/g, '').trim();
                 if (filter !== '') ctx.filter = filter;
             }
-            if (fitMode === 'contain') {
-                const ratio = Math.min(w / masterImgObj.width, h / masterImgObj.height);
-                const dw = masterImgObj.width * ratio;
-                const dh = masterImgObj.height * ratio;
-                const dx = (w - dw) / 2;
-                const dy = (h - dh) / 2;
-                ctx.drawImage(masterImgObj, dx, dy, dw, dh);
+            
+            const renderCanvas = panel.querySelector('.photo-render-canvas');
+            if (renderCanvas && renderCanvas.width > 0) {
+                ctx.drawImage(renderCanvas, 0, 0, w, h);
             } else {
-                const imgRatio = masterImgObj.width / masterImgObj.height;
-                const panelRatio = w / h;
-                let dw = w;
-                let dh = h;
-                let dx = 0;
-                let dy = 0;
-                if (imgRatio > panelRatio) {
-                    dw = h * imgRatio;
-                    dx = (w - dw) / 2;
+                if (fitMode === 'contain') {
+                    const ratio = Math.min(w / masterImgObj.width, h / masterImgObj.height);
+                    const dw = masterImgObj.width * ratio;
+                    const dh = masterImgObj.height * ratio;
+                    const dx = (w - dw) / 2;
+                    const dy = (h - dh) / 2;
+                    ctx.drawImage(masterImgObj, dx, dy, dw, dh);
                 } else {
-                    dh = w / imgRatio;
-                    dy = (h - dh) / 2;
+                    const imgRatio = masterImgObj.width / masterImgObj.height;
+                    const panelRatio = w / h;
+                    let dw = w;
+                    let dh = h;
+                    let dx = 0;
+                    let dy = 0;
+                    if (imgRatio > panelRatio) {
+                        dw = h * imgRatio;
+                        dx = (w - dw) / 2;
+                    } else {
+                        dh = w / imgRatio;
+                        dy = (h - dh) / 2;
+                    }
+                    ctx.drawImage(masterImgObj, dx, dy, dw, dh);
                 }
-                ctx.drawImage(masterImgObj, dx, dy, dw, dh);
             }
             ctx.filter = 'none';
             ctx.restore();
@@ -758,24 +925,25 @@ async function saveImage(){
         canvasEl.style.transition = 'none';
 
         try {
+            let reqScaleX = targetW / currentW;
+            let reqScaleY = targetH / currentH;
+            let supersamplingScale = Math.max(outputScale, (window.devicePixelRatio || 3), reqScaleX, reqScaleY);
+            const MAX_DIM = 5000;
+            if (currentW * supersamplingScale > MAX_DIM) supersamplingScale = MAX_DIM / currentW;
+            if (currentH * supersamplingScale > MAX_DIM) supersamplingScale = MAX_DIM / currentH;
+            if ((currentW * currentH * supersamplingScale * supersamplingScale) > 16000000) supersamplingScale = Math.sqrt(16000000 / (currentW * currentH));
+            supersamplingScale = Math.floor(supersamplingScale * 10) / 10;
             const finalHtml2Canvas = await html2canvas(canvasEl, {
                 width: currentW,
                 height: currentH,
-                scale: outputScale,
+                scale: supersamplingScale,
                 useCORS: true,
                 allowTaint: false,
                 imageTimeout: 0,
-                letterRendering: true,
+                
                 logging: false,
                 backgroundColor: null,
-                ignoreElements: (el) => {
-                    if (el.classList && el.classList.contains('el-selected')) return true;
-                    // Removed ignore for editable-draw to export SVG drawings
-                    if (el.id === 'photo-layer') return true;
-                    if (el.classList && el.classList.contains('text-handle')) return true;
-                          if (el.classList && el.classList.contains('photo-inner-zoom')) return true;
-                    return false;
-                }
+                ignoreElements: (el) => isExportIgnoredElement(el)
             });
             ctx.drawImage(finalHtml2Canvas, 0, 0, targetW, targetH);
         } catch (e) {
@@ -787,7 +955,7 @@ async function saveImage(){
         canvasEl.style.top = oldTop;
         canvasEl.style.margin = oldMargin;
         canvasEl.style.zIndex = oldZIndex;
-        if(oldBg) { canvasEl.style.backgroundColor = oldBg; } else { canvasEl.style.removeProperty('background-color'); }
+        if(oldBg) { canvasEl.style.setProperty('background-color', oldBg, 'important'); } else { canvasEl.style.removeProperty('background-color'); }
         canvasEl.style.transform = oldTransform;
         canvasEl.style.transition = oldTransition;
         document.body.removeChild(overlay);
@@ -817,23 +985,38 @@ async function saveImage(){
         }
     }
 
-    drawCanvas.style.zIndex=wz;
-    drawCanvas.style.pointerEvents=wp;
+        drawCanvas.style.zIndex=wz;
+        drawCanvas.style.pointerEvents=wp;
 
-    // INDIRME
-    const a = document.createElement('a');
-    const fmtSafe = formatName.replace(/[^a-z0-9]/gi, '-').toLowerCase();
-    const fileType = document.getElementById('exportFileType') ? document.getElementById('exportFileType').value : 'jpg';
-    if (fileType === 'jpg') {
-        a.download = 'emlak-studiom-' + fmtSafe + '-' + targetW + 'x' + targetH + '.jpg';
-        a.href = finalCanvas.toDataURL('image/jpeg', 1.0);
-    } else {
-        a.download = 'emlak-studiom-' + fmtSafe + '-' + targetW + 'x' + targetH + '.png';
-        a.href = finalCanvas.toDataURL('image/png', 1.0);
+        // DEMO FILIGRAN / WATERMARK
+        if (typeof window.addWatermark === 'function') {
+            await window.addWatermark(finalCanvas);
+        }
+
+        // INDIRME
+        const a = document.createElement('a');
+        const fmtSafe = formatName.replace(/[^a-z0-9]/gi, '-').toLowerCase();
+        const fileType = document.getElementById('exportFileType') ? document.getElementById('exportFileType').value : 'jpg';
+        if (fileType === 'jpg') {
+            a.download = 'emlak-studiom-' + fmtSafe + '-' + targetW + 'x' + targetH + '.jpg';
+            a.href = finalCanvas.toDataURL('image/jpeg', 1.0);
+        } else {
+            a.download = 'emlak-studiom-' + fmtSafe + '-' + targetW + 'x' + targetH + '.png';
+            a.href = finalCanvas.toDataURL('image/png', 1.0);
+        }
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+    } catch(err) {
+        console.error("SaveImage Error:", err);
+        alert("Dışa aktarma sırasında bir hata oluştu: " + (err.message || err));
+    } finally {
+        document.body.classList.remove('is-exporting');
+        // Tuvalin yerine tam oturup ekranın boyanması için yükleme ekranını tuval hazır olunca kapatıyoruz
+        setTimeout(() => {
+            hideExportLoading();
+        }, 500);
     }
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
 }
 
 function renderBatchList(){
@@ -857,6 +1040,31 @@ function clearBatchFiles(){
 async function startBatchExport(){
     if(!batchFiles.length){alert('Dosya ekleyin!');return}
 
+    // Pro / Demo Yetki ve Kilit Kontrolü
+    if (typeof window.validateExportAllowed === 'function') {
+        const check = window.validateExportAllowed();
+        if (!check.allowed) {
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    icon: 'warning',
+                    title: check.title || '🔒 Pro Özellik Kullanımı',
+                    html: `<div style="font-size:14px; line-height:1.6; color:#cbd5e1; text-align:left; margin-top:8px;">${check.message}</div>`,
+                    background: '#1e293b',
+                    color: '#fff',
+                    confirmButtonText: 'Tamam, Anladım',
+                    confirmButtonColor: '#6366f1'
+                });
+            } else if (typeof showProUpgradeToast === 'function') {
+                showProUpgradeToast(check.message);
+            } else {
+                alert('🔒 ' + check.message);
+            }
+            return;
+        }
+    }
+
+    await ensureFontsLoaded();
+
       console.log('--- STARTBATCHEXPORT ÇALIŞTI ---');
       const debugSlots = document.querySelectorAll('[data-photo-slot]');
       console.log('Bulunan [data-photo-slot] sayisi:', debugSlots.length);
@@ -873,7 +1081,13 @@ async function startBatchExport(){
     batchProgress.style.display='block';
     if(drawMode!=='off')setDrawMode('off');
     
-    if(typeof deselectAll === 'function') deselectAll(); else { document.querySelectorAll('.el-selected').forEach(e=>e.classList.remove('el-selected')); document.querySelectorAll('.text-handle').forEach(h=>h.remove()); document.querySelectorAll('.callout-controls, .callout-resizer, .callout-rotator, .callout-select-border').forEach(c => c.style.display = 'none'); }
+    document.body.classList.add('is-exporting');
+    if(typeof deselectAll === 'function') deselectAll();
+    document.querySelectorAll('.el-selected').forEach(e=>e.classList.remove('el-selected'));
+    document.querySelectorAll('.text-handle').forEach(h=>h.remove());
+    document.querySelectorAll('.callout-controls, .callout-resizer, .callout-rotator, .callout-select-border, .callout-lock-btn, .cbtn-del, .draw-handle, .vertex-handle').forEach(c => c.style.display = 'none');
+    const existingBatchCtx = document.getElementById('app-custom-context-menu');
+    if (existingBatchCtx) existingBatchCtx.remove();
     
     const wz=drawCanvas.style.zIndex,wp=drawCanvas.style.pointerEvents;
     drawCanvas.style.zIndex='7';
@@ -936,14 +1150,14 @@ async function startBatchExport(){
         }
         
         if (typeof window.isMobileDevice === 'function' && window.isMobileDevice()) {
-            const maxMobileScale = 1.5;
+            const maxMobileScale = 2.5;
             if (outputScale > maxMobileScale) {
                 outputScale = maxMobileScale;
             }
         }
 
-        const targetW = Math.round((window.isMobileDevice && window.isMobileDevice() ? currentW : format.w) * outputScale);
-        const targetH = Math.round((window.isMobileDevice && window.isMobileDevice() ? currentH : format.h) * outputScale);
+        const targetW = Math.round(format.w * outputScale);
+        const targetH = Math.round(format.h * outputScale);
         let finalCanvas = document.createElement('canvas');
         finalCanvas.width = targetW;
         finalCanvas.height = targetH;
@@ -969,19 +1183,9 @@ async function startBatchExport(){
               overlay.style.left = '0';
               overlay.style.width = '100vw';
               overlay.style.height = '100vh';
-              overlay.style.backgroundColor = '#0f172a';
-              overlay.style.zIndex = '9999999';
-              overlay.style.display = 'flex';
-              overlay.style.alignItems = 'center';
-              overlay.style.justifyContent = 'center';
-              
-              overlay.style.color = '#fbbf24';
-              overlay.style.fontSize = '24px';
-              overlay.style.fontWeight = 'bold';
-              overlay.style.fontFamily = 'sans-serif';
-              overlay.style.flexDirection = 'column';
-              overlay.style.gap = '15px';
-              overlay.innerHTML = '<div style="width: 50px; height: 50px; border: 5px solid #fbbf24; border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite;"></div><div>Görsel Hazırlanıyor...</div><style>@keyframes spin { 100% { transform: rotate(360deg); } }</style>';
+              overlay.style.backgroundColor = 'transparent';
+              overlay.style.zIndex = '9999990';
+              overlay.style.pointerEvents = 'none';
               document.body.appendChild(overlay);
 
               const oldPosition = canvasEl.style.position;
@@ -998,21 +1202,24 @@ async function startBatchExport(){
 
               try {
                   // --- SINGLE PASS RENDER ---
+                    let reqScaleX = targetW / currentW;
+                    let reqScaleY = targetH / currentH;
+                    let supersamplingScale = Math.max(outputScale, (window.devicePixelRatio || 3), reqScaleX, reqScaleY);
+                    const MAX_DIM = 5000;
+                    if (currentW * supersamplingScale > MAX_DIM) supersamplingScale = MAX_DIM / currentW;
+                    if (currentH * supersamplingScale > MAX_DIM) supersamplingScale = MAX_DIM / currentH;
+                    if ((currentW * currentH * supersamplingScale * supersamplingScale) > 16000000) supersamplingScale = Math.sqrt(16000000 / (currentW * currentH));
+                    supersamplingScale = Math.floor(supersamplingScale * 10) / 10;
                     const finalHtml2Canvas = await html2canvas(canvasEl, {
                         width: currentW,
                         height: currentH,
-                        scale: outputScale,
+                        scale: supersamplingScale,
                         useCORS: true,
                         allowTaint: false,
                         imageTimeout: 0,
-                        letterRendering: true,
                         logging: false,
                         backgroundColor: null,
-                        ignoreElements: (el) => {
-                            if (el.classList && el.classList.contains('el-selected')) return true;
-                            // Removed ignore for editable-draw to export SVG drawings
-                            return false;
-                        }
+                        ignoreElements: (el) => isExportIgnoredElement(el)
                     });
                     ctx.drawImage(finalHtml2Canvas, 0, 0, targetW, targetH);
                   
@@ -1069,28 +1276,33 @@ async function startBatchExport(){
                     if (filter !== '') ctx.filter = filter;
                 }
 
-                if (fitMode === 'contain') {
-                    const ratio = Math.min(w / masterImgObj.width, h / masterImgObj.height);
-                    const dw = masterImgObj.width * ratio;
-                    const dh = masterImgObj.height * ratio;
-                    const dx = (w - dw) / 2;
-                    const dy = (h - dh) / 2;
-                    ctx.drawImage(masterImgObj, dx, dy, dw, dh);
+                const renderCanvas = panel.querySelector('.photo-render-canvas');
+                if (renderCanvas && renderCanvas.width > 0) {
+                    ctx.drawImage(renderCanvas, 0, 0, w, h);
                 } else {
-                    const imgRatio = masterImgObj.width / masterImgObj.height;
-                    const panelRatio = w / h;
-                    let dw = w;
-                    let dh = h;
-                    let dx = 0;
-                    let dy = 0;
-                    if (imgRatio > panelRatio) {
-                        dw = h * imgRatio;
-                        dx = (w - dw) / 2;
+                    if (fitMode === 'contain') {
+                        const ratio = Math.min(w / masterImgObj.width, h / masterImgObj.height);
+                        const dw = masterImgObj.width * ratio;
+                        const dh = masterImgObj.height * ratio;
+                        const dx = (w - dw) / 2;
+                        const dy = (h - dh) / 2;
+                        ctx.drawImage(masterImgObj, dx, dy, dw, dh);
                     } else {
-                        dh = w / imgRatio;
-                        dy = (h - dh) / 2;
+                        const imgRatio = masterImgObj.width / masterImgObj.height;
+                        const panelRatio = w / h;
+                        let dw = w;
+                        let dh = h;
+                        let dx = 0;
+                        let dy = 0;
+                        if (imgRatio > panelRatio) {
+                            dw = h * imgRatio;
+                            dx = (w - dw) / 2;
+                        } else {
+                            dh = w / imgRatio;
+                            dy = (h - dh) / 2;
+                        }
+                        ctx.drawImage(masterImgObj, dx, dy, dw, dh);
                     }
-                    ctx.drawImage(masterImgObj, dx, dy, dw, dh);
                 }
                 ctx.filter = 'none'; // Sifirla
                 ctx.restore();
@@ -1129,24 +1341,24 @@ async function startBatchExport(){
             canvasEl.style.transition = 'none';
 
             try {
+                let reqScaleX = targetW / currentW;
+                let reqScaleY = targetH / currentH;
+                let supersamplingScale = Math.max(outputScale, (window.devicePixelRatio || 3), reqScaleX, reqScaleY);
+                const MAX_DIM = 5000;
+                if (currentW * supersamplingScale > MAX_DIM) supersamplingScale = MAX_DIM / currentW;
+                if (currentH * supersamplingScale > MAX_DIM) supersamplingScale = MAX_DIM / currentH;
+                if ((currentW * currentH * supersamplingScale * supersamplingScale) > 16000000) supersamplingScale = Math.sqrt(16000000 / (currentW * currentH));
+                supersamplingScale = Math.floor(supersamplingScale * 10) / 10;
                 const finalHtml2Canvas = await html2canvas(canvasEl, {
                     width: currentW,
                     height: currentH,
-                    scale: outputScale,
+                    scale: supersamplingScale,
                     useCORS: true,
                     allowTaint: false,
                     imageTimeout: 0,
-                    letterRendering: true,
                     logging: false,
                     backgroundColor: null,
-                    ignoreElements: (el) => {
-                        if (el.classList && el.classList.contains('el-selected')) return true;
-                        // Removed ignore for editable-draw to export SVG drawings
-                        if (el.id === 'photo-layer') return true;
-                        if (el.classList && el.classList.contains('text-handle')) return true;
-                          if (el.classList && el.classList.contains('photo-inner-zoom')) return true;
-                        return false;
-                    }
+                    ignoreElements: (el) => isExportIgnoredElement(el)
                 });
                 ctx.drawImage(finalHtml2Canvas, 0, 0, targetW, targetH);
             } catch (e) {
@@ -1158,7 +1370,7 @@ async function startBatchExport(){
             canvasEl.style.top = oldTop;
             canvasEl.style.margin = oldMargin;
             canvasEl.style.zIndex = oldZIndex;
-            if(oldBg) { canvasEl.style.backgroundColor = oldBg; } else { canvasEl.style.removeProperty('background-color'); }
+            if(oldBg) { canvasEl.style.setProperty('background-color', oldBg, 'important'); } else { canvasEl.style.removeProperty('background-color'); }
             canvasEl.style.transform = oldTransform;
             canvasEl.style.transition = oldTransition;
             document.body.removeChild(overlay);
@@ -1187,6 +1399,11 @@ async function startBatchExport(){
             }
         }
 
+        // DEMO FILIGRAN / WATERMARK
+        if (typeof window.addWatermark === 'function') {
+            await window.addWatermark(finalCanvas);
+        }
+
         // INDIRME
         const a = document.createElement('a');
         const fmtSafe = formatName.replace(/[^a-z0-9]/gi, '-').toLowerCase();
@@ -1212,6 +1429,7 @@ async function startBatchExport(){
     drawCanvas.style.zIndex=wz;
     drawCanvas.style.pointerEvents=wp;
     
+    document.body.classList.remove('is-exporting');
     batchProgress.style.display='none';
     batchStatus.textContent='Tamamlandı';
     batchPercent.textContent='100%';
@@ -1228,16 +1446,14 @@ function readFileUrl(f){
 
 async function shareImage(platform) {
     if(!window.html2canvas) return alert('html2canvas yüklenmedi!');
+    await ensureFontsLoaded();
     try {
         const c = await html2canvas(canvasEl, {
             useCORS: true,
             allowTaint: false,
             scale: 1, // just standard scale for sharing to be fast
               backgroundColor: null,
-              ignoreElements: (el) => {
-                  if(el.classList && (el.classList.contains('text-handle') || el.classList.contains('el-selected') || el.classList.contains('photo-inner-zoom'))) return true;
-                  return false;
-              }
+              ignoreElements: (el) => isExportIgnoredElement(el)
         });
         
         c.toBlob(async (blob) => {

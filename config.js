@@ -260,6 +260,7 @@ const OZEL_CARDS=[
 
 // ========== ÇIKTI FORMATLARI (Sosyal Medya + Baskı) ==========
 const EXPORT_FORMATS={
+    'Orijinal Görsel Boyutu':{w:1920,h:1080,icon:'🖼️'},
     '16:9 Full HD (YouTube/Banner)':{w:1920,h:1080,icon:'🖥️'},
     '1:1 Instagram Post (Kare)':{w:1080,h:1080,icon:'📷'},
     '4:5 Instagram Portrait':{w:1080,h:1350,icon:'📱'},

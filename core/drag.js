@@ -6,10 +6,22 @@
  * 
  * Bağımlılıklar:
  * - core/utils.js
- * 
- * Kullanılan yerler:
- * - Tüm ui ve modüller
  */
+
+window.updatePhotoLockState = function(isLocked) {
+    window.isPhotoLocked = isLocked;
+    const lockToggle = document.getElementById('photoLockToggle');
+    if (lockToggle && lockToggle.checked !== isLocked) lockToggle.checked = isLocked;
+    if (isLocked) {
+        document.body.classList.remove('photo-unlocked');
+    } else {
+        document.body.classList.add('photo-unlocked');
+        if (typeof deselectAll === 'function') deselectAll();
+    }
+    if (typeof window.updateDockLockUI === 'function') {
+        window.updateDockLockUI(isLocked);
+    }
+};
 
 function getActiveV4Element() {
     if (typeof isCanvaMode !== 'undefined' && isCanvaMode) {
@@ -94,8 +106,16 @@ function bindDrag(el){
     });
 
     function down(e){
+        if(typeof window._rotUp === 'function') window._rotUp();
         window.isLongPressOpen = false;
         if (typeof drawMode !== 'undefined' && drawMode !== null && drawMode !== 'off') return;
+        
+        if (el.classList.contains('editable-draw')) {
+            const isUnlocked = window.isPhotoLocked === false || (document.getElementById('photoLockToggle') && !document.getElementById('photoLockToggle').checked);
+            if (isUnlocked) {
+                return; // Do not intercept drag when user is panning unlocked photo
+            }
+        }
         
         multiSelectKey = e.ctrlKey || e.shiftKey;
         if (e.touches && typeof longPressTimer !== 'undefined') { /* mobile long press logic handled separately */ }
@@ -106,6 +126,10 @@ function bindDrag(el){
                 return;
             }
           if(el.contentEditable==='true')return;
+        if (e.target.closest('.vertex-handle, .text-rotate-handle, .text-resize-handle, .callout-controls, .callout-resizer, .callout-rotator')) {
+            return;
+        }
+        
         if(el.dataset.editingText)return;
           
           let wasSelected = true;
@@ -125,7 +149,7 @@ function bindDrag(el){
         
         const isCallout = el.classList.contains('callout-wrap') || el.classList.contains('svg-callout') || el.classList.contains('co-neon-block');
         
-        if (!isCallout && (e.target.closest('.text-resize-handle') || (c.clientX >= rect.right - 20 && c.clientY >= rect.bottom - 20))) {
+        if (!isCallout && (c.clientX >= rect.right - 20 && c.clientY >= rect.bottom - 20)) {
             resizing = true;
             iw = el.offsetWidth;
             ih = el.offsetHeight;
@@ -159,8 +183,18 @@ function bindDrag(el){
         const c=e.touches?e.touches[0]:e;
         
         if (resizing) {
-            const dx = (c.clientX - sx) / scaleFactor;
-            const dy = (c.clientY - sy) / scaleFactor;
+            const rawDx = (c.clientX - sx) / window.getGlobalScale();
+            const rawDy = (c.clientY - sy) / window.getGlobalScale();
+            let dx = rawDx;
+            let dy = rawDy;
+            const rotDeg = parseFloat(el.dataset.rotation) || 0;
+            if (rotDeg !== 0) {
+                const rotRad = rotDeg * Math.PI / 180;
+                const cos = Math.cos(rotRad);
+                const sin = Math.sin(rotRad);
+                dx = rawDx * cos + rawDy * sin;
+                dy = -rawDx * sin + rawDy * cos;
+            }
             let newW = Math.max(20, iw + dx);
             let newH = Math.max(20, ih + dy);
             
@@ -232,8 +266,8 @@ function bindDrag(el){
                 }
             }
         } else {
-            const deltaX = (c.clientX - sx) / scaleFactor;
-            const deltaY = (c.clientY - sy) / scaleFactor;
+            const deltaX = (c.clientX - sx) / window.getGlobalScale();
+            const deltaY = (c.clientY - sy) / window.getGlobalScale();
             
             let newL = il + deltaX;
             let newT = it + deltaY;
@@ -285,62 +319,34 @@ function bindDrag(el){
             // --- ADDED LOGIC FOR DRAWING STICKINESS AFTER DRAG ---
             if (moved && window.selectedElements) {
                 let photoRefUpdated = false;
-                let currentRef = null;
-                if (typeof getActivePhotoPanel === 'function') {
-                    const pnl = getActivePhotoPanel();
-                    const pl = typeof getActiveV4Element === 'function' ? getActiveV4Element() : null;
-                    if (pl && pl.dataset.zpReady === '1') {
-                        currentRef = { v4: true, z: parseFloat(pl.dataset.zpScale) || 1, px: parseFloat(pl.dataset.zpX) || 0, py: parseFloat(pl.dataset.zpY) || 0, panelW: pnl.w, panelH: pnl.h, panelL: pnl.left, panelT: pnl.top, sliderX: parseFloat(document.getElementById('photoXCtrl') ? document.getElementById('photoXCtrl').value : 50), sliderY: parseFloat(document.getElementById('photoYCtrl') ? document.getElementById('photoYCtrl').value : 50) };
-                    } else {
-                        currentRef = { v4: false, z: parseInt(document.getElementById('photoZoomCtrl') ? document.getElementById('photoZoomCtrl').value : 100), px: parseFloat(document.getElementById('photoXCtrl') ? document.getElementById('photoXCtrl').value : 50), py: parseFloat(document.getElementById('photoYCtrl') ? document.getElementById('photoYCtrl').value : 50), panelW: pnl.w, panelH: pnl.h, panelL: pnl.left, panelT: pnl.top };
-                    }
-                }
+                let currentRef = typeof window.getCurrentPhotoState === 'function' ? window.getCurrentPhotoState() : null;
                 
                 window.selectedElements.forEach(selEl => {
                     if (selEl.classList.contains('editable-draw')) {
-                        let startW = parseFloat(selEl.dataset.dragStartWidth) || 1;
-                        let bW = parseFloat(selEl.dataset.baseWidth) || 1;
-                        let bH = parseFloat(selEl.dataset.baseHeight) || 1;
                         let bL = parseFloat(selEl.dataset.baseLeft) || 0;
                         let bT = parseFloat(selEl.dataset.baseTop) || 0;
-                        
-                        let currentW = selEl.offsetWidth;
-                        
                         let newBL = parseFloat(selEl.style.left) || 0;
                         let newBT = parseFloat(selEl.style.top) || 0;
                         selEl.dataset.baseLeft = newBL;
                         selEl.dataset.baseTop = newBT;
                         
-                        let ratio = startW ? (currentW / startW) : 1;
-                        if (ratio > 0 && !isNaN(ratio)) {
-                            selEl.dataset.baseWidth = bW * ratio;
-                            selEl.dataset.baseHeight = bH * ratio;
-                            
-                            if (typeof drawPaths !== 'undefined') {
-                                const pathObj = drawPaths.find(p => p.el === selEl);
-                                if (pathObj && pathObj.points && Array.isArray(pathObj.points)) {
-                                    let relPointsForDataset = [];
-                                    pathObj.points.forEach(pt => {
-                                        let relX = pt.x - bL;
-                                        let relY = pt.y - bT;
-                                        pt.x = newBL + relX * ratio;
-                                        pt.y = newBT + relY * ratio;
-                                        relPointsForDataset.push({x: pt.x - newBL, y: pt.y - newBT});
-                                    });
-                                    selEl.dataset.polygonPoints = JSON.stringify(relPointsForDataset);
-                                } else if (pathObj && typeof pathObj.x1 !== 'undefined') {
-                                    let relX1 = pathObj.x1 - bL;
-                                    let relY1 = pathObj.y1 - bT;
-                                    let relX2 = pathObj.x2 - bL;
-                                    let relY2 = pathObj.y2 - bT;
-                                    pathObj.x1 = newBL + relX1 * ratio;
-                                    pathObj.y1 = newBT + relY1 * ratio;
-                                    pathObj.x2 = newBL + relX2 * ratio;
-                                    pathObj.y2 = newBT + relY2 * ratio;
-                                }
+                        let deltaL = newBL - bL;
+                        let deltaT = newBT - bT;
+                        
+                        if (typeof drawPaths !== 'undefined' && (deltaL !== 0 || deltaT !== 0)) {
+                            const pathObj = drawPaths.find(p => p.el === selEl);
+                            if (pathObj && pathObj.points && Array.isArray(pathObj.points)) {
+                                pathObj.points.forEach(pt => {
+                                    pt.x += deltaL;
+                                    pt.y += deltaT;
+                                });
+                            } else if (pathObj && typeof pathObj.x1 !== 'undefined') {
+                                pathObj.x1 += deltaL;
+                                pathObj.y1 += deltaT;
+                                pathObj.x2 += deltaL;
+                                pathObj.y2 += deltaT;
                             }
                         }
-                        
                         if (typeof drawPaths !== 'undefined' && currentRef) {
                             const pathObj = drawPaths.find(p => p.el === selEl);
                             if (pathObj) {
@@ -354,6 +360,9 @@ function bindDrag(el){
                     updateDrawHistory();
                 }
             }
+            if (moved && typeof window.recordHistory === 'function') {
+                window.recordHistory('Nesne taşındı/boyutlandırıldı');
+            }
     }
     el.addEventListener('mousedown',down);
     el.addEventListener('touchstart',down,{passive:false});
@@ -361,6 +370,7 @@ function bindDrag(el){
     document.addEventListener('touchmove',move,{passive:false});
     document.addEventListener('mouseup',up);
     document.addEventListener('touchend',up);
+document.addEventListener('touchcancel',up);
 }
 
 window.selectedElements = window.selectedElements || [];
@@ -418,32 +428,53 @@ function selectElement(el, isMulti = false, noTabSwitch = false){
     // Restore visuals for all selected callouts
     if (window.selectedElements && window.selectedElements.length > 0) {
         window.selectedElements.forEach(selEl => {
-            if(selEl.classList.contains('co-neon-block')) {
-                selEl.style.outline = '1px dashed rgba(255,255,255,0.4)';
-            } 
-            
-            const ctl = selEl.querySelector('.callout-controls');
-            const res = selEl.querySelector('.callout-resizer');
-            const rot = selEl.querySelector('.callout-rotator');
-            const brd = selEl.querySelector('.callout-select-border');
-            if(ctl) ctl.style.display = 'flex';
-            if(res) res.style.display = 'block';
-            if(rot) rot.style.display = 'block';
-            if(brd) brd.style.display = 'block';
+            const isCallout = selEl.classList.contains('co-neon-block') || selEl.classList.contains('callout-wrap') || selEl.classList.contains('svg-callout');
+            if (isCallout && selEl.dataset.locked !== 'true') {
+                if(selEl.classList.contains('co-neon-block')) {
+                    selEl.style.outline = '1px dashed rgba(255,255,255,0.4)';
+                } 
+                
+                const ctl = selEl.querySelector('.callout-controls');
+                const res = selEl.querySelector('.callout-resizer');
+                const rot = selEl.querySelector('.callout-rotator');
+                const lk = selEl.querySelector('.callout-lock-btn');
+                const brd = selEl.querySelector('.callout-select-border');
+                if(ctl) ctl.style.display = 'flex';
+                if(res) res.style.display = 'flex';
+                if(rot) rot.style.display = 'flex';
+                if(lk) lk.style.display = 'flex';
+                if(brd) brd.style.display = 'block';
+            }
         });
     }
 
     // Check if grouping is active or can be activated
     if(typeof updateGroupUI === 'function') updateGroupUI();
     
-    if(el.classList.contains('editable-draw')) {
+    if(el.classList.contains('editable-draw') || el.closest('.editable-draw')) {
+        const drawEl = el.classList.contains('editable-draw') ? el : el.closest('.editable-draw');
+        el = drawEl;
         const isMobile = typeof window.isMobileDevice === 'function' ? window.isMobileDevice() : window.innerWidth <= 768;
-        // Mobilde sekme değiştirmeyi (panel açılmasını) uzun basmaya bağla
-        if (!isMobile || window.isLongPressOpen) {
+        // noTabSwitch true ise (örn. Katmanlar panelinden tıklanmışsa) sekme değiştirme
+        if (!noTabSwitch && (!isMobile || window.isLongPressOpen)) {
             if(typeof switchTab === 'function') switchTab('draw');
         }
         if(typeof loadDrawSettings === 'function') loadDrawSettings(el);
         if(typeof showVertexHandles === 'function') showVertexHandles(el);
+        
+        // Çizim sekmesinde o çizimi aktif et, geçmiş panelinde vurgula ve düzenleme panelini aç
+        if (typeof drawPaths !== 'undefined') {
+            const idx = drawPaths.findIndex(p => p.el === el || (p.el && el && (p.el === el || p.el.contains(el) || el.contains(p.el))));
+            if (idx > -1) {
+                if (typeof window.startDrawEdit === 'function') {
+                    window.startDrawEdit(idx, true);
+                } else if (typeof startDrawEdit === 'function') {
+                    startDrawEdit(idx, true);
+                }
+            }
+        }
+        if (typeof updateDrawHistory === 'function') updateDrawHistory();
+        if (typeof renderLayers === 'function') renderLayers();
     } else {
         if(document.getElementById('noSelMsg')) document.getElementById('noSelMsg').style.display='none';
         if(document.getElementById('elSettings')) document.getElementById('elSettings').style.display='block';
@@ -457,12 +488,14 @@ function selectElement(el, isMulti = false, noTabSwitch = false){
 
 function deselectAll(){
     document.querySelectorAll('.el-selected').forEach(e=>e.classList.remove('el-selected'));
-    document.querySelectorAll('.text-handle').forEach(h=>h.remove());
+    document.querySelectorAll('.text-handle:not(.text-lock-handle)').forEach(h=>h.remove());
     document.querySelectorAll('.callout-controls, .callout-resizer, .callout-rotator, .callout-select-border').forEach(c => c.style.display = 'none');
+    document.querySelectorAll('.callout-lock-btn').forEach(c => c.style.display = 'flex');
+    document.querySelectorAll('.co-neon-block').forEach(n => n.style.outline = 'none');
     selectedEl=null;
     window.selectedElements = [];
-    $('noSelMsg').style.display='block';
-    $('elSettings').style.display='none';
+    if(document.getElementById('noSelMsg')) document.getElementById('noSelMsg').style.display='block';
+    if(document.getElementById('elSettings')) document.getElementById('elSettings').style.display='none';
     if(typeof hideVertexHandles === 'function') hideVertexHandles();
 }
 
@@ -663,13 +696,7 @@ function createPolygonFromSelectedLines() {
         fillOpacity: 0
     };
     
-    if (typeof isCanvaMode !== 'undefined' && isCanvaMode) {
-        const pnl = getActivePhotoPanel();
-        pObj.photoRef = { v4: true, z: parseFloat(getActiveV4Element().dataset.zpScale)||1, px: parseFloat(getActiveV4Element().dataset.zpX)||0, py: parseFloat(getActiveV4Element().dataset.zpY)||0, panelW: pnl.w, panelH: pnl.h, panelL: pnl.left, panelT: pnl.top, sliderX: 50, sliderY: 50 };
-    } else {
-        const pnl = getActivePhotoPanel();
-        pObj.photoRef = { v4: false, z: 100, px: 50, py: 50, panelW: pnl.w, panelH: pnl.h, panelL: pnl.left, panelT: pnl.top };
-    }
+    pObj.photoRef = typeof window.getCurrentPhotoState === 'function' ? window.getCurrentPhotoState() : null;
     
     drawPaths.push(pObj);
     if(typeof drawSinglePath === 'function') drawSinglePath(pObj);

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'emlak-studiom-v33';
+const CACHE_NAME = 'emlak-studiom-v100';
 const CORE_ASSETS = [
   './app.html',
   './styles.css',
@@ -15,8 +15,7 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
-        console.log('Opened cache v20');
-        // Use addAll safely - ignore failures for individual files
+        console.log('Opened cache v94');
         return Promise.allSettled(
           CORE_ASSETS.map(url => cache.add(url).catch(err => console.log('Cache failed for', url, err)))
         );
@@ -46,13 +45,28 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
   // HARİCİ ORIGIN VE KASPERSKY KONTROLÜ
-  // Kendi origin'imiz dışındaki istekleri (veya açıkça Kaspersky) cache mekanizmasından hariç tut.
   if (url.origin !== self.location.origin || url.hostname.includes('kaspersky-labs.com')) {
     event.respondWith(
       fetch(event.request).catch((err) => {
-        console.warn('Dış kaynaklı istek hatası (CORS/Ağ):', url.href, err);
-        // Hata durumunda undefined yerine güvenli boş response dönerek 'Failed to convert value to Response' hatasını önle.
         return new Response(null, { status: 204, statusText: 'No Content' });
+      })
+    );
+    return;
+  }
+
+  // Versioned veya Localhost isteklerinde Network-First
+  if (url.searchParams.has('v') || url.hostname === 'localhost' || url.hostname === '127.0.0.1') {
+    event.respondWith(
+      fetch(event.request).then((networkResponse) => {
+        if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
+          const responseToCache = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(event.request, responseToCache);
+          });
+        }
+        return networkResponse;
+      }).catch(() => {
+        return caches.match(event.request);
       })
     );
     return;

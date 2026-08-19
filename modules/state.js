@@ -1,81 +1,338 @@
-// ==================== STATE MANAGEMENT ====================
-// Uygulamanın global state ve geçmiş (Undo/Redo) yönetim sistemi
+// ==================== UNIFIED APPLICATION STATE (AppState / AppStore) ====================
+// Tekil Durum Yöneticisi: Global değişken kirliliğini önler, şablon/sekme geçişlerinde
+// tuval durumunu temizler ve tüm modüllerin tek kaynaktan veri okumasını sağlar.
 
-// --- Global Variables ---
+window.AppState = {
+    // 1. Viewport & Canvas Ölçeği
+    viewport: {
+        get scaleFactor() { return window.scaleFactor || 1; },
+        set scaleFactor(v) { window.scaleFactor = v; }
+    },
+    // 2. Fotoğraf ve Tuval Konumlandırma Durumu
+    photo: {
+        get isLocked() { return window.isPhotoLocked !== false; },
+        set isLocked(v) { window.isPhotoLocked = v; },
+        get zoom() { return parseInt(document.getElementById('photoZoomCtrl') ? document.getElementById('photoZoomCtrl').value : 100); },
+        get x() { return parseFloat(document.getElementById('photoXCtrl') ? document.getElementById('photoXCtrl').value : 50); },
+        get y() { return parseFloat(document.getElementById('photoYCtrl') ? document.getElementById('photoYCtrl').value : 50); }
+    },
+    // 3. Çizim Durumu
+    draw: {
+        get mode() { return typeof drawMode !== 'undefined' ? drawMode : 'off'; },
+        set mode(v) { if (typeof setDrawMode === 'function') setDrawMode(v); else window.drawMode = v; },
+        get editingIndex() { return typeof editingDrawIndex !== 'undefined' ? editingDrawIndex : -1; }
+    },
+    // 4. Seçili Nesneler
+    selection: {
+        get selectedEl() { return typeof selectedEl !== 'undefined' ? selectedEl : window.selectedEl; },
+        get selectedElements() { return window.selectedElements || []; }
+    },
+    // 5. Şablon ve Mod Durumu
+    template: {
+        get currentMode() { return typeof currentMode !== 'undefined' ? currentMode : 'klasik'; },
+        get activeLayout() { return typeof activeLayout !== 'undefined' ? activeLayout : 't1'; },
+        get isCanvaMode() { return typeof isCanvaMode !== 'undefined' ? isCanvaMode : false; }
+    },
+    // 6. Şablon veya Mod Geçişlerinde Güvenli Sıfırlama (State Cleanup)
+    resetOnTemplateChange: function(newLayoutKey) {
+        if (typeof deselectAll === 'function') deselectAll();
+        if (typeof cancelDrawEdit === 'function') cancelDrawEdit();
+        if (typeof hideVertexHandles === 'function') hideVertexHandles();
+        
+        // Çizim modunu kapat
+        if (typeof setDrawMode === 'function') setDrawMode('off');
+        
+        // Seçimleri temizle
+        window.selectedEl = null;
+        window.selectedElements = [];
+        
+        // Çift seçim tutamaçlarını kaldır
+        document.querySelectorAll('.text-handle, .text-resize-handle, .text-rotate-handle').forEach(h => {
+            if (!h.classList.contains('text-lock-handle')) h.remove();
+        });
+    }
+};
+
+window.AppStore = window.AppState; // Alias for AppStore
+
+// ==================== UNIFIED GLOBAL HISTORY MANAGER ====================
+// Çizim, Metin, Callout, İkon ve Şablon eylemlerini birleştiren tekil State Stack
+
 window.undoStack = [];
 window.redoStack = [];
-window.currentHistoryState = "";
-window.isUndoing = false;
+window.isHistoryRestoring = false;
 
-// --- UNDO (GERİ AL) / REDO (İLERİ AL) SİSTEMİ ---
-window.initUndoSystem = function() {
-    const renderLayer = document.getElementById('canvas-container');
-    if (!renderLayer) return;
-    
-    window.currentHistoryState = renderLayer.innerHTML;
-    
-    let historyTimeout;
-    const observer = new MutationObserver(() => {
-        if (window.isUndoing) return;
-        
-        clearTimeout(historyTimeout);
-        historyTimeout = setTimeout(() => {
-            const newState = renderLayer.innerHTML;
-            if (window.currentHistoryState !== "" && window.currentHistoryState !== newState) {
-                window.undoStack.push(window.currentHistoryState);
-                if (window.undoStack.length > 30) window.undoStack.shift();
-                window.redoStack = []; // Yeni bir hamle yapıldığında ileri al listesi sıfırlanır
-            }
-            window.currentHistoryState = newState;
-        }, 300); // 300ms bekler, peş peşe olan değişiklikleri (sürükleme gibi) tek adım sayar.
+const MAX_HISTORY_STEPS = 40;
+let historyRecordTimeout = null;
+
+// Çizim yollarını Saber ve DOM referanslarından arındırarak kopyalar
+function cloneDrawPaths(paths) {
+    if (!paths || !Array.isArray(paths)) return [];
+    return paths.map(p => {
+        const copy = Object.assign({}, p);
+        delete copy.el;
+        delete copy.saberRef;
+        if (copy.points && Array.isArray(copy.points)) {
+            copy.points = copy.points.map(pt => Object.assign({}, pt));
+        }
+        return copy;
     });
-    
-    observer.observe(renderLayer, { childList: true, subtree: true, attributes: true, characterData: true });
+}
+
+// Tuval üzerindeki tüm özel nesnelerin (Callout, Metin, İkon, Neon Blok vb.) temiz durumunu yakalar
+function captureCustomElements() {
+    const elements = [];
+    const builtInIds = new Set([
+        'photo-layer', 'draw-layer', 'ui-layer', 'mask-layer', 'canva-render-layer',
+        'shadow-overlay', 'highlight-overlay', 'vignette-layer',
+        'elBadge', 'elPrice', 'elDetails', 'elLogo', 'infoLineText'
+    ]);
+
+    const selector = '#canvas-container > .callout-wrap, #canvas-container > .co-neon-block, #canvas-container > .draggable, ' +
+                     '#ui-layer > .draggable, #ui-layer > .canvas-el, #ui-layer > .callout-wrap, #ui-layer > .co-neon-block, #ui-layer > .cvi-item, #ui-layer > .svg-icon, #ui-layer > .dynamic-box, ' +
+                     '#canva-render-layer > .draggable, #canva-render-layer > .canvas-el';
+
+    const seen = new Set();
+    document.querySelectorAll(selector).forEach(el => {
+        if (builtInIds.has(el.id)) return;
+        if (el.classList.contains('editable-draw')) return; // Çizimler drawPaths ile bağımsız yönetilir
+        if (seen.has(el)) return;
+        seen.add(el);
+
+        const parent = el.parentElement;
+        const parentId = parent ? parent.id : 'ui-layer';
+
+        // Temiz HTML kopyası al (tutamaçlar ve geçici seçim borderları hariç)
+        const clone = el.cloneNode(true);
+        clone.classList.remove('selected', 'active', 'dragging');
+        clone.querySelectorAll('.callout-controls, .callout-resizer, .callout-rotator, .callout-select-border, .text-handle, .text-resize-handle, .text-rotate-handle, .text-delete-handle').forEach(h => {
+            if (h.classList.contains('callout-select-border')) h.style.display = 'none';
+            if (h.classList.contains('callout-controls') || h.classList.contains('callout-resizer') || h.classList.contains('callout-rotator')) {
+                h.style.display = 'none';
+            }
+        });
+
+        elements.push({
+            id: el.id || ('el_' + Math.random().toString(36).substr(2, 9)),
+            parentId: parentId,
+            className: el.className.replace(/\b(selected|active|dragging)\b/g, '').trim(),
+            style: el.getAttribute('style') || '',
+            dataset: Object.assign({}, el.dataset),
+            innerHTML: clone.innerHTML
+        });
+    });
+
+    return elements;
+}
+
+// Sabit şablon metinlerinin durumunu yakalar
+function captureStandardElements() {
+    const std = {};
+    ['elBadge', 'elPrice', 'elDetails', 'elLogo'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            std[id] = {
+                visibility: el.style.visibility,
+                display: el.style.display,
+                innerText: el.innerText,
+                innerHTML: id === 'elDetails' ? el.innerHTML : undefined,
+                style: el.getAttribute('style') || '',
+                dataset: Object.assign({}, el.dataset)
+            };
+        }
+    });
+    return std;
+}
+
+// Tüm tuvalin eksiksiz JSON snapshot'ını oluşturur
+function captureFullState() {
+    const activeDrawPaths = (typeof drawPaths !== 'undefined' && Array.isArray(drawPaths)) ? drawPaths : (window.drawPaths || []);
+    return {
+        timestamp: Date.now(),
+        drawPaths: cloneDrawPaths(activeDrawPaths),
+        customElements: captureCustomElements(),
+        standardElements: captureStandardElements(),
+        currentMode: typeof currentMode !== 'undefined' ? currentMode : window.currentMode,
+        activeLayout: typeof activeLayout !== 'undefined' ? activeLayout : window.activeLayout
+    };
+}
+
+// Snapshot'ı tuvale eksiksiz ve güvenli şekilde geri yükler
+function applySnapshot(state) {
+    if (!state) return;
+    window.isHistoryRestoring = true;
+
+    try {
+        // 1. Seçimleri kapat
+        if (typeof deselectAll === 'function') deselectAll();
+        if (typeof cancelDrawEdit === 'function') cancelDrawEdit();
+
+        // 2. Çizimleri Geri Yükle
+        if (typeof drawPaths !== 'undefined') {
+            drawPaths.length = 0;
+            if (state.drawPaths && Array.isArray(state.drawPaths)) {
+                state.drawPaths.forEach(p => drawPaths.push(Object.assign({}, p)));
+            }
+            window.drawPaths = drawPaths;
+        }
+
+        // Eski çizim SVG elemanlarını temizle ve yeniden çiz
+        document.querySelectorAll('.editable-draw, .draw-svg-item').forEach(el => el.remove());
+        if (typeof redrawAll === 'function') redrawAll();
+        if (typeof updateDrawHistory === 'function') updateDrawHistory();
+
+        // 3. Mevcut Özel Elemanları Temizle
+        const builtInIds = new Set([
+            'photo-layer', 'draw-layer', 'ui-layer', 'mask-layer', 'canva-render-layer',
+            'shadow-overlay', 'highlight-overlay', 'vignette-layer',
+            'elBadge', 'elPrice', 'elDetails', 'elLogo', 'infoLineText'
+        ]);
+
+        const selector = '#canvas-container > .callout-wrap, #canvas-container > .co-neon-block, #canvas-container > .draggable, ' +
+                         '#ui-layer > .draggable, #ui-layer > .canvas-el, #ui-layer > .callout-wrap, #ui-layer > .co-neon-block, #ui-layer > .cvi-item, #ui-layer > .svg-icon, #ui-layer > .dynamic-box, ' +
+                         '#canva-render-layer > .draggable, #canva-render-layer > .canvas-el';
+
+        document.querySelectorAll(selector).forEach(el => {
+            if (!builtInIds.has(el.id)) {
+                el.remove();
+            }
+        });
+
+        // 4. Özel Elemanları (Callout, Metin, İkon) Yeniden Yarat
+        if (state.customElements && Array.isArray(state.customElements)) {
+            state.customElements.forEach(data => {
+                let parent = document.getElementById(data.parentId);
+                if (!parent) parent = document.getElementById('ui-layer') || document.getElementById('canvas-container');
+                if (!parent) return;
+
+                const el = document.createElement('div');
+                if (data.id) el.id = data.id;
+                el.className = data.className;
+                el.innerHTML = data.innerHTML;
+                if (data.style) el.setAttribute('style', data.style);
+                if (data.dataset) {
+                    Object.keys(data.dataset).forEach(k => el.dataset[k] = data.dataset[k]);
+                }
+
+                parent.appendChild(el);
+
+                if (typeof makeDraggable === 'function') makeDraggable(el);
+                if (el.classList.contains('callout-wrap') && typeof window.rebindSVGCallout === 'function') {
+                    window.rebindSVGCallout(el);
+                }
+                if (el.classList.contains('co-neon-block') && typeof window.rebindNeonCallout === 'function') {
+                    window.rebindNeonCallout(el);
+                }
+            });
+        }
+
+        // 5. Standart Elemanları Geri Yükle
+        if (state.standardElements) {
+            Object.keys(state.standardElements).forEach(id => {
+                const el = document.getElementById(id);
+                const data = state.standardElements[id];
+                if (el && data) {
+                    if (data.innerText !== undefined && id !== 'elDetails') el.innerText = data.innerText;
+                    if (data.innerHTML !== undefined && id === 'elDetails') el.innerHTML = data.innerHTML;
+                    if (data.style) el.setAttribute('style', data.style);
+                    if (data.visibility) el.style.visibility = data.visibility;
+                    if (data.display) el.style.display = data.display;
+                }
+            });
+        }
+
+        // 6. Katmanlar Panelini Güncelle
+        if (typeof window.renderLayers === 'function') window.renderLayers();
+
+    } catch (err) {
+        console.error("History restore error:", err);
+    } finally {
+        setTimeout(() => {
+            window.isHistoryRestoring = false;
+        }, 60);
+    }
+}
+
+// Global Geçmiş Kaydetme Fonksiyonu (Debounced & Duplicate Korumalı)
+window.recordHistory = function(desc = '') {
+    if (window.isHistoryRestoring) return;
+
+    clearTimeout(historyRecordTimeout);
+    historyRecordTimeout = setTimeout(() => {
+        if (window.isHistoryRestoring) return;
+        const snap = captureFullState();
+        
+        // Önceki durumla aynıysa gereksiz adım ekleme
+        const lastSnap = window.undoStack[window.undoStack.length - 1];
+        if (lastSnap) {
+            const sameDraw = JSON.stringify(lastSnap.drawPaths) === JSON.stringify(snap.drawPaths);
+            const sameCustom = JSON.stringify(lastSnap.customElements) === JSON.stringify(snap.customElements);
+            const sameStd = JSON.stringify(lastSnap.standardElements) === JSON.stringify(snap.standardElements);
+            if (sameDraw && sameCustom && sameStd) {
+                return;
+            }
+        }
+
+        window.undoStack.push(snap);
+        if (window.undoStack.length > MAX_HISTORY_STEPS) {
+            window.undoStack.shift();
+        }
+        window.redoStack = []; // Yeni bir aksiyon yapıldığında redo temizlenir
+        console.log(`📜 Geçmiş kaydedildi: ${desc} (Toplam: ${window.undoStack.length} adım)`);
+        if (typeof window.requestAutoSave === 'function') window.requestAutoSave();
+    }, 100);
 };
 
+// Evrensel Geri Al (Global Undo)
 window.undoGlobal = function() {
-    if (window.undoStack.length === 0) {
-        console.log("Geri alınacak işlem yok.");
+    if (window.isHistoryRestoring) return;
+    if (window.undoStack.length <= 1) {
+        console.log("ℹ️ Geri alınacak başka işlem yok.");
         return;
     }
-    
-    window.redoStack.push(window.currentHistoryState);
-    const previousState = window.undoStack.pop();
-    const renderLayer = document.getElementById('canvas-container');
-    if (!renderLayer) return;
-    
-    window.isUndoing = true;
-    renderLayer.innerHTML = previousState;
-    window.currentHistoryState = previousState;
-    
-    if (typeof makeDraggable === 'function') {
-        renderLayer.querySelectorAll('.draggable, .canvas-el, .callout-item, .callout-wrap, .co-neon-block').forEach(el => makeDraggable(el));
+
+    const currentState = window.undoStack.pop();
+    window.redoStack.push(currentState);
+
+    const previousState = window.undoStack[window.undoStack.length - 1];
+    if (previousState) {
+        applySnapshot(previousState);
+        console.log(`↩️ Geri alındı (Kalan: ${window.undoStack.length} adım)`);
+        if (typeof window.requestAutoSave === 'function') window.requestAutoSave();
     }
-    if (typeof deselectAll === 'function') deselectAll();
-    
-    // Küçük bir gecikmeyle isUndoing'i kapatıyoruz ki observer hemen tetiklenmesin
-    setTimeout(() => { window.isUndoing = false; }, 50);
 };
 
+// Evrensel İleri Al (Global Redo)
 window.redoGlobal = function() {
+    if (window.isHistoryRestoring) return;
     if (window.redoStack.length === 0) {
-        console.log("İleri alınacak işlem yok.");
+        console.log("ℹ️ İleri alınacak işlem yok.");
         return;
     }
-    
-    window.undoStack.push(window.currentHistoryState);
+
     const nextState = window.redoStack.pop();
-    const renderLayer = document.getElementById('canvas-container');
-    if (!renderLayer) return;
-    
-    window.isUndoing = true;
-    renderLayer.innerHTML = nextState;
-    window.currentHistoryState = nextState;
-    
-    if (typeof makeDraggable === 'function') {
-        renderLayer.querySelectorAll('.draggable, .canvas-el, .callout-item, .callout-wrap, .co-neon-block').forEach(el => makeDraggable(el));
-    }
-    if (typeof deselectAll === 'function') deselectAll();
-    
-    setTimeout(() => { window.isUndoing = false; }, 50);
+    window.undoStack.push(nextState);
+    applySnapshot(nextState);
+    console.log(`↪️ İleri alındı (Toplam: ${window.undoStack.length} adım)`);
+    if (typeof window.requestAutoSave === 'function') window.requestAutoSave();
 };
+
+// Geriye Dönük Uyumluluk (Legacy Alias)
+window.undoLastDraw = function() {
+    window.undoGlobal();
+};
+window.redoLastDraw = function() {
+    window.redoGlobal();
+};
+window.initUndoSystem = function() {
+    if (typeof window.recordHistory === 'function') {
+        window.recordHistory('Başlangıç Durumu');
+    }
+};
+
+// Başlangıç ilk durumunu kaydet
+window.addEventListener('DOMContentLoaded', () => {
+    setTimeout(() => {
+        window.recordHistory('Başlangıç Durumu');
+    }, 800);
+});

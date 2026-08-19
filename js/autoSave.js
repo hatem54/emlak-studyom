@@ -12,6 +12,7 @@ let autoSaveInterval = null;
 window.autoSaveTimeout = null;
 
 window.requestAutoSave = function() {
+    if (window.isRestoringState) return;
     if (window.autoSaveTimeout) clearTimeout(window.autoSaveTimeout);
     window.autoSaveTimeout = setTimeout(() => {
         if(typeof performAutoSave === 'function') performAutoSave();
@@ -150,6 +151,7 @@ const HISTORY_INTERVAL = 5 * 60 * 1000; // 5 minutes
 
 // Background Task
 async function performAutoSave() {
+    if (window.isRestoringState) return;
     try {
         const isCanvaModeActive = typeof isCanvaMode !== 'undefined' ? isCanvaMode : (window.isCanvaMode || false);
         
@@ -181,6 +183,8 @@ async function performAutoSave() {
             activeLayout: typeof activeLayout !== 'undefined' ? activeLayout : window.activeLayout, 
             isCanvaMode: isCanvaModeActive, 
             activeCanvaId: typeof activeCanvaId !== 'undefined' ? activeCanvaId : window.activeCanvaId,
+            currentFont: typeof currentFont !== 'undefined' ? currentFont : (window.currentFont || localStorage.getItem('emlakstudiom_currentFont') || ''),
+            canvasBgColor: (document.getElementById('canvasBgColor') && document.getElementById('canvasBgColor').value) || (document.getElementById('canvas-container') ? document.getElementById('canvas-container').style.backgroundColor : '') || localStorage.getItem('emlakstudiom_canvasBgColor') || '',
             uploadedImgW: typeof uploadedImgW !== 'undefined' ? uploadedImgW : window.uploadedImgW, 
             uploadedImgH: typeof uploadedImgH !== 'undefined' ? uploadedImgH : window.uploadedImgH,
             drawMode: typeof drawMode !== 'undefined' ? drawMode : window.drawMode, 
@@ -196,7 +200,7 @@ async function performAutoSave() {
             extraFieldCounter: typeof extraFieldCounter !== 'undefined' ? extraFieldCounter : (window.extraFieldCounter || 0), 
             extraFieldsData: typeof extraFieldsData !== 'undefined' ? extraFieldsData : (window.extraFieldsData || {konut:[], arazi:[]}),
             inputs: {},
-            customElements: []
+            customItems: []
         };
 
         // Resimleri Base64'e çevir (Eğer getBase64FromBlobUrl tanımlıysa)
@@ -217,24 +221,126 @@ async function performAutoSave() {
             }
         });
 
-        // Tüm özel elemanları kaydet
-        document.querySelectorAll('#photo-layer .draggable, #ui-layer .draggable, #photo-layer .cvi-item, #ui-layer .cvi-item, #photo-layer .canvas-el, #ui-layer .canvas-el, #ui-layer .callout-wrapper, #photo-layer .callout-wrapper, #ui-layer .callout-wrap, #photo-layer .callout-wrap, #canvas-container .callout-wrap, #canvas-container .co-neon-block, #canvas-container .callout-wrapper, #ui-layer .saber-text, #photo-layer .saber-text, #ui-layer .dynamic-box, #photo-layer .dynamic-box, #ui-layer .svg-icon, #photo-layer .svg-icon, #ui-layer .icon-wrapper, #photo-layer .icon-wrapper').forEach(el => {
-            if(['badge', 'price', 'details', 'logo_overlay', 'elLogo'].includes(el.id)) return;
-            if(el.classList.contains('editable-draw')) return; // Zaten drawPaths üzerinden yeniden oluşturuluyor, DOM kopyasını kaydetme!
-            
-            // Clone to avoid removing handles from live DOM
-            const clone = el.cloneNode(true);
+        // Preview format
+        const formatSelect = document.getElementById('previewFormat');
+        state.previewFormat = formatSelect ? formatSelect.value : '16:9 Full HD (YouTube/Banner)';
+        state.lastParsedData = window.lastParsedData || null;
+        state.smartBadges = window.smartBadges || [];
+        state.smartMatchedCallouts = window.smartMatchedCallouts || [];
+
+        // 6. Özel Tasarım Elemanlarını Saf Veri Olarak Kaydet (DOM klonlama yerine!)
+        const customItems = [];
+        const canvasW = (typeof canvasEl !== 'undefined' && canvasEl && parseInt(canvasEl.style.width)) ? parseInt(canvasEl.style.width) : 1920;
+        const canvasH = (typeof canvasEl !== 'undefined' && canvasEl && parseInt(canvasEl.style.height)) ? parseInt(canvasEl.style.height) : 1080;
+        state.canvasW = canvasW;
+        state.canvasH = canvasH;
+
+        // A. İkonlar
+        document.querySelectorAll('#ui-layer .added-icon, #photo-layer .added-icon, #canvas-container .added-icon, #ui-layer .is-svg-icon').forEach(icon => {
+            if (icon.closest('.callout-wrap') || icon.closest('.co-neon-block')) return;
+            const isSvg = icon.classList.contains('is-svg-icon') || !!icon.querySelector('svg');
+            const clone = icon.cloneNode(true);
             clone.querySelectorAll('.text-handle').forEach(h => h.remove());
+            const char = isSvg ? clone.innerHTML : (clone.textContent || '');
+            const left = parseFloat(icon.style.left) || 0;
+            const top = parseFloat(icon.style.top) || 0;
+            customItems.push({
+                kind: 'icon',
+                char: char,
+                isSvg: isSvg,
+                left: left,
+                top: top,
+                xPercent: canvasW > 0 ? (left / canvasW) : 0,
+                yPercent: canvasH > 0 ? (top / canvasH) : 0,
+                fontSize: parseFloat(icon.style.fontSize) || 60,
+                background: icon.style.background || icon.style.backgroundColor || 'rgba(15,23,42,0.6)',
+                color: icon.style.color || '#ffffff',
+                borderRadius: icon.style.borderRadius || '50%',
+                padding: icon.style.padding || '0.28em',
+                label: icon.dataset.label || '',
+                dataset: Object.assign({}, icon.dataset)
+            });
+        });
+
+        // B. Metinler, Rozetler & Çerçeveli Kartlar
+        document.querySelectorAll('#ui-layer .canvas-el.draggable, #photo-layer .canvas-el.draggable').forEach(el => {
+            if (['elBadge', 'elPrice', 'elDetails', 'elLogo', 'badge', 'price', 'details', 'logo_overlay'].includes(el.id)) return;
+            if (el.classList.contains('added-icon') || el.classList.contains('is-svg-icon')) return;
+            if (el.closest('.callout-wrap') || el.closest('.co-neon-block') || el.closest('.callout-wrapper')) return;
+            if (el.classList.contains('normal-el') || el.classList.contains('canva-generated') || el.classList.contains('canva-panel')) return;
+            if (el.classList.contains('editable-draw')) return;
             
-            state.customElements.push({
-                id: el.id,
-                parentId: el.parentElement ? el.parentElement.id : 'ui-layer',
-                className: el.className,
-                innerHTML: clone.innerHTML,
-                style: el.getAttribute('style'),
+            const isBadge = el.dataset.label && (el.dataset.label.startsWith('Rozet:') || el.dataset.label.includes('Çerçeveli'));
+            const isBox = (el.dataset.label === 'Özel Kutu');
+            const text = el.innerText || el.textContent || '';
+            const left = parseFloat(el.style.left) || 0;
+            const top = parseFloat(el.style.top) || 0;
+
+            customItems.push({
+                kind: 'text',
+                text: text,
+                isBox: isBox,
+                isBadge: isBadge,
+                label: el.dataset.label || (isBox ? 'Özel Kutu' : 'Serbest Yazı'),
+                left: left,
+                top: top,
+                xPercent: canvasW > 0 ? (left / canvasW) : 0,
+                yPercent: canvasH > 0 ? (top / canvasH) : 0,
+                fontSize: parseFloat(el.style.fontSize) || 36,
+                width: el.style.width || '',
+                minWidth: el.style.minWidth || '',
+                maxWidth: el.style.maxWidth || '',
+                minHeight: el.style.minHeight || '',
+                height: el.style.height || '',
+                color: el.style.color || '#ffffff',
+                background: el.style.background || el.style.backgroundColor || (isBox ? 'rgba(255,255,255,0.9)' : 'transparent'),
+                border: el.style.border || (isBox ? '2px solid #000000' : 'none'),
+                borderRadius: el.style.borderRadius || (isBox ? '12px' : '0px'),
+                padding: el.style.padding || (isBox ? '20px 30px' : '10px'),
+                boxShadow: el.style.boxShadow || 'none',
+                textShadow: el.style.textShadow || 'none',
+                backdropFilter: el.style.backdropFilter || el.style.webkitBackdropFilter || '',
+                webkitBackdropFilter: el.style.webkitBackdropFilter || '',
+                fontFamily: el.style.fontFamily || '',
+                fontWeight: el.style.fontWeight || '',
+                textAlign: el.style.textAlign || '',
+                whiteSpace: el.style.whiteSpace || '',
+                lineHeight: el.style.lineHeight || '',
+                letterSpacing: el.style.letterSpacing || '',
+                rotation: parseFloat(el.dataset.rotation) || 0,
                 dataset: Object.assign({}, el.dataset)
             });
         });
+
+        // C. Callout'lar (SVG ve Neon)
+        document.querySelectorAll('#canvas-container .callout-wrap, #workArea .callout-wrap, #canvas-container .co-neon-block').forEach(wrap => {
+            const left = parseFloat(wrap.style.left) || 0;
+            const top = parseFloat(wrap.style.top) || 0;
+            const width = parseFloat(wrap.style.width) || (wrap.offsetWidth || 240);
+            const height = parseFloat(wrap.style.height) || (wrap.offsetHeight || 120);
+            const scale = parseFloat(wrap.dataset.scale) || 1.0;
+            const userScale = parseFloat(wrap.dataset.userScale) || scale;
+            const rotation = parseFloat(wrap.dataset.rotation) || 0;
+            const isNeon = wrap.classList.contains('co-neon-block');
+            
+            customItems.push({
+                kind: 'callout',
+                isNeon: isNeon,
+                html: wrap.innerHTML,
+                left: left,
+                top: top,
+                xPercent: canvasW > 0 ? (left / canvasW) : 0,
+                yPercent: canvasH > 0 ? (top / canvasH) : 0,
+                width: width,
+                height: height,
+                scale: scale,
+                userScale: userScale,
+                rotation: rotation,
+                dataset: Object.assign({}, wrap.dataset)
+            });
+        });
+
+        state.customItems = customItems;
         await saveStateToDB(state);
         
         if (Date.now() - lastHistorySaveTime > HISTORY_INTERVAL) {
@@ -280,71 +386,75 @@ function showAutoSaveIndicator() {
 async function applyRestoredState(state) {
     try {
         window.isRestoringState = true;
-        if(!state.version) throw new Error("Geçersiz proje dosyası");
+        window._hasRestoredState = true;
+        if(!state || !state.version) throw new Error("Geçersiz proje dosyası");
 
-        if(typeof currentMode !== 'undefined') {
-            currentMode = state.currentMode || 'daire';
-            if(currentMode === 'konut') currentMode = 'daire';
-        } else {
-            window.currentMode = state.currentMode || 'daire';
-            if(window.currentMode === 'konut') window.currentMode = 'daire';
-        }
-        
-        if(state.propertyType) {
-            // Restore accordion active state
-            document.querySelectorAll('.cat-item').forEach(item => item.classList.remove('active'));
-            const targetEl = document.querySelector('.cat-item[onclick*="' + state.propertyType + '"]');
-            if(targetEl) {
-                targetEl.classList.add('active');
-            }
-            if(typeof switchPropertyType === 'function') switchPropertyType(state.propertyType);
-            else if(window.switchPropertyType) window.switchPropertyType(state.propertyType);
-        }
-        
-        if(typeof activeLayout !== 'undefined') activeLayout = typeof state.activeLayout !== 'undefined' ? state.activeLayout : 't1';
-        else window.activeLayout = typeof state.activeLayout !== 'undefined' ? state.activeLayout : 't1';
-        
-        let activeIsCanvaMode = !!state.isCanvaMode;
-        let activeCanvaIdVal = state.activeCanvaId || '';
-        if (activeIsCanvaMode && !activeCanvaIdVal) activeIsCanvaMode = false;
-        
-        if (typeof isCanvaMode !== 'undefined') isCanvaMode = activeIsCanvaMode;
-        else window.isCanvaMode = activeIsCanvaMode;
-        
-        if (typeof activeCanvaId !== 'undefined') activeCanvaId = activeCanvaIdVal;
-        else window.activeCanvaId = activeCanvaIdVal;
-        
-        if (typeof uploadedImgW !== 'undefined') uploadedImgW = state.uploadedImgW || 1920;
-        else window.uploadedImgW = state.uploadedImgW || 1920;
-        
-        if (typeof uploadedImgH !== 'undefined') uploadedImgH = state.uploadedImgH || 1080;
-        else window.uploadedImgH = state.uploadedImgH || 1080;
-        
-        if (typeof drawPaths !== 'undefined') {
-            drawPaths = state.drawPaths || [];
-        } else {
-            window.drawPaths = state.drawPaths || [];
-        }
-        
-        if (typeof extraFieldCounter !== 'undefined') extraFieldCounter = state.extraFieldCounter || 0;
-        else window.extraFieldCounter = state.extraFieldCounter || 0;
-        
-        const newExtra = state.extraFieldsData || {konut:[],arazi:[]};
-        if(typeof extraFieldsData !== 'undefined') {
-            extraFieldsData.konut = newExtra.konut || [];
-            extraFieldsData.arazi = newExtra.arazi || [];
-        } else if (window.extraFieldsData) {
-            window.extraFieldsData.konut = newExtra.konut || [];
-            window.extraFieldsData.arazi = newExtra.arazi || [];
+        // Yükleme ekranını göster
+        if (typeof window.showAppLoading === 'function') {
+            window.showAppLoading('Çalışmanız Yükleniyor...', 'Lütfen bekleyin, tasarım ve katmanlar hazırlanıyor...');
+        } else if (typeof showExportLoading === 'function') {
+            showExportLoading('Çalışmanız Yükleniyor...', 'Lütfen bekleyin, tasarım ve katmanlar hazırlanıyor...');
         }
 
-        document.querySelectorAll('#photo-layer .draggable, #ui-layer .draggable, #photo-layer .cvi-item, #ui-layer .cvi-item, #photo-layer .canvas-el, #ui-layer .canvas-el, #canvas-container .callout-wrap, #canvas-container .co-neon-block').forEach(el => {
-            if(['badge', 'price', 'details', 'logo_overlay', 'elLogo'].includes(el.id)) return;
+        // 1. Tuvaldeki tüm eski canva panellerini ve oluşturulmuş öğeleri sıfırla
+        document.querySelectorAll('.canva-generated, .canva-panel').forEach(e => e.remove());
+        const crl = document.getElementById('canva-render-layer');
+        if (crl) crl.innerHTML = '';
+        if (typeof _kolajTemizle === 'function') _kolajTemizle();
+        if (typeof clearCanvaTemplate === 'function') clearCanvaTemplate(true);
+
+        document.querySelectorAll('#canvas-container .callout-wrap, #canvas-container .co-neon-block, #canvas-container .callout-wrapper, #ui-layer .added-icon, #photo-layer .added-icon, #canvas-container .added-icon').forEach(el => el.remove());
+        document.querySelectorAll('#ui-layer .canvas-el.draggable, #photo-layer .canvas-el.draggable').forEach(el => {
+            if (['elBadge', 'elPrice', 'elDetails', 'elLogo', 'badge', 'price', 'details', 'logo_overlay'].includes(el.id)) return;
+            if (el.classList.contains('normal-el') || el.classList.contains('canva-generated') || el.classList.contains('canva-panel')) return;
             el.remove();
         });
-        
-        if (typeof allIcons !== 'undefined') window.allIcons = [];
 
+        if (typeof allIcons !== 'undefined') window.allIcons = [];
+        const countEl = document.getElementById('iconCount');
+        if (countEl) countEl.textContent = '0';
+
+        // 2. Format ve Tuval Boyutlarını Senkron Ayarla
+        const savedFormat = state.previewFormat || '16:9 Full HD (YouTube/Banner)';
+        const formatEl = document.getElementById('previewFormat');
+        if (formatEl && typeof EXPORT_FORMATS !== 'undefined') {
+            if (savedFormat === 'Orijinal Görsel Boyutu' && state.uploadedImgW && state.uploadedImgH) {
+                if (EXPORT_FORMATS['Orijinal Görsel Boyutu']) {
+                    EXPORT_FORMATS['Orijinal Görsel Boyutu'].w = state.uploadedImgW;
+                    EXPORT_FORMATS['Orijinal Görsel Boyutu'].h = state.uploadedImgH;
+                }
+            }
+            if (EXPORT_FORMATS[savedFormat]) {
+                formatEl.value = savedFormat;
+                const format = EXPORT_FORMATS[savedFormat];
+                if (typeof canvasEl !== 'undefined' && canvasEl) {
+                    canvasEl.style.width = format.w + 'px';
+                    canvasEl.style.height = format.h + 'px';
+                }
+                if (typeof drawCanvas !== 'undefined' && drawCanvas) {
+                    drawCanvas.width = format.w;
+                    drawCanvas.height = format.h;
+                    drawCanvas.style.width = format.w + 'px';
+                    drawCanvas.style.height = format.h + 'px';
+                }
+            }
+        }
+
+        // 3. Mod ve Form Alanlarını Hazırla
+        const modeToRestore = state.currentMode || state.propertyType || 'satilik_daire';
+        if (typeof currentMode !== 'undefined') currentMode = modeToRestore;
+        window.currentMode = modeToRestore;
+
+        if (state.propertyType && typeof window.switchPropertyType === 'function') {
+            window.switchPropertyType(state.propertyType);
+            document.querySelectorAll('.cat-item').forEach(item => item.classList.remove('active'));
+            const targetEl = document.querySelector('.cat-item[onclick*="' + state.propertyType + '"]');
+            if(targetEl) targetEl.classList.add('active');
+        } else if (typeof window.switchMode === 'function') {
+            window.switchMode(modeToRestore);
+        }
+
+        // 4. Form Girdilerini (Inputları) Geri Yükle
         if(state.inputs) {
             Object.keys(state.inputs).forEach(id => {
                 const el = document.getElementById(id);
@@ -354,13 +464,13 @@ async function applyRestoredState(state) {
                     } else {
                         el.value = state.inputs[id];
                     }
-                    el.dispatchEvent(new Event('change', { bubbles: true }));
-                    el.dispatchEvent(new Event('input', { bubbles: true }));
                 }
             });
         }
 
-        if (window.extraFieldsData) {
+        // Dinamik Ekstra Alanları Geri Yükle
+        if (window.extraFieldsData && state.extraFieldsData) {
+            window.extraFieldsData = state.extraFieldsData;
             Object.keys(window.extraFieldsData).forEach(mode => {
                 const c = document.getElementById(mode+'ExtraFields');
                 if(c) {
@@ -381,108 +491,305 @@ async function applyRestoredState(state) {
             });
         }
 
-        if(state.customElements) {
-            state.customElements.forEach(data => {
-                const el = document.createElement('div');
-                if(data.id) el.id = data.id;
-                el.className = data.className;
-                el.innerHTML = data.innerHTML;
-                if(data.style) el.setAttribute('style', data.style);
-                if(data.dataset) {
-                    Object.keys(data.dataset).forEach(k => el.dataset[k] = data.dataset[k]);
-                }
-                const parent = document.getElementById(data.parentId || 'ui-layer');
-                if (parent) parent.appendChild(el);
-                else {
-                    const pl = document.getElementById('photo-layer');
-                    if (pl) pl.appendChild(el);
-                }
-                if (typeof window.makeDraggable === 'function') window.makeDraggable(el);
-                if (el.classList.contains('canvas-el') && typeof window.enableInlineEdit === 'function') window.enableInlineEdit(el);
-                if (el.classList.contains('callout-wrap') && typeof window.rebindSVGCallout === 'function') window.rebindSVGCallout(el);
-                if (el.classList.contains('co-neon-block') && typeof window.rebindNeonCallout === 'function') window.rebindNeonCallout(el);
-                if (el.classList.contains('icon-el') && typeof allIcons !== 'undefined') {
-                    window.allIcons.push(el);
-                }
-            });
-        }
+        // 5. Boyutlar, Çizim Yolları ve Resim Geri Yükleme
+        if (typeof uploadedImgW !== 'undefined') uploadedImgW = state.uploadedImgW || 1920;
+        window.uploadedImgW = state.uploadedImgW || 1920;
         
-        // Re-link DOM elements in drawPaths
-        const activeDrawPaths = typeof drawPaths !== 'undefined' ? drawPaths : (window.drawPaths || []);
-        if (activeDrawPaths && activeDrawPaths.length > 0) {
-            activeDrawPaths.forEach(p => {
-                if (p.elId) p.el = document.getElementById(p.elId);
-            });
-        }
+        if (typeof uploadedImgH !== 'undefined') uploadedImgH = state.uploadedImgH || 1080;
+        window.uploadedImgH = state.uploadedImgH || 1080;
+
+        const activeDrawPaths = state.drawPaths || [];
+        if (typeof drawPaths !== 'undefined') drawPaths = activeDrawPaths;
+        window.drawPaths = activeDrawPaths;
 
         const urlToRestore = state.uploadedImgUrl || '';
         if (typeof uploadedImgUrl !== 'undefined') uploadedImgUrl = urlToRestore;
-        else window.uploadedImgUrl = urlToRestore;
+        window.uploadedImgUrl = urlToRestore;
+        window._globalNativeImgSrc = urlToRestore;
+        if (window._globalNativeImg) window._globalNativeImg.src = urlToRestore;
         
         const pl = document.getElementById('photo-layer');
         if(urlToRestore) {
-            if(pl) pl.style.backgroundImage = "url('" + urlToRestore + "')";
-            if(typeof trackImageSize === 'function') trackImageSize(urlToRestore);
+            if(pl) {
+                pl.style.backgroundImage = "url('" + urlToRestore + "')";
+                pl.style.display = 'block';
+                pl.dataset.naturalW = state.uploadedImgW || 1920;
+                pl.dataset.naturalH = state.uploadedImgH || 1080;
+            }
             const clearBgBtn = document.getElementById('clearBgBtn');
             if (clearBgBtn) clearBgBtn.style.display = 'block';
         } else {
             if(pl) pl.style.backgroundImage = "none";
         }
 
+        // Tuval Arka Plan Rengini Geri Yükle (Fotoğraf yokken seçilen renk)
+        const bgColorToRestore = state.canvasBgColor || (state.inputs && state.inputs['canvasBgColor']) || localStorage.getItem('emlakstudiom_canvasBgColor') || '';
+        if (bgColorToRestore) {
+            const canvasContainer = document.getElementById('canvas-container');
+            if (canvasContainer) canvasContainer.style.setProperty('background-color', bgColorToRestore, 'important');
+            const canvBg = document.getElementById('canvasBgColor');
+            if (canvBg) canvBg.value = bgColorToRestore;
+            const expBg = document.getElementById('exportBgColor');
+            if (expBg) expBg.value = bgColorToRestore;
+        }
+
         const elLogo = document.getElementById('elLogo');
         if(state.logoImgUrl && typeof elLogo !== 'undefined' && elLogo) {
             elLogo.style.backgroundImage = "url('" + state.logoImgUrl + "')";
             elLogo.src = state.logoImgUrl; 
+            elLogo.style.display = 'block';
         }
 
-        const restoredCurrentMode = typeof currentMode !== 'undefined' ? currentMode : window.currentMode;
-        if(typeof switchMode === 'function') switchMode(restoredCurrentMode);
-        
-        const restoredIsCanvaMode = typeof isCanvaMode !== 'undefined' ? isCanvaMode : window.isCanvaMode;
-        const restoredActiveLayout = typeof activeLayout !== 'undefined' ? activeLayout : window.activeLayout;
-        
-        if(restoredIsCanvaMode) {
-            if(typeof refreshActiveCanvaTemplate === 'function') refreshActiveCanvaTemplate();
-        } else {
-            if(restoredActiveLayout) {
-                if(typeof setTemplate === 'function') setTemplate(restoredActiveLayout);
-            } else {
-                if(typeof clearAllTemplates === 'function') clearAllTemplates();
-                const elBadge = document.getElementById('badge');
-                const elPrice = document.getElementById('price');
-                const elDetails = document.getElementById('details');
-                if(elBadge) elBadge.style.visibility='hidden';
-                if(elPrice) elPrice.style.visibility='hidden';
-                if(elDetails) elDetails.style.visibility='hidden';
+        // 6. Şablon Durumu (Canva Şablonu vs Standart Şablon)
+        const isCanva = (state.isCanvaMode === true);
+        const canvaId = state.activeCanvaId || null;
+        const stdLayout = state.activeLayout || null;
+
+        if (typeof isCanvaMode !== 'undefined') isCanvaMode = isCanva;
+        window.isCanvaMode = isCanva;
+
+        if (typeof activeCanvaId !== 'undefined') activeCanvaId = canvaId;
+        window.activeCanvaId = canvaId;
+
+        if (typeof activeLayout !== 'undefined') activeLayout = stdLayout;
+        window.activeLayout = stdLayout;
+
+        if (isCanva && canvaId) {
+            document.querySelectorAll('.normal-el').forEach(el => el.style.visibility = 'hidden');
+            if (typeof refreshActiveCanvaTemplate === 'function') refreshActiveCanvaTemplate();
+        } else if (stdLayout && stdLayout !== 'none' && stdLayout !== 'empty') {
+            document.querySelectorAll('.canva-generated, .canva-panel').forEach(e => e.remove());
+            if (typeof setTemplate === 'function') {
+                setTemplate(stdLayout);
+            } else if (typeof TPL !== 'undefined' && TPL[stdLayout]) {
+                const t = TPL[stdLayout];
+                if (typeof elBadge !== 'undefined' && elBadge && t.badge) applyStylePos(elBadge, t.badge);
+                if (typeof elPrice !== 'undefined' && elPrice && t.price) applyStylePos(elPrice, t.price);
+                if (typeof elDetails !== 'undefined' && elDetails && t.details) applyStylePos(elDetails, t.details);
+                if (typeof elLogo !== 'undefined' && elLogo && t.logo) applyStylePos(elLogo, t.logo);
             }
+            if (typeof elBadge !== 'undefined' && elBadge) { elBadge.style.visibility = 'visible'; elBadge.style.display = 'block'; }
+            if (typeof elPrice !== 'undefined' && elPrice) { elPrice.style.visibility = 'visible'; elPrice.style.display = 'block'; }
+            if (typeof elDetails !== 'undefined' && elDetails) { elDetails.style.visibility = 'visible'; elDetails.style.display = 'block'; }
+            const il = document.getElementById('infoLineText');
+            if (il) { il.style.visibility = 'visible'; il.style.display = 'block'; }
+            document.querySelectorAll('.template-btn').forEach(b => b.classList.toggle('active', b.id === 'tpl-' + stdLayout));
+        } else {
+            if (typeof clearAllTemplates === 'function') clearAllTemplates();
+            if (typeof elBadge !== 'undefined' && elBadge) elBadge.style.visibility = 'hidden';
+            if (typeof elPrice !== 'undefined' && elPrice) elPrice.style.visibility = 'hidden';
+            if (typeof elDetails !== 'undefined' && elDetails) elDetails.style.visibility = 'hidden';
         }
 
+        // 6.1. Global Font Ayarını Geri Yükle
+        const fontToRestore = state.currentFont || localStorage.getItem('emlakstudiom_currentFont') || '';
+        if (fontToRestore) {
+            if (typeof currentFont !== 'undefined') currentFont = fontToRestore;
+            window.currentFont = fontToRestore;
+            const sel = document.getElementById('fontQuickSelect');
+            if (sel) sel.value = fontToRestore;
+            document.querySelectorAll('.font-preview').forEach(x => x.classList.toggle('active', x.dataset.family === fontToRestore));
+            if (typeof applyFontSettings === 'function') applyFontSettings();
+        }
+
+        // 7. Özel Tasarım Elemanlarını Saf Veri Olarak Yeniden Oluştur (100% Temiz & Hatasız)
+        const targetCanvasW = (typeof canvasEl !== 'undefined' && canvasEl && parseInt(canvasEl.style.width)) ? parseInt(canvasEl.style.width) : 1920;
+        const targetCanvasH = (typeof canvasEl !== 'undefined' && canvasEl && parseInt(canvasEl.style.height)) ? parseInt(canvasEl.style.height) : 1080;
+        const uiLayer = document.getElementById('ui-layer') || document.getElementById('canvas-container');
+
+        if (state.customItems && Array.isArray(state.customItems)) {
+            state.customItems.forEach(item => {
+                if (!item || !item.kind) return;
+                
+                if (item.kind === 'icon') {
+                    const icon = document.createElement('div');
+                    icon.className = 'draggable added-icon canvas-el' + (item.isSvg ? ' is-svg-icon' : '');
+                    if (item.isSvg) {
+                        icon.innerHTML = item.char;
+                    } else {
+                        icon.textContent = item.char;
+                    }
+                    icon.dataset.label = item.label || ('İkon: ' + (item.isSvg ? 'SVG' : item.char));
+                    if (item.dataset) {
+                        Object.keys(item.dataset).forEach(k => { icon.dataset[k] = item.dataset[k]; });
+                    }
+                    const posX = typeof item.left !== 'undefined' ? item.left : Math.round(item.xPercent * targetCanvasW);
+                    const posY = typeof item.top !== 'undefined' ? item.top : Math.round(item.yPercent * targetCanvasH);
+                    icon.style.position = 'absolute';
+                    icon.style.left = posX + 'px';
+                    icon.style.top = posY + 'px';
+                    icon.style.fontSize = (item.fontSize || 60) + 'px';
+                    icon.style.padding = item.padding || '0.28em';
+                    icon.style.borderRadius = item.borderRadius || '50%';
+                    icon.style.background = item.background || 'rgba(15,23,42,0.6)';
+                    icon.style.color = item.color || '#ffffff';
+                    icon.style.opacity = '1';
+                    icon.style.border = 'none';
+                    icon.style.zIndex = '10';
+                    icon.style.display = 'inline-flex';
+                    icon.style.alignItems = 'center';
+                    icon.style.justifyContent = 'center';
+                    icon.style.aspectRatio = '1 / 1';
+                    icon.style.lineHeight = '1';
+                    icon.style.textAlign = 'center';
+                    icon.style.visibility = 'visible';
+                    icon.style.boxSizing = 'border-box';
+                    
+                    if (uiLayer) uiLayer.appendChild(icon);
+                    if (typeof bindDrag === 'function') bindDrag(icon);
+                    if (typeof enableInlineEdit === 'function') enableInlineEdit(icon);
+                    if (typeof allIcons !== 'undefined' && Array.isArray(allIcons)) {
+                        allIcons.push(icon);
+                        if (countEl) countEl.textContent = allIcons.length;
+                    }
+                } else if (item.kind === 'text') {
+                    const el = document.createElement('div');
+                    el.className = 'draggable canvas-el';
+                    el.textContent = item.text || 'METİN';
+                    el.dataset.label = item.label || (item.isBox ? 'Özel Kutu' : 'Serbest Yazı');
+                    el.dataset.defaultFont = item.fontSize || '36';
+                    el.dataset.rotation = item.rotation || '0';
+                    if (item.dataset) {
+                        Object.keys(item.dataset).forEach(k => { el.dataset[k] = item.dataset[k]; });
+                    }
+                    const posX = typeof item.left !== 'undefined' ? item.left : Math.round(item.xPercent * targetCanvasW);
+                    const posY = typeof item.top !== 'undefined' ? item.top : Math.round(item.yPercent * targetCanvasH);
+                    el.style.position = 'absolute';
+                    el.style.left = posX + 'px';
+                    el.style.top = posY + 'px';
+                    el.style.fontSize = (item.fontSize || 36) + 'px';
+                    if (item.width) el.style.width = item.width;
+                    if (item.minWidth) el.style.minWidth = item.minWidth;
+                    if (item.maxWidth) el.style.maxWidth = item.maxWidth;
+                    if (item.minHeight) el.style.minHeight = item.minHeight;
+                    if (item.height) el.style.height = item.height;
+                    if (item.padding) el.style.padding = item.padding;
+                    if (item.borderRadius) el.style.borderRadius = item.borderRadius;
+                    if (item.background) el.style.background = item.background;
+                    if (item.color) el.style.color = item.color;
+                    if (item.border) el.style.border = item.border;
+                    if (item.boxShadow) el.style.boxShadow = item.boxShadow;
+                    if (item.textShadow) el.style.textShadow = item.textShadow;
+                    if (item.backdropFilter) el.style.backdropFilter = item.backdropFilter;
+                    if (item.webkitBackdropFilter) el.style.webkitBackdropFilter = item.webkitBackdropFilter;
+                    if (item.fontFamily) el.style.fontFamily = item.fontFamily;
+                    if (item.fontWeight) el.style.fontWeight = item.fontWeight;
+                    if (item.textAlign) el.style.textAlign = item.textAlign;
+                    if (item.whiteSpace) el.style.whiteSpace = item.whiteSpace;
+                    if (item.lineHeight) el.style.lineHeight = item.lineHeight;
+                    if (item.letterSpacing) el.style.letterSpacing = item.letterSpacing;
+                    el.style.zIndex = '9999';
+                    el.style.display = 'block';
+                    el.style.boxSizing = 'border-box';
+                    el.style.overflow = 'visible';
+                    el.style.visibility = 'visible';
+                    
+                    if (uiLayer) uiLayer.appendChild(el);
+                    if (typeof bindDrag === 'function') bindDrag(el);
+                    if (typeof enableInlineEdit === 'function') enableInlineEdit(el);
+                    el.addEventListener('dblclick', () => {
+                        if (typeof switchTab === 'function') switchTab('element');
+                    });
+                } else if (item.kind === 'callout') {
+                    const workArea = document.getElementById('canvas-container') || document.getElementById('workArea');
+                    if (workArea && item.html) {
+                        const wrap = document.createElement('div');
+                        wrap.className = item.isNeon ? 'co-neon-block draggable' : 'callout-wrap svg-callout draggable';
+                        wrap.innerHTML = item.html;
+                        const posX = typeof item.left !== 'undefined' ? item.left : Math.round(item.xPercent * targetCanvasW);
+                        const posY = typeof item.top !== 'undefined' ? item.top : Math.round(item.yPercent * targetCanvasH);
+                        wrap.style.position = 'absolute';
+                        wrap.style.left = posX + 'px';
+                        wrap.style.top = posY + 'px';
+                        wrap.style.width = (item.width || 240) + 'px';
+                        wrap.style.height = (item.height || 120) + 'px';
+                        wrap.style.transform = `rotate(${item.rotation || 0}deg) scale(${item.scale || 1.0})`;
+                        wrap.style.zIndex = '500';
+                        wrap.style.cursor = 'move';
+                        wrap.style.display = 'block';
+                        wrap.style.visibility = 'visible';
+
+                        wrap.dataset.origCanvasW = targetCanvasW;
+                        wrap.dataset.origCanvasH = targetCanvasH;
+                        wrap.dataset.userScale = item.userScale || item.scale || 1.0;
+                        wrap.dataset.scale = item.scale || 1.0;
+                        wrap.dataset.rotation = item.rotation || 0;
+                        if (item.dataset) {
+                            Object.keys(item.dataset).forEach(k => { wrap.dataset[k] = item.dataset[k]; });
+                        }
+
+                        workArea.appendChild(wrap);
+                        if (!item.isNeon && typeof window.rebindSVGCallout === 'function') {
+                            window.rebindSVGCallout(wrap);
+                        } else if (item.isNeon && typeof window.rebindNeonCallout === 'function') {
+                            window.rebindNeonCallout(wrap);
+                        }
+                    }
+                }
+            });
+        }
+        
+        // Re-link DOM elements in drawPaths
+        if (activeDrawPaths && activeDrawPaths.length > 0) {
+            activeDrawPaths.forEach(p => {
+                if (p.elId) p.el = document.getElementById(p.elId);
+            });
+        }
+
+        // 7.1. İlana Hazır Ögeler (Smart Suggestions) Geri Yükleme
+        if (state.lastParsedData) window.lastParsedData = state.lastParsedData;
+        window.smartBadges = (state.smartBadges && Array.isArray(state.smartBadges)) ? state.smartBadges : [];
+        window.smartMatchedCallouts = (state.smartMatchedCallouts && Array.isArray(state.smartMatchedCallouts)) ? state.smartMatchedCallouts : [];
+        window.smartMatchedIcons = (state.smartMatchedIcons && Array.isArray(state.smartMatchedIcons)) ? state.smartMatchedIcons : [];
+        window.smartDefaultFramedText = state.smartDefaultFramedText || '';
+
+        if (typeof window.renderSmartSuggestionsUI === 'function') {
+            window.renderSmartSuggestionsUI();
+        }
+
+        // 8. Render & Redraw Güncellemeleri
         if(typeof renderData === 'function') renderData();
+        if(typeof applyPhotoPos === 'function') applyPhotoPos();
+        if(typeof resizeCanvas === 'function') resizeCanvas();
         if(typeof redrawAll === 'function') redrawAll();
         if(typeof updateDrawHistory === 'function') updateDrawHistory();
+        if(typeof window.renderLayers === 'function') window.renderLayers();
+        if(fontToRestore && typeof applyFontSettings === 'function') applyFontSettings();
+        if(typeof window.resetCanvasZoom === 'function') window.resetCanvasZoom();
 
-        // Optional: show success toast
         showAutoSaveIndicator();
-        document.getElementById('autosave-indicator').innerHTML = '✓ Çalışmanız geri yüklendi';
+        const autoInd = document.getElementById('autosave-indicator');
+        if (autoInd) autoInd.innerHTML = '✓ Çalışmanız geri yüklendi';
 
     } catch(e) {
         console.error("AutoSave Restore error:", e);
         alert("Kurtarma başarısız: " + e.message);
     } finally {
-        window.isRestoringState = false;
+        setTimeout(() => {
+            if (typeof window.hideAppLoading === 'function') {
+                window.hideAppLoading();
+            } else if (typeof hideExportLoading === 'function') {
+                hideExportLoading();
+            }
+            setTimeout(() => {
+                window.isRestoringState = false;
+            }, 200);
+        }, 500);
     }
 }
 
 function showRecoveryModal(savedData) {
     const modalHtml = `
-        <div id="recoveryModal" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.9); z-index:9999999; display:flex; align-items:center; justify-content:center; backdrop-filter:blur(5px);">
-            <div style="background:#1e293b; border:1px solid #334155; border-radius:12px; padding:25px; max-width:400px; text-align:center; box-shadow:0 25px 50px -12px rgba(0,0,0,0.5);">
-                <div style="font-size:40px; margin-bottom:15px;">🕒</div>
-                <h3 style="color:#fff; margin:0 0 10px 0; font-family:'Space Grotesk',sans-serif;">Yarım Kalan Çalışmanız Var</h3>
-                <p style="color:#94a3b8; font-size:14px; margin-bottom:20px; line-height:1.5;">Beklenmedik bir kapanma veya yenileme tespiti yaptık. En son kaldığınız yerden devam etmek ister misiniz?</p>
-                <div style="display:flex; gap:10px;">
-                    <button id="btnRecover" style="flex:1; background:#3b82f6; color:#fff; border:none; padding:12px; border-radius:6px; font-weight:bold; cursor:pointer;">Evet, Geri Yükle</button>
-                    <button id="btnDiscard" style="flex:1; background:#475569; color:#cbd5e1; border:none; padding:12px; border-radius:6px; font-weight:bold; cursor:pointer;">Hayır, Temizle</button>
+        <div id="recoveryModal" style="position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(10,14,26,0.96); z-index:99999999; display:flex; align-items:center; justify-content:center; backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px);">
+            <div class="export-loader-card" style="max-width:420px; padding:32px 36px; text-align:center; border:1px solid rgba(0,210,255,0.35); box-shadow:0 25px 60px rgba(0,0,0,0.85), 0 0 35px rgba(0,210,255,0.2); border-radius:20px; background:rgba(18,22,38,0.95); animation:loaderPopIn 0.22s cubic-bezier(0.16, 1, 0.3, 1);">
+                <div style="width:58px; height:58px; border-radius:50%; background:rgba(0,210,255,0.1); border:1.5px solid rgba(0,210,255,0.4); display:flex; align-items:center; justify-content:center; margin:0 auto 16px; box-shadow:0 0 20px rgba(0,210,255,0.25);">
+                    <i class="fa-solid fa-clock-rotate-left" style="font-size:24px; color:#00d2ff;"></i>
+                </div>
+                <h3 style="color:#ffffff; margin:0 0 8px 0; font-size:18px; font-weight:700; letter-spacing:-0.2px; font-family:'Plus Jakarta Sans','Space Grotesk',sans-serif;">Yarım Kalan Çalışmanız Var</h3>
+                <p style="color:#94a3b8; font-size:13.5px; margin:0 0 24px 0; line-height:1.55;">Önceki oturumunuzdan kaydedilmiş bir taslak bulundu. Kaldığınız yerden devam etmek ister misiniz?</p>
+                <div style="display:flex; gap:12px; width:100%;">
+                    <button id="btnRecover" style="flex:1; background:linear-gradient(135deg, #0ea5e9, #6366f1); color:#fff; border:none; padding:12px 16px; border-radius:10px; font-weight:700; font-size:13px; cursor:pointer; box-shadow:0 8px 20px rgba(14,165,233,0.35); transition:all 0.2s;">✨ Evet, Geri Yükle</button>
+                    <button id="btnDiscard" style="flex:1; background:rgba(30,41,59,0.85); color:#cbd5e1; border:1px solid rgba(255,255,255,0.12); padding:12px 16px; border-radius:10px; font-weight:600; font-size:13px; cursor:pointer; transition:all 0.2s;">🗑️ Hayır, Temizle</button>
                 </div>
             </div>
         </div>
@@ -491,17 +798,39 @@ function showRecoveryModal(savedData) {
     document.body.insertAdjacentHTML('beforeend', modalHtml);
     
     document.getElementById('btnRecover').onclick = async () => {
-        document.getElementById('recoveryModal').remove();
+        // 1. Önce ANINDA yeni şık yükleme ekranını aç
+        if (typeof window.showAppLoading === 'function') {
+            window.showAppLoading('Çalışmanız Yükleniyor...', 'Lütfen bekleyin, tasarım ve katmanlar hazırlanıyor...');
+        } else if (typeof showExportLoading === 'function') {
+            showExportLoading('Çalışmanız Yükleniyor...', 'Lütfen bekleyin, tasarım ve katmanlar hazırlanıyor...');
+        }
+        
+        // 2. Modalı kaldır
+        const modal = document.getElementById('recoveryModal');
+        if (modal) modal.remove();
+        
+        await new Promise(r => setTimeout(r, 60));
+        
+        // 3. Durumu geri yükle
         await applyRestoredState(savedData.state);
-        // Start auto saving again
+        
+        // 4. Otomatik kaydı tekrar başlat
         startAutoSaveTimer();
     };
     
     document.getElementById('btnDiscard').onclick = async () => {
-        document.getElementById('recoveryModal').remove();
+        if (typeof window.showAppLoading === 'function') {
+            window.showAppLoading('Yeni Çalışma Başlatılıyor...', 'Tuval ve alanlar sıfırlanıyor...');
+        }
+        const modal = document.getElementById('recoveryModal');
+        if (modal) modal.remove();
         await deleteStateFromDB();
-        // Start auto saving again
         startAutoSaveTimer();
+        setTimeout(() => {
+            if (typeof window.hideAppLoading === 'function') {
+                window.hideAppLoading(150);
+            }
+        }, 300);
     };
 }
 
@@ -535,6 +864,18 @@ if (document.readyState === 'loading') {
 } else {
     bootAutoSave();
 }
+
+window.addEventListener('beforeunload', () => {
+    if (!window.isRestoringState && typeof performAutoSave === 'function') {
+        performAutoSave();
+    }
+});
+
+window.addEventListener('pagehide', () => {
+    if (!window.isRestoringState && typeof performAutoSave === 'function') {
+        performAutoSave();
+    }
+});
 
 
 

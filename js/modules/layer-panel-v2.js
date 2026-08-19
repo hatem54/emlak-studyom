@@ -66,9 +66,9 @@
     ════════════════════════════════════════ */
     function getMeta(el) {
         if (el.classList.contains('callout-wrap') || el.classList.contains('svg-callout'))
-            return { icon: '💬', label: el.dataset.layerName || 'Callout: Şekil' };
+            return { icon: '🏷️', label: el.dataset.layerName || 'Rozet: Şekil' };
         if (el.classList.contains('co-neon-block'))
-            return { icon: '✨', label: el.dataset.layerName || ('Callout: ' + el.textContent.trim().substring(0, 15)) };
+            return { icon: '✨', label: el.dataset.layerName || ('Rozet: ' + el.textContent.trim().substring(0, 15)) };
         if (el.classList.contains('icon-wrap') || el.classList.contains('icon-item') ||
             (el.tagName === 'I' && el.classList.contains('canvas-el')))
             return { icon: '⭐', label: el.dataset.layerName || el.dataset.label || 'İkon' };
@@ -228,7 +228,7 @@
                 this.listEl.innerHTML = `
 <div class="lp-empty">
   <i class="fa-solid fa-layer-group"></i>
-  <span>Henüz nesne eklenmedi.<br>Callout, ikon veya yazı ekleyin.</span>
+  <span>Henüz nesne eklenmedi.<br>Rozet, ikon veya yazı ekleyin.</span>
 </div>`;
                 return;
             }

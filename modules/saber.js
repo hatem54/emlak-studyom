@@ -898,7 +898,7 @@ window.SaberEngine = (function() {
         }
 
         const computed = window.getComputedStyle(el);
-        const sf = (typeof scaleFactor !== 'undefined' ? scaleFactor : 1) || 1;
+        const sf = (typeof window.getGlobalScale === 'function' ? window.getGlobalScale() : 1);
         
         // Basic style extraction
         const fontSize = parseFloat(computed.fontSize);

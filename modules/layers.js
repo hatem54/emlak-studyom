@@ -111,20 +111,77 @@ window.layerToggleLock = function(uid, isDrawPath = false, pathIndex = 0) {
         }
         return;
     }
+
+    if (uid === 'photo-layer') {
+        const photoToggle = document.getElementById('photoLockToggle');
+        const isLocked = photoToggle ? photoToggle.checked : (window.isPhotoLocked === true);
+        const newState = !isLocked;
+        window.isPhotoLocked = newState;
+        if (photoToggle) photoToggle.checked = newState;
+        const pl = document.getElementById('photo-layer');
+        if (pl) pl.dataset.locked = newState ? 'true' : 'false';
+        window.renderLayers();
+        return;
+    }
+
     const el = document.querySelector('[data-layer-uid="' + uid + '"]');
     if (!el) return;
     
     if (el.dataset.locked === 'true') {
         el.dataset.locked = 'false';
         el.classList.remove('locked-el');
-        if (el.style.pointerEvents === 'none') el.style.pointerEvents = 'auto'; // Unlock fallback
+        el.style.pointerEvents = 'auto';
+        const inner = el.querySelector('.callout-item, .callout-svg-container, .co-neon-block');
+        if (inner) {
+            inner.dataset.locked = 'false';
+            inner.style.pointerEvents = 'auto';
+        }
+        const lockBtn = el.querySelector('.callout-lock-btn');
+        if (lockBtn) {
+            lockBtn.style.background = '#1e2238';
+            lockBtn.title = 'Kilitle';
+            lockBtn.classList.remove('is-locked');
+            lockBtn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="display:block; pointer-events:none;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 9.9-1"></path></svg>';
+        }
+        const textLock = el.querySelector('.text-lock-handle');
+        if (textLock) {
+            textLock.title = 'Kilitle';
+            textLock.classList.remove('is-locked');
+            textLock.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="display:block; pointer-events:none;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 9.9-1"></path></svg>';
+        }
+
     } else {
         el.dataset.locked = 'true';
         el.classList.add('locked-el');
-        // Do not set pointer-events: none, otherwise on-canvas handles become unclickable
+        el.style.pointerEvents = 'none';
+        const inner = el.querySelector('.callout-item, .callout-svg-container, .co-neon-block');
+        if (inner) {
+            inner.dataset.locked = 'true';
+            inner.style.pointerEvents = 'none';
+        }
+        
+        // Hide other handles immediately
+        el.querySelectorAll('.callout-controls, .callout-resizer, .callout-rotator, .callout-select-border, .text-resize-handle, .text-delete-handle, .text-rotate-handle, .vertex-handle').forEach(c => c.style.display = 'none');
+        
+        const lockBtn = el.querySelector('.callout-lock-btn');
+        if (lockBtn) {
+            lockBtn.style.background = '#1e2238';
+            lockBtn.title = 'Kilidi Aç';
+            lockBtn.classList.add('is-locked');
+            lockBtn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="display:block; pointer-events:none;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>';
+            lockBtn.style.display = 'flex';
+            lockBtn.style.pointerEvents = 'auto';
+        }
+        const textLock = el.querySelector('.text-lock-handle');
+        if (textLock) {
+            textLock.title = 'Kilidi Aç';
+            textLock.classList.add('is-locked');
+            textLock.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="display:block; pointer-events:none;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>';
+        }
         
         // Deselect if locked
-        // if (typeof window.deselectAll === 'function') window.deselectAll();
+        if (typeof window.deselectAll === 'function') window.deselectAll();
+        if (typeof closeCalloutPanel === 'function') closeCalloutPanel();
     }
     window.renderLayers();
 };
@@ -135,12 +192,11 @@ window.layerSelect = function(uid, event, isDoubleClick) {
     
     if (uid.startsWith('draw_')) {
         let drawIndex = parseInt(uid.split('_')[1]);
-        // if (typeof switchTab === 'function') switchTab('draw'); // Removed per user request
-        if (typeof startDrawEdit === 'function') {
-            startDrawEdit(drawIndex);
-        } else if (typeof window.startDrawEdit === 'function') {
-            window.startDrawEdit(drawIndex);
+        if (typeof editingDrawIndex !== 'undefined') editingDrawIndex = drawIndex;
+        if (typeof drawPaths !== 'undefined' && drawPaths[drawIndex] && drawPaths[drawIndex].el) {
+            if (typeof window.selectElement === 'function') window.selectElement(drawPaths[drawIndex].el, false, true);
         }
+        if (typeof updateDrawHistory === 'function') updateDrawHistory();
         window.renderLayers();
         return;
     }
@@ -269,7 +325,11 @@ window.renderLayers = function() {
     const photoLayer = document.getElementById('photo-layer');
     if (photoLayer) {
         const isHidden = photoLayer.dataset.hiddenLayer === 'true';
+        const photoToggle = document.getElementById('photoLockToggle');
+        const isLocked = photoToggle ? photoToggle.checked : (window.isPhotoLocked === true);
         const eyeClass = isHidden ? 'fa-eye-slash' : 'fa-eye';
+        const lockClass = isLocked ? 'fa-lock' : 'fa-lock-open';
+        const lockColor = isLocked ? '#ef4444' : 'var(--text-muted)';
         const nameStyle = isHidden ? 'text-decoration: line-through; opacity: 0.5;' : '';
         
         html += `
@@ -277,10 +337,11 @@ window.renderLayers = function() {
              style="display:flex; justify-content:space-between; align-items:center; background:var(--dark-3); border:1px solid rgba(108,92,231,0.2); padding:10px 12px; border-radius:6px; margin-bottom: 5px; cursor:default;" >
             <div style="display:flex; align-items:center; gap:8px; overflow:hidden;">
                 <i class="fas fa-image" style="color:var(--text-muted); font-size:12px;"></i>
-                <span style="font-size:13px; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; ${nameStyle}">Ana Fotograf Paneli</span>
+                <span style="font-size:13px; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; ${nameStyle}">Ana Fotoğraf Paneli</span>
             </div>
             <div style="display:flex; gap:10px; align-items:center;" onclick="event.stopPropagation();">
-                <i class="fas ${eyeClass}" style="cursor:pointer;" onclick="window.layerToggleVisibility('photo-layer')" title="Gizle/Goster"></i>
+                <i class="fas ${eyeClass}" style="cursor:pointer;" onclick="window.layerToggleVisibility('photo-layer')" title="Gizle/Göster"></i>
+                <i class="fas ${lockClass}" style="cursor:pointer; color:${lockColor};" onclick="window.layerToggleLock('photo-layer')" title="Kilitle / Aç"></i>
             </div>
         </div>`;
     }

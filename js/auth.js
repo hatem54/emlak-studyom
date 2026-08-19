@@ -23,12 +23,29 @@ function closeModal() {
 function switchForm(type) {
   const loginForm = document.getElementById('loginForm');
   const registerForm = document.getElementById('registerForm');
+  const forgotForm = document.getElementById('forgotPasswordForm');
+  const resetForm = document.getElementById('resetPasswordForm');
+  
+  if (loginForm) loginForm.style.display = 'none';
+  if (registerForm) registerForm.style.display = 'none';
+  if (forgotForm) forgotForm.style.display = 'none';
+  if (resetForm) resetForm.style.display = 'none';
+
   if (type === 'login') {
     if (loginForm) loginForm.style.display = 'block';
-    if (registerForm) registerForm.style.display = 'none';
-  } else {
-    if (loginForm) loginForm.style.display = 'none';
+  } else if (type === 'register') {
     if (registerForm) registerForm.style.display = 'block';
+  } else if (type === 'forgot') {
+    if (forgotForm) {
+      forgotForm.style.display = 'block';
+      const loginEmail = document.getElementById('loginEmail');
+      const forgotEmail = document.getElementById('forgotEmail');
+      if (loginEmail && forgotEmail && loginEmail.value.trim() && !forgotEmail.value.trim()) {
+        forgotEmail.value = loginEmail.value.trim();
+      }
+    }
+  } else if (type === 'reset') {
+    if (resetForm) resetForm.style.display = 'block';
   }
 }
 
@@ -53,34 +70,39 @@ function showToast(message, type = 'info') {
 
 // KAYIT İŞLEMİ
 async function handleRegister(event) {
-  event.preventDefault();
+  if (event && event.preventDefault) event.preventDefault();
   
-  const form = document.getElementById('registerForm');
-  const nameInput = form.querySelector('input[type="text"]');
-  const emailInput = form.querySelector('input[type="email"]');
-  const passwordInput = form.querySelector('input[type="password"]');
+  const nameInput = document.getElementById('registerName') || document.querySelector('#registerForm input[type="text"]');
+  const emailInput = document.getElementById('registerEmail') || document.querySelector('#registerForm input[type="email"]');
+  const passwordInput = document.getElementById('registerPassword') || document.querySelector('#registerForm input[type="password"], #registerForm input[type="text"]:not(#registerName)');
   
-  const fullName = nameInput.value.trim();
-  const email = emailInput.value.trim();
-  const password = passwordInput.value;
+  const fullName = nameInput ? nameInput.value.trim() : '';
+  const email = emailInput ? emailInput.value.trim() : '';
+  const password = passwordInput ? passwordInput.value : '';
   
   if (!fullName || !email || !password) {
-    showToast('Tüm alanları doldurun', 'error');
+    showToast('Lütfen tüm alanları doldurun', 'error');
     return;
   }
   
   if (password.length < 6) {
-    showToast('Şifre en az 6 karakter olmalı', 'error');
+    showToast('Şifre en az 6 karakter olmalıdır', 'error');
     return;
   }
   
-  const btn = form.querySelector('.btn-submit');
-  const originalText = btn.textContent;
-  btn.textContent = 'Kayıt yapılıyor...';
-  btn.disabled = true;
+  const form = document.getElementById('registerForm');
+  const btn = form ? form.querySelector('.btn-submit') : null;
+  const originalText = btn ? btn.textContent : 'Ücretsiz Başla';
+  if (btn) {
+    btn.textContent = 'Kayıt yapılıyor...';
+    btn.disabled = true;
+  }
   
   try {
-    const { data, error } = await window.supabaseClient.auth.signUp({
+    const client = window.supabaseClient || (typeof initSupabase === 'function' ? initSupabase() : null);
+    if (!client) throw new Error('Veritabanı bağlantısı kurulamadı. Lütfen sayfayı yenileyin.');
+
+    const { data, error } = await client.auth.signUp({
       email: email,
       password: password,
       options: {
@@ -95,38 +117,45 @@ async function handleRegister(event) {
   } catch (error) {
     console.error('Kayıt hatası:', error);
     let msg = 'Kayıt sırasında hata oluştu';
-    if (error.message.includes('already registered')) msg = 'Bu email zaten kayıtlı';
-    if (error.message.includes('valid email')) msg = 'Geçerli bir email girin';
+    if (error.message && error.message.includes('already registered')) msg = 'Bu e-posta zaten kayıtlı';
+    if (error.message && error.message.includes('valid email')) msg = 'Geçerli bir e-posta girin';
     showToast(msg, 'error');
   } finally {
-    btn.textContent = originalText;
-    btn.disabled = false;
+    if (btn) {
+      btn.textContent = originalText;
+      btn.disabled = false;
+    }
   }
 }
 
 // GİRİŞ İŞLEMİ
 async function handleLogin(event) {
-  event.preventDefault();
+  if (event && event.preventDefault) event.preventDefault();
   
-  const form = document.getElementById('loginForm');
-  const emailInput = form.querySelector('input[type="email"]');
-  const passwordInput = form.querySelector('input[type="password"]');
+  const emailInput = document.getElementById('loginEmail') || document.querySelector('#loginForm input[type="email"]');
+  const passwordInput = document.getElementById('loginPassword') || document.querySelector('#loginForm input[type="password"], #loginForm input[type="text"]');
   
-  const email = emailInput.value.trim();
-  const password = passwordInput.value;
+  const email = emailInput ? emailInput.value.trim() : '';
+  const password = passwordInput ? passwordInput.value : '';
   
   if (!email || !password) {
-    showToast('Email ve şifre girin', 'error');
+    showToast('Lütfen e-posta ve şifrenizi girin', 'error');
     return;
   }
   
-  const btn = form.querySelector('.btn-submit');
-  const originalText = btn.textContent;
-  btn.textContent = 'Giriş yapılıyor...';
-  btn.disabled = true;
+  const form = document.getElementById('loginForm');
+  const btn = form ? form.querySelector('.btn-submit') : null;
+  const originalText = btn ? btn.textContent : 'Giriş Yap';
+  if (btn) {
+    btn.textContent = 'Giriş yapılıyor...';
+    btn.disabled = true;
+  }
   
   try {
-    const { data, error } = await window.supabaseClient.auth.signInWithPassword({
+    const client = window.supabaseClient || (typeof initSupabase === 'function' ? initSupabase() : null);
+    if (!client) throw new Error('Veritabanı bağlantısı kurulamadı. Lütfen sayfayı yenileyin.');
+
+    const { data, error } = await client.auth.signInWithPassword({
       email: email,
       password: password
     });
@@ -136,20 +165,126 @@ async function handleLogin(event) {
     showToast('✅ Giriş başarılı! Yönlendiriliyorsunuz...', 'success');
     setTimeout(() => {
       window.location.href = 'app.html?mode=pro';
-    }, 1500);
+    }, 1000);
     
   } catch (error) {
     console.error('Giriş hatası:', error);
-    let msg = 'Giriş sırasında hata oluştu';
-    if (error.message.includes('Invalid login')) msg = 'Email veya şifre hatalı';
-    if (error.message.includes('Email not confirmed')) {
-        showEmailNotConfirmedModal(email);
-        return;
+    let msg = error.message || 'Giriş sırasında hata oluştu';
+    if (msg.includes('Invalid login') || msg.includes('invalid_credentials')) {
+      msg = 'E-posta veya şifre hatalı';
+    } else if (msg.includes('Email not confirmed')) {
+      showEmailNotConfirmedModal(email);
+      return;
     }
     showToast(msg, 'error');
   } finally {
-    btn.textContent = originalText;
-    btn.disabled = false;
+    if (btn) {
+      btn.textContent = originalText;
+      btn.disabled = false;
+    }
+  }
+}
+
+// ŞİFREMİ UNUTTUM (SIFIRLAMA BAĞLANTISI GÖNDER)
+async function handleForgotPassword(event) {
+  if (event && event.preventDefault) event.preventDefault();
+  
+  const emailInput = document.getElementById('forgotEmail');
+  const email = emailInput ? emailInput.value.trim() : '';
+  
+  if (!email) {
+    showToast('Lütfen e-posta adresinizi girin', 'error');
+    return;
+  }
+  
+  const form = document.getElementById('forgotPasswordForm');
+  const btn = form ? form.querySelector('.btn-submit') : null;
+  const origText = btn ? btn.textContent : 'Sıfırlama Bağlantısı Gönder';
+  if (btn) {
+    btn.textContent = 'Gönderiliyor...';
+    btn.disabled = true;
+  }
+  
+  try {
+    const client = window.supabaseClient || (typeof initSupabase === 'function' ? initSupabase() : null);
+    if (!client) throw new Error('Veritabanı bağlantısı kurulamadı. Lütfen sayfayı yenileyin.');
+    
+    const currentUrl = window.location.href.split('#')[0].split('?')[0];
+    const { data, error } = await client.auth.resetPasswordForEmail(email, {
+      redirectTo: currentUrl
+    });
+    
+    if (error) throw error;
+    
+    showToast('📧 Şifre sıfırlama bağlantısı e-postanıza gönderildi! Lütfen gelen ve spam kutunuzu kontrol edin.', 'success');
+    
+    setTimeout(() => {
+      switchForm('login');
+    }, 4000);
+    
+  } catch (error) {
+    console.error('Şifre sıfırlama hatası:', error);
+    let msg = error.message || 'Sıfırlama bağlantısı gönderilemedi';
+    if (msg.includes('rate limit')) msg = 'Çok fazla istek gönderildi. Lütfen biraz bekleyin.';
+    showToast(msg, 'error');
+  } finally {
+    if (btn) {
+      btn.textContent = origText;
+      btn.disabled = false;
+    }
+  }
+}
+
+// YENİ ŞİFRE BELİRLEME (RECOVERY SONRASI)
+async function handleUpdatePassword(event) {
+  if (event && event.preventDefault) event.preventDefault();
+  
+  const newPassInput = document.getElementById('newPassword');
+  const newPassConfirmInput = document.getElementById('newPasswordConfirm');
+  
+  const newPass = newPassInput ? newPassInput.value : '';
+  const newPassConfirm = newPassConfirmInput ? newPassConfirmInput.value : '';
+  
+  if (!newPass || newPass.length < 6) {
+    showToast('Şifre en az 6 karakter olmalıdır', 'error');
+    return;
+  }
+  if (newPass !== newPassConfirm) {
+    showToast('Girdiğiniz şifreler birbiriyle eşleşmiyor', 'error');
+    return;
+  }
+  
+  const form = document.getElementById('resetPasswordForm');
+  const btn = form ? form.querySelector('.btn-submit') : null;
+  const origText = btn ? btn.textContent : 'Şifreyi Güncelle ve Giriş Yap';
+  if (btn) {
+    btn.textContent = 'Güncelleniyor...';
+    btn.disabled = true;
+  }
+  
+  try {
+    const client = window.supabaseClient || (typeof initSupabase === 'function' ? initSupabase() : null);
+    if (!client) throw new Error('Veritabanı bağlantısı kurulamadı.');
+    
+    const { data, error } = await client.auth.updateUser({
+      password: newPass
+    });
+    
+    if (error) throw error;
+    
+    showToast('🎉 Şifreniz başarıyla güncellendi! Yönlendiriliyorsunuz...', 'success');
+    setTimeout(() => {
+      window.location.href = 'app.html?mode=pro';
+    }, 1500);
+    
+  } catch (error) {
+    console.error('Şifre güncelleme hatası:', error);
+    showToast(error.message || 'Şifre güncellenemedi', 'error');
+  } finally {
+    if (btn) {
+      btn.textContent = origText;
+      btn.disabled = false;
+    }
   }
 }
 
@@ -164,7 +299,26 @@ window.closeModal = closeModal;
 window.switchForm = switchForm;
 window.handleRegister = handleRegister;
 window.handleLogin = handleLogin;
+window.handleForgotPassword = handleForgotPassword;
+window.handleUpdatePassword = handleUpdatePassword;
 window.goToDemo = goToDemo;
+
+// Recovery bağlantısı dinleyicisi
+window.addEventListener('DOMContentLoaded', () => {
+  const client = window.supabaseClient || (typeof initSupabase === 'function' ? initSupabase() : null);
+  if (client) {
+    client.auth.onAuthStateChange((event, session) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        openModal('reset');
+      }
+    });
+  }
+  if (window.location.hash && (window.location.hash.includes('type=recovery') || window.location.hash.includes('access_token'))) {
+    setTimeout(() => {
+      openModal('reset');
+    }, 400);
+  }
+});
 
 console.log('✅ Auth sistemi yüklendi');
 
@@ -368,21 +522,24 @@ function showEmailNotConfirmedModal(email) {
     document.body.appendChild(overlay);
 }
 
-window.showEmailNotConfirmedModal = showEmailNotConfirmedModal;
-
 // Şifre göster/gizle
-function togglePasswordVisibility(btn) {
-    const wrapper = btn.parentElement;
+function togglePasswordVisibility(btn, event) {
+    if (event) {
+        if (typeof event.preventDefault === 'function') event.preventDefault();
+        if (typeof event.stopPropagation === 'function') event.stopPropagation();
+    }
+    const wrapper = btn ? btn.parentElement : null;
+    if (!wrapper) return;
     const input = wrapper.querySelector('input');
     if (!input) return;
     
-    if (input.type === 'password') {
-        input.type = 'text';
-        btn.textContent = '🙈';
-    } else {
-        input.type = 'password';
-        btn.textContent = '👁️';
-    }
+    const val = input.value;
+    const isPassword = (input.type === 'password');
+    input.type = isPassword ? 'text' : 'password';
+    input.value = val;
+    
+    btn.textContent = isPassword ? '🙈' : '👁️';
+    btn.setAttribute('aria-label', isPassword ? 'Şifreyi gizle' : 'Şifreyi göster');
 }
 
 window.togglePasswordVisibility = togglePasswordVisibility;

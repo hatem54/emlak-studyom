@@ -63,51 +63,27 @@ function drawSinglePath(p){
 
     drawCtx.save();
     let tParams = null;
-    if(p.photoRef && uploadedImgW > 0) {
-        const pl = getActiveV4Element();
-        const activePanel = getActivePhotoPanel();
-        
-        let currObj;
-        if(pl && pl.dataset.zpReady === '1') {
-            currObj = { 
-                v4: true, 
-                z: parseFloat(pl.dataset.zpScale)||1, 
-                px: parseFloat(pl.dataset.zpX)||0, 
-                py: parseFloat(pl.dataset.zpY)||0,
-                panelW: activePanel.w,
-                panelH: activePanel.h,
-                panelL: activePanel.left,
-                panelT: activePanel.top
-            , sliderX: parseFloat(document.getElementById('photoXCtrl') ? document.getElementById('photoXCtrl').value : 50), sliderY: parseFloat(document.getElementById('photoYCtrl') ? document.getElementById('photoYCtrl').value : 50)
-              };
-        } else {
-            currObj = { 
-                v4: false, 
-                z: parseInt(document.getElementById('photoZoomCtrl') ? document.getElementById('photoZoomCtrl').value : 100), 
-                px: parseFloat(document.getElementById('photoXCtrl') ? document.getElementById('photoXCtrl').value : 50), 
-                py: parseFloat(document.getElementById('photoYCtrl') ? document.getElementById('photoYCtrl').value : 50),
-                panelW: activePanel.w,
-                panelH: activePanel.h,
-                panelL: activePanel.left,
-                panelT: activePanel.top
-            , sliderX: parseFloat(document.getElementById('photoXCtrl') ? document.getElementById('photoXCtrl').value : 50), sliderY: parseFloat(document.getElementById('photoYCtrl') ? document.getElementById('photoYCtrl').value : 50)
-              };
-        }
-        
-        if(currObj.z !== p.photoRef.z || 
-             currObj.px !== p.photoRef.px || 
-             currObj.py !== p.photoRef.py ||
-             currObj.sliderX !== p.photoRef.sliderX ||
-             currObj.sliderY !== p.photoRef.sliderY ||
-             currObj.extraZ !== p.photoRef.extraZ ||
-             currObj.extraPx !== p.photoRef.extraPx ||
-             currObj.extraPy !== p.photoRef.extraPy ||
-           currObj.panelW !== p.photoRef.panelW ||
-           currObj.panelH !== p.photoRef.panelH ||
-           currObj.panelL !== p.photoRef.panelL ||
-           currObj.panelT !== p.photoRef.panelT ||
-           currObj.v4 !== p.photoRef.v4) {
-            tParams = calculateTransformParams(p.photoRef, currObj);
+    if(p.photoRef && (typeof uploadedImgW !== 'undefined' ? uploadedImgW : 1920) > 0) {
+        const currObj = typeof window.getCurrentPhotoState === 'function' ? window.getCurrentPhotoState() : null;
+        if (currObj) {
+            const hasChanged = 
+                currObj.z !== p.photoRef.z || 
+                currObj.px !== p.photoRef.px || 
+                currObj.py !== p.photoRef.py ||
+                currObj.sliderX !== p.photoRef.sliderX ||
+                currObj.sliderY !== p.photoRef.sliderY ||
+                (currObj.extraZ || 1) !== (p.photoRef.extraZ || 1) ||
+                (currObj.extraPx || 0) !== (p.photoRef.extraPx || 0) ||
+                (currObj.extraPy || 0) !== (p.photoRef.extraPy || 0) ||
+                currObj.panelW !== p.photoRef.panelW ||
+                currObj.panelH !== p.photoRef.panelH ||
+                currObj.panelL !== p.photoRef.panelL ||
+                currObj.panelT !== p.photoRef.panelT ||
+                currObj.v4 !== p.photoRef.v4;
+
+            if (hasChanged && typeof calculateTransformParams === 'function') {
+                tParams = calculateTransformParams(p.photoRef, currObj);
+            }
         }
     }
     
@@ -179,7 +155,7 @@ function drawSinglePath(p){
             applyGlowAndStroke(drawCtx, p);
             
             if(p.type === 'arrow'){
-                arrowHead(drawCtx, p.x1, p.y1, p.x2, p.y2, p.width, p.color, p.opacity, p.arrowStyle);
+                arrowHead(drawCtx, p.x1, p.y1, p.x2, p.y2, p.width, p.color, p.opacity, p.arrowStyle, p.arrowDir);
             }
         }
     } else if(p.type === 'rect'){
@@ -303,12 +279,15 @@ function setDrawMode(mode){
     if (mode === 'off') {
         document.querySelectorAll('.editable-draw').forEach(el => {
             el.style.pointerEvents = 'none';
-            // Ã„Â°ÃƒÂ§indeki ÃƒÂ§izim elemanlarÃ„Â± tÃ„Â±klanabilsin diye
             const children = el.querySelectorAll('*');
             children.forEach(child => child.style.pointerEvents = 'all');
         });
     } else {
-        document.querySelectorAll('.editable-draw').forEach(el => el.style.pointerEvents = 'none');
+        document.querySelectorAll('.editable-draw').forEach(el => {
+            el.style.pointerEvents = 'none';
+            const children = el.querySelectorAll('*');
+            children.forEach(child => child.style.pointerEvents = 'none');
+        });
         if (typeof deselectAll === 'function') deselectAll();
     }
     removeTempPolygonSaber();
@@ -318,33 +297,60 @@ function setDrawMode(mode){
     const map={off:'dmOff',free:'dmFree',line:'dmLine',arrow:'dmArrow',rect:'dmRect',circle:'dmCircle',polygon:'dmPoly'};
     if($(map[mode]))$(map[mode]).classList.add('active');
     $('polyInfo').style.display=mode==='polygon'?'block':'none';
+    if(document.getElementById('arrowSettingsContainer')) {
+        document.getElementById('arrowSettingsContainer').style.display = mode === 'arrow' ? 'block' : 'none';
+    }
     if(document.getElementById('arrowStyleContainer')) {
         document.getElementById('arrowStyleContainer').style.display = mode === 'arrow' ? 'block' : 'none';
     }
     if(mode==='off'){
         drawCanvas.style.pointerEvents='none';
-        // z-index handled by CSS (#draw-layer z:5, below canva-render-layer z:10)
+        drawCanvas.style.zIndex='5';
+        document.body.classList.remove('draw-mode-active');
         $('drawIndicator').classList.remove('show');
         $('canvasHint').textContent='💡 Tek tık: Seç | Çift tık: Yazıyı Düzenle | Sürükle: Taşı';
     }else{
         drawCanvas.style.pointerEvents='auto';
-        // z-index handled by CSS (#draw-layer z:5, below canva-render-layer z:10)
+        drawCanvas.style.zIndex='90';
+        document.body.classList.add('draw-mode-active');
         drawCanvas.style.cursor='default';
         $('drawIndicator').classList.add('show');
         $('canvasHint').textContent=mode==='polygon'?'📍 Tıklayarak köşe ekle, çift tıkla kapat':'✏️ ÇİZİM AKTİF';
     }
 }
 
+function getDrawScaleRatio(){
+    if (typeof window.scaleFactor !== 'undefined' && window.scaleFactor > 0) {
+        return Math.max(0.2, 0.5 / window.scaleFactor);
+    }
+    if (typeof scaleFactor !== 'undefined' && scaleFactor > 0) {
+        return Math.max(0.2, 0.5 / scaleFactor);
+    }
+    let canvasW = 1920;
+    const cContainer = document.getElementById('canvas-container');
+    if (cContainer && parseFloat(cContainer.style.width)) {
+        canvasW = parseFloat(cContainer.style.width);
+    } else if (typeof uploadedImgW !== 'undefined' && uploadedImgW > 0) {
+        canvasW = uploadedImgW;
+    }
+    return Math.max(0.2, canvasW / 1920);
+}
+
 function getDS(){
+    const baseW = +$('drawWidth').value || 4;
+    const scaleRatio = getDrawScaleRatio();
+    const effWidth = Math.max(1, Math.round(baseW * scaleRatio));
     return{
         color:$('drawColor').value,
-        width:+$('drawWidth').value,
+        width: effWidth,
+        rawWidth: baseW,
         opacity:+$('drawOpacity').value/100,
         dashStyle:$('drawDash').value,
         fillColor:$('fillColor').value,
         fillOpacity:+$('fillOpacity').value/100,
         showVertices:$('polyShowVertices')?$('polyShowVertices').checked:true,
-          arrowStyle:$('arrowStyleSelect')?parseInt($('arrowStyleSelect').value):1
+        arrowStyle:$('arrowStyleSelect')?parseInt($('arrowStyleSelect').value):1,
+        arrowDir:$('arrowDirSelect')?$('arrowDirSelect').value:'outward'
     };
 }
 
@@ -369,22 +375,21 @@ function canvasXY(e) {
 let lastGlobalDStartTime = 0;
 function dStart(e){
     if(drawMode==='off')return;
+    
+    // Pointer events: PC'de mouse tıklaması zaten mousedown ile işlenir.
+    // pointerdown'da mouse geldiğinde erken dönüyoruz ki lastGlobalDStartTime güncellenip mousedown'u bloklamasın!
+    if (e.type === 'pointerdown' && e.pointerType === 'mouse') return;
+
     const nowGlobal = Date.now();
     if (nowGlobal - lastGlobalDStartTime < 50) {
         if(e.cancelable !== false) e.preventDefault();
-        e.stopPropagation();
+        if(e.stopPropagation) e.stopPropagation();
         return;
     }
     lastGlobalDStartTime = nowGlobal;
-    // Pointer events: sadece pen ve touch işle (mouse zaten ayrıca bağlı)
-    if (e.type === 'pointerdown') {
-        if (e.pointerType === 'mouse') return; // mouse zaten mousedown ile işleniyor
-        e.preventDefault();
-        e.stopPropagation();
-    } else {
-        e.preventDefault();
-        e.stopPropagation();
-    }
+
+    if (e.cancelable !== false) e.preventDefault();
+    if (e.stopPropagation) e.stopPropagation();
     let p=canvasXY(e);
     if(window.clearSnapGuides) window.clearSnapGuides();
     if(window.getSnapGuides && (drawMode==='line' || drawMode==='arrow' || drawMode==='polygon' || drawMode==='free')) {
@@ -401,7 +406,7 @@ function dStart(e){
             let dist = Math.sqrt(Math.pow(p.x - firstPt.x, 2) + Math.pow(p.y - firstPt.y, 2));
             // Touch ve kalem için toleransı genişlet (40px), mouse için 20px
             const polyTolerance = (typeof window.isMobileDevice === 'function' && window.isMobileDevice()) ? 40 : 20;
-            if (dist < polyTolerance / (typeof scaleFactor !== "undefined" ? scaleFactor : 1)) {
+            if (dist < polyTolerance / (typeof window.getGlobalScale === 'function' ? window.getGlobalScale() : 1)) {
                 closePolygon();
                 return;
             }
@@ -542,25 +547,7 @@ function dEnd(e){
     const py = parseFloat(document.getElementById('photoYCtrl') ? document.getElementById('photoYCtrl').value : 50);
     const panel = getActivePhotoPanel();
     const pl = getActiveV4Element();
-    let photoRef;
-    if (pl && pl.dataset.zpReady === '1') {
-        photoRef = {
-            v4: true,
-            z: parseFloat(pl.dataset.zpScale) || 1,
-            px: parseFloat(pl.dataset.zpX) || 0,
-            py: parseFloat(pl.dataset.zpY) || 0,
-            panelW: panel.w, panelH: panel.h, panelL: panel.left, panelT: panel.top
-        };
-    } else {
-        photoRef = {
-            v4: false,
-            z: parseInt(document.getElementById('photoZoomCtrl') ? document.getElementById('photoZoomCtrl').value : 100),
-            px: parseFloat(document.getElementById('photoXCtrl') ? document.getElementById('photoXCtrl').value : 50),
-            py: parseFloat(document.getElementById('photoYCtrl') ? document.getElementById('photoYCtrl').value : 50),
-            panelW: panel.w, panelH: panel.h, panelL: panel.left, panelT: panel.top
-        };
-    }
-    
+    const photoRef = typeof window.getCurrentPhotoState === 'function' ? window.getCurrentPhotoState() : null;
     
     let pObj = null;
     if(drawMode==='free'&&currentPath.length>1) {
@@ -586,15 +573,7 @@ function dEnd(e){
                 drawRedoPaths = [];
                 drawPaths.push(Object.assign({}, pObj, {
                     hasSaber: false,
-                    photoRef:  (typeof getActivePhotoPanel === 'function' ? (function(){
-                            const pnl = getActivePhotoPanel();
-                            const pl = typeof getActiveV4Element === 'function' ? getActiveV4Element() : null;
-                            if (pl && pl.dataset.zpReady === '1') {
-                                return { v4: true, z: parseFloat(pl.dataset.zpScale) || 1, px: parseFloat(pl.dataset.zpX) || 0, py: parseFloat(pl.dataset.zpY) || 0, panelW: pnl.w, panelH: pnl.h, panelL: pnl.left, panelT: pnl.top, sliderX: parseFloat(document.getElementById('photoXCtrl') ? document.getElementById('photoXCtrl').value : 50), sliderY: parseFloat(document.getElementById('photoYCtrl') ? document.getElementById('photoYCtrl').value : 50) };
-                            } else {
-                                return { v4: false, z: parseInt(document.getElementById('photoZoomCtrl') ? document.getElementById('photoZoomCtrl').value : 100), px: parseFloat(document.getElementById('photoXCtrl') ? document.getElementById('photoXCtrl').value : 50), py: parseFloat(document.getElementById('photoYCtrl') ? document.getElementById('photoYCtrl').value : 50), panelW: pnl.w, panelH: pnl.h, panelL: pnl.left, panelT: pnl.top, sliderX: parseFloat(document.getElementById('photoXCtrl') ? document.getElementById('photoXCtrl').value : 50), sliderY: parseFloat(document.getElementById('photoYCtrl') ? document.getElementById('photoYCtrl').value : 50) , extraZ: (document.getElementById('photo-layer') && document.getElementById('photo-layer').dataset.zpReady === '1') ? (parseFloat(document.getElementById('photo-layer').dataset.zpScale) || 1) : 1, extraPx: (document.getElementById('photo-layer') && document.getElementById('photo-layer').dataset.zpReady === '1') ? (parseFloat(document.getElementById('photo-layer').dataset.zpX) || 0) : 0, extraPy: (document.getElementById('photo-layer') && document.getElementById('photo-layer').dataset.zpReady === '1') ? (parseFloat(document.getElementById('photo-layer').dataset.zpY) || 0) : 0 };
-                            }
-                        })() : null),
+                    photoRef: photoRef,
                     el: el
                 }));
                 if (typeof updateDrawHistory === 'function') updateDrawHistory();
@@ -661,15 +640,7 @@ function closePolygon(){
     const py = parseFloat(document.getElementById('photoYCtrl') ? document.getElementById('photoYCtrl').value : 50);
     const panel = getActivePhotoPanel();
     
-    const pObj = Object.assign({type:'polygon', closed:true, points:polygonPoints.slice(), showVertices: showV, photoRef: (function(){
-        const pnl = getActivePhotoPanel();
-        const pl = getActiveV4Element();
-        if (pl && pl.dataset.zpReady === '1') {
-            return { v4: true, z: parseFloat(pl.dataset.zpScale) || 1, px: parseFloat(pl.dataset.zpX) || 0, py: parseFloat(pl.dataset.zpY) || 0, panelW: pnl.w, panelH: pnl.h, panelL: pnl.left, panelT: pnl.top, sliderX: parseFloat(document.getElementById('photoXCtrl') ? document.getElementById('photoXCtrl').value : 50), sliderY: parseFloat(document.getElementById('photoYCtrl') ? document.getElementById('photoYCtrl').value : 50) };
-        } else {
-            return { v4: false, z: parseInt(document.getElementById('photoZoomCtrl') ? document.getElementById('photoZoomCtrl').value : 100), px: parseFloat(document.getElementById('photoXCtrl') ? document.getElementById('photoXCtrl').value : 50), py: parseFloat(document.getElementById('photoYCtrl') ? document.getElementById('photoYCtrl').value : 50), panelW: pnl.w, panelH: pnl.h, panelL: pnl.left, panelT: pnl.top, sliderX: parseFloat(document.getElementById('photoXCtrl') ? document.getElementById('photoXCtrl').value : 50), sliderY: parseFloat(document.getElementById('photoYCtrl') ? document.getElementById('photoYCtrl').value : 50) , extraZ: (document.getElementById('photo-layer') && document.getElementById('photo-layer').dataset.zpReady === '1') ? (parseFloat(document.getElementById('photo-layer').dataset.zpScale) || 1) : 1, extraPx: (document.getElementById('photo-layer') && document.getElementById('photo-layer').dataset.zpReady === '1') ? (parseFloat(document.getElementById('photo-layer').dataset.zpX) || 0) : 0, extraPy: (document.getElementById('photo-layer') && document.getElementById('photo-layer').dataset.zpReady === '1') ? (parseFloat(document.getElementById('photo-layer').dataset.zpY) || 0) : 0 };
-        }
-    })()},s);
+    const pObj = Object.assign({type:'polygon', closed:true, points:polygonPoints.slice(), showVertices: showV, photoRef: typeof window.getCurrentPhotoState === 'function' ? window.getCurrentPhotoState() : null},s);
     
     const el = createSVGFromPath(pObj);
     if (el) {
@@ -682,15 +653,7 @@ function closePolygon(){
             if (!hasEl) {
                 drawPaths.push(Object.assign({}, pObj, {
     hasSaber: false,
-    photoRef:  (typeof getActivePhotoPanel === 'function' ? (function(){
-            const pnl = getActivePhotoPanel();
-            const pl = typeof getActiveV4Element === 'function' ? getActiveV4Element() : null;
-            if (pl && pl.dataset.zpReady === '1') {
-                return { v4: true, z: parseFloat(pl.dataset.zpScale) || 1, px: parseFloat(pl.dataset.zpX) || 0, py: parseFloat(pl.dataset.zpY) || 0, panelW: pnl.w, panelH: pnl.h, panelL: pnl.left, panelT: pnl.top, sliderX: parseFloat(document.getElementById('photoXCtrl') ? document.getElementById('photoXCtrl').value : 50), sliderY: parseFloat(document.getElementById('photoYCtrl') ? document.getElementById('photoYCtrl').value : 50) };
-            } else {
-                return { v4: false, z: parseInt(document.getElementById('photoZoomCtrl') ? document.getElementById('photoZoomCtrl').value : 100), px: parseFloat(document.getElementById('photoXCtrl') ? document.getElementById('photoXCtrl').value : 50), py: parseFloat(document.getElementById('photoYCtrl') ? document.getElementById('photoYCtrl').value : 50), panelW: pnl.w, panelH: pnl.h, panelL: pnl.left, panelT: pnl.top };
-            }
-        })() : null),
+    photoRef: typeof window.getCurrentPhotoState === 'function' ? window.getCurrentPhotoState() : null,
     el: el
 }));
                 if (typeof updateDrawHistory === 'function') updateDrawHistory();
@@ -711,95 +674,102 @@ function closePolygon(){
     updateDrawHistory();
 }
 
-function arrowHead(ctx,x1,y1,x2,y2,w,color,op,style){
-    const a=Math.atan2(y2-y1,x2-x1);
-    let h=w*5;
+function arrowHead(ctx, x1, y1, x2, y2, w, color, op, style, dir = 'outward') {
+    const a = Math.atan2(y2 - y1, x2 - x1);
     ctx.save();
     ctx.setLineDash([]);
-    ctx.globalAlpha=op||1;
-    ctx.fillStyle=color;
-    ctx.strokeStyle=color;
-    ctx.lineCap='round';
-    ctx.lineJoin='round';
-    ctx.lineWidth=w;
+    ctx.globalAlpha = op || 1;
+    ctx.fillStyle = color;
+    ctx.strokeStyle = color;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.lineWidth = w;
     
-    ctx.beginPath();
-    const s = parseInt(style) || 1;
-    switch(s) {
-        case 1: // Standart IÃƒÂ§i Dolu
-            ctx.moveTo(x2,y2);
-            ctx.lineTo(x2-h*Math.cos(a-Math.PI/6),y2-h*Math.sin(a-Math.PI/6));
-            ctx.lineTo(x2-h*Math.cos(a+Math.PI/6),y2-h*Math.sin(a+Math.PI/6));
-            ctx.closePath();
-            ctx.fill();
-            break;
-        case 2: // Ince V (IÃƒÂ§i Bos)
-            h = w*6;
-            ctx.moveTo(x2-h*Math.cos(a-Math.PI/6),y2-h*Math.sin(a-Math.PI/6));
-            ctx.lineTo(x2,y2);
-            ctx.lineTo(x2-h*Math.cos(a+Math.PI/6),y2-h*Math.sin(a+Math.PI/6));
-            ctx.stroke();
-            break;
-        case 3: // Genis ÃƒÅ“ÃƒÂ§gen
-            h = w*5;
-            ctx.moveTo(x2,y2);
-            ctx.lineTo(x2-h*Math.cos(a-Math.PI/4),y2-h*Math.sin(a-Math.PI/4));
-            ctx.lineTo(x2-h*Math.cos(a+Math.PI/4),y2-h*Math.sin(a+Math.PI/4));
-            ctx.closePath();
-            ctx.fill();
-            break;
-        case 4: // Stealth (IÃƒÂ§e Kivrik)
-            h = w*6;
-            ctx.moveTo(x2,y2);
-            ctx.lineTo(x2-h*Math.cos(a-Math.PI/6),y2-h*Math.sin(a-Math.PI/6));
-            ctx.lineTo(x2-(h*0.5)*Math.cos(a),y2-(h*0.5)*Math.sin(a));
-            ctx.lineTo(x2-h*Math.cos(a+Math.PI/6),y2-h*Math.sin(a+Math.PI/6));
-            ctx.closePath();
-            ctx.fill();
-            break;
-        case 5: // Elmas (Diamond)
-            h = w*4;
-            ctx.moveTo(x2,y2);
-            ctx.lineTo(x2-h*Math.cos(a-Math.PI/6),y2-h*Math.sin(a-Math.PI/6));
-            ctx.lineTo(x2-(h*2)*Math.cos(a),y2-(h*2)*Math.sin(a));
-            ctx.lineTo(x2-h*Math.cos(a+Math.PI/6),y2-h*Math.sin(a+Math.PI/6));
-            ctx.closePath();
-            ctx.fill();
-            break;
-        case 6: // Yuvarlak Baslik
-            h = w*3;
-            ctx.arc(x2,y2,h,0,Math.PI*2);
-            ctx.fill();
-            break;
-        case 7: // Kare Baslik
-            h = w*3;
-            ctx.save();
-            ctx.translate(x2,y2);
-            ctx.rotate(a);
-            ctx.fillRect(-h, -h, h*2, h*2);
-            ctx.restore();
-            break;
-        case 8: // Ãƒâ€¡ift YÃƒÂ¶nlÃƒÂ¼ Ok
-            ctx.moveTo(x2,y2);
-            ctx.lineTo(x2-h*Math.cos(a-Math.PI/6),y2-h*Math.sin(a-Math.PI/6));
-            ctx.lineTo(x2-h*Math.cos(a+Math.PI/6),y2-h*Math.sin(a+Math.PI/6));
-            ctx.closePath();
-            ctx.fill();
-            ctx.beginPath();
-            ctx.moveTo(x1,y1);
-            ctx.lineTo(x1+h*Math.cos(a-Math.PI/6),y1+h*Math.sin(a-Math.PI/6));
-            ctx.lineTo(x1+h*Math.cos(a+Math.PI/6),y1+h*Math.sin(a+Math.PI/6));
-            ctx.closePath();
-            ctx.fill();
-            break;
-        case 9: // T-Sekli
-            h = w*5;
-            ctx.moveTo(x2-h*Math.cos(a+Math.PI/2),y2-h*Math.sin(a+Math.PI/2));
-            ctx.lineTo(x2+h*Math.cos(a+Math.PI/2),y2+h*Math.sin(a+Math.PI/2));
-            ctx.stroke();
-            break;
-        case 10: // DÃƒÂ¼z Ãƒâ€¡izgi (Basliksiz)
-            break;
+    function drawHeadAt(tipX, tipY, angle) {
+        ctx.beginPath();
+        let h = w * 5;
+        const s = parseInt(style) || 1;
+        switch(s) {
+            case 1: // Standart İçi Dolu Üçgen
+                ctx.moveTo(tipX, tipY);
+                ctx.lineTo(tipX - h * Math.cos(angle - Math.PI / 6), tipY - h * Math.sin(angle - Math.PI / 6));
+                ctx.lineTo(tipX - h * Math.cos(angle + Math.PI / 6), tipY - h * Math.sin(angle + Math.PI / 6));
+                ctx.closePath();
+                ctx.fill();
+                break;
+            case 2: // İnce V (İçi Boş)
+                h = w * 6;
+                ctx.moveTo(tipX - h * Math.cos(angle - Math.PI / 6), tipY - h * Math.sin(angle - Math.PI / 6));
+                ctx.lineTo(tipX, tipY);
+                ctx.lineTo(tipX - h * Math.cos(angle + Math.PI / 6), tipY - h * Math.sin(angle + Math.PI / 6));
+                ctx.stroke();
+                break;
+            case 3: // Geniş Üçgen
+                h = w * 5;
+                ctx.moveTo(tipX, tipY);
+                ctx.lineTo(tipX - h * Math.cos(angle - Math.PI / 4), tipY - h * Math.sin(angle - Math.PI / 4));
+                ctx.lineTo(tipX - h * Math.cos(angle + Math.PI / 4), tipY - h * Math.sin(angle + Math.PI / 4));
+                ctx.closePath();
+                ctx.fill();
+                break;
+            case 4: // Stealth (İçe Kıvrık)
+                h = w * 6;
+                ctx.moveTo(tipX, tipY);
+                ctx.lineTo(tipX - h * Math.cos(angle - Math.PI / 6), tipY - h * Math.sin(angle - Math.PI / 6));
+                ctx.lineTo(tipX - (h * 0.5) * Math.cos(angle), tipY - (h * 0.5) * Math.sin(angle));
+                ctx.lineTo(tipX - h * Math.cos(angle + Math.PI / 6), tipY - h * Math.sin(angle + Math.PI / 6));
+                ctx.closePath();
+                ctx.fill();
+                break;
+            case 5: // Elmas (Diamond)
+                h = w * 4;
+                ctx.moveTo(tipX, tipY);
+                ctx.lineTo(tipX - h * Math.cos(angle - Math.PI / 6), tipY - h * Math.sin(angle - Math.PI / 6));
+                ctx.lineTo(tipX - (h * 2) * Math.cos(angle), tipY - (h * 2) * Math.sin(angle));
+                ctx.lineTo(tipX - h * Math.cos(angle + Math.PI / 6), tipY - h * Math.sin(angle + Math.PI / 6));
+                ctx.closePath();
+                ctx.fill();
+                break;
+            case 6: // Yuvarlak Başlık
+                h = w * 3;
+                ctx.arc(tipX, tipY, h, 0, Math.PI * 2);
+                ctx.fill();
+                break;
+            case 7: // Kare Başlık
+                h = w * 3;
+                ctx.save();
+                ctx.translate(tipX, tipY);
+                ctx.rotate(angle);
+                ctx.fillRect(-h, -h, h * 2, h * 2);
+                ctx.restore();
+                break;
+            case 8: // Çift Katman Ok
+                ctx.moveTo(tipX, tipY);
+                ctx.lineTo(tipX - h * Math.cos(angle - Math.PI / 6), tipY - h * Math.sin(angle - Math.PI / 6));
+                ctx.lineTo(tipX - h * Math.cos(angle + Math.PI / 6), tipY - h * Math.sin(angle + Math.PI / 6));
+                ctx.closePath();
+                ctx.fill();
+                ctx.beginPath();
+                ctx.moveTo(tipX - h * Math.cos(angle), tipY - h * Math.sin(angle));
+                ctx.lineTo(tipX - h * 2 * Math.cos(angle - Math.PI / 6), tipY - h * 2 * Math.sin(angle - Math.PI / 6));
+                ctx.lineTo(tipX - h * 2 * Math.cos(angle + Math.PI / 6), tipY - h * 2 * Math.sin(angle + Math.PI / 6));
+                ctx.closePath();
+                ctx.fill();
+                break;
+            case 9: // T-Şekli
+                h = w * 5;
+                ctx.moveTo(tipX - h * Math.cos(angle + Math.PI / 2), tipY - h * Math.sin(angle + Math.PI / 2));
+                ctx.lineTo(tipX + h * Math.cos(angle + Math.PI / 2), tipY + h * Math.sin(angle + Math.PI / 2));
+                ctx.stroke();
+                break;
+        }
+    }
+    
+    if (dir === 'outward' || dir === 'both') {
+        drawHeadAt(x2, y2, a);
+    }
+    if (dir === 'inward' || dir === 'both') {
+        drawHeadAt(x1, y1, a + Math.PI);
     }
     ctx.restore();
 }
@@ -835,6 +805,10 @@ function redrawAll(){
 }
 
 function undoLastDraw() {
+    if (typeof window.undoGlobal === 'function') {
+        window.undoGlobal();
+        return;
+    }
     if (drawPaths.length > 0) {
         const last = drawPaths.pop();
         if (typeof drawRedoPaths !== 'undefined') drawRedoPaths.push(last);
@@ -854,7 +828,7 @@ function undoLastDraw() {
                     sabers.splice(saberIdx, 1);
                 }
                 last.saberRef = null;
-            } catch(e) { console.warn('Saber undo hatasÃ„Â±:', e); }
+            } catch(e) { console.warn('Saber undo hatası:', e); }
         }
     }
     redrawAll();
@@ -863,6 +837,10 @@ function undoLastDraw() {
 }
 
 function redoLastDraw() {
+    if (typeof window.redoGlobal === 'function') {
+        window.redoGlobal();
+        return;
+    }
     if (typeof drawRedoPaths !== 'undefined' && drawRedoPaths.length > 0) {
         const next = drawRedoPaths.pop();
         drawPaths.push(next);
@@ -918,17 +896,28 @@ function clearAllDrawings(){
 
 function updateDrawHistory(){
     const h=$('drawHistory');
-    if(!drawPaths.length){
-    h.innerHTML='<div style="text-align:center;color:#475569;font-size:10px;padding:8px">Henüz çizim yok</div>';return}
-    h.innerHTML='';
-    const names={free:'<i class="fas fa-pencil-alt"></i> Serbest',line:'<i class="fas fa-grip-lines"></i> Çizgi',arrow:'<i class="fas fa-arrow-right"></i> Ok',rect:'<i class="far fa-square"></i> Kare',circle:'<i class="far fa-circle"></i> Daire',polygon:'<i class="fas fa-draw-polygon"></i> Çokgen'};
-    drawPaths.forEach((p,i)=>{
-        const item=document.createElement('div');
-        item.className='draw-history-item' + (i === editingDrawIndex ? ' active' : '');
-        const saberBtn = p.hasSaber ? `<button class="dh-btn dh-saber" onclick="startDrawEdit(${i})" title="Saber AyarlarÄ±"><i class="fas fa-magic"></i></button>` : `<button class="dh-btn dh-saber-add" onclick="addSaberToPath(${i})" title="Saber Ekle"><i class="fas fa-bolt"></i></button>`;
-        item.innerHTML='<span><span class="dh-color" style="background:'+p.color+'"></span>'+(names[p.type]||p.type)+' #'+(i+1)+(p.fillOpacity>0?' <i class="fas fa-fill-drip" style="font-size:10px; margin-left:4px;"></i>':'')+'</span><span>'+saberBtn+'<button class="dh-btn dh-edit" onclick="startDrawEdit('+i+')" title="Düzenle"><i class="fas fa-pen" style="font-size:11px;"></i></button><button class="dh-btn dh-del" onclick="deleteDrawItem('+i+')" title="Sil"><i class="fas fa-trash" style="font-size:11px;"></i></button></span>';
-        h.appendChild(item);
-    });
+    if (h) {
+        if(!drawPaths.length){
+            h.innerHTML='<div style="text-align:center;color:#475569;font-size:10px;padding:8px">Henüz çizim yok</div>';
+        } else {
+            h.innerHTML='';
+            const names={free:'<i class="fas fa-pencil-alt"></i> Serbest',line:'<i class="fas fa-grip-lines"></i> Çizgi',arrow:'<i class="fas fa-arrow-right"></i> Ok',rect:'<i class="far fa-square"></i> Kare',circle:'<i class="far fa-circle"></i> Daire',polygon:'<i class="fas fa-draw-polygon"></i> Çokgen'};
+            drawPaths.forEach((p,i)=>{
+                const item=document.createElement('div');
+                item.className='draw-history-item' + (i === editingDrawIndex ? ' active' : '');
+                item.onclick = function(e) {
+                    if (e.target.closest('.dh-del, .dh-saber, .dh-saber-add, .dh-edit')) return;
+                    startDrawEdit(i, false);
+                };
+                const saberBtn = p.hasSaber ? `<button class="dh-btn dh-saber" onclick="startDrawEdit(${i}, true)" title="Saber Ayarları"><i class="fas fa-magic"></i></button>` : `<button class="dh-btn dh-saber-add" onclick="addSaberToPath(${i})" title="Saber Ekle"><i class="fas fa-bolt"></i></button>`;
+                item.innerHTML='<span><span class="dh-color" style="background:'+p.color+'"></span>'+(names[p.type]||p.type)+' #'+(i+1)+(p.fillOpacity>0?' <i class="fas fa-fill-drip" style="font-size:10px; margin-left:4px;"></i>':'')+'</span><span>'+saberBtn+'<button class="dh-btn dh-edit" onclick="startDrawEdit('+i+', true)" title="Düzenle"><i class="fas fa-pen"></i></button><button class="dh-btn dh-del" onclick="deleteDrawItem('+i+')" title="Sil"><i class="fas fa-trash"></i></button></span>';
+                h.appendChild(item);
+            });
+        }
+    }
+    if (typeof window.recordHistory === 'function') {
+        window.recordHistory('Çizim / Katman güncellendi');
+    }
 }
 
 function deleteDrawItem(i){
@@ -964,28 +953,43 @@ function deleteDrawItem(i){
 
 let originalDrawState = null;
 
-function startDrawEdit(i){
+function startDrawEdit(i, showPanel = true){
     editingDrawIndex=i;
     const p=drawPaths[i];
+    if(!p) return;
+    
+    // Canvas üzerinde o ögeyi seç ve tutamaçları göster
+    if (p.el && typeof window.selectElement === 'function') {
+        if (window.selectedEl !== p.el) {
+            window.selectElement(p.el, false, true);
+        } else if (typeof showVertexHandles === 'function') {
+            showVertexHandles(p.el);
+        }
+    }
     
     // Backup original state without circular refs
     const backup = { ...p };
     delete backup.saberRef; 
     delete backup.el;
-      delete backup.photoRef;
-      try {
-          originalDrawState = JSON.parse(JSON.stringify(backup));
-          originalDrawState.photoRef = p.photoRef;
-      } catch (err) {
-          console.error('startDrawEdit JSON error:', err);
-          originalDrawState = backup;
-      }
+    delete backup.photoRef;
+    try {
+        originalDrawState = JSON.parse(JSON.stringify(backup));
+        originalDrawState.photoRef = p.photoRef;
+    } catch (err) {
+        console.error('startDrawEdit JSON error:', err);
+        originalDrawState = backup;
+    }
     originalDrawState.hasSaber = p.hasSaber;
     if (p.saberOptions) originalDrawState.saberOptions = JSON.parse(JSON.stringify(p.saberOptions));
     
-    $('deColor').value=p.color;
-    $('deWidth').value=p.width;
-    $('deWidthVal').textContent=p.width;
+    if($('deColor')) $('deColor').value=p.color;
+    if($('deWidth')) {
+        const scaleRatio = getDrawScaleRatio();
+        const rawW = p.rawWidth || Math.max(1, Math.round(p.width / scaleRatio)) || p.width;
+        p.rawWidth = rawW;
+        $('deWidth').value = rawW;
+        if($('deWidthVal')) $('deWidthVal').textContent = rawW;
+    }
     if($('deOpacity'))$('deOpacity').value=Math.round(p.opacity*100);
     if($('deOpacityVal'))$('deOpacityVal').textContent=Math.round(p.opacity*100)+'%';
     if($('deFillColor'))$('deFillColor').value=p.fillColor||'#ef4444';
@@ -993,7 +997,14 @@ function startDrawEdit(i){
     if($('deFillOpVal'))$('deFillOpVal').textContent=Math.round((p.fillOpacity||0)*100)+'%';
     if($('dePolyShowVertices')) {
         $('dePolyShowVertices').checked = p.showVertices !== false;
-        $('dePolyShowVertices').parentElement.style.display = (p.type === 'polygon') ? 'flex' : 'none';
+        $('dePolyShowVertices').parentElement.style.display = (p.type === 'polygon' || p.type === 'rect') ? 'flex' : 'none';
+    }
+    if($('deArrowSettings')) {
+        $('deArrowSettings').style.display = (p.type === 'arrow') ? 'block' : 'none';
+        if (p.type === 'arrow') {
+            if ($('deArrowDir')) $('deArrowDir').value = p.arrowDir || 'outward';
+            if ($('deArrowStyle')) $('deArrowStyle').value = p.arrowStyle || 1;
+        }
     }
     
     // SABER UI SETUP
@@ -1007,13 +1018,11 @@ function startDrawEdit(i){
         const colors = window.SaberEngine ? SaberEngine.colorPresets : {};
         const currentOpts = p.saberOptions || window.saberState || {};
         
-        let presetsHTML = '';
-        Object.keys(presets).forEach(key => {
-            const presetData = presets[key];
-            const active = (key === currentOpts.preset || (!currentOpts.preset && key === 'fully-lit')) ? 'active' : '';
-            presetsHTML += `<div class="sep-preset ${active}" data-preset="${key}" onclick="setDrawEditSaberPreset('${key}')"><div>${presetData.icon}</div><div class="sep-preset-name">${presetData.name}</div></div>`;
-        });
-        if ($('deSaberPresets')) $('deSaberPresets').innerHTML = presetsHTML;
+        if ($('deSaberPresets')) {
+            $('deSaberPresets').querySelectorAll('.sep-preset').forEach(el => {
+                el.classList.toggle('active', el.dataset.preset === (currentOpts.preset || 'fully-lit'));
+            });
+        }
         
         let colorsHTML = '';
         Object.keys(colors).forEach(key => {
@@ -1037,51 +1046,91 @@ function startDrawEdit(i){
         if ($('deSaberPulse')) { $('deSaberPulse').value = currentOpts.pulseSpeed || 0; $('deSaberPulseVal').textContent = currentOpts.pulseSpeed || 0; }
     }
     
-    if($('drawEditPanel'))$('drawEditPanel').style.display='block';
+    if($('drawEditPanel')) {
+        $('drawEditPanel').style.display = showPanel ? 'block' : 'none';
+    }
     const names={free:'<i class="fas fa-pencil-alt"></i> Serbest',line:'<i class="fas fa-grip-lines"></i> Çizgi',arrow:'<i class="fas fa-arrow-right"></i> Ok',rect:'<i class="far fa-square"></i> Kare',circle:'<i class="far fa-circle"></i> Daire',polygon:'<i class="fas fa-draw-polygon"></i> Çokgen'};
-    if($('drawEditLabel'))$('drawEditLabel').textContent='#'+(i+1)+' '+(names[p.type]||'');
+    if($('drawEditLabel')) $('drawEditLabel').innerHTML='#'+(i+1)+' '+(names[p.type]||'');
     if(typeof updateDrawHistory === 'function') updateDrawHistory();
+    if(typeof renderLayers === 'function') renderLayers();
 }
 
 window.setDrawEditSaberPreset = function(key) {
     if (!$('deSaberPresets')) return;
-    $('deSaberPresets').querySelectorAll('.sep-preset').forEach(x => x.classList.remove('active'));
-    const el = $('deSaberPresets').querySelector(`[data-preset="${key}"]`);
-    if (el) el.classList.add('active');
-    
-    if (window.SaberEngine && window.SaberEngine.presets[key]) {
-        const pData = SaberEngine.presets[key];
-        if ($('deSaberCoreSize')) { $('deSaberCoreSize').value = pData.settings.coreSize || 4; $('deSaberCoreSizeVal').textContent = pData.settings.coreSize || 4; }
-        if ($('deSaberGlowSize')) { $('deSaberGlowSize').value = pData.settings.glowSize || 30; $('deSaberGlowSizeVal').textContent = pData.settings.glowSize || 30; }
-    }
+    $('deSaberPresets').querySelectorAll('.sep-preset').forEach(el => {
+        el.classList.toggle('active', el.dataset.preset === key);
+    });
     liveUpdateDrawEdit();
 };
 
 window.setDrawEditSaberColor = function(key) {
-    if (window.SaberEngine && window.SaberEngine.colorPresets[key]) {
-        if ($('deSaberColors')) $('deSaberColors').dataset.activeColor = key;
-    }
+    if (!$('deSaberColors')) return;
+    $('deSaberColors').dataset.activeColor = key;
+    $('deSaberColors').querySelectorAll('.sep-color').forEach(el => {
+        el.classList.toggle('active', el.dataset.color === key);
+    });
     liveUpdateDrawEdit();
 };
 
-function applyDrawEdit(){
-    liveUpdateDrawEdit();
+window.cancelDrawEdit = function(){
+    if (originalDrawState && editingDrawIndex >= 0 && editingDrawIndex < drawPaths.length) {
+        drawPaths[editingDrawIndex] = Object.assign({}, originalDrawState);
+        redrawAll();
+    }
+    editingDrawIndex=-1;
+    originalDrawState=null;
+    if($('drawEditPanel'))$('drawEditPanel').style.display='none';
+    if(typeof updateDrawHistory === 'function') updateDrawHistory();
+    if(typeof renderLayers === 'function') renderLayers();
+};
+
+window.saveDrawEdit = function(){
+    if(editingDrawIndex<0||editingDrawIndex>=drawPaths.length)return;
+    const p=drawPaths[editingDrawIndex];
+    if (p.hasSaber && p.saberRef && window.SaberEngine && window.getGlobalScale) {
+        const s = window.getGlobalScale();
+        p.saberRef.scaleX = s;
+        p.saberRef.scaleY = s;
+    }
+    editingDrawIndex=-1;
+    originalDrawState=null;
+    if($('drawEditPanel'))$('drawEditPanel').style.display='none';
+    redrawAll();
     updateDrawHistory();
-    originalDrawState = null; // Clear backup so cancelDrawEdit doesn't revert
-    cancelDrawEdit();
-}
+    if(typeof renderLayers === 'function') renderLayers();
+    if (typeof window.recordHistory === 'function') {
+        window.recordHistory('Çizim Düzenlendi');
+    }
+};
+
+window.applyDrawEdit = function(){
+    window.saveDrawEdit();
+};
+
+window.startDrawEdit = startDrawEdit;
+window.updateDrawHistory = updateDrawHistory;
 
 let updateSaberTimer = null;
 
 window.liveUpdateDrawEdit = function(){
     if(editingDrawIndex<0||editingDrawIndex>=drawPaths.length)return;
     const p=drawPaths[editingDrawIndex];
+    const scaleRatio = getDrawScaleRatio();
+    
     if($('deColor')) p.color=$('deColor').value;
-    if($('deWidth')) p.width=+$('deWidth').value;
+    if($('deWidth')) {
+        const rawW = +$('deWidth').value;
+        p.rawWidth = rawW;
+        p.width = Math.max(1, Math.round(rawW * scaleRatio));
+    }
     if($('deOpacity')) p.opacity=+$('deOpacity').value/100;
     if($('deFillColor')) p.fillColor=$('deFillColor').value;
     if($('deFillOp')) p.fillOpacity=+$('deFillOp').value/100;
     if($('dePolyShowVertices')) p.showVertices = $('dePolyShowVertices').checked;
+    if(p.type === 'arrow') {
+        if($('deArrowDir')) p.arrowDir = $('deArrowDir').value;
+        if($('deArrowStyle')) p.arrowStyle = parseInt($('deArrowStyle').value) || 1;
+    }
     
     // Update span labels
     if ($('deWidthVal') && $('deWidth')) $('deWidthVal').textContent = $('deWidth').value;
@@ -1130,75 +1179,74 @@ window.liveUpdateDrawEdit = function(){
         if ($('deSaberFlickerVal')) $('deSaberFlickerVal').textContent = Math.round(newOptions.flickerAmount * 100);
         if ($('deSaberPulseVal')) $('deSaberPulseVal').textContent = newOptions.pulseSpeed;
         
+        p.hasSaber = true;
+        p.saberOptions = newOptions;
+        
         if (window.applySaberToPath) {
             clearTimeout(updateSaberTimer);
             updateSaberTimer = setTimeout(() => {
                 applySaberToPath(editingDrawIndex, newOptions);
-            }, 50);
+            }, 30);
         }
     } else {
         if (settings) settings.style.display = 'none';
-        if (window.removeSaberFromPath) {
+        p.hasSaber = false;
+        if (window.removeSaberFromPath && p.saberRef) {
             removeSaberFromPath(editingDrawIndex);
         }
     }
     
-    // Update SVG element if it exists
-    if (p.el && p.el.parentNode) {
-        const oldEl = p.el;
-        const newEl = createSVGFromPath(p);
-        if (newEl) {
-            oldEl.parentNode.replaceChild(newEl, oldEl);
-            p.el = newEl;
-            if (window.selectedEl === oldEl) {
-                window.selectedEl = newEl;
-                newEl.classList.add('el-selected');
+    // Doğrudan mevcut SVG elementini güncelle (böylece tek nokta kaydırma, boyut ve döndürme ASLA kaybolmaz!)
+    if (p.el) {
+        const svg = p.el.querySelector('svg');
+        if (svg) {
+            let vbW = 0;
+            if (svg.viewBox && svg.viewBox.baseVal && svg.viewBox.baseVal.width > 0) {
+                vbW = svg.viewBox.baseVal.width;
+            } else {
+                const vbAttr = svg.getAttribute('viewBox');
+                if (vbAttr) {
+                    const parts = vbAttr.trim().split(/[\s,]+/).map(Number);
+                    if (parts.length === 4 && parts[2] > 0) vbW = parts[2];
+                }
             }
+            const elW = parseFloat(p.el.style.width) || p.el.offsetWidth;
+            const internalScale = (vbW > 0 && elW > 0) ? (elW / vbW) : 1;
+            const effectiveSvgWidth = Math.max(1, p.width / internalScale);
+            const dotRadius = Math.max(2.5, Math.round((p.width * 0.75) / internalScale));
+            
+            const mainShape = svg.querySelector('polygon, path, line, ellipse');
+            if (mainShape) {
+                mainShape.setAttribute('stroke', p.color);
+                mainShape.setAttribute('stroke-width', effectiveSvgWidth);
+                mainShape.setAttribute('stroke-opacity', p.opacity);
+                const isFillable = mainShape.tagName.toLowerCase() === 'polygon' || mainShape.tagName.toLowerCase() === 'ellipse' || (mainShape.tagName.toLowerCase() === 'path' && p.fillOpacity > 0);
+                if (isFillable) {
+                    mainShape.setAttribute('fill', p.fillOpacity > 0 ? p.fillColor : 'transparent');
+                    mainShape.setAttribute('fill-opacity', p.fillOpacity || 0);
+                }
+                const dashArr = typeof getDash === 'function' ? getDash(p.dashStyle, effectiveSvgWidth) : [];
+                if (dashArr.length > 0) mainShape.setAttribute('stroke-dasharray', dashArr.join(','));
+                else mainShape.removeAttribute('stroke-dasharray');
+            }
+            // Köşe noktaları (circle) - orantılı zarif boyutlandırma
+            const circles = svg.querySelectorAll('circle');
+            circles.forEach(c => {
+                c.setAttribute('fill', p.color);
+                c.setAttribute('r', dotRadius);
+                c.style.display = p.showVertices ? 'block' : 'none';
+            });
+            // Ok uçları
+            const arrowHeads = svg.querySelectorAll('polygon:not(:first-child), polyline');
+            arrowHeads.forEach(ah => {
+                ah.setAttribute('fill', p.color);
+                ah.setAttribute('stroke', p.color);
+            });
         }
     }
     
     redrawAll();
 };
-
-function cancelDrawEdit(){
-    if (originalDrawState && editingDrawIndex >= 0 && editingDrawIndex < drawPaths.length) {
-        const currentPath = drawPaths[editingDrawIndex];
-        const oldRef = currentPath.saberRef;
-        const oldEl = currentPath.el;
-        const oldPhotoRef = currentPath.photoRef;
-        
-        // Revert to backup
-        drawPaths[editingDrawIndex] = JSON.parse(JSON.stringify(originalDrawState));
-        // Restore references
-        drawPaths[editingDrawIndex].saberRef = oldRef;
-        drawPaths[editingDrawIndex].photoRef = oldPhotoRef;
-        
-        // Recreate SVG with original state to visually revert
-        const newEl = createSVGFromPath(drawPaths[editingDrawIndex]);
-        if (newEl && oldEl && oldEl.parentNode) {
-            oldEl.parentNode.replaceChild(newEl, oldEl);
-            drawPaths[editingDrawIndex].el = newEl;
-            if (window.selectedEl === oldEl) {
-                window.selectedEl = newEl;
-                newEl.classList.add('el-selected');
-            }
-        } else {
-            drawPaths[editingDrawIndex].el = oldEl;
-        }
-        
-        // Restore saber effect state
-        if (originalDrawState.hasSaber && window.applySaberToPath) {
-            applySaberToPath(editingDrawIndex, originalDrawState.saberOptions);
-        } else if (!originalDrawState.hasSaber && window.removeSaberFromPath) {
-            removeSaberFromPath(editingDrawIndex);
-        }
-        
-        redrawAll();
-    }
-    editingDrawIndex=-1;
-    originalDrawState=null;
-    if($('drawEditPanel'))$('drawEditPanel').style.display='none';
-}
 
 
 window.redrawAllToContext = function(targetCtx, scaleMultiplier) {
@@ -1250,6 +1298,7 @@ function createSVGFromPath(p) {
     const dashStr = dashArr.length > 0 ? ` stroke-dasharray="${dashArr.join(',')}"` : '';
     const styleStr = `stroke="${p.color}" stroke-width="${p.width}" stroke-linecap="round" stroke-linejoin="round" fill="${p.fillOpacity > 0 ? p.fillColor : 'transparent'}" fill-opacity="${p.fillOpacity}" stroke-opacity="${p.opacity}"${dashStr}`;
     const fillStr = `fill="${p.color}" fill-opacity="${p.opacity}"`;
+    const dotRadius = Math.max(2.5, Math.round(p.width * 0.75));
     
     let body = '';
     
@@ -1262,7 +1311,7 @@ function createSVGFromPath(p) {
         body = `<polygon points="${ptStr}" ${styleStr} ${filterAttr} />`;
         if (p.showVertices) {
             pts.forEach(pt => {
-                body += `<circle cx="${pt.x - minX}" cy="${pt.y - minY}" r="${p.width + 2}" fill="${p.color}" ${filterAttr} />`;
+                body += `<circle cx="${pt.x - minX}" cy="${pt.y - minY}" r="${dotRadius}" fill="${p.color}" ${filterAttr} />`;
             });
         }
     } else if(p.type === 'rect') {
@@ -1272,6 +1321,12 @@ function createSVGFromPath(p) {
         const rH = Math.abs(p.y2 - p.y1);
         const ptStr = `${rX},${rY} ${rX+rW},${rY} ${rX+rW},${rY+rH} ${rX},${rY+rH}`;
         body = `<polygon points="${ptStr}" ${styleStr} ${filterAttr} />`;
+        if (p.showVertices) {
+            const corners = [{x: rX, y: rY}, {x: rX+rW, y: rY}, {x: rX+rW, y: rY+rH}, {x: rX, y: rY+rH}];
+            corners.forEach(pt => {
+                body += `<circle cx="${pt.x}" cy="${pt.y}" r="${dotRadius}" fill="${p.color}" ${filterAttr} />`;
+            });
+        }
     } else if(p.type === 'circle') {
         const cx = (p.x1 + p.x2)/2 - minX;
         const cy = (p.y1 + p.y2)/2 - minY;
@@ -1284,48 +1339,62 @@ function createSVGFromPath(p) {
             const a = Math.atan2(p.y2 - p.y1, p.x2 - p.x1);
             const x2 = p.x2 - minX, y2 = p.y2 - minY;
             const x1 = p.x1 - minX, y1 = p.y1 - minY;
-            let hw = p.width * 5;
             const s = p.arrowStyle || 1;
+            const dir = p.arrowDir || 'outward';
             
-            const cos = (deg) => Math.cos(a + deg * Math.PI / 180);
-            const sin = (deg) => Math.sin(a + deg * Math.PI / 180);
+            function renderSvgArrowHead(tipX, tipY, angle) {
+                let hw = p.width * 5;
+                const cos = (deg) => Math.cos(angle + deg * Math.PI / 180);
+                const sin = (deg) => Math.sin(angle + deg * Math.PI / 180);
+                let headSvg = '';
+                switch(s) {
+                    case 1:
+                        headSvg = `<polygon points="${tipX},${tipY} ${tipX - hw * cos(-30)},${tipY - hw * sin(-30)} ${tipX - hw * cos(30)},${tipY - hw * sin(30)}" ${fillStr} ${filterAttr} />`;
+                        break;
+                    case 2:
+                        hw = p.width * 6;
+                        headSvg = `<polyline points="${tipX - hw * cos(-30)},${tipY - hw * sin(-30)} ${tipX},${tipY} ${tipX - hw * cos(30)},${tipY - hw * sin(30)}" stroke="${p.color}" stroke-width="${p.width}" fill="none" stroke-linecap="round" stroke-linejoin="round" ${filterAttr} />`;
+                        break;
+                    case 3:
+                        hw = p.width * 5;
+                        headSvg = `<polygon points="${tipX},${tipY} ${tipX - hw * cos(-45)},${tipY - hw * sin(-45)} ${tipX - hw * cos(45)},${tipY - hw * sin(45)}" ${fillStr} ${filterAttr} />`;
+                        break;
+                    case 4:
+                        hw = p.width * 6;
+                        headSvg = `<polygon points="${tipX},${tipY} ${tipX - hw * cos(-30)},${tipY - hw * sin(-30)} ${tipX - hw/2 * cos(0)},${tipY - hw/2 * sin(0)} ${tipX - hw * cos(30)},${tipY - hw * sin(30)}" ${fillStr} ${filterAttr} />`;
+                        break;
+                    case 5:
+                        hw = p.width * 4;
+                        headSvg = `<polygon points="${tipX},${tipY} ${tipX - hw * cos(-30)},${tipY - hw * sin(-30)} ${tipX - hw*2 * cos(0)},${tipY - hw*2 * sin(0)} ${tipX - hw * cos(30)},${tipY - hw * sin(30)}" ${fillStr} ${filterAttr} />`;
+                        break;
+                    case 6:
+                        hw = p.width * 3;
+                        headSvg = `<circle cx="${tipX}" cy="${tipY}" r="${hw}" ${fillStr} ${filterAttr} />`;
+                        break;
+                    case 7:
+                        hw = p.width * 3;
+                        headSvg = `<g transform="translate(${tipX},${tipY}) rotate(${angle * 180 / Math.PI})" ${filterAttr}><rect x="${-hw}" y="${-hw}" width="${hw*2}" height="${hw*2}" ${fillStr} /></g>`;
+                        break;
+                    case 8:
+                        headSvg = `<polygon points="${tipX},${tipY} ${tipX - hw * cos(-30)},${tipY - hw * sin(-30)} ${tipX - hw * cos(30)},${tipY - hw * sin(30)}" ${fillStr} ${filterAttr} />`;
+                        headSvg += `<polygon points="${tipX - hw * cos(0)},${tipY - hw * sin(0)} ${tipX - hw * 2 * cos(-30)},${tipY - hw * 2 * sin(-30)} ${tipX - hw * 2 * cos(30)},${tipY - hw * 2 * sin(30)}" ${fillStr} ${filterAttr} />`;
+                        break;
+                    case 9:
+                        hw = p.width * 5;
+                        headSvg = `<line x1="${tipX - hw * cos(90)}" y1="${tipY - hw * sin(90)}" x2="${tipX + hw * cos(90)}" y2="${tipY + hw * sin(90)}" stroke="${p.color}" stroke-width="${p.width}" stroke-linecap="round" ${filterAttr} />`;
+                        break;
+                    default:
+                        headSvg = `<polygon points="${tipX},${tipY} ${tipX - hw * cos(-30)},${tipY - hw * sin(-30)} ${tipX - hw * cos(30)},${tipY - hw * sin(30)}" ${fillStr} ${filterAttr} />`;
+                        break;
+                }
+                return headSvg;
+            }
             
-            switch(s) {
-                case 1:
-                    body += `<polygon points="${x2},${y2} ${x2 - hw * cos(-30)},${y2 - hw * sin(-30)} ${x2 - hw * cos(30)},${y2 - hw * sin(30)}" ${fillStr} ${filterAttr} />`;
-                    break;
-                case 2:
-                    hw = p.width * 6;
-                    body += `<polyline points="${x2 - hw * cos(-30)},${y2 - hw * sin(-30)} ${x2},${y2} ${x2 - hw * cos(30)},${y2 - hw * sin(30)}" stroke="${p.color}" stroke-width="${p.width}" fill="none" stroke-linecap="round" stroke-linejoin="round" ${filterAttr} />`;
-                    break;
-                case 3:
-                    hw = p.width * 5;
-                    body += `<polygon points="${x2},${y2} ${x2 - hw * cos(-45)},${y2 - hw * sin(-45)} ${x2 - hw * cos(45)},${y2 - hw * sin(45)}" ${fillStr} ${filterAttr} />`;
-                    break;
-                case 4:
-                    hw = p.width * 6;
-                    body += `<polygon points="${x2},${y2} ${x2 - hw * cos(-30)},${y2 - hw * sin(-30)} ${x2 - hw/2 * cos(0)},${y2 - hw/2 * sin(0)} ${x2 - hw * cos(30)},${y2 - hw * sin(30)}" ${fillStr} ${filterAttr} />`;
-                    break;
-                case 5:
-                    hw = p.width * 4;
-                    body += `<polygon points="${x2},${y2} ${x2 - hw * cos(-30)},${y2 - hw * sin(-30)} ${x2 - hw*2 * cos(0)},${y2 - hw*2 * sin(0)} ${x2 - hw * cos(30)},${y2 - hw * sin(30)}" ${fillStr} ${filterAttr} />`;
-                    break;
-                case 6:
-                    hw = p.width * 3;
-                    body += `<circle cx="${x2}" cy="${y2}" r="${hw}" ${fillStr} ${filterAttr} />`;
-                    break;
-                case 7:
-                    hw = p.width * 3;
-                    body += `<g transform="translate(${x2},${y2}) rotate(${a * 180 / Math.PI})" ${filterAttr}><rect x="${-hw}" y="${-hw}" width="${hw*2}" height="${hw*2}" ${fillStr} /></g>`;
-                    break;
-                case 8:
-                    body += `<polygon points="${x2},${y2} ${x2 - hw * cos(-30)},${y2 - hw * sin(-30)} ${x2 - hw * cos(30)},${y2 - hw * sin(30)}" ${fillStr} ${filterAttr} />`;
-                    body += `<polygon points="${x1},${y1} ${x1 + hw * cos(-30)},${y1 + hw * sin(-30)} ${x1 + hw * cos(30)},${y1 + hw * sin(30)}" ${fillStr} ${filterAttr} />`;
-                    break;
-                case 9:
-                    hw = p.width * 5;
-                    body += `<line x1="${x2 - hw * cos(90)}" y1="${y2 - hw * sin(90)}" x2="${x2 + hw * cos(90)}" y2="${y2 + hw * sin(90)}" stroke="${p.color}" stroke-width="${p.width}" stroke-linecap="round" ${filterAttr} />`;
-                    break;
+            if (dir === 'outward' || dir === 'both') {
+                body += renderSvgArrowHead(x2, y2, a);
+            }
+            if (dir === 'inward' || dir === 'both') {
+                body += renderSvgArrowHead(x1, y1, a + Math.PI);
             }
         }
     }
@@ -1349,6 +1418,20 @@ function createSVGFromPath(p) {
     icon.dataset.baseHeight = h;
     icon.dataset.baseLeft = minX;
     icon.dataset.baseTop = minY;
+    
+    if (p.type === 'polygon' || p.type === 'rect') {
+        let ptArr;
+        if (p.type === 'rect') {
+            const rX = Math.min(p.x1, p.x2) - minX;
+            const rY = Math.min(p.y1, p.y2) - minY;
+            const rW = Math.abs(p.x2 - p.x1);
+            const rH = Math.abs(p.y2 - p.y1);
+            ptArr = [{x: rX, y: rY}, {x: rX + rW, y: rY}, {x: rX + rW, y: rY + rH}, {x: rX, y: rY + rH}];
+        } else {
+            ptArr = pts.map(pt => ({x: pt.x - minX, y: pt.y - minY}));
+        }
+        icon.dataset.polygonPoints = JSON.stringify(ptArr);
+    }
     
     const uiLayer = document.getElementById('ui-layer') || document.getElementById('canvas-container');
     if(uiLayer) uiLayer.appendChild(icon);
@@ -1422,7 +1505,6 @@ window.updateSelectedDraw = function() {
 window.showVertexHandles = function(el) {
     if (!el) return;
     
-    // YENİ: Eski (stale) container'ları her halükarda tamamen temizle
     const oldContainers = el.querySelectorAll('.vertex-handles-container');
     if (oldContainers) oldContainers.forEach(c => c.remove());
     el.dataset.hasHandles = 'false';
@@ -1432,152 +1514,35 @@ window.showVertexHandles = function(el) {
     if (!svg) return;
     const polygon = svg.querySelector('polygon');
     const lineEl = svg.querySelector('line');
-    let shape = svg.querySelector('ellipse, path, line, polyline, rect');
-    if(!shape && polygon) shape = polygon;
     
-    // YENÃ„Â° EKLENEN FONKSÃ„Â°YON: Ã…Âeklin (ÃƒÂ¶zellikle ÃƒÂ§okgenin) sÃ„Â±nÃ„Â±rlarÃ„Â±nÃ„Â± yeniden hesapla
-    function recalculateShapeBounds(el) {
-        const svg = el.querySelector('svg');
-        const polygon = svg.querySelector('polygon');
-        const lineEl = svg.querySelector('line');
-        const shape = svg.querySelector('ellipse, path, line, polyline, rect') || polygon;
-        
-        let pObj = null;
-        if (typeof drawPaths !== 'undefined') pObj = drawPaths.find(p => p.el === el);
-        
-        const strokeW = pObj ? parseFloat(pObj.width) : (shape ? (parseFloat(shape.getAttribute('stroke-width')) || 4) : 4);
-        const glow = pObj ? parseFloat(pObj.glow || 0) : 0;
-        const padding = strokeW * 10 + glow + 30;
-        
-        let pts = [];
-        if (polygon && el.dataset.polygonPoints) {
-            pts = JSON.parse(el.dataset.polygonPoints);
-        } else if (lineEl) {
-            pts = [
-                {x: parseFloat(lineEl.getAttribute('x1')), y: parseFloat(lineEl.getAttribute('y1'))},
-                {x: parseFloat(lineEl.getAttribute('x2')), y: parseFloat(lineEl.getAttribute('y2'))}
-            ];
-        }
-        if (pts.length === 0) return;
-
-        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-        pts.forEach(pt => {
-            if (pt.x < minX) minX = pt.x;
-            if (pt.y < minY) minY = pt.y;
-            if (pt.x > maxX) maxX = pt.x;
-            if (pt.y > maxY) maxY = pt.y;
-        });
-        
-        const shiftX = padding - minX;
-        const shiftY = padding - minY;
-        
-        const newW = (maxX - minX) + padding * 2;
-        const newH = (maxY - minY) + padding * 2;
-        
-        let bL = parseFloat(el.dataset.baseLeft) || 0;
-        let bT = parseFloat(el.dataset.baseTop) || 0;
-        
-        let newBL = bL - shiftX;
-        let newBT = bT - shiftY;
-        
-        const newPts = pts.map(pt => ({
-            x: pt.x + shiftX,
-            y: pt.y + shiftY
-        }));
-        
-        svg.setAttribute('width', '100%');
-        svg.setAttribute('height', '100%');
-        svg.style.width = '100%';
-        svg.style.height = '100%';
-        svg.setAttribute('viewBox', `0 0 ${newW} ${newH}`);
-        
-        let oldBW = parseFloat(el.dataset.baseWidth) || 1;
-        let tScale = parseFloat(el.style.width) / oldBW;
-        if (isNaN(tScale) || tScale <= 0) tScale = 1;
-
-        el.dataset.baseLeft = newBL;
-        el.dataset.baseTop = newBT;
-        el.dataset.baseWidth = newW;
-        el.dataset.baseHeight = newH;
-        
-        el.style.width = (newW * tScale) + 'px';
-        el.style.height = (newH * tScale) + 'px';
-        el.style.left = (parseFloat(el.style.left) - shiftX * tScale) + 'px';
-        el.style.top = (parseFloat(el.style.top) - shiftY * tScale) + 'px';
-        
-        const cx = newW / 2;
-        const cy = newH / 2;
-        
-        if (polygon) {
-            polygon.setAttribute('points', newPts.map(p => `${p.x},${p.y}`).join(' '));
-            el.dataset.polygonPoints = JSON.stringify(newPts);
-            
-            // FIX: SVG içindeki circle'ları da yeni shifted (kaydırılmış) koordinatlarla güncelle!
-            const circles = svg.querySelectorAll('circle');
-            circles.forEach((c, idx) => {
-                if (newPts[idx]) {
-                    c.setAttribute('cx', newPts[idx].x);
-                    c.setAttribute('cy', newPts[idx].y);
-                }
-            });
-
-            if(pObj) {
-                pObj.points = newPts.map(pt => ({
-                    x: pt.x + newBL,
-                    y: pt.y + newBT
-                }));
-                if (pObj.type === 'rect') pObj.type = 'polygon';
-            }
-
-        } else if (lineEl) {
-            const newX1 = newPts[0].x;
-            const newY1 = newPts[0].y;
-            const newX2 = newPts[1].x;
-            const newY2 = newPts[1].y;
-            lineEl.setAttribute('x1', newX1);
-            lineEl.setAttribute('y1', newY1);
-            lineEl.setAttribute('x2', newX2);
-            lineEl.setAttribute('y2', newY2);
-            if(pObj) { 
-                pObj.x1 = newX1 + newBL; 
-                pObj.y1 = newY1 + newBT; 
-                pObj.x2 = newX2 + newBL; 
-                pObj.y2 = newY2 + newBT; 
-            }
-
-        }
-
-        
-        if (typeof updateDrawHistory === 'function') updateDrawHistory();
-        
-        if (window.hideVertexHandles) {
-            const container = el.querySelector('.vertex-handles-container');
-            if (container) {
-                container.remove();
-                delete el.dataset.hasHandles;
-                setTimeout(() => {
-                    if (window.showVertexHandles) window.showVertexHandles(el);
-                }, 10);
+    let baseW = parseFloat(el.dataset.baseWidth) || el.offsetWidth;
+    let baseH = parseFloat(el.dataset.baseHeight) || el.offsetHeight;
+    const vb = svg.viewBox && svg.viewBox.baseVal;
+    if (vb && vb.width > 0 && vb.height > 0) {
+        baseW = vb.width;
+        baseH = vb.height;
+    } else {
+        const vbAttr = svg.getAttribute('viewBox');
+        if (vbAttr) {
+            const parts = vbAttr.trim().split(/[\s,]+/).map(Number);
+            if (parts.length === 4 && parts[2] > 0 && parts[3] > 0) {
+                baseW = parts[2];
+                baseH = parts[3];
             }
         }
     }
     
-    let baseW = parseFloat(el.dataset.baseWidth) || el.offsetWidth;
-    let baseH = parseFloat(el.dataset.baseHeight) || el.offsetHeight;
     let points = [];
-    
     if (polygon) {
-        if (el.dataset.polygonPoints) {
-            points = JSON.parse(el.dataset.polygonPoints);
-        } else {
-            const ptsStr = polygon.getAttribute('points');
-            if (ptsStr) {
-                points = ptsStr.split(' ').map(p => {
-                    const [x,y] = p.split(',').map(Number);
-                    return {x,y};
-                });
-                el.dataset.polygonPoints = JSON.stringify(points);
-            }
+        const ptsStr = polygon.getAttribute('points');
+        if (ptsStr) {
+            points = ptsStr.trim().split(/\s+/).map(p => {
+                const [x,y] = p.split(',').map(Number);
+                return {x,y};
+            });
+            el.dataset.polygonPoints = JSON.stringify(points);
+        } else if (el.dataset.polygonPoints) {
+            try { points = JSON.parse(el.dataset.polygonPoints); } catch(e) {}
         }
     } else if (lineEl) {
         points = [
@@ -1585,8 +1550,6 @@ window.showVertexHandles = function(el) {
             {x: parseFloat(lineEl.getAttribute('x2')), y: parseFloat(lineEl.getAttribute('y2'))}
         ];
     }
-    
-    if (points.length === 0 && !shape) return;
     
     const container = document.createElement('div');
     container.className = 'vertex-handles-container';
@@ -1598,72 +1561,12 @@ window.showVertexHandles = function(el) {
     container.style.pointerEvents = 'none'; 
     container.style.zIndex = '9999';
     
-    if (lineEl) {
-        const h1 = createHandle(points[0], (nx, ny) => {
-            lineEl.setAttribute('x1', nx);
-            lineEl.setAttribute('y1', ny);
-            let pObj = null;
-            if (typeof drawPaths !== 'undefined') pObj = drawPaths.find(p => p.el === el);
-            if (pObj) {
-                let baseLeft = parseFloat(el.dataset.baseLeft) || 0;
-                let baseTop = parseFloat(el.dataset.baseTop) || 0;
-                pObj.x1 = nx + baseLeft;
-                pObj.y1 = ny + baseTop;
-            }
-        }, baseW, baseH);
-        
-        const h2 = createHandle(points[1], (nx, ny) => {
-            lineEl.setAttribute('x2', nx);
-            lineEl.setAttribute('y2', ny);
-            let pObj = null;
-            if (typeof drawPaths !== 'undefined') pObj = drawPaths.find(p => p.el === el);
-            if (pObj) {
-                let baseLeft = parseFloat(el.dataset.baseLeft) || 0;
-                let baseTop = parseFloat(el.dataset.baseTop) || 0;
-                pObj.x2 = nx + baseLeft;
-                pObj.y2 = ny + baseTop;
-            }
-        }, baseW, baseH);
-        
-        container.appendChild(h1);
-        container.appendChild(h2);
-    } else if (polygon) {
-        points.forEach((pt, i) => {
-            const handle = createHandle(pt, (nx, ny) => {
-                points[i] = {x: nx, y: ny};
-                polygon.setAttribute('points', points.map(p => `${p.x},${p.y}`).join(' '));
-                el.dataset.polygonPoints = JSON.stringify(points);
-                
-                try {
-                    const circles = el.querySelectorAll('circle');
-                    // Geriye dönük uyumluluk veya ekstra circle'lar varsa sadece points kadarını güncelle
-                    for (let cIdx = 0; cIdx < points.length; cIdx++) {
-                        if (circles[cIdx]) {
-                            circles[cIdx].setAttribute('cx', points[cIdx].x);
-                            circles[cIdx].setAttribute('cy', points[cIdx].y);
-                        }
-                    }
-                } catch(e) {}
-                
-                let pObj = null;
-                if (typeof drawPaths !== 'undefined') pObj = drawPaths.find(p => p.el === el);
-                if (pObj) {
-                    let baseLeft = parseFloat(el.dataset.baseLeft) || 0;
-                    let baseTop = parseFloat(el.dataset.baseTop) || 0;
-                    let absolutePoints = points.map(p => ({ x: p.x + baseLeft, y: p.y + baseTop }));
-                    pObj.points = absolutePoints;
-                }
-            }, baseW, baseH);
-            container.appendChild(handle);
-        });
-    }
-
-    function createHandle(pt, onUpdate, bW, bH) {
+    function createHandle(pt, i, onUpdate) {
         const handle = document.createElement('div');
         handle.className = 'vertex-handle';
         handle.style.position = 'absolute';
-        handle.style.left = (pt.x / bW * 100) + '%';
-        handle.style.top = (pt.y / bH * 100) + '%';
+        handle.style.left = (pt.x / baseW * 100) + '%';
+        handle.style.top = (pt.y / baseH * 100) + '%';
         handle.style.width = '30px';
         handle.style.height = '30px';
         handle.style.transform = 'translate(-50%, -50%)';
@@ -1682,7 +1585,7 @@ window.showVertexHandles = function(el) {
         visual.style.background = '#fff';
         visual.style.border = '2px solid #3b82f6';
         visual.style.borderRadius = '50%';
-        visual.style.boxShadow = '0 0 5px rgba(0,0,0,0.5)';
+        visual.style.boxShadow = '0 2px 6px rgba(0,0,0,0.5)';
         visual.style.pointerEvents = 'none';
         handle.appendChild(visual);
         
@@ -1694,278 +1597,146 @@ window.showVertexHandles = function(el) {
             const startPtX = pt.x;
             const startPtY = pt.y;
             
-            const rect = el.getBoundingClientRect();
-            
-            // FIX #3: Read current base width and height to prevent stale values after shape recalculation
-            const currentBW = parseFloat(el.dataset.baseWidth) || bW;
-            const currentBH = parseFloat(el.dataset.baseHeight) || bH;
-            
-            // FIX #1: The getBoundingClientRect already includes the parent transform's scale factor.
-            // Using it directly with current base width gives the true real-time visual scale.
-            const scaleX = rect.width / currentBW;
-            const scaleY = rect.height / currentBH;
+            const globalScale = typeof window.getGlobalScale === 'function' ? window.getGlobalScale() : 1;
+            const curScaleX = (el.offsetWidth / baseW) * globalScale;
+            const curScaleY = (el.offsetHeight / baseH) * globalScale;
             
             function onMove(me) {
                 const meEvt = me.touches ? me.touches[0] : me;
-                const dx = (meEvt.clientX - startX) / scaleX;
-                const dy = (meEvt.clientY - startY) / scaleY;
+                const rawDx = (meEvt.clientX - startX) / (curScaleX || 1);
+                const rawDy = (meEvt.clientY - startY) / (curScaleY || 1);
                 
-                // Element dönmüşse mouse delta'sını element-local koordinatına çevir
-                let localDx = dx;
-                let localDy = dy;
+                let localDx = rawDx;
+                let localDy = rawDy;
                 const rotDeg = parseFloat(el.dataset.rotation) || 0;
                 if (rotDeg !== 0) {
                     const rotRad = rotDeg * Math.PI / 180;
                     const cos = Math.cos(rotRad);
                     const sin = Math.sin(rotRad);
-                    // FIX #2: Convert global mouse delta back to local unrotated space (Inverse Rotation)
-                    localDx = dx * cos + dy * sin;
-                    localDy = -dx * sin + dy * cos;
+                    localDx = rawDx * cos + rawDy * sin;
+                    localDy = -rawDx * sin + rawDy * cos;
                 }
                 
                 let newX = startPtX + localDx;
                 let newY = startPtY + localDy;
-                if(window.getSnapGuides) {
-                    let globalX = newX + (parseFloat(el.style.left) || 0);
-                    let globalY = newY + (parseFloat(el.style.top) || 0);
-                    const snap = window.getSnapGuides(globalX, globalY, el, true);
-                    newX = snap.x - (parseFloat(el.style.left) || 0);
-                    newY = snap.y - (parseFloat(el.style.top) || 0);
-                    if(window.drawSnapGuides) window.drawSnapGuides(snap.guides);
-                }
-                handle.style.left = (newX / currentBW * 100) + '%';
-                handle.style.top = (newY / currentBH * 100) + '%';
+                
+                pt.x = newX;
+                pt.y = newY;
+                
+                handle.style.left = (newX / baseW * 100) + '%';
+                handle.style.top = (newY / baseH * 100) + '%';
                 onUpdate(newX, newY);
             }
             
             function onUp() {
-                if(window.clearSnapGuides) window.clearSnapGuides();
                 document.removeEventListener('mousemove', onMove);
                 document.removeEventListener('mouseup', onUp);
                 document.removeEventListener('touchmove', onMove);
                 document.removeEventListener('touchend', onUp);
                 
-                recalculateShapeBounds(el);
-                
-                if (typeof createSVGFromPath === 'function') {
-                    let pObj = null;
-                    if (typeof drawPaths !== 'undefined') pObj = drawPaths.find(p => p.el === el);
-                    if (pObj) {
-                        const newIcon = createSVGFromPath(pObj);
-                        if (newIcon) {
-                            const oldSvg = el.querySelector('svg');
-                            const newSvg = newIcon.querySelector('svg');
-                            if (oldSvg && newSvg) {
-                                oldSvg.replaceWith(newSvg);
-                            } else if(newSvg) {
-                                el.appendChild(newSvg);
-                            }
-                            
-                            el.style.left = newIcon.style.left;
-                            el.style.top = newIcon.style.top;
-                            el.style.width = newIcon.style.width;
-                            el.style.height = newIcon.style.height;
-                            el.dataset.baseLeft = newIcon.dataset.baseLeft;
-                            el.dataset.baseTop = newIcon.dataset.baseTop;
-                            el.dataset.baseWidth = newIcon.dataset.baseWidth;
-                            el.dataset.baseHeight = newIcon.dataset.baseHeight;
-                            
-                            if (newSvg) {
-                                const poly = newSvg.querySelector('polygon');
-                                if (poly) {
-                                    const ptsStr = poly.getAttribute('points');
-                                    if (ptsStr) {
-                                        const newPoints = ptsStr.split(' ').map(p => {
-                                            const [x,y] = p.split(',').map(Number);
-                                            return {x,y};
-                                        });
-                                        el.dataset.polygonPoints = JSON.stringify(newPoints);
-                                    }
-                                }
-                            }
-                            
-                            if (newIcon.parentNode) {
-                                newIcon.parentNode.removeChild(newIcon);
-                            }
-                        }
-                    }
-                }
-                
-                const isPolyOrLine = el.dataset.polygonPoints || (el.querySelector('svg') && el.querySelector('svg').querySelector('line, polyline'));
-                if (typeof showVertexHandles === 'function' && isPolyOrLine) {
-                    if (typeof hideVertexHandles === 'function') hideVertexHandles();
-                    else {
-                        const oldContainer = el.querySelector('.vertex-handles-container');
-                        if (oldContainer) oldContainer.remove();
-                        delete el.dataset.hasHandles;
-                    }
-                    showVertexHandles(el);
-                }
+                if (typeof updateDrawHistory === 'function') updateDrawHistory();
+                if (typeof window.recordHistory === 'function') window.recordHistory('Köşe Noktası Düzenlendi');
             }
+            
             document.addEventListener('mousemove', onMove);
             document.addEventListener('mouseup', onUp);
             document.addEventListener('touchmove', onMove, {passive: false});
             document.addEventListener('touchend', onUp);
         }
+        
         handle.addEventListener('mousedown', handleDown);
         handle.addEventListener('touchstart', handleDown, {passive: false});
-        
         return handle;
     }
-
+    
+    if (lineEl && points.length >= 2) {
+        const h1 = createHandle(points[0], 0, (nx, ny) => {
+            lineEl.setAttribute('x1', nx);
+            lineEl.setAttribute('y1', ny);
+        });
+        
+        const h2 = createHandle(points[1], 1, (nx, ny) => {
+            lineEl.setAttribute('x2', nx);
+            lineEl.setAttribute('y2', ny);
+        });
+        
+        container.appendChild(h1);
+        container.appendChild(h2);
+    } else if (polygon && points.length > 0) {
+        points.forEach((pt, i) => {
+            const handle = createHandle(pt, i, (nx, ny) => {
+                points[i] = {x: nx, y: ny};
+                polygon.setAttribute('points', points.map(p => `${p.x},${p.y}`).join(' '));
+                el.dataset.polygonPoints = JSON.stringify(points);
+                
+                try {
+                    const circles = el.querySelectorAll('circle');
+                    if (circles[i]) {
+                        circles[i].setAttribute('cx', nx);
+                        circles[i].setAttribute('cy', ny);
+                    }
+                } catch(e) {}
+            });
+            container.appendChild(handle);
+        });
+    }
+    
     const rotHandle = document.createElement('div');
+    rotHandle.className = 'text-handle text-rotate-handle';
     rotHandle.style.position = 'absolute';
+    rotHandle.style.top = '-24px';
     rotHandle.style.left = '50%';
-    rotHandle.style.top = '-30px';
-    rotHandle.style.width = '30px';
-    rotHandle.style.height = '30px';
-    rotHandle.style.transform = 'translate(-50%, -50%)';
-    rotHandle.style.background = 'transparent';
-    rotHandle.style.borderRadius = '50%';
+    rotHandle.style.transform = 'translateX(-50%)';
     rotHandle.style.cursor = 'grab';
     rotHandle.style.pointerEvents = 'auto';
-
-    const rotVisual = document.createElement('div');
-    rotVisual.style.position = 'absolute';
-    rotVisual.style.left = '50%';
-    rotVisual.style.top = '50%';
-    rotVisual.style.transform = 'translate(-50%, -50%)';
-    rotVisual.style.width = '16px';
-    rotVisual.style.height = '16px';
-    rotVisual.style.background = '#fff';
-    rotVisual.style.border = '2px solid #10b981';
-    rotVisual.style.borderRadius = '50%';
-    rotVisual.style.boxShadow = '0 0 5px rgba(0,0,0,0.5)';
-    rotVisual.style.pointerEvents = 'none';
-    rotHandle.appendChild(rotVisual);
-    
-    const rotLine = document.createElement('div');
-    rotLine.style.position = 'absolute';
-    rotLine.style.left = '50%';
-    rotLine.style.top = '-22px';
-    rotLine.style.width = '2px';
-    rotLine.style.height = '22px';
-    rotLine.style.transform = 'translateX(-50%)';
-    rotLine.style.background = '#10b981';
-    container.appendChild(rotLine);
+    rotHandle.style.zIndex = '10000';
+    rotHandle.title = 'Döndür';
+    rotHandle.innerHTML = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="pointer-events:none;"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.22-10.27l-5.3 5.3"></path></svg>';
     
     function rotHandleDown(e) {
         if (e.type === 'mousedown' || e.type === 'touchstart') { e.preventDefault(); e.stopPropagation(); }
         const evt = e.touches ? e.touches[0] : e;
-        rotHandle.style.cursor = 'grabbing';
-        
         const rect = el.getBoundingClientRect();
         const centerX = rect.left + rect.width / 2;
         const centerY = rect.top + rect.height / 2;
-        
-        let startAngle = Math.atan2(evt.clientY - centerY, evt.clientX - centerX);
-        let prevAngle = el.dataset.rotation ? parseFloat(el.dataset.rotation) : 0;
-        
-        let initialPoints = [];
-        let points = [];
-        if (polygon && el.dataset.polygonPoints) {
-            points = JSON.parse(el.dataset.polygonPoints);
-            initialPoints = points.map(p => ({x: p.x, y: p.y}));
-            startAngle = Math.atan2(evt.clientY - centerY, evt.clientX - centerX);
-        }
+        const startAngle = Math.atan2(evt.clientY - centerY, evt.clientX - centerX);
+        const prevAngle = parseFloat(el.dataset.rotation) || 0;
+        rotHandle.style.cursor = 'grabbing';
         
         function onMove(me) {
             const meEvt = me.touches ? me.touches[0] : me;
-            const rect = el.getBoundingClientRect();
-            const centerX = rect.left + rect.width / 2;
-            const centerY = rect.top + rect.height / 2;
             const currentAngleRad = Math.atan2(meEvt.clientY - centerY, meEvt.clientX - centerX);
             const diffRad = currentAngleRad - startAngle;
-
-            // Points matematiksel olarak dönüyor (el div dönmüyor!)
-            const bW = parseFloat(el.dataset.baseWidth) || el.offsetWidth;
-            const bH = parseFloat(el.dataset.baseHeight) || el.offsetHeight;
+            const diffDeg = diffRad * (180 / Math.PI);
             
-            // Merkezi initialPoints ortalamasından hesapla (kümülatif ve sabit)
-            let cx = bW / 2;
-            let cy = bH / 2;
-            if (initialPoints && initialPoints.length > 0) {
-                let sumX = 0, sumY = 0;
-                initialPoints.forEach(p => { sumX += p.x; sumY += p.y; });
-                cx = sumX / initialPoints.length;
-                cy = sumY / initialPoints.length;
-            }
+            let newRotation = prevAngle + diffDeg;
+            newRotation = newRotation % 360;
+            if (newRotation > 180) newRotation -= 360;
+            else if (newRotation < -180) newRotation += 360;
+            newRotation = Math.round(newRotation);
             
-            const cos = Math.cos(diffRad);
-            const sin = Math.sin(diffRad);
-
-            if (initialPoints && initialPoints.length > 0) {
-                const newPoints = initialPoints.map(pt => {
-                    const dx = pt.x - cx;
-                    const dy = pt.y - cy;
-                    return {
-                        x: cx + dx * cos - dy * sin,
-                        y: cy + dx * sin + dy * cos
-                    };
-                });
-                
-                el.dataset.polygonPoints = JSON.stringify(newPoints);
-                
-                // SVG polygon güncelle
-                const polygon = el.querySelector('svg polygon');
-                if (polygon) {
-                    polygon.setAttribute('points', newPoints.map(p => `${p.x},${p.y}`).join(' '));
-                    
-                    // SVG içindeki circle'ları (showVertices noktalarını) da güncelle
-                    const circles = el.querySelectorAll('svg circle');
-                    circles.forEach((c, idx) => {
-                        if (newPoints[idx]) {
-                            c.setAttribute('cx', newPoints[idx].x);
-                            c.setAttribute('cy', newPoints[idx].y);
-                        }
-                    });
-                }
-                
-                // Vertex handle'ları güncelle
-                const handles = el.querySelectorAll('.vertex-handle');
-                newPoints.forEach((pt, i) => {
-                    if (handles[i]) {
-                        handles[i].style.left = (pt.x / bW * 100) + '%';
-                        handles[i].style.top = (pt.y / bH * 100) + '%';
-                    }
-                });
-            } else {
-                const diffDeg = diffRad * (180 / Math.PI);
-                let newRotation = prevAngle + diffDeg;
-                newRotation = newRotation % 360;
-                if (newRotation > 180) newRotation -= 360;
-                else if (newRotation < -180) newRotation += 360;
-                newRotation = Math.round(newRotation);
-                
-                el.dataset.rotation = newRotation;
-                el.style.transform = `rotate(${newRotation}deg)`;
-                
-                if (typeof selectedEl !== 'undefined' && selectedEl === el) {
-                    const rotSlider = document.getElementById('elRotate');
-                    if (rotSlider) rotSlider.value = newRotation;
-                    const rotVal = document.getElementById('elRotateVal');
-                    if (rotVal) rotVal.textContent = newRotation + '°';
-                }
+            el.dataset.rotation = newRotation;
+            el.style.transform = `rotate(${newRotation}deg)`;
+            
+            if (typeof selectedEl !== 'undefined' && selectedEl === el) {
+                const rotSlider = document.getElementById('elRotate');
+                if (rotSlider) rotSlider.value = newRotation;
+                const rotVal = document.getElementById('elRotateVal');
+                if (rotVal) rotVal.textContent = newRotation + '°';
             }
-            // startAngle BURADA GÜNCELLENMİYOR, kümülatif açı (initial duruma göre) kullanılıyor.
         }
+        
         function onUp() {
-            // mouseup/touchend listener'ları temizle
+            rotHandle.style.cursor = 'grab';
             document.removeEventListener('mousemove', onMove);
             document.removeEventListener('mouseup', onUp);
             document.removeEventListener('touchmove', onMove);
             document.removeEventListener('touchend', onUp);
             
-            recalculateShapeBounds(el);
-            
-            // Handle refresh (kopya oluşmasın)
-            el.dataset.hasHandles = 'false';
-            const oldContainer = el.querySelector('.vertex-handles-container');
-            if (oldContainer) oldContainer.remove();
-            if (typeof showVertexHandles === 'function') {
-                showVertexHandles(el);
-            }
+            if (typeof updateDrawHistory === 'function') updateDrawHistory();
+            if (typeof window.recordHistory === 'function') window.recordHistory('Çizim Döndürüldü');
         }
+        
         document.addEventListener('mousemove', onMove);
         document.addEventListener('mouseup', onUp);
         document.addEventListener('touchmove', onMove, {passive: false});
@@ -1977,138 +1748,74 @@ window.showVertexHandles = function(el) {
     
     const resizeHandle = document.createElement('div');
     resizeHandle.className = 'text-handle text-resize-handle';
+    resizeHandle.style.position = 'absolute';
+    resizeHandle.style.bottom = '-6px';
+    resizeHandle.style.right = '-6px';
+    resizeHandle.style.cursor = 'nwse-resize';
+    resizeHandle.style.pointerEvents = 'auto';
+    resizeHandle.style.zIndex = '10000';
     resizeHandle.title = 'Boyutlandır';
-    resizeHandle.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"></path></svg>';
+    resizeHandle.innerHTML = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="pointer-events:none;"><path d="M21 15v6h-6M3 9V3h6M21 21l-7-7M3 3l7 7"></path></svg>';
+    
+    function rsDown(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        const evt = e.touches ? e.touches[0] : e;
+        const startX = evt.clientX;
+        const startY = evt.clientY;
+        const startW = el.offsetWidth;
+        const startH = el.offsetHeight;
+        const rotDeg = parseFloat(el.dataset.rotation) || 0;
+        const rotRad = rotDeg * Math.PI / 180;
+        const cos = Math.cos(rotRad);
+        const sin = Math.sin(rotRad);
+        
+        function rsMove(me) {
+            const meEvt = me.touches ? me.touches[0] : me;
+            const globalScale = typeof window.getGlobalScale === 'function' ? window.getGlobalScale() : 1;
+            const rawDx = (meEvt.clientX - startX) / globalScale;
+            const rawDy = (meEvt.clientY - startY) / globalScale;
+            
+            let localDx = rawDx;
+            let localDy = rawDy;
+            if (rotDeg !== 0) {
+                localDx = rawDx * cos + rawDy * sin;
+                localDy = -rawDx * sin + rawDy * cos;
+            }
+            
+            // Pürüzsüz köşegen projeksiyonu ile orantılı ölçekleme (takılmayı ve atlamayı önler)
+            const diagLen = Math.sqrt(startW * startW + startH * startH);
+            const proj = (localDx * startW + localDy * startH) / diagLen;
+            const scale = Math.max(0.05, 1 + proj / diagLen);
+            
+            let newW = Math.max(20, Math.round(startW * scale));
+            let newH = Math.max(20, Math.round(startH * scale));
+            
+            el.style.width = newW + 'px';
+            el.style.height = newH + 'px';
+        }
+        
+        function rsUp() {
+            document.removeEventListener('mousemove', rsMove);
+            document.removeEventListener('mouseup', rsUp);
+            document.removeEventListener('touchmove', rsMove);
+            document.removeEventListener('touchend', rsUp);
+            
+            if (typeof updateDrawHistory === 'function') updateDrawHistory();
+            if (typeof window.recordHistory === 'function') window.recordHistory('Çizim Boyutlandırıldı');
+        }
+        
+        document.addEventListener('mousemove', rsMove);
+        document.addEventListener('mouseup', rsUp);
+        document.addEventListener('touchmove', rsMove, {passive: false});
+        document.addEventListener('touchend', rsUp);
+    }
+    resizeHandle.addEventListener('mousedown', rsDown);
+    resizeHandle.addEventListener('touchstart', rsDown, {passive: false});
     container.appendChild(resizeHandle);
     
     el.appendChild(container);
     el.dataset.hasHandles = 'true';
-};
-
-window.recalculateShapeBounds = function(el) {
-        const svg = el.querySelector('svg');
-        const polygon = svg.querySelector('polygon');
-        const lineEl = svg.querySelector('line');
-        const shape = svg.querySelector('ellipse, path, line, polyline, rect') || polygon;
-        
-        let pObj = null;
-        if (typeof drawPaths !== 'undefined') pObj = drawPaths.find(p => p.el === el);
-        
-        const strokeW = pObj ? parseFloat(pObj.width) : (shape ? (parseFloat(shape.getAttribute('stroke-width')) || 4) : 4);
-        const glow = pObj ? parseFloat(pObj.glow || 0) : 0;
-        const padding = strokeW * 10 + glow + 30;
-        
-        let pts = [];
-        if (polygon && el.dataset.polygonPoints) {
-            pts = JSON.parse(el.dataset.polygonPoints);
-        } else if (lineEl) {
-            pts = [
-                {x: parseFloat(lineEl.getAttribute('x1')), y: parseFloat(lineEl.getAttribute('y1'))},
-                {x: parseFloat(lineEl.getAttribute('x2')), y: parseFloat(lineEl.getAttribute('y2'))}
-            ];
-        }
-        if (pts.length === 0) return;
-
-        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-        pts.forEach(pt => {
-            if (pt.x < minX) minX = pt.x;
-            if (pt.y < minY) minY = pt.y;
-            if (pt.x > maxX) maxX = pt.x;
-            if (pt.y > maxY) maxY = pt.y;
-        });
-        
-        const shiftX = padding - minX;
-        const shiftY = padding - minY;
-        
-        const newW = (maxX - minX) + padding * 2;
-        const newH = (maxY - minY) + padding * 2;
-        
-        let bL = parseFloat(el.dataset.baseLeft) || 0;
-        let bT = parseFloat(el.dataset.baseTop) || 0;
-        
-        let newBL = bL - shiftX;
-        let newBT = bT - shiftY;
-        
-        const newPts = pts.map(pt => ({
-            x: pt.x + shiftX,
-            y: pt.y + shiftY
-        }));
-        
-        svg.setAttribute('width', '100%');
-        svg.setAttribute('height', '100%');
-        svg.style.width = '100%';
-        svg.style.height = '100%';
-        svg.setAttribute('viewBox', `0 0 ${newW} ${newH}`);
-        
-        let oldBW = parseFloat(el.dataset.baseWidth) || 1;
-        let tScale = parseFloat(el.style.width) / oldBW;
-        if (isNaN(tScale) || tScale <= 0) tScale = 1;
-
-        el.dataset.baseLeft = newBL;
-        el.dataset.baseTop = newBT;
-        el.dataset.baseWidth = newW;
-        el.dataset.baseHeight = newH;
-        
-        el.style.width = (newW * tScale) + 'px';
-        el.style.height = (newH * tScale) + 'px';
-        el.style.left = (parseFloat(el.style.left) - shiftX * tScale) + 'px';
-        el.style.top = (parseFloat(el.style.top) - shiftY * tScale) + 'px';
-        
-        const cx = newW / 2;
-        const cy = newH / 2;
-        
-        if (polygon) {
-            polygon.setAttribute('points', newPts.map(p => `${p.x},${p.y}`).join(' '));
-            el.dataset.polygonPoints = JSON.stringify(newPts);
-            
-            // FIX: SVG içindeki circle'ları da yeni shifted (kaydırılmış) koordinatlarla güncelle!
-            const circles = svg.querySelectorAll('circle');
-            circles.forEach((c, idx) => {
-                if (newPts[idx]) {
-                    c.setAttribute('cx', newPts[idx].x);
-                    c.setAttribute('cy', newPts[idx].y);
-                }
-            });
-
-            if(pObj) {
-                pObj.points = newPts.map(pt => ({
-                    x: pt.x + newBL,
-                    y: pt.y + newBT
-                }));
-                if (pObj.type === 'rect') pObj.type = 'polygon';
-            }
-
-        } else if (lineEl) {
-            const newX1 = newPts[0].x;
-            const newY1 = newPts[0].y;
-            const newX2 = newPts[1].x;
-            const newY2 = newPts[1].y;
-            lineEl.setAttribute('x1', newX1);
-            lineEl.setAttribute('y1', newY1);
-            lineEl.setAttribute('x2', newX2);
-            lineEl.setAttribute('y2', newY2);
-            if(pObj) { 
-                pObj.x1 = newX1 + newBL; 
-                pObj.y1 = newY1 + newBT; 
-                pObj.x2 = newX2 + newBL; 
-                pObj.y2 = newY2 + newBT; 
-            }
-
-        }
-
-        
-        if (typeof updateDrawHistory === 'function') updateDrawHistory();
-        
-        if (window.hideVertexHandles) {
-            const container = el.querySelector('.vertex-handles-container');
-            if (container) {
-                container.remove();
-                delete el.dataset.hasHandles;
-                setTimeout(() => {
-                    if (window.showVertexHandles) window.showVertexHandles(el);
-                }, 10);
-            }
-        }
 };
 
 
@@ -2117,17 +1824,51 @@ window.recalculateShapeBounds = function(el) {
 
     const style = document.createElement('style');
     style.innerHTML = `
-        .editable-draw { pointer-events: none !important; }
-        .editable-draw.el-selected { pointer-events: auto !important; }
-        .editable-draw svg { pointer-events: none !important; }
-        .editable-draw svg path, 
-        .editable-draw svg polygon, 
-        .editable-draw svg rect, 
-        .editable-draw svg ellipse, 
-        .editable-draw svg line, 
-        .editable-draw svg circle, 
-        .editable-draw svg polyline,
-        .editable-draw svg g {
+        body.draw-mode-active #ui-layer,
+        body.draw-mode-active #ui-layer *,
+        body.draw-mode-active #canva-render-layer,
+        body.draw-mode-active #canva-render-layer *,
+        body.draw-mode-active #mask-layer,
+        body.draw-mode-active .callout-wrap,
+        body.draw-mode-active .callout-wrap *,
+        body.draw-mode-active .svg-callout,
+        body.draw-mode-active .svg-callout *,
+        body.draw-mode-active .co-neon-block,
+        body.draw-mode-active .co-neon-block *,
+        body.draw-mode-active .canvas-el,
+        body.draw-mode-active .canvas-el *,
+        body.draw-mode-active .draggable,
+        body.draw-mode-active .draggable *,
+        body.draw-mode-active .editable-draw,
+        body.draw-mode-active .editable-draw *,
+        body.draw-mode-active .cvi-item,
+        body.draw-mode-active .cvi-item *,
+        body.draw-mode-active .callout-controls,
+        body.draw-mode-active .callout-resizer,
+        body.draw-mode-active .callout-rotator,
+        body.draw-mode-active .callout-select-border,
+        body.draw-mode-active .text-handle,
+        body.draw-mode-active .draw-handle,
+        body.draw-mode-active .vertex-handle { 
+            pointer-events: none !important; 
+        }
+        body:not(.draw-mode-active) .editable-draw { 
+            pointer-events: none !important; 
+        }
+        body:not(.draw-mode-active) .editable-draw.el-selected { 
+            pointer-events: auto !important; 
+        }
+        body:not(.draw-mode-active) .editable-draw svg { 
+            pointer-events: none !important; 
+        }
+        body:not(.draw-mode-active) .editable-draw svg path, 
+        body:not(.draw-mode-active) .editable-draw svg polygon, 
+        body:not(.draw-mode-active) .editable-draw svg rect, 
+        body:not(.draw-mode-active) .editable-draw svg ellipse, 
+        body:not(.draw-mode-active) .editable-draw svg line, 
+        body:not(.draw-mode-active) .editable-draw svg circle, 
+        body:not(.draw-mode-active) .editable-draw svg polyline,
+        body:not(.draw-mode-active) .editable-draw svg g {
             pointer-events: all !important;
             cursor: pointer;
         }
@@ -2138,6 +1879,29 @@ window.recalculateShapeBounds = function(el) {
     if(document.getElementById('drawColor')) document.getElementById('drawColor').addEventListener('input', updateSelectedDraw);
     if(document.getElementById('drawWidth')) document.getElementById('drawWidth').addEventListener('input', updateSelectedDraw);
     if(document.getElementById('drawOpacity')) document.getElementById('drawOpacity').addEventListener('input', updateSelectedDraw);
+    
+    const polyShowCheck = document.getElementById('polyShowVertices');
+    if (polyShowCheck) {
+        polyShowCheck.addEventListener('change', function() {
+            const isChecked = this.checked;
+            if (document.getElementById('dePolyShowVertices')) {
+                document.getElementById('dePolyShowVertices').checked = isChecked;
+            }
+            if (typeof drawPaths !== 'undefined' && drawPaths.length > 0) {
+                drawPaths.forEach(p => {
+                    if (p.type === 'rect' || p.type === 'polygon') {
+                        p.showVertices = isChecked;
+                        if (p.el) {
+                            p.el.querySelectorAll('circle').forEach(c => {
+                                c.style.display = isChecked ? 'block' : 'none';
+                            });
+                        }
+                    }
+                });
+                if (typeof redrawAll === 'function') redrawAll();
+            }
+        });
+    }
 window.hideVertexHandles = function() {
     document.querySelectorAll('.vertex-handles-container').forEach(c => {
         if(c.parentElement) c.parentElement.dataset.hasHandles = 'false';

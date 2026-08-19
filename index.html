@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
@@ -8,10 +8,11 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link rel="stylesheet" href="css/landing.css">
-<!-- Supabase JS Library -->
+    <!-- Supabase JS Library -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="js/supabase-client.js" defer></script>
-    <script src="js/auth.js?v=1784103826414" defer></script>
+    <script src="js/supabase-client.js?v=20260819-2" defer></script>
+    <script src="js/presence.js?v=20260819-1" defer></script>
+    <script src="js/auth.js?v=20260819-4" defer></script>
 </head>
 <body>
     <!-- Background Animation -->
@@ -23,7 +24,7 @@
 
     <!-- Navbar -->
     <nav class="navbar" id="navbar" style="border-bottom: 1px solid rgba(255,255,255,0.05); box-shadow: 0 4px 20px rgba(0,0,0,0.3); padding: 12px 60px;">
-        <a href="landing.html" class="logo">
+        <a href="index.html" class="logo">
           <img src="assets/logo/logo.png" 
                alt="EmlakStüdyom" 
                height="150"
@@ -45,8 +46,6 @@
         </button>
     </nav>
 
-    
-    
     <div class="mobile-menu-backdrop" id="mobileMenuBackdrop" onclick="toggleMobileMenu()"></div>
     <div class="mobile-menu-panel" id="mobileMenuPanel">
         <div class="mobile-menu-header">
@@ -444,6 +443,10 @@
                 <div class="faq-answer"><p>Kesinlikle! EmlakStüdyom sürükle-bırak mantığı ile çalışır. Hiçbir teknik bilgi gerekmez. Hazır şablonları seçip birkaç tıklamayla profesyonel görsel oluşturursunuz.</p></div>
             </div>
             <div class="faq-item">
+                <div class="faq-question" onclick="toggleFaq(this)">Sahibinden veya diğer portallardan ilan aktarabilir miyim?<i class="fas fa-chevron-down"></i></div>
+                <div class="faq-answer"><p>Kesinlikle evet! Sahibinden.com, Hepsiemlak veya WhatsApp'taki ilanınızın kapak ve detay tablosunu (Fiyat, m², Oda, Kat, Bina Yaşı, Ada/Parsel, İmar vb.) komple kopyalayıp "Metni Süz" kutusuna yapıştırmanız yeterlidir. Akıllı sistem tüm alanları saniyeler içinde şablonlara ve tuvale aktarır.</p></div>
+            </div>
+            <div class="faq-item">
                 <div class="faq-question" onclick="toggleFaq(this)">AI Asistan ne işe yarar?<i class="fas fa-chevron-down"></i></div>
                 <div class="faq-answer"><p>İlan metninizi yapıştırdığınızda AI Asistan otomatik olarak fiyat, oda sayısı, metrekare, konum gibi bilgileri ayrıştırır ve form alanlarını doldurur. Böylece dakikalarınızı kurtarır.</p></div>
             </div>
@@ -482,7 +485,7 @@
     <footer class="footer">
         <div class="footer-grid">
             <div class="footer-brand">
-                <a href="landing.html" class="logo">
+                <a href="index.html" class="logo">
                   <img src="assets/logo/logo.png" 
                        alt="EmlakStüdyom" 
                        height="80"
@@ -539,37 +542,39 @@
             <div id="loginForm">
                 <h2>Hoş Geldiniz 👋</h2>
                 <p class="subtitle">Hesabınıza giriş yapın</p>
-                <div class="form-group">
-                    <label>E-posta</label>
-                    <input type="email" placeholder="ornek@email.com">
-                </div>
-                <div class="form-group">
-                    <label>Şifre</label>
-                    <div style="position:relative;">
-                        <input type="password" placeholder="••••••••" style="padding-right: 40px;">
-                        <button type="button" 
-                                class="password-toggle-btn" 
-                                onclick="togglePasswordVisibility(this)"
-                                style="position:absolute; right:10px; top:50%; transform:translateY(-50%); 
-                                       background:transparent; border:none; cursor:pointer; 
-                                       font-size:20px; padding:0; z-index:2; color:#94a3b8;">
-                          👁️
-                        </button>
+                <form onsubmit="handleLogin(event); return false;">
+                    <div class="form-group">
+                        <label>E-posta</label>
+                        <input type="email" id="loginEmail" placeholder="ornek@email.com" required autocomplete="email">
                     </div>
-                </div>
-                <div class="form-options">
-                    <label><input type="checkbox"> Beni hatırla</label>
-                    <a href="#">Şifremi unuttum</a>
-                </div>
-                <button class="btn-submit" onclick="handleLogin(event)">Giriş Yap</button>
+                    <div class="form-group">
+                        <label>Şifre</label>
+                        <div style="position:relative;">
+                            <input type="password" id="loginPassword" placeholder="••••••••" style="padding-right: 46px;" required autocomplete="current-password">
+                            <button type="button" 
+                                    class="password-toggle-btn" 
+                                    onclick="togglePasswordVisibility(this, event)"
+                                    style="position:absolute; right:6px; top:50%; transform:translateY(-50%); 
+                                           background:transparent; border:none; cursor:pointer; 
+                                           font-size:20px; padding:8px; z-index:5; color:#94a3b8; touch-action:manipulation;">
+                              👁️
+                            </button>
+                        </div>
+                    </div>
+                    <div class="form-options">
+                        <label><input type="checkbox"> Beni hatırla</label>
+                        <a href="#" onclick="switchForm('forgot'); return false;">Şifremi unuttum</a>
+                    </div>
+                    <button type="submit" class="btn-submit" onclick="handleLogin(event)">Giriş Yap</button>
+                </form>
                 <div class="divider">veya</div>
                 <div class="social-login">
-                    <button class="btn-social"><i class="fab fa-google"></i></button>
-                    <button class="btn-social"><i class="fab fa-apple"></i></button>
-                    <button class="btn-social"><i class="fab fa-facebook"></i></button>
+                    <button type="button" class="btn-social" onclick="goToDemo()"><i class="fab fa-google"></i></button>
+                    <button type="button" class="btn-social" onclick="goToDemo()"><i class="fab fa-apple"></i></button>
+                    <button type="button" class="btn-social" onclick="goToDemo()"><i class="fab fa-facebook"></i></button>
                 </div>
                 <p class="modal-footer-text">
-                    Hesabınız yok mu? <a href="#" onclick="switchForm('register')">Kayıt olun</a>
+                    Hesabınız yok mu? <a href="#" onclick="switchForm('register'); return false;">Kayıt olun</a>
                 </p>
             </div>
 
@@ -577,38 +582,93 @@
             <div id="registerForm" style="display:none;">
                 <h2>Hesap Oluşturun 🚀</h2>
                 <p class="subtitle">7 gün ücretsiz deneyin</p>
-                <div class="form-group">
-                    <label>Ad Soyad</label>
-                    <input type="text" placeholder="Adınız Soyadınız">
-                </div>
-                <div class="form-group">
-                    <label>E-posta</label>
-                    <input type="email" placeholder="ornek@email.com">
-                </div>
-                <div class="form-group">
-                    <label>Şifre</label>
-                    <div style="position:relative;">
-                        <input type="password" placeholder="Min. 8 karakter" style="padding-right: 40px;">
-                        <button type="button" 
-                                class="password-toggle-btn" 
-                                onclick="togglePasswordVisibility(this)"
-                                style="position:absolute; right:10px; top:50%; transform:translateY(-50%); 
-                                       background:transparent; border:none; cursor:pointer; 
-                                       font-size:20px; padding:0; z-index:2; color:#94a3b8;">
-                          👁️
-                        </button>
+                <form onsubmit="handleRegister(event); return false;">
+                    <div class="form-group">
+                        <label>Ad Soyad</label>
+                        <input type="text" id="registerName" placeholder="Adınız Soyadınız" required autocomplete="name">
                     </div>
-                </div>
-                <button class="btn-submit" onclick="handleRegister(event)">Ücretsiz Başla</button>
+                    <div class="form-group">
+                        <label>E-posta</label>
+                        <input type="email" id="registerEmail" placeholder="ornek@email.com" required autocomplete="email">
+                    </div>
+                    <div class="form-group">
+                        <label>Şifre</label>
+                        <div style="position:relative;">
+                            <input type="password" id="registerPassword" placeholder="Min. 6 karakter" style="padding-right: 46px;" required autocomplete="new-password">
+                            <button type="button" 
+                                    class="password-toggle-btn" 
+                                    onclick="togglePasswordVisibility(this, event)"
+                                    style="position:absolute; right:6px; top:50%; transform:translateY(-50%); 
+                                           background:transparent; border:none; cursor:pointer; 
+                                           font-size:20px; padding:8px; z-index:5; color:#94a3b8; touch-action:manipulation;">
+                              👁️
+                            </button>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn-submit" onclick="handleRegister(event)">Ücretsiz Başla</button>
+                </form>
                 <div class="divider">veya</div>
                 <div class="social-login">
-                    <button class="btn-social"><i class="fab fa-google"></i></button>
-                    <button class="btn-social"><i class="fab fa-apple"></i></button>
-                    <button class="btn-social"><i class="fab fa-facebook"></i></button>
+                    <button type="button" class="btn-social" onclick="goToDemo()"><i class="fab fa-google"></i></button>
+                    <button type="button" class="btn-social" onclick="goToDemo()"><i class="fab fa-apple"></i></button>
+                    <button type="button" class="btn-social" onclick="goToDemo()"><i class="fab fa-facebook"></i></button>
                 </div>
                 <p class="modal-footer-text">
-                    Zaten hesabınız var mı? <a href="#" onclick="switchForm('login')">Giriş yapın</a>
+                    Zaten hesabınız var mı? <a href="#" onclick="switchForm('login'); return false;">Giriş yapın</a>
                 </p>
+            </div>
+
+            <!-- Forgot Password Form -->
+            <div id="forgotPasswordForm" style="display:none;">
+                <h2>Şifrenizi mi Unuttunuz? 🔑</h2>
+                <p class="subtitle">E-posta adresinize sıfırlama bağlantısı göndereceğiz</p>
+                <form onsubmit="handleForgotPassword(event); return false;">
+                    <div class="form-group">
+                        <label>Kayıtlı E-posta Adresiniz</label>
+                        <input type="email" id="forgotEmail" placeholder="ornek@email.com" required autocomplete="email">
+                    </div>
+                    <button type="submit" class="btn-submit" style="margin-top:10px;" onclick="handleForgotPassword(event)">Sıfırlama Bağlantısı Gönder</button>
+                </form>
+                <p class="modal-footer-text" style="margin-top:20px;">
+                    Hatırladınız mı? <a href="#" onclick="switchForm('login'); return false;">Giriş Yap</a>
+                </p>
+            </div>
+
+            <!-- Reset Password Form (Recovery) -->
+            <div id="resetPasswordForm" style="display:none;">
+                <h2>Yeni Şifre Belirleyin 🔒</h2>
+                <p class="subtitle">Hesabınız için yeni bir şifre girin</p>
+                <form onsubmit="handleUpdatePassword(event); return false;">
+                    <div class="form-group">
+                        <label>Yeni Şifre</label>
+                        <div style="position:relative;">
+                            <input type="password" id="newPassword" placeholder="Min. 6 karakter" style="padding-right: 46px;" required autocomplete="new-password">
+                            <button type="button" 
+                                    class="password-toggle-btn" 
+                                    onclick="togglePasswordVisibility(this, event)"
+                                    style="position:absolute; right:6px; top:50%; transform:translateY(-50%); 
+                                           background:transparent; border:none; cursor:pointer; 
+                                           font-size:20px; padding:8px; z-index:5; color:#94a3b8; touch-action:manipulation;">
+                              👁️
+                            </button>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Yeni Şifre (Tekrar)</label>
+                        <div style="position:relative;">
+                            <input type="password" id="newPasswordConfirm" placeholder="Min. 6 karakter" style="padding-right: 46px;" required autocomplete="new-password">
+                            <button type="button" 
+                                    class="password-toggle-btn" 
+                                    onclick="togglePasswordVisibility(this, event)"
+                                    style="position:absolute; right:6px; top:50%; transform:translateY(-50%); 
+                                           background:transparent; border:none; cursor:pointer; 
+                                           font-size:20px; padding:8px; z-index:5; color:#94a3b8; touch-action:manipulation;">
+                              👁️
+                            </button>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn-submit" style="margin-top:10px;" onclick="handleUpdatePassword(event)">Şifreyi Güncelle ve Giriş Yap</button>
+                </form>
             </div>
         </div>
     </div>
@@ -624,34 +684,15 @@
             }
         });
 
-        // ===== MODAL =====
-        function openModal(type) {
-            document.getElementById('authModal').classList.add('active');
-            switchForm(type);
-            document.body.style.overflow = 'hidden';
-        }
-
-        function closeModal() {
-            document.getElementById('authModal').classList.remove('active');
-            document.body.style.overflow = '';
-        }
-
-        function switchForm(type) {
-            if (type === 'login') {
-                document.getElementById('loginForm').style.display = 'block';
-                document.getElementById('registerForm').style.display = 'none';
-            } else {
-                document.getElementById('loginForm').style.display = 'none';
-                document.getElementById('registerForm').style.display = 'block';
-            }
-        }
-
         // Close modal on overlay click
-        document.getElementById('authModal').addEventListener('click', (e) => {
-            if (e.target === document.getElementById('authModal')) {
-                closeModal();
-            }
-        });
+        const authModalEl = document.getElementById('authModal');
+        if (authModalEl) {
+            authModalEl.addEventListener('click', (e) => {
+                if (e.target === authModalEl) {
+                    if (typeof closeModal === 'function') closeModal();
+                }
+            });
+        }
 
         // ===== PRICING TOGGLE =====
         let isYearly = false;

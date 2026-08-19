@@ -7,54 +7,7 @@
  * --- MOBIL DOKUNMATIK DESTEGI ICIN TOUCH-TO-MOUSE PROXY ---
  * (Otomatik enjekte edildi)
  */
-(function() {
-    function touchHandler(event) {
-        const touch = event.changedTouches[0];
-        
-        // Sadece belirli elemanlarda (callout) proxy yap
-        if (!event.target.closest('.callout-wrap, .co-neon-block, .callout-resizer, .callout-rotator, .callout-controls')) {
-            return;
-        }
-
-        const simulatedEvent = new MouseEvent({
-            touchstart: 'mousedown',
-            touchmove: 'mousemove',
-            touchend: 'mouseup'
-        }[event.type], {
-            bubbles: true,
-            cancelable: true,
-            view: window,
-            detail: 1,
-            screenX: touch.screenX,
-            screenY: touch.screenY,
-            clientX: touch.clientX,
-            clientY: touch.clientY,
-            ctrlKey: event.ctrlKey,
-            altKey: event.altKey,
-            shiftKey: event.shiftKey,
-            metaKey: event.metaKey,
-            button: 0,
-            relatedTarget: null
-        });
-
-        touch.target.dispatchEvent(simulatedEvent);
-        
-        // Eger touchmove ise scroll'u engelle (surukleme, dondurme vs.)
-        if (event.type === 'touchmove') {
-            event.preventDefault();
-        }
-    }
-
-    // Listeners'lari document yerine daha gǬvenli bir kapsaycya (ornegin workArea veya body) ekleyelim, 
-    // ama sadece eger eklendiyse. En gǬvenlisi touch eventlerini capture faznda dinlemek veya sadece canvas'a kstlamaktr.
-    // Ancak callout'lar her yere sǬrǬklenebildiYi iin document Ǭzerinde tutmak zorundayz, fakat passive: false global olarak Safari'de click gecikmesi/UI titremesi yapabilir.
-    // Eger olay callout degilse hicbir sey yapmadigimizdan passive true yapmak daha iyidir, ancak touchmove preventDefault gerektirir.
-    // ?zǬm: Sadece callout elementlerine doYrudan listener eklemek en iyisi!
-    
-    // Global dinleyiciyi kaldiralim, cǬnkǬ UI sekme geYilerinde (tabs) Safari'de hover/click buglarna (titremelere) yol aYyor.
-    // Bunun yerine, addSVGCalloutToCanvas iinde her yeni el'e ekleyelim.
-    // Bu global proxy blogunu tamamen iptal ediyoruz!
-})();
+// Touch handling is managed per element and via core/drag.js
 /**
  * 
 
@@ -221,72 +174,125 @@ function addSVGCalloutToCanvas(item) {
         });
     }
     
-    const wMatch = item.svg.match(/width="(\d+)"/);
-    const hMatch = item.svg.match(/height="(\d+)"/);
+    const wMatch = item.svg ? item.svg.match(/width="([\d.]+)"/) : null;
+    const hMatch = item.svg ? item.svg.match(/height="([\d.]+)"/) : null;
+    const vbMatch = item.svg ? item.svg.match(/viewBox="([^"]+)"/) : null;
     
-    if(wMatch && hMatch) {
-        if (!svgHtml.includes('viewBox=')) {
-            svgHtml = svgHtml.replace('<svg ', `<svg viewBox="0 0 ${wMatch[1]} ${hMatch[1]}" `);
+    let defaultW = 240;
+    let defaultH = 120;
+    
+    if (wMatch && hMatch) {
+        defaultW = parseFloat(wMatch[1]) || 240;
+        defaultH = parseFloat(hMatch[1]) || 120;
+    } else if (vbMatch) {
+        const parts = vbMatch[1].trim().split(/[\s,]+/);
+        if (parts.length === 4) {
+            defaultW = parseFloat(parts[2]) || 240;
+            defaultH = parseFloat(parts[3]) || 120;
         }
-        svgHtml = svgHtml.replace(/width="\d+"/, 'width="100%"').replace(/height="\d+"/, 'height="100%"');
-        svgHtml = svgHtml.replace('<svg ', '<svg text-rendering="geometricPrecision" ');
-        
-        el.style.width = wMatch[1] + 'px';
-        el.style.height = hMatch[1] + 'px';
-        wrap.style.width = wMatch[1] + 'px';
-        wrap.style.height = hMatch[1] + 'px';
     }
+    
+    if (!svgHtml.includes('viewBox=')) {
+        svgHtml = svgHtml.replace(/<svg\b([^>]*)>/i, `<svg viewBox="0 0 ${defaultW} ${defaultH}" $1>`);
+    }
+    
+    // Subpixel & geometric precision for crisp lines
+    if (!svgHtml.includes('shape-rendering=')) {
+        svgHtml = svgHtml.replace(/<svg\b([^>]*)>/i, `<svg shape-rendering="geometricPrecision" text-rendering="geometricPrecision" $1>`);
+    }
+    
+    svgHtml = svgHtml.replace(/width="[^"]*"/, 'width="100%"').replace(/height="[^"]*"/, 'height="100%"');
+    
+    const cContainer = document.getElementById('canvas-container');
+    const cW = (cContainer && parseFloat(cContainer.style.width)) || (typeof uploadedImgW !== 'undefined' && uploadedImgW > 0 ? uploadedImgW : 1920);
+    const formatRatio = Math.max(1, cW / 1920);
+
+    const targetW = Math.round(defaultW * 1.5 * formatRatio);
+    const targetH = Math.round(defaultH * 1.5 * formatRatio);
+
+    el.style.width = targetW + 'px';
+    el.style.height = targetH + 'px';
+    wrap.style.width = targetW + 'px';
+    wrap.style.height = targetH + 'px';
+    wrap.style.left = Math.round(100 * formatRatio) + 'px';
+    wrap.style.top = Math.round(100 * formatRatio) + 'px';
 
     el.innerHTML = svgHtml;
     el.dataset.originalSvg = encodeURIComponent(svgHtml);
     
+    function isLocked() {
+        return wrap.dataset.locked === 'true' || el.dataset.locked === 'true' || (typeof drawMode !== 'undefined' && drawMode !== null && drawMode !== 'off');
+    }
+
     const controls = document.createElement('div');
-    controls.className = 'callout-controls';
-    controls.style.display = 'none';
-    controls.innerHTML = `
-        <button class="cbtn cbtn-del" title="Sil"><i class="fas fa-trash"></i></button>
-    `;
+    controls.className = 'callout-controls cbtn-del';
+    controls.title = 'Sil';
+    controls.style.cssText = 'position:absolute; bottom:-8px; left:-8px; cursor:pointer; z-index:100; display:none;';
+    controls.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="display:block; pointer-events:none; flex-shrink:0;"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>';
     
     const resizer = document.createElement('div');
     resizer.className = 'callout-resizer';
-    resizer.style.cssText = `
-        position: absolute;
-        width: 16px;
-        height: 16px;
-        background: #3b82f6;
-        bottom: -8px;
-        right: -8px;
-        border-radius: 50%;
-        cursor: se-resize;
-        border: 2px solid #fff;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.5);
-        z-index: 10;
-        display: none;
-    `;
+    resizer.title = 'Boyutlandır';
+    resizer.style.cssText = 'position:absolute; bottom:-8px; right:-8px; cursor:nwse-resize; z-index:10; display:none;';
+    resizer.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="display:block; pointer-events:none; flex-shrink:0;"><path d="M21 15v6h-6M3 9V3h6M21 21l-7-7M3 3l7 7"></path></svg>';
     
     const selectBorder = document.createElement('div');
     selectBorder.className = 'callout-select-border';
     selectBorder.style.cssText = `
         position: absolute;
         top: 0; left: 0; right: 0; bottom: 0;
-        border: 2px dashed #3b82f6;
+        border: 2px dashed #00d2ff;
         pointer-events: none;
         display: none;
     `;
 
     const rotator = document.createElement('div');
     rotator.className = 'callout-rotator';
-    rotator.style.cssText = 'position:absolute; width:16px; height:16px; background:#10b981; border:2px solid #fff; border-radius:50%; top:-25px; left:50%; transform:translateX(-50%); cursor:grab; display:none; z-index:100; box-shadow:0 0 5px rgba(0,0,0,0.5);';
+    rotator.style.cssText = 'position:absolute; top:-28px; left:50%; transform:translateX(-50%); cursor:grab; display:none; z-index:100;';
     rotator.title = 'Döndür';
+    rotator.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="display:block; pointer-events:none; flex-shrink:0;"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.22-10.27l-5.3 5.3"></path></svg>';
+
+    const lockBtn = document.createElement('div');
+    lockBtn.className = 'callout-lock-btn';
+    lockBtn.style.cssText = 'position:absolute; top:-8px; right:-8px; cursor:pointer; display:flex; z-index:100;';
+    lockBtn.title = 'Kilitle';
+    const lockSvg = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="display:block; pointer-events:none; flex-shrink:0;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>';
+    const unlockSvg = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="display:block; pointer-events:none; flex-shrink:0;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 9.9-1"></path></svg>';
+    lockBtn.innerHTML = (wrap.dataset.locked === 'true' || el.dataset.locked === 'true') ? lockSvg : unlockSvg;
+
+    let lastLockToggle = 0;
+    const lockAction = function(e) {
+        e.stopPropagation();
+        e.preventDefault();
+        if (Date.now() - lastLockToggle < 300) return;
+        lastLockToggle = Date.now();
+        if (!wrap.dataset.layerUid) {
+            wrap.dataset.layerUid = 'layer_' + Math.random().toString(36).substr(2, 9);
+        }
+        if (typeof window.layerToggleLock === 'function') {
+            window.layerToggleLock(wrap.dataset.layerUid);
+        }
+        const isNowLocked = (wrap.dataset.locked === 'true' || el.dataset.locked === 'true');
+        lockBtn.innerHTML = isNowLocked ? lockSvg : unlockSvg;
+        lockBtn.title = isNowLocked ? 'Kilidi Aç' : 'Kilitle';
+        lockBtn.classList.toggle('is-locked', isNowLocked);
+    };
+    const stopLockDown = function(e) { e.stopPropagation(); e.preventDefault(); };
+    lockBtn.addEventListener('mousedown', stopLockDown);
+    lockBtn.addEventListener('touchstart', stopLockDown, {passive: false});
+    lockBtn.addEventListener('click', lockAction);
+    lockBtn.addEventListener('touchend', lockAction);
 
     wrap.appendChild(selectBorder);
     wrap.appendChild(el);
     wrap.appendChild(controls);
     wrap.appendChild(resizer);
     wrap.appendChild(rotator);
+    wrap.appendChild(lockBtn);
     
-    // Touch Proxy (Mobil iin mousedown simǬlasyonu)
+    // Touch Proxy (Mobil için mousedown simülasyonu)
     function localTouchProxy(event) {
+        if(isLocked()) return;
         const touch = event.changedTouches[0];
         const simulatedEvent = new MouseEvent({
             touchstart: 'mousedown',
@@ -304,6 +310,11 @@ function addSVGCalloutToCanvas(item) {
     wrap.addEventListener('touchmove', localTouchProxy, {passive: false});
     wrap.addEventListener('touchend', localTouchProxy, {passive: false});
     
+    const curCanvasW = (typeof canvasEl !== 'undefined' && canvasEl && parseInt(canvasEl.style.width)) ? parseInt(canvasEl.style.width) : ((typeof uploadedImgW !== 'undefined' && uploadedImgW) ? uploadedImgW : 1920);
+    const curCanvasH = (typeof canvasEl !== 'undefined' && canvasEl && parseInt(canvasEl.style.height)) ? parseInt(canvasEl.style.height) : ((typeof uploadedImgH !== 'undefined' && uploadedImgH) ? uploadedImgH : 1080);
+    wrap.dataset.origCanvasW = curCanvasW;
+    wrap.dataset.origCanvasH = curCanvasH;
+    wrap.dataset.userScale = 1;
     wrap.dataset.scale = 1;
     wrap.dataset.rotation = 0;
     el.dataset.scale = 1;
@@ -311,29 +322,38 @@ function addSVGCalloutToCanvas(item) {
     function applyScale(scale){
         el.dataset.scale = scale;
         wrap.dataset.scale = scale;
+        const origW = parseFloat(wrap.dataset.origCanvasW) || 1920;
+        const origH = parseFloat(wrap.dataset.origCanvasH) || 1080;
+        const curW = (typeof canvasEl !== 'undefined' && canvasEl && parseInt(canvasEl.style.width)) ? parseInt(canvasEl.style.width) : ((typeof uploadedImgW !== 'undefined' && uploadedImgW) ? uploadedImgW : 1920);
+        const curH = (typeof canvasEl !== 'undefined' && canvasEl && parseInt(canvasEl.style.height)) ? parseInt(canvasEl.style.height) : ((typeof uploadedImgH !== 'undefined' && uploadedImgH) ? uploadedImgH : 1080);
+        const formatRatio = Math.min(curW / origW, curH / origH);
+        wrap.dataset.userScale = formatRatio > 0 ? (scale / formatRatio) : scale;
         const rot = wrap.dataset.rotation || 0;
         wrap.style.transform = `rotate(${rot}deg) scale(${scale})`;
-        setTimeout(() => {
-            if(window.selectedEl === el || window.selectedEl === wrap) selectCallout();
-        }, 10);
+        controls.style.transform = '';
+        resizer.style.transform = '';
+        lockBtn.style.transform = '';
+        rotator.style.transform = 'translateX(-50%)';
     }
     
-    
     function selectCallout(){
+        if(isLocked()) return;
         document.querySelectorAll('.callout-controls').forEach(function(c){ c.style.display = 'none'; });
         document.querySelectorAll('.callout-resizer').forEach(function(c){ c.style.display = 'none'; });
         document.querySelectorAll('.callout-rotator').forEach(function(c){ c.style.display = 'none'; });
+        document.querySelectorAll('.callout-lock-btn').forEach(function(c){ c.style.display = 'none'; });
         document.querySelectorAll('.callout-select-border').forEach(function(c){ c.style.display = 'none'; });
         controls.style.display = 'flex';
-        resizer.style.display = 'block';
-        rotator.style.display = 'block';
+        resizer.style.display = 'flex';
+        rotator.style.display = 'flex';
+        lockBtn.style.display = 'flex';
         selectBorder.style.display = 'block';
         if (typeof selectCalloutEl === 'function') selectCalloutEl(el, true);
     }
-
     
     function selectWrap(e){
-        if(!e.target.closest('.callout-controls') && !e.target.closest('.callout-resizer') && !e.target.closest('.callout-rotator')){
+        if(isLocked()) return;
+        if(!e.target.closest('.callout-controls') && !e.target.closest('.callout-resizer') && !e.target.closest('.callout-rotator') && !e.target.closest('.callout-lock-btn')){
             selectCallout();
         }
     }
@@ -347,23 +367,23 @@ function addSVGCalloutToCanvas(item) {
             resizer.style.display = 'none';
             if(typeof rotator !== 'undefined') rotator.style.display = 'none';
             selectBorder.style.display = 'none';
+            lockBtn.style.display = 'flex';
         }
     }
     document.addEventListener('mousedown', handleOutsideClick);
     document.addEventListener('touchstart', handleOutsideClick, {passive: true});
     
-    const cbtnDel = controls.querySelector('.cbtn-del');
     let delBtnIsDrag = false, delStartX = 0, delStartY = 0;
-    cbtnDel.addEventListener('touchstart', (e) => {
+    controls.addEventListener('touchstart', (e) => {
         delBtnIsDrag = false;
         if (e.touches.length) { delStartX = e.touches[0].clientX; delStartY = e.touches[0].clientY; }
     }, {passive: true});
-    cbtnDel.addEventListener('touchmove', (e) => {
+    controls.addEventListener('touchmove', (e) => {
         if (e.touches.length) {
             if (Math.abs(e.touches[0].clientX - delStartX) > 10 || Math.abs(e.touches[0].clientY - delStartY) > 10) delBtnIsDrag = true;
         }
     }, {passive: true});
-    cbtnDel.addEventListener('click', function(e){
+    controls.addEventListener('click', function(e){
         e.stopPropagation();
         if(delBtnIsDrag) { delBtnIsDrag = false; return; }
         if (typeof deleteSelectedCallout === 'function') { deleteSelectedCallout(); } else { wrap.remove(); }
@@ -391,11 +411,11 @@ function addSVGCalloutToCanvas(item) {
       let isInnerDragging = false, innerTarget = null, innerStartX, innerStartY, innerStartTx = 0, innerStartTy = 0;
 
       const wrapMove = function(e){
+          const globalScale = typeof window.getGlobalScale === 'function' ? window.getGlobalScale() : ((typeof scaleFactor !== 'undefined' ? scaleFactor : 1) * (window.pinchScale || 1));
           if (isInnerDragging && innerTarget) {
-              let z = typeof getZoom === 'function' ? getZoom() : 1;
               let scale = parseFloat(el.dataset.scale) || 1;
-              let dx = (e.clientX - innerStartX) / (z * scale);
-              let dy = (e.clientY - innerStartY) / (z * scale);
+              let dx = (e.clientX - innerStartX) / (globalScale * scale);
+              let dy = (e.clientY - innerStartY) / (globalScale * scale);
               let newTx = innerStartTx + dx;
               let newTy = innerStartTy + dy;
               innerTarget.dataset.tx = newTx;
@@ -404,9 +424,8 @@ function addSVGCalloutToCanvas(item) {
               return;
           }
           if(!isDragging) return;
-          let z = typeof getZoom === 'function' ? getZoom() : 1;
-          wrap.style.left = (dix + (e.clientX - dsx)/z) + 'px';
-          wrap.style.top = (diy + (e.clientY - dsy)/z) + 'px';
+          wrap.style.left = (dix + (e.clientX - dsx) / globalScale) + 'px';
+          wrap.style.top = (diy + (e.clientY - dsy) / globalScale) + 'px';
       };
       const wrapUp = function(){
           isDragging = false;
@@ -470,7 +489,7 @@ function addSVGCalloutToCanvas(item) {
         if(e.cancelable) e.preventDefault();
         const cx = e.touches ? e.touches[0].clientX : e.clientX;
         const cy = e.touches ? e.touches[0].clientY : e.clientY;
-        const sf = window.scaleFactor || 1;
+        const sf = typeof window.getGlobalScale === 'function' ? window.getGlobalScale() : ((typeof scaleFactor !== 'undefined' ? scaleFactor : 1) * (window.pinchScale || 1));
         const dx = (cx - rsx) / sf;
         const dy = (cy - rsy) / sf;
         const delta = (dx + dy) / 2;
@@ -533,10 +552,166 @@ function addSVGCalloutToCanvas(item) {
     // ui-layer (z-index:50) içine eklersek şablon elemanları (z-index:100+) arkasında kalır.
     if (typeof makeDraggable === 'function') makeDraggable(wrap);
     workArea.appendChild(wrap);
-    setTimeout(function(){ selectCallout(); }, 50);
+    if (typeof window.recordHistory === 'function') window.recordHistory('Rozet eklendi');
+    if (typeof window.renderLayers === 'function') window.renderLayers();
     
-    console.log('✅ Callout eklendi:', item.name);
+    console.log('✅ Rozet eklendi:', item.name);
 }
+
+window.rebindSVGCallout = function(wrap) {
+    if (!wrap) return;
+    const el = wrap.querySelector('.callout-item') || wrap;
+    const controls = wrap.querySelector('.callout-controls.cbtn-del');
+    const resizer = wrap.querySelector('.callout-resizer');
+    const rotator = wrap.querySelector('.callout-rotator');
+    const lockBtn = wrap.querySelector('.callout-lock-btn');
+    const selectBorder = wrap.querySelector('.callout-select-border');
+
+    function isLocked() {
+        return wrap.dataset.locked === 'true' || el.dataset.locked === 'true' || (typeof drawMode !== 'undefined' && drawMode !== null && drawMode !== 'off');
+    }
+
+    function applyScale(scale) {
+        el.dataset.scale = scale;
+        wrap.dataset.scale = scale;
+        const origW = parseFloat(wrap.dataset.origCanvasW) || 1920;
+        const origH = parseFloat(wrap.dataset.origCanvasH) || 1080;
+        const curW = (typeof canvasEl !== 'undefined' && canvasEl && parseInt(canvasEl.style.width)) ? parseInt(canvasEl.style.width) : ((typeof uploadedImgW !== 'undefined' && uploadedImgW) ? uploadedImgW : 1920);
+        const curH = (typeof canvasEl !== 'undefined' && canvasEl && parseInt(canvasEl.style.height)) ? parseInt(canvasEl.style.height) : ((typeof uploadedImgH !== 'undefined' && uploadedImgH) ? uploadedImgH : 1080);
+        const formatRatio = Math.min(curW / origW, curH / origH);
+        wrap.dataset.userScale = formatRatio > 0 ? (scale / formatRatio) : scale;
+        const rot = wrap.dataset.rotation || 0;
+        wrap.style.transform = `rotate(${rot}deg) scale(${scale})`;
+    }
+
+    function selectCallout() {
+        if(isLocked()) return;
+        document.querySelectorAll('.callout-controls').forEach(c => c.style.display = 'none');
+        document.querySelectorAll('.callout-resizer').forEach(c => c.style.display = 'none');
+        document.querySelectorAll('.callout-rotator').forEach(c => c.style.display = 'none');
+        document.querySelectorAll('.callout-lock-btn').forEach(c => c.style.display = 'none');
+        document.querySelectorAll('.callout-select-border').forEach(c => c.style.display = 'none');
+        if (controls) controls.style.display = 'flex';
+        if (resizer) resizer.style.display = 'flex';
+        if (rotator) rotator.style.display = 'flex';
+        if (lockBtn) lockBtn.style.display = 'flex';
+        if (selectBorder) selectBorder.style.display = 'block';
+        if (typeof selectCalloutEl === 'function') selectCalloutEl(el, true);
+    }
+
+    wrap.onclick = function(e) {
+        if (isLocked()) return;
+        selectCallout();
+    };
+
+    if (controls) {
+        controls.onclick = function(e) {
+            e.stopPropagation();
+            wrap.remove();
+            if (typeof window.recordHistory === 'function') window.recordHistory('Callout silindi');
+            if (typeof window.renderLayers === 'function') window.renderLayers();
+            if (typeof requestAutoSave === 'function') requestAutoSave();
+        };
+    }
+
+    if (lockBtn) {
+        lockBtn.onclick = function(e) {
+            e.stopPropagation();
+            const isCurrentlyLocked = wrap.dataset.locked === 'true';
+            wrap.dataset.locked = isCurrentlyLocked ? 'false' : 'true';
+            const iconSvg = lockBtn.querySelector('svg');
+            if (iconSvg) {
+                iconSvg.innerHTML = wrap.dataset.locked === 'true' 
+                    ? '<rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path>'
+                    : '<rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 9.9-1"></path>';
+            }
+            if (typeof requestAutoSave === 'function') requestAutoSave();
+        };
+    }
+
+    if (resizer) {
+        let isResizing = false, rsx, rsy, startScale;
+        function rsDown(e) {
+            e.stopPropagation();
+            e.preventDefault();
+            isResizing = true;
+            rsx = e.touches ? e.touches[0].clientX : e.clientX;
+            rsy = e.touches ? e.touches[0].clientY : e.clientY;
+            startScale = parseFloat(wrap.dataset.scale || el.dataset.scale) || 1;
+            document.addEventListener('mousemove', rsMove);
+            document.addEventListener('touchmove', rsMove, {passive: false});
+            document.addEventListener('mouseup', rsUp);
+            document.addEventListener('touchend', rsUp);
+        }
+        function rsMove(e) {
+            if(!isResizing) return;
+            if(e.cancelable) e.preventDefault();
+            const cx = e.touches ? e.touches[0].clientX : e.clientX;
+            const cy = e.touches ? e.touches[0].clientY : e.clientY;
+            const sf = typeof window.getGlobalScale === 'function' ? window.getGlobalScale() : ((typeof scaleFactor !== 'undefined' ? scaleFactor : 1) * (window.pinchScale || 1));
+            const dx = (cx - rsx) / sf;
+            const dy = (cy - rsy) / sf;
+            const delta = (dx + dy) / 2;
+            const newScale = Math.max(0.3, Math.min(4, startScale + (delta / 200)));
+            applyScale(newScale);
+        }
+        function rsUp() {
+            isResizing = false;
+            document.removeEventListener('mousemove', rsMove);
+            document.removeEventListener('touchmove', rsMove);
+            document.removeEventListener('mouseup', rsUp);
+            document.removeEventListener('touchend', rsUp);
+            if (typeof requestAutoSave === 'function') requestAutoSave();
+        }
+        resizer.onmousedown = rsDown;
+        resizer.ontouchstart = rsDown;
+    }
+
+    if (rotator) {
+        let isRotating = false;
+        function rotDown(e) {
+            e.stopPropagation();
+            e.preventDefault();
+            isRotating = true;
+            rotator.style.cursor = 'grabbing';
+            document.addEventListener('mousemove', rotMove);
+            document.addEventListener('touchmove', rotMove, {passive: false});
+            document.addEventListener('mouseup', rotUp);
+            document.addEventListener('touchend', rotUp);
+        }
+        function rotMove(e) {
+            if(!isRotating) return;
+            if(e.cancelable) e.preventDefault();
+            const rect = wrap.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+            const cx = e.touches ? e.touches[0].clientX : e.clientX;
+            const cy = e.touches ? e.touches[0].clientY : e.clientY;
+            const dx = cx - centerX;
+            const dy = cy - centerY;
+            let angle = Math.atan2(dy, dx) * (180 / Math.PI);
+            angle += 90;
+            wrap.dataset.rotation = angle;
+            const scale = parseFloat(wrap.dataset.scale) || 1;
+            wrap.style.transform = `rotate(${angle}deg) scale(${scale})`;
+        }
+        function rotUp() {
+            if(isRotating) {
+                isRotating = false;
+                rotator.style.cursor = 'grab';
+            }
+            document.removeEventListener('mousemove', rotMove);
+            document.removeEventListener('touchmove', rotMove);
+            document.removeEventListener('mouseup', rotUp);
+            document.removeEventListener('touchend', rotUp);
+            if (typeof requestAutoSave === 'function') requestAutoSave();
+        }
+        rotator.onmousedown = rotDown;
+        rotator.ontouchstart = rotDown;
+    }
+
+    if (typeof makeDraggable === 'function') makeDraggable(wrap);
+};
 
 function renderNeonCallouts() {
     const pool = document.getElementById('neonCalloutPool');
@@ -596,16 +771,20 @@ function addNeonToCanvas(n) {
     const workArea = document.getElementById('workArea') || document.getElementById('canvas-container') || document.querySelector('.main-preview');
     if (!workArea) { alert('Canvas alanı bulunamadı!'); return; }
 
+    const cContainer = document.getElementById('canvas-container');
+    const cW = (cContainer && parseFloat(cContainer.style.width)) || (typeof uploadedImgW !== 'undefined' && uploadedImgW > 0 ? uploadedImgW : 1920);
+    const formatRatio = Math.max(1, cW / 1920);
+
     const iconColor = '#93c5fd';
     const textColor = '#ffffff';
     const bgColor = '#0d1b2e';
     const bgOpacity = 0; // Default transparent
-    const iconSize = 64;
-    const textSize = 14;
+    const iconSize = Math.round(76 * formatRatio);
+    const textSize = Math.round(16 * formatRatio);
     const glowPct = 80;
-    const radius = 12;
-    const padding = 10;
-    const boxSize = 140; // Uniform box size for all icons
+    const radius = Math.round(14 * formatRatio);
+    const padding = Math.round(12 * formatRatio);
+    const boxSize = Math.round(180 * formatRatio); // Uniform box size for all icons
     
     const lines = n.text.split('\n');
 
@@ -626,14 +805,14 @@ function addNeonToCanvas(n) {
 
     el.style.cssText = `
         position: absolute;
-        left: 120px;
-        top: 120px;
+        left: ${Math.round(120 * formatRatio)}px;
+        top: ${Math.round(120 * formatRatio)}px;
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
         text-align: center;
-        gap: 12px;
+        gap: ${Math.round(12 * formatRatio)}px;
         cursor: move;
         z-index: 500;
         user-select: none;
@@ -660,24 +839,75 @@ function addNeonToCanvas(n) {
             text-shadow: 0 2px 4px rgba(0,0,0,0.8);">${lines.join('<br>')}</div>
     `;
 
+    function isLocked() {
+        return el.dataset.locked === 'true' || (typeof drawMode !== 'undefined' && drawMode !== null && drawMode !== 'off');
+    }
+
     // KONTROLLER
     const controls = document.createElement('div');
-    controls.className = 'callout-controls';
-    controls.style.cssText = 'position:absolute; bottom:-30px; left:0px; display:none;';
-    controls.innerHTML = `<button class="cbtn cbtn-del" title="Sil"><i class="fas fa-trash"></i></button>`;
+    controls.className = 'callout-controls cbtn-del';
+    controls.title = 'Sil';
+    controls.style.cssText = 'position:absolute; bottom:-8px; left:-8px; cursor:pointer; z-index:100; display:none;';
+    controls.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="display:block; pointer-events:none; flex-shrink:0;"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>';
     
     const resizer = document.createElement('div');
     resizer.className = 'callout-resizer';
-    resizer.style.cssText = 'position:absolute; width:16px; height:16px; background:#3b82f6; bottom:-8px; right:-8px; border-radius:50%; cursor:se-resize; border:2px solid #fff; box-shadow:0 1px 3px rgba(0,0,0,0.5); z-index:10; display:none;';
+    resizer.title = 'Boyutlandır';
+    resizer.style.cssText = 'position:absolute; bottom:-8px; right:-8px; cursor:nwse-resize; z-index:10; display:none;';
+    resizer.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="display:block; pointer-events:none; flex-shrink:0;"><path d="M21 15v6h-6M3 9V3h6M21 21l-7-7M3 3l7 7"></path></svg>';
     
+    const selectBorder = document.createElement('div');
+    selectBorder.className = 'callout-select-border';
+    selectBorder.style.cssText = `
+        position: absolute;
+        top: 0; left: 0; right: 0; bottom: 0;
+        border: 2px dashed #3b82f6;
+        pointer-events: none;
+        display: none;
+    `;
+
     const rotator = document.createElement('div');
     rotator.className = 'callout-rotator';
-    rotator.style.cssText = 'position:absolute; width:16px; height:16px; background:#10b981; border:2px solid #fff; border-radius:50%; top:-25px; left:50%; transform:translateX(-50%); cursor:grab; z-index:100; display:none; box-shadow:0 0 5px rgba(0,0,0,0.5);';
+    rotator.style.cssText = 'position:absolute; top:-28px; left:50%; transform:translateX(-50%); cursor:grab; display:none; z-index:100;';
     rotator.title = 'Döndür';
+    rotator.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="display:block; pointer-events:none; flex-shrink:0;"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.22-10.27l-5.3 5.3"></path></svg>';
 
+    const lockBtn = document.createElement('div');
+    lockBtn.className = 'callout-lock-btn';
+    lockBtn.style.cssText = 'position:absolute; top:-8px; right:-8px; cursor:pointer; display:flex; z-index:100;';
+    lockBtn.title = 'Kilitle';
+    const lockSvg = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="display:block; pointer-events:none; flex-shrink:0;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>';
+    const unlockSvg = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="display:block; pointer-events:none; flex-shrink:0;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 9.9-1"></path></svg>';
+    lockBtn.innerHTML = (el.dataset.locked === 'true') ? lockSvg : unlockSvg;
+
+    let lastLockToggle = 0;
+    const lockAction = function(e) {
+        e.stopPropagation();
+        e.preventDefault();
+        if (Date.now() - lastLockToggle < 300) return;
+        lastLockToggle = Date.now();
+        if (!el.dataset.layerUid) {
+            el.dataset.layerUid = 'layer_' + Math.random().toString(36).substr(2, 9);
+        }
+        if (typeof window.layerToggleLock === 'function') {
+            window.layerToggleLock(el.dataset.layerUid);
+        }
+        const isNowLocked = (el.dataset.locked === 'true');
+        lockBtn.innerHTML = isNowLocked ? lockSvg : unlockSvg;
+        lockBtn.title = isNowLocked ? 'Kilidi Aç' : 'Kilitle';
+        lockBtn.classList.toggle('is-locked', isNowLocked);
+    };
+    const stopLockDown = function(e) { e.stopPropagation(); e.preventDefault(); };
+    lockBtn.addEventListener('mousedown', stopLockDown);
+    lockBtn.addEventListener('touchstart', stopLockDown, {passive: false});
+    lockBtn.addEventListener('click', lockAction);
+    lockBtn.addEventListener('touchend', lockAction);
+
+    el.appendChild(selectBorder);
     el.appendChild(controls);
     el.appendChild(resizer);
     el.appendChild(rotator);
+    el.appendChild(lockBtn);
     
     el.dataset.scale = 1;
     el.dataset.rotation = 0;
@@ -686,26 +916,30 @@ function addNeonToCanvas(n) {
         el.dataset.scale = scale;
         const rot = el.dataset.rotation || 0;
         el.style.transform = `rotate(${rot}deg) scale(${scale})`;
-        setTimeout(() => {
-            if(window.selectedCalloutEl === el) selectCalloutEl(el, true);
-        }, 10);
+        controls.style.transform = '';
+        resizer.style.transform = '';
+        lockBtn.style.transform = '';
+        rotator.style.transform = 'translateX(-50%)';
     }
     
-    controls.querySelector('.cbtn-del').onclick = (e) => {
+    controls.onclick = (e) => {
         e.stopPropagation();
-        el.remove();
-        if(window.selectedCalloutEl === el) closeCalloutPanel();
+        if (typeof deleteSelectedCallout === 'function') {
+            deleteSelectedCallout();
+        } else {
+            el.remove();
+            if(window.selectedCalloutEl === el) closeCalloutPanel();
+        }
     };
 
-    let isResizing = false;
-    let initialW = 0, initialH = 0, initialX = 0, initialY = 0, startScale = 1;
+    // BOYUTLANDIRMA (Resizer)
+    let isResizing = false, rsx = 0, rsy = 0, startScale = 1;
     function rsDown(e){
-        e.stopPropagation(); e.preventDefault();
+        e.stopPropagation();
+        e.preventDefault();
         isResizing = true;
-        const touch = e.touches ? e.touches[0] : e;
-        initialX = touch.clientX; initialY = touch.clientY;
-        const rect = el.getBoundingClientRect();
-        initialW = rect.width; initialH = rect.height;
+        rsx = e.touches ? e.touches[0].clientX : e.clientX;
+        rsy = e.touches ? e.touches[0].clientY : e.clientY;
         startScale = parseFloat(el.dataset.scale) || 1;
         document.addEventListener('mousemove', rsMove);
         document.addEventListener('touchmove', rsMove, {passive: false});
@@ -714,31 +948,39 @@ function addNeonToCanvas(n) {
     }
     resizer.addEventListener('mousedown', rsDown);
     resizer.addEventListener('touchstart', rsDown, {passive: false});
-    
+
     function rsMove(e){
         if(!isResizing) return;
         if(e.cancelable) e.preventDefault();
-        const touch = e.touches ? e.touches[0] : e;
-        const dx = touch.clientX - initialX; const dy = touch.clientY - initialY;
-        const maxD = Math.max(dx, dy);
-        const ratio = (initialW + maxD) / initialW;
-        let newScale = startScale * ratio;
-        if(newScale < 0.2) newScale = 0.2;
-        if(newScale > 5) newScale = 5;
+        const cx = e.touches ? e.touches[0].clientX : e.clientX;
+        const cy = e.touches ? e.touches[0].clientY : e.clientY;
+        const sf = typeof window.getGlobalScale === 'function' ? window.getGlobalScale() : ((typeof scaleFactor !== 'undefined' ? scaleFactor : 1) * (window.pinchScale || 1));
+        const dx = (cx - rsx) / sf;
+        const dy = (cy - rsy) / sf;
+        const delta = (dx + dy) / 2;
+        const newScale = Math.max(0.3, Math.min(4, startScale + (delta / 200)));
         applyScale(newScale);
     }
+
     function rsUp(){ 
         isResizing = false; 
-        document.removeEventListener('mousemove', rsMove); document.removeEventListener('touchmove', rsMove);
-        document.removeEventListener('mouseup', rsUp); document.removeEventListener('touchend', rsUp);
+        document.removeEventListener('mousemove', rsMove);
+        document.removeEventListener('touchmove', rsMove);
+        document.removeEventListener('mouseup', rsUp);
+        document.removeEventListener('touchend', rsUp);
     }
     
+    // DÖNDÜRME (Rotator)
     let isRotating = false;
     function rotDown(e){
-        e.stopPropagation(); e.preventDefault();
-        isRotating = true; rotator.style.cursor = 'grabbing';
-        document.addEventListener('mousemove', rotMove); document.addEventListener('touchmove', rotMove, {passive: false});
-        document.addEventListener('mouseup', rotUp); document.addEventListener('touchend', rotUp);
+        e.stopPropagation();
+        e.preventDefault();
+        isRotating = true;
+        rotator.style.cursor = 'grabbing';
+        document.addEventListener('mousemove', rotMove);
+        document.addEventListener('touchmove', rotMove, {passive: false});
+        document.addEventListener('mouseup', rotUp);
+        document.addEventListener('touchend', rotUp);
     }
     rotator.addEventListener('mousedown', rotDown);
     rotator.addEventListener('touchstart', rotDown, {passive: false});
@@ -747,36 +989,62 @@ function addNeonToCanvas(n) {
         if(!isRotating) return;
         if(e.cancelable) e.preventDefault();
         const rect = el.getBoundingClientRect();
-        const centerX = rect.left + rect.width / 2; const centerY = rect.top + rect.height / 2;
-        const cx = e.touches ? e.touches[0].clientX : e.clientX; const cy = e.touches ? e.touches[0].clientY : e.clientY;
-        let angle = Math.atan2(cy - centerY, cx - centerX) * (180 / Math.PI) + 90; 
+        const centerX = rect.left + rect.width / 2;
+        const centerY = rect.top + rect.height / 2;
+        const cx = e.touches ? e.touches[0].clientX : e.clientX;
+        const cy = e.touches ? e.touches[0].clientY : e.clientY;
+        const dx = cx - centerX;
+        const dy = cy - centerY;
+        let angle = Math.atan2(dy, dx) * (180 / Math.PI);
+        angle += 90; 
         el.dataset.rotation = angle;
         const scale = parseFloat(el.dataset.scale) || 1;
         el.style.transform = `rotate(${angle}deg) scale(${scale})`;
     }
+    
     function rotUp(){ 
-        isRotating = false; rotator.style.cursor = 'grab';
-        document.removeEventListener('mousemove', rotMove); document.removeEventListener('touchmove', rotMove);
-        document.removeEventListener('mouseup', rotUp); document.removeEventListener('touchend', rotUp);
+        if(isRotating) {
+            isRotating = false;
+            rotator.style.cursor = 'grab';
+        }
+        document.removeEventListener('mousemove', rotMove);
+        document.removeEventListener('touchmove', rotMove);
+        document.removeEventListener('mouseup', rotUp);
+        document.removeEventListener('touchend', rotUp);
     }
 
-    // Sürükleme
-    makeDraggable(el);
-
-    // Tek tık → seç + panel aç
-    function elDown(e) {
-        if (e.type === 'mousedown' && e.button !== 0) return;
-        selectCalloutEl(el, true);
-        e.stopPropagation();
+    function selectNeon(e) {
+        if (isLocked()) return;
+        if (!e.target.closest('.callout-controls') && !e.target.closest('.callout-resizer') && !e.target.closest('.callout-rotator') && !e.target.closest('.callout-lock-btn')) {
+            if (typeof selectElement === 'function') selectElement(el);
+            else selectCalloutEl(el, true);
+        }
     }
-    el.addEventListener('mousedown', elDown);
-    el.addEventListener('touchstart', elDown, {passive: true});
+    el.addEventListener('mousedown', selectNeon);
+    el.addEventListener('touchstart', selectNeon, {passive: true});
+
+    function handleNeonOutside(e) {
+        if (e.target.closest('#tab-callout')) return;
+        if (!el.contains(e.target)) {
+            controls.style.display = 'none';
+            resizer.style.display = 'none';
+            rotator.style.display = 'none';
+            selectBorder.style.display = 'none';
+            el.style.outline = 'none';
+            lockBtn.style.display = 'flex';
+        }
+    }
+    document.addEventListener('mousedown', handleNeonOutside);
+    document.addEventListener('touchstart', handleNeonOutside, {passive: true});
 
     // allIcons'a kaydet
     if (typeof allIcons !== 'undefined') allIcons.push(el);
 
+    if (typeof makeDraggable === 'function') makeDraggable(el);
+    if (typeof enableInlineEdit === 'function') enableInlineEdit(el);
     workArea.appendChild(el);
-    selectCalloutEl(el);
+    if (typeof window.recordHistory === 'function') window.recordHistory('Neon Callout eklendi');
+    if (typeof window.renderLayers === 'function') window.renderLayers();
 }
 
 function selectCalloutEl(el, isUserClick = false) {
@@ -811,11 +1079,15 @@ function selectCalloutEl(el, isUserClick = false) {
     // Show controls for neon block
     if (el.classList.contains('co-neon-block')) {
         const ctrls = el.querySelector('.callout-controls');
-        if (ctrls) {
-            ctrls.style.display = 'flex';
-            el.querySelector('.callout-resizer').style.display = 'block';
-            el.querySelector('.callout-rotator').style.display = 'block';
-        }
+        const res = el.querySelector('.callout-resizer');
+        const rot = el.querySelector('.callout-rotator');
+        const lk = el.querySelector('.callout-lock-btn');
+        const brd = el.querySelector('.callout-select-border');
+        if (ctrls) ctrls.style.display = 'flex';
+        if (res) res.style.display = 'flex';
+        if (rot) rot.style.display = 'flex';
+        if (lk) lk.style.display = 'flex';
+        if (brd) brd.style.display = 'block';
     }
 
     const panel = document.getElementById('calloutSettingsPanel');
@@ -1090,6 +1362,8 @@ function deleteSelectedCallout() {
     
     selectedCalloutEl = null;
     closeCalloutPanel();
+    if (typeof window.recordHistory === 'function') window.recordHistory('Callout silindi');
+    if (typeof window.renderLayers === 'function') window.renderLayers();
 }
 
 

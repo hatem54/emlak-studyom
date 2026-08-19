@@ -187,10 +187,16 @@
 
     window.multiSelectDelete = function() {
         if (!window.selectedElements || window.selectedElements.length === 0) return;
-        const confirmDelete = confirm(window.selectedElements.length + ' adet ogeyi silmek istediginize emin misiniz?');
+        
+        let toDelete = [...window.selectedElements].filter(el => el.dataset.locked !== 'true');
+        if (toDelete.length === 0) {
+            alert('Seçili tüm öğeler kilitli olduğu için silinemez.');
+            return;
+        }
+
+        const confirmDelete = confirm(toDelete.length + ' adet öğeyi silmek istediğinize emin misiniz?');
         if (!confirmDelete) return;
         
-        let toDelete = [...window.selectedElements];
         if (typeof deselectAll === 'function') deselectAll();
         
         toDelete.forEach(el => {
@@ -203,6 +209,8 @@
         
         if (typeof redrawAll === 'function') redrawAll();
         if (typeof updateDrawHistory === 'function') updateDrawHistory();
+        if (typeof window.recordHistory === 'function') window.recordHistory('Toplu Silme');
+        if (typeof window.renderLayers === 'function') window.renderLayers();
         window.updateMultiSelectUI();
     };
 

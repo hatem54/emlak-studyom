@@ -310,142 +310,117 @@ window.clearBgImage = function() {
     }
 
     if ($('imageInput')) $('imageInput').value = '';
-
     if ($('clearBgBtn')) $('clearBgBtn').style.display = 'none';
+    if (document.getElementById('bgUploadBtnText')) document.getElementById('bgUploadBtnText').innerText = 'Fotoğraf Seç / Yükle';
 
     if (typeof isCanvaMode !== 'undefined' && isCanvaMode) {
-
         if (typeof refreshActiveCanvaTemplate === 'function') refreshActiveCanvaTemplate();
-
         else if (typeof buildCanvaRender === 'function') buildCanvaRender();
-
     }
-
 };
-
-
 
 window.clearLogoImage = function() {
-
     const logoEl = document.getElementById('elLogo');
-
     if(logoEl) {
-
         logoEl.src = '';
-
         logoEl.style.display = 'none';
-
     }
-
     if ($('logoInput')) $('logoInput').value = '';
-
     if ($('clearLogoBtn')) $('clearLogoBtn').style.display = 'none';
-
+    if (document.getElementById('logoUploadBtnText')) document.getElementById('logoUploadBtnText').innerText = 'Firma Logosu (Opsiyonel)';
 };
 
-
-
 function bindInputs(){
-
     if($('logoInput')){
-
         $('logoInput').addEventListener('change', e => {
-
             const f = e.target.files[0];
-
             if (!f) return;
             if (!window.validateImageUpload(f)) { e.target.value = ''; return; }
             
+            if (typeof window.showAppLoading === 'function') {
+                window.showAppLoading('Logo Yükleniyor...', 'Firma logosu optimize ediliyor...');
+            }
+
             const r = new FileReader();
-
-                r.onload = ev => {
-
-                    const logoEl = document.getElementById('elLogo');
-
-                    if(logoEl) {
-
-                        logoEl.src = ev.target.result;
-
-                        logoEl.style.display = 'block';
-
-                        logoEl.style.visibility = 'visible';
-
-                    }
-
-                    if ($('clearLogoBtn')) $('clearLogoBtn').style.display = 'block';
-
-                };
-
-                r.readAsDataURL(f);
-
-            // e.target.value reset removed to show filename
-
+            r.onload = ev => {
+                const logoEl = document.getElementById('elLogo');
+                if(logoEl) {
+                    logoEl.src = ev.target.result;
+                    logoEl.style.display = 'block';
+                    logoEl.style.visibility = 'visible';
+                }
+                if ($('clearLogoBtn')) $('clearLogoBtn').style.display = 'flex';
+                if (document.getElementById('logoUploadBtnText')) document.getElementById('logoUploadBtnText').innerText = 'Logoyu Değiştir';
+                if (typeof window.hideAppLoading === 'function') window.hideAppLoading(60);
+            };
+            r.onerror = () => {
+                if (typeof window.hideAppLoading === 'function') window.hideAppLoading();
+            };
+            r.readAsDataURL(f);
         });
-
     }
 
-
-
     ['statusInput','priceInput','roomsInput','sizeInput','floorInput','ageInput','heatingInput','bathInput','araziSizeInput','imarInput','adaParselInput','gabariInput','taksInput','kaksInput','cepheInput','tapuInput', 'c_rooms','c_size','c_floor','c_age','c_heating','c_bath','c_araziSize','c_imar','c_adaParsel','c_gabari','c_taks','c_kaks','c_cephe','c_tapu','c_l1','c_v1','c_l2','c_v2','c_l3','c_v3','c_l4','c_v4'].forEach(id=>{
-
         if($(id))$(id).addEventListener('input',renderData);
-
     });
 
-
-
     if($('imageInput')){
-
         $('imageInput').addEventListener('change',e=>{
-
             const f=e.target.files[0];
-
             if(!f) return;
 
-
-
-            
             if(!window.validateImageUpload(f)) { e.target.value = ''; return; }
+            
+            if (typeof window.showAppLoading === 'function') {
+                window.showAppLoading('Fotoğraf Yükleniyor...', 'Görsel işleniyor ve tuvale yerleştiriliyor...');
+            }
+
             const processPhotoChange = () => {
+                setTimeout(() => {
+                    const r = new FileReader();
+                    r.onload = ev => {
+                        uploadedImgUrl = ev.target.result;
+                        photoLayer.style.backgroundImage = `url('${ev.target.result}')`;
 
-                const r=new FileReader();
+                        // PRELOAD NATIVE IMAGE FOR INSTANT CANVAS RENDERING
+                        window._globalNativeImgSrc = uploadedImgUrl;
+                        window._globalNativeImg = new Image();
+                        window._globalNativeImg.onload = () => console.log('Preloaded global image for instant drag');
+                        window._globalNativeImg.src = uploadedImgUrl;
 
-                r.onload=ev=>{
+                        const onPhotoReady = () => {
+                            if (isCanvaMode) {
+                                if (typeof refreshActiveCanvaTemplate === 'function') refreshActiveCanvaTemplate();
+                                else if (typeof buildCanvaRender === 'function') buildCanvaRender();
+                            }
 
-                    uploadedImgUrl=ev.target.result; if(typeof trackImageSize==='function') trackImageSize(uploadedImgUrl);
+                            if ($('clearBgBtn')) $('clearBgBtn').style.display = 'flex';
+                            if (document.getElementById('bgUploadBtnText')) document.getElementById('bgUploadBtnText').innerText = 'Fotoğrafı Değiştir';
 
-                    
+                            if (typeof window.updatePhotoLockState === 'function') {
+                                window.updatePhotoLockState(true);
+                            } else {
+                                const lockToggle = document.getElementById('photoLockToggle');
+                                if (lockToggle) lockToggle.checked = true;
+                                window.isPhotoLocked = true;
+                            }
+                            if (typeof resetPixelCache === 'function') resetPixelCache();
+                            setTimeout(() => {
+                                if (typeof window.hideAppLoading === 'function') window.hideAppLoading(60);
+                            }, 120);
+                        };
 
-                    // PRELOAD NATIVE IMAGE FOR INSTANT CANVAS RENDERING
-
-                    window._globalNativeImgSrc = uploadedImgUrl;
-
-                    window._globalNativeImg = new Image();
-
-                    window._globalNativeImg.onload = () => console.log('Preloaded global image for instant drag');
-
-                    window._globalNativeImg.src = uploadedImgUrl;
-
-                    
-
-                    photoLayer.style.backgroundImage=`url('${ev.target.result}')`;
-
-                    if (isCanvaMode) {
-
-                        if (typeof refreshActiveCanvaTemplate === 'function') refreshActiveCanvaTemplate();
-
-                        else if (typeof buildCanvaRender === 'function') buildCanvaRender();
-
-                    }
-
-                    if ($('clearBgBtn')) $('clearBgBtn').style.display = 'block';
-
-                };
-
-                r.readAsDataURL(f);
-
-                $('imageInput').value = '';
-
+                        if (typeof trackImageSize === 'function') {
+                            trackImageSize(uploadedImgUrl, onPhotoReady);
+                        } else {
+                            onPhotoReady();
+                        }
+                    };
+                    r.onerror = () => {
+                        if (typeof window.hideAppLoading === 'function') window.hideAppLoading();
+                    };
+                    r.readAsDataURL(f);
+                }, 30);
             };
 
 
@@ -1128,27 +1103,24 @@ document.addEventListener('keydown', function(e) {
     
 
     // Geri Al (Undo) - Ctrl+Z
-
     if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 'z') {
-
         e.preventDefault();
-
-        if (typeof undoLastDraw === 'function') undoLastDraw();
-
+        if (typeof window.undoGlobal === 'function') {
+            window.undoGlobal();
+        } else if (typeof undoLastDraw === 'function') {
+            undoLastDraw();
+        }
     }
 
-    
-
     // İleri Al (Redo) - Ctrl+Y veya Ctrl+Shift+Z
-
     if (((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') || 
-
         ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'z')) {
-
         e.preventDefault();
-
-        if (typeof redoLastDraw === 'function') redoLastDraw();
-
+        if (typeof window.redoGlobal === 'function') {
+            window.redoGlobal();
+        } else if (typeof redoLastDraw === 'function') {
+            redoLastDraw();
+        }
     }
 
     
@@ -1213,116 +1185,97 @@ document.addEventListener('keydown', function(e) {
 
     setTimeout(renderNeonCallouts, 500);
 
+    // ==================== UNIVERSAL SLIDER RESET (INSTANT RENDER ON DBLCLICK) ====================
+    window.resetSliderToDefault = function(input) {
+        if (!input) return;
+        const id = input.id;
+        let defaultVal = null;
 
+        if (input.classList.contains('hsl-slider')) {
+            defaultVal = 0;
+        } else if (typeof FILTER_DEFAULTS !== 'undefined' && FILTER_DEFAULTS[id] !== undefined) {
+            defaultVal = FILTER_DEFAULTS[id];
+        } else if (id === 'zoomCtrl' || id === 'photoZoomCtrl') {
+            defaultVal = 100;
+        } else if (id === 'photoXCtrl' || id === 'photoYCtrl' || id === 'panX' || id === 'panY') {
+            defaultVal = 50;
+        } else if (id === 'deOpacity') {
+            defaultVal = 100;
+        } else if (id === 'deFillOp') {
+            defaultVal = 0;
+        } else if (input.hasAttribute('value')) {
+            defaultVal = input.getAttribute('value');
+        } else if (input.defaultValue !== undefined && input.defaultValue !== '') {
+            defaultVal = input.defaultValue;
+        } else {
+            defaultVal = 0;
+        }
 
-    // Tüm slider'lara (range) çift tıklandığında varsayılan değere dönme özelliği
+        if (defaultVal !== null) {
+            input.value = defaultVal;
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+            input.dispatchEvent(new Event('change', { bubbles: true }));
 
-    document.querySelectorAll('input[type="range"]').forEach(slider => {
-
-        slider.addEventListener('dblclick', function() {
-
-            if (this.hasAttribute('value')) {
-
-                this.value = this.getAttribute('value');
-
-                this.dispatchEvent(new Event('input', { bubbles: true }));
-
-                this.dispatchEvent(new Event('change', { bubbles: true }));
-
+            // UI Değer Metinlerini Güncelle
+            const valSpanId = id.replace('Ctrl', 'Val') + (id.endsWith('Ctrl') ? '' : 'Val');
+            const valSpan = document.getElementById(valSpanId) || document.getElementById(id + 'Val');
+            if (valSpan) {
+                valSpan.textContent = defaultVal + (id === 'exposure' || id === 'contrast' || id === 'saturate' || id === 'grayscale' || id === 'sepia' || id === 'invertCtrl' || id === 'vignette' ? '%' : (id === 'fblur' ? 'px' : (id === 'hueRotate' ? '°' : '')));
             }
 
-        });
+            // CSS Filtrelerini ve Piksel Motorunu (Senkron/Anında) Tetikle
+            if (typeof applyPhotoFilters === 'function') applyPhotoFilters();
+            if (typeof processPixels === 'function') processPixels(true);
+            if (input.classList.contains('hsl-slider') && typeof processHSL === 'function') processHSL();
+            if (typeof redrawAll === 'function') redrawAll();
+            if (typeof applyShadowHighlight === 'function') applyShadowHighlight();
+        }
+    };
 
+    // Tüm slider'lara ve slider gruplarına çift tıklandığında anında varsayılana dönme
+    document.addEventListener('dblclick', function(e) {
+        let slider = null;
+        if (e.target.tagName && e.target.tagName.toLowerCase() === 'input' && e.target.type === 'range') {
+            slider = e.target;
+        } else {
+            const group = e.target.closest('.slider-group');
+            if (group) {
+                slider = group.querySelector('input[type="range"]');
+            }
+        }
+        if (slider) {
+            e.preventDefault();
+            e.stopPropagation();
+            window.resetSliderToDefault(slider);
+        }
     });
 
 });
 
-
-
-
-
-
-
 // Mobile Double-Tap to Reset Sliders
-
 let lastSliderTap = 0;
-
 document.addEventListener('touchend', function(e) {
-
+    let slider = null;
     if (e.target.tagName && e.target.tagName.toLowerCase() === 'input' && e.target.type === 'range') {
-
-        const currentTime = new Date().getTime();
-
-        const tapLength = currentTime - lastSliderTap;
-
-        if (tapLength < 500 && tapLength > 0) {
-
-            e.preventDefault(); 
-
-            const input = e.target;
-
-            let defaultVal = null;
-
-            const id = input.id;
-
-            
-
-            if (input.classList.contains('hsl-slider')) {
-
-                defaultVal = 0;
-
-            } else if (typeof FILTER_DEFAULTS !== 'undefined' && FILTER_DEFAULTS[id] !== undefined) {
-
-                defaultVal = FILTER_DEFAULTS[id];
-
-            } else if (id === 'zoomCtrl' || id === 'photoZoomCtrl') {
-
-                defaultVal = 100;
-
-            } else if (id === 'photoXCtrl' || id === 'photoYCtrl' || id === 'panX' || id === 'panY') {
-
-                defaultVal = 50;
-
-            } else if (id === 'deOpacity') {
-
-                defaultVal = 100;
-
-            } else if (id === 'deFillOp') {
-
-                defaultVal = 0;
-
-            }
-
-            
-
-            if (defaultVal !== null) {
-
-                input.value = defaultVal;
-
-                input.dispatchEvent(new Event('input', { bubbles: true }));
-
-                if (typeof applyPhotoFilters === 'function') applyPhotoFilters();
-
-                if (typeof processPixels === 'function') processPixels(true);
-
-                if (input.classList.contains('hsl-slider') && typeof processHSL === 'function') {
-
-                    processHSL();
-
-                }
-
-            }
-
-            lastSliderTap = 0; // reset
-
-        } else {
-
-            lastSliderTap = currentTime;
-
+        slider = e.target;
+    } else {
+        const group = e.target.closest('.slider-group');
+        if (group) {
+            slider = group.querySelector('input[type="range"]');
         }
-
     }
 
+    if (slider) {
+        const currentTime = new Date().getTime();
+        const tapLength = currentTime - lastSliderTap;
+        if (tapLength < 500 && tapLength > 0) {
+            e.preventDefault();
+            window.resetSliderToDefault(slider);
+            lastSliderTap = 0;
+        } else {
+            lastSliderTap = currentTime;
+        }
+    }
 }, {passive: false});
 
 
@@ -1409,7 +1362,7 @@ if (window.visualViewport && window.innerWidth <= 640) {
             if (activeTabBtn) currentTab = activeTabBtn.getAttribute('data-tab');
         }
         
-        if (currentTab && currentTab !== 'photo' && currentTab !== 'bilinmiyor') return;
+        // Removed early return to allow marquee selection on other tabs
         
         if (e.button === 2) return;
         
@@ -1433,10 +1386,17 @@ if (window.visualViewport && window.innerWidth <= 640) {
         didTriggerBeforeAfter = false;
         
         longPressTimer = setTimeout(() => {
-            if (typeof toggleBeforeAfter === 'function') {
-                toggleBeforeAfter();
-                didTriggerBeforeAfter = true;
-                if (navigator.vibrate) navigator.vibrate(50);
+            if (currentTab === 'photo') {
+                if (typeof toggleBeforeAfter === 'function') {
+                    toggleBeforeAfter();
+                    didTriggerBeforeAfter = true;
+                    if (navigator.vibrate) navigator.vibrate(50);
+                }
+            } else {
+                if (typeof window.startMobileMarquee === 'function') {
+                    window.startMobileMarquee(startX, startY);
+                    if (navigator.vibrate) navigator.vibrate(50);
+                }
             }
         }, 500);
     };

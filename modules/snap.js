@@ -3,8 +3,8 @@ window.getSnapGuides = function(px, py, excludeEl, isDrawingMode) {
     const snapToggle = document.getElementById('drawSnapToggle');
     if (!snapToggle || !snapToggle.checked) return { x: px, y: py, guides: [] };
     
-    const pointSnapThreshold = 40 / (typeof scaleFactor !== "undefined" ? scaleFactor : 1);
-    const lineSnapThreshold = 10 / (typeof scaleFactor !== "undefined" ? scaleFactor : 1);
+    const pointSnapThreshold = 40 / (typeof window.getGlobalScale === 'function' ? window.getGlobalScale() : 1);
+    const lineSnapThreshold = 10 / (typeof window.getGlobalScale === 'function' ? window.getGlobalScale() : 1);
     
     const drawCanvas = document.getElementById('draw-layer') || document.getElementById('drawCanvas');
     const baseW = drawCanvas ? drawCanvas.width : 1080;

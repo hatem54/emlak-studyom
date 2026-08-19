@@ -11,6 +11,18 @@
 
 const $=id=>document.getElementById(id);
 
+window.getCanvasScaleRatio = function() {
+    let canvasW = 1920;
+    const cContainer = document.getElementById('canvas-container');
+    if (cContainer && parseFloat(cContainer.style.width)) {
+        canvasW = parseFloat(cContainer.style.width);
+    } else if (typeof uploadedImgW !== 'undefined' && uploadedImgW > 0) {
+        canvasW = uploadedImgW;
+    }
+    return Math.max(0.5, canvasW / 1920);
+};
+
+window.getGlobalScale = function() { return (typeof scaleFactor !== 'undefined' ? scaleFactor : 1) * (window.pinchScale || 1); };
 var currentMode='satilik_daire',activeLayout='',scaleFactor=1,selectedEl=null,allIcons=[];
 let drawMode='off',isDrawing=false,drawStartX=0,drawStartY=0,drawPaths=[],drawRedoPaths=[],currentPath=[];
 let extraFieldCounter=0,editingDrawIndex=-1,isCanvaMode=false,activeCanvaId='';
@@ -21,9 +33,16 @@ let canvaOverlays=[];
 
 let uploadedImgW = 1920;
 let uploadedImgH = 1080;
-function trackImageSize(url) {
+function trackImageSize(url, callback) {
+    if (!url) {
+        if (typeof callback === 'function') callback();
+        return;
+    }
     const img = new Image();
     img.onload = function() {
+        const oldW = (typeof uploadedImgW !== 'undefined' && uploadedImgW > 0) ? uploadedImgW : 1920;
+        const oldH = (typeof uploadedImgH !== 'undefined' && uploadedImgH > 0) ? uploadedImgH : 1080;
+        
         uploadedImgW = img.naturalWidth || (window.innerWidth <= 768 ? 1080 : 1920);
         uploadedImgH = img.naturalHeight || (window.innerWidth <= 768 ? 1920 : 1080);
         const pl = document.getElementById('photo-layer');
@@ -32,50 +51,94 @@ function trackImageSize(url) {
             pl.dataset.naturalH = uploadedImgH;
         }
         
-        // Auto-adjust format
-        if (typeof autoAdjustFormat === 'function') {
+        // Lock photo by default when loaded
+        const lockToggle = document.getElementById('photoLockToggle');
+        if (lockToggle) {
+            lockToggle.checked = true;
+            window.isPhotoLocked = true;
+        }
+        
+        // Auto-adjust format (Sadece yeni manuel görsel yüklendiğinde, geri yükleme harici)
+        if (typeof autoAdjustFormat === 'function' && window.isRestoringState !== true) {
             autoAdjustFormat(uploadedImgW, uploadedImgH);
         }
         
+        // Tuvali yeniden boyutlandır ve yeni scaleFactor'ü hesapla
         if (typeof resizeCanvas === 'function') resizeCanvas();
+        
+        // Fotoğraf yüklenmeden önce eklenmiş çizimleri ve öğeleri yeni tuval çözünürlüğüne orantılı adapte et
+        if (window.isRestoringState !== true && oldW > 0 && oldH > 0 && (oldW !== uploadedImgW || oldH !== uploadedImgH)) {
+            const sX = uploadedImgW / oldW;
+            const sY = uploadedImgH / oldH;
+            
+            // 1. Çizimleri ölçekle
+            if (typeof drawPaths !== 'undefined' && drawPaths.length > 0) {
+                const scaleRatio = typeof getDrawScaleRatio === 'function' ? getDrawScaleRatio() : (uploadedImgW / 1920);
+                drawPaths.forEach(p => {
+                    if (p.points && Array.isArray(p.points)) {
+                        p.points.forEach(pt => { pt.x *= sX; pt.y *= sY; });
+                    }
+                    if (typeof p.x1 !== 'undefined') {
+                        p.x1 *= sX; p.y1 *= sY; p.x2 *= sX; p.y2 *= sY;
+                    }
+                    p.rawWidth = p.rawWidth || 4;
+                    p.width = Math.max(1, Math.round(p.rawWidth * scaleRatio));
+                    p.photoRef = { v4: false, z: 100, px: 50, py: 50, panelW: uploadedImgW, panelH: uploadedImgH, panelL: 0, panelT: 0 };
+                    
+                    if (p.el && p.el.parentNode && typeof createSVGFromPath === 'function') {
+                        const oldEl = p.el;
+                        const newEl = createSVGFromPath(p);
+                        if (newEl) {
+                            oldEl.parentNode.replaceChild(newEl, oldEl);
+                            p.el = newEl;
+                            if (typeof makeDraggable === 'function') makeDraggable(newEl);
+                            if (typeof makeSvgTransformable === 'function') makeSvgTransformable(newEl);
+                            if (typeof allIcons !== 'undefined') {
+                                const iconIdx = allIcons.indexOf(oldEl);
+                                if (iconIdx > -1) allIcons[iconIdx] = newEl;
+                            }
+                        }
+                    }
+                });
+            }
+        }
+        
         if (typeof redrawAll === 'function') redrawAll();
+        if (typeof callback === 'function') callback();
+    };
+    img.onerror = function() {
+        if (typeof callback === 'function') callback();
     };
     img.src = url;
 }
 
 function autoAdjustFormat(imgW, imgH) {
-    // KULLANICI İSTEĞİ ÜZERİNE OTOMATİK FORMAT DEĞİŞİMİ KAPATILDI
-    return;
     if (typeof EXPORT_FORMATS === 'undefined' || !imgW || !imgH) return;
     
-    const imgRatio = imgW / imgH;
-    let closestFormatName = '';
-    let smallestDiff = Infinity;
-    
-    for (const [name, data] of Object.entries(EXPORT_FORMATS)) {
-        const formatRatio = data.w / data.h;
-        const diff = Math.abs(imgRatio - formatRatio);
-        if (diff < smallestDiff) {
-            smallestDiff = diff;
-            closestFormatName = name;
-        }
+    if (EXPORT_FORMATS['Orijinal Görsel Boyutu']) {
+        EXPORT_FORMATS['Orijinal Görsel Boyutu'].w = imgW;
+        EXPORT_FORMATS['Orijinal Görsel Boyutu'].h = imgH;
     }
     
-    if (closestFormatName) {
-        console.log('Auto-adjusting format to:', closestFormatName, 'based on image size:', imgW, imgH);
-        const formatSelect = document.getElementById('previewFormat');
-        const exportSelect = document.getElementById('exportFormat');
-        
-        if (formatSelect) {
-            formatSelect.value = closestFormatName;
-            if (typeof switchPreviewFormat === 'function') {
-                switchPreviewFormat();
-            }
-        }
-        if (exportSelect) {
-            exportSelect.value = closestFormatName;
-        }
+    const f = EXPORT_FORMATS['Orijinal Görsel Boyutu'];
+    const newLabel = f ? (f.icon + ' Orijinal Görsel Boyutu ⇾ ' + imgW + 'x' + imgH) : 'Orijinal Görsel Boyutu';
+    
+    const formatSelect = document.getElementById('previewFormat');
+    const exportSelect = document.getElementById('exportFormat');
+    
+    if (formatSelect) {
+        let opt = Array.from(formatSelect.options).find(o => o.value === 'Orijinal Görsel Boyutu');
+        if (opt) opt.textContent = newLabel;
+        formatSelect.value = 'Orijinal Görsel Boyutu';
+        if (typeof switchPreviewFormat === 'function') switchPreviewFormat();
     }
+    if (exportSelect) {
+        let opt = Array.from(exportSelect.options).find(o => o.value === 'Orijinal Görsel Boyutu');
+        if (opt) opt.textContent = newLabel;
+        exportSelect.value = 'Orijinal Görsel Boyutu';
+    }
+    window.userHasManuallyChangedFormat = true;
+    if (typeof window.updateExportScaleDisplay === 'function') window.updateExportScaleDisplay();
 }
 
 
@@ -221,320 +284,9 @@ document.addEventListener('click', function(e){
 
 
 function smartParse(){
-    let t = $('aiText').value;
-    if(!t.trim()) return;
-
-    // Metin içindeki yazıyla yazılmış sayıları rakamlara çevir ("bin dört yüz yirmi dokuz" -> 1429)
-    const nums = { 'bir':1, 'iki':2, 'üç':3, 'dört':4, 'beş':5, 'altı':6, 'yedi':7, 'sekiz':8, 'dokuz':9, 
-                   'on':10, 'yirmi':20, 'otuz':30, 'kırk':40, 'elli':50, 'altmış':60, 'yetmiş':70, 'seksen':80, 'doksan':90, 
-                   'yüz':100, 'bin':1000 };
-    // \b doesn't work well for Turkish chars, using lookarounds or simpler non-letter boundaries
-    const regex = new RegExp('(^|[^a-zA-ZçğıöşüÇĞİÖŞÜ])((?:(?:' + Object.keys(nums).join('|') + ')(?:[^a-zA-ZçğıöşüÇĞİÖŞÜ]+|$))+)', 'gi');
-    t = t.replace(regex, (fullMatch, prefix, matchStr) => {
-        let words = matchStr.toLowerCase().trim().split(/[^a-zçğıöşü]+/);
-        let total = 0, current = 0, valid = true, wordCount = 0;
-        for (let w of words) {
-            if(!w) continue;
-            let val = nums[w];
-            if (!val) { valid = false; break; }
-            wordCount++;
-            if (val === 100) { current = current === 0 ? 100 : current * 100; }
-            else if (val === 1000) { current = current === 0 ? 1000 : current * 1000; total += current; current = 0; }
-            else { current += val; }
-        }
-        let result = total + current;
-        return (valid && wordCount > 0 && result > 0) ? prefix + result + matchStr.substring(matchStr.trim().length) : fullMatch;
-    });
-
-    // 1. Temel Durum (SATILIK / KİRALIK / GÜNLÜK)
-    let status = 'SATILIK';
-    if (/kiralık/i.test(t)) status = 'KİRALIK';
-    if (/günlük/i.test(t)) status = 'GÜNLÜK KİRALIK';
-    
-    // Arazi mi Konut mu? (Tüm kategoriler için öncelikli eşleştirme)
-    const isKiralik = /kiralık/i.test(t);
-    const mappings = [
-        // PROJELER
-        { regex: /konut projesi/i, val: 'satilik_konut_projesi' },
-        { regex: /villa projesi/i, val: 'satilik_villa_projesi' },
-        { regex: /rezidans projesi/i, val: 'satilik_rezidans_projesi' },
-        { regex: /residence projesi/i, val: 'satilik_rezidans_projesi' },
-        { regex: /ticari proje/i, val: 'satilik_ticari_proje' },
-        
-        // PREMIUM
-        { regex: /ultra lüks villa/i, val: 'satilik_ultra_luks_villa' },
-        { regex: /lüks villa/i, val: 'satilik_luks_villa' },
-        { regex: /deniz manzaralı/i, val: 'satilik_deniz_manzarali' },
-        { regex: /havuzlu villa/i, val: 'satilik_havuzlu_villa' },
-        { regex: /akıllı ev/i, val: 'satilik_akilli_ev' },
-        
-        // TİCARİ
-        { regex: /plaza ofis/i, val: 'satilik_plaza_ofisi' },
-        { regex: /iş merkezi/i, val: 'satilik_is_merkezi' },
-        { regex: /dükkan/i, val: isKiralik ? 'kiralik_dukkan' : 'satilik_dukkan' },
-        { regex: /iş\s*yeri/i, val: isKiralik ? 'kiralik_dukkan' : 'satilik_dukkan' },
-        { regex: /ofis/i, val: isKiralik ? 'kiralik_ofis' : 'satilik_ofis' },
-        
-        // ARSA
-        { regex: /ticari arsa/i, val: 'satilik_ticari_arsa' },
-        { regex: /sanayi arsası/i, val: 'satilik_sanayi_arsasi' },
-        { regex: /tarla/i, val: 'satilik_tarla' },
-        { regex: /arsa/i, val: 'satilik_arsa' },
-        { regex: /bağ/i, val: 'satilik_tarla' },
-        { regex: /bahçe/i, val: 'satilik_tarla' },
-        { regex: /fındık\s*bahçesi/i, val: 'satilik_tarla' },
-        
-        // KONUTLAR (En genel olanlar sonda)
-        { regex: /rezidans/i, val: 'satilik_residence' },
-        { regex: /residence/i, val: 'satilik_residence' },
-        { regex: /müstakil ev/i, val: 'satilik_mustakil_ev' },
-        { regex: /köy evi/i, val: 'satilik_koy_evi' },
-        { regex: /yazlık/i, val: 'satilik_yazlik' },
-        { regex: /bungalov/i, val: 'satilik_bungalov' },
-        { regex: /villa/i, val: isKiralik ? 'kiralik_villa' : 'satilik_villa' },
-        { regex: /daire/i, val: isKiralik ? 'kiralik_daire' : 'satilik_daire' },
-        { regex: /ev/i, val: isKiralik ? 'kiralik_daire' : 'satilik_daire' }
-    ];
-        
-    let foundType = 'satilik_daire';
-    for (const mapping of mappings) {
-        if (mapping.regex.test(t)) {
-            foundType = mapping.val;
-            break;
-        }
+    if (window.SmartParserPro && typeof window.SmartParserPro.execute === 'function') {
+        window.SmartParserPro.execute();
     }
-        
-        document.querySelectorAll('.cat-item').forEach(item => item.classList.remove('active'));
-        const targetEl = document.querySelector(`.cat-item[onclick*="${foundType}"]`);
-        if(targetEl) {
-            targetEl.classList.add('active');
-            targetEl.closest('.cat-body').classList.add('open');
-            const icon = targetEl.closest('.cat-group').querySelector('i');
-            if(icon) {
-                icon.classList.remove('fa-chevron-down');
-                icon.classList.add('fa-chevron-up');
-            }
-        }
-        window.switchPropertyType(foundType);
-        
-        const isArazi = foundType.includes('arsa') || foundType.includes('tarla') || foundType.includes('bag_bahce');
-
-    // 2. Fiyat Çıkarma
-    const priceMatch = t.match(/((?:\d{1,3}(?:[\.\,]\d{3})+|\d+(?:[\.\,]\d+)?))\s*(buçuk|yarım)?\s*(milyon|bin|tl|lira|euro|dolar|€|\$|₺)/i) || 
-                       t.match(/fiyat[ıi]?\s*[:=]?\s*((?:\d{1,3}(?:[\.\,]\d{3})+|\d+(?:[\.\,]\d+)?))\s*(buçuk|yarım)?/i);
-    
-    if (priceMatch) {
-        let rawNumStr = priceMatch[1].replace(',', '.');
-        let rawNum = parseFloat(rawNumStr);
-        let isBucuk = priceMatch[2] ? /buçuk|yarım/i.test(priceMatch[2]) : false;
-        let suffix = (priceMatch[3] || (isBucuk ? '' : priceMatch[2]) || '').toLowerCase();
-        
-        if (isBucuk) {
-            rawNum += 0.5;
-        }
-
-        let isMilyon = suffix === 'milyon';
-        let isBin = suffix === 'bin';
-        
-        let currency = "TL";
-        const currMatch = t.match(/(tl|lira|euro|dolar|€|\$|₺)/i);
-        if (currMatch) {
-            let c = currMatch[1].toUpperCase();
-            if (c === 'LİRA' || c === '₺') c = 'TL';
-            currency = c;
-        }
-
-        let finalNumStr = rawNum.toLocaleString('tr-TR'); // Default case if neither milyon nor bin
-        if (isMilyon || isBin) {
-            finalNumStr = (rawNum * (isMilyon ? 1000000 : 1000)).toLocaleString('tr-TR');
-        } else if (rawNum > 999) {
-            finalNumStr = rawNum.toLocaleString('tr-TR');
-        }
-        
-        const finalPrice = finalNumStr + ' ' + currency;
-        if ($('priceInput')) $('priceInput').value = finalPrice;
-        
-        const priceInputs = ['canvaPrice', 'canvaDPrice', 'canvaCPrice', 'canvaKPrice', 'canvaLPrice', 'canvaMPrice', 'canvaOPrice', 'canvaPPrice', 'canvaSPrice'];
-        priceInputs.forEach(id => {
-            if(document.getElementById(id)) document.getElementById(id).value = finalPrice;
-        });
-    } else {
-        // Eğer metinde fiyat yoksa, ama input'ta varsa bırak. Eğer input tamamen default ise veya boşsa, 'FİYAT İÇİN ARAYINIZ' yap.
-        if ($('priceInput') && ($('priceInput').value === '12.500.000 TL' || $('priceInput').value === '6.750.000 TL' || $('priceInput').value === '')) {
-            $('priceInput').value = 'FİYAT İÇİN BİZE ULAŞIN';
-            const priceInputs = ['canvaPrice', 'canvaDPrice', 'canvaCPrice', 'canvaKPrice', 'canvaLPrice', 'canvaMPrice', 'canvaOPrice', 'canvaPPrice', 'canvaSPrice'];
-            priceInputs.forEach(id => {
-                if(document.getElementById(id)) document.getElementById(id).value = 'FİYAT İÇİN BİZE ULAŞIN';
-            });
-        }
-    }
-
-    // 3. Konut Detayları
-    if (!isArazi) {
-        const roomMatch = t.match(/(\d)\s*[\+]\s*(\d)/);
-        if (roomMatch) {
-            let val = `${roomMatch[1]}+${roomMatch[2]}`;
-            if ($('roomsInput')) $('roomsInput').value = val;
-            if ($('c_rooms')) $('c_rooms').value = val;
-            if ($('f_oda')) $('f_oda').value = val;
-        } else {
-            if ($('roomsInput')) $('roomsInput').value = '';
-            if ($('c_rooms')) $('c_rooms').value = '';
-            if ($('f_oda')) $('f_oda').value = '';
-        }
-
-        const sizeMatch = t.match(/(\d[\d\.\,]*)\s*(?:m2|m²|metrekare|metre\s*kare)/i);
-        if (sizeMatch) {
-            let val = sizeMatch[1] + ' m²';
-            if ($('sizeInput')) $('sizeInput').value = val;
-            if ($('c_size')) $('c_size').value = val;
-            if ($('f_brut')) $('f_brut').value = val;
-        } else {
-            if ($('sizeInput')) $('sizeInput').value = '';
-            if ($('c_size')) $('c_size').value = '';
-            if ($('f_brut')) $('f_brut').value = '';
-        }
-
-        const floorMatch = t.match(/(\d+)\.?\s*kat/i) || t.match(/(giriş|yüksek giriş|ara kat|zemin|çatı)/i);
-        if (floorMatch) {
-            let f = floorMatch[1].charAt(0).toUpperCase() + floorMatch[1].slice(1).toLowerCase();
-            let val = isNaN(parseInt(f)) ? f : `${f}. Kat`;
-            if ($('floorInput')) $('floorInput').value = val;
-            if ($('c_floor')) $('c_floor').value = val;
-            if ($('f_kat')) $('f_kat').value = val;
-        } else {
-            if ($('floorInput')) $('floorInput').value = '';
-            if ($('c_floor')) $('c_floor').value = '';
-            if ($('f_kat')) $('f_kat').value = '';
-        }
-
-        const ageMatch = t.match(/(?:yaş|yaşı)\s*[:=]?\s*(\d+)/i) || t.match(/(\d+)\s*(?:yıllık|yaşında)/i) || t.match(/(sıfır|yeni)/i);
-        if (ageMatch) {
-            let a = ageMatch[1].toLowerCase();
-            let val = (a === 'sıfır' || a === 'yeni') ? '0' : a;
-            if ($('ageInput')) $('ageInput').value = val;
-            if ($('c_age')) $('c_age').value = val;
-            if ($('f_yas')) $('f_yas').value = (val === '0' ? 'Sıfır' : val);
-        } else {
-            if ($('ageInput')) $('ageInput').value = '';
-            if ($('c_age')) $('c_age').value = '';
-            if ($('f_yas')) $('f_yas').value = '';
-        }
-    } 
-    // 4. Arazi Detayları
-    else {
-        const sizeMatch = t.match(/(\d[\d\.\,]*)\s*(?:m2|m²|metrekare|metre\s*kare|dönüm)/i);
-        if (sizeMatch) {
-            let unit = /dönüm/i.test(sizeMatch[0]) ? 'Dönüm' : 'm²';
-            let val = sizeMatch[1] + ' ' + unit;
-            if ($('araziSizeInput')) $('araziSizeInput').value = val;
-            if ($('c_araziSize')) $('c_araziSize').value = val;
-            if ($('f_m2')) $('f_m2').value = val;
-        } else {
-            if ($('araziSizeInput')) $('araziSizeInput').value = '';
-            if ($('c_araziSize')) $('c_araziSize').value = '';
-            if ($('f_m2')) $('f_m2').value = '';
-        }
-
-        const adaParselMatch = t.match(/(?:ada\s*[:=]?\s*)?(\d+)[\s,]*(?:\/|ve|ile|-)*[\s,]*(?:parsel\s*[:=]?\s*)?(\d+)/i) || t.match(/(\d+)\s*ada\s*(\d+)\s*parsel/i) || t.match(/ada\s*[:=]?\s*(\d+)[\s,]*parsel\s*[:=]?\s*(\d+)/i);
-        if (adaParselMatch) {
-            let val = `${adaParselMatch[1]} / ${adaParselMatch[2]}`;
-            if ($('adaParselInput')) $('adaParselInput').value = val;
-            if ($('c_adaParsel')) $('c_adaParsel').value = val;
-            if ($('f_ada')) $('f_ada').value = adaParselMatch[1];
-            if ($('f_parsel')) $('f_parsel').value = adaParselMatch[2];
-        } else {
-            if ($('adaParselInput')) $('adaParselInput').value = '';
-            if ($('c_adaParsel')) $('c_adaParsel').value = '';
-            if ($('f_ada')) $('f_ada').value = '';
-            if ($('f_parsel')) $('f_parsel').value = '';
-        }
-
-        const cepheMatch = t.match(/((?:resmi\s*)?yola\s*cephe)/i);
-        if (cepheMatch) {
-            let val = 'Yola Cephe';
-            if ($('cepheInput')) $('cepheInput').value = val;
-            if ($('c_cephe')) $('c_cephe').value = val;
-            if ($('f_cephe')) $('f_cephe').value = val;
-        } else {
-            if ($('cepheInput')) $('cepheInput').value = '';
-            if ($('c_cephe')) $('c_cephe').value = '';
-            if ($('f_cephe')) $('f_cephe').value = '';
-        }
-
-        const imarMatch = t.match(/(konut|ticari|sanayi|tarım|bağ|bahçe)\s*imar/i) || t.match(/imar\s*[:=]?\s*(var|yok)/i);
-        if (imarMatch) {
-            let val = imarMatch[1].charAt(0).toUpperCase() + imarMatch[1].slice(1).toLowerCase() + (imarMatch[0].toLowerCase().includes('imar') ? ' İmarlı' : '');
-            if ($('imarInput')) $('imarInput').value = val;
-            if ($('c_imar')) $('c_imar').value = val;
-            if ($('f_imar')) $('f_imar').value = val;
-        } else {
-            if ($('imarInput')) $('imarInput').value = '';
-            if ($('c_imar')) $('c_imar').value = '';
-            if ($('f_imar')) $('f_imar').value = '';
-        }
-        
-        const gabariMatch = t.match(/gabari\s*[:=]?\s*(\d+(?:\.\d+)?)/i);
-        if (gabariMatch) {
-            let val = gabariMatch[1];
-            if ($('gabariInput')) $('gabariInput').value = val;
-            if ($('c_gabari')) $('c_gabari').value = val;
-            if ($('f_gabari')) $('f_gabari').value = val;
-        } else {
-            if ($('gabariInput')) $('gabariInput').value = '';
-            if ($('c_gabari')) $('c_gabari').value = '';
-            if ($('f_gabari')) $('f_gabari').value = '';
-        }
-
-        const kaksMatch = t.match(/emsal\s*[:=]?\s*(\d+(?:\.\d+)?)/i) || t.match(/kaks\s*[:=]?\s*(\d+(?:\.\d+)?)/i);
-        if (kaksMatch) {
-            let val = kaksMatch[1];
-            if ($('kaksInput')) $('kaksInput').value = val;
-            if ($('c_kaks')) $('c_kaks').value = val;
-            if ($('f_kaks')) $('f_kaks').value = val;
-        } else {
-            if ($('kaksInput')) $('kaksInput').value = '';
-            if ($('c_kaks')) $('c_kaks').value = '';
-            if ($('f_kaks')) $('f_kaks').value = '';
-        }
-        
-        const taksMatch = t.match(/taks\s*[:=]?\s*(\d+(?:\.\d+)?)/i);
-        if (taksMatch) {
-            let val = taksMatch[1];
-            if ($('taksInput')) $('taksInput').value = val;
-            if ($('c_taks')) $('c_taks').value = val;
-            if ($('f_taks')) $('f_taks').value = val;
-        } else {
-            if ($('taksInput')) $('taksInput').value = '';
-            if ($('c_taks')) $('c_taks').value = '';
-            if ($('f_taks')) $('f_taks').value = '';
-        }
-    }
-    
-    // 5. Ek Açıklamaları Çıkar (Sadece Konum / Temel Özet)
-    let originalText = $('aiText').value;
-    let locationStr = '';
-    
-    // Konum bulmak için: "Sakarya, Kaynarca, Gaziler Mahallesinde bulunan..." gibi yapıları ara
-    const locMatch = originalText.match(/([a-zA-ZçğıöşüÇĞİÖŞÜ]+(?:\s*,\s*[a-zA-ZçğıöşüÇĞİÖŞÜ]+)*\s*(?:Mahallesi|Mah\.|Köyü|Mevkii|İlçesi|Merkez)(?:'nde|'nda|nde|nda|'de|'da|de|da)?)/i);
-    if(locMatch) {
-        locationStr = locMatch[1].replace(/(?:'nde|'nda|nde|nda|'de|'da|de|da)$/i, '').trim();
-    } else {
-        // Bulunamazsa ilk cümlenin başındaki virgüllü kısımları al
-        const altLoc = originalText.match(/^([a-zA-ZçğıöşüÇĞİÖŞÜ]+\s*,\s*[a-zA-ZçğıöşüÇĞİÖŞÜ]+)/);
-        if(altLoc) locationStr = altLoc[1];
-    }
-    
-    let extraLines = [];
-    if(locationStr) {
-        extraLines.push('📍 ' + locationStr);
-    }
-    
-    if(document.getElementById('descInput')) {
-        document.getElementById('descInput').value = extraLines.join('\n');
-    }
-    
-    renderData();
 }
 
 

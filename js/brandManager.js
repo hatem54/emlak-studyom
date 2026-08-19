@@ -20,6 +20,9 @@ function initBrandManager() {
         logoInput.addEventListener('change', (e) => {
             const f = e.target.files[0];
             if (f) {
+                if (typeof window.showAppLoading === 'function') {
+                    window.showAppLoading('Logo Yükleniyor...', 'Firma logosu optimize ediliyor...');
+                }
                 const r = new FileReader();
                 r.onload = ev => {
                     currentLogoDataUrl = ev.target.result;
@@ -28,6 +31,12 @@ function initBrandManager() {
                         preview.src = currentLogoDataUrl;
                         preview.style.display = 'block';
                     }
+                    if (typeof window.hideAppLoading === 'function') {
+                        window.hideAppLoading(60);
+                    }
+                };
+                r.onerror = () => {
+                    if (typeof window.hideAppLoading === 'function') window.hideAppLoading();
                 };
                 r.readAsDataURL(f);
             }

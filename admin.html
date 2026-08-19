@@ -3,134 +3,222 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Panel - EmlakStüdyom</title>
+    <title>Admin Komuta Merkezi - EmlakStüdyom</title>
+    <link rel="icon" type="image/jpeg" href="assets/logo/logo-icon.png">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="js/supabase-client.js" defer></script>
+    <script src="js/presence.js?v=20260819-1" defer></script>
+    <script src="js/subscription.js?v=20260819-1" defer></script>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Plus Jakarta Sans', sans-serif; }
         body {
-            font-family: system-ui, -apple-system, sans-serif;
-            background: linear-gradient(135deg, #0f172a, #1e293b);
-            color: white; min-height: 100vh; padding: 20px;
+            background: #0b0f19;
+            color: #f1f5f9;
+            min-height: 100vh;
+            padding: 24px;
         }
-        .container { max-width: 1400px; margin: 0 auto; }
+        .container { max-width: 1440px; margin: 0 auto; }
+
+        /* Header */
         .header {
             display: flex; justify-content: space-between; align-items: center;
-            background: rgba(30,41,59,0.8); backdrop-filter: blur(10px);
-            padding: 20px 30px; border-radius: 16px; margin-bottom: 24px;
-            border: 1px solid rgba(148,163,184,0.2);
+            background: rgba(18, 24, 40, 0.85); backdrop-filter: blur(16px);
+            padding: 20px 28px; border-radius: 18px; margin-bottom: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.4);
         }
         .header h1 {
-            font-size: 24px; background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            font-size: 22px; font-weight: 800;
+            background: linear-gradient(135deg, #60a5fa, #c084fc);
             -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            display: flex; align-items: center; gap: 10px;
         }
-        .header-actions { display: flex; gap: 12px; align-items: center; }
-        .user-info { color: #94a3b8; font-size: 14px; }
+        .header-actions { display: flex; gap: 10px; align-items: center; }
+        .user-info { color: #94a3b8; font-size: 13px; margin-top: 4px; }
+        
         .btn {
-            padding: 10px 18px; border-radius: 8px; border: none;
+            padding: 9px 16px; border-radius: 10px; border: none;
             font-weight: 600; cursor: pointer; font-size: 13px;
             transition: all 0.2s; display: inline-flex; align-items: center; gap: 6px;
+            text-decoration: none;
         }
         .btn-primary { background: linear-gradient(135deg, #3b82f6, #2563eb); color: white; }
-        .btn-secondary { background: rgba(148,163,184,0.15); color: #cbd5e1; }
+        .btn-success { background: linear-gradient(135deg, #10b981, #059669); color: white; }
+        .btn-purple { background: linear-gradient(135deg, #8b5cf6, #7c3aed); color: white; }
+        .btn-secondary { background: rgba(255,255,255,0.08); color: #cbd5e1; border: 1px solid rgba(255,255,255,0.1); }
         .btn-danger { background: linear-gradient(135deg, #ef4444, #dc2626); color: white; }
-        .btn:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
-        
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(0,0,0,0.35); }
+        .btn-sm { padding: 5px 10px; font-size: 11px; border-radius: 6px; }
+
+        /* Realtime Presence Bar */
+        .realtime-bar {
+            background: linear-gradient(90deg, rgba(16, 185, 129, 0.12), rgba(59, 130, 246, 0.12));
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            padding: 14px 24px; border-radius: 14px; margin-bottom: 20px;
+            display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;
+        }
+        .live-badge {
+            display: inline-flex; align-items: center; gap: 8px;
+            font-weight: 700; font-size: 14px; color: #10b981;
+        }
+        .pulse-dot {
+            width: 10px; height: 10px; border-radius: 50%; background: #10b981;
+            box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+            animation: livePulse 1.8s infinite;
+        }
+        @keyframes livePulse {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+        }
+        .live-pills { display: flex; gap: 12px; font-size: 13px; color: #cbd5e1; flex-wrap: wrap; }
+        .live-pill {
+            background: rgba(0,0,0,0.3); padding: 4px 12px; border-radius: 20px;
+            border: 1px solid rgba(255,255,255,0.08); display: flex; align-items: center; gap: 6px;
+        }
+
+        /* Stats Grid */
         .stats-grid {
-            display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
             gap: 16px; margin-bottom: 24px;
         }
         .stat-card {
-            background: rgba(30,41,59,0.8); backdrop-filter: blur(10px);
-            padding: 24px; border-radius: 16px; text-align: center;
-            border: 1px solid rgba(148,163,184,0.2);
-            transition: all 0.3s;
+            background: rgba(18, 24, 40, 0.8); backdrop-filter: blur(12px);
+            padding: 20px; border-radius: 16px; text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.07);
+            transition: all 0.25s;
         }
-        .stat-card:hover { transform: translateY(-4px); border-color: rgba(59,130,246,0.5); }
-        .stat-icon { font-size: 32px; margin-bottom: 8px; }
-        .stat-value { font-size: 36px; font-weight: 800; color: white; }
-        .stat-label { color: #94a3b8; font-size: 13px; margin-top: 4px; }
-        .stat-card.pro { background: linear-gradient(135deg, rgba(16,185,129,0.15), rgba(5,150,105,0.15)); }
-        .stat-card.demo { background: linear-gradient(135deg, rgba(245,158,11,0.15), rgba(217,119,6,0.15)); }
-        .stat-card.today { background: linear-gradient(135deg, rgba(59,130,246,0.15), rgba(37,99,235,0.15)); }
-        
+        .stat-card:hover { transform: translateY(-3px); border-color: rgba(96,165,250,0.4); }
+        .stat-icon { font-size: 26px; margin-bottom: 6px; }
+        .stat-value { font-size: 32px; font-weight: 800; color: #fff; font-family: 'Space Grotesk', sans-serif; }
+        .stat-label { color: #94a3b8; font-size: 12px; margin-top: 4px; font-weight: 500; }
+        .stat-card.pro { background: linear-gradient(135deg, rgba(16,185,129,0.15), rgba(5,150,105,0.05)); }
+        .stat-card.codes { background: linear-gradient(135deg, rgba(139,92,246,0.15), rgba(124,58,237,0.05)); }
+        .stat-card.today { background: linear-gradient(135deg, rgba(59,130,246,0.15), rgba(37,99,235,0.05)); }
+
+        /* Sections */
         .section {
-            background: rgba(30,41,59,0.8); backdrop-filter: blur(10px);
-            padding: 24px; border-radius: 16px; margin-bottom: 24px;
-            border: 1px solid rgba(148,163,184,0.2);
+            background: rgba(18, 24, 40, 0.85); backdrop-filter: blur(14px);
+            padding: 24px; border-radius: 18px; margin-bottom: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.3);
         }
-        .section h2 {
-            font-size: 18px; margin-bottom: 16px; color: #e2e8f0;
+        .section-header {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 18px; flex-wrap: wrap; gap: 12px;
+        }
+        .section-title {
+            font-size: 17px; font-weight: 700; color: #f8fafc;
             display: flex; align-items: center; gap: 8px;
         }
-        table {
-            width: 100%; border-collapse: collapse; font-size: 13px;
+
+        /* Code Generator Box */
+        .code-gen-box {
+            background: rgba(10, 14, 26, 0.7);
+            border: 1px solid rgba(139, 92, 246, 0.3);
+            border-radius: 14px; padding: 20px; margin-bottom: 20px;
+            display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-end;
         }
-        th, td {
-            padding: 12px 16px; text-align: left;
-            border-bottom: 1px solid rgba(148,163,184,0.1);
+        .form-group { display: flex; flex-direction: column; gap: 6px; }
+        .form-group label { font-size: 12px; color: #94a3b8; font-weight: 600; }
+        .form-control {
+            background: #1e293b; border: 1px solid #334155; color: #fff;
+            padding: 10px 14px; border-radius: 8px; font-size: 13px; outline: none;
         }
-        th { color: #94a3b8; font-weight: 600; text-transform: uppercase; font-size: 11px; }
-        td { color: #e2e8f0; }
-        tr:hover { background: rgba(59,130,246,0.05); }
+        .form-control:focus { border-color: #8b5cf6; }
+
+        .latest-code-banner {
+            display: none; background: linear-gradient(135deg, rgba(139,92,246,0.2), rgba(59,130,246,0.2));
+            border: 1px dashed #a78bfa; border-radius: 12px; padding: 14px 20px; margin-bottom: 18px;
+            align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;
+        }
+        .latest-code-text { font-family: monospace; font-size: 20px; font-weight: 800; color: #c084fc; letter-spacing: 2px; }
+
+        /* Tables */
+        .table-wrap { overflow-x: auto; border-radius: 12px; border: 1px solid rgba(255,255,255,0.06); }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; text-align: left; }
+        th, td { padding: 13px 16px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+        th { background: rgba(10, 14, 26, 0.9); color: #94a3b8; font-weight: 700; text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px; }
+        tr:hover td { background: rgba(255,255,255,0.02); }
+        
         .badge {
             padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 700;
-            display: inline-block;
+            display: inline-flex; align-items: center; gap: 5px;
         }
-        .badge-pro { background: rgba(16,185,129,0.2); color: #10b981; }
-        .badge-demo { background: rgba(245,158,11,0.2); color: #f59e0b; }
-        .badge-admin { background: rgba(139,92,246,0.2); color: #a78bfa; }
-        
-        .loading {
-            text-align: center; padding: 60px 20px; color: #94a3b8;
+        .badge-pro { background: rgba(16,185,129,0.2); color: #34d399; border: 1px solid rgba(16,185,129,0.3); }
+        .badge-demo { background: rgba(245,158,11,0.2); color: #fbbf24; border: 1px solid rgba(245,158,11,0.3); }
+        .badge-admin { background: rgba(139,92,246,0.2); color: #c084fc; border: 1px solid rgba(139,92,246,0.3); }
+        .badge-banned { background: rgba(239,68,68,0.2); color: #f87171; border: 1px solid rgba(239,68,68,0.3); }
+        .badge-active { background: rgba(16,185,129,0.2); color: #34d399; }
+        .badge-used { background: rgba(100,116,139,0.25); color: #94a3b8; }
+
+        /* Search input */
+        .search-input {
+            background: #1e293b; border: 1px solid #334155; color: white;
+            padding: 8px 14px; border-radius: 8px; font-size: 13px; outline: none; width: 240px;
         }
-        .loading::before {
-            content: '⏳'; display: block; font-size: 48px; margin-bottom: 12px;
-        }
+        .search-input:focus { border-color: #3b82f6; }
+
+        .loading { text-align: center; padding: 60px 20px; color: #94a3b8; }
+        .loading::before { content: '⏳'; display: block; font-size: 48px; margin-bottom: 12px; }
         .access-denied {
             display: flex; flex-direction: column; align-items: center; justify-content: center;
             min-height: 80vh; text-align: center;
         }
-        .access-denied-icon { font-size: 80px; margin-bottom: 20px; }
-        .access-denied h2 { font-size: 32px; margin-bottom: 12px; color: #ef4444; }
-        .access-denied p { color: #94a3b8; margin-bottom: 24px; max-width: 400px; }
-        
-        @media (max-width: 768px) {
-            .header { flex-direction: column; gap: 12px; text-align: center; }
-            .stat-value { font-size: 28px; }
-            table { font-size: 11px; }
-            th, td { padding: 8px; }
-        }
     </style>
 </head>
 <body>
-    <div id="loadingScreen" class="loading">Yükleniyor...</div>
-    
+
+    <!-- Yükleme Ekranı -->
+    <div id="loadingScreen" class="loading">Yetkiler ve Komuta Merkezi Yükleniyor...</div>
+
+    <!-- Yetkisiz Giriş Ekranı -->
     <div id="accessDenied" class="access-denied" style="display:none;">
-        <div class="access-denied-icon">🚫</div>
-        <h2>Yetkiniz Yok</h2>
-        <p>Bu sayfayı görüntülemek için admin yetkisine sahip olmanız gerekir.</p>
+        <div style="font-size: 72px; margin-bottom: 16px;">🚫</div>
+        <h2 style="font-size: 28px; color: #ef4444; margin-bottom: 8px;">Yetkisiz Erişim</h2>
+        <p style="color: #94a3b8; margin-bottom: 20px;">Bu paneli görüntülemek için Admin yetkisine sahip bir hesapla giriş yapmalısınız.</p>
         <a href="index.html" class="btn btn-primary">🏠 Ana Sayfaya Dön</a>
     </div>
-    
+
+    <!-- Admin Paneli Ana Gövde -->
     <div id="adminPanel" class="container" style="display:none;">
+        
+        <!-- Header -->
         <div class="header">
             <div>
-                <h1>🛡️ EmlakStüdyom Admin Panel</h1>
-                <div class="user-info" id="adminUserInfo">Yükleniyor...</div>
+                <h1><i class="fa-solid fa-shield-halved"></i> EmlakStüdyom Komuta Merkezi</h1>
+                <div class="user-info" id="adminUserInfo">Yönetici: Yükleniyor...</div>
             </div>
             <div class="header-actions">
-                <button class="btn btn-secondary" onclick="loadAllData()">🔄 Yenile</button>
-                <a href="app.html" class="btn btn-primary" style="text-decoration:none;">🎨 Uygulamaya Git</a>
-                <button class="btn btn-danger" onclick="adminLogout()">🚪 Çıkış</button>
+                <button class="btn btn-secondary" onclick="loadAllData()"><i class="fa-solid fa-rotate"></i> Yenile</button>
+                <a href="app.html" class="btn btn-primary"><i class="fa-solid fa-palette"></i> Uygulamaya Git</a>
+                <button class="btn btn-danger" onclick="adminLogout()"><i class="fa-solid fa-right-from-bracket"></i> Çıkış</button>
             </div>
         </div>
-        
+
+        <!-- 🟢 CANLI VARLIK / REALTIME PRESENCE ÇUBUĞU -->
+        <div class="realtime-bar">
+            <div class="live-badge">
+                <span class="pulse-dot"></span>
+                <span>Canlı Ziyaretçi: <strong id="statLiveUsers" style="font-size:18px; color:#fff;">1</strong> Kişi</span>
+            </div>
+            <div class="live-pills">
+                <div class="live-pill" title="Tasarım Stüdyosunda Olanlar"><i class="fa-solid fa-palette" style="color:#60a5fa;"></i> Stüdyo: <strong id="liveAppCount">1</strong></div>
+                <div class="live-pill" title="Vitrin / Ana Sayfada Olanlar"><i class="fa-solid fa-house" style="color:#f59e0b;"></i> Vitrin: <strong id="liveIndexCount">0</strong></div>
+                <div class="live-pill" title="Mobil Kullanıcılar"><i class="fa-solid fa-mobile-screen" style="color:#a78bfa;"></i> Mobil: <strong id="liveMobileCount">0</strong></div>
+                <div class="live-pill" title="Masaüstü Kullanıcılar"><i class="fa-solid fa-desktop" style="color:#34d399;"></i> Masaüstü: <strong id="liveDesktopCount">1</strong></div>
+            </div>
+        </div>
+
+        <!-- İSTATİSTİK KARTLARI -->
         <div class="stats-grid">
             <div class="stat-card">
                 <div class="stat-icon">👥</div>
                 <div class="stat-value" id="statTotal">-</div>
-                <div class="stat-label">Toplam Kullanıcı</div>
+                <div class="stat-label">Toplam Kayıtlı</div>
             </div>
             <div class="stat-card today">
                 <div class="stat-icon">🆕</div>
@@ -140,247 +228,535 @@
             <div class="stat-card pro">
                 <div class="stat-icon">✨</div>
                 <div class="stat-value" id="statPro">-</div>
-                <div class="stat-label">Pro Kullanıcı</div>
-            </div>
-            <div class="stat-card demo">
-                <div class="stat-icon">🟡</div>
-                <div class="stat-value" id="statDemo">-</div>
-                <div class="stat-label">Demo Kullanıcı</div>
+                <div class="stat-label">Aktif Pro Üyeler</div>
             </div>
             <div class="stat-card">
-                <div class="stat-icon">📅</div>
-                <div class="stat-value" id="statThisWeek">-</div>
-                <div class="stat-label">Bu Hafta</div>
+                <div class="stat-icon">🟡</div>
+                <div class="stat-value" id="statDemo">-</div>
+                <div class="stat-label">Demo / Süresi Dolan</div>
+            </div>
+            <div class="stat-card codes">
+                <div class="stat-icon">🔑</div>
+                <div class="stat-value" id="statTotalCodes">-</div>
+                <div class="stat-label">Üretilen Kodlar</div>
             </div>
             <div class="stat-card">
                 <div class="stat-icon">💬</div>
                 <div class="stat-value" id="statFeedback">-</div>
-                <div class="stat-label">Feedback</div>
+                <div class="stat-label">Geri Bildirimler</div>
             </div>
         </div>
-        
+
+        <!-- 🔑 LİSANS / ABONELİK KODU ÜRETİCİ VE YÖNETİCİSİ -->
         <div class="section">
-            <h2>👥 Son Kayıtlar (Son 20)</h2>
-            <div style="overflow-x:auto;">
-                <table id="usersTable">
+            <div class="section-header">
+                <div class="section-title"><i class="fa-solid fa-key" style="color:#c084fc;"></i> Lisans & Abonelik Kodu Üretici</div>
+            </div>
+            
+            <!-- Kod Oluşturma Formu -->
+            <div class="code-gen-box">
+                <div class="form-group" style="flex: 1; min-width: 180px;">
+                    <label>Abonelik Süresi</label>
+                    <select id="codeDurationSelect" class="form-control">
+                        <option value="30|1 Aylık Pro">1 Aylık Pro (30 Gün)</option>
+                        <option value="90|3 Aylık Pro">3 Aylık Pro (90 Gün)</option>
+                        <option value="180|6 Aylık Pro">6 Aylık Pro (180 Gün)</option>
+                        <option value="365|1 Yıllık Pro">1 Yıllık Pro (365 Gün)</option>
+                        <option value="36500|Ömür Boyu Pro">Ömür Boyu VIP (Süresiz)</option>
+                    </select>
+                </div>
+                <div class="form-group" style="flex: 2; min-width: 240px;">
+                    <label>Müşteri / Açıklama Notu (Opsiyonel)</label>
+                    <input type="text" id="codeNoteInput" class="form-control" placeholder="Örn: Ahmet Bey - Havale ile 1 Yıllık">
+                </div>
+                <button class="btn btn-purple" onclick="handleCreateLicenseCode()" style="height: 42px;">
+                    <i class="fa-solid fa-wand-magic-sparkles"></i> 🔑 Hemen Kod Üret
+                </button>
+            </div>
+
+            <!-- Son Üretilen Kod Bildirimi -->
+            <div id="latestCodeBanner" class="latest-code-banner">
+                <div>
+                    <div style="font-size:12px; color:#cbd5e1;">Son Üretilen Lisans Kodu:</div>
+                    <div id="latestCodeValue" class="latest-code-text">ES-1M-XXXXXX</div>
+                </div>
+                <button class="btn btn-success" onclick="copyLatestCode()"><i class="fa-solid fa-copy"></i> Kopyala</button>
+            </div>
+
+            <!-- Üretilen Kodlar Listesi -->
+            <div class="table-wrap">
+                <table>
                     <thead>
                         <tr>
-                            <th>Ad Soyad</th>
-                            <th>Email</th>
-                            <th>Plan</th>
-                            <th>Rol</th>
-                            <th>Kayıt Tarihi</th>
+                            <th>Kod</th>
+                            <th>Paket</th>
+                            <th>Açıklama / Not</th>
+                            <th>Durum</th>
+                            <th>Kullanan Kullanıcı</th>
+                            <th>Oluşturulma</th>
+                            <th>İşlem</th>
                         </tr>
                     </thead>
-                    <tbody id="usersTableBody">
-                        <tr><td colspan="5" style="text-align:center; padding:24px;">Yükleniyor...</td></tr>
+                    <tbody id="codesTableBody">
+                        <tr><td colspan="7" style="text-align:center; padding:20px; color:#94a3b8;">Yükleniyor...</td></tr>
                     </tbody>
                 </table>
             </div>
         </div>
-        
+
+        <!-- 👥 KULLANICI YÖNETİMİ & ABONELİK SÜRELERİ -->
         <div class="section">
-            <h2>💬 Son Feedbackler</h2>
-            <div style="overflow-x:auto;">
-                <table id="feedbackTable">
+            <div class="section-header">
+                <div class="section-title"><i class="fa-solid fa-users" style="color:#60a5fa;"></i> Kullanıcılar & Abonelik Yönetimi</div>
+                <div style="display:flex; gap:10px; align-items:center;">
+                    <input type="text" id="userSearchInput" class="search-input" placeholder="İsim veya e-posta ara..." oninput="filterUsersTable()">
+                    <select id="userFilterPlan" class="search-input" style="width:130px;" onchange="filterUsersTable()">
+                        <option value="all">Tüm Kullanıcılar</option>
+                        <option value="pro">Sadece Pro</option>
+                        <option value="demo">Sadece Demo</option>
+                        <option value="banned">Yasaklılar</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="table-wrap">
+                <table>
                     <thead>
                         <tr>
-                            <th>Email</th>
+                            <th>Kullanıcı</th>
+                            <th>Rol</th>
+                            <th>Abonelik Durumu & Kalan Süre</th>
+                            <th>Hesap Durumu</th>
+                            <th>Kayıt Tarihi</th>
+                            <th>Hızlı İşlemler</th>
+                        </tr>
+                    </thead>
+                    <tbody id="usersTableBody">
+                        <tr><td colspan="6" style="text-align:center; padding:24px; color:#94a3b8;">Yükleniyor...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 💬 GERİ BİLDİRİMLER TABLOSU -->
+        <div class="section">
+            <div class="section-header">
+                <div class="section-title"><i class="fa-solid fa-comments" style="color:#34d399;"></i> Müşteri Geri Bildirimleri</div>
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Kullanıcı E-posta</th>
                             <th>Mesaj</th>
                             <th>Puan</th>
                             <th>Tarih</th>
                         </tr>
                     </thead>
                     <tbody id="feedbackTableBody">
-                        <tr><td colspan="4" style="text-align:center; padding:24px;">Henüz feedback yok</td></tr>
+                        <tr><td colspan="4" style="text-align:center; padding:20px; color:#94a3b8;">Henüz geri bildirim yok.</td></tr>
                     </tbody>
                 </table>
             </div>
         </div>
-        
-        <div class="section" style="text-align:center; color:#64748b; font-size:12px;">
-            <p>🛡️ EmlakStüdyom Admin Panel v1.0 | Verileriniz güvende - RLS ile korunmaktadır</p>
-        </div>
+
     </div>
-    
+
+    <!-- JS Mantığı -->
     <script>
-        let CURRENT_ADMIN = null;
-        
+        let ALL_USERS = [];
+        let ALL_CODES = [];
+        let LATEST_GENERATED_CODE = '';
+
+        // 1. Yetki Kontrolü
         async function checkAdminAccess() {
             try {
-                await new Promise(resolve => setTimeout(resolve, 300));
-                
-                if (!window.supabaseClient) {
-                    throw new Error('Supabase bağlantısı yok');
-                }
-                
+                if (!window.supabaseClient) throw new Error('Supabase başlatılamadı');
+
                 const { data: { session } } = await window.supabaseClient.auth.getSession();
-                
                 if (!session || !session.user) {
-                    showAccessDenied('Giriş yapmalısınız');
-                    setTimeout(() => window.location.href = 'index.html', 2000);
+                    showAccessDenied('Lütfen admin hesabınızla giriş yapın.');
                     return;
                 }
-                
+
                 const { data: profile, error } = await window.supabaseClient
                     .from('profiles')
                     .select('*')
                     .eq('id', session.user.id)
-                    .single();
-                
-                if (error || !profile) {
-                    showAccessDenied('Profil bulunamadı');
+                    .maybeSingle();
+
+                if (error || !profile || profile.role !== 'admin') {
+                    showAccessDenied('Bu alana erişim yetkiniz bulunmamaktadır.');
                     return;
                 }
-                
-                if (profile.role !== 'admin') {
-                    showAccessDenied('Admin yetkisi gerekli');
-                    return;
-                }
-                
-                CURRENT_ADMIN = profile;
-                document.getElementById('adminUserInfo').textContent = 
-                    'Hoş geldin, ' + (profile.full_name || profile.email);
-                
+
+                document.getElementById('adminUserInfo').textContent = `Yönetici: ${profile.full_name || profile.email}`;
                 document.getElementById('loadingScreen').style.display = 'none';
                 document.getElementById('adminPanel').style.display = 'block';
-                
+
+                // Canlı varlık dinleyicisini bağla
+                if (window.PresenceManager) {
+                    window.PresenceManager.onPresenceChange((stats) => {
+                        document.getElementById('statLiveUsers').textContent = stats.total;
+                        document.getElementById('liveAppCount').textContent = stats.app;
+                        document.getElementById('liveIndexCount').textContent = stats.index;
+                        document.getElementById('liveMobileCount').textContent = stats.mobile;
+                        document.getElementById('liveDesktopCount').textContent = stats.desktop;
+                    });
+                }
+
                 loadAllData();
-                
+
             } catch (e) {
                 console.error('Admin erişim hatası:', e);
-                showAccessDenied('Bir hata oluştu: ' + e.message);
+                showAccessDenied('Hata: ' + e.message);
             }
         }
-        
-        function showAccessDenied(reason) {
+
+        function showAccessDenied(msg) {
             document.getElementById('loadingScreen').style.display = 'none';
             document.getElementById('adminPanel').style.display = 'none';
             document.getElementById('accessDenied').style.display = 'flex';
-            const p = document.querySelector('#accessDenied p');
-            if (reason) p.textContent = reason;
+            if (msg) document.querySelector('#accessDenied p').textContent = msg;
         }
-        
+
+        // 2. Tüm Verileri Yükle
         async function loadAllData() {
             await Promise.all([
-                loadStats(),
                 loadUsers(),
+                loadLicenseCodes(),
                 loadFeedback()
             ]);
         }
-        
-        async function loadStats() {
-            try {
-                const { data: profiles } = await window.supabaseClient
-                    .from('profiles')
-                    .select('*');
-                
-                if (!profiles) return;
-                
-                document.getElementById('statTotal').textContent = profiles.length;
-                
-                const today = new Date();
-                today.setHours(0, 0, 0, 0);
-                const todayCount = profiles.filter(p => new Date(p.created_at) >= today).length;
-                document.getElementById('statToday').textContent = todayCount;
-                
-                const weekAgo = new Date();
-                weekAgo.setDate(weekAgo.getDate() - 7);
-                const weekCount = profiles.filter(p => new Date(p.created_at) >= weekAgo).length;
-                document.getElementById('statThisWeek').textContent = weekCount;
-                
-                const proCount = profiles.filter(p => p.plan === 'pro' || p.plan === 'premium' || p.plan === 'elite').length;
-                document.getElementById('statPro').textContent = proCount;
-                
-                const demoCount = profiles.filter(p => p.plan === 'demo' || !p.plan).length;
-                document.getElementById('statDemo').textContent = demoCount;
-                
-                const { data: feedbacks } = await window.supabaseClient
-                    .from('feedback')
-                    .select('id');
-                document.getElementById('statFeedback').textContent = feedbacks?.length || 0;
-                
-            } catch (e) {
-                console.error('Stats yükleme hatası:', e);
-            }
-        }
-        
+
+        // 3. Kullanıcıları Yükle & Listele
         async function loadUsers() {
             try {
                 const { data: users, error } = await window.supabaseClient
                     .from('profiles')
                     .select('*')
-                    .order('created_at', { ascending: false })
-                    .limit(20);
+                    .order('created_at', { ascending: false });
+
+                if (error) throw error;
+                ALL_USERS = users || [];
+
+                // İstatistikleri hesapla
+                const now = new Date();
+                const todayStr = now.toISOString().split('T')[0];
                 
-                const tbody = document.getElementById('usersTableBody');
-                
-                if (error || !users || users.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:24px; color:#94a3b8;">Kullanıcı bulunamadı</td></tr>';
-                    return;
-                }
-                
-                tbody.innerHTML = users.map(u => {
-                    const planBadge = u.plan === 'pro' ? '<span class="badge badge-pro">✨ Pro</span>' : '<span class="badge badge-demo">🟡 Demo</span>';
-                    const roleBadge = u.role === 'admin' ? '<span class="badge badge-admin">🛡️ Admin</span>' : '<span style="color:#64748b;">User</span>';
-                    const date = new Date(u.created_at).toLocaleString('tr-TR', { 
-                        year: 'numeric', month: 'short', day: 'numeric', 
-                        hour: '2-digit', minute: '2-digit' 
-                    });
-                    return `<tr>
-                        <td>${u.full_name || '<span style="color:#64748b;">-</span>'}</td>
-                        <td style="color:#93c5fd;">${u.email}</td>
-                        <td>${planBadge}</td>
-                        <td>${roleBadge}</td>
-                        <td style="color:#94a3b8;">${date}</td>
-                    </tr>`;
-                }).join('');
-                
+                let proCount = 0;
+                let demoCount = 0;
+                let todayCount = 0;
+
+                ALL_USERS.forEach(u => {
+                    const isToday = u.created_at && u.created_at.startsWith(todayStr);
+                    if (isToday) todayCount++;
+
+                    let isPro = false;
+                    if (u.role === 'admin') isPro = true;
+                    else if (u.subscription_expires_at) {
+                        isPro = new Date(u.subscription_expires_at) > now;
+                    } else if (u.subscription_plan === 'pro') {
+                        isPro = true;
+                    }
+
+                    if (isPro) proCount++; else demoCount++;
+                });
+
+                document.getElementById('statTotal').textContent = ALL_USERS.length;
+                document.getElementById('statToday').textContent = todayCount;
+                document.getElementById('statPro').textContent = proCount;
+                document.getElementById('statDemo').textContent = demoCount;
+
+                renderUsersTable(ALL_USERS);
+
             } catch (e) {
-                console.error('Users yükleme hatası:', e);
+                console.error('Kullanıcılar yüklenemedi:', e);
             }
         }
-        
+
+        function renderUsersTable(users) {
+            const tbody = document.getElementById('usersTableBody');
+            if (!users || !users.length) {
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px; color:#94a3b8;">Kullanıcı bulunamadı.</td></tr>';
+                return;
+            }
+
+            const now = new Date();
+            tbody.innerHTML = users.map(u => {
+                const created = u.created_at ? new Date(u.created_at).toLocaleDateString('tr-TR') : '-';
+                
+                // Kalan süre & Plan badge
+                let planBadge = '<span class="badge badge-demo">🟡 Demo</span>';
+                if (u.role === 'admin') {
+                    planBadge = '<span class="badge badge-admin">🛡️ Admin (Süresiz)</span>';
+                } else if (u.subscription_expires_at) {
+                    const exp = new Date(u.subscription_expires_at);
+                    const diffDays = Math.ceil((exp - now) / (1000 * 60 * 60 * 24));
+                    if (diffDays > 0) {
+                        planBadge = `<span class="badge badge-pro">✨ Pro (${diffDays} Gün Kaldı)</span>`;
+                    } else {
+                        planBadge = `<span class="badge badge-demo">🔴 Süresi Doldu (${exp.toLocaleDateString('tr-TR')})</span>`;
+                    }
+                } else if (u.subscription_plan === 'pro') {
+                    planBadge = '<span class="badge badge-pro">✨ Pro (Süresiz)</span>';
+                }
+
+                // Ban badge
+                const banBadge = u.is_banned 
+                    ? '<span class="badge badge-banned">🚫 Yasaklı</span>' 
+                    : '<span class="badge badge-active">🟢 Aktif</span>';
+
+                return `
+                    <tr>
+                        <td>
+                            <strong style="color:#f8fafc;">${u.full_name || 'İsimsiz'}</strong>
+                            <div style="font-size:11px; color:#94a3b8;">${u.email || '-'}</div>
+                        </td>
+                        <td><span class="badge ${u.role==='admin'?'badge-admin':'badge-demo'}">${u.role||'user'}</span></td>
+                        <td>${planBadge}</td>
+                        <td>${banBadge}</td>
+                        <td style="color:#94a3b8;">${created}</td>
+                        <td>
+                            <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                                <button class="btn btn-sm btn-success" onclick="extendUserDays('${u.id}', 30)" title="30 Gün Ekle">+30G</button>
+                                <button class="btn btn-sm btn-purple" onclick="extendUserDays('${u.id}', 365)" title="1 Yıl Ekle">+1Yıl</button>
+                                <button class="btn btn-sm ${u.is_banned ? 'btn-secondary' : 'btn-danger'}" onclick="toggleBanUser('${u.id}', ${!u.is_banned})">
+                                    ${u.is_banned ? '🔓 Yasağı Kaldır' : '🚫 Yasakla'}
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function filterUsersTable() {
+            const query = (document.getElementById('userSearchInput').value || '').toLowerCase();
+            const planFilter = document.getElementById('userFilterPlan').value;
+            const now = new Date();
+
+            const filtered = ALL_USERS.filter(u => {
+                const matchQuery = (u.full_name && u.full_name.toLowerCase().includes(query)) ||
+                                   (u.email && u.email.toLowerCase().includes(query));
+                if (!matchQuery) return false;
+
+                if (planFilter === 'banned') return u.is_banned;
+                if (planFilter === 'pro') {
+                    if (u.role === 'admin') return true;
+                    if (u.subscription_expires_at) return new Date(u.subscription_expires_at) > now;
+                    return u.subscription_plan === 'pro';
+                }
+                if (planFilter === 'demo') {
+                    if (u.role === 'admin') return false;
+                    if (u.subscription_expires_at) return new Date(u.subscription_expires_at) <= now;
+                    return u.subscription_plan !== 'pro';
+                }
+                return true;
+            });
+
+            renderUsersTable(filtered);
+        }
+
+        // 4. Kullanıcı Gün Uzatma & Ban İşlemleri
+        async function extendUserDays(userId, days) {
+            try {
+                const user = ALL_USERS.find(u => u.id === userId);
+                if (!user) return;
+
+                const now = new Date();
+                let currentExp = user.subscription_expires_at ? new Date(user.subscription_expires_at) : null;
+                let newExp;
+
+                if (currentExp && currentExp > now) {
+                    newExp = new Date(currentExp.getTime() + (days * 24 * 60 * 60 * 1000));
+                } else {
+                    newExp = new Date(now.getTime() + (days * 24 * 60 * 60 * 1000));
+                }
+
+                const { error } = await window.supabaseClient
+                    .from('profiles')
+                    .update({
+                        subscription_plan: 'pro',
+                        subscription_expires_at: newExp.toISOString()
+                    })
+                    .eq('id', userId);
+
+                if (error) throw error;
+
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Süre Uzatıldı!',
+                    text: `${user.email} hesabına ${days} gün Pro tanımlandı. Bitiş: ${newExp.toLocaleDateString('tr-TR')}`,
+                    background: '#1e293b', color: '#fff'
+                });
+
+                loadUsers();
+
+            } catch (e) {
+                Swal.fire({ icon: 'error', title: 'Hata', text: e.message, background: '#1e293b', color: '#fff' });
+            }
+        }
+
+        async function toggleBanUser(userId, shouldBan) {
+            try {
+                const user = ALL_USERS.find(u => u.id === userId);
+                if (!user) return;
+
+                const confirmText = shouldBan ? `${user.email} hesabını yasaklamak istediğinize emin misiniz?` : 'Yasağı kaldırmak istiyor musunuz?';
+                const res = await Swal.fire({
+                    title: shouldBan ? '🚫 Kullanıcıyı Yasakla' : '🔓 Yasağı Kaldır',
+                    text: confirmText,
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonText: 'Evet',
+                    cancelButtonText: 'İptal',
+                    confirmButtonColor: shouldBan ? '#ef4444' : '#10b981',
+                    background: '#1e293b', color: '#fff'
+                });
+
+                if (!res.isConfirmed) return;
+
+                const { error } = await window.supabaseClient
+                    .from('profiles')
+                    .update({ is_banned: shouldBan })
+                    .eq('id', userId);
+
+                if (error) throw error;
+                loadUsers();
+
+            } catch (e) {
+                Swal.fire({ icon: 'error', title: 'Hata', text: e.message, background: '#1e293b', color: '#fff' });
+            }
+        }
+
+        // 5. Lisans Kodları Yükle & Oluştur
+        async function loadLicenseCodes() {
+            try {
+                const { data: codes, error } = await window.supabaseClient
+                    .from('license_codes')
+                    .select('*')
+                    .order('created_at', { ascending: false });
+
+                if (error) throw error;
+                ALL_CODES = codes || [];
+                document.getElementById('statTotalCodes').textContent = ALL_CODES.length;
+                renderCodesTable(ALL_CODES);
+
+            } catch (e) {
+                console.error('Kodlar yüklenemedi:', e);
+            }
+        }
+
+        function renderCodesTable(codes) {
+            const tbody = document.getElementById('codesTableBody');
+            if (!codes || !codes.length) {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:20px; color:#94a3b8;">Henüz lisans kodu üretilmemiş.</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = codes.map(c => {
+                const created = c.created_at ? new Date(c.created_at).toLocaleDateString('tr-TR') : '-';
+                const statusBadge = c.status === 'active' 
+                    ? '<span class="badge badge-active">🟢 Bekliyor (Aktif)</span>'
+                    : '<span class="badge badge-used">✅ Kullanıldı</span>';
+
+                return `
+                    <tr>
+                        <td><strong style="font-family:monospace; color:#c084fc; font-size:14px;">${c.code}</strong></td>
+                        <td>${c.duration_label || (c.duration_days + ' Gün')}</td>
+                        <td style="color:#cbd5e1;">${c.note || '-'}</td>
+                        <td>${statusBadge}</td>
+                        <td style="color:#93c5fd;">${c.used_by_email || '-'}</td>
+                        <td style="color:#94a3b8;">${created}</td>
+                        <td>
+                            <button class="btn btn-sm btn-secondary" onclick="navigator.clipboard.writeText('${c.code}'); Swal.fire({ toast:true, position:'top-end', icon:'success', title:'Kod Kopyalandı', showConfirmButton:false, timer:1500 });">
+                                <i class="fa-solid fa-copy"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        async function handleCreateLicenseCode() {
+            const selectVal = document.getElementById('codeDurationSelect').value;
+            const [days, label] = selectVal.split('|');
+            const note = document.getElementById('codeNoteInput').value.trim();
+
+            try {
+                const codeRow = await window.SubscriptionManager.createLicenseCode(parseInt(days), label, note);
+                LATEST_GENERATED_CODE = codeRow.code;
+
+                document.getElementById('latestCodeValue').textContent = codeRow.code;
+                document.getElementById('latestCodeBanner').style.display = 'flex';
+                document.getElementById('codeNoteInput').value = '';
+
+                Swal.fire({
+                    icon: 'success',
+                    title: '🔑 Kod Başarıyla Üretildi!',
+                    text: `${codeRow.code} (${label}) sisteme eklendi.`,
+                    background: '#1e293b', color: '#fff'
+                });
+
+                loadLicenseCodes();
+
+            } catch (e) {
+                Swal.fire({ icon: 'error', title: 'Kod Üretilemedi', text: e.message, background: '#1e293b', color: '#fff' });
+            }
+        }
+
+        function copyLatestCode() {
+            if (!LATEST_GENERATED_CODE) return;
+            navigator.clipboard.writeText(LATEST_GENERATED_CODE);
+            Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Kod Panoya Kopyalandı!', showConfirmButton: false, timer: 1500 });
+        }
+
+        // 6. Geri Bildirimleri Yükle
         async function loadFeedback() {
             try {
                 const { data: feedbacks, error } = await window.supabaseClient
                     .from('feedback')
                     .select('*')
                     .order('created_at', { ascending: false })
-                    .limit(10);
-                
+                    .limit(20);
+
+                if (error) throw error;
                 const tbody = document.getElementById('feedbackTableBody');
-                
-                if (error || !feedbacks || feedbacks.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:24px; color:#94a3b8;">Henüz feedback yok</td></tr>';
+                document.getElementById('statFeedback').textContent = feedbacks ? feedbacks.length : 0;
+
+                if (!feedbacks || !feedbacks.length) {
+                    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:20px; color:#94a3b8;">Henüz geri bildirim bulunmuyor.</td></tr>';
                     return;
                 }
-                
+
                 tbody.innerHTML = feedbacks.map(f => {
                     const stars = f.rating ? '⭐'.repeat(f.rating) : '-';
-                    const date = new Date(f.created_at).toLocaleString('tr-TR');
-                    return `<tr>
-                        <td style="color:#93c5fd;">${f.email || 'Anonim'}</td>
-                        <td>${f.message}</td>
-                        <td>${stars}</td>
-                        <td style="color:#94a3b8;">${date}</td>
-                    </tr>`;
+                    const date = f.created_at ? new Date(f.created_at).toLocaleString('tr-TR') : '-';
+                    return `
+                        <tr>
+                            <td style="color:#93c5fd;">${f.email || 'Anonim'}</td>
+                            <td>${f.message || '-'}</td>
+                            <td>${stars}</td>
+                            <td style="color:#94a3b8;">${date}</td>
+                        </tr>
+                    `;
                 }).join('');
-                
+
             } catch (e) {
-                console.error('Feedback yükleme hatası:', e);
+                console.warn('Feedback yüklenemedi:', e);
             }
         }
-        
+
         async function adminLogout() {
-            if (confirm('Çıkış yapmak istediğinize emin misiniz?')) {
+            if (confirm('Admin panelinden çıkış yapmak istediğinize emin misiniz?')) {
                 await window.supabaseClient.auth.signOut();
                 window.location.href = 'index.html';
             }
         }
-        
+
         document.addEventListener('DOMContentLoaded', () => {
-            setTimeout(checkAdminAccess, 500);
+            setTimeout(checkAdminAccess, 300);
         });
     </script>
 </body>

@@ -262,9 +262,26 @@ function addIcon(ch){
         icon.textContent=ch; 
     }
     icon.dataset.label='İkon: ' + (ch.length > 50 ? 'SVG' : ch);
-    icon.dataset.defaultFont='60';
+    let fSize = 60;
+    if (window.isMobileDevice && window.isMobileDevice()) {
+        const sf = typeof scaleFactor !== 'undefined' && scaleFactor > 0 ? scaleFactor : 1;
+        const isLand = window.innerWidth > window.innerHeight;
+        const defaultCanvasW = isLand ? 1920 : 1080;
+        const defaultCanvasH = isLand ? 1080 : 1920;
+        const pa = document.querySelector('.main-preview') || document.body;
+        const availableW = pa.clientWidth - (isLand ? 40 : 0);
+        const availableH = window.innerHeight - (isLand ? 40 : 145);
+        const base_sf = Math.min(availableW / defaultCanvasW, availableH / defaultCanvasH);
+        const multiplier = base_sf / sf;
+        fSize = Math.round(fSize * multiplier);
+    } else {
+        const sf = typeof scaleFactor !== 'undefined' && scaleFactor > 0 ? scaleFactor : 1;
+        if (sf < 1) fSize = Math.round(fSize / sf);
+    }
+
+    icon.dataset.defaultFont = fSize.toString();
     icon.dataset.rotation='0';
-    icon.dataset.shadowVal='15';
+    icon.dataset.shadowVal='0';
     icon.dataset.blurVal='0';
     icon.dataset.storedBgHex='#0f172a';
     icon.dataset.storedBgOpacity='60';
@@ -272,23 +289,24 @@ function addIcon(ch){
     icon.dataset.storedBorderWidth='0';
     const cx = (typeof canvasEl !== 'undefined' && canvasEl) ? canvasEl.offsetWidth / 2 : 540;
     const cy = (typeof canvasEl !== 'undefined' && canvasEl) ? canvasEl.offsetHeight / 2 : 540;
-    icon.style.left = (cx - 40 + (Math.random()*40 - 20)) + 'px';
-    icon.style.top = (cy - 40 + (Math.random()*40 - 20)) + 'px';
-    icon.style.fontSize='60px';
-    icon.style.padding='15px';
+    icon.style.left = (cx - (fSize/2) + (Math.random()*40 - 20)) + 'px';
+    icon.style.top = (cy - (fSize/2) + (Math.random()*40 - 20)) + 'px';
+    icon.style.fontSize= fSize + 'px';
+    icon.style.padding='0.28em';
     icon.style.borderRadius='50%';
     icon.style.background='rgba(15,23,42,0.6)';
     icon.style.opacity='1';
     icon.style.border='none';
     icon.style.zIndex='10';
-    icon.style.boxShadow='0 15px 30px rgba(0,0,0,0.5)';
+    icon.style.boxShadow='none';
     uiLayer.appendChild(icon);
     bindDrag(icon);
     enableInlineEdit(icon);
     allIcons.push(icon);
     const countEl = document.getElementById('iconCount');
     if (countEl) countEl.textContent=allIcons.length;
-    // selectElement(icon); // Removed so adding an icon doesn't open the edit panel
+    if (typeof window.recordHistory === 'function') window.recordHistory('İkon eklendi');
+    if (typeof requestAutoSave === 'function') requestAutoSave();
 }
 
 window.deleteSelected = function(){
@@ -300,11 +318,16 @@ window.deleteSelected = function(){
         selectedEl.remove();
         const countEl = document.getElementById('iconCount');
         if (countEl) countEl.textContent=allIcons.length;
+        if (typeof window.recordHistory === 'function') window.recordHistory('İkon silindi');
+        if (typeof requestAutoSave === 'function') requestAutoSave();
     }else if(ci>-1){
         canvaOverlays.splice(ci,1);
         selectedEl.remove();
+        if (typeof window.recordHistory === 'function') window.recordHistory('Öğe silindi');
+        if (typeof requestAutoSave === 'function') requestAutoSave();
     }else{
         selectedEl.style.display=selectedEl.style.display==='none'?'block':'none';
+        if (typeof requestAutoSave === 'function') requestAutoSave();
     }
     deselectAll();
 }
@@ -314,6 +337,8 @@ window.deleteAllIcons = function(){
     allIcons=[];
     const countEl = document.getElementById('iconCount');
     if (countEl) countEl.textContent=0;
+    if (typeof window.recordHistory === 'function') window.recordHistory('Tüm ikonlar silindi');
+    if (typeof requestAutoSave === 'function') requestAutoSave();
     deselectAll();
 }
 

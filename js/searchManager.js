@@ -1,4 +1,4 @@
-﻿// searchManager.js
+// searchManager.js
 // Handles OmniSearch and Recent Tools functionality
 
 window.OmniSearch = {
@@ -73,17 +73,20 @@ window.OmniSearch = {
         });
 
         // 3. Ikonlar
-        if (typeof allIcons !== 'undefined') {
+        if (typeof allIcons !== 'undefined' && Array.isArray(allIcons)) {
             allIcons.forEach(icon => {
-                const name = icon.name.replace(/-/g, ' ').toUpperCase();
+                if (!icon) return;
+                const rawName = (typeof icon === 'string' ? icon : (icon.name || icon.dataset?.label || icon.textContent || '')) + '';
+                if (!rawName) return;
+                const name = rawName.replace(/-/g, ' ').toUpperCase();
                 this.searchIndex.push({
-                    id: 'icon_' + icon.name,
+                    id: 'icon_' + rawName,
                     name: name,
                     type: 'İkon',
                     action: () => {
-                        switchTab('icon');
-                        if (typeof addIcon === 'function') addIcon(icon.name);
-                        this.addRecent('icon_' + icon.name, name, 'İkon', "switchTab('icon'); if(typeof addIcon === 'function') addIcon('" + icon.name + "');");
+                        if (typeof switchTab === 'function') switchTab('icon');
+                        if (typeof addIcon === 'function') addIcon(rawName);
+                        this.addRecent('icon_' + rawName, name, 'İkon', "switchTab('icon'); if(typeof addIcon === 'function') addIcon('" + rawName + "');");
                     }
                 });
             });
@@ -91,8 +94,8 @@ window.OmniSearch = {
 
         // 4. Araclar
         const tools = [
-            { id: 'tool_callout', name: 'Bilgi Etiketi (Callout) Ekle', type: 'Araç', evalStr: "switchTab('callout'); if(typeof window.addCallout === 'function') window.addCallout();" },
-            { id: 'tool_neon', name: 'Neon Etiket Ekle', type: 'Araç', evalStr: "switchTab('callout'); if(typeof window.addNeonCallout === 'function') window.addNeonCallout();" },
+            { id: 'tool_callout', name: 'Vurgu Rozeti Ekle', type: 'Araç', evalStr: "switchTab('callout'); if(typeof window.addCallout === 'function') window.addCallout();" },
+            { id: 'tool_neon', name: 'Neon Rozet Ekle', type: 'Araç', evalStr: "switchTab('callout'); if(typeof window.addNeonCallout === 'function') window.addNeonCallout();" },
             { id: 'tool_text', name: 'Özel Çerçeveli Kutu / Metin Ekle', type: 'Araç', evalStr: "switchTab('text'); if(typeof window.addCustomTextBox === 'function') window.addCustomTextBox();" },
             { id: 'tool_free_text', name: 'Serbest Yazı Ekle', type: 'Araç', evalStr: "switchTab('text'); if(typeof window.addCustomTextOnly === 'function') window.addCustomTextOnly();" },
             { id: 'tool_draw_free', name: 'Serbest Çizim (Kalem)', type: 'Araç', evalStr: "switchTab('draw'); if(typeof setDrawMode === 'function') setDrawMode('free');" },

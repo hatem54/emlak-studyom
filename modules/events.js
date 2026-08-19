@@ -1,72 +1,278 @@
 // ==================== EVENTS CORE ====================
 // Global Event Delegates
 
-// Yardımcı Fonksiyon: SweetAlert2 ile Obje Seçenekleri Menüsü
-function openObjectContextMenu(targetElement, isText) {
-    let htmlContent = `
-        <div style="display:flex; flex-direction:column; gap:10px;">
-            <button id="cm-delete" class="swal2-confirm swal2-styled" style="background-color:#ef4444; width:100%;">🗑️ Sil</button>
-            <button id="cm-front" class="swal2-confirm swal2-styled" style="background-color:#3b82f6; width:100%;">⏫ Öne Al</button>
-            <button id="cm-back" class="swal2-confirm swal2-styled" style="background-color:#64748b; width:100%;">⏬ Arkaya At</button>
-    `;
-    if (isText) {
-        htmlContent += `<button id="cm-edit" class="swal2-confirm swal2-styled" style="background-color:#10b981; width:100%;">✏️ Metni Düzenle</button>`;
-    }
-    htmlContent += `</div>`;
+// Yardımcı Fonksiyon: Zarif, Kompakt & Yüzer Obje Sağ Tık Menüsü
+function openObjectContextMenu(targetElement, isText, clientX, clientY) {
+    if (!targetElement) return;
 
-    Swal.fire({
-        title: 'Öğe Seçenekleri',
-        html: htmlContent,
-        showConfirmButton: false,
-        showCloseButton: true,
-        didOpen: () => {
-            const popup = Swal.getPopup();
-            popup.querySelector('#cm-delete').addEventListener('click', () => {
-                targetElement.remove();
-                if(typeof updateDrawHistory === 'function') updateDrawHistory();
-                Swal.close();
-            });
-            popup.querySelector('#cm-front').addEventListener('click', () => {
-                const parent = targetElement.parentElement;
-                if(parent) parent.appendChild(targetElement); // En sona taşı (öne gelir)
-                if(typeof updateDrawHistory === 'function') updateDrawHistory();
-                Swal.close();
-            });
-            popup.querySelector('#cm-back').addEventListener('click', () => {
-                const parent = targetElement.parentElement;
-                if(parent && parent.firstChild) parent.insertBefore(targetElement, parent.firstChild); // En başa taşı (arkaya gider)
-                if(typeof updateDrawHistory === 'function') updateDrawHistory();
-                Swal.close();
-            });
-            if (isText) {
-                const editBtn = popup.querySelector('#cm-edit');
-                if(editBtn) {
-                    editBtn.addEventListener('click', async () => {
-                        Swal.close();
-                        const { value: text } = await Swal.fire({
-                            title: 'Metni Düzenle',
-                            input: 'textarea',
-                            inputValue: targetElement.textContent,
-                            showCancelButton: true
-                        });
-                        if (text) {
-                            targetElement.textContent = text;
-                            if(typeof updateDrawHistory === 'function') updateDrawHistory();
-                        }
-                    });
-                }
+    // Varsa önceki açık menüyü kapat
+    const existing = document.getElementById('app-custom-context-menu');
+    if (existing) existing.remove();
+
+    const isLocked = targetElement.dataset.locked === 'true' || targetElement.classList.contains('locked-el');
+    const isCallout = targetElement.classList.contains('callout-wrap') || targetElement.classList.contains('co-neon-block') || targetElement.classList.contains('callout-item');
+    
+    // Label belirle
+    let label = targetElement.dataset.label || 'Öğe';
+    if (targetElement.classList.contains('added-icon')) label = 'İkon';
+    else if (isCallout) label = 'Callout';
+    else if (targetElement.classList.contains('canvas-el')) label = 'Metin';
+
+    const menu = document.createElement('div');
+    menu.id = 'app-custom-context-menu';
+    menu.className = 'app-context-menu';
+
+    // Sürüklenebilir Header
+    let html = `
+        <div class="app-context-header" id="acm-drag-header" title="Sürüklemek için basılı tutun">
+            <span style="display:flex; align-items:center; gap:5px; pointer-events:none;">
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" style="opacity:0.6;"><circle cx="9" cy="6" r="2"></circle><circle cx="15" cy="6" r="2"></circle><circle cx="9" cy="12" r="2"></circle><circle cx="15" cy="12" r="2"></circle><circle cx="9" cy="18" r="2"></circle><circle cx="15" cy="18" r="2"></circle></svg>
+                ${label} İşlemleri
+            </span>
+            <button class="acm-close-btn" id="acm-close-btn" title="Kapat">✕</button>
+        </div>
+    `;
+
+    // Metni Düzenle (Eğer metin düzenlenebilir ise)
+    if (isText || targetElement.classList.contains('canvas-el') || targetElement.querySelector('.callout-text, .co-neon-text')) {
+        html += `
+            <button class="app-context-item item-edit" id="acm-edit">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                <span>Metni Düzenle</span>
+            </button>
+        `;
+    }
+
+    // Kilitle / Kilidi Aç
+    if (isLocked) {
+        html += `
+            <button class="app-context-item item-lock" id="acm-lock">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2.2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                <span>Kilidi Aç</span>
+            </button>
+        `;
+    } else {
+        html += `
+            <button class="app-context-item item-lock" id="acm-lock">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2.2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 9.9-1"></path></svg>
+                <span>Kilitle</span>
+            </button>
+        `;
+    }
+
+    // Katman Sırası: En Öne / En Arkaya
+    html += `
+        <button class="app-context-item item-front" id="acm-front">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#00d2ff" stroke-width="2.2"><polyline points="17 11 12 6 7 11"></polyline><polyline points="17 18 12 13 7 18"></polyline></svg>
+            <span>En Öne Getir</span>
+        </button>
+        <button class="app-context-item item-back" id="acm-back">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2.2"><polyline points="7 13 12 18 17 13"></polyline><polyline points="7 6 12 11 17 6"></polyline></svg>
+            <span>En Arkaya Gönder</span>
+        </button>
+    `;
+
+    // Sil
+    html += `
+        <div style="height: 1px; background: rgba(255,255,255,0.06); margin: 2px 0;"></div>
+        <button class="app-context-item item-delete" id="acm-delete">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#f43f5e" stroke-width="2.2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+            <span>Sil</span>
+        </button>
+    `;
+
+    menu.innerHTML = html;
+    document.body.appendChild(menu);
+
+    // Akıllı Yüzer Konumlandırma (Öğenin hemen yanına yerleştir, üzerini kapatma)
+    const rect = targetElement.getBoundingClientRect();
+    const menuWidth = 180;
+    const menuHeight = menu.offsetHeight || 190;
+
+    let posX, posY;
+
+    // Eğer öğenin sağında yer varsa sağ yanına yerleştir
+    if (rect.right + menuWidth + 15 <= window.innerWidth) {
+        posX = rect.right + 12;
+        posY = Math.max(10, rect.top);
+    } 
+    // Yoksa sol yanına yerleştir
+    else if (rect.left - menuWidth - 15 >= 0) {
+        posX = rect.left - menuWidth - 12;
+        posY = Math.max(10, rect.top);
+    } 
+    // İki tarafta da yer yoksa tıklama noktasından hafif ofsetli yerleştir
+    else {
+        posX = (typeof clientX === 'number' && clientX > 0) ? clientX + 15 : rect.left + 20;
+        posY = (typeof clientY === 'number' && clientY > 0) ? clientY + 15 : rect.top + 20;
+    }
+
+    // Ekran sınırlarına sabitle
+    if (posX + menuWidth > window.innerWidth - 10) posX = window.innerWidth - menuWidth - 10;
+    if (posY + menuHeight > window.innerHeight - 10) posY = window.innerHeight - menuHeight - 10;
+    if (posX < 10) posX = 10;
+    if (posY < 10) posY = 10;
+
+    menu.style.left = posX + 'px';
+    menu.style.top = posY + 'px';
+
+    const closeMenu = () => {
+        if (menu.parentElement) menu.remove();
+        document.removeEventListener('pointerdown', onDocClick, true);
+        document.removeEventListener('keydown', onKeyDown, true);
+    };
+
+    let didDrag = false;
+    const onDocClick = (e) => {
+        if (didDrag) return;
+        if (!menu.contains(e.target)) closeMenu();
+    };
+    const onKeyDown = (e) => {
+        if (e.key === 'Escape') closeMenu();
+    };
+
+    setTimeout(() => {
+        document.addEventListener('pointerdown', onDocClick, true);
+        document.addEventListener('keydown', onKeyDown, true);
+    }, 50);
+
+    // Yüzer Panel Sürükleme (Draggable PC)
+    const header = menu.querySelector('#acm-drag-header');
+    if (header) {
+        let isDragging = false;
+        let dragStartX = 0;
+        let dragStartY = 0;
+        let startLeft = 0;
+        let startTop = 0;
+
+        header.addEventListener('mousedown', (e) => {
+            if (e.target.closest('#acm-close-btn')) return;
+            isDragging = true;
+            didDrag = false;
+            dragStartX = e.clientX;
+            dragStartY = e.clientY;
+            startLeft = menu.offsetLeft;
+            startTop = menu.offsetTop;
+            header.style.cursor = 'grabbing';
+            e.preventDefault();
+            e.stopPropagation();
+        });
+
+        const onMouseMove = (e) => {
+            if (!isDragging) return;
+            const dx = e.clientX - dragStartX;
+            const dy = e.clientY - dragStartY;
+            if (Math.abs(dx) > 3 || Math.abs(dy) > 3) didDrag = true;
+            let nx = startLeft + dx;
+            let ny = startTop + dy;
+            nx = Math.max(5, Math.min(window.innerWidth - menu.offsetWidth - 5, nx));
+            ny = Math.max(5, Math.min(window.innerHeight - menu.offsetHeight - 5, ny));
+            menu.style.left = nx + 'px';
+            menu.style.top = ny + 'px';
+        };
+
+        const onMouseUp = () => {
+            if (isDragging) {
+                isDragging = false;
+                header.style.cursor = 'grab';
+                setTimeout(() => { didDrag = false; }, 100);
             }
-        }
-    });
+        };
+
+        document.addEventListener('mousemove', onMouseMove);
+        document.addEventListener('mouseup', onMouseUp);
+    }
+
+    const closeBtn = menu.querySelector('#acm-close-btn');
+    if (closeBtn) {
+        closeBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            closeMenu();
+        });
+    }
+
+    // Event Handlers
+    const delBtn = menu.querySelector('#acm-delete');
+    if (delBtn) {
+        delBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            closeMenu();
+            targetElement.remove();
+            if (typeof updateDrawHistory === 'function') updateDrawHistory();
+            if (typeof deselectAll === 'function') deselectAll();
+            if (typeof renderLayers === 'function') renderLayers();
+        });
+    }
+
+    const lockBtn = menu.querySelector('#acm-lock');
+    if (lockBtn) {
+        lockBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            closeMenu();
+            if (!targetElement.dataset.layerUid) {
+                targetElement.dataset.layerUid = 'layer_' + Math.random().toString(36).substr(2, 9);
+            }
+            if (typeof window.layerToggleLock === 'function') {
+                window.layerToggleLock(targetElement.dataset.layerUid);
+            }
+        });
+    }
+
+    const frontBtn = menu.querySelector('#acm-front');
+    if (frontBtn) {
+        frontBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            closeMenu();
+            const parent = targetElement.parentElement;
+            if (parent) parent.appendChild(targetElement);
+            if (typeof updateDrawHistory === 'function') updateDrawHistory();
+            if (typeof renderLayers === 'function') renderLayers();
+        });
+    }
+
+    const backBtn = menu.querySelector('#acm-back');
+    if (backBtn) {
+        backBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            closeMenu();
+            const parent = targetElement.parentElement;
+            if (parent && parent.firstChild) parent.insertBefore(targetElement, parent.firstChild);
+            if (typeof updateDrawHistory === 'function') updateDrawHistory();
+            if (typeof renderLayers === 'function') renderLayers();
+        });
+    }
+
+    const editBtn = menu.querySelector('#acm-edit');
+    if (editBtn) {
+        editBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            closeMenu();
+            const textEl = targetElement.querySelector('.callout-text, .co-neon-text, span, div') || targetElement;
+            const curVal = textEl.innerText || textEl.textContent || '';
+            const newT = prompt('Metni düzenleyin:', curVal);
+            if (newT !== null && newT !== undefined) {
+                if (textEl !== targetElement) textEl.innerText = newT;
+                else targetElement.innerText = newT;
+                if (typeof updateDrawHistory === 'function') updateDrawHistory();
+            }
+        });
+    }
 }
 
 // 1. PC: Mouse Sağ Tık (Context Menu)
 document.addEventListener('contextmenu', function(e) {
-    const callout = e.target.closest('.callout-item, .callout-wrap, .co-neon-block, .canvas-icon, .draggable');
+    // Tutamaç butonları, form kontrolleri veya panellere sağ tıklandığında menü açma
+    if (e.target.closest && e.target.closest(
+        '.callout-controls, .callout-resizer, .callout-rotator, .text-handle, .text-resize-handle, ' +
+        '.text-rotate-handle, .text-delete-handle, .text-lock-handle, .draw-handle, .vertex-handle, .cbtn-del, input, button, select, textarea, .panel, .mobile-panel'
+    )) {
+        return;
+    }
+    const callout = e.target.closest('.callout-item, .callout-wrap, .co-neon-block, .canvas-icon, .draggable, .added-icon');
     if (callout) {
         e.preventDefault();
         const isText = callout.classList.contains('callout-item') && !callout.classList.contains('callout-wrap');
-        openObjectContextMenu(callout, isText);
+        openObjectContextMenu(callout, isText, e.clientX, e.clientY);
     }
 });
 
@@ -76,6 +282,13 @@ let touchStartX, touchStartY;
 const LONG_PRESS_DURATION = 500;
 
 document.addEventListener('touchstart', function(e) {
+    // Tutamaçlara veya butonlara basıldığında uzun basma menüsünü tetikleme
+    if (e.target.closest && e.target.closest(
+        '.callout-controls, .callout-resizer, .callout-rotator, .text-handle, .text-resize-handle, ' +
+        '.text-rotate-handle, .text-delete-handle, .text-lock-handle, .draw-handle, .vertex-handle, .cbtn-del, input, button, select, textarea, .panel, .mobile-panel'
+    )) {
+        return;
+    }
     const callout = e.target.closest('.callout-item, .callout-wrap, .co-neon-block, .canvas-icon, .draggable, .editable-draw');
     if (callout && e.touches.length === 1) {
         touchStartX = e.touches[0].clientX;
@@ -123,8 +336,36 @@ document.addEventListener('touchend', function(e) {
     }
 }, { passive: true, capture: true });
 
-// 3. Çift Tıklama (Double Click) ile Hızlı Metin Düzenleme (PC)
+// 3. Çift Tıklama (Double Click) ile Hızlı Metin / İkon Düzenleme ve Sıfırlama (PC)
 document.addEventListener('dblclick', function(e) {
+    const icon = e.target.closest('.added-icon, .svg-icon, .icon-wrapper');
+    if (icon) {
+        e.stopPropagation();
+        e.preventDefault();
+        let defSize = parseFloat(icon.dataset.defaultFont);
+        if (!defSize || isNaN(defSize) || defSize <= 0) {
+            const sf = typeof scaleFactor !== 'undefined' && scaleFactor > 0 ? scaleFactor : 1;
+            defSize = Math.round(60 / sf);
+        }
+        icon.style.fontSize = defSize + 'px';
+        icon.dataset.rotation = '0';
+        const currentScale = icon.dataset.scale || 1;
+        icon.style.transform = `rotate(0deg) scale(${currentScale})`;
+        
+        const fsSlider = document.getElementById('elFontSize') || document.getElementById('fontSize');
+        if (fsSlider) fsSlider.value = defSize;
+        const fsVal = document.getElementById('elFontSizeVal') || document.getElementById('fontSizeVal');
+        if (fsVal) fsVal.textContent = defSize + 'px';
+        
+        const rotSlider = document.getElementById('elRotate');
+        if (rotSlider) rotSlider.value = 0;
+        const rotVal = document.getElementById('elRotateVal');
+        if (rotVal) rotVal.textContent = '0°';
+        
+        if (typeof saveState === 'function') saveState();
+        return;
+    }
+
     const callout = e.target.closest('.callout-item');
     if (callout && !callout.classList.contains('callout-wrap')) {
         e.stopPropagation();
@@ -132,8 +373,27 @@ document.addEventListener('dblclick', function(e) {
     }
 });
 
+// Boş tuvale veya canvas zeminine tıklandığında seçimi ve tutamaçları temizle
+document.addEventListener('pointerdown', function(e) {
+    if (e.target.closest(
+        '.draggable, .canvas-el, .callout-wrap, .callout-item, .co-neon-block, ' +
+        '.text-handle, .text-resize-handle, .text-rotate-handle, .text-delete-handle, .text-lock-handle, ' +
+        '.callout-controls, .callout-resizer, .callout-rotator, .callout-lock-btn, .callout-select-border, ' +
+        '.draw-handle, .vertex-handle, .cbtn-del, .sidebar, .right-sidebar, .panel, .mobile-panel, ' +
+        '.tab-content, .dynamic-field, .tab-btn, button, input, select, textarea, .swal2-container, .modal, .context-menu'
+    )) {
+        return;
+    }
+    if (typeof drawMode === 'undefined' || drawMode === 'off' || drawMode === null) {
+        if (typeof deselectAll === 'function') deselectAll();
+        if (typeof closeCalloutPanel === 'function') closeCalloutPanel();
+    }
+});
+
 document.addEventListener('DOMContentLoaded', () => {
-    setTimeout(initUndoSystem, 1000); // Uygulama tamamen yüklendikten sonra geçmişi dinlemeye başla
+    setTimeout(() => {
+        if (typeof window.initUndoSystem === 'function') window.initUndoSystem();
+    }, 1000);
 });
 
 

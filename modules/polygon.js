@@ -181,6 +181,24 @@ let polyMarqueeBox = null;
 let polyMarqueeStartX = 0;
 let polyMarqueeStartY = 0;
 
+window.startMobileMarquee = function(x, y) {
+    if(typeof drawMode !== 'undefined' && drawMode !== 'off') return;
+    polyMarqueeStartX = x;
+    polyMarqueeStartY = y;
+    
+    polyMarqueeBox = document.createElement('div');
+    polyMarqueeBox.style.position = 'fixed';
+    polyMarqueeBox.style.border = '1px dashed #3b82f6';
+    polyMarqueeBox.style.backgroundColor = 'rgba(59, 130, 246, 0.1)';
+    polyMarqueeBox.style.zIndex = '9999';
+    polyMarqueeBox.style.pointerEvents = 'none';
+    polyMarqueeBox.style.left = polyMarqueeStartX + 'px';
+    polyMarqueeBox.style.top = polyMarqueeStartY + 'px';
+    polyMarqueeBox.style.width = '0px';
+    polyMarqueeBox.style.height = '0px';
+    document.body.appendChild(polyMarqueeBox);
+};
+
 document.addEventListener('mousedown', e => {
     if(typeof drawMode !== 'undefined' && drawMode !== 'off') return;
     if(!e.target || !e.target.closest) return;
@@ -188,32 +206,21 @@ document.addEventListener('mousedown', e => {
     
     if (e.target.closest('.panel, .lp-header')) return;
     
-    // Instead of duplicating deselectAll logic here, we just start the marquee if we clicked on the background
-    // Since canvasEl already calls deselectAll() for clicks that aren't on items, we just check if it IS on the background
     const isBackground = e.target.id === 'photo-layer' || e.target.id === 'drawCanvas' || e.target.id === 'canva-render-layer' || e.target.classList.contains('photo-wrap') || e.target.classList.contains('workspace');
     
     if(!cTarget && isBackground && (e.ctrlKey || e.altKey || e.metaKey)) {
-        polyMarqueeStartX = e.clientX;
-        polyMarqueeStartY = e.clientY;
-        
-        polyMarqueeBox = document.createElement('div');
-        polyMarqueeBox.style.position = 'fixed';
-        polyMarqueeBox.style.border = '1px dashed #3b82f6';
-        polyMarqueeBox.style.backgroundColor = 'rgba(59, 130, 246, 0.1)';
-        polyMarqueeBox.style.zIndex = '9999';
-        polyMarqueeBox.style.pointerEvents = 'none';
-        polyMarqueeBox.style.left = polyMarqueeStartX + 'px';
-        polyMarqueeBox.style.top = polyMarqueeStartY + 'px';
-        polyMarqueeBox.style.width = '0px';
-        polyMarqueeBox.style.height = '0px';
-        document.body.appendChild(polyMarqueeBox);
+        window.startMobileMarquee(e.clientX, e.clientY);
     }
 });
 
-document.addEventListener('mousemove', function(e) {
+const handleMarqueeMove = function(e) {
     if(polyMarqueeBox) {
-        const currentX = e.clientX;
-        const currentY = e.clientY;
+        let currentX = e.clientX;
+        let currentY = e.clientY;
+        if(e.touches && e.touches.length > 0) {
+            currentX = e.touches[0].clientX;
+            currentY = e.touches[0].clientY;
+        }
         const left = Math.min(polyMarqueeStartX, currentX);
         const top = Math.min(polyMarqueeStartY, currentY);
         const width = Math.abs(currentX - polyMarqueeStartX);
@@ -224,9 +231,12 @@ document.addEventListener('mousemove', function(e) {
         polyMarqueeBox.style.width = width + 'px';
         polyMarqueeBox.style.height = height + 'px';
     }
-});
+};
 
-document.addEventListener('mouseup', function(e) {
+document.addEventListener('mousemove', handleMarqueeMove);
+document.addEventListener('touchmove', handleMarqueeMove, {passive: true});
+
+const handleMarqueeEnd = function(e) {
     if(polyMarqueeBox) {
         const mRect = polyMarqueeBox.getBoundingClientRect();
         polyMarqueeBox.remove();
@@ -272,4 +282,7 @@ document.addEventListener('mouseup', function(e) {
             }
         }
     }
-});
+};
+
+document.addEventListener('mouseup', handleMarqueeEnd);
+document.addEventListener('touchend', handleMarqueeEnd);

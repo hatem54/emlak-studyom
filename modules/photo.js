@@ -48,15 +48,7 @@ function enablePhotoDrag(el){
         if(typeof drawMode !== 'undefined' && drawMode!=='off')return;
         
         if(e.type === 'touchstart') {
-            const currentTime = new Date().getTime();
-            const tapLength = currentTime - lastTap;
-            if (tapLength < 300 && tapLength > 0) {
-                e.preventDefault();
-                resetPhotoPos();
-                lastTap = 0;
-                return;
-            }
-            lastTap = currentTime;
+            lastTap = new Date().getTime();
         }
 
         e.preventDefault();
@@ -74,8 +66,9 @@ function enablePhotoDrag(el){
         const c=e.touches?e.touches[0]:e;
         const zoom=parseFloat($('photoZoomCtrl').value);
         const sensitivity=100/Math.max(zoom-50,50);
-        const dx=(c.clientX-startX)/scaleFactor*sensitivity/19.2;
-        const dy=(c.clientY-startY)/scaleFactor*sensitivity/10.8;
+        const sf = typeof window.getGlobalScale === 'function' ? window.getGlobalScale() : 1;
+        const dx=(c.clientX-startX)/sf*sensitivity/19.2;
+        const dy=(c.clientY-startY)/sf*sensitivity/10.8;
         $('photoXCtrl').value=Math.max(0,Math.min(100,startPX-dx));
         $('photoYCtrl').value=Math.max(0,Math.min(100,startPY-dy));
         applyPhotoPos();
@@ -173,10 +166,26 @@ function applyPhotoPos(){
 }
 
 function resetPhotoPos(){
+    const pl = document.getElementById('photo-layer');
+    if (pl) {
+        pl.dataset.zpX = 0;
+        pl.dataset.zpY = 0;
+        pl.dataset.zpScale = 1;
+        if (typeof _applyPhotoTransform === 'function') _applyPhotoTransform(pl);
+    }
+
     $('photoZoomCtrl').value=100;
     $('photoXCtrl').value=50;
     $('photoYCtrl').value=50;
     applyPhotoPos();
+    
+    // Fotoğrafı tekrar kilitle
+    const lockToggle = document.getElementById('photoLockToggle');
+    if (lockToggle) {
+        lockToggle.checked = true;
+        window.isPhotoLocked = true;
+    }
+    if (typeof redrawAll === 'function') redrawAll();
 }
 
 function applyPhotoFilters(){
@@ -249,43 +258,50 @@ function applyPreset(name){
 }
 
 function _preparePhoto(el){
-    if(el.dataset.zpReady === '1') return;
+    if(!el) return;
     el.dataset.zpReady = '1';
-    el.dataset.zpScale = 1;
-    el.dataset.zpX = 0;
-    el.dataset.zpY = 0;
+    if (!el.dataset.zpScale) el.dataset.zpScale = 1;
+    if (!el.dataset.zpX) el.dataset.zpX = 0;
+    if (!el.dataset.zpY) el.dataset.zpY = 0;
     
-    // Photo panel'in overflow hidden olmalı
     el.style.overflow = 'hidden';
     
-    // Create the native canvas for rendering
-    var renderCanvas = document.createElement('canvas');
-    renderCanvas.className = 'photo-render-canvas';
-    renderCanvas.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;';
+    let renderCanvas = el.querySelector('.photo-render-canvas');
+    if (!renderCanvas) {
+        renderCanvas = document.createElement('canvas');
+        renderCanvas.className = 'photo-render-canvas';
+        renderCanvas.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0;';
+        el.appendChild(renderCanvas);
+    }
     
-    //  div oluştur (background bunun üstüne taşınacak)
-    var inner = document.createElement('div');
-    inner.className = 'photo-inner-zoom';
-    // We make the inner div transparent so it holds state but doesn't show!
-    inner.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;background-size:cover;background-position:center;background-repeat:no-repeat;transform-origin:center center;transition:none;pointer-events:none;opacity:0;';
+    let inner = el.querySelector('.photo-inner-zoom');
+    if (!inner) {
+        inner = document.createElement('div');
+        inner.className = 'photo-inner-zoom';
+        inner.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;background-size:cover;background-position:center;background-repeat:no-repeat;transform-origin:center center;transition:none;pointer-events:none;opacity:0;z-index:0;';
+        el.appendChild(inner);
+    }
     
     var bg = el.style.backgroundImage;
-    if(bg && bg !== 'none') inner.style.backgroundImage = bg;
+    if(bg && bg !== 'none') {
+        inner.style.backgroundImage = bg;
+    } else if (typeof uploadedImgUrl !== 'undefined' && uploadedImgUrl) {
+        inner.style.backgroundImage = "url('" + uploadedImgUrl + "')";
+    }
     
-    // Orijinal background'ı div'e taşı, dış div'den kaldır
-    // el.style.backgroundImage = 'none'; (moved to _drawToNativeCanvas)
     _applyPhotoTransform(el);
-    
-    el.appendChild(renderCanvas);
-    el.appendChild(inner);
-    
-    console.log('✅ Foto hazırlandı (Native Canvas Destekli):', el);
 }
 
 function _applyPhotoTransform(el){
+    if(!el) return;
     var inner = el.querySelector('.photo-inner-zoom');
     var canvas = el.querySelector('.photo-render-canvas');
-    if(!inner) return;
+    if(!inner) {
+        _preparePhoto(el);
+        inner = el.querySelector('.photo-inner-zoom');
+        canvas = el.querySelector('.photo-render-canvas');
+        if(!inner) return;
+    }
     
     var s = parseFloat(el.dataset.zpScale) || 1;
     var x = parseFloat(el.dataset.zpX) || 0;
@@ -298,15 +314,6 @@ function _applyPhotoTransform(el){
     inner.style.transform = 'scale(' + s + ')';
     
     if (canvas) {
-        // Hareket takibini belirle (Debounce)
-        window._isZoomPanActive = true;
-        clearTimeout(window._zoomPanTimeout);
-        window._zoomPanTimeout = setTimeout(() => {
-            window._isZoomPanActive = false;
-            // Hareket bitince Yüksek Kalitede tekrar çiz
-            _drawToNativeCanvas(el, inner, canvas, s, x, y, sX, sY);
-        }, 150);
-
         _drawToNativeCanvas(el, inner, canvas, s, x, y, sX, sY);
     }
     
@@ -314,59 +321,66 @@ function _applyPhotoTransform(el){
 }
 
 function _drawToNativeCanvas(el, inner, canvas, scale, panX, panY, sliderX, sliderY) {
-    let imgUrl = inner.style.backgroundImage.replace(/^url\(["']?/, '').replace(/["']?\)$/, '');
-    if (!imgUrl || imgUrl === 'none') return;
-        if (!el._nativeImg || el._nativeImgSrc !== imgUrl) {
-          if (window._globalNativeImgSrc === imgUrl && window._globalNativeImg && window._globalNativeImg.complete) {
-              el._nativeImg = window._globalNativeImg;
-              el._nativeImgSrc = imgUrl;
-          } else {
-              let img = new Image();
-              if (imgUrl.startsWith('http')) img.crossOrigin = 'anonymous';
-              img.onload = () => {
-                  window._globalNativeImg = img;
-                  window._globalNativeImgSrc = imgUrl;
-                  el._nativeImg = img;
-                  el._nativeImgSrc = imgUrl;
-                  _drawToNativeCanvas(el, inner, canvas, scale, panX, panY, sliderX, sliderY);
-              };
-              img.src = imgUrl;
-              return;
-          }
-      }
+    let rawBg = inner.style.backgroundImage || el.style.backgroundImage || '';
+    if ((!rawBg || rawBg === 'none') && typeof uploadedImgUrl !== 'undefined' && uploadedImgUrl) {
+        rawBg = "url('" + uploadedImgUrl + "')";
+        inner.style.backgroundImage = rawBg;
+    }
+    
+    let imgUrl = rawBg.replace(/^url\(["']?/, '').replace(/["']?\)$/, '');
+    if (!imgUrl || imgUrl === 'none') {
+        let ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        return;
+    }
+    
+    if (!el._nativeImg || el._nativeImgSrc !== imgUrl) {
+        if (window._globalNativeImgSrc === imgUrl && window._globalNativeImg && window._globalNativeImg.complete && window._globalNativeImg.naturalWidth > 0) {
+            el._nativeImg = window._globalNativeImg;
+            el._nativeImgSrc = imgUrl;
+        } else {
+            let img = new Image();
+            if (imgUrl.startsWith('http')) img.crossOrigin = 'anonymous';
+            img.onload = () => {
+                window._globalNativeImg = img;
+                window._globalNativeImgSrc = imgUrl;
+                el._nativeImg = img;
+                el._nativeImgSrc = imgUrl;
+                _drawToNativeCanvas(el, inner, canvas, scale, panX, panY, sliderX, sliderY);
+            };
+            img.src = imgUrl;
+            return;
+        }
+    }
     
     let img = el._nativeImg;
     if (!img || img.width === 0) return;
     
-    let boxW = el.clientWidth || el.offsetWidth || 1920;
-    let boxH = el.clientHeight || el.offsetHeight || 1080;
+    let cContainer = document.getElementById('canvas-container');
+    let cW = cContainer ? (parseInt(cContainer.style.width) || cContainer.offsetWidth || 1920) : 1920;
+    let cH = cContainer ? (parseInt(cContainer.style.height) || cContainer.offsetHeight || 1080) : 1080;
     
-    // PERFECT 1:1 MAPPING LOGIC:
-    // When exporting, match html2canvas's scale exactly to prevent double-resampling blur!
+    let boxW = (el.id === 'photo-layer') ? cW : (el.offsetWidth || cW);
+    let boxH = (el.id === 'photo-layer') ? cH : (el.offsetHeight || cH);
+    if (boxW <= 0) boxW = 1920;
+    if (boxH <= 0) boxH = 1080;
+    
     let activeScale = parseFloat(scale) || 1;
     let baseResMul = window.exportingScale ? window.exportingScale : 1.5;
-    let smoothQuality = 'high';
     
-    // If we are just previewing on screen, we want it to look sharp even if zoomed in
     if (!window.exportingScale) {
         let nativeScaleX = img.width / boxW;
         let nativeScaleY = img.height / boxH;
         let maxNativeScale = Math.max(nativeScaleX, nativeScaleY);
-        
-        if (window._isZoomPanActive) {
-            // Hareket anında (Pan/Zoom) cihazı (özellikle mobil) yormamak için kısıtla
-            baseResMul = (window.isMobileDevice && window.isMobileDevice()) ? 1.0 : 1.5;
-            smoothQuality = 'low';
-        } else {
-            // Durgun (Idle) anında veya Yüksek kaliteli render gerektiğinde
-            baseResMul = Math.min(4, Math.max(1.5, maxNativeScale * activeScale));
-        }
+        baseResMul = Math.min(4, Math.max(1, maxNativeScale * activeScale));
     }
     
     const HIGH_RES_MUL = baseResMul;
     
-    canvas.width = boxW * HIGH_RES_MUL;
-    canvas.height = boxH * HIGH_RES_MUL;
+    canvas.width = Math.round(boxW * HIGH_RES_MUL);
+    canvas.height = Math.round(boxH * HIGH_RES_MUL);
+    canvas.style.width = '100%';
+    canvas.style.height = '100%';
     
     let ctx = canvas.getContext('2d');
     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -399,21 +413,14 @@ function _drawToNativeCanvas(el, inner, canvas, scale, panX, panY, sliderX, slid
     ctx.translate(-cx, -cy);
     
     ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = smoothQuality;
+    ctx.imageSmoothingQuality = 'high';
     
     let filter = inner.style.filter || el.style.filter;
-    // Çift Filtre Çakışmasını (Ekranda Kalma) Önlemek İçin:
-    // Filtreyi canvas'a FİZİKSEL olarak SADECE çıktı (export) alırken basıyoruz.
-    // Normal düzenleme esnasında canvas saf kalıyor, CSS filtresi üstüne biniyor (Böylece 1 katman oluyor).
     if (filter && filter !== 'none' && window.isExportingNow) {
         ctx.filter = filter;
     }
     
     ctx.drawImage(img, baseX, baseY, drawW, drawH);
-    if (!el.classList.contains('has-render-canvas')) {
-        el.classList.add('has-render-canvas');
-        el.style.setProperty('background-image', 'none', 'important');
-    }
     ctx.restore();
 }
 

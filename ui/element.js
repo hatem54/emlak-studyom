@@ -93,7 +93,7 @@ function applyElSettings(){
     el.dataset.storedBgHex=bc;
     el.dataset.storedBgOpacity=bo;
     el.dataset.rotation=rot;
-    el.style.transform='rotate('+rot+'deg)';
+    const currentScale = el.dataset.scale || 1; el.style.transform='rotate('+rot+'deg) scale(' + currentScale + ')';;
     el.style.borderRadius=rad+'px';
     el.dataset.shadowVal=sh;
     el.style.boxShadow=+sh>0?'0 '+sh+'px '+(sh*2)+'px rgba(0,0,0,.5)':'none';
@@ -193,7 +193,6 @@ function addCustomTextBox(){
     el.style.color='#000000';
     el.style.border='2px solid #000000';
     el.style.boxShadow='0 10px 20px rgba(0,0,0,0.5)';
-    el.style.zIndex='100';
     el.style.zIndex='9999';
     el.style.fontFamily=currentFont;
     uiLayer.appendChild(el);
@@ -201,7 +200,8 @@ function addCustomTextBox(){
     bindDrag(el);
     enableInlineEdit(el);
     if(typeof isCanvaMode!=='undefined' && isCanvaMode)canvaOverlays.push(el);
-    // selectElement(el); // Prevent auto-opening Element tab
+    if(typeof window.recordHistory === 'function') window.recordHistory('Çerçeveli Metin eklendi');
+    if(typeof window.requestAutoSave === 'function') window.requestAutoSave();
 }
 
 function addCustomTextOnly(){
@@ -211,7 +211,7 @@ function addCustomTextOnly(){
     el.dataset.label='Serbest Yazı';
     el.dataset.defaultFont='36';
     el.dataset.rotation='0';
-    el.dataset.shadowVal='10';
+    el.dataset.shadowVal='0';
     el.dataset.blurVal='0';
     el.dataset.storedBgHex='#000000';
     el.dataset.storedBgOpacity='0';
@@ -222,9 +222,11 @@ function addCustomTextOnly(){
     el.style.fontSize='36px';
     el.style.padding='10px';
     el.style.background='transparent';
-    el.style.color='#000000';
+    const isMob = (typeof window.isMobileDevice === 'function' && window.isMobileDevice()) || window.innerWidth <= 768;
+    const defaultColor = isMob ? '#000000' : '#ffffff';
+    el.style.color = defaultColor;
     el.style.border='none';
-    el.style.textShadow='0 5px 15px rgba(255,255,255,0.8)';
+    el.style.textShadow = 'none';
     el.style.zIndex='9999';
     el.style.fontFamily=currentFont;
     uiLayer.appendChild(el);
@@ -232,6 +234,8 @@ function addCustomTextOnly(){
     bindDrag(el);
     enableInlineEdit(el);
     if(typeof isCanvaMode!=='undefined' && isCanvaMode)canvaOverlays.push(el);
+    if(typeof window.recordHistory === 'function') window.recordHistory('Serbest Yazı eklendi');
+    if(typeof window.requestAutoSave === 'function') window.requestAutoSave();
 }
 
 function initGlobalTooltip() {

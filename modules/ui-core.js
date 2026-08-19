@@ -161,9 +161,14 @@ function renderData(){
             const config = window.propertyForms[window.currentMode];
             config.fields.forEach(f => {
                 if (f.id === 'priceInput') return;
-                const val = document.getElementById(f.id) ? document.getElementById(f.id).value : '';
+                const inputEl = document.getElementById(f.id);
+                const val = inputEl ? inputEl.value : '';
+                const currentLabel = (inputEl && inputEl.previousElementSibling && inputEl.previousElementSibling.tagName === 'LABEL') ? inputEl.previousElementSibling.innerText : f.label;
                 if (val && val.toLowerCase() !== 'yok') {
-                    if (f.canvasFormat) {
+                    if (currentLabel !== f.label) {
+                        let cleanLabel = currentLabel.replace(' Sayısı', '').replace(' Durumu', '').replace(' Alanı', '').replace(' Türü', '').replace(' Ölçüsü', '').replace(' Bedeli', '');
+                        canvaLines.push(cleanLabel + ': ' + val);
+                    } else if (f.canvasFormat) {
                         canvaLines.push(f.canvasFormat.replace('{value}', val));
                     } else {
                         canvaLines.push(val);
@@ -209,10 +214,12 @@ function renderData(){
             const config = window.propertyForms[window.currentMode];
             config.fields.forEach(f => {
                 if(f.id === 'priceInput') return; // fiyatı yukarda basıyoruz
-                const val = v(f.id);
+                const inputEl = document.getElementById(f.id);
+                const val = inputEl ? inputEl.value : '';
+                const currentLabel = (inputEl && inputEl.previousElementSibling && inputEl.previousElementSibling.tagName === 'LABEL') ? inputEl.previousElementSibling.innerText : f.label;
                 if (val && val.toLowerCase() !== 'yok') {
                     let icon = 'fa-check-circle';
-                    const lbl = f.label.toLowerCase();
+                    const lbl = currentLabel.toLowerCase();
                     if(lbl.includes('oda') || lbl.includes('daire')) icon = 'fa-bed';
                     else if(lbl.includes('m²') || lbl.includes('alan')) icon = 'fa-ruler-combined';
                     else if(lbl.includes('kat') || lbl.includes('gabari')) icon = 'fa-layer-group';
@@ -229,7 +236,7 @@ function renderData(){
                     else if(lbl.includes('ağaç') || lbl.includes('bahçe') || lbl.includes('peyzaj') || lbl.includes('ahır')) icon = 'fa-tree';
                     else if(lbl.includes('akıllı') || lbl.includes('elektrik')) icon = 'fa-bolt';
 
-                    let cleanLabel = f.label.replace(' Sayısı', '').replace(' Durumu', '').replace(' Alanı', '').replace(' Türü', '').replace(' Ölçüsü', '').replace(' Bedeli', '');
+                    let cleanLabel = currentLabel.replace(' Sayısı', '').replace(' Durumu', '').replace(' Alanı', '').replace(' Türü', '').replace(' Ölçüsü', '').replace(' Bedeli', '');
                     h += '<div><i class="fas ' + icon + '"></i> ' + cleanLabel + ': <b>' + val + '</b></div>';
                 }
             });

@@ -64,35 +64,24 @@ document.addEventListener('click', function(e) {
     }
 });
 
-window.showGlobalLoadingOverlay = function(durationMs, text) {
-    if (document.getElementById('global-loading-mask')) return;
-    const overlay = document.createElement('div');
-    overlay.id = 'global-loading-mask';
-    overlay.style.position = 'fixed';
-    overlay.style.top = '0';
-    overlay.style.left = '0';
-    overlay.style.width = '100vw';
-    overlay.style.height = '100vh';
-    overlay.style.backgroundColor = '#0f172a';
-    overlay.style.zIndex = '9999999';
-    overlay.style.display = 'flex';
-    overlay.style.alignItems = 'center';
-    overlay.style.justifyContent = 'center';
-    overlay.style.color = '#fbbf24';
-    overlay.style.fontSize = '24px';
-    overlay.style.fontWeight = 'bold';
-    overlay.style.fontFamily = 'sans-serif';
-    overlay.style.flexDirection = 'column';
-    overlay.style.gap = '15px';
-    const displayTxt = text || 'Şablon Yükleniyor...';
-    overlay.innerHTML = '<div style="width: 50px; height: 50px; border: 5px solid #fbbf24; border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite;"></div><div>' + displayTxt + '</div><style>@keyframes spin { 100% { transform: rotate(360deg); } }</style>';
-    document.body.appendChild(overlay);
-    setTimeout(() => { if(overlay) overlay.remove(); }, durationMs || 500);
-}
+window.showGlobalLoadingOverlay = function(durationMs, text, subtext) {
+    if (window.isRestoringState) return;
+    if (typeof window.showAppLoading === 'function') {
+        window.showAppLoading(text || 'Şablon Uygulanıyor...', subtext || 'Tasarım ve renkler hazırlanıyor...');
+        setTimeout(() => {
+            if (!window.isRestoringState && typeof window.hideAppLoading === 'function') {
+                window.hideAppLoading();
+            }
+        }, durationMs || 350);
+    }
+};
 
 function setTemplate(k){
     try {
-        if(window.showGlobalLoadingOverlay) window.showGlobalLoadingOverlay(400, "Görsel Hazırlanıyor...");
+        if(window.AppState && typeof window.AppState.resetOnTemplateChange === 'function') {
+            window.AppState.resetOnTemplateChange(k);
+        }
+        if(!window.isRestoringState && window.showGlobalLoadingOverlay) window.showGlobalLoadingOverlay(400, "Görsel Hazırlanıyor...");
         if(typeof isCanvaMode !== 'undefined' && isCanvaMode) {
             isCanvaMode = false;
             if(typeof clearCanvaTemplate === 'function') clearCanvaTemplate(true);
@@ -110,6 +99,7 @@ function setTemplate(k){
         deselectAll();
         renderData();
         if(typeof applyPhotoFilters === 'function') applyPhotoFilters();
+        if(typeof redrawAll === 'function') redrawAll();
         
         if(typeof requestAutoSave === 'function') requestAutoSave();
     } catch(err) {
@@ -124,6 +114,9 @@ function setTemplate(k){
 }
 // ========== UNIFIED TEMPLATE ENGINE ==========
 window.renderCanvaTemplate = function(htmlString) {
+    if(window.AppState && typeof window.AppState.resetOnTemplateChange === 'function') {
+        window.AppState.resetOnTemplateChange('canva');
+    }
     if(typeof _kolajTemizle === 'function') _kolajTemizle();
     
     document.querySelectorAll('.normal-el').forEach(el => el.style.display = 'none');

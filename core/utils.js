@@ -13,6 +13,12 @@
  * - main.js vb.
  */
 
+window.getGlobalScale = function() {
+    const sf = (typeof scaleFactor !== 'undefined' && scaleFactor > 0 && !isNaN(scaleFactor)) ? scaleFactor : (window.scaleFactor || 1);
+    const ps = (typeof window.pinchScale !== 'undefined' && window.pinchScale > 0 && !isNaN(window.pinchScale)) ? window.pinchScale : 1;
+    return sf * ps;
+};
+
 function sleep(ms){return new Promise(r=>setTimeout(r,ms))}
 
 function hexToRgb(h){
@@ -84,7 +90,34 @@ function getColorCategory(h) {
 
 function enableInlineEdit(el) {
     if(!el) return;
-    if(el.classList.contains('added-icon') || el.classList.contains('svg-icon') || el.classList.contains('icon-wrapper')) return;
+    if(el.classList.contains('added-icon') || el.classList.contains('svg-icon') || el.classList.contains('icon-wrapper')) {
+        el.addEventListener('dblclick', function(e) {
+            e.stopPropagation();
+            e.preventDefault();
+            let defSize = parseFloat(el.dataset.defaultFont);
+            if (!defSize || isNaN(defSize) || defSize <= 0) {
+                const sf = typeof scaleFactor !== 'undefined' && scaleFactor > 0 ? scaleFactor : 1;
+                defSize = Math.round(60 / sf);
+            }
+            el.style.fontSize = defSize + 'px';
+            el.dataset.rotation = '0';
+            const currentScale = el.dataset.scale || 1;
+            el.style.transform = `rotate(0deg) scale(${currentScale})`;
+            
+            const fsSlider = document.getElementById('elFontSize') || document.getElementById('fontSize');
+            if (fsSlider) fsSlider.value = defSize;
+            const fsVal = document.getElementById('elFontSizeVal') || document.getElementById('fontSizeVal');
+            if (fsVal) fsVal.textContent = defSize + 'px';
+            
+            const rotSlider = document.getElementById('elRotate');
+            if (rotSlider) rotSlider.value = 0;
+            const rotVal = document.getElementById('elRotateVal');
+            if (rotVal) rotVal.textContent = '0°';
+            
+            if (typeof saveState === 'function') saveState();
+        });
+        return;
+    }
     el.addEventListener('dblclick', function(e) {
         e.stopPropagation();
         

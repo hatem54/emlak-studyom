@@ -492,29 +492,29 @@ function applyBadgeColorProfile(el, styleType) {
             el.style.background = 'linear-gradient(135deg, #facc15, #ca8a04)';
             el.style.color = '#0f172a';
             el.style.border = '2px solid #ffffff';
-            el.style.boxShadow = '0 12px 25px rgba(202, 138, 4, 0.45), 0 0 15px rgba(250, 204, 21, 0.3)';
+            el.style.boxShadow = '0 8px 18px rgba(0, 0, 0, 0.35)';
             el.dataset.storedBgHex = '#ca8a04';
             el.dataset.storedBgOpacity = '100';
             el.dataset.storedBorderColor = '#ffffff';
             el.dataset.storedBorderWidth = '2';
             break;
         case 'blue':
-            el.style.background = 'rgba(14, 165, 233, 0.92)';
+            el.style.background = 'rgba(14, 165, 233, 0.95)';
             el.style.color = '#ffffff';
             el.style.border = '2px solid #38bdf8';
-            el.style.boxShadow = '0 12px 25px rgba(14, 165, 233, 0.4), 0 0 15px rgba(56, 189, 248, 0.35)';
+            el.style.boxShadow = '0 8px 18px rgba(0, 0, 0, 0.35)';
             el.dataset.storedBgHex = '#0ea5e9';
-            el.dataset.storedBgOpacity = '92';
+            el.dataset.storedBgOpacity = '95';
             el.dataset.storedBorderColor = '#38bdf8';
             el.dataset.storedBorderWidth = '2';
             break;
         case 'emerald':
-            el.style.background = 'rgba(16, 185, 129, 0.92)';
+            el.style.background = 'rgba(16, 185, 129, 0.95)';
             el.style.color = '#ffffff';
             el.style.border = '2px solid #34d399';
-            el.style.boxShadow = '0 12px 25px rgba(16, 185, 129, 0.4)';
+            el.style.boxShadow = '0 8px 18px rgba(0, 0, 0, 0.35)';
             el.dataset.storedBgHex = '#10b981';
-            el.dataset.storedBgOpacity = '92';
+            el.dataset.storedBgOpacity = '95';
             el.dataset.storedBorderColor = '#34d399';
             el.dataset.storedBorderWidth = '2';
             break;
@@ -522,7 +522,7 @@ function applyBadgeColorProfile(el, styleType) {
             el.style.background = 'linear-gradient(135deg, #e11d48, #be123c)';
             el.style.color = '#ffffff';
             el.style.border = '2px solid #fda4af';
-            el.style.boxShadow = '0 12px 25px rgba(225, 29, 72, 0.45)';
+            el.style.boxShadow = '0 8px 18px rgba(0, 0, 0, 0.35)';
             el.dataset.storedBgHex = '#e11d48';
             el.dataset.storedBgOpacity = '100';
             el.dataset.storedBorderColor = '#fda4af';
@@ -532,7 +532,7 @@ function applyBadgeColorProfile(el, styleType) {
             el.style.background = 'rgba(255, 255, 255, 0.95)';
             el.style.color = '#0f172a';
             el.style.border = '2px solid #0f172a';
-            el.style.boxShadow = '0 12px 25px rgba(0, 0, 0, 0.35)';
+            el.style.boxShadow = '0 8px 18px rgba(0, 0, 0, 0.35)';
             el.dataset.storedBgHex = '#ffffff';
             el.dataset.storedBgOpacity = '95';
             el.dataset.storedBorderColor = '#0f172a';
@@ -540,13 +540,13 @@ function applyBadgeColorProfile(el, styleType) {
             break;
         case 'modern':
         default:
-            el.style.background = 'rgba(15, 23, 42, 0.9)';
-            el.style.backdropFilter = 'blur(12px)';
+            el.style.background = 'rgba(15, 23, 42, 0.95)';
+            el.style.backdropFilter = 'none';
             el.style.color = '#ffffff';
-            el.style.border = '2px solid rgba(56, 189, 248, 0.6)';
-            el.style.boxShadow = '0 15px 30px rgba(0, 0, 0, 0.6), 0 0 15px rgba(56, 189, 248, 0.2)';
+            el.style.border = '2px solid rgba(56, 189, 248, 0.7)';
+            el.style.boxShadow = '0 8px 20px rgba(0, 0, 0, 0.5)';
             el.dataset.storedBgHex = '#0f172a';
-            el.dataset.storedBgOpacity = '90';
+            el.dataset.storedBgOpacity = '95';
             el.dataset.storedBorderColor = '#38bdf8';
             el.dataset.storedBorderWidth = '2';
             break;

@@ -853,6 +853,16 @@
             // Adım 6: Canlı Tuval Güncellemesi ve Otomatik Kayıt
             if (typeof window.renderData === 'function') window.renderData();
             if (typeof window.refreshActiveCanvaTemplate === 'function') window.refreshActiveCanvaTemplate();
+
+            // Eğer kullanıcı standart şablon modundaysa elemanları görünür yap ve güncelle
+            if (typeof activeLayout !== 'undefined' && activeLayout && (!window.isCanvaMode)) {
+                if (typeof elBadge !== 'undefined' && elBadge) elBadge.style.visibility = 'visible';
+                if (typeof elPrice !== 'undefined' && elPrice) elPrice.style.visibility = 'visible';
+                if (typeof elDetails !== 'undefined' && elDetails) elDetails.style.visibility = 'visible';
+                const il = document.getElementById('infoLineText');
+                if (il) il.style.visibility = 'visible';
+            }
+
             if (typeof window.requestAutoSave === 'function') window.requestAutoSave();
 
             // Adım 7: İlana Özel Akıllı Öneriler & Rozetler Üret

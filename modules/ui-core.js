@@ -147,8 +147,15 @@ window.switchMode = function(m) {
 
 function renderData(){
     try {
-        elBadge.innerText= $('statusInput') ? $('statusInput').value : '';
-        elPrice.innerText= $('priceInput') ? ($('priceInput').value || 'FİYAT İÇİN BİZE ULAŞIN') : 'FİYAT İÇİN BİZE ULAŞIN';
+        const defaultBadge = (window.propertyForms && window.propertyForms[window.currentMode]) ? window.propertyForms[window.currentMode].badge : 'SATILIK DAİRE';
+        const defaultPrice = (window.propertyForms && window.propertyForms[window.currentMode] && window.propertyForms[window.currentMode].fields && window.propertyForms[window.currentMode].fields[0] && window.propertyForms[window.currentMode].fields[0].value) ? window.propertyForms[window.currentMode].fields[0].value : '6.750.000 TL';
+
+        if (typeof elBadge !== 'undefined' && elBadge) {
+            elBadge.innerText = $('statusInput') && $('statusInput').value ? $('statusInput').value : defaultBadge;
+        }
+        if (typeof elPrice !== 'undefined' && elPrice) {
+            elPrice.innerText = $('priceInput') && $('priceInput').value ? $('priceInput').value : defaultPrice;
+        }
 
         const v=i=>document.getElementById(i)?document.getElementById(i).value:'';
         let canvaLines=[];
@@ -248,6 +255,33 @@ function renderData(){
                     const inputs = r.querySelectorAll('input');
                     if (inputs.length === 2 && inputs[0].value && inputs[1].value) {
                         h += '<div><i class="fas fa-check-circle"></i> ' + inputs[0].value + ': <b>' + inputs[1].value + '</b></div>';
+                    }
+                });
+            }
+
+            // Eğer form boşsa varsayılan alan değerlerini bas
+            if (!h) {
+                config.fields.forEach(f => {
+                    if (f.id === 'priceInput') return;
+                    const val = f.value;
+                    if (val && val.toLowerCase() !== 'yok') {
+                        let icon = 'fa-check-circle';
+                        const lbl = f.label.toLowerCase();
+                        if(lbl.includes('oda') || lbl.includes('daire')) icon = 'fa-bed';
+                        else if(lbl.includes('m²') || lbl.includes('alan')) icon = 'fa-ruler-combined';
+                        else if(lbl.includes('kat') || lbl.includes('gabari')) icon = 'fa-layer-group';
+                        else if(lbl.includes('yaş') || lbl.includes('tarih')) icon = 'fa-calendar-alt';
+                        else if(lbl.includes('ısıtma') || lbl.includes('enerji')) icon = 'fa-fire';
+                        else if(lbl.includes('banyo')) icon = 'fa-bath';
+                        else if(lbl.includes('havuz')) icon = 'fa-swimming-pool';
+                        else if(lbl.includes('imar') || lbl.includes('ada') || lbl.includes('parsel') || lbl.includes('konum') || lbl.includes('lokasyon')) icon = 'fa-map-marker-alt';
+                        else if(lbl.includes('cephe')) icon = 'fa-compass';
+                        else if(lbl.includes('tapu') || lbl.includes('emsal') || lbl.includes('kaks')) icon = 'fa-file-contract';
+                        else if(lbl.includes('otopark')) icon = 'fa-car';
+                        else if(lbl.includes('asansör')) icon = 'fa-sort-numeric-up';
+
+                        let cleanLabel = f.label.replace(' Sayısı', '').replace(' Durumu', '').replace(' Alanı', '').replace(' Türü', '').replace(' Ölçüsü', '').replace(' Bedeli', '');
+                        h += '<div><i class="fas ' + icon + '"></i> ' + cleanLabel + ': <b>' + val + '</b></div>';
                     }
                 });
             }

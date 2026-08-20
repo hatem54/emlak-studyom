@@ -93,6 +93,11 @@ function setTemplate(k){
         applyStylePos(elBadge,t.badge);
         applyStylePos(elPrice,t.price);
         applyStylePos(elDetails,t.details);
+        if(typeof elBadge !== 'undefined' && elBadge) elBadge.style.visibility = 'visible';
+        if(typeof elPrice !== 'undefined' && elPrice) elPrice.style.visibility = 'visible';
+        if(typeof elDetails !== 'undefined' && elDetails) elDetails.style.visibility = 'visible';
+        const il = document.getElementById('infoLineText');
+        if(il) il.style.visibility = 'visible';
         if(typeof elLogo !== 'undefined' && elLogo && t.logo) {
             applyStylePos(elLogo, t.logo);
         }

@@ -21,7 +21,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,300,0,0" />
     <link rel="icon" type="image/jpeg" href="assets/logo/logo-icon.png">
-    <link rel="stylesheet" href="styles.css?v=20260819-46">
+    <link rel="stylesheet" href="styles.css?v=20260820-2">
     <!-- ⚡ SABER EFFECT ENGINE - PixiJS + Filters -->
     <script src="https://cdn.jsdelivr.net/npm/pixi.js@7.4.0/dist/pixi.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/pixi-filters@5.2.1/dist/browser/pixi-filters.min.js"></script>
@@ -87,7 +87,6 @@
     </div>
     
     <div id="mobileSheetOverlay" class="mobile-overlay"></div>
-    <button class="tour-restart-btn" onclick="if(window.OnboardingTour) window.OnboardingTour.restartTour()">Turu Tekrar İzle</button>
   <div class="app-header">
   <div class="header-left">
     <a href="index.html" class="logo">
@@ -96,6 +95,9 @@
     
   </div>
   <div class="header-right">
+    <button type="button" class="tour-restart-btn" onclick="if(window.OnboardingTour) window.OnboardingTour.restartTour()" title="Uygulama Tanıtım Turunu Başlat">
+        <i class="fas fa-compass"></i> <span>Turu İzle</span>
+    </button>
     <a href="admin.html" id="adminNavBtn" class="admin-nav-btn" style="display:none; margin-left:10px; padding:6px 14px; border-radius:20px; background:linear-gradient(135deg,#8b5cf6,#7c3aed); color:white; text-decoration:none; font-size:12px; font-weight:600; vertical-align:middle;" title="Admin Panel">🛡️ Admin</a>
     <button class="mobile-menu-btn" onclick="toggleMobileMenu()">
         <i class="fas fa-bars"></i>
@@ -1420,17 +1422,17 @@ document.addEventListener('DOMContentLoaded', () => {
     <script src="ui/fonts.js?v=20260819-18"></script>
 <script src="modules/icon-library.js"></script>
 <script src="ui/element.js?v=20260819-18"></script>
-<script src="modules/export.js?v=20260819-21"></script>
+<script src="modules/export.js?v=20260820-2"></script>
 <script src="js/formConfig.js"></script>
-<script src="modules/parser-core.js?v=20260819-8"></script>
-<script src="modules/smart-suggestions.js?v=20260819-13"></script>
+<script src="modules/parser-core.js?v=20260820-1"></script>
+<script src="modules/smart-suggestions.js?v=20260820-1"></script>
 <script src="modules/photo-zoom.js?v=20260819-6"></script>
 <script src="modules/polygon.js?v=1785302098411"></script>
 <script src="modules/snap.js?v=1785302098411"></script>
 <script src="core.js?v=20260819-24"></script>
-<script src="modules/ui-core.js?v=20260819-1"></script>
+<script src="modules/ui-core.js?v=20260820-2"></script>
 <script src="modules/canvas-zoom.js?v=20260819-4"></script>
-<script src="modules/templates-core.js?v=20260819-14"></script>
+<script src="modules/templates-core.js?v=20260820-2"></script>
 <script src="modules/multi-select.js?v=20260818-36"></script>
 <script src="modules/events.js?v=20260818-6"></script>
 <script src="js/templateManager.js?v=1785302098411"></script>
@@ -1447,7 +1449,7 @@ document.addEventListener('DOMContentLoaded', () => {
 <script src="js/brandManager.js?v=20260819-2"></script><script src="js/autoSave.js?v=20260819-26"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="js/modules/qrManager.js?v=1785302098411"></script>
-<script src="main.js?v=20260819-19"></script>
+<script src="main.js?v=20260820-2"></script>
 
 <!-- Gizli inputlar: Fotoğraf zoom ve pan ayarlarının arka planda çalışabilmesi için -->
 <div style="display:none;">
@@ -1478,33 +1480,45 @@ window.onboardingTourState = {
     dismissed: false,
     steps: [
         {
-            title: "1. Giriş",
-            text: "Uygulamaya hoş geldiniz! Buradan gayrimenkul detaylarını ve fotoğraflarını yükleyebilirsiniz.",
+            tab: "data",
+            title: "1. 📝 Giriş & 🤖 Metni Süz",
+            text: "Sahibinden veya WhatsApp ilan metninizi yapıştırıp <b>'🤖 Metni Süz'</b> butonuna basarak fiyat, m², ada/parsel vb. tüm bilgileri ve ilana özel akıllı rozetleri saniyeler içinde otomatik çıkartın.",
             targetSelector: "button[data-tab='data']"
         },
         {
-            title: "2. Foto & Yapay Zeka",
-            text: "Görsellerinizi düzenleyip, yapay zeka ile otomatik arka plan filtreleri ve iyileştirmeler uygulayabilirsiniz.",
+            tab: "photo",
+            title: "2. 📸 Fotoğraf & Kadraj",
+            text: "Arka plan fotoğrafınızı yükleyin; 16:9, 1:1, 4:5 veya 9:16 formatlarını seçip zoom, pan ve canlı renk filtreleriyle görselinizi profesyonelleştirin.",
             targetSelector: "button[data-tab='photo']"
         },
         {
-            title: "3. Ölçü ve Çizim",
-            text: "Oda alanlarını veya bahçe sınırlarını işaretlemek, ölçü çizgileri çekmek için serbest çizim araçlarını kullanın.",
+            tab: "draw",
+            title: "3. 🖌️ Akıllı Çizim & Parsel",
+            text: "Arsa ve bahçe sınırlarını çizimle belirleyin; çizgileri birleştirip otomatik kapalı parsel alanına dönüştürün ve ölçü etiketleri ekleyin.",
             targetSelector: "button[data-tab='draw']"
         },
         {
-            title: "4. Şablonlar",
-            text: "Gönderileriniz ve sunumlarınız için profesyonel tasarımlı hazır şablonları (Instagram, A4 vs.) kullanabilirsiniz.",
+            tab: "canva",
+            title: "4. 🎨 Profesyonel Şablonlar",
+            text: "Instagram postu, hikaye veya vitrin baskısı için tasarlanmış Elit, Minimal, Lüks, Kolaj ve Portföy şablonlarını tek tıkla uygulayın.",
             targetSelector: "button[data-tab='canva']"
         },
         {
-            title: "5. Rozetler & İkonlar",
-            text: "Dikkat çekici bilgi rozetlerini, şık okları ve emlak ikonlarını buradan ekleyebilirsiniz.",
+            tab: "callout",
+            title: "5. 🏷️ Akıllı Rozetler & İkonlar",
+            text: "İlanınızdan otomatik oluşturulan 'Müstakil Tapulu', 'Krediye Uygun', fiyat ve konum gibi hazır rozetleri ve emlak ikonlarını tuvale sürükleyin.",
             targetSelector: "button[data-tab='callout']"
         },
         {
-            title: "6. Çıktı Alma",
-            text: "Tasarımınız bittiğinde tek tuşla yüksek kalitede (HD/4K) dışa aktarabilirsiniz.",
+            tab: "element",
+            title: "6. 🎛️ Element & Katmanlar",
+            text: "Tuvaldeki tüm nesnelerin font, renk, kutu stili, parlaklık ve katman dizilimini kolayca özelleştirin.",
+            targetSelector: "button[data-tab='element']"
+        },
+        {
+            tab: "batch",
+            title: "7. 📥 Çıktı Alma (HD / 4K)",
+            text: "Tasarımınızı yüksek çözünürlükte (HD / 4K / Baskı) JPEG veya PNG olarak tek tıkla indirin veya sosyal medyada paylaşın.",
             targetSelector: "button[data-tab='batch']"
         }
     ]
@@ -1542,29 +1556,41 @@ const OnboardingTour = {
             this.createElements();
             this.showStep();
 
-            document.body.classList.add('onboarding-active-body');
-            this.resizeHandler = this.updatePositions.bind(this);
+            this.resizeHandler = () => this.updatePositions();
             window.addEventListener('resize', this.resizeHandler);
+            window.addEventListener('scroll', this.resizeHandler, true);
 
         } catch(e) {
             console.error("Onboarding start error:", e);
-            this.endTour();
         }
     },
 
-    createElements: function() {
-        this.overlayEl = document.createElement('div');
-        this.overlayEl.className = 'onboarding-overlay';
-        
-        this.highlightEl = document.createElement('div');
-        this.highlightEl.className = 'onboarding-highlight';
+    restartTour: function() {
+        this.endTour();
+        setTimeout(() => {
+            this.startTour();
+        }, 100);
+    },
 
-        this.cardEl = document.createElement('div');
-        this.cardEl.className = 'onboarding-card';
-        
-        document.body.appendChild(this.overlayEl);
-        document.body.appendChild(this.highlightEl);
-        document.body.appendChild(this.cardEl);
+    createElements: function() {
+        if (!this.overlayEl) {
+            this.overlayEl = document.createElement('div');
+            this.overlayEl.className = 'onboarding-overlay';
+            document.body.appendChild(this.overlayEl);
+        }
+        if (!this.highlightEl) {
+            this.highlightEl = document.createElement('div');
+            this.highlightEl.className = 'onboarding-highlight';
+            document.body.appendChild(this.highlightEl);
+        }
+        if (!this.cardEl) {
+            this.cardEl = document.createElement('div');
+            this.cardEl.className = 'onboarding-card';
+            document.body.appendChild(this.cardEl);
+        }
+        this.overlayEl.style.display = 'block';
+        this.highlightEl.style.display = 'block';
+        this.cardEl.style.display = 'block';
     },
 
     showStep: function() {
@@ -1575,6 +1601,10 @@ const OnboardingTour = {
             if (!step) {
                 this.endTour();
                 return;
+            }
+
+            if (step.tab && typeof window.switchTab === 'function') {
+                try { window.switchTab(step.tab); } catch(err){}
             }
 
             let targetEl = document.querySelector(step.targetSelector);
@@ -1984,19 +2014,47 @@ const HelpAssistant = {
             let actionBtn = null;
             let suggestions = [];
 
-            // 1. FOTO YÜKLEME
-            if (q.includes("foto") || q.includes("resim") || q.includes("yükle")) {
+            // 1. METNİ SÜZ & AKILLI AYRIŞTIRICI
+            if (q.includes("süz") || q.includes("metin") || q.includes("sahibinden") || q.includes("ilan") || q.includes("yapıştır")) {
+                answer = "Sahibinden veya WhatsApp ilan metninizi kopyalayıp <b>Giriş</b> sekmesindeki kutuya yapıştırın ve <b>'🤖 Metni Süz'</b> butonuna basın. Fiyat, m², ada/parsel vb. tüm veriler ve hazır rozetler otomatik üretilir.";
+                actionBtn = { label: "Giriş Sekmesine Git", onClick: () => window.switchTab('data') };
+                suggestions = ["Rozet nasıl eklenir?", "Fotoğraf nasıl yüklenir?"];
+            }
+
+            // 2. FOTO YÜKLEME & KADRAJ
+            else if (q.includes("foto") || q.includes("resim") || q.includes("yükle") || q.includes("kadraj") || q.includes("oran")) {
                 if (state.hasPhoto) {
-                    answer = "Şu anda zaten bir fotoğraf yüklü görünüyor. Yeni bir fotoğraf yüklemek isterseniz **Giriş** sekmesindeki 'Arka Plan Fotoğrafı' kısmından seçebilirsiniz.";
-                    actionBtn = { label: "Giriş Sekmesine Git", onClick: () => window.switchTab('data') };
+                    answer = "Şu anda bir fotoğraf yüklü. <b>Fotoğraf</b> sekmesinden 16:9, 1:1, 4:5, 9:16 oranlarını ayarlayabilir, zoom veya renk filtreleri uygulayabilirsiniz.";
+                    actionBtn = { label: "Fotoğraf Ayarlarına Git", onClick: () => window.switchTab('photo') };
                 } else {
-                    answer = "Tasarım yapabilmek için önce arka plan fotoğrafı yüklemeniz gerekir. Lütfen **Giriş** sekmesindeki dosya seçme alanını kullanın.";
+                    answer = "Tasarım yapabilmek için <b>Giriş</b> sekmesinden arka plan fotoğrafı seçebilir veya tuvale sürükleyip bırakabilirsiniz.";
                     actionBtn = { label: "Fotoğraf Yükle (Giriş)", onClick: () => window.switchTab('data') };
                 }
-                suggestions = ["Çizim nasıl yapılır?", "Yazı nasıl eklenir?"];
+                suggestions = ["Metin nasıl süzülür?", "Çizim nasıl yapılır?"];
             }
             
-            // 2. SABER (NEON) EFEKTİ
+            // 3. ROZETLER & İKONLAR
+            else if (q.includes("rozet") || q.includes("etiket") || q.includes("ikon") || q.includes("badge")) {
+                answer = "İlanınızı süzdükten sonra <b>Giriş</b> sekmesinin altında ilana özel hazırlanan akıllı rozetleri veya <b>Rozetler</b> sekmesindeki grafik rozet ve etiketleri tuvale tek tıkla ekleyebilirsiniz.";
+                actionBtn = { label: "Rozetler Sekmesine Git", onClick: () => window.switchTab('callout') };
+                suggestions = ["Yazı nasıl eklenir?", "Çıktı nasıl alınır?"];
+            }
+
+            // 4. PARSEL / ÇİZİM
+            else if (q.includes("çizim") || q.includes("çizgi") || q.includes("parsel") || q.includes("alan") || q.includes("sınır") || q.includes("ölçü")) {
+                answer = "<b>Çizim</b> sekmesinden serbest çizgi veya ölçü okları ekleyebilirsiniz. Çizdiğiniz noktaları kapattığınızda otomatik parsel alanına dönüştürebilirsiniz.";
+                actionBtn = { label: "Çizim Sekmesine Git", onClick: () => window.switchTab('draw') };
+                suggestions = ["Saber neon efekti nedir?", "Şablonlar nasıl kullanılır?"];
+            }
+
+            // 5. ŞABLONLAR & KOLAJ
+            else if (q.includes("şablon") || q.includes("tasarım") || q.includes("kolaj") || q.includes("instagram")) {
+                answer = "<b>Şablonlar</b> sekmesinde Instagram Post, Story, Vitrin ve Portföy için özel tasarlanmış profesyonel şablonları tek tıkla tuvale uygulayabilirsiniz.";
+                actionBtn = { label: "Şablonlar Sekmesine Git", onClick: () => window.switchTab('canva') };
+                suggestions = ["Çıktı nasıl alınır?", "Rozet nasıl eklenir?"];
+            }
+
+            // 6. SABER (NEON) EFEKTİ
             else if (q.includes("saber") || q.includes("parlak") || q.includes("neon") || q.includes("ışık") || q.includes("yanmıyor")) {
                 if (!state.hasSelectedText && !state.hasSelectedPath) {
                     answer = "Saber efektini (neon parlaklığı) uygulayabilmek için **önce ekrandan bir yazıya veya çizgiye tıklayıp seçmeniz** gerekir. Şu an hiçbir obje seçili değil.";
@@ -2012,43 +2070,50 @@ const HelpAssistant = {
                 }
             }
 
-            // 3. YAZI EKLEME
+            // 7. YAZI EKLEME
             else if (q.includes("yazı") || q.includes("metin") || q.includes("text")) {
-                answer = "Üst menüdeki **Yazı Ekle** veya **Kutulu Yazı Ekle** butonlarını kullanarak tasarımınıza metin ekleyebilir, ardından üstüne çift tıklayarak içeriğini değiştirebilirsiniz.";
+                answer = "Üst menüdeki **Yazı Ekle** veya **Çerçeveli Yazı** butonlarını kullanarak tuvale metin ekleyebilir, çift tıklayarak içeriğini değiştirebilirsiniz.";
                 actionBtn = { label: "Yazı Ekle", onClick: () => window.addCustomTextOnly() };
                 suggestions = ["Yazıya saber nasıl eklenir?", "Yazı rengi nasıl değişir?"];
             }
 
-            // 4. ÇIKTI / İNDİRME
-            else if (q.includes("çıktı") || q.includes("indir") || q.includes("export") || q.includes("kayıt") || q.includes("kaydet")) {
-                answer = "**Çıktı** sekmesine giderek tasarımınızı bilgisayarınıza indirebilirsiniz. Görsellerinizin daha net olması için Export panelinden '2x' veya '3x' kalite seçeneğini kullanabilirsiniz.";
+            // 8. ÇIKTI / İNDİRME
+            else if (q.includes("çıktı") || q.includes("indir") || q.includes("export") || q.includes("kayıt") || q.includes("kaydet") || q.includes("4k")) {
+                answer = "<b>Çıktı</b> sekmesinden tasarımınızı HD veya 4K kalitesinde JPEG veya PNG olarak indirebilirsiniz.";
                 actionBtn = { label: "Çıktı Sekmesine Git", onClick: () => window.switchTab('batch') };
             }
 
-            // 5. UYGULAMA TURU / REHBER
+            // 9. LİSANS / ABONELİK
+            else if (q.includes("lisans") || q.includes("pro") || q.includes("kod") || q.includes("abonelik") || q.includes("filigran")) {
+                answer = "Pro sürüme geçmek veya lisans kodu girmek için sağ üstteki kullanıcı menüsünden veya <b>Ekstra Araçlar</b> sekmesinden 'Lisans Kodu Gir' butonunu kullanabilirsiniz.";
+                actionBtn = { label: "Ekstra Araçlara Git", onClick: () => window.switchTab('settings') };
+                suggestions = ["Turu başlat", "Metni nasıl süzerim?"];
+            }
+
+            // 10. UYGULAMA TURU / REHBER
             else if (q.includes("tur") || q.includes("rehber") || q.includes("eğitim")) {
-                answer = "Uygulamanın arayüzünü anlatan interaktif tanıtım turunu sizin için hemen başlatabilirim.";
+                answer = "Uygulamanın tüm özelliklerini adım adım gösteren interaktif tanıtım turunu başlatıyorum.";
                 actionBtn = { label: "Turu Başlat", onClick: () => { if(window.OnboardingTour) window.OnboardingTour.restartTour(); this.togglePanel(); } };
             }
 
-            // 6. HATA BİLDİRİMİ
+            // 11. HATA BİLDİRİMİ
             else if (q.includes("hata") || q.includes("çalışmıyor") || q.includes("bozuk")) {
                 if (state.lastKnownIssue) {
-                    answer = `Sistemde son olarak şu hatayı tespit ettim: <code>${state.lastKnownIssue}</code>. Sayfayı yenilemek (CTRL+F5) genelde bu sorunları çözer.`;
+                    answer = `Sistemde son olarak şu durum tespit edildi: <code>${state.lastKnownIssue}</code>. Sayfayı yenilemek (CTRL+F5) genellikle çözer.`;
                 } else {
-                    answer = "Sistemde şu an teknik bir hata tespit etmedim. Uygulama doğru çalışmıyorsa sayfayı yenileyebilir veya farklı bir fotoğraf ile tekrar deneyebilirsiniz.";
+                    answer = "Şu an teknik bir hata tespit edilmedi. Sayfayı yenileyebilir (CTRL+F5) veya takıldığınız alanı bana sorabilirsiniz.";
                 }
             }
 
             // DEFAULT (Anlaşılamadı)
             else {
-                // If it's a generic hi/hello
                 if (q === "selam" || q === "merhaba") {
-                    answer = "Merhaba! EmlakStüdyom'da size yardımcı olmak için buradayım. Tasarım yaparken takıldığınız bir yer olursa bana sorabilirsiniz.";
-                    suggestions = ["Fotoğraf nasıl yüklenir?", "Saber efekti nedir?", "Tasarım nasıl indirilir?"];
+                    answer = "Merhaba! EmlakStüdyom v7.0 akıllı asistanına hoş geldiniz. İlan metni süzme, rozetler, şablonlar veya çizim konusunda bana dilediğinizi sorabilirsiniz.";
+                    suggestions = ["Metni nasıl süzerim?", "Rozet nasıl eklenir?", "Fotoğraf nasıl yüklenir?"];
                 } else {
-                    answer = "Bu soruyu tam anlayamadım, ancak üst menüdeki sekmelerde (Foto, Çizim, Şablonlar) aradığınız birçok özelliği bulabilirsiniz.";
+                    answer = "Bu soruyu tam anlayamadım, ancak aşağıdaki önerilere göz atabilir veya interaktif uygulama turunu başlatabilirsiniz.";
                     actionBtn = { label: "Uygulama Turunu İzle", onClick: () => { if(window.OnboardingTour) window.OnboardingTour.restartTour(); this.togglePanel(); } };
+                    suggestions = ["Metni nasıl süzerim?", "Fotoğraf yükleme", "Saber efekti nedir?"];
                 }
             }
 

@@ -30,6 +30,32 @@ function isExportIgnoredElement(el) {
     if (el.id === 'photo-layer') return true;
     if (el.id === 'export-loading-overlay') return true;
     if (el.id === 'app-custom-context-menu' || el.id === 'native-context-menu' || el.id === 'native-context-overlay') return true;
+
+    // 🚫 Gizli overlay katmanları (html2canvas'ın siyah gölge kutusu basmasını önler)
+    if (el.id === 'shadow-overlay' || el.id === 'highlight-overlay' || el.id === 'vignette-layer' || el.id === 'mask-layer' || el.id === 'canva-render-layer') {
+        if (el.style && (el.style.display === 'none' || el.style.visibility === 'hidden' || el.style.opacity === '0')) return true;
+        if (typeof window.getComputedStyle === 'function') {
+            try {
+                const comp = window.getComputedStyle(el);
+                if (comp.display === 'none' || comp.visibility === 'hidden' || comp.opacity === '0') return true;
+            } catch(e){}
+        }
+    }
+
+    // 🚫 Gizli şablon elemanları (elBadge, elPrice, elDetails, elLogo)
+    if (el.id === 'elBadge' || el.id === 'elPrice' || el.id === 'elDetails' || el.id === 'elLogo') {
+        if (el.style && (el.style.visibility === 'hidden' || el.style.display === 'none')) return true;
+        if (typeof window.getComputedStyle === 'function') {
+            try {
+                const comp = window.getComputedStyle(el);
+                if (comp.visibility === 'hidden' || comp.display === 'none') return true;
+            } catch(e){}
+        }
+    }
+
+    // 🚫 Genel gizli eleman kontrolü
+    if (el.style && (el.style.display === 'none' || el.style.visibility === 'hidden')) return true;
+
     if (el.classList) {
         if (el.classList.contains('el-selected')) return true;
         if (el.classList.contains('photo-inner-zoom')) return true;
@@ -55,8 +81,57 @@ function isExportIgnoredElement(el) {
     return false;
 }
 
+function sanitizeExportClone(clonedDoc) {
+    if (!clonedDoc) return;
+    try {
+        // 1. Gizli veya kapalı tüm şablon ve overlay elemanlarını klondan tamamen kaldır
+        const hiddenSelectors = [
+            '#elBadge', '#elPrice', '#elDetails', '#elLogo',
+            '#shadow-overlay', '#highlight-overlay', '#vignette-layer', '#mask-layer',
+            '#export-loading-overlay', '#app-custom-context-menu', '#native-context-menu', '#native-context-overlay',
+            '.text-handle', '.text-lock-handle', '.text-resize-handle', '.text-rotate-handle', '.text-delete-handle',
+            '.callout-lock-btn', '.callout-controls', '.callout-resizer', '.callout-rotator', '.callout-select-border',
+            '.cbtn-del', '.draw-handle', '.vertex-handle', '.polygon-vertex', '.app-context-menu', '.draw-selection-box',
+            '.photo-inner-zoom'
+        ];
+        
+        hiddenSelectors.forEach(sel => {
+            clonedDoc.querySelectorAll(sel).forEach(node => {
+                const isControlOrHandle = node.classList && (
+                    node.classList.contains('text-handle') || node.classList.contains('callout-controls') ||
+                    node.classList.contains('callout-resizer') || node.classList.contains('callout-rotator') ||
+                    node.classList.contains('cbtn-del') || node.classList.contains('draw-handle') ||
+                    node.classList.contains('vertex-handle') || node.classList.contains('polygon-vertex') ||
+                    node.classList.contains('photo-inner-zoom')
+                );
+                const isExplicitlyHidden = (node.style && (node.style.visibility === 'hidden' || node.style.display === 'none' || node.style.opacity === '0')) ||
+                                           (node.id === 'shadow-overlay' && node.style.display === 'none') ||
+                                           (node.id === 'highlight-overlay' && node.style.display === 'none') ||
+                                           (node.id === 'mask-layer' && !node.style.backgroundImage) ||
+                                           (node.id === 'export-loading-overlay');
+
+                if (isControlOrHandle || isExplicitlyHidden) {
+                    node.remove();
+                }
+            });
+        });
+
+        // 2. html2canvas'ın şeffaf tuval üzerine siyah gölge / leke kutuları basmasını engellemek için
+        // klondaki tüm elemanlardan CSS 'backdrop-filter' özelliğini temizle
+        const allNodes = clonedDoc.querySelectorAll('*');
+        allNodes.forEach(node => {
+            if (node.style) {
+                if (node.style.backdropFilter) node.style.backdropFilter = 'none';
+                if (node.style.webkitBackdropFilter) node.style.webkitBackdropFilter = 'none';
+            }
+        });
+    } catch (e) {
+        console.warn("Clone sanitization error:", e);
+    }
+}
+
 let _appLoadingTimeout = null;
-function showAppLoading(title = 'İşlem Yapılıyor...', subtitle = 'Lütfen bekleyin...') {
+function showAppLoading(title = 'İşlem Yapılıyor...', subtitle = 'Lütfen bekleyin...', timeoutMs = 8000) {
     if (_appLoadingTimeout) clearTimeout(_appLoadingTimeout);
     let overlay = document.getElementById('export-loading-overlay');
     if (!overlay) {
@@ -80,13 +155,22 @@ function showAppLoading(title = 'İşlem Yapılıyor...', subtitle = 'Lütfen be
     void overlay.offsetWidth;
     overlay.classList.add('active');
 
-    // Asla sonsuza kadar dönmemesi için 3 saniye güvenlik zaman aşımı
+    // Güvenlik zaman aşımı (loading sonsuza kadar kalmasın)
     _appLoadingTimeout = setTimeout(() => {
-        hideAppLoading();
-    }, 3000);
+        hideAppLoading(0, true);
+    }, timeoutMs);
 }
 
-function hideAppLoading(delay = 0) {
+function showExportLoading(title = 'Görsel Hazırlanıyor...', subtitle = 'Yüksek çözünürlüklü grafikler ve fontlar işleniyor...') {
+    // Export işlemi 4K veya detaylı olabileceğinden 60 saniye süre verilir
+    showAppLoading(title, subtitle, 60000);
+}
+
+function hideAppLoading(delay = 0, force = false) {
+    // Export işlemi sürerken ara fonksiyonların loader'ı kapatmasını engelle
+    if (!force && document.body && document.body.classList.contains('is-exporting')) {
+        return;
+    }
     if (_appLoadingTimeout) {
         clearTimeout(_appLoadingTimeout);
         _appLoadingTimeout = null;
@@ -111,8 +195,8 @@ function hideAppLoading(delay = 0) {
 
 window.showAppLoading = showAppLoading;
 window.hideAppLoading = hideAppLoading;
-window.showExportLoading = showAppLoading;
-window.hideExportLoading = hideAppLoading;
+window.showExportLoading = showExportLoading;
+window.hideExportLoading = (delay = 0, force = false) => hideAppLoading(delay, force);
 
 function switchPreviewFormat(){
     const formatName=$('previewFormat').value;
@@ -788,7 +872,8 @@ async function saveImage(){
                 
                 logging: false,
                 backgroundColor: bgColor && bgColor !== 'transparent' ? bgColor : null,
-                ignoreElements: (el) => isExportIgnoredElement(el)
+                ignoreElements: (el) => isExportIgnoredElement(el),
+                onclone: (clonedDoc) => sanitizeExportClone(clonedDoc)
             });
             ctx.drawImage(finalHtml2Canvas, 0, 0, targetW, targetH);
             
@@ -943,7 +1028,8 @@ async function saveImage(){
                 
                 logging: false,
                 backgroundColor: null,
-                ignoreElements: (el) => isExportIgnoredElement(el)
+                ignoreElements: (el) => isExportIgnoredElement(el),
+                onclone: (clonedDoc) => sanitizeExportClone(clonedDoc)
             });
             ctx.drawImage(finalHtml2Canvas, 0, 0, targetW, targetH);
         } catch (e) {
@@ -1011,11 +1097,13 @@ async function saveImage(){
         console.error("SaveImage Error:", err);
         alert("Dışa aktarma sırasında bir hata oluştu: " + (err.message || err));
     } finally {
+        if (typeof resizeCanvas === 'function') resizeCanvas();
+        window.isExportingNow = false;
         document.body.classList.remove('is-exporting');
         // Tuvalin yerine tam oturup ekranın boyanması için yükleme ekranını tuval hazır olunca kapatıyoruz
         setTimeout(() => {
-            hideExportLoading();
-        }, 500);
+            hideAppLoading(0, true);
+        }, 350);
     }
 }
 
@@ -1219,7 +1307,8 @@ async function startBatchExport(){
                         imageTimeout: 0,
                         logging: false,
                         backgroundColor: null,
-                        ignoreElements: (el) => isExportIgnoredElement(el)
+                        ignoreElements: (el) => isExportIgnoredElement(el),
+                        onclone: (clonedDoc) => sanitizeExportClone(clonedDoc)
                     });
                     ctx.drawImage(finalHtml2Canvas, 0, 0, targetW, targetH);
                   
@@ -1358,7 +1447,8 @@ async function startBatchExport(){
                     imageTimeout: 0,
                     logging: false,
                     backgroundColor: null,
-                    ignoreElements: (el) => isExportIgnoredElement(el)
+                    ignoreElements: (el) => isExportIgnoredElement(el),
+                    onclone: (clonedDoc) => sanitizeExportClone(clonedDoc)
                 });
                 ctx.drawImage(finalHtml2Canvas, 0, 0, targetW, targetH);
             } catch (e) {
@@ -1452,8 +1542,9 @@ async function shareImage(platform) {
             useCORS: true,
             allowTaint: false,
             scale: 1, // just standard scale for sharing to be fast
-              backgroundColor: null,
-              ignoreElements: (el) => isExportIgnoredElement(el)
+            backgroundColor: null,
+            ignoreElements: (el) => isExportIgnoredElement(el),
+            onclone: (clonedDoc) => sanitizeExportClone(clonedDoc)
         });
         
         c.toBlob(async (blob) => {

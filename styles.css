@@ -476,32 +476,6 @@ svg, .callout-svg-container svg, .is-svg-icon svg, .draw-svg-item, #drawCanvas {
     border-bottom-color: rgba(15, 23, 42, 0.98);
     margin-bottom: -1px;
 }
-/* space for arrow */
-}
-[data-tooltip]::before {
-    content: '';
-    position: absolute;
-    top: 100%;
-    left: 50%;
-    transform: translateX(-50%) translateY(-10px);
-    border: 6px solid transparent;
-    border-bottom-color: rgba(15, 23, 42, 0.98);
-    opacity: 0;
-    visibility: hidden;
-    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-    pointer-events: none;
-    z-index: 1001;
-    margin-top: -4px; /* arrow positioning */
-}
-@media (hover: hover) {
-    [data-tooltip]:hover::after,
-    [data-tooltip]:hover::before {
-        opacity: 1;
-        visibility: visible;
-        transform: translateX(-50%) translateY(0);
-    }
-    [data-tooltip]:hover { z-index: 9999; }
-}
 
 /* ================= ADVANCED CALLOUT SHAPES ================= */
 .co-tail-b::after {
@@ -2916,6 +2890,65 @@ body.photo-unlocked .draw-handle {
     border-color: #f59e0b;
     color: #fff;
     box-shadow: 0 0 14px rgba(245, 158, 11, 0.4);
+}
+
+.dock-btn.dock-btn-danger {
+    background: rgba(239, 68, 68, 0.15) !important;
+    border: 1px solid rgba(239, 68, 68, 0.35) !important;
+    color: #f87171 !important;
+}
+
+.dock-btn.dock-btn-danger:hover {
+    background: rgba(239, 68, 68, 0.3) !important;
+    border-color: #ef4444 !important;
+    color: #fff !important;
+    box-shadow: 0 0 12px rgba(239, 68, 68, 0.4) !important;
+}
+
+.tab-btn.btn-tab-reset {
+    background: rgba(239, 68, 68, 0.12) !important;
+    border: 1px solid rgba(239, 68, 68, 0.35) !important;
+    color: #f87171 !important;
+    font-weight: 700 !important;
+}
+
+.tab-btn.btn-tab-reset:hover,
+.tab-btn.btn-tab-reset:active {
+    background: #ef4444 !important;
+    color: #ffffff !important;
+    border-color: #ef4444 !important;
+}
+
+/* 🖥️ PC Masaüstünde sol ana sekme menüsünden kaldır (Yalnızca mobilde görünsün) */
+@media (min-width: 769px) {
+    .tab-btn.btn-tab-reset {
+        display: none !important;
+    }
+}
+
+.dock-icon-btn.active-hidden {
+    background: rgba(239, 68, 68, 0.25) !important;
+    border-color: #ef4444 !important;
+    color: #f87171 !important;
+    box-shadow: 0 0 10px rgba(239, 68, 68, 0.4) !important;
+}
+
+.palette-slash-container {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.palette-red-slash {
+    position: absolute;
+    width: 130%;
+    height: 2.5px;
+    background: #ef4444;
+    transform: rotate(-45deg);
+    border-radius: 2px;
+    box-shadow: 0 0 5px rgba(239, 68, 68, 0.9);
+    pointer-events: none;
 }
 
 .dock-format-group {

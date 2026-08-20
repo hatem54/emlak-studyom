@@ -19,7 +19,14 @@ function scaleY(v){ return (v / 1080) * getCanvasSize().h; }
 function scaleSize(v){
     const size = getCanvasSize();
     const scale = Math.min(size.w / 1920, size.h / 1080);
-    return v * scale;
+    let res = v * scale;
+    const isMob = window.innerWidth <= 768 || (typeof window.isMobileDevice === 'function' && window.isMobileDevice());
+    if (isMob) {
+        if (v <= 24) res = Math.max(res * 1.38, 26 * scale);
+        else if (v <= 32) res = Math.max(res * 1.25, 34 * scale);
+        else if (v <= 44) res = Math.max(res * 1.12, 46 * scale);
+    }
+    return res;
 }
 
 // ========== CANVA PANEL EKLEYİCİ (Ölçekli) ==========

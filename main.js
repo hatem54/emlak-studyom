@@ -925,8 +925,202 @@ function clearAllTemplates(){
     
 
     console.log('🗑️ Tüm şablonlar temizlendi - Boş sayfa');
-
+    if (window.isTemplateHidden) window.toggleTemplateVisibility(false);
 }
+
+// ========== 👁️ ŞABLONU GEÇİCİ OLARAK GİZLE / GÖSTER ==========
+window.isTemplateHidden = false;
+
+window.toggleTemplateVisibility = function(forceState) {
+    const newState = typeof forceState === 'boolean' ? forceState : !window.isTemplateHidden;
+    window.isTemplateHidden = newState;
+
+    // 1. Canva Render Layer (Kolaj, Dinamik, Lüks, Minimal vb.)
+    const canvaLayer = document.getElementById('canva-render-layer');
+    if (canvaLayer) {
+        if (newState) {
+            canvaLayer.dataset.prevDisplay = canvaLayer.style.display || 'block';
+            canvaLayer.style.display = 'none';
+        } else {
+            if (window.isCanvaMode || (canvaLayer.innerHTML && canvaLayer.innerHTML.trim() !== '')) {
+                canvaLayer.style.display = canvaLayer.dataset.prevDisplay || 'block';
+            }
+        }
+    }
+
+    // 2. Canva Overlays / Paneller (Elit vb.)
+    if (window.canvaOverlays && Array.isArray(window.canvaOverlays)) {
+        window.canvaOverlays.forEach(el => {
+            if (el) el.style.display = newState ? 'none' : '';
+        });
+    }
+    document.querySelectorAll('.canva-panel, .canva-generated, .cvr-base').forEach(el => {
+        el.style.display = newState ? 'none' : '';
+    });
+
+    // 3. Standart şablon elemanları (Badge, Price, Details)
+    const standardEls = [document.getElementById('elBadge'), document.getElementById('elPrice'), document.getElementById('elDetails')];
+    standardEls.forEach(el => {
+        if (el) {
+            if (newState) {
+                el.dataset.prevVis = el.style.visibility || 'visible';
+                el.style.visibility = 'hidden';
+            } else {
+                if (el.dataset.prevVis) {
+                    el.style.visibility = el.dataset.prevVis;
+                }
+            }
+        }
+    });
+
+    // 4. Arayüz butonlarını güncelle
+    if (typeof window.updateTemplateToggleUI === 'function') {
+        window.updateTemplateToggleUI(newState);
+    }
+};
+
+window.updateTemplateToggleUI = function(isHidden) {
+    // PC Dock Butonu
+    const dockBtn = document.getElementById('dockToggleTemplateBtn');
+    const dockSlash = document.getElementById('dockPaletteSlash');
+    if (dockBtn) {
+        if (isHidden) {
+            dockBtn.classList.add('active-hidden');
+            dockBtn.title = 'Şablonu Göster (Şu an Gizli)';
+            if (dockSlash) dockSlash.style.display = 'block';
+        } else {
+            dockBtn.classList.remove('active-hidden');
+            dockBtn.title = 'Şablonu Geçici Olarak Gizle';
+            if (dockSlash) dockSlash.style.display = 'none';
+        }
+    }
+
+    // Şablonlar Sekmesi Butonu (Mobil & PC Tab)
+    const tabBtn = document.getElementById('btnToggleTemplateTab');
+    const tabSlash = document.getElementById('tabPaletteSlash');
+    const tabText = document.getElementById('tabTemplateEyeText');
+    if (tabBtn) {
+        if (isHidden) {
+            tabBtn.style.background = 'rgba(239, 68, 68, 0.18)';
+            tabBtn.style.borderColor = '#ef4444';
+            tabBtn.style.color = '#f87171';
+            if (tabSlash) tabSlash.style.display = 'block';
+            if (tabText) tabText.textContent = 'Şablonu Göster (Gizli)';
+        } else {
+            tabBtn.style.background = 'rgba(56, 189, 248, 0.15)';
+            tabBtn.style.borderColor = 'rgba(56, 189, 248, 0.4)';
+            tabBtn.style.color = '#38bdf8';
+            if (tabSlash) tabSlash.style.display = 'none';
+            if (tabText) tabText.textContent = 'Şablonu Gizle (Geçici)';
+        }
+    }
+};
+
+// ========== 🚀 TÜM SAYFAYI / TUVALİ SIFIRLA (SIFIRDAN BAŞLA) ==========
+window.resetEntireWorkspace = function() {
+    const doReset = function() {
+        // 1. Arka plan görseli ve logo temizle
+        if (typeof window.clearBgImage === 'function') window.clearBgImage();
+        if (typeof window.clearLogoImage === 'function') window.clearLogoImage();
+
+        // 2. Filtreleri sıfırla
+        if (typeof resetFilters === 'function') resetFilters();
+
+        // 3. Şablonları temizle (Canva, Kolaj, Standart vb.)
+        if (typeof clearAllTemplates === 'function') clearAllTemplates();
+        const canvaRenderLayer = document.getElementById('canva-render-layer');
+        if (canvaRenderLayer) {
+            canvaRenderLayer.innerHTML = '';
+            canvaRenderLayer.style.display = 'none';
+        }
+        if (typeof window.isCanvaMode !== 'undefined') window.isCanvaMode = false;
+        if (typeof window.canvaOverlays !== 'undefined') window.canvaOverlays = [];
+
+        // 4. İkonları sil
+        if (typeof deleteAllIcons === 'function') deleteAllIcons();
+
+        // 5. Çizimleri ve serbest çizgileri sil
+        if (typeof clearAllDrawings === 'function') clearAllDrawings();
+        if (typeof SaberEngine !== 'undefined' && SaberEngine.clearAll) SaberEngine.clearAll();
+        const drawLayer = document.getElementById('draw-layer');
+        if (drawLayer) {
+            const ctx = drawLayer.getContext('2d');
+            if (ctx) ctx.clearRect(0, 0, drawLayer.width, drawLayer.height);
+        }
+        const maskLayer = document.getElementById('mask-layer');
+        if (maskLayer) maskLayer.innerHTML = '';
+
+        // 6. Tuvaldeki tüm ek nesneleri (rozetler, ek metinler, çerçeveli yazılar vb.) temizle
+        const container = document.getElementById('canvas-container');
+        if (container) {
+            const extraEls = container.querySelectorAll('.draggable:not(#elBadge):not(#elPrice):not(#elDetails):not(#elLogo), .callout-wrap, .co-neon-block, .svg-callout, .added-icon, .added-text, .custom-text-box, .is-svg-icon, .canvas-el:not(#elBadge):not(#elPrice):not(#elDetails):not(#elLogo)');
+            extraEls.forEach(el => el.remove());
+        }
+
+        // 7. Standart elemanları gizle ve sıfırla
+        const elBadge = document.getElementById('elBadge');
+        const elPrice = document.getElementById('elPrice');
+        const elDetails = document.getElementById('elDetails');
+        if (elBadge) {
+            elBadge.style.visibility = 'hidden';
+            elBadge.textContent = 'SATILIK EV';
+        }
+        if (elPrice) {
+            elPrice.style.visibility = 'hidden';
+            elPrice.textContent = '6.750.000 TL';
+        }
+        if (elDetails) {
+            elDetails.style.visibility = 'hidden';
+            const infoLine = document.getElementById('infoLineText');
+            if (infoLine) infoLine.innerHTML = '';
+        }
+
+        // 8. AI Text / Form alanlarını sıfırla
+        const aiText = document.getElementById('aiText');
+        if (aiText) aiText.value = '';
+
+        // 9. Zoom ve pan sıfırla
+        if (typeof resetCanvasZoomAndPan === 'function') resetCanvasZoomAndPan();
+
+        // 10. Seçimleri kaldır ve panelleri güncelle
+        if (typeof deselectAll === 'function') deselectAll();
+        if (typeof renderLayersList === 'function') renderLayersList();
+        if (typeof updateLayerPanel === 'function') updateLayerPanel();
+        if (typeof saveState === 'function') saveState();
+        if (typeof window.requestAutoSave === 'function') window.requestAutoSave();
+        
+        // İlk sekmeye dön
+        if (typeof switchTab === 'function') switchTab('data');
+    };
+
+    if (typeof Swal !== 'undefined') {
+        Swal.fire({
+            title: 'Sayfayı Temizle?',
+            text: 'Tüm görsel, şablon, çizim ve eklenen yazılar silinecek, sıfırdan boş bir tuval açılacak.',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#ef4444',
+            cancelButtonColor: '#64748b',
+            confirmButtonText: '🗑️ Evet, Sıfırla',
+            cancelButtonText: 'İptal'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                doReset();
+                Swal.fire({
+                    title: 'Tuval Sıfırlandı!',
+                    text: 'Tertemiz yeni bir çalışma alanı hazırlandı.',
+                    icon: 'success',
+                    timer: 1400,
+                    showConfirmButton: false
+                });
+            }
+        });
+    } else {
+        if (confirm('Tüm çalışma ve tuval sıfırlansın mı?')) {
+            doReset();
+        }
+    }
+};
 
 // ================= NEON CALLOUT INIT =================
 
@@ -1362,8 +1556,6 @@ if (window.visualViewport && window.innerWidth <= 640) {
             if (activeTabBtn) currentTab = activeTabBtn.getAttribute('data-tab');
         }
         
-        // Removed early return to allow marquee selection on other tabs
-        
         if (e.button === 2) return;
         
         if (e.target.closest('.panel') || e.target.closest('.tab-content') || e.target.closest('.dynamic-field') || e.target.tagName === 'INPUT' || e.target.tagName === 'BUTTON') return;
@@ -1371,7 +1563,10 @@ if (window.visualViewport && window.innerWidth <= 640) {
         if (e.target.closest('.canvas-el') || e.target.closest('.draggable')) return;
         if (typeof drawMode !== 'undefined' && drawMode !== 'off') return;
         
-        if(longPressTimer) clearTimeout(longPressTimer);
+        if(longPressTimer) {
+            clearTimeout(longPressTimer);
+            longPressTimer = null;
+        }
         
         let c;
         if (e.changedTouches && e.changedTouches.length > 0) {
@@ -1386,9 +1581,9 @@ if (window.visualViewport && window.innerWidth <= 640) {
         didTriggerBeforeAfter = false;
         
         longPressTimer = setTimeout(() => {
-            if (currentTab === 'photo') {
-                if (typeof toggleBeforeAfter === 'function') {
-                    toggleBeforeAfter();
+            if (currentTab === 'photo' || currentTab === 'gorsel' || currentTab === 'template' || currentTab === 'sablon') {
+                if (typeof setOriginalView === 'function') {
+                    setOriginalView(true);
                     didTriggerBeforeAfter = true;
                     if (navigator.vibrate) navigator.vibrate(50);
                 }
@@ -1402,8 +1597,6 @@ if (window.visualViewport && window.innerWidth <= 640) {
     };
 
     const movePress = (e) => {
-        if (!longPressTimer) return;
-        
         let c = null;
         if (e.changedTouches) {
             for(let i=0; i<e.changedTouches.length; i++) {
@@ -1412,47 +1605,42 @@ if (window.visualViewport && window.innerWidth <= 640) {
                     break;
                 }
             }
-            if(!c) return; // Ignore movement from other fingers
+            if(!c && e.changedTouches.length > 0) c = e.changedTouches[0];
         } else {
-            if(longPressTouchId !== 'mouse') return;
             c = e;
         }
+        if (!c) return;
         
         const dx = Math.abs(c.clientX - startX);
         const dy = Math.abs(c.clientY - startY);
-        if (dx > 30 || dy > 30) {
-            clearTimeout(longPressTimer);
-            longPressTimer = null;
+        if (dx > 25 || dy > 25) {
+            if (longPressTimer) {
+                clearTimeout(longPressTimer);
+                longPressTimer = null;
+            }
             longPressTouchId = null;
+            if (didTriggerBeforeAfter) {
+                if (typeof setOriginalView === 'function') setOriginalView(false);
+                didTriggerBeforeAfter = false;
+            }
         }
     };
 
     const endPress = (e) => {
-        let isOurTouch = false;
-        if (e && e.changedTouches) {
-            for(let i=0; i<e.changedTouches.length; i++) {
-                if(e.changedTouches[i].identifier === longPressTouchId) {
-                    isOurTouch = true;
-                    break;
-                }
-            }
-        } else if (e && e.type && e.type.includes('mouse')) {
-            if(longPressTouchId === 'mouse') isOurTouch = true;
-        } else if (!e) {
-            isOurTouch = true;
-        }
-        
-        if (!isOurTouch && longPressTimer) return; // Ignore lifting of other fingers
-
         if (longPressTimer) {
             clearTimeout(longPressTimer);
             longPressTimer = null;
-            longPressTouchId = null;
         }
-        if (didTriggerBeforeAfter && typeof toggleBeforeAfter === 'function') {
-            toggleBeforeAfter();
+        longPressTouchId = null;
+        
+        // Ekrana basılı tutma bittiği an her halükarda orijinal görünümü kapat ve şablonu/filtreleri geri yükle
+        if (didTriggerBeforeAfter || (typeof isShowingBefore !== 'undefined' && isShowingBefore)) {
+            if (typeof setOriginalView === 'function') {
+                setOriginalView(false);
+            } else if (typeof toggleBeforeAfter === 'function') {
+                toggleBeforeAfter(false);
+            }
             didTriggerBeforeAfter = false;
-            longPressTouchId = null;
             
             if (e && e.cancelable !== false) {
                 if(e.preventDefault) e.preventDefault();

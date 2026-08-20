@@ -399,8 +399,12 @@ function autoEnhancePhoto() {
     img.src = uploadedImgUrl;
 }
 
-function toggleBeforeAfter() {
-    isShowingBefore = !isShowingBefore;
+function setOriginalView(show) {
+    if (typeof show === 'boolean') {
+        isShowingBefore = show;
+    } else {
+        isShowingBefore = !isShowingBefore;
+    }
     const btn = document.getElementById('btnBeforeAfter');
     
     if(isShowingBefore) {
@@ -456,6 +460,13 @@ function toggleBeforeAfter() {
         if(typeof processPixels === 'function') processPixels(true);
     }
 }
+
+function toggleBeforeAfter(forceState) {
+    setOriginalView(forceState);
+}
+
+window.toggleBeforeAfter = toggleBeforeAfter;
+window.setOriginalView = setOriginalView;
 
 window.resetPixelCache = function() {
     originalImageData = null;

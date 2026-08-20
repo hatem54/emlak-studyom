@@ -239,36 +239,60 @@ function addCustomTextOnly(){
 }
 
 function initGlobalTooltip() {
-    const tip = document.createElement('div');
-    tip.className = 'global-tooltip';
-    document.body.appendChild(tip);
+    let tip = document.querySelector('.global-tooltip');
+    if (!tip) {
+        tip = document.createElement('div');
+        tip.className = 'global-tooltip';
+        document.body.appendChild(tip);
+    }
 
-    document.querySelectorAll('[data-tooltip]').forEach(el => {
-        el.addEventListener('mouseenter', (e) => {
-            const text = el.getAttribute('data-tooltip');
-            if(!text) return;
+    let tooltipTimer = null;
+    let currentTarget = null;
+
+    document.addEventListener('mouseover', (e) => {
+        const target = e.target.closest('[data-tooltip]');
+        if (!target) return;
+        if (target === currentTarget) return;
+
+        currentTarget = target;
+        const text = target.getAttribute('data-tooltip');
+        if (!text) return;
+
+        clearTimeout(tooltipTimer);
+        // 1.5 saniye bekledikten sonra bilgilendirme yazısı gelsin
+        tooltipTimer = setTimeout(() => {
+            if (currentTarget !== target) return;
             tip.innerHTML = text;
             tip.classList.add('show');
             
-            const rect = el.getBoundingClientRect();
+            const rect = target.getBoundingClientRect();
             
-            // Calculate position (below the button)
+            // Konumlandırma (varsayılan olarak butonun altı)
             let top = rect.bottom + 8;
             let left = rect.left + (rect.width / 2) - (tip.offsetWidth / 2);
             
-            // Edge correction
-            if(left < 10) left = 10;
-            if(left + tip.offsetWidth > window.innerWidth - 10) {
+            // Ekrandan taşma düzeltmeleri
+            if (top + tip.offsetHeight > window.innerHeight - 10) {
+                top = rect.top - tip.offsetHeight - 8;
+            }
+            if (left < 10) left = 10;
+            if (left + tip.offsetWidth > window.innerWidth - 10) {
                 left = window.innerWidth - tip.offsetWidth - 10;
             }
             
             tip.style.top = top + 'px';
             tip.style.left = left + 'px';
-        });
-        
-        el.addEventListener('mouseleave', () => {
-            tip.classList.remove('show');
-        });
+        }, 1500);
+    });
+
+    document.addEventListener('mouseout', (e) => {
+        const target = e.target.closest('[data-tooltip]');
+        if (!target) return;
+        if (e.relatedTarget && target.contains(e.relatedTarget)) return;
+
+        clearTimeout(tooltipTimer);
+        currentTarget = null;
+        tip.classList.remove('show');
     });
 }
 

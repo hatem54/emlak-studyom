@@ -78,6 +78,7 @@ window.showGlobalLoadingOverlay = function(durationMs, text, subtext) {
 
 function setTemplate(k){
     try {
+        if(typeof setOriginalView === 'function') setOriginalView(false);
         if(window.AppState && typeof window.AppState.resetOnTemplateChange === 'function') {
             window.AppState.resetOnTemplateChange(k);
         }
@@ -170,15 +171,27 @@ window.renderCanvaTemplate = function(htmlString) {
     const fullH = parseInt(canvasEl.style.height) || 1080;
     const scaleXFn = (val) => (val / 1920) * fullW;
     const scaleYFn = (val) => (val / 1080) * fullH;
-    const scaleMin = (val) => val * Math.min(fullW/1920, fullH/1080);
+    
+    const isMob = window.innerWidth <= 768 || (typeof window.isMobileDevice === 'function' && window.isMobileDevice());
+    const scaleMin = (val, isFont = false) => {
+        let scaled = val * Math.min(fullW/1920, fullH/1080);
+        if (isFont && isMob) {
+            // Akıllı Mobil Okunabilirlik Ölçekleme:
+            // 16-24px arası küçük detay/özellik yazılarını %38 artırarak taban 26px yapar
+            if (val <= 24) scaled = Math.max(scaled * 1.38, 26 * Math.min(fullW/1920, fullH/1080));
+            else if (val <= 32) scaled = Math.max(scaled * 1.25, 34 * Math.min(fullW/1920, fullH/1080));
+            else if (val <= 44) scaled = Math.max(scaled * 1.12, 46 * Math.min(fullW/1920, fullH/1080));
+        }
+        return scaled;
+    };
     
     let fHtml = htmlString;
     // Scale inline CSS
-    fHtml = fHtml.replace(/font-size:\$\{scaleY\((\d+)\)\}/g, (m, p1) => 'font-size:' + Math.round(scaleMin(parseInt(p1, 10))));
-    fHtml = fHtml.replace(/font-size:\$\{scaleX\((\d+)\)\}/g, (m, p1) => 'font-size:' + Math.round(scaleMin(parseInt(p1, 10))));
-    fHtml = fHtml.replace(/font-size:\$\{scaleMin\((\d+)\)\}/g, (m, p1) => 'font-size:' + Math.round(scaleMin(parseInt(p1, 10))));
-    fHtml = fHtml.replace(/padding:\$\{scaleMin\((\d+)\)\}/g, (m, p1) => 'padding:' + Math.round(scaleMin(parseInt(p1, 10))));
-    fHtml = fHtml.replace(/\$\{scaleMin\((\d+)\)\}/g, (m, p1) => Math.round(scaleMin(parseInt(p1, 10))));
+    fHtml = fHtml.replace(/font-size:\$\{scaleY\((\d+)\)\}/g, (m, p1) => 'font-size:' + Math.round(scaleMin(parseInt(p1, 10), true)));
+    fHtml = fHtml.replace(/font-size:\$\{scaleX\((\d+)\)\}/g, (m, p1) => 'font-size:' + Math.round(scaleMin(parseInt(p1, 10), true)));
+    fHtml = fHtml.replace(/font-size:\$\{scaleMin\((\d+)\)\}/g, (m, p1) => 'font-size:' + Math.round(scaleMin(parseInt(p1, 10), true)));
+    fHtml = fHtml.replace(/padding:\$\{scaleMin\((\d+)\)\}/g, (m, p1) => 'padding:' + Math.round(scaleMin(parseInt(p1, 10), false)));
+    fHtml = fHtml.replace(/\$\{scaleMin\((\d+)\)\}/g, (m, p1) => Math.round(scaleMin(parseInt(p1, 10), false)));
     fHtml = fHtml.replace(/\$\{scaleX\((\d+)\)\}/g, (m, p1) => Math.round(scaleXFn(parseInt(p1, 10))));
     fHtml = fHtml.replace(/\$\{scaleY\((\d+)\)\}/g, (m, p1) => Math.round(scaleYFn(parseInt(p1, 10))));
     fHtml = fHtml.replace(/\$\{fullH\}/g, fullH);
@@ -191,6 +204,7 @@ window.renderCanvaTemplate = function(htmlString) {
     });
     canvaRenderLayer.querySelectorAll('.editable-text').forEach(el => {
         if(typeof enableInlineEdit === 'function') enableInlineEdit(el);
+        if(typeof bindDrag === 'function') bindDrag(el);
     });
     
     requestAnimationFrame(() => {

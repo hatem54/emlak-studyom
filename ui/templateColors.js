@@ -248,13 +248,11 @@ function showTemplateColorModal() {
         }
     }
 
-    // 3. Create Floating Panel
+    // 3. Create Panel (Responsive: Inline on Mobile, Floating on Desktop)
+    const isMobile = window.innerWidth <= 768 || (typeof window.isMobileDevice === 'function' && window.isMobileDevice());
+
     const panel = document.createElement('div');
     panel.id = 'proColorMatcherPanel';
-    panel.style.position = 'fixed';
-    panel.style.top = '100px';
-    panel.style.left = '320px';
-    panel.style.width = '450px';
     panel.style.backgroundColor = '#110c22';
     panel.style.borderRadius = '12px';
     panel.style.boxShadow = '0 15px 50px rgba(0,0,0,0.8)';
@@ -265,13 +263,33 @@ function showTemplateColorModal() {
     panel.style.display = 'flex';
     panel.style.flexDirection = 'column';
     panel.style.overflow = 'hidden';
+    panel.style.boxSizing = 'border-box';
 
-    // Panel Header (Draggable)
-    const headerHtml = '<div id="tcPanelHeader" style="padding:16px 20px; background:linear-gradient(90deg, #1e1b38, #110c22); display:flex; justify-content:space-between; align-items:center; cursor:move; border-bottom:1px solid #322659;">' +
-        '<div style="font-weight:bold; font-size:16px; display:flex; align-items:center; gap:10px;"><i class="fas fa-magic" style="color:#a855f7;"></i> PRO Renk Eşleştirici</div>' +
-        '<div style="display:flex; align-items:center; gap:15px;">' +
-            '<button id="tcRefreshBtn" title="Listeyi Yenile" style="background:transparent; border:none; color:#94a3b8; font-size:16px; cursor:pointer; padding:0; transition:color 0.2s;" onmouseover="this.style.color=\'#fff\'" onmouseout="this.style.color=\'#94a3b8\'" onclick="document.getElementById(\'proColorMatcherPanel\').remove(); setTimeout(() => showTemplateColorModal(), 10)"><i class="fas fa-sync-alt"></i></button>' +
-            '<button id="tcCloseBtn" style="background:transparent; border:none; color:#94a3b8; font-size:18px; cursor:pointer; padding:0; transition:color 0.2s;" onmouseover="this.style.color=\'#fff\'" onmouseout="this.style.color=\'#94a3b8\'"><i class="fas fa-times"></i></button>' +
+    if (isMobile) {
+        // Mobilde ana butonun hemen altından, sayfa akışı içinde ve %100 genişlikte aç
+        panel.style.position = 'relative';
+        panel.style.top = '0';
+        panel.style.left = '0';
+        panel.style.width = '100%';
+        panel.style.maxWidth = '100%';
+        panel.style.marginTop = '10px';
+        panel.style.marginBottom = '15px';
+    } else {
+        // Masaüstünde floating panel
+        panel.style.position = 'fixed';
+        panel.style.top = '100px';
+        panel.style.left = Math.min(window.innerWidth - 470, Math.max(20, 320)) + 'px';
+        panel.style.width = '450px';
+        panel.style.maxWidth = '95vw';
+    }
+
+    // Panel Header (Draggable on desktop, clean on mobile)
+    const cursorStyle = isMobile ? 'default' : 'move';
+    const headerHtml = '<div id="tcPanelHeader" style="padding:14px 18px; background:linear-gradient(90deg, #1e1b38, #110c22); display:flex; justify-content:space-between; align-items:center; cursor:' + cursorStyle + '; border-bottom:1px solid #322659;">' +
+        '<div style="font-weight:bold; font-size:15px; display:flex; align-items:center; gap:8px;"><i class="fas fa-magic" style="color:#a855f7;"></i> PRO Renk Eşleştirici</div>' +
+        '<div style="display:flex; align-items:center; gap:12px;">' +
+            '<button id="tcRefreshBtn" title="Listeyi Yenile" style="background:transparent; border:none; color:#94a3b8; font-size:15px; cursor:pointer; padding:0; transition:color 0.2s;" onmouseover="this.style.color=\'#fff\'" onmouseout="this.style.color=\'#94a3b8\'" onclick="document.getElementById(\'proColorMatcherPanel\').remove(); setTimeout(() => showTemplateColorModal(), 10)"><i class="fas fa-sync-alt"></i></button>' +
+            '<button id="tcCloseBtn" style="background:transparent; border:none; color:#94a3b8; font-size:17px; cursor:pointer; padding:0; transition:color 0.2s;" onmouseover="this.style.color=\'#fff\'" onmouseout="this.style.color=\'#94a3b8\'"><i class="fas fa-times"></i></button>' +
         '</div>' +
     '</div>';
 
@@ -355,13 +373,20 @@ function showTemplateColorModal() {
         .tc-switch { position: relative; display: inline-block; width: 36px; height: 20px; margin: 0; }
         .tc-switch input { opacity: 0; width: 0; height: 0; }
         .tc-slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #334155; transition: .4s; border-radius: 34px; border: 1px solid #1e293b; }
-        .tc-slider:before { position: absolute; content: ""; height: 14px; width: 14px; left: 2px; bottom: 2px; background-color: white; transition: .4s; border-radius: 50%; }
         .tc-switch input:checked + .tc-slider { background-color: #6366f1; border-color: #4f46e5; }
         .tc-switch input:checked + .tc-slider:before { transform: translateX(16px); }
     `;
     panel.appendChild(style);
 
-    document.body.appendChild(panel);
+    const layersBtn = document.querySelector('#tab-layers button[onclick*="showTemplateColorModal"]');
+    if (isMobile && layersBtn && layersBtn.parentNode) {
+        layersBtn.parentNode.insertBefore(panel, layersBtn.nextSibling);
+        setTimeout(() => {
+            panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }, 50);
+    } else {
+        document.body.appendChild(panel);
+    }
 
     // 4. Logic & Events
     const closePanel = () => panel.remove();
@@ -430,7 +455,7 @@ function showTemplateColorModal() {
                         const glowPct = el.dataset.coGlow || 80;
                         const glowPx1 = Math.round(glowPct * 0.15);
                         const glowPx2 = Math.round(glowPct * 0.3);
-                        iconEl.style.filter = `drop-shadow(0 0 ${glowPx1}px ${acCol}) drop-shadow(0 0 ${glowPx2}px ${acCol})`;
+                        iconEl.style.filter = 'drop-shadow(0 0 ' + glowPx1 + 'px ' + acCol + ') drop-shadow(0 0 ' + glowPx2 + 'px ' + acCol + ')';
                         el.dataset.coIconColor = acCol;
                         if(isSelected && document.getElementById('coIconColor')) document.getElementById('coIconColor').value = acCol;
                     }
@@ -585,32 +610,34 @@ function showTemplateColorModal() {
         }, 1500);
     });
 
-    // Make Panel Draggable
+    // Make Panel Draggable (only on desktop)
     const header = document.getElementById('tcPanelHeader');
-    let isDragging = false, startX, startY, initialLeft, initialTop;
+    if (!isMobile && header) {
+        let isDragging = false, startX, startY, initialLeft, initialTop;
 
-    header.addEventListener('mousedown', (e) => {
-        if(e.target.id === 'tcCloseBtn' || e.target.closest('#tcCloseBtn')) return;
-        isDragging = true;
-        startX = e.clientX;
-        startY = e.clientY;
-        initialLeft = panel.offsetLeft;
-        initialTop = panel.offsetTop;
-        document.body.style.userSelect = 'none';
-    });
+        header.addEventListener('mousedown', (e) => {
+            if(e.target.id === 'tcCloseBtn' || e.target.closest('#tcCloseBtn')) return;
+            isDragging = true;
+            startX = e.clientX;
+            startY = e.clientY;
+            initialLeft = panel.offsetLeft;
+            initialTop = panel.offsetTop;
+            document.body.style.userSelect = 'none';
+        });
 
-    document.addEventListener('mousemove', (e) => {
-        if(!isDragging) return;
-        const dx = e.clientX - startX;
-        const dy = e.clientY - startY;
-        panel.style.left = (initialLeft + dx) + 'px';
-        panel.style.top = (initialTop + dy) + 'px';
-    });
+        document.addEventListener('mousemove', (e) => {
+            if(!isDragging) return;
+            const dx = e.clientX - startX;
+            const dy = e.clientY - startY;
+            panel.style.left = (initialLeft + dx) + 'px';
+            panel.style.top = (initialTop + dy) + 'px';
+        });
 
-    document.addEventListener('mouseup', () => {
-        isDragging = false;
-        document.body.style.userSelect = '';
-    });
+        document.addEventListener('mouseup', () => {
+            isDragging = false;
+            document.body.style.userSelect = '';
+        });
+    }
     
     // Highlight currently selected element in the list
     const syncInterval = setInterval(() => {

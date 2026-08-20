@@ -356,30 +356,8 @@ async function performAutoSave() {
 }
 
 function showAutoSaveIndicator() {
-    let ind = document.getElementById('autosave-indicator');
-    if (!ind) {
-        ind = document.createElement('div');
-        ind.id = 'autosave-indicator';
-        ind.style.position = 'fixed';
-        ind.style.bottom = '10px';
-        ind.style.right = '10px';
-        ind.style.background = 'rgba(0,0,0,0.6)';
-        ind.style.color = '#fff';
-        ind.style.padding = '5px 10px';
-        ind.style.borderRadius = '4px';
-        ind.style.fontSize = '11px';
-        ind.style.zIndex = '999999';
-        ind.style.pointerEvents = 'none';
-        ind.innerHTML = '✓ Taslak kaydedildi';
-        document.body.appendChild(ind);
-    }
-    ind.style.opacity = '1';
-    ind.style.transition = 'none';
-    
-    setTimeout(() => {
-        ind.style.transition = 'opacity 1s ease';
-        ind.style.opacity = '0';
-    }, 2000);
+    // Taslak kaydedildi bildirimi gizlendi - arka planda sessizce kaydedilmeye devam eder
+    return;
 }
 
 // Restore Logic

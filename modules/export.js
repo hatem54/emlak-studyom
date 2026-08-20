@@ -698,6 +698,13 @@ async function saveImage(){
         console.log('--------------------');
 
         document.body.classList.add('is-exporting');
+        
+        // Şablon geçici gizlenmişse dışa aktarmada tam görünmesini sağla
+        var _wasTplHidden = window.isTemplateHidden;
+        if (_wasTplHidden && typeof window.toggleTemplateVisibility === 'function') {
+            window.toggleTemplateVisibility(false);
+        }
+
         if(typeof deselectAll === 'function') deselectAll();
         document.querySelectorAll('.el-selected').forEach(e=>e.classList.remove('el-selected'));
         document.querySelectorAll('.text-handle').forEach(h=>h.remove());
@@ -1097,6 +1104,9 @@ async function saveImage(){
         console.error("SaveImage Error:", err);
         alert("Dışa aktarma sırasında bir hata oluştu: " + (err.message || err));
     } finally {
+        if (typeof _wasTplHidden !== 'undefined' && _wasTplHidden && typeof window.toggleTemplateVisibility === 'function') {
+            window.toggleTemplateVisibility(true);
+        }
         if (typeof resizeCanvas === 'function') resizeCanvas();
         window.isExportingNow = false;
         document.body.classList.remove('is-exporting');
@@ -1165,6 +1175,10 @@ async function startBatchExport(){
       });
       console.log('--------------------');
 
+    var _wasTplHiddenBatch = window.isTemplateHidden;
+    if (_wasTplHiddenBatch && typeof window.toggleTemplateVisibility === 'function') {
+        window.toggleTemplateVisibility(false);
+    }
     
     batchProgress.style.display='block';
     if(drawMode!=='off')setDrawMode('off');
@@ -1520,6 +1534,9 @@ async function startBatchExport(){
     drawCanvas.style.pointerEvents=wp;
     
     document.body.classList.remove('is-exporting');
+    if (typeof _wasTplHiddenBatch !== 'undefined' && _wasTplHiddenBatch && typeof window.toggleTemplateVisibility === 'function') {
+        window.toggleTemplateVisibility(true);
+    }
     batchProgress.style.display='none';
     batchStatus.textContent='Tamamlandı';
     batchPercent.textContent='100%';

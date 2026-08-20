@@ -118,9 +118,8 @@ function enableInlineEdit(el) {
         });
         return;
     }
-    el.addEventListener('dblclick', function(e) {
-        e.stopPropagation();
-        
+    const startEditing = function(e) {
+        if (e && e.stopPropagation) e.stopPropagation();
         if (el.isContentEditable) return;
         
         // Remove text handles so they don't get deleted by text selection/typing
@@ -170,7 +169,19 @@ function enableInlineEdit(el) {
 
         el.addEventListener('blur', finishEdit);
         el.addEventListener('keydown', handleKey);
-    });
+    };
+
+    el.addEventListener('dblclick', startEditing);
+
+    // Mobil çift dokunma (double-tap) ile anında metin düzenleme
+    let lastTapTime = 0;
+    el.addEventListener('touchend', function(e) {
+        const now = Date.now();
+        if (now - lastTapTime < 350 && now - lastTapTime > 0) {
+            startEditing(e);
+        }
+        lastTapTime = now;
+    }, { passive: true });
 }
 
 

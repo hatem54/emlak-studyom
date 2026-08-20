@@ -33,6 +33,7 @@ function switchForm(type) {
 
   if (type === 'login') {
     if (loginForm) loginForm.style.display = 'block';
+    initRememberMe();
   } else if (type === 'register') {
     if (registerForm) registerForm.style.display = 'block';
   } else if (type === 'forgot') {
@@ -46,6 +47,32 @@ function switchForm(type) {
     }
   } else if (type === 'reset') {
     if (resetForm) resetForm.style.display = 'block';
+  }
+}
+
+// Beni Hatırla mekanizması
+function initRememberMe() {
+  try {
+    const isRemember = localStorage.getItem('emlak_remember_me') === 'true';
+    const savedEmail = localStorage.getItem('emlak_remember_email');
+    const emailInput = document.getElementById('loginEmail');
+    const rememberCheckbox = document.getElementById('rememberMe');
+    if (rememberCheckbox) {
+      rememberCheckbox.checked = isRemember;
+    }
+    if (isRemember && savedEmail && emailInput && !emailInput.value) {
+      emailInput.value = savedEmail;
+    }
+  } catch (e) {
+    console.warn('RememberMe load error:', e);
+  }
+}
+
+if (typeof document !== 'undefined') {
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initRememberMe);
+  } else {
+    initRememberMe();
   }
 }
 
@@ -162,6 +189,17 @@ async function handleLogin(event) {
     
     if (error) throw error;
     
+    // Beni Hatırla durumunu kaydet
+    const rememberCheckbox = document.getElementById('rememberMe');
+    const isRemember = rememberCheckbox ? rememberCheckbox.checked : false;
+    if (isRemember) {
+      localStorage.setItem('emlak_remember_me', 'true');
+      localStorage.setItem('emlak_remember_email', email);
+    } else {
+      localStorage.removeItem('emlak_remember_me');
+      localStorage.removeItem('emlak_remember_email');
+    }
+    
     showToast('✅ Giriş başarılı! Yönlendiriliyorsunuz...', 'success');
     setTimeout(() => {
       window.location.href = 'app.html?mode=pro';
@@ -184,6 +222,62 @@ async function handleLogin(event) {
     }
   }
 }
+
+// SOSYAL MEDYA İLE GİRİŞ (Google, Apple, Facebook)
+async function handleSocialLogin(provider) {
+  const client = window.supabaseClient || (typeof initSupabase === 'function' ? initSupabase() : null);
+  if (!client) {
+    showToast('Veritabanı bağlantısı kurulamadı. Lütfen sayfayı yenileyin.', 'error');
+    return;
+  }
+
+  const providerNames = {
+    google: 'Google',
+    facebook: 'Facebook',
+    apple: 'Apple'
+  };
+  const providerName = providerNames[provider] || provider;
+
+  try {
+    showToast(`${providerName} ile bağlantı kuruluyor...`, 'info');
+    
+    const redirectUrl = window.location.origin + window.location.pathname.replace(/index\.html$/, '') + 'app.html?mode=pro';
+
+    const { data, error } = await client.auth.signInWithOAuth({
+      provider: provider,
+      options: {
+        redirectTo: redirectUrl
+      }
+    });
+
+    if (error) throw error;
+
+  } catch (error) {
+    console.error(`${providerName} ile giriş hatası:`, error);
+    let msg = (error && error.message) ? error.message : '';
+    if (msg.includes('provider is not enabled') || msg.includes('not configured') || msg.includes('Unsupported provider') || msg.includes('Validation failed') || msg.includes('not supported')) {
+      if (typeof Swal !== 'undefined') {
+        Swal.fire({
+          icon: 'info',
+          title: `ℹ️ ${providerName} ile Giriş`,
+          html: `<div style="font-size:14px; line-height:1.6; color:#cbd5e1; text-align:left; margin-top:8px;">
+            <b>${providerName}</b> ile giriş entegrasyonu sistem yöneticisi tarafından henüz aktifleştirilmedi.<br><br>
+            Lütfen e-posta ve şifrenizle giriş yapın veya <b>Demo Modu</b> ile hemen kullanmaya başlayın.
+          </div>`,
+          background: '#1e293b',
+          color: '#fff',
+          confirmButtonText: 'Tamam, Anladım',
+          confirmButtonColor: '#6366f1'
+        });
+      } else {
+        showToast(`${providerName} ile giriş henüz aktif değil. Lütfen e-posta ile giriş yapın.`, 'error');
+      }
+    } else {
+      showToast(`${providerName} ile giriş yapılamadı: ` + msg, 'error');
+    }
+  }
+}
+window.handleSocialLogin = handleSocialLogin;
 
 // ŞİFREMİ UNUTTUM (SIFIRLAMA BAĞLANTISI GÖNDER)
 async function handleForgotPassword(event) {
@@ -303,17 +397,27 @@ window.handleForgotPassword = handleForgotPassword;
 window.handleUpdatePassword = handleUpdatePassword;
 window.goToDemo = goToDemo;
 
-// Recovery bağlantısı dinleyicisi
+// Recovery ve OAuth bağlantısı dinleyicisi
 window.addEventListener('DOMContentLoaded', () => {
   const client = window.supabaseClient || (typeof initSupabase === 'function' ? initSupabase() : null);
   if (client) {
     client.auth.onAuthStateChange((event, session) => {
       if (event === 'PASSWORD_RECOVERY') {
         openModal('reset');
+      } else if (event === 'SIGNED_IN' && session) {
+        // Eğer OAuth (Google vb.) ile giriş yapıldıysa ve recovery modunda değilsek yönlendir
+        if (!window.location.hash.includes('type=recovery')) {
+          closeModal();
+          showToast('✅ Giriş başarılı! Yönlendiriliyorsunuz...', 'success');
+          setTimeout(() => {
+            window.location.href = 'app.html?mode=pro';
+          }, 600);
+        }
       }
     });
   }
-  if (window.location.hash && (window.location.hash.includes('type=recovery') || window.location.hash.includes('access_token'))) {
+  // Sadece şifre sıfırlama (recovery) linkiyle gelindiyse reset modalını aç:
+  if (window.location.hash && window.location.hash.includes('type=recovery')) {
     setTimeout(() => {
       openModal('reset');
     }, 400);

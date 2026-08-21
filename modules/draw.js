@@ -674,6 +674,32 @@ function closePolygon(){
     updateDrawHistory();
 }
 
+// ==================== 🏹 20 PROFESYONEL OK STİLİ TANIMI ====================
+window.ARROW_STYLES = [
+    { id: 1, name: 'Klasik Keskin Ok', desc: 'Modern keskin üçgen ok ucu (Varsayılan)', iconSvg: '<path d="M4 12 L14 12 M11 7 L19 12 L11 17 Z" fill="currentColor" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/>' },
+    { id: 2, name: 'Stealth / Çentikli Kanat', desc: 'Aerodinamik içe kıvrık modern askeri ok', iconSvg: '<path d="M4 12 L13 12 M10 7 L19 12 L10 17 L13 12 Z" fill="currentColor" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/>' },
+    { id: 3, name: 'Zarif Açık V', desc: 'İçi boş, minimalist ve ince çift kanatlı çizgi', iconSvg: '<path d="M4 12 L18 12 M12 6 L19 12 L12 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>' },
+    { id: 4, name: 'Kalın Dolu Chevron', desc: 'Geniş açılı ve dolgulu modern yönlendirici', iconSvg: '<path d="M4 12 L12 12 M11 6 L18 12 L11 18 L8 18 L14 12 L8 6 Z" fill="currentColor"/>' },
+    { id: 5, name: 'Dolu Elmas (Baklava)', desc: 'Lüks odaklama ve mülk işaretleme baklavası', iconSvg: '<path d="M4 12 L12 12 M12 12 L15 7 L19 12 L15 17 Z" fill="currentColor" stroke="currentColor" stroke-width="1"/>' },
+    { id: 6, name: 'İçi Boş Elmas', desc: 'Zarif ve şeffaf merkezli elmas gösterge', iconSvg: '<path d="M4 12 L11 12 M11 12 L15 7 L19 12 L15 17 Z" fill="none" stroke="currentColor" stroke-width="1.8"/>' },
+    { id: 7, name: 'Dairesel Dolu Nokta', desc: 'Yuvarlak dolu nokta ile kesin konum belirtici', iconSvg: '<path d="M4 12 L13 12" stroke="currentColor" stroke-width="2"/><circle cx="16" cy="12" r="3.5" fill="currentColor"/>' },
+    { id: 8, name: 'Hedef / Halka', desc: 'İçi boş halka odaklama göstergesi', iconSvg: '<path d="M4 12 L13 12" stroke="currentColor" stroke-width="2"/><circle cx="16" cy="12" r="3.5" fill="none" stroke="currentColor" stroke-width="2"/>' },
+    { id: 9, name: 'Kare / Teknik Blok', desc: 'Plan ve mimari ölçü için dolu kare blok', iconSvg: '<path d="M4 12 L13 12" stroke="currentColor" stroke-width="2"/><rect x="13" y="8.5" width="6.5" height="7" fill="currentColor"/>' },
+    { id: 10, name: 'İçi Boş Kare', desc: 'Teknik mimari çerçeve blok', iconSvg: '<path d="M4 12 L13 12" stroke="currentColor" stroke-width="2"/><rect x="13" y="8.5" width="6.5" height="7" fill="none" stroke="currentColor" stroke-width="1.8"/>' },
+    { id: 11, name: 'T-Çizgi / Stoper', desc: 'Mimari sınır, limit ve cephe çizgisi', iconSvg: '<path d="M4 12 L17 12 M17 6 L17 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>' },
+    { id: 12, name: '45° Çapraz Kesit', desc: 'AutoCAD / Mimari ölçülendirme çentiği', iconSvg: '<path d="M4 12 L16 12 M12 17 L18 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>' },
+    { id: 13, name: 'Çift Katman Ok', desc: 'Arka arkaya çift kademeli vurgulayıcı ok', iconSvg: '<path d="M3 12 L12 12 M8 7 L14 12 L8 17 Z M13 7 L19 12 L13 17 Z" fill="currentColor"/>' },
+    { id: 14, name: 'Üç Katman Akış', desc: 'Yön ve akış belirten 3 kademeli ok', iconSvg: '<path d="M6 7 L11 12 L6 17 M10 7 L15 12 L10 17 M14 7 L19 12 L14 17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>' },
+    { id: 15, name: 'Kavisli Bıçak', desc: 'Dışa bombeli kavisli dinamik uç', iconSvg: '<path d="M4 12 L13 12 M11 7 Q16 10 19 12 Q16 14 11 17 Q13 12 11 7 Z" fill="currentColor"/>' },
+    { id: 16, name: 'Yumuşak Yuvarlak Üçgen', desc: 'Köşeleri yuvarlatılmış estetik üçgen uç', iconSvg: '<path d="M4 12 L13 12 M11 7 L18 12 L11 17 Z" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>' },
+    { id: 17, name: 'İğne Roket Dart', desc: 'Uzun ve çok keskin fırlatma oku', iconSvg: '<path d="M4 12 L11 12 M8 9 L20 12 L8 15 L10 12 Z" fill="currentColor"/>' },
+    { id: 18, name: 'Harita Pini (Nokta-Ok)', desc: 'Başlangıçta nokta, bitişte keskin ok ucu', iconSvg: '<circle cx="5" cy="12" r="2.5" fill="currentColor"/><path d="M7 12 L14 12 M11 7 L19 12 L11 17 Z" fill="currentColor" stroke="currentColor" stroke-width="1.2"/>' },
+    { id: 19, name: 'Çift Yönlü Mimari Ok', desc: 'İki ucunda da keskin üçgen olan ölçü oku', iconSvg: '<path d="M8 12 L16 12 M9 7 L4 12 L9 17 Z M15 7 L20 12 L15 17 Z" fill="currentColor"/>' },
+    { id: 20, name: 'T-Bar ve Ok Kombosu', desc: 'Başlangıçta T stoper, bitişte keskin ok', iconSvg: '<path d="M5 6 L5 18 M5 12 L14 12 M11 7 L19 12 L11 17 Z" fill="currentColor" stroke="currentColor" stroke-width="1.5"/>' }
+];
+
+window.currentSelectedArrowStyle = 1;
+
 function arrowHead(ctx, x1, y1, x2, y2, w, color, op, style, dir = 'outward') {
     const a = Math.atan2(y2 - y1, x2 - x1);
     ctx.save();
@@ -685,94 +711,552 @@ function arrowHead(ctx, x1, y1, x2, y2, w, color, op, style, dir = 'outward') {
     ctx.lineJoin = 'round';
     ctx.lineWidth = w;
     
-    function drawHeadAt(tipX, tipY, angle) {
+    function drawHeadAt(tipX, tipY, angle, isStart = false) {
         ctx.beginPath();
-        let h = w * 5;
         const s = parseInt(style) || 1;
+        const baseH = Math.max(w * 4.5, 14);
+        const baseW = Math.max(w * 2.2, 7);
+
         switch(s) {
-            case 1: // Standart İçi Dolu Üçgen
+            case 1: { // 1. Klasik Keskin Ok (Sharp Triangle)
+                const h = baseH;
                 ctx.moveTo(tipX, tipY);
-                ctx.lineTo(tipX - h * Math.cos(angle - Math.PI / 6), tipY - h * Math.sin(angle - Math.PI / 6));
-                ctx.lineTo(tipX - h * Math.cos(angle + Math.PI / 6), tipY - h * Math.sin(angle + Math.PI / 6));
+                ctx.lineTo(tipX - h * Math.cos(angle - 0.42), tipY - h * Math.sin(angle - 0.42));
+                ctx.lineTo(tipX - h * Math.cos(angle + 0.42), tipY - h * Math.sin(angle + 0.42));
                 ctx.closePath();
                 ctx.fill();
                 break;
-            case 2: // İnce V (İçi Boş)
-                h = w * 6;
-                ctx.moveTo(tipX - h * Math.cos(angle - Math.PI / 6), tipY - h * Math.sin(angle - Math.PI / 6));
+            }
+            case 2: { // 2. Stealth / Çentikli Kanat (Stealth Wing)
+                const h = baseH * 1.1;
+                ctx.moveTo(tipX, tipY);
+                ctx.lineTo(tipX - h * Math.cos(angle - 0.45), tipY - h * Math.sin(angle - 0.45));
+                ctx.lineTo(tipX - (h * 0.5) * Math.cos(angle), tipY - (h * 0.5) * Math.sin(angle));
+                ctx.lineTo(tipX - h * Math.cos(angle + 0.45), tipY - h * Math.sin(angle + 0.45));
+                ctx.closePath();
+                ctx.fill();
+                break;
+            }
+            case 3: { // 3. Zarif Açık V (Minimalist Open V)
+                const h = baseH * 1.1;
+                ctx.lineWidth = Math.max(w * 1.1, 2.5);
+                ctx.moveTo(tipX - h * Math.cos(angle - 0.5), tipY - h * Math.sin(angle - 0.5));
                 ctx.lineTo(tipX, tipY);
-                ctx.lineTo(tipX - h * Math.cos(angle + Math.PI / 6), tipY - h * Math.sin(angle + Math.PI / 6));
+                ctx.lineTo(tipX - h * Math.cos(angle + 0.5), tipY - h * Math.sin(angle + 0.5));
                 ctx.stroke();
                 break;
-            case 3: // Geniş Üçgen
-                h = w * 5;
+            }
+            case 4: { // 4. Kalın Dolu Chevron
+                const h = baseH;
+                const thick = Math.max(w * 1.5, 5);
                 ctx.moveTo(tipX, tipY);
-                ctx.lineTo(tipX - h * Math.cos(angle - Math.PI / 4), tipY - h * Math.sin(angle - Math.PI / 4));
-                ctx.lineTo(tipX - h * Math.cos(angle + Math.PI / 4), tipY - h * Math.sin(angle + Math.PI / 4));
+                ctx.lineTo(tipX - h * Math.cos(angle - 0.5), tipY - h * Math.sin(angle - 0.5));
+                ctx.lineTo(tipX - (h - thick) * Math.cos(angle - 0.5) - thick * Math.cos(angle), tipY - (h - thick) * Math.sin(angle - 0.5) - thick * Math.sin(angle));
+                ctx.lineTo(tipX - thick * 1.2 * Math.cos(angle), tipY - thick * 1.2 * Math.sin(angle));
+                ctx.lineTo(tipX - (h - thick) * Math.cos(angle + 0.5) - thick * Math.cos(angle), tipY - (h - thick) * Math.sin(angle + 0.5) - thick * Math.sin(angle));
+                ctx.lineTo(tipX - h * Math.cos(angle + 0.5), tipY - h * Math.sin(angle + 0.5));
                 ctx.closePath();
                 ctx.fill();
                 break;
-            case 4: // Stealth (İçe Kıvrık)
-                h = w * 6;
+            }
+            case 5: { // 5. Dolu Elmas (Baklava)
+                const h = baseH * 0.7;
                 ctx.moveTo(tipX, tipY);
-                ctx.lineTo(tipX - h * Math.cos(angle - Math.PI / 6), tipY - h * Math.sin(angle - Math.PI / 6));
-                ctx.lineTo(tipX - (h * 0.5) * Math.cos(angle), tipY - (h * 0.5) * Math.sin(angle));
-                ctx.lineTo(tipX - h * Math.cos(angle + Math.PI / 6), tipY - h * Math.sin(angle + Math.PI / 6));
-                ctx.closePath();
-                ctx.fill();
-                break;
-            case 5: // Elmas (Diamond)
-                h = w * 4;
-                ctx.moveTo(tipX, tipY);
-                ctx.lineTo(tipX - h * Math.cos(angle - Math.PI / 6), tipY - h * Math.sin(angle - Math.PI / 6));
+                ctx.lineTo(tipX - h * Math.cos(angle - 0.5), tipY - h * Math.sin(angle - 0.5));
                 ctx.lineTo(tipX - (h * 2) * Math.cos(angle), tipY - (h * 2) * Math.sin(angle));
-                ctx.lineTo(tipX - h * Math.cos(angle + Math.PI / 6), tipY - h * Math.sin(angle + Math.PI / 6));
+                ctx.lineTo(tipX - h * Math.cos(angle + 0.5), tipY - h * Math.sin(angle + 0.5));
                 ctx.closePath();
                 ctx.fill();
                 break;
-            case 6: // Yuvarlak Başlık
-                h = w * 3;
-                ctx.arc(tipX, tipY, h, 0, Math.PI * 2);
+            }
+            case 6: { // 6. İçi Boş Elmas
+                const h = baseH * 0.7;
+                ctx.lineWidth = Math.max(w, 2);
+                ctx.moveTo(tipX, tipY);
+                ctx.lineTo(tipX - h * Math.cos(angle - 0.5), tipY - h * Math.sin(angle - 0.5));
+                ctx.lineTo(tipX - (h * 2) * Math.cos(angle), tipY - (h * 2) * Math.sin(angle));
+                ctx.lineTo(tipX - h * Math.cos(angle + 0.5), tipY - h * Math.sin(angle + 0.5));
+                ctx.closePath();
+                ctx.stroke();
+                break;
+            }
+            case 7: { // 7. Dairesel Dolu Nokta
+                const r = baseW;
+                ctx.arc(tipX, tipY, r, 0, Math.PI * 2);
                 ctx.fill();
                 break;
-            case 7: // Kare Başlık
-                h = w * 3;
+            }
+            case 8: { // 8. Hedef / Halka
+                const r = baseW;
+                ctx.lineWidth = Math.max(w, 2.5);
+                ctx.arc(tipX, tipY, r, 0, Math.PI * 2);
+                ctx.stroke();
+                break;
+            }
+            case 9: { // 9. Kare / Teknik Blok
+                const s = baseW * 1.6;
                 ctx.save();
                 ctx.translate(tipX, tipY);
                 ctx.rotate(angle);
-                ctx.fillRect(-h, -h, h * 2, h * 2);
+                ctx.fillRect(-s / 2, -s / 2, s, s);
                 ctx.restore();
                 break;
-            case 8: // Çift Katman Ok
-                ctx.moveTo(tipX, tipY);
-                ctx.lineTo(tipX - h * Math.cos(angle - Math.PI / 6), tipY - h * Math.sin(angle - Math.PI / 6));
-                ctx.lineTo(tipX - h * Math.cos(angle + Math.PI / 6), tipY - h * Math.sin(angle + Math.PI / 6));
-                ctx.closePath();
-                ctx.fill();
-                ctx.beginPath();
-                ctx.moveTo(tipX - h * Math.cos(angle), tipY - h * Math.sin(angle));
-                ctx.lineTo(tipX - h * 2 * Math.cos(angle - Math.PI / 6), tipY - h * 2 * Math.sin(angle - Math.PI / 6));
-                ctx.lineTo(tipX - h * 2 * Math.cos(angle + Math.PI / 6), tipY - h * 2 * Math.sin(angle + Math.PI / 6));
-                ctx.closePath();
-                ctx.fill();
+            }
+            case 10: { // 10. İçi Boş Kare
+                const s = baseW * 1.6;
+                ctx.lineWidth = Math.max(w, 2);
+                ctx.save();
+                ctx.translate(tipX, tipY);
+                ctx.rotate(angle);
+                ctx.strokeRect(-s / 2, -s / 2, s, s);
+                ctx.restore();
                 break;
-            case 9: // T-Şekli
-                h = w * 5;
-                ctx.moveTo(tipX - h * Math.cos(angle + Math.PI / 2), tipY - h * Math.sin(angle + Math.PI / 2));
-                ctx.lineTo(tipX + h * Math.cos(angle + Math.PI / 2), tipY + h * Math.sin(angle + Math.PI / 2));
+            }
+            case 11: { // 11. T-Çizgi / Stoper
+                const barLen = Math.max(w * 5, 16);
+                ctx.lineWidth = Math.max(w * 1.1, 2.5);
+                ctx.moveTo(tipX - (barLen / 2) * Math.cos(angle + Math.PI / 2), tipY - (barLen / 2) * Math.sin(angle + Math.PI / 2));
+                ctx.lineTo(tipX + (barLen / 2) * Math.cos(angle + Math.PI / 2), tipY + (barLen / 2) * Math.sin(angle + Math.PI / 2));
                 ctx.stroke();
                 break;
+            }
+            case 12: { // 12. 45° Çapraz Kesit
+                const slashLen = Math.max(w * 5, 16);
+                ctx.lineWidth = Math.max(w * 1.1, 2.5);
+                ctx.moveTo(tipX - (slashLen / 2) * Math.cos(angle + Math.PI / 4), tipY - (slashLen / 2) * Math.sin(angle + Math.PI / 4));
+                ctx.lineTo(tipX + (slashLen / 2) * Math.cos(angle + Math.PI / 4), tipY + (slashLen / 2) * Math.sin(angle + Math.PI / 4));
+                ctx.stroke();
+                break;
+            }
+            case 13: { // 13. Çift Katman Ok
+                const h = baseH * 0.85;
+                ctx.moveTo(tipX, tipY);
+                ctx.lineTo(tipX - h * Math.cos(angle - 0.45), tipY - h * Math.sin(angle - 0.45));
+                ctx.lineTo(tipX - h * Math.cos(angle + 0.45), tipY - h * Math.sin(angle + 0.45));
+                ctx.closePath();
+                ctx.fill();
+                
+                ctx.beginPath();
+                const offset = h * 0.8;
+                ctx.moveTo(tipX - offset * Math.cos(angle), tipY - offset * Math.sin(angle));
+                ctx.lineTo(tipX - (offset + h) * Math.cos(angle - 0.45), tipY - (offset + h) * Math.sin(angle - 0.45));
+                ctx.lineTo(tipX - (offset + h) * Math.cos(angle + 0.45), tipY - (offset + h) * Math.sin(angle + 0.45));
+                ctx.closePath();
+                ctx.fill();
+                break;
+            }
+            case 14: { // 14. Üç Katman Akış
+                const h = baseH * 0.7;
+                ctx.lineWidth = Math.max(w, 2);
+                for (let i = 0; i < 3; i++) {
+                    const off = i * (h * 0.65);
+                    const tx = tipX - off * Math.cos(angle);
+                    const ty = tipY - off * Math.sin(angle);
+                    ctx.beginPath();
+                    ctx.moveTo(tx - h * Math.cos(angle - 0.5), ty - h * Math.sin(angle - 0.5));
+                    ctx.lineTo(tx, ty);
+                    ctx.lineTo(tx - h * Math.cos(angle + 0.5), ty - h * Math.sin(angle + 0.5));
+                    ctx.stroke();
+                }
+                break;
+            }
+            case 15: { // 15. Kavisli Bıçak
+                const h = baseH * 1.1;
+                ctx.moveTo(tipX, tipY);
+                const cp1x = tipX - h * 0.4 * Math.cos(angle) - h * 0.6 * Math.sin(angle);
+                const cp1y = tipY - h * 0.4 * Math.sin(angle) + h * 0.6 * Math.cos(angle);
+                const p1x = tipX - h * Math.cos(angle - 0.5);
+                const p1y = tipY - h * Math.sin(angle - 0.5);
+                ctx.quadraticCurveTo(cp1x, cp1y, p1x, p1y);
+                ctx.lineTo(tipX - (h * 0.4) * Math.cos(angle), tipY - (h * 0.4) * Math.sin(angle));
+                const p2x = tipX - h * Math.cos(angle + 0.5);
+                const p2y = tipY - h * Math.sin(angle + 0.5);
+                ctx.lineTo(p2x, p2y);
+                const cp2x = tipX - h * 0.4 * Math.cos(angle) + h * 0.6 * Math.sin(angle);
+                const cp2y = tipY - h * 0.4 * Math.sin(angle) - h * 0.6 * Math.cos(angle);
+                ctx.quadraticCurveTo(cp2x, cp2y, tipX, tipY);
+                ctx.closePath();
+                ctx.fill();
+                break;
+            }
+            case 16: { // 16. Yumuşak Yuvarlak Üçgen
+                const h = baseH;
+                ctx.lineWidth = Math.max(w, 2);
+                ctx.lineJoin = 'round';
+                ctx.moveTo(tipX, tipY);
+                ctx.lineTo(tipX - h * Math.cos(angle - 0.45), tipY - h * Math.sin(angle - 0.45));
+                ctx.lineTo(tipX - h * Math.cos(angle + 0.45), tipY - h * Math.sin(angle + 0.45));
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+                break;
+            }
+            case 17: { // 17. İğne Roket Dart
+                const h = baseH * 1.5;
+                ctx.moveTo(tipX, tipY);
+                ctx.lineTo(tipX - h * Math.cos(angle - 0.28), tipY - h * Math.sin(angle - 0.28));
+                ctx.lineTo(tipX - (h * 0.65) * Math.cos(angle), tipY - (h * 0.65) * Math.sin(angle));
+                ctx.lineTo(tipX - h * Math.cos(angle + 0.28), tipY - h * Math.sin(angle + 0.28));
+                ctx.closePath();
+                ctx.fill();
+                break;
+            }
+            case 18: { // 18. Harita Pini (Nokta-Ok)
+                if (isStart) {
+                    ctx.arc(tipX, tipY, baseW, 0, Math.PI * 2);
+                    ctx.fill();
+                } else {
+                    const h = baseH;
+                    ctx.moveTo(tipX, tipY);
+                    ctx.lineTo(tipX - h * Math.cos(angle - 0.42), tipY - h * Math.sin(angle - 0.42));
+                    ctx.lineTo(tipX - h * Math.cos(angle + 0.42), tipY - h * Math.sin(angle + 0.42));
+                    ctx.closePath();
+                    ctx.fill();
+                }
+                break;
+            }
+            case 19: { // 19. Çift Yönlü Mimari Ok
+                const h = baseH;
+                ctx.moveTo(tipX, tipY);
+                ctx.lineTo(tipX - h * Math.cos(angle - 0.42), tipY - h * Math.sin(angle - 0.42));
+                ctx.lineTo(tipX - h * Math.cos(angle + 0.42), tipY - h * Math.sin(angle + 0.42));
+                ctx.closePath();
+                ctx.fill();
+                break;
+            }
+            case 20: { // 20. T-Bar ve Ok Kombosu
+                if (isStart) {
+                    const barLen = Math.max(w * 5, 16);
+                    ctx.lineWidth = Math.max(w * 1.1, 2.5);
+                    ctx.moveTo(tipX - (barLen / 2) * Math.cos(angle + Math.PI / 2), tipY - (barLen / 2) * Math.sin(angle + Math.PI / 2));
+                    ctx.lineTo(tipX + (barLen / 2) * Math.cos(angle + Math.PI / 2), tipY + (barLen / 2) * Math.sin(angle + Math.PI / 2));
+                    ctx.stroke();
+                } else {
+                    const h = baseH;
+                    ctx.moveTo(tipX, tipY);
+                    ctx.lineTo(tipX - h * Math.cos(angle - 0.42), tipY - h * Math.sin(angle - 0.42));
+                    ctx.lineTo(tipX - h * Math.cos(angle + 0.42), tipY - h * Math.sin(angle + 0.42));
+                    ctx.closePath();
+                    ctx.fill();
+                }
+                break;
+            }
+            default: {
+                const h = baseH;
+                ctx.moveTo(tipX, tipY);
+                ctx.lineTo(tipX - h * Math.cos(angle - 0.42), tipY - h * Math.sin(angle - 0.42));
+                ctx.lineTo(tipX - h * Math.cos(angle + 0.42), tipY - h * Math.sin(angle + 0.42));
+                ctx.closePath();
+                ctx.fill();
+                break;
+            }
         }
     }
     
-    if (dir === 'outward' || dir === 'both') {
-        drawHeadAt(x2, y2, a);
-    }
-    if (dir === 'inward' || dir === 'both') {
-        drawHeadAt(x1, y1, a + Math.PI);
+    const sId = parseInt(style) || 1;
+    // Kombinasyon stilleri için (18, 19, 20):
+    if (sId === 18 || sId === 19 || sId === 20) {
+        drawHeadAt(x2, y2, a, false);
+        drawHeadAt(x1, y1, a + Math.PI, true);
+    } else {
+        if (dir === 'outward' || dir === 'both') {
+            drawHeadAt(x2, y2, a, false);
+        }
+        if (dir === 'inward' || dir === 'both') {
+            drawHeadAt(x1, y1, a + Math.PI, true);
+        }
     }
     ctx.restore();
 }
+
+// ==================== 🏹 20 OK STİLİ SVG RENDER YARDIMCISI ====================
+window.renderSvgArrowHeadsGroup = function(x1, y1, x2, y2, angle, width, color, fillStr, filterAttr, styleId, dir) {
+    const s = parseInt(styleId) || 1;
+    const baseH = Math.max(width * 4.5, 14);
+    const baseW = Math.max(width * 2.2, 7);
+    
+    function renderSingleHead(tipX, tipY, headAngle, isStart = false) {
+        const cos = (rad) => Math.cos(headAngle + rad);
+        const sin = (rad) => Math.sin(headAngle + rad);
+        let headSvg = '';
+        
+        switch(s) {
+            case 1: { // 1. Klasik Keskin Ok
+                const h = baseH;
+                headSvg = `<polygon points="${tipX},${tipY} ${tipX - h * cos(-0.42)},${tipY - h * sin(-0.42)} ${tipX - h * cos(0.42)},${tipY - h * sin(0.42)}" ${fillStr} ${filterAttr} />`;
+                break;
+            }
+            case 2: { // 2. Stealth / Çentikli Kanat
+                const h = baseH * 1.1;
+                headSvg = `<polygon points="${tipX},${tipY} ${tipX - h * cos(-0.45)},${tipY - h * sin(-0.45)} ${tipX - (h*0.5)*cos(0)},${tipY - (h*0.5)*sin(0)} ${tipX - h * cos(0.45)},${tipY - h * sin(0.45)}" ${fillStr} ${filterAttr} />`;
+                break;
+            }
+            case 3: { // 3. Zarif Açık V
+                const h = baseH * 1.1;
+                const strokeW = Math.max(width * 1.1, 2.5);
+                headSvg = `<polyline points="${tipX - h * cos(-0.5)},${tipY - h * sin(-0.5)} ${tipX},${tipY} ${tipX - h * cos(0.5)},${tipY - h * sin(0.5)}" stroke="${color}" stroke-width="${strokeW}" fill="none" stroke-linecap="round" stroke-linejoin="round" ${filterAttr} />`;
+                break;
+            }
+            case 4: { // 4. Kalın Dolu Chevron
+                const h = baseH;
+                const thick = Math.max(width * 1.5, 5);
+                const p1x = tipX - h * cos(-0.5), p1y = tipY - h * sin(-0.5);
+                const p2x = tipX - (h - thick) * cos(-0.5) - thick * cos(0), p2y = tipY - (h - thick) * sin(-0.5) - thick * sin(0);
+                const p3x = tipX - thick * 1.2 * cos(0), p3y = tipY - thick * 1.2 * sin(0);
+                const p4x = tipX - (h - thick) * cos(0.5) - thick * cos(0), p4y = tipY - (h - thick) * sin(0.5) - thick * sin(0);
+                const p5x = tipX - h * cos(0.5), p5y = tipY - h * sin(0.5);
+                headSvg = `<polygon points="${tipX},${tipY} ${p1x},${p1y} ${p2x},${p2y} ${p3x},${p3y} ${p4x},${p4y} ${p5x},${p5y}" ${fillStr} ${filterAttr} />`;
+                break;
+            }
+            case 5: { // 5. Dolu Elmas
+                const h = baseH * 0.7;
+                headSvg = `<polygon points="${tipX},${tipY} ${tipX - h * cos(-0.5)},${tipY - h * sin(-0.5)} ${tipX - h * 2 * cos(0)},${tipY - h * 2 * sin(0)} ${tipX - h * cos(0.5)},${tipY - h * sin(0.5)}" ${fillStr} ${filterAttr} />`;
+                break;
+            }
+            case 6: { // 6. İçi Boş Elmas
+                const h = baseH * 0.7;
+                const strokeW = Math.max(width, 2);
+                headSvg = `<polygon points="${tipX},${tipY} ${tipX - h * cos(-0.5)},${tipY - h * sin(-0.5)} ${tipX - h * 2 * cos(0)},${tipY - h * 2 * sin(0)} ${tipX - h * cos(0.5)},${tipY - h * sin(0.5)}" stroke="${color}" stroke-width="${strokeW}" fill="none" ${filterAttr} />`;
+                break;
+            }
+            case 7: { // 7. Dairesel Dolu Nokta
+                headSvg = `<circle cx="${tipX}" cy="${tipY}" r="${baseW}" ${fillStr} ${filterAttr} />`;
+                break;
+            }
+            case 8: { // 8. Hedef / Halka
+                const strokeW = Math.max(width, 2.5);
+                headSvg = `<circle cx="${tipX}" cy="${tipY}" r="${baseW}" stroke="${color}" stroke-width="${strokeW}" fill="none" ${filterAttr} />`;
+                break;
+            }
+            case 9: { // 9. Kare Blok
+                const sSize = baseW * 1.6;
+                headSvg = `<g transform="translate(${tipX},${tipY}) rotate(${headAngle * 180 / Math.PI})" ${filterAttr}><rect x="${-sSize/2}" y="${-sSize/2}" width="${sSize}" height="${sSize}" ${fillStr} /></g>`;
+                break;
+            }
+            case 10: { // 10. İçi Boş Kare
+                const sSize = baseW * 1.6;
+                const strokeW = Math.max(width, 2);
+                headSvg = `<g transform="translate(${tipX},${tipY}) rotate(${headAngle * 180 / Math.PI})" ${filterAttr}><rect x="${-sSize/2}" y="${-sSize/2}" width="${sSize}" height="${sSize}" stroke="${color}" stroke-width="${strokeW}" fill="none" /></g>`;
+                break;
+            }
+            case 11: { // 11. T-Çizgi / Stoper
+                const barLen = Math.max(width * 5, 16);
+                const strokeW = Math.max(width * 1.1, 2.5);
+                headSvg = `<line x1="${tipX - (barLen/2) * cos(Math.PI/2)}" y1="${tipY - (barLen/2) * sin(Math.PI/2)}" x2="${tipX + (barLen/2) * cos(Math.PI/2)}" y2="${tipY + (barLen/2) * sin(Math.PI/2)}" stroke="${color}" stroke-width="${strokeW}" stroke-linecap="round" ${filterAttr} />`;
+                break;
+            }
+            case 12: { // 12. 45° Çapraz Kesit
+                const slashLen = Math.max(width * 5, 16);
+                const strokeW = Math.max(width * 1.1, 2.5);
+                headSvg = `<line x1="${tipX - (slashLen/2) * cos(Math.PI/4)}" y1="${tipY - (slashLen/2) * sin(Math.PI/4)}" x2="${tipX + (slashLen/2) * cos(Math.PI/4)}" y2="${tipY + (slashLen/2) * sin(Math.PI/4)}" stroke="${color}" stroke-width="${strokeW}" stroke-linecap="round" ${filterAttr} />`;
+                break;
+            }
+            case 13: { // 13. Çift Katman Ok
+                const h = baseH * 0.85;
+                const off = h * 0.8;
+                headSvg = `<polygon points="${tipX},${tipY} ${tipX - h * cos(-0.45)},${tipY - h * sin(-0.45)} ${tipX - h * cos(0.45)},${tipY - h * sin(0.45)}" ${fillStr} ${filterAttr} />`;
+                headSvg += `<polygon points="${tipX - off * cos(0)},${tipY - off * sin(0)} ${tipX - (off+h) * cos(-0.45)},${tipY - (off+h) * sin(-0.45)} ${tipX - (off+h) * cos(0.45)},${tipY - (off+h) * sin(0.45)}" ${fillStr} ${filterAttr} />`;
+                break;
+            }
+            case 14: { // 14. Üç Katman Akış
+                const h = baseH * 0.7;
+                const strokeW = Math.max(width, 2);
+                for (let i = 0; i < 3; i++) {
+                    const off = i * (h * 0.65);
+                    const tx = tipX - off * cos(0);
+                    const ty = tipY - off * sin(0);
+                    headSvg += `<polyline points="${tx - h * cos(-0.5)},${ty - h * sin(-0.5)} ${tx},${ty} ${tx - h * cos(0.5)},${ty - h * sin(0.5)}" stroke="${color}" stroke-width="${strokeW}" fill="none" stroke-linecap="round" stroke-linejoin="round" ${filterAttr} />`;
+                }
+                break;
+            }
+            case 15: { // 15. Kavisli Bıçak
+                const h = baseH * 1.1;
+                headSvg = `<polygon points="${tipX},${tipY} ${tipX - h * cos(-0.5)},${tipY - h * sin(-0.5)} ${tipX - (h*0.4)*cos(0)},${tipY - (h*0.4)*sin(0)} ${tipX - h * cos(0.5)},${tipY - h * sin(0.5)}" ${fillStr} ${filterAttr} />`;
+                break;
+            }
+            case 16: { // 16. Yumuşak Yuvarlak Üçgen
+                const h = baseH;
+                headSvg = `<polygon points="${tipX},${tipY} ${tipX - h * cos(-0.45)},${tipY - h * sin(-0.45)} ${tipX - h * cos(0.45)},${tipY - h * sin(0.45)}" ${fillStr} stroke="${color}" stroke-width="${Math.max(width, 2)}" stroke-linejoin="round" ${filterAttr} />`;
+                break;
+            }
+            case 17: { // 17. İğne Roket Dart
+                const h = baseH * 1.5;
+                headSvg = `<polygon points="${tipX},${tipY} ${tipX - h * cos(-0.28)},${tipY - h * sin(-0.28)} ${tipX - (h*0.65)*cos(0)},${tipY - (h*0.65)*sin(0)} ${tipX - h * cos(0.28)},${tipY - h * sin(0.28)}" ${fillStr} ${filterAttr} />`;
+                break;
+            }
+            case 18: { // 18. Harita Pini (Nokta-Ok)
+                if (isStart) {
+                    headSvg = `<circle cx="${tipX}" cy="${tipY}" r="${baseW}" ${fillStr} ${filterAttr} />`;
+                } else {
+                    const h = baseH;
+                    headSvg = `<polygon points="${tipX},${tipY} ${tipX - h * cos(-0.42)},${tipY - h * sin(-0.42)} ${tipX - h * cos(0.42)},${tipY - h * sin(0.42)}" ${fillStr} ${filterAttr} />`;
+                }
+                break;
+            }
+            case 19: { // 19. Çift Yönlü Mimari Ok
+                const h = baseH;
+                headSvg = `<polygon points="${tipX},${tipY} ${tipX - h * cos(-0.42)},${tipY - h * sin(-0.42)} ${tipX - h * cos(0.42)},${tipY - h * sin(0.42)}" ${fillStr} ${filterAttr} />`;
+                break;
+            }
+            case 20: { // 20. T-Bar ve Ok Kombosu
+                if (isStart) {
+                    const barLen = Math.max(width * 5, 16);
+                    const strokeW = Math.max(width * 1.1, 2.5);
+                    headSvg = `<line x1="${tipX - (barLen/2) * cos(Math.PI/2)}" y1="${tipY - (barLen/2) * sin(Math.PI/2)}" x2="${tipX + (barLen/2) * cos(Math.PI/2)}" y2="${tipY + (barLen/2) * sin(Math.PI/2)}" stroke="${color}" stroke-width="${strokeW}" stroke-linecap="round" ${filterAttr} />`;
+                } else {
+                    const h = baseH;
+                    headSvg = `<polygon points="${tipX},${tipY} ${tipX - h * cos(-0.42)},${tipY - h * sin(-0.42)} ${tipX - h * cos(0.42)},${tipY - h * sin(0.42)}" ${fillStr} ${filterAttr} />`;
+                }
+                break;
+            }
+            default: {
+                const h = baseH;
+                headSvg = `<polygon points="${tipX},${tipY} ${tipX - h * cos(-0.42)},${tipY - h * sin(-0.42)} ${tipX - h * cos(0.42)},${tipY - h * sin(0.42)}" ${fillStr} ${filterAttr} />`;
+                break;
+            }
+        }
+        return headSvg;
+    }
+    
+    let result = '';
+    const sId = parseInt(s) || 1;
+    if (sId === 18 || sId === 19 || sId === 20) {
+        result += renderSingleHead(x2, y2, angle, false);
+        result += renderSingleHead(x1, y1, angle + Math.PI, true);
+    } else {
+        if (dir === 'outward' || dir === 'both') {
+            result += renderSingleHead(x2, y2, angle, false);
+        }
+        if (dir === 'inward' || dir === 'both') {
+            result += renderSingleHead(x1, y1, angle + Math.PI, true);
+        }
+    }
+    return result;
+};
+
+// ==================== 🎯 OK STİLİ SEÇİCİ POPOVER ====================
+window.toggleArrowPicker = function(e) {
+    if (e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+    let popover = document.getElementById('arrowPickerPopover');
+    if (!popover) {
+        window.createArrowPickerPopover();
+        popover = document.getElementById('arrowPickerPopover');
+    }
+    if (!popover) return;
+    
+    const isVisible = popover.style.display === 'block';
+    if (isVisible) {
+        window.closeArrowPicker();
+    } else {
+        window.openArrowPicker(e);
+    }
+};
+
+window.openArrowPicker = function(e) {
+    let popover = document.getElementById('arrowPickerPopover');
+    if (!popover) {
+        window.createArrowPickerPopover();
+        popover = document.getElementById('arrowPickerPopover');
+    }
+    if (!popover) return;
+    
+    // Aktif kartı güncelle
+    const currId = window.currentSelectedArrowStyle || ($('arrowStyleSelect') ? parseInt($('arrowStyleSelect').value) : 1);
+    popover.querySelectorAll('.arrow-style-card').forEach(card => {
+        const id = parseInt(card.dataset.styleId);
+        card.classList.toggle('active', id === currId);
+    });
+    
+    // Konumlandırma
+    const btn = document.getElementById('dmArrow');
+    if (btn) {
+        const rect = btn.getBoundingClientRect();
+        let top = rect.bottom + 6;
+        let left = rect.left;
+        
+        // Ekrandan taşma kontrolü
+        if (left + 320 > window.innerWidth - 10) {
+            left = window.innerWidth - 330;
+        }
+        if (left < 10) left = 10;
+        if (top + 320 > window.innerHeight - 10) {
+            top = Math.max(10, rect.top - 320);
+        }
+        
+        popover.style.top = top + 'px';
+        popover.style.left = left + 'px';
+    }
+    popover.style.display = 'block';
+};
+
+window.closeArrowPicker = function() {
+    const popover = document.getElementById('arrowPickerPopover');
+    if (popover) popover.style.display = 'none';
+};
+
+window.selectArrowStyle = function(styleId) {
+    styleId = parseInt(styleId) || 1;
+    window.currentSelectedArrowStyle = styleId;
+    
+    // Form elemanlarını güncelle
+    if ($('arrowStyleSelect')) $('arrowStyleSelect').value = styleId;
+    if ($('deArrowStyle')) $('deArrowStyle').value = styleId;
+    
+    // Çizim modunu ok yap
+    setDrawMode('arrow');
+    
+    // Seçili ok varsa anında güncelle
+    if (typeof liveUpdateDrawEdit === 'function') {
+        liveUpdateDrawEdit();
+    }
+    
+    window.closeArrowPicker();
+};
+
+window.createArrowPickerPopover = function() {
+    if (document.getElementById('arrowPickerPopover')) return;
+    
+    const popover = document.createElement('div');
+    popover.id = 'arrowPickerPopover';
+    popover.className = 'arrow-picker-popover';
+    popover.style.display = 'none';
+    
+    let cardsHtml = '';
+    window.ARROW_STYLES.forEach(st => {
+        cardsHtml += `
+            <div class="arrow-style-card" data-style-id="${st.id}" onclick="window.selectArrowStyle(${st.id})" title="${st.name}: ${st.desc}">
+                <div class="arrow-style-svg">
+                    <svg viewBox="0 0 24 24" width="24" height="24" style="overflow:visible;">${st.iconSvg}</svg>
+                </div>
+                <div class="arrow-style-num">#${st.id}</div>
+            </div>
+        `;
+    });
+    
+    popover.innerHTML = `
+        <div class="arrow-picker-header">
+            <div class="arrow-picker-title">
+                <span>🏹 20 Profesyonel Ok Ucu</span>
+            </div>
+            <button type="button" class="arrow-picker-close" onclick="window.closeArrowPicker()">✕</button>
+        </div>
+        <div class="arrow-style-grid">
+            ${cardsHtml}
+        </div>
+    `;
+    
+    document.body.appendChild(popover);
+    
+    // Dışarı tıklanınca kapat
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('#arrowPickerPopover') && !e.target.closest('#dmArrow') && !e.target.closest('.dmb-caret')) {
+            window.closeArrowPicker();
+        }
+    });
+};
 
 function redrawAll(){
     const w=drawCanvas.width||1920;
@@ -1215,33 +1699,54 @@ window.liveUpdateDrawEdit = function(){
             const effectiveSvgWidth = Math.max(1, p.width / internalScale);
             const dotRadius = Math.max(2.5, Math.round((p.width * 0.75) / internalScale));
             
-            const mainShape = svg.querySelector('polygon, path, line, ellipse');
-            if (mainShape) {
-                mainShape.setAttribute('stroke', p.color);
-                mainShape.setAttribute('stroke-width', effectiveSvgWidth);
-                mainShape.setAttribute('stroke-opacity', p.opacity);
-                const isFillable = mainShape.tagName.toLowerCase() === 'polygon' || mainShape.tagName.toLowerCase() === 'ellipse' || (mainShape.tagName.toLowerCase() === 'path' && p.fillOpacity > 0);
-                if (isFillable) {
-                    mainShape.setAttribute('fill', p.fillOpacity > 0 ? p.fillColor : 'transparent');
-                    mainShape.setAttribute('fill-opacity', p.fillOpacity || 0);
+            if (p.type === 'arrow') {
+                const shaft = svg.querySelector('.arrow-shaft, line');
+                if (shaft) {
+                    const sx1 = parseFloat(shaft.getAttribute('x1')) || 0;
+                    const sy1 = parseFloat(shaft.getAttribute('y1')) || 0;
+                    const sx2 = parseFloat(shaft.getAttribute('x2')) || 0;
+                    const sy2 = parseFloat(shaft.getAttribute('y2')) || 0;
+                    shaft.setAttribute('stroke', p.color);
+                    shaft.setAttribute('stroke-width', effectiveSvgWidth);
+                    shaft.setAttribute('stroke-opacity', p.opacity);
+                    const dashArr = typeof getDash === 'function' ? getDash(p.dashStyle, effectiveSvgWidth) : [];
+                    if (dashArr.length > 0) shaft.setAttribute('stroke-dasharray', dashArr.join(','));
+                    else shaft.removeAttribute('stroke-dasharray');
+
+                    const oldHeads = svg.querySelectorAll('.arrow-heads-group, polygon:not(.main-polygon), polyline, circle, rect');
+                    oldHeads.forEach(h => h.remove());
+
+                    const a = Math.atan2(sy2 - sy1, sx2 - sx1);
+                    const fillStr = `fill="${p.color}"`;
+                    const headsHtml = window.renderSvgArrowHeadsGroup(sx1, sy1, sx2, sy2, a, effectiveSvgWidth, p.color, fillStr, (p.hasSaber ? `filter="url(#saber-glow-${editingDrawIndex})"` : ''), p.arrowStyle, p.arrowDir);
+                    const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                    g.className.baseVal = 'arrow-heads-group';
+                    g.innerHTML = headsHtml;
+                    svg.appendChild(g);
                 }
-                const dashArr = typeof getDash === 'function' ? getDash(p.dashStyle, effectiveSvgWidth) : [];
-                if (dashArr.length > 0) mainShape.setAttribute('stroke-dasharray', dashArr.join(','));
-                else mainShape.removeAttribute('stroke-dasharray');
+            } else {
+                const mainShape = svg.querySelector('polygon, path, line, ellipse');
+                if (mainShape) {
+                    mainShape.setAttribute('stroke', p.color);
+                    mainShape.setAttribute('stroke-width', effectiveSvgWidth);
+                    mainShape.setAttribute('stroke-opacity', p.opacity);
+                    const isFillable = mainShape.tagName.toLowerCase() === 'polygon' || mainShape.tagName.toLowerCase() === 'ellipse' || (mainShape.tagName.toLowerCase() === 'path' && p.fillOpacity > 0);
+                    if (isFillable) {
+                        mainShape.setAttribute('fill', p.fillOpacity > 0 ? p.fillColor : 'transparent');
+                        mainShape.setAttribute('fill-opacity', p.fillOpacity || 0);
+                    }
+                    const dashArr = typeof getDash === 'function' ? getDash(p.dashStyle, effectiveSvgWidth) : [];
+                    if (dashArr.length > 0) mainShape.setAttribute('stroke-dasharray', dashArr.join(','));
+                    else mainShape.removeAttribute('stroke-dasharray');
+                }
+                // Köşe noktaları (circle) - orantılı zarif boyutlandırma
+                const circles = svg.querySelectorAll('circle');
+                circles.forEach(c => {
+                    c.setAttribute('fill', p.color);
+                    c.setAttribute('r', dotRadius);
+                    c.style.display = p.showVertices ? 'block' : 'none';
+                });
             }
-            // Köşe noktaları (circle) - orantılı zarif boyutlandırma
-            const circles = svg.querySelectorAll('circle');
-            circles.forEach(c => {
-                c.setAttribute('fill', p.color);
-                c.setAttribute('r', dotRadius);
-                c.style.display = p.showVertices ? 'block' : 'none';
-            });
-            // Ok uçları
-            const arrowHeads = svg.querySelectorAll('polygon:not(:first-child), polyline');
-            arrowHeads.forEach(ah => {
-                ah.setAttribute('fill', p.color);
-                ah.setAttribute('stroke', p.color);
-            });
         }
     }
     
@@ -1334,7 +1839,6 @@ function createSVGFromPath(p) {
         const ry = Math.abs(p.y2 - p.y1)/2;
         body = `<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" ${styleStr} ${filterAttr} />`;
     } else if(p.type === 'line' || p.type === 'arrow') {
-        body = `<line x1="${p.x1 - minX}" y1="${p.y1 - minY}" x2="${p.x2 - minX}" y2="${p.y2 - minY}" ${styleStr} ${filterAttr} />`;
         if(p.type === 'arrow') {
             const a = Math.atan2(p.y2 - p.y1, p.x2 - p.x1);
             const x2 = p.x2 - minX, y2 = p.y2 - minY;
@@ -1342,60 +1846,10 @@ function createSVGFromPath(p) {
             const s = p.arrowStyle || 1;
             const dir = p.arrowDir || 'outward';
             
-            function renderSvgArrowHead(tipX, tipY, angle) {
-                let hw = p.width * 5;
-                const cos = (deg) => Math.cos(angle + deg * Math.PI / 180);
-                const sin = (deg) => Math.sin(angle + deg * Math.PI / 180);
-                let headSvg = '';
-                switch(s) {
-                    case 1:
-                        headSvg = `<polygon points="${tipX},${tipY} ${tipX - hw * cos(-30)},${tipY - hw * sin(-30)} ${tipX - hw * cos(30)},${tipY - hw * sin(30)}" ${fillStr} ${filterAttr} />`;
-                        break;
-                    case 2:
-                        hw = p.width * 6;
-                        headSvg = `<polyline points="${tipX - hw * cos(-30)},${tipY - hw * sin(-30)} ${tipX},${tipY} ${tipX - hw * cos(30)},${tipY - hw * sin(30)}" stroke="${p.color}" stroke-width="${p.width}" fill="none" stroke-linecap="round" stroke-linejoin="round" ${filterAttr} />`;
-                        break;
-                    case 3:
-                        hw = p.width * 5;
-                        headSvg = `<polygon points="${tipX},${tipY} ${tipX - hw * cos(-45)},${tipY - hw * sin(-45)} ${tipX - hw * cos(45)},${tipY - hw * sin(45)}" ${fillStr} ${filterAttr} />`;
-                        break;
-                    case 4:
-                        hw = p.width * 6;
-                        headSvg = `<polygon points="${tipX},${tipY} ${tipX - hw * cos(-30)},${tipY - hw * sin(-30)} ${tipX - hw/2 * cos(0)},${tipY - hw/2 * sin(0)} ${tipX - hw * cos(30)},${tipY - hw * sin(30)}" ${fillStr} ${filterAttr} />`;
-                        break;
-                    case 5:
-                        hw = p.width * 4;
-                        headSvg = `<polygon points="${tipX},${tipY} ${tipX - hw * cos(-30)},${tipY - hw * sin(-30)} ${tipX - hw*2 * cos(0)},${tipY - hw*2 * sin(0)} ${tipX - hw * cos(30)},${tipY - hw * sin(30)}" ${fillStr} ${filterAttr} />`;
-                        break;
-                    case 6:
-                        hw = p.width * 3;
-                        headSvg = `<circle cx="${tipX}" cy="${tipY}" r="${hw}" ${fillStr} ${filterAttr} />`;
-                        break;
-                    case 7:
-                        hw = p.width * 3;
-                        headSvg = `<g transform="translate(${tipX},${tipY}) rotate(${angle * 180 / Math.PI})" ${filterAttr}><rect x="${-hw}" y="${-hw}" width="${hw*2}" height="${hw*2}" ${fillStr} /></g>`;
-                        break;
-                    case 8:
-                        headSvg = `<polygon points="${tipX},${tipY} ${tipX - hw * cos(-30)},${tipY - hw * sin(-30)} ${tipX - hw * cos(30)},${tipY - hw * sin(30)}" ${fillStr} ${filterAttr} />`;
-                        headSvg += `<polygon points="${tipX - hw * cos(0)},${tipY - hw * sin(0)} ${tipX - hw * 2 * cos(-30)},${tipY - hw * 2 * sin(-30)} ${tipX - hw * 2 * cos(30)},${tipY - hw * 2 * sin(30)}" ${fillStr} ${filterAttr} />`;
-                        break;
-                    case 9:
-                        hw = p.width * 5;
-                        headSvg = `<line x1="${tipX - hw * cos(90)}" y1="${tipY - hw * sin(90)}" x2="${tipX + hw * cos(90)}" y2="${tipY + hw * sin(90)}" stroke="${p.color}" stroke-width="${p.width}" stroke-linecap="round" ${filterAttr} />`;
-                        break;
-                    default:
-                        headSvg = `<polygon points="${tipX},${tipY} ${tipX - hw * cos(-30)},${tipY - hw * sin(-30)} ${tipX - hw * cos(30)},${tipY - hw * sin(30)}" ${fillStr} ${filterAttr} />`;
-                        break;
-                }
-                return headSvg;
-            }
-            
-            if (dir === 'outward' || dir === 'both') {
-                body += renderSvgArrowHead(x2, y2, a);
-            }
-            if (dir === 'inward' || dir === 'both') {
-                body += renderSvgArrowHead(x1, y1, a + Math.PI);
-            }
+            body = `<line class="arrow-shaft" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" ${styleStr} ${filterAttr} />`;
+            body += `<g class="arrow-heads-group">` + window.renderSvgArrowHeadsGroup(x1, y1, x2, y2, a, p.width, p.color, fillStr, filterAttr, s, dir) + `</g>`;
+        } else {
+            body = `<line class="main-line" x1="${p.x1 - minX}" y1="${p.y1 - minY}" x2="${p.x2 - minX}" y2="${p.y2 - minY}" ${styleStr} ${filterAttr} />`;
         }
     }
 
@@ -1405,6 +1859,15 @@ function createSVGFromPath(p) {
     icon.className = 'cvi-item canva-el is-svg-icon editable-draw';
     icon.innerHTML = svgString;
     icon.dataset.label = 'Çizim: ' + p.type;
+    icon.dataset.drawType = p.type;
+    icon.dataset.drawColor = p.color;
+    icon.dataset.drawWidth = p.width;
+    icon.dataset.drawOpacity = p.opacity;
+    if (p.type === 'arrow') {
+        icon.dataset.arrowStyle = p.arrowStyle || 1;
+        icon.dataset.arrowDir = p.arrowDir || 'outward';
+    }
+    icon.dataset.pathIndex = drawPaths.indexOf(p);
     // Set aspect ratio correctly
     icon.style.width = w + 'px';
     icon.style.height = h + 'px';
@@ -1512,8 +1975,9 @@ window.showVertexHandles = function(el) {
     if (el.classList.contains('added-icon') || el.classList.contains('callout-wrap') || el.classList.contains('svg-callout')) return;
     const svg = el.querySelector('svg');
     if (!svg) return;
-    const polygon = svg.querySelector('polygon');
-    const lineEl = svg.querySelector('line');
+    const isArrow = (el.dataset.drawType === 'arrow') || (el.dataset.label && el.dataset.label.includes('arrow')) || !!svg.querySelector('.arrow-shaft');
+    const polygon = isArrow ? null : svg.querySelector('polygon.main-polygon, polygon');
+    const lineEl = svg.querySelector('line.arrow-shaft, line.main-line, line');
     
     let baseW = parseFloat(el.dataset.baseWidth) || el.offsetWidth;
     let baseH = parseFloat(el.dataset.baseHeight) || el.offsetHeight;
@@ -1533,7 +1997,12 @@ window.showVertexHandles = function(el) {
     }
     
     let points = [];
-    if (polygon) {
+    if (isArrow && lineEl) {
+        points = [
+            {x: parseFloat(lineEl.getAttribute('x1')), y: parseFloat(lineEl.getAttribute('y1'))},
+            {x: parseFloat(lineEl.getAttribute('x2')), y: parseFloat(lineEl.getAttribute('y2'))}
+        ];
+    } else if (polygon) {
         const ptsStr = polygon.getAttribute('points');
         if (ptsStr) {
             points = ptsStr.trim().split(/\s+/).map(p => {
@@ -1650,14 +2119,60 @@ window.showVertexHandles = function(el) {
     }
     
     if (lineEl && points.length >= 2) {
+        const updateArrowOrLineSvg = () => {
+            const nx1 = points[0].x, ny1 = points[0].y;
+            const nx2 = points[1].x, ny2 = points[1].y;
+            
+            lineEl.setAttribute('x1', nx1);
+            lineEl.setAttribute('y1', ny1);
+            lineEl.setAttribute('x2', nx2);
+            lineEl.setAttribute('y2', ny2);
+            
+            if (isArrow) {
+                let pIdx = parseInt(el.dataset.pathIndex);
+                let pObj = (typeof drawPaths !== 'undefined' && drawPaths[pIdx]) ? drawPaths[pIdx] : (typeof drawPaths !== 'undefined' ? drawPaths.find(dp => dp.el === el) : null);
+                
+                const pWidth = pObj ? pObj.width : (parseFloat(el.dataset.drawWidth) || 4);
+                const pColor = pObj ? pObj.color : (el.dataset.drawColor || lineEl.getAttribute('stroke') || '#ef4444');
+                const s = pObj ? (pObj.arrowStyle || 1) : (parseInt(el.dataset.arrowStyle) || 1);
+                const dir = pObj ? (pObj.arrowDir || 'outward') : (el.dataset.arrowDir || 'outward');
+                const filterAttr = (pObj && pObj.hasSaber) ? `filter="url(#saber-glow-${pIdx})"` : '';
+                const fillStr = `fill="${pColor}"`;
+                
+                const oldHeads = svg.querySelectorAll('.arrow-heads-group, polygon:not(.main-polygon), polyline, circle, rect');
+                oldHeads.forEach(h => h.remove());
+                
+                const a = Math.atan2(ny2 - ny1, nx2 - nx1);
+                const headsHtml = window.renderSvgArrowHeadsGroup(nx1, ny1, nx2, ny2, a, pWidth, pColor, fillStr, filterAttr, s, dir);
+                
+                const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                g.className.baseVal = 'arrow-heads-group';
+                g.innerHTML = headsHtml;
+                svg.appendChild(g);
+                
+                if (pObj) {
+                    const baseL = parseFloat(el.dataset.baseLeft) || 0;
+                    const baseT = parseFloat(el.dataset.baseTop) || 0;
+                    pObj.x1 = baseL + nx1;
+                    pObj.y1 = baseT + ny1;
+                    pObj.x2 = baseL + nx2;
+                    pObj.y2 = baseT + ny2;
+                    
+                    if (pObj.hasSaber && window.applySaberToPath) {
+                        applySaberToPath(pIdx, pObj.saberOptions);
+                    }
+                }
+            }
+        };
+
         const h1 = createHandle(points[0], 0, (nx, ny) => {
-            lineEl.setAttribute('x1', nx);
-            lineEl.setAttribute('y1', ny);
+            points[0] = {x: nx, y: ny};
+            updateArrowOrLineSvg();
         });
         
         const h2 = createHandle(points[1], 1, (nx, ny) => {
-            lineEl.setAttribute('x2', nx);
-            lineEl.setAttribute('y2', ny);
+            points[1] = {x: nx, y: ny};
+            updateArrowOrLineSvg();
         });
         
         container.appendChild(h1);

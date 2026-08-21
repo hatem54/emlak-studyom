@@ -102,8 +102,28 @@ function resizeCanvas(){
     
     const isMob = typeof window.isMobileDevice === 'function' ? window.isMobileDevice() : window.innerWidth <= 768;
     const isLand = isMob && window.innerWidth > window.innerHeight;
-    const availableW = isMob ? (isLand ? window.innerWidth - 40 : window.innerWidth) : (pa.clientWidth || window.innerWidth);
-    let availableH = isMob ? (isLand ? window.innerHeight - 40 : (window.innerHeight - 135)) : (window.innerHeight - 150);
+    
+    let availableW = 1000;
+    let availableH = 600;
+
+    if (isMob) {
+        availableW = isLand ? window.innerWidth - 40 : window.innerWidth;
+        availableH = isLand ? window.innerHeight - 40 : (window.innerHeight - 135);
+    } else {
+        // Masaüstü: preview-area içindeki gerçek alanı, alt dock çubuğunu ve ipucu metnini dinamik hesapla
+        const dockEl = document.getElementById('canvasBottomDock');
+        const hintEl = document.getElementById('canvasHint');
+        const dockH = (dockEl && dockEl.offsetParent !== null) ? (dockEl.offsetHeight + 24) : 75;
+        const hintH = (hintEl && hintEl.offsetParent !== null) ? (hintEl.offsetHeight + 10) : 25;
+        const safetyPadding = 25;
+
+        const pRect = pa.getBoundingClientRect();
+        const baseContainerH = pRect.height > 100 ? pRect.height : (window.innerHeight - 80);
+        const baseContainerW = pRect.width > 100 ? pRect.width : (window.innerWidth - 320);
+
+        availableW = Math.max(200, baseContainerW - 40);
+        availableH = Math.max(200, baseContainerH - dockH - hintH - safetyPadding);
+    }
     
     const scaleW = availableW / canvasW;
     const scaleH = availableH / canvasH;

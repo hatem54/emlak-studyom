@@ -106,6 +106,7 @@ function bindDrag(el){
     });
 
     function down(e){
+        if (e.type === 'mousedown' && e.button !== 0) return; // Sağ tık sürüklemeyi ve seçimi bozmasın
         if(typeof window._rotUp === 'function') window._rotUp();
         window.isLongPressOpen = false;
         if (typeof drawMode !== 'undefined' && drawMode !== null && drawMode !== 'off') return;
@@ -132,12 +133,16 @@ function bindDrag(el){
         
         if(el.dataset.editingText)return;
           
-          let wasSelected = true;
-          if (!window.selectedElements || !window.selectedElements.includes(el)) {
-              wasSelected = false;
-              if (typeof selectElement === 'function') selectElement(el, multiSelectKey, true);
-              e.preventDefault();
-          }
+        let wasSelected = true;
+        const isAlreadySelected = window.selectedElements && (
+            window.selectedElements.includes(el) ||
+            window.selectedElements.some(s => s === el || (s && (s.contains(el) || el.contains(s))))
+        );
+
+        if (!isAlreadySelected) {
+            wasSelected = false;
+            if (typeof selectElement === 'function') selectElement(el, multiSelectKey, true);
+        }
           
         e.preventDefault();
         e.stopPropagation();
@@ -311,10 +316,10 @@ function bindDrag(el){
         el.classList.remove('dragging');
         const clickDuration=Date.now()-downTime;
         if(!moved && drawMode==='off' && typeof selectElement === 'function') {
-                if (!multiSelectKey) {
-                    selectElement(el, false, true);
-                }
+            if (!multiSelectKey && (!window.selectedElements || window.selectedElements.length <= 1)) {
+                selectElement(el, false, true);
             }
+        }
             
             // --- ADDED LOGIC FOR DRAWING STICKINESS AFTER DRAG ---
             if (moved && window.selectedElements) {

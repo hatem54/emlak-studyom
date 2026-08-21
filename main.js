@@ -301,11 +301,15 @@ window.clearBgImage = function() {
         const renderCanvas = photoLayer.querySelector('.photo-render-canvas');
         if (renderCanvas) renderCanvas.remove();
 
-        // State'i sıfırla ki yeni fotoğraf temiz yüklensin
         photoLayer.dataset.zpReady = '0';
         photoLayer.dataset.zpScale = 1;
         photoLayer.dataset.zpX = 0;
         photoLayer.dataset.zpY = 0;
+        photoLayer.dataset.savedBg = '';
+        if (photoLayer._nativeImg) photoLayer._nativeImg = null;
+        if (photoLayer._nativeImgSrc) photoLayer._nativeImgSrc = '';
+        window._globalNativeImg = null;
+        window._globalNativeImgSrc = '';
 
     }
 
@@ -380,15 +384,40 @@ function bindInputs(){
                     const r = new FileReader();
                     r.onload = ev => {
                         uploadedImgUrl = ev.target.result;
-                        photoLayer.style.backgroundImage = `url('${ev.target.result}')`;
+                        window.uploadedImgUrl = ev.target.result;
+
+                        // Eski fotoğraf önbelleklerini temizle ve yeni görseli tüm katmanlara ata
+                        document.querySelectorAll('.photo-panel, #photo-layer').forEach(p => {
+                            p._nativeImg = null;
+                            p._nativeImgSrc = '';
+                            p.dataset.savedBg = `url('${uploadedImgUrl}')`;
+                            const inner = p.querySelector('.photo-inner-zoom');
+                            if (inner) inner.style.backgroundImage = `url('${uploadedImgUrl}')`;
+                            p.style.backgroundImage = 'none';
+                        });
 
                         // PRELOAD NATIVE IMAGE FOR INSTANT CANVAS RENDERING
                         window._globalNativeImgSrc = uploadedImgUrl;
                         window._globalNativeImg = new Image();
-                        window._globalNativeImg.onload = () => console.log('Preloaded global image for instant drag');
+                        window._globalNativeImg.onload = () => {
+                            document.querySelectorAll('.photo-panel, #photo-layer').forEach(p => {
+                                if (typeof _applyPhotoTransform === 'function') _applyPhotoTransform(p);
+                            });
+                            if (typeof redrawAll === 'function') redrawAll();
+                        };
                         window._globalNativeImg.src = uploadedImgUrl;
 
                         const onPhotoReady = () => {
+                            document.querySelectorAll('.photo-panel, #photo-layer').forEach(p => {
+                                p._nativeImg = null;
+                                p._nativeImgSrc = '';
+                                p.dataset.savedBg = `url('${uploadedImgUrl}')`;
+                                const inner = p.querySelector('.photo-inner-zoom');
+                                if (inner) inner.style.backgroundImage = `url('${uploadedImgUrl}')`;
+                                p.style.backgroundImage = 'none';
+                                if (typeof _applyPhotoTransform === 'function') _applyPhotoTransform(p);
+                            });
+
                             if (isCanvaMode) {
                                 if (typeof refreshActiveCanvaTemplate === 'function') refreshActiveCanvaTemplate();
                                 else if (typeof buildCanvaRender === 'function') buildCanvaRender();
@@ -405,6 +434,7 @@ function bindInputs(){
                                 window.isPhotoLocked = true;
                             }
                             if (typeof resetPixelCache === 'function') resetPixelCache();
+                            if (typeof redrawAll === 'function') redrawAll();
                             setTimeout(() => {
                                 if (typeof window.hideAppLoading === 'function') window.hideAppLoading(60);
                             }, 120);

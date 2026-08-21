@@ -377,9 +377,28 @@ window.createFramedBadgeOnCanvas = function(text, styleType = 'modern') {
     el.style.borderRadius = baseRadius + 'px';
     el.style.letterSpacing = '0.3px';
     el.style.cursor = 'move';
-    el.style.position = 'absolute';
-    el.style.left = Math.round(120 * formatRatio) + 'px';
-    el.style.top = Math.round((120 + Math.floor(Math.random() * 80)) * formatRatio) + 'px';
+    // Akıllı Yerleşim: Üst üste binmeyi önle, önceki rozetlerin altına muntazam ekle
+    const existingBadges = Array.from(uiLayer.querySelectorAll('.draggable, .canvas-el, .cvi-item')).filter(e => e.style.display !== 'none');
+    let startLeft = Math.round(120 * formatRatio);
+    let startTop = Math.round(120 * formatRatio);
+
+    if (existingBadges.length > 0) {
+        let maxBottom = 0;
+        existingBadges.forEach(b => {
+            const bT = parseFloat(b.style.top) || b.offsetTop || 0;
+            const bH = b.offsetHeight || parseFloat(b.style.height) || Math.round(52 * formatRatio);
+            const bL = parseFloat(b.style.left) || b.offsetLeft || 0;
+            if (Math.abs(bL - startLeft) < Math.round(200 * formatRatio)) {
+                if (bT + bH > maxBottom) maxBottom = bT + bH;
+            }
+        });
+        if (maxBottom > 0) {
+            startTop = maxBottom + Math.round(14 * formatRatio);
+        }
+    }
+
+    el.style.left = startLeft + 'px';
+    el.style.top = startTop + 'px';
     el.style.zIndex = '9999';
     el.style.display = 'block';
     el.style.textAlign = 'center';

@@ -247,7 +247,11 @@ const handleMarqueeEnd = function(e) {
             if (!multiSelectKey && typeof deselectAll === 'function') {
                 deselectAll();
             }
-            const elements = document.querySelectorAll('.cvi-item, .co-neon-block, .draggable, .added-icon, .canvas-el, .editable-draw');
+            const rawElements = Array.from(document.querySelectorAll('.cvi-item, .co-neon-block, .draggable, .added-icon, .canvas-el, .editable-draw'));
+            // Sadece en üst seviye elemanları seç (iç içe seçimi ve çift sayımı önle)
+            const elements = rawElements.filter(el => {
+                return !rawElements.some(parent => parent !== el && parent.contains(el));
+            });
             let selectedAny = false;
             let lastEl = null;
             

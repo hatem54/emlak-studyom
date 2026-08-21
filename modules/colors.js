@@ -228,12 +228,21 @@ function applyPixelAdjustments() {
         targetEls.forEach(targetEl => {
             if (rawImg) targetEl.style.backgroundImage = 'url("' + rawImg + '")';
             let parent = targetEl.classList.contains('photo-inner-zoom') ? targetEl.parentElement : targetEl;
+            if (parent) {
+                if (rawImg) parent.dataset.savedBg = 'url("' + rawImg + '")';
+                parent.style.backgroundImage = 'none';
+            }
             if (typeof _applyPhotoTransform === 'function') _applyPhotoTransform(parent);
         });
-        if (typeof photoLayer !== 'undefined' && photoLayer && rawImg) photoLayer.style.backgroundImage = 'url("' + rawImg + '")';
+        if (typeof photoLayer !== 'undefined' && photoLayer) {
+            if (rawImg) photoLayer.dataset.savedBg = 'url("' + rawImg + '")';
+            photoLayer.style.backgroundImage = 'none';
+        }
         document.querySelectorAll('.photo-panel').forEach(p => {
             let inner = p.querySelector('.photo-inner-zoom') || p;
             if (rawImg) inner.style.backgroundImage = 'url("' + rawImg + '")';
+            p.dataset.savedBg = 'url("' + rawImg + '")';
+            p.style.backgroundImage = 'none';
             if (typeof _applyPhotoTransform === 'function') _applyPhotoTransform(p);
         });
         return;
@@ -256,12 +265,21 @@ function applyPixelAdjustments() {
         targetEls.forEach(targetEl => {
             if (rawImg) targetEl.style.backgroundImage = 'url("' + rawImg + '")';
             let parent = targetEl.classList.contains('photo-inner-zoom') ? targetEl.parentElement : targetEl;
+            if (parent) {
+                if (rawImg) parent.dataset.savedBg = 'url("' + rawImg + '")';
+                parent.style.backgroundImage = 'none';
+            }
             if (typeof _applyPhotoTransform === 'function') _applyPhotoTransform(parent);
         });
-        if (typeof photoLayer !== 'undefined' && photoLayer && rawImg) photoLayer.style.backgroundImage = 'url("' + rawImg + '")';
+        if (typeof photoLayer !== 'undefined' && photoLayer) {
+            if (rawImg) photoLayer.dataset.savedBg = 'url("' + rawImg + '")';
+            photoLayer.style.backgroundImage = 'none';
+        }
         document.querySelectorAll('.photo-panel').forEach(p => {
             let inner = p.querySelector('.photo-inner-zoom') || p;
             if (rawImg) inner.style.backgroundImage = 'url("' + rawImg + '")';
+            p.dataset.savedBg = 'url("' + rawImg + '")';
+            p.style.backgroundImage = 'none';
             if (typeof _applyPhotoTransform === 'function') _applyPhotoTransform(p);
         });
         return;
@@ -278,6 +296,10 @@ function applyPixelAdjustments() {
     targetEls.forEach(targetEl => {
         targetEl.style.backgroundImage = 'url("' + dataUrl + '")';
         let parent = targetEl.classList.contains('photo-inner-zoom') ? targetEl.parentElement : targetEl;
+        if (parent) {
+            parent.dataset.savedBg = 'url("' + dataUrl + '")';
+            parent.style.backgroundImage = 'none';
+        }
         if (typeof _applyPhotoTransform === 'function') _applyPhotoTransform(parent);
     });
 }

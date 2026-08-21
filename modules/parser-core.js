@@ -853,6 +853,9 @@
             // Adım 6: Canlı Tuval Güncellemesi ve Otomatik Kayıt
             if (typeof window.renderData === 'function') window.renderData();
             if (typeof window.refreshActiveCanvaTemplate === 'function') window.refreshActiveCanvaTemplate();
+            if (typeof window.applyParsedDataToJsonTemplate === 'function') {
+                window.applyParsedDataToJsonTemplate(result);
+            }
 
             // Eğer kullanıcı standart şablon modundaysa elemanları görünür yap ve güncelle
             if (typeof activeLayout !== 'undefined' && activeLayout && (!window.isCanvaMode)) {

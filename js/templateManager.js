@@ -2,6 +2,7 @@ console.log('🚀 templateManager.js yükleniyor...');
 
 const TEMPLATE_CATEGORIES = [
     { id: 'favorites', name: '⭐ Favori Şablonlar' },
+    { id: 'pro_json', name: '👑 PRO JSON Kütüphanesi (40+)' },
     { id: 'elit', name: '💎 Elit (Canva)' },
     { id: 'kolaj', name: '🖼️ Kolaj' },
     { id: 'minimal', name: '✨ Minimal' },
@@ -175,6 +176,14 @@ function initTemplateManager() {
         item.appendChild(header);
         item.appendChild(content);
         container.appendChild(item);
+
+        if (cat.id === 'pro_json') {
+            setTimeout(() => {
+                if (typeof window.renderProJsonTemplatesTab === 'function') {
+                    window.renderProJsonTemplatesTab(content);
+                }
+            }, 100);
+        }
     });
     
     const observer = new MutationObserver((mutations) => {

@@ -2,7 +2,6 @@ console.log('🚀 templateManager.js yükleniyor...');
 
 const TEMPLATE_CATEGORIES = [
     { id: 'favorites', name: '⭐ Favori Şablonlar' },
-    { id: 'pro_json', name: '👑 PRO JSON Kütüphanesi (40+)' },
     { id: 'elit', name: '💎 Elit (Canva)' },
     { id: 'kolaj', name: '🖼️ Kolaj' },
     { id: 'minimal', name: '✨ Minimal' },
@@ -176,14 +175,6 @@ function initTemplateManager() {
         item.appendChild(header);
         item.appendChild(content);
         container.appendChild(item);
-
-        if (cat.id === 'pro_json') {
-            setTimeout(() => {
-                if (typeof window.renderProJsonTemplatesTab === 'function') {
-                    window.renderProJsonTemplatesTab(content);
-                }
-            }, 100);
-        }
     });
     
     const observer = new MutationObserver((mutations) => {
@@ -228,6 +219,9 @@ initTemplateManager();
 // Global erişilebilir fonksiyon - draw.js de kullanır
 window.arrangeLayers = function(baseNode) {
     if (!baseNode) return;
+    if (window.activeJsonTemplateId || (baseNode.classList && baseNode.classList.contains('pro-json-el')) || baseNode.querySelector('.pro-json-el')) {
+        return;
+    }
     
     // Orijinal yapıyı bozmadan yazıları yerinde sürüklenebilir yap (In-place draggable)
     const editables = baseNode.querySelectorAll('.editable-text:not(.drag-bound)');
@@ -327,6 +321,7 @@ window.arrangeLayers = function(baseNode) {
         }
         
         const observer = new MutationObserver(() => {
+            if (window.activeJsonTemplateId || targetNode.querySelector('.pro-json-el')) return;
             const base = targetNode.querySelector('.cvr-base') || targetNode;
             window.arrangeLayers(base);
         });

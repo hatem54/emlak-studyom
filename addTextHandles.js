@@ -92,7 +92,17 @@ window.addTextHandles = function(el) {
             isDeleting = true;
             el.style.opacity = '0';
             setTimeout(() => {
-                el.remove();
+                if (el.id === 'elLogo' || el.classList.contains('sh-logo')) {
+                    if (typeof clearLogoImage === 'function') {
+                        clearLogoImage();
+                    } else {
+                        el.style.display = 'none';
+                        el.style.visibility = 'hidden';
+                    }
+                    el.style.opacity = '1';
+                } else {
+                    el.remove();
+                }
                 if(typeof deselectAll === 'function') deselectAll();
                 if(typeof saveState === 'function') saveState();
             }, 300);
@@ -154,24 +164,31 @@ window.addTextHandles = function(el) {
                 dy = -rawDx * sin + rawDy * cos;
             }
             
-            const ratio = Math.max(0.2, (startW + dx) / Math.max(1, startW));
-            const newFontSize = Math.max(8, Math.round(startFontSize * ratio));
-            el.style.fontSize = newFontSize + 'px';
+            const ratio = Math.max(0.1, (startW + dx) / Math.max(1, startW));
             
             if (el.dataset.label === 'Özel Kutu') {
                 el.style.width = Math.max(30, startW + dx) + 'px';
                 el.style.height = Math.max(30, startH + dy) + 'px';
-            } else if (el.style.width && el.style.width !== 'auto') {
-                el.style.width = Math.max(40, Math.round(startW * ratio)) + 'px';
-                if (el.style.minHeight && el.style.minHeight !== 'auto') {
-                    el.style.minHeight = Math.max(20, Math.round(startH * ratio)) + 'px';
+            } else if (el.id === 'elLogo' || el.classList.contains('sh-logo') || el.querySelector('img') || el.tagName === 'IMG') {
+                const newW = Math.max(30, Math.round(startW * ratio));
+                el.style.width = newW + 'px';
+                el.style.height = 'auto';
+            } else {
+                const newFontSize = Math.max(8, Math.round(startFontSize * ratio));
+                el.style.fontSize = newFontSize + 'px';
+                if (el.style.width && el.style.width !== 'auto') {
+                    el.style.width = Math.max(40, Math.round(startW * ratio)) + 'px';
+                    if (el.style.minHeight && el.style.minHeight !== 'auto') {
+                        el.style.minHeight = Math.max(20, Math.round(startH * ratio)) + 'px';
+                    }
                 }
             }
             
             // Update font slider if panel is active
             if (typeof selectedEl !== 'undefined' && selectedEl === el) {
                 const fsSlider = document.getElementById('elFontSize') || document.getElementById('fontSize');
-                if (fsSlider) {
+                if (fsSlider && !el.querySelector('img') && el.id !== 'elLogo') {
+                    const newFontSize = parseFloat(el.style.fontSize) || 16;
                     fsSlider.value = newFontSize;
                     const fsVal = document.getElementById('elFontSizeVal') || document.getElementById('fontSizeVal');
                     if (fsVal) fsVal.textContent = newFontSize + 'px';
@@ -214,16 +231,20 @@ window.addTextHandles = function(el) {
             e.stopPropagation();
             if (Date.now() - lastToggle < 300) return;
             lastToggle = Date.now();
-            if (window.layerToggleLock) {
-                if(!el.dataset.layerUid) {
-                    el.dataset.layerUid = 'layer_' + Math.random().toString(36).substr(2, 9);
-                }
-                window.layerToggleLock(el.dataset.layerUid);
-                const nowLocked = el.dataset.locked === 'true' || el.classList.contains('locked-el');
-                lock.innerHTML = nowLocked ? lockSvg : unlockSvg;
-                lock.title = nowLocked ? 'Kilidi Aç' : 'Kilitle';
-                lock.classList.toggle('is-locked', nowLocked);
+            if(!el.dataset.layerUid) {
+                el.dataset.layerUid = 'layer_' + Math.random().toString(36).substr(2, 9);
             }
+            if (typeof window.layerToggleLock === 'function') {
+                window.layerToggleLock(el.dataset.layerUid);
+            } else {
+                const isCurrentlyLocked = el.dataset.locked === 'true';
+                el.dataset.locked = isCurrentlyLocked ? 'false' : 'true';
+            }
+            const nowLocked = el.dataset.locked === 'true' || el.classList.contains('locked-el');
+            lock.innerHTML = nowLocked ? lockSvg : unlockSvg;
+            lock.title = nowLocked ? 'Kilidi Aç' : 'Kilitle';
+            lock.classList.toggle('is-locked', nowLocked);
+            if(typeof saveState === 'function') saveState();
         };
         
         const stopDown = function(e) { e.preventDefault(); e.stopPropagation(); };

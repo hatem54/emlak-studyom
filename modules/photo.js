@@ -285,12 +285,8 @@ function _preparePhoto(el){
     var bg = el.style.backgroundImage;
     if(bg && bg !== 'none') {
         inner.style.backgroundImage = bg;
-        el.dataset.savedBg = bg;
-        el.style.backgroundImage = 'none';
     } else if (typeof uploadedImgUrl !== 'undefined' && uploadedImgUrl) {
         inner.style.backgroundImage = "url('" + uploadedImgUrl + "')";
-        el.dataset.savedBg = "url('" + uploadedImgUrl + "')";
-        el.style.backgroundImage = 'none';
     }
     
     _applyPhotoTransform(el);
@@ -325,19 +321,10 @@ function _applyPhotoTransform(el){
 }
 
 function _drawToNativeCanvas(el, inner, canvas, scale, panX, panY, sliderX, sliderY) {
-    let globalImgUrl = (typeof uploadedImgUrl !== 'undefined' && uploadedImgUrl) ? uploadedImgUrl : '';
-    let rawBg = (inner && inner.style.backgroundImage) || el.dataset.savedBg || el.style.backgroundImage || '';
-    
-    if (globalImgUrl) {
-        let currentUrlInInner = rawBg.replace(/^url\(["']?/, '').replace(/["']?\)$/, '');
-        if (!rawBg || rawBg === 'none' || (el.id === 'photo-layer' && currentUrlInInner !== globalImgUrl)) {
-            rawBg = "url('" + globalImgUrl + "')";
-            if (inner) inner.style.backgroundImage = rawBg;
-            el.dataset.savedBg = rawBg;
-        }
-    }
-    if (el.style.backgroundImage && el.style.backgroundImage !== 'none') {
-        el.style.backgroundImage = 'none';
+    let rawBg = inner.style.backgroundImage || el.style.backgroundImage || '';
+    if ((!rawBg || rawBg === 'none') && typeof uploadedImgUrl !== 'undefined' && uploadedImgUrl) {
+        rawBg = "url('" + uploadedImgUrl + "')";
+        inner.style.backgroundImage = rawBg;
     }
     
     let imgUrl = rawBg.replace(/^url\(["']?/, '').replace(/["']?\)$/, '');

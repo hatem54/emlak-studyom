@@ -78,8 +78,20 @@ function openObjectContextMenu(targetElement, isText, clientX, clientY) {
         </div>
     `;
 
-    // Katman Sırası: En Öne / En Arkaya
+    // Döndürme, Boyutlandırma, Sıralama, Çoğalt
     html += `
+        <button class="app-context-item" id="acm-single-rot-cw">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+            <span>Döndür (90° Sağa)</span>
+        </button>
+        <button class="app-context-item" id="acm-single-scale-up">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+            <span>Büyüt (+15%)</span>
+        </button>
+        <button class="app-context-item" id="acm-single-scale-down">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2"><polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="14" y1="10" x2="21" y2="3"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+            <span>Küçült (-15%)</span>
+        </button>
         <button class="app-context-item item-front" id="acm-front">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#00d2ff" stroke-width="2.2"><polyline points="17 11 12 6 7 11"></polyline><polyline points="17 18 12 13 7 18"></polyline></svg>
             <span>En Öne Getir</span>
@@ -141,7 +153,8 @@ function openObjectContextMenu(targetElement, isText, clientX, clientY) {
     let didDrag = false;
     const onDocClick = (e) => {
         if (didDrag) return;
-        if (!menu.contains(e.target)) closeMenu();
+        if (e.target && (e.target.closest('#app-custom-context-menu') || menu.contains(e.target))) return;
+        closeMenu();
     };
     const onKeyDown = (e) => {
         if (e.key === 'Escape') closeMenu();
@@ -204,83 +217,118 @@ function openObjectContextMenu(targetElement, isText, clientX, clientY) {
         });
     }
 
+    const bindBtn = (id, fn) => {
+        const btn = menu.querySelector(id);
+        if (btn) {
+            const trigger = (e) => {
+                if (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                }
+                closeMenu();
+                setTimeout(() => {
+                    try {
+                        fn();
+                    } catch (err) {
+                        console.error('Single context menu action error for ' + id + ':', err);
+                    }
+                }, 10);
+            };
+            btn.addEventListener('click', trigger);
+        }
+    };
+
     // Event Handlers
-    const delBtn = menu.querySelector('#acm-delete');
-    if (delBtn) {
-        delBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            closeMenu();
-            targetElement.remove();
-            if (typeof updateDrawHistory === 'function') updateDrawHistory();
-            if (typeof deselectAll === 'function') deselectAll();
-            if (typeof renderLayers === 'function') renderLayers();
-        });
-    }
+    bindBtn('#acm-delete', () => {
+        targetElement.remove();
+        if (typeof drawPaths !== 'undefined') {
+            const idx = drawPaths.findIndex(p => p.el === targetElement);
+            if (idx > -1) drawPaths.splice(idx, 1);
+        }
+        if (typeof redrawAll === 'function') redrawAll();
+        if (typeof updateDrawHistory === 'function') updateDrawHistory();
+        if (typeof deselectAll === 'function') deselectAll();
+        if (typeof renderLayers === 'function') renderLayers();
+    });
 
-    const lockBtn = menu.querySelector('#acm-lock');
-    if (lockBtn) {
-        lockBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            closeMenu();
-            if (!targetElement.dataset.layerUid) {
-                targetElement.dataset.layerUid = 'layer_' + Math.random().toString(36).substr(2, 9);
+    bindBtn('#acm-lock', () => {
+        const isLocked = targetElement.dataset.locked === 'true' || targetElement.classList.contains('locked-el');
+        targetElement.dataset.locked = isLocked ? 'false' : 'true';
+        if (isLocked) {
+            targetElement.classList.remove('locked-el');
+        } else {
+            targetElement.classList.add('locked-el');
+        }
+        if (!targetElement.dataset.layerUid) {
+            targetElement.dataset.layerUid = 'layer_' + Math.random().toString(36).substr(2, 9);
+        }
+        if (typeof window.layerToggleLock === 'function') {
+            window.layerToggleLock(targetElement.dataset.layerUid);
+        }
+        if (typeof renderLayers === 'function') renderLayers();
+    });
+
+    bindBtn('#acm-front', () => {
+        const parent = targetElement.parentElement;
+        if (parent) parent.appendChild(targetElement);
+        if (targetElement.classList.contains('editable-draw') && typeof drawPaths !== 'undefined') {
+            const idx = drawPaths.findIndex(p => p.el === targetElement);
+            if (idx > -1) {
+                const p = drawPaths.splice(idx, 1)[0];
+                drawPaths.push(p);
             }
-            if (typeof window.layerToggleLock === 'function') {
-                window.layerToggleLock(targetElement.dataset.layerUid);
+        }
+        if (typeof redrawAll === 'function') redrawAll();
+        if (typeof updateDrawHistory === 'function') updateDrawHistory();
+        if (typeof renderLayers === 'function') renderLayers();
+    });
+
+    bindBtn('#acm-back', () => {
+        const parent = targetElement.parentElement;
+        if (parent && parent.firstChild) parent.insertBefore(targetElement, parent.firstChild);
+        if (targetElement.classList.contains('editable-draw') && typeof drawPaths !== 'undefined') {
+            const idx = drawPaths.findIndex(p => p.el === targetElement);
+            if (idx > -1) {
+                const p = drawPaths.splice(idx, 1)[0];
+                drawPaths.unshift(p);
             }
-        });
-    }
+        }
+        if (typeof redrawAll === 'function') redrawAll();
+        if (typeof updateDrawHistory === 'function') updateDrawHistory();
+        if (typeof renderLayers === 'function') renderLayers();
+    });
 
-    const frontBtn = menu.querySelector('#acm-front');
-    if (frontBtn) {
-        frontBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            closeMenu();
-            const parent = targetElement.parentElement;
-            if (parent) parent.appendChild(targetElement);
+    bindBtn('#acm-single-rot-cw', () => {
+        window.selectedElements = [targetElement];
+        if (window.multiSelectRotate) window.multiSelectRotate(90);
+    });
+
+    bindBtn('#acm-single-scale-up', () => {
+        window.selectedElements = [targetElement];
+        if (window.multiSelectScale) window.multiSelectScale(1.15);
+    });
+
+    bindBtn('#acm-single-scale-down', () => {
+        window.selectedElements = [targetElement];
+        if (window.multiSelectScale) window.multiSelectScale(0.85);
+    });
+
+    bindBtn('#acm-edit', () => {
+        const textEl = targetElement.querySelector('.callout-text, .co-neon-text, span, div') || targetElement;
+        const curVal = textEl.innerText || textEl.textContent || '';
+        const newT = prompt('Metni düzenleyin:', curVal);
+        if (newT !== null && newT !== undefined) {
+            if (textEl !== targetElement) textEl.innerText = newT;
+            else targetElement.innerText = newT;
             if (typeof updateDrawHistory === 'function') updateDrawHistory();
-            if (typeof renderLayers === 'function') renderLayers();
-        });
-    }
-
-    const backBtn = menu.querySelector('#acm-back');
-    if (backBtn) {
-        backBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            closeMenu();
-            const parent = targetElement.parentElement;
-            if (parent && parent.firstChild) parent.insertBefore(targetElement, parent.firstChild);
-            if (typeof updateDrawHistory === 'function') updateDrawHistory();
-            if (typeof renderLayers === 'function') renderLayers();
-        });
-    }
-
-    const editBtn = menu.querySelector('#acm-edit');
-    if (editBtn) {
-        editBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            closeMenu();
-            const textEl = targetElement.querySelector('.callout-text, .co-neon-text, span, div') || targetElement;
-            const curVal = textEl.innerText || textEl.textContent || '';
-            const newT = prompt('Metni düzenleyin:', curVal);
-            if (newT !== null && newT !== undefined) {
-                if (textEl !== targetElement) textEl.innerText = newT;
-                else targetElement.innerText = newT;
-                if (typeof updateDrawHistory === 'function') updateDrawHistory();
-            }
-        });
-    }
+        }
+    });
 
     const bindPos = (id, posName) => {
-        const b = menu.querySelector(id);
-        if (b) {
-            b.addEventListener('click', (e) => {
-                e.stopPropagation();
-                closeMenu();
-                window.selectedElements = [targetElement];
-                if (window.multiSelectPositionOnPage) window.multiSelectPositionOnPage(posName);
-            });
-        }
+        bindBtn(id, () => {
+            window.selectedElements = [targetElement];
+            if (window.multiSelectPositionOnPage) window.multiSelectPositionOnPage(posName);
+        });
     };
 
     bindPos('#acm-single-top-left', 'top-left');
@@ -293,15 +341,10 @@ function openObjectContextMenu(targetElement, isText, clientX, clientY) {
     bindPos('#acm-single-bottom-center', 'bottom-center');
     bindPos('#acm-single-bottom-right', 'bottom-right');
 
-    const singleDup = menu.querySelector('#acm-single-duplicate');
-    if (singleDup) {
-        singleDup.addEventListener('click', (e) => {
-            e.stopPropagation();
-            closeMenu();
-            window.selectedElements = [targetElement];
-            if (window.multiSelectDuplicate) window.multiSelectDuplicate();
-        });
-    }
+    bindBtn('#acm-single-duplicate', () => {
+        window.selectedElements = [targetElement];
+        if (window.multiSelectDuplicate) window.multiSelectDuplicate();
+    });
 }
 
 // ==================== ÇOKLU SEÇİM SAĞ TIK & HİZALAMA MENÜSÜ ====================
@@ -419,6 +462,10 @@ function openMultiSelectContextMenu(clientX, clientY) {
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><path d="M10 10l4 4"/></svg>
             <span>Grubu Boz</span>
         </button>
+        <button class="app-context-item" id="acm-multi-convert-polygon">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2"><polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5 12 2"></polygon></svg>
+            <span>🔷 Çokgene Çevir (Birleştir)</span>
+        </button>
         <button class="app-context-item item-front" id="acm-multi-front">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#00d2ff" stroke-width="2"><polyline points="17 11 12 6 7 11"/><polyline points="17 18 12 13 7 18"/></svg>
             <span>En Öne Getir</span>
@@ -426,6 +473,22 @@ function openMultiSelectContextMenu(clientX, clientY) {
         <button class="app-context-item item-back" id="acm-multi-back">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2"><polyline points="7 13 12 18 17 13"/><polyline points="7 6 12 11 17 6"/></svg>
             <span>En Arkaya Gönder</span>
+        </button>
+        <button class="app-context-item" id="acm-multi-rot-cw">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+            <span>Toplu Döndür (90° Sağa)</span>
+        </button>
+        <button class="app-context-item" id="acm-multi-scale-up">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+            <span>Toplu Büyüt (+15%)</span>
+        </button>
+        <button class="app-context-item" id="acm-multi-scale-down">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2"><polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="14" y1="10" x2="21" y2="3"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+            <span>Toplu Küçült (-15%)</span>
+        </button>
+        <button class="app-context-item item-lock" id="acm-multi-lock">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+            <span>Kilitle / Kilidi Aç</span>
         </button>
         <button class="app-context-item" id="acm-multi-duplicate">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#818cf8" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
@@ -463,7 +526,8 @@ function openMultiSelectContextMenu(clientX, clientY) {
     let didDrag = false;
     const onDocClick = (e) => {
         if (didDrag) return;
-        if (!menu.contains(e.target)) closeMenu();
+        if (e.target && (e.target.closest('#app-custom-context-menu') || menu.contains(e.target))) return;
+        closeMenu();
     };
     const onKeyDown = (e) => {
         if (e.key === 'Escape') closeMenu();
@@ -530,11 +594,21 @@ function openMultiSelectContextMenu(clientX, clientY) {
     const bindBtn = (id, fn) => {
         const btn = menu.querySelector(id);
         if (btn) {
-            btn.addEventListener('click', (e) => {
-                e.stopPropagation();
+            const trigger = (e) => {
+                if (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                }
                 closeMenu();
-                fn();
-            });
+                setTimeout(() => {
+                    try {
+                        fn();
+                    } catch (err) {
+                        console.error('Context menu action error for ' + id + ':', err);
+                    }
+                }, 10);
+            };
+            btn.addEventListener('click', trigger);
         }
     };
 
@@ -566,19 +640,21 @@ function openMultiSelectContextMenu(clientX, clientY) {
 
     bindBtn('#acm-multi-group', () => { if (window.groupSelected) window.groupSelected(); });
     bindBtn('#acm-multi-ungroup', () => { if (window.ungroupSelected) window.ungroupSelected(); });
+    bindBtn('#acm-multi-convert-polygon', () => { if (window.createPolygonFromSelectedLines) window.createPolygonFromSelectedLines(); });
     bindBtn('#acm-multi-front', () => { if (window.multiSelectBringToFront) window.multiSelectBringToFront(); });
     bindBtn('#acm-multi-back', () => { if (window.multiSelectSendToBack) window.multiSelectSendToBack(); });
+    bindBtn('#acm-multi-rot-cw', () => { if (window.multiSelectRotate) window.multiSelectRotate(90); });
+    bindBtn('#acm-multi-scale-up', () => { if (window.multiSelectScale) window.multiSelectScale(1.15); });
+    bindBtn('#acm-multi-scale-down', () => { if (window.multiSelectScale) window.multiSelectScale(0.85); });
+    bindBtn('#acm-multi-lock', () => { if (window.multiSelectToggleLock) window.multiSelectToggleLock(); });
     bindBtn('#acm-multi-duplicate', () => { if (window.multiSelectDuplicate) window.multiSelectDuplicate(); });
     bindBtn('#acm-multi-delete', () => { if (window.multiSelectDelete) window.multiSelectDelete(); });
 }
 
 // 1. PC: Mouse Sağ Tık (Context Menu)
 document.addEventListener('contextmenu', function(e) {
-    // Tutamaç butonları, form kontrolleri veya panellere sağ tıklandığında menü açma
-    if (e.target.closest && e.target.closest(
-        '.callout-controls, .callout-resizer, .callout-rotator, .text-handle, .text-resize-handle, ' +
-        '.text-rotate-handle, .text-delete-handle, .text-lock-handle, .draw-handle, .vertex-handle, .cbtn-del, input, button, select, textarea, .panel, .mobile-panel'
-    )) {
+    // Yan paneller, butonlar ve form inputlarında default menüyü koru
+    if (e.target.closest && e.target.closest('input, button, select, textarea, .panel, .mobile-panel')) {
         return;
     }
 
@@ -587,20 +663,26 @@ document.addEventListener('contextmenu', function(e) {
         const clickedEl = e.target.closest('.callout-item, .callout-wrap, .co-neon-block, .canvas-icon, .draggable, .added-icon, .cvi-item, .editable-draw, .canvas-el, .cvi-badge-box, [data-layer-uid]');
         const isOneOfSelected = (clickedEl && window.selectedElements.some(sel => sel === clickedEl || sel.contains(clickedEl) || clickedEl.contains(sel))) ||
                                 window.selectedElements.some(sel => sel.contains(e.target));
-        if (isOneOfSelected) {
-            e.preventDefault();
-            openMultiSelectContextMenu(e.clientX, e.clientY);
-            return;
-        } else if (!clickedEl && e.target.closest('#canvas-container, .main-canvas')) {
+        if (isOneOfSelected || e.target.closest('#canvas-container, .main-canvas, #ui-layer, #draw-canvas, #canva-render-layer, #photo-layer')) {
             e.preventDefault();
             openMultiSelectContextMenu(e.clientX, e.clientY);
             return;
         }
     }
 
-    const callout = e.target.closest('.callout-item, .callout-wrap, .co-neon-block, .canvas-icon, .draggable, .added-icon, .cvi-item, .editable-draw, .canvas-el, .cvi-badge-box, [data-layer-uid]');
+    let callout = e.target.closest('.callout-item, .callout-wrap, .co-neon-block, .canvas-icon, .draggable, .added-icon, .cvi-item, .editable-draw, .canvas-el, .cvi-badge-box, [data-layer-uid]');
+    if (!callout && window.selectedEl && (window.selectedEl === e.target || window.selectedEl.contains(e.target))) {
+        callout = window.selectedEl;
+    }
+    if (!callout && window.selectedElements && window.selectedElements.length === 1 && (window.selectedElements[0] === e.target || window.selectedElements[0].contains(e.target))) {
+        callout = window.selectedElements[0];
+    }
+
     if (callout) {
         e.preventDefault();
+        if (typeof selectElement === 'function' && (!window.selectedElements || window.selectedElements.length <= 1)) {
+            selectElement(callout);
+        }
         const isText = callout.classList.contains('callout-item') && !callout.classList.contains('callout-wrap');
         openObjectContextMenu(callout, isText, e.clientX, e.clientY);
     }
@@ -705,12 +787,13 @@ document.addEventListener('dblclick', function(e) {
 
 // Boş tuvale veya canvas zeminine tıklandığında seçimi ve tutamaçları temizle
 document.addEventListener('pointerdown', function(e) {
+    if (e.button !== 0 && e.type === 'pointerdown') return; // Sağ tık veya orta tık seçimi bozmasın
     if (e.target.closest(
-        '.draggable, .canvas-el, .callout-wrap, .callout-item, .co-neon-block, ' +
+        '.draggable, .canvas-el, .callout-wrap, .callout-item, .co-neon-block, .editable-draw, ' +
         '.text-handle, .text-resize-handle, .text-rotate-handle, .text-delete-handle, .text-lock-handle, ' +
         '.callout-controls, .callout-resizer, .callout-rotator, .callout-lock-btn, .callout-select-border, ' +
         '.draw-handle, .vertex-handle, .cbtn-del, .sidebar, .right-sidebar, .panel, .mobile-panel, ' +
-        '.tab-content, .dynamic-field, .tab-btn, button, input, select, textarea, .swal2-container, .modal, .context-menu'
+        '.tab-content, .dynamic-field, .tab-btn, button, input, select, textarea, .swal2-container, .modal, .context-menu, .app-context-menu'
     )) {
         return;
     }

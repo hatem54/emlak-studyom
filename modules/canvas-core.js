@@ -218,19 +218,31 @@ function applyStylePos(el,c){
     }
     
     if(c.transform) el.style.transform = c.transform;
-    if(c.bg) el.style.background = c.bg;
-    if(c.color) el.style.color = c.color;
+    el.style.background = c.bg || c.background || '';
+    el.style.color = c.color || '';
+    
+    // Kenarlıklar ve köşe yuvarlama
+    el.style.border = c.border || '';
+    el.style.borderTop = c.borderTop || '';
+    el.style.borderBottom = c.borderBottom || '';
+    el.style.borderLeft = c.borderLeft || '';
+    el.style.borderRight = c.borderRight || '';
+    
     if(c.radius!==undefined) {
-        el.style.borderRadius = Math.max(2, Math.round(c.radius * (finalScale / 1.18))) + 'px';
+        let rVal = typeof c.radius === 'number' ? Math.max(0, Math.round(c.radius * (finalScale / 1.18))) + 'px' : c.radius;
+        el.style.borderRadius = rVal;
+    } else {
+        el.style.borderRadius = '';
     }
-    if(c.border) el.style.border = c.border;
     
     // Padding'i format oranına göre ölçekle
     if(c.padding) {
         const scaledPadding = c.padding.replace(/(\d+(\.\d+)?)px/g, (match, num) => {
-            return Math.max(4, Math.round(parseFloat(num) * (finalScale / 1.18))) + 'px';
+            return Math.max(0, Math.round(parseFloat(num) * (finalScale / 1.18))) + 'px';
         });
         el.style.padding = scaledPadding;
+    } else {
+        el.style.padding = '';
     }
     
     // FONT VE TİPOGRAFİ ÖZELLİKLERİ (EKSİKSİZ UYGULA)
@@ -240,15 +252,20 @@ function applyStylePos(el,c){
         el.style.fontSize = finalFontSize + 'px';
         el.dataset.defaultFont = finalFontSize.toString();
     }
-    if(c.fontFamily) el.style.fontFamily = c.fontFamily;
-    if(c.fontWeight) el.style.fontWeight = c.fontWeight;
-    if(c.letterSpacing) el.style.letterSpacing = c.letterSpacing;
-    if(c.lineHeight) el.style.lineHeight = c.lineHeight;
-    if(c.boxShadow) el.style.boxShadow = c.boxShadow;
-    if(c.textShadow) el.style.textShadow = c.textShadow;
+    el.style.fontFamily = c.fontFamily || '';
+    el.style.fontWeight = c.fontWeight || '';
+    el.style.fontStyle = c.fontStyle || 'normal';
+    el.style.textTransform = c.textTransform || 'none';
+    el.style.letterSpacing = c.letterSpacing || '';
+    el.style.lineHeight = c.lineHeight || '';
+    el.style.boxShadow = c.boxShadow || '';
+    el.style.textShadow = c.textShadow || '';
     if(c.backdropFilter) {
         el.style.backdropFilter = c.backdropFilter;
         el.style.webkitBackdropFilter = c.backdropFilter;
+    } else {
+        el.style.backdropFilter = '';
+        el.style.webkitBackdropFilter = '';
     }
     
     el.dataset.storedBgHex='#0f172a';

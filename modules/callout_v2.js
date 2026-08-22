@@ -781,7 +781,7 @@ function addNeonToCanvas(n) {
     const bgOpacity = 0; // Default transparent
     const iconSize = Math.round(76 * formatRatio);
     const textSize = Math.round(16 * formatRatio);
-    const glowPct = 80;
+    const glowPct = 45;
     const radius = Math.round(14 * formatRatio);
     const padding = Math.round(12 * formatRatio);
     const boxSize = Math.round(180 * formatRatio); // Uniform box size for all icons
@@ -824,9 +824,9 @@ function addNeonToCanvas(n) {
         height: ${boxSize}px;
     `;
 
-    // Parlaklık değerine göre 2 kademeli drop-shadow
-    const glowPx1 = Math.round(glowPct * 0.15); // Örn: 12px
-    const glowPx2 = Math.round(glowPct * 0.3);  // Örn: 24px
+    // Parlaklık değerine göre dengeli neon drop-shadow
+    const glowPx1 = Math.max(2, Math.round(glowPct * 0.06)); // Örn: 3-5px
+    const glowPx2 = Math.max(4, Math.round(glowPct * 0.12)); // Örn: 6-10px
 
     el.innerHTML = `
         <div class="co-icon-wrap" style="display:flex; align-items:center; justify-content:center;">
@@ -1236,16 +1236,16 @@ function renderCalloutFromDataset(el) {
     el.style.background = `rgba(${hex2rgb(bgColor)},${bgOpacity})`;
 
     // Parlaklık
-    const glowPx1 = Math.round(glowPct * 0.15);
-    const glowPx2 = Math.round(glowPct * 0.3);
+    const glowPx1 = Math.max(2, Math.round(glowPct * 0.06));
+    const glowPx2 = Math.max(4, Math.round(glowPct * 0.12));
 
     // İkon güncelle
     const iconEl = el.querySelector('i');
     if (iconEl) {
         iconEl.style.fontSize = iconSize + 'px';
         iconEl.style.color = iconColor;
-        iconEl.style.textShadow = `0 0 ${glowPx1}px ${iconColor}, 0 0 ${glowPx2}px ${iconColor}`;
-        iconEl.style.filter = ''; // Clear filter just in case
+        iconEl.style.textShadow = 'none';
+        iconEl.style.filter = (glowPct > 0) ? `drop-shadow(0 0 ${glowPx1}px ${iconColor}) drop-shadow(0 0 ${glowPx2}px ${iconColor})` : 'none';
     }
 
     // Metin güncelle
@@ -1305,7 +1305,6 @@ function applyCalloutSettings() {
 }
 
 function resetCalloutSetting(type) {
-    if (!selectedCalloutEl) return;
     const defaults = {
         'iconColor': '#93c5fd',
         'textColor': '#ffffff',
@@ -1313,7 +1312,7 @@ function resetCalloutSetting(type) {
         'bgOpacity': 0,
         'iconSize': 64,
         'textSize': 14,
-        'glow': 80,
+        'glow': 45,
         'radius': 12,
         'padding': 10
     };
@@ -1335,10 +1334,14 @@ function resetCalloutSetting(type) {
                 if (['bgOpacity', 'glow'].includes(type)) unit = '%';
                 valEl.textContent = defaults[type] + unit;
             }
-            applyCalloutSettings();
+            if (selectedCalloutEl) {
+                applyCalloutSettings();
+                if (typeof window.recordHistory === 'function') window.recordHistory('Rozet ayarı sıfırlandı: ' + type);
+            }
         }
     }
 }
+window.resetCalloutSetting = resetCalloutSetting;
 
 function deleteSelectedCallout() {
     if (!selectedCalloutEl) return;
@@ -1380,14 +1383,14 @@ function resetCalloutToDefault() {
         document.getElementById('coBgOpacity').value = '0';
         document.getElementById('coIconSize').value = '64';
         document.getElementById('coTextSize').value = '14';
-        document.getElementById('coGlow').value = '80';
+        document.getElementById('coGlow').value = '45';
         document.getElementById('coRadius').value = '12';
         document.getElementById('coPadding').value = '10';
         applyCalloutSettings();
     } else if (d.originalSvg) {
-        // Restore SVG HTML
-        selectedCalloutEl.innerHTML = decodeURIComponent(d.originalSvg);
-        
+        const rawSvg = decodeURIComponent(d.originalSvg);
+        selectedCalloutEl.innerHTML = (window.DOMPurify && typeof window.DOMPurify.sanitize === 'function') ? window.DOMPurify.sanitize(rawSvg) : rawSvg;
+
         // Remove style overrides if any exist natively on SVG (handled by innerHTML)
         // Reset scale/rotation optionally? Usually we just want to reset colors.
         // We'll keep scale/rotation but reset colors.
@@ -1416,5 +1419,47 @@ function resetCalloutToDefault() {
             }
         }
     }
+}
+window.resetCalloutToDefault = resetCalloutToDefault;
+
+// Slider ve ayar kontrollerine çift tıklama ile varsayılana sıfırlama dinleyicilerini bağla
+function initCalloutSliderResetListeners() {
+    const mapping = [
+        { id: 'coIconColor', type: 'iconColor' },
+        { id: 'coTextColor', type: 'textColor' },
+        { id: 'coBgColor', type: 'bgColor' },
+        { id: 'coBgOpacity', type: 'bgOpacity' },
+        { id: 'coIconSize', type: 'iconSize' },
+        { id: 'coTextSize', type: 'textSize' },
+        { id: 'coGlow', type: 'glow' },
+        { id: 'coRadius', type: 'radius' },
+        { id: 'coPadding', type: 'padding' }
+    ];
+
+    mapping.forEach(m => {
+        const inputEl = document.getElementById(m.id);
+        if (inputEl) {
+            inputEl.title = 'Varsayılana dönmek için çift tıklayın';
+            inputEl.addEventListener('dblclick', function(e) {
+                e.stopPropagation();
+                resetCalloutSetting(m.type);
+            });
+            const parentGroup = inputEl.closest('.slider-group, .color-row');
+            if (parentGroup) {
+                parentGroup.title = 'Varsayılana dönmek için çift tıklayın';
+                parentGroup.addEventListener('dblclick', function(e) {
+                    if (e.target.tagName !== 'INPUT') {
+                        resetCalloutSetting(m.type);
+                    }
+                });
+            }
+        }
+    });
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initCalloutSliderResetListeners);
+} else {
+    initCalloutSliderResetListeners();
 }
 

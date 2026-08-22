@@ -621,12 +621,14 @@ function clearCanvaTemplate(skipSetTemplate){
     canvaRenderLayer.innerHTML = '';
     canvaRenderLayer.style.display = 'none';
     document.querySelectorAll('.canva-tpl-card').forEach(c => c.classList.remove('active'));
-    document.querySelectorAll('.normal-el').forEach(el => { el.style.display = ''; el.style.visibility = ''; });
     photoLayer.style.display = '';
     isCanvaMode = false;
     activeCanvaId = '';
-    if(!skipSetTemplate) {
-        setTemplate(activeLayout);
+    if(!skipSetTemplate && typeof activeLayout !== 'undefined' && activeLayout && activeLayout !== 'none' && activeLayout !== 'empty') {
+        document.querySelectorAll('.normal-el').forEach(el => { el.style.display = ''; el.style.visibility = ''; });
+        if(typeof setTemplate === 'function') setTemplate(activeLayout);
+    } else {
+        document.querySelectorAll('.normal-el').forEach(el => { el.style.visibility = 'hidden'; });
     }
 }
 

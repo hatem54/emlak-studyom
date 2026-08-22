@@ -249,7 +249,9 @@
             });
         }
 
+        if (typeof redrawAll === 'function') redrawAll();
         if (typeof updateDrawHistory === 'function') updateDrawHistory();
+        if (typeof renderLayers === 'function') renderLayers();
         if (typeof window.recordHistory === 'function') window.recordHistory('Öğeler Sıralandı (' + direction + ')');
     };
 
@@ -334,7 +336,9 @@
             }
         });
 
+        if (typeof redrawAll === 'function') redrawAll();
         if (typeof updateDrawHistory === 'function') updateDrawHistory();
+        if (typeof renderLayers === 'function') renderLayers();
         if (typeof window.recordHistory === 'function') window.recordHistory('Öğeler Hizalandı (' + type + ')');
     };
 
@@ -456,7 +460,9 @@
             }
         });
 
+        if (typeof redrawAll === 'function') redrawAll();
         if (typeof updateDrawHistory === 'function') updateDrawHistory();
+        if (typeof renderLayers === 'function') renderLayers();
         if (typeof window.recordHistory === 'function') window.recordHistory('Sayfada Konumlandırıldı (' + pos + ')');
     };
 
@@ -658,6 +664,65 @@
             }
         });
         if (typeof renderLayers === 'function') renderLayers();
+    };
+
+    window.multiSelectToggleLock = function() {
+        if (!window.selectedElements || window.selectedElements.length === 0) return;
+        const anyUnlocked = window.selectedElements.some(el => el.dataset.locked !== 'true');
+        const newState = anyUnlocked ? 'true' : 'false';
+        window.selectedElements.forEach(el => {
+            el.dataset.locked = newState;
+            if (newState === 'true') {
+                el.classList.add('locked-el');
+            } else {
+                el.classList.remove('locked-el');
+            }
+        });
+        if (typeof updateGroupUI === 'function') updateGroupUI();
+        if (typeof renderLayers === 'function') renderLayers();
+    };
+
+    window.multiSelectRotate = function(deltaDeg = 90) {
+        if (!window.selectedElements || window.selectedElements.length === 0) return;
+        window.selectedElements.forEach(el => {
+            const curRot = parseFloat(el.dataset.rotation) || 0;
+            let newRot = (curRot + deltaDeg) % 360;
+            if (newRot > 180) newRot -= 360;
+            else if (newRot < -180) newRot += 360;
+            newRot = Math.round(newRot);
+            el.dataset.rotation = newRot;
+            const curScale = el.dataset.scale || 1;
+            el.style.transform = `rotate(${newRot}deg) scale(${curScale})`;
+        });
+        if (typeof redrawAll === 'function') redrawAll();
+        if (typeof updateDrawHistory === 'function') updateDrawHistory();
+        if (typeof renderLayers === 'function') renderLayers();
+        if (typeof window.recordHistory === 'function') window.recordHistory('Toplu Döndürme');
+    };
+
+    window.multiSelectScale = function(factor = 1.1) {
+        if (!window.selectedElements || window.selectedElements.length === 0) return;
+        window.selectedElements.forEach(el => {
+            const curW = el.offsetWidth || parseFloat(el.style.width) || 100;
+            const curH = el.offsetHeight || parseFloat(el.style.height) || 100;
+            const newW = Math.max(20, Math.round(curW * factor));
+            const newH = Math.max(20, Math.round(curH * factor));
+            el.style.width = newW + 'px';
+            el.style.height = newH + 'px';
+            
+            if (el.classList.contains('editable-text') || el.classList.contains('canvas-el')) {
+                const curFs = parseFloat(window.getComputedStyle(el).fontSize) || 16;
+                el.style.fontSize = Math.max(8, Math.round(curFs * factor)) + 'px';
+            }
+            if (el.classList.contains('editable-draw')) {
+                if (el.dataset.baseWidth !== undefined) el.dataset.baseWidth = newW;
+                if (el.dataset.baseHeight !== undefined) el.dataset.baseHeight = newH;
+            }
+        });
+        if (typeof redrawAll === 'function') redrawAll();
+        if (typeof updateDrawHistory === 'function') updateDrawHistory();
+        if (typeof renderLayers === 'function') renderLayers();
+        if (typeof window.recordHistory === 'function') window.recordHistory('Toplu Boyutlandırma');
     };
 
     document.addEventListener('DOMContentLoaded', initMultiSelectUI);

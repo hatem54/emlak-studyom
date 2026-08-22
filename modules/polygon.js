@@ -117,64 +117,7 @@ function createPolygonFromSelectedLines() {
     if(typeof deselectAll === 'function') deselectAll();
     if(pObj.el && typeof selectElement === 'function') selectElement(pObj.el, true);
 }
-
-function checkConvertPolygonButton() {
-    let btn = document.getElementById('btnConvertPolygon');
-    if (!window.selectedElements || window.selectedElements.length < 2) {
-        if (btn) btn.style.display = 'none';
-        return;
-    }
-    
-    const lines = window.selectedElements.filter(el => {
-        if (!el.classList.contains('editable-draw')) return false;
-        if (typeof drawPaths !== 'undefined') {
-            const pObj = drawPaths.find(p => p.el === el);
-            return pObj && (pObj.type === 'line' || pObj.x1 !== undefined);
-        }
-        return false;
-    });
-    
-    if (lines.length >= 2) {
-        if (!btn) {
-            btn = document.createElement('button');
-            btn.id = 'btnConvertPolygon';
-            btn.innerHTML = '🔷 Çokgene Çevir';
-            btn.style.position = 'absolute';
-            btn.style.zIndex = '9999999';
-            btn.style.background = '#6366f1';
-            btn.style.color = '#fff';
-            btn.style.border = 'none';
-            btn.style.padding = '8px 12px';
-            btn.style.borderRadius = '6px';
-            btn.style.cursor = 'pointer';
-            btn.style.fontWeight = 'bold';
-            btn.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.1)';
-            btn.onclick = createPolygonFromSelectedLines;
-            document.body.appendChild(btn);
-        }
-        
-        const lastEl = window.selectedElements[window.selectedElements.length - 1];
-        const rect = lastEl.getBoundingClientRect();
-        btn.style.left = (rect.right + 10) + 'px';
-        btn.style.top = rect.top + 'px';
-        btn.style.display = 'block';
-    } else {
-        if (btn) btn.style.display = 'none';
-    }
-}
-
-// Override or inject into selection changes
-const originalSelectElement = window.selectElement;
-window.selectElement = function(...args) {
-    if (originalSelectElement) originalSelectElement(...args);
-    setTimeout(checkConvertPolygonButton, 10);
-};
-
-const originalDeselectAll = window.deselectAll;
-window.deselectAll = function() {
-    if (originalDeselectAll) originalDeselectAll();
-    setTimeout(checkConvertPolygonButton, 10);
-};
+window.createPolygonFromSelectedLines = createPolygonFromSelectedLines;
 
 // ========== MARQUEE SELECTION ==========
 let polyMarqueeBox = null;
@@ -200,16 +143,23 @@ window.startMobileMarquee = function(x, y) {
 };
 
 document.addEventListener('mousedown', e => {
+    if (e.button !== 0) return; // Sağ tık seçim kutusu başlatmasın
     if(typeof drawMode !== 'undefined' && drawMode !== 'off') return;
     if(!e.target || !e.target.closest) return;
-    const cTarget = e.target.closest('.canvas-el, .added-icon, .draggable, .cvi-item, .co-neon-block, .vertex-handle, .lp-item, .panel, .lp-header, .editable-draw');
+    const cTarget = e.target.closest('.canvas-el, .added-icon, .draggable, .cvi-item, .co-neon-block, .vertex-handle, .text-handle, .callout-controls, .callout-resizer, .callout-rotator, .lp-item, .panel, .lp-header, .editable-draw');
     
-    if (e.target.closest('.panel, .lp-header')) return;
+    if (e.target.closest('.panel, .lp-header, button, input, select, textarea, .modal-overlay, .app-context-menu')) return;
     
-    const isBackground = e.target.id === 'photo-layer' || e.target.id === 'drawCanvas' || e.target.id === 'canva-render-layer' || e.target.classList.contains('photo-wrap') || e.target.classList.contains('workspace');
+    const isBackground = e.target.id === 'photo-layer' || e.target.id === 'drawCanvas' || e.target.id === 'canva-render-layer' || e.target.id === 'canvas-container' || e.target.id === 'ui-layer' || e.target.classList.contains('photo-wrap') || e.target.classList.contains('workspace') || e.target.classList.contains('main-preview') || e.target.closest('#canvas-container, .main-canvas');
     
-    if(!cTarget && isBackground && (e.ctrlKey || e.altKey || e.metaKey)) {
-        window.startMobileMarquee(e.clientX, e.clientY);
+    const hasPhoto = window.masterImageBase64 && window.masterImageBase64.length > 50;
+    const isLocked = window.isPhotoLocked === true || (document.getElementById('photoLockToggle') && document.getElementById('photoLockToggle').checked);
+    const isModifier = e.ctrlKey || e.shiftKey || e.altKey || e.metaKey;
+    
+    if(!cTarget && isBackground) {
+        if (!hasPhoto || isLocked || isModifier) {
+            window.startMobileMarquee(e.clientX, e.clientY);
+        }
     }
 });
 
@@ -269,7 +219,7 @@ const handleMarqueeEnd = function(e) {
                     rect.bottom > mRect.top) {
                     
                     if (typeof selectElement === 'function') {
-                          selectElement(el, true);
+                          selectElement(el, true, true);
                           lastEl = el;
                           selectedAny = true;
                       }
@@ -279,6 +229,7 @@ const handleMarqueeEnd = function(e) {
             if(selectedAny && lastEl) {
                 if(typeof window.selectedEl !== 'undefined') window.selectedEl = lastEl;
                 if(typeof updateGroupUI === 'function') updateGroupUI();
+                if(typeof window.updateMultiSelectUI === 'function') window.updateMultiSelectUI();
                 
                 if(window.LayerPanelV2 && window.LayerPanelV2.highlightActiveLayer) {
                     setTimeout(() => window.LayerPanelV2.highlightActiveLayer(), 80);

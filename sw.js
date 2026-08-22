@@ -1,4 +1,4 @@
-const CACHE_NAME = 'emlak-studiom-v100';
+const CACHE_NAME = 'emlak-studiom-v125';
 const CORE_ASSETS = [
   './app.html',
   './styles.css',
@@ -15,7 +15,7 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
-        console.log('Opened cache v94');
+        console.log('Opened cache', CACHE_NAME);
         return Promise.allSettled(
           CORE_ASSETS.map(url => cache.add(url).catch(err => console.log('Cache failed for', url, err)))
         );
@@ -44,11 +44,23 @@ self.addEventListener('fetch', (event) => {
   
   const url = new URL(event.request.url);
 
-  // HARİCİ ORIGIN VE KASPERSKY KONTROLÜ
-  if (url.origin !== self.location.origin || url.hostname.includes('kaspersky-labs.com')) {
+  // KASPERSKY KONTROLÜ
+  if (url.hostname.includes('kaspersky-labs.com')) {
     event.respondWith(
       fetch(event.request).catch((err) => {
         return new Response(null, { status: 204, statusText: 'No Content' });
+      })
+    );
+    return;
+  }
+
+  // DİĞER HARİCİ ORIGINLER (Supabase CDN, vb.)
+  if (url.origin !== self.location.origin) {
+    event.respondWith(
+      fetch(event.request).catch((err) => {
+        // Hata durumunda (offline vb.) boş 204 dönmek yerine 503 dönüyoruz
+        // Bu sayede tarayıcı script'i boş olarak çalıştırmayıp uygun hatayı (onerror) fırlatır.
+        return new Response('', { status: 503, statusText: 'Service Unavailable' });
       })
     );
     return;

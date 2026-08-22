@@ -71,56 +71,78 @@ function applyElSettings(){
     if(!selectedEl)return;
     if(window._loadingElSettings)return;
     if(selectedEl.dataset.editingText)return;
-    const el=selectedEl;
-    const fs=$('elFontSize').value,pd=$('elPadding').value;
-    const tc=$('elTextColor').value,bc=$('elBgColor').value,bo=$('elBgOpacity').value;
-    const op=$('elOpacity').value,rot=$('elRotate').value,rad=$('elRadius').value;
-    const sh=$('elShadow').value,bl=$('elBlur').value;
-    const brc=$('elBorderColor').value,brw=$('elBorderWidth').value;
-    const tsc=$('elTextStrokeColor').value,tsw=$('elTextStrokeWidth').value;
-    const w=$('elWidth').value,h=$('elHeight').value;
-    el.style.fontSize=fs+'px';
-    el.style.padding=pd+'px';
-    el.style.color=tc;
-    if (typeof applyElWeight === 'function') {
-        const w = parseInt(document.getElementById('elWeightSlider').value);
-        if (w > 900) { applyElWeight(); }
-    }
-    if(el.dataset.saberActive === 'true') { el.style.color = 'transparent'; }
-    el.style.opacity=op/100;
-    const rgb=hexToRgb(bc);
-    el.style.background='rgba('+rgb.r+','+rgb.g+','+rgb.b+','+(bo/100)+')';
-    el.dataset.storedBgHex=bc;
-    el.dataset.storedBgOpacity=bo;
-    el.dataset.rotation=rot;
-    const currentScale = el.dataset.scale || 1; el.style.transform='rotate('+rot+'deg) scale(' + currentScale + ')';;
-    el.style.borderRadius=rad+'px';
-    el.dataset.shadowVal=sh;
-    el.style.boxShadow=+sh>0?'0 '+sh+'px '+(sh*2)+'px rgba(0,0,0,.5)':'none';
-    el.dataset.blurVal=bl;
-    el.style.backdropFilter=+bl>0?'blur('+bl+'px)':'none';
-    el.dataset.storedBorderColor=brc;
-    el.dataset.storedBorderWidth=brw;
-    el.style.border=+brw>0?brw+'px solid '+brc:'none';
-    el.dataset.storedTextStrokeColor=tsc;
-    el.dataset.storedTextStrokeWidth=tsw;
-    el.style.webkitTextStroke=+tsw>0?tsw+'px '+tsc:'';
-    if(+w>0){el.style.width=w+'px';$('elWidthVal').textContent=w+'px'}
-    else{el.style.width='';$('elWidthVal').textContent='Otomatik'}
-    if(+h>0){el.style.height=h+'px';$('elHeightVal').textContent=h+'px'}
-    else{el.style.height='';$('elHeightVal').textContent='Otomatik'}
-    $('elFontSizeVal').textContent=fs;
-    $('elPaddingVal').textContent=pd;
-    $('elBgOpacityVal').textContent=bo+'%';
-    $('elOpacityVal').textContent=op+'%';
-    $('elRotateVal').textContent=rot+'°';
-    $('elRadiusVal').textContent=rad;
-    $('elShadowVal').textContent=sh;
-    $('elBlurVal').textContent=bl;
-    $('elBorderWidthVal').textContent=brw;
-    $('elTextStrokeWidthVal').textContent=tsw+'px';
     
-    if(el.dataset.saberActive === 'true' && typeof applyTextSaberOpts === 'function') { setTimeout(applyTextSaberOpts, 10); }
+    const targets = (window.selectedElements && window.selectedElements.length > 1)
+        ? window.selectedElements
+        : [selectedEl];
+        
+    const fs=$('elFontSize')?$('elFontSize').value:16, pd=$('elPadding')?$('elPadding').value:0;
+    const tc=$('elTextColor')?$('elTextColor').value:'#ffffff', bc=$('elBgColor')?$('elBgColor').value:'#000000', bo=$('elBgOpacity')?$('elBgOpacity').value:0;
+    const op=$('elOpacity')?$('elOpacity').value:100, rot=$('elRotate')?$('elRotate').value:0, rad=$('elRadius')?$('elRadius').value:0;
+    const sh=$('elShadow')?$('elShadow').value:0, bl=$('elBlur')?$('elBlur').value:0;
+    const brc=$('elBorderColor')?$('elBorderColor').value:'#38bdf8', brw=$('elBorderWidth')?$('elBorderWidth').value:0;
+    const tsc=$('elTextStrokeColor')?$('elTextStrokeColor').value:'#000000', tsw=$('elTextStrokeWidth')?$('elTextStrokeWidth').value:0;
+    const w=$('elWidth')?$('elWidth').value:'', h=$('elHeight')?$('elHeight').value:'';
+
+    targets.forEach(el => {
+        if(el.dataset.editingText) return;
+        el.style.fontSize=fs+'px';
+        el.style.padding=pd+'px';
+        if (!el.classList.contains('editable-draw')) {
+            el.style.color=tc;
+        }
+        if (typeof applyElWeight === 'function' && el === selectedEl) {
+            const weightVal = parseInt(document.getElementById('elWeightSlider') ? document.getElementById('elWeightSlider').value : 400);
+            if (weightVal > 900) { applyElWeight(); }
+        }
+        if(el.dataset.saberActive === 'true') { el.style.color = 'transparent'; }
+        el.style.opacity=op/100;
+        
+        // Hayalet katman (0 opacity) tıklama blokajını önleme
+        if (+op === 0) {
+            el.style.pointerEvents = 'none';
+        } else if (el.dataset.locked !== 'true') {
+            el.style.pointerEvents = '';
+        }
+
+        const rgb=hexToRgb(bc);
+        if (!el.classList.contains('editable-draw')) {
+            el.style.background='rgba('+rgb.r+','+rgb.g+','+rgb.b+','+(bo/100)+')';
+            el.dataset.storedBgHex=bc;
+            el.dataset.storedBgOpacity=bo;
+        }
+        el.dataset.rotation=rot;
+        const currentScale = el.dataset.scale || 1; 
+        el.style.transform='rotate('+rot+'deg) scale(' + currentScale + ')';
+        el.style.borderRadius=rad+'px';
+        el.dataset.shadowVal=sh;
+        el.style.boxShadow=+sh>0?'0 '+sh+'px '+(sh*2)+'px rgba(0,0,0,.5)':'none';
+        el.dataset.blurVal=bl;
+        el.style.backdropFilter=+bl>0?'blur('+bl+'px)':'none';
+        el.dataset.storedBorderColor=brc;
+        el.dataset.storedBorderWidth=brw;
+        el.style.border=+brw>0?brw+'px solid '+brc:'none';
+        el.dataset.storedTextStrokeColor=tsc;
+        el.dataset.storedTextStrokeWidth=tsw;
+        el.style.webkitTextStroke=+tsw>0?tsw+'px '+tsc:'';
+        if(+w>0){ el.style.width=w+'px'; }
+        if(+h>0){ el.style.height=h+'px'; }
+        
+        if(el.dataset.saberActive === 'true' && typeof applyTextSaberOpts === 'function') { setTimeout(applyTextSaberOpts, 10); }
+    });
+
+    if($('elWidthVal')) $('elWidthVal').textContent = +w>0 ? w+'px' : 'Otomatik';
+    if($('elHeightVal')) $('elHeightVal').textContent = +h>0 ? h+'px' : 'Otomatik';
+    if($('elFontSizeVal')) $('elFontSizeVal').textContent=fs;
+    if($('elPaddingVal')) $('elPaddingVal').textContent=pd;
+    if($('elBgOpacityVal')) $('elBgOpacityVal').textContent=bo+'%';
+    if($('elOpacityVal')) $('elOpacityVal').textContent=op+'%';
+    if($('elRotateVal')) $('elRotateVal').textContent=rot+'°';
+    if($('elRadiusVal')) $('elRadiusVal').textContent=rad;
+    if($('elShadowVal')) $('elShadowVal').textContent=sh;
+    if($('elBlurVal')) $('elBlurVal').textContent=bl;
+    if($('elBorderWidthVal')) $('elBorderWidthVal').textContent=brw;
+    if($('elTextStrokeWidthVal')) $('elTextStrokeWidthVal').textContent=tsw+'px';
 }
 
 function bindElSettings(){

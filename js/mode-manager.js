@@ -238,7 +238,7 @@ const DEMO_TEMPLATE_PREFIXES = ['C', 'D', 'M'];
 function observeTemplateGrid() {
   const lockAllTemplates = () => {
     // 1. canva-tpl-card olanlar (Klasik, Dinamik, Minimal, Kurumsal, Özel, Portföy, Sosyal, Elit)
-    const cards = document.querySelectorAll('.canva-tpl-card');
+    const cards = document.querySelectorAll('.canva-tpl-card:not(.pro-tpl-card):not(.pro-json-card)');
     
     // Debug: Bulunan tüm kartların data-id'sini yaz (İLK KEZ)
     if (!window._templatesLogged) {
@@ -248,6 +248,7 @@ function observeTemplateGrid() {
     }
     
     cards.forEach(card => {
+      if (card.classList.contains('pro-tpl-card') || card.classList.contains('pro-json-card')) return;
       const dataId = card.dataset.id || '';
       // Prefix'i bul (canvaC1 -> C, canvaK5 -> K, canva1 -> "NUM")
       const match = dataId.match(/^canva([A-Z]|[0-9])/);
@@ -358,13 +359,13 @@ function showProUpgradeToast() {
 function validateExportAllowed() {
   if (APP_MODE === 'pro') return { allowed: true };
 
-  // 1. Kalite / Çözünürlük Kontrolü (1x ve altı serbest, 1.5x 2K, 2x 4K, 3x 8K kilitli)
+  // 1. Kalite / Çözünürlük Kontrolü (1x ve altı serbest, 1.5x 2K, 2x 4K kilitli)
   const exportScale = document.getElementById('exportScale');
   if (exportScale && parseFloat(exportScale.value) > 1.0) {
       return {
           allowed: false,
-          title: '🔒 Yüksek Çözünürlük (4K / 8K)',
-          message: 'Seçtiğiniz <strong>1.5x (2K) / 2x (4K) / 3x (8K)</strong> yüksek çözünürlüklü indirme seçeneği Pro üyelere aittir.<br><br>👉 <strong>Ücretsiz İndirmek İçin:</strong> Kalite kutusundan <strong>1x (Standart 1080p)</strong> seçeneğini seçerek filigranlı indirebilirsiniz.'
+          title: '🔒 Yüksek Çözünürlük (Ultra HD / 4K)',
+          message: 'Seçtiğiniz <strong>1.5x (2K) / 2x (Ultra HD 4K)</strong> yüksek çözünürlüklü indirme seçeneği Pro üyelere aittir.<br><br>👉 <strong>Ücretsiz İndirmek İçin:</strong> Kalite kutusundan <strong>1x (Standart 1080p)</strong> seçeneğini seçerek filigranlı indirebilirsiniz.'
       };
   }
 

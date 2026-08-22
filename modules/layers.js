@@ -62,15 +62,27 @@ window.layerToggleVisibility = function(uid, isDrawPath = false, pathIndex = 0) 
         const el = document.getElementById(uid);
         if (!el) return;
         const isHidden = el.dataset.hiddenLayer === 'true';
-        el.dataset.hiddenLayer = isHidden ? 'false' : 'true';
         
-        el.style.display = isHidden ? (el.dataset.oldDisplay || 'block') : 'none';
-        if(!isHidden) el.dataset.oldDisplay = el.style.display;
-
-        document.querySelectorAll('.photo-panel, .kolaj-foto').forEach(p => {
-            p.style.visibility = isHidden ? '' : 'hidden';
-            p.style.pointerEvents = isHidden ? '' : 'none';
-        });
+        if (!isHidden) {
+            el.dataset.oldDisplay = (el.style.display && el.style.display !== 'none') ? el.style.display : 'block';
+            el.dataset.hiddenLayer = 'true';
+            el.style.display = 'none';
+            document.querySelectorAll('.photo-panel, .kolaj-foto, #photo-layer, .photo-inner-zoom, .photo-render-canvas').forEach(p => {
+                p.style.visibility = 'hidden';
+                p.style.pointerEvents = 'none';
+            });
+        } else {
+            el.dataset.hiddenLayer = 'false';
+            el.style.display = (el.dataset.oldDisplay && el.dataset.oldDisplay !== 'none') ? el.dataset.oldDisplay : 'block';
+            document.querySelectorAll('.photo-panel, .kolaj-foto, #photo-layer, .photo-inner-zoom, .photo-render-canvas').forEach(p => {
+                p.style.visibility = '';
+                p.style.pointerEvents = '';
+            });
+            if (typeof _applyPhotoTransform === 'function') {
+                document.querySelectorAll('.photo-panel, #photo-layer').forEach(p => _applyPhotoTransform(p));
+            }
+            if (typeof redrawAll === 'function') redrawAll();
+        }
         window.renderLayers();
         return;
     }
@@ -186,7 +198,7 @@ window.layerToggleLock = function(uid, isDrawPath = false, pathIndex = 0) {
     window.renderLayers();
 };
 
-window.layerSelect = function(uid, event, isDoubleClick) {
+window.layerSelect = function(uid, event, isDoubleClick = false) {
     // If it's a fixed layer like photo or canva, skip
     if (uid === 'photo-layer' || uid === 'canva-render-layer') return;
     
@@ -208,8 +220,10 @@ window.layerSelect = function(uid, event, isDoubleClick) {
     if (el.dataset.hiddenLayer === 'true') return; // Do not select if hidden
     
     if (typeof window.selectElement === 'function') {
-        window.selectElement(el, event ? event.shiftKey : false, !isDoubleClick);
+        const noTabSwitch = !Boolean(isDoubleClick);
+        window.selectElement(el, (event && event.shiftKey) ? true : false, noTabSwitch);
     }
+    window.renderLayers();
 };
 
 
@@ -235,6 +249,12 @@ window.renderLayers = function() {
     let allRawEls = Array.from(document.querySelectorAll('#canvas-container .canvas-el, #canvas-container .draggable, #canvas-container .callout-wrap, #canvas-container .svg-callout'));
     allRawEls = allRawEls.filter(el => {
         if (el.style.display === 'none' && el.dataset.hiddenLayer !== 'true') return false;
+        if (el.id === 'elLogo') {
+            const hasImg = el.querySelector('img') && el.querySelector('img').src && el.querySelector('img').src !== window.location.href && el.querySelector('img').src.length > 10;
+            const hasBg = el.style.backgroundImage && el.style.backgroundImage !== 'none';
+            const hasSrc = el.src && el.src !== window.location.href && el.src.length > 10;
+            if (!hasImg && !hasBg && !hasSrc) return false;
+        }
         if (el.classList.contains('normal-el') || el.id === 'elBadge' || el.id === 'elPrice' || el.id === 'elDetails' || el.id === 'elTitle') {
             if (!el.querySelector('img') && !el.querySelector('svg') && el.innerText.trim() === '') return false;
         }

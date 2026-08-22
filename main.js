@@ -172,7 +172,12 @@ function buildTemplates(){
 
             if(elDetails)elDetails.style.visibility='visible';
 
-            if(elLogo && elLogo.src && elLogo.src !== window.location.href) elLogo.style.visibility='visible';
+            if(elLogo) {
+                const img = elLogo.querySelector('img');
+                if ((img && img.src && img.src.length > 10) || (elLogo.src && elLogo.src.length > 10)) {
+                    elLogo.style.visibility = 'visible';
+                }
+            }
 
             const il=document.getElementById('infoLineText');
 
@@ -328,10 +333,12 @@ window.clearLogoImage = function() {
     if(logoEl) {
         logoEl.src = '';
         logoEl.style.display = 'none';
+        logoEl.style.visibility = 'hidden';
     }
     if ($('logoInput')) $('logoInput').value = '';
     if ($('clearLogoBtn')) $('clearLogoBtn').style.display = 'none';
     if (document.getElementById('logoUploadBtnText')) document.getElementById('logoUploadBtnText').innerText = 'Firma Logosu (Opsiyonel)';
+    if (typeof deselectAll === 'function') deselectAll();
 };
 
 function bindInputs(){
@@ -349,13 +356,43 @@ function bindInputs(){
             r.onload = ev => {
                 const logoEl = document.getElementById('elLogo');
                 if(logoEl) {
+                    const img = logoEl.querySelector('img');
+                    if (img) {
+                        img.src = ev.target.result;
+                        img.style.display = 'block';
+                    }
                     logoEl.src = ev.target.result;
                     logoEl.style.display = 'block';
                     logoEl.style.visibility = 'visible';
+                    logoEl.style.zIndex = '9999';
+                    // Logo her zaman en üstte: canvas-container'ın son çocuğuna taşı
+                    const canvasContainer = document.getElementById('canvas-container');
+                    if (canvasContainer && canvasContainer.lastChild !== logoEl) {
+                        canvasContainer.appendChild(logoEl);
+                    }
+
+                    const imgTest = new Image();
+                    imgTest.onload = () => {
+                        const nw = imgTest.naturalWidth || imgTest.width;
+                        if (nw > 0) {
+                            let initialW = nw;
+                            if (initialW > 350) initialW = 350;
+                            if (initialW < 120) initialW = 120;
+                            logoEl.style.width = initialW + 'px';
+                            logoEl.style.height = 'auto';
+                        }
+                    };
+                    imgTest.src = ev.target.result;
+
+                    if (typeof selectElement === 'function') {
+                        selectElement(logoEl, false, true);
+                    }
                 }
                 if ($('clearLogoBtn')) $('clearLogoBtn').style.display = 'flex';
                 if (document.getElementById('logoUploadBtnText')) document.getElementById('logoUploadBtnText').innerText = 'Logoyu Değiştir';
                 if (typeof window.hideAppLoading === 'function') window.hideAppLoading(60);
+                if (typeof window.renderLayers === 'function') window.renderLayers();
+                if (typeof window.requestAutoSave === 'function') window.requestAutoSave();
             };
             r.onerror = () => {
                 if (typeof window.hideAppLoading === 'function') window.hideAppLoading();
@@ -435,6 +472,15 @@ function bindInputs(){
                             }
                             if (typeof resetPixelCache === 'function') resetPixelCache();
                             if (typeof redrawAll === 'function') redrawAll();
+
+                            // Fotoğraf yüklendikten sonra logoyu DOM'da en sona taşı → daima görsel üstte
+                            const _logoEl = document.getElementById('elLogo');
+                            const _cc = document.getElementById('canvas-container');
+                            if (_logoEl && _cc && _cc.lastChild !== _logoEl) {
+                                _logoEl.style.zIndex = '9999';
+                                _cc.appendChild(_logoEl);
+                            }
+
                             setTimeout(() => {
                                 if (typeof window.hideAppLoading === 'function') window.hideAppLoading(60);
                             }, 120);
@@ -741,29 +787,18 @@ function init(){
         [elBadge,elPrice,elDetails].forEach(el=>{if(el)enableInlineEdit(el)});
 
         if(canvasEl){
-
             const handleCanvasClick = e => {
-
+                if (e.button !== 0 && e.type === 'mousedown') return; // Sağ tık seçimi bozmasın
                 if(drawMode!=='off')return;
-
-                if(!e.target.closest('.canvas-el')&&!e.target.closest('.added-icon')&&!e.target.closest('.draggable')&&!e.target.closest('.editable-draw')){
-
+                if(!e.target.closest('.canvas-el')&&!e.target.closest('.added-icon')&&!e.target.closest('.draggable')&&!e.target.closest('.editable-draw')&&!e.target.closest('.callout-wrap')&&!e.target.closest('.co-neon-block')&&!e.target.closest('.app-context-menu')){
                     if (document.activeElement && document.activeElement.contentEditable === 'true') {
-
                         document.activeElement.blur();
-
                     }
-
                     deselectAll();
-
                 }
-
             };
-
             canvasEl.addEventListener('mousedown', handleCanvasClick);
-
             canvasEl.addEventListener('touchstart', handleCanvasClick, {passive: false});
-
         }
 
         if(photoLayer)enablePhotoDrag(photoLayer);
@@ -791,23 +826,20 @@ applyFontSettings();
 // ✅ Uygulama açılışında şablon elemanlarını GİZLE
 
 setTimeout(function(){
-
     if(elBadge) elBadge.style.visibility = 'hidden';
-
     if(elPrice) elPrice.style.visibility = 'hidden';
-
     if(elDetails) elDetails.style.visibility = 'hidden';
-
-    if(elLogo) elLogo.style.visibility = 'hidden';
-
-    if(elLogo) elLogo.style.visibility = 'hidden';
+    
+    const logoImg = elLogo ? elLogo.querySelector('img') : null;
+    const hasLogo = logoImg && logoImg.src && logoImg.src !== window.location.href && logoImg.src.length > 10;
+    if(elLogo && !hasLogo) {
+        elLogo.style.visibility = 'hidden';
+        elLogo.style.display = 'none';
+    }
 
     var infoLine = document.getElementById('infoLineText');
-
     if(infoLine) infoLine.style.visibility = 'hidden';
-
     console.log('🎨 Boş başlangıç');
-
 }, 100);
 
         
@@ -855,18 +887,18 @@ setTimeout(function(){
         console.log('🎉 Init tamamlandı');
         
         // Hide initial loader and re-enable format loaders
-        setTimeout(() => {
-            window.isInitialLoad = false;
-            const initLoader = document.getElementById('initialAppLoader');
-            if (initLoader) {
-                initLoader.style.opacity = '0';
-                setTimeout(() => initLoader.remove(), 300);
-            }
-        }, 500);
+        window.isInitialLoad = false;
+        const initLoader = document.getElementById('initialAppLoader');
+        if (initLoader) {
+            initLoader.style.opacity = '0';
+            setTimeout(() => initLoader.remove(), 200);
+        }
 
     } catch(err){
 
         console.error('❌ INIT HATASI:',err);
+        const initLoader = document.getElementById('initialAppLoader');
+        if (initLoader) initLoader.remove();
 
         alert('HATA: '+err.message+'\n\nF12 → Console açıp ekran görüntüsü at.');
 

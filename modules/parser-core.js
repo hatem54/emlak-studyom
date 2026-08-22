@@ -641,21 +641,23 @@
             // Adım 3: Emlak Tipini Belirle ve Kategoriye Geç
             const detectedType = detectPropertyType(normalizedText, tableMap);
             
-            // Kategori Değiştir ve Accordion'ı Aç
+            // Kategori Değiştir (Başlıklar varsayılan olarak kapalı kalır)
             if (typeof window.switchPropertyType === 'function') {
                 window.switchPropertyType(detectedType);
                 document.querySelectorAll('.cat-item').forEach(item => item.classList.remove('active'));
                 const targetEl = document.querySelector(`.cat-item[onclick*="${detectedType}"]`);
                 if (targetEl) {
                     targetEl.classList.add('active');
-                    const catBody = targetEl.closest('.cat-body');
-                    if (catBody) catBody.classList.add('open');
-                    const icon = targetEl.closest('.cat-group')?.querySelector('i');
-                    if (icon) {
-                        icon.classList.remove('fa-chevron-down');
-                        icon.classList.add('fa-chevron-up');
-                    }
                 }
+                // Tüm kategori panellerini kapalı tut
+                document.querySelectorAll('.cat-body').forEach(b => {
+                    b.classList.remove('open');
+                    b.style.display = 'none';
+                });
+                document.querySelectorAll('.cat-header i').forEach(ic => {
+                    ic.classList.remove('fa-chevron-up');
+                    ic.classList.add('fa-chevron-down');
+                });
             }
 
             // Adım 4: Varlıkların Çıkarılması
@@ -848,6 +850,7 @@
             const descInput = document.getElementById('descInput');
             if (descInput && descLines.length > 0) {
                 descInput.value = descLines.join('\n');
+                if (typeof window.syncDescToggles === 'function') window.syncDescToggles();
             }
 
             // Adım 6: Canlı Tuval Güncellemesi ve Otomatik Kayıt
@@ -857,13 +860,13 @@
                 window.applyParsedDataToJsonTemplate(result);
             }
 
-            // Eğer kullanıcı standart şablon modundaysa elemanları görünür yap ve güncelle
-            if (typeof activeLayout !== 'undefined' && activeLayout && (!window.isCanvaMode)) {
-                if (typeof elBadge !== 'undefined' && elBadge) elBadge.style.visibility = 'visible';
-                if (typeof elPrice !== 'undefined' && elPrice) elPrice.style.visibility = 'visible';
-                if (typeof elDetails !== 'undefined' && elDetails) elDetails.style.visibility = 'visible';
+            // Eğer kullanıcı standart şablon modundaysa ve aktif bir şablon seçiliyse elemanları görünür yap ve güncelle
+            if (typeof activeLayout !== 'undefined' && activeLayout && activeLayout !== 'empty' && activeLayout !== 'none' && (!window.isCanvaMode)) {
+                if (typeof elBadge !== 'undefined' && elBadge && elBadge.style.display !== 'none') elBadge.style.visibility = 'visible';
+                if (typeof elPrice !== 'undefined' && elPrice && elPrice.style.display !== 'none') elPrice.style.visibility = 'visible';
+                if (typeof elDetails !== 'undefined' && elDetails && elDetails.style.display !== 'none') elDetails.style.visibility = 'visible';
                 const il = document.getElementById('infoLineText');
-                if (il) il.style.visibility = 'visible';
+                if (il && elDetails && elDetails.style.display !== 'none') il.style.visibility = 'visible';
             }
 
             if (typeof window.requestAutoSave === 'function') window.requestAutoSave();

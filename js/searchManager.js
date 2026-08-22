@@ -100,7 +100,8 @@ window.OmniSearch = {
             { id: 'tool_free_text', name: 'Serbest Yazı Ekle', type: 'Araç', evalStr: "switchTab('text'); if(typeof window.addCustomTextOnly === 'function') window.addCustomTextOnly();" },
             { id: 'tool_draw_free', name: 'Serbest Çizim (Kalem)', type: 'Araç', evalStr: "switchTab('draw'); if(typeof setDrawMode === 'function') setDrawMode('free');" },
             { id: 'tool_draw_line', name: 'Ölçü / Düz Çizgi Çek', type: 'Araç', evalStr: "switchTab('draw'); if(typeof setDrawMode === 'function') setDrawMode('line');" },
-            { id: 'tool_ai', name: 'Yapay Zeka (Arkaplan İyileştir / Filtre)', type: 'Araç', evalStr: "switchTab('photo');" }
+            { id: 'tool_ai', name: 'Yapay Zeka (Arkaplan İyileştir / Filtre)', type: 'Araç', evalStr: "switchTab('photo');" },
+            { id: 'tool_color_matcher', name: 'PRO Renk Paleti & Şablon Renk Eşleştirici', type: 'Araç', evalStr: "if(typeof showTemplateColorModal === 'function') showTemplateColorModal();" }
         ];
 
         tools.forEach(t => {

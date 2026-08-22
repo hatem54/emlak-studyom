@@ -3,7 +3,7 @@
   "short_name": "Stüdyom",
   "description": "Profesyonel Emlak Tasarım ve Düzenleme Stüdyosu",
   "start_url": "./app.html",
-  "display": "fullscreen",
+  "display": "standalone",
   "background_color": "#0A0A1A",
   "theme_color": "#0A0A1A",
   "orientation": "any",

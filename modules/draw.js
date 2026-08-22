@@ -375,6 +375,7 @@ function canvasXY(e) {
 let lastGlobalDStartTime = 0;
 function dStart(e){
     if(drawMode==='off')return;
+    if (e.button !== undefined && e.button !== 0) return; // Sağ tık çizim başlatmasın, contextmenu açılmasına izin versin!
     
     // Pointer events: PC'de mouse tıklaması zaten mousedown ile işlenir.
     // pointerdown'da mouse geldiğinde erken dönüyoruz ki lastGlobalDStartTime güncellenip mousedown'u bloklamasın!
@@ -1155,6 +1156,12 @@ window.toggleArrowPicker = function(e) {
     }
 };
 
+window.arrowPickerDocClick = function(e) {
+    if (!e.target.closest('#arrowPickerPopover') && !e.target.closest('#dmArrow') && !e.target.closest('.dmb-caret')) {
+        window.closeArrowPicker();
+    }
+};
+
 window.openArrowPicker = function(e) {
     let popover = document.getElementById('arrowPickerPopover');
     if (!popover) {
@@ -1190,11 +1197,20 @@ window.openArrowPicker = function(e) {
         popover.style.left = left + 'px';
     }
     popover.style.display = 'block';
+
+    // Click handler'ı bağla
+    document.removeEventListener('click', window.arrowPickerDocClick);
+    setTimeout(() => {
+        document.addEventListener('click', window.arrowPickerDocClick);
+    }, 10);
 };
 
 window.closeArrowPicker = function() {
     const popover = document.getElementById('arrowPickerPopover');
     if (popover) popover.style.display = 'none';
+    if (typeof window.arrowPickerDocClick === 'function') {
+        document.removeEventListener('click', window.arrowPickerDocClick);
+    }
 };
 
 window.selectArrowStyle = function(styleId) {
@@ -1249,13 +1265,6 @@ window.createArrowPickerPopover = function() {
     `;
     
     document.body.appendChild(popover);
-    
-    // Dışarı tıklanınca kapat
-    document.addEventListener('click', (e) => {
-        if (!e.target.closest('#arrowPickerPopover') && !e.target.closest('#dmArrow') && !e.target.closest('.dmb-caret')) {
-            window.closeArrowPicker();
-        }
-    });
 };
 
 function redrawAll(){
@@ -1437,18 +1446,22 @@ function deleteDrawItem(i){
 
 let originalDrawState = null;
 
-function startDrawEdit(i, showPanel = true){
+function startDrawEdit(i, showPanel = true, isMulti = false){
     editingDrawIndex=i;
     const p=drawPaths[i];
     if(!p) return;
     
     // Canvas üzerinde o ögeyi seç ve tutamaçları göster
-    if (p.el && typeof window.selectElement === 'function') {
-        if (window.selectedEl !== p.el) {
-            window.selectElement(p.el, false, true);
-        } else if (typeof showVertexHandles === 'function') {
-            showVertexHandles(p.el);
+    if (!isMulti && (!window.selectedElements || window.selectedElements.length <= 1)) {
+        if (p.el && typeof window.selectElement === 'function') {
+            if (window.selectedEl !== p.el) {
+                window.selectElement(p.el, false, true);
+            } else if (typeof showVertexHandles === 'function') {
+                showVertexHandles(p.el);
+            }
         }
+    } else if (p.el && typeof showVertexHandles === 'function') {
+        showVertexHandles(p.el);
     }
     
     // Backup original state without circular refs
@@ -1858,6 +1871,7 @@ function createSVGFromPath(p) {
     const icon = document.createElement('div');
     icon.className = 'cvi-item canva-el is-svg-icon editable-draw';
     icon.innerHTML = svgString;
+    p.el = icon;
     icon.dataset.label = 'Çizim: ' + p.type;
     icon.dataset.drawType = p.type;
     icon.dataset.drawColor = p.color;
@@ -1910,6 +1924,7 @@ function createSVGFromPath(p) {
     
     return icon;
 }
+window.createSVGFromPath = createSVGFromPath;
 
 
 
@@ -1942,26 +1957,34 @@ window.loadDrawSettings = function(el) {
 };
 
 window.updateSelectedDraw = function() {
-    if(!window.selectedEl || !window.selectedEl.classList.contains('editable-draw')) return;
-    const el = window.selectedEl;
-    const svg = el.querySelector('svg');
-    if(!svg) return;
+    const targets = (window.selectedElements && window.selectedElements.length > 0) 
+        ? window.selectedElements.filter(e => e.classList.contains('editable-draw'))
+        : (window.selectedEl && window.selectedEl.classList.contains('editable-draw') ? [window.selectedEl] : []);
     
-    const color = document.getElementById('drawColor').value;
-    const w = parseFloat(document.getElementById('drawWidth').value);
-    const op = parseFloat(document.getElementById('drawOpacity').value) / 100;
+    if (targets.length === 0) return;
     
-    const shapes = svg.querySelectorAll('path, polygon, rect, ellipse, line, circle, polyline');
-    shapes.forEach(shape => {
-        if(shape.hasAttribute('stroke') && shape.getAttribute('stroke') !== 'none') {
-            shape.setAttribute('stroke', color);
-            shape.setAttribute('stroke-width', w);
-            shape.setAttribute('stroke-opacity', op);
-        }
-        if(shape.hasAttribute('fill') && shape.getAttribute('fill') !== 'none') {
-            shape.setAttribute('fill', color);
-            shape.setAttribute('fill-opacity', op);
-        }
+    const color = document.getElementById('drawColor') ? document.getElementById('drawColor').value : null;
+    const w = document.getElementById('drawWidth') ? parseFloat(document.getElementById('drawWidth').value) : null;
+    const op = document.getElementById('drawOpacity') ? parseFloat(document.getElementById('drawOpacity').value) / 100 : null;
+    
+    targets.forEach(el => {
+        const svg = el.querySelector('svg');
+        if(!svg) return;
+        const shapes = svg.querySelectorAll('path, polygon, rect, ellipse, line, circle, polyline');
+        shapes.forEach(shape => {
+            if(color !== null && shape.hasAttribute('stroke') && shape.getAttribute('stroke') !== 'none') {
+                shape.setAttribute('stroke', color);
+                if (w !== null && !isNaN(w)) shape.setAttribute('stroke-width', w);
+                if (op !== null && !isNaN(op)) shape.setAttribute('stroke-opacity', op);
+            }
+            if(color !== null && shape.hasAttribute('fill') && shape.getAttribute('fill') !== 'none') {
+                shape.setAttribute('fill', color);
+                if (op !== null && !isNaN(op)) shape.setAttribute('fill-opacity', op);
+            }
+        });
+        if (color) el.dataset.drawColor = color;
+        if (w) el.dataset.drawWidth = w;
+        if (op) el.dataset.drawOpacity = op;
     });
 };
 
@@ -2070,31 +2093,40 @@ window.showVertexHandles = function(el) {
             const curScaleX = (el.offsetWidth / baseW) * globalScale;
             const curScaleY = (el.offsetHeight / baseH) * globalScale;
             
+            let moveRAF = null;
             function onMove(me) {
+                if (me.touches && me.touches.length > 1) return;
                 const meEvt = me.touches ? me.touches[0] : me;
-                const rawDx = (meEvt.clientX - startX) / (curScaleX || 1);
-                const rawDy = (meEvt.clientY - startY) / (curScaleY || 1);
+                const cX = meEvt.clientX;
+                const cY = meEvt.clientY;
                 
-                let localDx = rawDx;
-                let localDy = rawDy;
-                const rotDeg = parseFloat(el.dataset.rotation) || 0;
-                if (rotDeg !== 0) {
-                    const rotRad = rotDeg * Math.PI / 180;
-                    const cos = Math.cos(rotRad);
-                    const sin = Math.sin(rotRad);
-                    localDx = rawDx * cos + rawDy * sin;
-                    localDy = -rawDx * sin + rawDy * cos;
-                }
-                
-                let newX = startPtX + localDx;
-                let newY = startPtY + localDy;
-                
-                pt.x = newX;
-                pt.y = newY;
-                
-                handle.style.left = (newX / baseW * 100) + '%';
-                handle.style.top = (newY / baseH * 100) + '%';
-                onUpdate(newX, newY);
+                if (moveRAF) return;
+                moveRAF = requestAnimationFrame(() => {
+                    moveRAF = null;
+                    const rawDx = (cX - startX) / (curScaleX || 1);
+                    const rawDy = (cY - startY) / (curScaleY || 1);
+                    
+                    let localDx = rawDx;
+                    let localDy = rawDy;
+                    const rotDeg = parseFloat(el.dataset.rotation) || 0;
+                    if (rotDeg !== 0) {
+                        const rotRad = rotDeg * Math.PI / 180;
+                        const cos = Math.cos(rotRad);
+                        const sin = Math.sin(rotRad);
+                        localDx = rawDx * cos + rawDy * sin;
+                        localDy = -rawDx * sin + rawDy * cos;
+                    }
+                    
+                    let newX = startPtX + localDx;
+                    let newY = startPtY + localDy;
+                    
+                    pt.x = newX;
+                    pt.y = newY;
+                    
+                    handle.style.left = (newX / baseW * 100) + '%';
+                    handle.style.top = (newY / baseH * 100) + '%';
+                    onUpdate(newX, newY);
+                });
             }
             
             function onUp() {
@@ -2218,27 +2250,58 @@ window.showVertexHandles = function(el) {
         const prevAngle = parseFloat(el.dataset.rotation) || 0;
         rotHandle.style.cursor = 'grabbing';
         
+        if (window.selectedElements && window.selectedElements.length > 1) {
+            window.selectedElements.forEach(selEl => {
+                selEl.dataset.dragStartRot = parseFloat(selEl.dataset.rotation) || 0;
+            });
+        }
+        
+        let moveRAF = null;
         function onMove(me) {
+            if (me.touches && me.touches.length > 1) return;
             const meEvt = me.touches ? me.touches[0] : me;
-            const currentAngleRad = Math.atan2(meEvt.clientY - centerY, meEvt.clientX - centerX);
-            const diffRad = currentAngleRad - startAngle;
-            const diffDeg = diffRad * (180 / Math.PI);
+            const cX = meEvt.clientX;
+            const cY = meEvt.clientY;
             
-            let newRotation = prevAngle + diffDeg;
-            newRotation = newRotation % 360;
-            if (newRotation > 180) newRotation -= 360;
-            else if (newRotation < -180) newRotation += 360;
-            newRotation = Math.round(newRotation);
-            
-            el.dataset.rotation = newRotation;
-            el.style.transform = `rotate(${newRotation}deg)`;
-            
-            if (typeof selectedEl !== 'undefined' && selectedEl === el) {
-                const rotSlider = document.getElementById('elRotate');
-                if (rotSlider) rotSlider.value = newRotation;
-                const rotVal = document.getElementById('elRotateVal');
-                if (rotVal) rotVal.textContent = newRotation + '°';
-            }
+            if (moveRAF) return;
+            moveRAF = requestAnimationFrame(() => {
+                moveRAF = null;
+                const currentAngleRad = Math.atan2(cY - centerY, cX - centerX);
+                const diffRad = currentAngleRad - startAngle;
+                const diffDeg = diffRad * (180 / Math.PI);
+                
+                let newRotation = prevAngle + diffDeg;
+                newRotation = newRotation % 360;
+                if (newRotation > 180) newRotation -= 360;
+                else if (newRotation < -180) newRotation += 360;
+                newRotation = Math.round(newRotation);
+                
+                el.dataset.rotation = newRotation;
+                const curScale = el.dataset.scale || 1;
+                el.style.transform = `rotate(${newRotation}deg) scale(${curScale})`;
+                
+                if (window.selectedElements && window.selectedElements.length > 1) {
+                    window.selectedElements.forEach(selEl => {
+                        if (selEl !== el) {
+                            const s_prev = parseFloat(selEl.dataset.dragStartRot) || 0;
+                            let s_new = (s_prev + diffDeg) % 360;
+                            if (s_new > 180) s_new -= 360;
+                            else if (s_new < -180) s_new += 360;
+                            s_new = Math.round(s_new);
+                            selEl.dataset.rotation = s_new;
+                            const s_scale = selEl.dataset.scale || 1;
+                            selEl.style.transform = `rotate(${s_new}deg) scale(${s_scale})`;
+                        }
+                    });
+                }
+                
+                if (typeof selectedEl !== 'undefined' && selectedEl === el) {
+                    const rotSlider = document.getElementById('elRotate');
+                    const rotVal = document.getElementById('elRotateVal');
+                    if(rotSlider) rotSlider.value = newRotation;
+                    if(rotVal) rotVal.textContent = newRotation + '°';
+                }
+            });
         }
         
         function onUp() {
@@ -2285,6 +2348,13 @@ window.showVertexHandles = function(el) {
         const cos = Math.cos(rotRad);
         const sin = Math.sin(rotRad);
         
+        if (window.selectedElements && window.selectedElements.length > 1) {
+            window.selectedElements.forEach(selEl => {
+                selEl.dataset.dragStartW = selEl.offsetWidth;
+                selEl.dataset.dragStartH = selEl.offsetHeight;
+            });
+        }
+        
         function rsMove(me) {
             const meEvt = me.touches ? me.touches[0] : me;
             const globalScale = typeof window.getGlobalScale === 'function' ? window.getGlobalScale() : 1;
@@ -2308,6 +2378,24 @@ window.showVertexHandles = function(el) {
             
             el.style.width = newW + 'px';
             el.style.height = newH + 'px';
+            
+            if (el.dataset.baseWidth !== undefined) el.dataset.baseWidth = newW;
+            if (el.dataset.baseHeight !== undefined) el.dataset.baseHeight = newH;
+
+            if (window.selectedElements && window.selectedElements.length > 1) {
+                window.selectedElements.forEach(selEl => {
+                    if (selEl !== el) {
+                        const s_w = parseFloat(selEl.dataset.dragStartW) || selEl.offsetWidth;
+                        const s_h = parseFloat(selEl.dataset.dragStartH) || selEl.offsetHeight;
+                        const finalW = Math.max(20, Math.round(s_w * scale));
+                        const finalH = Math.max(20, Math.round(s_h * scale));
+                        selEl.style.width = finalW + 'px';
+                        selEl.style.height = finalH + 'px';
+                        if (selEl.dataset.baseWidth !== undefined) selEl.dataset.baseWidth = finalW;
+                        if (selEl.dataset.baseHeight !== undefined) selEl.dataset.baseHeight = finalH;
+                    }
+                });
+            }
         }
         
         function rsUp() {

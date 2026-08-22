@@ -94,7 +94,7 @@ function _getZoomTarget(target){
 }
 
 function bindDrag(el){
-    let dragging=false, resizing=false, sx, sy, il, it, iw, ih, moved=false, downTime=0, multiSelectKey=false;
+    let dragging=false, resizing=false, sx, sy, il, it, iw, ih, moved=false, downTime=0, multiSelectKey=false, moveRAF=null, lastClientX=0, lastClientY=0;
     
     el.addEventListener('mousemove', e => {
         const rect = el.getBoundingClientRect();
@@ -106,17 +106,11 @@ function bindDrag(el){
     });
 
     function down(e){
+        if (e.touches && e.touches.length > 1) return;
         if (e.type === 'mousedown' && e.button !== 0) return; // Sağ tık sürüklemeyi ve seçimi bozmasın
         if(typeof window._rotUp === 'function') window._rotUp();
         window.isLongPressOpen = false;
         if (typeof drawMode !== 'undefined' && drawMode !== null && drawMode !== 'off') return;
-        
-        if (el.classList.contains('editable-draw')) {
-            const isUnlocked = window.isPhotoLocked === false || (document.getElementById('photoLockToggle') && !document.getElementById('photoLockToggle').checked);
-            if (isUnlocked) {
-                return; // Do not intercept drag when user is panning unlocked photo
-            }
-        }
         
         multiSelectKey = e.ctrlKey || e.shiftKey;
         if (e.touches && typeof longPressTimer !== 'undefined') { /* mobile long press logic handled separately */ }
@@ -128,7 +122,9 @@ function bindDrag(el){
             }
           if(el.contentEditable==='true')return;
         if (e.target.closest('.vertex-handle, .text-rotate-handle, .text-resize-handle, .callout-controls, .callout-resizer, .callout-rotator')) {
-            return;
+            if (!window.selectedElements || window.selectedElements.length <= 1) {
+                return;
+            }
         }
         
         if(el.dataset.editingText)return;
@@ -154,7 +150,7 @@ function bindDrag(el){
         
         const isCallout = el.classList.contains('callout-wrap') || el.classList.contains('svg-callout') || el.classList.contains('co-neon-block');
         
-        if (!isCallout && (c.clientX >= rect.right - 20 && c.clientY >= rect.bottom - 20)) {
+        if (!isCallout && (!window.selectedElements || window.selectedElements.length <= 1) && (c.clientX >= rect.right - 20 && c.clientY >= rect.bottom - 20)) {
             resizing = true;
             iw = el.offsetWidth;
             ih = el.offsetHeight;
@@ -167,27 +163,45 @@ function bindDrag(el){
         sx=c.clientX;
         sy=c.clientY;
         const cs=getComputedStyle(el);
-        il=parseFloat(cs.left)||0;
-        it=parseFloat(cs.top)||0;
+        il=parseFloat(el.style.left) || parseFloat(cs.left) || el.offsetLeft || 0;
+        it=parseFloat(el.style.top) || parseFloat(cs.top) || el.offsetTop || 0;
         
-        if (window.selectedElements && window.selectedElements.includes(el)) {
+        if (window.selectedElements && window.selectedElements.length > 0) {
             window.selectedElements.forEach(selEl => {
                 const s_cs = getComputedStyle(selEl);
-                selEl.dataset.dragStartX = parseFloat(s_cs.left) || 0;
-                selEl.dataset.dragStartY = parseFloat(s_cs.top) || 0;
+                selEl.dataset.dragStartX = parseFloat(selEl.style.left) || parseFloat(s_cs.left) || selEl.offsetLeft || 0;
+                selEl.dataset.dragStartY = parseFloat(selEl.style.top) || parseFloat(s_cs.top) || selEl.offsetTop || 0;
                 selEl.dataset.dragStartWidth = selEl.offsetWidth;
                 selEl.dataset.dragStartHeight = selEl.offsetHeight;
+                selEl.dataset.dragStartFontSize = parseFloat(window.getComputedStyle(selEl).fontSize) || 16;
             });
         }
     }
     function move(e){
         if(!dragging && !resizing)return;
         if(el.dataset.editingText){dragging=false;resizing=false;return}
+        
+        if(e.touches && e.touches.length > 1) {
+            dragging = false;
+            resizing = false;
+            return;
+        }
+        
         e.preventDefault();
         moved=true;
-        const c=e.touches?e.touches[0]:e;
         
-        if (resizing) {
+        const tc = e.touches ? e.touches[0] : e;
+        lastClientX = tc.clientX;
+        lastClientY = tc.clientY;
+        
+        if (moveRAF) return;
+        
+        moveRAF = requestAnimationFrame(() => {
+            moveRAF = null;
+            if(!dragging && !resizing) return;
+            const c = { clientX: lastClientX, clientY: lastClientY };
+            
+            if (resizing) {
             const rawDx = (c.clientX - sx) / window.getGlobalScale();
             const rawDy = (c.clientY - sy) / window.getGlobalScale();
             let dx = rawDx;
@@ -232,7 +246,10 @@ function bindDrag(el){
                     if (pd) { pd.value = newPadding; document.getElementById('coPaddingVal').textContent = newPadding + 'px'; }
                 }
             } else {
-                if (el.classList.contains('editable-text') || el.classList.contains('canvas-el') || el.classList.contains('cvi-item')) {
+                if (el.id === 'elLogo' || el.classList.contains('sh-logo') || el.querySelector('img') || el.tagName === 'IMG') {
+                    el.style.width = newW + 'px';
+                    el.style.height = 'auto';
+                } else if (el.classList.contains('editable-text') || el.classList.contains('canvas-el') || el.classList.contains('cvi-item')) {
                     if (el.dataset.label === 'Özel Kutu') {
                         // Kutu serbest boyutlandırılır, yazı boyutu değişmez (Ratcheting / küçülme bug'ını çözer)
                     } else {
@@ -249,16 +266,17 @@ function bindDrag(el){
                             if(fsInput) { fsInput.value = newFontSize; if(fsVal) fsVal.textContent = Math.round(newFontSize); }
                         }
                     }
-                }
-                
-                el.style.width = newW + 'px';
-                if (el.tagName !== 'IMG') {
+                    
+                    el.style.width = newW + 'px';
                     if (el.classList.contains('canvas-el') && !el.classList.contains('co-neon-block')) {
                         el.style.minHeight = newH + 'px';
                         el.style.height = 'auto';
                     } else {
                         el.style.height = newH + 'px';
                     }
+                } else {
+                    el.style.width = newW + 'px';
+                    el.style.height = newH + 'px';
                 }
                 
                 if (typeof selectedEl !== 'undefined' && selectedEl === el) {
@@ -269,6 +287,23 @@ function bindDrag(el){
                     if(wInput) { wInput.value = newW; if(wVal) wVal.textContent = Math.round(newW) + 'px'; }
                     if(hInput && el.tagName !== 'IMG') { hInput.value = newH; if(hVal) hVal.textContent = Math.round(newH) + 'px'; }
                 }
+            }
+            
+            if (window.selectedElements && window.selectedElements.length > 1) {
+                const ratio = Math.max(0.1, newW / (iw || 1));
+                window.selectedElements.forEach(selEl => {
+                    if (selEl !== el) {
+                        const s_w = parseFloat(selEl.dataset.dragStartWidth) || selEl.offsetWidth;
+                        const s_h = parseFloat(selEl.dataset.dragStartHeight) || selEl.offsetHeight;
+                        selEl.style.width = Math.max(20, Math.round(s_w * ratio)) + 'px';
+                        selEl.style.height = Math.max(20, Math.round(s_h * ratio)) + 'px';
+                        
+                        if (selEl.classList.contains('editable-text') || selEl.classList.contains('canvas-el')) {
+                            const s_fs = parseFloat(selEl.dataset.dragStartFontSize) || 16;
+                            selEl.style.fontSize = Math.max(8, Math.round(s_fs * ratio)) + 'px';
+                        }
+                    }
+                });
             }
         } else {
             const deltaX = (c.clientX - sx) / window.getGlobalScale();
@@ -307,6 +342,7 @@ function bindDrag(el){
                 });
             }
         }
+        });
     }
     function up(){
         if (window.clearSnapGuides) window.clearSnapGuides();
@@ -412,15 +448,6 @@ function selectElement(el, isMulti = false, noTabSwitch = false){
         if(!window.selectedElements.includes(el)) {
             window.selectedElements.push(el);
             el.classList.add('el-selected');
-        } else {
-            // deselect if already selected?
-            const idx = window.selectedElements.indexOf(el);
-            if(idx > -1) window.selectedElements.splice(idx, 1);
-            el.classList.remove('el-selected');
-            if(window.selectedElements.length === 0) {
-                deselectAll();
-                return;
-            }
         }
         selectedEl = window.selectedElements[window.selectedElements.length - 1]; // last one selected is primary
     } else {
@@ -455,6 +482,7 @@ function selectElement(el, isMulti = false, noTabSwitch = false){
 
     // Check if grouping is active or can be activated
     if(typeof updateGroupUI === 'function') updateGroupUI();
+    if(typeof window.updateMultiSelectUI === 'function') window.updateMultiSelectUI();
     
     if(el.classList.contains('editable-draw') || el.closest('.editable-draw')) {
         const drawEl = el.classList.contains('editable-draw') ? el : el.closest('.editable-draw');
@@ -465,16 +493,20 @@ function selectElement(el, isMulti = false, noTabSwitch = false){
             if(typeof switchTab === 'function') switchTab('draw');
         }
         if(typeof loadDrawSettings === 'function') loadDrawSettings(el);
-        if(typeof showVertexHandles === 'function') showVertexHandles(el);
+        if(!isMulti && (!window.selectedElements || window.selectedElements.length <= 1)) {
+            if(typeof showVertexHandles === 'function') showVertexHandles(el);
+        } else {
+            if(typeof hideVertexHandles === 'function') hideVertexHandles();
+        }
         
         // Çizim sekmesinde o çizimi aktif et, geçmiş panelinde vurgula ve düzenleme panelini aç
         if (typeof drawPaths !== 'undefined') {
             const idx = drawPaths.findIndex(p => p.el === el || (p.el && el && (p.el === el || p.el.contains(el) || el.contains(p.el))));
             if (idx > -1) {
                 if (typeof window.startDrawEdit === 'function') {
-                    window.startDrawEdit(idx, true);
+                    window.startDrawEdit(idx, !isMulti, isMulti);
                 } else if (typeof startDrawEdit === 'function') {
-                    startDrawEdit(idx, true);
+                    startDrawEdit(idx, !isMulti, isMulti);
                 }
             }
         }
@@ -502,6 +534,7 @@ function deselectAll(){
     if(document.getElementById('noSelMsg')) document.getElementById('noSelMsg').style.display='block';
     if(document.getElementById('elSettings')) document.getElementById('elSettings').style.display='none';
     if(typeof hideVertexHandles === 'function') hideVertexHandles();
+    if(typeof window.updateMultiSelectUI === 'function') window.updateMultiSelectUI();
 }
 
 function makeDraggable(el){
@@ -717,51 +750,4 @@ function createPolygonFromSelectedLines() {
     if(typeof updateDrawHistory === 'function') updateDrawHistory();
     deselectAll();
     if(pObj.el && typeof selectElement === 'function') selectElement(pObj.el);
-}
-
-// Float butonu gösterme/gizleme mantığı
-function checkConvertPolygonButton() {
-    let btn = document.getElementById('btnConvertPolygon');
-    if (!window.selectedElements || window.selectedElements.length < 2) {
-        if (btn) btn.style.display = 'none';
-        return;
-    }
-    
-    const lines = window.selectedElements.filter(el => {
-        if (!el.classList.contains('editable-draw')) return false;
-        if (typeof drawPaths !== 'undefined') {
-            const pObj = drawPaths.find(p => p.el === el);
-            return pObj && pObj.type === 'line';
-        }
-        return false;
-    });
-    
-    if (lines.length >= 2) {
-        if (!btn) {
-            btn = document.createElement('button');
-            btn.id = 'btnConvertPolygon';
-            btn.innerHTML = '🔷 Çokgene Çevir';
-            btn.style.position = 'absolute';
-            btn.style.zIndex = '9999999';
-            btn.style.background = '#6366f1';
-            btn.style.color = '#fff';
-            btn.style.border = 'none';
-            btn.style.padding = '8px 12px';
-            btn.style.borderRadius = '6px';
-            btn.style.cursor = 'pointer';
-            btn.style.fontWeight = 'bold';
-            btn.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)';
-            btn.onclick = createPolygonFromSelectedLines;
-            document.body.appendChild(btn);
-        }
-        
-        // Butonu son seçili elemanın yanına yerleştir
-        const lastEl = window.selectedElements[window.selectedElements.length - 1];
-        const rect = lastEl.getBoundingClientRect();
-        btn.style.left = (rect.right + 10) + 'px';
-        btn.style.top = rect.top + 'px';
-        btn.style.display = 'block';
-    } else {
-        if (btn) btn.style.display = 'none';
-    }
 }

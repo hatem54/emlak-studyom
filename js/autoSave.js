@@ -173,7 +173,12 @@ async function performAutoSave() {
             }
         }
         
-        if (!hasPhoto && !isCanvaModeActive && !hasDrawings && !hasInputs) return; // Nothing meaningful to save
+        const kolajWrap = document.getElementById('kolaj-wrapper');
+        const hasKolaj = kolajWrap && kolajWrap.children.length > 0;
+        const canvaLayer = document.getElementById('canva-render-layer');
+        const hasCanva = canvaLayer && canvaLayer.children.length > 0 && canvaLayer.style.display !== 'none';
+        
+        if (!hasPhoto && !isCanvaModeActive && !hasDrawings && !hasInputs && !hasKolaj && !hasCanva) return; // Nothing meaningful to save
         
         const activeUploadedImgUrl = typeof uploadedImgUrl !== 'undefined' ? uploadedImgUrl : window.uploadedImgUrl;
         const state = {
@@ -181,8 +186,15 @@ async function performAutoSave() {
             currentMode: typeof currentMode !== 'undefined' ? currentMode : window.currentMode,
             propertyType: typeof currentMode !== 'undefined' ? currentMode : (window.currentMode || 'satilik_daire'),
             activeLayout: typeof activeLayout !== 'undefined' ? activeLayout : window.activeLayout, 
+            hasStandardTemplate: (typeof elDetails !== 'undefined' && elDetails && elDetails.style.visibility === 'visible' && elDetails.style.display !== 'none'),
             isCanvaMode: isCanvaModeActive, 
             activeCanvaId: typeof activeCanvaId !== 'undefined' ? activeCanvaId : window.activeCanvaId,
+            canvaHtml: hasCanva ? canvaLayer.innerHTML : null,
+            isKolajMode: !!hasKolaj,
+            kolajAktif: typeof _kolajAktif !== 'undefined' ? _kolajAktif : null,
+            kolajHtml: hasKolaj ? kolajWrap.innerHTML : null,
+            kolajBg: hasKolaj ? (kolajWrap.style.background || kolajWrap.style.backgroundColor || '') : '',
+            lastAppliedPalette: window.lastAppliedPalette ? Object.assign({}, window.lastAppliedPalette) : null,
             currentFont: typeof currentFont !== 'undefined' ? currentFont : (window.currentFont || localStorage.getItem('emlakstudiom_currentFont') || ''),
             canvasBgColor: (document.getElementById('canvasBgColor') && document.getElementById('canvasBgColor').value) || (document.getElementById('canvas-container') ? document.getElementById('canvas-container').style.backgroundColor : '') || localStorage.getItem('emlakstudiom_canvasBgColor') || '',
             uploadedImgW: typeof uploadedImgW !== 'undefined' ? uploadedImgW : window.uploadedImgW, 
@@ -203,14 +215,18 @@ async function performAutoSave() {
             customItems: []
         };
 
-        // Resimleri Base64'e çevir (Eğer getBase64FromBlobUrl tanımlıysa)
-        if (typeof getBase64FromBlobUrl === 'function' && activeUploadedImgUrl) {
-            state.uploadedImgUrl = await getBase64FromBlobUrl(activeUploadedImgUrl, 1280);
+        // Resimleri doğrudan orijinal kalitesinde koru (Sıkıştırma ve kalite kaybı olmadan)
+        if (activeUploadedImgUrl) {
+            if (activeUploadedImgUrl.startsWith('blob:') && typeof getBase64FromBlobUrl === 'function') {
+                state.uploadedImgUrl = await getBase64FromBlobUrl(activeUploadedImgUrl);
+            } else {
+                state.uploadedImgUrl = activeUploadedImgUrl;
+            }
         }
 
         const elLogo = document.getElementById('elLogo');
-        const logoUrl = elLogo && elLogo.style.backgroundImage !== 'none' ? elLogo.style.backgroundImage : '';
-        if (typeof getBase64FromCSSUrl === 'function') {
+        const logoUrl = elLogo && elLogo.src ? elLogo.src : (elLogo && elLogo.style.backgroundImage !== 'none' ? elLogo.style.backgroundImage : '');
+        if (typeof getBase64FromCSSUrl === 'function' && logoUrl) {
             state.logoImgUrl = await getBase64FromCSSUrl(logoUrl);
         }
 
@@ -238,6 +254,7 @@ async function performAutoSave() {
         // A. İkonlar
         document.querySelectorAll('#ui-layer .added-icon, #photo-layer .added-icon, #canvas-container .added-icon, #ui-layer .is-svg-icon').forEach(icon => {
             if (icon.closest('.callout-wrap') || icon.closest('.co-neon-block')) return;
+            if (icon.classList.contains('editable-draw')) return;
             const isSvg = icon.classList.contains('is-svg-icon') || !!icon.querySelector('svg');
             const clone = icon.cloneNode(true);
             clone.querySelectorAll('.text-handle').forEach(h => h.remove());
@@ -381,7 +398,7 @@ async function applyRestoredState(state) {
         if (typeof _kolajTemizle === 'function') _kolajTemizle();
         if (typeof clearCanvaTemplate === 'function') clearCanvaTemplate(true);
 
-        document.querySelectorAll('#canvas-container .callout-wrap, #canvas-container .co-neon-block, #canvas-container .callout-wrapper, #ui-layer .added-icon, #photo-layer .added-icon, #canvas-container .added-icon').forEach(el => el.remove());
+        document.querySelectorAll('#canvas-container .callout-wrap, #canvas-container .co-neon-block, #canvas-container .callout-wrapper, #ui-layer .added-icon, #photo-layer .added-icon, #canvas-container .added-icon, #canvas-container .editable-draw, #ui-layer .editable-draw').forEach(el => el.remove());
         document.querySelectorAll('#ui-layer .canvas-el.draggable, #photo-layer .canvas-el.draggable').forEach(el => {
             if (['elBadge', 'elPrice', 'elDetails', 'elLogo', 'badge', 'price', 'details', 'logo_overlay'].includes(el.id)) return;
             if (el.classList.contains('normal-el') || el.classList.contains('canva-generated') || el.classList.contains('canva-panel')) return;
@@ -513,12 +530,25 @@ async function applyRestoredState(state) {
 
         const elLogo = document.getElementById('elLogo');
         if(state.logoImgUrl && typeof elLogo !== 'undefined' && elLogo) {
-            elLogo.style.backgroundImage = "url('" + state.logoImgUrl + "')";
+            const img = elLogo.querySelector('img');
+            if (img) {
+                img.src = state.logoImgUrl;
+                img.style.display = 'block';
+            }
             elLogo.src = state.logoImgUrl; 
             elLogo.style.display = 'block';
+            elLogo.style.visibility = 'visible';
+            elLogo.style.zIndex = '9999';
+            // Logo her zaman en üstte: canvas-container'ın son çocuğuna taşı
+            const _cc = document.getElementById('canvas-container');
+            if (_cc && _cc.lastChild !== elLogo) {
+                _cc.appendChild(elLogo);
+            }
+            if (document.getElementById('clearLogoBtn')) document.getElementById('clearLogoBtn').style.display = 'flex';
+            if (document.getElementById('logoUploadBtnText')) document.getElementById('logoUploadBtnText').innerText = 'Logoyu Değiştir';
         }
 
-        // 6. Şablon Durumu (Canva Şablonu vs Standart Şablon)
+        // 6. Şablon Durumu (Kolaj vs Canva vs Standart)
         const isCanva = (state.isCanvaMode === true);
         const canvaId = state.activeCanvaId || null;
         const stdLayout = state.activeLayout || null;
@@ -532,10 +562,46 @@ async function applyRestoredState(state) {
         if (typeof activeLayout !== 'undefined') activeLayout = stdLayout;
         window.activeLayout = stdLayout;
 
-        if (isCanva && canvaId) {
+        if (state.isKolajMode && state.kolajHtml) {
             document.querySelectorAll('.normal-el').forEach(el => el.style.visibility = 'hidden');
-            if (typeof refreshActiveCanvaTemplate === 'function') refreshActiveCanvaTemplate();
-        } else if (stdLayout && stdLayout !== 'none' && stdLayout !== 'empty') {
+            let kolajWrap = document.getElementById('kolaj-wrapper');
+            if (!kolajWrap) {
+                kolajWrap = document.createElement('div');
+                kolajWrap.id = 'kolaj-wrapper';
+                kolajWrap.style.position = 'absolute';
+                kolajWrap.style.left = '0';
+                kolajWrap.style.top = '0';
+                kolajWrap.style.width = '100%';
+                kolajWrap.style.height = '100%';
+                kolajWrap.style.overflow = 'hidden';
+                kolajWrap.style.zIndex = '5';
+                const canvasContainer = document.getElementById('canvas-container');
+                if (canvasContainer) canvasContainer.appendChild(kolajWrap);
+            }
+            kolajWrap.innerHTML = state.kolajHtml;
+            if (state.kolajBg) kolajWrap.style.background = state.kolajBg;
+            if (state.kolajAktif && typeof _kolajAktif !== 'undefined') _kolajAktif = state.kolajAktif;
+            if (typeof _kolajFormatGuncelle === 'function') _kolajFormatGuncelle();
+        } else if (isCanva && canvaId) {
+            document.querySelectorAll('.normal-el').forEach(el => el.style.visibility = 'hidden');
+            if (state.canvaHtml) {
+                const crl = document.getElementById('canva-render-layer');
+                if (crl) {
+                    crl.innerHTML = state.canvaHtml;
+                    crl.style.display = 'block';
+                    crl.querySelectorAll('.photo-panel').forEach(p => {
+                        if (typeof _preparePhoto === 'function') _preparePhoto(p);
+                        if (typeof _applyPhotoTransform === 'function') _applyPhotoTransform(p);
+                    });
+                    crl.querySelectorAll('.editable-text').forEach(el => {
+                        if (typeof enableInlineEdit === 'function') enableInlineEdit(el);
+                        if (typeof bindDrag === 'function') bindDrag(el);
+                    });
+                }
+            } else if (typeof refreshActiveCanvaTemplate === 'function') {
+                refreshActiveCanvaTemplate();
+            }
+        } else if (state.hasStandardTemplate && stdLayout && stdLayout !== 'none' && stdLayout !== 'empty') {
             document.querySelectorAll('.canva-generated, .canva-panel').forEach(e => e.remove());
             if (typeof setTemplate === 'function') {
                 setTemplate(stdLayout);
@@ -554,9 +620,27 @@ async function applyRestoredState(state) {
             document.querySelectorAll('.template-btn').forEach(b => b.classList.toggle('active', b.id === 'tpl-' + stdLayout));
         } else {
             if (typeof clearAllTemplates === 'function') clearAllTemplates();
-            if (typeof elBadge !== 'undefined' && elBadge) elBadge.style.visibility = 'hidden';
-            if (typeof elPrice !== 'undefined' && elPrice) elPrice.style.visibility = 'hidden';
-            if (typeof elDetails !== 'undefined' && elDetails) elDetails.style.visibility = 'hidden';
+            if (typeof elBadge !== 'undefined' && elBadge) { elBadge.style.visibility = 'hidden'; elBadge.style.display = 'none'; }
+            if (typeof elPrice !== 'undefined' && elPrice) { elPrice.style.visibility = 'hidden'; elPrice.style.display = 'none'; }
+            if (typeof elDetails !== 'undefined' && elDetails) { elDetails.style.visibility = 'hidden'; elDetails.style.display = 'none'; }
+            const il = document.getElementById('infoLineText');
+            if (il) { il.style.visibility = 'hidden'; il.style.display = 'none'; }
+        }
+
+        // 6.1. Uygulanan Pro Renk Paletini Geri Yükle
+        if (state.lastAppliedPalette) {
+            window.lastAppliedPalette = state.lastAppliedPalette;
+            if (typeof applyTemplateTheme === 'function' && state.lastAppliedPalette.bg) {
+                applyTemplateTheme(
+                    state.lastAppliedPalette.bg,
+                    state.lastAppliedPalette.accent,
+                    state.lastAppliedPalette.titleText || state.lastAppliedPalette.accent || '#ffffff',
+                    state.lastAppliedPalette.text,
+                    state.lastAppliedPalette.applyBg !== false,
+                    state.lastAppliedPalette.glow,
+                    state.lastAppliedPalette.name
+                );
+            }
         }
 
         // 6.1. Global Font Ayarını Geri Yükle
@@ -707,11 +791,27 @@ async function applyRestoredState(state) {
             });
         }
         
-        // Re-link DOM elements in drawPaths
+        // Re-create DOM SVG elements for drawPaths
         if (activeDrawPaths && activeDrawPaths.length > 0) {
-            activeDrawPaths.forEach(p => {
-                if (p.elId) p.el = document.getElementById(p.elId);
+            document.querySelectorAll('#canvas-container .editable-draw, #ui-layer .editable-draw').forEach(el => el.remove());
+            activeDrawPaths.forEach((p, idx) => {
+                const createFn = (typeof createSVGFromPath === 'function') ? createSVGFromPath : window.createSVGFromPath;
+                if (typeof createFn === 'function') {
+                    const el = createFn(p);
+                    if (el) {
+                        p.el = el;
+                        el.dataset.pathIndex = idx;
+                        if (p.elId) el.id = p.elId;
+                        if (typeof allIcons !== 'undefined' && !allIcons.includes(el)) {
+                            allIcons.push(el);
+                        }
+                    }
+                }
             });
+            if (typeof allIcons !== 'undefined') {
+                const countEl = document.getElementById('iconCount');
+                if (countEl) countEl.textContent = allIcons.length;
+            }
         }
 
         // 7.1. İlana Hazır Ögeler (Smart Suggestions) Geri Yükleme
@@ -735,6 +835,9 @@ async function applyRestoredState(state) {
         if(fontToRestore && typeof applyFontSettings === 'function') applyFontSettings();
         if(typeof window.resetCanvasZoom === 'function') window.resetCanvasZoom();
 
+        // 9. Çizim Modunu Kapat ve Çizimleri Tıklanabilir Yap
+        if (typeof setDrawMode === 'function') setDrawMode('off');
+
         showAutoSaveIndicator();
         const autoInd = document.getElementById('autosave-indicator');
         if (autoInd) autoInd.innerHTML = '✓ Çalışmanız geri yüklendi';
@@ -757,8 +860,12 @@ async function applyRestoredState(state) {
 }
 
 function showRecoveryModal(savedData) {
+    // Başlangıç yükleyicisini hemen kaldır ki modalın üstünü kapatmasın
+    const initLoader = document.getElementById('initialAppLoader');
+    if (initLoader) initLoader.remove();
+
     const modalHtml = `
-        <div id="recoveryModal" style="position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(10,14,26,0.96); z-index:99999999; display:flex; align-items:center; justify-content:center; backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px);">
+        <div id="recoveryModal" style="position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(10,14,26,0.96); z-index:100000000; display:flex; align-items:center; justify-content:center; backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px);">
             <div class="export-loader-card" style="max-width:420px; padding:32px 36px; text-align:center; border:1px solid rgba(0,210,255,0.35); box-shadow:0 25px 60px rgba(0,0,0,0.85), 0 0 35px rgba(0,210,255,0.2); border-radius:20px; background:rgba(18,22,38,0.95); animation:loaderPopIn 0.22s cubic-bezier(0.16, 1, 0.3, 1);">
                 <div style="width:58px; height:58px; border-radius:50%; background:rgba(0,210,255,0.1); border:1.5px solid rgba(0,210,255,0.4); display:flex; align-items:center; justify-content:center; margin:0 auto 16px; box-shadow:0 0 20px rgba(0,210,255,0.25);">
                     <i class="fa-solid fa-clock-rotate-left" style="font-size:24px; color:#00d2ff;"></i>

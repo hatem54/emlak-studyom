@@ -30,7 +30,7 @@ window.AppState = {
     // 5. Şablon ve Mod Durumu
     template: {
         get currentMode() { return typeof currentMode !== 'undefined' ? currentMode : 'klasik'; },
-        get activeLayout() { return typeof activeLayout !== 'undefined' ? activeLayout : 't1'; },
+        get activeLayout() { return (typeof activeLayout !== 'undefined' && activeLayout) ? activeLayout : ''; },
         get isCanvaMode() { return typeof isCanvaMode !== 'undefined' ? isCanvaMode : false; }
     },
     // 6. Şablon veya Mod Geçişlerinde Güvenli Sıfırlama (State Cleanup)
@@ -147,11 +147,22 @@ function captureStandardElements() {
 // Tüm tuvalin eksiksiz JSON snapshot'ını oluşturur
 function captureFullState() {
     const activeDrawPaths = (typeof drawPaths !== 'undefined' && Array.isArray(drawPaths)) ? drawPaths : (window.drawPaths || []);
+    const canvaLayer = document.getElementById('canva-render-layer');
+    const kolajWrap = document.getElementById('kolaj-wrapper');
+    const canvasContainer = document.getElementById('canvas-container');
+
     return {
         timestamp: Date.now(),
         drawPaths: cloneDrawPaths(activeDrawPaths),
         customElements: captureCustomElements(),
         standardElements: captureStandardElements(),
+        canvaHtml: (canvaLayer && canvaLayer.style.display !== 'none' && canvaLayer.children.length > 0) ? canvaLayer.innerHTML : null,
+        kolajState: kolajWrap ? {
+            html: kolajWrap.innerHTML,
+            bg: kolajWrap.style.background || kolajWrap.style.backgroundColor || ''
+        } : null,
+        canvasBgColor: canvasContainer ? canvasContainer.style.backgroundColor : '',
+        lastAppliedPalette: window.lastAppliedPalette ? Object.assign({}, window.lastAppliedPalette) : null,
         currentMode: typeof currentMode !== 'undefined' ? currentMode : window.currentMode,
         activeLayout: typeof activeLayout !== 'undefined' ? activeLayout : window.activeLayout
     };
@@ -181,7 +192,54 @@ function applySnapshot(state) {
         if (typeof redrawAll === 'function') redrawAll();
         if (typeof updateDrawHistory === 'function') updateDrawHistory();
 
-        // 3. Mevcut Özel Elemanları Temizle
+        // 3. Canva ve Kolaj Şablon Durumlarını Geri Yükle
+        if (state.canvaHtml) {
+            const canvaLayer = document.getElementById('canva-render-layer');
+            if (canvaLayer) {
+                // Güvenlik (XSS)
+                if (window.DOMPurify && typeof window.DOMPurify.sanitize === 'function') {
+                    canvaLayer.innerHTML = window.DOMPurify.sanitize(state.canvaHtml);
+                } else {
+                    canvaLayer.innerHTML = state.canvaHtml;
+                }
+                canvaLayer.style.display = 'block';
+                canvaLayer.querySelectorAll('.photo-panel').forEach(p => {
+                    if (typeof _preparePhoto === 'function') _preparePhoto(p);
+                    if (typeof _applyPhotoTransform === 'function') _applyPhotoTransform(p);
+                });
+                canvaLayer.querySelectorAll('.editable-text').forEach(el => {
+                    if (typeof enableInlineEdit === 'function') enableInlineEdit(el);
+                    if (typeof bindDrag === 'function') bindDrag(el);
+                });
+            }
+        }
+
+        if (state.kolajState) {
+            const kolajWrap = document.getElementById('kolaj-wrapper');
+            if (kolajWrap) {
+                // Güvenlik (XSS)
+                if (window.DOMPurify && typeof window.DOMPurify.sanitize === 'function') {
+                    kolajWrap.innerHTML = window.DOMPurify.sanitize(state.kolajState.html);
+                } else {
+                    kolajWrap.innerHTML = state.kolajState.html;
+                }
+                kolajWrap.style.background = state.kolajState.bg;
+                if (typeof _kolajFormatGuncelle === 'function') _kolajFormatGuncelle();
+            }
+        }
+
+        if (state.canvasBgColor) {
+            const canvasContainer = document.getElementById('canvas-container');
+            if (canvasContainer) {
+                canvasContainer.style.setProperty('background-color', state.canvasBgColor, 'important');
+            }
+        }
+
+        if (state.lastAppliedPalette) {
+            window.lastAppliedPalette = state.lastAppliedPalette;
+        }
+
+        // 4. Mevcut Özel Elemanları Temizle
         const builtInIds = new Set([
             'photo-layer', 'draw-layer', 'ui-layer', 'mask-layer', 'canva-render-layer',
             'shadow-overlay', 'highlight-overlay', 'vignette-layer',
@@ -198,7 +256,7 @@ function applySnapshot(state) {
             }
         });
 
-        // 4. Özel Elemanları (Callout, Metin, İkon) Yeniden Yarat
+        // 5. Özel Elemanları (Callout, Metin, İkon) Yeniden Yarat
         if (state.customElements && Array.isArray(state.customElements)) {
             state.customElements.forEach(data => {
                 let parent = document.getElementById(data.parentId);
@@ -208,7 +266,14 @@ function applySnapshot(state) {
                 const el = document.createElement('div');
                 if (data.id) el.id = data.id;
                 el.className = data.className;
-                el.innerHTML = data.innerHTML;
+                
+                // Güvenlik (XSS): Geri yüklenen HTML içeriğini temizle
+                if (window.DOMPurify && typeof window.DOMPurify.sanitize === 'function') {
+                    el.innerHTML = window.DOMPurify.sanitize(data.innerHTML);
+                } else {
+                    el.innerHTML = data.innerHTML;
+                }
+                
                 if (data.style) el.setAttribute('style', data.style);
                 if (data.dataset) {
                     Object.keys(data.dataset).forEach(k => el.dataset[k] = data.dataset[k]);
@@ -226,14 +291,20 @@ function applySnapshot(state) {
             });
         }
 
-        // 5. Standart Elemanları Geri Yükle
+        // 6. Standart Elemanları Geri Yükle
         if (state.standardElements) {
             Object.keys(state.standardElements).forEach(id => {
                 const el = document.getElementById(id);
                 const data = state.standardElements[id];
                 if (el && data) {
                     if (data.innerText !== undefined && id !== 'elDetails') el.innerText = data.innerText;
-                    if (data.innerHTML !== undefined && id === 'elDetails') el.innerHTML = data.innerHTML;
+                    if (data.innerHTML !== undefined && id === 'elDetails') {
+                        if (window.DOMPurify && typeof window.DOMPurify.sanitize === 'function') {
+                            el.innerHTML = window.DOMPurify.sanitize(data.innerHTML);
+                        } else {
+                            el.innerHTML = data.innerHTML;
+                        }
+                    }
                     if (data.style) el.setAttribute('style', data.style);
                     if (data.visibility) el.style.visibility = data.visibility;
                     if (data.display) el.style.display = data.display;
@@ -241,7 +312,7 @@ function applySnapshot(state) {
             });
         }
 
-        // 6. Katmanlar Panelini Güncelle
+        // 7. Katmanlar Panelini Güncelle
         if (typeof window.renderLayers === 'function') window.renderLayers();
 
     } catch (err) {

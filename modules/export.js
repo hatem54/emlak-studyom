@@ -1643,10 +1643,11 @@ async function saveProject() {
         // Resimleri Base64'e çevir ki kalıcı olsun
         state.uploadedImgUrl = await getBase64FromBlobUrl(uploadedImgUrl);
 
-        const logoUrl = typeof elLogo !== 'undefined' && elLogo && elLogo.style.backgroundImage !== 'none' 
-            ? elLogo.style.backgroundImage 
-            : '';
-        state.logoImgUrl = await getBase64FromCSSUrl(logoUrl);
+        const logoImg = (typeof elLogo !== 'undefined' && elLogo) ? elLogo.querySelector('img') : null;
+        const logoUrl = (logoImg && logoImg.src && logoImg.src.length > 10) 
+            ? logoImg.src 
+            : ((typeof elLogo !== 'undefined' && elLogo && elLogo.src) ? elLogo.src : '');
+        state.logoImgUrl = logoUrl;
 
         // Tüm inputları tara
         document.querySelectorAll('input, select, textarea').forEach(el => {
@@ -1698,7 +1699,7 @@ function loadProject() {
                 if(!state.version) throw new Error("Geçersiz proje dosyası");
 
                 currentMode = state.currentMode || 'konut';
-                activeLayout = typeof state.activeLayout !== 'undefined' ? state.activeLayout : 't1';
+                activeLayout = typeof state.activeLayout !== 'undefined' ? state.activeLayout : '';
                 isCanvaMode = !!state.isCanvaMode;
                 activeCanvaId = state.activeCanvaId || '';
                 if(isCanvaMode && !activeCanvaId) isCanvaMode = false;
@@ -1776,8 +1777,14 @@ function loadProject() {
                 }
 
                 if(state.logoImgUrl && typeof elLogo !== 'undefined' && elLogo) {
-                    elLogo.style.backgroundImage = "url('" + state.logoImgUrl + "')";
+                    const img = elLogo.querySelector('img');
+                    if (img) {
+                        img.src = state.logoImgUrl;
+                        img.style.display = 'block';
+                    }
                     elLogo.src = state.logoImgUrl; 
+                    elLogo.style.display = 'block';
+                    elLogo.style.visibility = 'visible';
                 }
 
                 if(typeof switchMode === 'function') switchMode(currentMode);

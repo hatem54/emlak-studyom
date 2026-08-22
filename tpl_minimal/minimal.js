@@ -97,12 +97,15 @@ function renderMTemplate(id){
     document.querySelectorAll('.template-btn').forEach(b => b.classList.remove('active'));
     isCanvaMode = true;
     
-    if(typeof elLogo !== 'undefined' && elLogo && elLogo.src && elLogo.src !== window.location.href) {
-        elLogo.style.visibility = 'visible';
-        elLogo.style.top = 'auto';
-        elLogo.style.left = 'auto';
-        elLogo.style.bottom = '50px';
-        elLogo.style.right = '50px';
+    if(typeof elLogo !== 'undefined' && elLogo) {
+        const img = elLogo.querySelector('img');
+        if (img && img.src && img.src.length > 10 && !img.src.includes('empty')) {
+            elLogo.style.visibility = 'visible';
+            elLogo.style.top = 'auto';
+            elLogo.style.left = 'auto';
+            elLogo.style.bottom = '50px';
+            elLogo.style.right = '50px';
+        }
     }
     photoLayer.style.display = 'none';
     canvaRenderLayer.style.display = 'block';

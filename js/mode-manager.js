@@ -67,17 +67,15 @@ async function checkUserMode() {
                       window.PRO_DAYS_LEFT = diffDays;
                       console.log(`✅ Pro abonelik aktif (${diffDays} gün kaldı)`);
                   } else {
-                      // Süresi dolmuş ve admin tarafından demo yapılmışsa
-                      if (profile.subscription_plan === 'demo') {
-                          APP_MODE = 'demo';
-                          window.PRO_DAYS_LEFT = 0;
-                          console.log('🟡 Abonelik süresi dolmuş, Demo moda geçildi');
-                      } else {
-                          // Lansman promosyonu aktif
-                          APP_MODE = 'pro';
-                          window.PRO_DAYS_LEFT = null;
-                      }
+                      // Süresi dolmuşsa KESİNLİKLE demo moda geçir
+                      APP_MODE = 'demo';
+                      window.PRO_DAYS_LEFT = 0;
+                      console.log('🟡 Abonelik süresi dolmuş, Demo moda geçildi');
                   }
+              } else if (profile && profile.subscription_plan === 'demo') {
+                  // Admin tarafından özel olarak Demo yapılmış (kapatılmış)
+                  APP_MODE = 'demo';
+                  window.PRO_DAYS_LEFT = 0;
               } else if (profile && (profile.subscription_plan === 'pro' || profile.role === 'pro')) {
                   APP_MODE = 'pro';
                   window.PRO_DAYS_LEFT = null; // Süresiz Pro

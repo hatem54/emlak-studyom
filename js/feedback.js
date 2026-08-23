@@ -1,8 +1,8 @@
-﻿// Feedback Modal and Logic
+// Feedback Modal and Logic
 function initFeedbackSystem() {
-    if (document.getElementById('feedbackModal')) return; // Zaten varsa ekleme
+    if (document.getElementById('feedbackModal')) return;
     
-    const modalHTML = 
+    const modalHTML = `
     <div class="modal-overlay" id="feedbackModal" style="display:none; z-index: 100000; align-items:center; justify-content:center; background: rgba(0,0,0,0.6);">
         <div class="modal" style="max-width: 400px; text-align:left; background: #0f172a; padding: 25px; border-radius: 12px; border: 1px solid #334155; position:relative; box-shadow: 0 10px 25px rgba(0,0,0,0.5);">
             <button class="modal-close" onclick="document.getElementById('feedbackModal').style.display='none'" style="position:absolute; right:15px; top:15px; background:none; border:none; color:#94a3b8; font-size:20px; cursor:pointer;"><i class="fas fa-times"></i></button>
@@ -21,24 +21,23 @@ function initFeedbackSystem() {
                 <div class="form-group" style="margin-bottom:20px;">
                     <label style="display:block; color:#cbd5e1; font-size:13px; margin-bottom:6px;">Deneyiminizi Puanlayın (Opsiyonel)</label>
                     <div style="font-size: 24px; cursor: pointer; display:flex; gap:8px;" id="feedbackRating">
-                        <span onclick="setFeedbackRating(1)">⭐</span>
-                        <span onclick="setFeedbackRating(2)">⭐</span>
-                        <span onclick="setFeedbackRating(3)">⭐</span>
-                        <span onclick="setFeedbackRating(4)">⭐</span>
-                        <span onclick="setFeedbackRating(5)">⭐</span>
+                        <span onclick="window.setFeedbackRating(1)">⭐</span>
+                        <span onclick="window.setFeedbackRating(2)">⭐</span>
+                        <span onclick="window.setFeedbackRating(3)">⭐</span>
+                        <span onclick="window.setFeedbackRating(4)">⭐</span>
+                        <span onclick="window.setFeedbackRating(5)">⭐</span>
                     </div>
                     <input type="hidden" id="feedbackScore" value="5">
                 </div>
                 <button type="submit" class="btn-submit" id="feedbackSubmitBtn" style="width:100%; background:linear-gradient(135deg,#3b82f6,#2563eb); color:white; border:none; padding:12px; border-radius:8px; font-weight:bold; cursor:pointer; font-size:15px;">Mesajı Gönder</button>
             </form>
         </div>
-    </div>;
+    </div>`;
 
     document.body.insertAdjacentHTML('beforeend', modalHTML);
     
-    // Yüklendiğinde direkt 5 yıldız seçili gelsin
     setTimeout(() => {
-        setFeedbackRating(5);
+        if(window.setFeedbackRating) window.setFeedbackRating(5);
     }, 100);
 }
 
@@ -92,7 +91,6 @@ window.submitFeedback = async function(e) {
         }]);
 
         if (error) {
-            // Eğer tablo yoksa (kullanıcı henüz SQL çalıştırmadıysa)
             if (error.code === '42P01') {
                  throw new Error('Sistem kurulum aşamasındadır, mesajlar geçici olarak e-posta ile alınmaktadır. Lütfen formun üstündeki linkten e-posta atınız.');
             }
@@ -121,7 +119,8 @@ window.submitFeedback = async function(e) {
 }
 
 document.addEventListener('DOMContentLoaded', initFeedbackSystem);
-    if (window.location.pathname.includes('app.html')) {
-        const floatBtn = \<button onclick="openFeedbackModal()" style="position:fixed; bottom:20px; right:20px; background:linear-gradient(135deg,#3b82f6,#2563eb); color:white; border:none; padding:12px 20px; border-radius:30px; font-weight:bold; cursor:pointer; box-shadow:0 4px 12px rgba(0,0,0,0.3); z-index:9999; display:flex; align-items:center; gap:8px;">💬 Bize Ulaşın</button>\;
-        document.body.insertAdjacentHTML('beforeend', floatBtn);
-    }
+
+if (window.location.pathname.includes('app.html')) {
+    const floatBtn = `<button onclick="window.openFeedbackModal()" style="position:fixed; bottom:20px; right:20px; background:linear-gradient(135deg,#3b82f6,#2563eb); color:white; border:none; padding:12px 20px; border-radius:30px; font-weight:bold; cursor:pointer; box-shadow:0 4px 12px rgba(0,0,0,0.3); z-index:9999; display:flex; align-items:center; gap:8px;">💬 Bize Ulaşın</button>`;
+    document.body.insertAdjacentHTML('beforeend', floatBtn);
+}

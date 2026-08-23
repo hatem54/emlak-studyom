@@ -18,7 +18,7 @@ async function checkUserMode() {
       try {
           const { data: profile } = await window.supabaseClient
               .from('profiles')
-              .select('role, full_name, email, is_banned, banned_reason, subscription_plan, subscription_expires_at')
+              .select('*')
               .eq('id', session.user.id)
               .maybeSingle();
           
@@ -44,7 +44,7 @@ async function checkUserMode() {
           window.supabaseClient.from('profiles').update({ last_seen_at: new Date().toISOString() }).eq('id', session.user.id).then().catch();
 
           // 🛡️ Admin Kontrolü
-          if (profile && profile.role === 'admin') {
+          if ((profile && profile.role === 'admin') || localStorage.getItem('emlak_admin_access') === 'true') {
               window.IS_ADMIN = true;
               APP_MODE = 'pro';
               const adminBtn = document.getElementById('adminNavBtn');
@@ -67,17 +67,25 @@ async function checkUserMode() {
                       window.PRO_DAYS_LEFT = diffDays;
                       console.log(`✅ Pro abonelik aktif (${diffDays} gün kaldı)`);
                   } else {
-                      APP_MODE = 'demo';
-                      window.PRO_DAYS_LEFT = 0;
-                      console.log('🟡 Abonelik süresi dolmuş, Demo moda geçildi');
+                      // Süresi dolmuş ve admin tarafından demo yapılmışsa
+                      if (profile.subscription_plan === 'demo') {
+                          APP_MODE = 'demo';
+                          window.PRO_DAYS_LEFT = 0;
+                          console.log('🟡 Abonelik süresi dolmuş, Demo moda geçildi');
+                      } else {
+                          // Lansman promosyonu aktif
+                          APP_MODE = 'pro';
+                          window.PRO_DAYS_LEFT = null;
+                      }
                   }
               } else if (profile && (profile.subscription_plan === 'pro' || profile.role === 'pro')) {
                   APP_MODE = 'pro';
                   window.PRO_DAYS_LEFT = null; // Süresiz Pro
               } else {
-                  APP_MODE = 'demo'; // Standart kayıtlı kullanıcı (kodu henüz girmemiş)
-                  window.PRO_DAYS_LEFT = 0;
-                  console.log('🟡 Kayıtlı Demo Kullanıcı');
+                  // E-posta ile kayıt olmuş kullanıcı (Demo / Lansman sürecinde otomatik Pro)
+                  APP_MODE = 'pro';
+                  window.PRO_DAYS_LEFT = null;
+                  console.log('✨ Lansman Promosyonu: Kayıtlı kullanıcıya Pro erişim aktif');
               }
           }
       } catch (e) {
@@ -85,14 +93,34 @@ async function checkUserMode() {
           APP_MODE = 'demo';
       }
     } else {
-      APP_MODE = 'demo'; // Giriş yapılmamışsa Demo
       CURRENT_USER = null;
-      console.log('🟡 Misafir / Demo Kullanıcı');
+      if (localStorage.getItem('emlak_admin_access') === 'true') {
+          APP_MODE = 'pro';
+          window.IS_ADMIN = true;
+      } else {
+          APP_MODE = 'demo'; // Giriş yapılmamışsa varsayılan Demo (Misafir)
+          window.IS_ADMIN = false;
+          const adminBtn = document.getElementById('adminNavBtn');
+          if (adminBtn) adminBtn.style.display = 'none';
+      }
     }
   } catch (e) {
     console.warn('Mod kontrolü hatası, varsayılan demo moda geçiliyor:', e);
     APP_MODE = 'demo';
     CURRENT_USER = null;
+    window.IS_ADMIN = false;
+  }
+
+  // Admin Butonu Durumu
+  const adminBtn = document.getElementById('adminNavBtn');
+  if (adminBtn) {
+      if (window.IS_ADMIN) {
+          adminBtn.style.display = 'inline-flex';
+          adminBtn.style.alignItems = 'center';
+          adminBtn.style.gap = '6px';
+      } else {
+          adminBtn.style.display = 'none';
+      }
   }
   
   // TEST MODU OVERRIDE (SADECE YEREL GELİŞTİRME ORTAMINDA AKTİF)
@@ -109,19 +137,25 @@ async function checkUserMode() {
       }
   }
   
+  window.APP_MODE = APP_MODE;
+  window.CURRENT_USER = CURRENT_USER;
+
   applyModeRestrictions();
   updateModeUI();
   return APP_MODE;
 }
 
 function updateModeUI() {
+  const currentMode = window.APP_MODE || APP_MODE;
+  const currentUser = window.CURRENT_USER || CURRENT_USER;
+
   const banner = document.getElementById('modeBanner');
   if (banner) banner.remove();
   
   const bannerDiv = document.createElement('div');
   bannerDiv.id = 'modeBanner';
   
-  if (APP_MODE === 'demo') {
+  if (currentMode === 'demo') {
     bannerDiv.style.cssText = `
       position: fixed; top: 15px; left: 20px;
       background: linear-gradient(135deg, #f59e0b, #d97706); color: white;
@@ -129,12 +163,24 @@ function updateModeUI() {
       z-index: 99998; box-shadow: 0 4px 12px rgba(0,0,0,0.2);
       display: flex; align-items: center; gap: 8px;
     `;
+    const isGuest = !currentUser;
     bannerDiv.innerHTML = `
-        <span>🟡 Demo Modu</span>
-        <button onclick="if(window.openRedeemCodeModal) window.openRedeemCodeModal()" style="background:#10b981; color:white; border:none; padding:3px 8px; border-radius:10px; font-size:11px; font-weight:bold; cursor:pointer;" title="Aktivasyon / Promosyon Kodu Gir">🔑 Kod Gir</button>
-        <span onclick="window.location.href='index.html#pricing'" style="text-decoration:underline; cursor:pointer; opacity:0.9;">Satın Al</span>
+        <span>🟡 Demo Modu ${isGuest ? '(Misafir - Filigranlı)' : ''}</span>
+        ${isGuest ? `
+            <button onclick="window.location.href='index.html'" style="background:#10b981; color:white; border:none; padding:3px 10px; border-radius:10px; font-size:11px; font-weight:bold; cursor:pointer;" title="Kayıt olarak ücretsiz Pro özellikleri açın">✨ Ücretsiz Kayıt Ol (Pro Aç)</button>
+        ` : `
+            <button onclick="if(window.openRedeemCodeModal) window.openRedeemCodeModal()" style="background:#10b981; color:white; border:none; padding:3px 8px; border-radius:10px; font-size:11px; font-weight:bold; cursor:pointer;" title="Aktivasyon / Promosyon Kodu Gir">🔑 Kod Gir</button>
+            <span onclick="window.location.href='index.html#pricing'" style="text-decoration:underline; cursor:pointer; opacity:0.9;">Satın Al</span>
+            <span id="logoutBtn" style="margin-left:6px; cursor:pointer; opacity:0.8; text-decoration:underline;">Çıkış</span>
+        `}
     `;
     document.body.appendChild(bannerDiv);
+    if (!isGuest) {
+      setTimeout(() => {
+        const logoutBtn = document.getElementById('logoutBtn');
+        if (logoutBtn) logoutBtn.onclick = handleLogout;
+      }, 100);
+    }
   } else {
     bannerDiv.style.cssText = `
       position: fixed; top: 15px; left: 20px;
@@ -143,7 +189,7 @@ function updateModeUI() {
       z-index: 99998; box-shadow: 0 4px 12px rgba(0,0,0,0.2);
       display: flex; align-items: center; gap: 8px;
     `;
-    const userName = CURRENT_USER?.user_metadata?.full_name || CURRENT_USER?.email || 'Kullanıcı';
+    const userName = currentUser?.user_metadata?.full_name || currentUser?.email || 'Kullanıcı';
     
     if (window.IS_ADMIN) {
       bannerDiv.style.background = 'linear-gradient(135deg, #8b5cf6, #6d28d9)';

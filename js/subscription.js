@@ -65,28 +65,26 @@
         }
 
         const { data: { session } } = await window.supabaseClient.auth.getSession();
-        if (!session || !session.user) {
-            return { success: false, message: 'Kodu kullanmak için önce giriş yapmalısınız.' };
-        }
+        const userId = session?.user?.id || null;
+        const userEmail = session?.user?.email || null;
 
-        const userId = session.user.id;
-        const userEmail = session.user.email;
+        // 1. Giriş yapılmışsa RPC yöntemini dene (en güvenli atomik yol)
+        if (userId) {
+            try {
+                const { data: rpcRes, error: rpcErr } = await window.supabaseClient.rpc('redeem_license_code', {
+                    target_code: cleanCode
+                });
 
-        // 1. Önce RPC yöntemini dene (en güvenli atomik yol)
-        try {
-            const { data: rpcRes, error: rpcErr } = await window.supabaseClient.rpc('redeem_license_code', {
-                target_code: cleanCode
-            });
-
-            if (!rpcErr && rpcRes) {
-                if (typeof window.checkUserMode === 'function') await window.checkUserMode();
-                return rpcRes;
+                if (!rpcErr && rpcRes && rpcRes.success) {
+                    if (typeof window.checkUserMode === 'function') await window.checkUserMode();
+                    return rpcRes;
+                }
+            } catch (e) {
+                console.warn('RPC çalıştırılamadı, doğrudan sorguya geçiliyor:', e);
             }
-        } catch (e) {
-            console.warn('RPC çalıştırılamadı, doğrudan istemci sorgusuna geçiliyor:', e);
         }
 
-        // 2. Fallback: İstemci üzerinden doğrulama ve güncelleme
+        // 2. Lisans Kodunu Veritabanında Ara
         const { data: codeRow, error: findErr } = await window.supabaseClient
             .from('license_codes')
             .select('*')
@@ -98,48 +96,38 @@
             return { success: false, message: 'Geçersiz veya daha önce kullanılmış lisans kodu.' };
         }
 
-        // Kullanıcı profilini al
-        const { data: profile } = await window.supabaseClient
-            .from('profiles')
-            .select('subscription_expires_at')
-            .eq('id', userId)
-            .maybeSingle();
-
+        // 3. Bitiş Tarihini Hesapla
         let newExpires;
         const now = new Date();
-        const currentExpires = profile?.subscription_expires_at ? new Date(profile.subscription_expires_at) : null;
+        newExpires = new Date(now.getTime() + (codeRow.duration_days * 24 * 60 * 60 * 1000));
 
-        if (currentExpires && currentExpires > now) {
-            newExpires = new Date(currentExpires.getTime() + (codeRow.duration_days * 24 * 60 * 60 * 1000));
-        } else {
-            newExpires = new Date(now.getTime() + (codeRow.duration_days * 24 * 60 * 60 * 1000));
-        }
-
-        // Kodu kullanıldı yap
+        // 4. Kodu veritabanında kullanıldı yap
         await window.supabaseClient
             .from('license_codes')
             .update({
                 status: 'used',
                 used_by: userId,
-                used_by_email: userEmail,
+                used_by_email: userEmail || 'Misafir Kullanıcı',
                 used_at: now.toISOString()
             })
             .eq('id', codeRow.id);
 
-        // Kullanıcı profilini güncelle
-        await window.supabaseClient
-            .from('profiles')
-            .update({
-                subscription_plan: 'pro',
-                subscription_expires_at: newExpires.toISOString()
-            })
-            .eq('id', userId);
+        // 5. Eğer oturum açıksa profili güncelle
+        if (userId) {
+            await window.supabaseClient
+                .from('profiles')
+                .update({
+                    subscription_plan: 'pro',
+                    subscription_expires_at: newExpires.toISOString()
+                })
+                .eq('id', userId);
+        }
 
         if (typeof window.checkUserMode === 'function') await window.checkUserMode();
 
         return {
             success: true,
-            message: `Tebrikler! ${codeRow.duration_label} hesabınıza başarıyla tanımlandı.`,
+            message: `🎉 Tebrikler! ${codeRow.duration_label} hesabınıza başarıyla tanımlandı.`,
             expires_at: newExpires,
             duration_label: codeRow.duration_label
         };

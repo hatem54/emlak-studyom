@@ -5,11 +5,14 @@
 
 -- 1. PROFILES TABLOSUNA YENİ ALANLAR
 ALTER TABLE public.profiles 
-ADD COLUMN IF NOT EXISTS subscription_plan TEXT DEFAULT 'demo',
+ADD COLUMN IF NOT EXISTS subscription_plan TEXT DEFAULT 'pro',
 ADD COLUMN IF NOT EXISTS subscription_expires_at TIMESTAMPTZ,
 ADD COLUMN IF NOT EXISTS is_banned BOOLEAN DEFAULT false,
 ADD COLUMN IF NOT EXISTS banned_reason TEXT,
 ADD COLUMN IF NOT EXISTS last_seen_at TIMESTAMPTZ DEFAULT NOW();
+
+-- Varsayılan planı 'pro' olarak güncelle
+ALTER TABLE public.profiles ALTER COLUMN subscription_plan SET DEFAULT 'pro';
 
 -- 2. LİSANS / ABONELİK KODLARI TABLOSU
 CREATE TABLE IF NOT EXISTS public.license_codes (
@@ -124,3 +127,68 @@ BEGIN
     );
 END;
 $$;
+
+-- 5. PROFILES RLS (GÜVENLİK POLİTİKALARI)
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+
+DO $$ 
+BEGIN
+    DROP POLICY IF EXISTS "Admins can view and update all profiles" ON public.profiles;
+    DROP POLICY IF EXISTS "Users can view and update their own profile" ON public.profiles;
+END $$;
+
+CREATE POLICY "Admins can view and update all profiles" ON public.profiles
+    FOR ALL
+    TO authenticated
+    USING (
+        EXISTS (
+            SELECT 1 FROM public.profiles p
+            WHERE p.id = auth.uid() AND p.role = 'admin'
+        )
+    );
+
+CREATE POLICY "Users can view and update their own profile" ON public.profiles
+    FOR ALL
+    TO authenticated
+    USING (auth.uid() = id)
+    WITH CHECK (auth.uid() = id);
+
+-- 6. LANSMAN DÖNEMİ: YENİ KAYITLARA OTOMATİK PRO ABONELİK VE TOPLU GÜNCELLEME
+-- 6.1. Mevcut tüm kayıtlı kullanıcıları tek seferde Pro yapmak için:
+UPDATE public.profiles 
+SET subscription_plan = 'pro', 
+    subscription_expires_at = NULL 
+WHERE role != 'admin' AND (subscription_plan IS NULL OR subscription_plan = 'demo');
+
+-- 6.2. Yeni kayıt olan kullanıcılara otomatik Pro atayan trigger fonksiyonu:
+CREATE OR REPLACE FUNCTION public.handle_new_user_profile()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+    INSERT INTO public.profiles (id, email, full_name, role, subscription_plan, subscription_expires_at, created_at)
+    VALUES (
+        NEW.id,
+        NEW.email,
+        COALESCE(NEW.raw_user_meta_data->>'full_name', 'Yeni Kullanıcı'),
+        'user',
+        'pro', -- Lansman aşamasında otomatik Pro
+        NULL,
+        NOW()
+    )
+    ON CONFLICT (id) DO UPDATE
+    SET email = EXCLUDED.email,
+        full_name = COALESCE(EXCLUDED.full_name, profiles.full_name),
+        subscription_plan = 'pro';
+    RETURN NEW;
+END;
+$$;
+
+-- Trigger'ı auth.users tablosuna bağla (Yeni kayıt olduğunda otomatik çalışır):
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+    AFTER INSERT ON auth.users
+    FOR EACH ROW EXECUTE FUNCTION public.handle_new_user_profile();
+
+

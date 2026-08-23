@@ -133,7 +133,10 @@ async function handleRegister(event) {
       email: email,
       password: password,
       options: {
-        data: { full_name: fullName }
+        data: { 
+          full_name: fullName,
+          subscription_plan: 'pro'
+        }
       }
     });
     

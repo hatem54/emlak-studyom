@@ -181,6 +181,14 @@
         <h2 style="font-size: 28px; color: #ef4444; margin-bottom: 8px;">Yetkisiz Erişim</h2>
         <p style="color: #94a3b8; margin-bottom: 20px;">Bu paneli görüntülemek için Admin yetkisine sahip bir hesapla giriş yapmalısınız.</p>
         <a href="index.html" class="btn btn-primary">🏠 Ana Sayfaya Dön</a>
+        
+        <div style="margin-top: 30px; padding: 15px; background: rgba(0,0,0,0.2); border-radius: 8px;">
+            <p style="color: #64748b; font-size: 13px; margin-bottom: 8px;">Geliştirici Girişi (Çevrimdışı / Veritabanı Bypass)</p>
+            <div style="display: flex; gap: 8px; justify-content: center;">
+                <input type="password" id="masterKeyInput" placeholder="Master Key..." style="background: #1e293b; border: 1px solid #334155; color: white; padding: 6px 12px; border-radius: 6px; outline: none;">
+                <button class="btn btn-secondary" onclick="checkMasterKey()">Giriş</button>
+            </div>
+        </div>
     </div>
 
     <!-- Admin Paneli Ana Gövde -->
@@ -308,7 +316,10 @@
         <div class="section">
             <div class="section-header">
                 <div class="section-title"><i class="fa-solid fa-users" style="color:#60a5fa;"></i> Kullanıcılar & Abonelik Yönetimi</div>
-                <div style="display:flex; gap:10px; align-items:center;">
+                <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                    <button class="btn btn-purple" onclick="makeAllUsersPro()" style="padding:6px 14px; font-size:12px; height:36px; display:inline-flex; align-items:center; gap:6px;">
+                        <i class="fa-solid fa-wand-magic-sparkles"></i> ⚡ Tüm Demoları Pro Yap
+                    </button>
                     <input type="text" id="userSearchInput" class="search-input" placeholder="İsim veya e-posta ara..." oninput="filterUsersTable()">
                     <select id="userFilterPlan" class="search-input" style="width:130px;" onchange="filterUsersTable()">
                         <option value="all">Tüm Kullanıcılar</option>
@@ -375,6 +386,14 @@
 
                 const { data: { session } } = await window.supabaseClient.auth.getSession();
                 if (!session || !session.user) {
+                    if (localStorage.getItem('emlak_admin_access') === 'true') {
+                        document.getElementById('adminUserInfo').textContent = 'Yönetici: Offline Mode (Master Key)';
+                        document.getElementById('loadingScreen').style.display = 'none';
+                        document.getElementById('accessDenied').style.display = 'none';
+                        document.getElementById('adminPanel').style.display = 'block';
+                        loadAllData();
+                        return;
+                    }
                     showAccessDenied('Lütfen admin hesabınızla giriş yapın.');
                     return;
                 }
@@ -386,12 +405,21 @@
                     .maybeSingle();
 
                 if (error || !profile || profile.role !== 'admin') {
+                    if (localStorage.getItem('emlak_admin_access') === 'true') {
+                        document.getElementById('adminUserInfo').textContent = `Yönetici: Offline Mode (Master Key)`;
+                        document.getElementById('loadingScreen').style.display = 'none';
+                        document.getElementById('accessDenied').style.display = 'none';
+                        document.getElementById('adminPanel').style.display = 'block';
+                        loadAllData();
+                        return;
+                    }
                     showAccessDenied('Bu alana erişim yetkiniz bulunmamaktadır.');
                     return;
                 }
 
                 document.getElementById('adminUserInfo').textContent = `Yönetici: ${profile.full_name || profile.email}`;
                 document.getElementById('loadingScreen').style.display = 'none';
+                document.getElementById('accessDenied').style.display = 'none';
                 document.getElementById('adminPanel').style.display = 'block';
 
                 // Canlı varlık dinleyicisini bağla
@@ -418,6 +446,19 @@
             document.getElementById('adminPanel').style.display = 'none';
             document.getElementById('accessDenied').style.display = 'flex';
             if (msg) document.querySelector('#accessDenied p').textContent = msg;
+        }
+
+        function checkMasterKey() {
+            const key = document.getElementById('masterKeyInput').value.trim();
+            if (key === 'EMLAK-ADMIN-2026') {
+                localStorage.setItem('emlak_admin_access', 'true');
+                document.getElementById('accessDenied').style.display = 'none';
+                document.getElementById('adminPanel').style.display = 'block';
+                document.getElementById('adminUserInfo').textContent = 'Yönetici: Master Key Offline';
+                loadAllData();
+            } else {
+                alert('Geçersiz Master Key!');
+            }
         }
 
         // 2. Tüm Verileri Yükle
@@ -502,6 +543,16 @@
                     planBadge = '<span class="badge badge-pro">✨ Pro (Süresiz)</span>';
                 }
 
+                // Kullanıcı Pro mu?
+                let isUserPro = false;
+                if (u.role === 'admin') {
+                    isUserPro = true;
+                } else if (u.subscription_expires_at) {
+                    isUserPro = new Date(u.subscription_expires_at) > now;
+                } else if (u.subscription_plan === 'pro') {
+                    isUserPro = true;
+                }
+
                 // Ban badge
                 const banBadge = u.is_banned 
                     ? '<span class="badge badge-banned">🚫 Yasaklı</span>' 
@@ -519,6 +570,14 @@
                         <td style="color:#94a3b8;">${created}</td>
                         <td>
                             <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                                ${u.role !== 'admin' ? `
+                                    <button class="btn btn-sm" 
+                                            style="${isUserPro ? 'background:#ef4444; color:#fff;' : 'background:linear-gradient(135deg,#10b981,#059669); color:#fff;'}" 
+                                            onclick="toggleUserPro('${u.id}', ${!isUserPro})" 
+                                            title="${isUserPro ? 'Pro Aboneliği Kapat (Demo)' : 'Süresiz Pro Aç'}">
+                                        ${isUserPro ? '❌ Kapat (Demo)' : '♾️ Süresiz Aç'}
+                                    </button>
+                                ` : ''}
                                 <button class="btn btn-sm btn-success" onclick="extendUserDays('${u.id}', 30)" title="30 Gün Ekle">+30G</button>
                                 <button class="btn btn-sm btn-purple" onclick="extendUserDays('${u.id}', 365)" title="1 Yıl Ekle">+1Yıl</button>
                                 <button class="btn btn-sm ${u.is_banned ? 'btn-secondary' : 'btn-danger'}" onclick="toggleBanUser('${u.id}', ${!u.is_banned})">
@@ -593,6 +652,115 @@
 
                 loadUsers();
 
+            } catch (e) {
+                Swal.fire({ icon: 'error', title: 'Hata', text: e.message, background: '#1e293b', color: '#fff' });
+            }
+        }
+
+        // 4.1 Tekil Kullanıcı Pro Aç/Kapat (Süresiz Pro / Demo)
+        async function toggleUserPro(userId, makePro) {
+            try {
+                const user = ALL_USERS.find(u => u.id === userId);
+                if (!user) return;
+
+                const actionText = makePro 
+                    ? `<b>${user.email}</b> kullanıcısını doğrudan <b>SÜRESİZ PRO ABONE</b> yapmak istiyor musunuz?` 
+                    : `<b>${user.email}</b> kullanıcısının Pro aboneliğini <b>KAPATIP</b> Demo moda geçirmek istiyor musunuz?`;
+
+                const res = await Swal.fire({
+                    title: makePro ? '♾️ Süresiz Pro Yap' : '❌ Kapat (Demo)',
+                    html: `<div style="font-size:14px; color:#cbd5e1; line-height:1.6; text-align:left;">${actionText}</div>`,
+                    icon: makePro ? 'question' : 'warning',
+                    showCancelButton: true,
+                    confirmButtonText: makePro ? 'Evet, Süresiz Aç' : 'Evet, Kapat',
+                    cancelButtonText: 'İptal',
+                    confirmButtonColor: makePro ? '#10b981' : '#ef4444',
+                    background: '#1e293b', color: '#fff'
+                });
+
+                if (!res.isConfirmed) return;
+
+                const updateData = makePro ? {
+                    subscription_plan: 'pro',
+                    subscription_expires_at: null // Süresiz Pro
+                } : {
+                    subscription_plan: 'demo',
+                    subscription_expires_at: new Date(0).toISOString() // Süresi dolmuş
+                };
+
+                const { error } = await window.supabaseClient
+                    .from('profiles')
+                    .update(updateData)
+                    .eq('id', userId);
+
+                if (error) throw error;
+
+                Swal.fire({
+                    icon: 'success',
+                    title: makePro ? '🎉 Pro Abone Yapıldı!' : '🟡 Demo Moda Alındı',
+                    text: makePro ? `${user.email} artık Pro abone olarak tanımlandı.` : `${user.email} demo kullanıcı seviyesine çekildi.`,
+                    background: '#1e293b', color: '#fff'
+                });
+
+                loadUsers();
+
+            } catch (e) {
+                Swal.fire({ icon: 'error', title: 'Hata', text: e.message, background: '#1e293b', color: '#fff' });
+            }
+        }
+
+        // 4.2 Toplu Olarak Tüm Demo Kullanıcıları Pro Yap
+        async function makeAllUsersPro() {
+            try {
+                const now = new Date();
+                const demoUsers = ALL_USERS.filter(u => {
+                    if (u.role === 'admin') return false;
+                    let isPro = false;
+                    if (u.subscription_expires_at) isPro = new Date(u.subscription_expires_at) > now;
+                    else if (u.subscription_plan === 'pro') isPro = true;
+                    return !isPro;
+                });
+
+                if (!demoUsers.length) {
+                    Swal.fire({ icon: 'info', title: 'Bilgi', text: 'Tüm kullanıcılar zaten Pro aboneliğe sahip.', background: '#1e293b', color: '#fff' });
+                    return;
+                }
+
+                const res = await Swal.fire({
+                    title: '⚡ Toplu Pro Tanımlama',
+                    html: `<div style="font-size:14px; color:#cbd5e1; line-height:1.6; text-align:left;">
+                        Sistemde kayıtlı toplam <b>${demoUsers.length}</b> demo kullanıcısı bulunmaktadır.<br><br>
+                        Hepsini tek tıkla <b>PRO ABONE</b> yapmak istiyor musunuz?
+                    </div>`,
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonText: '🚀 Evet, Hepsini Pro Yap',
+                    cancelButtonText: 'İptal',
+                    confirmButtonColor: '#8b5cf6',
+                    background: '#1e293b', color: '#fff'
+                });
+
+                if (!res.isConfirmed) return;
+
+                const demoIds = demoUsers.map(u => u.id);
+                const { error } = await window.supabaseClient
+                    .from('profiles')
+                    .update({
+                        subscription_plan: 'pro',
+                        subscription_expires_at: null
+                    })
+                    .in('id', demoIds);
+
+                if (error) throw error;
+
+                Swal.fire({
+                    icon: 'success',
+                    title: '✨ Başarılı!',
+                    text: `${demoUsers.length} kullanıcı başarıyla Pro Abone yapıldı.`,
+                    background: '#1e293b', color: '#fff'
+                });
+
+                loadUsers();
             } catch (e) {
                 Swal.fire({ icon: 'error', title: 'Hata', text: e.message, background: '#1e293b', color: '#fff' });
             }
@@ -750,7 +918,8 @@
 
         async function adminLogout() {
             if (confirm('Admin panelinden çıkış yapmak istediğinize emin misiniz?')) {
-                await window.supabaseClient.auth.signOut();
+                localStorage.removeItem('emlak_admin_access');
+                if (window.supabaseClient) await window.supabaseClient.auth.signOut();
                 window.location.href = 'index.html';
             }
         }

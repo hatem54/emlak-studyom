@@ -477,7 +477,7 @@ function bindInputs(){
                         delete p.dataset.zpY;
                         const inner = p.querySelector('.photo-inner-zoom');
                         if (inner) inner.style.backgroundImage = `url('${finalDataUrl}')`;
-                        p.style.backgroundImage = `url('${finalDataUrl}')`;
+                        p.style.backgroundImage = 'none';
                         if (typeof _applyPhotoTransform === 'function') _applyPhotoTransform(p);
                     });
 

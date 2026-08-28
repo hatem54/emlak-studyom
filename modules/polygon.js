@@ -152,12 +152,21 @@ document.addEventListener('mousedown', e => {
     
     const isBackground = e.target.id === 'photo-layer' || e.target.id === 'drawCanvas' || e.target.id === 'canva-render-layer' || e.target.id === 'canvas-container' || e.target.id === 'ui-layer' || e.target.classList.contains('photo-wrap') || e.target.classList.contains('workspace') || e.target.classList.contains('main-preview') || e.target.closest('#canvas-container, .main-canvas');
     
-    const hasPhoto = window.masterImageBase64 && window.masterImageBase64.length > 50;
-    const isLocked = window.isPhotoLocked === true || (document.getElementById('photoLockToggle') && document.getElementById('photoLockToggle').checked);
+    const photoEl = document.getElementById('photo-layer');
+    const hasPhoto = (typeof uploadedImgUrl !== 'undefined' && uploadedImgUrl && uploadedImgUrl.length > 20) ||
+                     (window.uploadedImgUrl && window.uploadedImgUrl.length > 20) ||
+                     (window.masterImageBase64 && window.masterImageBase64.length > 20) ||
+                     (photoEl && ((photoEl.style.backgroundImage && photoEl.style.backgroundImage !== 'none') || photoEl.querySelector('.photo-inner-zoom')));
+                     
+    const isLocked = window.isPhotoLocked === true || 
+                     (document.getElementById('photoLockToggle') && document.getElementById('photoLockToggle').checked) ||
+                     (document.getElementById('dockLockBtn') && document.getElementById('dockLockBtn').classList.contains('lock-active'));
+                     
     const isModifier = e.ctrlKey || e.shiftKey || e.altKey || e.metaKey;
     
     if(!cTarget && isBackground) {
-        if (!hasPhoto || isLocked || isModifier) {
+        // Fotoğraf serbestken (isLocked = false) görseli kaydırmaya izin ver, mavi seçim kutusu açma
+        if (isModifier || isLocked || !hasPhoto) {
             window.startMobileMarquee(e.clientX, e.clientY);
         }
     }

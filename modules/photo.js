@@ -438,8 +438,10 @@ function _drawToNativeCanvas(el, inner, canvas, scale, panX, panY, sliderX, slid
     let cx = Math.round(canvas.width / 2);
     let cy = Math.round(canvas.height / 2);
     
-    let trX = Math.round(panX * HIGH_RES_MUL);
-    let trY = Math.round(panY * HIGH_RES_MUL);
+    const effectiveScaleX = canvas.width / boxW;
+    const effectiveScaleY = canvas.height / boxH;
+    let trX = Math.round(panX * effectiveScaleX);
+    let trY = Math.round(panY * effectiveScaleY);
     
     ctx.save();
     ctx.translate(cx, cy);

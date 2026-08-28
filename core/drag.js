@@ -548,18 +548,36 @@ window.groupSelected = function() {
     const groupId = 'group_' + Date.now();
     window.selectedElements.forEach(el => {
         el.dataset.groupId = groupId;
+        el.setAttribute('data-group-id', groupId);
     });
     if(typeof renderLayers === 'function') renderLayers();
     updateGroupUI();
+    if(typeof window.recordHistory === 'function') window.recordHistory('Ögeler Gruplandı');
 };
 
 window.ungroupSelected = function() {
     if(!window.selectedElements || window.selectedElements.length === 0) return;
+    
+    // Gruptan çıkar (data-group-id kaldır)
     window.selectedElements.forEach(el => {
         delete el.dataset.groupId;
+        el.removeAttribute('data-group-id');
     });
+    
     if(typeof renderLayers === 'function') renderLayers();
+    
+    // Seçilmişlikleri düşür (artık tek tek seçilip ayrı hareket ettirilebilirler)
+    if(typeof deselectAll === 'function') {
+        deselectAll();
+    } else {
+        window.selectedElements.forEach(e => e.classList.remove('el-selected'));
+        window.selectedElements = [];
+        selectedEl = null;
+        if(typeof window.updateMultiSelectUI === 'function') window.updateMultiSelectUI();
+    }
+    
     updateGroupUI();
+    if(typeof window.recordHistory === 'function') window.recordHistory('Grup Çözüldü');
 };
 
 window.updateGroupUI = function() {
@@ -581,6 +599,8 @@ window.updateGroupUI = function() {
     const coBtnUngroup = document.getElementById('coBtnUngroup');
     const drawBtnGroup = document.getElementById('drawBtnGroup');
     const drawBtnUngroup = document.getElementById('drawBtnUngroup');
+    const msBtnGroup = document.getElementById('msBtnGroup');
+    const msBtnUngroup = document.getElementById('msBtnUngroup');
     
     if(window.selectedElements && window.selectedElements.length > 1) {
         const firstGroup = window.selectedElements[0].dataset.groupId;
@@ -602,6 +622,19 @@ window.updateGroupUI = function() {
             if(coBtnUngroup) coBtnUngroup.style.display = 'inline-block';
             if(drawBtnGroup) drawBtnGroup.style.display = 'none';
             if(drawBtnUngroup) drawBtnUngroup.style.display = 'inline-block';
+            
+            if(msBtnGroup) {
+                msBtnGroup.style.background = 'rgba(59, 130, 246, 0.15)';
+                msBtnGroup.style.borderColor = '#3b82f6';
+                msBtnGroup.style.color = '#93c5fd';
+                msBtnGroup.title = 'Zaten Gruplu';
+            }
+            if(msBtnUngroup) {
+                msBtnUngroup.style.background = 'rgba(234, 179, 8, 0.25)';
+                msBtnUngroup.style.borderColor = '#eab308';
+                msBtnUngroup.style.color = '#fde047';
+                msBtnUngroup.title = 'Grubu Boz (Ayır ve Seçimi Kaldır)';
+            }
         } else {
             if(btnGroup) btnGroup.style.display = 'inline-block';
             if(btnUngroup) btnUngroup.style.display = 'none';
@@ -612,8 +645,19 @@ window.updateGroupUI = function() {
             if(drawBtnGroup) drawBtnGroup.style.display = 'inline-block';
             if(drawBtnUngroup) drawBtnUngroup.style.display = 'none';
             if(lpGroupActions) lpGroupActions.style.display = 'flex';
-            if(coBtnGroup) coBtnGroup.style.display = 'none';
-            if(coBtnUngroup) coBtnUngroup.style.display = 'inline-block';
+            
+            if(msBtnGroup) {
+                msBtnGroup.style.background = 'rgba(59, 130, 246, 0.3)';
+                msBtnGroup.style.borderColor = '#38bdf8';
+                msBtnGroup.style.color = '#ffffff';
+                msBtnGroup.title = 'Grup Yap (Birlikte Tut)';
+            }
+            if(msBtnUngroup) {
+                msBtnUngroup.style.background = '';
+                msBtnUngroup.style.borderColor = '';
+                msBtnUngroup.style.color = '';
+                msBtnUngroup.title = 'Seçimi Kaldır / Ayır';
+            }
         }
     } else if (window.selectedElements && window.selectedElements.length === 1) {
         if(btnGroup) btnGroup.style.display = 'none';
@@ -626,6 +670,9 @@ window.updateGroupUI = function() {
         if(drawBtnGroup) drawBtnGroup.style.display = 'none';
         if(drawBtnUngroup) drawBtnUngroup.style.display = showUngroup;
         if(lpGroupActions) lpGroupActions.style.display = showUngroup === 'inline-block' ? 'flex' : 'none';
+        
+        if(msBtnGroup) { msBtnGroup.style.background = ''; msBtnGroup.style.borderColor = ''; msBtnGroup.style.color = ''; }
+        if(msBtnUngroup) { msBtnUngroup.style.background = ''; msBtnUngroup.style.borderColor = ''; msBtnUngroup.style.color = ''; }
     } else {
         if(btnGroup) btnGroup.style.display = 'none';
         if(btnUngroup) btnUngroup.style.display = 'none';
@@ -634,6 +681,9 @@ window.updateGroupUI = function() {
         if(coBtnUngroup) coBtnUngroup.style.display = 'none';
         if(drawBtnGroup) drawBtnGroup.style.display = 'none';
         if(drawBtnUngroup) drawBtnUngroup.style.display = 'none';
+        
+        if(msBtnGroup) { msBtnGroup.style.background = ''; msBtnGroup.style.borderColor = ''; msBtnGroup.style.color = ''; }
+        if(msBtnUngroup) { msBtnUngroup.style.background = ''; msBtnUngroup.style.borderColor = ''; msBtnUngroup.style.color = ''; }
     }
 };
 

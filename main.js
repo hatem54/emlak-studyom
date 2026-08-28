@@ -1114,78 +1114,126 @@ window.updateTemplateToggleUI = function(isHidden) {
 // ========== 🚀 TÜM SAYFAYI / TUVALİ SIFIRLA (SIFIRDAN BAŞLA) ==========
 window.resetEntireWorkspace = function() {
     const doReset = function() {
-        // 1. Arka plan görseli ve logo temizle
-        if (typeof window.clearBgImage === 'function') window.clearBgImage();
-        if (typeof window.clearLogoImage === 'function') window.clearLogoImage();
-
-        // 2. Filtreleri sıfırla
-        if (typeof resetFilters === 'function') resetFilters();
-
-        // 3. Şablonları temizle (Canva, Kolaj, Standart vb.)
-        if (typeof clearAllTemplates === 'function') clearAllTemplates();
-        const canvaRenderLayer = document.getElementById('canva-render-layer');
-        if (canvaRenderLayer) {
-            canvaRenderLayer.innerHTML = '';
-            canvaRenderLayer.style.display = 'none';
+        // Overlay göster (ekran kaymasını gizle ve pürüzsüz geçiş sağla)
+        let loader = document.getElementById('resetWorkspaceLoader');
+        if (!loader) {
+            loader = document.createElement('div');
+            loader.id = 'resetWorkspaceLoader';
+            loader.style.cssText = 'position:fixed; inset:0; background:rgba(10,15,30,0.94); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); z-index:99999999; display:flex; flex-direction:column; align-items:center; justify-content:center; opacity:0; transition:opacity 0.2s ease;';
+            loader.innerHTML = `
+                <div style="width:52px; height:52px; border:4px solid rgba(56,189,248,0.2); border-top-color:#38bdf8; border-radius:50%; animation:resetSpin 0.8s linear infinite; margin-bottom:16px;"></div>
+                <div style="font-size:16px; font-weight:700; color:#f8fafc; letter-spacing:-0.2px; margin-bottom:4px;">Tuval Temizleniyor...</div>
+                <div style="font-size:12px; color:#94a3b8;">Yeni çalışma alanı hazırlanıyor</div>
+                <style>@keyframes resetSpin { 100% { transform: rotate(360deg); } }</style>
+            `;
+            document.body.appendChild(loader);
         }
-        if (typeof window.isCanvaMode !== 'undefined') window.isCanvaMode = false;
-        if (typeof window.canvaOverlays !== 'undefined') window.canvaOverlays = [];
-
-        // 4. İkonları sil
-        if (typeof deleteAllIcons === 'function') deleteAllIcons();
-
-        // 5. Çizimleri ve serbest çizgileri sil
-        if (typeof clearAllDrawings === 'function') clearAllDrawings();
-        if (typeof SaberEngine !== 'undefined' && SaberEngine.clearAll) SaberEngine.clearAll();
-        const drawLayer = document.getElementById('draw-layer');
-        if (drawLayer) {
-            const ctx = drawLayer.getContext('2d');
-            if (ctx) ctx.clearRect(0, 0, drawLayer.width, drawLayer.height);
-        }
-        const maskLayer = document.getElementById('mask-layer');
-        if (maskLayer) maskLayer.innerHTML = '';
-
-        // 6. Tuvaldeki tüm ek nesneleri (rozetler, ek metinler, çerçeveli yazılar vb.) temizle
-        const container = document.getElementById('canvas-container');
-        if (container) {
-            const extraEls = container.querySelectorAll('.draggable:not(#elBadge):not(#elPrice):not(#elDetails):not(#elLogo), .callout-wrap, .co-neon-block, .svg-callout, .added-icon, .added-text, .custom-text-box, .is-svg-icon, .canvas-el:not(#elBadge):not(#elPrice):not(#elDetails):not(#elLogo)');
-            extraEls.forEach(el => el.remove());
-        }
-
-        // 7. Standart elemanları gizle ve sıfırla
-        const elBadge = document.getElementById('elBadge');
-        const elPrice = document.getElementById('elPrice');
-        const elDetails = document.getElementById('elDetails');
-        if (elBadge) {
-            elBadge.style.visibility = 'hidden';
-            elBadge.textContent = 'SATILIK EV';
-        }
-        if (elPrice) {
-            elPrice.style.visibility = 'hidden';
-            elPrice.textContent = '6.750.000 TL';
-        }
-        if (elDetails) {
-            elDetails.style.visibility = 'hidden';
-            const infoLine = document.getElementById('infoLineText');
-            if (infoLine) infoLine.innerHTML = '';
-        }
-
-        // 8. AI Text / Form alanlarını sıfırla
-        const aiText = document.getElementById('aiText');
-        if (aiText) aiText.value = '';
-
-        // 9. Zoom ve pan sıfırla
-        if (typeof resetCanvasZoomAndPan === 'function') resetCanvasZoomAndPan();
-
-        // 10. Seçimleri kaldır ve panelleri güncelle
-        if (typeof deselectAll === 'function') deselectAll();
-        if (typeof renderLayersList === 'function') renderLayersList();
-        if (typeof updateLayerPanel === 'function') updateLayerPanel();
-        if (typeof saveState === 'function') saveState();
-        if (typeof window.requestAutoSave === 'function') window.requestAutoSave();
         
-        // İlk sekmeye dön
-        if (typeof switchTab === 'function') switchTab('data');
+        loader.style.opacity = '1';
+
+        setTimeout(() => {
+            // 1. Arka plan görseli ve logo temizle
+            if (typeof window.clearBgImage === 'function') window.clearBgImage();
+            if (typeof window.clearLogoImage === 'function') window.clearLogoImage();
+
+            // 1b. Tuval Arka Plan Rengini Varsayılana Sıfırla
+            const canvasContainer = document.getElementById('canvas-container');
+            if (canvasContainer) {
+                canvasContainer.style.removeProperty('background-color');
+                canvasContainer.style.backgroundColor = '';
+            }
+            const canvasBgColorInput = document.getElementById('canvasBgColor');
+            if (canvasBgColorInput) {
+                canvasBgColorInput.value = '#12122A';
+            }
+            const exportBgColorInput = document.getElementById('exportBgColor');
+            if (exportBgColorInput) {
+                exportBgColorInput.value = '#12122A';
+            }
+            try {
+                localStorage.removeItem('emlakstudiom_canvasBgColor');
+            } catch(e){}
+
+            // 2. Filtreleri sıfırla
+            if (typeof resetFilters === 'function') resetFilters();
+
+            // 3. Şablonları temizle (Canva, Kolaj, Standart vb.)
+            if (typeof clearAllTemplates === 'function') clearAllTemplates();
+            const canvaRenderLayer = document.getElementById('canva-render-layer');
+            if (canvaRenderLayer) {
+                canvaRenderLayer.innerHTML = '';
+                canvaRenderLayer.style.display = 'none';
+            }
+            if (typeof window.isCanvaMode !== 'undefined') window.isCanvaMode = false;
+            if (typeof window.canvaOverlays !== 'undefined') window.canvaOverlays = [];
+
+            // 4. İkonları sil
+            if (typeof deleteAllIcons === 'function') deleteAllIcons();
+
+            // 5. Çizimleri ve serbest çizgileri sil
+            if (typeof clearAllDrawings === 'function') clearAllDrawings();
+            if (typeof SaberEngine !== 'undefined' && SaberEngine.clearAll) SaberEngine.clearAll();
+            const drawLayer = document.getElementById('draw-layer');
+            if (drawLayer) {
+                const ctx = drawLayer.getContext('2d');
+                if (ctx) ctx.clearRect(0, 0, drawLayer.width, drawLayer.height);
+            }
+            const maskLayer = document.getElementById('mask-layer');
+            if (maskLayer) maskLayer.innerHTML = '';
+
+            // 6. Tuvaldeki tüm ek nesneleri (rozetler, ek metinler, çerçeveli yazılar vb.) temizle
+            const container = document.getElementById('canvas-container');
+            if (container) {
+                const extraEls = container.querySelectorAll('.draggable:not(#elBadge):not(#elPrice):not(#elDetails):not(#elLogo), .callout-wrap, .co-neon-block, .svg-callout, .added-icon, .added-text, .custom-text-box, .is-svg-icon, .canvas-el:not(#elBadge):not(#elPrice):not(#elDetails):not(#elLogo)');
+                extraEls.forEach(el => el.remove());
+            }
+
+            // 7. Standart elemanları gizle ve sıfırla
+            const elBadge = document.getElementById('elBadge');
+            const elPrice = document.getElementById('elPrice');
+            const elDetails = document.getElementById('elDetails');
+            if (elBadge) {
+                elBadge.style.visibility = 'hidden';
+                elBadge.textContent = 'SATILIK EV';
+            }
+            if (elPrice) {
+                elPrice.style.visibility = 'hidden';
+                elPrice.textContent = '6.750.000 TL';
+            }
+            if (elDetails) {
+                elDetails.style.visibility = 'hidden';
+                const infoLine = document.getElementById('infoLineText');
+                if (infoLine) infoLine.innerHTML = '';
+            }
+
+            // 8. AI Text / Form alanlarını sıfırla
+            const aiText = document.getElementById('aiText');
+            if (aiText) aiText.value = '';
+
+            // 9. Zoom ve pan sıfırla
+            if (typeof resetCanvasZoomAndPan === 'function') resetCanvasZoomAndPan();
+            if (typeof window.fitCanvasToScreen === 'function') window.fitCanvasToScreen();
+
+            // 10. Seçimleri kaldır ve panelleri güncelle
+            if (typeof deselectAll === 'function') deselectAll();
+            if (typeof renderLayersList === 'function') renderLayersList();
+            if (typeof updateLayerPanel === 'function') updateLayerPanel();
+            if (typeof saveState === 'function') saveState();
+            if (typeof window.requestAutoSave === 'function') window.requestAutoSave();
+            
+            // İlk sekmeye dön
+            if (typeof switchTab === 'function') switchTab('data');
+
+            // 350ms sonra loader'ı yumuşakça kaldır
+            setTimeout(() => {
+                if (loader) {
+                    loader.style.opacity = '0';
+                    setTimeout(() => {
+                        if (loader && loader.parentNode) loader.remove();
+                    }, 250);
+                }
+            }, 350);
+        }, 60);
     };
 
     if (typeof Swal !== 'undefined') {
@@ -1197,17 +1245,14 @@ window.resetEntireWorkspace = function() {
             confirmButtonColor: '#ef4444',
             cancelButtonColor: '#64748b',
             confirmButtonText: '🗑️ Evet, Sıfırla',
-            cancelButtonText: 'İptal'
+            cancelButtonText: 'İptal',
+            heightAuto: false,
+            scrollbarPadding: false,
+            background: '#1e293b',
+            color: '#ffffff'
         }).then((result) => {
             if (result.isConfirmed) {
                 doReset();
-                Swal.fire({
-                    title: 'Tuval Sıfırlandı!',
-                    text: 'Tertemiz yeni bir çalışma alanı hazırlandı.',
-                    icon: 'success',
-                    timer: 1400,
-                    showConfirmButton: false
-                });
             }
         });
     } else {

@@ -150,12 +150,30 @@ function drawSinglePath(p){
         }
     } else if(p.type === 'line' || p.type === 'arrow'){
         if(typeof p.x1 !== 'undefined' && typeof p.x2 !== 'undefined') {
-            drawCtx.moveTo(p.x1, p.y1);
-            drawCtx.lineTo(p.x2, p.y2);
-            applyGlowAndStroke(drawCtx, p);
-            
             if(p.type === 'arrow'){
+                const a = Math.atan2(p.y2 - p.y1, p.x2 - p.x1);
+                const s = p.arrowStyle || 1;
+                const dir = p.arrowDir || 'outward';
+                const baseH = Math.max(p.width * 4.5, 14);
+                const cutDist = (s === 3 || s === 11 || s === 12) ? 0 : Math.min(baseH * 0.45, 14);
+                
+                let lx1 = p.x1, ly1 = p.y1, lx2 = p.x2, ly2 = p.y2;
+                if(dir === 'outward' || dir === 'both' || s >= 18) {
+                    lx2 -= cutDist * Math.cos(a);
+                    ly2 -= cutDist * Math.sin(a);
+                }
+                if(dir === 'inward' || dir === 'both' || s >= 18) {
+                    lx1 += cutDist * Math.cos(a);
+                    ly1 += cutDist * Math.sin(a);
+                }
+                drawCtx.moveTo(lx1, ly1);
+                drawCtx.lineTo(lx2, ly2);
+                applyGlowAndStroke(drawCtx, p);
                 arrowHead(drawCtx, p.x1, p.y1, p.x2, p.y2, p.width, p.color, p.opacity, p.arrowStyle, p.arrowDir);
+            } else {
+                drawCtx.moveTo(p.x1, p.y1);
+                drawCtx.lineTo(p.x2, p.y2);
+                applyGlowAndStroke(drawCtx, p);
             }
         }
     } else if(p.type === 'rect'){
@@ -337,7 +355,7 @@ function getDrawScaleRatio(){
 }
 
 function getDS(){
-    const baseW = +$('drawWidth').value || 4;
+    const baseW = +$('drawWidth').value || 6;
     const scaleRatio = getDrawScaleRatio();
     const effWidth = Math.max(1, Math.round(baseW * scaleRatio));
     return{
@@ -501,10 +519,30 @@ function dMove(e){
         drawCtx.setLineDash(getDash(s.dashStyle,s.width));
         if(drawMode==='line'||drawMode==='arrow'){
             drawCtx.beginPath();
-            drawCtx.moveTo(drawStartX,drawStartY);
-            drawCtx.lineTo(p.x,p.y);
-            if (s.saber) { applyGlowAndStroke(drawCtx, s); } else { drawCtx.stroke(); }
-            if(drawMode==='arrow')arrowHead(drawCtx,drawStartX,drawStartY,p.x,p.y,s.width,s.color,s.opacity,s.arrowStyle);
+            if(drawMode==='arrow'){
+                const a = Math.atan2(p.y - drawStartY, p.x - drawStartX);
+                const sStyle = s.arrowStyle || 1;
+                const dir = s.arrowDir || 'outward';
+                const baseH = Math.max(s.width * 4.5, 14);
+                const cutDist = (sStyle === 3 || sStyle === 11 || sStyle === 12) ? 0 : Math.min(baseH * 0.45, 14);
+                let lx1 = drawStartX, ly1 = drawStartY, lx2 = p.x, ly2 = p.y;
+                if(dir === 'outward' || dir === 'both' || sStyle >= 18) {
+                    lx2 -= cutDist * Math.cos(a);
+                    ly2 -= cutDist * Math.sin(a);
+                }
+                if(dir === 'inward' || dir === 'both' || sStyle >= 18) {
+                    lx1 += cutDist * Math.cos(a);
+                    ly1 += cutDist * Math.sin(a);
+                }
+                drawCtx.moveTo(lx1, ly1);
+                drawCtx.lineTo(lx2, ly2);
+                if (s.saber) { applyGlowAndStroke(drawCtx, s); } else { drawCtx.stroke(); }
+                arrowHead(drawCtx, drawStartX, drawStartY, p.x, p.y, s.width, s.color, s.opacity, s.arrowStyle, s.arrowDir);
+            } else {
+                drawCtx.moveTo(drawStartX, drawStartY);
+                drawCtx.lineTo(p.x, p.y);
+                if (s.saber) { applyGlowAndStroke(drawCtx, s); } else { drawCtx.stroke(); }
+            }
         }else if(drawMode==='rect'){
             const rx=Math.min(drawStartX,p.x),ry=Math.min(drawStartY,p.y);
             const rw=Math.abs(p.x-drawStartX),rh=Math.abs(p.y-drawStartY);
@@ -1157,7 +1195,7 @@ window.toggleArrowPicker = function(e) {
 };
 
 window.arrowPickerDocClick = function(e) {
-    if (!e.target.closest('#arrowPickerPopover') && !e.target.closest('#dmArrow') && !e.target.closest('.dmb-caret')) {
+    if (!e.target.closest('#arrowPickerPopover') && !e.target.closest('#dmArrow')) {
         window.closeArrowPicker();
     }
 };
@@ -1715,10 +1753,30 @@ window.liveUpdateDrawEdit = function(){
             if (p.type === 'arrow') {
                 const shaft = svg.querySelector('.arrow-shaft, line');
                 if (shaft) {
-                    const sx1 = parseFloat(shaft.getAttribute('x1')) || 0;
-                    const sy1 = parseFloat(shaft.getAttribute('y1')) || 0;
-                    const sx2 = parseFloat(shaft.getAttribute('x2')) || 0;
-                    const sy2 = parseFloat(shaft.getAttribute('y2')) || 0;
+                    const rawX1 = shaft.dataset.rawX1 !== undefined ? parseFloat(shaft.dataset.rawX1) : (parseFloat(shaft.getAttribute('x1')) || 0);
+                    const rawY1 = shaft.dataset.rawY1 !== undefined ? parseFloat(shaft.dataset.rawY1) : (parseFloat(shaft.getAttribute('y1')) || 0);
+                    const rawX2 = shaft.dataset.rawX2 !== undefined ? parseFloat(shaft.dataset.rawX2) : (parseFloat(shaft.getAttribute('x2')) || 0);
+                    const rawY2 = shaft.dataset.rawY2 !== undefined ? parseFloat(shaft.dataset.rawY2) : (parseFloat(shaft.getAttribute('y2')) || 0);
+                    
+                    const a = Math.atan2(rawY2 - rawY1, rawX2 - rawX1);
+                    const s = p.arrowStyle || 1;
+                    const dir = p.arrowDir || 'outward';
+                    const baseH = Math.max(effectiveSvgWidth * 4.5, 14);
+                    const cutDist = (s === 3 || s === 11 || s === 12) ? 0 : Math.min(baseH * 0.45, 14);
+                    
+                    let lx1 = rawX1, ly1 = rawY1, lx2 = rawX2, ly2 = rawY2;
+                    if(dir === 'outward' || dir === 'both' || s >= 18) {
+                        lx2 -= cutDist * Math.cos(a);
+                        ly2 -= cutDist * Math.sin(a);
+                    }
+                    if(dir === 'inward' || dir === 'both' || s >= 18) {
+                        lx1 += cutDist * Math.cos(a);
+                        ly1 += cutDist * Math.sin(a);
+                    }
+                    shaft.setAttribute('x1', lx1);
+                    shaft.setAttribute('y1', ly1);
+                    shaft.setAttribute('x2', lx2);
+                    shaft.setAttribute('y2', ly2);
                     shaft.setAttribute('stroke', p.color);
                     shaft.setAttribute('stroke-width', effectiveSvgWidth);
                     shaft.setAttribute('stroke-opacity', p.opacity);
@@ -1729,9 +1787,8 @@ window.liveUpdateDrawEdit = function(){
                     const oldHeads = svg.querySelectorAll('.arrow-heads-group, polygon:not(.main-polygon), polyline, circle, rect');
                     oldHeads.forEach(h => h.remove());
 
-                    const a = Math.atan2(sy2 - sy1, sx2 - sx1);
                     const fillStr = `fill="${p.color}"`;
-                    const headsHtml = window.renderSvgArrowHeadsGroup(sx1, sy1, sx2, sy2, a, effectiveSvgWidth, p.color, fillStr, (p.hasSaber ? `filter="url(#saber-glow-${editingDrawIndex})"` : ''), p.arrowStyle, p.arrowDir);
+                    const headsHtml = window.renderSvgArrowHeadsGroup(rawX1, rawY1, rawX2, rawY2, a, effectiveSvgWidth, p.color, fillStr, (p.hasSaber ? `filter="url(#saber-glow-${editingDrawIndex})"` : ''), p.arrowStyle, p.arrowDir);
                     const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
                     g.className.baseVal = 'arrow-heads-group';
                     g.innerHTML = headsHtml;
@@ -1858,8 +1915,20 @@ function createSVGFromPath(p) {
             const x1 = p.x1 - minX, y1 = p.y1 - minY;
             const s = p.arrowStyle || 1;
             const dir = p.arrowDir || 'outward';
+            const baseH = Math.max(p.width * 4.5, 14);
+            const cutDist = (s === 3 || s === 11 || s === 12) ? 0 : Math.min(baseH * 0.45, 14);
             
-            body = `<line class="arrow-shaft" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" ${styleStr} ${filterAttr} />`;
+            let lx1 = x1, ly1 = y1, lx2 = x2, ly2 = y2;
+            if(dir === 'outward' || dir === 'both' || s >= 18) {
+                lx2 -= cutDist * Math.cos(a);
+                ly2 -= cutDist * Math.sin(a);
+            }
+            if(dir === 'inward' || dir === 'both' || s >= 18) {
+                lx1 += cutDist * Math.cos(a);
+                ly1 += cutDist * Math.sin(a);
+            }
+            
+            body = `<line class="arrow-shaft" data-raw-x1="${x1}" data-raw-y1="${y1}" data-raw-x2="${x2}" data-raw-y2="${y2}" x1="${lx1}" y1="${ly1}" x2="${lx2}" y2="${ly2}" ${styleStr} ${filterAttr} />`;
             body += `<g class="arrow-heads-group">` + window.renderSvgArrowHeadsGroup(x1, y1, x2, y2, a, p.width, p.color, fillStr, filterAttr, s, dir) + `</g>`;
         } else {
             body = `<line class="main-line" x1="${p.x1 - minX}" y1="${p.y1 - minY}" x2="${p.x2 - minX}" y2="${p.y2 - minY}" ${styleStr} ${filterAttr} />`;
@@ -2155,32 +2224,54 @@ window.showVertexHandles = function(el) {
             const nx1 = points[0].x, ny1 = points[0].y;
             const nx2 = points[1].x, ny2 = points[1].y;
             
-            lineEl.setAttribute('x1', nx1);
-            lineEl.setAttribute('y1', ny1);
-            lineEl.setAttribute('x2', nx2);
-            lineEl.setAttribute('y2', ny2);
-            
             if (isArrow) {
                 let pIdx = parseInt(el.dataset.pathIndex);
                 let pObj = (typeof drawPaths !== 'undefined' && drawPaths[pIdx]) ? drawPaths[pIdx] : (typeof drawPaths !== 'undefined' ? drawPaths.find(dp => dp.el === el) : null);
                 
-                const pWidth = pObj ? pObj.width : (parseFloat(el.dataset.drawWidth) || 4);
+                const pWidth = pObj ? pObj.width : (parseFloat(el.dataset.drawWidth) || 6);
                 const pColor = pObj ? pObj.color : (el.dataset.drawColor || lineEl.getAttribute('stroke') || '#ef4444');
                 const s = pObj ? (pObj.arrowStyle || 1) : (parseInt(el.dataset.arrowStyle) || 1);
                 const dir = pObj ? (pObj.arrowDir || 'outward') : (el.dataset.arrowDir || 'outward');
                 const filterAttr = (pObj && pObj.hasSaber) ? `filter="url(#saber-glow-${pIdx})"` : '';
                 const fillStr = `fill="${pColor}"`;
                 
+                const a = Math.atan2(ny2 - ny1, nx2 - nx1);
+                const baseH = Math.max(pWidth * 4.5, 14);
+                const cutDist = (s === 3 || s === 11 || s === 12) ? 0 : Math.min(baseH * 0.45, 14);
+                
+                let lx1 = nx1, ly1 = ny1, lx2 = nx2, ly2 = ny2;
+                if(dir === 'outward' || dir === 'both' || s >= 18) {
+                    lx2 -= cutDist * Math.cos(a);
+                    ly2 -= cutDist * Math.sin(a);
+                }
+                if(dir === 'inward' || dir === 'both' || s >= 18) {
+                    lx1 += cutDist * Math.cos(a);
+                    ly1 += cutDist * Math.sin(a);
+                }
+                lineEl.setAttribute('x1', lx1);
+                lineEl.setAttribute('y1', ly1);
+                lineEl.setAttribute('x2', lx2);
+                lineEl.setAttribute('y2', ly2);
+                lineEl.dataset.rawX1 = nx1;
+                lineEl.dataset.rawY1 = ny1;
+                lineEl.dataset.rawX2 = nx2;
+                lineEl.dataset.rawY2 = ny2;
+                
                 const oldHeads = svg.querySelectorAll('.arrow-heads-group, polygon:not(.main-polygon), polyline, circle, rect');
                 oldHeads.forEach(h => h.remove());
                 
-                const a = Math.atan2(ny2 - ny1, nx2 - nx1);
                 const headsHtml = window.renderSvgArrowHeadsGroup(nx1, ny1, nx2, ny2, a, pWidth, pColor, fillStr, filterAttr, s, dir);
                 
                 const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
                 g.className.baseVal = 'arrow-heads-group';
                 g.innerHTML = headsHtml;
                 svg.appendChild(g);
+            } else {
+                lineEl.setAttribute('x1', nx1);
+                lineEl.setAttribute('y1', ny1);
+                lineEl.setAttribute('x2', nx2);
+                lineEl.setAttribute('y2', ny2);
+            }
                 
                 if (pObj) {
                     const baseL = parseFloat(el.dataset.baseLeft) || 0;
@@ -2194,7 +2285,6 @@ window.showVertexHandles = function(el) {
                         applySaberToPath(pIdx, pObj.saberOptions);
                     }
                 }
-            }
         };
 
         const h1 = createHandle(points[0], 0, (nx, ny) => {

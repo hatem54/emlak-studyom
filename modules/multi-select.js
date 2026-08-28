@@ -101,8 +101,8 @@
 
             <div class="section-title" style="margin-top:5px; margin-bottom:5px;">Grup & Katman İşlemleri</div>
             <div style="display:flex; gap:4px; margin-bottom:12px; flex-wrap:wrap;">
-                <button class="tab-btn" style="padding:4px 8px; flex:1;" onclick="if(window.groupSelected) window.groupSelected();" title="Grup Yap"><i class="fas fa-object-group"></i></button>
-                <button class="tab-btn" style="padding:4px 8px; flex:1;" onclick="if(window.ungroupSelected) window.ungroupSelected();" title="Grubu Boz"><i class="fas fa-object-ungroup"></i></button>
+                <button class="tab-btn" id="msBtnGroup" style="padding:4px 8px; flex:1;" onclick="if(window.groupSelected) window.groupSelected();" title="Grup Yap"><i class="fas fa-object-group"></i></button>
+                <button class="tab-btn" id="msBtnUngroup" style="padding:4px 8px; flex:1;" onclick="if(window.ungroupSelected) window.ungroupSelected();" title="Grubu Boz"><i class="fas fa-object-ungroup"></i></button>
                 <button class="tab-btn" style="padding:4px 8px; flex:1;" onclick="multiSelectBringToFront()" title="En Öne Getir"><i class="fas fa-level-up-alt"></i></button>
                 <button class="tab-btn" style="padding:4px 8px; flex:1;" onclick="multiSelectSendToBack()" title="En Arkaya Gönder"><i class="fas fa-level-down-alt"></i></button>
                 <button class="tab-btn" style="padding:4px 8px; flex:1;" onclick="multiSelectDuplicate()" title="Çoğalt"><i class="fas fa-copy"></i></button>
@@ -128,6 +128,7 @@
             document.getElementById('multi-select-count').innerText = window.selectedElements.length;
             const gapInp = document.getElementById('multi-gap-val');
             if (gapInp) gapInp.value = window.multiSelectGap || 14;
+            if (typeof updateGroupUI === 'function') updateGroupUI();
         } else {
             multiPanel.style.display = 'none';
         }

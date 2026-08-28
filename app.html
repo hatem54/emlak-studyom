@@ -795,10 +795,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 <span class="dmb-icon">📏</span>
                 <span class="dmb-text">Düz Çizgi</span>
             </button>
-            <button class="draw-mode-btn" id="dmArrow" onclick="setDrawMode('arrow')" oncontextmenu="event.preventDefault(); window.toggleArrowPicker(event);">
+            <button class="draw-mode-btn" id="dmArrow" onclick="if(typeof drawMode !== 'undefined' && drawMode === 'arrow'){ window.toggleArrowPicker(event); } else { setDrawMode('arrow'); }" oncontextmenu="event.preventDefault(); window.toggleArrowPicker(event);" title="Ok Çiz (Aktifken tekrar tıkla veya Sağ Tıkla: 20 Ok Stili)">
                 <span class="dmb-icon">➡️</span>
                 <span class="dmb-text">Ok Çiz</span>
-                <span class="dmb-caret" onclick="event.stopPropagation(); window.toggleArrowPicker(event);" title="20 Ok Stili Menüsü (Sağ Tık)">▾</span>
             </button>
             <button class="draw-mode-btn" id="dmRect" onclick="setDrawMode('rect')">
                 <span class="dmb-icon">⬜</span>
@@ -953,7 +952,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         <div class="section-title">🎨 Çizim Ayarları</div>
         <div class="color-row"><label>Çizgi Rengi</label><input type="color" id="drawColor" value="#ef4444"></div>
-        <div class="slider-group"><label><span>Kalınlık</span><span id="drawWidthVal">4px</span></label><input type="range" id="drawWidth" min="1" max="40" value="4"></div>
+        <div class="slider-group"><label><span>Kalınlık</span><span id="drawWidthVal">6px</span></label><input type="range" id="drawWidth" min="1" max="40" value="6"></div>
         <div class="slider-group"><label><span>Opaklık</span><span id="drawOpacityVal">100%</span></label><input type="range" id="drawOpacity" min="10" max="100" value="100"></div>
         <div class="input-group"><label>Çizgi Stili</label>
             <select id="drawDash"><option value="solid">Düz</option><option value="dashed">Kesikli</option><option value="dotted">Noktalı</option></select>
@@ -967,7 +966,7 @@ document.addEventListener('DOMContentLoaded', () => {
         <div id="drawEditPanel" style="display:none" class="settings-box">
             <div class="section-title" style="margin-top:0">✏️ Düzenle — <span id="drawEditLabel">#1</span></div>
             <div class="color-row"><label>Çizgi Rengi</label><input type="color" id="deColor" value="#ef4444" oninput="liveUpdateDrawEdit()"></div>
-            <div class="slider-group"><label><span>Kalınlık</span><span id="deWidthVal">4</span></label><input type="range" id="deWidth" min="1" max="40" value="4" oninput="liveUpdateDrawEdit()"></div>
+            <div class="slider-group"><label><span>Kalınlık</span><span id="deWidthVal">6</span></label><input type="range" id="deWidth" min="1" max="40" value="6" oninput="liveUpdateDrawEdit()"></div>
             <div class="slider-group"><label><span>Opaklık</span><span id="deOpacityVal">100%</span></label><input type="range" id="deOpacity" min="10" max="100" value="100" oninput="liveUpdateDrawEdit()"></div>
             <div class="color-row"><label>Dolgu Rengi</label><input type="color" id="deFillColor" value="#ef4444" oninput="liveUpdateDrawEdit()"></div>
             <div class="slider-group"><label><span>Dolgu Opaklık</span><span id="deFillOpVal">0%</span></label><input type="range" id="deFillOp" min="0" max="100" value="0" oninput="liveUpdateDrawEdit()"></div>

@@ -140,6 +140,7 @@ h2 .vb{background:var(--gradient-1);color:#fff;font-size:9px;padding:2px 8px;bor
     margin-bottom: 12px;
 }
 .draw-mode-btn {
+    position: relative;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -175,23 +176,26 @@ h2 .vb{background:var(--gradient-1);color:#fff;font-size:9px;padding:2px 8px;bor
     position: absolute;
     bottom: 2px;
     right: 4px;
-    font-size: 10px;
+    font-size: 11px;
     line-height: 1;
-    color: rgba(255, 255, 255, 0.45);
-    padding: 1px 3px;
-    border-radius: 3px;
+    color: rgba(255, 255, 255, 0.6);
+    padding: 2px 4px;
+    border-radius: 4px;
     transition: all 0.15s ease;
     cursor: pointer;
-    background: rgba(0, 0, 0, 0.25);
+    background: rgba(0, 0, 0, 0.35);
+    z-index: 5;
+    pointer-events: auto;
 }
 .draw-mode-btn .dmb-caret:hover {
     color: #38bdf8;
-    background: rgba(56, 189, 248, 0.25);
-    transform: scale(1.15);
+    background: rgba(56, 189, 248, 0.35);
+    transform: scale(1.2);
 }
 .draw-mode-btn.active .dmb-caret {
-    color: rgba(255, 255, 255, 0.9);
-    background: rgba(0, 0, 0, 0.35);
+    color: #ffffff;
+    background: rgba(0, 0, 0, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.2);
 }
 .draw-mode-btn:hover:not(.active) {
     background: #1e293b;
@@ -241,9 +245,9 @@ h2 .vb{background:var(--gradient-1);color:#fff;font-size:9px;padding:2px 8px;bor
     width: 320px;
     max-width: 92vw;
     backdrop-filter: blur(12px);
-    animation: popoverFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    animation: arrowPopoverFadeIn 0.18s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
-@keyframes popoverFadeIn {
+@keyframes arrowPopoverFadeIn {
     from { opacity: 0; transform: translateY(-6px) scale(0.97); }
     to { opacity: 1; transform: translateY(0) scale(1); }
 }
@@ -3303,10 +3307,10 @@ body.photo-unlocked .draw-handle {
     z-index: 10000;
     padding: 12px 14px;
     font-family: inherit;
-    animation: popoverFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    animation: gridPopoverFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
-@keyframes popoverFadeIn {
+@keyframes gridPopoverFadeIn {
     from { opacity: 0; transform: translateX(-50%) translateY(8px) scale(0.96); }
     to { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
 }

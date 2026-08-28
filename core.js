@@ -43,8 +43,8 @@ function trackImageSize(url, callback) {
         const oldW = (typeof uploadedImgW !== 'undefined' && uploadedImgW > 0) ? uploadedImgW : 1920;
         const oldH = (typeof uploadedImgH !== 'undefined' && uploadedImgH > 0) ? uploadedImgH : 1080;
         
-        uploadedImgW = img.naturalWidth || (window.innerWidth <= 768 ? 1080 : 1920);
-        uploadedImgH = img.naturalHeight || (window.innerWidth <= 768 ? 1920 : 1080);
+        uploadedImgW = img.naturalWidth || 1920;
+        uploadedImgH = img.naturalHeight || 1080;
         const pl = document.getElementById('photo-layer');
         if (pl) {
             pl.dataset.naturalW = uploadedImgW;

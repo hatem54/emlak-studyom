@@ -526,16 +526,19 @@ function drawMasterPhotoManually(ctx, el, masterImg, outputScale, canvasRect, ac
         if (xCtrl) sX = parseFloat(xCtrl.value) || 50;
         if (yCtrl) sY = parseFloat(yCtrl.value) || 50;
 
-        const imgRatio = masterImg.width / masterImg.height;
+        const natW = (parent && parent.dataset.naturalW) ? parseFloat(parent.dataset.naturalW) : (window.uploadedImgW || masterImg.naturalWidth || masterImg.width || 1920);
+        const natH = (parent && parent.dataset.naturalH) ? parseFloat(parent.dataset.naturalH) : (window.uploadedImgH || masterImg.naturalHeight || masterImg.height || 1080);
+
+        const imgRatio = natW / natH;
         const boxRatio = w / h;
         
         let coverW, coverH;
         if (imgRatio > boxRatio) {
             coverH = h;
-            coverW = masterImg.width * (h / masterImg.height);
+            coverW = natW * (h / natH);
         } else {
             coverW = w;
-            coverH = masterImg.height * (w / masterImg.width);
+            coverH = natH * (w / natW);
         }
 
         const offsetX_percent = (w - coverW) * (sX / 100);
@@ -581,17 +584,20 @@ function drawMasterPhotoManually(ctx, el, masterImg, outputScale, canvasRect, ac
                 sY = parseFloat(m[2]);
             }
 
-            const imgRatio = masterImg.width / masterImg.height;
+            const natW = (el && el.dataset.naturalW) ? parseFloat(el.dataset.naturalW) : (window.uploadedImgW || masterImg.naturalWidth || masterImg.width || 1920);
+            const natH = (el && el.dataset.naturalH) ? parseFloat(el.dataset.naturalH) : (window.uploadedImgH || masterImg.naturalHeight || masterImg.height || 1080);
+
+            const imgRatio = natW / natH;
             const boxRatio = w / h;
             
             if (imgRatio > boxRatio) {
                 drawH = h;
-                drawW = masterImg.width * (h / masterImg.height);
+                drawW = natW * (h / natH);
                 drawX = x + (w - drawW) * (sX / 100);
                 drawY = y;
             } else {
                 drawW = w;
-                drawH = masterImg.height * (w / masterImg.width);
+                drawH = natH * (w / natW);
                 drawX = x;
                 drawY = y + (h - drawH) * (sY / 100);
             }
@@ -955,15 +961,17 @@ async function saveImage(){
             if (renderCanvas && renderCanvas.width > 0) {
                 ctx.drawImage(renderCanvas, 0, 0, w, h);
             } else {
+                const natW = (panel && panel.dataset.naturalW) ? parseFloat(panel.dataset.naturalW) : (window.uploadedImgW || masterImgObj.naturalWidth || masterImgObj.width || 1920);
+                const natH = (panel && panel.dataset.naturalH) ? parseFloat(panel.dataset.naturalH) : (window.uploadedImgH || masterImgObj.naturalHeight || masterImgObj.height || 1080);
                 if (fitMode === 'contain') {
-                    const ratio = Math.min(w / masterImgObj.width, h / masterImgObj.height);
-                    const dw = masterImgObj.width * ratio;
-                    const dh = masterImgObj.height * ratio;
+                    const ratio = Math.min(w / natW, h / natH);
+                    const dw = natW * ratio;
+                    const dh = natH * ratio;
                     const dx = (w - dw) / 2;
                     const dy = (h - dh) / 2;
                     ctx.drawImage(masterImgObj, dx, dy, dw, dh);
                 } else {
-                    const imgRatio = masterImgObj.width / masterImgObj.height;
+                    const imgRatio = natW / natH;
                     const panelRatio = w / h;
                     let dw = w;
                     let dh = h;
@@ -1383,15 +1391,17 @@ async function startBatchExport(){
                 if (renderCanvas && renderCanvas.width > 0) {
                     ctx.drawImage(renderCanvas, 0, 0, w, h);
                 } else {
+                    const natW = (panel && panel.dataset.naturalW) ? parseFloat(panel.dataset.naturalW) : (window.uploadedImgW || masterImgObj.naturalWidth || masterImgObj.width || 1920);
+                    const natH = (panel && panel.dataset.naturalH) ? parseFloat(panel.dataset.naturalH) : (window.uploadedImgH || masterImgObj.naturalHeight || masterImgObj.height || 1080);
                     if (fitMode === 'contain') {
-                        const ratio = Math.min(w / masterImgObj.width, h / masterImgObj.height);
-                        const dw = masterImgObj.width * ratio;
-                        const dh = masterImgObj.height * ratio;
+                        const ratio = Math.min(w / natW, h / natH);
+                        const dw = natW * ratio;
+                        const dh = natH * ratio;
                         const dx = (w - dw) / 2;
                         const dy = (h - dh) / 2;
                         ctx.drawImage(masterImgObj, dx, dy, dw, dh);
                     } else {
-                        const imgRatio = masterImgObj.width / masterImgObj.height;
+                        const imgRatio = natW / natH;
                         const panelRatio = w / h;
                         let dw = w;
                         let dh = h;

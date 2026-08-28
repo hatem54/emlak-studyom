@@ -44,6 +44,39 @@
         window.isInitialLoad = true; 
         window.userHasManuallyChangedFormat = false;
     </script>
+
+    <!-- 🚀 Başlangıç Yükleme Ekranı (Kusursuz Açılış / Geçiş Ekranı) -->
+    <div id="initialAppLoader" style="position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(10,14,26,0.98); z-index:99999999; display:flex; align-items:center; justify-content:center; backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px); transition:opacity 0.25s cubic-bezier(0.16,1,0.3,1); font-family:'Plus Jakarta Sans','Inter',sans-serif;">
+        <style>
+            @keyframes initSpin { to { transform: rotate(360deg); } }
+            @keyframes initPopIn { from { transform: scale(0.92); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+            .init-loader-card {
+                background: rgba(18, 24, 40, 0.95);
+                border: 1px solid rgba(0, 210, 255, 0.25);
+                border-radius: 20px;
+                padding: 32px 40px;
+                box-shadow: 0 25px 60px rgba(0, 0, 0, 0.8), 0 0 30px rgba(0, 210, 255, 0.15);
+                animation: initPopIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+                text-align: center;
+                max-width: 380px;
+                width: 90%;
+            }
+            .init-spinner {
+                width: 44px;
+                height: 44px;
+                border: 3px solid rgba(0, 210, 255, 0.15);
+                border-top-color: #00d2ff;
+                border-radius: 50%;
+                animation: initSpin 0.75s linear infinite;
+                margin: 0 auto 16px;
+            }
+        </style>
+        <div class="init-loader-card">
+            <div class="init-spinner"></div>
+            <h3 style="color:#ffffff; margin:0 0 6px 0; font-size:17px; font-weight:700; letter-spacing:-0.2px;">Uygulama Yükleniyor...</h3>
+            <p style="color:#94a3b8; font-size:13px; margin:0; line-height:1.5;">Stüdyo bileşenleri hazırlanıyor...</p>
+        </div>
+    </div>
     
     <div id="mobileSheetOverlay" class="mobile-overlay"></div>
   <div class="app-header">
@@ -147,7 +180,7 @@
                 <button id="clearBgBtn" style="background:rgba(239,68,68,0.15); border:1px solid rgba(239,68,68,0.3); color:#ef4444; cursor:pointer; font-size:14px; width:38px; height:38px; border-radius:8px; display:none; align-items:center; justify-content:center; transition:all 0.2s;" title="Görseli Sil" onclick="if(typeof clearBgImage==='function') clearBgImage();">
                     <i class="fas fa-trash-alt"></i>
                 </button>
-                <input type="file" id="imageInput" accept="image/jpeg, image/png, image/webp" style="display:none;">
+                <input type="file" id="imageInput" accept="image/*" style="position:absolute; width:1px; height:1px; opacity:0; pointer-events:none;">
             </div>
 
             <!-- Firma Logosu -->
@@ -159,7 +192,7 @@
                 <button id="clearLogoBtn" style="background:rgba(239,68,68,0.15); border:1px solid rgba(239,68,68,0.3); color:#ef4444; cursor:pointer; font-size:14px; width:36px; height:36px; border-radius:8px; display:none; align-items:center; justify-content:center; transition:all 0.2s;" title="Logoyu Sil" onclick="if(typeof clearLogoImage==='function') clearLogoImage();">
                     <i class="fas fa-trash-alt"></i>
                 </button>
-                <input type="file" id="logoInput" accept="image/jpeg, image/png, image/webp" style="display:none;">
+                <input type="file" id="logoInput" accept="image/*" style="position:absolute; width:1px; height:1px; opacity:0; pointer-events:none;">
             </div>
         </div>
 

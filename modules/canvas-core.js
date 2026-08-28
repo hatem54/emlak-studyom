@@ -134,6 +134,7 @@ function resizeCanvas(){
     } else {
         scaleFactor = Math.min(scaleW, scaleH);
     }
+    
     window.scaleFactor = scaleFactor;
     
     w.style.width = (canvasW * scaleFactor) + 'px';

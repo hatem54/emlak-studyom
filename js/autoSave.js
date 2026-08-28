@@ -931,17 +931,35 @@ async function bootAutoSave() {
         const savedData = await loadStateFromDB();
         
         if (savedData && savedData.state && savedData.timestamp > Date.now() - 24 * 60 * 60 * 1000) {
-            // Stop immediate auto-saves to prevent overwriting before user decides
-            showRecoveryModal(savedData);
-        } else {
-            // If expired or missing, delete and start fresh
-            if (savedData) await deleteStateFromDB();
-            startAutoSaveTimer();
+            // Kullanıcıyı açılışta pop-up ile rahatsız etmeden arka planda taslağı sakla
+            window._lastAutoSavedDraft = savedData;
+            console.log('[AutoSave] Kayıtlı son taslak hazır:', new Date(savedData.timestamp).toLocaleTimeString());
         }
+        startAutoSaveTimer();
     } catch(err) {
         console.error('AutoSave boot failed:', err);
     }
 }
+
+window.restoreLastAutoSave = async function() {
+    try {
+        const savedData = window._lastAutoSavedDraft || await loadStateFromDB();
+        if (savedData && savedData.state) {
+            if (typeof window.showAppLoading === 'function') {
+                window.showAppLoading('Çalışmanız Yükleniyor...', 'Lütfen bekleyin, tasarım ve katmanlar hazırlanıyor...');
+            }
+            await applyRestoredState(savedData.state);
+            startAutoSaveTimer();
+            return true;
+        } else {
+            alert('Kayıtlı otomatik taslak bulunamadı.');
+            return false;
+        }
+    } catch(e) {
+        console.error('Taslak geri yüklenemedi:', e);
+        return false;
+    }
+};
 
 // Add event listener safely
 if (document.readyState === 'loading') {

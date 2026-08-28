@@ -15,38 +15,43 @@ window.isMobileDevice = function() {
 window.validateImageUpload = function(file) {
     if (!file) return false;
     
-    // 1. Format Check (Block RAW, HEIC, TIFF etc.)
-    const validTypes = ['image/jpeg', 'image/png', 'image/webp'];
-    if (!validTypes.includes(file.type)) {
+    // 1. Format Check (Tüm standart görsel türlerini ve uzantıları kabul et)
+    const fileName = (file.name || '').toLowerCase();
+    const fileType = (file.type || '').toLowerCase();
+    const isImageMime = fileType.startsWith('image/') || fileType.includes('jpeg') || fileType.includes('png') || fileType.includes('webp') || fileType.includes('jpg');
+    const validExtensions = ['.jpg', '.jpeg', '.png', '.webp', '.jfif', '.heic', '.heif', '.bmp', '.gif', '.svg'];
+    const hasValidExt = validExtensions.some(ext => fileName.endsWith(ext));
+    
+    if (!isImageMime && !hasValidExt && fileType !== '') {
         if (typeof Swal !== 'undefined') {
             Swal.fire({
                 title: 'Desteklenmeyen Format!',
-                html: 'Lütfen sadece <b>JPG</b>, <b>PNG</b> veya <b>WebP</b> türünde bir görsel yükleyin.<br><br><span style="font-size: 0.9em; color: #cbd5e1;">RAW, TIFF veya HEIC gibi ham/ağır formatlar tarayıcıda doğrudan açılamaz.</span>',
+                html: 'Lütfen geçerli bir görsel (JPG, PNG, WebP vb.) yükleyin.',
                 icon: 'error',
                 background: '#1e293b',
                 color: '#fff',
                 confirmButtonColor: '#3b82f6'
             });
         } else {
-            alert('Desteklenmeyen Format! Lütfen sadece JPG, PNG veya WebP türünde bir görsel yükleyin.');
+            alert('Lütfen geçerli bir görsel (JPG, PNG, WebP vb.) yükleyin.');
         }
         return false;
     }
     
-    // 2. Size Check (Max 20MB)
-    const maxSize = 20 * 1024 * 1024;
+    // 2. Size Check (Maks 35MB)
+    const maxSize = 35 * 1024 * 1024;
     if (file.size > maxSize) {
         if (typeof Swal !== 'undefined') {
             Swal.fire({
                 title: 'Dosya Çok Büyük!',
-                text: 'Dosya boyutu çok yüksek (maksimum 20 MB). Lütfen küçültüp tekrar deneyin.',
+                text: 'Dosya boyutu çok yüksek (maksimum 35 MB). Lütfen küçültüp tekrar deneyin.',
                 icon: 'warning',
                 background: '#1e293b',
                 color: '#fff',
                 confirmButtonColor: '#3b82f6'
             });
         } else {
-            alert('Dosya Çok Büyük! Maksimum 20 MB yükleyebilirsiniz.');
+            alert('Dosya boyutu çok büyük! Maksimum dosya boyutu 35 MB olabilir.');
         }
         return false;
     }
@@ -416,95 +421,163 @@ function bindInputs(){
                 window.showAppLoading('Fotoğraf Yükleniyor...', 'Görsel işleniyor ve tuvale yerleştiriliyor...');
             }
 
-            const processPhotoChange = () => {
-                setTimeout(() => {
-                    const r = new FileReader();
-                    r.onload = ev => {
-                        uploadedImgUrl = ev.target.result;
-                        window.uploadedImgUrl = ev.target.result;
+            const processPhotoChange = async () => {
+                const applyFinalImage = (img, finalDataUrl, finalW, finalH) => {
+                    uploadedImgUrl = finalDataUrl;
+                    window.uploadedImgUrl = finalDataUrl;
+                    uploadedImgW = finalW;
+                    uploadedImgH = finalH;
+                    window.uploadedImgW = uploadedImgW;
+                    window.uploadedImgH = uploadedImgH;
+                    window._globalNativeImg = img;
+                    window._globalNativeImgSrc = finalDataUrl;
 
-                        // Eski fotoğraf önbelleklerini temizle ve yeni görseli tüm katmanlara ata
-                        document.querySelectorAll('.photo-panel, #photo-layer').forEach(p => {
-                            p._nativeImg = null;
-                            p._nativeImgSrc = '';
-                            p.dataset.savedBg = `url('${uploadedImgUrl}')`;
-                            const inner = p.querySelector('.photo-inner-zoom');
-                            if (inner) inner.style.backgroundImage = `url('${uploadedImgUrl}')`;
-                            p.style.backgroundImage = 'none';
-                        });
+                    const pl = document.getElementById('photo-layer');
+                    if (pl) {
+                        pl.dataset.naturalW = uploadedImgW;
+                        pl.dataset.naturalH = uploadedImgH;
+                    }
 
-                        // PRELOAD NATIVE IMAGE FOR INSTANT CANVAS RENDERING
-                        window._globalNativeImgSrc = uploadedImgUrl;
-                        window._globalNativeImg = new Image();
-                        window._globalNativeImg.onload = () => {
-                            document.querySelectorAll('.photo-panel, #photo-layer').forEach(p => {
-                                if (typeof _applyPhotoTransform === 'function') _applyPhotoTransform(p);
-                            });
-                            if (typeof redrawAll === 'function') redrawAll();
-                        };
-                        window._globalNativeImg.src = uploadedImgUrl;
+                    // 1. Tuval formatını görselin orijinal ölçülerine uyarla
+                    if (typeof autoAdjustFormat === 'function' && window.isRestoringState !== true) {
+                        autoAdjustFormat(uploadedImgW, uploadedImgH);
+                    }
 
-                        const onPhotoReady = () => {
-                            document.querySelectorAll('.photo-panel, #photo-layer').forEach(p => {
-                                p._nativeImg = null;
-                                p._nativeImgSrc = '';
-                                p.dataset.savedBg = `url('${uploadedImgUrl}')`;
-                                const inner = p.querySelector('.photo-inner-zoom');
-                                if (inner) inner.style.backgroundImage = `url('${uploadedImgUrl}')`;
-                                p.style.backgroundImage = 'none';
-                                if (typeof _applyPhotoTransform === 'function') _applyPhotoTransform(p);
-                            });
+                    // 2. Tuval boyutlarını doğrudan görsel boyutlarına eşitle
+                    const cContainer = document.getElementById('canvas-container');
+                    if (cContainer) {
+                        cContainer.style.width = uploadedImgW + 'px';
+                        cContainer.style.height = uploadedImgH + 'px';
+                    }
+                    if (typeof canvasEl !== 'undefined' && canvasEl) {
+                        canvasEl.style.width = uploadedImgW + 'px';
+                        canvasEl.style.height = uploadedImgH + 'px';
+                    }
+                    const drawCanvas = document.getElementById('draw-layer');
+                    if (drawCanvas) {
+                        drawCanvas.width = uploadedImgW;
+                        drawCanvas.height = uploadedImgH;
+                        drawCanvas.style.width = uploadedImgW + 'px';
+                        drawCanvas.style.height = uploadedImgH + 'px';
+                    }
+                    if (window.SaberEngine && typeof window.SaberEngine.resize === 'function') {
+                        window.SaberEngine.resize(uploadedImgW, uploadedImgH);
+                    }
+                
+                    // 3. Tuval ölçeğini hesapla
+                    if (typeof resizeCanvas === 'function') resizeCanvas();
 
-                            if (isCanvaMode) {
-                                if (typeof refreshActiveCanvaTemplate === 'function') refreshActiveCanvaTemplate();
-                                else if (typeof buildCanvaRender === 'function') buildCanvaRender();
-                            }
+                    // 4. Fotoğraf katmanını güncelle ve render et
+                    document.querySelectorAll('.photo-panel, #photo-layer').forEach(p => {
+                        p._nativeImg = img;
+                        p._nativeImgSrc = finalDataUrl;
+                        p.dataset.savedBg = `url('${finalDataUrl}')`;
+                        delete p.dataset.zpScale;
+                        delete p.dataset.zpX;
+                        delete p.dataset.zpY;
+                        const inner = p.querySelector('.photo-inner-zoom');
+                        if (inner) inner.style.backgroundImage = `url('${finalDataUrl}')`;
+                        p.style.backgroundImage = `url('${finalDataUrl}')`;
+                        if (typeof _applyPhotoTransform === 'function') _applyPhotoTransform(p);
+                    });
 
-                            if ($('clearBgBtn')) $('clearBgBtn').style.display = 'flex';
-                            if (document.getElementById('bgUploadBtnText')) document.getElementById('bgUploadBtnText').innerText = 'Fotoğrafı Değiştir';
+                    if (typeof isCanvaMode !== 'undefined' && isCanvaMode) {
+                        if (typeof refreshActiveCanvaTemplate === 'function') refreshActiveCanvaTemplate();
+                        else if (typeof buildCanvaRender === 'function') buildCanvaRender();
+                    }
 
-                            if (typeof window.updatePhotoLockState === 'function') {
-                                window.updatePhotoLockState(true);
-                            } else {
-                                const lockToggle = document.getElementById('photoLockToggle');
-                                if (lockToggle) lockToggle.checked = true;
-                                window.isPhotoLocked = true;
-                            }
-                            if (typeof resetPixelCache === 'function') resetPixelCache();
-                            if (typeof redrawAll === 'function') redrawAll();
+                    if ($('clearBgBtn')) $('clearBgBtn').style.display = 'flex';
+                    if (document.getElementById('bgUploadBtnText')) document.getElementById('bgUploadBtnText').innerText = 'Fotoğrafı Değiştir';
 
-                            // Fotoğraf yüklendikten sonra logoyu DOM'da en sona taşı → daima görsel üstte
-                            const _logoEl = document.getElementById('elLogo');
-                            const _cc = document.getElementById('canvas-container');
-                            if (_logoEl && _cc && _cc.lastChild !== _logoEl) {
-                                _logoEl.style.zIndex = '9999';
-                                _cc.appendChild(_logoEl);
-                            }
+                    if (typeof window.updatePhotoLockState === 'function') {
+                        window.updatePhotoLockState(true);
+                    } else {
+                        const lockToggle = document.getElementById('photoLockToggle');
+                        if (lockToggle) lockToggle.checked = true;
+                        window.isPhotoLocked = true;
+                    }
+                    if (typeof resetPixelCache === 'function') resetPixelCache();
+                    if (typeof resizeCanvas === 'function') resizeCanvas();
+                    if (typeof applyPhotoPos === 'function') applyPhotoPos();
+                    if (typeof redrawAll === 'function') redrawAll();
+                    
+                    if (typeof updateDrawHistory === 'function') updateDrawHistory();
+                    if (typeof requestAutoSave === 'function') requestAutoSave();
+                    
+                    if (typeof window.hideAppLoading === 'function') {
+                        window.hideAppLoading();
+                    }
 
-                            setTimeout(() => {
-                                if (typeof window.hideAppLoading === 'function') window.hideAppLoading(60);
-                            }, 120);
-                        };
+                    setTimeout(() => {
+                        if (typeof window.hideAppLoading === 'function') window.hideAppLoading(60);
+                    }, 120);
+                };
 
-                        if (typeof trackImageSize === 'function') {
-                            trackImageSize(uploadedImgUrl, onPhotoReady);
-                        } else {
-                            onPhotoReady();
+                try {
+                    const objectUrl = URL.createObjectURL(f);
+                    
+                    const img = new Image();
+                    img.onload = () => {
+                        let finalW = img.naturalWidth || 1920;
+                        let finalH = img.naturalHeight || 1080;
+                        
+                        // RAM ve iOS Safari Güvenlik Sınırı
+                        // PC'de yüksek kaliteyi (12MP) koruyoruz, Mobilde çökme/kesilme olmaması için 3MP seviyesinde tutuyoruz.
+                        const isMob = typeof window.isMobileDevice === 'function' ? window.isMobileDevice() : window.innerWidth <= 768;
+                        const MAX_DIM = isMob ? 2048 : 4096;
+                        const MAX_AREA = isMob ? 3000000 : 12000000;
+                        
+                        if (finalW > MAX_DIM || finalH > MAX_DIM) {
+                            const ratio = Math.min(MAX_DIM / finalW, MAX_DIM / finalH);
+                            finalW = Math.round(finalW * ratio);
+                            finalH = Math.round(finalH * ratio);
+                        }
+                        
+                        if ((finalW * finalH) > MAX_AREA) {
+                            const areaRatio = Math.sqrt(MAX_AREA / (finalW * finalH));
+                            finalW = Math.round(finalW * areaRatio);
+                            finalH = Math.round(finalH * areaRatio);
+                        }
+                        
+                        try {
+                            const offCanvas = document.createElement('canvas');
+                            offCanvas.width = finalW;
+                            offCanvas.height = finalH;
+                            const ctx = offCanvas.getContext('2d');
+                            ctx.drawImage(img, 0, 0, finalW, finalH);
+                            const scaledDataUrl = offCanvas.toDataURL('image/jpeg', 0.95);
+                            URL.revokeObjectURL(objectUrl);
+                            
+                            const scaledImg = new Image();
+                            scaledImg.onload = () => {
+                                applyFinalImage(scaledImg, scaledDataUrl, finalW, finalH);
+                            };
+                            scaledImg.onerror = () => {
+                                if (typeof window.showAppToast === 'function') {
+                                    window.showAppToast('Görsel işlenirken hata oluştu.', 'error');
+                                }
+                            };
+                            scaledImg.src = scaledDataUrl;
+                        } catch (canvasErr) {
+                            console.error('Canvas Error:', canvasErr);
+                            alert("Canvas Hatası: " + canvasErr.message);
                         }
                     };
-                    r.onerror = () => {
+                    img.onerror = () => {
+                        log('HATA: İlk img yüklenemedi!');
+                        URL.revokeObjectURL(objectUrl);
+                        alert("Görsel yüklenirken bir hata oluştu.");
                         if (typeof window.hideAppLoading === 'function') window.hideAppLoading();
                     };
-                    r.readAsDataURL(f);
-                }, 30);
+                    img.src = objectUrl;
+                } catch(err) {
+                    console.error('Fotoğraf yükleme hatası:', err);
+                    alert("Fotoğraf işlenemedi. Lütfen daha küçük boyutlu bir görsel deneyin.");
+                    if (typeof window.hideAppLoading === 'function') window.hideAppLoading();
+                }
             };
-
-
-
             // Eğer çizim varsa kullanıcıyı uyar (AŞAMA 3 - KORUMA KURALLARI)
-
             if (typeof drawPaths !== 'undefined' && drawPaths.length > 0 && typeof uploadedImgUrl !== 'undefined' && uploadedImgUrl) {
-
                 const modal = document.createElement('div');
 
                 modal.id = 'photo-change-warning-modal';
@@ -854,81 +927,41 @@ setTimeout(function(){
 
             
 
-            // Set default format to 9:16 on mobile load
-
+            // Set default format on mobile load (Orijinal varsayılan ayar: 9:16 Story)
             const formatSelect = document.getElementById('previewFormat');
-
             const exportSelect = document.getElementById('exportFormat');
-
+            const isLand = window.innerWidth > window.innerHeight;
+            const defMobFormat = isLand ? '16:9 Full HD (YouTube/Banner)' : '4:5 Instagram Portrait';
             if (formatSelect) {
-
-                formatSelect.value = '9:16 Instagram/TikTok Story';
-
-                if (typeof switchPreviewFormat === 'function') switchPreviewFormat();
-
+                formatSelect.value = defMobFormat;
             }
-
             if (exportSelect) {
-
-                exportSelect.value = '9:16 Instagram/TikTok Story';
-
+                exportSelect.value = defMobFormat;
             }
-
             document.querySelectorAll('#mainTabs .tab-btn').forEach(b=>b.classList.remove('active'));
-
             document.querySelectorAll('.panel>.dynamic-field').forEach(f=>f.classList.remove('show'));
-
             const mo = document.getElementById('mobileSheetOverlay');
-
             if(mo) { mo.style.display='none'; mo.style.opacity='0'; }
-
         }
 
-        console.log('🎉 Init tamamlandı');
-        
-        // Hide initial loader and re-enable format loaders
+        console.log('Init tamamlandi');
         window.isInitialLoad = false;
         const initLoader = document.getElementById('initialAppLoader');
         if (initLoader) {
-            initLoader.style.opacity = '0';
-            setTimeout(() => initLoader.remove(), 200);
+            setTimeout(() => {
+                initLoader.style.opacity = '0';
+                setTimeout(() => initLoader.remove(), 250);
+            }, 500);
         }
-
     } catch(err){
-
-        console.error('❌ INIT HATASI:',err);
+        console.error('INIT HATASI:',err);
         const initLoader = document.getElementById('initialAppLoader');
         if (initLoader) initLoader.remove();
-
-        alert('HATA: '+err.message+'\n\nF12 → Console açıp ekran görüntüsü at.');
-
+        alert('HATA: ' + err.message);
     }
-
 }
 
-window.addEventListener('DOMContentLoaded',init);
-
-
-
-// ========== CALLOUT MODÜLÜ ==========
-
-
-
-// Obsolete renderCalloutPool removed
-
-// Sürükleme fonksiyonu (yoksa)
-
-
-
-
-
-
-
-
-
-
-
-
+window.addEventListener('DOMContentLoaded', init);
 
 // Photo zoom and pan logic moved to modules/photo-zoom.js
 

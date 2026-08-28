@@ -102,8 +102,16 @@ function applyPhotoPos(){
     $('photoYVal').textContent=y+'%';
     
     // YENİ: Çizim kaymasını önlemek için matematiksel olarak birebir aynı piksel hesabı
-    let pW = photoLayer.offsetWidth || 1920;
-    let pH = photoLayer.offsetHeight || 1080;
+    let pW = photoLayer.offsetWidth;
+    let pH = photoLayer.offsetHeight;
+    if (typeof canvasEl !== 'undefined' && canvasEl) {
+        pW = parseFloat(canvasEl.style.width) || pW || 1920;
+        pH = parseFloat(canvasEl.style.height) || pH || 1080;
+    } else {
+        pW = pW || 1920;
+        pH = pH || 1080;
+    }
+
     let imgW = typeof uploadedImgW !== 'undefined' ? uploadedImgW : 1920;
     let imgH = typeof uploadedImgH !== 'undefined' ? uploadedImgH : 1080;
     
@@ -368,33 +376,53 @@ function _drawToNativeCanvas(el, inner, canvas, scale, panX, panY, sliderX, slid
     let activeScale = parseFloat(scale) || 1;
     let baseResMul = window.exportingScale ? window.exportingScale : 1.5;
     
+    let natW = (el && el.dataset.naturalW) ? parseFloat(el.dataset.naturalW) : (window.uploadedImgW || img.naturalWidth || img.width || 1920);
+    let natH = (el && el.dataset.naturalH) ? parseFloat(el.dataset.naturalH) : (window.uploadedImgH || img.naturalHeight || img.height || 1080);
+    if (!natW || natW <= 0) natW = 1920;
+    if (!natH || natH <= 0) natH = 1080;
+
     if (!window.exportingScale) {
-        let nativeScaleX = img.width / boxW;
-        let nativeScaleY = img.height / boxH;
+        let nativeScaleX = natW / boxW;
+        let nativeScaleY = natH / boxH;
         let maxNativeScale = Math.max(nativeScaleX, nativeScaleY);
         baseResMul = Math.min(4, Math.max(1, maxNativeScale * activeScale));
     }
     
     const HIGH_RES_MUL = baseResMul;
     
-    canvas.width = Math.round(boxW * HIGH_RES_MUL);
-    canvas.height = Math.round(boxH * HIGH_RES_MUL);
+    let finalW = Math.round(boxW * HIGH_RES_MUL);
+    let finalH = Math.round(boxH * HIGH_RES_MUL);
+    
+    // Güvenlik: Mobil tarayıcılarda (özellikle iOS Safari) canvas alan limiti 16.7 Milyon pikseldir.
+    // Ancak RAM yetersizliğinde 6MP-12MP bile yarıda kesilebiliyor (GPU silent truncation).
+    // Mobilde kesilme olmaması için stabil ve tam sığan 3 Megapiksele çekiyoruz.
+    const isMob = typeof window.isMobileDevice === 'function' ? window.isMobileDevice() : window.innerWidth <= 768;
+    const MAX_AREA = isMob ? 3000000 : 12000000;
+    
+    if ((finalW * finalH) > MAX_AREA) {
+        const reductionRatio = Math.sqrt(MAX_AREA / (finalW * finalH));
+        finalW = Math.round(finalW * reductionRatio);
+        finalH = Math.round(finalH * reductionRatio);
+    }
+    
+    canvas.width = finalW;
+    canvas.height = finalH;
     canvas.style.width = '100%';
     canvas.style.height = '100%';
     
     let ctx = canvas.getContext('2d');
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
-    let imgRatio = img.width / img.height;
+    let imgRatio = natW / natH;
     let boxRatio = canvas.width / canvas.height;
     
     let drawW, drawH;
     if (imgRatio > boxRatio) {
         drawH = canvas.height;
-        drawW = Math.round(img.width * (canvas.height / img.height));
+        drawW = Math.round(natW * (canvas.height / natH));
     } else {
         drawW = canvas.width;
-        drawH = Math.round(img.height * (canvas.width / img.width));
+        drawH = Math.round(natH * (canvas.width / natW));
     }
     
     let baseX = Math.round((canvas.width - drawW) * (sliderX / 100));

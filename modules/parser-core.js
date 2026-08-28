@@ -859,6 +859,9 @@
             if (typeof window.applyParsedDataToJsonTemplate === 'function') {
                 window.applyParsedDataToJsonTemplate(result);
             }
+            if (typeof window.syncKolajFromForm === 'function') {
+                window.syncKolajFromForm();
+            }
 
             // Eğer kullanıcı standart şablon modundaysa ve aktif bir şablon seçiliyse elemanları görünür yap ve güncelle
             if (typeof activeLayout !== 'undefined' && activeLayout && activeLayout !== 'empty' && activeLayout !== 'none' && (!window.isCanvaMode)) {

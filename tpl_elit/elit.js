@@ -210,11 +210,11 @@ function buildCanvaRender(){
                 <div class="photo-panel" style="width:${photoW}px;height:${fullH}px;position:absolute;right:0;top:0;${bgPos}"></div>
                 <div class="left-panel" style="width:${leftW}px;height:${fullH}px;position:absolute;left:0;top:0;background:linear-gradient(180deg,#f0ebe3 0%,#e6dfd5 100%);z-index:5"></div>
             </div>`;
-        addCanvaItem('LÜKS YAŞAM', 80, 80, 36, '#4a3b32', 'transparent', 0, 0);
-        addCanvaItem(title, 80, 140, 85, '#2c1e15', 'transparent', 0, 0, 650);
-        addCanvaItem(price, 80, 260, 72, '#b45309', 'transparent', 0, 0);
-        addCanvaItem(feats, 80, 500, 38, '#4a3b32', 'transparent', 24, 0, 640);
-        addCanvaItem(contact, 80, 980, 26, '#2c1e15', 'transparent', 0, 0);
+        addCanvaItem('LÜKS YAŞAM', 80, 70, 28, '#4a3b32', 'transparent', 0, 0);
+        addCanvaItem(title, 80, 120, 64, '#2c1e15', 'transparent', 0, 0, 650);
+        addCanvaItem(feats, 80, 320, 32, '#4a3b32', 'transparent', 16, 0, 640);
+        addCanvaItem(price, 80, 820, 60, '#b45309', 'transparent', 0, 0);
+        addCanvaItem(contact, 80, 970, 26, '#2c1e15', 'transparent', 0, 0);
     }
     else if(activeCanvaId === 'canva2'){
         const photoW = scaleX(1800), photoH = scaleY(480);
@@ -404,11 +404,11 @@ function buildCanvaRender(){
         </div>`;
     
     // Yazılar - textMaxW ile taşma engellendi
-    addCanvaItem('✔ PROPERTY', 110, 220, 28, '#64748b', 'transparent', 0, 0);
-    addCanvaItem(title, 110, 270, 80, '#0f172a', 'transparent', 0, 0, Math.min(780, textMaxW));
-    addCanvaItem(price, 110, 400, 58, '#ffffff', 'linear-gradient(135deg,#0f172a 0%,#334155 100%)', 12, 20);
-    addCanvaItem('▸ ÖZELLİKLER', 110, 600, 20, '#64748b', 'transparent', 0, 0);
-    addCanvaItem(feats, 110, 650, 32, '#334155', 'transparent', 0, 0, Math.min(750, textMaxW));
+    addCanvaItem('✔ PROPERTY', 110, 160, 24, '#64748b', 'transparent', 0, 0);
+    addCanvaItem(title, 110, 205, 58, '#0f172a', 'transparent', 0, 0, Math.min(720, textMaxW));
+    addCanvaItem('▸ ÖZELLİKLER', 110, 380, 18, '#64748b', 'transparent', 0, 0);
+    addCanvaItem(feats, 110, 420, 28, '#334155', 'transparent', 0, 0, Math.min(700, textMaxW));
+    addCanvaItem(price, 110, 780, 48, '#ffffff', 'linear-gradient(135deg,#0f172a 0%,#334155 100%)', 10, 16);
     addCanvaItem(contact, 110, 960, 22, '#0f172a', 'transparent', 0, 0);
 }
     else if(activeCanvaId === 'canva7'){
@@ -420,10 +420,11 @@ function buildCanvaRender(){
                 <div class="gold-strip" style="width:${scaleX(8)}px;height:${fullH}px;background:linear-gradient(180deg,#fbbf24,#f59e0b,#fbbf24);position:absolute;left:${scaleX(756)}px;top:0;z-index:6;box-shadow:0 0 20px rgba(251,191,36,.5)"></div>
                 <div class="royal-crown" style="position:absolute;top:${scaleY(60)}px;left:${scaleX(60)}px;font-size:${scaleSize(80)}px;z-index:6;filter:drop-shadow(0 5px 15px rgba(251,191,36,.5))">👑</div>
             </div>`;
-        addCanvaItem('◆ EXCLUSIVE', 80, 180, 26, '#fbbf24', 'transparent', 0, 0);
-        addCanvaItem(title, 80, 230, 72, '#ffffff', 'transparent', 0, 0, 640);
-        addCanvaItem(price, 80, 350, 56, '#fef08a', 'rgba(0,0,0,0.35)', 12, 20, 620);
-        addCanvaItem(feats, 80, 600, 32, '#fecaca', 'transparent', 0, 0, 620);
+        addCanvaItem('◆ EXCLUSIVE', 80, 160, 22, '#fbbf24', 'transparent', 0, 0);
+        addCanvaItem(title, 80, 205, 56, '#ffffff', 'transparent', 0, 0, 620);
+        addCanvaItem('▸ ÖZELLİKLER', 80, 380, 18, '#fbbf24', 'transparent', 0, 0);
+        addCanvaItem(feats, 80, 420, 28, '#fecaca', 'transparent', 0, 0, 620);
+        addCanvaItem(price, 80, 780, 48, '#fef08a', 'rgba(0,0,0,0.4)', 10, 16, 600);
         addCanvaItem(contact, 80, 960, 22, '#fbbf24', 'transparent', 0, 0);
     }
     else if(activeCanvaId === 'canva8'){
@@ -583,11 +584,11 @@ function buildCanvaRender(){
         </div>`;
 
     // METİN YERLEŞİMİ - Renk değişkenli
-    addCanvaItem('◆ SAHİL EVLERİ KOLEKSİYONU', 1260, 195, 24, C.accent, 'transparent', 0, 0);
-    addCanvaItem(title, 1260, 275, 66, C.text, 'transparent', 0, 0, 600);
-    addCanvaItem(price, 1260, 370, 52, '#ffffff', C.primary, 55, 18, 520, 'center');
-    addCanvaItem('▸ ÖZELLİKLER', 1260, 600, 22, C.accent, 'transparent', 0, 0);
-    addCanvaItem(feats, 1260, 650, 30, C.text, 'transparent', 0, 0, 580);
+    addCanvaItem('◆ SAHİL EVLERİ KOLEKSİYONU', 1260, 150, 20, C.accent, 'transparent', 0, 0);
+    addCanvaItem(title, 1260, 190, 54, C.text, 'transparent', 0, 0, 580);
+    addCanvaItem('▸ ÖZELLİKLER', 1260, 360, 18, C.accent, 'transparent', 0, 0);
+    addCanvaItem(feats, 1260, 400, 26, C.text, 'transparent', 0, 0, 580);
+    addCanvaItem(price, 1260, 800, 46, '#ffffff', C.primary, 45, 14, 480, 'center');
     addCanvaItem(contact, 1285, 985, 22, C.textSoft, 'transparent', 0, 0, 550);
 }
 

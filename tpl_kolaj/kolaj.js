@@ -70,8 +70,9 @@ function _kolajPanelHTML(){
         '<div class="section-title">🎨 Kolaj Şablonları</div>'+
         ''+
         '<div class="template-grid" id="kolajGrid"></div>'+
+        '<button class="btn-action btn-cyan" onclick="_kolajTopluFotoSec()" style="width:100%;margin-top:10px;margin-bottom:15px;display:flex;align-items:center;justify-content:center;gap:6px;font-weight:700;">📸 Toplu Görsel Seç (Tüm Gözlere Dağıt)</button>'+
         
-        '<div class="section-title" style="margin-top:20px;">🖼️ Arka Plan</div>'+
+        '<div class="section-title">🖼️ Arka Plan</div>'+
         '<div class="row-2">'+
             '<div class="input-group"><label>Renk 1</label><input type="color" id="kolajBgRenk1" value="#0d1b3d" style="width:100%;height:40px;"></div>'+
             '<div class="input-group"><label>Renk 2</label><input type="color" id="kolajBgRenk2" value="#1a2f5c" style="width:100%;height:40px;"></div>'+
@@ -109,6 +110,137 @@ function _kolajBilgiInputlariBind(){
         }
     });
 }
+
+window._kolajBilgiler = _kolajBilgiler;
+
+window.syncKolajFromForm = function() {
+    try {
+        if (typeof _kolajBilgiler === 'undefined') return;
+
+        // 1. Başlık (Giriş sekmesindeki rozet veya seçili kategori)
+        var badge = '';
+        var statusEl = document.getElementById('statusInput');
+        if (statusEl && statusEl.value) {
+            badge = statusEl.value;
+        } else if (window.propertyForms && window.currentMode && window.propertyForms[window.currentMode]) {
+            badge = window.propertyForms[window.currentMode].badge;
+        } else if (document.getElementById('canvaTitle') && document.getElementById('canvaTitle').value) {
+            badge = document.getElementById('canvaTitle').value;
+        }
+        if (badge) {
+            _kolajBilgiler.baslik = badge;
+            var elBaslik = document.getElementById('kolajBaslik');
+            if (elBaslik) elBaslik.value = badge;
+        }
+
+        // 2. Fiyat
+        var price = '';
+        var priceEl = document.getElementById('priceInput');
+        if (priceEl && priceEl.value) {
+            price = priceEl.value;
+        } else if (window.propertyForms && window.currentMode && window.propertyForms[window.currentMode] && window.propertyForms[window.currentMode].fields && window.propertyForms[window.currentMode].fields[0]) {
+            price = window.propertyForms[window.currentMode].fields[0].value;
+        }
+        if (price) {
+            _kolajBilgiler.fiyat = price;
+            var elFiyat = document.getElementById('kolajFiyat');
+            if (elFiyat) elFiyat.value = price;
+        }
+
+        // 3. Özellikler: Mevcut form alanlarından en fazla 3 tanesini al (Kolaj yapısını bozmadan)
+        var rawFeats = [];
+        if (window.currentMode === 'custom') {
+            ['c_v1', 'c_v2', 'c_v3', 'c_v4'].forEach(function(cid){
+                var ce = document.getElementById(cid);
+                if (ce && ce.value.trim()) rawFeats.push(ce.value.trim());
+            });
+        } else if (window.propertyForms && window.currentMode && window.propertyForms[window.currentMode]) {
+            var config = window.propertyForms[window.currentMode];
+            config.fields.forEach(function(f){
+                if (f.id === 'priceInput') return;
+                var inputEl = document.getElementById(f.id);
+                var val = inputEl ? inputEl.value : (f.value || '');
+                if (val && val.toLowerCase() !== 'yok') {
+                    rawFeats.push(val);
+                }
+            });
+            var extraContainer = document.getElementById('dynamicExtraFields') || (window.currentMode && document.getElementById(window.currentMode + 'ExtraFields'));
+            if (extraContainer) {
+                var rows = extraContainer.querySelectorAll('.extra-field-row, .row-2');
+                rows.forEach(function(r){
+                    var valInput = r.querySelector('.extra-val-input') || r.querySelector('input:nth-child(2)') || r.querySelector('input:nth-child(3)');
+                    if (valInput && valInput.value.trim()) {
+                        rawFeats.push(valInput.value.trim());
+                    }
+                });
+            }
+        }
+
+        if (rawFeats.length > 0 && rawFeats[0]) {
+            _kolajBilgiler.ozellik1 = rawFeats[0];
+            var elO1 = document.getElementById('kolajOzellik1');
+            if (elO1) elO1.value = rawFeats[0];
+        }
+        if (rawFeats.length > 1 && rawFeats[1]) {
+            _kolajBilgiler.ozellik2 = rawFeats[1];
+            var elO2 = document.getElementById('kolajOzellik2');
+            if (elO2) elO2.value = rawFeats[1];
+        }
+        if (rawFeats.length > 2 && rawFeats[2]) {
+            _kolajBilgiler.ozellik3 = rawFeats[2];
+            var elO3 = document.getElementById('kolajOzellik3');
+            if (elO3) elO3.value = rawFeats[2];
+        }
+
+        // 4. Alt Başlık (Konum veya İkincil Bilgi)
+        var loc = '';
+        var locInputs = ['f_lokasyon', 'f_konum', 'f_mahalle', 'locInput', 'canvaLocation'];
+        for (var i = 0; i < locInputs.length; i++) {
+            var le = document.getElementById(locInputs[i]);
+            if (le && le.value && le.value.trim()) { loc = le.value.trim(); break; }
+        }
+        if (loc) {
+            _kolajBilgiler.altBaslik = loc.toUpperCase();
+            var elAlt = document.getElementById('kolajAltBaslik');
+            if (elAlt) elAlt.value = loc.toUpperCase();
+        }
+
+        // 5. Telefon
+        var tel = '';
+        var telInputs = ['contactInput', 'canvaContact', 'phoneInput', 'canvaCContact', 'canvaLContact'];
+        for (var j = 0; j < telInputs.length; j++) {
+            var te = document.getElementById(telInputs[j]);
+            if (te && te.value && /\d{7,}/.test(te.value)) {
+                var m = te.value.match(/(?:0\s*5\d{2}[\s\d]{7,12}|\b\d{10,11}\b)/);
+                tel = m ? m[0].trim() : te.value.trim();
+                break;
+            }
+        }
+        if (tel) {
+            _kolajBilgiler.telefon = tel;
+            var elTel = document.getElementById('kolajTelefon');
+            if (elTel) elTel.value = tel;
+        }
+
+        // 6. Açıklama
+        var descInput = document.getElementById('descInput');
+        if (descInput && descInput.value.trim()) {
+            var firstLine = descInput.value.split('\n')[0].trim();
+            if (firstLine) {
+                _kolajBilgiler.aciklama = firstLine;
+                var elDesc = document.getElementById('kolajAciklama');
+                if (elDesc) elDesc.value = firstLine;
+            }
+        }
+
+        // Eğer tuvalde aktif kolaj varsa metinlerini anında güncelle
+        if (typeof _kolajBilgiGuncelle === 'function') {
+            _kolajBilgiGuncelle();
+        }
+    } catch(e) {
+        console.error("syncKolajFromForm error:", e);
+    }
+};
 
 function _kolajBilgiGuncelle(){
     var wrap = document.getElementById('kolaj-wrapper');
@@ -155,6 +287,7 @@ function _kolajBtnBind(){
 
             _cerceveSecimKaldir();
             if(typeof clearAllTemplates === 'function') clearAllTemplates();
+            if(typeof window.syncKolajFromForm === 'function') window.syncKolajFromForm();
             window[s.fn]();
             document.querySelectorAll('#kolajGrid .template-btn').forEach(function(b){b.classList.remove('active');});
             btn.classList.add('active');
@@ -243,19 +376,19 @@ function _kolaj1(){
     var c = _kolajCanvas(); if(!c) return;
     var w = _kolajWrapper('#0d1b3d','#1a2f5c');
     w.innerHTML = 
-        _yazi(2, 5, 40, 30, 
-            '<div style="display:inline-block;background:#c9a961;padding:8px 20px;border-radius:4px;font-size:29px;font-weight:900;color:#0d1b3d;letter-spacing:3px;">'+_b('altBaslik','KİRALIK')+'</div>'+
-            '<div style="font-size:95px;font-weight:900;line-height:1;margin-top:15px;color:#fff;">'+_b('baslik','MERKEZ OFİS')+'</div>'+
-            '<div style="font-size:32px;margin-top:15px;color:#fff;opacity:0.9;">'+_b('aciklama','Merkezi konumda...')+'</div>')+
-        _yazi(2, 65, 40, 30,
-            '<div style="border-top:2px solid #c9a961;padding-top:15px;color:#fff;">'+
-            '<div style="font-size:29px;opacity:0.7;">KİRA BEDELİ</div>'+
-            '<div style="font-size:72px;font-weight:900;color:#c9a961;">'+_b('fiyat','18.000 TL')+'</div>'+
-            '<div style="font-size:29px;margin-top:10px;">📞 '+_b('telefon','0532 000 00 00')+'</div></div>')+
-        _foto(1, 45, 5, 53, 60, {radius:'8px', border:'2px dashed #c9a961'})+
-        _foto(2, 45, 68, 17, 27, {radius:'8px', border:'2px dashed #c9a961'})+
-        _foto(3, 63.5, 68, 17, 27, {radius:'8px', border:'2px dashed #c9a961'})+
-        _foto(4, 82, 68, 16, 27, {radius:'8px', border:'2px dashed #c9a961'});
+        _yazi(3, 4, 39, 58, 
+            '<div style="display:inline-block;background:#c9a961;padding:8px 20px;border-radius:4px;font-size:24px;font-weight:900;color:#0d1b3d;letter-spacing:3px;">'+_b('altBaslik','KİRALIK')+'</div>'+
+            '<div style="font-size:56px;font-weight:900;line-height:1.15;margin-top:14px;color:#fff;word-break:break-word;">'+_b('baslik','MERKEZ OFİS')+'</div>'+
+            '<div style="font-size:26px;margin-top:14px;color:#fff;opacity:0.9;line-height:1.4;">'+_b('aciklama','Merkezi konumda...')+'</div>')+
+        _yazi(3, 65, 39, 30,
+            '<div style="border-top:2px solid #c9a961;padding-top:14px;color:#fff;">'+
+            '<div style="font-size:22px;opacity:0.7;letter-spacing:2px;">KİRA BEDELİ</div>'+
+            '<div style="font-size:52px;font-weight:900;color:#c9a961;line-height:1.2;">'+_b('fiyat','18.000 TL')+'</div>'+
+            '<div style="font-size:24px;margin-top:10px;">📞 '+_b('telefon','0532 000 00 00')+'</div></div>')+
+        _foto(1, 45, 4, 52, 60, {radius:'8px', border:'2px dashed #c9a961'})+
+        _foto(2, 45, 67, 16, 28, {radius:'8px', border:'2px dashed #c9a961'})+
+        _foto(3, 63, 67, 16, 28, {radius:'8px', border:'2px dashed #c9a961'})+
+        _foto(4, 81, 67, 16, 28, {radius:'8px', border:'2px dashed #c9a961'});
     c.appendChild(w);
 }
 
@@ -265,18 +398,18 @@ function _kolaj2(){
     w.innerHTML = 
         _yazi(5, 3, 90, 14,
             '<div style="text-align:center;display:flex;flex-direction:column;justify-content:center;align-items:center;height:100%;">'+
-            '<div style="font-size:72px;font-weight:900;color:#d4af37;line-height:1.1;">'+_b('baslik','SATILIK LÜKS DAİRE')+'</div>'+
-            '<div style="font-size:32px;opacity:0.7;letter-spacing:5px;margin-top:2px;color:#fff;line-height:1.1;">'+_b('altBaslik','MERKEZİ KONUM')+'</div></div>')+
-        _foto(1, 5, 17, 90, 45, {radius:'12px', border:'2px dashed #d4af37'})+
+            '<div style="font-size:58px;font-weight:900;color:#d4af37;line-height:1.15;word-break:break-word;">'+_b('baslik','SATILIK LÜKS DAİRE')+'</div>'+
+            '<div style="font-size:26px;opacity:0.7;letter-spacing:5px;margin-top:4px;color:#fff;line-height:1.1;">'+_b('altBaslik','MERKEZİ KONUM')+'</div></div>')+
+        _foto(1, 5, 18, 90, 44, {radius:'12px', border:'2px dashed #d4af37'})+
         _foto(2, 5, 64, 21.5, 20, {radius:'8px', border:'2px dashed #d4af37'})+
         _foto(3, 28, 64, 21.5, 20, {radius:'8px', border:'2px dashed #d4af37'})+
         _foto(4, 51, 64, 21.5, 20, {radius:'8px', border:'2px dashed #d4af37'})+
         _foto(5, 74, 64, 21, 20, {radius:'8px', border:'2px dashed #d4af37'})+
         _yazi(5, 86, 90, 12,
             '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:15px;background:#d4af37;border-radius:8px;color:#000;height:100%;box-sizing:border-box;align-content:center;align-items:center;padding:10px;">'+
-            '<div style="text-align:center;display:flex;flex-direction:column;justify-content:center;line-height:1.1;"><div style="font-size:16px;opacity:0.8;font-weight:900;margin-bottom:4px;">FİYAT</div><div style="font-size:42px;font-weight:900;">'+_b('fiyat','15.000 TL')+'</div></div>'+
-            '<div style="text-align:center;display:flex;flex-direction:column;justify-content:center;line-height:1.1;border-left:2px solid rgba(0,0,0,0.2);border-right:2px solid rgba(0,0,0,0.2);"><div style="font-size:16px;opacity:0.8;font-weight:900;margin-bottom:4px;">ALAN</div><div style="font-size:42px;font-weight:900;">'+_b('ozellik2','120 m²')+'</div></div>'+
-            '<div style="text-align:center;display:flex;flex-direction:column;justify-content:center;line-height:1.1;"><div style="font-size:16px;opacity:0.8;font-weight:900;margin-bottom:4px;">TELEFON</div><div style="font-size:35px;font-weight:900;">'+_b('telefon','0532 000 00 00')+'</div></div>'+
+            '<div style="text-align:center;display:flex;flex-direction:column;justify-content:center;line-height:1.1;"><div style="font-size:16px;opacity:0.8;font-weight:900;margin-bottom:4px;">FİYAT</div><div style="font-size:38px;font-weight:900;">'+_b('fiyat','15.000 TL')+'</div></div>'+
+            '<div style="text-align:center;display:flex;flex-direction:column;justify-content:center;line-height:1.1;border-left:2px solid rgba(0,0,0,0.2);border-right:2px solid rgba(0,0,0,0.2);"><div style="font-size:16px;opacity:0.8;font-weight:900;margin-bottom:4px;">ALAN</div><div style="font-size:38px;font-weight:900;">'+_b('ozellik2','120 m²')+'</div></div>'+
+            '<div style="text-align:center;display:flex;flex-direction:column;justify-content:center;line-height:1.1;"><div style="font-size:16px;opacity:0.8;font-weight:900;margin-bottom:4px;">TELEFON</div><div style="font-size:32px;font-weight:900;">'+_b('telefon','0532 000 00 00')+'</div></div>'+
             '</div>', {padding:'0'});
     c.appendChild(w);
 }
@@ -286,11 +419,11 @@ function _kolaj3(){
     var w = _kolajWrapper('#0d3520','#1a5c3a');
     w.innerHTML = 
         _yazi(3, 3, 60, 15,
-            '<div style="display:inline-block;background:#c9a961;color:#0d3520;padding:6px 16px;border-radius:20px;font-size:26px;font-weight:900;">'+_b('altBaslik','🌿 SATILIK ARAZİ')+'</div>'+
-            '<div style="font-size:67px;font-weight:900;margin-top:8px;letter-spacing:2px;color:#fff;">'+_b('baslik','SÖĞÜTLÜ MAH.')+'</div>')+
+            '<div style="display:inline-block;background:#c9a961;color:#0d3520;padding:6px 16px;border-radius:20px;font-size:22px;font-weight:900;">'+_b('altBaslik','🌿 SATILIK ARAZİ')+'</div>'+
+            '<div style="font-size:54px;font-weight:900;margin-top:6px;letter-spacing:1px;color:#fff;line-height:1.15;word-break:break-word;">'+_b('baslik','SÖĞÜTLÜ MAH.')+'</div>')+
         _yazi(65, 3, 32, 15,
-            '<div style="text-align:right;color:#fff;"><div style="font-size:29px;opacity:0.7;">TOPLAM ALAN</div>'+
-            '<div style="font-size:63px;font-weight:900;color:#c9a961;">'+_b('ozellik2','7.824 m²')+'</div></div>')+
+            '<div style="text-align:right;color:#fff;"><div style="font-size:22px;opacity:0.7;">TOPLAM ALAN</div>'+
+            '<div style="font-size:52px;font-weight:900;color:#c9a961;line-height:1.2;">'+_b('ozellik2','7.824 m²')+'</div></div>')+
         _foto(1, 3, 20, 94, 50, {radius:'12px', border:'3px dashed #c9a961'})+
         _foto(2, 3, 72, 15, 15, {radius:'6px', border:'2px dashed #c9a961'})+
         _foto(3, 19.5, 72, 15, 15, {radius:'6px', border:'2px dashed #c9a961'})+
@@ -299,11 +432,11 @@ function _kolaj3(){
         _foto(6, 69, 72, 15, 15, {radius:'6px', border:'2px dashed #c9a961'})+
         _foto(7, 85.5, 72, 11.5, 15, {radius:'6px', border:'2px dashed #c9a961'})+
         _yazi(3, 89, 63, 9,
-            '<div style="background:rgba(0,0,0,0.4);border-left:4px solid #c9a961;padding:12px;border-radius:6px;color:#fff;font-size:29px;height:100%;box-sizing:border-box;">'+
+            '<div style="background:rgba(0,0,0,0.4);border-left:4px solid #c9a961;padding:12px;border-radius:6px;color:#fff;font-size:24px;height:100%;box-sizing:border-box;display:flex;align-items:center;">'+
             '✓ '+_b('ozellik1','Fındık Bahçesi')+' &nbsp;•&nbsp; ✓ '+_b('ozellik3','2 Katlı Ev')+' &nbsp;•&nbsp; 📞 '+_b('telefon','0532 000 00 00')+'</div>', {padding:'0'})+
         _yazi(68, 89, 29, 9,
-            '<div style="background:#c9a961;color:#0d3520;padding:10px;border-radius:6px;text-align:center;height:100%;box-sizing:border-box;">'+
-            '<div style="font-size:14px;font-weight:900;opacity:0.7;">FİYAT</div><div style="font-size:45px;font-weight:900;">'+_b('fiyat','11.000.000 TL')+'</div></div>', {padding:'0'});
+            '<div style="background:#c9a961;color:#0d3520;padding:10px;border-radius:6px;text-align:center;height:100%;box-sizing:border-box;display:flex;flex-direction:column;justify-content:center;">'+
+            '<div style="font-size:14px;font-weight:900;opacity:0.7;">FİYAT</div><div style="font-size:38px;font-weight:900;line-height:1.1;">'+_b('fiyat','11.000.000 TL')+'</div></div>', {padding:'0'});
     c.appendChild(w);
 }
 
@@ -315,14 +448,14 @@ function _kolaj4(){
         _foto(2, 50, 0, 50, 50, {radius:'0', border:'2px dashed #7dd3fc'})+
         _foto(3, 0, 50, 50, 50, {radius:'0', border:'2px dashed #7dd3fc'})+
         _foto(4, 50, 50, 50, 50, {radius:'0', border:'2px dashed #7dd3fc'})+
-        _yazi(20, 30, 60, 40,
-            '<div style="background:rgba(10,37,64,0.95);padding:30px;border-radius:16px;border:2px solid #7dd3fc;text-align:center;color:#fff;box-shadow:0 20px 60px rgba(0,0,0,0.5);height:100%;box-sizing:border-box;">'+
-            '<div style="font-size:26px;letter-spacing:6px;color:#7dd3fc;font-weight:900;">'+_b('altBaslik','🌊 DENİZ MANZARALI')+'</div>'+
-            '<div style="font-size:74px;font-weight:900;margin:10px 0;">'+_b('baslik','SAHİL VİLLA')+'</div>'+
-            '<div style="font-size:30px;opacity:0.8;">'+_b('ozellik1','5+2')+' • '+_b('ozellik2','320 m²')+' • '+_b('ozellik3','Havuzlu')+'</div>'+
-            '<div style="width:80px;height:2px;background:#7dd3fc;margin:15px auto;"></div>'+
-            '<div style="font-size:56px;font-weight:900;color:#7dd3fc;">'+_b('fiyat','25.000.000 TL')+'</div>'+
-            '<div style="font-size:26px;margin-top:5px;opacity:0.7;">📞 '+_b('telefon','0532 000 00 00')+'</div></div>', {padding:'0'});
+        _yazi(20, 24, 60, 52,
+            '<div style="background:rgba(10,37,64,0.95);padding:25px 30px;border-radius:16px;border:2px solid #7dd3fc;text-align:center;color:#fff;box-shadow:0 20px 60px rgba(0,0,0,0.5);height:100%;box-sizing:border-box;display:flex;flex-direction:column;justify-content:center;">'+
+            '<div style="font-size:22px;letter-spacing:6px;color:#7dd3fc;font-weight:900;">'+_b('altBaslik','🌊 DENİZ MANZARALI')+'</div>'+
+            '<div style="font-size:56px;font-weight:900;margin:8px 0;line-height:1.15;word-break:break-word;">'+_b('baslik','SAHİL VİLLA')+'</div>'+
+            '<div style="font-size:26px;opacity:0.8;">'+_b('ozellik1','5+2')+' • '+_b('ozellik2','320 m²')+' • '+_b('ozellik3','Havuzlu')+'</div>'+
+            '<div style="width:80px;height:2px;background:#7dd3fc;margin:12px auto;"></div>'+
+            '<div style="font-size:48px;font-weight:900;color:#7dd3fc;line-height:1.1;">'+_b('fiyat','25.000.000 TL')+'</div>'+
+            '<div style="font-size:24px;margin-top:6px;opacity:0.7;">📞 '+_b('telefon','0532 000 00 00')+'</div></div>', {padding:'0'});
     c.appendChild(w);
 }
 
@@ -339,12 +472,12 @@ function _kolaj5(){
         _foto(5, 62, 67, 16.5, 30, {radius:'8px', border:'2px dashed #f5e6d3'})+
         _foto(6, 80.5, 67, 16.5, 30, {radius:'8px', border:'2px dashed #f5e6d3'})+
         // SOL ALT YAZI (foto üzerinde)
-        _yazi(3, 70, 45, 27,
-            '<div style="color:#f5e6d3;">'+
-            '<div style="font-size:29px;letter-spacing:8px;opacity:0.7;">'+_b('altBaslik','EXCLUSIVE')+'</div>'+
-            '<div style="font-size:81px;font-weight:900;line-height:1;text-shadow:2px 2px 8px rgba(0,0,0,0.8);">'+_b('baslik','LÜKS Rezidans')+'</div>'+
-            '<div style="font-size:53px;font-weight:900;color:#fff;margin-top:12px;text-shadow:1px 1px 6px rgba(0,0,0,0.8);">'+_b('fiyat','42.000.000 TL')+'</div>'+
-            '<div style="font-size:29px;margin-top:5px;text-shadow:1px 1px 4px rgba(0,0,0,0.8);">📞 '+_b('telefon','0532 000 00 00')+'</div>'+
+        _yazi(3, 62, 45, 35,
+            '<div style="color:#f5e6d3;display:flex;flex-direction:column;justify-content:flex-end;">'+
+            '<div style="font-size:22px;letter-spacing:6px;opacity:0.8;">'+_b('altBaslik','EXCLUSIVE')+'</div>'+
+            '<div style="font-size:56px;font-weight:900;line-height:1.15;word-break:break-word;text-shadow:2px 2px 8px rgba(0,0,0,0.8);margin-top:4px;">'+_b('baslik','LÜKS Rezidans')+'</div>'+
+            '<div style="font-size:46px;font-weight:900;color:#fff;margin-top:8px;text-shadow:1px 1px 6px rgba(0,0,0,0.8);">'+_b('fiyat','42.000.000 TL')+'</div>'+
+            '<div style="font-size:24px;margin-top:5px;text-shadow:1px 1px 4px rgba(0,0,0,0.8);">📞 '+_b('telefon','0532 000 00 00')+'</div>'+
             '</div>', {padding:'0', extra:'z-index:5;'});
     c.appendChild(w);
 }
@@ -383,26 +516,26 @@ function _kolaj6(){
                 'backdrop-filter:blur(15px);-webkit-backdrop-filter:blur(15px);'+
                 'padding:8px 15px;border:1px solid rgba(255,255,255,0.5);border-radius:4px;'+
                 'box-shadow:0 4px 20px rgba(30,58,95,0.15);">'+
-                '<div style="font-family:Playfair Display,Georgia,serif;font-size:39px;font-weight:600;letter-spacing:4px;font-style:italic;">Glacier</div>'+
+                '<div style="font-family:Playfair Display,Georgia,serif;font-size:32px;font-weight:600;letter-spacing:4px;font-style:italic;">Glacier</div>'+
                 '<div style="font-size:13px;letter-spacing:5px;opacity:0.85;">E S T A T E &nbsp; · &nbsp; 2025</div>'+
             '</div>', {padding:'0'})+
         
         // ANA BAŞLIK - Merkezde
-        _yazi(15, 14, 70, 14,
+        _yazi(15, 13, 70, 16,
             '<div style="text-align:center;color:#0f2540;">'+
                 '<div style="font-size:15px;letter-spacing:10px;color:#2c5f7f;font-weight:800;">'+_b('altBaslik','KRİSTAL KOLEKSİYON')+'</div>'+
-                '<div style="font-family:Playfair Display,serif;font-size:94px;font-weight:600;line-height:1;margin-top:6px;font-style:italic;text-shadow:0 2px 20px rgba(255,255,255,0.5);">'+_b('baslik','Sıcak Yuvanız')+'</div>'+
-                '<div style="display:flex;align-items:center;justify-content:center;margin-top:8px;">'+
+                '<div style="font-family:Playfair Display,serif;font-size:58px;font-weight:600;line-height:1.15;margin-top:4px;font-style:italic;text-shadow:0 2px 20px rgba(255,255,255,0.5);word-break:break-word;">'+_b('baslik','Sıcak Yuvanız')+'</div>'+
+                '<div style="display:flex;align-items:center;justify-content:center;margin-top:6px;">'+
                     '<div style="width:50px;height:1px;background:#2c5f7f;"></div>'+
-                    '<div style="margin:0 12px;color:#2c5f7f;font-size:29px;">❄</div>'+
+                    '<div style="margin:0 12px;color:#2c5f7f;font-size:24px;">❄</div>'+
                     '<div style="width:50px;height:1px;background:#2c5f7f;"></div>'+
                 '</div>'+
             '</div>', {padding:'0'})+
         
-                // FOTO 1 - SOL BÜYÜK (yuvarlak köşeli kare - dikey)
+        // FOTO 1 - SOL BÜYÜK (yuvarlak köşeli kare - dikey)
         _foto(1, 3, 32, 34, 51, {radius:'20px', border:'2px solid rgba(255,255,255,0.7)', extra:'box-shadow:0 20px 60px rgba(30,58,95,0.3), 0 0 40px rgba(255,255,255,0.4);'})+
         
-                // ÜST SOL - Kare (yuvarlak köşe)
+        // ÜST SOL - Kare (yuvarlak köşe)
         _foto(2, 44, 32, 27, 24, {radius:'16px', border:'2px solid rgba(255,255,255,0.7)', extra:'box-shadow:0 15px 40px rgba(30,58,95,0.3);'})+
         
         // ÜST SAĞ - Yuvarlak
@@ -425,19 +558,19 @@ function _kolaj6(){
                 // SOL - Detaylar
                 '<div style="color:#0f2540;">'+
                     '<div style="font-size:13px;letter-spacing:5px;color:#2c5f7f;font-weight:800;">❄ FEATURES ❄</div>'+
-                    '<div style="font-family:Playfair Display,serif;font-size:39px;letter-spacing:2px;margin-top:4px;font-style:italic;">'+_b('ozellik1','4+1')+' <span style="color:#5b9bb8;">❄</span> '+_b('ozellik2','180 m²')+' <span style="color:#5b9bb8;">❄</span> '+_b('ozellik3','Doğalgaz')+'</div>'+
+                    '<div style="font-family:Playfair Display,serif;font-size:35px;letter-spacing:2px;margin-top:4px;font-style:italic;">'+_b('ozellik1','4+1')+' <span style="color:#5b9bb8;">❄</span> '+_b('ozellik2','180 m²')+' <span style="color:#5b9bb8;">❄</span> '+_b('ozellik3','Doğalgaz')+'</div>'+
                 '</div>'+
                 
                 // ORTA - Fiyat
                 '<div style="text-align:center;padding:0 30px;border-left:1px solid rgba(30,58,95,0.2);border-right:1px solid rgba(30,58,95,0.2);">'+
                     '<div style="font-size:13px;letter-spacing:5px;color:#2c5f7f;font-weight:800;">❄ '+_b('fiyatEtiket','VALUATION')+' ❄</div>'+
-                    '<div style="font-family:Playfair Display,serif;font-size:60px;font-weight:600;color:#0f2540;line-height:1;margin-top:4px;">'+_b('fiyat','8.500.000 TL')+'</div>'+
+                    '<div style="font-family:Playfair Display,serif;font-size:52px;font-weight:600;color:#0f2540;line-height:1;margin-top:4px;">'+_b('fiyat','8.500.000 TL')+'</div>'+
                 '</div>'+
                 
                 // SAĞ - İletişim
                 '<div style="text-align:right;color:#0f2540;">'+
                     '<div style="font-size:13px;letter-spacing:5px;color:#2c5f7f;font-weight:800;">❄ CONTACT ❄</div>'+
-                    '<div style="font-family:Playfair Display,serif;font-size:39px;letter-spacing:2px;margin-top:4px;font-style:italic;">📞 '+_b('telefon','0532 000 00 00')+'</div>'+
+                    '<div style="font-family:Playfair Display,serif;font-size:32px;letter-spacing:2px;margin-top:4px;font-style:italic;">📞 '+_b('telefon','0532 000 00 00')+'</div>'+
                 '</div>'+
             '</div>', {padding:'0'});
     c.appendChild(w);
@@ -456,12 +589,12 @@ function _kolaj7(){
             '<div style="text-align:right;font-size:14px;letter-spacing:3px;color:#8b7355;">Nº 001 • 2025</div>', {padding:'0'})+
         
         // SOL ÜST - Alt başlık (küçük)
-        _yazi(4, 12, 60, 4,
+        _yazi(4, 11, 60, 4,
             '<div style="font-size:15px;letter-spacing:6px;color:#8b7355;font-weight:700;">'+_b('altBaslik','SATILIK / MERKEZ')+'</div>', {padding:'0'})+
         
         // ANA BAŞLIK - Büyük serif
-        _yazi(4, 16, 70, 12,
-            '<div style="font-family:Playfair Display,Georgia,serif;font-size:94px;font-weight:600;color:#1a1a1a;line-height:1;">'+_b('baslik','Modern Villa')+'</div>', {padding:'0'})+
+        _yazi(4, 15, 70, 13,
+            '<div style="font-family:Playfair Display,Georgia,serif;font-size:56px;font-weight:600;color:#1a1a1a;line-height:1.15;word-break:break-word;">'+_b('baslik','Modern Villa')+'</div>', {padding:'0'})+
         
         // İnce altın çizgi
         '<div style="position:absolute;left:4%;top:29%;width:92%;height:1px;background:#c9a961;"></div>'+
@@ -474,13 +607,13 @@ function _kolaj7(){
         
         // Foto altına dergi tarzı numara
         _yazi(4, 78, 22, 3,
-            '<div style="font-family:Playfair Display,serif;font-size:29px;color:#8b7355;font-style:italic;">— 01 —</div>', {padding:'0'})+
+            '<div style="font-family:Playfair Display,serif;font-size:26px;color:#8b7355;font-style:italic;">— 01 —</div>', {padding:'0'})+
         _yazi(27, 78, 22, 3,
-            '<div style="font-family:Playfair Display,serif;font-size:29px;color:#8b7355;font-style:italic;">— 02 —</div>', {padding:'0'})+
+            '<div style="font-family:Playfair Display,serif;font-size:26px;color:#8b7355;font-style:italic;">— 02 —</div>', {padding:'0'})+
         _yazi(50, 78, 22, 3,
-            '<div style="font-family:Playfair Display,serif;font-size:29px;color:#8b7355;font-style:italic;">— 03 —</div>', {padding:'0'})+
+            '<div style="font-family:Playfair Display,serif;font-size:26px;color:#8b7355;font-style:italic;">— 03 —</div>', {padding:'0'})+
         _yazi(73, 78, 23, 3,
-            '<div style="font-family:Playfair Display,serif;font-size:29px;color:#8b7355;font-style:italic;">— 04 —</div>', {padding:'0'})+
+            '<div style="font-family:Playfair Display,serif;font-size:26px;color:#8b7355;font-style:italic;">— 04 —</div>', {padding:'0'})+
         
         // Alt İnce çizgi
         '<div style="position:absolute;left:4%;top:83%;width:92%;height:1px;background:#1a1a1a;"></div>'+
@@ -489,25 +622,25 @@ function _kolaj7(){
         _yazi(4, 85, 25, 12,
             '<div style="color:#1a1a1a;">'+
             '<div style="font-size:13px;letter-spacing:3px;color:#8b7355;font-weight:800;">ODA SAYISI</div>'+
-            '<div style="font-family:Playfair Display,serif;font-size:53px;font-weight:600;margin-top:2px;">'+_b('ozellik1','5+2')+'</div>'+
+            '<div style="font-family:Playfair Display,serif;font-size:46px;font-weight:600;margin-top:2px;">'+_b('ozellik1','5+2')+'</div>'+
             '</div>', {padding:'0'})+
         _yazi(29, 85, 25, 12,
             '<div style="color:#1a1a1a;border-left:1px solid #d4c9a8;padding-left:20px;height:100%;">'+
             '<div style="font-size:13px;letter-spacing:3px;color:#8b7355;font-weight:800;">TOPLAM ALAN</div>'+
-            '<div style="font-family:Playfair Display,serif;font-size:53px;font-weight:600;margin-top:2px;">'+_b('ozellik2','320 m²')+'</div>'+
+            '<div style="font-family:Playfair Display,serif;font-size:46px;font-weight:600;margin-top:2px;">'+_b('ozellik2','320 m²')+'</div>'+
             '</div>', {padding:'0'})+
         _yazi(54, 85, 22, 12,
             '<div style="color:#1a1a1a;border-left:1px solid #d4c9a8;padding-left:20px;height:100%;">'+
             '<div style="font-size:13px;letter-spacing:3px;color:#8b7355;font-weight:800;">DETAY</div>'+
-            '<div style="font-family:Playfair Display,serif;font-size:39px;font-weight:600;margin-top:4px;font-style:italic;">'+_b('ozellik3','Bahçeli & Havuzlu')+'</div>'+
+            '<div style="font-family:Playfair Display,serif;font-size:35px;font-weight:600;margin-top:4px;font-style:italic;">'+_b('ozellik3','Bahçeli & Havuzlu')+'</div>'+
             '</div>', {padding:'0'})+
         
         // SAĞ ALT - FİYAT KUTUSU (Vurgu)
         _yazi(76, 85, 20, 12,
     '<div style="background:#3d2f1a;color:#faf8f3;padding:14px 18px;text-align:right;height:100%;box-sizing:border-box;border:1px solid #c9a961;">'+
     '<div style="font-size:13px;letter-spacing:4px;color:#c9a961;font-weight:800;">FİYAT</div>'+
-    '<div style="font-family:Playfair Display,serif;font-size:42px;font-weight:800;margin-top:4px;line-height:1;">'+_b('fiyat','12.500.000 TL')+'</div>'+
-    '<div style="font-size:14px;letter-spacing:2px;margin-top:8px;color:#c9a961;">📞 '+_b('telefon','0532 000 00 00')+'</div>'+
+    '<div style="font-family:Playfair Display,serif;font-size:38px;font-weight:800;margin-top:4px;line-height:1;">'+_b('fiyat','12.500.000 TL')+'</div>'+
+    '<div style="font-size:14px;letter-spacing:2px;margin-top:6px;color:#c9a961;">📞 '+_b('telefon','0532 000 00 00')+'</div>'+
     '</div>', {padding:'0'});
     c.appendChild(w);
 }
@@ -526,8 +659,8 @@ function _kolaj8(){
         // ÜST MONOGRAM
         _yazi(30, 3, 40, 10,
             '<div style="text-align:center;color:#d4af78;">'+
-                '<div style="font-size:45px;line-height:1;">❦</div>'+
-                '<div style="font-family:Playfair Display,Georgia,serif;font-size:45px;font-weight:600;letter-spacing:8px;font-style:italic;margin-top:2px;">Botanica</div>'+
+                '<div style="font-size:38px;line-height:1;">❦</div>'+
+                '<div style="font-family:Playfair Display,Georgia,serif;font-size:38px;font-weight:600;letter-spacing:8px;font-style:italic;margin-top:2px;">Botanica</div>'+
                 '<div style="font-size:13px;letter-spacing:6px;opacity:0.8;margin-top:2px;">E S T A T E &nbsp; C O L L E C T I O N</div>'+
             '</div>', {padding:'0'})+
         
@@ -541,17 +674,17 @@ function _kolaj8(){
         _foto(2, 75, 20, 22, 55, {radius:'2px', border:'1px solid #d4af78', extra:'box-shadow:0 15px 40px rgba(0,0,0,0.5);'})+
         
         // MERKEZ - BÜYÜK BAŞLIK VE BİLGİ KUTUSU
-        _yazi(28, 22, 44, 51,
-            '<div style="height:100%;box-sizing:border-box;padding:20px;text-align:center;color:#f5f0e0;'+
+        _yazi(28, 20, 44, 55,
+            '<div style="height:100%;box-sizing:border-box;padding:16px 20px;text-align:center;color:#f5f0e0;'+
                 'background:linear-gradient(180deg,rgba(26,58,42,0.5) 0%,rgba(26,58,42,0.8) 100%);'+
                 'border:1px solid rgba(212,175,120,0.3);display:flex;flex-direction:column;justify-content:space-between;">'+
                 
                 // ÜST - Alt başlık + Başlık
                 '<div>'+
                     '<div style="font-size:15px;letter-spacing:10px;color:#d4af78;font-weight:700;">'+_b('altBaslik','SERENITY PORTFÖY')+'</div>'+
-                    '<div style="font-family:Playfair Display,serif;font-size:88px;font-weight:600;line-height:1.1;margin-top:8px;font-style:italic;">'+_b('baslik','Ferah Yuva')+'</div>'+
+                    '<div style="font-family:Playfair Display,serif;font-size:56px;font-weight:600;line-height:1.15;margin-top:6px;font-style:italic;word-break:break-word;">'+_b('baslik','Ferah Yuva')+'</div>'+
                     // Süs ayraç
-                    '<div style="display:flex;align-items:center;justify-content:center;margin-top:10px;">'+
+                    '<div style="display:flex;align-items:center;justify-content:center;margin-top:8px;">'+
                         '<div style="width:40px;height:1px;background:#d4af78;"></div>'+
                         '<div style="margin:0 12px;color:#d4af78;font-size:14px;">❋</div>'+
                         '<div style="width:40px;height:1px;background:#d4af78;"></div>'+
@@ -559,35 +692,35 @@ function _kolaj8(){
                 '</div>'+
                 
                 // ORTA - Açıklama
-                '<div style="font-size:29px;line-height:1.7;opacity:0.85;font-style:italic;padding:0 15px;">'+_b('aciklama','Merkezi konumda profesyonel yaşam alanı')+'</div>'+
+                '<div style="font-size:24px;line-height:1.5;opacity:0.85;font-style:italic;padding:0 15px;">'+_b('aciklama','Merkezi konumda profesyonel yaşam alanı')+'</div>'+
                 
                 // ALT - Özellikler
                 '<div>'+
-                    '<div style="display:flex;justify-content:space-around;margin-bottom:15px;">'+
+                    '<div style="display:flex;justify-content:space-around;margin-bottom:12px;">'+
                         '<div style="text-align:center;">'+
-                            '<div style="color:#d4af78;font-size:29px;">❋</div>'+
-                            '<div style="font-family:Playfair Display,serif;font-size:35px;">'+_b('ozellik1','4+1')+'</div>'+
+                            '<div style="color:#d4af78;font-size:24px;">❋</div>'+
+                            '<div style="font-family:Playfair Display,serif;font-size:32px;">'+_b('ozellik1','4+1')+'</div>'+
                             '<div style="font-size:11px;letter-spacing:2px;opacity:0.6;">ODA</div>'+
                         '</div>'+
                         '<div style="text-align:center;">'+
-                            '<div style="color:#d4af78;font-size:29px;">❋</div>'+
-                            '<div style="font-family:Playfair Display,serif;font-size:35px;">'+_b('ozellik2','200 m²')+'</div>'+
+                            '<div style="color:#d4af78;font-size:24px;">❋</div>'+
+                            '<div style="font-family:Playfair Display,serif;font-size:32px;">'+_b('ozellik2','200 m²')+'</div>'+
                             '<div style="font-size:11px;letter-spacing:2px;opacity:0.6;">ALAN</div>'+
                         '</div>'+
                         '<div style="text-align:center;">'+
-                            '<div style="color:#d4af78;font-size:29px;">❋</div>'+
-                            '<div style="font-family:Playfair Display,serif;font-size:29px;font-style:italic;">'+_b('ozellik3','Müstakil')+'</div>'+
+                            '<div style="color:#d4af78;font-size:24px;">❋</div>'+
+                            '<div style="font-family:Playfair Display,serif;font-size:26px;font-style:italic;">'+_b('ozellik3','Müstakil')+'</div>'+
                             '<div style="font-size:11px;letter-spacing:2px;opacity:0.6;">TİP</div>'+
                         '</div>'+
                     '</div>'+
                     
                     // Alt çizgi
-                    '<div style="width:80%;height:1px;background:rgba(212,175,120,0.4);margin:0 auto 12px;"></div>'+
+                    '<div style="width:80%;height:1px;background:rgba(212,175,120,0.4);margin:0 auto 10px;"></div>'+
                     
                     // Fiyat
                     '<div style="font-size:13px;letter-spacing:5px;color:#d4af78;">◆ VALUATION ◆</div>'+
-                    '<div style="font-family:Playfair Display,serif;font-size:56px;font-weight:600;color:#f5f0e0;margin-top:2px;">'+_b('fiyat','9.500.000 TL')+'</div>'+
-                    '<div style="font-size:15px;letter-spacing:3px;color:#d4af78;margin-top:6px;">📞 '+_b('telefon','0532 000 00 00')+'</div>'+
+                    '<div style="font-family:Playfair Display,serif;font-size:48px;font-weight:600;color:#f5f0e0;margin-top:2px;">'+_b('fiyat','9.500.000 TL')+'</div>'+
+                    '<div style="font-size:15px;letter-spacing:3px;color:#d4af78;margin-top:4px;">📞 '+_b('telefon','0532 000 00 00')+'</div>'+
                 '</div>'+
             '</div>', {padding:'0'})+
         
@@ -623,21 +756,21 @@ function _kolaj9(){
         _yazi(35, 4, 30, 8,
             '<div style="text-align:center;color:#d4af37;">'+
                 '<div style="font-size:14px;letter-spacing:8px;opacity:0.8;">◆ ÖZEL PORTFÖY ◆</div>'+
-                '<div style="font-family:Playfair Display,serif;font-size:53px;font-weight:600;letter-spacing:12px;font-style:italic;">Maison</div>'+
+                '<div style="font-family:Playfair Display,serif;font-size:46px;font-weight:600;letter-spacing:10px;font-style:italic;">Maison</div>'+
                 '<div style="font-size:13px;letter-spacing:6px;opacity:0.7;">G A Y R İ M E N K U L</div>'+
             '</div>', {padding:'0'})+
         
         // ANA BAŞLIK
-        _yazi(10, 15, 80, 12,
+        _yazi(10, 14, 80, 14,
             '<div style="text-align:center;color:#fff;">'+
-                '<div style="font-family:Playfair Display,serif;font-size:100px;font-weight:600;line-height:1;letter-spacing:4px;">'+_b('baslik','SATILIK LÜKS')+'</div>'+
+                '<div style="font-family:Playfair Display,serif;font-size:58px;font-weight:600;line-height:1.15;letter-spacing:2px;word-break:break-word;">'+_b('baslik','SATILIK LÜKS')+'</div>'+
                 // Süs çizgisi
-                '<div style="display:flex;align-items:center;justify-content:center;margin-top:6px;">'+
+                '<div style="display:flex;align-items:center;justify-content:center;margin-top:4px;">'+
                     '<div style="width:60px;height:1px;background:#d4af37;"></div>'+
-                    '<div style="margin:0 12px;color:#d4af37;font-size:29px;">◆</div>'+
+                    '<div style="margin:0 12px;color:#d4af37;font-size:22px;">◆</div>'+
                     '<div style="width:60px;height:1px;background:#d4af37;"></div>'+
                 '</div>'+
-                '<div style="font-size:15px;letter-spacing:10px;color:#d4af37;margin-top:6px;font-style:italic;">'+_b('altBaslik','ÖZEL KOLEKSİYON')+'</div>'+
+                '<div style="font-size:15px;letter-spacing:10px;color:#d4af37;margin-top:4px;font-style:italic;">'+_b('altBaslik','ÖZEL KOLEKSİYON')+'</div>'+
             '</div>', {padding:'0'})+
         
         // SOL BÜYÜK HERO FOTO (Elmas kesim - clip-path)
@@ -658,9 +791,9 @@ function _kolaj9(){
                 '<div style="display:flex;align-items:center;justify-content:space-between;height:100%;">'+
                     '<div style="display:flex;flex-direction:column;justify-content:center;padding-top:4px;">'+
                         '<div style="font-size:13px;letter-spacing:5px;color:#d4af37;">◆ YATIRIM FIRSATI ◆</div>'+
-                        '<div style="font-family:Playfair Display,serif;font-size:60px;font-weight:600;color:#fff;line-height:1;margin-top:2px;letter-spacing:2px;">'+_b('fiyat','18.500.000 TL')+'</div>'+
+                        '<div style="font-family:Playfair Display,serif;font-size:48px;font-weight:600;color:#fff;line-height:1;margin-top:2px;letter-spacing:2px;">'+_b('fiyat','18.500.000 TL')+'</div>'+
                     '</div>'+
-                    '<div style="color:#d4af37;font-size:72px;opacity:0.6;display:flex;align-items:center;">✦</div>'+
+                    '<div style="color:#d4af37;font-size:56px;opacity:0.6;display:flex;align-items:center;">✦</div>'+
                 '</div>'+
             '</div>', {padding:'0'})+
         
@@ -668,10 +801,10 @@ function _kolaj9(){
         _yazi(53, 82, 41, 15,
             '<div style="height:100%;box-sizing:border-box;padding:10px 15px;text-align:right;display:flex;flex-direction:column;justify-content:center;">'+
                 '<div style="color:#d4af37;font-size:13px;letter-spacing:5px;margin-bottom:3px;">◆ DETAYLAR ◆</div>'+
-                '<div style="color:#fff;font-size:29px;letter-spacing:3px;font-style:italic;margin-bottom:6px;">'+_b('ozellik1','4+1')+' &nbsp;<span style="color:#d4af37;">◆</span>&nbsp; '+_b('ozellik2','180 m²')+' &nbsp;<span style="color:#d4af37;">◆</span>&nbsp; '+_b('ozellik3','Doğalgaz')+'</div>'+
+                '<div style="color:#fff;font-size:26px;letter-spacing:2px;font-style:italic;margin-bottom:6px;">'+_b('ozellik1','4+1')+' &nbsp;<span style="color:#d4af37;">◆</span>&nbsp; '+_b('ozellik2','180 m²')+' &nbsp;<span style="color:#d4af37;">◆</span>&nbsp; '+_b('ozellik3','Doğalgaz')+'</div>'+
                 '<div style="border-top:1px solid rgba(212,175,55,0.4);padding-top:6px;">'+
                     '<div style="color:#d4af37;font-size:13px;letter-spacing:5px;">◆ İLETİŞİM ◆</div>'+
-                    '<div style="color:#fff;font-size:35px;font-weight:800;letter-spacing:2px;margin-top:2px;">📞 '+_b('telefon','0532 000 00 00')+'</div>'+
+                    '<div style="color:#fff;font-size:30px;font-weight:800;letter-spacing:2px;margin-top:2px;">📞 '+_b('telefon','0532 000 00 00')+'</div>'+
                 '</div>'+
             '</div>', {padding:'0'});
     c.appendChild(w);
@@ -685,20 +818,20 @@ function _kolaj10(){
         // Overlay
         '<div style="position:absolute;top:0;left:0;width:100%;height:100%;background:linear-gradient(180deg,rgba(26,26,46,0.3) 0%,rgba(26,26,46,0.9) 100%);pointer-events:none;z-index:1;"></div>'+
         _yazi(3, 3, 50, 8,
-            '<div style="text-align:left;font-size:30px;letter-spacing:4px;opacity:0.8;color:#c0c0c0;margin-top:10px;">'+_b('altBaslik','MERKEZİ KONUM')+'</div>', {padding:'0', extra:'z-index:2;'})+
+            '<div style="text-align:left;font-size:26px;letter-spacing:4px;opacity:0.8;color:#c0c0c0;margin-top:8px;">'+_b('altBaslik','MERKEZİ KONUM')+'</div>', {padding:'0', extra:'z-index:2;'})+
         _foto(2, 77, 8, 20, 21, {radius:'4px', border:'2px solid #c0c0c0', extra:'z-index:2;'})+
         _foto(3, 77, 31, 20, 21, {radius:'4px', border:'2px solid #c0c0c0', extra:'z-index:2;'})+
         _foto(4, 77, 54, 20, 21, {radius:'4px', border:'2px solid #c0c0c0', extra:'z-index:2;'})+
         _foto(5, 3, 54, 20, 21, {radius:'4px', border:'2px solid #c0c0c0', extra:'z-index:2;'})+
         _foto(6, 25, 54, 20, 21, {radius:'4px', border:'2px solid #c0c0c0', extra:'z-index:2;'})+
         _foto(7, 47, 54, 20, 21, {radius:'4px', border:'2px solid #c0c0c0', extra:'z-index:2;'})+
-        _yazi(3, 76, 72, 24,
+        _yazi(3, 74, 72, 24,
             '<div style="color:#fff;">'+
-            '<div style="font-size:26px;letter-spacing:6px;color:#c0c0c0;">'+_b('altBaslik','EXCLUSIVE COVER')+'</div>'+
-            '<div style="font-size:75px;font-weight:900;line-height:1.1;">'+_b('baslik','Elmas Rezidans')+'</div>'+
-            '<div style="display:flex;justify-content:space-between;align-items:flex-end;margin-top:10px;border-top:1px solid #c0c0c0;padding-top:10px;">'+
-            '<div style="font-size:30px;opacity:0.8;">'+_b('ozellik1','5+2')+' • '+_b('ozellik2','400 m²')+' • '+_b('ozellik3','Havuzlu')+'</div>'+
-            '<div style="font-size:56px;font-weight:900;color:#c0c0c0;">'+_b('fiyat','55.000.000 TL')+'</div></div></div>', {padding:'0', extra:'z-index:2;'});
+            '<div style="font-size:22px;letter-spacing:6px;color:#c0c0c0;">'+_b('altBaslik','EXCLUSIVE COVER')+'</div>'+
+            '<div style="font-size:56px;font-weight:900;line-height:1.15;word-break:break-word;margin-top:4px;">'+_b('baslik','Elmas Rezidans')+'</div>'+
+            '<div style="display:flex;justify-content:space-between;align-items:flex-end;margin-top:8px;border-top:1px solid #c0c0c0;padding-top:8px;">'+
+            '<div style="font-size:26px;opacity:0.8;">'+_b('ozellik1','5+2')+' • '+_b('ozellik2','400 m²')+' • '+_b('ozellik3','Havuzlu')+'</div>'+
+            '<div style="font-size:48px;font-weight:900;color:#c0c0c0;">'+_b('fiyat','55.000.000 TL')+'</div></div></div>', {padding:'0', extra:'z-index:2;'});
     c.appendChild(w);
 }
 
@@ -723,54 +856,114 @@ document.addEventListener('mouseup', function(e){
     _kolajFotoSec(el);
 }, true);
 
+function _kolajTekFotoYukle(el, fileOrDataUrl, callback){
+    if(!el) return;
+    
+    function applyDataUrl(dataUrl){
+        var img = new Image();
+        img.onload = function(){
+            var fotoW = img.naturalWidth, fotoH = img.naturalHeight;
+            var kutuW = el.offsetWidth, kutuH = el.offsetHeight;
+            if(!kutuW || !fotoW){ kutuW = 400; kutuH = 300; }
+            var minScale = Math.max(kutuW/fotoW, kutuH/fotoH);
+            
+            var ph = el.querySelector('.kolaj-placeholder');
+            if(ph) ph.remove();
+            
+            var existingInner = el.querySelector('.kolaj-inner-zoom');
+            if(existingInner) existingInner.remove();
+            
+            el.style.cursor = 'grab';
+            
+            el.dataset.kzReady = '1';
+            el.dataset.kzScale = String(minScale);
+            el.dataset.kzMinScale = String(minScale * 0.5);
+            el.dataset.kzFotoW = String(fotoW);
+            el.dataset.kzFotoH = String(fotoH);
+            el.dataset.kzX = String((kutuW - fotoW * minScale) / 2);
+            el.dataset.kzY = String((kutuH - fotoH * minScale) / 2);
+            
+            var inner = document.createElement('div');
+            inner.className = 'kolaj-inner-zoom';
+            inner.style.cssText = 'position:absolute;top:0;left:0;width:'+fotoW+'px;height:'+fotoH+'px;'+
+                "background-image:url('"+dataUrl+"');"+
+                'background-size:'+fotoW+'px '+fotoH+'px;background-repeat:no-repeat;'+
+                'transform-origin:0 0;transition:none;pointer-events:none;';
+            el.appendChild(inner);
+            _kzTransform(el);
+            console.log('✅ Foto '+(el.dataset.kolajNo || '')+' yüklendi');
+            if(callback) callback();
+        };
+        img.src = dataUrl;
+    }
+
+    if(typeof fileOrDataUrl === 'string'){
+        applyDataUrl(fileOrDataUrl);
+    } else if(fileOrDataUrl instanceof Blob || fileOrDataUrl instanceof File){
+        var r = new FileReader();
+        r.onload = function(evt){
+            applyDataUrl(evt.target.result);
+        };
+        r.readAsDataURL(fileOrDataUrl);
+    }
+}
+
 function _kolajFotoSec(el){
     var input = document.createElement('input');
     input.type = 'file';
     input.accept = 'image/*';
+    input.multiple = true;
     input.style.display = 'none';
     input.onchange = function(ev){
-        var f = ev.target.files[0];
-        if(!f) return;
-        var r = new FileReader();
-        r.onload = function(evt){
-            var img = new Image();
-            img.onload = function(){
-                var fotoW = img.naturalWidth, fotoH = img.naturalHeight;
-                var kutuW = el.offsetWidth, kutuH = el.offsetHeight;
-                var minScale = Math.max(kutuW/fotoW, kutuH/fotoH);
-                
-                var ph = el.querySelector('.kolaj-placeholder');
-                if(ph) ph.remove();
-                el.style.border = 'none';
-                el.style.cursor = 'grab';
-                
-                el.dataset.kzReady = '1';
-                el.dataset.kzScale = String(minScale);
-                el.dataset.kzMinScale = String(minScale * 0.5);
-                el.dataset.kzFotoW = String(fotoW);
-                el.dataset.kzFotoH = String(fotoH);
-                el.dataset.kzX = String((kutuW - fotoW * minScale) / 2);
-                el.dataset.kzY = String((kutuH - fotoH * minScale) / 2);
-                
-                var inner = document.createElement('div');
-                inner.className = 'kolaj-inner-zoom';
-                inner.style.cssText = 'position:absolute;top:0;left:0;width:'+fotoW+'px;height:'+fotoH+'px;'+
-                    "background-image:url('"+evt.target.result+"');"+
-                    'background-size:'+fotoW+'px '+fotoH+'px;background-repeat:no-repeat;'+
-                    'transform-origin:0 0;transition:none;pointer-events:none;';
-                el.appendChild(inner);
-                _kzTransform(el);
+        var files = Array.from(ev.target.files || []);
+        if(files.length === 0) return;
+        
+        var wrap = document.getElementById('kolaj-wrapper') || document;
+        var allSlots = Array.from(wrap.querySelectorAll('.kolaj-foto'));
+        allSlots.sort(function(a, b){
+            return (parseInt(a.dataset.kolajNo, 10) || 0) - (parseInt(b.dataset.kolajNo, 10) || 0);
+        });
+        
+        // Tek bir dosya seçildiyse ve tıklanan bir slot varsa sadece ona yükle
+        if(files.length === 1 && el){
+            _kolajTekFotoYukle(el, files[0], function(){
                 _kolajDurumKaydet();
-                console.log('✅ Foto '+el.dataset.kolajNo+' yüklendi');
-            };
-            img.src = evt.target.result;
-        };
-        r.readAsDataURL(f);
+            });
+            return;
+        }
+        
+        // Çoklu dosya seçildiyse:
+        var startIndex = el ? allSlots.indexOf(el) : 0;
+        if(startIndex === -1 || files.length >= allSlots.length){
+            startIndex = 0;
+        }
+        
+        var done = 0;
+        var targetSlots = allSlots.slice(startIndex);
+        files.forEach(function(file, i){
+            if(i < targetSlots.length){
+                _kolajTekFotoYukle(targetSlots[i], file, function(){
+                    done++;
+                    if(done === Math.min(files.length, targetSlots.length)){
+                        _kolajDurumKaydet();
+                    }
+                });
+            }
+        });
     };
     document.body.appendChild(input);
     input.click();
     setTimeout(function(){ if(input.parentElement) input.remove(); }, 60000);
 }
+
+function _kolajTopluFotoSec(){
+    var wrap = document.getElementById('kolaj-wrapper');
+    if(!wrap) return;
+    var firstSlot = wrap.querySelector('.kolaj-foto');
+    _kolajFotoSec(firstSlot);
+}
+window._kolajTopluFotoSec = _kolajTopluFotoSec;
+window._kolajFotoSec = _kolajFotoSec;
 
 // ==================== FOTO ZOOM/PAN ====================
 function _kzTransform(el){
@@ -883,6 +1076,7 @@ function _cerceveSecimKaldir(){
     var editor = document.getElementById('cerceveEditor');
     if(editor) editor.style.display = 'none';
 }
+window._cerceveSecimKaldir = _cerceveSecimKaldir;
 
 // Alt basılıyken hover → seç
 document.addEventListener('mousemove', function(e){
@@ -944,6 +1138,7 @@ function _cerceveEditoruAc(cerceve){
                     '<option value="0 0 30px gold">Altın</option>'+
                 '</select></div>'+
         '</div>'+
+        (cerceve.dataset.tip === 'foto' ? '<button class="btn-action btn-cyan" style="width:100%;margin-top:10px;margin-bottom:6px;font-weight:700;" onclick="_kolajFotoSec(_seciliCerceve)">🖼️ Fotoğrafı Değiştir / Yükle</button>' : '')+
         '<button class="btn-action" style="background:#ef4444;color:#fff;width:100%;margin-top:8px;" onclick="_cerceveSil()">🗑️ Bu Çerçeveyi Sil</button>';
     
     // Bind

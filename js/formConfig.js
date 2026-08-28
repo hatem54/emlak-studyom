@@ -54,7 +54,7 @@ const propertyForms = {
         ]
     },
     "satilik_mustakil_ev": {
-        badge: "MÜSTAKİL EV",
+        badge: "SATILIK MÜSTAKİL EV",
         fields: [
             { id: "priceInput", label: "Fiyat", value: "8.500.000 TL", canvasFormat: "" },
             { id: "f_brut", label: "Brüt m²", value: "180 m²", canvasFormat: "{value} Brüt" },
@@ -66,7 +66,7 @@ const propertyForms = {
         ]
     },
     "satilik_koy_evi": {
-        badge: "KÖY EVİ",
+        badge: "SATILIK KÖY EVİ",
         fields: [
             { id: "priceInput", label: "Fiyat", value: "2.500.000 TL", canvasFormat: "" },
             { id: "f_alan", label: "Ev Alanı", value: "100 m²", canvasFormat: "{value} Ev Alanı" },
@@ -78,7 +78,7 @@ const propertyForms = {
         ]
     },
     "satilik_residence": {
-        badge: "RESIDENCE",
+        badge: "SATILIK RESIDENCE",
         fields: [
             { id: "priceInput", label: "Fiyat", value: "12.000.000 TL", canvasFormat: "" },
             { id: "f_brut", label: "Brüt m²", value: "150 m²", canvasFormat: "{value} Brüt" },
@@ -90,7 +90,7 @@ const propertyForms = {
         ]
     },
     "satilik_yazlik": {
-        badge: "YAZLIK",
+        badge: "SATILIK YAZLIK",
         fields: [
             { id: "priceInput", label: "Fiyat", value: "7.000.000 TL", canvasFormat: "" },
             { id: "f_brut", label: "Brüt m²", value: "140 m²", canvasFormat: "{value} Brüt" },
@@ -102,7 +102,7 @@ const propertyForms = {
         ]
     },
     "satilik_bungalov": {
-        badge: "BUNGALOV",
+        badge: "SATILIK BUNGALOV",
         fields: [
             { id: "priceInput", label: "Fiyat", value: "3.500.000 TL", canvasFormat: "" },
             { id: "f_brut", label: "m²", value: "60 m²", canvasFormat: "{value}" },
@@ -160,7 +160,7 @@ const propertyForms = {
         ]
     },
     "satilik_plaza_ofisi": {
-        badge: "PLAZA OFİSİ",
+        badge: "SATILIK PLAZA OFİSİ",
         fields: [
             { id: "priceInput", label: "Fiyat", value: "25.000.000 TL", canvasFormat: "" },
             { id: "f_m2", label: "m²", value: "250 m²", canvasFormat: "{value} Alan" },
@@ -171,7 +171,7 @@ const propertyForms = {
         ]
     },
     "satilik_is_merkezi": {
-        badge: "İŞ MERKEZİ",
+        badge: "SATILIK İŞ MERKEZİ",
         fields: [
             { id: "priceInput", label: "Fiyat", value: "150.000.000 TL", canvasFormat: "" },
             { id: "f_m2", label: "Toplam m²", value: "4000 m²", canvasFormat: "{value} Toplam Alan" },
@@ -207,7 +207,7 @@ const propertyForms = {
         ]
     },
     "satilik_bag_bahce": {
-        badge: "BAĞ / BAHÇE",
+        badge: "SATILIK BAĞ-BAHÇE",
         fields: [
             { id: "priceInput", label: "Fiyat", value: "3.000.000 TL", canvasFormat: "" },
             { id: "f_m2", label: "m²", value: "2000 m²", canvasFormat: "{value} Alan" },
@@ -218,7 +218,7 @@ const propertyForms = {
         ]
     },
     "satilik_ticari_arsa": {
-        badge: "TİCARİ ARSA",
+        badge: "SATILIK TİCARİ ARSA",
         fields: [
             { id: "priceInput", label: "Fiyat", value: "20.000.000 TL", canvasFormat: "" },
             { id: "f_m2", label: "m²", value: "1500 m²", canvasFormat: "{value} Alan" },
@@ -229,7 +229,7 @@ const propertyForms = {
         ]
     },
     "satilik_sanayi_arsasi": {
-        badge: "SANAYİ ARSASI",
+        badge: "SATILIK SANAYİ ARSASI",
         fields: [
             { id: "priceInput", label: "Fiyat", value: "45.000.000 TL", canvasFormat: "" },
             { id: "f_m2", label: "m²", value: "5000 m²", canvasFormat: "{value} Alan" },
@@ -242,7 +242,7 @@ const propertyForms = {
 
     // 🏗️ PROJELER
     "satilik_konut_projesi": {
-        badge: "KONUT PROJESİ",
+        badge: "SATILIK KONUT PROJESİ",
         fields: [
             { id: "priceInput", label: "Başlangıç Fiyatı", value: "5.000.000 TL'den Başlayan", canvasFormat: "" },
             { id: "f_teslim", label: "Teslim Tarihi", value: "Aralık 2025", canvasFormat: "Teslim: {value}" },
@@ -253,7 +253,7 @@ const propertyForms = {
         ]
     },
     "satilik_villa_projesi": {
-        badge: "VİLLA PROJESİ",
+        badge: "SATILIK VİLLA PROJESİ",
         fields: [
             { id: "priceInput", label: "Başlangıç Fiyatı", value: "25.000.000 TL'den Başlayan", canvasFormat: "" },
             { id: "f_tipler", label: "Villa Tipleri", value: "4+1, 5+2 Tripleks", canvasFormat: "Tipler: {value}" },
@@ -263,7 +263,7 @@ const propertyForms = {
         ]
     },
     "satilik_rezidans_projesi": {
-        badge: "REZİDANS PROJESİ",
+        badge: "SATILIK REZİDANS PROJESİ",
         fields: [
             { id: "priceInput", label: "Başlangıç Fiyatı", value: "8.500.000 TL'den Başlayan", canvasFormat: "" },
             { id: "f_tipler", label: "Daire Tipleri", value: "Stüdyo, 1+1, 2+1", canvasFormat: "Tipler: {value}" },
@@ -273,7 +273,7 @@ const propertyForms = {
         ]
     },
     "satilik_ticari_proje": {
-        badge: "TİCARİ PROJE",
+        badge: "SATILIK TİCARİ PROJE",
         fields: [
             { id: "priceInput", label: "Başlangıç Fiyatı", value: "15.000.000 TL'den Başlayan", canvasFormat: "" },
             { id: "f_teslim", label: "Teslim Tarihi", value: "Ağustos 2025", canvasFormat: "Teslim: {value}" },
@@ -285,7 +285,7 @@ const propertyForms = {
 
     // ⭐ PREMIUM
     "satilik_luks_villa": {
-        badge: "LÜKS VİLLA",
+        badge: "SATILIK LÜKS VİLLA",
         fields: [
             { id: "priceInput", label: "Fiyat", value: "35.000.000 TL", canvasFormat: "" },
             { id: "f_brut", label: "Brüt m²", value: "450 m²", canvasFormat: "{value} Brüt" },
@@ -298,7 +298,7 @@ const propertyForms = {
         ]
     },
     "satilik_deniz_manzarali": {
-        badge: "DENİZ MANZARALI",
+        badge: "SATILIK DENİZ MANZARALI",
         fields: [
             { id: "priceInput", label: "Fiyat", value: "18.000.000 TL", canvasFormat: "" },
             { id: "f_brut", label: "Brüt m²", value: "200 m²", canvasFormat: "{value} Brüt" },
@@ -309,7 +309,7 @@ const propertyForms = {
         ]
     },
     "satilik_havuzlu_villa": {
-        badge: "HAVUZLU VİLLA",
+        badge: "SATILIK HAVUZLU VİLLA",
         fields: [
             { id: "priceInput", label: "Fiyat", value: "22.500.000 TL", canvasFormat: "" },
             { id: "f_brut", label: "Brüt m²", value: "320 m²", canvasFormat: "{value} Brüt" },
@@ -321,7 +321,7 @@ const propertyForms = {
         ]
     },
     "satilik_akilli_ev": {
-        badge: "AKILLI EV",
+        badge: "SATILIK AKILLI EV",
         fields: [
             { id: "priceInput", label: "Fiyat", value: "14.000.000 TL", canvasFormat: "" },
             { id: "f_brut", label: "Brüt m²", value: "160 m²", canvasFormat: "{value} Brüt" },
@@ -332,7 +332,7 @@ const propertyForms = {
         ]
     },
     "satilik_ultra_luks_villa": {
-        badge: "ULTRA LÜKS VİLLA",
+        badge: "SATILIK ULTRA LÜKS VİLLA",
         fields: [
             { id: "priceInput", label: "Fiyat", value: "75.000.000 TL", canvasFormat: "" },
             { id: "f_brut", label: "Brüt m²", value: "800 m²", canvasFormat: "{value} Brüt" },

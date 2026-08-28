@@ -132,6 +132,7 @@ window.switchPropertyType = function(type) {
     });
     window.currentMode = type;
     renderData();
+    if(typeof window.syncKolajFromForm === 'function') window.syncKolajFromForm();
 }
 
 window.switchMode = function(m) {
@@ -442,7 +443,7 @@ function renderData(){
             const allLines = canvaLines.filter(l=>l.trim().length>0);
             // Tüm şablonlar için en fazla 6 satır (çerçeve taşmasını önler)
             const featsStr = allLines.slice(0,6).join('\n');
-            const featsInputs = ['canvaFeatures', 'canvaDFeats', 'canvaCFeats', 'canvaKFeats', 'canvaMFeats', 'canvaOFeats', 'canvaPFeats', 'canvaSFeats', 'kolajAciklama', 'canvaLFeats'];
+            const featsInputs = ['canvaFeatures', 'canvaDFeats', 'canvaCFeats', 'canvaKFeats', 'canvaMFeats', 'canvaOFeats', 'canvaPFeats', 'canvaSFeats', 'canvaLFeats'];
             featsInputs.forEach(id => {
                 if(document.getElementById(id)) document.getElementById(id).value = featsStr;
             });
@@ -529,6 +530,10 @@ function renderData(){
         
         const infoLine = $('infoLineText');
         if (infoLine) infoLine.innerHTML = h;
+
+        if (typeof window.syncKolajFromForm === 'function') {
+            window.syncKolajFromForm();
+        }
     } catch(err) {
         console.error("renderData HATA:", err);
     }

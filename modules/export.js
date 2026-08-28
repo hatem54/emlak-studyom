@@ -74,7 +74,10 @@ function isExportIgnoredElement(el) {
             el.classList.contains('vertex-handle') ||
             el.classList.contains('polygon-vertex') ||
             el.classList.contains('app-context-menu') ||
-            el.classList.contains('draw-selection-box')) {
+            el.classList.contains('draw-selection-box') ||
+            el.classList.contains('cerceve-handle') ||
+            el.classList.contains('kolaj-handle') ||
+            el.classList.contains('kolaj-tutamac')) {
             return true;
         }
     }
@@ -92,6 +95,7 @@ function sanitizeExportClone(clonedDoc) {
             '.text-handle', '.text-lock-handle', '.text-resize-handle', '.text-rotate-handle', '.text-delete-handle',
             '.callout-lock-btn', '.callout-controls', '.callout-resizer', '.callout-rotator', '.callout-select-border',
             '.cbtn-del', '.draw-handle', '.vertex-handle', '.polygon-vertex', '.app-context-menu', '.draw-selection-box',
+            '.cerceve-handle', '.kolaj-handle', '.kolaj-tutamac', '#cerceveEditor',
             '.photo-inner-zoom'
         ];
         
@@ -102,18 +106,28 @@ function sanitizeExportClone(clonedDoc) {
                     node.classList.contains('callout-resizer') || node.classList.contains('callout-rotator') ||
                     node.classList.contains('cbtn-del') || node.classList.contains('draw-handle') ||
                     node.classList.contains('vertex-handle') || node.classList.contains('polygon-vertex') ||
+                    node.classList.contains('cerceve-handle') || node.classList.contains('kolaj-handle') ||
+                    node.classList.contains('kolaj-tutamac') ||
                     node.classList.contains('photo-inner-zoom')
                 );
                 const isExplicitlyHidden = (node.style && (node.style.visibility === 'hidden' || node.style.display === 'none' || node.style.opacity === '0')) ||
                                            (node.id === 'shadow-overlay' && node.style.display === 'none') ||
                                            (node.id === 'highlight-overlay' && node.style.display === 'none') ||
                                            (node.id === 'mask-layer' && !node.style.backgroundImage) ||
+                                           (node.id === 'cerceveEditor') ||
                                            (node.id === 'export-loading-overlay');
 
                 if (isControlOrHandle || isExplicitlyHidden) {
                     node.remove();
                 }
             });
+        });
+
+        // Kolaj çerçevelerindeki aktif seçim mavi/cyan kesikli çizgisini temizle
+        clonedDoc.querySelectorAll('.kolaj-cerceve').forEach(node => {
+            if (node.style) {
+                node.style.outline = 'none';
+            }
         });
 
         // 2. html2canvas'ın şeffaf tuval üzerine siyah gölge / leke kutuları basmasını engellemek için
@@ -712,9 +726,11 @@ async function saveImage(){
         }
 
         if(typeof deselectAll === 'function') deselectAll();
+        if(typeof _cerceveSecimKaldir === 'function') _cerceveSecimKaldir();
+        if(typeof window._cerceveSecimKaldir === 'function') window._cerceveSecimKaldir();
         document.querySelectorAll('.el-selected').forEach(e=>e.classList.remove('el-selected'));
         document.querySelectorAll('.text-handle').forEach(h=>h.remove());
-        document.querySelectorAll('.callout-controls, .callout-resizer, .callout-rotator, .callout-select-border, .callout-lock-btn, .cbtn-del, .draw-handle, .vertex-handle').forEach(c => c.style.display = 'none');
+        document.querySelectorAll('.callout-controls, .callout-resizer, .callout-rotator, .callout-select-border, .callout-lock-btn, .cbtn-del, .draw-handle, .vertex-handle, .cerceve-handle, .kolaj-handle').forEach(c => c.style.display = 'none');
         const existingCtxMenu = document.getElementById('app-custom-context-menu');
         if (existingCtxMenu) existingCtxMenu.remove();
     
@@ -797,9 +813,10 @@ async function saveImage(){
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = 'high';
 
-    // Sablonlu Mod kontrolu
+    // Sablonlu Mod kontrolu (Canva, Kolaj veya Klasik Şablonlar)
     const cvrBase = document.querySelector('.cvr-base');
-    const isTemplateMode = !!cvrBase || document.querySelector('.photo-panel');
+    const hasKolaj = !!document.getElementById('kolaj-wrapper');
+    const isTemplateMode = !!cvrBase || !!document.querySelector('.photo-panel') || hasKolaj;
 
     if (isTemplateMode) {
         // ==========================================
@@ -1276,7 +1293,8 @@ async function startBatchExport(){
         ctx.imageSmoothingQuality = 'high';
 
         const cvrBase = document.querySelector('.cvr-base');
-        const isTemplateMode = !!cvrBase || document.querySelector('.photo-panel');
+        const hasKolaj = !!document.getElementById('kolaj-wrapper');
+        const isTemplateMode = !!cvrBase || !!document.querySelector('.photo-panel') || hasKolaj;
 
         if (isTemplateMode) {
             // ==========================================

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="tr">
+<html lang="tr" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <link rel="icon" type="image/jpeg" href="assets/logo/logo-icon.png">
@@ -7,24 +7,28 @@
     <title>EmlakStüdyom - Emlak Fotoğraf Düzenleme</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="css/landing.css?v=20260829-128">
+    <link rel="stylesheet" href="css/landing.css?v=20260829-129">
     <!-- Supabase JS Library -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="js/supabase-client.js?v=20260819-2" defer></script>
     <script src="js/presence.js?v=20260819-1" defer></script>
-        <script src="js/auth.js?v=20260820-1" defer></script>
+    <script src="js/auth.js?v=20260829-1" defer></script>
     <script>
-        function initLandingTheme() {
-            const savedTheme = localStorage.getItem('emlakstudiom_theme') || 'dark';
+        (function() {
+            const savedTheme = localStorage.getItem('emlakstudiom_theme') || 'light';
             document.documentElement.setAttribute('data-theme', savedTheme);
-            document.body.setAttribute('data-theme', savedTheme);
+        })();
+        function initLandingTheme() {
+            const savedTheme = localStorage.getItem('emlakstudiom_theme') || 'light';
+            document.documentElement.setAttribute('data-theme', savedTheme);
+            if (document.body) document.body.setAttribute('data-theme', savedTheme);
             updateThemeIcon(savedTheme);
         }
         function toggleLandingTheme() {
             const current = document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
             const nextTheme = current === 'light' ? 'dark' : 'light';
             document.documentElement.setAttribute('data-theme', nextTheme);
-            document.body.setAttribute('data-theme', nextTheme);
+            if (document.body) document.body.setAttribute('data-theme', nextTheme);
             localStorage.setItem('emlakstudiom_theme', nextTheme);
             updateThemeIcon(nextTheme);
         }
@@ -35,10 +39,9 @@
             }
         }
         document.addEventListener('DOMContentLoaded', initLandingTheme);
-        initLandingTheme();
     </script>
 </head>
-<body>
+<body data-theme="light">
     <!-- Background Animation -->
     <div class="bg-animation">
         <div class="bg-orb"></div>

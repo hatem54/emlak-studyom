@@ -408,8 +408,8 @@ window.addEventListener('DOMContentLoaded', () => {
       if (event === 'PASSWORD_RECOVERY') {
         openModal('reset');
       } else if (event === 'SIGNED_IN' && session) {
-        // Eğer OAuth (Google vb.) ile giriş yapıldıysa ve recovery modunda değilsek yönlendir
-        if (!window.location.hash.includes('type=recovery')) {
+        // Sadece OAuth (Google vb.) dönüşünde token varsa yönlendir
+        if (window.location.hash && (window.location.hash.includes('access_token') || window.location.hash.includes('id_token'))) {
           closeModal();
           showToast('✅ Giriş başarılı! Yönlendiriliyorsunuz...', 'success');
           setTimeout(() => {

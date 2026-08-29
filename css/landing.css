@@ -1,4 +1,4 @@
-﻿* {
+* {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
@@ -90,17 +90,19 @@
             left: 0;
             right: 0;
             z-index: 1000;
-            padding: 20px 60px;
+            height: 120px;
+            padding: 12px 60px;
             display: flex;
             align-items: center;
             justify-content: space-between;
-            background: rgba(10, 10, 26, 0.8);
+            background: rgba(10, 10, 26, 0.85);
             backdrop-filter: blur(20px);
-            border-bottom: 1px solid rgba(108, 92, 231, 0.1);
+            border-bottom: 1px solid rgba(108, 92, 231, 0.15);
             transition: all 0.3s ease;
         }
 
         .navbar.scrolled {
+            height: 120px;
             padding: 12px 60px;
             background: rgba(10, 10, 26, 0.95);
         }
@@ -122,11 +124,10 @@
             justify-content: center;
             font-size: 20px;
             color: white;
-            font-weight: 800;
+            box-shadow: 0 4px 15px rgba(108, 92, 231, 0.4);
         }
 
         .nav-logo-text {
-            font-family: 'Space Grotesk', sans-serif;
             font-size: 22px;
             font-weight: 700;
             color: white;
@@ -139,38 +140,32 @@
         }
 
         .nav-links {
+            position: absolute;
+            bottom: 12px;
+            left: 230px;
             display: flex;
             align-items: center;
-            gap: 40px;
+            gap: 8px;
             list-style: none;
         }
 
         .nav-links a {
             text-decoration: none;
-            color: var(--text-muted);
-            font-size: 15px;
-            font-weight: 500;
-            transition: color 0.3s;
-            position: relative;
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 11px;
+            font-weight: 600;
+            padding: 4px 10px;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 14px;
+            backdrop-filter: blur(8px);
+            transition: all 0.2s ease;
         }
 
         .nav-links a:hover {
-            color: white;
-        }
-
-        .nav-links a::after {
-            content: '';
-            position: absolute;
-            bottom: -4px;
-            left: 0;
-            width: 0;
-            height: 2px;
-            background: var(--gradient-1);
-            transition: width 0.3s;
-        }
-
-        .nav-links a:hover::after {
-            width: 100%;
+            color: #00CEC9;
+            background: rgba(108, 92, 231, 0.25);
+            border-color: rgba(0, 206, 201, 0.4);
         }
 
         .nav-buttons {
@@ -237,7 +232,7 @@
             min-height: 100vh;
             display: flex;
             align-items: center;
-            padding: 140px 60px 100px;
+            padding: 160px 60px 80px;
         }
 
         .hero-content {
@@ -2017,3 +2012,524 @@
             border-color: rgba(255, 255, 255, 0.25);
             color: #fff;
         }
+
+/* ===== LIGHT THEME OVERRIDES ===== */
+html[data-theme="light"],
+body[data-theme="light"] {
+    --dark: #f1f5f9;
+    --dark-2: #ffffff;
+    --dark-3: #f8fafc;
+    --text: #0f172a;
+    --text-muted: #64748b;
+    background: var(--dark);
+    color: var(--text);
+}
+
+
+
+
+body[data-theme="light"] .nav-links a {
+    color: #0f172a !important;
+    font-weight: 600 !important;
+    font-size: 13px !important; /* Slightly smaller text */
+    background: rgba(255, 255, 255, 0.8); 
+    padding: 4px 12px; /* Smaller buttons */
+    border-radius: 20px;
+    backdrop-filter: blur(4px);
+    transition: all 0.2s ease;
+}
+body[data-theme="light"] .nav-links a:hover {
+    color: var(--primary);
+}
+
+body[data-theme="light"] .bg-orb:nth-child(1) {
+    background: rgba(108, 92, 231, 0.15);
+}
+body[data-theme="light"] .bg-orb:nth-child(2) {
+    background: rgba(0, 206, 201, 0.15);
+}
+body[data-theme="light"] .bg-orb:nth-child(3) {
+    background: rgba(253, 121, 168, 0.15);
+}
+
+body[data-theme="light"] .feature-card,
+body[data-theme="light"] .step-card,
+body[data-theme="light"] .pricing-card,
+body[data-theme="light"] .faq-item {
+    background: var(--dark-2);
+    border: 1px solid rgba(0, 0, 0, 0.05);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.03);
+}
+
+body[data-theme="light"] .feature-card:hover,
+body[data-theme="light"] .step-card:hover {
+    border-color: rgba(108, 92, 231, 0.3);
+    box-shadow: 0 15px 40px rgba(108, 92, 231, 0.1);
+}
+
+body[data-theme="light"] .faq-question {
+    color: var(--text);
+}
+
+body[data-theme="light"] .mobile-menu-panel {
+    background: rgba(255, 255, 255, 0.98);
+    border-left: 1px solid rgba(0, 0, 0, 0.05);
+}
+body[data-theme="light"] .mobile-nav-links a {
+    color: var(--text);
+}
+body[data-theme="light"] .mobile-close-btn {
+    color: var(--text);
+}
+
+body[data-theme="light"] .testimonial-card,
+body[data-theme="light"] .hero-float-card,
+body[data-theme="light"] .cta-box {
+    background: var(--dark-2);
+    border: 1px solid rgba(0, 0, 0, 0.05);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.03);
+}
+
+body[data-theme="light"] .testimonial-card:hover,
+body[data-theme="light"] .hero-float-card:hover {
+    border-color: rgba(108, 92, 231, 0.3);
+    box-shadow: 0 15px 40px rgba(108, 92, 231, 0.1);
+}
+
+body[data-theme="light"] .testimonial-text,
+body[data-theme="light"] .hero-desc,
+body[data-theme="light"] .section-desc,
+body[data-theme="light"] .step-desc,
+body[data-theme="light"] .feature-desc,
+body[data-theme="light"] .pricing-features li {
+    color: var(--text-muted) !important;
+}
+
+body[data-theme="light"] .testimonial-name,
+body[data-theme="light"] .testimonial-role,
+body[data-theme="light"] .step-title,
+body[data-theme="light"] .feature-title,
+body[data-theme="light"] .pricing-name,
+body[data-theme="light"] .pricing-price {
+    color: var(--text);
+}
+
+body[data-theme="light"] .btn-ghost {
+    border-color: rgba(0,0,0,0.1);
+    color: var(--text);
+}
+body[data-theme="light"] .btn-ghost:hover {
+    background: rgba(0,0,0,0.05);
+}
+
+body[data-theme="light"] .footer {
+    background: var(--dark-2) !important;
+    border-top: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+body[data-theme="light"] .footer-col h3 {
+    color: var(--text) !important;
+}
+
+body[data-theme="light"] .footer-col a {
+    color: var(--text-muted) !important;
+}
+body[data-theme="light"] .footer-col a:hover {
+    color: var(--primary) !important;
+}
+body[data-theme="light"] .footer-bottom {
+    border-top: 1px solid rgba(0,0,0,0.05) !important;
+    color: var(--text-muted) !important;
+}
+
+body[data-theme="light"] .faq-answer {
+    color: var(--text-muted);
+}
+
+/* Fix for inline styled pricing card */
+body[data-theme="light"] .pricing-card.featured {
+    background: #ffffff !important;
+    box-shadow: 0 20px 50px rgba(108, 92, 231, 0.15) !important;
+}
+
+
+
+
+
+/* Ensure the featured card text isn't stuck white */
+body[data-theme="light"] .pricing-card.featured * {
+    /* Just relying on the generic text overrides we already added */
+}
+
+/* Add a bit of dark theme fix just in case */
+
+body[data-theme="light"] .pricing-plan-name {
+    color: var(--text) !important;
+}
+body[data-theme="light"] .pricing-plan-desc {
+    color: var(--text-muted) !important;
+}
+
+body[data-theme="light"] .testimonial-card {
+    background: var(--dark-2) !important;
+}
+
+
+
+/* ===== MOCKUP LIGHT THEME FIXES ===== */
+body[data-theme="light"] .mockup-header {
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05) !important;
+}
+
+body[data-theme="light"] .mockup-url {
+    background: rgba(0, 0, 0, 0.05) !important;
+}
+
+body[data-theme="light"] .mockup-before-after {
+    background: #ffffff !important;
+    border: 1px solid rgba(0, 0, 0, 0.05) !important;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.02) !important;
+}
+
+
+
+
+
+body[data-theme="light"] .mockup-before-after .label {
+    background: rgba(255, 255, 255, 0.9) !important;
+    color: var(--text) !important;
+    border: 1px solid rgba(0, 0, 0, 0.1) !important;
+}
+
+body[data-theme="light"] .mockup-toolbar {
+    background: #ffffff !important;
+    border-left: 1px solid rgba(0, 0, 0, 0.05) !important;
+}
+
+body[data-theme="light"] .tool-icon {
+    background: rgba(0, 0, 0, 0.03) !important;
+    color: var(--text-muted) !important;
+}
+
+body[data-theme="light"] .tool-icon.active {
+    background: rgba(108, 92, 231, 0.1) !important;
+    color: var(--primary) !important;
+}
+
+body[data-theme="light"] .tool-icon:hover {
+    background: rgba(108, 92, 231, 0.05) !important;
+}
+
+
+
+
+
+/* Sleek Dark Buttons for Light Theme */
+body[data-theme="light"] .btn-primary,
+body[data-theme="light"] .btn-hero-primary {
+    background: #0f172a !important;
+    color: #ffffff !important;
+    box-shadow: 0 10px 20px rgba(15, 23, 42, 0.15) !important;
+}
+
+body[data-theme="light"] .btn-primary:hover,
+body[data-theme="light"] .btn-hero-primary:hover {
+    background: #1e293b !important;
+    box-shadow: 0 10px 25px rgba(15, 23, 42, 0.25) !important;
+    transform: translateY(-2px) !important;
+}
+
+body[data-theme="light"] .btn-hero-secondary {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    border: 1px solid rgba(15, 23, 42, 0.1) !important;
+}
+
+body[data-theme="light"] .btn-hero-secondary:hover {
+    background: #f8fafc !important;
+}
+
+/* Fix Excessive Shadows */
+
+
+
+body[data-theme="light"] .mockup-header {
+    background: linear-gradient(to bottom, #ffffff, #f8fafc) !important;
+    border-bottom: 1px solid rgba(15, 23, 42, 0.06) !important;
+    padding: 16px 24px !important;
+}
+
+body[data-theme="light"] .mockup-url {
+    background: #f1f5f9 !important;
+    border: 1px solid rgba(15, 23, 42, 0.05) !important;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.02) !important;
+    font-weight: 600 !important;
+    color: #475569 !important;
+}
+
+/* Maximize Card Widths */
+body[data-theme="light"] .mockup-body {
+    height: 520px !important;
+    padding: 14px !important;
+    gap: 12px !important;
+    display: grid !important;
+    grid-template-columns: 1fr 1fr 48px !important;
+    align-items: stretch !important;
+}
+
+body[data-theme="light"] .mockup-before-after {
+    border-radius: 14px !important;
+    box-shadow: 0 8px 25px rgba(0,0,0,0.08) !important;
+    border: 1px solid rgba(0,0,0,0.04) !important;
+    height: 100% !important;
+}
+
+body[data-theme="light"] .mockup-toolbar {
+    background: rgba(255,255,255,0.95) !important;
+    border-radius: 12px !important;
+    box-shadow: 0 4px 15px rgba(15,23,42,0.04) !important;
+    border: 1px solid rgba(15,23,42,0.08) !important;
+    padding: 8px 4px !important;
+    height: 100% !important;
+}
+
+/* Force the grid to give more room to the mockup */
+@media (min-width: 993px) {
+    body[data-theme="light"] .hero-content {
+        max-width: 1450px !important;
+        grid-template-columns: 0.85fr 1.15fr !important;
+        gap: 40px !important;
+    }
+}
+
+/* Luxury Camera-style Pills for Before/After Labels */
+body[data-theme="light"] .mockup-before-after .label {
+    background: rgba(15, 23, 42, 0.6) !important;
+    backdrop-filter: blur(12px) !important;
+    -webkit-backdrop-filter: blur(12px) !important;
+    color: white !important;
+    border: 1px solid rgba(255,255,255,0.15) !important;
+    border-radius: 30px !important;
+    padding: 8px 18px !important;
+    font-weight: 700 !important;
+    letter-spacing: 1.5px !important;
+    text-transform: uppercase !important;
+    font-size: 11px !important;
+    top: 25px !important;
+    left: 25px !important;
+    box-shadow: 0 10px 20px rgba(0,0,0,0.2) !important;
+}
+
+
+
+
+body[data-theme="light"] .hero-mockup {
+    border-radius: 20px !important;
+    border: 1px solid rgba(255, 255, 255, 0.9) !important;
+    background: linear-gradient(145deg, rgba(255, 255, 255, 0.95), rgba(241, 245, 249, 0.9)) !important;
+    backdrop-filter: blur(20px) !important;
+    box-shadow: 
+        0 20px 50px -10px rgba(15, 23, 42, 0.1),
+        inset 0 1px 2px rgba(255, 255, 255, 1) !important;
+    transform: none !important;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+body[data-theme="light"] .hero-mockup:hover {
+    transform: translateY(-5px) !important;
+    box-shadow: 0 30px 60px -15px rgba(15, 23, 42, 0.15), inset 0 1px 2px rgba(255, 255, 255, 1) !important;
+}
+
+
+
+/* Sweeping Gradient Animation for Hero Text */
+@keyframes textSweepDown {
+    0% { background-position: 0% 0%; }
+    100% { background-position: 0% 100%; }
+}
+
+body[data-theme="light"] .hero h1 {
+    background: linear-gradient(to bottom, #0f172a 0%, #0f172a 35%, #6C5CE7 45%, #00CEC9 55%, #0f172a 65%, #0f172a 100%) !important;
+    background-size: 100% 300% !important;
+    -webkit-background-clip: text !important;
+    -webkit-text-fill-color: transparent !important;
+    animation: textSweepDown 4s ease-in-out infinite alternate !important;
+    color: transparent !important;
+}
+
+
+
+/* === RESTORING THE BELOVED NAVBAR SKYLINE DESIGN === */
+body[data-theme="light"] .navbar {
+    background: #f8fafc url("../assets/header-skyline-gemini-matched.png") no-repeat center center !important;
+    background-size: cover !important;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1) !important;
+    height: 120px !important;
+}
+body[data-theme="light"] .navbar.scrolled {
+    height: 120px !important;
+}
+
+body[data-theme="light"] .nav-links {
+    position: absolute !important;
+    bottom: 12px !important;
+    top: auto !important;
+    left: 230px !important;
+    transform: none !important;
+    gap: 8px !important;
+}
+
+body[data-theme="light"] .navbar .nav-links a {
+    padding: 4px 10px !important;
+    font-size: 11px !important;
+    background: rgba(255, 255, 255, 0.85) !important;
+    border-radius: 14px !important;
+    font-weight: 600 !important;
+    color: #0f172a !important;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08) !important;
+}
+
+
+
+/* ==========================================================================
+   THEMED MOCKUP & BEFORE/AFTER PANELS (DARK & LIGHT THEME HARMONY)
+   ========================================================================== */
+
+/* DARK THEME (DEFAULT / body:not([data-theme="light"]), body[data-theme="dark"]) */
+.hero-mockup,
+body:not([data-theme="light"]) .hero-mockup,
+body[data-theme="dark"] .hero-mockup {
+    background: rgba(18, 18, 42, 0.85) !important;
+    border: 1px solid rgba(108, 92, 231, 0.35) !important;
+    box-shadow: 0 30px 80px -20px rgba(0, 0, 0, 0.9), 0 0 50px rgba(108, 92, 231, 0.18) !important;
+    backdrop-filter: blur(25px) !important;
+    -webkit-backdrop-filter: blur(25px) !important;
+    border-radius: 20px !important;
+}
+
+.mockup-header,
+body:not([data-theme="light"]) .mockup-header,
+body[data-theme="dark"] .mockup-header {
+    background: rgba(10, 10, 26, 0.92) !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+.mockup-url,
+body:not([data-theme="light"]) .mockup-url,
+body[data-theme="dark"] .mockup-url {
+    background: rgba(255, 255, 255, 0.06) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    color: #cbd5e1 !important;
+}
+
+.mockup-body,
+body:not([data-theme="light"]) .mockup-body,
+body[data-theme="dark"] .mockup-body {
+    background: rgba(13, 13, 30, 0.95) !important;
+    display: grid !important;
+    grid-template-columns: 1fr 1fr 48px !important;
+    gap: 12px !important;
+    height: 520px !important;
+    padding: 14px !important;
+}
+
+.mockup-before-after,
+body:not([data-theme="light"]) .mockup-before-after,
+body[data-theme="dark"] .mockup-before-after {
+    border-radius: 14px !important;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6) !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    height: 100% !important;
+}
+
+.mockup-toolbar,
+body:not([data-theme="light"]) .mockup-toolbar,
+body[data-theme="dark"] .mockup-toolbar {
+    background: rgba(20, 20, 48, 0.9) !important;
+    border: 1px solid rgba(108, 92, 231, 0.25) !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4) !important;
+    border-radius: 12px !important;
+    padding: 8px 4px !important;
+    height: 100% !important;
+}
+
+body:not([data-theme="light"]) .mockup-toolbar .tool-icon,
+body[data-theme="dark"] .mockup-toolbar .tool-icon {
+    background: rgba(255, 255, 255, 0.06) !important;
+    color: #94a3b8 !important;
+}
+
+body:not([data-theme="light"]) .mockup-toolbar .tool-icon.active,
+body[data-theme="dark"] .mockup-toolbar .tool-icon.active {
+    background: rgba(108, 92, 231, 0.35) !important;
+    color: #00CEC9 !important;
+    border: 1px solid rgba(0, 206, 201, 0.4) !important;
+}
+
+/* DARK THEME BEFORE/AFTER SLIDER (DEMO) */
+.ba-demo,
+body:not([data-theme="light"]) .ba-demo,
+body[data-theme="dark"] .ba-demo {
+    background: rgba(18, 18, 42, 0.95) !important;
+    border: 1px solid rgba(108, 92, 231, 0.35) !important;
+    box-shadow: 0 40px 100px rgba(0, 0, 0, 0.8), 0 0 50px rgba(108, 92, 231, 0.18) !important;
+    border-radius: 24px !important;
+}
+
+/* LIGHT THEME OVERRIDES */
+body[data-theme="light"] .hero-mockup {
+    background: #ffffff !important;
+    border: 1px solid rgba(15, 23, 42, 0.08) !important;
+    box-shadow: 0 25px 60px -15px rgba(15, 23, 42, 0.12), 0 0 0 1px rgba(15, 23, 42, 0.04) !important;
+}
+
+body[data-theme="light"] .mockup-header {
+    background: #f8fafc !important;
+    border-bottom: 1px solid rgba(15, 23, 42, 0.06) !important;
+}
+
+body[data-theme="light"] .mockup-url {
+    background: #ffffff !important;
+    border: 1px solid rgba(15, 23, 42, 0.08) !important;
+    color: #64748b !important;
+}
+
+body[data-theme="light"] .mockup-body {
+    background: #f1f5f9 !important;
+    height: 520px !important;
+    padding: 14px !important;
+    gap: 12px !important;
+    display: grid !important;
+    grid-template-columns: 1fr 1fr 48px !important;
+}
+
+body[data-theme="light"] .mockup-before-after {
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08) !important;
+    border: 1px solid rgba(0, 0, 0, 0.04) !important;
+    height: 100% !important;
+}
+
+body[data-theme="light"] .mockup-toolbar {
+    background: #ffffff !important;
+    border: 1px solid rgba(15, 23, 42, 0.08) !important;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03) !important;
+    border-radius: 12px !important;
+    padding: 8px 4px !important;
+    height: 100% !important;
+}
+
+body[data-theme="light"] .mockup-toolbar .tool-icon {
+    background: #f8fafc !important;
+    color: #64748b !important;
+}
+
+body[data-theme="light"] .mockup-toolbar .tool-icon.active {
+    background: rgba(108, 92, 231, 0.12) !important;
+    color: #6C5CE7 !important;
+    border: none !important;
+}
+
+body[data-theme="light"] .ba-demo {
+    background: #ffffff !important;
+    border: 1px solid rgba(15, 23, 42, 0.08) !important;
+    box-shadow: 0 30px 70px -15px rgba(15, 23, 42, 0.12) !important;
+}

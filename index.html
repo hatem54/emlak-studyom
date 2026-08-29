@@ -7,12 +7,36 @@
     <title>EmlakStüdyom - Emlak Fotoğraf Düzenleme</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="css/landing.css?v=20260820-1">
+    <link rel="stylesheet" href="css/landing.css?v=20260829-128">
     <!-- Supabase JS Library -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="js/supabase-client.js?v=20260819-2" defer></script>
     <script src="js/presence.js?v=20260819-1" defer></script>
-    <script src="js/auth.js?v=20260820-1" defer></script>
+        <script src="js/auth.js?v=20260820-1" defer></script>
+    <script>
+        function initLandingTheme() {
+            const savedTheme = localStorage.getItem('emlakstudiom_theme') || 'dark';
+            document.documentElement.setAttribute('data-theme', savedTheme);
+            document.body.setAttribute('data-theme', savedTheme);
+            updateThemeIcon(savedTheme);
+        }
+        function toggleLandingTheme() {
+            const current = document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
+            const nextTheme = current === 'light' ? 'dark' : 'light';
+            document.documentElement.setAttribute('data-theme', nextTheme);
+            document.body.setAttribute('data-theme', nextTheme);
+            localStorage.setItem('emlakstudiom_theme', nextTheme);
+            updateThemeIcon(nextTheme);
+        }
+        function updateThemeIcon(theme) {
+            const icon = document.querySelector('#landingThemeToggle i');
+            if (icon) {
+                icon.className = theme === 'light' ? 'fas fa-moon' : 'fas fa-sun';
+            }
+        }
+        document.addEventListener('DOMContentLoaded', initLandingTheme);
+        initLandingTheme();
+    </script>
 </head>
 <body>
     <!-- Background Animation -->
@@ -22,7 +46,7 @@
         <div class="bg-orb"></div>
     </div>
 
-    <!-- Navbar -->
+        <!-- Navbar -->
     <nav class="navbar" id="navbar" style="border-bottom: 1px solid rgba(255,255,255,0.05); box-shadow: 0 4px 20px rgba(0,0,0,0.3); padding: 12px 60px;">
         <a href="index.html" class="logo">
           <img src="assets/logo/logo.png" 
@@ -30,14 +54,15 @@
                height="150"
                style="border-radius: 10px;">
         </a>
-        <ul class="nav-links">
-            <li><a href="#features">Özellikler</a></li>
-            <li><a href="#demo">Demo</a></li>
-            <li><a href="#how-it-works">Nasıl Çalışır</a></li>
-            <li><a href="#pricing">Fiyatlandırma</a></li>
-            <li><a href="#faq">SSS</a></li>
+        <ul class="nav-links" style="position: absolute !important; bottom: 12px !important; top: auto !important; left: 230px !important; display: flex !important; gap: 8px !important; list-style: none !important; margin: 0 !important; padding: 0 !important; z-index: 100 !important;">
+            <li><a href="#features" style="padding: 4px 10px !important; font-size: 11px !important;">Özellikler</a></li>
+            <li><a href="#demo" style="padding: 4px 10px !important; font-size: 11px !important;">Demo</a></li>
+            <li><a href="#how-it-works" style="padding: 4px 10px !important; font-size: 11px !important;">Nasıl Çalışır</a></li>
+            <li><a href="#pricing" style="padding: 4px 10px !important; font-size: 11px !important;">Fiyatlandırma</a></li>
+            <li><a href="#faq" style="padding: 4px 10px !important; font-size: 11px !important;">SSS</a></li>
         </ul>
         <div class="nav-buttons">
+            <button class="btn-ghost" id="landingThemeToggle" onclick="toggleLandingTheme()" title="Açık / Koyu Tema" style="padding: 10px 14px; border-radius: 8px; margin-right: 5px;"><i class="fas fa-sun"></i></button>
             <button class="btn-ghost" onclick="openModal('login')">Giriş Yap</button>
             <button class="btn-primary" onclick="goToDemo()">Ücretsiz Dene</button>
         </div>
@@ -70,7 +95,7 @@
     </div>
 
     <!-- Hero -->
-    <section class="hero" style="min-height: 85vh; padding-top: 140px;">
+    <section class="hero" style="min-height: 85vh; padding-top: 160px;">
         <div class="hero-content" style="align-items: center;">
             <div class="hero-left">
                 <div class="hero-badge" style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.2); color: #10b981;">
@@ -79,13 +104,13 @@
                 </div>
                 <h1 style="font-size: clamp(40px, 5vw, 68px); line-height: 1.1; margin-bottom: 24px;">
                     Emlak Fotoğraflarınızı<br>
-                    <span class="gradient-text">Stüdyo Kalitesinde</span><br>
+                    Stüdyo Kalitesinde<br>
                     Düzenleyin
                 </h1>
                 <p class="hero-desc" style="font-size: 18px; color: #94a3b8; max-width: 90%; margin-bottom: 40px; line-height: 1.6;">
                     Fotoğraf düzenleme, yazı ekleme, şablon uygulama ve çıktı alma süreçlerinin tamamını tek bir yerden yönetin. Kayıt olmadan hemen deneyebilirsiniz.
                 </p>
-                <div class="hero-actions">
+                                <div class="hero-actions">
                     <button class="btn-hero btn-hero-primary" onclick="openModal('register')">
                         <i class="fas fa-rocket"></i> Ücretsiz Başla
                     </button>
@@ -98,52 +123,60 @@
                     <span>100+ emlakçı zaten kullanıyor</span>
                 </div>
             </div>
-            <div class="hero-visual">
+                        <div class="hero-visual">
                 <div class="hero-mockup">
                     <div class="mockup-header">
                         <div class="mockup-dots">
-                            <span></span><span></span><span></span>
+                            <span style="background: #FF5F57;"></span>
+                            <span style="background: #FFBD2E;"></span>
+                            <span style="background: #28CA41;"></span>
                         </div>
-                        <div class="mockup-url">emlakstudyom.com</div>
+                        <div class="mockup-url">emlakstudyom.com/studio</div>
+                        <div style="width: 40px;"></div>
                     </div>
                     <div class="mockup-body">
-                        <div class="mockup-before-after before">
-                            <span class="label">Önce</span>
-                            <div style="width:80%;height:80%;background:linear-gradient(135deg,#2a2a4a,#1a1a3a);border-radius:8px;display:flex;align-items:center;justify-content:center;">
-                                <i class="fas fa-home" style="font-size:48px;color:#3a3a5a;"></i>
-                            </div>
+                        
+                        <!-- ÖNCE KARTI -->
+                        <div class="mockup-before-after before" style="background: url('assets/luxury_villa.jpg') center/cover !important;">
+                            <span style="position: absolute; top: 12px; left: 12px; background: rgba(15, 23, 42, 0.75); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); color: #ffffff; padding: 5px 12px; border-radius: 20px; font-size: 11px; font-weight: 700; letter-spacing: 1px; border: 1px solid rgba(255,255,255,0.2); z-index: 10;">ÖNCE</span>
                         </div>
-                        <div class="mockup-before-after after">
-                            <span class="label">Sonra</span>
-                            <div style="width:80%;height:80%;border-radius:8px;overflow:hidden;position:relative;background:linear-gradient(135deg,#4a3bd1,#6C5CE7);">
-                                <img id="mockupAfterImg" src="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=" style="width:100%;height:100%;object-fit:cover;display:none;" onload="this.style.display='block'; document.getElementById('mockupFallback').style.display='none';" onerror="this.style.display='none'; document.getElementById('mockupFallback').style.display='flex';">
-                                <div id="mockupFallback" style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;flex-direction:column;color:rgba(255,255,255,0.9);text-align:center;">
-                                    <i id="mockupFallbackIcon" class="fas fa-magic" style="font-size:36px;margin-bottom:10px;"></i>
-                                    <div id="mockupFallbackText" style="font-size:12px;font-weight:600;padding:0 10px;">Adım 1 Görseli Yüklenmedi</div>
+                        
+                        <!-- SONRA KARTI -->
+                        <div class="mockup-before-after after" style="background: url('assets/luxury_villa.jpg') center/cover !important;">
+                            <!-- Sonra Rozeti -->
+                            <span style="position: absolute; top: 12px; left: 12px; background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); color: #00CEC9; padding: 5px 12px; border-radius: 20px; font-size: 11px; font-weight: 700; letter-spacing: 1px; border: 1px solid rgba(0,206,201,0.4); z-index: 10;">SONRA</span>
+                            
+                            <!-- Üst Rozet / Etiket -->
+                            <div style="position: absolute; top: 12px; right: 12px; background: #FF3B30; color: #ffffff; font-size: 10px; font-weight: 800; padding: 5px 10px; border-radius: 6px; box-shadow: 0 4px 12px rgba(255,59,48,0.4); letter-spacing: 0.8px; text-transform: uppercase;">SATILDI</div>
+                            
+                            <!-- Danışman Rozeti -->
+                            <div style="position: absolute; top: 48px; right: 12px; background: rgba(255,255,255,0.95); backdrop-filter: blur(8px); padding: 4px 10px 4px 6px; border-radius: 20px; display: flex; align-items: center; gap: 6px; box-shadow: 0 4px 15px rgba(0,0,0,0.15);">
+                                <div style="width: 22px; height: 22px; border-radius: 50%; background: #6C5CE7; color: white; display: flex; align-items: center; justify-content: center; font-size: 10px;"><i class="fas fa-user-tie"></i></div>
+                                <span style="font-size: 10px; font-weight: 700; color: #0f172a;">Emlak Stüdyom</span>
+                            </div>
+                            
+                            <!-- Alt Şık Bilgi Kartı (Şablon) -->
+                            <div style="position: absolute; bottom: 12px; left: 12px; right: 12px; background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border-radius: 12px; padding: 12px 14px; border: 1px solid rgba(255,255,255,0.15); box-shadow: 0 10px 25px rgba(0,0,0,0.3);">
+                                <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px;">
+                                    <div style="color: #ffffff; font-weight: 800; font-size: 18px; letter-spacing: -0.5px;">₺18.500.000</div>
+                                    <div style="color: #00CEC9; font-size: 11px; font-weight: 600;"><i class="fas fa-map-marker-alt"></i> Bodrum, Yalıkavak</div>
+                                </div>
+                                <div style="display: flex; gap: 6px; margin-top: 6px;">
+                                    <span style="background: rgba(255,255,255,0.12); color: #ffffff; font-size: 10px; font-weight: 700; padding: 3px 7px; border-radius: 4px; display: flex; align-items: center; gap: 4px;"><i class="fas fa-bed" style="color:#00CEC9;"></i> 5+2</span>
+                                    <span style="background: rgba(255,255,255,0.12); color: #ffffff; font-size: 10px; font-weight: 700; padding: 3px 7px; border-radius: 4px; display: flex; align-items: center; gap: 4px;"><i class="fas fa-ruler-combined" style="color:#00CEC9;"></i> 450m²</span>
+                                    <span style="background: rgba(255,255,255,0.12); color: #ffffff; font-size: 10px; font-weight: 700; padding: 3px 7px; border-radius: 4px; display: flex; align-items: center; gap: 4px;"><i class="fas fa-swimming-pool" style="color:#00CEC9;"></i> Havuz</span>
                                 </div>
                             </div>
                         </div>
+                        
+                        <!-- SAĞ DİKEY ARAÇ ÇUBUĞU (TOOLBAR) -->
                         <div class="mockup-toolbar">
-                            <div class="tool-icon active" onclick="changeMockupStep(1, this)" title="Akıllı Veri ve Görsel Girişi"><i class="fas fa-magic"></i></div>
-                            <div class="tool-icon" onclick="changeMockupStep(2, this)" title="Gelişmiş Düzenleme ve Sınır Çizimi"><i class="fas fa-draw-polygon"></i></div>
-                            <div class="tool-icon" onclick="changeMockupStep(3, this)" title="Şablon Seçimi ve İkon Yerleşimi"><i class="fas fa-layer-group"></i></div>
-                            <div class="tool-icon" onclick="changeMockupStep(4, this)" title="Çıktı ve Toplu Dışa Aktarım"><i class="fas fa-file-export"></i></div>
-                            <div class="tool-icon" onclick="changeMockupStep(5, this)" title="Hızlı Paylaşım Seçenekleri"><i class="fas fa-share-alt"></i></div>
+                            <div class="tool-icon active" title="Akıllı Şablon"><i class="fas fa-magic"></i></div>
+                            <div class="tool-icon" title="Katmanlar"><i class="fas fa-layer-group"></i></div>
+                            <div class="tool-icon" title="İkon ve Rozetler"><i class="fas fa-shapes"></i></div>
+                            <div class="tool-icon" title="Dışa Aktar"><i class="fas fa-download"></i></div>
+                            <div class="tool-icon" title="Paylaş"><i class="fas fa-share-alt"></i></div>
                         </div>
-                    </div>
-                </div>
-                <div class="hero-float-card card-1">
-                    <div class="float-icon green"><i class="fas fa-magic"></i></div>
-                    <div>
-                        <div class="float-text-main">Akıllı Asistan</div>
-                        <div class="float-text-sub">Veri Süzüldü ✓</div>
-                    </div>
-                </div>
-                <div class="hero-float-card card-2">
-                    <div class="float-icon purple"><i class="fas fa-layer-group"></i></div>
-                    <div>
-                        <div class="float-text-main">VIP Bordo Şablon</div>
-                        <div class="float-text-sub">Uygulandı</div>
                     </div>
                 </div>
             </div>
@@ -165,32 +198,32 @@
             </div>
             <div class="feature-card">
                 <div class="feature-icon teal"><i class="fas fa-bolt"></i></div>
-                <h3>Saber & Işık Efektleri</h3>
+                <h3>Saber ve Işık Efektleri</h3>
                 <p>Yangın, neon, glow ve elektrik gibi göz alıcı ışık efektleriyle emlak fotoğraflarınıza dinamizm ve prestij katın.</p>
             </div>
             <div class="feature-card">
                 <div class="feature-icon pink"><i class="fas fa-certificate"></i></div>
-                <h3>Neon Rozetler & 270+ Callout</h3>
+                <h3>Neon Rozetler ve 270+ Callout</h3>
                 <p>Oda sayısı, otopark, havuz ve öne çıkan detaylar için ışıltılı neon rozetler ve zengin işaretçi kütüphanesi.</p>
             </div>
             <div class="feature-card">
                 <div class="feature-icon purple"><i class="fas fa-wand-magic-sparkles"></i></div>
-                <h3>Akıllı İlan Süzücü & AI</h3>
+                <h3>Akıllı İlan Süzücü ve AI</h3>
                 <p>Sahibinden, Hepsiemlak veya WhatsApp ilan metnini yapıştırın; Fiyat, m², Oda ve İmar bilgilerini saniyeler içinde şablona aktarsın.</p>
             </div>
             <div class="feature-card">
                 <div class="feature-icon teal"><i class="fas fa-expand"></i></div>
-                <h3>Çoklu Format & Ultra HD (4K)</h3>
+                <h3>Çoklu Format ve Ultra HD (4K)</h3>
                 <p>Instagram, Facebook, Portföy (16:9), Afiş (A4) gibi tüm formatlara anında uyum sağlar. Kristal netliğinde dışa aktarın.</p>
             </div>
             <div class="feature-card">
                 <div class="feature-icon pink"><i class="fas fa-draw-polygon"></i></div>
-                <h3>Arsa & Sınır Çizim Araçları</h3>
+                <h3>Arsa ve Sınır Çizim Araçları</h3>
                 <p>Çokgen (polygon), imar hatları, yön okları ve serbest çizim araçlarıyla arsa ve villa sınırlarını kolayca çizin.</p>
             </div>
             <div class="feature-card">
                 <div class="feature-icon purple"><i class="fas fa-layer-group"></i></div>
-                <h3>Katmanlar & Otomatik Kayıt</h3>
+                <h3>Katmanlar ve Otomatik Kayıt</h3>
                 <p>Çalışmalarınız anlık olarak otomatik kaydedilir. Gelişmiş katman yöneticisi ile tüm ögeleri kolayca kilitleyip sıralayın.</p>
             </div>
             <div class="feature-card">
@@ -210,23 +243,48 @@
         </div>
         <div class="ba-container">
             <div class="ba-demo">
-                <div class="ba-slider-container" id="baSlider">
-                    <div class="ba-image ba-before">
-                        <div class="ba-house-illustration">
-                            <div class="ba-house-roof"></div>
-                            <div class="ba-house-body"></div>
-                            <div class="ba-house-door"></div>
-                            <div class="ba-house-window-1"></div>
-                            <div class="ba-house-window-2"></div>
-                        </div>
+                <div class="ba-slider-container" id="baSlider" style="user-select: none; -webkit-user-select: none;">
+                                                            <div class="ba-image ba-before">
+                        <span class="label" style="position: absolute; top: 20px; left: 20px; background: white; color: black; padding: 6px 14px; border-radius: 8px; font-weight: bold; font-size: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); z-index: 10;">ÖNCE</span>
+                        <div style="position: absolute; top:0; left:0; width:100%; height:100%; background: url('assets/horizontal_interior.jpg') center/cover !important;"></div>
                     </div>
                     <div class="ba-image ba-after" id="baAfter">
-                        <div class="ba-house-illustration">
-                            <div class="ba-house-roof"></div>
-                            <div class="ba-house-body"></div>
-                            <div class="ba-house-door"></div>
-                            <div class="ba-house-window-1"></div>
-                            <div class="ba-house-window-2"></div>
+                        <span class="label" style="position: absolute; top: 20px; right: 20px; background: white; color: black; padding: 6px 14px; border-radius: 8px; font-weight: bold; font-size: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); z-index: 10;">SONRA</span>
+                        
+                        <div style="position: absolute; top:0; left:0; width:100%; height:100%; background: url('assets/horizontal_interior.jpg') center/cover !important;">
+                            
+                            <!-- Sidebar Template Overlay -->
+                            <div style="position: absolute; top: 0; left: 0; width: 35%; height: 100%; background: rgba(15,23,42,0.85); backdrop-filter: blur(20px); padding: 40px 30px; display: flex; flex-direction: column; justify-content: center; color: white; border-right: 1px solid rgba(255,255,255,0.1);">
+                                <div style="background: #00CEC9; color: #0f172a; font-weight: 800; font-size: 12px; padding: 6px 12px; border-radius: 6px; display: inline-block; width: max-content; margin-bottom: 25px; letter-spacing: 1.5px;">KİRALIK</div>
+                                <div style="font-weight: 800; font-size: 42px; margin-bottom: 10px;">₺45.000<span style="font-size: 18px; font-weight: 500; color: #94a3b8;">/ay</span></div>
+                                <div style="color: #cbd5e1; font-size: 18px; margin-bottom: 40px; font-weight: 500;"><i class="fas fa-map-marker-alt" style="color: #00CEC9;"></i> Miami, Florida</div>
+                                
+                                <div style="display: flex; flex-direction: column; gap: 20px;">
+                                    <div style="display: flex; align-items: center; gap: 15px;">
+                                        <div style="width: 48px; height: 48px; border-radius: 12px; background: rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center; border: 1px solid rgba(255,255,255,0.05);"><i class="fas fa-bed" style="font-size: 18px; color: #6C5CE7;"></i></div>
+                                        <span style="font-weight: 600; font-size: 18px;">3 Yatak Odası</span>
+                                    </div>
+                                    <div style="display: flex; align-items: center; gap: 15px;">
+                                        <div style="width: 48px; height: 48px; border-radius: 12px; background: rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center; border: 1px solid rgba(255,255,255,0.05);"><i class="fas fa-bath" style="font-size: 18px; color: #6C5CE7;"></i></div>
+                                        <span style="font-weight: 600; font-size: 18px;">2 Banyo</span>
+                                    </div>
+                                    <div style="display: flex; align-items: center; gap: 15px;">
+                                        <div style="width: 48px; height: 48px; border-radius: 12px; background: rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center; border: 1px solid rgba(255,255,255,0.05);"><i class="fas fa-swimming-pool" style="font-size: 18px; color: #6C5CE7;"></i></div>
+                                        <span style="font-weight: 600; font-size: 18px;">Deniz Manzaralı</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Floating Agent Card -->
+                            <div style="position: absolute; bottom: 30px; right: 30px; background: rgba(255,255,255,0.95); padding: 15px; border-radius: 12px; display: flex; align-items: center; gap: 15px; box-shadow: 0 15px 40px rgba(0,0,0,0.2);">
+                                <div style="width: 50px; height: 50px; border-radius: 50%; background: #0f172a; display: flex; align-items: center; justify-content: center;"><i class="fas fa-user-tie" style="color: white; font-size: 24px;"></i></div>
+                                <div>
+                                    <div style="color: #0f172a; font-weight: 800; font-size: 16px;">Emlak Studyom</div>
+                                    <div style="color: #64748b; font-size: 12px; font-weight: 600;">Kurumsal Danışman</div>
+                                </div>
+                                <div style="width: 40px; height: 40px; border-radius: 50%; background: #25D366; color: white; display: flex; align-items: center; justify-content: center; margin-left: 10px; cursor: pointer; box-shadow: 0 4px 10px rgba(37,211,102,0.4);"><i class="fab fa-whatsapp" style="font-size: 20px;"></i></div>
+                            </div>
+                            
                         </div>
                     </div>
                     <div class="ba-slider-line" id="baLine"></div>
@@ -239,12 +297,7 @@
             </div>
         </div>
         
-        <div style="text-align: center; margin-top: 40px;">
-            <button class="btn-hero btn-hero-secondary" style="background: linear-gradient(135deg, #10b981, #059669); color: white; border: none; padding: 16px 32px; font-size: 18px; border-radius: 12px; cursor: pointer; font-weight: bold; box-shadow: 0 10px 25px rgba(16, 185, 129, 0.4);" onclick="goToDemo()">
-                🚀 Demoyu Şimdi Dene
-            </button>
-            <p style="margin-top: 16px; color: #94a3b8; font-size: 14px;">Kayıt gerekmez • Ücretsiz • 3 şablon açık</p>
-        </div>
+        
     </section>
 
     <!-- How It Works -->
@@ -257,24 +310,29 @@
         <div class="steps-container">
             <div class="steps-line"></div>
             <div class="steps-grid">
-                <div class="step-card">
+                                <div class="step-card">
                     <div class="step-number">📸</div>
                     <h3>Adım 1: Fotoğrafı Yükle</h3>
                     <p>Emlak fotoğrafınızı sürükleyip bırakın veya galeriden seçin. Tüm popüler formatları destekler (JPG, PNG, WEBP).</p>
                 </div>
                 <div class="step-card">
+                    <div class="step-number">⌨️</div>
+                    <h3>Adım 2: Bilgileri Gir</h3>
+                    <p>İlan detaylarını (fiyat, oda, m²) hızla doldurun. İsterseniz AI asistanımız uzun ilan metinlerinden bu verileri otomatik çeker.</p>
+                </div>
+                <div class="step-card">
                     <div class="step-number">🎨</div>
-                    <h3>Adım 2: Şablon Seç</h3>
+                    <h3>Adım 3: Şablon Seç</h3>
                     <p>80+ profesyonel şablondan birini seçin veya boş sayfa ile sıfırdan başlayın. Her stil ve platform için uygun tasarımlar mevcut.</p>
                 </div>
                 <div class="step-card">
                     <div class="step-number">✏️</div>
-                    <h3>Adım 3: Düzenle</h3>
-                    <p>İlan metninizi yapıştırın, AI asistanımız fiyat, oda sayısı, m² gibi bilgileri otomatik ayrıştırır. Ekstra metin, ikon veya efekt ekleyin.</p>
+                    <h3>Adım 4: Düzenle</h3>
+                    <p>Fiyat, oda sayısı, m² gibi bilgileri yerleştirin. Ekstra metin, ikon, sticker veya efekt (neon, glow) ekleyin.</p>
                 </div>
                 <div class="step-card">
                     <div class="step-number">📥</div>
-                    <h3>Adım 4: İndir ve Paylaş</h3>
+                    <h3>Adım 5: İndir ve Paylaş</h3>
                     <p>İnstagram, Facebook veya A4 formatlarında yüksek çözünürlükte indirin. Doğrudan sosyal medyada paylaşmaya hazır.</p>
                 </div>
             </div>
@@ -774,7 +832,7 @@
         function updateSlider(x) {
             const rect = baSlider.getBoundingClientRect();
             let pos = (x - rect.left) / rect.width;
-            pos = Math.max(0.05, Math.min(0.95, pos));
+            pos = Math.max(0, Math.min(1, pos));
             const percent = pos * 100;
 
             baAfter.style.clipPath = `inset(0 0 0 ${percent}%)`;
@@ -782,8 +840,9 @@
             baHandle.style.left = percent + '%';
         }
 
-        baSlider.addEventListener('mousedown', (e) => {
+                baSlider.addEventListener('mousedown', (e) => {
             isDragging = true;
+            document.body.style.userSelect = 'none';
             updateSlider(e.clientX);
         });
 
@@ -791,8 +850,9 @@
             if (isDragging) updateSlider(e.clientX);
         });
 
-        window.addEventListener('mouseup', () => {
+                window.addEventListener('mouseup', () => {
             isDragging = false;
+            document.body.style.userSelect = '';
         });
 
         // Touch support
@@ -887,4 +947,37 @@
     <script src="js/feedback.js"></script>
 </body>
 </html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 

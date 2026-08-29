@@ -154,8 +154,10 @@ function showAppLoading(title = 'İşlem Yapılıyor...', subtitle = 'Lütfen be
         overlay.innerHTML = `
             <div class="export-loader-card">
                 <div class="export-loader-spinner"></div>
-                <div class="export-loader-title">${title}</div>
-                <div class="export-loader-sub">${subtitle}</div>
+                <div class="export-content-wrapper">
+                    <div class="export-loader-title">${title}</div>
+                    <div class="export-loader-sub">${subtitle}</div>
+                </div>
             </div>
         `;
         document.body.appendChild(overlay);
@@ -175,7 +177,7 @@ function showAppLoading(title = 'İşlem Yapılıyor...', subtitle = 'Lütfen be
     }, timeoutMs);
 }
 
-function showExportLoading(title = 'Görsel Hazırlanıyor...', subtitle = 'Yüksek çözünürlüklü grafikler ve fontlar işleniyor...') {
+function showExportLoading(title = 'Tasarım İndiriliyor...', subtitle = 'Tasarımınız yüksek çözünürlüklü olarak indirmeye hazırlanıyor...') {
     // Export işlemi 4K veya detaylı olabileceğinden 60 saniye süre verilir
     showAppLoading(title, subtitle, 60000);
 }
@@ -673,7 +675,7 @@ async function ensureFontsLoaded() {
 }
 
 async function saveImage(){
-    showExportLoading('Görsel Hazırlanıyor...', 'Yazı tipleri ve yüksek çözünürlüklü grafikler işleniyor...');
+    showExportLoading('Tasarım İndiriliyor...', 'Tasarımınız yüksek çözünürlüklü olarak indirmeye hazırlanıyor...');
     
     // 1. Yazı tiplerinin (Google Fonts) belleğe tam oturmasını ve render edilmesini bekle
     await ensureFontsLoaded();

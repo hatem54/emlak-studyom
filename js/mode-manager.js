@@ -155,7 +155,7 @@ function updateModeUI() {
   
   if (currentMode === 'demo') {
     bannerDiv.style.cssText = `
-      position: fixed; top: 15px; left: 20px;
+      position: fixed; top: 26px; left: 36px;
       background: linear-gradient(135deg, #f59e0b, #d97706); color: white;
       padding: 6px 16px; border-radius: 20px; font-weight: 600; font-size: 12px;
       z-index: 99998; box-shadow: 0 4px 12px rgba(0,0,0,0.2);
@@ -181,7 +181,7 @@ function updateModeUI() {
     }
   } else {
     bannerDiv.style.cssText = `
-      position: fixed; top: 15px; left: 20px;
+      position: fixed; top: 26px; left: 36px;
       background: linear-gradient(135deg, #10b981, #059669); color: white;
       padding: 6px 16px; border-radius: 20px; font-weight: 600; font-size: 12px;
       z-index: 99998; box-shadow: 0 4px 12px rgba(0,0,0,0.2);

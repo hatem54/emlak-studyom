@@ -3,6 +3,20 @@
 <head>
     <!-- Global Error Handler -->
     <script src="ui/error-handler.js"></script>
+    <script>
+        (function() {
+            try {
+                var t = localStorage.getItem('emlak_app_theme');
+                if (t === 'dark') {
+                    document.documentElement.removeAttribute('data-theme');
+                } else {
+                    document.documentElement.setAttribute('data-theme', 'light');
+                }
+            } catch(e) {
+                document.documentElement.setAttribute('data-theme', 'light');
+            }
+        })();
+    </script>
 
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
@@ -84,9 +98,12 @@
     <a href="index.html" class="logo">
       <img src="./assets/logo/logo-icon.png" alt="EmlakStüdyom" height="120" style="border-radius: 8px;">
     </a>
-    
   </div>
+  <a href="index.html" class="header-center-link" title="Ana Ekrana Git" aria-label="EmlakStüdyom Ana Sayfa"></a>
   <div class="header-right">
+    <button type="button" id="themeToggleBtn" class="theme-toggle-btn" onclick="window.toggleAppTheme()" title="Açık / Koyu Tema">
+        <i class="fas fa-sun"></i> <span>Açık Tema</span>
+    </button>
     <button type="button" class="tour-restart-btn" onclick="if(window.OnboardingTour) window.OnboardingTour.restartTour()" title="Uygulama Tanıtım Turunu Başlat">
         <i class="fas fa-compass"></i> <span>Turu İzle</span>
     </button>
@@ -1907,13 +1924,6 @@ const HelpAssistant = {
                 "❓ SSS & Tüm Kılavuz"
             ]);
 
-            // Add notification dot initially
-            setTimeout(() => {
-                if (this.fabEl && !window.helpAssistantState.isOpen) {
-                    this.fabEl.classList.add('has-notification');
-                }
-            }, 2000);
-
         } catch(e) {
             console.error("Help Assistant init error:", e);
         }
@@ -1923,7 +1933,7 @@ const HelpAssistant = {
         // Floating Action Button
         this.fabEl = document.createElement('div');
         this.fabEl.className = 'help-assistant-fab';
-        this.fabEl.innerHTML = '✨';
+        this.fabEl.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles" style="font-size:20px;"></i>';
         this.fabEl.title = "Akıllı Yardımcı & SSS";
         this.fabEl.onclick = () => this.togglePanel();
         document.body.appendChild(this.fabEl);

@@ -1,5 +1,5 @@
 
-window.ICON_CATEGORIES = {
+const defaultLucideCategories = {
     "Sosyal & Tesis": [
         "home", "building", "building2", "warehouse", "bed", "bath", "car", "dumbbell", "waves", "coffee", "utensils", "store", "shopping-cart", "school", "hospital"
     ],
@@ -24,17 +24,25 @@ window.ICON_CATEGORIES = {
     "Lucide İkonları (500+)": []
 };
 
+window.ICON_CATEGORIES = {};
+
 function buildIconCategoriesUI() {
-    if (window.ICON_LIBRARY && !window._iconLibraryMerged) {
+    // 1. Sıralama: Görselli Premium İkonlar (ICON_LIBRARY) EN ÜSTTE, ardından Lucide / Çizgi İkonlar
+    const mergedCategories = {};
+
+    if (window.ICON_LIBRARY) {
         Object.keys(window.ICON_LIBRARY).forEach(key => {
             const catData = window.ICON_LIBRARY[key];
             const catTitle = catData.title || key;
-            if(!window.ICON_CATEGORIES[catTitle]) {
-                window.ICON_CATEGORIES[catTitle] = catData.items.map(item => item.svg);
-            }
+            mergedCategories[catTitle] = catData.items.map(item => item.svg);
         });
-        window._iconLibraryMerged = true;
     }
+
+    Object.keys(defaultLucideCategories).forEach(catTitle => {
+        mergedCategories[catTitle] = [...defaultLucideCategories[catTitle]];
+    });
+
+    window.ICON_CATEGORIES = mergedCategories;
 
     const container=document.getElementById('iconCategoryList');
     if(!container)return;
@@ -137,8 +145,8 @@ function renderIconsToContainer(cat, p) {
             allKeys.slice(0, 500).forEach(k => toAdd.add(k));
             Array.from(toAdd).forEach(name => {
                 const svgNode = lucide.createElement(lucide.icons[name]);
-                svgNode.setAttribute('stroke', '#cbd5e1');
-                svgNode.setAttribute('stroke-width', '2');
+                svgNode.setAttribute('stroke', 'currentColor');
+                svgNode.setAttribute('stroke-width', '2.2');
                 svgNode.setAttribute('width', '100%');
                 svgNode.setAttribute('height', '100%');
                 window.ICON_CATEGORIES[cat].push(svgNode.outerHTML);
@@ -157,8 +165,8 @@ function renderIconsToContainer(cat, p) {
                 if (lucide.icons[pascalKey] || lucide.icons[ch]) {
                     const iconDef = lucide.icons[pascalKey] || lucide.icons[ch];
                     const svgNode = lucide.createElement(iconDef);
-                    svgNode.setAttribute('stroke', '#cbd5e1');
-                    svgNode.setAttribute('stroke-width', '2');
+                    svgNode.setAttribute('stroke', 'currentColor');
+                    svgNode.setAttribute('stroke-width', '2.2');
                     svgNode.setAttribute('width', '100%');
                     svgNode.setAttribute('height', '100%');
                     ch = svgNode.outerHTML;
@@ -173,10 +181,10 @@ function appendIconToPool(ch, p) {
     const d=document.createElement('div');
     d.className='pool-icon-item';
     // Remove padding and fixed size from pool-icon-item so it fits grid
-    d.style.cssText = 'background:var(--dark-2); border:1px solid rgba(108,92,231,0.1); color:var(--primary); padding:10px; text-align:center; border-radius:5px; cursor:pointer; transition:0.2s; display:flex; align-items:center; justify-content:center; aspect-ratio:1;';
+    d.style.cssText = 'background:var(--dark-2); border:1px solid rgba(108,92,231,0.1); color:var(--text); padding:10px; text-align:center; border-radius:5px; cursor:pointer; transition:0.2s; display:flex; align-items:center; justify-content:center; aspect-ratio:1;';
     
     d.onmouseover = () => { d.style.background = 'var(--gradient-1)'; d.style.color = '#fff'; d.style.transform = 'scale(1.05)'; };
-    d.onmouseout = () => { d.style.background = 'var(--dark-2)'; d.style.color = 'var(--primary)'; d.style.transform = 'scale(1)'; };
+    d.onmouseout = () => { d.style.background = 'var(--dark-2)'; d.style.color = 'var(--text)'; d.style.transform = 'scale(1)'; };
     
     if (typeof ch === 'string' && ch.trim().startsWith('<svg')) {
         // Adjust the SVG inside to fit its container
@@ -237,8 +245,8 @@ window.filterLucideIcons = function(query) {
     
     matches.forEach(name => {
         const svgNode = lucide.createElement(lucide.icons[name]);
-        svgNode.setAttribute('stroke', '#cbd5e1');
-        svgNode.setAttribute('stroke-width', '2');
+        svgNode.setAttribute('stroke', 'currentColor');
+        svgNode.setAttribute('stroke-width', '2.2');
         svgNode.setAttribute('width', '100%');
         svgNode.setAttribute('height', '100%');
         const ch = svgNode.outerHTML;
@@ -279,22 +287,38 @@ function addIcon(ch){
         if (sf < 1) fSize = Math.round(fSize / sf);
     }
 
+    const isLight = document.documentElement.getAttribute('data-theme') === 'light' || 
+                    document.body.getAttribute('data-theme') === 'light' || 
+                    localStorage.getItem('emlak_app_theme') !== 'dark';
+
     icon.dataset.defaultFont = fSize.toString();
     icon.dataset.rotation='0';
     icon.dataset.shadowVal='0';
     icon.dataset.blurVal='0';
-    icon.dataset.storedBgHex='#0f172a';
-    icon.dataset.storedBgOpacity='60';
     icon.dataset.storedBorderColor='#38bdf8';
     icon.dataset.storedBorderWidth='0';
+
+    if (isLight) {
+        icon.dataset.storedBgHex='#ffffff';
+        icon.dataset.storedBgOpacity='0';
+        icon.style.background='transparent';
+        icon.style.padding='0';
+        icon.style.borderRadius='0';
+        icon.style.color='#000000';
+    } else {
+        icon.dataset.storedBgHex='#0f172a';
+        icon.dataset.storedBgOpacity='60';
+        icon.style.background='rgba(15,23,42,0.6)';
+        icon.style.padding='0.28em';
+        icon.style.borderRadius='50%';
+        icon.style.color='#ffffff';
+    }
+
     const cx = (typeof canvasEl !== 'undefined' && canvasEl) ? canvasEl.offsetWidth / 2 : 540;
     const cy = (typeof canvasEl !== 'undefined' && canvasEl) ? canvasEl.offsetHeight / 2 : 540;
     icon.style.left = (cx - (fSize/2) + (Math.random()*40 - 20)) + 'px';
     icon.style.top = (cy - (fSize/2) + (Math.random()*40 - 20)) + 'px';
     icon.style.fontSize= fSize + 'px';
-    icon.style.padding='0.28em';
-    icon.style.borderRadius='50%';
-    icon.style.background='rgba(15,23,42,0.6)';
     icon.style.opacity='1';
     icon.style.border='none';
     icon.style.zIndex='10';

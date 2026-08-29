@@ -629,4 +629,59 @@ document.addEventListener('DOMContentLoaded', () => {
     if (typeof window.syncDescToggles === 'function') {
         setTimeout(window.syncDescToggles, 150);
     }
+    if (typeof window.initAppTheme === 'function') {
+        window.initAppTheme();
+    }
 });
+
+// ==================== TEMA YÖNETİCİSİ (DARK / LIGHT THEME) ====================
+function initAppTheme() {
+    try {
+        const savedTheme = localStorage.getItem('emlak_app_theme') || 'light';
+        applyAppTheme(savedTheme, false);
+    } catch(e) {
+        console.error("initAppTheme error:", e);
+    }
+}
+
+function applyAppTheme(theme, save) {
+    if (typeof save === 'undefined') save = true;
+    const isLight = (theme === 'light');
+    if (isLight) {
+        document.documentElement.setAttribute('data-theme', 'light');
+        document.body.setAttribute('data-theme', 'light');
+    } else {
+        document.documentElement.removeAttribute('data-theme');
+        document.body.removeAttribute('data-theme');
+    }
+    
+    if (save) {
+        try {
+            localStorage.setItem('emlak_app_theme', isLight ? 'light' : 'dark');
+        } catch(e) {}
+    }
+    
+    // Buton ikon ve metnini güncelle
+    const btn = document.getElementById('themeToggleBtn');
+    if (btn) {
+        const icon = btn.querySelector('i');
+        const textSpan = btn.querySelector('span');
+        if (icon) {
+            icon.className = isLight ? 'fas fa-moon' : 'fas fa-sun';
+        }
+        if (textSpan) {
+            textSpan.textContent = isLight ? 'Koyu Tema' : 'Açık Tema';
+        }
+        btn.title = isLight ? 'Koyu Temaya Geç' : 'Açık Temaya Geç';
+    }
+}
+
+function toggleAppTheme() {
+    const isLight = (document.body.getAttribute('data-theme') === 'light' || document.documentElement.getAttribute('data-theme') === 'light');
+    const nextTheme = isLight ? 'dark' : 'light';
+    applyAppTheme(nextTheme, true);
+}
+
+window.initAppTheme = initAppTheme;
+window.applyAppTheme = applyAppTheme;
+window.toggleAppTheme = toggleAppTheme;

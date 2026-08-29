@@ -244,8 +244,10 @@ function addCustomTextOnly(){
     el.style.fontSize='36px';
     el.style.padding='10px';
     el.style.background='transparent';
-    const isMob = (typeof window.isMobileDevice === 'function' && window.isMobileDevice()) || window.innerWidth <= 768;
-    const defaultColor = isMob ? '#000000' : '#ffffff';
+    const isLight = document.documentElement.getAttribute('data-theme') === 'light' || 
+                    document.body.getAttribute('data-theme') === 'light' || 
+                    localStorage.getItem('emlak_app_theme') !== 'dark';
+    const defaultColor = isLight ? '#000000' : '#ffffff';
     el.style.color = defaultColor;
     el.style.border='none';
     el.style.textShadow = 'none';

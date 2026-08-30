@@ -287,9 +287,10 @@ function addIcon(ch){
         if (sf < 1) fSize = Math.round(fSize / sf);
     }
 
-    const isLight = document.documentElement.getAttribute('data-theme') === 'light' || 
+    const isMob = (typeof window.isMobileDevice === 'function' && window.isMobileDevice()) || window.innerWidth <= 768;
+    const isLight = !isMob && (document.documentElement.getAttribute('data-theme') === 'light' || 
                     document.body.getAttribute('data-theme') === 'light' || 
-                    localStorage.getItem('emlak_app_theme') !== 'dark';
+                    localStorage.getItem('emlak_app_theme') !== 'dark');
 
     icon.dataset.defaultFont = fSize.toString();
     icon.dataset.rotation='0';

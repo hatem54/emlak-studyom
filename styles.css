@@ -1775,20 +1775,47 @@ svg, .callout-svg-container svg, .is-svg-icon svg, .draw-svg-item, #drawCanvas {
     .mobile-undo-redo, .mobile-menu-btn { display: none !important; }
     .app-header { justify-content: space-between !important; }
     .app-header .header-right { position: relative; right: 0; }
-    .app-header .logo img { height: 85px !important; width: auto; object-fit: contain; }
+    .app-header .logo img { height: 85px !important; width: auto; object-fit: contain !important; }
 }
 
 /* ===== APP.HTML MOBILE FULL RESTRUCTURE ===== */
 @media (max-width: 768px) {
     /* 1. Header Layout */
     .app-header {
-        height: 50px !important; padding: 0 10px !important; margin: 0 !important; background: var(--dark) !important;
-        justify-content: space-between !important; z-index: 50; position: relative;
+        height: 60px !important; 
+        min-height: 60px !important;
+        padding: 0 14px !important; 
+        margin: 0 !important; 
+        background: var(--dark) !important;
+        justify-content: space-between !important; 
+        align-items: center !important;
+        z-index: 50; 
+        position: relative;
     }
-    .header-left, .header-right { gap: 10px !important; }
+    .app-header .header-left {
+        display: flex !important;
+        flex-direction: row !important;
+        align-items: center !important;
+        gap: 10px !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        z-index: 2;
+    }
+    .app-header .header-right {
+        display: flex !important;
+        flex-direction: row !important;
+        align-items: center !important;
+        gap: 10px !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        z-index: 2;
+    }
+    .app-header .logo { display: flex !important; align-items: center !important; height: 48px !important; }
+    .app-header .logo img { height: 48px !important; max-height: 48px !important; width: auto !important; object-fit: contain !important; }
+    .header-center-link { display: none !important; }
     .mobile-undo-redo { display: flex !important; gap: 5px !important; }
     .mobile-undo-redo .icon-btn {
-        width: 32px !important; height: 32px !important; border-radius: 8px !important;
+        width: 34px !important; height: 34px !important; border-radius: 8px !important;
         background: rgba(255,255,255,0.1) !important; color: white !important;
         border: none !important; font-size: 14px !important; cursor: pointer;
         display: flex; justify-content: center; align-items: center;
@@ -1798,11 +1825,80 @@ svg, .callout-svg-container svg, .is-svg-icon svg, .draw-svg-item, #drawCanvas {
         font-size: 24px !important; padding: 0 5px !important; cursor: pointer; display: block !important;
     }
     #modeBanner { position: static !important; transform: none !important; font-size: 10px !important; padding: 4px 8px !important; margin: 0 !important; }
-    .tour-restart-btn, .info-text, #canvasHint, #canvasBottomDock, .canvas-bottom-dock, #gridSettingsPopover { display: none !important; }
-    .controls, .sidebar, .settings-panel { display: none !important; }
+    .tour-restart-btn, .controls, .sidebar, .settings-panel { display: none !important; }
+
+    /* Mobile Loader Screen (Dark Glassmorphic + Cyan/Indigo Spinner) */
+    #export-loading-overlay,
+    #initialAppLoader {
+        background: rgba(10, 14, 26, 0.98) !important;
+        backdrop-filter: blur(20px) !important;
+        -webkit-backdrop-filter: blur(20px) !important;
+    }
+
+    .export-loader-card,
+    .init-loader-card {
+        background: rgba(18, 22, 38, 0.95) !important;
+        backdrop-filter: blur(25px) !important;
+        -webkit-backdrop-filter: blur(25px) !important;
+        border: 1px solid rgba(0, 210, 255, 0.3) !important;
+        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.85), 0 0 30px rgba(0, 210, 255, 0.2) !important;
+        border-radius: 18px !important;
+        padding: 28px 36px !important;
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        gap: 14px !important;
+        max-width: 340px !important;
+        width: 85% !important;
+        height: auto !important;
+        position: relative !important;
+        margin: 0 !important;
+    }
+
+    .export-loader-spinner,
+    .init-spinner {
+        position: static !important;
+        width: 44px !important;
+        height: 44px !important;
+        border: 3.5px solid rgba(0, 210, 255, 0.15) !important;
+        border-top-color: #00d2ff !important;
+        border-right-color: #6366f1 !important;
+        border-radius: 50% !important;
+        animation: loaderSpin 0.75s linear infinite !important;
+        margin: 0 auto !important;
+    }
+
+    .export-content-wrapper,
+    .init-content-wrapper {
+        margin-top: 0 !important;
+        padding: 0 !important;
+        border: none !important;
+        background: transparent !important;
+    }
+
+    .export-loader-title,
+    .init-title {
+        font-family: 'Inter', sans-serif !important;
+        font-size: 16px !important;
+        font-weight: 700 !important;
+        color: #ffffff !important;
+        letter-spacing: -0.2px !important;
+        text-transform: none !important;
+        margin-bottom: 2px !important;
+    }
+
+    .export-loader-sub,
+    .init-sub {
+        font-family: 'Inter', sans-serif !important;
+        font-size: 12.5px !important;
+        color: #94a3b8 !important;
+        line-height: 1.4 !important;
+        text-transform: none !important;
+        font-weight: 400 !important;
+    }
 
     /* 2. Container & Canvas Vertical Flow */
-    .container { flex-direction: column !important; gap: 0 !important; display: flex !important; height: calc(100vh - 50px - 90px); overflow: hidden; }
+    .container { flex-direction: column !important; gap: 0 !important; display: flex !important; height: calc(100vh - 60px - 95px); overflow: hidden; }
     
     .preview-area {
         padding: 0 !important; margin: 0 !important; width: 100% !important; order: 1 !important; flex: 1 1 auto !important; 
@@ -2925,8 +3021,11 @@ body.floating-panels-active .floating-expand-btn {
     opacity: 0 !important;
 }
 
-/* Export Yükleme / Hazırlanıyor Bildirimi */
-#export-loading-overlay {
+/* ==========================================================================
+   APP LOADERS (DESKTOP DEFAULT - LIGHT SPLASH SCREEN)
+   ========================================================================== */
+#export-loading-overlay,
+#initialAppLoader {
     position: fixed;
     top: 0;
     left: 0;
@@ -2942,13 +3041,19 @@ body.floating-panels-active .floating-expand-btn {
     opacity: 0;
     pointer-events: all;
     transition: opacity 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    font-family: 'Space Grotesk', 'Plus Jakarta Sans', sans-serif;
+}
+
+#initialAppLoader {
+    opacity: 1;
 }
 
 #export-loading-overlay.active {
     opacity: 1;
 }
 
-.export-loader-card {
+.export-loader-card,
+.init-loader-card {
     background: transparent;
     border: none;
     box-shadow: none;
@@ -2970,7 +3075,8 @@ body.floating-panels-active .floating-expand-btn {
     to { transform: scale(1); opacity: 1; }
 }
 
-.export-loader-spinner {
+.export-loader-spinner,
+.init-spinner {
     position: absolute;
     top: 0;
     left: 0;
@@ -2988,7 +3094,9 @@ body.floating-panels-active .floating-expand-btn {
     to { transform: rotate(360deg); }
 }
 
-.export-content-wrapper {
+
+.export-content-wrapper,
+.init-content-wrapper {
     position: relative;
     z-index: 2;
     margin-top: 180px;
@@ -2996,25 +3104,29 @@ body.floating-panels-active .floating-expand-btn {
     padding: 10px 24px;
     border-radius: 8px;
     border: 1px solid rgba(108, 92, 231, 0.4);
+    text-align: center;
 }
 
-.export-loader-title {
+.export-loader-title,
+.init-title {
     font-family: 'Space Grotesk', sans-serif;
     font-size: 14px;
     font-weight: 700;
     color: #0f172a;
     letter-spacing: 0.5px;
-    margin-bottom: 4px;
+    margin: 0 0 4px 0;
     text-transform: uppercase;
 }
 
-.export-loader-sub {
+.export-loader-sub,
+.init-sub {
     font-family: 'Space Grotesk', sans-serif;
     font-size: 11px;
     color: #334155;
     line-height: 1.4;
     text-transform: uppercase;
     font-weight: 600;
+    margin: 0;
 }
 
 /* ==========================================================================
@@ -3731,6 +3843,17 @@ body.photo-unlocked .draw-handle {
     box-shadow: 0 0 0 1px #38bdf8;
 }
 
+/* ============================================================
+   ☀️ MODÜLER AÇIK / KOYU TEMA YÖNETİMİ (SADECE MASAÜSTÜ / PC)
+   Not: Mobil cihazları (<= 768px) ASLA etkilemez, izoledir.
+   ============================================================ */
+@media (max-width: 768px) {
+    #themeToggleBtn, .theme-toggle-btn {
+        display: none !important;
+    }
+}
+
+@media (min-width: 769px) {
 /* ============================================================
    ☀️ MODÜLER AÇIK / KOYU TEMA YÖNETİMİ
    Not: Tamamen izole CSS bloğu
@@ -4711,3 +4834,5 @@ body[data-theme="light"] .theme-toggle-btn:hover {
 
 
 
+
+}

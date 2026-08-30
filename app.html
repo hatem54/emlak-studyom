@@ -6,6 +6,11 @@
     <script>
         (function() {
             try {
+                var isMobile = (window.innerWidth <= 768) || /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+                if (isMobile) {
+                    document.documentElement.removeAttribute('data-theme');
+                    return;
+                }
                 var t = localStorage.getItem('emlak_app_theme');
                 if (t === 'dark') {
                     document.documentElement.removeAttribute('data-theme');
@@ -13,7 +18,7 @@
                     document.documentElement.setAttribute('data-theme', 'light');
                 }
             } catch(e) {
-                document.documentElement.setAttribute('data-theme', 'light');
+                document.documentElement.removeAttribute('data-theme');
             }
         })();
     </script>
@@ -36,7 +41,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,300,0,0" />
     <link rel="icon" type="image/jpeg" href="assets/logo/logo-icon.png">
-    <link rel="stylesheet" href="styles.css?v=20260822-4">
+    <link rel="stylesheet" href="styles.css?v=20260830-4">
     <!-- ⚡ SABER EFFECT ENGINE - PixiJS + Filters -->
     <script src="https://cdn.jsdelivr.net/npm/pixi.js@7.4.0/dist/pixi.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/pixi-filters@5.2.1/dist/browser/pixi-filters.min.js"></script>
@@ -60,42 +65,13 @@
     </script>
 
     <!-- 🚀 Başlangıç Yükleme Ekranı (Kusursuz Açılış / Geçiş Ekranı) -->
-    <div id="initialAppLoader" style="position:fixed; top:0; left:0; width:100vw; height:100vh; background: #f8fafc url('./assets/splash_background.jpg') center/cover no-repeat; z-index:99999999; display:flex; align-items:center; justify-content:center; backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px); transition:opacity 0.25s cubic-bezier(0.16,1,0.3,1); font-family:'Plus Jakarta Sans','Inter',sans-serif;">
-        <style>
-            @keyframes initSpin { to { transform: rotate(360deg); } }
-            @keyframes initPopIn { from { transform: scale(0.92); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-            .init-loader-card {
-                background: transparent;
-                border: none;
-                box-shadow: none;
-                animation: initPopIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-                text-align: center;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                width: 450px;
-                height: 450px;
-                position: relative;
-                margin-top: 0; /* Tam ortalamak için margin sıfırlandı */
-            }
-            .init-spinner {
-                position: absolute;
-                top: 0;
-                left: 0;
-                width: 100%;
-                height: 100%;
-                border: 4px solid rgba(108, 92, 231, 0.2); /* Uygulama primary rengi yarı saydam */
-                border-top-color: #6C5CE7; /* Uygulama primary rengi */
-                border-radius: 50%;
-                animation: initSpin 2s linear infinite;
-                z-index: 1;
-            }
-            .init-content {
-                display: none; /* Metin gizlendi */
-            }
-        </style>
+    <div id="initialAppLoader">
         <div class="init-loader-card">
             <div class="init-spinner"></div>
+            <div class="init-content-wrapper">
+                <h3 class="init-title">Uygulama Yükleniyor...</h3>
+                <p class="init-sub">Stüdyo bileşenleri hazırlanıyor...</p>
+            </div>
         </div>
     </div>
     
@@ -103,7 +79,7 @@
   <div class="app-header">
   <div class="header-left">
     <a href="index.html" class="logo">
-      <img src="./assets/logo/logo-icon.png" alt="EmlakStüdyom" height="120" style="border-radius: 8px;">
+      <img src="./assets/logo/logo-icon.png" alt="EmlakStüdyom" style="border-radius: 8px;">
     </a>
   </div>
   <a href="index.html" class="header-center-link" title="Ana Ekrana Git" aria-label="EmlakStüdyom Ana Sayfa"></a>

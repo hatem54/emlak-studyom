@@ -177,7 +177,7 @@ function showAppLoading(title = 'İşlem Yapılıyor...', subtitle = 'Lütfen be
     }, timeoutMs);
 }
 
-function showExportLoading(title = 'Tasarım İndiriliyor...', subtitle = 'Tasarımınız yüksek çözünürlüklü olarak indirmeye hazırlanıyor...') {
+function showExportLoading(title = 'Görsel Hazırlanıyor...', subtitle = 'Yüksek çözünürlüklü grafikler ve fontlar işleniyor...') {
     // Export işlemi 4K veya detaylı olabileceğinden 60 saniye süre verilir
     showAppLoading(title, subtitle, 60000);
 }

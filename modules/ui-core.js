@@ -635,8 +635,17 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ==================== TEMA YÖNETİCİSİ (DARK / LIGHT THEME) ====================
+function isMobileAppView() {
+    return (window.innerWidth <= 768) || (typeof window.isMobileDevice === 'function' && window.isMobileDevice()) || /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+}
+
 function initAppTheme() {
     try {
+        if (isMobileAppView()) {
+            document.documentElement.removeAttribute('data-theme');
+            if (document.body) document.body.removeAttribute('data-theme');
+            return;
+        }
         const savedTheme = localStorage.getItem('emlak_app_theme') || 'light';
         applyAppTheme(savedTheme, false);
     } catch(e) {
@@ -645,6 +654,11 @@ function initAppTheme() {
 }
 
 function applyAppTheme(theme, save) {
+    if (isMobileAppView()) {
+        document.documentElement.removeAttribute('data-theme');
+        if (document.body) document.body.removeAttribute('data-theme');
+        return;
+    }
     if (typeof save === 'undefined') save = true;
     const isLight = (theme === 'light');
     if (isLight) {
@@ -677,6 +691,7 @@ function applyAppTheme(theme, save) {
 }
 
 function toggleAppTheme() {
+    if (isMobileAppView()) return;
     const isLight = (document.body.getAttribute('data-theme') === 'light' || document.documentElement.getAttribute('data-theme') === 'light');
     const nextTheme = isLight ? 'dark' : 'light';
     applyAppTheme(nextTheme, true);

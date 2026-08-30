@@ -7,7 +7,7 @@
     <title>EmlakStüdyom - Emlak Fotoğraf Düzenleme</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="css/landing.css?v=20260829-129">
+    <link rel="stylesheet" href="css/landing.css?v=20260830-3">
     <!-- Supabase JS Library -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="js/supabase-client.js?v=20260819-2" defer></script>
@@ -49,20 +49,19 @@
         <div class="bg-orb"></div>
     </div>
 
-        <!-- Navbar -->
-    <nav class="navbar" id="navbar" style="border-bottom: 1px solid rgba(255,255,255,0.05); box-shadow: 0 4px 20px rgba(0,0,0,0.3); padding: 12px 60px;">
+    <!-- Navbar -->
+    <nav class="navbar" id="navbar">
         <a href="index.html" class="logo">
           <img src="assets/logo/logo.png" 
                alt="EmlakStüdyom" 
-               height="150"
                style="border-radius: 10px;">
         </a>
-        <ul class="nav-links" style="position: absolute !important; bottom: 12px !important; top: auto !important; left: 230px !important; display: flex !important; gap: 8px !important; list-style: none !important; margin: 0 !important; padding: 0 !important; z-index: 100 !important;">
-            <li><a href="#features" style="padding: 4px 10px !important; font-size: 11px !important;">Özellikler</a></li>
-            <li><a href="#demo" style="padding: 4px 10px !important; font-size: 11px !important;">Demo</a></li>
-            <li><a href="#how-it-works" style="padding: 4px 10px !important; font-size: 11px !important;">Nasıl Çalışır</a></li>
-            <li><a href="#pricing" style="padding: 4px 10px !important; font-size: 11px !important;">Fiyatlandırma</a></li>
-            <li><a href="#faq" style="padding: 4px 10px !important; font-size: 11px !important;">SSS</a></li>
+        <ul class="nav-links">
+            <li><a href="#features">Özellikler</a></li>
+            <li><a href="#demo">Demo</a></li>
+            <li><a href="#how-it-works">Nasıl Çalışır</a></li>
+            <li><a href="#pricing">Fiyatlandırma</a></li>
+            <li><a href="#faq">SSS</a></li>
         </ul>
         <div class="nav-buttons">
             <button class="btn-ghost" id="landingThemeToggle" onclick="toggleLandingTheme()" title="Açık / Koyu Tema" style="padding: 10px 14px; border-radius: 8px; margin-right: 5px;"><i class="fas fa-sun"></i></button>
@@ -257,35 +256,35 @@
                         <div style="position: absolute; top:0; left:0; width:100%; height:100%; background: url('assets/horizontal_interior.jpg') center/cover !important;">
                             
                             <!-- Sidebar Template Overlay -->
-                            <div style="position: absolute; top: 0; left: 0; width: 35%; height: 100%; background: rgba(15,23,42,0.85); backdrop-filter: blur(20px); padding: 40px 30px; display: flex; flex-direction: column; justify-content: center; color: white; border-right: 1px solid rgba(255,255,255,0.1);">
-                                <div style="background: #00CEC9; color: #0f172a; font-weight: 800; font-size: 12px; padding: 6px 12px; border-radius: 6px; display: inline-block; width: max-content; margin-bottom: 25px; letter-spacing: 1.5px;">KİRALIK</div>
-                                <div style="font-weight: 800; font-size: 42px; margin-bottom: 10px;">₺45.000<span style="font-size: 18px; font-weight: 500; color: #94a3b8;">/ay</span></div>
-                                <div style="color: #cbd5e1; font-size: 18px; margin-bottom: 40px; font-weight: 500;"><i class="fas fa-map-marker-alt" style="color: #00CEC9;"></i> Miami, Florida</div>
+                            <div class="demo-sidebar-template">
+                                <div class="demo-badge">KİRALIK</div>
+                                <div class="demo-price">₺45.000<span class="demo-price-sub">/ay</span></div>
+                                <div class="demo-location"><i class="fas fa-map-marker-alt" style="color: #00CEC9;"></i> Miami, Florida</div>
                                 
-                                <div style="display: flex; flex-direction: column; gap: 20px;">
-                                    <div style="display: flex; align-items: center; gap: 15px;">
-                                        <div style="width: 48px; height: 48px; border-radius: 12px; background: rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center; border: 1px solid rgba(255,255,255,0.05);"><i class="fas fa-bed" style="font-size: 18px; color: #6C5CE7;"></i></div>
-                                        <span style="font-weight: 600; font-size: 18px;">3 Yatak Odası</span>
+                                <div class="demo-features-list">
+                                    <div class="demo-feature-item">
+                                        <div class="demo-feature-icon"><i class="fas fa-bed"></i></div>
+                                        <span class="demo-feature-text">3 Yatak Odası</span>
                                     </div>
-                                    <div style="display: flex; align-items: center; gap: 15px;">
-                                        <div style="width: 48px; height: 48px; border-radius: 12px; background: rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center; border: 1px solid rgba(255,255,255,0.05);"><i class="fas fa-bath" style="font-size: 18px; color: #6C5CE7;"></i></div>
-                                        <span style="font-weight: 600; font-size: 18px;">2 Banyo</span>
+                                    <div class="demo-feature-item">
+                                        <div class="demo-feature-icon"><i class="fas fa-bath"></i></div>
+                                        <span class="demo-feature-text">2 Banyo</span>
                                     </div>
-                                    <div style="display: flex; align-items: center; gap: 15px;">
-                                        <div style="width: 48px; height: 48px; border-radius: 12px; background: rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center; border: 1px solid rgba(255,255,255,0.05);"><i class="fas fa-swimming-pool" style="font-size: 18px; color: #6C5CE7;"></i></div>
-                                        <span style="font-weight: 600; font-size: 18px;">Deniz Manzaralı</span>
+                                    <div class="demo-feature-item">
+                                        <div class="demo-feature-icon"><i class="fas fa-swimming-pool"></i></div>
+                                        <span class="demo-feature-text">Deniz Manzaralı</span>
                                     </div>
                                 </div>
                             </div>
                             
                             <!-- Floating Agent Card -->
-                            <div style="position: absolute; bottom: 30px; right: 30px; background: rgba(255,255,255,0.95); padding: 15px; border-radius: 12px; display: flex; align-items: center; gap: 15px; box-shadow: 0 15px 40px rgba(0,0,0,0.2);">
-                                <div style="width: 50px; height: 50px; border-radius: 50%; background: #0f172a; display: flex; align-items: center; justify-content: center;"><i class="fas fa-user-tie" style="color: white; font-size: 24px;"></i></div>
-                                <div>
-                                    <div style="color: #0f172a; font-weight: 800; font-size: 16px;">Emlak Studyom</div>
-                                    <div style="color: #64748b; font-size: 12px; font-weight: 600;">Kurumsal Danışman</div>
+                            <div class="demo-agent-card">
+                                <div class="demo-agent-avatar"><i class="fas fa-user-tie"></i></div>
+                                <div class="demo-agent-info">
+                                    <div class="demo-agent-name">Emlak Stüdyom</div>
+                                    <div class="demo-agent-title">Kurumsal Danışman</div>
                                 </div>
-                                <div style="width: 40px; height: 40px; border-radius: 50%; background: #25D366; color: white; display: flex; align-items: center; justify-content: center; margin-left: 10px; cursor: pointer; box-shadow: 0 4px 10px rgba(37,211,102,0.4);"><i class="fab fa-whatsapp" style="font-size: 20px;"></i></div>
+                                <div class="demo-agent-action"><i class="fab fa-whatsapp"></i></div>
                             </div>
                             
                         </div>

@@ -466,8 +466,11 @@ svg, .callout-svg-container svg, .is-svg-icon svg, .draw-svg-item, #drawCanvas {
 }
 
 /* Seçili eleman en önde (düzenleme sırasında) */
-#ui-layer .el-selected{
-    z-index:100 !important;
+#ui-layer .el-selected,
+#canva-render-layer .el-selected,
+.cvr-base .el-selected,
+.el-selected {
+    z-index: 1000 !important;
 }
 
 /* Callout Panel */
@@ -502,7 +505,7 @@ svg, .callout-svg-container svg, .is-svg-icon svg, .draw-svg-item, #drawCanvas {
 
 /* Foto üstüne tıklama işaretçisi */
 .photo-panel::before {
-    content: '??? Tekerlek: Zoom | S�r�kle: Ta�� | �ift t�k: S�f�rla';
+    content: '\1F4A1  Tekerlek: Zoom | S\00FCr\00FCkle: Ta\015F\0131 | \00C7ift t\0131k: S\0131f\0131rla';
     position: absolute;
     top: 10px;
     left: 10px;
@@ -1542,18 +1545,18 @@ svg, .callout-svg-container svg, .is-svg-icon svg, .draw-svg-item, #drawCanvas {
 
 .help-assistant-fab {
     position: fixed;
-    bottom: 30px;
-    right: 30px;
-    width: 50px;
-    height: 50px;
+    bottom: 12px;
+    right: 16px;
+    width: 38px;
+    height: 38px;
     border-radius: 50%;
     background: linear-gradient(135deg, #00e5ff, #0077ff);
     color: white;
     display: flex;
     justify-content: center;
     align-items: center;
-    font-size: 24px;
-    box-shadow: 0 4px 15px rgba(0, 229, 255, 0.4);
+    font-size: 17px;
+    box-shadow: 0 3px 12px rgba(0, 229, 255, 0.35);
     cursor: pointer;
     z-index: 999990;
     transition: transform 0.2s, box-shadow 0.2s;
@@ -1561,8 +1564,8 @@ svg, .callout-svg-container svg, .is-svg-icon svg, .draw-svg-item, #drawCanvas {
 }
 
 .help-assistant-fab:hover {
-    transform: scale(1.1);
-    box-shadow: 0 6px 20px rgba(0, 229, 255, 0.6);
+    transform: scale(1.08);
+    box-shadow: 0 4px 16px rgba(0, 229, 255, 0.55);
 }
 
 .help-assistant-fab.has-notification::after {
@@ -3215,20 +3218,6 @@ body.photo-unlocked .draw-handle {
     box-shadow: 0 0 14px rgba(139, 92, 246, 0.4);
 }
 
-.dock-btn.dock-btn-danger {
-    background: linear-gradient(135deg, #8b5cf6, #7c3aed) !important;
-    border: 1px solid #a855f7 !important;
-    color: #ffffff !important;
-    box-shadow: 0 0 14px rgba(139, 92, 246, 0.35) !important;
-}
-
-.dock-btn.dock-btn-danger:hover {
-    background: linear-gradient(135deg, #9333ea, #6d28d9) !important;
-    border-color: #c084fc !important;
-    color: #fff !important;
-    box-shadow: 0 0 18px rgba(147, 51, 234, 0.5) !important;
-    transform: translateY(-1px);
-}
 
 .tab-btn.btn-tab-reset {
     background: linear-gradient(135deg, #8b5cf6, #7c3aed) !important;
@@ -4267,14 +4256,14 @@ body[data-theme="light"] .dock-icon-btn.active {
     box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.08) !important;
 }
 
-body[data-theme="light"] .dock-btn.dock-btn-danger {
+body[data-theme="light"] .dock-btn {
     background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%) !important;
     border: 1px solid #cbd5e1 !important;
     color: #0f172a !important;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
 }
 
-body[data-theme="light"] .dock-btn.dock-btn-danger:hover {
+body[data-theme="light"] .dock-btn:hover {
     background: #f8fafc !important;
     border-color: #94a3b8 !important;
     color: #0f172a !important;
@@ -4835,4 +4824,71 @@ body[data-theme="light"] .theme-toggle-btn:hover {
 
 
 
+}
+/* --- USER REQUEST: HIDE HANDLES BY DEFAULT, SHOW ON SELECT, SHOW LOCK ALWAYS IF LOCKED --- */
+
+/* 1. Hide all handles by default */
+.text-handle,
+.callout-rotator,
+.callout-resizer,
+.callout-lock-btn,
+.cbtn-del,
+.callout-controls {
+    opacity: 0 !important;
+    pointer-events: none !important;
+    visibility: hidden !important;
+    transition: opacity 0.2s ease, visibility 0.2s ease !important;
+}
+
+/* 2. Show all handles when the parent element is selected (.selected or .el-selected) */
+.selected .text-handle,
+.selected > .text-handle,
+.el-selected .text-handle,
+.el-selected > .text-handle,
+.selected .callout-rotator,
+.selected .callout-resizer,
+.selected .callout-lock-btn,
+.selected .cbtn-del,
+.selected .callout-controls,
+.selected > .callout-controls,
+.el-selected .callout-rotator,
+.el-selected .callout-resizer,
+.el-selected .callout-lock-btn,
+.el-selected .cbtn-del,
+.el-selected .callout-controls,
+.el-selected > .callout-controls {
+    opacity: 1 !important;
+    pointer-events: auto !important;
+    visibility: visible !important;
+}
+
+/* 3. Boşa tıklayınca sadece kilit görünsün (If it's locked, show the lock icon even when NOT selected) */
+.text-lock-handle.is-locked,
+.callout-lock-btn.is-locked,
+[data-locked="true"] .text-lock-handle,
+[data-locked="true"] .callout-lock-btn,
+.locked-el .text-lock-handle,
+.locked-el .callout-lock-btn {
+    opacity: 1 !important;
+    pointer-events: auto !important;
+    visibility: visible !important;
+}
+
+/* 4. Inen dosyada tutamaçlar görünmesin (Strictly hide EVERYTHING during export) */
+.is-exporting .text-handle,
+.is-exporting .callout-rotator,
+.is-exporting .callout-resizer,
+.is-exporting .callout-lock-btn,
+.is-exporting .cbtn-del,
+.is-exporting .callout-controls {
+    opacity: 0 !important;
+    pointer-events: none !important;
+    visibility: hidden !important;
+    display: none !important;
+}
+/* Sadece PC de görünen butonlar için */
+@media (max-width: 768px) {
+    .pc-only {
+        display: none !important;
+    }
 }

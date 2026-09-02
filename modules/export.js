@@ -1673,11 +1673,11 @@ async function saveProject() {
         // Resimleri Base64'e çevir ki kalıcı olsun
         state.uploadedImgUrl = await getBase64FromBlobUrl(uploadedImgUrl);
 
-        const logoImg = (typeof elLogo !== 'undefined' && elLogo) ? elLogo.querySelector('img') : null;
-        const logoUrl = (logoImg && logoImg.src && logoImg.src.length > 10) 
-            ? logoImg.src 
-            : ((typeof elLogo !== 'undefined' && elLogo && elLogo.src) ? elLogo.src : '');
         state.logoImgUrl = logoUrl;
+        state.customSlotImages = window.customSlotImages || {};
+        if (window.activeCustomTemplateData) {
+            state.customTemplate = window.activeCustomTemplateData;
+        }
 
         // Tüm inputları tara
         document.querySelectorAll('input, select, textarea').forEach(el => {
@@ -1715,6 +1715,177 @@ async function saveProject() {
     }
 }
 
+window.loadProjectFromFile = function(file) {
+    if(!file) return;
+    if (typeof window.showAppLoading === 'function') {
+        window.showAppLoading('Şablon Yüklendi...', 'Tasarım ve katmanlar tuvale yerleştiriliyor...', 8000);
+    }
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+        try {
+            const state = JSON.parse(event.target.result);
+            if(!state.version) throw new Error("Geçersiz proje veya şablon dosyası");
+
+            currentMode = state.currentMode || 'konut';
+            activeLayout = typeof state.activeLayout !== 'undefined' ? state.activeLayout : '';
+            isCanvaMode = !!state.isCanvaMode;
+            activeCanvaId = state.activeCanvaId || '';
+            if(isCanvaMode && !activeCanvaId) isCanvaMode = false;
+            uploadedImgW = state.uploadedImgW || 1920;
+            uploadedImgH = state.uploadedImgH || 1080;
+            drawPaths = state.drawPaths || [];
+            extraFieldCounter = state.extraFieldCounter || 0;
+            
+            // extraFieldsData is a const, we must mutate its properties
+            const newExtra = state.extraFieldsData || {konut:[],arazi:[]};
+            extraFieldsData.konut = newExtra.konut || [];
+            extraFieldsData.arazi = newExtra.arazi || [];
+
+            document.querySelectorAll('#photo-layer .draggable').forEach(el => {
+                if(['badge', 'price', 'details', 'logo_overlay'].includes(el.id)) return;
+                el.remove();
+            });
+            allIcons = [];
+
+            if(state.inputs) {
+                Object.keys(state.inputs).forEach(id => {
+                    const el = document.getElementById(id);
+                    if(el && el.type !== 'file') {
+                        if(el.type === 'checkbox' || el.type === 'radio') el.checked = state.inputs[id];
+                        else el.value = state.inputs[id];
+                    }
+                });
+            }
+
+            Object.keys(extraFieldsData).forEach(mode => {
+                const c = document.getElementById(mode+'ExtraFields');
+                if(c) {
+                    c.innerHTML = '';
+                    extraFieldsData[mode].forEach(id => {
+                        const row = document.createElement('div');
+                        row.className = 'extra-field-row';
+                        row.id = 'row_'+id;
+                        row.innerHTML = '<input type="text" id="lbl_'+id+'" placeholder="Başlık"><input type="text" id="val_'+id+'" placeholder="Değer"><button class="remove-field" onclick="removeExtraField(\''+id+'\',\''+mode+'\')">🗑️</button>';
+                        c.appendChild(row);
+                        document.getElementById('lbl_'+id).addEventListener('input', renderData);
+                        document.getElementById('val_'+id).addEventListener('input', renderData);
+                        
+                        if(state.inputs && state.inputs['lbl_'+id]) document.getElementById('lbl_'+id).value = state.inputs['lbl_'+id];
+                        if(state.inputs && state.inputs['val_'+id]) document.getElementById('val_'+id).value = state.inputs['val_'+id];
+                    });
+                }
+            });
+
+            if(state.customElements) {
+                state.customElements.forEach(data => {
+                    const el = document.createElement('div');
+                    if(data.id) el.id = data.id;
+                    el.className = data.className;
+                    el.innerHTML = data.innerHTML;
+                    if(data.style) el.setAttribute('style', data.style);
+                    if(data.dataset) {
+                        Object.keys(data.dataset).forEach(k => el.dataset[k] = data.dataset[k]);
+                    }
+
+                    // Eski serileştirilmiş tutamaçları temizle ki canlı olay dinleyicileri sıfırdan bağlansın
+                    el.querySelectorAll('.text-handle, .cbtn-del, .callout-resizer, .callout-rotator, .callout-lock-btn').forEach(h => h.remove());
+
+                    const pl = document.getElementById('photo-layer');
+                    if (pl) pl.appendChild(el);
+                    makeDraggable(el);
+                    if(el.classList.contains('icon-el') || el.classList.contains('icon-wrap')) {
+                        allIcons.push(el);
+                    }
+                    if(typeof window.addTextHandles === 'function') {
+                        window.addTextHandles(el);
+                    }
+                });
+            }
+
+            if (state.uploadedImgUrl) {
+                uploadedImgUrl = state.uploadedImgUrl;
+                const pl = document.getElementById('photo-layer');
+                if(pl) pl.style.backgroundImage = "url('" + uploadedImgUrl + "')";
+                if(typeof trackImageSize === 'function') trackImageSize(uploadedImgUrl);
+            }
+
+            if(state.logoImgUrl && typeof elLogo !== 'undefined' && elLogo) {
+                const img = elLogo.querySelector('img');
+                if (img) {
+                    img.src = state.logoImgUrl;
+                    img.style.display = 'block';
+                }
+                elLogo.src = state.logoImgUrl; 
+                elLogo.style.display = 'block';
+                elLogo.style.visibility = 'visible';
+            }
+
+            if(typeof switchMode === 'function') switchMode(currentMode);
+            
+            if (state.customSlotImages) {
+                window.customSlotImages = state.customSlotImages;
+            } else {
+                window.customSlotImages = {};
+            }
+
+            if (state.customTemplate || state.isCustomTemplate) {
+                const tpl = state.customTemplate || state;
+                window.activeCustomTemplateData = tpl;
+                isCanvaMode = true;
+                activeCanvaId = 'custom';
+                if (typeof window.renderCustomDynamicTemplate === 'function') {
+                    window.renderCustomDynamicTemplate(tpl);
+                }
+            } else if(isCanvaMode) {
+                if(typeof refreshActiveCanvaTemplate === 'function') refreshActiveCanvaTemplate();
+            } else {
+                if(typeof clearCanvaTemplate === 'function') clearCanvaTemplate(true);
+                const canvaLayer = document.getElementById('canva-render-layer');
+                if (canvaLayer) { canvaLayer.innerHTML = ''; canvaLayer.style.display = 'none'; }
+                const photoL = document.getElementById('photo-layer');
+                if (photoL) photoL.style.display = 'block';
+
+                document.querySelectorAll('.normal-el').forEach(el => {
+                    el.style.display = 'block';
+                    el.style.visibility = 'visible';
+                });
+
+                if(activeLayout) {
+                    if(typeof setTemplate === 'function') setTemplate(activeLayout);
+                } else {
+                    if(typeof clearAllTemplates === 'function') clearAllTemplates();
+                    if(typeof elBadge !== 'undefined' && elBadge) elBadge.style.visibility='hidden';
+                    if(typeof elPrice !== 'undefined' && elPrice) elPrice.style.visibility='hidden';
+                    if(typeof elDetails !== 'undefined' && elDetails) elDetails.style.visibility='hidden';
+                }
+            }
+
+            if(typeof renderData === 'function') renderData();
+            if(typeof resizeCanvas === 'function') resizeCanvas();
+            if(typeof redrawAll === 'function') redrawAll();
+            if(typeof updateDrawHistory === 'function') updateDrawHistory();
+            if(typeof renderLayers === 'function') renderLayers();
+            if(typeof window.saveState === 'function') window.saveState();
+
+            // Tuval ve font yerleşimlerinin %100 oturmasını garantile:
+            setTimeout(() => { if(typeof resizeCanvas === 'function') resizeCanvas(); }, 150);
+            setTimeout(() => { if(typeof resizeCanvas === 'function') resizeCanvas(); }, 400);
+
+            // Bekleme ekranını tüm yerleşimler kesin olarak tamamlandıktan sonra (1200ms) pürüzsüz kapat:
+            setTimeout(() => {
+                if (typeof window.hideAppLoading === 'function') {
+                    window.hideAppLoading(250);
+                }
+            }, 1200);
+        } catch(e) {
+            if (typeof window.hideAppLoading === 'function') window.hideAppLoading();
+            console.error("Load error:", e);
+            alert("Hata Detayı:\n" + e.message + "\n\nStack:\n" + (e.stack || '').split('\n').slice(0,3).join('\n'));
+        }
+    };
+    reader.readAsText(file);
+};
+
 function loadProject() {
     const input = document.createElement('input');
     input.type = 'file';
@@ -1722,130 +1893,17 @@ function loadProject() {
     input.onchange = (e) => {
         const file = e.target.files[0];
         if(!file) return;
-        const reader = new FileReader();
-        reader.onload = async (event) => {
-            try {
-                const state = JSON.parse(event.target.result);
-                if(!state.version) throw new Error("Geçersiz proje dosyası");
-
-                currentMode = state.currentMode || 'konut';
-                activeLayout = typeof state.activeLayout !== 'undefined' ? state.activeLayout : '';
-                isCanvaMode = !!state.isCanvaMode;
-                activeCanvaId = state.activeCanvaId || '';
-                if(isCanvaMode && !activeCanvaId) isCanvaMode = false;
-                uploadedImgW = state.uploadedImgW || 1920;
-                uploadedImgH = state.uploadedImgH || 1080;
-                drawPaths = state.drawPaths || [];
-                extraFieldCounter = state.extraFieldCounter || 0;
-                
-                // extraFieldsData is a const, we must mutate its properties
-                const newExtra = state.extraFieldsData || {konut:[],arazi:[]};
-                extraFieldsData.konut = newExtra.konut || [];
-                extraFieldsData.arazi = newExtra.arazi || [];
-
-                document.querySelectorAll('#photo-layer .draggable').forEach(el => {
-                    if(['badge', 'price', 'details', 'logo_overlay'].includes(el.id)) return;
-                    el.remove();
-                });
-                allIcons = [];
-
-                if(state.inputs) {
-                    Object.keys(state.inputs).forEach(id => {
-                        const el = document.getElementById(id);
-                        if(el && el.type !== 'file') {
-                            if(el.type === 'checkbox' || el.type === 'radio') el.checked = state.inputs[id];
-                            else el.value = state.inputs[id];
-                        }
-                    });
-                }
-
-                Object.keys(extraFieldsData).forEach(mode => {
-                    const c = document.getElementById(mode+'ExtraFields');
-                    if(c) {
-                        c.innerHTML = '';
-                        extraFieldsData[mode].forEach(id => {
-                            const row = document.createElement('div');
-                            row.className = 'extra-field-row';
-                            row.id = 'row_'+id;
-                            row.innerHTML = '<input type="text" id="lbl_'+id+'" placeholder="Başlık"><input type="text" id="val_'+id+'" placeholder="Değer"><button class="remove-field" onclick="removeExtraField(\''+id+'\',\''+mode+'\')">🗑️</button>';
-                            c.appendChild(row);
-                            document.getElementById('lbl_'+id).addEventListener('input', renderData);
-                            document.getElementById('val_'+id).addEventListener('input', renderData);
-                            
-                            if(state.inputs && state.inputs['lbl_'+id]) document.getElementById('lbl_'+id).value = state.inputs['lbl_'+id];
-                            if(state.inputs && state.inputs['val_'+id]) document.getElementById('val_'+id).value = state.inputs['val_'+id];
-                        });
-                    }
-                });
-
-                if(state.customElements) {
-                    state.customElements.forEach(data => {
-                        const el = document.createElement('div');
-                        if(data.id) el.id = data.id;
-                        el.className = data.className;
-                        el.innerHTML = data.innerHTML;
-                        if(data.style) el.setAttribute('style', data.style);
-                        if(data.dataset) {
-                            Object.keys(data.dataset).forEach(k => el.dataset[k] = data.dataset[k]);
-                        }
-                        const pl = document.getElementById('photo-layer');
-                        if (pl) pl.appendChild(el);
-                        makeDraggable(el);
-                        if(el.classList.contains('icon-el')) {
-                            allIcons.push(el);
-                        }
-                    });
-                }
-
-                uploadedImgUrl = state.uploadedImgUrl || '';
-                const pl = document.getElementById('photo-layer');
-                if(uploadedImgUrl) {
-                    if(pl) pl.style.backgroundImage = "url('" + uploadedImgUrl + "')";
-                    if(typeof trackImageSize === 'function') trackImageSize(uploadedImgUrl);
-                } else {
-                    if(pl) pl.style.backgroundImage = "none";
-                }
-
-                if(state.logoImgUrl && typeof elLogo !== 'undefined' && elLogo) {
-                    const img = elLogo.querySelector('img');
-                    if (img) {
-                        img.src = state.logoImgUrl;
-                        img.style.display = 'block';
-                    }
-                    elLogo.src = state.logoImgUrl; 
-                    elLogo.style.display = 'block';
-                    elLogo.style.visibility = 'visible';
-                }
-
-                if(typeof switchMode === 'function') switchMode(currentMode);
-                
-                if(isCanvaMode) {
-                    if(typeof refreshActiveCanvaTemplate === 'function') refreshActiveCanvaTemplate();
-                } else {
-                    if(activeLayout) {
-                        if(typeof setTemplate === 'function') setTemplate(activeLayout);
-                    } else {
-                        if(typeof clearAllTemplates === 'function') clearAllTemplates();
-                        if(typeof elBadge !== 'undefined' && elBadge) elBadge.style.visibility='hidden';
-                        if(typeof elPrice !== 'undefined' && elPrice) elPrice.style.visibility='hidden';
-                        if(typeof elDetails !== 'undefined' && elDetails) elDetails.style.visibility='hidden';
-                    }
-                }
-
-                if(typeof renderData === 'function') renderData();
-                if(typeof redrawAll === 'function') redrawAll();
-                if(typeof updateDrawHistory === 'function') updateDrawHistory();
-
-                alert('Proje başarıyla yüklendi!');
-            } catch(e) {
-                console.error("Load error:", e);
-                alert("Hata Detayı:\n" + e.message + "\n\nStack:\n" + (e.stack || '').split('\n').slice(0,3).join('\n'));
-            }
-        };
-        reader.readAsText(file);
+        window.loadProjectFromFile(file);
     };
     input.click();
 }
+
+window.saveImage = saveImage;
+window.downloadOriginalFromDock = function() {
+    if (typeof saveImage === 'function') {
+        saveImage();
+    }
+};
 
 
 

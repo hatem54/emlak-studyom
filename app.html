@@ -41,7 +41,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,300,0,0" />
     <link rel="icon" type="image/jpeg" href="assets/logo/logo-icon.png">
-    <link rel="stylesheet" href="styles.css?v=20260830-4">
+    <link rel="stylesheet" href="styles.css?v=20260902-2">
     <!-- ⚡ SABER EFFECT ENGINE - PixiJS + Filters -->
     <script src="https://cdn.jsdelivr.net/npm/pixi.js@7.4.0/dist/pixi.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/pixi-filters@5.2.1/dist/browser/pixi-filters.min.js"></script>
@@ -180,7 +180,7 @@
                 <button id="clearBgBtn" style="background:rgba(239,68,68,0.15); border:1px solid rgba(239,68,68,0.3); color:#ef4444; cursor:pointer; font-size:14px; width:38px; height:38px; border-radius:8px; display:none; align-items:center; justify-content:center; transition:all 0.2s;" title="Görseli Sil" onclick="if(typeof clearBgImage==='function') clearBgImage();">
                     <i class="fas fa-trash-alt"></i>
                 </button>
-                <input type="file" id="imageInput" accept="image/*" style="position:absolute; width:1px; height:1px; opacity:0; pointer-events:none;">
+                <input type="file" id="imageInput" accept="image/*,.json,application/json" style="position:absolute; width:1px; height:1px; opacity:0; pointer-events:none;">
             </div>
 
             <!-- Firma Logosu -->
@@ -1342,7 +1342,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
     <!-- ⚡ CANVAS ALT DOCK / HIZLI ERİŞİM ARAÇLARI (PC & DİKEY GÖRSEL UYUMLU) -->
     <div id="canvasBottomDock" class="canvas-bottom-dock">
-        <!-- 1. Görüntüyü Sabitle (Lock / Unlock Photo) -->
+        <!-- 1. Görsel Aç (Giriş) Butonu (Sadece PC) -->
+        <button type="button" id="dockOpenImgBtn" class="dock-btn pc-only" onclick="document.getElementById('imageInput').click();" title="Fotoğraf veya Şablon (.json) Aç">
+            <span class="dock-icon">🖼️</span>
+            <span class="dock-label">Görsel Aç</span>
+        </button>
+
+        <div class="dock-divider pc-only"></div>
+
+        <!-- 2. Görüntüyü Sabitle (Lock / Unlock Photo) -->
         <button type="button" id="dockLockBtn" class="dock-btn lock-active" onclick="window.togglePhotoLockFromDock()" title="Arka plan fotoğrafını sabitle / serbest bırak">
             <span class="dock-icon" id="dockLockIcon">📌</span>
             <span class="dock-label" id="dockLockText">Görüntü Sabit</span>
@@ -1350,7 +1358,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         <div class="dock-divider"></div>
 
-        <!-- 2. Hızlı Format Butonları -->
+        <!-- 3. Hızlı Format Butonları -->
         <div class="dock-format-group" title="Tuval Formatı / En-Boy Oranı">
             <button type="button" class="dock-pill-btn active" data-format="16:9 Full HD (YouTube/Banner)" onclick="window.quickSetFormat('16:9 Full HD (YouTube/Banner)')">16:9</button>
             <button type="button" class="dock-pill-btn" data-format="1:1 Instagram Post (Kare)" onclick="window.quickSetFormat('1:1 Instagram Post (Kare)')">1:1</button>
@@ -1360,7 +1368,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         <div class="dock-divider"></div>
 
-        <!-- 3. Hızlı Araçlar: Zoom Sıfırla, Izgara (Grid), Şablonu Gizle/Göster, Geri Al, İleri Al -->
+        <!-- 4. Hızlı Araçlar: Zoom Sıfırla, Izgara (Grid), Şablonu Gizle/Göster, Şablonu Sıfırla, Geri Al, İleri Al -->
         <div class="dock-tool-group">
             <button type="button" class="dock-icon-btn" onclick="window.resetCanvasZoomAndPan()" title="Tuvali Ekrana Sığdır / Sıfırla">
                 <i class="fas fa-compress-arrows-alt"></i>
@@ -1374,6 +1382,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     <span class="palette-red-slash" id="dockPaletteSlash" style="display:none; position:absolute; width:125%; height:2.5px; background:#ef4444; transform:rotate(-45deg); border-radius:2px; box-shadow:0 0 4px rgba(239,68,68,0.8);"></span>
                 </span>
             </button>
+            <button type="button" id="dockResetTemplateBtn" class="dock-icon-btn" onclick="window.resetActiveTemplateToDefault()" title="Şablonu Varsayılana Sıfırla (Konum & Boyutları Yenile)">
+                <i class="fas fa-arrows-rotate"></i>
+            </button>
             <button type="button" class="dock-icon-btn" onclick="if(window.undoGlobal) window.undoGlobal();" title="Geri Al (Ctrl+Z)">
                 <i class="fas fa-undo"></i>
             </button>
@@ -1384,10 +1395,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
         <div class="dock-divider"></div>
 
-        <!-- 4. Sayfayı Temizle / Sıfırla -->
-        <button type="button" id="dockClearBtn" class="dock-btn dock-btn-danger" onclick="window.resetEntireWorkspace()" title="Tüm çalışmayı ve tuvali sıfırla">
+        <!-- 5. Sayfayı Temizle / Sıfırla -->
+        <button type="button" id="dockClearBtn" class="dock-btn" onclick="window.resetEntireWorkspace()" title="Tüm çalışmayı ve tuvali sıfırla">
             <span class="dock-icon">🗑️</span>
             <span class="dock-label">Sayfayı Temizle</span>
+        </button>
+
+        <div class="dock-divider pc-only"></div>
+
+        <!-- 6. Orijinal Olarak İndir (Sadece PC) -->
+        <button type="button" id="dockDownloadOriginalBtn" class="dock-btn pc-only" onclick="window.downloadOriginalFromDock()" title="Tasarımı Orijinal Yüksek Çözünürlükte İndir">
+            <span class="dock-icon">💾</span>
+            <span class="dock-label">Orijinal Olarak İndir</span>
         </button>
     </div>
 
@@ -1916,7 +1935,7 @@ const HelpAssistant = {
         // Floating Action Button
         this.fabEl = document.createElement('div');
         this.fabEl.className = 'help-assistant-fab';
-        this.fabEl.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles" style="font-size:20px;"></i>';
+        this.fabEl.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles" style="font-size:16px;"></i>';
         this.fabEl.title = "Akıllı Yardımcı & SSS";
         this.fabEl.onclick = () => this.togglePanel();
         document.body.appendChild(this.fabEl);

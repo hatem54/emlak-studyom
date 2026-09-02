@@ -7,6 +7,11 @@ function refreshActiveCanvaTemplate(retryCount = 0){
 
     if(typeof isCanvaMode === 'undefined' || !isCanvaMode) return;
 
+    if (activeCanvaId === 'custom' && window.activeCustomTemplateData && typeof window.renderCustomDynamicTemplate === 'function') {
+        window.renderCustomDynamicTemplate(window.activeCustomTemplateData);
+        return;
+    }
+
     if(window.lastClickedTemplateElement) {
         window.lastClickedTemplateElement.classList.remove('active');
         window.lastClickedTemplateElement.click();
@@ -51,6 +56,9 @@ function refreshActiveCanvaTemplate(retryCount = 0){
 document.addEventListener('click', function(e) {
     const card = e.target.closest('.canva-tpl-card');
     if (card && card.dataset.id) {
+        if (typeof window.showGlobalLoadingOverlay === 'function') {
+            window.showGlobalLoadingOverlay(1200, 'Şablon Yükleniyor...', 'Tasarım ve renkler hazırlanıyor...');
+        }
         if (typeof activeCanvaId !== 'undefined') activeCanvaId = card.dataset.id;
         else window.activeCanvaId = card.dataset.id;
         
@@ -67,12 +75,12 @@ document.addEventListener('click', function(e) {
 window.showGlobalLoadingOverlay = function(durationMs, text, subtext) {
     if (window.isRestoringState) return;
     if (typeof window.showAppLoading === 'function') {
-        window.showAppLoading(text || 'Şablon Uygulanıyor...', subtext || 'Tasarım ve renkler hazırlanıyor...');
+        window.showAppLoading(text || 'Şablon Yükleniyor...', subtext || 'Tasarım ve renkler hazırlanıyor...', 8000);
         setTimeout(() => {
             if (!window.isRestoringState && typeof window.hideAppLoading === 'function') {
-                window.hideAppLoading();
+                window.hideAppLoading(250);
             }
-        }, durationMs || 350);
+        }, durationMs || 1200);
     }
 };
 
@@ -82,21 +90,31 @@ function setTemplate(k){
         if(window.AppState && typeof window.AppState.resetOnTemplateChange === 'function') {
             window.AppState.resetOnTemplateChange(k);
         }
-        if(!window.isRestoringState && window.showGlobalLoadingOverlay) window.showGlobalLoadingOverlay(400, "Görsel Hazırlanıyor...");
-        if(typeof isCanvaMode !== 'undefined' && isCanvaMode) {
-            isCanvaMode = false;
-            if(typeof clearCanvaTemplate === 'function') clearCanvaTemplate(true);
-        }
+        if(!window.isRestoringState && window.showGlobalLoadingOverlay) window.showGlobalLoadingOverlay(1200, "Şablon Yükleniyor...", "Tasarım ve renkler hazırlanıyor...");
+        
+        isCanvaMode = false;
+        if(typeof clearCanvaTemplate === 'function') clearCanvaTemplate(true);
+        const canvaLayer = document.getElementById('canva-render-layer');
+        if (canvaLayer) { canvaLayer.innerHTML = ''; canvaLayer.style.display = 'none'; }
+        const photoL = document.getElementById('photo-layer');
+        if (photoL) photoL.style.display = 'block';
+
         activeLayout=k;
         document.querySelectorAll('.template-btn').forEach(b=>b.classList.toggle('active',b.id==='tpl-'+k));
         const t=TPL[k];
         if(!t) return; // Güvenlik kontrolü, eğer boş şablon veya geçersiz bir k geldiyse dur.
+        
+        document.querySelectorAll('.normal-el').forEach(el => {
+            el.style.display = 'block';
+            el.style.visibility = 'visible';
+        });
+
         applyStylePos(elBadge,t.badge);
         applyStylePos(elPrice,t.price);
         applyStylePos(elDetails,t.details);
-        if(typeof elBadge !== 'undefined' && elBadge) elBadge.style.visibility = 'visible';
-        if(typeof elPrice !== 'undefined' && elPrice) elPrice.style.visibility = 'visible';
-        if(typeof elDetails !== 'undefined' && elDetails) elDetails.style.visibility = 'visible';
+        if(typeof elBadge !== 'undefined' && elBadge) { elBadge.style.display = 'block'; elBadge.style.visibility = 'visible'; }
+        if(typeof elPrice !== 'undefined' && elPrice) { elPrice.style.display = 'block'; elPrice.style.visibility = 'visible'; }
+        if(typeof elDetails !== 'undefined' && elDetails) { elDetails.style.display = 'block'; elDetails.style.visibility = 'visible'; }
         const il = document.getElementById('infoLineText');
         if(il) il.style.visibility = 'visible';
         if(typeof elLogo !== 'undefined' && elLogo && t.logo) {
@@ -104,6 +122,7 @@ function setTemplate(k){
         }
         deselectAll();
         renderData();
+        if(typeof resizeCanvas === 'function') resizeCanvas();
         if(typeof applyPhotoFilters === 'function') applyPhotoFilters();
         if(typeof redrawAll === 'function') redrawAll();
         

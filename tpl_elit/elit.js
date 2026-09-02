@@ -162,9 +162,234 @@ function buildCanvaCards(){
     });
 }
 
-// ========== CANVA RENDER (Tüm şablonlar "” cover mode) ==========
+// ========== DİNAMİK ÖZEL ŞABLON MOTORU (CUSTOM TEMPLATE ENGINE) ==========
+window.activeCustomTemplateData = null;
+window.customSlotImages = window.customSlotImages || {};
+
+window.changeCustomSlotPhoto = function(slotIdx) {
+    let picker = document.getElementById('customSlotPhotoPicker');
+    if (!picker) {
+        picker = document.createElement('input');
+        picker.type = 'file';
+        picker.id = 'customSlotPhotoPicker';
+        picker.accept = 'image/*';
+        picker.style.display = 'none';
+        document.body.appendChild(picker);
+    }
+    
+    picker.onchange = function(e) {
+        const file = e.target.files && e.target.files[0];
+        if (!file) return;
+        if (!file.type.startsWith('image/')) {
+            alert('Lütfen geçerli bir görsel dosyası seçin.');
+            return;
+        }
+        
+        const reader = new FileReader();
+        reader.onload = function(evt) {
+            const dataUrl = evt.target.result;
+            if (!window.customSlotImages) window.customSlotImages = {};
+            window.customSlotImages[slotIdx] = dataUrl;
+            
+            if (slotIdx === 0 && !uploadedImgUrl) {
+                uploadedImgUrl = dataUrl;
+                window.uploadedImgUrl = dataUrl;
+            }
+            
+            const panel = document.querySelector(`.photo-panel[data-slot-idx="${slotIdx}"]`);
+            if (panel) {
+                const x = $('photoXCtrl') ? $('photoXCtrl').value : 50;
+                const y = $('photoYCtrl') ? $('photoYCtrl').value : 50;
+                panel.style.backgroundImage = `url('${dataUrl}')`;
+                panel.style.backgroundSize = 'cover';
+                panel.style.backgroundPosition = `${x}% ${y}%`;
+            }
+            
+            if (typeof window.saveState === 'function') window.saveState();
+        };
+        reader.readAsDataURL(file);
+        picker.value = '';
+    };
+    
+    picker.click();
+};
+
+function renderCustomDynamicTemplate(tplData) {
+    if (!tplData) return;
+    window.activeCustomTemplateData = tplData;
+
+    try {
+        if(typeof _kolajTemizle === 'function') _kolajTemizle();
+        
+        // Sadece şablonun oluşturduğu eski elementleri sil
+        document.querySelectorAll('.canva-generated, .canva-panel').forEach(el => {
+            if(el.parentNode) el.remove();
+            if(typeof canvaOverlays !== 'undefined') {
+                const idx = canvaOverlays.indexOf(el);
+                if(idx > -1) canvaOverlays.splice(idx, 1);
+            }
+        });
+
+        document.querySelectorAll('.normal-el').forEach(el => el.style.display = 'none');
+        document.querySelectorAll('.template-btn').forEach(b => b.classList.remove('active'));
+        isCanvaMode = true;
+        activeCanvaId = 'custom';
+
+        photoLayer.style.display = 'none';
+        canvaRenderLayer.style.display = 'block';
+
+        const canvasSize = getCanvasSize();
+        const x = $('photoXCtrl') ? $('photoXCtrl').value : 50;
+        const y = $('photoYCtrl') ? $('photoYCtrl').value : 50;
+
+        const canvasBg = (tplData.canvas && tplData.canvas.background) ? tplData.canvas.background : '#0b0f19';
+
+        let baseHtml = `<div class="cvr-base cvr-custom" style="width:100%;height:100%;position:relative;overflow:hidden;background:${canvasBg}">`;
+
+        // 1. Fotoğraf Bölgeleri (photoSlots[] veya photoSlot)
+        if (Array.isArray(tplData.photoSlots) && tplData.photoSlots.length > 0) {
+            tplData.photoSlots.forEach((ps, idx) => {
+                const pLeft = scaleX(ps.left || 0);
+                const pTop = scaleY(ps.top || 0);
+                const pWidth = scaleX(ps.width || 1920);
+                const pHeight = scaleY(ps.height || 1080);
+                const pRadius = ps.radius ? (ps.radius + 'px') : '0px';
+                const pBorder = ps.border || 'none';
+                const pShadow = ps.shadow || 'none';
+                const pZIndex = ps.zIndex ? `z-index:${ps.zIndex};` : '';
+
+                let slotImg = '';
+                if (window.customSlotImages && window.customSlotImages[idx]) {
+                    slotImg = window.customSlotImages[idx];
+                } else if (ps.photoUrl) {
+                    slotImg = ps.photoUrl;
+                } else if (idx === 0 && uploadedImgUrl) {
+                    slotImg = uploadedImgUrl;
+                } else if (uploadedImgUrl) {
+                    slotImg = uploadedImgUrl;
+                }
+
+                const slotBg = slotImg ? `background-image:url('${slotImg}');background-size:cover;background-position:${x}% ${y}%;background-repeat:no-repeat;` : 'background-color:#1e293b;';
+                const slotTitle = ps.title || `Fotoğraf Yuvası #${idx+1} (Değiştirmek İçin Tıklayın)`;
+
+                baseHtml += `
+                    <div class="photo-panel" data-slot-idx="${idx}" title="${slotTitle}" style="width:${pWidth}px;height:${pHeight}px;position:absolute;left:${pLeft}px;top:${pTop}px;border-radius:${pRadius};border:${pBorder};box-shadow:${pShadow};overflow:hidden;${slotBg}${pZIndex}cursor:pointer;" onclick="window.changeCustomSlotPhoto(${idx})"></div>
+                `;
+            });
+        } else if (tplData.photoSlot) {
+            const ps = tplData.photoSlot;
+            const pLeft = scaleX(ps.left || 0);
+            const pTop = scaleY(ps.top || 0);
+            const pWidth = scaleX(ps.width || 1920);
+            const pHeight = scaleY(ps.height || 1080);
+            const pRadius = ps.radius ? (ps.radius + 'px') : '0px';
+            const pBorder = ps.border || 'none';
+            const pShadow = ps.shadow || 'none';
+            const pZIndex = ps.zIndex ? `z-index:${ps.zIndex};` : '';
+
+            let slotImg = (window.customSlotImages && window.customSlotImages[0]) ? window.customSlotImages[0] : (ps.photoUrl || uploadedImgUrl);
+            const slotBg = slotImg ? `background-image:url('${slotImg}');background-size:cover;background-position:${x}% ${y}%;background-repeat:no-repeat;` : 'background-color:#1e293b;';
+
+            baseHtml += `
+                <div class="photo-panel" data-slot-idx="0" title="Fotoğrafı Değiştirmek İçin Tıklayın" style="width:${pWidth}px;height:${pHeight}px;position:absolute;left:${pLeft}px;top:${pTop}px;border-radius:${pRadius};border:${pBorder};box-shadow:${pShadow};overflow:hidden;${slotBg}${pZIndex}cursor:pointer;" onclick="window.changeCustomSlotPhoto(0)"></div>
+            `;
+        } else {
+            let slotImg = (window.customSlotImages && window.customSlotImages[0]) ? window.customSlotImages[0] : uploadedImgUrl;
+            const slotBg = slotImg ? `background-image:url('${slotImg}');background-size:cover;background-position:${x}% ${y}%;background-repeat:no-repeat;` : 'background-color:#1e293b;';
+            baseHtml += `
+                <div class="photo-panel" data-slot-idx="0" style="width:100%;height:100%;position:absolute;left:0;top:0;${slotBg}"></div>
+            `;
+        }
+
+        baseHtml += `</div>`;
+        canvaRenderLayer.innerHTML = baseHtml;
+
+        // 2. Paneller, Çerçeveler ve Arka Plan Kartları (panels)
+        if (Array.isArray(tplData.panels)) {
+            tplData.panels.forEach(p => {
+                const extraStyle = {};
+                if (p.backdropFilter) {
+                    extraStyle.backdropFilter = p.backdropFilter;
+                    extraStyle.webkitBackdropFilter = p.backdropFilter;
+                }
+                if (p.opacity) extraStyle.opacity = p.opacity;
+                if (p.zIndex) extraStyle.zIndex = String(p.zIndex);
+                if (p.transform) extraStyle.transform = p.transform;
+
+                addCanvaPanel(p.left || 0, p.top || 0, p.width || 200, p.height || 200, p.bg || '#0f172a', p.radius || 0, p.border || '', p.shadow || '', extraStyle);
+            });
+        }
+
+        // 3. Başlıklar, Fiyat, Rozetler ve Metinler (items)
+        if (Array.isArray(tplData.items)) {
+            tplData.items.forEach(item => {
+                let content = item.content || '';
+                if (item.field && document.getElementById(item.field)) {
+                    const inputVal = document.getElementById(item.field).value;
+                    if (inputVal && inputVal.trim()) {
+                        content = inputVal;
+                    }
+                }
+                if (!content && item.defaultContent) {
+                    content = item.defaultContent;
+                }
+
+                if (typeof content === 'string') {
+                    // Ampersand (&) işaretinin serif fontlarda garip glif olarak çizilmesini önle
+                    content = content.replace(/\s*&\s*/g, ' ve ');
+                }
+
+                if (item.type === 'features' || (content && content.includes('\n'))) {
+                    content = content.split('\n').map(l => `<div style="margin-bottom:4px">${l}</div>`).join('');
+                } else if (item.type === 'contact') {
+                    let contactInput = (typeof content === 'string' ? content.trim() : '');
+                    if (contactInput === '' || contactInput.includes('emlakstudyomtr@gmail.com')) {
+                        content = `<div style="display:inline-flex; align-items:center; gap:8px; line-height:1;"><img src="assets/logo/logo-icon.png" style="height:1.6em; width:auto; max-width:2.2em; object-fit:contain; flex-shrink:0; pointer-events:none;"> <span style="vertical-align:middle;">emlakstudyomtr@gmail.com</span></div>`;
+                    }
+                }
+
+                const el = addCanvaItem(
+                    content,
+                    item.left || 0,
+                    item.top || 0,
+                    item.fontSize || 32,
+                    item.color || '#ffffff',
+                    item.bg || 'transparent',
+                    item.radius || 0,
+                    item.padding || 0,
+                    item.width,
+                    item.align || 'left'
+                );
+
+                if (item.fontWeight) el.style.fontWeight = String(item.fontWeight);
+                if (item.fontFamily) el.style.fontFamily = item.fontFamily;
+                if (item.letterSpacing) el.style.letterSpacing = item.letterSpacing;
+                if (item.textTransform) el.style.textTransform = item.textTransform;
+                if (item.zIndex) el.style.zIndex = String(item.zIndex);
+            });
+        }
+
+        // 4. Tutamaçları bağla
+        document.querySelectorAll('.canva-generated, .canva-panel').forEach(el => {
+            if (typeof window.addTextHandles === 'function') {
+                window.addTextHandles(el);
+            }
+        });
+
+    } catch(err) {
+        console.error("renderCustomDynamicTemplate HATA:", err);
+    }
+}
+
+window.renderCustomDynamicTemplate = renderCustomDynamicTemplate;
+
+// ========== CANVA RENDER (Tüm şablonlar — cover mode) ==========
 function buildCanvaRender(){
     try {
+        if(activeCanvaId === 'custom' && window.activeCustomTemplateData) {
+            renderCustomDynamicTemplate(window.activeCustomTemplateData);
+            return;
+        }
         if(!activeCanvaId){alert('Önce bir Canva Şablonu seçin!');return}
         if(typeof _kolajTemizle === 'function') _kolajTemizle();
         

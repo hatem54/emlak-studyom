@@ -306,9 +306,14 @@ window.syncDescToggles = function() {
         }
         const isChecked = window.descTogglesState[line] === true;
         
+        const isLight = document.body.getAttribute('data-theme') === 'light';
+        const itemBg = isChecked ? (isLight ? 'rgba(2,132,199,0.08)' : 'rgba(56,189,248,0.12)') : 'transparent';
+        const itemBorder = isChecked ? '#0284c7' : (isLight ? '#cbd5e1' : 'rgba(255,255,255,0.15)');
+        const textColor = isChecked ? (isLight ? '#0369a1' : '#f8fafc') : (isLight ? '#475569' : '#94a3b8');
+        
         const row = document.createElement('div');
-        row.className = 'desc-toggle-item';
-        row.style.cssText = `display:flex; align-items:center; justify-content:space-between; gap:8px; padding:7px 10px; background:${isChecked ? 'rgba(56,189,248,0.12)' : '#0f172a'}; border:1px solid ${isChecked ? '#0284c7' : '#334155'}; border-radius:6px; cursor:pointer; transition:all 0.2s;`;
+        row.className = 'desc-toggle-item' + (isChecked ? ' active' : '');
+        row.style.cssText = `display:flex; align-items:center; justify-content:space-between; gap:8px; padding:7px 10px; background:${itemBg}; border:1px solid ${itemBorder}; border-radius:6px; cursor:pointer; transition:all 0.2s;`;
         
         let iconHtml = '';
         const emojiMatch = line.match(/^([\uD800-\uDBFF][\uDC00-\uDFFF]|[\u2600-\u27BF]|[\uD83C-\uD83E][\uDF00-\uDFFF]|\p{Emoji})\s*(.*)$/u);
@@ -318,7 +323,7 @@ window.syncDescToggles = function() {
             displayText = emojiMatch[2] || line;
         } else {
             const faIcon = window.getSmartIconForLabel(line);
-            iconHtml = `<i class="fas ${faIcon}" style="color:#38bdf8; font-size:13px; flex-shrink:0;"></i>`;
+            iconHtml = `<i class="fas ${faIcon}" style="color:#0284c7; font-size:13px; flex-shrink:0;"></i>`;
         }
         
         const escapedLine = line.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
@@ -326,10 +331,10 @@ window.syncDescToggles = function() {
         row.innerHTML = `
             <div style="display:flex; align-items:center; gap:8px; flex:1; min-width:0;">
                 ${iconHtml}
-                <span style="font-size:12px; color:${isChecked ? '#f8fafc' : '#94a3b8'}; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; text-decoration:${isChecked ? 'none' : 'none'}; font-weight:${isChecked ? '600' : '400'};">${displayText}</span>
+                <span class="desc-item-text" style="font-size:12px; color:${textColor}; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:${isChecked ? '700' : '500'};">${displayText}</span>
             </div>
             <div style="display:flex; align-items:center; gap:6px; flex-shrink:0;">
-                <span style="font-size:10px; font-weight:700; color:${isChecked ? '#38bdf8' : '#64748b'};">${isChecked ? 'EKLENDİ' : 'KAPALI'}</span>
+                <span style="font-size:10px; font-weight:700; color:${isChecked ? '#0284c7' : '#94a3b8'};">${isChecked ? 'EKLENDİ' : 'KAPALI'}</span>
                 <input type="checkbox" ${isChecked ? 'checked' : ''} style="cursor:pointer; width:16px; height:16px; accent-color:#0284c7;" onclick="event.stopPropagation(); window.setDescToggle('${escapedLine}', this.checked)">
             </div>
         `;
@@ -443,7 +448,7 @@ function renderData(){
             const allLines = canvaLines.filter(l=>l.trim().length>0);
             // Tüm şablonlar için en fazla 6 satır (çerçeve taşmasını önler)
             const featsStr = allLines.slice(0,6).join('\n');
-            const featsInputs = ['canvaFeatures', 'canvaDFeats', 'canvaCFeats', 'canvaKFeats', 'canvaMFeats', 'canvaOFeats', 'canvaPFeats', 'canvaSFeats', 'canvaLFeats'];
+            const featsInputs = ['canvaFeatures', 'canvaDFeats', 'canvaCFeats', 'canvaKFeats', 'canvaMFeats', 'canvaOFeats', 'canvaPFeats', 'canvaSFeats', 'canvaLFeats', 'canvaEFeats'];
             featsInputs.forEach(id => {
                 if(document.getElementById(id)) document.getElementById(id).value = featsStr;
             });

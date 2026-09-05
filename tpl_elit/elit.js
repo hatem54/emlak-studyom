@@ -344,7 +344,7 @@ function renderCustomDynamicTemplate(tplData) {
                 } else if (item.type === 'contact') {
                     let contactInput = (typeof content === 'string' ? content.trim() : '');
                     if (contactInput === '' || contactInput.includes('emlakstudyomtr@gmail.com')) {
-                        content = `<div style="display:inline-flex; align-items:center; gap:8px; line-height:1;"><img src="assets/logo/logo-icon.png" style="height:1.6em; width:auto; max-width:2.2em; object-fit:contain; flex-shrink:0; pointer-events:none;"> <span style="vertical-align:middle;">emlakstudyomtr@gmail.com</span></div>`;
+                        content = `<div style="display:inline-flex; align-items:center; gap:8px; line-height:1; vertical-align:middle;"><img src="assets/logo/logo-icon.png" style="height:1.25em; width:auto; max-width:1.6em; object-fit:contain; flex-shrink:0; pointer-events:none; margin:0; vertical-align:middle;"> <span style="vertical-align:middle;">emlakstudyomtr@gmail.com</span></div>`;
                     }
                 }
 
@@ -414,7 +414,7 @@ function buildCanvaRender(){
         let contactInput = $('canvaContact').value.trim();
         let contact = '';
         if (contactInput === '' || contactInput.includes('emlakstudyomtr@gmail.com')) {
-            contact = `<div style="line-height:1;"><img src="assets/logo/logo-icon.png" style="height:6em; width:6em; object-fit:contain; vertical-align:middle; margin-left:-2.2em; margin-right:-1.8em; margin-top:-2.5em; margin-bottom:-2.5em; pointer-events:none;"> <span style="vertical-align:middle; position:relative; z-index:2;">emlakstudyomtr@gmail.com</span></div>`;
+            contact = `<div style="display:inline-flex; align-items:center; gap:8px; line-height:1; vertical-align:middle;"><img src="assets/logo/logo-icon.png" style="height:1.25em; width:auto; max-width:1.6em; object-fit:contain; flex-shrink:0; pointer-events:none; margin:0; vertical-align:middle;"> <span style="vertical-align:middle;">emlakstudyomtr@gmail.com</span></div>`;
         } else {
             contact = contactInput;
         }

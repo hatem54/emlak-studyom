@@ -22,49 +22,53 @@
 
     function convertWrittenNumbers(text) {
         if (!text) return '';
-        const words = text.split(/\s+/);
-        let result = [];
-        let i = 0;
+        const lines = text.split(/\r?\n/);
+        return lines.map(line => {
+            if (!line.trim()) return line;
+            const words = line.split(/[^\S\r\n]+/);
+            let result = [];
+            let i = 0;
 
-        while (i < words.length) {
-            let cleanWord = words[i].toLowerCase().replace(/[^a-zçğıöşü]/g, '');
-            if (TURKISH_NUMS[cleanWord] !== undefined) {
-                let currentVal = 0;
-                let totalVal = 0;
-                let isNumSeq = false;
+            while (i < words.length) {
+                let cleanWord = words[i].toLowerCase().replace(/[^a-zçğıöşü]/g, '');
+                if (TURKISH_NUMS[cleanWord] !== undefined) {
+                    let currentVal = 0;
+                    let totalVal = 0;
+                    let isNumSeq = false;
 
-                while (i < words.length) {
-                    let w = words[i].toLowerCase().replace(/[^a-zçğıöşü]/g, '');
-                    let num = TURKISH_NUMS[w];
-                    if (num === undefined) break;
+                    while (i < words.length) {
+                        let w = words[i].toLowerCase().replace(/[^a-zçğıöşü]/g, '');
+                        let num = TURKISH_NUMS[w];
+                        if (num === undefined) break;
 
-                    isNumSeq = true;
-                    if (num === 100) {
-                        currentVal = currentVal === 0 ? 100 : currentVal * 100;
-                    } else if (num === 1000) {
-                        currentVal = currentVal === 0 ? 1000 : currentVal * 1000;
-                        totalVal += currentVal;
-                        currentVal = 0;
-                    } else if (num === 1000000) {
-                        currentVal = currentVal === 0 ? 1000000 : currentVal * 1000000;
-                        totalVal += currentVal;
-                        currentVal = 0;
-                    } else {
-                        currentVal += num;
+                        isNumSeq = true;
+                        if (num === 100) {
+                            currentVal = currentVal === 0 ? 100 : currentVal * 100;
+                        } else if (num === 1000) {
+                            currentVal = currentVal === 0 ? 1000 : currentVal * 1000;
+                            totalVal += currentVal;
+                            currentVal = 0;
+                        } else if (num === 1000000) {
+                            currentVal = currentVal === 0 ? 1000000 : currentVal * 1000000;
+                            totalVal += currentVal;
+                            currentVal = 0;
+                        } else {
+                            currentVal += num;
+                        }
+                        i++;
                     }
-                    i++;
-                }
 
-                if (isNumSeq) {
-                    totalVal += currentVal;
-                    result.push(totalVal.toString());
-                    continue;
+                    if (isNumSeq) {
+                        totalVal += currentVal;
+                        result.push(totalVal.toString());
+                        continue;
+                    }
                 }
+                result.push(words[i]);
+                i++;
             }
-            result.push(words[i]);
-            i++;
-        }
-        return result.join(' ');
+            return result.join(' ');
+        }).join('\n');
     }
 
     function toTrLower(str) {
@@ -127,32 +131,15 @@
     function parsePrice(text, tableMap) {
         let tablePrice = tableMap['fiyat'] || tableMap['fiyatı'] || tableMap['kira'] || tableMap['kira bedeli'] || tableMap['başlangıç fiyatı'];
         
-        // m² birim fiyatını (örn: "m2 fiyatı: 21.667 TL/m2" veya "21.667 TL/m2") temizle
+        // m² birim fiyatını (örn: "m2 fiyatı: 21.667 TL/m2" veya "21.667 TL/m2") ve aidatı temizle
         let cleanText = text.replace(/m[2²]\s*fiyat[ıi]?[^:\n\r]*[:=]?\s*[\d\.,]+\s*(?:tl|lira|₺)?(?:\/m[2²])?/gi, '')
-                            .replace(/[\d\.,]+\s*(?:tl|lira|₺)?\/m[2²]/gi, '');
+                            .replace(/[\d\.,]+\s*(?:tl|lira|₺)?\/m[2²]/gi, '')
+                            .replace(/aidat\s*\(tl\)[^\n\r]*/gi, '')
+                            .replace(/aidat\s*[:=]?[^\n\r]*/gi, '');
 
         let src = tablePrice || cleanText;
 
-        // 1. "8.5 Milyon" veya "8,5 Milyon TL" veya "750 Bin TL"
-        let mMilyon = src.match(/(\d+(?:[\.\,]\d+)?)\s*(buçuk|yarım)?\s*(milyon|bin)\s*(?:tl|lira|euro|dolar|€|\$|₺)?/i);
-        if (mMilyon) {
-            let baseNum = parseFloat(mMilyon[1].replace(',', '.'));
-            if (mMilyon[2] && /buçuk|yarım/i.test(mMilyon[2])) baseNum += 0.5;
-            let isMilyon = mMilyon[3].toLowerCase() === 'milyon';
-            let finalVal = Math.round(baseNum * (isMilyon ? 1000000 : 1000));
-            let curr = 'TL';
-            let rawCurr = (mMilyon[0].match(/(tl|lira|euro|dolar|€|\$|₺)/i) || [])[1];
-            if (rawCurr) {
-                let c = rawCurr.toUpperCase();
-                if (c === 'LİRA' || c === '₺') curr = 'TL';
-                else if (c === '€') curr = 'EURO';
-                else if (c === '$') curr = 'DOLAR';
-                else curr = c;
-            }
-            return finalVal.toLocaleString('tr-TR') + ' ' + curr;
-        }
-
-        // 2. Noktalı/Virgüllü veya Düz Rakam: "6.500.000 TL", "40.000 TL", "25000 TL", "Fiyat: 6.750.000"
+        // 1. Önce Açık ve Kesin Fiyatları Ara: "10.950.000 TL", "6.500.000 TL", "40.000 TL", "Fiyat: 25.500.000"
         let mExplicit = src.match(/(?:fiyat[ıi]?|bedel[i]?|kira(?:lık|sı|sı\s*bedeli)?|ücret[i]?)\s*[:=]?\s*((?:\d{1,3}(?:[\.\,]\d{3})+|\d{4,}))\s*(tl|lira|euro|dolar|€|\$|₺)?/i) ||
                         src.match(/((?:\d{1,3}(?:[\.\,]\d{3})+|\d{4,}))\s*(tl|lira|euro|dolar|€|\$|₺)/i);
         if (mExplicit) {
@@ -170,6 +157,26 @@
                 }
                 return num.toLocaleString('tr-TR') + ' ' + curr;
             }
+        }
+
+        // 2. Yazılı Rakamlar: "8.5 Milyon" veya "8,5 Milyon TL" veya "750 Bin TL" (Bina, Binek gibi kelimeleri kesinlikle engellemek için tek satır ve \b sınırları)
+        let mMilyon = src.match(/(\d+(?:[\.\,]\d+)?)[^\S\r\n]*(buçuk|yarım)?[^\S\r\n]*\b(milyon|milyar|bin)\b[^\S\r\n]*(?:tl|lira|euro|dolar|€|\$|₺)?/i);
+        if (mMilyon) {
+            let baseNum = parseFloat(mMilyon[1].replace(',', '.'));
+            if (mMilyon[2] && /buçuk|yarım/i.test(mMilyon[2])) baseNum += 0.5;
+            let unit = mMilyon[3].toLowerCase();
+            let multiplier = unit === 'milyon' ? 1000000 : (unit === 'milyar' ? 1000000000 : 1000);
+            let finalVal = Math.round(baseNum * multiplier);
+            let curr = 'TL';
+            let rawCurr = (mMilyon[0].match(/(tl|lira|euro|dolar|€|\$|₺)/i) || [])[1];
+            if (rawCurr) {
+                let c = rawCurr.toUpperCase();
+                if (c === 'LİRA' || c === '₺') curr = 'TL';
+                else if (c === '€') curr = 'EURO';
+                else if (c === '$') curr = 'DOLAR';
+                else curr = c;
+            }
+            return finalVal.toLocaleString('tr-TR') + ' ' + curr;
         }
 
         return '';
@@ -509,13 +516,27 @@
         }
 
         if (!imarVal) {
-            let mImar = text.match(/(konut|ticari|sanayi|turizm|tarım|bağ|bahçe)\s*imar(?:lı)?/i);
+            let mImar = text.match(/(konut|ticari|sanayi|turizm|tarım|bağ|bahçe|villa)\s*imar(?:lı)?/i);
             if (mImar) {
                 let s = mImar[1];
                 imarVal = s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() + ' İmarlı';
-            } else if (/imarsız|hisse/i.test(text)) {
-                imarVal = 'İmarsız (Tarla)';
+            } else if (/zeytinlik/i.test(text)) {
+                imarVal = 'Zeytinlik';
+            } else if (/bağ|bahçe/i.test(text)) {
+                imarVal = 'Bağ / Bahçe';
+            } else if (/tarla/i.test(text)) {
+                imarVal = 'Müstakil Tarla';
+            } else if (/imarsız|hisseli/i.test(text)) {
+                imarVal = 'İmarsız Tarla';
             }
+        }
+
+        if (!tapuVal) {
+            if (/müstakil\s*(?:parsel|tapu)/i.test(text)) tapuVal = 'Müstakil Parsel';
+            else if (/hisseli/i.test(text)) tapuVal = 'Hisseli Tapu';
+            else if (/kat\s*mülkiyet/i.test(text)) tapuVal = 'Kat Mülkiyetli';
+            else if (/kat\s*irtifak/i.test(text)) tapuVal = 'Kat İrtifaklı';
+            else if (/tahsis/i.test(text)) tapuVal = 'Tahsisli Tapu';
         }
 
         if (!kaksVal) {
@@ -531,35 +552,67 @@
         return { ada: adaVal, parsel: parselVal, imar: imarVal, kaks: kaksVal, gabari: gabariVal, tapu: tapuVal };
     }
 
-    // 13. Konum Ayrıştırıcı (İl / İlçe / Mahalle)
+    const TURKISH_CITIES = [
+        'Adana','Adıyaman','Afyonkarahisar','Ağrı','Aksaray','Amasya','Ankara','Antalya','Ardahan','Artvin','Aydın','Balıkesir','Bartın','Batman','Bayburt','Bilecik','Bingöl','Bitlis','Bolu','Burdur','Bursa','Çanakkale','Çankırı','Çorum','Denizli','Diyarbakır','Düzce','Edirne','Elazığ','Erzincan','Erzurum','Eskişehir','Gaziantep','Giresun','Gümüşhane','Hakkari','Hatay','Iğdır','Isparta','İstanbul','İzmir','Kahramanmaraş','Karabük','Karaman','Kars','Kastamonu','Kayseri','Kilis','Kırıkkale','Kırklareli','Kırşehir','Kocaeli','Konya','Kütahya','Malatya','Manisa','Mardin','Mersin','Muğla','Muş','Nevşehir','Niğde','Ordu','Osmaniye','Rize','Sakarya','Samsun','Şanlıurfa','Siirt','Sinop','Sivas','Şırnak','Tekirdağ','Tokat','Trabzon','Tunceli','Uşak','Van','Yalova','Yozgat','Zonguldak'
+    ];
+
+    // 13. Konum Ayrıştırıcı (İl / İlçe / Mahalle / Köy)
     function parseLocation(text, tableMap) {
         let tLoc = tableMap['il / ilçe / mahalle'] || tableMap['konum'] || tableMap['adres'] || tableMap['lokasyon'];
         if (tLoc) {
             let cleanLoc = tLoc.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1').replace(/[\[\]]/g, '').trim();
-            return cleanLoc.split('\n')[0].trim().replace(/\bMh\.?$/i, 'Mah.');
+            return cleanLoc.split('\n')[0].trim().replace(/\bMh\.?$/i, 'Mah.').replace(/\bMahallesi$/i, 'Mah.');
         }
 
-        // Markdown linklerini temizle: [Çanakkale](url) -> Çanakkale
-        let cleanText = text.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');
+        // Markdown linklerini ve Sahibinden başlık kalıntılarını temizle
+        let cleanText = text
+            .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+            .replace(/kredi\s*teklifleri/gi, '')
+            .replace(/taksitli\s*ödeme/gi, '')
+            .replace(/ilan\s*detaylar[ıi]/gi, '');
 
-        // 1. "Bolu / Mudurnu / Tımaraktaş Köyü" formatı (Satır bazlı kesin arama)
-        let lines = cleanText.split(/\r?\n/);
+        // 1. Satır bazlı slash tespiti (Örn: "Antalya / Manavgat / Evrenseki Mh.")
+        const lines = cleanText.split(/\r?\n/);
         for (let line of lines) {
             let l = line.trim();
-            let mSlash = l.match(/^([a-zA-ZçğıöşüÇĞİÖŞÜ\s]+)\s*\/\s*([a-zA-ZçğıöşüÇĞİÖŞÜ\s]+)\s*\/\s*([a-zA-ZçğıöşüÇĞİÖŞÜ\s]+)$/i);
-            if (mSlash) {
-                let p1 = mSlash[1].trim();
-                let p2 = mSlash[2].trim();
-                let p3 = mSlash[3].trim().replace(/\bMh\.?$/i, 'Mah.').replace(/\bMahallesi$/i, 'Mah.');
-                return `${p1} / ${p2} / ${p3}`;
+            if (l.includes('/')) {
+                let parts = l.split('/').map(p => p.trim()).filter(p => p.length > 0);
+                if (parts.length >= 2 && parts.length <= 4) {
+                    let p1 = parts[0];
+                    let isCity = TURKISH_CITIES.some(c => c.toLowerCase() === p1.toLowerCase());
+                    if (isCity || parts.length >= 3) {
+                        return parts.map(p => p.replace(/\bMh\.?$/i, 'Mah.').replace(/\bMahallesi$/i, 'Mah.')).join(' / ');
+                    }
+                }
             }
         }
 
-        // 2. "Sakarya, Kaynarca, Gaziler Mahallesinde..." formatı
-        let mProse = cleanText.match(/([a-zA-ZçğıöşüÇĞİÖŞÜ]+(?:\s*,\s*[a-zA-ZçğıöşüÇĞİÖŞÜ]+)*\s*(?:Mahallesi|Mah\.|Mh\.|Köyü|Mevkii|İlçesi|Merkez)(?:'nde|'nda|nde|nda|'de|'da|de|da)?)/i);
+        // 2. 81 İl ve İlçe / Köy tespiti (Örn: "Çanakkale Gelibolu Tayfurköy Köyü", "Muğla Bodrum Yalıkavak", "İstanbul Kadıköy Moda")
+        for (const city of TURKISH_CITIES) {
+            const pattern = new RegExp('\\b' + city + '(?:\\s*[/,\\s]\\s*([a-zA-ZçğıöşüÇĞİÖŞÜ]+))?(?:\\s*[/,\\s]\\s*([a-zA-ZçğıöşüÇĞİÖŞÜ]+(?:\\s*(?:Köyü|Mahallesi|Mah\\.|Mh\\.|Mevkii|Beldesi))?))?', 'i');
+            const m = cleanText.match(pattern);
+            if (m) {
+                let matchedDistrict = m[1] ? m[1].trim() : '';
+                let matchedVillage = m[2] ? m[2].trim() : '';
+                
+                const stopWords = /^(satılık|kiralık|daire|arsa|tarla|villa|fiyat|bedel|ada|parsel|m2|metrekare|dönüm|lüks|acil|yatırımlık|müstakil|proje|konut|kredi|teklifleri)$/i;
+                if (stopWords.test(matchedDistrict) || /^\d/.test(matchedDistrict)) matchedDistrict = '';
+                if (stopWords.test(matchedVillage) || /^\d/.test(matchedVillage)) matchedVillage = '';
+
+                let parts = [city];
+                if (matchedDistrict) parts.push(matchedDistrict);
+                if (matchedVillage && matchedVillage.toLowerCase() !== matchedDistrict.toLowerCase()) {
+                    parts.push(matchedVillage.replace(/Mahallesi/i, 'Mah.').replace(/Mh\.?/i, 'Mah.'));
+                }
+                return parts.join(' / ');
+            }
+        }
+
+        // 3. "Sakarya, Kaynarca, Gaziler Mahallesinde..." formatı
+        let mProse = cleanText.match(/([a-zA-ZçğıöşüÇĞİÖŞÜ]+(?:\s*[,\s]\s*[a-zA-ZçğıöşüÇĞİÖŞÜ]+)*\s*(?:Mahallesi|Mah\.|Mh\.|Köyü|Mevkii|İlçesi|Merkez)(?:'nde|'nda|nde|nda|'de|'da|de|da)?)/i);
         if (mProse) {
             let loc = mProse[1].replace(/(?:'nde|'nda|nde|nda|'de|'da|de|da)$/i, '').trim();
-            return loc.split(',').map(s => s.trim().replace(/Mahallesi|Mh\.?/i, 'Mah.')).join(' / ');
+            return loc.split(/[,\/]/).map(s => s.trim().replace(/Mahallesi|Mh\.?/i, 'Mah.')).join(' / ');
         }
 
         return '';
@@ -620,9 +673,296 @@
     }
 
     // ========================================================================
-    // ANA SMART PARSE FONKSİYONU
+    // YEREL AYRIŞTIRICI VERİ ÇIKARMA MOTORU
     // ========================================================================
-    function executeSmartParse() {
+    function extractLocalListingData(rawText) {
+        const normalizedText = convertWrittenNumbers(rawText);
+        const tableMap = extractKeyValueMap(rawText);
+        const detectedType = detectPropertyType(normalizedText, tableMap);
+
+        const price = parsePrice(normalizedText, tableMap);
+        const rooms = parseRooms(normalizedText, tableMap);
+        const sizes = parseSizes(normalizedText, tableMap);
+        const floor = parseFloor(normalizedText, tableMap);
+        const age = parseBuildingAge(normalizedText, tableMap);
+        const heating = parseHeating(normalizedText, tableMap);
+        const bathrooms = parseBathrooms(normalizedText, tableMap);
+        const { aidat, depozito } = parseAidatDepozito(normalizedText, tableMap);
+        const land = parseLandDetails(normalizedText, tableMap);
+        const location = parseLocation(rawText, tableMap);
+        const extras = parseExtraFeatures(normalizedText, tableMap);
+
+        return {
+            normalizedText,
+            tableMap,
+            detectedType,
+            price,
+            rooms,
+            sizes,
+            floor,
+            age,
+            heating,
+            bathrooms,
+            aidat,
+            depozito,
+            land,
+            location,
+            extras
+        };
+    }
+
+    // ========================================================================
+    // TEK VE KUSURSUZ UYGULAMA (AI + YEREL BİRLEŞTİRME & ÇİFT DEĞİŞİMİ ÖNLEME)
+    // ========================================================================
+    function applyFinalParseResults(rawText, ai) {
+        const local = extractLocalListingData(rawText);
+        const { detectedType, sizes, floor, age, heating, bathrooms, aidat, depozito, land, extras } = local;
+
+        // 1. Kategori Değiştir
+        if (typeof window.switchPropertyType === 'function') {
+            window.switchPropertyType(detectedType);
+            document.querySelectorAll('.cat-item').forEach(item => item.classList.remove('active'));
+            const targetEl = document.querySelector(`.cat-item[onclick*="${detectedType}"]`);
+            if (targetEl) targetEl.classList.add('active');
+            document.querySelectorAll('.cat-body').forEach(b => {
+                b.classList.remove('open');
+                b.style.display = 'none';
+            });
+            document.querySelectorAll('.cat-header i').forEach(ic => {
+                ic.classList.remove('fa-chevron-up');
+                ic.classList.add('fa-chevron-down');
+            });
+        }
+
+        // 2. AI ve Yerel Verileri Akıllıca Birleştir
+        const finalPrice = (ai && ai.price && String(ai.price).trim() !== '' && String(ai.price).toLowerCase() !== 'null') ? ai.price : local.price;
+        const finalSize = (ai && ai.size && String(ai.size).trim() !== '' && String(ai.size).toLowerCase() !== 'null') ? ai.size : (sizes.brut || sizes.net || sizes.arsa || '');
+        const finalRooms = (ai && ai.rooms && String(ai.rooms).trim() !== '' && String(ai.rooms).toLowerCase() !== 'null' && String(ai.rooms).toLowerCase() !== 'yok') ? ai.rooms : local.rooms;
+        const finalLocation = (ai && ai.location && String(ai.location).trim() !== '' && String(ai.location).toLowerCase() !== 'null') ? ai.location : local.location;
+        const finalAda = (ai && ai.ada && String(ai.ada).trim() !== '' && String(ai.ada).toLowerCase() !== 'null' && String(ai.ada) !== '0') ? String(ai.ada) : (land.ada || '');
+        const finalParsel = (ai && ai.parsel && String(ai.parsel).trim() !== '' && String(ai.parsel).toLowerCase() !== 'null' && String(ai.parsel) !== '0') ? String(ai.parsel) : (land.parsel || '');
+        const finalImar = (ai && ai.imar && String(ai.imar).trim() !== '' && String(ai.imar).toLowerCase() !== 'null' && String(ai.imar).toLowerCase() !== 'yok') ? ai.imar : (land.imar || '');
+        const finalTapu = (ai && ai.tapu && String(ai.tapu).trim() !== '' && String(ai.tapu).toLowerCase() !== 'null' && String(ai.tapu).toLowerCase() !== 'yok') ? ai.tapu : ((land && land.tapu) ? land.tapu : (extras && extras.tapu ? extras.tapu : ''));
+        const finalTitle = (ai && ai.title && String(ai.title).trim() !== '' && String(ai.title).toLowerCase() !== 'null') ? ai.title : '';
+
+        // 3. Form Alanlarını Doldur
+        const directMap = {
+            'titleInput': finalTitle,
+            'priceInput': finalPrice,
+            'f_m2': finalSize,
+            'f_brut': sizes.brut || finalSize,
+            'f_net': sizes.net || finalSize,
+            'f_alan': finalSize,
+            'f_arsa': sizes.arsa || finalSize,
+            'sizeInput': finalSize,
+            'c_size': finalSize,
+            'canvaSize': finalSize,
+            'araziSizeInput': finalSize,
+            'f_ada': finalAda,
+            'f_parsel': finalParsel,
+            'f_imar': finalImar,
+            'imarInput': finalImar,
+            'c_imar': finalImar,
+            'f_kaks': land.kaks,
+            'f_gabari': land.gabari,
+            'f_emsal': land.kaks,
+            'kaksInput': land.kaks,
+            'c_kaks': land.kaks,
+            'gabariInput': land.gabari,
+            'c_gabari': land.gabari,
+            'f_oda': finalRooms,
+            'roomsInput': finalRooms,
+            'c_rooms': finalRooms,
+            'canvaRooms': finalRooms,
+            'f_kat': floor,
+            'floorInput': floor,
+            'c_floor': floor,
+            'canvaFloor': floor,
+            'f_yas': age,
+            'ageInput': age,
+            'c_age': age,
+            'canvaAge': age,
+            'f_isitma': heating,
+            'f_konum': finalLocation,
+            'f_lokasyon': finalLocation,
+            'locationInput': finalLocation,
+            'canvaLocation': finalLocation,
+            'c_loc': finalLocation,
+            'c_banyo': bathrooms,
+            'f_banyo': bathrooms,
+            'f_aidat': aidat,
+            'f_depozito': depozito,
+            'tapuInput': finalTapu
+        };
+
+        // Form Alanlarını Temizle & Doldur
+        const allFormFields = [
+            'titleInput', 'priceInput', 'f_m2', 'f_brut', 'f_net', 'f_alan', 'f_arsa',
+            'sizeInput', 'c_size', 'canvaSize', 'araziSizeInput', 'f_ada', 'f_parsel',
+            'f_imar', 'imarInput', 'c_imar', 'f_kaks', 'f_gabari', 'f_emsal', 'kaksInput',
+            'c_kaks', 'gabariInput', 'c_gabari', 'f_oda', 'roomsInput', 'c_rooms',
+            'canvaRooms', 'f_kat', 'floorInput', 'c_floor', 'canvaFloor', 'f_yas',
+            'ageInput', 'c_age', 'canvaAge', 'f_isitma', 'f_konum', 'f_lokasyon',
+            'locationInput', 'canvaLocation', 'c_loc', 'c_banyo', 'f_banyo',
+            'f_aidat', 'f_depozito', 'tapuInput', 'adaParselInput', 'c_ada_parsel', 'canvaAdaParsel'
+        ];
+
+        let adaParselText = '';
+        if (finalAda && finalParsel) {
+            adaParselText = `ADA: ${finalAda} / PARSEL: ${finalParsel}`;
+        } else if (finalAda) {
+            adaParselText = `ADA: ${finalAda}`;
+        } else if (finalParsel) {
+            adaParselText = `PARSEL: ${finalParsel}`;
+        }
+
+        directMap['adaParselInput'] = adaParselText;
+        directMap['c_ada_parsel'] = adaParselText;
+        directMap['canvaAdaParsel'] = adaParselText;
+
+        allFormFields.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) {
+                const val = directMap[id];
+                el.value = (val !== undefined && val !== null) ? val : '';
+            }
+        });
+
+        // Toggles
+        const toggleMap = {
+            'chkHavuz': extras.havuz,
+            'chkOtopark': extras.otopark,
+            'chkAsansor': extras.asansor,
+            'chkBalkon': extras.balkon,
+            'chkGuvenlik': extras.guvenlik,
+            'chkKredi': extras.kredi,
+            'chkEsyali': extras.esyali,
+            'chkTakas': extras.takas,
+            'chkSite': extras.siteIci,
+            'chkManzara': extras.manzara
+        };
+        Object.keys(toggleMap).forEach(chkId => {
+            const chk = document.getElementById(chkId);
+            if (chk && toggleMap[chkId] !== undefined) {
+                chk.checked = Boolean(toggleMap[chkId]);
+            }
+        });
+
+        // 4. Vurgular & Açıklamalar
+        if (ai && ai.regional_highlights && Array.isArray(ai.regional_highlights)) {
+            window.smartRegionalHighlights = ai.regional_highlights;
+        }
+
+        let cleanDesc = (ai && ai.description) ? ai.description : '';
+        if (cleanDesc.includes("Let's evaluate") || cleanDesc.includes("Schema") || cleanDesc.includes("anahtarları içeren") || cleanDesc.startsWith('{')) {
+            const pTitle = finalTitle || 'Fırsat Portföy';
+            const pLoc = finalLocation || 'Merkezi Lokasyon';
+            cleanDesc = `✨ ${pTitle}\n\n📍 LOKASYON & BÖLGE AVANTAJLARI:\n• ${pLoc} bölgesinde yüksek prim potansiyeline sahip lokasyonda\n• Ana yollara ve ulaşım akslarına yakın\n\n🏡 ÖNE ÇIKAN ÖZELLİKLER:\n• Toplam Alan: ${finalSize}\n• Fiyat: ${finalPrice}\n• Tapu / Mülkiyet: ${finalTapu || 'Sorunsuz Müstakil Tapu'}\n\n📞 Detaylı bilgi, sunum ve yer gösterimi için lütfen arayınız.`;
+        }
+        if (cleanDesc) window.smartAiDescription = cleanDesc;
+
+        if (ai && (ai.social_post || ai.socialPost)) {
+            window.smartAiSocialPost = ai.social_post || ai.socialPost;
+        }
+        if (ai && (ai.reelsHook || ai.reels_hook)) {
+            window.smartReelsHook = ai.reelsHook || ai.reels_hook;
+        }
+
+        const descLines = [];
+        if (finalLocation) descLines.push('📍 ' + finalLocation);
+        if (finalAda && finalParsel) descLines.push(`📐 Ada: ${finalAda} | Parsel: ${finalParsel}`);
+        if (finalRooms && finalSize) descLines.push(`🏠 ${finalRooms} | ${finalSize}`);
+        if (floor) descLines.push(`🏢 ${floor}`);
+        if (heating) descLines.push(`🔥 ${heating}`);
+        if (extras.cephe) descLines.push(`🛣️ ${extras.cephe}`);
+        if (extras.highlights && extras.highlights.length > 0) {
+            extras.highlights.forEach(h => descLines.push(h));
+        }
+        if (extras.havuz) descLines.push(`🏊 ${extras.havuz}`);
+        if (extras.otopark) descLines.push(`🚗 ${extras.otopark}`);
+
+        const descInput = document.getElementById('descInput');
+        if (descInput) {
+            if (cleanDesc) {
+                descInput.value = cleanDesc;
+            } else if (descLines.length > 0) {
+                descInput.value = descLines.join('\n');
+            }
+            if (typeof window.syncDescToggles === 'function') window.syncDescToggles();
+        }
+
+        // 5. Payload ve Tuval Güncellemesi
+        const baseParsedPayload = {
+            title: finalTitle,
+            price: finalPrice,
+            m2Price: (land && land.m2Price) ? land.m2Price : '',
+            location: finalLocation,
+            size: finalSize,
+            rooms: finalRooms,
+            imar: finalImar,
+            ada: finalAda,
+            parsel: finalParsel,
+            tapu: finalTapu,
+            floor: floor,
+            heating: heating,
+            cephe: extras && extras.cephe ? extras.cephe : '',
+            age: age || '',
+            aidat: extras && extras.aidat ? extras.aidat : '',
+            kullanim: extras && extras.kullanim ? extras.kullanim : '',
+            type: detectedType
+        };
+
+        window.lastParsedData = baseParsedPayload;
+        window.lastRawText = rawText;
+
+        if (typeof window.renderData === 'function') window.renderData();
+        if (typeof window.refreshActiveCanvaTemplate === 'function') window.refreshActiveCanvaTemplate();
+        if (typeof window.applyParsedDataToJsonTemplate === 'function') {
+            window.applyParsedDataToJsonTemplate(baseParsedPayload);
+        }
+        if (typeof window.syncKolajFromForm === 'function') {
+            window.syncKolajFromForm();
+        }
+
+        if (typeof activeLayout !== 'undefined' && activeLayout && activeLayout !== 'empty' && activeLayout !== 'none' && (!window.isCanvaMode)) {
+            if (typeof elBadge !== 'undefined' && elBadge && elBadge.style.display !== 'none') elBadge.style.visibility = 'visible';
+            if (typeof elPrice !== 'undefined' && elPrice && elPrice.style.display !== 'none') elPrice.style.visibility = 'visible';
+            if (typeof elDetails !== 'undefined' && elDetails && elDetails.style.display !== 'none') elDetails.style.visibility = 'visible';
+            const il = document.getElementById('infoLineText');
+            if (il && elDetails && elDetails.style.display !== 'none') il.style.visibility = 'visible';
+        }
+
+        if (typeof window.requestAutoSave === 'function') window.requestAutoSave();
+
+        // 6. Akıllı Rozetleri Üret ve UI'ı Güncelle
+        if (typeof window.generateSmartSuggestions === 'function') {
+            window.generateSmartSuggestions(baseParsedPayload, rawText);
+        }
+        if (typeof window.renderSmartSuggestionsUI === 'function') {
+            window.renderSmartSuggestionsUI();
+        }
+
+        // 7. Kullanıcıya Tek ve Net Bildirim
+        let ind = document.getElementById('autosave-indicator');
+        if (ind) {
+            if (ai) {
+                ind.innerHTML = '✨ 🤖 Google Gemini AI ile Kusursuz Süzüldü!';
+            } else {
+                ind.innerHTML = `✓ İlan yerel olarak süzüldü (${detectedType.replace('_', ' ').toUpperCase()})`;
+            }
+            ind.style.opacity = '1';
+            ind.style.transition = 'none';
+            setTimeout(() => {
+                ind.style.transition = 'opacity 1s ease';
+                ind.style.opacity = '0';
+            }, 2500);
+        }
+    }
+
+    // ========================================================================
+    // ANA SMART PARSE FONKSİYONU (3.5 SANİYE ZAMAN AŞIMI VE AI ÖNCELİĞİ)
+    // ========================================================================
+    async function executeSmartParse() {
         const aiTextEl = document.getElementById('aiText');
         if (!aiTextEl) return;
         const rawText = aiTextEl.value;
@@ -631,285 +971,105 @@
             return;
         }
 
+        const parseBtn = document.querySelector('.btn-ai') || document.getElementById('btnSmartParse');
+        if (parseBtn) {
+            parseBtn.disabled = true;
+            parseBtn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles fa-spin"></i> 🤖 Yapay Zeka Çözümlüyor...';
+            parseBtn.style.opacity = '0.9';
+        }
+
+        const parseId = Date.now();
+        window._activeParseId = parseId;
+
         try {
-            // Adım 1: Yazıyla yazılmış sayıları dönüştür
-            const normalizedText = convertWrittenNumbers(rawText);
+            let ai = null;
+            const isOnline = (typeof navigator !== 'undefined' && typeof navigator.onLine === 'boolean') ? navigator.onLine : true;
 
-            // Adım 2: Anahtar-Değer Tablo Haritasını Çıkar
-            const tableMap = extractKeyValueMap(rawText);
+            if (isOnline && rawText.length > 15) {
+                try {
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 15000);
 
-            // Adım 3: Emlak Tipini Belirle ve Kategoriye Geç
-            const detectedType = detectPropertyType(normalizedText, tableMap);
-            
-            // Kategori Değiştir (Başlıklar varsayılan olarak kapalı kalır)
-            if (typeof window.switchPropertyType === 'function') {
-                window.switchPropertyType(detectedType);
-                document.querySelectorAll('.cat-item').forEach(item => item.classList.remove('active'));
-                const targetEl = document.querySelector(`.cat-item[onclick*="${detectedType}"]`);
-                if (targetEl) {
-                    targetEl.classList.add('active');
-                }
-                // Tüm kategori panellerini kapalı tut
-                document.querySelectorAll('.cat-body').forEach(b => {
-                    b.classList.remove('open');
-                    b.style.display = 'none';
-                });
-                document.querySelectorAll('.cat-header i').forEach(ic => {
-                    ic.classList.remove('fa-chevron-up');
-                    ic.classList.add('fa-chevron-down');
-                });
-            }
+                    const directApiKey = (typeof window.getGeminiApiKey === 'function') ? window.getGeminiApiKey() : '';
+                    const workerUrl = 'https://small-lab-3110.emlakstudyomtr.workers.dev';
 
-            // Adım 4: Varlıkların Çıkarılması
-            const price = parsePrice(normalizedText, tableMap);
-            const rooms = parseRooms(normalizedText, tableMap);
-            const sizes = parseSizes(normalizedText, tableMap);
-            const floor = parseFloor(normalizedText, tableMap);
-            const age = parseBuildingAge(normalizedText, tableMap);
-            const heating = parseHeating(normalizedText, tableMap);
-            const bathrooms = parseBathrooms(normalizedText, tableMap);
-            const { aidat, depozito } = parseAidatDepozito(normalizedText, tableMap);
-            const land = parseLandDetails(normalizedText, tableMap);
-            const location = parseLocation(rawText, tableMap);
-            const extras = parseExtraFeatures(normalizedText, tableMap);
+                    if (directApiKey) {
+                        const prompt = `Aşağıdaki Türkçe emlak ilan metnini analiz et ve SADECE JSON formatında şu anahtarları içeren bir nesne döndür:
+{
+  "title": "İlan için çarpıcı başlık",
+  "price": "Fiyat (örn: 25.500.000 TL)",
+  "size": "Alan (örn: 21.271 m²)",
+  "location": "İl / İlçe / Mahalle veya Köy",
+  "ada": "Ada numarası (yoksa null)",
+  "parsel": "Parsel numarası (yoksa null)",
+  "imar": "İmar durumu (Tarla, Konut vb., yoksa null)",
+  "tapu": "Tapu durumu (Müstakil Parsel vb., yoksa null)",
+  "rooms": "Oda sayısı (3+1 vb., yoksa null)",
+  "regional_highlights": ["Bölge avantajı 1", "Bölge avantajı 2"],
+  "description": "Sahibinden için profesyonel ilan açıklaması",
+  "social_post": "Instagram paylaşım metni"
+}
 
-            // Adım 5: Form Alanlarını Akıllıca Doldur & Boş Kalanları Yedek Bilgilerle Dengele
-            const directMap = {
-                'priceInput': price,
-                'f_m2': sizes.brut || sizes.arsa,
-                'f_brut': sizes.brut,
-                'f_net': sizes.net,
-                'f_alan': sizes.brut,
-                'f_arsa': sizes.arsa,
-                'sizeInput': sizes.brut || sizes.arsa,
-                'c_size': sizes.brut || sizes.arsa,
-                'canvaSize': sizes.brut || sizes.arsa,
-                'araziSizeInput': sizes.brut || sizes.arsa,
-                'f_ada': land.ada,
-                'f_parsel': land.parsel,
-                'f_imar': land.imar,
-                'imarInput': land.imar,
-                'c_imar': land.imar,
-                'f_kaks': land.kaks,
-                'f_gabari': land.gabari,
-                'f_emsal': land.kaks,
-                'kaksInput': land.kaks,
-                'c_kaks': land.kaks,
-                'gabariInput': land.gabari,
-                'c_gabari': land.gabari,
-                'f_oda': rooms,
-                'roomsInput': rooms,
-                'c_rooms': rooms,
-                'canvaRooms': rooms,
-                'f_kat': floor,
-                'floorInput': floor,
-                'c_floor': floor,
-                'canvaFloor': floor,
-                'f_yas': age,
-                'ageInput': age,
-                'c_age': age,
-                'canvaAge': age,
-                'f_isitma': heating,
-                'f_konum': location,
-                'f_lokasyon': location,
-                'f_banyo': bathrooms,
-                'f_aidat': aidat,
-                'f_depozito': depozito,
-                'f_cephe': extras.cephe,
-                'cepheInput': extras.cephe,
-                'c_cephe': extras.cephe,
-                'f_havuz': extras.havuz,
-                'f_otopark': extras.otopark,
-                'f_asansor': extras.asansor,
-                'f_site': extras.site,
-                'f_manzara': extras.manzara,
-                'f_kullanim': extras.kullanim
-            };
-
-            if (land.ada && land.parsel) {
-                const adaParselVal = `${land.ada} / ${land.parsel}`;
-                directMap['adaParselInput'] = adaParselVal;
-                directMap['c_adaParsel'] = adaParselVal;
-            }
-
-            const usedSurplus = new Set();
-            const emptySlots = [];
-
-            const activeConfig = (window.propertyForms && window.propertyForms[detectedType]) ? window.propertyForms[detectedType] : null;
-
-            if (activeConfig && activeConfig.fields) {
-                activeConfig.fields.forEach(f => {
-                    const el = document.getElementById(f.id);
-                    if (!el) return;
-
-                    if (f.id === 'priceInput') {
-                        if (price) {
-                            el.value = price;
-                            const priceInputs = ['canvaPrice', 'canvaDPrice', 'canvaCPrice', 'canvaKPrice', 'canvaLPrice', 'canvaMPrice', 'canvaOPrice', 'canvaPPrice', 'canvaSPrice'];
-                            priceInputs.forEach(pid => { const pel = document.getElementById(pid); if (pel) pel.value = price; });
+İlan Metni:
+${rawText}`;
+                        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${directApiKey}`;
+                        const gRes = await fetch(geminiUrl, {
+                            method: 'POST',
+                            signal: controller.signal,
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                contents: [{ parts: [{ text: prompt }] }],
+                                generationConfig: { temperature: 0.2, maxOutputTokens: 2000 }
+                            })
+                        });
+                        clearTimeout(timeoutId);
+                        const gData = await gRes.json();
+                        let rawAiJson = gData.candidates?.[0]?.content?.parts?.[0]?.text || '';
+                        const jsonMatch = rawAiJson.match(/\{[\s\S]*\}/);
+                        if (jsonMatch) {
+                            try { ai = JSON.parse(jsonMatch[0]); } catch(e) {}
                         }
-                        return;
-                    }
-
-                    let val = directMap[f.id] || '';
-                    // "Belirtilmemiş", "Bilinmiyor", "Yok" gibi değerleri temizle
-                    if (/belirtilmemiş|bilinmiyor|^yok$/i.test(val.trim())) {
-                        val = '';
-                    }
-
-                    if (val) {
-                        el.value = val;
-                        if (f.id === 'f_konum' || f.id === 'f_lokasyon') usedSurplus.add('location');
-                        if (f.id === 'f_cephe') usedSurplus.add('cephe');
-                        if (f.id === 'f_otopark') usedSurplus.add('otopark');
-                        if (f.id === 'f_asansor') usedSurplus.add('asansor');
-                        if (f.id === 'f_site') usedSurplus.add('site');
-                        if (f.id === 'f_banyo') usedSurplus.add('banyo');
-                        if (f.id === 'f_aidat') usedSurplus.add('aidat');
-                        if (f.id === 'f_depozito') usedSurplus.add('depozito');
-                        if (f.id === 'f_havuz') usedSurplus.add('havuz');
-                        if (f.id === 'f_manzara') usedSurplus.add('manzara');
                     } else {
-                        emptySlots.push({ field: f, element: el });
+                        const wRes = await fetch(workerUrl, {
+                            method: 'POST',
+                            signal: controller.signal,
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ action: 'parse', text: rawText })
+                        });
+                        clearTimeout(timeoutId);
+                        const wData = await wRes.json();
+                        if (wData && wData.success && wData.data) {
+                            if (wData.data.title || wData.data.price || wData.data.type) {
+                                ai = wData.data;
+                            } else if (typeof wData.data.description === 'string') {
+                                const jsonMatch = wData.data.description.match(/\{[\s\S]*\}/);
+                                if (jsonMatch) {
+                                    try { ai = JSON.parse(jsonMatch[0]); } catch(e) {}
+                                }
+                            }
+                        }
                     }
-                });
-            }
-
-            // 2. İlanda Var Olan Yedek Bilgi Havuzu (Önem Sırasına Göre)
-            const surplusPool = [];
-            if (land.tapu && !usedSurplus.has('tapu') && !/belirtilmemiş|bilinmiyor/i.test(land.tapu)) {
-                let cleanTapu = land.tapu.replace(/tapulu/i, 'Tapu');
-                surplusPool.push({ label: 'Tapu Durumu', value: cleanTapu });
-                usedSurplus.add('tapu');
-            }
-            if (location && !usedSurplus.has('location')) {
-                surplusPool.push({ label: 'Konum', value: location });
-                usedSurplus.add('location');
-            }
-            if (extras.cephe && !usedSurplus.has('cephe')) {
-                surplusPool.push({ label: 'Yola Cephe', value: extras.cephe });
-                usedSurplus.add('cephe');
-            }
-            if (extras.otopark && !usedSurplus.has('otopark')) {
-                surplusPool.push({ label: 'Otopark', value: extras.otopark });
-                usedSurplus.add('otopark');
-            }
-            if (extras.asansor && !usedSurplus.has('asansor')) {
-                surplusPool.push({ label: 'Asansör', value: extras.asansor });
-                usedSurplus.add('asansor');
-            }
-            if (extras.balkon && !usedSurplus.has('balkon')) {
-                surplusPool.push({ label: 'Balkon', value: extras.balkon });
-                usedSurplus.add('balkon');
-            }
-            if (extras.site && !usedSurplus.has('site')) {
-                surplusPool.push({ label: 'Site İçi', value: extras.site });
-                usedSurplus.add('site');
-            }
-            if (extras.havuz && !usedSurplus.has('havuz')) {
-                surplusPool.push({ label: 'Havuz', value: extras.havuz });
-                usedSurplus.add('havuz');
-            }
-            if (bathrooms && !usedSurplus.has('banyo')) {
-                surplusPool.push({ label: 'Banyo', value: bathrooms + ' Banyo' });
-                usedSurplus.add('banyo');
-            }
-            if (aidat && !usedSurplus.has('aidat')) {
-                surplusPool.push({ label: 'Aidat', value: aidat });
-                usedSurplus.add('aidat');
-            }
-
-            // 3. Boş kalan yuvaları yedek gerçek bilgilerle doldur
-            emptySlots.forEach(slot => {
-                if (surplusPool.length > 0) {
-                    const surplus = surplusPool.shift();
-                    slot.element.value = surplus.value;
-                    if (slot.element.previousElementSibling && slot.element.previousElementSibling.tagName === 'LABEL') {
-                        slot.element.previousElementSibling.innerText = surplus.label;
-                    }
-                } else {
-                    // Yedek bilgi yoksa sahte varsayılan değeri temizle
-                    slot.element.value = '';
+                } catch (aiErr) {
+                    console.log('AI süzme zaman aşımı (15s) veya çevrimdışı, yerel ayrıştırıcı kullanılıyor.');
+                    ai = null;
                 }
-            });
-
-            // Açıklama Kutusu (`descInput`)
-            const descLines = [];
-            if (location) descLines.push('📍 ' + location);
-            if (land.ada && land.parsel) descLines.push(`📐 Ada: ${land.ada} | Parsel: ${land.parsel}`);
-            if (rooms && sizes.brut) descLines.push(`🏠 ${rooms} | ${sizes.brut}`);
-            if (floor) descLines.push(`🏢 ${floor}`);
-            if (heating) descLines.push(`🔥 ${heating}`);
-            if (extras.cephe) descLines.push(`🛣️ ${extras.cephe}`);
-            if (extras.highlights && extras.highlights.length > 0) {
-                extras.highlights.forEach(h => descLines.push(h));
-            }
-            if (extras.havuz) descLines.push(`🏊 ${extras.havuz}`);
-            if (extras.otopark) descLines.push(`🚗 ${extras.otopark}`);
-
-            const descInput = document.getElementById('descInput');
-            if (descInput && descLines.length > 0) {
-                descInput.value = descLines.join('\n');
-                if (typeof window.syncDescToggles === 'function') window.syncDescToggles();
             }
 
-            // Adım 6: Canlı Tuval Güncellemesi ve Otomatik Kayıt
-            if (typeof window.renderData === 'function') window.renderData();
-            if (typeof window.refreshActiveCanvaTemplate === 'function') window.refreshActiveCanvaTemplate();
-            if (typeof window.applyParsedDataToJsonTemplate === 'function') {
-                window.applyParsedDataToJsonTemplate(result);
-            }
-            if (typeof window.syncKolajFromForm === 'function') {
-                window.syncKolajFromForm();
-            }
+            // Eğer kullanıcı yeni bir süzme başlattıysa eski isteği gözardı et
+            if (window._activeParseId !== parseId) return;
 
-            // Eğer kullanıcı standart şablon modundaysa ve aktif bir şablon seçiliyse elemanları görünür yap ve güncelle
-            if (typeof activeLayout !== 'undefined' && activeLayout && activeLayout !== 'empty' && activeLayout !== 'none' && (!window.isCanvaMode)) {
-                if (typeof elBadge !== 'undefined' && elBadge && elBadge.style.display !== 'none') elBadge.style.visibility = 'visible';
-                if (typeof elPrice !== 'undefined' && elPrice && elPrice.style.display !== 'none') elPrice.style.visibility = 'visible';
-                if (typeof elDetails !== 'undefined' && elDetails && elDetails.style.display !== 'none') elDetails.style.visibility = 'visible';
-                const il = document.getElementById('infoLineText');
-                if (il && elDetails && elDetails.style.display !== 'none') il.style.visibility = 'visible';
-            }
+            // Sonuçları tek adımda uygula
+            applyFinalParseResults(rawText, ai);
 
-            if (typeof window.requestAutoSave === 'function') window.requestAutoSave();
-
-            // Adım 7: İlana Özel Akıllı Öneriler & Rozetler Üret
-            if (typeof window.generateSmartSuggestions === 'function') {
-                window.generateSmartSuggestions({
-                    price: price,
-                    m2Price: (land && land.m2Price) ? land.m2Price : '',
-                    location: location,
-                    size: sizes.brut || sizes.net || sizes.arsa,
-                    rooms: rooms,
-                    imar: land.imar,
-                    ada: land.ada,
-                    parsel: land.parsel,
-                    tapu: (land && land.tapu) ? land.tapu : (extras && extras.tapu ? extras.tapu : ''),
-                    floor: floor,
-                    heating: heating,
-                    cephe: extras && extras.cephe ? extras.cephe : '',
-                    age: age || '',
-                    aidat: extras && extras.aidat ? extras.aidat : '',
-                    kullanim: extras && extras.kullanim ? extras.kullanim : '',
-                    type: detectedType
-                }, rawText);
-            }
-
-            // Kullanıcıya bildirim
-            let ind = document.getElementById('autosave-indicator');
-            if (ind) {
-                ind.innerHTML = `✓ İlan başarıyla süzüldü (${detectedType.replace('_', ' ').toUpperCase()})`;
-                ind.style.opacity = '1';
-                ind.style.transition = 'none';
-                setTimeout(() => {
-                    ind.style.transition = 'opacity 1s ease';
-                    ind.style.opacity = '0';
-                }, 3000);
-            }
         } catch (err) {
             console.error("Metni süzme hatası:", err);
+            applyFinalParseResults(rawText, null);
         } finally {
+            if (parseBtn) {
+                parseBtn.disabled = false;
+                parseBtn.innerHTML = '🤖 Metni Süz';
+                parseBtn.style.opacity = '1';
+            }
             if (typeof window.hideAppLoading === 'function') {
                 window.hideAppLoading();
             }

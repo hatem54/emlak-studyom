@@ -346,6 +346,110 @@ window.clearLogoImage = function() {
     if (typeof deselectAll === 'function') deselectAll();
 };
 
+// Global Proje Fotoğrafı Uygulama Motoru (Dosya yükleme, Uydu Haritası, Pano/Ekran Yakalama için ortak)
+function applyFinalProjectImage(img, finalDataUrl, finalW, finalH) {
+    try {
+        uploadedImgUrl = finalDataUrl;
+        window.uploadedImgUrl = finalDataUrl;
+        uploadedImgW = finalW;
+        uploadedImgH = finalH;
+        window.uploadedImgW = uploadedImgW;
+        window.uploadedImgH = uploadedImgH;
+        window._globalNativeImg = img;
+        window._globalNativeImgSrc = finalDataUrl;
+
+        const pl = document.getElementById('photo-layer');
+        if (pl) {
+            pl.dataset.naturalW = uploadedImgW;
+            pl.dataset.naturalH = uploadedImgH;
+        }
+
+        // 1. Tuval formatını görselin orijinal ölçülerine uyarla
+        if (typeof autoAdjustFormat === 'function' && window.isRestoringState !== true) {
+            autoAdjustFormat(uploadedImgW, uploadedImgH);
+        }
+
+        // 2. Tuval boyutlarını doğrudan görsel boyutlarına eşitle
+        const cContainer = document.getElementById('canvas-container');
+        if (cContainer) {
+            cContainer.style.width = uploadedImgW + 'px';
+            cContainer.style.height = uploadedImgH + 'px';
+        }
+        if (typeof canvasEl !== 'undefined' && canvasEl) {
+            canvasEl.style.width = uploadedImgW + 'px';
+            canvasEl.style.height = uploadedImgH + 'px';
+        }
+        const drawCanvas = document.getElementById('draw-layer');
+        if (drawCanvas) {
+            drawCanvas.width = uploadedImgW;
+            drawCanvas.height = uploadedImgH;
+            drawCanvas.style.width = uploadedImgW + 'px';
+            drawCanvas.style.height = uploadedImgH + 'px';
+        }
+        if (window.SaberEngine && typeof window.SaberEngine.resize === 'function') {
+            window.SaberEngine.resize(uploadedImgW, uploadedImgH);
+        }
+    
+        // 3. Tuval ölçeğini hesapla
+        if (typeof resizeCanvas === 'function') resizeCanvas();
+
+        // 4. Fotoğraf katmanını güncelle ve render et
+        document.querySelectorAll('.photo-panel, #photo-layer').forEach(p => {
+            p._nativeImg = img;
+            p._nativeImgSrc = finalDataUrl;
+            p.dataset.savedBg = `url('${finalDataUrl}')`;
+            delete p.dataset.zpScale;
+            delete p.dataset.zpX;
+            delete p.dataset.zpY;
+            const inner = p.querySelector('.photo-inner-zoom');
+            if (inner) inner.style.backgroundImage = `url('${finalDataUrl}')`;
+            p.style.backgroundImage = 'none';
+            if (typeof _applyPhotoTransform === 'function') _applyPhotoTransform(p);
+        });
+
+        if (typeof isCanvaMode !== 'undefined' && isCanvaMode) {
+            if (typeof refreshActiveCanvaTemplate === 'function') refreshActiveCanvaTemplate();
+            else if (typeof buildCanvaRender === 'function') buildCanvaRender();
+        }
+
+        if ($('clearBgBtn')) $('clearBgBtn').style.display = 'flex';
+        if (document.getElementById('bgUploadBtnText')) document.getElementById('bgUploadBtnText').innerText = 'Fotoğrafı Değiştir';
+
+        if (typeof window.updatePhotoLockState === 'function') {
+            window.updatePhotoLockState(true);
+        } else {
+            const lockToggle = document.getElementById('photoLockToggle');
+            if (lockToggle) lockToggle.checked = true;
+            window.isPhotoLocked = true;
+        }
+        if (typeof resetPixelCache === 'function') resetPixelCache();
+        if (typeof resizeCanvas === 'function') resizeCanvas();
+        if (typeof applyPhotoPos === 'function') applyPhotoPos();
+        if (typeof redrawAll === 'function') redrawAll();
+        
+        if (typeof updateDrawHistory === 'function') updateDrawHistory();
+        if (typeof requestAutoSave === 'function') requestAutoSave();
+        
+        if (typeof window.analyzeUploadedImageVision === 'function') {
+            try {
+                window.analyzeUploadedImageVision(img, finalDataUrl);
+            } catch(vErr) {
+                console.warn("Vision analizi atlandı:", vErr);
+            }
+        }
+    } catch (applyErr) {
+        console.error("applyFinalProjectImage hatası:", applyErr);
+    } finally {
+        if (typeof window.hideAppLoading === 'function') {
+            window.hideAppLoading();
+        }
+        setTimeout(() => {
+            if (typeof window.hideAppLoading === 'function') window.hideAppLoading(60);
+        }, 120);
+    }
+}
+window.applyFinalImage = applyFinalProjectImage;
+
 function bindInputs(){
     if($('logoInput')){
         $('logoInput').addEventListener('change', e => {
@@ -381,8 +485,8 @@ function bindInputs(){
                         const nw = imgTest.naturalWidth || imgTest.width;
                         if (nw > 0) {
                             let initialW = nw;
-                            if (initialW > 350) initialW = 350;
-                            if (initialW < 120) initialW = 120;
+                            if (initialW > 140) initialW = 140;
+                            if (initialW < 60) initialW = 60;
                             logoEl.style.width = initialW + 'px';
                             logoEl.style.height = 'auto';
                         }
@@ -432,98 +536,9 @@ function bindInputs(){
                 window.showAppLoading('Fotoğraf Yükleniyor...', 'Görsel işleniyor ve tuvale yerleştiriliyor...');
             }
 
+            const applyFinalImage = applyFinalProjectImage;
+
             const processPhotoChange = async () => {
-                const applyFinalImage = (img, finalDataUrl, finalW, finalH) => {
-                    uploadedImgUrl = finalDataUrl;
-                    window.uploadedImgUrl = finalDataUrl;
-                    uploadedImgW = finalW;
-                    uploadedImgH = finalH;
-                    window.uploadedImgW = uploadedImgW;
-                    window.uploadedImgH = uploadedImgH;
-                    window._globalNativeImg = img;
-                    window._globalNativeImgSrc = finalDataUrl;
-
-                    const pl = document.getElementById('photo-layer');
-                    if (pl) {
-                        pl.dataset.naturalW = uploadedImgW;
-                        pl.dataset.naturalH = uploadedImgH;
-                    }
-
-                    // 1. Tuval formatını görselin orijinal ölçülerine uyarla
-                    if (typeof autoAdjustFormat === 'function' && window.isRestoringState !== true) {
-                        autoAdjustFormat(uploadedImgW, uploadedImgH);
-                    }
-
-                    // 2. Tuval boyutlarını doğrudan görsel boyutlarına eşitle
-                    const cContainer = document.getElementById('canvas-container');
-                    if (cContainer) {
-                        cContainer.style.width = uploadedImgW + 'px';
-                        cContainer.style.height = uploadedImgH + 'px';
-                    }
-                    if (typeof canvasEl !== 'undefined' && canvasEl) {
-                        canvasEl.style.width = uploadedImgW + 'px';
-                        canvasEl.style.height = uploadedImgH + 'px';
-                    }
-                    const drawCanvas = document.getElementById('draw-layer');
-                    if (drawCanvas) {
-                        drawCanvas.width = uploadedImgW;
-                        drawCanvas.height = uploadedImgH;
-                        drawCanvas.style.width = uploadedImgW + 'px';
-                        drawCanvas.style.height = uploadedImgH + 'px';
-                    }
-                    if (window.SaberEngine && typeof window.SaberEngine.resize === 'function') {
-                        window.SaberEngine.resize(uploadedImgW, uploadedImgH);
-                    }
-                
-                    // 3. Tuval ölçeğini hesapla
-                    if (typeof resizeCanvas === 'function') resizeCanvas();
-
-                    // 4. Fotoğraf katmanını güncelle ve render et
-                    document.querySelectorAll('.photo-panel, #photo-layer').forEach(p => {
-                        p._nativeImg = img;
-                        p._nativeImgSrc = finalDataUrl;
-                        p.dataset.savedBg = `url('${finalDataUrl}')`;
-                        delete p.dataset.zpScale;
-                        delete p.dataset.zpX;
-                        delete p.dataset.zpY;
-                        const inner = p.querySelector('.photo-inner-zoom');
-                        if (inner) inner.style.backgroundImage = `url('${finalDataUrl}')`;
-                        p.style.backgroundImage = 'none';
-                        if (typeof _applyPhotoTransform === 'function') _applyPhotoTransform(p);
-                    });
-
-                    if (typeof isCanvaMode !== 'undefined' && isCanvaMode) {
-                        if (typeof refreshActiveCanvaTemplate === 'function') refreshActiveCanvaTemplate();
-                        else if (typeof buildCanvaRender === 'function') buildCanvaRender();
-                    }
-
-                    if ($('clearBgBtn')) $('clearBgBtn').style.display = 'flex';
-                    if (document.getElementById('bgUploadBtnText')) document.getElementById('bgUploadBtnText').innerText = 'Fotoğrafı Değiştir';
-
-                    if (typeof window.updatePhotoLockState === 'function') {
-                        window.updatePhotoLockState(true);
-                    } else {
-                        const lockToggle = document.getElementById('photoLockToggle');
-                        if (lockToggle) lockToggle.checked = true;
-                        window.isPhotoLocked = true;
-                    }
-                    if (typeof resetPixelCache === 'function') resetPixelCache();
-                    if (typeof resizeCanvas === 'function') resizeCanvas();
-                    if (typeof applyPhotoPos === 'function') applyPhotoPos();
-                    if (typeof redrawAll === 'function') redrawAll();
-                    
-                    if (typeof updateDrawHistory === 'function') updateDrawHistory();
-                    if (typeof requestAutoSave === 'function') requestAutoSave();
-                    
-                    if (typeof window.hideAppLoading === 'function') {
-                        window.hideAppLoading();
-                    }
-
-                    setTimeout(() => {
-                        if (typeof window.hideAppLoading === 'function') window.hideAppLoading(60);
-                    }, 120);
-                };
-
                 try {
                     const objectUrl = URL.createObjectURL(f);
                     
@@ -664,15 +679,228 @@ function bindInputs(){
                 };
 
             } else {
-
                 processPhotoChange();
-
             }
-
         });
-
     }
 
+    // Harita / Uydu veya dış kaynaklardan gelen dataUrl görsellerini projeye doğrudan uygular
+    window.applyProjectImageFromDataUrl = function(dataUrl, callback) {
+        if (!dataUrl) return;
+        if (typeof window.showAppLoading === 'function') {
+            window.showAppLoading('Görsel İşleniyor...', 'Uydu görüntüsü tuvale aktarılıyor...');
+        }
+
+        const proceed = () => {
+            const img = new Image();
+            // data: şemasında crossOrigin ayarlanmamalıdır (tarayıcı CORS hatası üretir)
+            if (typeof dataUrl === 'string' && !dataUrl.startsWith('data:')) {
+                img.crossOrigin = 'anonymous';
+            }
+            img.onload = () => {
+                try {
+                    let finalW = img.naturalWidth || 1920;
+                    let finalH = img.naturalHeight || 1080;
+
+                    applyFinalProjectImage(img, dataUrl, finalW, finalH);
+                    if (typeof window.hideAppLoading === 'function') window.hideAppLoading();
+                    if (typeof callback === 'function') callback(null, dataUrl);
+                } catch(err) {
+                    console.error('applyProjectImageFromDataUrl hata:', err);
+                    if (typeof window.hideAppLoading === 'function') window.hideAppLoading();
+                    if (typeof callback === 'function') callback(err);
+                }
+            };
+            img.onerror = (err) => {
+                console.error('Görsel yüklenemedi:', err);
+                if (typeof window.hideAppLoading === 'function') window.hideAppLoading();
+                alert('Görsel tuvale aktarılırken hata oluştu.');
+                if (typeof callback === 'function') callback(err);
+            };
+            img.src = dataUrl;
+        };
+
+        if (typeof drawPaths !== 'undefined' && drawPaths.length > 0 && typeof uploadedImgUrl !== 'undefined' && uploadedImgUrl) {
+            if (confirm("Yeni bir uydu görseli yüklendiğinde mevcut çizimler temizlenecektir. Devam etmek istiyor musunuz?")) {
+                drawPaths.length = 0;
+                if (typeof redrawAll === 'function') redrawAll();
+                proceed();
+            } else {
+                if (typeof window.hideAppLoading === 'function') window.hideAppLoading();
+            }
+        } else {
+            proceed();
+        }
+    };
+
+    // 📋 Panodan Görsel / Ekran Alıntısı Yapıştırma (Ctrl + V) Desteği
+    // Google Earth, TKGM Parsel Sorgu veya başka bir kaynaktan Win+Shift+S ile kopyalanan görseli anında şablona aktarır
+    window.addEventListener('paste', function(e) {
+        if (!e.clipboardData || !e.clipboardData.items) return;
+
+        const active = document.activeElement;
+        const isTextInput = active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.isContentEditable);
+
+        const items = Array.from(e.clipboardData.items);
+        const imageItem = items.find(item => item.type && item.type.startsWith('image/'));
+
+        if (imageItem) {
+            if (!isTextInput) {
+                e.preventDefault();
+            }
+            const blob = imageItem.getAsFile();
+            if (blob) {
+                const reader = new FileReader();
+                reader.onload = function(evt) {
+                    const dataUrl = evt.target.result;
+                    if (typeof window.applyProjectImageFromDataUrl === 'function') {
+                        window.applyProjectImageFromDataUrl(dataUrl, (err) => {
+                            if (!err && typeof window.showAppToast === 'function') {
+                                window.showAppToast('📋 Panodaki ekran alıntısı (TKGM / Google Earth) başarıyla şablona aktarıldı!', 'success');
+                            }
+                        });
+                    }
+                };
+                reader.readAsDataURL(blob);
+            }
+        }
+    });
+
+    // 📋 Butonla Panodan Görsel Alma
+    window.pasteImageFromClipboard = async function() {
+        try {
+            if (navigator.clipboard && navigator.clipboard.read) {
+                const items = await navigator.clipboard.read();
+                for (const item of items) {
+                    for (const type of item.types) {
+                        if (type.startsWith('image/')) {
+                            const blob = await item.getType(type);
+                            const reader = new FileReader();
+                            reader.onload = (evt) => {
+                                if (typeof window.applyProjectImageFromDataUrl === 'function') {
+                                    window.applyProjectImageFromDataUrl(evt.target.result, (err) => {
+                                        if (!err && typeof window.showAppToast === 'function') {
+                                            window.showAppToast('📋 Panodaki görsel başarıyla şablona aktarıldı!', 'success');
+                                        }
+                                    });
+                                }
+                            };
+                            reader.readAsDataURL(blob);
+                            return;
+                        }
+                    }
+                }
+            }
+            alert('Panoda kopyalanmış bir görsel bulunamadı.\n\nİpucu: Google Earth 3D veya TKGM ekranındayken klavyenizden Win + Shift + S tuşlarına basarak istediğiniz alanı kırpın, ardından uygulamaya dönüp Ctrl + V tuşlarına basın.');
+        } catch(err) {
+            console.warn('Clipboard read hatası:', err);
+            alert('Tarayıcı güvenlik izni nedeniyle panoya butonla doğrudan erişilemedi.\n\nLütfen klavyenizden Ctrl + V tuşlarına basarak yapıştırın.');
+        }
+    };
+
+    // 📸 Google Earth / TKGM veya Herhangi Bir Sekmeyi / Pencereyi Canlı Yakalama (WebRTC Screen Capture API)
+    window.captureScreenOrTabToTemplate = async function() {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
+            alert('Sekme yakalama bu tarayıcıda desteklenmiyor.\n\nAlternatif olarak: Google Earth veya TKGM ekranında Win + Shift + S ile ekran görüntüsü alıp uygulamada Ctrl + V tuşlarına basabilirsiniz.');
+            return;
+        }
+
+        try {
+            const stream = await navigator.mediaDevices.getDisplayMedia({
+                video: {
+                    displaySurface: 'browser',
+                    cursor: 'never'
+                },
+                audio: false
+            });
+
+            if (typeof window.showAppLoading === 'function') {
+                window.showAppLoading('Görüntü Yakalanıyor...', 'Seçilen Google Earth / TKGM sekmesinden yüksek çözünürlüklü görüntü alınıyor...');
+            }
+
+            const video = document.createElement('video');
+            video.playsInline = true;
+            video.muted = true;
+            video.srcObject = stream;
+
+            await new Promise((resolve) => {
+                video.onloadedmetadata = () => {
+                    video.play().then(resolve).catch(resolve);
+                };
+                setTimeout(resolve, 1500);
+            });
+
+            await new Promise(r => setTimeout(r, 250));
+
+            const vw = video.videoWidth || 1920;
+            const vh = video.videoHeight || 1080;
+
+            // Aktif tuval ölçülerini al (Varsayılan 16:9 Full HD: 1920x1080)
+            let targetW = 1920;
+            let targetH = 1080;
+            if (window.SatelliteMapModule && typeof window.SatelliteMapModule.getActiveFormatDimensions === 'function') {
+                const dim = window.SatelliteMapModule.getActiveFormatDimensions();
+                if (dim && dim.w && dim.h) {
+                    targetW = dim.w;
+                    targetH = dim.h;
+                }
+            } else {
+                const activePill = document.querySelector('.dock-pill-btn.active');
+                const previewSel = document.getElementById('previewFormat');
+                const fmt = (activePill ? (activePill.dataset.format || '') : '') + ' ' + (previewSel ? previewSel.value : '');
+                if (fmt.includes('1:1') || fmt.includes('Kare')) { targetW = 1080; targetH = 1080; }
+                else if (fmt.includes('4:5') || fmt.includes('Portre')) { targetW = 1080; targetH = 1350; }
+                else if (fmt.includes('9:16') || fmt.includes('Story') || fmt.includes('Hikaye')) { targetW = 1080; targetH = 1920; }
+            }
+
+            const targetRatio = targetW / targetH;
+            let sw, sh, sx, sy;
+            if (vw / vh >= targetRatio) {
+                sh = vh;
+                sw = Math.round(vh * targetRatio);
+                sx = Math.round((vw - sw) / 2);
+                sy = 0;
+            } else {
+                sw = vw;
+                sh = Math.round(vw / targetRatio);
+                sx = 0;
+                sy = Math.round((vh - sh) / 2);
+            }
+
+            const offCanvas = document.createElement('canvas');
+            offCanvas.width = targetW;
+            offCanvas.height = targetH;
+            const ctx = offCanvas.getContext('2d');
+            ctx.drawImage(video, sx, sy, sw, sh, 0, 0, targetW, targetH);
+
+            // Yayını hemen kapat
+            stream.getTracks().forEach(track => track.stop());
+            video.srcObject = null;
+
+            const dataUrl = offCanvas.toDataURL('image/jpeg', 0.95);
+
+            if (typeof window.applyProjectImageFromDataUrl === 'function') {
+                window.applyProjectImageFromDataUrl(dataUrl, (err) => {
+                    if (typeof window.hideAppLoading === 'function') window.hideAppLoading();
+                    if (!err) {
+                        if (typeof window.closeSatelliteMapModal === 'function') {
+                            window.closeSatelliteMapModal();
+                        }
+                        if (typeof window.showAppToast === 'function') {
+                            window.showAppToast('📸 Sekme görüntüsü (Google Earth / TKGM) başarıyla şablona aktarıldı!', 'success');
+                        }
+                    }
+                });
+            }
+
+        } catch(err) {
+            console.warn('getDisplayMedia iptal veya hata:', err);
+            if (typeof window.hideAppLoading === 'function') window.hideAppLoading();
+            if (err.name !== 'NotAllowedError') {
+                alert('Görüntü yakalanırken bir sorun oluştu: ' + err.message);
+            }
+        }
+    };
 }
 
 function bindPhotoFilters(){

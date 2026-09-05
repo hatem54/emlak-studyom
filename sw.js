@@ -1,11 +1,13 @@
-const CACHE_NAME = 'emlak-studiom-v125';
+const CACHE_NAME = 'emlak-studiom-v150-20260905-10';
 const CORE_ASSETS = [
   './app.html',
   './styles.css',
   './main.js',
+  './modules/satellite-map.js',
   './modules/canvas-core.js',
   './modules/ui-core.js',
   './modules/events.js',
+  './modules/ai-vision.js',
   './assets/logo/logo-icon.png',
   './ui/pwa-install.js',
   './manifest.json'
@@ -30,6 +32,7 @@ self.addEventListener('activate', (event) => {
       return Promise.all(
         cacheNames.map((cacheName) => {
           if (cacheName !== CACHE_NAME) {
+            console.log('Deleting old cache:', cacheName);
             return caches.delete(cacheName);
           }
         })
@@ -40,36 +43,20 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
+  // Sadece GET isteklerini işle
   if (event.request.method !== 'GET') return;
   
   const url = new URL(event.request.url);
 
-  // KASPERSKY KONTROLÜ
-  if (url.hostname.includes('kaspersky-labs.com')) {
-    event.respondWith(
-      fetch(event.request).catch((err) => {
-        return new Response(null, { status: 204, statusText: 'No Content' });
-      })
-    );
-    return;
-  }
-
-  // DİĞER HARİCİ ORIGINLER (Supabase CDN, vb.)
+  // 🛡️ HARİCİ ORIGINLER (Cloudflare Worker, Supabase, Google vb.) TARAYICIYA BIRAKILIR, ASLA ENGELLENMEZ
   if (url.origin !== self.location.origin) {
-    event.respondWith(
-      fetch(event.request).catch((err) => {
-        // Hata durumunda (offline vb.) boş 204 dönmek yerine 503 dönüyoruz
-        // Bu sayede tarayıcı script'i boş olarak çalıştırmayıp uygun hatayı (onerror) fırlatır.
-        return new Response('', { status: 503, statusText: 'Service Unavailable' });
-      })
-    );
     return;
   }
 
-  // Versioned veya Localhost isteklerinde Network-First
-  if (url.searchParams.has('v') || url.hostname === 'localhost' || url.hostname === '127.0.0.1') {
-    event.respondWith(
-      fetch(event.request).then((networkResponse) => {
+  // YEREL DOSYALAR İÇİN: Her zaman en güncel dosyayı çek (Network-First), internet yoksa cache'den ver
+  event.respondWith(
+    fetch(event.request)
+      .then((networkResponse) => {
         if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
           const responseToCache = networkResponse.clone();
           caches.open(CACHE_NAME).then((cache) => {
@@ -77,70 +64,9 @@ self.addEventListener('fetch', (event) => {
           });
         }
         return networkResponse;
-      }).catch(() => {
+      })
+      .catch(() => {
         return caches.match(event.request);
-      })
-    );
-    return;
-  }
-
-  // 1. STATİK DOSYALAR İÇİN: Stale-While-Revalidate stratejisi
-  const isStatic = url.pathname.match(/\.(js|css|html|json|png|jpg|jpeg|svg)$/i) || url.pathname.includes('/assets/');
-  
-  if (isStatic) {
-    event.respondWith(
-      caches.match(event.request).then((cachedResponse) => {
-        
-        // Arka planda sunucuya gidip cache'i güncelle (Revalidate)
-        const fetchPromise = fetch(event.request).then((networkResponse) => {
-          if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
-            const responseToCache = networkResponse.clone();
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(event.request, responseToCache);
-            });
-          }
-          return networkResponse;
-        }).catch((err) => {
-          // Offline isek veya hata varsa sessizce düş, catch bloğundan Response objesi döndür
-          console.warn('Statik dosya ağ isteği başarısız:', url.href, err);
-          return new Response('', { status: 408, statusText: 'Request Timeout' });
-        });
-
-        // Cache varsa anında onu dön, yoksa mecburen ağdan inmeyi (fetchPromise) bekle.
-        return cachedResponse || fetchPromise;
-      }).catch((err) => {
-        console.warn('Cache match hatası:', err);
-        return new Response('', { status: 500, statusText: 'Cache Error' });
-      })
-    );
-    return;
-  }
-  
-  // 2. DİNAMİK İSTEKLER İÇİN: Network-First (Mevcut eski yapı)
-  event.respondWith(
-    fetch(event.request)
-      .then((response) => {
-        if (!response || response.status !== 200 || response.type !== 'basic') {
-          return response;
-        }
-        const responseToCache = response.clone();
-        caches.open(CACHE_NAME).then((cache) => {
-          cache.put(event.request, responseToCache);
-        });
-        return response;
-      })
-      .catch((err) => {
-        console.warn('Dinamik istek başarısız (Network-First):', url.href, err);
-        return caches.match(event.request).then((response) => {
-          if (response) {
-            return response;
-          }
-          if (event.request.headers.get('accept') && event.request.headers.get('accept').includes('text/html')) {
-            return caches.match('./app.html');
-          }
-          // Tüm denemeler başarısız olursa güvenli fallback
-          return new Response('', { status: 408, statusText: 'Request Timeout' });
-        });
       })
   );
 });

@@ -3,6 +3,9 @@
    Bu dosyada sadece VERİ değişir, fonksiyon YOK
 ============================================================ */
 
+// 🌐 Google Photorealistic 3D Earth API Anahtarı
+window.GOOGLE_MAPS_3D_KEY = "AIzaSyB29TnBvpT2vmEiY9US_Op0S5mdJejOb_g";
+
 
 
 // ========== İKONLAR (Kategorize) - EMLAK PRO ==========
@@ -242,6 +245,18 @@ const PORTFOY_CARDS=[
     {id:'canvaP8',name:'P8. Portföy Tasarım',tag:'Portföy',bg1:'#14532d',bg2:'#166534',accent:'#bbf7d0'},
     {id:'canvaP9',name:'P9. Portföy Tasarım',tag:'Portföy',bg1:'#14532d',bg2:'#166534',accent:'#bbf7d0'},
     {id:'canvaP10',name:'P10. Portföy Tasarım',tag:'Portföy',bg1:'#14532d',bg2:'#166534',accent:'#bbf7d0'}
+];
+const KALIP_CARDS = [
+    {id:'canvaK1', name:'1. Ovacık Gold Afiş', tag:'Afiş', bg1:'#020c24', bg2:'#061c47', accent:'#d4af37', desc:'Alt İkonlu & Çoklu Vitrin'},
+    {id:'canvaK2', name:'2. İnfografik Emlak Rehberi', tag:'İnfografik', bg1:'#3b111f', bg2:'#54192d', accent:'#e0a96d', desc:'Özellik Rozetli & Garantili'},
+    {id:'canvaK3', name:'3. Lüks Magazin Editoryal', tag:'Editoryal', bg1:'#faf9f6', bg2:'#f0eee6', accent:'#1e293b', desc:'Asimetrik Prestij Tipografi'},
+    {id:'canvaK4', name:'4. 3-Fotoğraflı Vitrin İlanı', tag:'Vitrin', bg1:'#dc2626', bg2:'#991b1b', accent:'#facc15', desc:'Klasik Emlakçı Baskı Afişi'},
+    {id:'canvaK5', name:'5. Panoramik Alt Bant', tag:'Sinematik', bg1:'#0f172a', bg2:'#1e293b', accent:'#38bdf8', desc:'Geniş Fotoğraf & Cam Panel'},
+    {id:'canvaK6', name:'6. Çapraz Dinamik Kesim', tag:'Dinamik', bg1:'#064e3b', bg2:'#022c22', accent:'#fbbf24', desc:'Köşe Açı & Geometrik Vurgu'},
+    {id:'canvaK7', name:'7. Arsa & İmar Blueprint', tag:'Teknik', bg1:'#0a192f', bg2:'#0f2b48', accent:'#38bdf8', desc:'Ada/Parsel & Teknik Bilgi'},
+    {id:'canvaK8', name:'8. Penthouse Gece Rezidans', tag:'Rezidans', bg1:'#08080a', bg2:'#18181b', accent:'#e5c07b', desc:'Mat Siyah & Bronz Metalik'},
+    {id:'canvaK9', name:'9. İskandinav Villa & Bahçe', tag:'Villa', bg1:'#f5f5f0', bg2:'#e7e5e0', accent:'#4a5d4e', desc:'Doğal Tonlar & Numaralı Liste'},
+    {id:'canvaK10', name:'10. Lansman & Ödeme Planı', tag:'Lansman', bg1:'#7c2d12', bg2:'#9a3412', accent:'#fde047', desc:'Taksit/Peşinat & Sosyal Tesis'}
 ];
 const OZEL_CARDS=[
     {id:'canvaO1',name:'O1. Özel Tasarım',tag:'Özel',bg1:'#000000',bg2:'#27272a',accent:'#a78bfa'},

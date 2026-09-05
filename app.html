@@ -41,7 +41,8 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,300,0,0" />
     <link rel="icon" type="image/jpeg" href="assets/logo/logo-icon.png">
-    <link rel="stylesheet" href="styles.css?v=20260902-2">
+    <link rel="stylesheet" href="styles.css?v=20260905-10">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <!-- ⚡ SABER EFFECT ENGINE - PixiJS + Filters -->
     <script src="https://cdn.jsdelivr.net/npm/pixi.js@7.4.0/dist/pixi.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/pixi-filters@5.2.1/dist/browser/pixi-filters.min.js"></script>
@@ -183,6 +184,14 @@
                 <input type="file" id="imageInput" accept="image/*,.json,application/json" style="position:absolute; width:1px; height:1px; opacity:0; pointer-events:none;">
             </div>
 
+            <!-- Harita / Uydu Görseli Çek -->
+            <div style="display:flex; align-items:center; gap:6px;">
+                <button type="button" class="btn-action" id="openSatelliteMapBtn" style="flex:1; background:linear-gradient(135deg, #10b981, #059669); border:none; padding:9px 12px; border-radius:8px; color:white; font-weight:600; font-size:12.5px; display:flex; align-items:center; justify-content:center; gap:8px; box-shadow:0 4px 14px rgba(16,185,129,0.25); cursor:pointer; transition:all 0.2s;" onclick="if(window.openSatelliteMapModal) window.openSatelliteMapModal();">
+                    <i class="fas fa-satellite" style="font-size:14px; color:#a7f3d0;"></i>
+                    <span id="satMapBtnText">🛰️ Harita / Uydu Görseli Çek</span>
+                </button>
+            </div>
+
             <!-- Firma Logosu -->
             <div style="display:flex; align-items:center; gap:6px;">
                 <button type="button" class="btn-action" style="flex:1; background:rgba(30,41,59,0.7); border:1px solid rgba(255,255,255,0.12); padding:9px 12px; border-radius:8px; color:#e2e8f0; font-weight:500; font-size:12px; display:flex; align-items:center; justify-content:center; gap:8px; cursor:pointer; transition:all 0.2s;" onclick="document.getElementById('logoInput').click()">
@@ -196,7 +205,135 @@
             </div>
         </div>
 
-        <!-- 3. STANDART ŞABLONLAR -->
+        <!-- 3. EMLAK KATEGORİLERİ (KONUTLAR, TİCARİ, ARSA...) -->
+        <details class="hsl-accordion" style="margin-bottom: 12px; background: #0f172a; border-radius: 6px; overflow: hidden; border: 1px solid #1e293b;">
+            <summary style="padding: 12px; cursor: pointer; color: #e2e8f0; font-weight: bold; list-style: none; display: flex; justify-content: space-between; align-items: center;" onclick="this.querySelector('i').classList.toggle('fa-chevron-up'); this.querySelector('i').classList.toggle('fa-chevron-down');">
+                <span>🏷️ Emlak Kategori & İlan Tipleri</span>
+                <i class="fa-solid fa-chevron-down" style="font-size:12px; color:#94a3b8;"></i>
+            </summary>
+            <div style="padding: 10px; border-top: 1px solid #1e293b;">
+                <div class="custom-accordion-menu" style="margin-bottom: 0;">
+                    <style>
+                        .cat-group { margin-bottom: 8px; border: 1px solid #334155; border-radius: 6px; overflow: hidden; }
+                        .cat-header { background: #1e293b; color: #e2e8f0; padding: 10px 12px; font-weight: bold; font-size: 14px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; transition: background 0.2s; }
+                        .cat-header:hover { background: #334155; }
+                        .cat-body { background: #0f172a; display: none; }
+                        .cat-body.open { display: block; }
+                        .cat-item { padding: 10px 15px 10px 30px; color: #cbd5e1; font-size: 13px; cursor: pointer; border-top: 1px solid #1e293b; transition: background 0.2s, color 0.2s; position: relative; }
+                        .cat-item:hover { background: #1e293b; color: #fff; }
+                        .cat-item.active { background: #3b82f6; color: #fff; border-color: #3b82f6; font-weight: bold; }
+                        .cat-item::before { content: '✅'; position: absolute; left: 10px; font-size: 10px; opacity: 0.5; top: 12px; }
+                        .cat-item.active::before { opacity: 1; }
+                    </style>
+                    
+                    <!-- 🏠 KONUTLAR -->
+                    <div class="cat-group">
+                        <div class="cat-header" onclick="toggleCat(this)">
+                            <span>🏠 KONUTLAR</span><i class="fa-solid fa-chevron-down"></i>
+                        </div>
+                        <div class="cat-body">
+                            <div class="cat-item" onclick="selectProperty('satilik_daire', this)">Satılık Daire</div>
+                            <div class="cat-item" onclick="selectProperty('kiralik_daire', this)">Kiralık Daire</div>
+                            <div class="cat-item" onclick="selectProperty('satilik_villa', this)">Satılık Villa</div>
+                            <div class="cat-item" onclick="selectProperty('kiralik_villa', this)">Kiralık Villa</div>
+                            <div class="cat-item" onclick="selectProperty('satilik_mustakil_ev', this)">Satılık Müstakil Ev</div>
+                            <div class="cat-item" onclick="selectProperty('satilik_koy_evi', this)">Satılık Köy Evi</div>
+                            <div class="cat-item" onclick="selectProperty('satilik_residence', this)">Satılık Residence</div>
+                            <div class="cat-item" onclick="selectProperty('satilik_yazlik', this)">Satılık Yazlık</div>
+                            <div class="cat-item" onclick="selectProperty('satilik_bungalov', this)">Satılık Bungalov</div>
+                        </div>
+                    </div>
+
+                    <!-- 🏢 TİCARİ -->
+                    <div class="cat-group">
+                        <div class="cat-header" onclick="toggleCat(this)">
+                            <span>🏢 TİCARİ</span><i class="fa-solid fa-chevron-down"></i>
+                        </div>
+                        <div class="cat-body">
+                            <div class="cat-item" onclick="selectProperty('satilik_dukkan', this)">Satılık Dükkan</div>
+                            <div class="cat-item" onclick="selectProperty('kiralik_dukkan', this)">Kiralık Dükkan</div>
+                            <div class="cat-item" onclick="selectProperty('satilik_ofis', this)">Satılık Ofis</div>
+                            <div class="cat-item" onclick="selectProperty('kiralik_ofis', this)">Kiralık Ofis</div>
+                            <div class="cat-item" onclick="selectProperty('satilik_plaza_ofisi', this)">Satılık Plaza Ofisi</div>
+                            <div class="cat-item" onclick="selectProperty('satilik_is_merkezi', this)">Satılık İş Merkezi</div>
+                        </div>
+                    </div>
+
+                    <!-- 🌲 ARSA -->
+                    <div class="cat-group">
+                        <div class="cat-header" onclick="toggleCat(this)">
+                            <span>🌲 ARSA</span><i class="fa-solid fa-chevron-down"></i>
+                        </div>
+                        <div class="cat-body">
+                            <div class="cat-item" onclick="selectProperty('satilik_arsa', this)">Satılık Arsa</div>
+                            <div class="cat-item" onclick="selectProperty('satilik_tarla', this)">Satılık Arazi</div>
+                            <div class="cat-item" onclick="selectProperty('satilik_bag_bahce', this)">Satılık Bağ-Bahçe</div>
+                            <div class="cat-item" onclick="selectProperty('satilik_ticari_arsa', this)">Satılık Ticari Arsa</div>
+                            <div class="cat-item" onclick="selectProperty('satilik_sanayi_arsasi', this)">Satılık Sanayi Arsası</div>
+                        </div>
+                    </div>
+
+                    <!-- 🏗️ PROJELER -->
+                    <div class="cat-group">
+                        <div class="cat-header" onclick="toggleCat(this)">
+                            <span>🏗️ PROJELER</span><i class="fa-solid fa-chevron-down"></i>
+                        </div>
+                        <div class="cat-body">
+                            <div class="cat-item" onclick="selectProperty('satilik_konut_projesi', this)">Satılık Konut Projesi</div>
+                            <div class="cat-item" onclick="selectProperty('satilik_villa_projesi', this)">Satılık Villa Projesi</div>
+                            <div class="cat-item" onclick="selectProperty('satilik_rezidans_projesi', this)">Satılık Rezidans Projesi</div>
+                            <div class="cat-item" onclick="selectProperty('satilik_ticari_proje', this)">Satılık Ticari Proje</div>
+                        </div>
+                    </div>
+
+                    <!-- ⭐ PREMIUM -->
+                    <div class="cat-group">
+                        <div class="cat-header" onclick="toggleCat(this)">
+                            <span>⭐ PREMIUM</span><i class="fa-solid fa-chevron-down"></i>
+                        </div>
+                        <div class="cat-body">
+                            <div class="cat-item" onclick="selectProperty('satilik_luks_villa', this)">Satılık Lüks Villa</div>
+                            <div class="cat-item" onclick="selectProperty('satilik_deniz_manzarali', this)">Satılık Deniz Manzaralı</div>
+                            <div class="cat-item" onclick="selectProperty('satilik_havuzlu_villa', this)">Satılık Havuzlu Villa</div>
+                            <div class="cat-item" onclick="selectProperty('satilik_akilli_ev', this)">Satılık Akıllı Ev</div>
+                            <div class="cat-item" onclick="selectProperty('satilik_ultra_luks_villa', this)">Satılık Ultra Lüks</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </details>
+
+        <script>
+            function toggleCat(el) {
+                const body = el.nextElementSibling;
+                const icon = el.querySelector('i');
+                const isOpen = body.classList.contains('open');
+                
+                // Diğer tüm kategorileri kapat (Akordeon davranışı)
+                document.querySelectorAll('.cat-body').forEach(b => {
+                    b.classList.remove('open');
+                    b.style.display = 'none';
+                });
+                document.querySelectorAll('.cat-header i').forEach(ic => {
+                    ic.classList.remove('fa-chevron-up');
+                    ic.classList.add('fa-chevron-down');
+                });
+                
+                if (!isOpen) {
+                    body.classList.add('open');
+                    body.style.display = 'block';
+                    icon.classList.remove('fa-chevron-down');
+                    icon.classList.add('fa-chevron-up');
+                }
+            }
+            function selectProperty(type, el) {
+                document.querySelectorAll('.cat-item').forEach(item => item.classList.remove('active'));
+                if(el) el.classList.add('active');
+                window.switchPropertyType(type);
+            }
+        </script>
+
+        <!-- 4. STANDART ŞABLONLAR -->
         <details class="hsl-accordion" style="margin-bottom: 15px; background: #0f172a; border-radius: 6px; overflow: hidden; border: 1px solid #1e293b;">
             <summary style="padding: 12px; cursor: pointer; color: #e2e8f0; font-weight: bold; list-style: none; display: flex; justify-content: space-between; align-items: center;" onclick="this.querySelector('i').classList.toggle('fa-chevron-up'); this.querySelector('i').classList.toggle('fa-chevron-down');">
                 <span>📌 Standart Şablonlar</span>
@@ -207,7 +344,7 @@
             </div>
         </details>
 
-        <!-- 4. METNİ SÜZ (AI GİRİŞ KUTUSU) & İLANA ÖZEL HAZIR ÖĞELER -->
+        <!-- 5. METNİ SÜZ (AI GİRİŞ KUTUSU) & İLANA ÖZEL HAZIR ÖĞELER -->
         <div class="ai-box" style="margin-bottom: 15px;">
             <textarea id="aiText" placeholder="Sahibinden / Hepsiemlak veya ilan metnini yapıştır..." rows="5" style="height:110px; resize:none;"></textarea>
             <button class="btn-ai" onclick="smartParse()">🤖 Metni Süz</button>
@@ -217,7 +354,7 @@
                 <div class="smart-suggestions-header" onclick="window.toggleSmartSuggestions()">
                     <div style="display:flex; align-items:center; gap:8px;">
                         <span class="smart-icon-pulse">✨</span>
-                        <span style="font-weight:700; font-size:13px; color:#e2e8f0;">İlana Özel Hazır Öğeler</span>
+                        <span style="font-weight:700; font-size:13px; color:#e2e8f0;">İlana Özel Hazır Rozetler & Öğeler</span>
                     </div>
                     <div style="display:flex; align-items:center; gap:8px;">
                         <span id="smartSuggestionsBadge" class="smart-badge-count">0 Öneri</span>
@@ -226,130 +363,10 @@
                 </div>
                 <div id="smartSuggestionsBody" class="smart-suggestions-body" style="display:none;">
                     <div style="padding:14px; text-align:center; color:#94a3b8; font-size:12px; line-height:1.5;">
-                        <span>💡 İlan metnini yapıştırıp <strong>"🤖 Metni Süz"</strong> butonuna bastığınızda, ilana özel rozetler, eşleşen grafik rozetler ve ikonlar burada otomatik listelenir.</span>
+                        <span>💡 İlan metnini yapıştırıp <strong>"🤖 Metni Süz"</strong> butonuna bastığınızda, ilan bilgileriyle doldurulmuş grafik rozetler ve ikonlar burada otomatik listelenir.</span>
                     </div>
                 </div>
             </div>
-        </div>
-
-        <!-- 5. EMLAK KATEGORİLERİ (KONUTLAR, TİCARİ, ARSA...) -->
-        <div class="custom-accordion-menu" style="margin-bottom: 15px;">
-            <style>
-                .cat-group { margin-bottom: 8px; border: 1px solid #334155; border-radius: 6px; overflow: hidden; }
-                .cat-header { background: #1e293b; color: #e2e8f0; padding: 10px 12px; font-weight: bold; font-size: 14px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; transition: background 0.2s; }
-                .cat-header:hover { background: #334155; }
-                .cat-body { background: #0f172a; display: none; }
-                .cat-body.open { display: block; }
-                .cat-item { padding: 10px 15px 10px 30px; color: #cbd5e1; font-size: 13px; cursor: pointer; border-top: 1px solid #1e293b; transition: background 0.2s, color 0.2s; position: relative; }
-                .cat-item:hover { background: #1e293b; color: #fff; }
-                .cat-item.active { background: #3b82f6; color: #fff; border-color: #3b82f6; font-weight: bold; }
-                .cat-item::before { content: '✅'; position: absolute; left: 10px; font-size: 10px; opacity: 0.5; top: 12px; }
-                .cat-item.active::before { opacity: 1; }
-            </style>
-            
-            <!-- 🏠 KONUTLAR -->
-            <div class="cat-group">
-                <div class="cat-header" onclick="toggleCat(this)">
-                    <span>🏠 KONUTLAR</span><i class="fa-solid fa-chevron-down"></i>
-                </div>
-                <div class="cat-body">
-                    <div class="cat-item" onclick="selectProperty('satilik_daire', this)">Satılık Daire</div>
-                    <div class="cat-item" onclick="selectProperty('kiralik_daire', this)">Kiralık Daire</div>
-                    <div class="cat-item" onclick="selectProperty('satilik_villa', this)">Satılık Villa</div>
-                    <div class="cat-item" onclick="selectProperty('kiralik_villa', this)">Kiralık Villa</div>
-                    <div class="cat-item" onclick="selectProperty('satilik_mustakil_ev', this)">Satılık Müstakil Ev</div>
-                    <div class="cat-item" onclick="selectProperty('satilik_koy_evi', this)">Satılık Köy Evi</div>
-                    <div class="cat-item" onclick="selectProperty('satilik_residence', this)">Satılık Residence</div>
-                    <div class="cat-item" onclick="selectProperty('satilik_yazlik', this)">Satılık Yazlık</div>
-                    <div class="cat-item" onclick="selectProperty('satilik_bungalov', this)">Satılık Bungalov</div>
-                </div>
-            </div>
-
-            <!-- 🏢 TİCARİ -->
-            <div class="cat-group">
-                <div class="cat-header" onclick="toggleCat(this)">
-                    <span>🏢 TİCARİ</span><i class="fa-solid fa-chevron-down"></i>
-                </div>
-                <div class="cat-body">
-                    <div class="cat-item" onclick="selectProperty('satilik_dukkan', this)">Satılık Dükkan</div>
-                    <div class="cat-item" onclick="selectProperty('kiralik_dukkan', this)">Kiralık Dükkan</div>
-                    <div class="cat-item" onclick="selectProperty('satilik_ofis', this)">Satılık Ofis</div>
-                    <div class="cat-item" onclick="selectProperty('kiralik_ofis', this)">Kiralık Ofis</div>
-                    <div class="cat-item" onclick="selectProperty('satilik_plaza_ofisi', this)">Satılık Plaza Ofisi</div>
-                    <div class="cat-item" onclick="selectProperty('satilik_is_merkezi', this)">Satılık İş Merkezi</div>
-                </div>
-            </div>
-
-            <!-- 🌲 ARSA -->
-            <div class="cat-group">
-                <div class="cat-header" onclick="toggleCat(this)">
-                    <span>🌲 ARSA</span><i class="fa-solid fa-chevron-down"></i>
-                </div>
-                <div class="cat-body">
-                    <div class="cat-item" onclick="selectProperty('satilik_arsa', this)">Satılık Arsa</div>
-                    <div class="cat-item" onclick="selectProperty('satilik_tarla', this)">Satılık Arazi</div>
-                    <div class="cat-item" onclick="selectProperty('satilik_bag_bahce', this)">Satılık Bağ-Bahçe</div>
-                    <div class="cat-item" onclick="selectProperty('satilik_ticari_arsa', this)">Satılık Ticari Arsa</div>
-                    <div class="cat-item" onclick="selectProperty('satilik_sanayi_arsasi', this)">Satılık Sanayi Arsası</div>
-                </div>
-            </div>
-
-            <!-- 🏗️ PROJELER -->
-            <div class="cat-group">
-                <div class="cat-header" onclick="toggleCat(this)">
-                    <span>🏗️ PROJELER</span><i class="fa-solid fa-chevron-down"></i>
-                </div>
-                <div class="cat-body">
-                    <div class="cat-item" onclick="selectProperty('satilik_konut_projesi', this)">Satılık Konut Projesi</div>
-                    <div class="cat-item" onclick="selectProperty('satilik_villa_projesi', this)">Satılık Villa Projesi</div>
-                    <div class="cat-item" onclick="selectProperty('satilik_rezidans_projesi', this)">Satılık Rezidans Projesi</div>
-                    <div class="cat-item" onclick="selectProperty('satilik_ticari_proje', this)">Satılık Ticari Proje</div>
-                </div>
-            </div>
-
-            <!-- ⭐ PREMIUM -->
-            <div class="cat-group">
-                <div class="cat-header" onclick="toggleCat(this)">
-                    <span>⭐ PREMIUM</span><i class="fa-solid fa-chevron-down"></i>
-                </div>
-                <div class="cat-body">
-                    <div class="cat-item" onclick="selectProperty('satilik_luks_villa', this)">Satılık Lüks Villa</div>
-                    <div class="cat-item" onclick="selectProperty('satilik_deniz_manzarali', this)">Satılık Deniz Manzaralı</div>
-                    <div class="cat-item" onclick="selectProperty('satilik_havuzlu_villa', this)">Satılık Havuzlu Villa</div>
-                    <div class="cat-item" onclick="selectProperty('satilik_akilli_ev', this)">Satılık Akıllı Ev</div>
-                    <div class="cat-item" onclick="selectProperty('satilik_ultra_luks_villa', this)">Satılık Ultra Lüks</div>
-                </div>
-            </div>
-            
-            <script>
-                function toggleCat(el) {
-                    const body = el.nextElementSibling;
-                    const icon = el.querySelector('i');
-                    const isOpen = body.classList.contains('open');
-                    
-                    // Diğer tüm kategorileri kapat (Akordeon davranışı)
-                    document.querySelectorAll('.cat-body').forEach(b => {
-                        b.classList.remove('open');
-                        b.style.display = 'none';
-                    });
-                    document.querySelectorAll('.cat-header i').forEach(ic => {
-                        ic.classList.remove('fa-chevron-up');
-                        ic.classList.add('fa-chevron-down');
-                    });
-                    
-                    if (!isOpen) {
-                        body.classList.add('open');
-                        body.style.display = 'block';
-                        icon.classList.remove('fa-chevron-down');
-                        icon.classList.add('fa-chevron-up');
-                    }
-                }
-                function selectProperty(type, el) {
-                    document.querySelectorAll('.cat-item').forEach(item => item.classList.remove('active'));
-                    if(el) el.classList.add('active');
-                    window.switchPropertyType(type);
-                }
-            </script>
         </div>
 
         <!-- 6. FORM VE BİLGİ ALANLARI -->
@@ -361,18 +378,18 @@
             <textarea id="descInput" rows="5" style="width:100%; min-height:110px; padding:10px 12px; background:#0f172a; border:1px solid #334155; color:#f8fafc; border-radius:8px; font-size:12.5px; line-height:1.6; resize:vertical; transition:border-color 0.2s;" oninput="window.onDescInputChanged()" placeholder="Örn:&#10;📍 Sakarya / Kaynarca&#10;📐 Ada: 101 | Parsel: 91&#10;🛣️ Yola Cepheli&#10;🌿 Hobi Bahçesine Uygun"></textarea>
             
             <!-- Seçmeli Toggle Listesi (Tuvale Ekle / Çıkar) -->
-            <div id="descToggleSection" style="margin-top:8px; background:#1e293b; border:1px solid #334155; border-radius:8px; padding:10px; display:none;">
+            <div id="descToggleSection" class="desc-toggle-section-card" style="margin-top:8px; background:transparent; border:1.5px solid #cbd5e1; border-radius:8px; padding:10px; display:none;">
                 <div style="display:flex; justify-content:space-between; align-items:center; cursor:pointer;" onclick="window.toggleDescListCollapse()">
-                    <span style="font-size:11.5px; font-weight:700; color:#e2e8f0; display:flex; align-items:center; gap:6px;">
+                    <span class="desc-toggle-title" style="font-size:11.5px; font-weight:700; color:#0f172a; display:flex; align-items:center; gap:6px;">
                         <span>📌 Tuval Çerçevesine Eklenecekler</span>
-                        <i id="descToggleChevron" class="fa-solid fa-chevron-down" style="font-size:10px; color:#94a3b8; transition:transform 0.2s;"></i>
+                        <i id="descToggleChevron" class="fa-solid fa-chevron-down" style="font-size:10px; color:#64748b; transition:transform 0.2s;"></i>
                     </span>
                     <div style="display:flex; gap:6px;" onclick="event.stopPropagation()">
-                        <button type="button" onclick="window.setAllDescToggles(true)" style="background:#0f172a; border:1px solid #334155; color:#38bdf8; font-size:10px; font-weight:700; padding:3px 8px; border-radius:4px; cursor:pointer;">Tümü Açık</button>
-                        <button type="button" onclick="window.setAllDescToggles(false)" style="background:#0f172a; border:1px solid #334155; color:#94a3b8; font-size:10px; font-weight:700; padding:3px 8px; border-radius:4px; cursor:pointer;">Kapat</button>
+                        <button type="button" class="desc-toggle-btn-outline" onclick="window.setAllDescToggles(true)" style="background:transparent; border:1px solid #0284c7; color:#0284c7; font-size:10px; font-weight:700; padding:3px 8px; border-radius:4px; cursor:pointer;">Tümü Açık</button>
+                        <button type="button" class="desc-toggle-btn-outline" onclick="window.setAllDescToggles(false)" style="background:transparent; border:1px solid #94a3b8; color:#64748b; font-size:10px; font-weight:700; padding:3px 8px; border-radius:4px; cursor:pointer;">Kapat</button>
                     </div>
                 </div>
-                <div id="descToggleListWrapper" style="display:none; margin-top:8px; border-top:1px solid #334155; padding-top:6px;">
+                <div id="descToggleListWrapper" style="display:none; margin-top:8px; border-top:1px solid rgba(0,0,0,0.08); padding-top:6px;">
                     <div id="descToggleList" style="display:flex; flex-direction:column; gap:5px; max-height:220px; overflow-y:auto; padding-right:2px;">
                         <!-- JS dinamik basacak -->
                     </div>
@@ -1333,7 +1350,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div id="elDetails" data-layer-uid="ui_details" class="draggable sh-box canvas-el normal-el" data-label="Detay" data-default-font="26" style="visibility: hidden;"><div id="infoLineText"></div></div>
             </div>
             <!-- Logo: Tüm katmanların üzerinde - DAİMA EN SON ELEMAN -->
-            <div id="elLogo" data-layer-uid="ui_logo" class="draggable sh-logo canvas-el" data-label="Firma Logosu" style="display:none; position:absolute; bottom:50px; right:50px; width:150px; height:auto; border-radius:0; line-height:0; user-select:none; z-index:9999; pointer-events:auto; cursor:move;">
+            <div id="elLogo" data-layer-uid="ui_logo" class="draggable sh-logo canvas-el" data-label="Firma Logosu" style="display:none; position:absolute; bottom:50px; right:50px; width:100px; max-width:120px; height:auto; border-radius:0; line-height:0; user-select:none; z-index:9999; pointer-events:auto; cursor:move;">
                 <img id="elLogoImg" style="width:100%; height:auto; display:block; pointer-events:none; border-radius:inherit; object-fit:contain;" alt="Logo" />
             </div>
 
@@ -1495,7 +1512,7 @@ document.addEventListener('DOMContentLoaded', () => {
 <!-- MODÜLER JS DOSYALARI (SIRAYLA YÜKLENMELİ) -->
 <script src="js/fonts.config.js?v=1"></script>
 <script src="js/filter.config.js?v=1"></script>
-<script src="config.js?v=1785302098411"></script>
+<script src="config.js?v=20260905-6"></script>
 <script src="core/utils.js?v=20260820-1"></script>
 <script src="modules/state.js?v=20260822-2"></script>
 <script src="core/drag.js?v=20260822-2"></script>
@@ -1518,18 +1535,26 @@ document.addEventListener('DOMContentLoaded', () => {
 <script src="ui/element.js?v=20260820-20"></script>
 <script src="modules/export.js?v=20260822-3"></script>
 <script src="js/formConfig.js"></script>
-<script src="modules/parser-core.js?v=20260822-3"></script>
-<script src="modules/smart-suggestions.js?v=20260821-1"></script>
+<script src="modules/parser-core.js?v=20260905-3"></script>
+<script src="modules/smart-suggestions.js?v=20260905-6"></script>
+<script src="modules/ai-assistant.js?v=20260905-2"></script>
+<script src="modules/ai-vision.js?v=20260905-2"></script>
 <script src="modules/photo-zoom.js?v=20260819-6"></script>
 <script src="modules/polygon.js?v=20260820-1"></script>
 <script src="modules/snap.js?v=1785302098411"></script>
 <script src="core.js?v=20260822-3"></script>
-<script src="modules/ui-core.js?v=20260822-3"></script>
+<script src="modules/ui-core.js?v=20260905-1"></script>
 <script src="modules/canvas-zoom.js?v=20260819-4"></script>
 <script src="modules/templates-core.js?v=20260820-4"></script>
 <script src="modules/multi-select.js?v=20260821-2"></script>
 <script src="modules/events.js?v=20260821-2"></script>
-<script src="js/templateManager.js?v=20260821-1"></script>
+<script src="js/templateManager.js?v=20260904-1"></script>
+<script src="templates_json/core.js?v=20260904-1"></script>
+<script src="templates_json/templates_16_9.js?v=20260904-1"></script>
+<script src="templates_json/templates_1_1.js?v=20260904-1"></script>
+<script src="templates_json/templates_4_5.js?v=20260904-1"></script>
+<script src="templates_json/templates_9_16.js?v=20260904-1"></script>
+<script src="templates_json/custom_templates.js?v=20260904-1"></script>
 <script src="tpl_elit/elit.js?v=20260822-3"></script>
 <script src="tpl_kolaj/kolaj.js?v=1785302098430"></script>
 <script src="tpl_minimal/minimal.js?v=20260822-3"></script>
@@ -1539,11 +1564,14 @@ document.addEventListener('DOMContentLoaded', () => {
 <script src="tpl_klasik/klasik.js?v=20260822-3"></script>
 <script src="tpl_sosyal/sosyal.js?v=20260822-3"></script>
 <script src="tpl_portfoy/portfoy.js?v=20260822-3"></script>
-<script src="tpl_ozel/ozel.js?v=20260822-3"></script>
+<script src="tpl_kalip/kalip.js?v=20260905-1"></script>
+<script src="tpl_ozel/ozel.js?v=20260904-1"></script>
 <script src="js/brandManager.js?v=20260822-4"></script><script src="js/autoSave.js?v=20260822-4"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="js/modules/qrManager.js?v=1785302098411"></script>
-<script src="main.js?v=20260822-4"></script>
+<script src="main.js?v=20260905-7"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="modules/satellite-map.js?v=20260905-10"></script>
 
 <!-- Gizli inputlar: Fotoğraf zoom ve pan ayarlarının arka planda çalışabilmesi için -->
 <div style="display:none;">
@@ -2089,12 +2117,49 @@ const HelpAssistant = {
     },
 
     // --- INTENT ENGINE ---
-    processIntent: function(query) {
+    processIntent: async function(query) {
         try {
             this.collectContext();
             const state = window.helpAssistantState;
             const q = query.toLowerCase();
             
+            // 🤖 1. CANLI GOOGLE GEMINI AI'YA SOR
+            const workerUrl = 'https://small-lab-3110.emlakstudyomtr.workers.dev';
+            
+            const typingDiv = document.createElement('div');
+            typingDiv.className = 'ha-message system thinking';
+            typingDiv.id = 'ha-thinking-indicator';
+            typingDiv.innerHTML = '<span style="display:inline-flex; align-items:center; gap:6px; color:#818cf8; font-size:12px;"><i class="fa-solid fa-wand-magic-sparkles fa-spin"></i> <em>Google Gemini AI Yanıtlıyor...</em></span>';
+            this.chatBodyEl.appendChild(typingDiv);
+            this.chatBodyEl.scrollTop = this.chatBodyEl.scrollHeight;
+
+            let liveAiAnswer = null;
+            try {
+                const res = await fetch(workerUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'chat',
+                        prompt: `Sen EmlakStüdyom'un Akıllı Emlak ve Tasarım Danışmanısın. Kullanıcının sorusuna Türkçe, samimi, detaylı, emojili, profesyonel emlak ve tasarım tavsiyeleriyle yanıt ver:\n\nKullanıcı Sorusu: ${query}`,
+                        text: query
+                    })
+                });
+                const data = await res.json();
+                if (data.success && data.data) {
+                    liveAiAnswer = data.data.reply || data.data.description;
+                }
+            } catch(e) {
+                console.warn('HelpAssistant AI çağrısı hatası:', e);
+            }
+
+            const tEl = document.getElementById('ha-thinking-indicator');
+            if (tEl) tEl.remove();
+
+            if (liveAiAnswer && typeof liveAiAnswer === 'string' && liveAiAnswer.length > 5 && !liveAiAnswer.startsWith('{')) {
+                this.addSystemMessage(liveAiAnswer.replace(/\n/g, '<br>'));
+                return;
+            }
+
             let answer = "";
             let actionBtn = null;
             let suggestions = [];
@@ -2223,19 +2288,55 @@ const HelpAssistant = {
                 suggestions = ["📋 İşlem Sırası Nasıl Olmalı?", "🏢 Logo & Fotoğraf Sırası", "🖌️ Çizim & Parsel Nasıl Yapılır?", "⚡ Saber (Neon) Efekti", "💾 Çalışmayı Geri Yükleme"];
             }
 
-            // DEFAULT
+            // DEFAULT -> DOĞRUDAN GEMINI AI VEYA DOĞAL DİL MOTORU
             else {
-                if (q === "selam" || q === "merhaba") {
-                    answer = "Merhaba! EmlakStüdyom v7.0 akıllı asistanına hoş geldiniz. Tasarımınızı sırasıyla hazırlamak veya takıldığınız konuları çözmek için bana dilediğinizi sorabilirsiniz.";
-                    suggestions = ["📋 İşlem Sırası Nasıl Olmalı?", "🏢 Logo & Fotoğraf Sırası", "❓ SSS & Tüm Kılavuz"];
-                } else {
-                    answer = "Bu soruyu tam anlayamadım, ancak aşağıdaki önerilere göz atabilir veya interaktif uygulama turunu başlatabilirsiniz.";
-                    actionBtn = { label: "Uygulama Turunu İzle", onClick: () => { if(window.OnboardingTour) window.OnboardingTour.restartTour(); this.togglePanel(); } };
-                    suggestions = ["📋 İşlem Sırası Nasıl Olmalı?", "🏢 Logo & Fotoğraf Sırası", "❓ SSS & Tüm Kılavuz"];
-                }
-            }
+                // Eğer Gemini API Key varsa önce canlı Gemini'ye sor
+                if (typeof window.callDirectGeminiChat === 'function' && window.getGeminiApiKey()) {
+                    const loadingDiv = document.createElement('div');
+                    loadingDiv.className = 'ha-message system';
+                    loadingDiv.id = 'ha-ai-loading';
+                    loadingDiv.innerHTML = `<i class="fa-solid fa-wand-magic-sparkles fa-spin" style="color:#8b5cf6;"></i> <strong>Google Gemini yanıt hazırlıyor...</strong>`;
+                    this.chatBodyEl.appendChild(loadingDiv);
+                    this.chatBodyEl.scrollTop = this.chatBodyEl.scrollHeight;
 
-            this.addSystemMessage(answer, suggestions, actionBtn);
+                    window.callDirectGeminiChat(query).then(geminiReply => {
+                        const l = document.getElementById('ha-ai-loading');
+                        if (l) l.remove();
+                        const finalReply = geminiReply || window.generateLocalAiAssistantResponse(query);
+                        this.addSystemMessage(finalReply.replace(/\n/g, '<br>'), [
+                            "✍️ İlan Başlığı Nasıl Yazılır?",
+                            "💰 Fiyat Rozeti Nereye Konur?",
+                            "📱 Instagram Paylaşım Saatleri",
+                            "🌾 Arsa Afişi Püf Noktaları",
+                            "📋 İşlem Sırası Nasıl Olmalı?"
+                        ]);
+                    }).catch(() => {
+                        const l = document.getElementById('ha-ai-loading');
+                        if (l) l.remove();
+                        const finalReply = window.generateLocalAiAssistantResponse(query);
+                        this.addSystemMessage(finalReply.replace(/\n/g, '<br>'), [
+                            "✍️ İlan Başlığı Nasıl Yazılır?",
+                            "💰 Fiyat Rozeti Nereye Konur?",
+                            "📱 Instagram Paylaşım Saatleri"
+                        ]);
+                    });
+                    return;
+                }
+
+                // API Key yoksa anlık zengin yerel NLP danışmanını çalıştır
+                const aiReply = (typeof window.generateLocalAiAssistantResponse === 'function')
+                    ? window.generateLocalAiAssistantResponse(query)
+                    : `Merhaba! 😊 Sorunuzla ilgili olarak sol menüdeki <b>'📝 Giriş'</b>, <b>'🎨 Şablonlar'</b> ve <b>'🏷️ Rozetler'</b> sekmelerini kullanabilir veya hazır rehber konularımızdan dilediğinizi seçebilirsiniz.`;
+
+                this.addSystemMessage(aiReply, [
+                    "✍️ İlan Başlığı Nasıl Yazılır?",
+                    "💰 Fiyat Rozeti Nereye Konur?",
+                    "📱 Instagram Paylaşım Saatleri",
+                    "🌾 Arsa Afişi Püf Noktaları",
+                    "📋 İşlem Sırası Nasıl Olmalı?"
+                ]);
+                return;
+            }
 
         } catch(e) {
             console.error("Assistant process error:", e);

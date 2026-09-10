@@ -11,5 +11,5 @@ const PRESETS={
     luxury:{exposure:100,contrast:120,saturate:95,vibranceCtrl:10,tempCtrl:10,shadowsCtrl:5,highlightsCtrl:-15,clarityCtrl:25,sharpnessCtrl:20,vignette:20}
 };
 
-const FILTER_IDS=['exposure','contrast','saturate','fblur','sepia','hueRotate','grayscale','invertCtrl','vignette','shadowsCtrl','highlightsCtrl','blacksCtrl','whitesCtrl','tempCtrl','tintCtrl','vibranceCtrl','sharpnessCtrl','clarityCtrl','dehazeCtrl'];
-const FILTER_DEFAULTS={exposure:100,contrast:100,saturate:100,fblur:0,sepia:0,hueRotate:0,grayscale:0,invertCtrl:0,vignette:0,shadowsCtrl:0,highlightsCtrl:0,blacksCtrl:0,whitesCtrl:0,tempCtrl:0,tintCtrl:0,vibranceCtrl:0,sharpnessCtrl:0,clarityCtrl:0,dehazeCtrl:0};
+const FILTER_IDS=['exposure','contrast','saturate','fblur','sepia','hueRotate','grayscale','invertCtrl','vignette','shadowsCtrl','highlightsCtrl','blacksCtrl','whitesCtrl','tempCtrl','tintCtrl','vibranceCtrl','sharpnessCtrl','clarityCtrl','dehazeCtrl','keystoneV','keystoneH','keystoneRotate','keystoneAspect','keystoneZoom'];
+const FILTER_DEFAULTS={exposure:100,contrast:100,saturate:100,fblur:0,sepia:0,hueRotate:0,grayscale:0,invertCtrl:0,vignette:0,shadowsCtrl:0,highlightsCtrl:0,blacksCtrl:0,whitesCtrl:0,tempCtrl:0,tintCtrl:0,vibranceCtrl:0,sharpnessCtrl:0,clarityCtrl:0,dehazeCtrl:0,keystoneV:0,keystoneH:0,keystoneRotate:0,keystoneAspect:0,keystoneZoom:100};

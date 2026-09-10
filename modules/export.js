@@ -90,7 +90,7 @@ function sanitizeExportClone(clonedDoc) {
         // 1. Gizli veya kapalı tüm şablon ve overlay elemanlarını klondan tamamen kaldır
         const hiddenSelectors = [
             '#elBadge', '#elPrice', '#elDetails', '#elLogo',
-            '#shadow-overlay', '#highlight-overlay', '#vignette-layer', '#mask-layer',
+            '#shadow-overlay', '#highlight-overlay', '#vignette-layer', '#mask-layer', '#maskInteractiveSvg',
             '#export-loading-overlay', '#app-custom-context-menu', '#native-context-menu', '#native-context-overlay',
             '.text-handle', '.text-lock-handle', '.text-resize-handle', '.text-rotate-handle', '.text-delete-handle',
             '.callout-lock-btn', '.callout-controls', '.callout-resizer', '.callout-rotator', '.callout-select-border',
@@ -624,8 +624,22 @@ function drawMasterPhotoManually(ctx, el, masterImg, outputScale, canvasRect, ac
     ctx.imageSmoothingQuality = 'high';
 
     let imageToDraw = masterImg;
-    // Apply pixel-level shadows/highlights/HSL to the high-res master image!
-    if (window.applyPixelAdjustmentsToImageData && masterImg.width > 0) {
+    let isWebGLProcessed = false;
+
+    // WebGL Donanım Hızlandırmalı Lightroom Motoru (Tam Çözünürlüklü 4K/8K GPU Çıktısı)
+    if (window.WebGLPhotoEngine && window.WebGLPhotoEngine.initialized && typeof window.getWebGLPhotoOptions === 'function' && masterImg.width > 0) {
+        try {
+            const photoOpts = window.getWebGLPhotoOptions();
+            // Export dosyasında kırmızı kılavuz maskesini kapat
+            photoOpts.showMaskOverlay = false;
+            imageToDraw = window.WebGLPhotoEngine.getProcessedCanvas(masterImg, photoOpts);
+            isWebGLProcessed = true;
+        } catch(e) {
+            console.error('WebGL export fotoğraf işleme hatası: ', e);
+            imageToDraw = masterImg;
+            isWebGLProcessed = false;
+        }
+    } else if (window.applyPixelAdjustmentsToImageData && masterImg.width > 0) {
         const tmpCanvas = document.createElement('canvas');
         tmpCanvas.width = masterImg.width;
         tmpCanvas.height = masterImg.height;
@@ -644,14 +658,18 @@ function drawMasterPhotoManually(ctx, el, masterImg, outputScale, canvasRect, ac
         }
     }
 
-    let computedFilter = window.getComputedStyle(actualElement).filter;
-    if (computedFilter && computedFilter !== 'none') {
-        computedFilter = computedFilter.replace(/drop-shadow\([^)]+\)/g, '').trim();
-        if (computedFilter.length > 0) {
-            ctx.filter = computedFilter;
-        } else {
-            ctx.filter = 'none';
+    if (!isWebGLProcessed) {
+        let computedFilter = window.getComputedStyle(actualElement).filter;
+        if (computedFilter && computedFilter !== 'none') {
+            computedFilter = computedFilter.replace(/drop-shadow\([^)]+\)/g, '').trim();
+            if (computedFilter.length > 0) {
+                ctx.filter = computedFilter;
+            } else {
+                ctx.filter = 'none';
+            }
         }
+    } else {
+        ctx.filter = 'none';
     }
     
     ctx.drawImage(imageToDraw, drawX, drawY, drawW, drawH);

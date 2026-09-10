@@ -243,6 +243,8 @@ async function performAutoSave() {
         state.lastParsedData = window.lastParsedData || null;
         state.smartBadges = window.smartBadges || [];
         state.smartMatchedCallouts = window.smartMatchedCallouts || [];
+        state.photoCurves = (window.PhotoCurvesManager && typeof window.PhotoCurvesManager.getState === 'function') ? window.PhotoCurvesManager.getState() : null;
+        state.photoMasks = (window.PhotoMasksManager && typeof window.PhotoMasksManager.getState === 'function') ? window.PhotoMasksManager.getState() : null;
 
         // 6. Özel Tasarım Elemanlarını Saf Veri Olarak Kaydet (DOM klonlama yerine!)
         const customItems = [];
@@ -826,6 +828,13 @@ async function applyRestoredState(state) {
         }
 
         // 8. Render & Redraw Güncellemeleri
+        if(state.photoCurves && window.PhotoCurvesManager && typeof window.PhotoCurvesManager.setState === 'function') {
+            window.PhotoCurvesManager.setState(state.photoCurves);
+        }
+        if(state.photoMasks && window.PhotoMasksManager && typeof window.PhotoMasksManager.setState === 'function') {
+            window.PhotoMasksManager.setState(state.photoMasks);
+        }
+        if(typeof applyPhotoFilters === 'function') applyPhotoFilters();
         if(typeof renderData === 'function') renderData();
         if(typeof applyPhotoPos === 'function') applyPhotoPos();
         if(typeof resizeCanvas === 'function') resizeCanvas();

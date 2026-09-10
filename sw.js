@@ -1,13 +1,22 @@
-const CACHE_NAME = 'emlak-studiom-v150-20260905-10';
+const CACHE_NAME = 'emlak-studiom-v201-20260910-14';
 const CORE_ASSETS = [
   './app.html',
   './styles.css',
   './main.js',
+  './js/searchManager.js',
+  './modules/webgl-photo-engine.js',
+  './modules/photo.js',
+  './modules/colors.js',
+  './modules/photo-curves.js',
+  './modules/photo-masks.js',
+  './modules/voiceover-studio.js',
   './modules/satellite-map.js',
+  './modules/ai-enhancer.js',
   './modules/canvas-core.js',
   './modules/ui-core.js',
   './modules/events.js',
   './modules/ai-vision.js',
+  './modules/other-callouts.js',
   './assets/logo/logo-icon.png',
   './ui/pwa-install.js',
   './manifest.json'

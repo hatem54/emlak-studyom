@@ -351,9 +351,12 @@ function applyFinalProjectImage(img, finalDataUrl, finalW, finalH) {
     try {
         uploadedImgUrl = finalDataUrl;
         window.uploadedImgUrl = finalDataUrl;
+        if (!window._isApplyingAiEnhance) {
+            window._aiOriginalImgDataUrl = finalDataUrl;
+        }
         uploadedImgW = finalW;
-        uploadedImgH = finalH;
         window.uploadedImgW = uploadedImgW;
+        uploadedImgH = finalH;
         window.uploadedImgH = uploadedImgH;
         window._globalNativeImg = img;
         window._globalNativeImgSrc = finalDataUrl;
@@ -1814,97 +1817,212 @@ document.addEventListener('keydown', function(e) {
     });
 
     const renderLayer = document.getElementById('canva-render-layer');
-
     if(renderLayer) styleObserver.observe(renderLayer, { childList: true, subtree: true });
 
-    
-
     setTimeout(renderNeonCallouts, 500);
+})();
 
-    // ==================== UNIVERSAL SLIDER RESET (INSTANT RENDER ON DBLCLICK) ====================
-    window.resetSliderToDefault = function(input) {
-        if (!input) return;
-        const id = input.id;
-        let defaultVal = null;
+// ==================== UNIVERSAL SLIDER RESET (INSTANT RENDER ON DBLCLICK) ====================
+window.resetSliderToDefault = function(input) {
+    if (!input || input.type !== 'range') return;
+    const id = input.id || '';
+    let defaultVal = null;
 
-        if (input.classList.contains('hsl-slider')) {
-            defaultVal = 0;
-        } else if (typeof FILTER_DEFAULTS !== 'undefined' && FILTER_DEFAULTS[id] !== undefined) {
-            defaultVal = FILTER_DEFAULTS[id];
-        } else if (id === 'zoomCtrl' || id === 'photoZoomCtrl') {
-            defaultVal = 100;
-        } else if (id === 'photoXCtrl' || id === 'photoYCtrl' || id === 'panX' || id === 'panY') {
-            defaultVal = 50;
-        } else if (id === 'deOpacity') {
-            defaultVal = 100;
-        } else if (id === 'deFillOp') {
-            defaultVal = 0;
-        } else if (input.hasAttribute('value')) {
-            defaultVal = input.getAttribute('value');
-        } else if (input.defaultValue !== undefined && input.defaultValue !== '') {
-            defaultVal = input.defaultValue;
-        } else {
-            defaultVal = 0;
-        }
-
-        if (defaultVal !== null) {
-            input.value = defaultVal;
-            input.dispatchEvent(new Event('input', { bubbles: true }));
-            input.dispatchEvent(new Event('change', { bubbles: true }));
-
-            // UI Değer Metinlerini Güncelle
-            const valSpanId = id.replace('Ctrl', 'Val') + (id.endsWith('Ctrl') ? '' : 'Val');
-            const valSpan = document.getElementById(valSpanId) || document.getElementById(id + 'Val');
-            if (valSpan) {
-                valSpan.textContent = defaultVal + (id === 'exposure' || id === 'contrast' || id === 'saturate' || id === 'grayscale' || id === 'sepia' || id === 'invertCtrl' || id === 'vignette' ? '%' : (id === 'fblur' ? 'px' : (id === 'hueRotate' ? '°' : '')));
-            }
-
-            // CSS Filtrelerini ve Piksel Motorunu (Senkron/Anında) Tetikle
-            if (typeof applyPhotoFilters === 'function') applyPhotoFilters();
-            if (typeof processPixels === 'function') processPixels(true);
-            if (input.classList.contains('hsl-slider') && typeof processHSL === 'function') processHSL();
-            if (typeof redrawAll === 'function') redrawAll();
-            if (typeof applyShadowHighlight === 'function') applyShadowHighlight();
-        }
-    };
-
-    // Tüm slider'lara ve slider gruplarına çift tıklandığında anında varsayılana dönme
-    document.addEventListener('dblclick', function(e) {
-        let slider = null;
-        if (e.target.tagName && e.target.tagName.toLowerCase() === 'input' && e.target.type === 'range') {
-            slider = e.target;
-        } else {
-            const group = e.target.closest('.slider-group');
-            if (group) {
-                slider = group.querySelector('input[type="range"]');
-            }
-        }
-        if (slider) {
-            e.preventDefault();
-            e.stopPropagation();
-            window.resetSliderToDefault(slider);
-        }
-    });
-
-});
-
-// Mobile Double-Tap to Reset Sliders
-let lastSliderTap = 0;
-document.addEventListener('touchend', function(e) {
-    let slider = null;
-    if (e.target.tagName && e.target.tagName.toLowerCase() === 'input' && e.target.type === 'range') {
-        slider = e.target;
+    // 1. HSL Kaydırıcıları
+    if (id.startsWith('hsl_') || input.classList.contains('hsl-slider')) {
+        defaultVal = 0;
+    }
+    // 2. Fotoğraf Filtreleri & Perspektif Varsayılanları
+    else if (typeof FILTER_DEFAULTS !== 'undefined' && FILTER_DEFAULTS[id] !== undefined) {
+        defaultVal = FILTER_DEFAULTS[id];
+    }
+    // 3. AI HD Netleştirici Kaydırıcısı
+    else if (id === 'aiPhotoEnhanceSlider') {
+        defaultVal = 30;
+    }
+    // 4. Yerel Maske Kaydırıcıları (Radyal & Lineer)
+    else if (id === 'mask_rad_amount' || id === 'mask_lin_amount' || id === 'mask_rad_sat' || id === 'mask_lin_sat') {
+        defaultVal = 100;
+    } else if (id === 'mask_rad_feather' || id === 'mask_lin_feather' || id === 'mask_rad_cx' || id === 'mask_rad_cy' || id === 'mask_lin_x1' || id === 'mask_lin_x2' || id === 'mask_lin_y2') {
+        defaultVal = 50;
+    } else if (id === 'mask_lin_y1') {
+        defaultVal = 12;
+    } else if (id === 'mask_rad_rx') {
+        defaultVal = 25;
+    } else if (id === 'mask_rad_ry') {
+        defaultVal = 20;
+    } else if (id.startsWith('mask_rad_') || id.startsWith('mask_lin_')) {
+        defaultVal = 0;
+    }
+    // 5. Tuval, Yakınlaştırma & Konumlandırma
+    else if (id === 'zoomCtrl' || id === 'photoZoomCtrl' || id === 'keystoneZoom') {
+        defaultVal = 100;
+    } else if (id === 'photoXCtrl' || id === 'photoYCtrl' || id === 'panX' || id === 'panY') {
+        defaultVal = 50;
+    } else if (id === 'deOpacity' || id === 'drawOpacity' || id === 'elOpacity') {
+        defaultVal = 100;
+    } else if (id === 'deFillOp' || id === 'fillOpacity') {
+        defaultVal = 0;
+    }
+    // 6. Genel HTML Varsayılan Değeri (value="..." niteliği veya defaultValue)
+    else if (input.hasAttribute('value')) {
+        defaultVal = input.getAttribute('value');
+    } else if (input.defaultValue !== undefined && input.defaultValue !== '') {
+        defaultVal = input.defaultValue;
     } else {
-        const group = e.target.closest('.slider-group');
-        if (group) {
-            slider = group.querySelector('input[type="range"]');
-        }
+        const min = parseFloat(input.min) || 0;
+        const max = parseFloat(input.max) || 100;
+        defaultVal = (min <= 0 && max >= 0) ? 0 : min;
     }
 
+    if (defaultVal !== null) {
+        input.value = defaultVal;
+
+        // Özel Durum: HSL Kaydırıcıları (8 Renk Kanalı Senkronizasyonu)
+        if (id === 'hsl_h_slider' || id === 'hsl_s_slider' || id === 'hsl_l_slider') {
+            const type = id.split('_')[1]; // 'h', 's' veya 'l'
+            const activeDot = document.querySelector('.hsl-color-dot.active');
+            const color = (activeDot && activeDot.dataset.color) ? activeDot.dataset.color : 'red';
+            const hiddenInput = document.querySelector(`.hsl-slider[data-color="${color}"][data-type="${type}"]`) ||
+                                document.getElementById(`hsl_${type}_${color}Val_input`);
+            if (hiddenInput) {
+                hiddenInput.value = defaultVal;
+                hiddenInput.dispatchEvent(new Event('input', { bubbles: true }));
+                hiddenInput.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+            const hslValSpan = document.getElementById(`hsl_${type}_val`);
+            if (hslValSpan) hslValSpan.textContent = defaultVal;
+        }
+
+        // Özel Durum: AI HD Netleştirici
+        if (id === 'aiPhotoEnhanceSlider') {
+            const aiValSpan = document.getElementById('aiPhotoEnhanceLevelVal');
+            if (aiValSpan) aiValSpan.textContent = '%30 (Doğal)';
+        }
+
+        // Özel Durum: Yerel Maskeler (Radyal, Lineer & AI Parametre Senkronu)
+        if (window.PhotoMasksManager) {
+            if (id.startsWith('mask_rad_')) {
+                const param = id.replace('mask_rad_', '');
+                const val = (param === 'amount' || param === 'saturate' || param === 'sat' || param === 'feather' || param === 'spread' || param === 'cx' || param === 'cy' || param === 'rx' || param === 'ry' || param === 'exp' || param === 'temp' || param === 'hl' || param === 'sh') ? (parseFloat(defaultVal) / 100) : parseFloat(defaultVal);
+                const mapParam = (param === 'exp' ? 'exposure' : (param === 'hl' ? 'highlights' : (param === 'sh' ? 'shadows' : (param === 'sat' ? 'saturate' : param))));
+                window.PhotoMasksManager.updateRadialParam(mapParam, val);
+            } else if (id.startsWith('mask_lin_')) {
+                const param = id.replace('mask_lin_', '');
+                const val = (param === 'amount' || param === 'saturate' || param === 'sat' || param === 'feather' || param === 'spread' || param === 'x1' || param === 'y1' || param === 'x2' || param === 'y2' || param === 'exp' || param === 'temp' || param === 'hl' || param === 'sh') ? (parseFloat(defaultVal) / 100) : parseFloat(defaultVal);
+                const mapParam = (param === 'exp' ? 'exposure' : (param === 'hl' ? 'highlights' : (param === 'sh' ? 'shadows' : (param === 'sat' ? 'saturate' : param))));
+                window.PhotoMasksManager.updateLinearParam(mapParam, val);
+            } else if (id.startsWith('mask_ai_')) {
+                const param = id.replace('mask_ai_', '');
+                const val = (param === 'amount' || param === 'saturate' || param === 'sat' || param === 'exp' || param === 'temp' || param === 'hl' || param === 'sh') ? (parseFloat(defaultVal) / 100) : parseFloat(defaultVal);
+                const mapParam = (param === 'exp' ? 'exposure' : (param === 'hl' ? 'highlights' : (param === 'sh' ? 'shadows' : (param === 'sat' ? 'saturate' : param))));
+                window.PhotoMasksManager.updateSelectedParam(mapParam, val);
+            }
+        }
+
+        // Girdi olaylarını tetikle
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+
+        // UI Değer Göstergelerini Güncelle
+        let valSpan = null;
+        if (id) {
+            valSpan = document.getElementById(id + 'Val') ||
+                      document.getElementById(id.replace('Ctrl', 'Val')) ||
+                      document.getElementById(id.replace('_slider', '_val'));
+        }
+        if (!valSpan) {
+            const parent = input.closest('.slider-group, .input-group, .filter-slider-box') || input.parentElement;
+            if (parent) {
+                valSpan = parent.querySelector('label span:nth-child(2), label span[id], .val-display');
+            }
+        }
+
+        if (valSpan && id !== 'aiPhotoEnhanceSlider') {
+            let unit = '';
+            if (id === 'exposure' || id === 'contrast' || id === 'saturate' || id === 'grayscale' || id === 'sepia' || id === 'invertCtrl' || id === 'vignette' || id === 'keystoneZoom' || id.endsWith('amount') || id.endsWith('feather') || id.endsWith('spread') || id.endsWith('sat') || id.endsWith('cx') || id.endsWith('cy') || id.endsWith('rx') || id.endsWith('ry') || id.endsWith('x1') || id.endsWith('y1') || id.endsWith('x2') || id.endsWith('y2') || id.includes('Opacity')) {
+                unit = '%';
+            } else if (id === 'fblur' || id.includes('Radius') || id.includes('Padding') || id.includes('Width') || id.includes('Size')) {
+                unit = 'px';
+            } else if (id === 'hueRotate' || id === 'keystoneRotate' || id.includes('Rotate') || id.includes('angle') || id.includes('Angle')) {
+                unit = '°';
+            }
+            valSpan.textContent = defaultVal + unit;
+        }
+
+        // Fotoğraf Filtreleri ve Piksel Motorlarını Yeniden Çiz
+        if (typeof applyPhotoFilters === 'function') applyPhotoFilters();
+        if (typeof processPixels === 'function') processPixels(true);
+        if (typeof processHSL === 'function') processHSL();
+        if (typeof redrawAll === 'function') redrawAll();
+        if (typeof applyShadowHighlight === 'function') applyShadowHighlight();
+        if (typeof renderCanvas === 'function') renderCanvas();
+    }
+};
+
+// Hedef kaydırıcıyı bulma yardımcısı
+function findTargetRangeSlider(target) {
+    if (!target) return null;
+    if (target.tagName && target.tagName.toLowerCase() === 'input' && target.type === 'range') {
+        return target;
+    }
+    // Önce slider-group veya input-group kapsayıcısına bak (label ve input kardeştir)
+    const group = target.closest('.slider-group, .input-group, .filter-slider-box');
+    if (group) {
+        const range = group.querySelector('input[type="range"]');
+        if (range) return range;
+    }
+    const container = target.closest('.mask-section-card, .hsl-accordion, .photo-ai-card, label') || target.parentElement;
+    if (container) {
+        const range = container.querySelector('input[type="range"]');
+        if (range) return range;
+        if (container.parentElement) {
+            const parentRange = container.parentElement.querySelector('input[type="range"]');
+            if (parentRange) return parentRange;
+        }
+    }
+    return null;
+}
+
+// 1. Doğrudan Çift Tıklama (Desktop dblclick)
+document.addEventListener('dblclick', function(e) {
+    const slider = findTargetRangeSlider(e.target);
+    if (slider) {
+        e.preventDefault();
+        e.stopPropagation();
+        window.resetSliderToDefault(slider);
+    }
+}, true);
+
+// 2. Hızlı Çift Tıklama Takibi (Tarayıcının range input dblclick'i yutması durumuna karşı)
+let lastSliderClickTime = 0;
+let lastSliderClickTarget = null;
+document.addEventListener('click', function(e) {
+    const slider = findTargetRangeSlider(e.target);
+    if (!slider) {
+        lastSliderClickTarget = null;
+        return;
+    }
+    const now = Date.now();
+    if (lastSliderClickTarget === slider && (now - lastSliderClickTime) < 350) {
+        e.preventDefault();
+        window.resetSliderToDefault(slider);
+        lastSliderClickTime = 0;
+        lastSliderClickTarget = null;
+    } else {
+        lastSliderClickTime = now;
+        lastSliderClickTarget = slider;
+    }
+}, true);
+
+// 3. Mobil Çift Dokunma (Mobile Double-Tap)
+let lastSliderTap = 0;
+document.addEventListener('touchend', function(e) {
+    const slider = findTargetRangeSlider(e.target);
     if (slider) {
         const currentTime = new Date().getTime();
         const tapLength = currentTime - lastSliderTap;
-        if (tapLength < 500 && tapLength > 0) {
+        if (tapLength < 400 && tapLength > 0) {
             e.preventDefault();
             window.resetSliderToDefault(slider);
             lastSliderTap = 0;
@@ -2076,13 +2194,13 @@ if (window.visualViewport && window.innerWidth <= 640) {
         longPressTouchId = null;
         
         // Ekrana basılı tutma bittiği an her halükarda orijinal görünümü kapat ve şablonu/filtreleri geri yükle
-        if (didTriggerBeforeAfter || (typeof isShowingBefore !== 'undefined' && isShowingBefore)) {
+        if (didTriggerBeforeAfter) {
+            didTriggerBeforeAfter = false;
             if (typeof setOriginalView === 'function') {
                 setOriginalView(false);
             } else if (typeof toggleBeforeAfter === 'function') {
                 toggleBeforeAfter(false);
             }
-            didTriggerBeforeAfter = false;
             
             if (e && e.cancelable !== false) {
                 if(e.preventDefault) e.preventDefault();

@@ -3,7 +3,7 @@ console.log('🚀 templateManager.js yükleniyor...');
 const TEMPLATE_CATEGORIES = [
     { id: 'favorites', name: '⭐ Favori Şablonlar' },
     { id: 'kalip', name: '🖼️ Afiş ve Vitrin' },
-    { id: 'elit', name: '💎 Elit (Canva)' },
+    { id: 'elit', name: '💎 Elit Şablonlar' },
     { id: 'kolaj', name: '🖼️ Kolaj' },
     { id: 'minimal', name: '✨ Minimal' },
     { id: 'luks', name: '👑 Lüks' },

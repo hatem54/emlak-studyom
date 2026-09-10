@@ -115,37 +115,70 @@ window.applyPixelAdjustmentsToImageData = function(src, dst, width, height) {
             
             let hsl = rgbToHslFast(r, g, b);
             
-            // VIBRANCE
+            // VIBRANCE (Akıllı Canlılık - Lightroom Standardı)
             if (vibranceFactor !== 0) {
-                let s = hsl[1]; let hue = hsl[0]; let protect = 1.0;
-                
-                // Emlak korumaları
-                if (hue >= 0.25 && hue <= 0.45) protect = 0.5; // Yeşiller (Bahçe)
-                else if (hue >= 0.55 && hue <= 0.70) protect = 0.6; // Maviler (Gökyüzü/Havuz)
-                else if (hue >= 0.05 && hue <= 0.15) protect = 0.5; // Kahverengi/Sarı (Ahşap/Tuğla)
-
-                let adjustedFactor = vibranceFactor * 0.7; // Genel etkiyi yumuşat
-
-                if (adjustedFactor > 0) s += adjustedFactor * (1 - s) * protect;
-                else s += adjustedFactor * s;
-                
-                hsl[1] = Math.min(1, Math.max(0, s));
+                let s = hsl[1];
+                if (vibranceFactor < 0) {
+                    // Negatif Canlılık: Tüm renkleri homojen ve orantılı olarak griye çeker; -1.0'da %100 monokrom
+                    s = Math.max(0, Math.min(1, s * (1.0 + vibranceFactor)));
+                } else {
+                    // Pozitif Canlılık: Düşük doymuş renklere daha çok, doymuş renklere daha az etki eder (patlamayı önler)
+                    let vBoost = (1.0 - s) * 1.25;
+                    let hue = hsl[0];
+                    if (hue >= 0.04 && hue <= 0.14) vBoost *= 0.80; // İnsan teni ve aşırı sıcak tonlar
+                    s = Math.max(0, Math.min(1, s * (1.0 + vibranceFactor * vBoost)));
+                }
+                hsl[1] = s;
             }
             
-            // TONE
+            // TONE (Profesyonel Fotoğrafik Lightroom Eğrisi)
             let lum = hsl[2];
-            if(shadowFactor !== 0) {
-                let weight = 1 - lum; weight = weight * weight * weight; 
-                lum += shadowFactor * weight * 0.7;
+            if (lum > 0.0001) {
+                let newLum = lum;
+                if (shadowFactor !== 0) {
+                    if (shadowFactor > 0) {
+                        let sExp = 1.0 / (1.0 + shadowFactor * 1.35 * (1.0 - lum) * (1.0 - lum));
+                        newLum = Math.pow(newLum, sExp);
+                    } else {
+                        let sExp = 1.0 + (-shadowFactor) * 0.9 * (1.0 - lum) * (1.0 - lum);
+                        newLum = Math.pow(newLum, sExp);
+                    }
+                }
+                if (highlightFactor !== 0) {
+                    let invY = Math.max(0, Math.min(1, 1.0 - newLum));
+                    let hWeight = Math.pow(newLum, 1.5);
+                    if (highlightFactor < 0) {
+                        let hComp = -highlightFactor;
+                        let hExp = 1.0 / (1.0 + hComp * 1.35 * hWeight);
+                        newLum = 1.0 - Math.pow(invY, hExp);
+                    } else {
+                        let hBoost = highlightFactor;
+                        let hExp = 1.0 + hBoost * 1.35 * hWeight;
+                        newLum = 1.0 - Math.pow(invY, hExp);
+                    }
+                }
+                if (blackFactor !== 0) {
+                    if (blackFactor > 0) {
+                        let bWeight = Math.pow(Math.max(0, 1.0 - newLum * 2.5), 1.8);
+                        newLum += blackFactor * 0.16 * bWeight;
+                    } else {
+                        let bComp = -blackFactor;
+                        let bWeight = Math.pow(Math.max(0, 1.0 - newLum * 2.5), 1.4);
+                        newLum = Math.max(0, newLum - bComp * 0.18 * bWeight * (newLum * 3.5));
+                    }
+                }
+                if (whiteFactor !== 0) {
+                    if (whiteFactor > 0) {
+                        let wWeight = Math.pow(Math.max(0, (newLum - 0.40) / 0.60), 1.6);
+                        newLum += whiteFactor * 0.18 * wWeight * (1.0 - newLum * 0.35);
+                    } else {
+                        let wComp = -whiteFactor;
+                        let wWeight = Math.pow(Math.max(0, (newLum - 0.45) / 0.55), 1.8);
+                        newLum -= wComp * 0.18 * wWeight;
+                    }
+                }
+                hsl[2] = Math.max(0, Math.min(1, newLum));
             }
-            if(highlightFactor !== 0) {
-                let weight = lum; weight = weight * weight * weight;
-                lum += highlightFactor * weight * 0.7;
-            }
-            if (blackFactor !== 0) lum += blackFactor * (1 - lum) * 0.2;
-            if (whiteFactor !== 0) lum += whiteFactor * lum * 0.2;
-            if(lum < 0) lum = 0; if(lum > 1) lum = 1;
-            hsl[2] = lum;
 
             if (hasHsl) {
                 let category = getColorCategory(hsl[0]);
@@ -167,9 +200,27 @@ window.applyPixelAdjustmentsToImageData = function(src, dst, width, height) {
 };
 
 function applyPixelAdjustments() {
-
     if(typeof isShowingBefore !== 'undefined' && isShowingBefore) {
         if(typeof uploadedImgUrl !== 'undefined') photoLayer.style.backgroundImage = 'url("'+uploadedImgUrl+'")';
+        return;
+    }
+    
+    const sv = document.getElementById('shadowsCtrl') ? +document.getElementById('shadowsCtrl').value : 0;
+    const hv = document.getElementById('highlightsCtrl') ? +document.getElementById('highlightsCtrl').value : 0;
+    const bl = document.getElementById('blacksCtrl') ? +document.getElementById('blacksCtrl').value : 0;
+    const wh = document.getElementById('whitesCtrl') ? +document.getElementById('whitesCtrl').value : 0;
+    
+    // UI values update
+    if(document.getElementById('shadowsVal')) document.getElementById('shadowsVal').textContent = sv;
+    if(document.getElementById('highlightsVal')) document.getElementById('highlightsVal').textContent = hv;
+    if(document.getElementById('blacksVal')) document.getElementById('blacksVal').textContent = bl;
+    if(document.getElementById('whitesVal')) document.getElementById('whitesVal').textContent = wh;
+
+    // WebGL Motoru Etkinse Doğrudan GPU Render Çağır (Sıfır CPU Gecikmesi)
+    if (window.WebGLPhotoEngine && window.WebGLPhotoEngine.initialized) {
+        if (typeof applyPhotoFilters === 'function') {
+            applyPhotoFilters();
+        }
         return;
     }
     
@@ -187,21 +238,6 @@ function applyPixelAdjustments() {
         cacheOriginalImageForPixels();
         return;
     }
-    
-    const sv = document.getElementById('shadowsCtrl') ? +document.getElementById('shadowsCtrl').value : 0;
-    const hv = document.getElementById('highlightsCtrl') ? +document.getElementById('highlightsCtrl').value : 0;
-    const bl = document.getElementById('blacksCtrl') ? +document.getElementById('blacksCtrl').value : 0;
-    const wh = document.getElementById('whitesCtrl') ? +document.getElementById('whitesCtrl').value : 0;
-    const tmp = document.getElementById('tempCtrl') ? +document.getElementById('tempCtrl').value : 0;
-    const tnt = document.getElementById('tintCtrl') ? +document.getElementById('tintCtrl').value : 0;
-    const vbr = document.getElementById('vibranceCtrl') ? +document.getElementById('vibranceCtrl').value : 0;
-    const shp = document.getElementById('sharpnessCtrl') ? +document.getElementById('sharpnessCtrl').value : 0;
-    
-    // UI values update
-    if(document.getElementById('shadowsVal')) document.getElementById('shadowsVal').textContent = sv;
-    if(document.getElementById('highlightsVal')) document.getElementById('highlightsVal').textContent = hv;
-    if(document.getElementById('blacksVal')) document.getElementById('blacksVal').textContent = bl;
-    if(document.getElementById('whitesVal')) document.getElementById('whitesVal').textContent = wh;
 
     // HSL Values
     const hslColors = ['red','orange','yellow','green','blue','purple','magenta'];
@@ -307,7 +343,8 @@ function applyPixelAdjustments() {
 function applyShadowHighlight(){
     if(typeof shadowOverlay !== 'undefined' && shadowOverlay) shadowOverlay.style.background = 'transparent';
     if(typeof highlightOverlay !== 'undefined' && highlightOverlay) highlightOverlay.style.background = 'transparent';
-    if(typeof processPixels === 'function') processPixels();
+    if(typeof applyPhotoFilters === 'function') applyPhotoFilters();
+    else if(typeof processPixels === 'function') processPixels();
 }
 
 function autoEnhancePhoto() {
@@ -427,6 +464,7 @@ function setOriginalView(show) {
     } else {
         isShowingBefore = !isShowingBefore;
     }
+    window.isShowingBefore = isShowingBefore;
     const btn = document.getElementById('btnBeforeAfter');
     
     if(isShowingBefore) {
@@ -444,6 +482,9 @@ function setOriginalView(show) {
         });
         document.querySelectorAll('.canvas-el').forEach(el => el.style.opacity = '0');
         
+        const maskSvg = document.getElementById('maskInteractiveSvg');
+        if (maskSvg) maskSvg.style.display = 'none';
+        
         let badge = document.getElementById('originalViewBadge');
         if(!badge) {
             badge = document.createElement('div');
@@ -460,6 +501,8 @@ function setOriginalView(show) {
             btn.style.color = '#fff';
             btn.innerHTML = '<i class="fa-solid fa-eye"></i> Orijinal Haline Bakıyorsunuz (Tıkla Dön)';
         }
+
+        if (typeof requestPhotoRepaint === 'function') requestPhotoRepaint();
     } else {
         if (btn) {
             btn.style.backgroundColor = '#334155';
@@ -473,6 +516,9 @@ function setOriginalView(show) {
         });
         document.querySelectorAll('.canvas-el').forEach(el => el.style.opacity = '1');
         
+        const maskSvg = document.getElementById('maskInteractiveSvg');
+        if (maskSvg) maskSvg.style.display = '';
+        
         let badge = document.getElementById('originalViewBadge');
         if(badge) badge.style.opacity = '0';
         
@@ -480,6 +526,7 @@ function setOriginalView(show) {
         const v = document.getElementById('vignette') ? +document.getElementById('vignette').value : 0;
         if(typeof vignetteLayer !== 'undefined' && vignetteLayer) vignetteLayer.style.opacity = v / 100;
         if(typeof processPixels === 'function') processPixels(true);
+        if (typeof requestPhotoRepaint === 'function') requestPhotoRepaint();
     }
 }
 

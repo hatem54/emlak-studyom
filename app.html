@@ -41,7 +41,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,300,0,0" />
     <link rel="icon" type="image/jpeg" href="assets/logo/logo-icon.png">
-    <link rel="stylesheet" href="styles.css?v=20260905-10">
+    <link rel="stylesheet" href="styles.css?v=20260910-14">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <!-- ⚡ SABER EFFECT ENGINE - PixiJS + Filters -->
     <script src="https://cdn.jsdelivr.net/npm/pixi.js@7.4.0/dist/pixi.min.js"></script>
@@ -134,7 +134,7 @@
         
 <div class="section-title">⚙️ Ekstra Araçlar</div>
         <div style="display:flex; flex-direction:column; gap:8px;">
-            <button class="btn-action" style="text-align:left; background:linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(168, 85, 247, 0.2)); color:var(--text); border:1px solid rgba(168, 85, 247, 0.4); padding:15px; margin-bottom:8px; display:flex; align-items:center; gap:10px; font-size:14px; font-weight:600;" onclick="document.getElementById('mainTabs').classList.remove('active'); if(typeof showTemplateColorModal === 'function') showTemplateColorModal()"><i class="fas fa-wand-magic-sparkles" style="color:#a855f7;"></i> 🎨 PRO Renk Paleti & Eşleştirici</button>
+            <button class="btn-action" style="text-align:left; background:linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(168, 85, 247, 0.2)); color:var(--text); border:1px solid rgba(168, 85, 247, 0.4); padding:15px; margin-bottom:8px; display:flex; align-items:center; gap:10px; font-size:14px; font-weight:600;" onclick="document.getElementById('mainTabs').classList.remove('active'); if(typeof showTemplateColorModal === 'function') showTemplateColorModal()"><i class="fas fa-wand-magic-sparkles" style="color:#a855f7;"></i> PRO Renk Paleti & Eşleştirici</button>
             <button class="btn-action" style="text-align:left; background:var(--dark-3); color:var(--text); border:1px solid rgba(108,92,231,0.2); padding:15px; margin-bottom:8px; display:flex; align-items:center; gap:10px; font-size:14px;" onclick="document.getElementById('mainTabs').classList.remove('active'); switchTab('font')">🔠 Font</button>
             <button class="btn-action" style="text-align:left; background:var(--dark-3); color:var(--text); border:1px solid rgba(108,92,231,0.2); padding:15px; margin-bottom:8px; display:flex; align-items:center; gap:10px; font-size:14px;" onclick="document.getElementById('mainTabs').classList.remove('active'); switchTab('qr')">📱 QR Kod</button>
             <button class="btn-action" style="text-align:left; background:var(--dark-3); color:var(--text); border:1px solid rgba(108,92,231,0.2); padding:15px; margin-bottom:8px; display:flex; align-items:center; gap:10px; font-size:14px;" onclick="document.getElementById('mainTabs').classList.remove('active'); switchTab('brand')">🏢 Marka</button>
@@ -162,10 +162,10 @@
 
         <!-- 1. ARAÇ ARAMA VE SON KULLANILANLAR -->
         <div id="searchButtonsContainer" style="display:flex; gap:10px; margin-bottom:10px; margin-top:2px; position:relative;">
-            <button class="btn-action" style="flex:1; background:linear-gradient(135deg, #8b5cf6, #7c3aed); border:none; padding:10px; border-radius:8px; color:white; font-weight:bold; display:flex; align-items:center; justify-content:center; gap:8px;" onclick="if(window.OmniSearch) window.OmniSearch.openSearch()">
+            <button type="button" class="btn-action" style="flex:1; background:linear-gradient(135deg, #8b5cf6, #7c3aed); border:none; padding:10px; border-radius:8px; color:white; font-weight:bold; display:flex; align-items:center; justify-content:center; gap:8px; cursor:pointer;" onclick="event.stopPropagation(); if(window.OmniSearch) window.OmniSearch.openSearch();">
                 <i class="fas fa-search"></i> Araç / Şablon Ara
             </button>
-            <button class="btn-action" style="flex:1; background:linear-gradient(135deg, #8b5cf6, #7c3aed); border:none; padding:10px; border-radius:8px; color:white; font-weight:bold; display:flex; align-items:center; justify-content:center; gap:8px;" onclick="if(window.OmniSearch) window.OmniSearch.openRecent()">
+            <button type="button" class="btn-action" style="flex:1; background:linear-gradient(135deg, #8b5cf6, #7c3aed); border:none; padding:10px; border-radius:8px; color:white; font-weight:bold; display:flex; align-items:center; justify-content:center; gap:8px; cursor:pointer;" onclick="event.stopPropagation(); if(window.OmniSearch) window.OmniSearch.openRecent();">
                 <i class="fas fa-history"></i> Son Kullanılanlar
             </button>
         </div>
@@ -184,10 +184,9 @@
                 <input type="file" id="imageInput" accept="image/*,.json,application/json" style="position:absolute; width:1px; height:1px; opacity:0; pointer-events:none;">
             </div>
 
-            <!-- Harita / Uydu Görseli Çek -->
-            <div style="display:flex; align-items:center; gap:6px;">
+            <!-- Harita / Uydu Görseli Çek (Sadece PC / Tablet) -->
+            <div class="sat-map-launch-row pc-only" style="display:flex; align-items:center; gap:6px;">
                 <button type="button" class="btn-action" id="openSatelliteMapBtn" style="flex:1; background:linear-gradient(135deg, #10b981, #059669); border:none; padding:9px 12px; border-radius:8px; color:white; font-weight:600; font-size:12.5px; display:flex; align-items:center; justify-content:center; gap:8px; box-shadow:0 4px 14px rgba(16,185,129,0.25); cursor:pointer; transition:all 0.2s;" onclick="if(window.openSatelliteMapModal) window.openSatelliteMapModal();">
-                    <i class="fas fa-satellite" style="font-size:14px; color:#a7f3d0;"></i>
                     <span id="satMapBtnText">🛰️ Harita / Uydu Görseli Çek</span>
                 </button>
             </div>
@@ -435,186 +434,487 @@
 
     <!-- FOTO -->
     <div id="tab-photo" class="dynamic-field">
-        <div class="slider-group"><label><span>☀️ Parlaklık</span><span id="exposureVal">100%</span></label><input type="range" id="exposure" min="0" max="300" value="100"></div>
+        <div class="section-title" style="margin-top:0;">☀️ Işık & Dinamik Aralık</div>
+        <div class="slider-group"><label><span>☀️ Pozlama</span><span id="exposureVal">100%</span></label><input type="range" id="exposure" min="0" max="300" value="100"></div>
         <div class="slider-group"><label><span>🌙 Kontrast</span><span id="contrastVal">100%</span></label><input type="range" id="contrast" min="0" max="300" value="100"></div>
-        <div class="slider-group"><label><span>🌑 Gölgeleri Aç/Kapa</span><span id="shadowsVal">0</span></label><input type="range" id="shadowsCtrl" min="-100" max="100" value="0"></div>
-        <div class="slider-group"><label><span>☀️ Parlak Alanları Aç/Kapa</span><span id="highlightsVal">0</span></label><input type="range" id="highlightsCtrl" min="-100" max="100" value="0"></div>
-        <div class="slider-group"><label><span>⚫ Siyahlar</span><span id="blacksVal">0</span></label><input type="range" id="blacksCtrl" min="-100" max="100" value="0"></div>
+        <div class="slider-group"><label><span>☀️ Açık Alanlar</span><span id="highlightsVal">0</span></label><input type="range" id="highlightsCtrl" min="-100" max="100" value="0"></div>
+        <div class="slider-group"><label><span>🌑 Gölgeler</span><span id="shadowsVal">0</span></label><input type="range" id="shadowsCtrl" min="-100" max="100" value="0"></div>
         <div class="slider-group"><label><span>⚪ Beyazlar</span><span id="whitesVal">0</span></label><input type="range" id="whitesCtrl" min="-100" max="100" value="0"></div>
-        <div class="section-title">🎨 Renk & Ton (PRO)</div>
+        <div class="slider-group"><label><span>⚫ Siyahlar</span><span id="blacksVal">0</span></label><input type="range" id="blacksCtrl" min="-100" max="100" value="0"></div>
+
+        <div class="section-title">🎨 Renk & Beyaz Dengesi</div>
+        <div class="slider-group"><label><span>🌡️ Sıcaklık</span><span id="tempVal">0</span></label><input type="range" id="tempCtrl" min="-100" max="100" value="0"></div>
+        <div class="slider-group"><label><span>💚 Ton</span><span id="tintVal">0</span></label><input type="range" id="tintCtrl" min="-100" max="100" value="0"></div>
         <div class="slider-group"><label><span>🎨 Doygunluk</span><span id="saturateVal">100%</span></label><input type="range" id="saturate" min="0" max="400" value="100"></div>
-        <div class="slider-group"><label><span>🔥 Canlılık (Vibrance)</span><span id="vibranceVal">0</span></label><input type="range" id="vibranceCtrl" min="-100" max="100" value="0"></div>
-          
-<style>
-.hsl-tab-btn { flex:1; background:#334155; color:#cbd5e1; border:none; padding:6px; border-radius:4px; cursor:pointer; font-size:11px; font-weight:bold; }
-.hsl-tab-btn.active { background:#3b82f6; color:#fff; }
-details.hsl-accordion > summary::-webkit-details-marker { display: none; }
-</details>
+        <div class="slider-group"><label><span>🔥 Canlılık</span><span id="vibranceVal">0</span></label><input type="range" id="vibranceCtrl" min="-100" max="100" value="0"></div>
 
-/* Zoom ayarı ile Callout Pool ve Neon Pool içi görünümler küçültülür */
-#calloutPool .callout-item, #neonCalloutPool .co-neon-block {
-    zoom: 0.55;
-    margin: 10px !important;
-}
-</style>
-<details class="hsl-accordion" style="margin-bottom: 15px; margin-top: 10px; background: #0f172a; border-radius: 6px; overflow: hidden; border: 1px solid #1e293b;">
-    <summary style="padding: 12px; cursor: pointer; color: #e2e8f0; font-weight: bold; list-style: none; display: flex; justify-content: space-between; align-items: center;" onclick="this.querySelector('i').classList.toggle('fa-chevron-up'); this.querySelector('i').classList.toggle('fa-chevron-down');">
-        <span><i class="fa-solid fa-palette"></i> Ayrıntılı Renk (HSL)</span>
-        <i class="fa-solid fa-chevron-down" style="font-size:12px; color:#94a3b8;"></i>
-    </summary>
-    <div style="padding: 12px; border-top: 1px solid #1e293b;">
-        <!-- Color Palette Picker -->
-        <div style="display:flex; justify-content:space-between; margin-bottom:20px; background:#0f172a; padding:10px; border-radius:30px; border:1px solid #334155;">
-            <div class="hsl-color-dot active" data-color="red" style="width:24px; height:24px; border-radius:50%; background:#ef4444; cursor:pointer; border:2px solid #fff; box-shadow:0 0 8px rgba(239,68,68,0.5);"></div>
-            <div class="hsl-color-dot" data-color="orange" style="width:24px; height:24px; border-radius:50%; background:#f97316; cursor:pointer; border:2px solid transparent;"></div>
-            <div class="hsl-color-dot" data-color="yellow" style="width:24px; height:24px; border-radius:50%; background:#eab308; cursor:pointer; border:2px solid transparent;"></div>
-            <div class="hsl-color-dot" data-color="green" style="width:24px; height:24px; border-radius:50%; background:#22c55e; cursor:pointer; border:2px solid transparent;"></div>
-            <div class="hsl-color-dot" data-color="blue" style="width:24px; height:24px; border-radius:50%; background:#3b82f6; cursor:pointer; border:2px solid transparent;"></div>
-            <div class="hsl-color-dot" data-color="purple" style="width:24px; height:24px; border-radius:50%; background:#a855f7; cursor:pointer; border:2px solid transparent;"></div>
-        </div>
-        
-        <!-- Active Color Name -->
-        <div id="hslActiveColorLabel" style="text-align:center; color:#ef4444; font-weight:bold; font-size:14px; margin-bottom:15px;">🔴 Kırmızı</div>
-        
-        <!-- 3 Universal Sliders -->
-        <div class="slider-group">
-            <label><span>Ton (Hue)</span><span id="hsl_h_val">0</span></label>
-            <input type="range" id="hsl_h_slider" min="-100" max="100" value="0">
-        </div>
-        <div class="slider-group">
-            <label><span>Doygunluk</span><span id="hsl_s_val">0</span></label>
-            <input type="range" id="hsl_s_slider" min="-100" max="100" value="0">
-        </div>
-        <div class="slider-group">
-            <label><span>Işık (Luminance)</span><span id="hsl_l_val">0</span></label>
-            <input type="range" id="hsl_l_slider" min="-100" max="100" value="0">
-        </div>
-        
-        <!-- Hidden actual inputs to preserve compatibility with existing JS (applyFilters, resetFilters) -->
-        <div style="display:none;" id="hslHiddenInputs">
-            <input type="range" class="hsl-slider" data-type="h" data-color="red" min="-100" max="100" value="0" id="hsl_h_redVal_input">
-            <input type="range" class="hsl-slider" data-type="s" data-color="red" min="-100" max="100" value="0" id="hsl_s_redVal_input">
-            <input type="range" class="hsl-slider" data-type="l" data-color="red" min="-100" max="100" value="0" id="hsl_l_redVal_input">
-            
-            <input type="range" class="hsl-slider" data-type="h" data-color="orange" min="-100" max="100" value="0" id="hsl_h_orangeVal_input">
-            <input type="range" class="hsl-slider" data-type="s" data-color="orange" min="-100" max="100" value="0" id="hsl_s_orangeVal_input">
-            <input type="range" class="hsl-slider" data-type="l" data-color="orange" min="-100" max="100" value="0" id="hsl_l_orangeVal_input">
-            
-            <input type="range" class="hsl-slider" data-type="h" data-color="yellow" min="-100" max="100" value="0" id="hsl_h_yellowVal_input">
-            <input type="range" class="hsl-slider" data-type="s" data-color="yellow" min="-100" max="100" value="0" id="hsl_s_yellowVal_input">
-            <input type="range" class="hsl-slider" data-type="l" data-color="yellow" min="-100" max="100" value="0" id="hsl_l_yellowVal_input">
-            
-            <input type="range" class="hsl-slider" data-type="h" data-color="green" min="-100" max="100" value="0" id="hsl_h_greenVal_input">
-            <input type="range" class="hsl-slider" data-type="s" data-color="green" min="-100" max="100" value="0" id="hsl_s_greenVal_input">
-            <input type="range" class="hsl-slider" data-type="l" data-color="green" min="-100" max="100" value="0" id="hsl_l_greenVal_input">
-            
-            <input type="range" class="hsl-slider" data-type="h" data-color="blue" min="-100" max="100" value="0" id="hsl_h_blueVal_input">
-            <input type="range" class="hsl-slider" data-type="s" data-color="blue" min="-100" max="100" value="0" id="hsl_s_blueVal_input">
-            <input type="range" class="hsl-slider" data-type="l" data-color="blue" min="-100" max="100" value="0" id="hsl_l_blueVal_input">
-            
-            <input type="range" class="hsl-slider" data-type="h" data-color="purple" min="-100" max="100" value="0" id="hsl_h_purpleVal_input">
-            <input type="range" class="hsl-slider" data-type="s" data-color="purple" min="-100" max="100" value="0" id="hsl_s_purpleVal_input">
-            <input type="range" class="hsl-slider" data-type="l" data-color="purple" min="-100" max="100" value="0" id="hsl_l_purpleVal_input">
-        </div>
-    </div>
-</details>
-
-<script>
-const hslColorNames = {
-    'red': '🔴 Kırmızı', 'orange': '🟠 Turuncu', 'yellow': '🟡 Sarı',
-    'green': '🟢 Yeşil', 'blue': '🔵 Mavi', 'purple': '🟣 Mor'
-};
-const hslColorsHex = {
-    'red': '#ef4444', 'orange': '#f97316', 'yellow': '#eab308',
-    'green': '#22c55e', 'blue': '#3b82f6', 'purple': '#a855f7'
-};
-
-let activeHslColor = 'red';
-
-// When a color dot is clicked
-document.querySelectorAll('.hsl-color-dot').forEach(dot => {
-    dot.addEventListener('click', function() {
-        document.querySelectorAll('.hsl-color-dot').forEach(d => {
-            d.classList.remove('active');
-            d.style.borderColor = 'transparent';
-            d.style.boxShadow = 'none';
-        });
-        this.classList.add('active');
-        this.style.borderColor = '#fff';
-        this.style.boxShadow = '0 0 8px ' + this.style.backgroundColor;
-        
-        activeHslColor = this.dataset.color;
-        
-        const lbl = document.getElementById('hslActiveColorLabel');
-        lbl.textContent = hslColorNames[activeHslColor];
-        lbl.style.color = hslColorsHex[activeHslColor];
-        
-        const hInput = document.querySelector(`.hsl-slider[data-color="${activeHslColor}"][data-type="h"]`);
-        const sInput = document.querySelector(`.hsl-slider[data-color="${activeHslColor}"][data-type="s"]`);
-        const lInput = document.querySelector(`.hsl-slider[data-color="${activeHslColor}"][data-type="l"]`);
-        
-        document.getElementById('hsl_h_slider').value = hInput.value;
-        document.getElementById('hsl_s_slider').value = sInput.value;
-        document.getElementById('hsl_l_slider').value = lInput.value;
-        
-        document.getElementById('hsl_h_val').textContent = hInput.value;
-        document.getElementById('hsl_s_val').textContent = sInput.value;
-        document.getElementById('hsl_l_val').textContent = lInput.value;
-    });
-});
-
-// When master sliders move, update hidden inputs and trigger filter logic
-['h', 's', 'l'].forEach(type => {
-    const slider = document.getElementById(`hsl_${type}_slider`);
-    if(slider) {
-        const updateHSL = function() {
-            document.getElementById(`hsl_${type}_val`).textContent = this.value;
-            const hiddenInput = document.querySelector(`.hsl-slider[data-color="${activeHslColor}"][data-type="${type}"]`);
-            if (hiddenInput) {
-                hiddenInput.value = this.value;
-                const event = new Event('input', { bubbles: true });
-                hiddenInput.dispatchEvent(event);
-            }
-        };
-        slider.addEventListener('input', updateHSL);
-        slider.addEventListener('change', updateHSL);
-    }
-});
-
-// Update master UI if reset filters happens from somewhere else
-document.addEventListener('DOMContentLoaded', () => {
-    document.querySelectorAll('.hsl-slider').forEach(hiddenSlider => {
-        hiddenSlider.addEventListener('change', function() {
-            if (this.dataset.color === activeHslColor) {
-                const t = this.dataset.type;
-                document.getElementById(`hsl_${t}_slider`).value = this.value;
-                document.getElementById(`hsl_${t}_val`).textContent = this.value;
-            }
-        });
-    });
-});
-</script>
-<div class="slider-group"><label><span>🌡️ Sıcaklık (Warm/Cool)</span><span id="tempVal">0</span></label><input type="range" id="tempCtrl" min="-100" max="100" value="0"></div>
-        <div class="slider-group"><label><span>💚 Ton (Magenta/Green)</span><span id="tintVal">0</span></label><input type="range" id="tintCtrl" min="-100" max="100" value="0"></div>
-        <div class="slider-group"><label><span>🔄 Renk Kaydırma (Hue)</span><span id="hueRotateVal">0°</span></label><input type="range" id="hueRotate" min="-180" max="180" value="0"></div>
-        <div class="section-title">🔬 Netlik & Detay (PRO)</div>
+        <!-- 🔬 NETLİK & DETAY - Doygunluk ve Canlılıktan hemen sonra -->
+        <div class="section-title">🔬 Netlik & Detay</div>
         <div class="slider-group"><label><span>🔬 Keskinlik</span><span id="sharpnessVal">0</span></label><input type="range" id="sharpnessCtrl" min="0" max="100" value="0"></div>
         <div class="slider-group"><label><span>💧 Bulanıklık</span><span id="fblurVal">0px</span></label><input type="range" id="fblur" min="0" max="50" value="0"></div>
-        <div class="slider-group"><label><span>📐 Netlik (Clarity)</span><span id="clarityVal">0</span></label><input type="range" id="clarityCtrl" min="0" max="100" value="0"></div>
-        <div class="slider-group"><label><span>🌫️ Sis Gider</span><span id="dehazeVal">0</span></label><input type="range" id="dehazeCtrl" min="0" max="100" value="0"></div>
-        <div class="section-title">🎭 Efektler</div>
-        <div class="slider-group"><label><span>📷 Sepia</span><span id="sepiaVal">0%</span></label><input type="range" id="sepia" min="0" max="100" value="0"></div>
+        <div class="slider-group"><label><span>📐 Berraklık</span><span id="clarityVal">0</span></label><input type="range" id="clarityCtrl" min="0" max="100" value="0"></div>
+        <div class="slider-group"><label><span>🌫️ Sis Giderme</span><span id="dehazeVal">0</span></label><input type="range" id="dehazeCtrl" min="0" max="100" value="0"></div>
+
+        <!-- 🎭 EFEKTLER & TONLAMA -->
+        <div class="section-title">🎭 Efektler & Tonlama</div>
+        <div class="slider-group"><label><span>📷 Sepya</span><span id="sepiaVal">0%</span></label><input type="range" id="sepia" min="0" max="100" value="0"></div>
         <div class="slider-group"><label><span>⬛ Siyah-Beyaz</span><span id="grayscaleVal">0%</span></label><input type="range" id="grayscale" min="0" max="100" value="0"></div>
-        <div class="slider-group"><label><span>🔃 Negatif (Invert)</span><span id="invertVal">0%</span></label><input type="range" id="invertCtrl" min="0" max="100" value="0"></div>
-        <div class="slider-group"><label><span>🌑 Vignette Yoğunluk</span><span id="vignetteVal">0%</span></label><input type="range" id="vignette" min="0" max="100" value="0"></div>
+        <div class="slider-group"><label><span>🔃 Negatif</span><span id="invertVal">0%</span></label><input type="range" id="invertCtrl" min="0" max="100" value="0"></div>
+        <div class="slider-group"><label><span>🌑 Kenar Karartma</span><span id="vignetteVal">0%</span></label><input type="range" id="vignette" min="0" max="100" value="0"></div>
+        <div class="slider-group"><label><span>🔄 Renk Döndürme</span><span id="hueRotateVal">0°</span></label><input type="range" id="hueRotate" min="-180" max="180" value="0"></div>
+
+        <!-- ✨ AI HD NETLEŞTİR & FLU GİDERİCİ -->
+        <div class="photo-ai-card" id="photoAiCard">
+            <div class="photo-ai-header">
+                <div class="photo-ai-title">
+                    <span><i class="fas fa-wand-magic-sparkles"></i> AI Netleştir</span>
+                </div>
+                <!-- Açıp Kapama Butonu -->
+                <button type="button" id="photoAiToggleBtn" class="photo-ai-toggle-btn" onclick="window.togglePhotoAiEnhance()" title="AI Netleştirmeyi Aç / Kapat">
+                    <i class="fas fa-power-off"></i> <span id="photoAiToggleLabel">Kapalı</span>
+                </button>
+            </div>
+            <p class="photo-ai-desc">Bulanıklığı giderir; bina hatlarını, çatı, pencere, kapı ve peyzaj detaylarını akıllı kenar tespitiyle netleştirir.</p>
+
+            <!-- Netlik Seviyesi Ayarı (Slider) -->
+            <div class="slider-group photo-ai-slider-group" id="photoAiSliderWrapper">
+                <label>
+                    <span><i class="fas fa-gauge-high"></i> Netlik Seviyesi:</span>
+                    <span id="aiPhotoEnhanceLevelVal" class="photo-ai-level-tag">%35 (Kapalı)</span>
+                </label>
+                <input type="range" id="aiPhotoEnhanceSlider" min="5" max="100" value="35" step="5" disabled oninput="window.setPhotoAiIntensity(this.value)">
+            </div>
+        </div>
+
+        <!-- 🏛️ MİMARİ PERSPEKTİF & DİKEY DÜZELTME (KEYSTONE) AKORDEONU -->
+        <details class="hsl-accordion">
+            <summary onclick="const i=this.querySelector('i.fa-chevron-down, i.fa-chevron-up'); if(i){i.classList.toggle('fa-chevron-up'); i.classList.toggle('fa-chevron-down');}">
+                <span><i class="fa-solid fa-building" style="color:#10b981;"></i> Mimari Perspektif & Geometri</span>
+                <i class="fa-solid fa-chevron-down" style="font-size:12px;"></i>
+            </summary>
+            <div>
+                <p class="photo-ai-desc">Geniş açı lenslerde geriye devrilen duvarları dikleştirir ve ufuk çizgisini düzeltir.</p>
+                <div class="slider-group">
+                    <label><span>📐 Dikey Eğim</span><span id="keystoneVVal">0°</span></label>
+                    <input type="range" id="keystoneV" min="-100" max="100" value="0">
+                </div>
+                <div class="slider-group">
+                    <label><span>↔️ Yatay Eğim</span><span id="keystoneHVal">0°</span></label>
+                    <input type="range" id="keystoneH" min="-100" max="100" value="0">
+                </div>
+                <div class="slider-group">
+                    <label><span>🔄 Ufuk Düzeltme</span><span id="keystoneRotateVal">0°</span></label>
+                    <input type="range" id="keystoneRotate" min="-45" max="45" value="0" step="0.5">
+                </div>
+                <div class="slider-group">
+                    <label><span>📏 En-Boy Oranı</span><span id="keystoneAspectVal">0</span></label>
+                    <input type="range" id="keystoneAspect" min="-100" max="100" value="0">
+                </div>
+                <div class="slider-group">
+                    <label><span>🔍 Otomatik Sığdırma Ölçeği</span><span id="keystoneZoomVal">100%</span></label>
+                    <input type="range" id="keystoneZoom" min="100" max="180" value="100">
+                </div>
+                <button type="button" class="btn-action" onclick="['keystoneV','keystoneH','keystoneRotate','keystoneAspect'].forEach(id=>{if($(id))$(id).value=0}); if($('keystoneZoom'))$('keystoneZoom').value=100; applyPhotoFilters();">🔄 Perspektifi Sıfırla</button>
+            </div>
+        </details>
+
+        <!-- 🌈 8-KANAL PROFESYONEL EMLAK HSL AKORDEONU -->
+        <details class="hsl-accordion">
+            <summary onclick="const i=this.querySelector('i.fa-chevron-down, i.fa-chevron-up'); if(i){i.classList.toggle('fa-chevron-up'); i.classList.toggle('fa-chevron-down');}">
+                <span><i class="fa-solid fa-palette" style="color:#ec4899;"></i> 8-Kanal Renk Ayarı (Renk / Doygunluk / Işık)</span>
+                <i class="fa-solid fa-chevron-down" style="font-size:12px;"></i>
+            </summary>
+            <div>
+                <!-- 8 Renk Noktası -->
+                <div class="hsl-dots-bar">
+                    <div class="hsl-color-dot active" data-color="red" style="background:#ef4444;" title="Kırmızı (Tuğla / Çatı)"></div>
+                    <div class="hsl-color-dot" data-color="orange" style="background:#f97316;" title="Turuncu (Ahşap / Parke / Laminant)"></div>
+                    <div class="hsl-color-dot" data-color="yellow" style="background:#eab308;" title="Sarı (İç Aydınlatma / Avize)"></div>
+                    <div class="hsl-color-dot" data-color="green" style="background:#22c55e;" title="Yeşil (Bahçe / Peyzaj / Bitki)"></div>
+                    <div class="hsl-color-dot" data-color="aqua" style="background:#06b6d4;" title="Turkuaz (Havuz Suyu / Deniz / Jakuzi)"></div>
+                    <div class="hsl-color-dot" data-color="blue" style="background:#3b82f6;" title="Mavi (Gökyüzü / Pencere)"></div>
+                    <div class="hsl-color-dot" data-color="purple" style="background:#a855f7;" title="Mor (Dekor / Çiçek)"></div>
+                    <div class="hsl-color-dot" data-color="magenta" style="background:#ec4899;" title="Magenta (Vurgu Işığı)"></div>
+                </div>
+                
+                <!-- Aktif Renk Başlığı -->
+                <div id="hslActiveColorLabel" style="text-align:center; color:#ef4444; font-weight:bold; font-size:13.5px; margin-bottom:12px;">🔴 Kırmızı (Tuğla / Çatı)</div>
+                
+                <!-- 3 Evrensel Kaydırıcı -->
+                <div class="slider-group">
+                    <label><span>Ton</span><span id="hsl_h_val">0</span></label>
+                    <input type="range" id="hsl_h_slider" min="-100" max="100" value="0">
+                </div>
+                <div class="slider-group">
+                    <label><span>Doygunluk</span><span id="hsl_s_val">0</span></label>
+                    <input type="range" id="hsl_s_slider" min="-100" max="100" value="0">
+                </div>
+                <div class="slider-group">
+                    <label><span>Işık</span><span id="hsl_l_val">0</span></label>
+                    <input type="range" id="hsl_l_slider" min="-100" max="100" value="0">
+                </div>
+                
+                <!-- 8 Renk İçin Gizli Girdi Alanları (AutoSave ve Geriye Dönük Uyumluluk) -->
+                <div style="display:none;" id="hslHiddenInputs">
+                    <input type="range" class="hsl-slider" data-type="h" data-color="red" min="-100" max="100" value="0" id="hsl_h_redVal_input">
+                    <input type="range" class="hsl-slider" data-type="s" data-color="red" min="-100" max="100" value="0" id="hsl_s_redVal_input">
+                    <input type="range" class="hsl-slider" data-type="l" data-color="red" min="-100" max="100" value="0" id="hsl_l_redVal_input">
+                    
+                    <input type="range" class="hsl-slider" data-type="h" data-color="orange" min="-100" max="100" value="0" id="hsl_h_orangeVal_input">
+                    <input type="range" class="hsl-slider" data-type="s" data-color="orange" min="-100" max="100" value="0" id="hsl_s_orangeVal_input">
+                    <input type="range" class="hsl-slider" data-type="l" data-color="orange" min="-100" max="100" value="0" id="hsl_l_orangeVal_input">
+                    
+                    <input type="range" class="hsl-slider" data-type="h" data-color="yellow" min="-100" max="100" value="0" id="hsl_h_yellowVal_input">
+                    <input type="range" class="hsl-slider" data-type="s" data-color="yellow" min="-100" max="100" value="0" id="hsl_s_yellowVal_input">
+                    <input type="range" class="hsl-slider" data-type="l" data-color="yellow" min="-100" max="100" value="0" id="hsl_l_yellowVal_input">
+                    
+                    <input type="range" class="hsl-slider" data-type="h" data-color="green" min="-100" max="100" value="0" id="hsl_h_greenVal_input">
+                    <input type="range" class="hsl-slider" data-type="s" data-color="green" min="-100" max="100" value="0" id="hsl_s_greenVal_input">
+                    <input type="range" class="hsl-slider" data-type="l" data-color="green" min="-100" max="100" value="0" id="hsl_l_greenVal_input">
+                    
+                    <input type="range" class="hsl-slider" data-type="h" data-color="aqua" min="-100" max="100" value="0" id="hsl_h_aquaVal_input">
+                    <input type="range" class="hsl-slider" data-type="s" data-color="aqua" min="-100" max="100" value="0" id="hsl_s_aquaVal_input">
+                    <input type="range" class="hsl-slider" data-type="l" data-color="aqua" min="-100" max="100" value="0" id="hsl_l_aquaVal_input">
+
+                    <input type="range" class="hsl-slider" data-type="h" data-color="blue" min="-100" max="100" value="0" id="hsl_h_blueVal_input">
+                    <input type="range" class="hsl-slider" data-type="s" data-color="blue" min="-100" max="100" value="0" id="hsl_s_blueVal_input">
+                    <input type="range" class="hsl-slider" data-type="l" data-color="blue" min="-100" max="100" value="0" id="hsl_l_blueVal_input">
+                    
+                    <input type="range" class="hsl-slider" data-type="h" data-color="purple" min="-100" max="100" value="0" id="hsl_h_purpleVal_input">
+                    <input type="range" class="hsl-slider" data-type="s" data-color="purple" min="-100" max="100" value="0" id="hsl_s_purpleVal_input">
+                    <input type="range" class="hsl-slider" data-type="l" data-color="purple" min="-100" max="100" value="0" id="hsl_l_purpleVal_input">
+
+                    <input type="range" class="hsl-slider" data-type="h" data-color="magenta" min="-100" max="100" value="0" id="hsl_h_magentaVal_input">
+                    <input type="range" class="hsl-slider" data-type="s" data-color="magenta" min="-100" max="100" value="0" id="hsl_s_magentaVal_input">
+                    <input type="range" class="hsl-slider" data-type="l" data-color="magenta" min="-100" max="100" value="0" id="hsl_l_magentaVal_input">
+                </div>
+            </div>
+        </details>
+
+        <!-- 📈 TON EĞRİSİ - Sliderların altına taşındı ve varsayılan KAPALI -->
+        <details class="hsl-accordion" id="toneCurvesAccordion">
+            <summary onclick="const i=this.querySelector('i.fa-chevron-down, i.fa-chevron-up'); if(i){i.classList.toggle('fa-chevron-up'); i.classList.toggle('fa-chevron-down');} setTimeout(()=>{if(window.PhotoCurvesManager){window.PhotoCurvesManager.setupHiDPI(); window.PhotoCurvesManager.draw();}}, 50);">
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <i class="fa-solid fa-bezier-curve" style="color:#38bdf8;"></i>
+                    <span>Ton Eğrisi</span>
+                </div>
+                <i class="fa-solid fa-chevron-down" style="font-size:12px;"></i>
+            </summary>
+            <div>
+                <!-- Kanal Seçici Butonlar -->
+                <div style="display:flex; gap:6px; margin-bottom:10px;">
+                    <button type="button" class="curve-channel-btn active" data-channel="rgb" onclick="window.PhotoCurvesManager && window.PhotoCurvesManager.setChannel('rgb')">⚪ RGB</button>
+                    <button type="button" class="curve-channel-btn" data-channel="r" onclick="window.PhotoCurvesManager && window.PhotoCurvesManager.setChannel('r')">🔴 Kırmızı</button>
+                    <button type="button" class="curve-channel-btn" data-channel="g" onclick="window.PhotoCurvesManager && window.PhotoCurvesManager.setChannel('g')">🟢 Yeşil</button>
+                    <button type="button" class="curve-channel-btn" data-channel="b" onclick="window.PhotoCurvesManager && window.PhotoCurvesManager.setChannel('b')">🔵 Mavi</button>
+                </div>
+
+                <!-- Hi-DPI Etkileşimli Ton Eğrisi Canvası -->
+                <div class="tone-curve-canvas-wrap">
+                    <canvas id="toneCurveCanvas" style="width:100%; height:195px; display:block; cursor:crosshair; touch-action:none;"></canvas>
+                </div>
+                
+                <!-- Bilgi ve Girdi / Çıktı Göstergesi -->
+                <div class="curve-status-row" style="display:flex; justify-content:space-between; align-items:center; margin:8px 0 10px 0;">
+                    <span class="curve-tip-text" style="font-size:11px; color:#94a3b8;">💡 Tıkla: Ekle | Sürükle: Ayarla | Çift Tık: Sil</span>
+                    <span id="toneCurveHud" class="curve-hud-pill">Girdi: -- | Çıktı: --</span>
+                </div>
+
+                <!-- Hazır Eğri Önayarları -->
+                <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:5px; margin-bottom:10px;">
+                    <button type="button" class="curve-preset-btn" onclick="window.PhotoCurvesManager && window.PhotoCurvesManager.applyPreset('linear')">Düz (Lineer)</button>
+                    <button type="button" class="curve-preset-btn" onclick="window.PhotoCurvesManager && window.PhotoCurvesManager.applyPreset('mediumContrast')">Orta Kontrast</button>
+                    <button type="button" class="curve-preset-btn" onclick="window.PhotoCurvesManager && window.PhotoCurvesManager.applyPreset('highContrast')">Güçlü S-Eğri</button>
+                    <button type="button" class="curve-preset-btn" onclick="window.PhotoCurvesManager && window.PhotoCurvesManager.applyPreset('liftShadows')">Açık Tavanlar</button>
+                    <button type="button" class="curve-preset-btn" onclick="window.PhotoCurvesManager && window.PhotoCurvesManager.applyPreset('matte')">Mat / Film</button>
+                    <button type="button" class="curve-preset-btn" onclick="window.PhotoCurvesManager && window.PhotoCurvesManager.applyPreset('vintageWarmth')">Sıcak Ahşap</button>
+                </div>
+
+                <div style="display:flex; gap:8px;">
+                    <button type="button" class="curve-action-btn" onclick="window.PhotoCurvesManager && window.PhotoCurvesManager.resetActiveChannel()">🔄 Bu Kanalı Sıfırla</button>
+                    <button type="button" class="curve-action-btn" onclick="window.PhotoCurvesManager && window.PhotoCurvesManager.resetAllChannels()">Tüm Eğrileri Sıfırla</button>
+                </div>
+            </div>
+        </details>
+
+        <!-- 🎯 YEREL MASKELEME (MASKS) AKORDEONU -->
+        <details class="hsl-accordion" id="photoMasksAccordion" ontoggle="if(this.open){ if(window.PhotoMasksManager) window.PhotoMasksManager.showGuides(); } else { if(window.PhotoMasksManager) window.PhotoMasksManager.hideGuides(); }">
+            <summary style="padding: 12px; cursor: pointer; font-weight: bold; list-style: none; display: flex; justify-content: space-between; align-items: center;" onclick="const i=this.querySelector('i.fa-chevron-down, i.fa-chevron-up'); if(i){i.classList.toggle('fa-chevron-up'); i.classList.toggle('fa-chevron-down');}">
+                <span>Yerel Maskeleme</span>
+                <i class="fa-solid fa-chevron-down" style="font-size:12px;"></i>
+            </summary>
+            <div class="mask-content-body">
+                <!-- Hızlı Ekleme Çubuğu -->
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:6px; margin-bottom:6px;">
+                    <button type="button" id="maskToolRadialBtn" class="mask-tool-btn" onclick="window.PhotoMasksManager && window.PhotoMasksManager.addMask('radial')">
+                        <i class="fa-solid fa-circle" style="color:#0284c7;"></i> Yeni Radyal
+                    </button>
+                    <button type="button" id="maskToolLinearBtn" class="mask-tool-btn" onclick="window.PhotoMasksManager && window.PhotoMasksManager.addMask('linear')">
+                        <i class="fa-solid fa-grip-lines" style="color:#a855f7;"></i> Yeni Doğrusal
+                    </button>
+                </div>
+
+                <!-- Akıllı AI Maskeleri Seçim Barı -->
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:6px; margin-bottom:10px;">
+                    <button type="button" id="maskToolSkyBtn" class="mask-tool-btn" onclick="window.PhotoMasksManager && window.PhotoMasksManager.createAiMask('sky')" title="Üst gökyüzü ve bulut alanını otomatik seçer">
+                        <i class="fa-solid fa-cloud" style="color:#0284c7;"></i> Gökyüzü Seç
+                    </button>
+                    <button type="button" id="maskToolGroundBtn" class="mask-tool-btn" onclick="window.PhotoMasksManager && window.PhotoMasksManager.createAiMask('ground')" title="Zemin, çim, peyzaj ve yol alanını otomatik seçer">
+                        <i class="fa-solid fa-mountain-sun" style="color:#16a34a;"></i> Zemin Seç
+                    </button>
+                    <button type="button" id="maskToolSubjectBtn" class="mask-tool-btn" onclick="window.PhotoMasksManager && window.PhotoMasksManager.createAiMask('subject')" title="Merkez bina, villa veya mimari yapıyı otomatik seçer">
+                        <i class="fa-solid fa-bullseye" style="color:#d97706;"></i> Ana Öge
+                    </button>
+                    <button type="button" id="maskToolPersonBtn" class="mask-tool-btn" onclick="window.PhotoMasksManager && window.PhotoMasksManager.createAiMask('person')" title="Fotoğraftaki insan ve portreyi otomatik seçer">
+                        <i class="fa-solid fa-user" style="color:#db2777;"></i> Kişi Yakala
+                    </button>
+                </div>
+
+                <!-- Aktif Durum & Kılavuz Bildirim Kutusu -->
+                <div id="maskActiveStatusBox" class="mask-status-box" style="display:none;">
+                    <span id="maskActiveStatusText" style="line-height:1.35;"></span>
+                    <button type="button" id="btnMaskCloseGuides" class="mask-close-btn" onclick="window.PhotoMasksManager && window.PhotoMasksManager.deactivateTool()" title="Düzenlemeyi bitir ve tuvaldeki seçim kılavuzunu kapat (Fotoğraftaki ayarlar korunur)">✔️ Bitti (Kılavuzu Kapat)</button>
+                </div>
+
+                <!-- 🗂️ MASKE KATMANLARI VE GEÇMİŞ (LAYERS & HISTORY) -->
+                <div id="maskLayersContainer" class="mask-layers-container">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                        <span class="mask-layers-title"><i class="fa-solid fa-layer-group" style="color:#0284c7; margin-right:4px;"></i> Maske Katmanları & Geçmiş</span>
+                        <span class="mask-layers-subtitle">Düzenlemek için tıkla</span>
+                    </div>
+                    <div id="maskLayersList"></div>
+                </div>
+
+                <!-- Kılavuz Göster Toggle (Genel Kırmızı Kılavuz) -->
+                <div class="mask-toggle-bar">
+                    <span><i class="fa-solid fa-eye" style="color:#dc2626;"></i> Kılavuz Dolgu</span>
+                    <label class="switch-toggle">
+                        <input type="checkbox" id="maskOverlayToggle" checked onchange="window.PhotoMasksManager && window.PhotoMasksManager.toggleOverlay(this.checked)">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+
+                <!-- 1. RADYAL MASKE DÜZENLEME PANELİ -->
+                <div class="mask-section-card" id="radialMaskSection" style="margin-bottom:10px;">
+                    <div class="mask-header" style="cursor:pointer;" onclick="if(!event.target.closest('button') && !event.target.closest('label')) window.PhotoMasksManager && window.PhotoMasksManager.openMask('radial');">
+                        <span><i id="radialMaskChevron" class="fa-solid fa-chevron-up" style="color:#0284c7; margin-right:5px;"></i> Radyal Maske Ayarları</span>
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <label class="switch-toggle" onclick="event.stopPropagation();">
+                                <input type="checkbox" id="radialMaskToggle" onchange="window.PhotoMasksManager && window.PhotoMasksManager.toggleRadial(this.checked)">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                    </div>
+                    <div id="radialMaskControls" style="display:none; margin-top:8px;">
+                        <!-- Bağımsız Radyal Kırmızı Kılavuz -->
+                        <div class="mask-toggle-bar">
+                            <span><i class="fa-solid fa-eye" style="color:#0284c7;"></i> Kılavuz Dolgu</span>
+                            <label class="switch-toggle">
+                                <input type="checkbox" id="mask_rad_overlay" checked onchange="window.PhotoMasksManager && window.PhotoMasksManager.toggleRadialOverlay(this.checked)">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+
+                        <div class="slider-group"><label><span>⚡ Maske Yoğunluğu</span><span id="mask_rad_amountVal">100%</span></label><input type="range" id="mask_rad_amount" min="0" max="150" value="100" oninput="window.PhotoMasksManager.updateRadialParam('amount', this.value / 100); $('mask_rad_amountVal').textContent=this.value+'%';"></div>
+                        <div class="slider-group"><label><span>☀️ Maske Pozlaması</span><span id="mask_rad_expVal">0</span></label><input type="range" id="mask_rad_exp" min="-100" max="100" value="0" oninput="window.PhotoMasksManager.updateRadialParam('exposure', this.value / 100); $('mask_rad_expVal').textContent=this.value;"></div>
+                        <div class="slider-group"><label><span>🌡️ Maske Sıcaklığı</span><span id="mask_rad_tempVal">0</span></label><input type="range" id="mask_rad_temp" min="-100" max="100" value="0" oninput="window.PhotoMasksManager.updateRadialParam('temp', this.value / 100); $('mask_rad_tempVal').textContent=this.value;"></div>
+                        <div class="slider-group"><label><span>☀️ Maske Açık Alanlar</span><span id="mask_rad_hlVal">0</span></label><input type="range" id="mask_rad_hl" min="-100" max="100" value="0" oninput="window.PhotoMasksManager.updateRadialParam('highlights', this.value / 100); $('mask_rad_hlVal').textContent=this.value;"></div>
+                        <div class="slider-group"><label><span>🌑 Maske Gölgeler</span><span id="mask_rad_shVal">0</span></label><input type="range" id="mask_rad_sh" min="-100" max="100" value="0" oninput="window.PhotoMasksManager.updateRadialParam('shadows', this.value / 100); $('mask_rad_shVal').textContent=this.value;"></div>
+                        <div class="slider-group"><label><span>🎨 Maske Doygunluk</span><span id="mask_rad_satVal">100%</span></label><input type="range" id="mask_rad_sat" min="0" max="200" value="100" oninput="window.PhotoMasksManager.updateRadialParam('saturate', this.value / 100); $('mask_rad_satVal').textContent=this.value+'%';"></div>
+                        
+                        <!-- Kenar Yumuşatma, Yayılma & Döndürme -->
+                        <div class="slider-group"><label><span>🌊 Geçiş Yayılması (0: Keskin Sınır ↔ 100: En Saydam)</span><span id="mask_rad_spreadVal">50%</span></label><input type="range" id="mask_rad_spread" min="0" max="100" value="50" oninput="window.PhotoMasksManager.updateRadialParam('spread', this.value / 100); $('mask_rad_spreadVal').textContent=(this.value == 0 ? '0% (Keskin)' : (this.value == 100 ? '100% (Maks Saydam)' : this.value + '%'));"></div>
+                        <div class="slider-group"><label><span>🔄 Döndürme Açısı</span><span id="mask_rad_angleVal">0°</span></label><input type="range" id="mask_rad_angle" min="-180" max="180" value="0" oninput="window.PhotoMasksManager.updateRadialParam('angle', this.value); $('mask_rad_angleVal').textContent=this.value+'°';"></div>
+                        
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:6px;">
+                            <div class="slider-group"><label><span>📍 Konum X</span><span id="mask_rad_cxVal">50%</span></label><input type="range" id="mask_rad_cx" min="0" max="100" value="50" oninput="window.PhotoMasksManager.updateRadialParam('cx', this.value / 100); $('mask_rad_cxVal').textContent=this.value+'%';"></div>
+                            <div class="slider-group"><label><span>📍 Konum Y</span><span id="mask_rad_cyVal">50%</span></label><input type="range" id="mask_rad_cy" min="0" max="100" value="50" oninput="window.PhotoMasksManager.updateRadialParam('cy', this.value / 100); $('mask_rad_cyVal').textContent=this.value+'%';"></div>
+                        </div>
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px;">
+                            <div class="slider-group"><label><span>📐 Yarıçap X</span><span id="mask_rad_rxVal">25%</span></label><input type="range" id="mask_rad_rx" min="3" max="80" value="25" oninput="window.PhotoMasksManager.updateRadialParam('rx', this.value / 100); $('mask_rad_rxVal').textContent=this.value+'%';"></div>
+                            <div class="slider-group"><label><span>📐 Yarıçap Y</span><span id="mask_rad_ryVal">20%</span></label><input type="range" id="mask_rad_ry" min="3" max="80" value="20" oninput="window.PhotoMasksManager.updateRadialParam('ry', this.value / 100); $('mask_rad_ryVal').textContent=this.value+'%';"></div>
+                        </div>
+
+                        <label class="mask-checkbox-label" style="margin-top:6px;">
+                            <input type="checkbox" id="mask_rad_invert" onchange="window.PhotoMasksManager.updateRadialParam('invert', this.checked)">
+                            <span>🔄 Maskeyi Tersine Çevir (Dış Bölgeyi Etkile)</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- 2. DOĞRUSAL GRADYAN DÜZENLEME PANELİ -->
+                <div class="mask-section-card" id="linearMaskSection" style="margin-bottom:10px;">
+                    <div class="mask-header" style="cursor:pointer;" onclick="if(!event.target.closest('button') && !event.target.closest('label')) window.PhotoMasksManager && window.PhotoMasksManager.openMask('linear');">
+                        <span><i id="linearMaskChevron" class="fa-solid fa-bars" style="color:#a855f7; margin-right:5px;"></i> Doğrusal Gradyan Ayarları</span>
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <label class="switch-toggle" onclick="event.stopPropagation();">
+                                <input type="checkbox" id="linearMaskToggle" onchange="window.PhotoMasksManager && window.PhotoMasksManager.toggleLinear(this.checked)">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                    </div>
+                    <div id="linearMaskControls" style="display:none; margin-top:8px;">
+                        <!-- Bağımsız Doğrusal Kırmızı Kılavuz -->
+                        <div class="mask-toggle-bar">
+                            <span><i class="fa-solid fa-eye" style="color:#a855f7;"></i> Kılavuz Dolgu</span>
+                            <label class="switch-toggle">
+                                <input type="checkbox" id="mask_lin_overlay" checked onchange="window.PhotoMasksManager && window.PhotoMasksManager.toggleLinearOverlay(this.checked)">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+
+                        <div class="slider-group"><label><span>⚡ Maske Yoğunluğu</span><span id="mask_lin_amountVal">100%</span></label><input type="range" id="mask_lin_amount" min="0" max="150" value="100" oninput="window.PhotoMasksManager.updateLinearParam('amount', this.value / 100); $('mask_lin_amountVal').textContent=this.value+'%';"></div>
+                        <div class="slider-group"><label><span>☀️ Maske Pozlaması</span><span id="mask_lin_expVal">0</span></label><input type="range" id="mask_lin_exp" min="-100" max="100" value="0" oninput="window.PhotoMasksManager.updateLinearParam('exposure', this.value / 100); $('mask_lin_expVal').textContent=this.value;"></div>
+                        <div class="slider-group"><label><span>🌡️ Maske Sıcaklığı</span><span id="mask_lin_tempVal">0</span></label><input type="range" id="mask_lin_temp" min="-100" max="100" value="0" oninput="window.PhotoMasksManager.updateLinearParam('temp', this.value / 100); $('mask_lin_tempVal').textContent=this.value;"></div>
+                        <div class="slider-group"><label><span>☀️ Maske Açık Alanlar</span><span id="mask_lin_hlVal">0</span></label><input type="range" id="mask_lin_hl" min="-100" max="100" value="0" oninput="window.PhotoMasksManager.updateLinearParam('highlights', this.value / 100); $('mask_lin_hlVal').textContent=this.value;"></div>
+                        <div class="slider-group"><label><span>🌑 Maske Gölgeler</span><span id="mask_lin_shVal">0</span></label><input type="range" id="mask_lin_sh" min="-100" max="100" value="0" oninput="window.PhotoMasksManager.updateLinearParam('shadows', this.value / 100); $('mask_lin_shVal').textContent=this.value;"></div>
+                        <div class="slider-group"><label><span>🎨 Maske Doygunluk</span><span id="mask_lin_satVal">100%</span></label><input type="range" id="mask_lin_sat" min="0" max="200" value="100" oninput="window.PhotoMasksManager.updateLinearParam('saturate', this.value / 100); $('mask_lin_satVal').textContent=this.value+'%';"></div>
+                        
+                        <!-- Gradyan Yayılması (0: Keskin Sınır ↔ 100: En Saydam) -->
+                        <div class="slider-group"><label><span>🌊 Gradyan Yayılması (0: Keskin Sınır ↔ 100: En Saydam)</span><span id="mask_lin_spreadVal">50%</span></label><input type="range" id="mask_lin_spread" min="0" max="100" value="50" oninput="window.PhotoMasksManager.updateLinearParam('spread', this.value / 100); $('mask_lin_spreadVal').textContent=(this.value == 0 ? '0% (Keskin)' : (this.value == 100 ? '100% (Maks Saydam)' : this.value + '%'));"></div>
+                        
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:6px;">
+                            <div class="slider-group"><label><span>📍 Başlangıç X1</span><span id="mask_lin_x1Val">50%</span></label><input type="range" id="mask_lin_x1" min="0" max="100" value="50" oninput="window.PhotoMasksManager.updateLinearParam('x1', this.value / 100); $('mask_lin_x1Val').textContent=this.value+'%';"></div>
+                            <div class="slider-group"><label><span>📍 Başlangıç Y1</span><span id="mask_lin_y1Val">12%</span></label><input type="range" id="mask_lin_y1" min="0" max="100" value="12" oninput="window.PhotoMasksManager.updateLinearParam('y1', this.value / 100); $('mask_lin_y1Val').textContent=this.value+'%';"></div>
+                        </div>
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px;">
+                            <div class="slider-group"><label><span>📍 Bitiş X2</span><span id="mask_lin_x2Val">50%</span></label><input type="range" id="mask_lin_x2" min="0" max="100" value="50" oninput="window.PhotoMasksManager.updateLinearParam('x2', this.value / 100); $('mask_lin_x2Val').textContent=this.value+'%';"></div>
+                            <div class="slider-group"><label><span>📍 Bitiş Y2</span><span id="mask_lin_y2Val">50%</span></label><input type="range" id="mask_lin_y2" min="0" max="100" value="50" oninput="window.PhotoMasksManager.updateLinearParam('y2', this.value / 100); $('mask_lin_y2Val').textContent=this.value+'%';"></div>
+                        </div>
+
+                        <label class="mask-checkbox-label" style="margin-top:6px;">
+                            <input type="checkbox" id="mask_lin_invert" onchange="window.PhotoMasksManager.updateLinearParam('invert', this.checked)">
+                            <span>🔄 Maskeyi Tersine Çevir</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- 3. AKILLI AI MASKE DÜZENLEME PANELİ -->
+                <div class="mask-section-card" id="aiMaskControls" style="display:none; margin-bottom:10px;">
+                    <div class="mask-header">
+                        <span id="aiMaskTitle">Akıllı AI Maskesi</span>
+                        <div style="display:flex; align-items:center; gap:6px;">
+                            <button type="button" class="btn-mask-refresh" onclick="if(window.PhotoMasksManager) window.PhotoMasksManager.redetectCurrentAiMask()" style="background:transparent; border:1px solid #38bdf8; color:#0284c7; border-radius:4px; padding:2px 7px; font-size:11px; cursor:pointer;" title="Fotoğrafı yeniden analiz ederek bu maskeyi günceller">🔄 Yeniden Tara</button>
+                            <button type="button" class="btn-mask-delete" onclick="if(window.PhotoMasksManager && window.PhotoMasksManager.selectedMaskId) window.PhotoMasksManager.deleteMask(window.PhotoMasksManager.selectedMaskId)">🗑️ Sil</button>
+                        </div>
+                    </div>
+                    <div style="margin-top:8px;">
+                        <!-- AI Kırmızı Kılavuz -->
+                        <div class="mask-toggle-bar">
+                            <span><i class="fa-solid fa-eye" style="color:#dc2626;"></i> Kılavuz Dolgu</span>
+                            <label class="switch-toggle">
+                                <input type="checkbox" id="mask_ai_overlay" checked onchange="window.PhotoMasksManager && window.PhotoMasksManager.toggleAiOverlay(this.checked)">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+
+                        <div class="slider-group"><label><span>⚡ Maske Yoğunluğu</span><span id="mask_ai_amountVal">100%</span></label><input type="range" id="mask_ai_amount" min="0" max="150" value="100" oninput="window.PhotoMasksManager.updateSelectedParam('amount', this.value / 100); $('mask_ai_amountVal').textContent=this.value+'%';"></div>
+                        <div class="slider-group"><label><span>☀️ Maske Pozlaması</span><span id="mask_ai_expVal">0</span></label><input type="range" id="mask_ai_exp" min="-100" max="100" value="0" oninput="window.PhotoMasksManager.updateSelectedParam('exposure', this.value / 100); $('mask_ai_expVal').textContent=this.value;"></div>
+                        <div class="slider-group"><label><span>🌡️ Maske Sıcaklığı</span><span id="mask_ai_tempVal">0</span></label><input type="range" id="mask_ai_temp" min="-100" max="100" value="0" oninput="window.PhotoMasksManager.updateSelectedParam('temp', this.value / 100); $('mask_ai_tempVal').textContent=this.value;"></div>
+                        <div class="slider-group"><label><span>☀️ Açık Alanlar</span><span id="mask_ai_hlVal">0</span></label><input type="range" id="mask_ai_hl" min="-100" max="100" value="0" oninput="window.PhotoMasksManager.updateSelectedParam('highlights', this.value / 100); $('mask_ai_hlVal').textContent=this.value;"></div>
+                        <div class="slider-group"><label><span>🌑 Gölgeler</span><span id="mask_ai_shVal">0</span></label><input type="range" id="mask_ai_sh" min="-100" max="100" value="0" oninput="window.PhotoMasksManager.updateSelectedParam('shadows', this.value / 100); $('mask_ai_shVal').textContent=this.value;"></div>
+                        <div class="slider-group"><label><span>🎨 Doygunluk</span><span id="mask_ai_satVal">100%</span></label><input type="range" id="mask_ai_sat" min="0" max="200" value="100" oninput="window.PhotoMasksManager.updateSelectedParam('saturate', this.value / 100); $('mask_ai_satVal').textContent=this.value+'%';"></div>
+
+                        <label class="mask-checkbox-label" style="margin-top:6px;">
+                            <input type="checkbox" id="mask_ai_invert" onchange="window.PhotoMasksManager.updateSelectedParam('invert', this.checked)">
+                            <span>🔄 Maskeyi Tersine Çevir (Seçili Olmayan Alanı Etkile)</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </details>
+
+        <script>
+        const hslColorNames = {
+            'red': '🔴 Kırmızı (Tuğla / Çatı)', 
+            'orange': '🟠 Turuncu (Ahşap / Parke / Mobilya)', 
+            'yellow': '🟡 Sarı (İç Aydınlatma / Avize)',
+            'green': '🟢 Yeşil (Bahçe / Peyzaj / Bitki)', 
+            'aqua': '💎 Turkuaz (Havuz Suyu / Deniz / Jakuzi)',
+            'blue': '🔵 Mavi (Gökyüzü / Pencere)', 
+            'purple': '🟣 Mor (Dekorasyon / Çiçek)',
+            'magenta': '🌸 Magenta (Akşam / Vurgu Işığı)'
+        };
+        const hslColorsHex = {
+            'red': '#ef4444', 'orange': '#f97316', 'yellow': '#eab308',
+            'green': '#22c55e', 'aqua': '#06b6d4', 'blue': '#3b82f6', 
+            'purple': '#a855f7', 'magenta': '#ec4899'
+        };
+
+        let activeHslColor = 'red';
+
+        // 8 Renk Noktası Tıklandığında
+        document.querySelectorAll('.hsl-color-dot').forEach(dot => {
+            dot.addEventListener('click', function() {
+                document.querySelectorAll('.hsl-color-dot').forEach(d => {
+                    d.classList.remove('active');
+                    d.style.borderColor = 'transparent';
+                    d.style.boxShadow = 'none';
+                });
+                this.classList.add('active');
+                this.style.borderColor = '#fff';
+                this.style.boxShadow = '0 0 8px ' + this.style.backgroundColor;
+                
+                activeHslColor = this.dataset.color;
+                
+                const lbl = document.getElementById('hslActiveColorLabel');
+                lbl.textContent = hslColorNames[activeHslColor] || activeHslColor;
+                lbl.style.color = hslColorsHex[activeHslColor] || '#ffffff';
+                
+                const hInput = document.querySelector(`.hsl-slider[data-color="${activeHslColor}"][data-type="h"]`);
+                const sInput = document.querySelector(`.hsl-slider[data-color="${activeHslColor}"][data-type="s"]`);
+                const lInput = document.querySelector(`.hsl-slider[data-color="${activeHslColor}"][data-type="l"]`);
+                
+                if (hInput) document.getElementById('hsl_h_slider').value = hInput.value;
+                if (sInput) document.getElementById('hsl_s_slider').value = sInput.value;
+                if (lInput) document.getElementById('hsl_l_slider').value = lInput.value;
+                
+                if (hInput) document.getElementById('hsl_h_val').textContent = hInput.value;
+                if (sInput) document.getElementById('hsl_s_val').textContent = sInput.value;
+                if (lInput) document.getElementById('hsl_l_val').textContent = lInput.value;
+            });
+        });
+
+        // 3 Ana Kaydırıcı Hareket Ettiğinde
+        ['h', 's', 'l'].forEach(type => {
+            const slider = document.getElementById(`hsl_${type}_slider`);
+            if(slider) {
+                const updateHSL = function() {
+                    document.getElementById(`hsl_${type}_val`).textContent = this.value;
+                    const hiddenInput = document.querySelector(`.hsl-slider[data-color="${activeHslColor}"][data-type="${type}"]`);
+                    if (hiddenInput) {
+                        hiddenInput.value = this.value;
+                        const event = new Event('input', { bubbles: true });
+                        hiddenInput.dispatchEvent(event);
+                    }
+                    if (typeof applyPhotoFilters === 'function') applyPhotoFilters();
+                };
+                slider.addEventListener('input', updateHSL);
+                slider.addEventListener('change', updateHSL);
+            }
+        });
+
+        // Ton Eğrisi ve Maske Modüllerini Başlat
+        document.addEventListener('DOMContentLoaded', () => {
+            setTimeout(() => {
+                if (window.PhotoCurvesManager) {
+                    window.PhotoCurvesManager.init('toneCurveCanvas');
+                }
+                if (window.PhotoMasksManager) {
+                    window.PhotoMasksManager.init();
+                }
+            }, 200);
+        });
+        </script>
+
         <details class="hsl-accordion" style="margin-top: 15px; margin-bottom: 10px; background: #0f172a; border-radius: 6px; overflow: hidden; border: 1px solid #1e293b;">
             <summary style="padding: 12px; cursor: pointer; color: #e2e8f0; font-weight: bold; list-style: none; display: flex; justify-content: space-between; align-items: center;" onclick="const i=this.querySelector('i.fa-chevron-down'); if(i){i.classList.toggle('fa-chevron-up');}">
-                <span>✨ Yapay Zeka & Presetler</span>
+                <span>✨ Hazır Önayarlar</span>
                 <i class="fa-solid fa-chevron-down" style="font-size:12px; color:#94a3b8;"></i>
             </summary>
             <div style="padding: 12px; border-top: 1px solid #1e293b;">
                 <button class="btn-action btn-blue" onclick="autoEnhancePhoto()" style="margin-bottom:8px; width:100%; display:flex; align-items:center; justify-content:center; gap:8px; background: linear-gradient(45deg, #3b82f6, #8b5cf6); border: none; font-weight: bold; padding: 10px; border-radius: 6px;">
-                    <i class="fa-solid fa-wand-magic-sparkles"></i> Otomatik İyileştir (AI)
+                    <i class="fa-solid fa-wand-magic-sparkles"></i> Otomatik İyileştir
                 </button>
                 <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:3px;">
                     <button class="preset-btn" onclick="applyPreset('original')">🔄 Orijinal</button>
@@ -752,7 +1052,7 @@ document.addEventListener('DOMContentLoaded', () => {
     <!-- FONT -->
     <div id="tab-font" class="dynamic-field">
         <div class="section-title">🔤 Genel Yazı Tipi</div>
-        <p class="info-text">40+ şık font ile Canva kalitesinde tasarım</p>
+        <p class="info-text">40+ şık font ile yüksek kalitede tasarım</p>
         <div class="input-group"><label>Hızlı Seçim</label>
             <select id="fontQuickSelect" onchange="applyFontFromSelect()"><option value="">-- Font Seçin --</option></select>
         </div>
@@ -1166,6 +1466,24 @@ document.addEventListener('DOMContentLoaded', () => {
     
     <div id="calloutAccordion" class="accordion-container" style="margin-top:10px; border-radius:8px; border:1px solid #cbd5e1; background:#f8fafc; padding:5px;"></div>
 
+    <!-- 🌟 ÖGELER & VEKTÖRLER (ROZETLER ALTINDA) -->
+    <div class="section-title" style="margin-top: 25px; border-top:1px solid rgba(255,255,255,0.1); padding-top:18px;">🌟 Ögeler & Vektörler</div>
+    <p class="info-text">200.000+ zengin renkli illüstrasyon, emlak çıkartması ve açık kaynak vektör arama motoru.</p>
+
+    <!-- Arama Çubuğu -->
+    <div class="other-callout-search-wrap">
+        <i class="fas fa-search other-callout-search-icon"></i>
+        <input type="text" id="otherCalloutsSearch" class="other-callout-search-input" placeholder="Öge veya vektör ara... (örn: ev, villa, anahtar, havuz, araba, bahçe)" autocomplete="off">
+        <button type="button" id="otherCalloutsClearSearch" class="other-callout-search-clear" title="Temizle">&times;</button>
+    </div>
+    <div id="otherCalloutsStatus" class="other-callouts-status" style="display:none;"></div>
+
+    <!-- Kategori Butonları (Pills) -->
+    <div id="otherCalloutsPills" class="other-callouts-pills"></div>
+
+    <!-- Kartlar Grid -->
+    <div id="otherCalloutsGrid" class="other-callouts-grid"></div>
+
 </div>
 
     <!-- TOPLU / ÇIKTI FORMATLARI -->
@@ -1342,7 +1660,8 @@ document.addEventListener('DOMContentLoaded', () => {
             <div id="highlight-overlay"></div>
             <div id="vignette-layer"></div>
             <canvas id="draw-layer" width="1920" height="1080"></canvas>
-              <div id="mask-layer"></div>
+            <div id="mask-layer"></div>
+            <svg id="maskInteractiveSvg" viewBox="0 0 1000 1000" preserveAspectRatio="none" style="position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:7; overflow:visible;"></svg>
             <div id="canva-render-layer"></div>
             <div id="ui-layer">
                 <div id="elBadge" data-layer-uid="ui_badge" class="draggable sh-badge canvas-el normal-el" data-label="Durum" data-default-font="32" style="visibility: hidden;">SATILIK EV</div>
@@ -1518,13 +1837,17 @@ document.addEventListener('DOMContentLoaded', () => {
 <script src="core/drag.js?v=20260822-2"></script>
 <script src="modules/canvas-core.js?v=20260821-1"></script>
 <script src="addTextHandles.js?v=20260822-2"></script>
-<script src="modules/photo.js?v=20260822-2"></script>
+<script src="modules/webgl-photo-engine.js?v=20260909-8"></script>
+<script src="modules/photo-curves.js?v=20260908-1"></script>
+<script src="modules/photo-masks.js?v=20260909-8"></script>
+<script src="modules/photo.js?v=20260909-8"></script>
 <script src="modules/colors.js?v=20260821-1"></script>
 <script src="modules/callouts-library-core.js"></script>
 <script src="modules/callouts-library-extra.js"></script>
 
     <script src="ui/icons.js?v=20260819-11"></script>
     <script src="modules/callout_v2.js?v=20260819-17"></script>
+    <script src="modules/other-callouts.js?v=20260910-1"></script>
 <script src="modules/draw.js?v=20260822-3"></script>
 <script src="modules/layers.js?v=20260822-3"></script>
 <script src="modules/saber.js"></script>
@@ -1535,8 +1858,9 @@ document.addEventListener('DOMContentLoaded', () => {
 <script src="ui/element.js?v=20260820-20"></script>
 <script src="modules/export.js?v=20260822-3"></script>
 <script src="js/formConfig.js"></script>
-<script src="modules/parser-core.js?v=20260905-3"></script>
-<script src="modules/smart-suggestions.js?v=20260905-6"></script>
+<script src="modules/parser-core.js?v=20260906-2"></script>
+<script src="modules/smart-suggestions.js?v=20260908-1"></script>
+<script src="modules/voiceover-studio.js?v=20260906-5"></script>
 <script src="modules/ai-assistant.js?v=20260905-2"></script>
 <script src="modules/ai-vision.js?v=20260905-2"></script>
 <script src="modules/photo-zoom.js?v=20260819-6"></script>
@@ -1569,9 +1893,10 @@ document.addEventListener('DOMContentLoaded', () => {
 <script src="js/brandManager.js?v=20260822-4"></script><script src="js/autoSave.js?v=20260822-4"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="js/modules/qrManager.js?v=1785302098411"></script>
-<script src="main.js?v=20260905-7"></script>
+<script src="main.js?v=20260909-2"></script>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="modules/satellite-map.js?v=20260905-10"></script>
+<script src="modules/ai-enhancer.js?v=20260910-14"></script>
+<script src="modules/satellite-map.js?v=20260908-1"></script>
 
 <!-- Gizli inputlar: Fotoğraf zoom ve pan ayarlarının arka planda çalışabilmesi için -->
 <div style="display:none;">
@@ -2445,46 +2770,32 @@ function toggleMobileMenu() {
 </style>
 
     <!-- OMNI SEARCH MODAL -->
-  <div id="omniSearchModal" class="modal-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.1); z-index:10000; align-items:flex-start; justify-content:flex-start;" onclick="if(event.target === this && window.OmniSearch) window.OmniSearch.closeSearch()">
-      <div id="omniSearchBox" style="position:absolute; background:#1e293b; border:1px solid #334155; width:340px; border-radius:12px; box-shadow:0 10px 30px rgba(0,0,0,0.8); overflow:hidden; display:flex; flex-direction:column;">
+  <div id="omniSearchModal" class="modal-overlay omni-modal" style="display:none;" onclick="if(event.target === this && window.OmniSearch) window.OmniSearch.closeSearch()">
+      <div id="omniSearchBox" style="position:absolute; background:#1e293b; border:1px solid #334155; border-radius:12px; box-shadow:0 12px 36px rgba(0,0,0,0.8); overflow:hidden; display:flex; flex-direction:column;">
           <div style="padding:15px; border-bottom:1px solid #334155; display:flex; align-items:center; gap:10px;">
               <i class="fas fa-search" style="color:#94a3b8; font-size:18px;"></i>
               <input type="text" id="omniSearchInput" placeholder="Şablon, İkon, Rozet veya Araç Ara..." style="flex:1; background:transparent; border:none; outline:none; color:white; font-size:14px;">
               <button onclick="if(window.OmniSearch) window.OmniSearch.closeSearch()" style="background:transparent; border:none; color:#94a3b8; font-size:20px; cursor:pointer;"><i class="fas fa-times"></i></button>
           </div>
-          <div id="omniSearchResults" style="max-height:300px; overflow-y:auto; padding:10px; display:flex; flex-direction:column; gap:8px;">
-              <div style="color:#94a3b8; font-size:12px; text-align:center; padding:20px;">Aramak istediğiniz aracın adını yazın.</div>
+          <div id="omniSearchResults" style="max-height:340px; overflow-y:auto; padding:10px; display:flex; flex-direction:column; gap:8px;">
+              <div style="color:#94a3b8; font-size:12px; text-align:center; padding:20px;">Aramak istediğiniz şablon veya aracın adını yazın.</div>
           </div>
       </div>
   </div>
 
   <!-- RECENT TOOLS MODAL -->
-  <div id="recentToolsModal" class="modal-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.1); z-index:10000; align-items:flex-start; justify-content:flex-start;" onclick="if(event.target === this && window.OmniSearch) window.OmniSearch.closeRecent()">
-      <div id="recentToolsBox" style="position:absolute; background:#1e293b; border:1px solid #334155; width:340px; border-radius:12px; box-shadow:0 10px 30px rgba(0,0,0,0.8); overflow:hidden; display:flex; flex-direction:column;">
+  <div id="recentToolsModal" class="modal-overlay omni-modal" style="display:none;" onclick="if(event.target === this && window.OmniSearch) window.OmniSearch.closeRecent()">
+      <div id="recentToolsBox" style="position:absolute; background:#1e293b; border:1px solid #334155; border-radius:12px; box-shadow:0 12px 36px rgba(0,0,0,0.8); overflow:hidden; display:flex; flex-direction:column;">
           <div style="padding:15px; border-bottom:1px solid #334155; display:flex; align-items:center; justify-content:space-between;">
               <strong style="color:white; font-size:14px;"><i class="fas fa-history" style="color:#f59e0b;"></i> Son Kullanılan Araçlar</strong>
               <button onclick="if(window.OmniSearch) window.OmniSearch.closeRecent()" style="background:transparent; border:none; color:#94a3b8; font-size:20px; cursor:pointer;"><i class="fas fa-times"></i></button>
           </div>
-          <div id="recentToolsList" style="max-height:300px; overflow-y:auto; padding:10px; display:flex; flex-direction:column; gap:8px;">
-          </div>
-      </div>
-  </div>
-      </div>
-  </div>
-
-  <!-- RECENT TOOLS MODAL -->
-  <div id="recentToolsModal" class="modal-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:10000; align-items:center; justify-content:center;">
-      <div style="background:#1e293b; border:1px solid #334155; width:90%; max-width:400px; border-radius:12px; box-shadow:0 10px 30px rgba(0,0,0,0.5); overflow:hidden;">
-          <div style="padding:15px; border-bottom:1px solid #334155; display:flex; align-items:center; justify-content:space-between;">
-              <strong style="color:white; font-size:16px;"><i class="fas fa-history" style="color:#f59e0b;"></i> Son Kullanılan Araçlar</strong>
-              <button onclick="if(window.OmniSearch) window.OmniSearch.closeRecent()" style="background:transparent; border:none; color:#94a3b8; font-size:20px; cursor:pointer;"><i class="fas fa-times"></i></button>
-          </div>
-          <div id="recentToolsList" style="max-height:400px; overflow-y:auto; padding:10px; display:flex; flex-direction:column; gap:8px;">
+          <div id="recentToolsList" style="max-height:340px; overflow-y:auto; padding:10px; display:flex; flex-direction:column; gap:8px;">
           </div>
       </div>
   </div>
 
-  <script src="js/searchManager.js?v=20260819-10"></script>
+  <script src="js/searchManager.js?v=20260908-1"></script>
 
 <script>
 window.addEventListener('DOMContentLoaded', () => {

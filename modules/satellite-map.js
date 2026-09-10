@@ -52,7 +52,7 @@
         osmLayer: null,
         activeLayer: 'google_sat', // 'google_sat' | 'google_hybrid' | 'esri_sat' | 'osm' | 'google_3d'
         selectedFormat: '16:9', // '16:9' | '1:1' | '4:5' | '9:16'
-        selectedResolution: '2k', // '1080p' | '2k' | '4k'
+        selectedResolution: '4k', // '1080p' | '2k' | '4k'
         google3DKey: 'AIzaSyB29TnBvpT2vmEiY9US_Op0S5mdJejOb_g' || (typeof window.GOOGLE_MAPS_3D_KEY === 'string' && window.GOOGLE_MAPS_3D_KEY.trim()) || (typeof window.getGeminiApiKey === 'function' ? window.getGeminiApiKey() : '') || localStorage.getItem('GOOGLE_MAPS_3D_KEY') || '',
         is3DActive: false,
         map3dElement: null,
@@ -60,9 +60,12 @@
         google3DMode: 'HYBRID', // 'HYBRID' (Uydu+Yol) | 'SATELLITE' (Saf Uydu)
         google3DRange: 1400,    // 1400m helikopter/hava kuşu bakış mesafesi (sokak görünümünden uzak)
         google3DTilt: 45,       // 45 derece derinlikli 3D açısı
-        markerEnabled: false,
+        markerEnabled: true,    // Varsayılan olarak açık: Harita adrese gittiğinde pin tam o noktaya yerleşir
         markerStyle: 'badge',   // 'badge' | 'classic' | 'gold' | 'radar'
         customMarkerText: 'PORTFÖYÜMÜZ',
+        markerLatLng: null,
+        aiEnhanceEnabled: true, // Varsayılan açık: Picsart tarzı AI uydu netleştirme & süper çözünürlük
+        aiEnhanceIntensity: 20, // Varsayılan düşük: %20 (Kullanıcı slider ile ayarlayabilir)
         currentLat: 40.6931,
         currentLng: 30.2734,
         currentZoom: 17,
@@ -125,61 +128,62 @@
                     <div class="sat-controls-bar">
                         <!-- Katman Butonları -->
                         <div class="sat-ctrl-group">
-                            <span class="sat-ctrl-label"><i class="fas fa-layer-group"></i> Harita:</span>
+                            <span class="sat-ctrl-label" title="Harita Katmanı"><i class="fas fa-layer-group"></i> Katman:</span>
                             <div class="sat-layer-btns">
-                                <button type="button" class="sat-layer-btn active" id="satBtnGoogleSat" data-layer="google_sat" onclick="window.setSatelliteLayer('google_sat')" title="Google Earth kalitesinde HD uydu görüntüsü">
-                                    ⭐ Google Uydu
+                                <button type="button" class="sat-layer-btn active" id="satBtnGoogleSat" data-layer="google_sat" onclick="window.setSatelliteLayer('google_sat')" title="Google Uydu">
+                                    <i class="fab fa-google"></i> Google
                                 </button>
-                                <button type="button" class="sat-layer-btn" id="satBtnGoogle3D" data-layer="google_3d" onclick="window.initGoogle3DEarthMode()" title="Google Photorealistic 3D Dünya (WebGL)">
-                                    🌐 Google 3D (API)
+                                <button type="button" class="sat-layer-btn" id="satBtnGoogle3D" data-layer="google_3d" onclick="window.initGoogle3DEarthMode()" title="Google 3D Dünya (WebGL)">
+                                    <i class="fas fa-cube"></i> 3D (API)
                                 </button>
-                                <button type="button" class="sat-layer-btn" id="satBtnEsriSat" data-layer="esri_sat" onclick="window.setSatelliteLayer('esri_sat')" title="Esri / Maxar HD Uydu">
-                                    🛰️ Esri Uydu
+                                <button type="button" class="sat-layer-btn" id="satBtnEsriSat" data-layer="esri_sat" onclick="window.setSatelliteLayer('esri_sat')" title="Esri HD Uydu">
+                                    <i class="fas fa-globe"></i> Esri
                                 </button>
                             </div>
                         </div>
 
                         <!-- 🏷️ Harita Bilgilerini Ekle / Sil (Aç / Kapat) Butonu -->
                         <div class="sat-ctrl-group">
-                            <button type="button" id="satToggleLabelsBtn" class="sat-btn-toggle-labels active" onclick="window.toggleSatelliteLabels()" title="Harita üzerindeki cadde, sokak ve işletme/yer isimlerini gizler veya gösterir">
-                                <i class="fas fa-tags"></i> <span>Yer/Yol İsimleri:</span> <b id="satLabelsStatusText">Açık</b>
+                            <button type="button" id="satToggleLabelsBtn" class="sat-btn-toggle-labels active" onclick="window.toggleSatelliteLabels()" title="Harita üzerindeki cadde, sokak ve yer isimlerini gizler veya gösterir">
+                                <i class="fas fa-tags"></i> <span>Yollar:</span> <b id="satLabelsStatusText">Açık</b>
                             </button>
                         </div>
 
                         <!-- ⚡ Gerçek Çözünürlük Kalitesi (2K / 4K / 1080p) -->
                         <div class="sat-ctrl-group">
-                            <span class="sat-ctrl-label"><i class="fas fa-tv"></i> Çözünürlük:</span>
-                            <select id="satResolutionSelect" class="sat-res-select" onchange="window.setSatelliteResolution(this.value)" title="Gerçek optik uydu çözünürlüğü">
-                                <option value="1080p">1080p Full HD</option>
-                                <option value="2k" selected>⚡ 2K QHD (Süper Net)</option>
-                                <option value="4k">🌟 4K UHD (Ultra Net 4K)</option>
+                            <span class="sat-ctrl-label" title="Çözünürlük Kalitesi"><i class="fas fa-tv"></i> Kalite:</span>
+                            <select id="satResolutionSelect" class="sat-res-select" onchange="window.setSatelliteResolution(this.value)" title="Optik uydu çözünürlüğü">
+                                <option value="1080p">1080p FHD</option>
+                                <option value="2k">⚡ 2K QHD</option>
+                                <option value="4k" selected>🌟 4K UHD</option>
                             </select>
                         </div>
 
                         <!-- Tuval Formatı (16:9 / 1:1 / 4:5 / 9:16) -->
                         <div class="sat-ctrl-group">
-                            <span class="sat-ctrl-label"><i class="fas fa-crop-alt"></i> Tuval Formatı:</span>
+                            <span class="sat-ctrl-label" title="Tuval Formatı"><i class="fas fa-crop-alt"></i> Format:</span>
                             <div class="sat-format-btns" id="satFormatBtns">
-                                <button type="button" class="sat-fmt-btn active" data-fmt="16:9" onclick="window.setSatelliteExportFormat('16:9')">16:9 Full HD</button>
-                                <button type="button" class="sat-fmt-btn" data-fmt="1:1" onclick="window.setSatelliteExportFormat('1:1')">1:1 Kare</button>
-                                <button type="button" class="sat-fmt-btn" data-fmt="4:5" onclick="window.setSatelliteExportFormat('4:5')">4:5 Portre</button>
-                                <button type="button" class="sat-fmt-btn" data-fmt="9:16" onclick="window.setSatelliteExportFormat('9:16')">9:16 Story</button>
+                                <button type="button" class="sat-fmt-btn active" data-fmt="16:9" onclick="window.setSatelliteExportFormat('16:9')" title="16:9 Full HD">16:9</button>
+                                <button type="button" class="sat-fmt-btn" data-fmt="1:1" onclick="window.setSatelliteExportFormat('1:1')" title="1:1 Kare">1:1</button>
+                                <button type="button" class="sat-fmt-btn" data-fmt="4:5" onclick="window.setSatelliteExportFormat('4:5')" title="4:5 Portre">4:5</button>
+                                <button type="button" class="sat-fmt-btn" data-fmt="9:16" onclick="window.setSatelliteExportFormat('9:16')" title="9:16 Story">9:16</button>
                             </div>
                         </div>
 
                         <!-- 📍 Canlı Konum İğnesi (Pin) & Başlık Özelleştirme -->
                         <div class="sat-ctrl-group sat-marker-ctrl-group">
-                            <button type="button" id="satToggleMarkerBtn" class="sat-btn-toggle-pin" onclick="window.toggleSatelliteMarker()" title="Harita merkezine canlı konum pini ekler">
-                                <i class="fas fa-map-marker-alt"></i> <span>Pin:</span> <b id="satMarkerStatusText">Kapalı</b>
+                            <button type="button" id="satToggleMarkerBtn" class="sat-btn-toggle-pin active" onclick="window.toggleSatelliteMarker()" title="Canlı konum pinini açıp kapatır">
+                                <i class="fas fa-map-marker-alt"></i> <span>Pin:</span> <b id="satMarkerStatusText">Açık</b>
                             </button>
-                            <div id="satMarkerSettingsWrapper" class="sat-marker-settings" style="display:none; align-items:center; gap:6px;">
+                            <div id="satMarkerSettingsWrapper" class="sat-marker-settings" style="display:flex; align-items:center; gap:4px;">
                                 <select id="satMarkerStyleSelect" class="sat-style-select" onchange="window.setSatelliteMarkerStyle(this.value)" title="Pin Görsel Stili">
-                                    <option value="badge" selected>🏷️ Portföy Rozeti</option>
-                                    <option value="classic">🔴 Kırmızı Klasik</option>
-                                    <option value="gold">💎 Altın Lüks</option>
-                                    <option value="radar">🎯 Radar Halkası</option>
+                                    <option value="badge" selected>🏷️ Rozet</option>
+                                    <option value="classic">🔴 Klasik</option>
+                                    <option value="gold">💎 Altın</option>
+                                    <option value="radar">🎯 Radar</option>
                                 </select>
-                                <input type="text" id="satMarkerCustomTextInput" class="sat-marker-text-input" placeholder="Pin Başlığı..." value="PORTFÖYÜMÜZ" oninput="window.setSatelliteMarkerText(this.value)" title="Pin üzerindeki metni özelleştirin (Örn: Portföyümüz, Satılık Villa, vb.)">
+                                <input type="text" id="satMarkerCustomTextInput" class="sat-marker-text-input" placeholder="Pin Başlığı..." value="PORTFÖYÜMÜZ" oninput="window.setSatelliteMarkerText(this.value)" title="Pin üzerindeki metin">
+                                <span class="sat-marker-hint" style="font-size:10px; color:#38bdf8; display:inline-flex; align-items:center; cursor:pointer;" title="Haritaya tıkla veya pini sürükle"><i class="fas fa-hand-pointer"></i></span>
                             </div>
                         </div>
                     </div>
@@ -190,28 +194,39 @@
                             <div id="satelliteLeafletMap"></div>
                             <div id="sat3dContainer" style="display:none; width:100%; height:100%; position:absolute; top:0; left:0; z-index:2; background:#000;"></div>
                             
-                            <!-- Canlı İnteraktif Konum Pini Overlay (2D ve 3D'de Tam Merkezde) -->
-                            <div class="sat-map-pin-overlay" id="satMapPinOverlay" style="display:none;" title="Kadrajın tam merkezi"></div>
+                            <!-- Canlı İnteraktif Konum Pini Overlay (Sürüklenebilir veya Haritaya Tıklanabilir) -->
+                            <div class="sat-map-pin-overlay" id="satMapPinOverlay" style="display:flex;" title="Canlı Konum Pini: Haritada istediğiniz parsele veya binaya sürükleyebilir veya haritaya tıklayarak taşıyabilirsiniz"></div>
                         </div>
                     </div>
 
                     <!-- Alt Bilgilendirme ve Eylem Barı (Tüm Bilgiler Harita Dışında) -->
                     <div class="sat-modal-footer">
                         <div class="sat-footer-left">
-                            <div class="sat-footer-coords" id="satCoordsBadge">
-                                <i class="fas fa-crosshairs" style="color:#0284c7;"></i>
-                                <span>Enlem: <b id="satCoordLat">40.6931</b> &nbsp;|&nbsp; Boylam: <b id="satCoordLng">30.2734</b> &nbsp;|&nbsp; Zoom: <b id="satCoordZoom">17x</b></span>
+                            <div class="sat-footer-coords" id="satCoordsBadge" title="Harita Koordinatları ve Zoom">
+                                <i class="fas fa-crosshairs" style="color:#38bdf8; font-size:11px;"></i>
+                                <span><b id="satCoordLat">40.6931</b>, <b id="satCoordLng">30.2734</b> (<b id="satCoordZoom">17x</b>)</span>
+                            </div>
+                            <div class="sat-footer-address" id="satFoundAddressBadge" style="display:none;" title="Haritadaki Konum">
+                                <i class="fas fa-map-marker-alt"></i>
+                                <span id="satFoundAddressText"></span>
                             </div>
                             <div class="sat-footer-ext">
                                 <button type="button" class="sat-ext-pill earth" onclick="window.openCurrentInGoogleEarth()" title="Google Earth Web'de Aç">
                                     <i class="fab fa-google"></i> Earth 3D
                                 </button>
                                 <button type="button" class="sat-ext-pill tkgm" onclick="window.openCurrentInTKGM()" title="TKGM Parsel Sorgu Sayfası">
-                                    <i class="fas fa-draw-polygon"></i> TKGM Parsel
+                                    <i class="fas fa-draw-polygon"></i> TKGM
                                 </button>
                                 <button type="button" class="sat-ext-pill capture" onclick="window.captureScreenOrTabToTemplate()" title="Açılan Sekmeyi Şablon Boyutunda Canlı Yakala">
-                                    <i class="fas fa-camera"></i> Sekmeyi Yakala
+                                    <i class="fas fa-camera"></i> Sekme Yakala
                                 </button>
+                                <button type="button" id="satFooterAiBtn" class="sat-ext-pill ai-preview active" onclick="window.toggleSatelliteAiEnhance()" title="AI HD Uydu Netleştirmeyi Aç / Kapat">
+                                    <i class="fas fa-wand-magic-sparkles"></i> <span id="satFooterAiLabel">AI Net: Açık</span>
+                                </button>
+                                <div id="satAiSliderWrapper" class="sat-footer-ai-slider" style="display:inline-flex; align-items:center; gap:4px;">
+                                    <input type="range" id="satAiIntensitySlider" min="5" max="100" value="20" step="5" oninput="window.setSatelliteAiIntensity(this.value)" class="sat-ai-range" title="Netlik Miktarı (Varsayılan: %20)">
+                                    <span id="satAiIntensityVal" class="sat-ai-val-badge">%20</span>
+                                </div>
                             </div>
                         </div>
                         <div class="sat-footer-actions">
@@ -220,10 +235,17 @@
                             </button>
                             <button type="button" id="satCaptureBtn" class="sat-btn-capture" onclick="window.captureSatelliteToCanvas()">
                                 <i class="fas fa-camera-retro"></i>
-                                <span>📸 Bu Görüntüyü Şablona Aktar</span>
+                                <span>📸 Şablona Aktar</span>
                             </button>
                         </div>
                     </div>
+
+                    <!-- SVG AI Netleştirme Filtresi (GPU Donanım Hızlandırmalı Gerçek Zamanlı Keskinleştirme) -->
+                    <svg id="satAiSvgFilters" style="position:absolute; width:0; height:0; pointer-events:none; opacity:0;" aria-hidden="true">
+                        <filter id="satAiSharpenFilter" color-interpolation-filters="sRGB">
+                            <feConvolveMatrix id="satAiMatrix" order="3" preserveAlpha="true" kernelMatrix="0 -0.4 0 -0.4 2.6 -0.4 0 -0.4 0"/>
+                        </filter>
+                    </svg>
                 </div>
             </div>`;
 
@@ -243,6 +265,21 @@
                     chip.innerText = loc.label;
                     chip.onclick = () => {
                         SatelliteMapModule.flyTo(loc.lat, loc.lng, loc.zoom);
+                        const labelParts = loc.label.split('/');
+                        const shortName = (labelParts[labelParts.length - 1] || loc.label).trim();
+                        SatelliteMapModule.setMarkerText(shortName.toLocaleUpperCase('tr-TR'));
+                        const textInp = document.getElementById('satMarkerCustomTextInput');
+                        if (textInp) textInp.value = SatelliteMapModule.customMarkerText;
+                        SatelliteMapModule.updateFoundAddressBadge(loc.label);
+                        SatelliteMapModule.saveLastLocation({
+                            address: loc.label,
+                            lat: loc.lat,
+                            lng: loc.lng,
+                            zoom: loc.zoom,
+                            markerLat: loc.lat,
+                            markerLng: loc.lng,
+                            markerText: SatelliteMapModule.customMarkerText
+                        });
                     };
                     chipsCont.appendChild(chip);
                 });
@@ -314,7 +351,21 @@
                 this.googleSatLayer.addTo(this.map);
             }
 
-            // Harita hareket ettikçe koordinatları güncelle
+            if (!this.markerLatLng) {
+                this.markerLatLng = L.latLng(this.currentLat, this.currentLng);
+            }
+
+            // Haritaya tıklandığında pin açıksa o noktaya taşı (kapalıyken pin asla çıkmaz)
+            this.map.on('click', (e) => {
+                if (!this.markerEnabled) return;
+                this.setMarkerLatLng(e.latlng);
+                this.saveLastLocation({
+                    markerLat: e.latlng.lat,
+                    markerLng: e.latlng.lng
+                });
+            });
+
+            // Harita hareket ettikçe koordinatları ve pin pozisyonunu güncelle
             this.map.on('move', () => {
                 const c = this.map.getCenter();
                 const z = this.map.getZoom();
@@ -322,20 +373,42 @@
                 this.currentLng = c.lng;
                 this.currentZoom = z;
                 this.updateCoordsBadge();
+                this.updateMarkerOverlayPosition();
             });
 
-            // Harita yeniden boyutlandığında sahne boyutlarını güncelle
+            this.map.on('moveend', () => {
+                const c = this.map.getCenter();
+                const z = this.map.getZoom();
+                this.currentLat = c.lat;
+                this.currentLng = c.lng;
+                this.currentZoom = z;
+                this.updateCoordsBadge();
+                this.updateMarkerOverlayPosition();
+            });
+
+            this.map.on('zoomend', () => {
+                this.updateMarkerOverlayPosition();
+            });
+
+            this.map.on('viewreset', () => {
+                this.updateMarkerOverlayPosition();
+            });
+
+            // Harita boyutu güncellendiğinde pini yeniden konumlandır
             this.map.on('resize', () => {
-                this.updateMapWrapperDimensions();
+                this.updateMarkerOverlayPosition();
             });
 
             window.addEventListener('resize', () => {
                 this.updateMapWrapperDimensions();
             });
 
+            this.attachMarkerDragListeners();
+
             // Harita hazır olduğunda boyutunu tuvale göre tazele
             setTimeout(() => {
                 this.updateMapWrapperDimensions();
+                this.updateMarkerOverlayPosition();
             }, 250);
 
             this.isInitialized = true;
@@ -348,23 +421,239 @@
             const latEl = document.getElementById('satCoordLat');
             const lngEl = document.getElementById('satCoordLng');
             const zoomEl = document.getElementById('satCoordZoom');
-            if (latEl) latEl.innerText = this.currentLat.toFixed(5);
-            if (lngEl) lngEl.innerText = this.currentLng.toFixed(5);
+            if (latEl) latEl.innerText = this.currentLat.toFixed(4);
+            if (lngEl) lngEl.innerText = this.currentLng.toFixed(4);
             if (zoomEl) zoomEl.innerText = this.currentZoom + 'x';
         },
 
         /**
-         * Belirtilen Koordinata Uçar
+         * Pinin Coğrafi Koordinatını Belirler ve Canlı Overlay'i Oraya Konumlandırır
          */
-        flyTo: function(lat, lng, zoom) {
+        setMarkerLatLng: function(latlng) {
+            if (!latlng) return;
+            this.markerLatLng = L.latLng(latlng.lat, latlng.lng);
+            if (!this.markerEnabled) {
+                const overlay = document.getElementById('satMapPinOverlay');
+                if (overlay) overlay.style.display = 'none';
+                return;
+            }
+            this.updateMarkerOverlayPosition();
+        },
+
+        /**
+         * Pini Harita Üzerinde Sürükleyip Bırakma (Drag & Drop) Dinleyicilerini Bağlar
+         */
+        attachMarkerDragListeners: function() {
+            const overlay = document.getElementById('satMapPinOverlay');
+            const wrapper = document.getElementById('satMapWrapper');
+            if (!overlay || !wrapper || overlay._dragBound) return;
+            overlay._dragBound = true;
+
+            let isDragging = false;
+            let startClientX = 0, startClientY = 0;
+            let startPinLeft = 0, startPinTop = 0;
+
+            const onPointerDown = (e) => {
+                if (!this.markerEnabled) return;
+                if (e.button !== 0 && e.pointerType === 'mouse') return;
+
+                isDragging = true;
+                overlay.classList.add('is-dragging');
+
+                if (this.map && this.map.dragging) {
+                    this.map.dragging.disable();
+                }
+
+                const wrapperRect = wrapper.getBoundingClientRect();
+                startClientX = e.clientX;
+                startClientY = e.clientY;
+
+                const curLeft = parseFloat(overlay.style.left);
+                const curTop = parseFloat(overlay.style.top);
+                startPinLeft = !isNaN(curLeft) ? curLeft : (wrapperRect.width / 2);
+                startPinTop = !isNaN(curTop) ? curTop : (wrapperRect.height / 2);
+
+                try {
+                    overlay.setPointerCapture(e.pointerId);
+                } catch (err) {}
+
+                e.stopPropagation();
+                e.preventDefault();
+            };
+
+            const onPointerMove = (e) => {
+                if (!isDragging) return;
+                const dx = e.clientX - startClientX;
+                const dy = e.clientY - startClientY;
+
+                let newLeft = startPinLeft + dx;
+                let newTop = startPinTop + dy;
+
+                const wrapperRect = wrapper.getBoundingClientRect();
+                newLeft = Math.max(5, Math.min(wrapperRect.width - 5, newLeft));
+                newTop = Math.max(5, Math.min(wrapperRect.height - 5, newTop));
+
+                overlay.style.left = Math.round(newLeft) + 'px';
+                overlay.style.top = Math.round(newTop) + 'px';
+
+                if (this.map) {
+                    this.markerLatLng = this.map.containerPointToLatLng([newLeft, newTop]);
+                }
+
+                e.stopPropagation();
+                e.preventDefault();
+            };
+
+            const onPointerUp = (e) => {
+                if (!isDragging) return;
+                isDragging = false;
+                overlay.classList.remove('is-dragging');
+
+                try {
+                    overlay.releasePointerCapture(e.pointerId);
+                } catch (err) {}
+
+                if (this.map && this.map.dragging) {
+                    this.map.dragging.enable();
+                }
+
+                const finalLeft = parseFloat(overlay.style.left);
+                const finalTop = parseFloat(overlay.style.top);
+                if (this.map && !isNaN(finalLeft) && !isNaN(finalTop)) {
+                    this.markerLatLng = this.map.containerPointToLatLng([finalLeft, finalTop]);
+                    this.saveLastLocation({
+                        markerLat: this.markerLatLng.lat,
+                        markerLng: this.markerLatLng.lng
+                    });
+                }
+
+                e.stopPropagation();
+            };
+
+            overlay.addEventListener('pointerdown', onPointerDown);
+            overlay.addEventListener('pointermove', onPointerMove);
+            overlay.addEventListener('pointerup', onPointerUp);
+            overlay.addEventListener('pointercancel', onPointerUp);
+        },
+
+        /**
+         * Canlı Pin Overlay'inin Ekrandaki Piksel Konumunu markerLatLng'ye Göre Günceller
+         */
+        updateMarkerOverlayPosition: function() {
+            const overlay = document.getElementById('satMapPinOverlay');
+            const wrapper = document.getElementById('satMapWrapper');
+            if (!overlay || !wrapper) return;
+
+            if (!this.markerEnabled) {
+                overlay.style.display = 'none';
+                return;
+            }
+            overlay.style.display = 'flex';
+
+            if (this.is3DActive) {
+                if (!overlay.style.left || overlay.style.left === '') {
+                    overlay.style.left = '50%';
+                    overlay.style.top = '50%';
+                }
+                return;
+            }
+
+            if (!this.map) {
+                overlay.style.left = '50%';
+                overlay.style.top = '50%';
+                return;
+            }
+
+            if (!this.markerLatLng) {
+                this.markerLatLng = this.map.getCenter();
+            }
+
+            const pt = this.map.latLngToContainerPoint(this.markerLatLng);
+            overlay.style.left = Math.round(pt.x) + 'px';
+            overlay.style.top = Math.round(pt.y) + 'px';
+        },
+
+        /**
+         * En Son Kullanılan / Aranan Harita Konumunu Tarayıcı Hafızasına Kaydeder
+         */
+        saveLastLocation: function(data) {
+            try {
+                if (!data) return;
+                const existing = this.getLastLocation() || {};
+                const toSave = {
+                    address: (data.address !== undefined) ? data.address : (existing.address || ''),
+                    lat: (data.lat !== undefined) ? data.lat : (existing.lat || this.currentLat),
+                    lng: (data.lng !== undefined) ? data.lng : (existing.lng || this.currentLng),
+                    zoom: (data.zoom !== undefined) ? data.zoom : (existing.zoom || this.currentZoom),
+                    markerLat: (data.markerLat !== undefined) ? data.markerLat : (this.markerLatLng ? this.markerLatLng.lat : this.currentLat),
+                    markerLng: (data.markerLng !== undefined) ? data.markerLng : (this.markerLatLng ? this.markerLatLng.lng : this.currentLng),
+                    markerText: (data.markerText !== undefined) ? data.markerText : (existing.markerText || this.customMarkerText || '')
+                };
+                localStorage.setItem('emlak_sat_last_location', JSON.stringify(toSave));
+            } catch(e) {
+                console.warn('Konum hafızaya kaydedilemedi:', e);
+            }
+        },
+
+        /**
+         * Tarayıcı Hafızasındaki En Son Konumu Getirir
+         */
+        getLastLocation: function() {
+            try {
+                const raw = localStorage.getItem('emlak_sat_last_location');
+                if (!raw) return null;
+                const parsed = JSON.parse(raw);
+                if (parsed && typeof parsed.lat === 'number' && typeof parsed.lng === 'number') {
+                    return parsed;
+                }
+            } catch(e) {}
+            return null;
+        },
+
+        /**
+         * Haritada Bulunan Adres Rozetini Günceller
+         */
+        updateFoundAddressBadge: function(text) {
+            const badge = document.getElementById('satFoundAddressBadge');
+            const textEl = document.getElementById('satFoundAddressText');
+            if (!badge || !textEl) return;
+            if (text && text.trim()) {
+                textEl.innerText = text.trim();
+                badge.style.display = 'flex';
+                badge.title = 'Aktif Konum: ' + text.trim();
+            } else {
+                badge.style.display = 'none';
+            }
+        },
+
+        /**
+         * Belirtilen Koordinata Uçar veya Doğrudan Odaklar
+         */
+        flyTo: function(lat, lng, zoom, immediate) {
             if (!this.map) return;
             this.currentLat = lat;
             this.currentLng = lng;
             this.currentZoom = zoom || 17;
-            this.map.flyTo([lat, lng], this.currentZoom, {
-                duration: 1.2,
-                easeLinearity: 0.25
-            });
+            this.markerLatLng = L.latLng(lat, lng);
+
+            if (immediate) {
+                this.map.setView([lat, lng], this.currentZoom);
+                this.updateMarkerOverlayPosition();
+            } else {
+                this.map.flyTo([lat, lng], this.currentZoom, {
+                    duration: 0.9,
+                    easeLinearity: 0.25
+                });
+                this.updateMarkerOverlayPosition();
+            }
+
+            // Uçuş animasyonu bittiğinde pinin hedef koordinata kesin ve tam oturmasını sağla
+            setTimeout(() => {
+                if (this.map) {
+                    this.updateMarkerOverlayPosition();
+                    this.updateCoordsBadge();
+                }
+            }, 950);
         },
 
         /**
@@ -468,10 +757,125 @@
                 statusText.innerText = this.markerEnabled ? 'Açık' : 'Kapalı';
             }
             if (settingsWrapper) {
-                settingsWrapper.style.display = this.markerEnabled ? 'flex' : 'none';
+                settingsWrapper.style.opacity = this.markerEnabled ? '1.0' : '0.35';
+                settingsWrapper.style.pointerEvents = this.markerEnabled ? 'auto' : 'none';
+                settingsWrapper.style.filter = this.markerEnabled ? 'none' : 'grayscale(0.8)';
+                const styleSel = document.getElementById('satMarkerStyleSelect');
+                const textInput = document.getElementById('satMarkerCustomTextInput');
+                if (styleSel) styleSel.disabled = !this.markerEnabled;
+                if (textInput) textInput.disabled = !this.markerEnabled;
             }
 
             this.updateLivePinOverlay();
+            this.updateMarkerOverlayPosition();
+        },
+
+        /**
+         * ✨ AI HD Netleştirme Toggle (Alt Bar Üzerinde Inline ve Slider Kontrollü)
+         */
+        toggleAiEnhance: function(enabled) {
+            if (typeof enabled === 'boolean') {
+                this.aiEnhanceEnabled = enabled;
+            } else {
+                this.aiEnhanceEnabled = !this.aiEnhanceEnabled;
+            }
+            const sliderWrapper = document.getElementById('satAiSliderWrapper');
+            const footerBtn = document.getElementById('satFooterAiBtn');
+            const footerLbl = document.getElementById('satFooterAiLabel');
+
+            if (footerBtn) footerBtn.classList.toggle('active', this.aiEnhanceEnabled);
+            if (footerLbl) {
+                footerLbl.textContent = this.aiEnhanceEnabled ? 'AI Net: Açık' : 'AI Net: Kapalı';
+            }
+
+            if (sliderWrapper) {
+                sliderWrapper.style.opacity = this.aiEnhanceEnabled ? '1.0' : '0.35';
+                sliderWrapper.style.pointerEvents = this.aiEnhanceEnabled ? 'auto' : 'none';
+                sliderWrapper.style.filter = this.aiEnhanceEnabled ? 'none' : 'grayscale(0.8)';
+                const slider = document.getElementById('satAiIntensitySlider');
+                if (slider) slider.disabled = !this.aiEnhanceEnabled;
+            }
+
+            this.applyLiveMapAiPreview();
+
+            if (typeof window.showAppToast === 'function') {
+                window.showAppToast(
+                    this.aiEnhanceEnabled 
+                        ? `✨ AI HD Netleştirme aktif (%${this.aiEnhanceIntensity || 20})` 
+                        : 'AI Netleştirme kapatıldı', 
+                    'info'
+                );
+            }
+        },
+
+        /**
+         * ✨ AI Netlik Miktarını Ayarlar & Haritada Anlık Önizler
+         */
+        setAiIntensity: function(val) {
+            this.aiEnhanceIntensity = parseInt(val, 10) || 20;
+            const valBadge = document.getElementById('satAiIntensityVal');
+            if (valBadge) valBadge.textContent = `%${this.aiEnhanceIntensity}`;
+            const footerLbl = document.getElementById('satFooterAiLabel');
+            if (footerLbl && this.aiEnhanceEnabled) {
+                footerLbl.textContent = 'AI Net: Açık';
+            }
+            this.applyLiveMapAiPreview();
+        },
+
+        /**
+         * 👁️ Canlı Harita Görünümüne GPU Destekli Gerçek Zamanlı AI Netleştirme Uygular
+         */
+        applyLiveMapAiPreview: function() {
+            const mapEl = document.getElementById('satelliteLeafletMap');
+            const host3d = document.getElementById('sat3dContainer');
+            if (!mapEl && !host3d) return;
+
+            if (!this.aiEnhanceEnabled) {
+                if (mapEl) mapEl.style.filter = 'none';
+                if (host3d) host3d.style.filter = 'none';
+                return;
+            }
+
+            // SVG donanım filtresinin DOM'da var olduğunu doğrula, yoksa dinamik oluştur
+            if (!document.getElementById('satAiSvgFilters')) {
+                const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+                svg.id = 'satAiSvgFilters';
+                svg.setAttribute('style', 'position:absolute; width:0; height:0; pointer-events:none; opacity:0;');
+                svg.setAttribute('aria-hidden', 'true');
+                svg.innerHTML = `
+                    <filter id="satAiSharpenFilter" color-interpolation-filters="sRGB">
+                        <feConvolveMatrix id="satAiMatrix" order="3" preserveAlpha="true" kernelMatrix="0 -0.4 0 -0.4 2.6 -0.4 0 -0.4 0"/>
+                    </filter>
+                `;
+                document.body.appendChild(svg);
+            }
+
+            const intensity = (this.aiEnhanceIntensity || 20) / 100; // 0.05 ile 1.0 arası
+
+            // 1. SVG Donanım Filtresinin Kernel Matrisini güncelle (Kenar & Çatı/Yol Çizgi Keskinliği)
+            const matrixEl = document.getElementById('satAiMatrix');
+            if (matrixEl) {
+                const k = (0.15 + intensity * 0.95).toFixed(2); // 0.20 - 1.10
+                const c = (1 + 4 * parseFloat(k)).toFixed(2);   // 1.80 - 5.40
+                matrixEl.setAttribute('kernelMatrix', `0 -${k} 0 -${k} ${c} -${k} 0 -${k} 0`);
+            }
+
+            // 2. Doğal kontrast ve renk netliği artışı (Flu uydudan kristal netliğe)
+            const contrast = 100 + Math.round(intensity * 32);  // %102 - %132
+            const saturate = 100 + Math.round(intensity * 28);  // %101 - %128
+            const brightness = 100 + Math.round(intensity * 3); // %100 - %103
+
+            const filterStr = `url(#satAiSharpenFilter) contrast(${contrast}%) saturate(${saturate}%) brightness(${brightness}%)`;
+
+            if (mapEl) mapEl.style.filter = filterStr;
+            if (host3d) host3d.style.filter = `contrast(${contrast}%) saturate(${saturate}%) brightness(${brightness}%)`;
+        },
+
+        /**
+         * ✨ Harita panelindeki AI butonuna tıklandığında ekstra modal AÇMAZ, inline toggle ve ayar yapar
+         */
+        previewWithAiEnhancer: function() {
+            this.toggleAiEnhance();
         },
 
         /**
@@ -479,7 +883,9 @@
          */
         setMarkerStyle: function(style) {
             this.markerStyle = style || 'badge';
+            try { localStorage.setItem('emlak_sat_marker_style', this.markerStyle); } catch(e) {}
             this.updateLivePinOverlay();
+            this.updateMarkerOverlayPosition();
         },
 
         /**
@@ -487,14 +893,19 @@
          */
         setMarkerText: function(text) {
             this.customMarkerText = (typeof text === 'string') ? text : '';
+            this.userManuallyChangedMarkerText = true;
             this.updateLivePinOverlay();
+            this.updateMarkerOverlayPosition();
+            this.saveLastLocation({
+                markerText: this.customMarkerText
+            });
         },
 
         /**
          * Çözünürlüğü Ayarlar ('1080p' | '2k' | '4k')
          */
         setResolution: function(res) {
-            this.selectedResolution = res || '2k';
+            this.selectedResolution = res || '4k';
             const sel = document.getElementById('satResolutionSelect');
             if (sel) sel.value = this.selectedResolution;
             const footerText = document.getElementById('satFooterText');
@@ -538,7 +949,7 @@
                 overlay.innerHTML = `
                     ${text ? `<div class="sat-live-pin-text gold">${this.escapeHtml(text)}</div>` : ''}
                     <div class="sat-live-pin-svg">
-                        <svg width="44" height="58" viewBox="0 0 44 58" fill="none">
+                        <svg width="48" height="60" viewBox="-2 -1 48 60" fill="none" style="overflow: visible;">
                             <filter id="liveGoldGlow" x="-20%" y="-20%" width="140%" height="140%">
                                 <feDropShadow dx="0" dy="4" stdDeviation="4" flood-color="#000" flood-opacity="0.6"/>
                             </filter>
@@ -561,7 +972,7 @@
                 overlay.innerHTML = `
                     ${text ? `<div class="sat-live-pin-text classic">${this.escapeHtml(text)}</div>` : ''}
                     <div class="sat-live-pin-svg">
-                        <svg width="42" height="56" viewBox="0 0 42 56" fill="none">
+                        <svg width="46" height="58" viewBox="-2 -1 46 58" fill="none" style="overflow: visible;">
                             <filter id="liveClassicGlow" x="-20%" y="-20%" width="140%" height="140%">
                                 <feDropShadow dx="0" dy="4" stdDeviation="4" flood-color="#000" flood-opacity="0.6"/>
                             </filter>
@@ -587,7 +998,7 @@
                         <span>${this.escapeHtml(text)}</span>
                     </div>
                     <div class="sat-live-pin-svg">
-                        <svg width="36" height="46" viewBox="0 0 36 46" fill="none">
+                        <svg width="40" height="48" viewBox="-2 -1 40 48" fill="none" style="overflow: visible;">
                             <filter id="liveBadgePinGlow" x="-20%" y="-20%" width="140%" height="140%">
                                 <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#000" flood-opacity="0.5"/>
                             </filter>
@@ -613,42 +1024,173 @@
          * Mevcut Projeden Konum Bilgisini Otomatik Çıkarır
          */
         detectLocationFromProject: function() {
-            let foundQuery = '';
+            const allTurkishProvinces = /(Adana|Adıyaman|Afyonkarahisar|Afyon|Ağrı|Amasya|Ankara|Antalya|Artvin|Aydın|Balıkesir|Bilecik|Bingöl|Bitlis|Bolu|Burdur|Bursa|Çanakkale|Çankırı|Çorum|Denizli|Diyarbakır|Edirne|Elazığ|Erzincan|Erzurum|Eskişehir|Gaziantep|Giresun|Gümüşhane|Hakkari|Hatay|Isparta|Mersin|İçel|İstanbul|İzmir|Kars|Kastamonu|Kayseri|Kırklareli|Kırşehir|Kocaeli|Konya|Kütahya|Malatya|Manisa|Kahramanmaraş|Maraş|Mardin|Muğla|Muş|Nevşehir|Niğde|Ordu|Rize|Sakarya|Samsun|Siirt|Sinop|Sivas|Tekirdağ|Tokat|Trabzon|Tunceli|Şanlıurfa|Urfa|Uşak|Van|Yozgat|Zonguldak|Aksaray|Bayburt|Karaman|Kırıkkale|Batman|Şırnak|Bartın|Ardahan|Iğdır|Yalova|Karabük|Kilis|Osmaniye|Düzce|Sapanca|Kaynarca|Serdivan|Karasu|Bodrum|Fethiye|Marmaris|Datça|Alanya|Manavgat|Kemer|Kaş|Kalkan|Kadıköy|Beşiktaş|Üsküdar|Sarıyer|Bakırköy|Çeşme|Urla|Alaçatı|Bornova|Karşıyaka|Nilüfer|Mudanya|Süleymanpaşa|Çorlu|Çerkezköy|Yenice)/i;
 
-            // 1. Açıklama metninden ara (#descInput)
-            const desc = document.getElementById('descInput')?.value || '';
-            if (desc) {
-                const locRegex = /(İstanbul|Ankara|İzmir|Bursa|Antalya|Adana|Konya|Gaziantep|Şanlıurfa|Kocaeli|Mersin|Diyarbakır|Hatay|Manisa|Kayseri|Samsun|Balıkesir|Kahramanmaraş|Van|Aydın|Tekirdağ|Sakarya|Denizli|Muğla|Eskişehir|Trabzon|Ordu|Afyon|Sivas|Malatya|Batman|Tokat|Düzce|Uşak|Kütahya|Yalova|Bolu|Rize|Edirne|Çanakkale|Sapanca|Kaynarca|Serdivan|Karasu|Bodrum|Fethiye|Marmaris|Datça|Alanya|Manavgat|Kemer|Kaş|Kalkan|Kadıköy|Beşiktaş|Üsküdar|Sarıyer|Bakırköy|Çeşme|Urla|Alaçatı|Bornova|Karşıyaka|Nilüfer|Mudanya)/i;
-                const match = desc.match(locRegex);
-                if (match) {
-                    foundQuery = match[0];
-                    const lines = desc.split('\n');
-                    for (let l of lines) {
-                        if (l.toLowerCase().includes(foundQuery.toLowerCase())) {
-                            foundQuery = l.replace(/[📍📌📐🏢🏠🛣️🌿*]/g, '').trim();
-                            break;
-                        }
+            const cleanStr = (s) => {
+                if (!s) return '';
+                return s.replace(/[\ufffd\?📍📌📐🏢🏠🛣️🌿*]/giu, '')
+                        .replace(/^[^\p{L}\p{N}]+/u, '')
+                        .trim();
+            };
+
+            // 1. Dinamik form konum alanlarından ara (En temiz ve doğrudan kaynak)
+            const formFields = ['f_konum', 'f_lokasyon', 'f_adres', 'locationInput', 'canvaLocation', 'c_loc'];
+            for (let fId of formFields) {
+                const el = document.getElementById(fId);
+                if (el && el.value && el.value.trim().length > 2) {
+                    const val = cleanStr(el.value);
+                    if (val && !['merkez', 'merkezi', 'türkiye', 'turkey'].includes(val.toLowerCase())) {
+                        return val;
                     }
                 }
             }
 
-            // 2. Dinamik form konum alanlarından ara
-            if (!foundQuery) {
-                const fKonum = document.getElementById('f_konum')?.value;
-                const fLokasyon = document.getElementById('f_lokasyon')?.value;
-                if (fKonum && fKonum.length > 2 && fKonum.toLowerCase() !== 'merkezi') foundQuery = fKonum;
-                else if (fLokasyon && fLokasyon.length > 2 && fLokasyon.toLowerCase() !== 'merkez') foundQuery = fLokasyon;
+            // 2. Açıklama metninden (#descInput) akıllı satır / bölüm arama
+            const desc = document.getElementById('descInput')?.value || '';
+            if (desc) {
+                const lines = desc.split('\n');
+                // Öncelik A: 📍 veya 📌 ile başlayan temiz satır
+                for (let l of lines) {
+                    const tr = l.trim();
+                    if (/^[📍📌]/.test(tr)) {
+                        const cl = cleanStr(tr.replace(/^[📍📌]\s*/, ''));
+                        if (cl.length >= 3) return cl;
+                    }
+                }
+                // Öncelik B: İl adı ve taksim (/ \ |) içeren temiz adres segmenti
+                const addrRegex = new RegExp('(' + allTurkishProvinces.source + '\\s*[/\\\\|]\\s*[^,;\\n\\.!]+)', 'i');
+                const m = desc.match(addrRegex);
+                if (m) {
+                    let clean = m[1].replace(/\b(civarında|bölgesinde|mevkiinde|yakınında|konumunda|yer alan|yer alır|satılık|kiralık|fırsat)\b.*$/i, '');
+                    clean = cleanStr(clean);
+                    if (clean.length >= 3) return clean;
+                }
+                // Öncelik C: Kısa satırlarda il adı kontrolü (<= 80 karakter)
+                for (let l of lines) {
+                    const cleanL = cleanStr(l);
+                    if (cleanL && cleanL.length <= 80 && allTurkishProvinces.test(cleanL)) {
+                        return cleanL;
+                    }
+                }
             }
 
-            return foundQuery;
+            // 3. Başlık veya alt başlık alanlarından ara
+            const tInput = document.getElementById('titleInput')?.value || '';
+            const subInput = document.getElementById('subTitleInput')?.value || '';
+            const combined = (tInput + ' ' + subInput).trim();
+            const addrRegex = new RegExp('(' + allTurkishProvinces.source + '\\s*[/\\\\|]\\s*[^,;\\n\\.!]+)', 'i');
+            const tm = combined.match(addrRegex);
+            if (tm) {
+                return cleanStr(tm[1]);
+            }
+
+            return '';
         },
 
         /**
-         * Nominatim Geocoding ile Arama Yapar
+         * Türkçe Karakterleri Normalize Eder (Arama ve Karşılaştırma İçin)
          */
-        searchLocation: function(query) {
+        turkishNormalize: function(s) {
+            if (!s) return '';
+            return String(s).toLowerCase()
+                .replace(/İ/g, 'i').replace(/I/g, 'ı').replace(/ı/g, 'i')
+                .replace(/ç/g, 'c').replace(/ğ/g, 'g').replace(/ö/g, 'o').replace(/ş/g, 's').replace(/ü/g, 'u');
+        },
+
+        /**
+         * Akıllı Konum Arama Adaylarını Oluşturur (Nominatim Geocoding için hiyerarşik varyantlar)
+         */
+        buildLocationCandidates: function(raw) {
+            if (!raw) return [];
+            // Unicode replacement karakterlerini, soru işaretlerini, ikonları ve baştaki özel karakterleri temizle
+            const cleaned = raw.replace(/[\ufffd\?📍📌📐🏢🏠🛣️🌿*]/giu, '')
+                               .replace(/^[^\p{L}\p{N}]+/u, '')
+                               .trim();
+            const candidates = [];
+
+            // Parçalara böl (/, \, |, ;, tire veya virgül vb.)
+            const rawParts = cleaned.split(/[\/\\|,;]+/).map(p => p.trim()).filter(Boolean);
+
+            if (rawParts.length >= 2) {
+                // Türkçe ekleri ('Mahallesi', 'Mah.', 'Mh.', 'Köyü', 'Köy' vb.) harf sınırlarına göre güvenle temizle
+                const cleanParts = rawParts.map(p => {
+                    return p.replace(/(?:^|\s+)(mahallesi|mah|mh|köyü|köy|mevkii|civarında|bölgesinde|yakınında)(?=[.,:;\s]|$)/giu, ' ')
+                            .replace(/[.,:;]/g, '')
+                            .trim();
+                }).filter(Boolean);
+
+                // 'Mahallesi' / 'Köyü' varyantı
+                const fullParts = rawParts.map(p => {
+                    let s = p.replace(/[.,:;]/g, '').trim();
+                    if (/(?:^|\s+)(mah|mh)(?=[.,:;\s]|$)/iu.test(p) && !/mahallesi/iu.test(p)) {
+                        s = s.replace(/(?:^|\s+)(mah|mh)(?=[.,:;\s]|$)/giu, ' ').trim() + ' Mahallesi';
+                    }
+                    return s;
+                }).filter(Boolean);
+
+                // 1. En spesifik kombinasyon: Köy/Mahalle + İlçe + İl (Örn: 'Yalıoba, Yenice, Çanakkale')
+                if (cleanParts.length >= 3) {
+                    candidates.push(fullParts[fullParts.length - 1] + ', ' + fullParts[fullParts.length - 2] + ', ' + fullParts[0]);
+                    candidates.push(cleanParts[cleanParts.length - 1] + ', ' + cleanParts[cleanParts.length - 2] + ', ' + cleanParts[0]);
+                    candidates.push(cleanParts[cleanParts.length - 1] + ', ' + cleanParts[cleanParts.length - 2]); // Mahalle, İlçe
+                    candidates.push(cleanParts[cleanParts.length - 1] + ' ' + cleanParts[cleanParts.length - 2]); // Mahalle İlçe
+                    // 🛡️ İlçe Tutarlılığı: Eğer mahalle bulunamazsa, başka bir ilçeye zıplamamak için DOĞRU İLÇEYİ ara!
+                    candidates.push(cleanParts[cleanParts.length - 2] + ', ' + cleanParts[0]); // İlçe, İl (Örn: 'İscehisar, Afyonkarahisar')
+                    candidates.push(cleanParts[cleanParts.length - 2]); // İlçe (Örn: 'İscehisar')
+                    candidates.push(cleanParts.join(' '));
+                } else if (cleanParts.length === 2) {
+                    candidates.push(cleanParts[1] + ', ' + cleanParts[0]); // İlçe/Mahalle, İl
+                    candidates.push(cleanParts[1] + ' ' + cleanParts[0]);
+                    candidates.push(fullParts[1] + ', ' + fullParts[0]);
+                    candidates.push(cleanParts[1]);
+                }
+
+                // Orijinal ters ve düz sıra
+                candidates.push(fullParts.slice().reverse().join(', '));
+                candidates.push(cleanParts.slice().reverse().join(', '));
+                candidates.push(fullParts.join(', '));
+                candidates.push(cleanParts.join(', '));
+            }
+
+            // Genel temizleme varyantları
+            candidates.push(cleaned.replace(/[\/\\|]+/g, ', '));
+            candidates.push(cleaned.replace(/[\/\\|]+/g, ' '));
+            candidates.push(cleaned);
+
+            // İl adını yakalayıp son çare olarak ekle
+            const provMatch = cleaned.match(/(İstanbul|Ankara|İzmir|Bursa|Antalya|Adana|Konya|Gaziantep|Şanlıurfa|Kocaeli|Mersin|Diyarbakır|Hatay|Manisa|Kayseri|Samsun|Balıkesir|Kahramanmaraş|Van|Aydın|Tekirdağ|Sakarya|Denizli|Muğla|Eskişehir|Trabzon|Ordu|Afyon|Sivas|Malatya|Batman|Tokat|Düzce|Uşak|Kütahya|Yalova|Bolu|Rize|Edirne|Çanakkale)/i);
+            if (provMatch) {
+                candidates.push(provMatch[0]);
+            }
+
+            // Tekilleştirme
+            const seen = new Set();
+            const result = [];
+            for (let c of candidates) {
+                const norm = c.trim().replace(/\s+/g, ' ');
+                if (norm.length >= 3 && !seen.has(norm.toLowerCase())) {
+                    seen.add(norm.toLowerCase());
+                    result.push(norm);
+                }
+            }
+            return result;
+        },
+
+        /**
+         * Nominatim Geocoding ile Arama Yapar (Akıllı Hiyerarşik Arama)
+         */
+        searchLocation: async function(query) {
             const input = document.getElementById('satSearchInput');
-            const q = query || (input ? input.value.trim() : '');
+            let q = query || (input ? input.value : '');
+            // Temizleme: baştaki soru işaretleri veya bozuk karakterleri gider
+            q = q.replace(/[\ufffd\?📍📌📐🏢🏠🛣️🌿*]/giu, '')
+                 .replace(/^[^\p{L}\p{N}]+/u, '')
+                 .trim();
+
+            if (input && input.value !== q) {
+                input.value = q;
+            }
+
             if (!q) {
                 alert('Lütfen aramak istediğiniz il, ilçe veya mahalle adını yazın.');
                 return;
@@ -660,48 +1202,129 @@
                 searchBtn.disabled = true;
             }
 
-            const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&countrycodes=tr&limit=1`;
+            // Hedef il, ilçe ve mahalle bilgilerini analiz et
+            const rawParts = q.split(/[\/\\|,;]+/).map(p => p.trim()).filter(Boolean);
+            let targetProvince = '';
+            let targetDistrict = '';
+            let targetNeighborhood = '';
 
-            fetch(url, {
-                headers: { 'Accept': 'application/json' }
-            })
-            .then(res => res.json())
-            .then(data => {
-                if (searchBtn) {
-                    searchBtn.innerHTML = '<i class="fas fa-search"></i> Bul';
-                    searchBtn.disabled = false;
+            if (rawParts.length >= 3) {
+                targetProvince = rawParts[0];
+                targetDistrict = rawParts[1];
+                targetNeighborhood = rawParts[2].replace(/(?:^|\s+)(mahallesi|mah|mh|köyü|köy|mevkii|civarında|bölgesinde|yakınında)(?=[.,:;\s]|$)/giu, ' ').replace(/[.,:;]/g, '').trim();
+            } else if (rawParts.length === 2) {
+                targetProvince = rawParts[0];
+                targetDistrict = rawParts[1];
+            }
+
+            const candidates = this.buildLocationCandidates(q);
+            let foundResult = null;
+            let matchedCandidate = '';
+
+            for (const cand of candidates) {
+                try {
+                    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(cand)}&countrycodes=tr&limit=1`;
+                    const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+                    const data = await res.json();
+                    if (data && data.length > 0) {
+                        const disp = data[0].display_name;
+
+                        // 🛡️ İLÇE TUTARLILIK DOĞRULAMASI:
+                        // Eğer kullanıcı belirli bir ilçe aramışsa (örn: İscehisar), harita başka bir ilçedeki (örn: Bolvadin) aynı isimli mahalleye ASLA gitmemelidir!
+                        if (targetDistrict) {
+                            const normDist = this.turkishNormalize(targetDistrict);
+                            const normDisp = this.turkishNormalize(disp);
+                            if (!normDisp.includes(normDist)) {
+                                console.warn(`[Geocoding] İlçe uyuşmazlığı: Aranan '${targetDistrict}', bulunan '${disp}'. Aday atlandı.`);
+                                continue;
+                            }
+                        }
+
+                        foundResult = data[0];
+                        matchedCandidate = cand;
+                        break;
+                    }
+                } catch (e) {
+                    console.warn('Geocoding denemesi atlandı:', cand, e);
+                }
+            }
+
+            if (searchBtn) {
+                searchBtn.innerHTML = '<i class="fas fa-search"></i> Bul';
+                searchBtn.disabled = false;
+            }
+
+            if (foundResult) {
+                const lat = parseFloat(foundResult.lat);
+                const lng = parseFloat(foundResult.lon);
+                
+                let targetZoom = 16;
+                if (foundResult.type === 'village' || foundResult.type === 'hamlet') {
+                    targetZoom = 16;
+                } else if (foundResult.type === 'administrative' || foundResult.class === 'boundary') {
+                    targetZoom = 14;
+                } else if (foundResult.type === 'suburb' || foundResult.type === 'town') {
+                    targetZoom = 15;
+                }
+                const low = matchedCandidate.toLowerCase();
+                if (low.includes('ada') || low.includes('parsel') || low.includes('sokak') || low.includes('cadde')) {
+                    targetZoom = 17;
                 }
 
-                if (data && data.length > 0) {
-                    const result = data[0];
-                    const lat = parseFloat(result.lat);
-                    const lng = parseFloat(result.lon);
-                    
-                    let targetZoom = 17;
-                    if (result.type === 'administrative' || result.class === 'boundary') {
-                        targetZoom = 15;
-                    }
-                    if (q.toLowerCase().includes('ada') || q.toLowerCase().includes('parsel') || q.toLowerCase().includes('mahalle') || q.toLowerCase().includes('sokak') || q.toLowerCase().includes('cadde')) {
-                        targetZoom = 18;
-                    }
+                // Bulunan hedef koordinatı ve pini birebir haritadaki yere eşitle
+                this.currentLat = lat;
+                this.currentLng = lng;
+                this.currentZoom = targetZoom;
+                this.markerLatLng = L.latLng(lat, lng);
 
-                    SatelliteMapModule.flyTo(lat, lng, targetZoom);
+                // Pin üzerindeki başlık metnini yer adıyla otomatik güncelle (Örn: "SELÇUKLU", "YALIOBA" veya "NAİPKÖY")
+                let placeName = targetNeighborhood || foundResult.name || '';
+                if (!placeName && foundResult.display_name) {
+                    placeName = foundResult.display_name.split(',')[0].trim();
+                }
+                if (!placeName && targetDistrict) {
+                    placeName = targetDistrict;
+                }
+                placeName = placeName.replace(/(?:^|\s+)(mahallesi|mah|mh|köyü|köy)(?=[.,:;\s]|$)/giu, ' ').replace(/[.,:;]/g, '').trim();
 
-                    if (typeof window.showAppToast === 'function') {
-                        window.showAppToast(`📍 Konum bulundu: ${result.display_name.split(',')[0]}`, 'success');
-                    }
+                if (placeName && (!this.userManuallyChangedMarkerText || this.customMarkerText === 'PORTFÖYÜMÜZ')) {
+                    this.customMarkerText = placeName.toLocaleUpperCase('tr-TR');
+                    const textInput = document.getElementById('satMarkerCustomTextInput');
+                    if (textInput) textInput.value = this.customMarkerText;
+                    this.updateLivePinOverlay();
+                }
+
+                // Temiz gösterim adresi (Eğer mahalle OpenStreetMap'te ayrı çizilmemişse ilçe + mahalle etiketi oluştur)
+                let cleanDisplay = '';
+                if (targetDistrict && targetNeighborhood && !this.turkishNormalize(foundResult.display_name).includes(this.turkishNormalize(targetNeighborhood))) {
+                    cleanDisplay = `${targetDistrict}, ${targetProvince} (${targetNeighborhood} Mah.)`;
                 } else {
-                    alert(`"${q}" için sonuç bulunamadı. Lütfen il ve ilçe adını birlikte yazmayı deneyin (Örn: Sakarya Sapanca).`);
+                    cleanDisplay = foundResult.display_name
+                        ? foundResult.display_name.split(',').slice(0, 3).join(', ').trim()
+                        : q;
                 }
-            })
-            .catch(err => {
-                console.error('Nominatim Geocoding Hatası:', err);
-                if (searchBtn) {
-                    searchBtn.innerHTML = '<i class="fas fa-search"></i> Bul';
-                    searchBtn.disabled = false;
+                this.updateFoundAddressBadge(cleanDisplay);
+
+                // Haritayı bulunan noktaya uçur
+                SatelliteMapModule.flyTo(lat, lng, targetZoom);
+
+                // Son konumu ve koordinatları hafızaya kaydet (localStorage)
+                this.saveLastLocation({
+                    address: cleanDisplay,
+                    lat: lat,
+                    lng: lng,
+                    zoom: targetZoom,
+                    markerLat: lat,
+                    markerLng: lng,
+                    markerText: this.customMarkerText
+                });
+
+                if (typeof window.showAppToast === 'function') {
+                    window.showAppToast(`📍 Konum bulundu: ${cleanDisplay}`, 'success');
                 }
-                alert('Arama servisine bağlanırken bir sorun oluştu. Lütfen tekrar deneyin.');
-            });
+            } else {
+                alert(`"${q}" için haritada kesin sonuç bulunamadı. Lütfen il ve ilçe adını kontrol ediniz.`);
+            }
         },
 
         /**
@@ -743,7 +1366,7 @@
          */
         getActiveFormatDimensions: function() {
             const fmt = this.selectedFormat || '16:9';
-            const res = this.selectedResolution || '2k';
+            const res = this.selectedResolution || '4k';
 
             if (res === '4k') {
                 switch (fmt) {
@@ -810,7 +1433,8 @@
 
         /**
          * Harita Sahnesini ve Modal Penceresini Tuval Boyutuna Birebir Eşitler
-         * Açılan Pencere Tuval Oranında Olur ve Kenarlarda Asla Siyah Kısım Kalmaz
+         * Açılan Pencere Tuval Oranında (16:9 / 1:1 / 4:5 / 9:16) Olur
+         * Ekranda görünen harita kadrajı ile tuvale aktarılan görüntü %100 birebir aynı olur
          */
         updateMapWrapperDimensions: function() {
             const modalContainer = document.querySelector('.sat-modal-container');
@@ -825,8 +1449,8 @@
             const winH = window.innerHeight;
 
             // Maksimum sığabileceği ekran alanı (kenar boşlukları çıkarılmış)
-            const maxW = Math.min(1450, winW - 24);
-            const maxH = Math.min(940, winH - 24);
+            const maxW = Math.min(1380, winW - 24);
+            const maxH = Math.min(880, winH - 24);
 
             // Başlık, arama, kontroller ve alt çubuğun toplam yüksekliği
             const headerEl = modalContainer.querySelector('.sat-modal-header');
@@ -843,18 +1467,19 @@
             let availMapH = maxH - overheadH;
             if (availMapH < 260) availMapH = 260;
 
-            // Hedef orana göre harita boyutunu hesapla
+            // Hedef tuval oranına göre harita boyutunu hesapla
             let mapW = Math.round(availMapH * targetRatio);
             let mapH = availMapH;
 
-            // Eğer genişlik ekranı aşıyorsa, genişliğe göre yüksekliği tekrar hesapla
+            // Eğer genişlik ekranı aşıyorsa, genişliğe göre dikey alanı uyarla
             if (mapW > maxW) {
                 mapW = maxW;
                 mapH = Math.round(mapW / targetRatio);
             }
 
-            // Arayüz butonları için minimum okunabilir pencere genişliği
-            const finalContainerW = Math.min(maxW, Math.max(580, mapW));
+            // Buton ve kontrollerin rahat sığması için makul taban genişlik (dar dikey oranlar için)
+            const minBarW = 780;
+            const finalContainerW = Math.min(maxW, Math.max(minBarW, mapW));
             const finalContainerH = Math.min(maxH, mapH + overheadH);
 
             modalContainer.style.width = finalContainerW + 'px';
@@ -862,12 +1487,27 @@
             modalContainer.style.height = finalContainerH + 'px';
             modalContainer.style.maxHeight = finalContainerH + 'px';
 
-            // Harita sahnesi %100 alan kaplasın - kenarlarda asla siyah boşluk kalmasın
-            wrapper.style.width = '100%';
-            wrapper.style.height = '100%';
+            // Harita sahnesinde harita kadrajı BİREBİR tuval oranında (targetRatio) kalsın!
+            // Böylece ekranda ne görünüyorsa tuvale aktarılan da birebir aynı olur, kenarlardan kırpılma olmaz.
+            if (finalContainerW > mapW) {
+                wrapper.style.width = mapW + 'px';
+                wrapper.style.height = mapH + 'px';
+                wrapper.style.margin = '0 auto';
+            } else {
+                wrapper.style.width = '100%';
+                wrapper.style.height = '100%';
+                wrapper.style.margin = '0';
+            }
+
+            wrapper.style.aspectRatio = '';
+            wrapper.style.maxWidth = '100%';
+            wrapper.style.maxHeight = '100%';
+            wrapper.style.borderRadius = '0';
+            wrapper.style.boxShadow = 'none';
 
             if (this.map) {
                 this.map.invalidateSize();
+                this.updateMarkerOverlayPosition();
             }
         },
 
@@ -875,30 +1515,80 @@
          * Modalı Açar
          */
         openModal: function() {
+            if (window.innerWidth <= 768) {
+                if (typeof window.showAppToast === 'function') {
+                    window.showAppToast('🛰️ Uydu haritası özelliği masaüstü cihazlar için optimize edilmiştir.', 'info');
+                }
+                return;
+            }
+
             this.ensureModalDOM();
 
             const modal = document.getElementById('satelliteMapModal');
             if (!modal) return;
 
             // Mevcut şablonun/tuvalin formatını algıla ve kadraj formatı olarak belirle
-            const previewSel = document.getElementById('previewFormat');
-            if (previewSel && previewSel.value) {
-                const val = previewSel.value;
-                if (val.includes('1:1') || val.includes('Kare')) {
-                    this.selectedFormat = '1:1';
-                } else if (val.includes('4:5') || val.includes('Portre')) {
-                    this.selectedFormat = '4:5';
-                } else if (val.includes('9:16') || val.includes('Hikaye') || val.includes('Story')) {
-                    this.selectedFormat = '9:16';
-                } else {
-                    this.selectedFormat = '16:9';
+            let detectedFmt = '16:9';
+            try {
+                const activeDockBtn = document.querySelector('.dock-pill-btn.active');
+                const expSel = document.getElementById('exportFormat');
+                const prvSel = document.getElementById('previewFormat');
+                const cContainer = document.getElementById('canvas-container');
+                const cEl = typeof canvasEl !== 'undefined' && canvasEl ? canvasEl : document.getElementById('canvas');
+
+                let canvasRatio = 1.7778;
+                if (cContainer && cContainer.offsetWidth > 0 && cContainer.offsetHeight > 0) {
+                    canvasRatio = cContainer.offsetWidth / cContainer.offsetHeight;
+                } else if (cEl) {
+                    const cw = parseInt(cEl.style.width) || cEl.width || 1920;
+                    const ch = parseInt(cEl.style.height) || cEl.height || 1080;
+                    if (ch > 0) canvasRatio = cw / ch;
                 }
+
+                const formatStr = ((activeDockBtn ? (activeDockBtn.dataset.format || activeDockBtn.innerText) : '') + ' ' +
+                                  (expSel ? expSel.value : '') + ' ' +
+                                  (prvSel ? prvSel.value : '')).toLowerCase();
+
+                if (formatStr.includes('1:1') || formatStr.includes('kare') || Math.abs(canvasRatio - 1.0) < 0.08) {
+                    detectedFmt = '1:1';
+                } else if (formatStr.includes('4:5') || formatStr.includes('portre') || Math.abs(canvasRatio - 0.8) < 0.08) {
+                    detectedFmt = '4:5';
+                } else if (formatStr.includes('9:16') || formatStr.includes('story') || formatStr.includes('hikaye') || Math.abs(canvasRatio - 0.5625) < 0.08) {
+                    detectedFmt = '9:16';
+                } else {
+                    detectedFmt = '16:9';
+                }
+            } catch(e) {
+                console.warn('Format algılama hatası:', e);
             }
+
+            this.selectedFormat = detectedFmt;
             this.setExportFormat(this.selectedFormat);
 
             // Çözünürlük ve Pin ayarlarını arayüze yansıt
             const resSel = document.getElementById('satResolutionSelect');
             if (resSel) resSel.value = this.selectedResolution;
+
+            // Hafızadaki son konum ve mevcut projeden algılanan konum
+            const lastLoc = this.getLastLocation();
+            const detected = this.detectLocationFromProject();
+
+            let targetQuery = '';
+            if (detected) {
+                targetQuery = detected;
+            } else if (lastLoc && lastLoc.lat && lastLoc.lng) {
+                targetQuery = lastLoc.address || '';
+                this.currentLat = lastLoc.lat;
+                this.currentLng = lastLoc.lng;
+                this.currentZoom = lastLoc.zoom || 17;
+                this.markerLatLng = L.latLng(lastLoc.markerLat || lastLoc.lat, lastLoc.markerLng || lastLoc.lng);
+                if (lastLoc.markerText) {
+                    this.customMarkerText = lastLoc.markerText;
+                }
+            }
+
+            const savedMarkerStyle = localStorage.getItem('emlak_sat_marker_style');
+            if (savedMarkerStyle) this.markerStyle = savedMarkerStyle;
 
             const textInput = document.getElementById('satMarkerCustomTextInput');
             if (textInput) textInput.value = this.customMarkerText || 'PORTFÖYÜMÜZ';
@@ -906,22 +1596,42 @@
             const styleSel = document.getElementById('satMarkerStyleSelect');
             if (styleSel) styleSel.value = this.markerStyle || 'badge';
 
-            this.updateLivePinOverlay();
+            if (!this.markerLatLng) {
+                this.markerLatLng = L.latLng(this.currentLat, this.currentLng);
+            }
+
+            this.toggleMarker(this.markerEnabled);
+            this.toggleAiEnhance(this.aiEnhanceEnabled);
 
             modal.style.display = 'flex';
             document.body.style.overflow = 'hidden';
 
+            const input = document.getElementById('satSearchInput');
+            if (input && targetQuery) {
+                input.value = targetQuery;
+            }
+
             setTimeout(() => {
                 this.initMap();
                 this.updateMapWrapperDimensions();
+                this.attachMarkerDragListeners();
+                this.applyLiveMapAiPreview();
 
-                const detected = this.detectLocationFromProject();
-                const input = document.getElementById('satSearchInput');
-                if (detected && input && !input.value) {
-                    input.value = detected;
+                if (detected) {
                     this.searchLocation(detected);
+                } else if (lastLoc && lastLoc.lat && lastLoc.lng) {
+                    // Son kaydedilen adrese ve koordinata doğrudan git ve pini yerleştir
+                    this.map.setView([this.currentLat, this.currentLng], this.currentZoom);
+                    this.updateMarkerOverlayPosition();
+                    this.updateCoordsBadge();
+                    if (lastLoc.address) {
+                        this.updateFoundAddressBadge(lastLoc.address);
+                    }
+                } else if (input && input.value.trim()) {
+                    this.searchLocation(input.value.trim());
                 } else if (this.map) {
                     this.map.invalidateSize();
+                    this.updateMarkerOverlayPosition();
                 }
             }, 100);
         },
@@ -938,6 +1648,8 @@
             if (typeof window.hideAppLoading === 'function') {
                 window.hideAppLoading();
             }
+            const mapEl = document.getElementById('satelliteLeafletMap');
+            if (mapEl) mapEl.style.filter = '';
         },
 
         /**
@@ -1106,6 +1818,7 @@
                 } catch(e) {}
             });
             ctx.globalAlpha = 1.0;
+            canvas._cropInfo = { cropX, cropY, cropW, cropH, scale, mapW, mapH };
             return canvas;
         },
 
@@ -1119,7 +1832,7 @@
 
             const captureBtn = document.getElementById('satCaptureBtn');
             if (captureBtn) {
-                const resName = (this.selectedResolution || '2K').toUpperCase();
+                const resName = (this.selectedResolution || '4K').toUpperCase();
                 captureBtn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> <span>${resName} Çözünürlükte Çekiliyor...</span>`;
                 captureBtn.disabled = true;
             }
@@ -1158,21 +1871,62 @@
                         ctx.drawImage(canvas, srcX, srcY, srcW, srcH, 0, 0, targetW, targetH);
 
                         if (this.markerEnabled) {
-                            this.drawVectorMarker(ctx, targetW / 2, targetH / 2, this.markerStyle, this.customMarkerText, targetW);
+                            const ctx3d = offCanvas.getContext('2d');
+                            const overlay = document.getElementById('satMapPinOverlay');
+                            const wrapper = document.getElementById('satMapWrapper');
+                            let pinCanvasX = targetW / 2;
+                            let pinCanvasY = targetH / 2;
+                            if (overlay && overlay.style.left && overlay.style.left.endsWith('px')) {
+                                const wrapW = wrapper ? wrapper.offsetWidth : targetW;
+                                const wrapH = wrapper ? wrapper.offsetHeight : targetH;
+                                pinCanvasX = (parseFloat(overlay.style.left) / wrapW) * targetW;
+                                pinCanvasY = (parseFloat(overlay.style.top) / wrapH) * targetH;
+                            }
+                            this.drawVectorMarker(ctx3d, pinCanvasX, pinCanvasY, this.markerStyle, this.customMarkerText, targetW, wrapper);
                         }
 
-                        const dataUrl = offCanvas.toDataURL('image/jpeg', 0.96);
+                        let final3dCanvas = offCanvas;
+                        if (this.aiEnhanceEnabled) {
+                            const intensity = (this.aiEnhanceIntensity || 20) / 100;
+                            const contrast = 100 + Math.round(intensity * 32);
+                            const saturate = 100 + Math.round(intensity * 28);
+                            const brightness = 100 + Math.round(intensity * 3);
+
+                            const filteredCanvas = document.createElement('canvas');
+                            filteredCanvas.width = targetW;
+                            filteredCanvas.height = targetH;
+                            const fCtx = filteredCanvas.getContext('2d');
+                            fCtx.imageSmoothingEnabled = true;
+                            fCtx.imageSmoothingQuality = 'high';
+                            fCtx.filter = `contrast(${contrast}%) saturate(${saturate}%) brightness(${brightness}%)`;
+                            fCtx.drawImage(offCanvas, 0, 0);
+                            fCtx.filter = 'none';
+
+                            if (window.AiEnhancer && typeof window.AiEnhancer.applyAiFilters === 'function') {
+                                try {
+                                    final3dCanvas = window.AiEnhancer.applyAiFilters(filteredCanvas, 'picsart_hd', intensity);
+                                } catch(e) {
+                                    console.warn('AI netleştirme hatası, renk filtreli görsel aktarılıyor:', e);
+                                    final3dCanvas = filteredCanvas;
+                                }
+                            } else {
+                                final3dCanvas = filteredCanvas;
+                            }
+                        }
+
+                        const dataUrl = final3dCanvas.toDataURL('image/jpeg', 0.96);
                         if (dataUrl && dataUrl.length > 1000) {
                             if (typeof window.applyProjectImageFromDataUrl === 'function') {
                                 window.applyProjectImageFromDataUrl(dataUrl, (err) => {
                                     if (captureBtn) {
-                                        captureBtn.innerHTML = '<i class="fas fa-camera-retro"></i> <span>📸 Bu Görüntüyü Şablona Aktar</span>';
+                                        captureBtn.innerHTML = '<i class="fas fa-camera-retro"></i> <span>📸 Şablona Aktar</span>';
                                         captureBtn.disabled = false;
                                     }
                                     if (!err) {
                                         SatelliteMapModule.closeModal();
                                         if (typeof window.showAppToast === 'function') {
-                                            window.showAppToast(`🌐 Google 3D görüntüsü (${targetW}x${targetH}) tuvalinize aktarıldı!`, 'success');
+                                            const aiNote = this.aiEnhanceEnabled ? ` (AI %${this.aiEnhanceIntensity || 20} Net)` : '';
+                                            window.showAppToast(`🌐 Google 3D görüntüsü${aiNote} (${targetW}x${targetH}) tuvalinize aktarıldı!`, 'success');
                                         }
                                     }
                                 });
@@ -1186,7 +1940,7 @@
 
                 if (!capturedDirectly) {
                     if (captureBtn) {
-                        captureBtn.innerHTML = '<i class="fas fa-camera-retro"></i> <span>📸 Bu Görüntüyü Şablona Aktar</span>';
+                        captureBtn.innerHTML = '<i class="fas fa-camera-retro"></i> <span>📸 Şablona Aktar</span>';
                         captureBtn.disabled = false;
                     }
                     if (typeof window.captureScreenOrTabToTemplate === 'function') {
@@ -1203,32 +1957,23 @@
             if (!mapContainer || !this.map) {
                 alert('Harita henüz hazır değil.');
                 if (captureBtn) {
-                    captureBtn.innerHTML = '<i class="fas fa-camera-retro"></i> <span>📸 Bu Görüntüyü Şablona Aktar</span>';
+                    captureBtn.innerHTML = '<i class="fas fa-camera-retro"></i> <span>📸 Şablona Aktar</span>';
                     captureBtn.disabled = false;
                 }
                 return;
             }
 
             try {
-                // Hedef derinlik zoom seviyesi
-                let targetZoom = this.currentZoom;
-                if (this.selectedResolution === '4k') {
-                    targetZoom = Math.min(21, this.currentZoom + 2); // 16x daha fazla optik detay
-                } else if (this.selectedResolution === '2k') {
-                    targetZoom = Math.min(21, this.currentZoom + 1); // 4x daha fazla optik detay
-                }
+                // 1) Ekranda görünen harita kadrajını 1:1 piksel hassasiyetiyle doğrudan DOM karolarından al
+                let offCanvas = this.renderVisibleDomTilesToCanvas(targetW, targetH);
 
-                let offCanvas = null;
-                try {
-                    // Gerçek çoklu karo birleştirme motorunu çalıştır
-                    offCanvas = await this.fetchAndStitchHighResTiles(targetW, targetH, targetZoom);
-                } catch (stitchErr) {
-                    console.warn("Yüksek çözünürlüklü karo motoru hatası, DOM karolarına dönülüyor:", stitchErr);
-                }
-
-                // Eğer karo indirme başarısız olduysa mevcut ekrandaki karoları kullan
+                // Eğer DOM karoları hazır değilse mevcut zoom seviyesinde yedek karoları çek
                 if (!offCanvas) {
-                    offCanvas = this.renderVisibleDomTilesToCanvas(targetW, targetH);
+                    try {
+                        offCanvas = await this.fetchAndStitchHighResTiles(targetW, targetH, this.currentZoom);
+                    } catch (stitchErr) {
+                        console.warn("Yedek karo motoru hatası:", stitchErr);
+                    }
                 }
 
                 if (!offCanvas) {
@@ -1237,27 +1982,74 @@
 
                 const ctx = offCanvas.getContext('2d');
 
-                // 📍 Eğer kullanıcı Konum İğnesi seçtiyse tam merkeze vektörel çiz (Çözünürlüğe orantılı)
+                // 📍 Eğer kullanıcı Konum İğnesi seçtiyse seçilen koordinata vektörel çiz (Kadraj ve çözünürlüğe birebir orantılı)
                 if (this.markerEnabled) {
-                    this.drawVectorMarker(ctx, targetW / 2, targetH / 2, this.markerStyle, this.customMarkerText, targetW);
+                    const markerPt = this.markerLatLng 
+                        ? this.map.latLngToContainerPoint(this.markerLatLng)
+                        : { x: mapContainer.offsetWidth / 2, y: mapContainer.offsetHeight / 2 };
+
+                    const cropInfo = offCanvas._cropInfo || { cropX: 0, cropY: 0, cropW: mapContainer.offsetWidth, cropH: mapContainer.offsetHeight };
+                    const pinCanvasX = ((markerPt.x - cropInfo.cropX) / cropInfo.cropW) * targetW;
+                    const pinCanvasY = ((markerPt.y - cropInfo.cropY) / cropInfo.cropH) * targetH;
+
+                    this.drawVectorMarker(ctx, pinCanvasX, pinCanvasY, this.markerStyle, this.customMarkerText, targetW, mapContainer);
                 }
 
-                // Yüksek kaliteli JPEG DataURL al
-                const dataUrl = offCanvas.toDataURL('image/jpeg', 0.96);
+                // Yüksek kaliteli JPEG DataURL al (AI netleştirme açıksa doğrudan uygula)
+                let final2dCanvas = offCanvas;
+                if (this.aiEnhanceEnabled) {
+                    const intensity = (this.aiEnhanceIntensity || 20) / 100;
+                    const contrast = 100 + Math.round(intensity * 32);
+                    const saturate = 100 + Math.round(intensity * 28);
+                    const brightness = 100 + Math.round(intensity * 3);
+
+                    const filteredCanvas = document.createElement('canvas');
+                    filteredCanvas.width = targetW;
+                    filteredCanvas.height = targetH;
+                    const fCtx = filteredCanvas.getContext('2d');
+                    fCtx.imageSmoothingEnabled = true;
+                    fCtx.imageSmoothingQuality = 'high';
+                    fCtx.filter = `contrast(${contrast}%) saturate(${saturate}%) brightness(${brightness}%)`;
+                    fCtx.drawImage(offCanvas, 0, 0);
+                    fCtx.filter = 'none';
+
+                    if (window.AiEnhancer && typeof window.AiEnhancer.applyAiFilters === 'function') {
+                        try {
+                            final2dCanvas = window.AiEnhancer.applyAiFilters(filteredCanvas, 'picsart_hd', intensity);
+                        } catch(e) {
+                            console.warn('AI netleştirme hatası, renk filtreli görsel aktarılıyor:', e);
+                            final2dCanvas = filteredCanvas;
+                        }
+                    } else {
+                        final2dCanvas = filteredCanvas;
+                    }
+                }
+
+                const dataUrl = final2dCanvas.toDataURL('image/jpeg', 0.96);
 
                 // Ana uygulamaya aktar (Şablonun boyutunu bozmadan tam çözünürlükte uygular)
                 if (typeof window.applyProjectImageFromDataUrl === 'function') {
                     window.applyProjectImageFromDataUrl(dataUrl, (err) => {
                         if (captureBtn) {
-                            captureBtn.innerHTML = '<i class="fas fa-camera-retro"></i> <span>📸 Bu Görüntüyü Şablona Aktar</span>';
+                            captureBtn.innerHTML = '<i class="fas fa-camera-retro"></i> <span>📸 Şablona Aktar</span>';
                             captureBtn.disabled = false;
                         }
 
                         if (!err) {
+                            SatelliteMapModule.saveLastLocation({
+                                address: document.getElementById('satSearchInput')?.value || '',
+                                lat: SatelliteMapModule.currentLat,
+                                lng: SatelliteMapModule.currentLng,
+                                zoom: SatelliteMapModule.currentZoom,
+                                markerLat: SatelliteMapModule.markerLatLng ? SatelliteMapModule.markerLatLng.lat : SatelliteMapModule.currentLat,
+                                markerLng: SatelliteMapModule.markerLatLng ? SatelliteMapModule.markerLatLng.lng : SatelliteMapModule.currentLng,
+                                markerText: SatelliteMapModule.customMarkerText
+                            });
                             SatelliteMapModule.closeModal();
                             if (typeof window.showAppToast === 'function') {
-                                const resTag = (this.selectedResolution || '2K').toUpperCase();
-                                window.showAppToast(`🛰️ ${resTag} Uydu görüntüsü (${targetW}x${targetH}) başarıyla tuvalinize uygulandı!`, 'success');
+                                const resTag = (this.selectedResolution || '4K').toUpperCase();
+                                const aiNote = this.aiEnhanceEnabled ? ` (AI %${this.aiEnhanceIntensity || 20} Netleştirildi)` : '';
+                                window.showAppToast(`🛰️ ${resTag} Uydu görüntüsü${aiNote} (${targetW}x${targetH}) başarıyla tuvalinize uygulandı!`, 'success');
                             }
                         }
                     });
@@ -1268,7 +2060,7 @@
             } catch (err) {
                 console.error('Uydu görüntüsü aktarma hatası:', err);
                 if (captureBtn) {
-                    captureBtn.innerHTML = '<i class="fas fa-camera-retro"></i> <span>📸 Bu Görüntüyü Şablona Aktar</span>';
+                    captureBtn.innerHTML = '<i class="fas fa-camera-retro"></i> <span>📸 Şablona Aktar</span>';
                     captureBtn.disabled = false;
                 }
                 if (typeof window.hideAppLoading === 'function') {
@@ -1279,175 +2071,209 @@
         },
 
         /**
-         * Tuvalin Tam Merkezine Vektörel Konum İğnesi Çizer (2K ve 4K Çözünürlüğe Orantılı)
+         * Tuvalin Tam Merkezine Vektörel Konum İğnesi Çizer (SVG Geometrisi ile Birebir Orantılı)
          */
-        drawVectorMarker: function(ctx, cx, cy, style, text, targetW) {
+        drawVectorMarker: function(ctx, cx, cy, style, text, targetW, mapContainer) {
             ctx.save();
-            const scale = Math.max(1, (targetW || 1920) / 1920);
-            ctx.translate(cx, cy);
-            ctx.scale(scale, scale);
+            const containerW = (mapContainer && mapContainer.offsetWidth) ? mapContainer.offsetWidth : 800;
+            let s = ((targetW || 1920) / containerW) * 0.72;
+            s = Math.max(1.0, Math.min(2.6, s));
 
             const markerText = (typeof text === 'string' && text.trim().length > 0) ? text.trim() : 'PORTFÖYÜMÜZ';
+            const pinStyle = style || 'badge';
 
-            if (style === 'classic') {
-                // 🔴 Kırmızı Klasik Teardrop Pin
+            if (pinStyle === 'radar') {
+                // 🎯 Radar / Parsel Hedef Halkası
+                ctx.translate(cx, cy);
+                ctx.scale(s, s);
+
                 ctx.beginPath();
-                ctx.ellipse(0, 4, 18, 6, 0, 0, Math.PI * 2);
-                ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
+                ctx.arc(0, 0, 48, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(16, 185, 129, 0.15)';
                 ctx.fill();
 
                 ctx.beginPath();
-                ctx.moveTo(0, 0);
-                ctx.bezierCurveTo(-24, -35, -35, -65, -35, -90);
-                ctx.arc(0, -90, 35, Math.PI, 0, false);
-                ctx.bezierCurveTo(35, -65, 24, -35, 0, 0);
-                ctx.closePath();
+                ctx.arc(0, 0, 40, 0, Math.PI * 2);
+                ctx.setLineDash([5, 4]);
+                ctx.lineWidth = 2.2;
+                ctx.strokeStyle = '#10b981';
+                ctx.stroke();
+                ctx.setLineDash([]);
 
-                const grad = ctx.createLinearGradient(-35, -125, 35, 0);
-                grad.addColorStop(0, '#ef4444');
-                grad.addColorStop(1, '#b91c1c');
-                ctx.fillStyle = grad;
-                ctx.fill();
-                ctx.lineWidth = 4;
-                ctx.strokeStyle = '#ffffff';
+                ctx.beginPath();
+                ctx.arc(0, 0, 22, 0, Math.PI * 2);
+                ctx.lineWidth = 2;
+                ctx.strokeStyle = '#34d399';
                 ctx.stroke();
 
                 ctx.beginPath();
-                ctx.arc(0, -90, 15, 0, Math.PI * 2);
-                ctx.fillStyle = '#ffffff';
+                ctx.arc(0, 0, 6, 0, Math.PI * 2);
+                ctx.fillStyle = '#10b981';
                 ctx.fill();
+                ctx.lineWidth = 1.8;
+                ctx.strokeStyle = '#ffffff';
+                ctx.stroke();
 
-                ctx.beginPath();
-                ctx.arc(0, -90, 7, 0, Math.PI * 2);
-                ctx.fillStyle = '#b91c1c';
-                ctx.fill();
+                ctx.lineWidth = 2;
+                ctx.strokeStyle = '#10b981';
+                ctx.beginPath(); ctx.moveTo(-56, 0); ctx.lineTo(-28, 0); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(28, 0); ctx.lineTo(56, 0); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(0, -56); ctx.lineTo(0, -28); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(0, 28); ctx.lineTo(0, 56); ctx.stroke();
 
                 if (markerText) {
-                    this.drawMarkerLabelBadge(ctx, 0, -145, markerText, '#ef4444', '#ffffff');
+                    this.drawMarkerLabelBadge(ctx, 0, -68, '📍 ' + markerText, '#10b981', '#ffffff', false);
                 }
 
-            } else if (style === 'gold') {
+                ctx.restore();
+                return;
+            }
+
+            // Teardrop Pinler (Gold, Classic, Badge)
+            ctx.translate(cx, cy);
+            ctx.scale(s, s);
+
+            // 1. Zemin Yumuşak Gölgesi (Tip tam (0,0)'da)
+            ctx.save();
+            ctx.beginPath();
+            ctx.ellipse(0, 2, 12, 3.5, 0, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
+            ctx.fill();
+            ctx.restore();
+
+            // Tip (22, 58)'i (0, 0)'a getirmek için kaydır
+            ctx.save();
+            ctx.translate(-22, -58);
+
+            // Klasik Google Teardrop Yolu: M22 0C10 0 0 10 0 22C0 37 22 58 22 58S44 37 44 22C44 10 34 0 22 0Z
+            const teardrop = new Path2D("M22 0C10 0 0 10 0 22C0 37 22 58 22 58S44 37 44 22C44 10 34 0 22 0Z");
+
+            if (pinStyle === 'gold') {
                 // 💎 Altın Lüks Pin
-                ctx.beginPath();
-                ctx.ellipse(0, 5, 20, 7, 0, 0, Math.PI * 2);
-                ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
-                ctx.fill();
+                ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
+                ctx.shadowBlur = 6;
+                ctx.shadowOffsetY = 3;
 
-                ctx.beginPath();
-                ctx.moveTo(0, 0);
-                ctx.bezierCurveTo(-26, -38, -38, -68, -38, -95);
-                ctx.arc(0, -95, 38, Math.PI, 0, false);
-                ctx.bezierCurveTo(38, -68, 26, -38, 0, 0);
-                ctx.closePath();
-
-                const goldGrad = ctx.createLinearGradient(-38, -133, 38, 0);
+                const goldGrad = ctx.createLinearGradient(0, 0, 44, 58);
                 goldGrad.addColorStop(0, '#fef08a');
                 goldGrad.addColorStop(0.5, '#eab308');
-                goldGrad.addColorStop(1, '#a16207');
-                ctx.fillStyle = goldGrad;
-                ctx.fill();
-                ctx.lineWidth = 4;
-                ctx.strokeStyle = '#ffffff';
-                ctx.stroke();
+                goldGrad.addColorStop(1, '#854d0e');
 
+                ctx.fillStyle = goldGrad;
+                ctx.fill(teardrop);
+
+                ctx.shadowColor = 'transparent';
+                ctx.lineWidth = 2.5;
+                ctx.strokeStyle = '#ffffff';
+                ctx.stroke(teardrop);
+
+                // İç Koyu Halka
                 ctx.beginPath();
-                ctx.arc(0, -95, 17, 0, Math.PI * 2);
+                ctx.arc(22, 21, 9, 0, Math.PI * 2);
                 ctx.fillStyle = '#0f172a';
                 ctx.fill();
                 ctx.lineWidth = 2;
                 ctx.strokeStyle = '#fef08a';
                 ctx.stroke();
 
+                // İç Altın Elmas (M22 15L27 21L22 27L17 21Z)
                 ctx.beginPath();
-                ctx.moveTo(0, -105);
-                ctx.lineTo(8, -95);
-                ctx.lineTo(0, -85);
-                ctx.lineTo(-8, -95);
+                ctx.moveTo(22, 15);
+                ctx.lineTo(27, 21);
+                ctx.lineTo(22, 27);
+                ctx.lineTo(17, 21);
                 ctx.closePath();
-                ctx.fillStyle = '#fef08a';
+                ctx.fillStyle = '#fde047';
                 ctx.fill();
+
+                ctx.restore(); // Geri dön: orijin (0,0) tip noktası
 
                 if (markerText) {
-                    this.drawMarkerLabelBadge(ctx, 0, -150, markerText, '#eab308', '#fef08a');
+                    this.drawMarkerLabelBadge(ctx, 0, -68, markerText, '#eab308', '#fef08a', false);
                 }
 
-            } else if (style === 'radar') {
-                // 🎯 Radar / Parsel Hedef Halkası
-                ctx.beginPath();
-                ctx.arc(0, 0, 90, 0, Math.PI * 2);
-                ctx.fillStyle = 'rgba(16, 185, 129, 0.12)';
-                ctx.fill();
+            } else if (pinStyle === 'classic') {
+                // 🔴 Kırmızı Klasik Teardrop Pin
+                ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
+                ctx.shadowBlur = 6;
+                ctx.shadowOffsetY = 3;
 
-                ctx.beginPath();
-                ctx.arc(0, 0, 75, 0, Math.PI * 2);
-                ctx.setLineDash([8, 6]);
-                ctx.lineWidth = 3;
-                ctx.strokeStyle = '#10b981';
-                ctx.stroke();
-                ctx.setLineDash([]);
+                const redGrad = ctx.createLinearGradient(0, 0, 44, 58);
+                redGrad.addColorStop(0, '#ef4444');
+                redGrad.addColorStop(1, '#991b1b');
 
-                ctx.beginPath();
-                ctx.arc(0, 0, 42, 0, Math.PI * 2);
+                ctx.fillStyle = redGrad;
+                ctx.fill(teardrop);
+
+                ctx.shadowColor = 'transparent';
                 ctx.lineWidth = 2.5;
-                ctx.strokeStyle = '#34d399';
-                ctx.stroke();
-
-                ctx.beginPath();
-                ctx.arc(0, 0, 8, 0, Math.PI * 2);
-                ctx.fillStyle = '#10b981';
-                ctx.fill();
-                ctx.lineWidth = 2;
                 ctx.strokeStyle = '#ffffff';
-                ctx.stroke();
+                ctx.stroke(teardrop);
 
-                ctx.lineWidth = 2.5;
-                ctx.strokeStyle = '#10b981';
-                ctx.beginPath(); ctx.moveTo(-105, 0); ctx.lineTo(-50, 0); ctx.stroke();
-                ctx.beginPath(); ctx.moveTo(50, 0); ctx.lineTo(105, 0); ctx.stroke();
-                ctx.beginPath(); ctx.moveTo(0, -105); ctx.lineTo(0, -50); ctx.stroke();
-                ctx.beginPath(); ctx.moveTo(0, 50); ctx.lineTo(0, 105); ctx.stroke();
-
-            } else {
-                // badge (🏷️ Portföy Rozeti)
+                // İç Beyaz Daire
                 ctx.beginPath();
-                ctx.moveTo(0, 0);
-                ctx.bezierCurveTo(-20, -25, -28, -50, -28, -70);
-                ctx.arc(0, -70, 28, Math.PI, 0, false);
-                ctx.bezierCurveTo(28, -50, 20, -25, 0, 0);
-                ctx.closePath();
-                ctx.fillStyle = '#0284c7';
-                ctx.fill();
-                ctx.lineWidth = 3;
-                ctx.strokeStyle = '#ffffff';
-                ctx.stroke();
-
-                ctx.beginPath();
-                ctx.arc(0, -70, 12, 0, Math.PI * 2);
+                ctx.arc(22, 21, 8, 0, Math.PI * 2);
                 ctx.fillStyle = '#ffffff';
                 ctx.fill();
 
-                this.drawMarkerLabelBadge(ctx, 0, -135, '📍 ' + markerText, '#38bdf8', '#ffffff', true);
+                // İç Kırmızı Nokta
+                ctx.beginPath();
+                ctx.arc(22, 21, 4.5, 0, Math.PI * 2);
+                ctx.fillStyle = '#dc2626';
+                ctx.fill();
+
+                ctx.restore();
+
+                if (markerText) {
+                    this.drawMarkerLabelBadge(ctx, 0, -68, markerText, '#ef4444', '#ffffff', false);
+                }
+
+            } else {
+                // 🏷️ Mavi Rozet Pin (badge)
+                ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
+                ctx.shadowBlur = 6;
+                ctx.shadowOffsetY = 3;
+
+                ctx.fillStyle = '#0284c7';
+                ctx.fill(teardrop);
+
+                ctx.shadowColor = 'transparent';
+                ctx.lineWidth = 2.2;
+                ctx.strokeStyle = '#ffffff';
+                ctx.stroke(teardrop);
+
+                // İç Beyaz Daire
+                ctx.beginPath();
+                ctx.arc(22, 21, 7.5, 0, Math.PI * 2);
+                ctx.fillStyle = '#ffffff';
+                ctx.fill();
+
+                ctx.restore();
+
+                if (markerText) {
+                    this.drawMarkerLabelBadge(ctx, 0, -68, '📍 ' + markerText, '#38bdf8', '#ffffff', true);
+                }
             }
 
             ctx.restore();
         },
 
         /**
-         * Vektörel Pin Rozetini Çizer
+         * Vektörel Pin Rozetini Çizer (Zarif Yuvarlak Pill Rozet)
          */
         drawMarkerLabelBadge: function(ctx, x, y, text, borderColor, textColor, isProminent) {
             ctx.save();
-            ctx.font = 'bold 18px "Montserrat", sans-serif';
+            ctx.font = 'bold 11.5px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Montserrat", sans-serif';
             const textWidth = ctx.measureText(text).width;
-            const bWidth = Math.max(180, textWidth + 36);
-            const bHeight = isProminent ? 46 : 38;
+            const bWidth = Math.max(72, textWidth + 22);
+            const bHeight = isProminent ? 26 : 23;
             const bX = x - (bWidth / 2);
             const bY = y - (bHeight / 2);
-            const radius = 10;
+            const radius = isProminent ? 6 : bHeight / 2; // Tam yuvarlak hap (pill)
 
-            ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
-            ctx.shadowBlur = 12;
-            ctx.shadowOffsetY = 4;
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.65)';
+            ctx.shadowBlur = 8;
+            ctx.shadowOffsetY = 3;
 
             ctx.beginPath();
             if (typeof ctx.roundRect === 'function') {
@@ -1455,9 +2281,9 @@
             } else {
                 ctx.rect(bX, bY, bWidth, bHeight);
             }
-            ctx.fillStyle = '#0f172a';
+            ctx.fillStyle = 'rgba(15, 23, 42, 0.95)';
             ctx.fill();
-            ctx.lineWidth = 2.5;
+            ctx.lineWidth = 1.6;
             ctx.strokeStyle = borderColor;
             ctx.stroke();
 
@@ -1465,7 +2291,7 @@
             ctx.fillStyle = textColor;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            ctx.fillText(text, x, y);
+            ctx.fillText(text, x, y + 0.5);
             ctx.restore();
         },
 
@@ -1788,6 +2614,12 @@
     };
 
     window.openSatelliteMapModal = function() {
+        if (window.innerWidth <= 768) {
+            if (typeof window.showAppToast === 'function') {
+                window.showAppToast('🛰️ Uydu haritası özelliği masaüstü cihazlar için optimize edilmiştir.', 'info');
+            }
+            return;
+        }
         SatelliteMapModule.openModal();
     };
 
@@ -1827,6 +2659,18 @@
         SatelliteMapModule.captureAndApply();
     };
 
+    window.toggleSatelliteAiEnhance = function(enabled) {
+        SatelliteMapModule.toggleAiEnhance(enabled);
+    };
+
+    window.setSatelliteAiIntensity = function(val) {
+        SatelliteMapModule.setAiIntensity(val);
+    };
+
+    window.previewSatelliteWithAiEnhancer = function() {
+        SatelliteMapModule.previewWithAiEnhancer();
+    };
+
     window.openCurrentInGoogleEarth = function() {
         SatelliteMapModule.openInGoogleEarth();
     };
@@ -1842,10 +2686,12 @@
     window.SatelliteMapModule = SatelliteMapModule;
 
     // DOM hazır olduğunda modal yapısını kur
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', () => SatelliteMapModule.ensureModalDOM());
-    } else {
-        SatelliteMapModule.ensureModalDOM();
+    if (typeof document !== 'undefined') {
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => SatelliteMapModule.ensureModalDOM());
+        } else {
+            SatelliteMapModule.ensureModalDOM();
+        }
     }
 
 })(window);

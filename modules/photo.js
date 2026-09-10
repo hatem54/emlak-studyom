@@ -13,6 +13,10 @@
  * - ui/element.js vb.
  */
 
+if (typeof window.$ === 'undefined') {
+    window.$ = id => document.getElementById(id);
+}
+
 function enablePhotoDrag(el){
     let dragging=false,startX,startY,startPX,startPY;
     let lastTap = 0;
@@ -196,47 +200,208 @@ function resetPhotoPos(){
     if (typeof redrawAll === 'function') redrawAll();
 }
 
+window.getWebGLPhotoOptions = function() {
+    const getVal = (id, def = 0) => {
+        const el = document.getElementById(id);
+        return el ? parseFloat(el.value) : def;
+    };
+
+    // 1. Temel Işık (Pozlama, Kontrast, HDR Highlights & Shadows, Whites, Blacks)
+    const expRaw = getVal('exposure', 100);
+    // 100% -> 0 EV, 0% -> -2 EV, 200% -> +1.5 EV, 300% -> +3 EV
+    const exposure = (expRaw - 100) / 100.0 * 1.5;
+    
+    const conRaw = getVal('contrast', 100);
+    // 100% -> 0.0, 0% -> -0.8, 200% -> +0.8, 300% -> +1.5
+    const contrast = (conRaw - 100) / 100.0 * 0.8;
+    
+    const highlights = getVal('highlightsCtrl', 0) / 100.0;
+    const shadows = getVal('shadowsCtrl', 0) / 100.0;
+    const blacks = getVal('blacksCtrl', 0) / 100.0;
+    const whites = getVal('whitesCtrl', 0) / 100.0;
+
+    // 2. Renk ve Beyaz Dengesi
+    const temp = getVal('tempCtrl', 0) / 100.0;
+    const tint = getVal('tintCtrl', 0) / 100.0;
+    const satRaw = getVal('saturate', 100);
+    const saturate = satRaw / 100.0;
+    const vibrance = getVal('vibranceCtrl', 0) / 100.0;
+
+    // 3. Detay & Efektler
+    const sharpness = getVal('sharpnessCtrl', 0) / 100.0;
+    const isAiEnhanceEnabled = !!window._photoAiEnabled;
+    const aiSlider = document.getElementById('aiPhotoEnhanceSlider');
+    const aiSharpen = isAiEnhanceEnabled ? ((aiSlider ? parseFloat(aiSlider.value) : 35) / 100.0) : 0.0;
+    const clarity = getVal('clarityCtrl', 0) / 100.0;
+    const dehaze = getVal('dehazeCtrl', 0) / 100.0;
+    const sepia = getVal('sepia', 0) / 100.0;
+    const grayscale = getVal('grayscale', 0) / 100.0;
+    const invert = getVal('invertCtrl', 0) / 100.0;
+    const vignette = getVal('vignette', 0) / 100.0;
+    const hueRaw = getVal('hueRotate', 0); // -180 .. +180
+    const hueRotate = hueRaw / 360.0; // -0.5 .. +0.5
+    const blur = getVal('fblur', 0); // 0 .. 50 px
+
+    // 4. 8-Kanal Emlak HSL
+    // Renk sırası: Red(0), Orange(1), Yellow(2), Green(3), Aqua(4), Blue(5), Purple(6), Magenta(7)
+    const hslColors = ['red', 'orange', 'yellow', 'green', 'aqua', 'blue', 'purple', 'magenta'];
+    const hslHue = new Float32Array(8);
+    const hslSat = new Float32Array(8);
+    const hslLum = new Float32Array(8);
+
+    hslColors.forEach((color, idx) => {
+        const hEl = document.querySelector('.hsl-slider[data-color="' + color + '"][data-type="h"]');
+        const sEl = document.querySelector('.hsl-slider[data-color="' + color + '"][data-type="s"]');
+        const lEl = document.querySelector('.hsl-slider[data-color="' + color + '"][data-type="l"]');
+        hslHue[idx] = hEl ? (parseFloat(hEl.value) / 100.0) : 0.0;
+        hslSat[idx] = sEl ? (parseFloat(sEl.value) / 100.0) : 0.0;
+        hslLum[idx] = lEl ? (parseFloat(lEl.value) / 100.0) : 0.0;
+    });
+
+    // 5. Mimari Keystone & Geometri
+    const vKeystone = getVal('keystoneV', 0) / 100.0;
+    const hKeystone = getVal('keystoneH', 0) / 100.0;
+    const rotate = getVal('keystoneRotate', 0);
+    const aspect = getVal('keystoneAspect', 0) / 100.0;
+    const zoom = getVal('keystoneZoom', 100) / 100.0;
+
+    // 6. Yerel Maskeler
+    const pmm = window.PhotoMasksManager;
+    const radialMask = pmm ? pmm.radial : {};
+    const linearMask = pmm ? pmm.linear : {};
+    const radialMasks = pmm && typeof pmm.getActiveRadialMasks === 'function' ? pmm.getActiveRadialMasks() : (radialMask.active ? [radialMask] : []);
+    const linearMasks = pmm && typeof pmm.getActiveLinearMasks === 'function' ? pmm.getActiveLinearMasks() : (linearMask.active ? [linearMask] : []);
+    const aiMasks = pmm && typeof pmm.getActiveAiMasks === 'function' ? pmm.getActiveAiMasks() : [];
+    const aiMaskCanvas = pmm && typeof pmm.getCompositeAiCanvas === 'function' ? pmm.getCompositeAiCanvas() : null;
+    const aiMaskBuffer = pmm && typeof pmm.getCompositeAiBuffer === 'function' ? pmm.getCompositeAiBuffer() : null;
+
+    const showMaskOverlay = pmm ? (pmm.showOverlay !== undefined ? pmm.showOverlay : true) : true;
+    const showRadialOverlay = pmm ? (radialMask.showOverlay !== undefined ? radialMask.showOverlay : (!!showMaskOverlay && pmm.activeMaskType === 'radial')) : true;
+    const showLinearOverlay = pmm ? (linearMask.showOverlay !== undefined ? linearMask.showOverlay : (!!showMaskOverlay && pmm.activeMaskType === 'linear')) : true;
+    const activeMaskType = pmm ? (pmm.activeTool || pmm.activeMaskType) : null;
+
+    return {
+        exposure,
+        contrast,
+        highlights,
+        shadows,
+        blacks,
+        whites,
+        temp,
+        tint,
+        saturate,
+        vibrance,
+        sharpness,
+        aiSharpen,
+        isAiEnhanceEnabled,
+        clarity,
+        dehaze,
+        sepia,
+        grayscale,
+        invert,
+        vignette,
+        hueRotate,
+        blur,
+        hslHue,
+        hslSat,
+        hslLum,
+        vKeystone,
+        hKeystone,
+        rotate,
+        aspect,
+        zoom,
+        radialMask,
+        linearMask,
+        radialMasks,
+        linearMasks,
+        aiMasks,
+        aiMaskCanvas,
+        aiMaskBuffer,
+        showMaskOverlay,
+        showRadialOverlay,
+        showLinearOverlay,
+        activeMaskType
+    };
+};
+
+window.getPhotoFilterOptions = window.getWebGLPhotoOptions;
+
+let _photoRenderRaf = null;
+function requestPhotoRepaint() {
+    if (_photoRenderRaf) return;
+    _photoRenderRaf = requestAnimationFrame(() => {
+        _photoRenderRaf = null;
+        const pl = document.getElementById('photo-layer');
+        if (pl && typeof _applyPhotoTransform === 'function') _applyPhotoTransform(pl);
+        document.querySelectorAll('.photo-panel').forEach(p => {
+            if (typeof _applyPhotoTransform === 'function') _applyPhotoTransform(p);
+        });
+    });
+}
+
 function applyPhotoFilters(){
-    if(typeof isShowingBefore !== 'undefined' && isShowingBefore) { toggleBeforeAfter(); }
+    if(typeof isShowingBefore !== 'undefined' && isShowingBefore) { 
+        if(typeof setOriginalView === 'function') setOriginalView(false); 
+    }
     const exp=+$('exposure').value,con=+$('contrast').value,sat=+$('saturate').value;
     const blur=+$('fblur').value,sep=+$('sepia').value,hue=+$('hueRotate').value;
     const gray=+$('grayscale').value,inv=+$('invertCtrl').value,temp=+$('tempCtrl').value;
     const tint=+$('tintCtrl').value,vib=+$('vibranceCtrl').value;
     const sharp=+$('sharpnessCtrl').value,clarity=+$('clarityCtrl').value,dehaze=+$('dehazeCtrl').value;
-    let effectiveSat=sat+vib*0.5;
-    let effectiveContrast=con+clarity*0.4+dehaze*0.3;
-    let effectiveBrightness=exp+dehaze*0.15;
-    let effectiveHue=hue+temp*0.3-tint*0.3;
-    let filter='brightness('+effectiveBrightness+'%) contrast('+effectiveContrast+'%) saturate('+effectiveSat+'%) blur('+blur+'px) sepia('+sep+'%) hue-rotate('+effectiveHue+'deg) grayscale('+gray+'%) invert('+inv+'%)';
-    if(sharp>0)filter+=' drop-shadow(0 0 0.5px rgba(0,0,0,'+(sharp/200)+'))';
-    photoLayer.style.filter=filter;
-    document.querySelectorAll('.photo-panel').forEach(p=>p.style.filter=filter);
+    const hl = $('highlightsCtrl') ? +$('highlightsCtrl').value : 0;
+    const sh = $('shadowsCtrl') ? +$('shadowsCtrl').value : 0;
+    const wh = $('whitesCtrl') ? +$('whitesCtrl').value : 0;
+    const bl = $('blacksCtrl') ? +$('blacksCtrl').value : 0;
     
-    // Zoom Canvas Repaint Tetikleyicisi (Tarayıcı GPU hatasını aşmak için)
-    const activeZoomCanvas = document.querySelector('.photo-render-canvas');
-    if (activeZoomCanvas) {
-        activeZoomCanvas.style.opacity = '0.99';
-        requestAnimationFrame(() => {
-            activeZoomCanvas.style.opacity = '1';
-        });
-    }
-    $('exposureVal').textContent=exp+'%';
-    $('contrastVal').textContent=con+'%';
-    $('saturateVal').textContent=sat+'%';
-    $('fblurVal').textContent=blur+'px';
-    $('sepiaVal').textContent=sep+'%';
-    $('hueRotateVal').textContent=hue+'°';
-    $('grayscaleVal').textContent=gray+'%';
-    $('invertVal').textContent=inv+'%';
-    $('tempVal').textContent=temp;
-    $('tintVal').textContent=tint;
-    $('vibranceVal').textContent=vib;
-    $('sharpnessVal').textContent=sharp;
-    $('clarityVal').textContent=clarity;
-    $('dehazeVal').textContent=dehaze;
+    // UI Label güncellemeleri
+    if($('exposureVal')) $('exposureVal').textContent=exp+'%';
+    if($('contrastVal')) $('contrastVal').textContent=con+'%';
+    if($('highlightsVal')) $('highlightsVal').textContent=hl;
+    if($('shadowsVal')) $('shadowsVal').textContent=sh;
+    if($('whitesVal')) $('whitesVal').textContent=wh;
+    if($('blacksVal')) $('blacksVal').textContent=bl;
+    if($('saturateVal')) $('saturateVal').textContent=sat+'%';
+    if($('fblurVal')) $('fblurVal').textContent=blur+'px';
+    if($('sepiaVal')) $('sepiaVal').textContent=sep+'%';
+    if($('hueRotateVal')) $('hueRotateVal').textContent=hue+'°';
+    if($('grayscaleVal')) $('grayscaleVal').textContent=gray+'%';
+    if($('invertVal')) $('invertVal').textContent=inv+'%';
+    if($('tempVal')) $('tempVal').textContent=temp;
+    if($('tintVal')) $('tintVal').textContent=tint;
+    if($('vibranceVal')) $('vibranceVal').textContent=vib;
+    if($('sharpnessVal')) $('sharpnessVal').textContent=sharp;
+    if($('clarityVal')) $('clarityVal').textContent=clarity;
+    if($('dehazeVal')) $('dehazeVal').textContent=dehaze;
+    
     const v=$('vignette').value;
-    vignetteLayer.style.opacity=v/100;
-    $('vignetteVal').textContent=v+'%';
+    if(typeof vignetteLayer !== 'undefined' && vignetteLayer) vignetteLayer.style.opacity=v/100;
+    if($('vignetteVal')) $('vignetteVal').textContent=v+'%';
+    
+    // Keystone etiketleri (varsa)
+    if($('keystoneVVal')) $('keystoneVVal').textContent = ($('keystoneV') ? $('keystoneV').value : 0) + '°';
+    if($('keystoneHVal')) $('keystoneHVal').textContent = ($('keystoneH') ? $('keystoneH').value : 0) + '°';
+    if($('keystoneRotateVal')) $('keystoneRotateVal').textContent = ($('keystoneRotate') ? $('keystoneRotate').value : 0) + '°';
+    if($('keystoneAspectVal')) $('keystoneAspectVal').textContent = ($('keystoneAspect') ? $('keystoneAspect').value : 0);
+    if($('keystoneZoomVal')) $('keystoneZoomVal').textContent = ($('keystoneZoom') ? $('keystoneZoom').value : 100) + '%';
+    
+    if (window.WebGLPhotoEngine && window.WebGLPhotoEngine.initialized) {
+        // WebGL devredeyken DOM filter'ı temizle (çift filtreleme ve bulanıklığı önle)
+        if (typeof photoLayer !== 'undefined' && photoLayer) photoLayer.style.filter = 'none';
+        document.querySelectorAll('.photo-panel').forEach(p => p.style.filter = 'none');
+        
+        // Canvas'ı GPU motoru ile yeniden çiz
+        requestPhotoRepaint();
+    } else {
+        // WebGL desteklenmiyorsa eski CSS filtresi yedeği
+        let effectiveSat=sat+vib*0.5;
+        let effectiveContrast=con+clarity*0.4+dehaze*0.3;
+        let effectiveBrightness=exp+dehaze*0.15;
+        let effectiveHue=hue+temp*0.3-tint*0.3;
+        let filter='brightness('+effectiveBrightness+'%) contrast('+effectiveContrast+'%) saturate('+effectiveSat+'%) blur('+blur+'px) sepia('+sep+'%) hue-rotate('+effectiveHue+'deg) grayscale('+gray+'%) invert('+inv+'%)';
+        if(sharp>0)filter+=' drop-shadow(0 0 0.5px rgba(0,0,0,'+(sharp/200)+'))';
+        if (typeof photoLayer !== 'undefined' && photoLayer) photoLayer.style.filter=filter;
+        document.querySelectorAll('.photo-panel').forEach(p=>p.style.filter=filter);
+    }
 }
 
 function resetFilters(){
@@ -246,10 +411,27 @@ function resetFilters(){
         const valSpan = document.getElementById('hsl_'+s.dataset.type+'_'+s.dataset.color+'Val');
         if(valSpan) valSpan.textContent = '0';
     });
+    
+    // Ton Eğrisini Sıfırla
+    if (window.PhotoCurvesManager && typeof window.PhotoCurvesManager.resetAllChannels === 'function') {
+        window.PhotoCurvesManager.resetAllChannels();
+    }
+    
+    // Maskeleri Sıfırla
+    if (window.PhotoMasksManager) {
+        window.PhotoMasksManager.toggleRadial(false);
+        window.PhotoMasksManager.toggleLinear(false);
+        window.PhotoMasksManager.toggleOverlay(false);
+    }
+
+    // AI Netleştirmeyi Kapat
+    if (typeof window.togglePhotoAiEnhance === 'function' && window._photoAiEnabled) {
+        window.togglePhotoAiEnhance(false);
+    }
+
     if(typeof processHSL === 'function') processHSL();
     applyPhotoFilters();
     if(typeof applyShadowHighlight === 'function') applyShadowHighlight();
-
 }
 
 function applyPreset(name){
@@ -259,9 +441,9 @@ function applyPreset(name){
     Object.keys(FILTER_DEFAULTS).forEach(id=>{if(document.getElementById(id))document.getElementById(id).value=FILTER_DEFAULTS[id]});
     Object.keys(p).forEach(k=>{if(document.getElementById(k))document.getElementById(k).value=p[k]});
     
-    // CSS filtreleri (brightness/contrast/sat) anında uygula
+    // CSS filtreleri / WebGL anında uygula
     if(typeof applyPhotoFilters === 'function') applyPhotoFilters();
-    // Piksel motoru (gölge/highlight) senkron çalıştır
+    // Piksel motoru senkron çalıştır
     if(typeof processPixels === 'function') processPixels(true);
 }
 
@@ -452,12 +634,40 @@ function _drawToNativeCanvas(el, inner, canvas, scale, panX, panY, sliderX, slid
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = 'high';
     
-    let filter = inner.style.filter || el.style.filter;
-    if (filter && filter !== 'none' && window.isExportingNow) {
-        ctx.filter = filter;
+    let imageDrawn = false;
+    if (window.isShowingBefore) {
+        // Öncesi / Sonrası Orijinal Görünümü: Ham, filtrelenmemiş saf görseli çiz
+        ctx.filter = 'none';
+        ctx.drawImage(img, baseX, baseY, drawW, drawH);
+        imageDrawn = true;
+    } else if (window.WebGLPhotoEngine && window.WebGLPhotoEngine.initialized && typeof window.getWebGLPhotoOptions === 'function') {
+        try {
+            const opts = window.getWebGLPhotoOptions();
+            window.WebGLPhotoEngine.uploadImage(img);
+            const glCanvas = window.WebGLPhotoEngine.render(drawW, drawH, opts);
+            if (glCanvas) {
+                if (opts.blur && opts.blur > 0) {
+                    ctx.filter = 'blur(' + opts.blur + 'px)';
+                } else {
+                    ctx.filter = 'none';
+                }
+                ctx.drawImage(glCanvas, baseX, baseY, drawW, drawH);
+                ctx.filter = 'none';
+                imageDrawn = true;
+            }
+        } catch(err) {
+            console.warn('WebGL render hatası, 2D fallback yapılıyor:', err);
+            imageDrawn = false;
+        }
     }
     
-    ctx.drawImage(img, baseX, baseY, drawW, drawH);
+    if (!imageDrawn) {
+        let filter = inner.style.filter || el.style.filter;
+        if (filter && filter !== 'none' && window.isExportingNow) {
+            ctx.filter = filter;
+        }
+        ctx.drawImage(img, baseX, baseY, drawW, drawH);
+    }
     ctx.restore();
 }
 

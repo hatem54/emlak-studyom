@@ -3672,6 +3672,8 @@ body.photo-unlocked .draw-handle {
 
 .smart-badge-pill {
     background: transparent !important;
+    border: 1px solid rgba(56, 189, 248, 0.45);
+    color: #7dd3fc;
 }
 
 .smart-badge-pill.modern {
@@ -3712,6 +3714,16 @@ body.photo-unlocked .draw-handle {
 .smart-badge-pill.blue:hover {
     border-color: #38bdf8;
     box-shadow: 0 4px 14px rgba(56, 189, 248, 0.2);
+}
+
+.smart-badge-pill.purple {
+    background: transparent !important;
+    border: 1px solid rgba(168, 85, 247, 0.5);
+    color: #d8b4fe;
+}
+.smart-badge-pill.purple:hover {
+    border-color: #c084fc;
+    box-shadow: 0 4px 14px rgba(168, 85, 247, 0.2);
 }
 
 .smart-badge-pill.rose {
@@ -3763,6 +3775,15 @@ body.photo-unlocked .draw-handle {
     filter: brightness(1.2);
 }
 .smart-outline-action-btn {
+    padding: 6px 0;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
     transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
     outline: none;
 }
@@ -5121,6 +5142,10 @@ body[data-theme="light"] .smart-badge-pill.blue {
     color: #1d4ed8 !important;
     border-color: #3b82f6 !important;
 }
+body[data-theme="light"] .smart-badge-pill.purple {
+    color: #6b21a8 !important;
+    border-color: #9333ea !important;
+}
 body[data-theme="light"] .smart-icon-btn {
     background: transparent !important;
     border-color: #cbd5e1 !important;
@@ -5318,6 +5343,8 @@ body[data-theme="light"] .smart-badge-pill,
 html[data-theme="light"] .smart-badge-pill {
     background: transparent !important;
     font-weight: 700 !important;
+    border: 1.5px solid #0284c7 !important;
+    color: #0369a1 !important;
 }
 body[data-theme="light"] .smart-badge-pill.gold,
 html[data-theme="light"] .smart-badge-pill.gold {
@@ -5338,6 +5365,11 @@ body[data-theme="light"] .smart-badge-pill.blue,
 html[data-theme="light"] .smart-badge-pill.blue {
     color: #1e40af !important;
     border: 1.5px solid #2563eb !important;
+}
+body[data-theme="light"] .smart-badge-pill.purple,
+html[data-theme="light"] .smart-badge-pill.purple {
+    color: #6b21a8 !important;
+    border: 1.5px solid #9333ea !important;
 }
 body[data-theme="light"] .smart-badge-pill.rose,
 html[data-theme="light"] .smart-badge-pill.rose {
@@ -5797,10 +5829,10 @@ body[data-theme="dark"] .desc-toggle-item.active {
 }
 
 .sat-modal-container {
-    width: 98vw;
-    max-width: 1550px;
-    height: 95vh;
-    max-height: 960px;
+    width: auto;
+    max-width: 98vw;
+    height: auto;
+    max-height: 96vh;
     background: #0f172a;
     border: 1px solid #334155;
     border-radius: 14px;
@@ -5999,34 +6031,42 @@ body[data-theme="dark"] .desc-toggle-item.active {
 }
 
 .sat-controls-bar {
-    padding: 8px 16px;
+    padding: 6px 14px;
     background: #0f172a;
     border-bottom: 1px solid #334155;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    flex-wrap: wrap;
-    gap: 10px;
+    flex-wrap: nowrap;
+    overflow-x: hidden;
+    overflow-y: hidden;
+    gap: 8px;
+    scrollbar-width: none;
+    flex-shrink: 0;
 }
 
 .sat-ctrl-group {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
+    flex-shrink: 0;
 }
 
 .sat-ctrl-label {
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 600;
     color: #94a3b8;
+    display: flex;
+    align-items: center;
+    gap: 4px;
 }
 
 .sat-layer-btns {
     display: flex;
-    gap: 4px;
+    gap: 3px;
     background: #1e293b;
     padding: 3px;
-    border-radius: 8px;
+    border-radius: 7px;
     border: 1px solid #334155;
 }
 
@@ -6034,12 +6074,16 @@ body[data-theme="dark"] .desc-toggle-item.active {
     background: transparent;
     border: none;
     color: #94a3b8;
-    font-size: 11.5px;
+    font-size: 11px;
     font-weight: 600;
-    padding: 5px 10px;
-    border-radius: 6px;
+    padding: 4px 10px;
+    border-radius: 5px;
     cursor: pointer;
     transition: all 0.2s;
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
 }
 
 .sat-layer-btn.active {
@@ -6053,7 +6097,7 @@ body[data-theme="dark"] .desc-toggle-item.active {
     gap: 3px;
     background: #1e293b;
     padding: 3px;
-    border-radius: 8px;
+    border-radius: 7px;
     border: 1px solid #334155;
 }
 
@@ -6063,10 +6107,11 @@ body[data-theme="dark"] .desc-toggle-item.active {
     color: #94a3b8;
     font-size: 11px;
     font-weight: 700;
-    padding: 4px 8px;
-    border-radius: 6px;
+    padding: 3px 8px;
+    border-radius: 5px;
     cursor: pointer;
     transition: all 0.2s;
+    white-space: nowrap;
 }
 
 .sat-fmt-btn:hover {
@@ -6144,20 +6189,21 @@ body[data-theme="dark"] .desc-toggle-item.active {
     background: #1e293b;
     border: 1px solid #334155;
     color: #f8fafc;
-    font-size: 11.5px;
-    padding: 5px 8px;
+    font-size: 11px;
+    padding: 4px 7px;
     border-radius: 6px;
     outline: none;
     cursor: pointer;
+    max-width: 100px;
 }
 
 .sat-res-select {
     background: #1e293b;
     border: 1px solid #334155;
     color: #38bdf8;
-    font-size: 11.5px;
+    font-size: 11px;
     font-weight: 700;
-    padding: 5px 8px;
+    padding: 4px 8px;
     border-radius: 6px;
     outline: none;
     cursor: pointer;
@@ -6173,14 +6219,16 @@ body[data-theme="dark"] .desc-toggle-item.active {
     background: rgba(15, 23, 42, 0.8);
     border: 1px solid #334155;
     color: #94a3b8;
-    font-size: 11.5px;
+    font-size: 11px;
     font-weight: 600;
-    padding: 5px 12px;
-    border-radius: 8px;
+    padding: 4px 9px;
+    border-radius: 6px;
     cursor: pointer;
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: 5px;
+    flex-shrink: 0;
+    white-space: nowrap;
     transition: all 0.2s;
 }
 
@@ -6203,17 +6251,19 @@ body[data-theme="dark"] .desc-toggle-item.active {
     display: flex;
     align-items: center;
     gap: 6px;
+    flex-shrink: 0;
+    transition: opacity 0.2s ease, filter 0.2s ease;
 }
 
 .sat-marker-text-input {
     background: #1e293b;
     border: 1px solid #334155;
     color: #f8fafc;
-    font-size: 11.5px;
+    font-size: 11px;
     font-weight: 600;
-    padding: 5px 8px;
+    padding: 4px 8px;
     border-radius: 6px;
-    width: 140px;
+    width: 95px;
     outline: none;
     transition: border-color 0.2s;
 }
@@ -6227,14 +6277,16 @@ body[data-theme="dark"] .desc-toggle-item.active {
     background: rgba(15, 23, 42, 0.8);
     border: 1px solid #334155;
     color: #94a3b8;
-    font-size: 11.5px;
+    font-size: 11px;
     font-weight: 600;
-    padding: 5px 12px;
-    border-radius: 8px;
+    padding: 4px 9px;
+    border-radius: 6px;
     cursor: pointer;
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: 5px;
+    flex-shrink: 0;
+    white-space: nowrap;
     transition: all 0.2s;
 }
 
@@ -6266,8 +6318,8 @@ body[data-theme="dark"] .desc-toggle-item.active {
     flex: 1;
     min-height: 0;
     display: flex;
-    align-items: center;
-    justify-content: center;
+    align-items: stretch;
+    justify-content: stretch;
     background: #000000;
     overflow: hidden;
     padding: 0;
@@ -6437,24 +6489,30 @@ body[data-theme="dark"] .desc-toggle-item.active {
 /* ==================== CANLI İNTERAKTİF PİN OVERLAY (2D & 3D) ==================== */
 .sat-map-pin-overlay {
     position: absolute;
-    pointer-events: none;
+    pointer-events: auto;
     z-index: 50;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: flex-end;
     transition: none;
+    cursor: grab;
+    user-select: none;
+    touch-action: none;
+    overflow: visible !important;
+}
+
+.sat-map-pin-overlay:active,
+.sat-map-pin-overlay.is-dragging {
+    cursor: grabbing;
+    z-index: 100;
 }
 
 .sat-map-pin-overlay.pin-mode {
-    top: 50%;
-    left: 50%;
     transform: translate(-50%, -100%);
 }
 
 .sat-map-pin-overlay.radar-mode {
-    top: 50%;
-    left: 50%;
     transform: translate(-50%, -50%);
 }
 
@@ -6463,21 +6521,27 @@ body[data-theme="dark"] .desc-toggle-item.active {
     align-items: center;
     justify-content: center;
     filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.6));
-    animation: satPinBounce 2.4s ease-in-out infinite;
+    margin-bottom: 0;
+    position: relative;
+    pointer-events: none;
+    overflow: visible !important;
 }
 
-@keyframes satPinBounce {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-5px); }
+.sat-live-pin-svg svg {
+    overflow: visible !important;
 }
 
 .sat-pin-ground-shadow {
+    position: absolute;
+    bottom: -3px;
+    left: 50%;
+    transform: translateX(-50%);
     width: 24px;
     height: 6px;
     background: rgba(0, 0, 0, 0.45);
     border-radius: 50%;
     filter: blur(2px);
-    margin-top: -2px;
+    pointer-events: none;
 }
 
 .sat-live-pin-text {
@@ -6583,37 +6647,74 @@ body[data-theme="dark"] .desc-toggle-item.active {
 .sat-footer-left {
     display: flex;
     align-items: center;
-    gap: 14px;
-    flex-wrap: wrap;
+    gap: 6px;
+    flex-wrap: nowrap;
+    overflow-x: hidden;
+    overflow-y: hidden;
+    flex-shrink: 1;
 }
 
 .sat-footer-coords {
-    font-size: 11.5px;
-    color: #cbd5e1;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-}
-.sat-footer-coords b {
-    color: #38bdf8;
-}
-
-.sat-footer-hint {
     font-size: 11px;
     color: #94a3b8;
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 5px;
+    background: transparent;
+    border: none;
+    padding: 2px 4px;
+    flex-shrink: 0;
+    white-space: nowrap;
+    font-weight: 500;
+}
+.sat-footer-coords i {
+    color: #38bdf8;
+    font-size: 11px;
+}
+.sat-footer-coords b {
+    color: #f8fafc;
+    font-weight: 700;
+}
+
+.sat-footer-address {
+    display: none;
+    align-items: center;
+    gap: 4px;
+    background: rgba(2, 132, 199, 0.15);
+    border: 1px solid rgba(2, 132, 199, 0.45);
+    border-radius: 5px;
+    padding: 2px 6px;
+    font-size: 10px;
+    color: #38bdf8;
+    font-weight: 600;
+    max-width: 140px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex-shrink: 1;
+}
+.sat-footer-address i {
+    color: #38bdf8;
+    font-size: 10px;
+}
+
+.sat-footer-hint {
+    font-size: 10.5px;
+    color: #94a3b8;
+    display: flex;
+    align-items: center;
+    gap: 4px;
     background: rgba(15, 23, 42, 0.6);
-    padding: 3px 10px;
-    border-radius: 6px;
+    padding: 2px 6px;
+    border-radius: 5px;
     border: 1px solid #334155;
 }
 
 .sat-footer-ext {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 5px;
+    flex-shrink: 0;
 }
 
 .sat-ext-pill {
@@ -6629,6 +6730,8 @@ body[data-theme="dark"] .desc-toggle-item.active {
     align-items: center;
     gap: 5px;
     transition: all 0.15s;
+    flex-shrink: 0;
+    white-space: nowrap;
 }
 
 .sat-ext-pill:hover {
@@ -6647,46 +6750,54 @@ body[data-theme="dark"] .desc-toggle-item.active {
 .sat-ext-pill.capture:hover { border-color: #34d399; color: #6ee7b7; }
 
 .sat-modal-footer {
-    padding: 12px 16px;
+    padding: 7px 14px;
     background: #1e293b;
     border-top: 1px solid #334155;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     gap: 10px;
+    min-height: 44px;
+    box-sizing: border-box;
+    flex-shrink: 0;
+    overflow-x: hidden;
+    overflow-y: hidden;
 }
 
 .sat-footer-info {
     display: flex;
     align-items: center;
-    gap: 8px;
-    font-size: 11.5px;
+    gap: 6px;
+    font-size: 10.5px;
     color: #94a3b8;
-    max-width: 550px;
+    max-width: 450px;
+    flex-shrink: 1;
 }
 
 .sat-footer-info i {
     color: #10b981;
-    font-size: 14px;
+    font-size: 12px;
 }
 
 .sat-footer-actions {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
+    flex-shrink: 0;
 }
 
 .sat-btn-cancel {
     background: transparent;
     border: 1px solid #475569;
     color: #cbd5e1;
-    font-size: 12.5px;
+    font-size: 11px;
     font-weight: 600;
-    padding: 8px 16px;
-    border-radius: 8px;
+    padding: 5px 10px;
+    border-radius: 6px;
     cursor: pointer;
     transition: all 0.2s;
+    white-space: nowrap;
 }
 
 .sat-btn-cancel:hover {
@@ -6699,22 +6810,23 @@ body[data-theme="dark"] .desc-toggle-item.active {
     background: linear-gradient(135deg, #10b981, #059669);
     border: none;
     color: #ffffff;
-    font-size: 13.5px;
+    font-size: 11.5px;
     font-weight: 700;
-    padding: 9px 20px;
-    border-radius: 8px;
+    padding: 6px 14px;
+    border-radius: 6px;
     cursor: pointer;
-    box-shadow: 0 4px 16px rgba(16, 185, 129, 0.35);
+    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.35);
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     transition: all 0.2s;
+    white-space: nowrap;
 }
 
 .sat-btn-capture:hover {
     background: linear-gradient(135deg, #059669, #047857);
     transform: translateY(-1px);
-    box-shadow: 0 6px 20px rgba(16, 185, 129, 0.45);
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.45);
 }
 
 .sat-btn-capture:active {
@@ -6722,16 +6834,37 @@ body[data-theme="dark"] .desc-toggle-item.active {
 }
 
 /* Google Maps JavaScript API Alpha / Geliştirici Uyarısını Gizle */
-body > div[style*="position: fixed"][style*="top: 0"]:not(#satelliteMapModal):not(#initialAppLoader),
-body > div[style*="position:fixed"][style*="top:0"]:not(#satelliteMapModal):not(#initialAppLoader),
-body > div[style*="position: fixed"][style*="top: 0px"]:not(#satelliteMapModal):not(#initialAppLoader),
-body > div[style*="position:fixed"][style*="top:0px"]:not(#satelliteMapModal):not(#initialAppLoader) {
+body > div[style*="position: fixed"][style*="top: 0"]:not(#satelliteMapModal):not(#initialAppLoader):not(#omniSearchModal):not(#recentToolsModal):not(.omni-modal):not(.modal-overlay),
+body > div[style*="position:fixed"][style*="top:0"]:not(#satelliteMapModal):not(#initialAppLoader):not(#omniSearchModal):not(#recentToolsModal):not(.omni-modal):not(.modal-overlay),
+body > div[style*="position: fixed"][style*="top: 0px"]:not(#satelliteMapModal):not(#initialAppLoader):not(#omniSearchModal):not(#recentToolsModal):not(.omni-modal):not(.modal-overlay),
+body > div[style*="position:fixed"][style*="top:0px"]:not(#satelliteMapModal):not(#initialAppLoader):not(#omniSearchModal):not(#recentToolsModal):not(.omni-modal):not(.modal-overlay) {
     display: none !important;
     visibility: hidden !important;
     pointer-events: none !important;
     height: 0 !important;
     overflow: hidden !important;
 }
+
+/* Omni Search & Recent Tools Modals */
+.omni-modal {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    background: rgba(0, 0, 0, 0.45) !important;
+    backdrop-filter: blur(3px) !important;
+    -webkit-backdrop-filter: blur(3px) !important;
+    z-index: 100000 !important;
+}
+.omni-modal.active {
+    display: flex !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+    height: 100vh !important;
+    opacity: 1 !important;
+}
+
 
 /* AÇIK TEMA UYUMLULUĞU (LIGHT THEME) - YÜKSEK KONTRAST & NETLİK */
 body[data-theme="light"] .sat-modal-container {
@@ -6949,14 +7082,29 @@ body[data-theme="light"] .sat-modal-footer {
 }
 
 body[data-theme="light"] .sat-footer-coords {
-    color: #334155;
-    font-weight: 600;
-    font-size: 12.5px;
+    background: transparent !important;
+    border: none !important;
+    color: #64748b;
+    font-weight: 500;
+    font-size: 11px;
+}
+
+body[data-theme="light"] .sat-footer-coords i {
+    color: #0284c7;
 }
 
 body[data-theme="light"] .sat-footer-coords b {
-    color: #0284c7;
-    font-weight: 800;
+    color: #0f172a;
+    font-weight: 700;
+}
+
+body[data-theme="light"] .sat-footer-address {
+    background: #e0f2fe !important;
+    border: 1.5px solid #0284c7 !important;
+    color: #0369a1 !important;
+}
+body[data-theme="light"] .sat-footer-address i {
+    color: #0284c7 !important;
 }
 
 body[data-theme="light"] .sat-ext-pill {
@@ -7010,39 +7158,2767 @@ body[data-theme="light"] .sat-btn-cancel:hover {
     border-color: #94a3b8;
 }
 
-/* Mobil Cihazlar */
+/* ==========================================================================
+   📱 MOBİLDE HARİTA VE DÜZENİ BOZAN YENİ ÖZELLİKLERİ DEVRE DIŞI BIRAK / GİZLE
+   ========================================================================== */
 @media (max-width: 768px) {
-    .sat-modal-overlay {
-        padding: 6px;
-    }
+    /* 1. Uydu Haritası Butonu ve Modalı Mobilde Tamamen Kapalı */
+    #openSatelliteMapBtn,
+    .sat-map-launch-row,
+    #satelliteMapModal,
+    .sat-modal-overlay,
     .sat-modal-container {
-        height: 96vh;
-        max-height: none;
-        border-radius: 10px;
+        display: none !important;
+        pointer-events: none !important;
+        visibility: hidden !important;
+        opacity: 0 !important;
+        height: 0 !important;
+        width: 0 !important;
+        overflow: hidden !important;
     }
-    .sat-modal-header {
-        padding: 10px 14px;
+
+    /* 2. AI HD Netleştirici Modal ve Fotoğraf Sekmesi AI Kartı Mobilde Kapalı */
+    #aiEnhancerModal,
+    .ai-enh-modal-overlay,
+    .ai-enh-container,
+    .photo-ai-card {
+        display: none !important;
+        pointer-events: none !important;
+        visibility: hidden !important;
     }
-    .sat-header-title {
-        font-size: 14px;
-    }
-    .sat-header-sub {
-        display: none;
-    }
-    .sat-footer-info {
-        display: none;
-    }
-    .sat-modal-footer {
-        justify-content: flex-end;
-        padding: 10px 14px;
-    }
-    .sat-btn-capture {
-        width: 100%;
-        justify-content: center;
-    }
-    .sat-external-tools {
-        flex-direction: column;
-        align-items: flex-start;
+
+    /* 3. Seslendirme Stüdyosu Paneli ve Butonu Mobilde Gizlensin */
+    .smart-voiceover-tab,
+    #smartVoiceoverStudioPanel,
+    .voice-studio-panel {
+        display: none !important;
     }
 }
 
+/* ==========================================================================
+   🎙️ EMLAK REKLAM SESLENDİRME STÜDYOSU (VOICE STUDIO THEME STYLES)
+   ========================================================================== */
+.voice-studio-panel {
+    margin-top: 10px;
+    padding: 10px;
+    background: #0f172a;
+    border: 1px solid #334155;
+    border-radius: 8px;
+    transition: background-color 0.2s, border-color 0.2s;
+}
+
+.voice-studio-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    padding-bottom: 6px;
+}
+
+.voice-studio-title {
+    font-size: 11px;
+    font-weight: 700;
+    color: #38bdf8;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.voice-studio-quota {
+    font-size: 10.5px;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 12px;
+    background: rgba(16, 185, 129, 0.15);
+    border: 1px solid rgba(16, 185, 129, 0.35);
+    color: #cbd5e1;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+.voice-studio-quota .voice-quota-val {
+    color: #34d399;
+    font-weight: 800;
+}
+.voice-studio-quota .voice-quota-free {
+    color: #34d399;
+    font-weight: 700;
+}
+
+.voice-studio-ai-box {
+    margin-bottom: 8px;
+    padding: 8px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 6px;
+}
+
+.voice-studio-quick-btn {
+    font-size: 10px;
+    font-weight: 600;
+    padding: 3px 7px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.voice-studio-quick-btn.kisa {
+    background: rgba(168, 85, 247, 0.15);
+    border: 1px solid rgba(168, 85, 247, 0.3);
+    color: #e9d5ff;
+}
+
+.voice-studio-quick-btn.vurgu {
+    background: rgba(245, 158, 11, 0.15);
+    border: 1px solid rgba(245, 158, 11, 0.3);
+    color: #fef08a;
+}
+
+.voice-studio-quick-btn.luks {
+    background: rgba(56, 189, 248, 0.15);
+    border: 1px solid rgba(56, 189, 248, 0.3);
+    color: #bae6fd;
+}
+
+.voice-studio-quick-btn.yatirim {
+    background: rgba(16, 185, 129, 0.15);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    color: #a7f3d0;
+}
+
+.voice-studio-input {
+    flex: 1;
+    background: #1e293b;
+    border: 1px solid #334155;
+    color: #f8fafc;
+    font-size: 10.5px;
+    padding: 5px 8px;
+    border-radius: 4px;
+    outline: none;
+    transition: border-color 0.15s, background-color 0.15s;
+}
+
+.voice-studio-input:focus {
+    border-color: #a855f7;
+}
+
+.voice-studio-btn-refine {
+    background: #7c3aed;
+    border: none;
+    color: #ffffff;
+    font-size: 10.5px;
+    font-weight: 700;
+    padding: 5px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    transition: background 0.15s;
+}
+
+.voice-studio-btn-refine:hover {
+    background: #6d28d9;
+}
+
+.voice-studio-select {
+    background: #1e293b;
+    border: 1px solid #475569;
+    color: #f8fafc;
+    font-size: 11px;
+    padding: 5px 8px;
+    border-radius: 6px;
+    outline: none;
+    cursor: pointer;
+    transition: border-color 0.15s;
+}
+
+.voice-studio-btn-gear {
+    background: #1e293b;
+    border: 1px solid #475569;
+    color: #94a3b8;
+    font-size: 11px;
+    padding: 5px 8px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.voice-studio-btn-play {
+    flex: 1.4;
+    background: linear-gradient(135deg, #10b981, #059669);
+    border: none;
+    color: #ffffff;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 7px 0;
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: opacity 0.15s, transform 0.1s;
+}
+
+.voice-studio-btn-play:hover {
+    opacity: 0.95;
+}
+
+.voice-studio-btn-stop {
+    display: none;
+    background: #ef4444;
+    border: none;
+    color: #ffffff;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 7px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    align-items: center;
+    gap: 4px;
+}
+
+.voice-studio-btn-download {
+    flex: 1;
+    background: #1e293b;
+    border: 1.5px solid #475569;
+    color: #94a3b8;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 7px 0;
+    border-radius: 6px;
+    cursor: not-allowed;
+    opacity: 0.75;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: all 0.2s;
+}
+
+.voice-studio-btn-download:not([disabled]):not(.disabled) {
+    background: #0284c7;
+    border-color: #38bdf8;
+    color: #ffffff;
+    cursor: pointer;
+    opacity: 1;
+    box-shadow: 0 2px 8px rgba(2, 132, 199, 0.35);
+}
+
+.voice-studio-status {
+    display: none;
+    font-size: 10.5px;
+    line-height: 1.4;
+    margin-top: 6px;
+    padding: 4px 6px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 4px;
+}
+
+/* Aksiyon butonları (Kopyala / Aktar / Yeniden Tara) */
+.smart-copy-btn {
+    flex: 1;
+    border: 1.5px solid #6366f1;
+    background: rgba(99, 102, 241, 0.15);
+    color: #c7d2fe;
+}
+.smart-apply-btn {
+    flex: 1;
+    border: 1.5px solid #10b981;
+    background: rgba(16, 185, 129, 0.15);
+    color: #a7f3d0;
+}
+.smart-rescan-btn {
+    flex: 0.95;
+    border: 1.5px solid #0284c7;
+    background: rgba(2, 132, 199, 0.2);
+    color: #7dd3fc;
+}
+
+/* ==========================================================================
+   AÇIK TEMA UYUMLULUĞU (LIGHT THEME OVERRIDES)
+   ========================================================================== */
+body[data-theme="light"] .voice-studio-panel {
+    background: #ffffff !important;
+    border: 1.5px solid #94a3b8 !important;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05) !important;
+}
+
+body[data-theme="light"] .voice-studio-header {
+    border-bottom: 1.5px solid #e2e8f0 !important;
+}
+
+body[data-theme="light"] .voice-studio-title {
+    color: #0369a1 !important;
+    font-weight: 800 !important;
+}
+
+body[data-theme="light"] .voice-studio-quota {
+    background: #ecfdf5 !important;
+    border: 1.5px solid #059669 !important;
+    color: #064e3b !important;
+    font-weight: 700 !important;
+    box-shadow: 0 1px 3px rgba(5, 150, 105, 0.12) !important;
+}
+body[data-theme="light"] .voice-studio-quota .voice-quota-val {
+    color: #047857 !important;
+    font-weight: 900 !important;
+}
+body[data-theme="light"] .voice-studio-quota .voice-quota-free {
+    color: #047857 !important;
+    font-weight: 800 !important;
+}
+
+body[data-theme="light"] .voice-studio-ai-box {
+    background: #f8fafc !important;
+    border: 1.5px solid #94a3b8 !important;
+}
+
+body[data-theme="light"] .voice-studio-quick-btn.kisa {
+    background: #f5f3ff !important;
+    border: 1.5px solid #7c3aed !important;
+    color: #581c87 !important;
+    font-weight: 700 !important;
+}
+
+body[data-theme="light"] .voice-studio-quick-btn.vurgu {
+    background: #fffbeb !important;
+    border: 1.5px solid #d97706 !important;
+    color: #78350f !important;
+    font-weight: 700 !important;
+}
+
+body[data-theme="light"] .voice-studio-quick-btn.luks {
+    background: #f0f9ff !important;
+    border: 1.5px solid #0284c7 !important;
+    color: #075985 !important;
+    font-weight: 700 !important;
+}
+
+body[data-theme="light"] .voice-studio-quick-btn.yatirim {
+    background: #f0fdf4 !important;
+    border: 1.5px solid #16a34a !important;
+    color: #14532d !important;
+    font-weight: 700 !important;
+}
+
+body[data-theme="light"] .voice-studio-input {
+    background: #ffffff !important;
+    border: 1.5px solid #64748b !important;
+    color: #0f172a !important;
+    font-weight: 600 !important;
+}
+
+body[data-theme="light"] .voice-studio-input::placeholder {
+    color: #64748b !important;
+}
+
+body[data-theme="light"] .voice-studio-input:focus {
+    border-color: #7c3aed !important;
+    box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.15) !important;
+}
+
+body[data-theme="light"] .voice-studio-btn-refine {
+    background: #7c3aed !important;
+    border: 1.5px solid #6d28d9 !important;
+    color: #ffffff !important;
+    font-weight: 800 !important;
+}
+
+body[data-theme="light"] .voice-studio-select {
+    background: #ffffff !important;
+    border: 1.5px solid #64748b !important;
+    color: #0f172a !important;
+    font-weight: 600 !important;
+}
+
+body[data-theme="light"] .voice-studio-btn-gear {
+    background: #ffffff !important;
+    border: 1.5px solid #64748b !important;
+    color: #1e293b !important;
+}
+
+body[data-theme="light"] .voice-studio-btn-gear:hover {
+    background: #f1f5f9 !important;
+    border-color: #334155 !important;
+}
+
+body[data-theme="light"] .voice-studio-btn-play {
+    background: linear-gradient(135deg, #059669, #047857) !important;
+    border: 1.5px solid #047857 !important;
+    color: #ffffff !important;
+    font-weight: 800 !important;
+    box-shadow: 0 2px 6px rgba(5, 150, 105, 0.25) !important;
+}
+
+body[data-theme="light"] .voice-studio-btn-play:hover {
+    filter: brightness(1.05);
+}
+
+body[data-theme="light"] .voice-studio-btn-stop {
+    background: #dc2626 !important;
+    border: 1.5px solid #b91c1c !important;
+    color: #ffffff !important;
+    font-weight: 800 !important;
+}
+
+body[data-theme="light"] .voice-studio-btn-download[disabled],
+body[data-theme="light"] .voice-studio-btn-download.disabled {
+    background: #f1f5f9 !important;
+    border: 1.5px solid #64748b !important;
+    color: #475569 !important;
+    font-weight: 700 !important;
+    opacity: 0.85 !important;
+    cursor: not-allowed !important;
+}
+
+body[data-theme="light"] .voice-studio-btn-download:not(.disabled):not([disabled]) {
+    background: #0284c7 !important;
+    border: 1.5px solid #0369a1 !important;
+    color: #ffffff !important;
+    font-weight: 800 !important;
+    opacity: 1 !important;
+    cursor: pointer !important;
+    box-shadow: 0 2px 8px rgba(2, 132, 199, 0.3) !important;
+}
+
+body[data-theme="light"] .voice-studio-btn-download:not(.disabled):not([disabled]):hover {
+    background: #0369a1 !important;
+}
+
+body[data-theme="light"] .voice-studio-status {
+    background: #f1f5f9 !important;
+    border: 1.5px solid #cbd5e1 !important;
+    color: #1e293b !important;
+}
+
+body[data-theme="light"] .smart-desc-area {
+    background: #ffffff !important;
+    border: 1.5px solid #64748b !important;
+    color: #0f172a !important;
+}
+
+body[data-theme="light"] .smart-copy-btn {
+    background: #eef2ff !important;
+    border: 1.5px solid #4f46e5 !important;
+    color: #312e81 !important;
+    font-weight: 800 !important;
+}
+body[data-theme="light"] .smart-copy-btn:hover {
+    background: #e0e7ff !important;
+}
+
+body[data-theme="light"] .smart-apply-btn {
+    background: #ecfdf5 !important;
+    border: 1.5px solid #059669 !important;
+    color: #064e3b !important;
+    font-weight: 800 !important;
+}
+body[data-theme="light"] .smart-apply-btn:hover {
+    background: #d1fae5 !important;
+}
+
+body[data-theme="light"] .smart-rescan-btn {
+    background: #e0f2fe !important;
+    border: 1.5px solid #0284c7 !important;
+    color: #0369a1 !important;
+    font-weight: 800 !important;
+}
+body[data-theme="light"] .smart-rescan-btn:hover {
+    background: #bae6fd !important;
+}
+
+/* ==========================================================================
+   ✨ AI HD GÖRSEL & UYDU NETLEŞTİRİCİ (PICSART TARZI AI ENHANCER) STILLERI
+   ========================================================================== */
+
+.ai-enh-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(15, 23, 42, 0.88);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    z-index: 10500;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    box-sizing: border-box;
+    animation: satModalFadeIn 0.25s ease-out;
+}
+
+.ai-enh-container {
+    background: #0f172a;
+    border: 1px solid rgba(56, 189, 248, 0.25);
+    border-radius: 16px;
+    width: 100%;
+    max-width: 960px;
+    max-height: 94vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8), 0 0 25px rgba(56, 189, 248, 0.15);
+    overflow: hidden;
+}
+
+.ai-enh-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    background: rgba(30, 41, 59, 0.7);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.ai-enh-header-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.ai-enh-header-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, #0284c7, #818cf8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #ffffff;
+    font-size: 18px;
+    box-shadow: 0 4px 12px rgba(2, 132, 199, 0.4);
+}
+
+.ai-enh-title {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 800;
+    color: #ffffff;
+    letter-spacing: 0.3px;
+}
+
+.ai-enh-subtitle {
+    margin: 2px 0 0 0;
+    font-size: 12px;
+    color: #94a3b8;
+}
+
+.ai-enh-header-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.ai-enh-badge {
+    background: rgba(56, 189, 248, 0.12);
+    border: 1px solid rgba(56, 189, 248, 0.3);
+    color: #38bdf8;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 20px;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.ai-enh-close-btn {
+    background: transparent;
+    border: none;
+    color: #94a3b8;
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.ai-enh-close-btn:hover {
+    background: rgba(239, 68, 68, 0.2);
+    color: #ef4444;
+}
+
+.ai-enh-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding: 10px 20px;
+    background: rgba(15, 23, 42, 0.95);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.ai-enh-preset-group,
+.ai-enh-slider-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.ai-enh-label {
+    font-size: 12px;
+    font-weight: 700;
+    color: #cbd5e1;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.ai-enh-preset-btns {
+    display: flex;
+    gap: 6px;
+}
+
+.ai-enh-preset-btn {
+    background: #1e293b;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #94a3b8;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 6px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.ai-enh-preset-btn:hover {
+    background: #334155;
+    color: #ffffff;
+}
+
+.ai-enh-preset-btn.active {
+    background: linear-gradient(135deg, #0284c7, #4f46e5);
+    border-color: #38bdf8;
+    color: #ffffff;
+    font-weight: 700;
+    box-shadow: 0 2px 8px rgba(2, 132, 199, 0.4);
+}
+
+.ai-enh-range {
+    width: 110px;
+    accent-color: #38bdf8;
+    cursor: pointer;
+}
+
+/* Öncesi / Sonrası Sahnesi */
+.ai-enh-stage-wrapper {
+    position: relative;
+    flex: 1;
+    background: #020617;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 380px;
+    max-height: 60vh;
+}
+
+.ai-enh-stage {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    user-select: none;
+}
+
+.ai-enh-layer {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.ai-enh-layer img,
+.ai-enh-layer canvas {
+    max-width: 100%;
+    max-height: 100%;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+}
+
+.ai-enh-layer-enhanced {
+    clip-path: polygon(50% 0%, 100% 0%, 100% 100%, 50% 100%);
+    will-change: clip-path;
+}
+
+.ai-enh-layer-tag {
+    position: absolute;
+    z-index: 5;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 6px;
+    pointer-events: none;
+    backdrop-filter: blur(4px);
+    letter-spacing: 0.3px;
+}
+
+.ai-enh-layer-tag.original {
+    top: 14px;
+    left: 14px;
+    background: rgba(15, 23, 42, 0.75);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: #cbd5e1;
+}
+
+.ai-enh-layer-tag.enhanced {
+    top: 14px;
+    right: 14px;
+    background: linear-gradient(135deg, #0284c7, #6366f1);
+    border: 1px solid #38bdf8;
+    color: #ffffff;
+    box-shadow: 0 4px 12px rgba(2, 132, 199, 0.4);
+}
+
+/* Sürüklenebilir Bölme Çizgisi */
+.ai-enh-split-divider {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 50%;
+    width: 44px;
+    transform: translateX(-50%);
+    cursor: ew-resize;
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    touch-action: none;
+}
+
+.ai-enh-split-line {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 2.5px;
+    background: #ffffff;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.8), 0 0 4px rgba(255, 255, 255, 0.8);
+}
+
+.ai-enh-split-handle {
+    position: relative;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: #ffffff;
+    color: #0f172a;
+    border: 2px solid #0284c7;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.7), 0 0 10px rgba(56, 189, 248, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    font-size: 10px;
+    transition: transform 0.1s;
+}
+
+.ai-enh-split-divider:hover .ai-enh-split-handle,
+.ai-enh-split-divider.is-dragging .ai-enh-split-handle {
+    transform: scale(1.12);
+    background: #f8fafc;
+    border-color: #38bdf8;
+}
+
+.ai-enh-loading-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.7);
+    backdrop-filter: blur(4px);
+    z-index: 30;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    color: #ffffff;
+    font-weight: 700;
+    font-size: 13px;
+}
+
+.ai-enh-spinner {
+    width: 32px;
+    height: 32px;
+    border: 3px solid rgba(56, 189, 248, 0.2);
+    border-top-color: #38bdf8;
+    border-radius: 50%;
+    animation: satSpin 0.7s linear infinite;
+}
+
+/* Alt Çubuk ve Aksiyon Butonları */
+.ai-enh-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding: 14px 20px;
+    background: rgba(30, 41, 59, 0.7);
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.ai-enh-footer-info {
+    font-size: 12px;
+    color: #94a3b8;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.ai-enh-footer-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.ai-enh-btn-cancel {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: #cbd5e1;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 8px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.ai-enh-btn-cancel:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #ffffff;
+}
+
+.ai-enh-btn-download {
+    background: #1e293b;
+    border: 1.5px solid #64748b;
+    color: #f8fafc;
+    font-size: 13px;
+    font-weight: 700;
+    padding: 8px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s;
+}
+
+.ai-enh-btn-download:hover {
+    background: #334155;
+    border-color: #94a3b8;
+}
+
+.ai-enh-btn-apply {
+    background: linear-gradient(135deg, #0284c7, #2563eb);
+    border: 1.5px solid #38bdf8;
+    color: #ffffff;
+    font-size: 13px;
+    font-weight: 800;
+    padding: 8px 20px;
+    border-radius: 8px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    box-shadow: 0 4px 14px rgba(2, 132, 199, 0.4);
+    transition: all 0.2s;
+}
+
+.ai-enh-btn-apply:hover {
+    background: linear-gradient(135deg, #0369a1, #1d4ed8);
+    box-shadow: 0 6px 18px rgba(2, 132, 199, 0.6);
+    transform: translateY(-1px);
+}
+
+/* Satellite Modal Kontrolleri için AI Butonları */
+.sat-btn-toggle-ai {
+    background: #1e293b;
+    border: 1.5px solid #475569;
+    color: #cbd5e1;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 5px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s;
+}
+
+.sat-btn-toggle-ai i {
+    color: #38bdf8;
+    font-size: 12px;
+}
+
+.sat-btn-toggle-ai.active {
+    background: linear-gradient(135deg, rgba(2, 132, 199, 0.2), rgba(99, 102, 241, 0.2));
+    border-color: #38bdf8;
+    color: #ffffff;
+    box-shadow: 0 0 10px rgba(56, 189, 248, 0.25);
+}
+
+.sat-btn-toggle-ai.active b {
+    color: #38bdf8;
+}
+
+.sat-ext-pill.ai-preview {
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(2, 132, 199, 0.15));
+    border-color: #10b981;
+    color: #34d399;
+    font-weight: 700;
+}
+
+.sat-ext-pill.ai-preview:hover {
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.3), rgba(2, 132, 199, 0.3));
+    color: #ffffff;
+    border-color: #34d399;
+}
+
+/* Satellite AI Netleştirme Toolbar Kontrolleri */
+.sat-ai-ctrl-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.sat-ai-slider-wrapper,
+.sat-footer-ai-slider {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: rgba(15, 23, 42, 0.85);
+    border: 1px solid #334155;
+    border-radius: 6px;
+    padding: 3px 8px;
+    transition: opacity 0.2s ease, filter 0.2s ease;
+    flex-shrink: 0;
+}
+
+.sat-ai-range {
+    width: 65px;
+    height: 4px;
+    accent-color: #38bdf8;
+    cursor: pointer;
+}
+
+.sat-ai-val-badge {
+    font-size: 10px;
+    font-weight: 800;
+    color: #38bdf8;
+    min-width: 27px;
+    text-align: center;
+    background: rgba(56, 189, 248, 0.15);
+    padding: 1px 4px;
+    border-radius: 4px;
+    border: 1px solid rgba(56, 189, 248, 0.3);
+}
+
+.sat-ai-live-badge {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    z-index: 1000;
+    background: linear-gradient(135deg, rgba(2, 132, 199, 0.9), rgba(99, 102, 241, 0.9));
+    color: #ffffff;
+    font-size: 11.5px;
+    font-weight: 700;
+    padding: 5px 12px;
+    border-radius: 20px;
+    border: 1px solid #38bdf8;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+    pointer-events: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    backdrop-filter: blur(6px);
+    transition: all 0.2s ease;
+}
+
+body[data-theme="light"] .sat-ai-slider-wrapper,
+body[data-theme="light"] .sat-footer-ai-slider {
+    background: #f8fafc;
+    border-color: #cbd5e1;
+}
+
+body[data-theme="light"] .sat-ai-val-badge {
+    background: #e0f2fe;
+    color: #0284c7;
+    border-color: #bae6fd;
+}
+
+/* Bottom Dock AI Netleştir Butonu */
+.dock-btn-ai {
+    background: linear-gradient(135deg, rgba(2, 132, 199, 0.15), rgba(129, 140, 248, 0.2)) !important;
+    border: 1px solid rgba(56, 189, 248, 0.4) !important;
+}
+
+.dock-btn-ai:hover {
+    background: linear-gradient(135deg, rgba(2, 132, 199, 0.3), rgba(129, 140, 248, 0.35)) !important;
+    border-color: #38bdf8 !important;
+    box-shadow: 0 0 12px rgba(56, 189, 248, 0.35);
+}
+
+/* Fotoğraf Sekmesi AI Netleştir Toggle Butonu */
+.photo-ai-toggle-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 12px;
+    font-size: 11.5px;
+    font-weight: 700;
+    border-radius: 20px;
+    background: #1e293b;
+    border: 1px solid #334155;
+    color: #94a3b8;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    user-select: none;
+}
+
+.photo-ai-toggle-btn:hover {
+    background: #334155;
+    color: #f1f5f9;
+    border-color: #475569;
+}
+
+.photo-ai-toggle-btn.active {
+    background: linear-gradient(135deg, #0284c7 0%, #0ea5e9 100%);
+    border-color: #38bdf8;
+    color: #ffffff;
+    box-shadow: 0 0 12px rgba(14, 165, 233, 0.55);
+}
+
+.photo-ai-toggle-btn.active i {
+    color: #ffffff;
+    text-shadow: 0 0 8px rgba(255, 255, 255, 0.9);
+}
+
+/* Light Tema Uyumluluğu */
+body[data-theme="light"] .ai-enh-modal-overlay {
+    background: rgba(15, 23, 42, 0.7);
+}
+
+body[data-theme="light"] .ai-enh-container {
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+}
+
+body[data-theme="light"] .ai-enh-header {
+    background: #f8fafc;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+body[data-theme="light"] .ai-enh-title {
+    color: #0f172a;
+}
+
+body[data-theme="light"] .ai-enh-subtitle {
+    color: #64748b;
+}
+
+body[data-theme="light"] .ai-enh-toolbar {
+    background: #ffffff;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+body[data-theme="light"] .ai-enh-label {
+    color: #334155;
+}
+
+body[data-theme="light"] .ai-enh-preset-btn {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+    color: #475569;
+}
+
+body[data-theme="light"] .ai-enh-preset-btn.active {
+    background: linear-gradient(135deg, #0284c7, #2563eb);
+    color: #ffffff;
+}
+
+body[data-theme="light"] .ai-enh-footer {
+    background: #f8fafc;
+    border-top: 1px solid #e2e8f0;
+}
+
+body[data-theme="light"] .ai-enh-footer-info {
+    color: #475569;
+}
+
+body[data-theme="light"] .ai-enh-btn-cancel {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+    color: #334155;
+}
+
+body[data-theme="light"] .ai-enh-btn-download {
+    background: #f8fafc;
+    border-color: #94a3b8;
+    color: #0f172a;
+}
+
+/* ============================================================================
+   📸 FOTOĞRAF SEKMESİ - AI HD NETLEŞTİRME & FLU GİDERİCİ KARTI
+   ============================================================================ */
+.photo-ai-card {
+    background: linear-gradient(145deg, #0f172a 0%, #172554 100%);
+    border: 1.5px solid rgba(56, 189, 248, 0.35);
+    border-radius: 10px;
+    padding: 13px 14px;
+    margin: 12px 0 16px 0;
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.photo-ai-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 6px;
+}
+
+.photo-ai-title {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 13px;
+    font-weight: 800;
+    color: #38bdf8;
+    letter-spacing: 0.2px;
+}
+
+.photo-ai-title i {
+    color: #f59e0b;
+    font-size: 14px;
+}
+
+.photo-ai-badge {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 12px;
+    background: rgba(56, 189, 248, 0.15);
+    border: 1px solid rgba(56, 189, 248, 0.4);
+    color: #7dd3fc;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.photo-ai-desc {
+    font-size: 11px;
+    color: #94a3b8;
+    line-height: 1.4;
+    margin: 0 0 10px 0;
+}
+
+.photo-ai-slider-group {
+    margin-bottom: 10px !important;
+}
+
+.photo-ai-slider-group label {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 12px;
+    font-weight: 600;
+    color: #e2e8f0;
+    margin-bottom: 6px;
+}
+
+.photo-ai-level-tag {
+    font-size: 11px;
+    font-weight: 800;
+    color: #38bdf8;
+    background: rgba(56, 189, 248, 0.15);
+    padding: 2px 7px;
+    border-radius: 4px;
+    border: 1px solid rgba(56, 189, 248, 0.25);
+}
+
+.photo-ai-pills {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 5px;
+    margin-bottom: 11px;
+}
+
+.photo-ai-pill {
+    background: #1e293b;
+    border: 1px solid #334155;
+    color: #cbd5e1;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 6px 2px;
+    border-radius: 6px;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.2s ease;
+}
+
+.photo-ai-pill:hover {
+    background: #334155;
+    color: #ffffff;
+    border-color: #64748b;
+}
+
+.photo-ai-pill.active {
+    background: linear-gradient(135deg, #0284c7, #2563eb);
+    border-color: #38bdf8;
+    color: #ffffff;
+    box-shadow: 0 2px 8px rgba(2, 132, 199, 0.4);
+}
+
+.photo-ai-actions {
+    display: flex;
+    gap: 7px;
+    margin-bottom: 9px;
+}
+
+.photo-ai-btn-apply {
+    flex: 1.4;
+    background: linear-gradient(135deg, #0284c7, #6366f1);
+    border: 1.5px solid #38bdf8;
+    color: #ffffff;
+    font-size: 12px;
+    font-weight: 800;
+    padding: 9px 8px;
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: all 0.2s ease;
+    box-shadow: 0 3px 10px rgba(2, 132, 199, 0.35);
+}
+
+.photo-ai-btn-apply:hover {
+    background: linear-gradient(135deg, #0369a1, #4f46e5);
+    box-shadow: 0 5px 14px rgba(2, 132, 199, 0.55);
+    transform: translateY(-1px);
+}
+
+.photo-ai-btn-revert {
+    flex: 1;
+    background: #1e293b;
+    border: 1.5px solid #475569;
+    color: #cbd5e1;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 9px 6px;
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    transition: all 0.2s ease;
+}
+
+.photo-ai-btn-revert:hover {
+    background: #334155;
+    color: #ffffff;
+    border-color: #94a3b8;
+}
+
+.photo-ai-btn-compare {
+    width: 100%;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px dashed rgba(56, 189, 248, 0.4);
+    color: #7dd3fc;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 7px;
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: all 0.2s ease;
+}
+
+.photo-ai-btn-compare:hover {
+    background: rgba(56, 189, 248, 0.12);
+    border-color: #38bdf8;
+    color: #ffffff;
+}
+
+/* Light Theme Uyum */
+body[data-theme="light"] .photo-ai-card {
+    background: linear-gradient(145deg, #ffffff 0%, #f0f9ff 100%);
+    border-color: #93c5fd;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.07);
+}
+
+body[data-theme="light"] .photo-ai-title {
+    color: #0369a1;
+}
+
+body[data-theme="light"] .photo-ai-desc {
+    color: #64748b;
+}
+
+body[data-theme="light"] .photo-ai-slider-group label {
+    color: #1e293b;
+}
+
+body[data-theme="light"] .photo-ai-level-tag {
+    background: #e0f2fe;
+    color: #0284c7;
+    border-color: #bae6fd;
+}
+
+body[data-theme="light"] .photo-ai-pill {
+    background: #f8fafc;
+    border-color: #cbd5e1;
+    color: #475569;
+}
+
+body[data-theme="light"] .photo-ai-pill:hover {
+    background: #f1f5f9;
+    color: #0f172a;
+}
+
+body[data-theme="light"] .photo-ai-pill.active {
+    background: linear-gradient(135deg, #0284c7, #2563eb);
+    color: #ffffff;
+    border-color: #38bdf8;
+}
+
+body[data-theme="light"] .photo-ai-btn-revert {
+    background: #f8fafc;
+    border-color: #cbd5e1;
+    color: #475569;
+}
+
+body[data-theme="light"] .photo-ai-btn-revert:hover {
+    background: #f1f5f9;
+    color: #0f172a;
+}
+
+body[data-theme="light"] .photo-ai-btn-compare {
+    background: #f0f9ff;
+    border-color: #7dd3fc;
+    color: #0284c7;
+}
+
+body[data-theme="light"] .photo-ai-btn-compare:hover {
+    background: #e0f2fe;
+}
+
+/* ==========================================================================
+   FOTOĞRAF AYARLARI, TON EĞRİSİ, 8-HSL & MASKE STILLERI
+   ========================================================================== */
+
+.mask-section-card {
+    background: rgba(15, 23, 42, 0.6);
+    border: 1px solid #334155;
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin-bottom: 10px;
+}
+.mask-section-card .mask-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+}
+
+.hsl-color-dot {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+}
+.hsl-color-dot:hover {
+    transform: scale(1.15);
+}
+.hsl-color-dot.active {
+    border-color: #ffffff !important;
+    transform: scale(1.2);
+}
+
+/* EmlakStüdyom PRO: Ton Eğrisi & Yerel Maske Stillleri */
+.curve-channel-btn {
+    flex: 1;
+    padding: 7px 4px;
+    font-size: 11.5px;
+    font-weight: 600;
+    border-radius: 6px;
+    background: #1e293b;
+    color: #94a3b8;
+    border: 1px solid #334155;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+}
+.curve-channel-btn:hover {
+    background: #334155;
+    color: #f8fafc;
+}
+.curve-channel-btn.active {
+    background: #0284c7;
+    color: #ffffff;
+    border-color: #38bdf8;
+    box-shadow: 0 0 10px rgba(56, 189, 248, 0.35);
+}
+.curve-channel-btn[data-channel="r"].active {
+    background: #dc2626;
+    border-color: #ef4444;
+    box-shadow: 0 0 10px rgba(239, 68, 68, 0.35);
+}
+.curve-channel-btn[data-channel="g"].active {
+    background: #16a34a;
+    border-color: #22c55e;
+    box-shadow: 0 0 10px rgba(34, 197, 94, 0.35);
+}
+.curve-channel-btn[data-channel="b"].active {
+    background: #2563eb;
+    border-color: #3b82f6;
+    box-shadow: 0 0 10px rgba(59, 130, 246, 0.35);
+}
+
+.curve-preset-btn {
+    padding: 6px 4px;
+    font-size: 10.5px;
+    background: #1e293b;
+    color: #cbd5e1;
+    border: 1px solid #334155;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    text-align: center;
+}
+.curve-preset-btn:hover {
+    background: #334155;
+    color: #38bdf8;
+    border-color: #475569;
+}
+
+/* Yerel Maskeleme Araç Çubuğu Butonları */
+.mask-tool-btn {
+    padding: 8px 6px;
+    font-size: 11.5px;
+    font-weight: 600;
+    border-radius: 6px;
+    background: #1e293b;
+    color: #e2e8f0;
+    border: 1px solid #334155;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+.mask-tool-btn:hover {
+    background: #334155;
+    border-color: #475569;
+}
+.mask-tool-btn.active {
+    background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+    color: #ffffff;
+    border-color: #38bdf8;
+    box-shadow: 0 0 12px rgba(56, 189, 248, 0.4);
+}
+#maskToolLinearBtn.active {
+    background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
+    border-color: #c084fc;
+    box-shadow: 0 0 12px rgba(192, 132, 252, 0.4);
+}
+#maskOverlayBtn.active {
+    background: #dc2626;
+    border-color: #f87171;
+    box-shadow: 0 0 12px rgba(239, 68, 68, 0.4);
+}
+
+/* SVG İnteraktif Maske Tutamaçları */
+#maskInteractiveSvg circle[data-mask-action] {
+    transition: r 0.15s ease, stroke-width 0.15s ease;
+}
+#maskInteractiveSvg circle[data-mask-action]:hover {
+    r: 10.5px;
+    stroke-width: 3.5px;
+}
+#maskInteractiveSvg g[data-mask-action]:hover circle:first-child {
+    fill: rgba(56, 189, 248, 0.45);
+}
+
+/* ====================================================================
+   TON EĞRİSİ VE MASKE BUTONLARI (AÇIK TEMA: İÇİ DOLGUSUZ / OUTLINE)
+   ==================================================================== */
+[data-theme="light"] .curve-channel-btn {
+    background: #ffffff !important;
+    color: #334155 !important;
+    border: 1.5px solid #cbd5e1 !important;
+    box-shadow: none !important;
+}
+[data-theme="light"] .curve-channel-btn:hover {
+    background: #f8fafc !important;
+    border-color: #94a3b8 !important;
+    color: #0f172a !important;
+}
+/* Açık tema için içi dolgusuz (outline) aktif butonlar - yazılar asla kaybolmaz */
+[data-theme="light"] .curve-channel-btn.active {
+    background: #f0f9ff !important;
+    color: #0284c7 !important;
+    border: 2px solid #0284c7 !important;
+    box-shadow: none !important;
+}
+[data-theme="light"] .curve-channel-btn[data-channel="r"].active {
+    background: #fef2f2 !important;
+    color: #dc2626 !important;
+    border: 2px solid #dc2626 !important;
+    box-shadow: none !important;
+}
+[data-theme="light"] .curve-channel-btn[data-channel="g"].active {
+    background: #f0fdf4 !important;
+    color: #16a34a !important;
+    border: 2px solid #16a34a !important;
+    box-shadow: none !important;
+}
+[data-theme="light"] .curve-channel-btn[data-channel="b"].active {
+    background: #eff6ff !important;
+    color: #2563eb !important;
+    border: 2px solid #2563eb !important;
+    box-shadow: none !important;
+}
+
+[data-theme="light"] .curve-preset-btn {
+    background: #ffffff !important;
+    color: #334155 !important;
+    border: 1px solid #cbd5e1 !important;
+    box-shadow: none !important;
+}
+[data-theme="light"] .curve-preset-btn:hover {
+    background: #f1f5f9 !important;
+    border-color: #94a3b8 !important;
+    color: #0f172a !important;
+}
+
+.curve-action-btn {
+    flex: 1;
+    padding: 8px;
+    font-size: 11.5px;
+    font-weight: 600;
+    background: #1e293b;
+    color: #cbd5e1;
+    border: 1px solid #334155;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+.curve-action-btn:hover {
+    background: #334155;
+    color: #ffffff;
+    border-color: #475569;
+}
+[data-theme="light"] .curve-action-btn {
+    background: #ffffff !important;
+    color: #334155 !important;
+    border: 1px solid #cbd5e1 !important;
+    box-shadow: none !important;
+}
+[data-theme="light"] .curve-action-btn:hover {
+    background: #f1f5f9 !important;
+    border-color: #94a3b8 !important;
+    color: #0f172a !important;
+}
+
+.curve-hud-pill {
+    font-family: monospace;
+    font-size: 11px;
+    color: #94a3b8;
+    background: #1e293b;
+    border: 1px solid #334155;
+    padding: 2px 7px;
+    border-radius: 4px;
+    font-weight: 600;
+}
+[data-theme="light"] .curve-hud-pill {
+    background: #ffffff !important;
+    color: #0284c7 !important;
+    border: 1px solid #cbd5e1 !important;
+}
+
+[data-theme="light"] .curve-tip-text {
+    color: #64748b !important;
+}
+
+/* ====================================================================
+   GLOBAL DETAILS / SUMMARY ACCORDION STANDARDIZATION
+   Native ok işaretini (▶) ve çift ikon karmaşasını kaldırır
+   ==================================================================== */
+details summary {
+    list-style: none !important;
+}
+details summary::-webkit-details-marker {
+    display: none !important;
+}
+details summary::marker {
+    display: none !important;
+}
+
+#photoMasksAccordion summary {
+    list-style: none !important;
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    padding: 12px !important;
+    cursor: pointer !important;
+    font-weight: 700 !important;
+    user-select: none !important;
+}
+#photoMasksAccordion summary::-webkit-details-marker {
+    display: none !important;
+}
+#photoMasksAccordion summary::marker {
+    display: none !important;
+}
+
+/* ====================================================================
+   YEREL MASKELEME TASARIM SİSTEMİ (STANDART & AÇIK TEMA KONTROLLERİ)
+   ==================================================================== */
+
+/* 1. Maske Araç Çubuğu Butonları */
+.mask-tool-btn {
+    padding: 8px 6px;
+    font-size: 11.5px;
+    font-weight: 600;
+    border-radius: 6px;
+    background: #1e293b;
+    color: #e2e8f0;
+    border: 1px solid #334155;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+.mask-tool-btn:hover {
+    background: #334155;
+    border-color: #475569;
+}
+.mask-tool-btn.active {
+    background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+    color: #ffffff;
+    border-color: #38bdf8;
+    box-shadow: 0 0 12px rgba(56, 189, 248, 0.4);
+}
+
+/* 2. Aktif Durum ve Bildirim Kutusu */
+.mask-status-box {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 10px;
+    background: rgba(56, 189, 248, 0.12);
+    border: 1px solid #0284c7;
+    border-radius: 6px;
+    margin-bottom: 10px;
+    font-size: 11.5px;
+    color: #e0f2fe;
+}
+.mask-close-btn {
+    margin-left: 8px;
+    padding: 5px 12px;
+    background: #0284c7;
+    color: #ffffff;
+    border: none;
+    border-radius: 4px;
+    font-weight: bold;
+    font-size: 11px;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: all 0.15s ease;
+}
+.mask-close-btn:hover {
+    background: #0369a1;
+}
+
+/* 3. Maske Katmanları ve Geçmiş Kutusu */
+.mask-layers-container {
+    margin-bottom: 12px;
+    background: #0b1329;
+    border: 1px solid #1e293b;
+    border-radius: 6px;
+    padding: 8px 10px;
+}
+.mask-layers-title {
+    font-size: 11.5px;
+    font-weight: bold;
+    color: #cbd5e1;
+}
+.mask-layers-subtitle {
+    font-size: 10px;
+    color: #94a3b8;
+}
+#maskLayersList {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    max-height: 160px;
+    overflow-y: auto;
+    padding-right: 2px;
+}
+.mask-layers-empty {
+    font-size: 11px;
+    color: #94a3b8;
+    text-align: center;
+    padding: 8px 0;
+}
+
+/* 4. Katman Satırları */
+.mask-layer-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 10px;
+    background: #1e293b;
+    border: 1.5px solid #334155;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+.mask-layer-row:hover {
+    background: #334155;
+}
+.mask-layer-row.selected {
+    background: rgba(2, 132, 199, 0.18);
+    border-color: #0284c7;
+}
+.mask-layer-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+    min-width: 0;
+}
+.mask-layer-icon {
+    font-size: 13px;
+}
+.mask-layer-title {
+    font-size: 12px;
+    font-weight: normal;
+    color: #e2e8f0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.mask-layer-row.selected .mask-layer-title {
+    color: #38bdf8;
+    font-weight: bold;
+}
+.mask-layer-badge {
+    font-size: 9.5px;
+    padding: 1px 5px;
+    background: #0284c7;
+    color: #ffffff;
+    border-radius: 3px;
+    font-weight: bold;
+}
+.mask-layer-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.mask-action-eye-btn {
+    background: transparent;
+    border: none;
+    color: #64748b;
+    cursor: pointer;
+    padding: 3px 5px;
+    font-size: 12px;
+    transition: color 0.15s ease;
+}
+.mask-action-eye-btn.active {
+    color: #38bdf8;
+}
+.mask-action-eye-btn:hover {
+    color: #bae6fd;
+}
+.mask-action-del-btn {
+    background: transparent;
+    border: none;
+    color: #ef4444;
+    cursor: pointer;
+    padding: 3px 5px;
+    font-size: 12px;
+    transition: color 0.15s ease;
+}
+.mask-action-del-btn:hover {
+    color: #f87171;
+}
+
+/* 5. Kılavuz Aç/Kapa Barları */
+.mask-toggle-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+    padding: 6px 10px;
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 6px;
+}
+.mask-toggle-bar span {
+    font-size: 11.5px;
+    color: #cbd5e1;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+/* 6. Düzenleme Kartları & Checkbox */
+.mask-checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11.5px;
+    color: #cbd5e1;
+    cursor: pointer;
+}
+.btn-mask-delete {
+    background: #dc2626;
+    color: #ffffff;
+    border: none;
+    border-radius: 4px;
+    padding: 3px 8px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+.btn-mask-delete:hover {
+    background: #b91c1c;
+}
+
+/* ====================================================================
+   AÇIK / GÜNDÜZ TEMASI KONTROLLERİ (İÇİ DOLGUSUZ, YÜKSEK KONTRASTLI VE SABİT)
+   ==================================================================== */
+body[data-theme="light"] #photoMasksAccordion {
+    background: #ffffff !important;
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 8px !important;
+}
+body[data-theme="light"] #photoMasksAccordion summary {
+    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%) !important;
+    color: #0f172a !important;
+    border-left: 3.5px solid #f59e0b !important;
+    font-weight: 700 !important;
+}
+body[data-theme="light"] .mask-content-body {
+    border-top: 1px solid #e2e8f0 !important;
+    background: #ffffff !important;
+}
+
+/* Açık Tema Butonlar: Arka plan beyaz, net kenarlık, koyu okunaklı yazı */
+body[data-theme="light"] .mask-tool-btn,
+[data-theme="light"] .mask-tool-btn {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    border: 1.5px solid #cbd5e1 !important;
+    font-weight: 600 !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03) !important;
+}
+body[data-theme="light"] .mask-tool-btn:hover,
+[data-theme="light"] .mask-tool-btn:hover {
+    background: #f8fafc !important;
+    border-color: #0284c7 !important;
+    color: #0284c7 !important;
+}
+body[data-theme="light"] .mask-tool-btn.active,
+[data-theme="light"] .mask-tool-btn.active {
+    background: #f0f9ff !important;
+    color: #0284c7 !important;
+    border: 2px solid #0284c7 !important;
+    font-weight: 700 !important;
+    box-shadow: none !important;
+}
+
+/* Açık Tema Bildirim Kutusu */
+body[data-theme="light"] .mask-status-box {
+    background: #f0f9ff !important;
+    border: 1.5px solid #bae6fd !important;
+    color: #0369a1 !important;
+}
+body[data-theme="light"] #maskActiveStatusText {
+    color: #0c4a6e !important;
+    font-weight: 600 !important;
+}
+body[data-theme="light"] .mask-close-btn {
+    background: #ffffff !important;
+    color: #0284c7 !important;
+    border: 1.5px solid #0284c7 !important;
+    font-weight: 700 !important;
+    box-shadow: 0 1px 2px rgba(2, 132, 199, 0.08) !important;
+}
+body[data-theme="light"] .mask-close-btn:hover {
+    background: #e0f2fe !important;
+    color: #0369a1 !important;
+}
+
+/* Açık Tema Katmanlar Kutusu */
+body[data-theme="light"] .mask-layers-container {
+    background: #ffffff !important;
+    border: 1.5px solid #cbd5e1 !important;
+    border-radius: 8px !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03) !important;
+}
+body[data-theme="light"] .mask-layers-title {
+    color: #0f172a !important;
+    font-weight: 700 !important;
+}
+body[data-theme="light"] .mask-layers-subtitle {
+    color: #64748b !important;
+}
+body[data-theme="light"] .mask-layers-empty {
+    color: #64748b !important;
+}
+
+/* Açık Tema Katman Satırları: Net koyu yazı */
+body[data-theme="light"] .mask-layer-row {
+    background: #ffffff !important;
+    border: 1.5px solid #e2e8f0 !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02) !important;
+}
+body[data-theme="light"] .mask-layer-row:hover {
+    background: #f8fafc !important;
+    border-color: #cbd5e1 !important;
+}
+body[data-theme="light"] .mask-layer-row.selected {
+    background: #f0f9ff !important;
+    border: 1.5px solid #0284c7 !important;
+}
+body[data-theme="light"] .mask-layer-title {
+    color: #0f172a !important;
+    font-weight: 600 !important;
+}
+body[data-theme="light"] .mask-layer-row.selected .mask-layer-title {
+    color: #0284c7 !important;
+    font-weight: 700 !important;
+}
+body[data-theme="light"] .mask-layer-badge {
+    background: #e0f2fe !important;
+    color: #0284c7 !important;
+    border: 1px solid #bae6fd !important;
+    font-weight: 700 !important;
+}
+body[data-theme="light"] .mask-action-eye-btn {
+    color: #94a3b8 !important;
+}
+body[data-theme="light"] .mask-action-eye-btn.active {
+    color: #0284c7 !important;
+}
+body[data-theme="light"] .mask-action-eye-btn:hover {
+    color: #0369a1 !important;
+}
+body[data-theme="light"] .mask-action-del-btn {
+    color: #dc2626 !important;
+}
+body[data-theme="light"] .mask-action-del-btn:hover {
+    color: #991b1b !important;
+}
+
+/* Açık Tema Kılavuz Toggle Barları */
+body[data-theme="light"] .mask-toggle-bar {
+    background: #ffffff !important;
+    border: 1.5px solid #e2e8f0 !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02) !important;
+}
+body[data-theme="light"] .mask-toggle-bar span {
+    color: #0f172a !important;
+    font-weight: 600 !important;
+}
+
+/* Açık Tema Düzenleme Kartları */
+body[data-theme="light"] .mask-section-card {
+    background: #ffffff !important;
+    border: 1.5px solid #e2e8f0 !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02) !important;
+}
+body[data-theme="light"] .mask-header span {
+    color: #0f172a !important;
+    font-weight: 700 !important;
+}
+body[data-theme="light"] .mask-section-card label,
+body[data-theme="light"] .mask-section-card label span,
+body[data-theme="light"] .mask-checkbox-label {
+    color: #1e293b !important;
+    font-weight: 600 !important;
+}
+body[data-theme="light"] .btn-mask-delete {
+    background: #ffffff !important;
+    color: #dc2626 !important;
+    border: 1.5px solid #dc2626 !important;
+    font-weight: 600 !important;
+    box-shadow: 0 1px 2px rgba(220, 38, 38, 0.08) !important;
+}
+body[data-theme="light"] .btn-mask-delete:hover {
+    background: #fef2f2 !important;
+    color: #991b1b !important;
+}
+
+/* ====================================================================
+   MODERN SWITCH TOGGLE & SLIDER
+   ==================================================================== */
+.switch-toggle {
+    position: relative;
+    display: inline-block;
+    width: 38px;
+    height: 20px;
+    vertical-align: middle;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.switch-toggle input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+    position: absolute;
+    margin: 0;
+    pointer-events: none;
+}
+
+.switch-toggle .toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #334155; /* Slate 700 - Belirgin Kapalı Durum */
+    border: 1px solid #475569;
+    transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+    border-radius: 20px;
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.35);
+}
+
+.switch-toggle .toggle-slider::before {
+    position: absolute;
+    content: "";
+    height: 14px;
+    width: 14px;
+    left: 2px;
+    bottom: 2px;
+    background-color: #ffffff;
+    border-radius: 50%;
+    transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
+}
+
+.switch-toggle input:checked + .toggle-slider {
+    background: linear-gradient(135deg, #0284c7, #38bdf8); /* Parlak Canlı Cyan - Açık Durum */
+    border-color: #38bdf8;
+    box-shadow: 0 0 10px rgba(56, 189, 248, 0.4);
+}
+
+.switch-toggle input:checked + .toggle-slider::before {
+    transform: translateX(18px);
+    background-color: #ffffff;
+    box-shadow: 0 1px 5px rgba(0, 0, 0, 0.35);
+}
+
+.switch-toggle:hover .toggle-slider {
+    border-color: #64748b;
+}
+
+.switch-toggle input:focus-visible + .toggle-slider {
+    outline: 2px solid #38bdf8;
+    outline-offset: 2px;
+}
+
+/* SVG İnteraktif Maske Tutamaçları ve Pin Efektleri */
+#maskInteractiveSvg rect[data-mask-action] {
+    transition: transform 0.15s ease, stroke 0.15s ease;
+}
+#maskInteractiveSvg rect[data-mask-action]:hover {
+    stroke: #ffffff;
+    fill: #38bdf8;
+}
+#maskInteractiveSvg g[data-mask-action]:hover circle:nth-child(1) {
+    fill: rgba(56, 189, 248, 0.35);
+}
+#maskInteractiveSvg g[data-mask-action]:hover circle:nth-child(2) {
+    stroke: #38bdf8;
+}
+
+/* ====================================================================
+   🌟 DİĞER ROZETLER & CANVA ÖGELERİ PANELİ STILLERI
+   ==================================================================== */
+#tab-other-callouts {
+    padding-bottom: 20px;
+}
+
+.other-callout-search-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.other-callout-search-icon {
+    position: absolute;
+    left: 10px;
+    font-size: 13px;
+    color: #94a3b8;
+    pointer-events: none;
+}
+
+.other-callout-search-input {
+    width: 100%;
+    padding: 8px 30px 8px 32px;
+    border-radius: 8px;
+    border: 1px solid #334155;
+    background: #0f172a;
+    color: #f8fafc;
+    font-size: 12px;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    box-sizing: border-box;
+}
+
+.other-callout-search-input:focus {
+    border-color: #38bdf8;
+    box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.25);
+}
+
+.other-callout-search-clear {
+    position: absolute;
+    right: 8px;
+    background: none;
+    border: none;
+    color: #94a3b8;
+    font-size: 18px;
+    cursor: pointer;
+    line-height: 1;
+    padding: 2px 6px;
+    border-radius: 4px;
+    transition: color 0.15s ease;
+}
+
+.other-callout-search-clear:hover {
+    color: #ef4444;
+}
+
+.other-callouts-status {
+    font-size: 11px;
+    color: #38bdf8;
+    margin-bottom: 10px;
+    padding: 6px 10px;
+    background: rgba(56, 189, 248, 0.08);
+    border-radius: 6px;
+    border: 1px solid rgba(56, 189, 248, 0.2);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.other-callouts-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 12px;
+}
+
+.other-callout-pill {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 5px 10px;
+    border-radius: 20px;
+    border: 1px solid #334155;
+    background: #1e293b;
+    color: #cbd5e1;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    user-select: none;
+}
+
+.other-callout-pill:hover {
+    background: #334155;
+    color: #ffffff;
+    border-color: #475569;
+}
+
+.other-callout-pill.active {
+    background: linear-gradient(135deg, #0284c7, #38bdf8);
+    color: #ffffff;
+    border-color: #38bdf8;
+    box-shadow: 0 2px 8px rgba(56, 189, 248, 0.35);
+}
+
+.other-callout-pill.admin-pill {
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.15), rgba(139, 92, 246, 0.15));
+    border-color: rgba(245, 158, 11, 0.4);
+    color: #fde68a;
+}
+
+.other-callout-pill.admin-pill:hover {
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.25), rgba(139, 92, 246, 0.25));
+    border-color: #f59e0b;
+    color: #ffffff;
+}
+
+.other-callout-pill.admin-pill.active {
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    border-color: #f59e0b;
+    color: #ffffff;
+    box-shadow: 0 2px 10px rgba(245, 158, 11, 0.45);
+}
+
+.other-callouts-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(85px, 1fr));
+    gap: 8px;
+    max-height: 450px;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+
+.other-callout-card {
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 8px;
+    padding: 8px 6px;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+    user-select: none;
+    box-sizing: border-box;
+}
+
+.other-callout-card:hover {
+    transform: translateY(-2px);
+    border-color: #38bdf8;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+}
+
+.other-callout-preview {
+    width: 100%;
+    aspect-ratio: 1/1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    margin-bottom: 6px;
+    overflow: hidden;
+    position: relative;
+    background-color: rgba(15, 23, 42, 0.6);
+    background-image: linear-gradient(45deg, rgba(255, 255, 255, 0.05) 25%, transparent 25%),
+                      linear-gradient(-45deg, rgba(255, 255, 255, 0.05) 25%, transparent 25%),
+                      linear-gradient(45deg, transparent 75%, rgba(255, 255, 255, 0.05) 75%),
+                      linear-gradient(-45deg, transparent 75%, rgba(255, 255, 255, 0.05) 75%);
+    background-size: 12px 12px;
+    background-position: 0 0, 0 6px, 6px -6px, -6px 0px;
+}
+
+.other-callout-preview svg,
+.other-callout-preview img {
+    width: 80%;
+    height: 80%;
+    object-fit: contain;
+    pointer-events: none;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+}
+
+.other-callout-label {
+    font-size: 10px;
+    font-weight: 600;
+    color: #cbd5e1;
+    text-align: center;
+    width: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.3;
+}
+
+.other-callouts-empty {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 28px 12px;
+    color: #94a3b8;
+    font-size: 12px;
+}
+
+.other-callout-toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background: #0f172a;
+    color: #38bdf8;
+    border: 1px solid #38bdf8;
+    border-radius: 8px;
+    padding: 10px 16px;
+    font-size: 12px;
+    font-weight: 600;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(12px);
+    transition: opacity 0.25s ease, transform 0.25s ease;
+    z-index: 999999;
+}
+
+.other-callout-toast.show {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* --- Işık Modu (Light Theme) Uyumları --- */
+body[data-theme="light"] .other-callout-search-input,
+html[data-theme="light"] .other-callout-search-input {
+    background: #ffffff;
+    border-color: #cbd5e1;
+    color: #0f172a;
+}
+
+body[data-theme="light"] .other-callout-pill,
+html[data-theme="light"] .other-callout-pill {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+    color: #475569;
+}
+
+body[data-theme="light"] .other-callout-pill:hover,
+html[data-theme="light"] .other-callout-pill:hover {
+    background: #e2e8f0;
+    color: #0f172a;
+}
+
+body[data-theme="light"] .other-callout-pill.active,
+html[data-theme="light"] .other-callout-pill.active {
+    background: linear-gradient(135deg, #0284c7, #0ea5e9);
+    color: #ffffff;
+    border-color: #0284c7;
+}
+
+body[data-theme="light"] .other-callout-card,
+html[data-theme="light"] .other-callout-card {
+    background: #f8fafc;
+    border-color: #cbd5e1;
+}
+
+body[data-theme="light"] .other-callout-card:hover,
+html[data-theme="light"] .other-callout-card:hover {
+    background: #ffffff;
+    border-color: #0284c7;
+    box-shadow: 0 4px 12px rgba(2, 132, 199, 0.15);
+}
+
+body[data-theme="light"] .other-callout-preview,
+html[data-theme="light"] .other-callout-preview {
+    background-color: rgba(241, 245, 249, 0.8);
+    background-image: linear-gradient(45deg, rgba(0, 0, 0, 0.03) 25%, transparent 25%),
+                      linear-gradient(-45deg, rgba(0, 0, 0, 0.03) 25%, transparent 25%),
+                      linear-gradient(45deg, transparent 75%, rgba(0, 0, 0, 0.03) 75%),
+                      linear-gradient(-45deg, transparent 75%, rgba(0, 0, 0, 0.03) 75%);
+}
+
+body[data-theme="light"] .other-callout-label,
+html[data-theme="light"] .other-callout-label {
+    color: #334155;
+}
+
+body[data-theme="light"] .other-callout-toast,
+html[data-theme="light"] .other-callout-toast {
+    background: #ffffff;
+    color: #0284c7;
+    border-color: #0284c7;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+}
+
+/* ====================================================================
+   AI NETLEŞTİR KART & FOTO AKORDEON STİLLERİ (DARK & LIGHT THEME)
+   ==================================================================== */
+.photo-ai-card {
+    margin-top: 12px;
+    margin-bottom: 12px;
+    background: #0f172a;
+    border: 1px solid #1e293b;
+    border-radius: 8px;
+    padding: 12px;
+    transition: all 0.2s ease;
+}
+.photo-ai-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+}
+.photo-ai-title {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.photo-ai-title span {
+    font-weight: 700;
+    font-size: 12.5px;
+    color: #f8fafc;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.photo-ai-title i {
+    color: #38bdf8;
+}
+.photo-ai-desc {
+    font-size: 11px;
+    color: #94a3b8;
+    margin: 0 0 10px 0;
+    line-height: 1.4;
+}
+.photo-ai-slider-group {
+    transition: all 0.2s ease;
+}
+.photo-ai-slider-group.disabled-state {
+    pointer-events: none;
+}
+.photo-ai-slider-group label {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 11.5px;
+    margin-bottom: 5px;
+    color: #e2e8f0;
+}
+.photo-ai-slider-group label span:first-child i {
+    color: #38bdf8;
+    margin-right: 4px;
+}
+.photo-ai-level-tag {
+    font-size: 11.5px;
+    font-weight: 800;
+    padding: 3px 9px;
+    border-radius: 5px;
+    background: #1e293b;
+    color: #cbd5e1;
+    border: 1px solid #475569;
+    transition: all 0.2s ease;
+}
+.photo-ai-level-tag.active {
+    background: #0f2942;
+    color: #38bdf8;
+    border-color: #0284c7;
+}
+.photo-ai-toggle-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    border-radius: 16px;
+    font-size: 11.5px;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    border: 1.5px solid #475569;
+    background: #1e293b;
+    color: #cbd5e1;
+    transition: all 0.2s ease;
+}
+.photo-ai-toggle-btn:hover {
+    background: #334155;
+    color: #ffffff;
+    border-color: #64748b;
+}
+.photo-ai-toggle-btn.active {
+    background: linear-gradient(135deg, #0284c7, #06b6d4);
+    color: #ffffff;
+    border-color: #38bdf8;
+    box-shadow: 0 0 10px rgba(56, 189, 248, 0.4);
+}
+
+/* AI Netleştir Kaydırıcı (Slider) - Belirgin ve Net Çizgi */
+#aiPhotoEnhanceSlider {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 8px !important;
+    border-radius: 6px !important;
+    outline: none !important;
+    cursor: pointer;
+    margin: 6px 0 !important;
+    background: #1e293b;
+    border: 1px solid #334155;
+}
+#aiPhotoEnhanceSlider:not(:disabled) {
+    background: linear-gradient(90deg, #0284c7 0%, #38bdf8 100%);
+    border-color: #38bdf8;
+}
+#aiPhotoEnhanceSlider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #38bdf8;
+    border: 2.5px solid #ffffff;
+    box-shadow: 0 0 8px rgba(56, 189, 248, 0.6);
+    cursor: pointer;
+    transition: transform 0.1s ease;
+}
+#aiPhotoEnhanceSlider:not(:disabled)::-webkit-slider-thumb:hover {
+    transform: scale(1.15);
+}
+#aiPhotoEnhanceSlider:disabled {
+    cursor: not-allowed !important;
+    opacity: 0.6 !important;
+}
+#aiPhotoEnhanceSlider:disabled::-webkit-slider-thumb {
+    background: #64748b;
+    border-color: #94a3b8;
+    box-shadow: none;
+    cursor: not-allowed;
+}
+
+/* Base Accordions for Dark Mode */
+.hsl-accordion {
+    margin-bottom: 12px;
+    margin-top: 10px;
+    background: #0f172a;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid #1e293b;
+    transition: all 0.2s ease;
+}
+.hsl-accordion summary {
+    padding: 12px;
+    cursor: pointer;
+    color: #e2e8f0;
+    font-weight: bold;
+    list-style: none;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.02);
+}
+.hsl-accordion > div {
+    padding: 12px;
+    border-top: 1px solid #1e293b;
+}
+.hsl-dots-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    background: #0f172a;
+    padding: 8px 10px;
+    border-radius: 30px;
+    border: 1px solid #334155;
+}
+.tone-curve-canvas-wrap {
+    position: relative;
+    width: 100%;
+    border-radius: 6px;
+    overflow: hidden;
+    border: 1px solid #334155;
+    background: #0b1120;
+}
+
+/* ====================================================================
+   AÇIK TEMA KONTROLLERİ (LIGHT THEME: İÇİ DOLGUSUZ, YÜKSEK KONTRASTLI, NET VE ASLA SİLİK OLMAYAN)
+   ==================================================================== */
+body[data-theme="light"] .photo-ai-card,
+html[data-theme="light"] .photo-ai-card {
+    background: #ffffff !important;
+    border: 1.5px solid #94a3b8 !important;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05) !important;
+    border-radius: 8px !important;
+}
+body[data-theme="light"] .photo-ai-title span,
+html[data-theme="light"] .photo-ai-title span {
+    color: #0f172a !important;
+    font-weight: 800 !important;
+    font-size: 13.5px !important;
+}
+body[data-theme="light"] .photo-ai-title i,
+html[data-theme="light"] .photo-ai-title i {
+    color: #0284c7 !important;
+    font-size: 14.5px !important;
+}
+body[data-theme="light"] .photo-ai-desc,
+html[data-theme="light"] .photo-ai-desc {
+    color: #1e293b !important;
+    font-size: 12px !important;
+    font-weight: 500 !important;
+    line-height: 1.5 !important;
+}
+body[data-theme="light"] .photo-ai-slider-group label,
+html[data-theme="light"] .photo-ai-slider-group label {
+    color: #0f172a !important;
+    font-weight: 700 !important;
+    font-size: 12px !important;
+}
+body[data-theme="light"] .photo-ai-slider-group label span:first-child,
+html[data-theme="light"] .photo-ai-slider-group label span:first-child {
+    color: #0f172a !important;
+    font-weight: 700 !important;
+}
+body[data-theme="light"] .photo-ai-slider-group label span:first-child i,
+html[data-theme="light"] .photo-ai-slider-group label span:first-child i {
+    color: #0284c7 !important;
+}
+body[data-theme="light"] .photo-ai-level-tag,
+html[data-theme="light"] .photo-ai-level-tag {
+    background: #f1f5f9 !important;
+    border: 1.5px solid #94a3b8 !important;
+    color: #0f172a !important;
+    font-weight: 800 !important;
+    font-size: 11.5px !important;
+}
+body[data-theme="light"] .photo-ai-level-tag.active,
+html[data-theme="light"] .photo-ai-level-tag.active {
+    background: #e0f2fe !important;
+    border: 1.5px solid #0284c7 !important;
+    color: #0284c7 !important;
+    font-weight: 800 !important;
+}
+body[data-theme="light"] .photo-ai-toggle-btn,
+html[data-theme="light"] .photo-ai-toggle-btn {
+    background: #ffffff !important;
+    border: 1.5px solid #94a3b8 !important;
+    color: #0f172a !important;
+    font-weight: 700 !important;
+    font-size: 11.5px !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05) !important;
+}
+body[data-theme="light"] .photo-ai-toggle-btn i,
+html[data-theme="light"] .photo-ai-toggle-btn i {
+    color: #64748b !important;
+}
+body[data-theme="light"] .photo-ai-toggle-btn:hover,
+html[data-theme="light"] .photo-ai-toggle-btn:hover {
+    background: #f8fafc !important;
+    border-color: #64748b !important;
+    color: #0f172a !important;
+}
+body[data-theme="light"] .photo-ai-toggle-btn.active,
+html[data-theme="light"] .photo-ai-toggle-btn.active {
+    background: #0284c7 !important;
+    color: #ffffff !important;
+    border: 1.5px solid #0284c7 !important;
+    font-weight: 800 !important;
+    box-shadow: 0 2px 6px rgba(2, 132, 199, 0.35) !important;
+}
+body[data-theme="light"] .photo-ai-toggle-btn.active i,
+html[data-theme="light"] .photo-ai-toggle-btn.active i {
+    color: #ffffff !important;
+}
+
+/* Açık Tema: AI Netleştir Slider - Yüksek Kontrastlı, Net ve Kalın */
+body[data-theme="light"] #aiPhotoEnhanceSlider {
+    background: #cbd5e1 !important;
+    border: 1.5px solid #94a3b8 !important;
+    height: 8px !important;
+}
+body[data-theme="light"] #aiPhotoEnhanceSlider:not(:disabled) {
+    background: linear-gradient(90deg, #38bdf8 0%, #0284c7 100%) !important;
+    border-color: #0284c7 !important;
+    box-shadow: 0 1px 4px rgba(2, 132, 199, 0.25) !important;
+}
+body[data-theme="light"] #aiPhotoEnhanceSlider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #ffffff !important;
+    border: 3px solid #0284c7 !important;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3) !important;
+    cursor: pointer;
+    transition: transform 0.1s ease;
+}
+body[data-theme="light"] #aiPhotoEnhanceSlider:not(:disabled)::-webkit-slider-thumb:hover {
+    transform: scale(1.15);
+    box-shadow: 0 0 0 5px rgba(2, 132, 199, 0.2) !important;
+}
+body[data-theme="light"] #aiPhotoEnhanceSlider:disabled {
+    background: #e2e8f0 !important;
+    border-color: #cbd5e1 !important;
+    cursor: not-allowed !important;
+}
+body[data-theme="light"] #aiPhotoEnhanceSlider:disabled::-webkit-slider-thumb {
+    background: #cbd5e1 !important;
+    border: 2px solid #94a3b8 !important;
+    box-shadow: none !important;
+    cursor: not-allowed;
+}
+
+/* Açık Tema: Fotoğraf Sekmesindeki Tüm Slider ve Başlıkları Güçlendirme (Asla Silik Kalmaz) */
+body[data-theme="light"] .slider-group label,
+html[data-theme="light"] .slider-group label {
+    color: #0f172a !important;
+    font-weight: 700 !important;
+    font-size: 11px !important;
+}
+body[data-theme="light"] .slider-group label span:first-child,
+html[data-theme="light"] .slider-group label span:first-child {
+    color: #0f172a !important;
+    font-weight: 700 !important;
+}
+body[data-theme="light"] .slider-group label span:last-child,
+html[data-theme="light"] .slider-group label span:last-child {
+    color: #0f172a !important;
+    font-weight: 800 !important;
+    background: #f1f5f9 !important;
+    border: 1px solid #cbd5e1 !important;
+    padding: 1px 6px !important;
+    border-radius: 4px !important;
+}
+body[data-theme="light"] .slider-group input[type="range"],
+html[data-theme="light"] .slider-group input[type="range"] {
+    height: 6px !important;
+    background: #cbd5e1 !important;
+    border-radius: 4px !important;
+    border: 1px solid #94a3b8 !important;
+    accent-color: #6c5ce7 !important;
+}
+body[data-theme="light"] .slider-group input[type="range"]:hover,
+html[data-theme="light"] .slider-group input[type="range"]:hover {
+    background: #94a3b8 !important;
+}
+body[data-theme="light"] .section-title,
+html[data-theme="light"] .section-title {
+    color: #0f172a !important;
+    font-weight: 800 !important;
+    font-size: 12px !important;
+    border-bottom: 1.5px solid #cbd5e1 !important;
+}
+
+body[data-theme="light"] .hsl-dots-bar,
+html[data-theme="light"] .hsl-dots-bar {
+    background: #f8fafc !important;
+    border: 1px solid #cbd5e1 !important;
+}
+body[data-theme="light"] .tone-curve-canvas-wrap,
+html[data-theme="light"] .tone-curve-canvas-wrap {
+    background: #ffffff !important;
+    border-color: #cbd5e1 !important;
+}

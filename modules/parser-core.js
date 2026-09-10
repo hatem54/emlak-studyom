@@ -867,6 +867,13 @@
         if (ai && (ai.reelsHook || ai.reels_hook)) {
             window.smartReelsHook = ai.reelsHook || ai.reels_hook;
         }
+        if (ai && (ai.voiceover || ai.voice_over || ai.voiceoverScript)) {
+            let vo = ai.voiceover || ai.voice_over || ai.voiceoverScript;
+            if (window.VoiceStudio && typeof window.VoiceStudio.convertNumbersToWords === 'function') {
+                vo = window.VoiceStudio.convertNumbersToWords(vo);
+            }
+            window.smartVoiceoverScript = vo;
+        }
 
         const descLines = [];
         if (finalLocation) descLines.push('📍 ' + finalLocation);
@@ -1007,7 +1014,8 @@
   "rooms": "Oda sayısı (3+1 vb., yoksa null)",
   "regional_highlights": ["Bölge avantajı 1", "Bölge avantajı 2"],
   "description": "Sahibinden için profesyonel ilan açıklaması",
-  "social_post": "Instagram paylaşım metni"
+  "social_post": "Instagram paylaşım metni",
+  "voiceover": "Profesyonel emlak reklam filmi ve reels dış sesi için 40-55 saniyelik (70-100 kelime) zengin reklam seslendirme metni. KESİNLİKLE RAKAM (0-9) KULLANMA, TÜM SAYILARI, FİYATLARI VE METREKARELERİ YAZIYLA YAZ (örn: üç artı bir, on sekiz milyon beş yüz bin Türk lirası, yüz kırk beş metrekare)"
 }
 
 İlan Metni:

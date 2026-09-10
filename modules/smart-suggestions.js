@@ -13,6 +13,7 @@ window.smartRegionalHighlights = [];
 window.smartAiDescription = '';
 window.smartAiSocialPost = '';
 window.smartReelsHook = '';
+window.smartVoiceoverScript = '';
 window.activeAiDescTab = 'sahibinden';
 
 // ==================== AI KOTA YÖNETİCİSİ (SINIRSIZ KOTA) ====================
@@ -478,6 +479,61 @@ function getLibraryCalloutBadge(category, nameKeywords) {
     return null;
 }
 
+// ==================== AKILLI EMLAK REKLAM SESLENDİRME METNİ ÜRETİCİSİ ====================
+window.generateSmartVoiceoverScript = function(data = {}, isRescan = false) {
+    const rawText = (data.desc || data.title || '').toLowerCase();
+    const type = (data.type || '').toLowerCase();
+    const isArsa = rawText.includes('arsa') || rawText.includes('tarla') || rawText.includes('arazi') || rawText.includes('parsel') || (data.imar && data.imar.length > 0) || type.includes('arsa') || type.includes('tarla');
+    
+    // Konum metnini temizle (Slaş / taksim 'bölü' olarak okunmasın, Mah. açılsın)
+    let locName = data.location || (data.district ? (data.district + (data.city ? ', ' + data.city : '')) : 'Merkezi ve Seçkin Lokasyonda');
+    locName = locName
+        .replace(/\s*[\/\\]\s*/g, ', ')
+        .replace(/\s*\|\s*/g, ', ')
+        .replace(/\b(Mah|mah|Mh|mh)\b\.?/gi, 'Mahallesi')
+        .replace(/\b(Cad|cad|Cd|cd)\b\.?/gi, 'Caddesi')
+        .replace(/\b(Sok|sok|Sk|sk)\b\.?/gi, 'Sokağı')
+        .replace(/\b(Bul|bul|Blv|blv)\b\.?/gi, 'Bulvarı')
+        .replace(/,\s*,+/g, ', ')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+    const propPrice = data.price && data.price !== 'Fiyat İçin İletişime Geçiniz' ? data.price : '';
+    const propSize = data.size || '';
+    const propRooms = data.rooms || '';
+    const propImar = data.imar || '';
+    const propTapu = data.tapu || '';
+
+    let script = '';
+
+    if (isArsa) {
+        script = 'Geleceğinize değer katacak büyük bir yatırım fırsatı şimdi satışta. ';
+        script += locName + ' bölgesinde, hızla prim yapan ve ana ulaşım akslarına yakın stratejik bir noktada yer alan bu eşsiz arsamız yeni sahibini bekliyor. ';
+        if (propSize) script += 'Toplam ' + propSize + ' geniş kullanım alanına sahip olup, ';
+        if (propImar) script += propImar + ' imar avantajıyla hemen projelendirmeye uygundur. ';
+        else script += 'yüksek imar ve prim potansiyeliyle her geçen gün değerine değer katmaktadır. ';
+        if (propTapu) script += 'Mülkiyet durumu ' + propTapu + ' olup sorunsuz ve güvenli bir altyapıya sahiptir. ';
+        if (propPrice) script += 'Sadece ' + propPrice + ' cazip fırsat fiyatıyla sunulan bu kaçırılmayacak arsa portföyü için ';
+        else script += 'Kaçırılmayacak bu değerli gayrimenkul fırsatı için ';
+        script += 'hemen bizimle iletişime geçin, yer gösterimi ve detaylı sunum randevunuzu bugünden ayırtın.';
+    } else {
+        script = 'Hayalinizdeki konforlu ve prestijli yaşam kapılarını aralıyor. ';
+        script += locName + ' lokasyonunun en nezih ve hızla değerlenen seçkin noktasında, ulaşım ağlarına ve sosyal yaşam merkezlerine çok yakın mesafede harika bir mülk satışa sunuldu. ';
+        if (propRooms) script += propRooms + ' ferah ve aydınlık oda dağılımı, ';
+        if (propSize) script += propSize + ' geniş brüt kullanım alanı, ';
+        script += 'modern mimari çizgileri ve kaliteli iç donatılarıyla aileniz için huzur dolu bir yaşam vadediyor. ';
+        if (propTapu) script += 'Tapu durumu ' + propTapu + ' olup krediye ve hemen taşınmaya uygundur. ';
+        if (propPrice) script += 'Bu seçkin portföy ' + propPrice + ' avantajlı fiyatıyla sizleri bekliyor. ';
+        script += 'Ayrıntılı bilgi almak, yerinde görmek ve sunum fırsatından yararlanmak için hemen bizi arayın.';
+    }
+
+    if (window.VoiceStudio && typeof window.VoiceStudio.convertNumbersToWords === 'function') {
+        script = window.VoiceStudio.convertNumbersToWords(script);
+    }
+
+    return script;
+};
+
 // ==================== 1. AKILLI ANALİZ & ÖNERİ ÜRETİMİ (SADECE GERÇEK VERİLERLE ROZET ÜRETİR) ====================
 window.generateSmartSuggestions = function(data = {}, rawText = '') {
     window.lastParsedData = data;
@@ -489,6 +545,7 @@ window.generateSmartSuggestions = function(data = {}, rawText = '') {
     window.smartAiDescription = '';
     window.smartAiSocialPost = '';
     window.smartReelsHook = '';
+    window.smartVoiceoverScript = '';
 
     rawText = (rawText || '').toLowerCase();
     const type = (data.type || '').toLowerCase();
@@ -951,6 +1008,20 @@ window.generateSmartSuggestions = function(data = {}, rawText = '') {
         window.smartReelsHook = `🎬 3 SANİYELİK REELS KANCASI (Seslendirme / Başlık):\n"Bu fiyata bu lokasyonda yer bulmak artık imkansız! ${locName} bölgesindeki ${propSize} fırsatını kaçırmayın..."\n\n📌 INSTAGRAM REELS BAŞLIĞI:\n"Yatırımcısını Zengin Edecek Fırsat Portföy! 🚀 Detaylar açıklamada ⬇️"`;
     }
 
+    if (!window.smartVoiceoverScript) {
+        window.smartVoiceoverScript = window.generateSmartVoiceoverScript({
+            title: propTitle,
+            price: propPrice,
+            size: propSize,
+            rooms: propRooms,
+            imar: data.imar,
+            tapu: data.tapu,
+            location: locName,
+            type: data.type,
+            desc: rawText
+        });
+    }
+
     // 1.7 ARAYÜZÜ YENİLE VE PANELİ OTOMATİK AÇ
     window.renderSmartSuggestionsUI();
 
@@ -1078,34 +1149,114 @@ window.renderSmartSuggestionsUI = function() {
         `;
     }
 
-    // Bölüm 3: 📝 AKILLI İLAN AÇIKLAMASI & SOSYAL MEDYA METNİ
-    const activeTab = window.activeAiDescTab || 'sahibinden';
+    // Bölüm 3: 📝 AKILLI İLAN AÇIKLAMASI, REELS & SESLENDİRME METNİ
+    let activeTab = window.activeAiDescTab || 'sahibinden';
+    if (window.innerWidth <= 768 && activeTab === 'voiceover') {
+        activeTab = 'sahibinden';
+        window.activeAiDescTab = 'sahibinden';
+    }
     let descText = window.smartAiDescription || '';
     if (activeTab === 'social') descText = window.smartAiSocialPost || '';
     else if (activeTab === 'reels') descText = window.smartReelsHook || '';
+    else if (activeTab === 'voiceover') descText = window.smartVoiceoverScript || '';
 
     html += `
         <div class="smart-sub-section" style="margin-top: 14px; border-top:1px solid rgba(255,255,255,0.08); padding-top:10px;">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
                 <span class="smart-section-header purple">
-                    <i class="fa-solid fa-feather-pointed" style="color:#a855f7;"></i> Akıllı İlan & Reels Metni
+                    <i class="fa-solid fa-feather-pointed" style="color:#a855f7;"></i> Akıllı İlan & Reels
                 </span>
                 <div style="display:flex; gap:3px;">
                     <button type="button" onclick="window.switchAiDescTab('sahibinden')" class="smart-outline-tab-btn ${activeTab === 'sahibinden' ? 'active' : ''}" style="background:${activeTab === 'sahibinden' ? 'rgba(168,85,247,0.2)' : 'transparent'}; border:1px solid ${activeTab === 'sahibinden' ? '#a855f7' : 'rgba(255,255,255,0.15)'}; color:${activeTab === 'sahibinden' ? '#e9d5ff' : '#94a3b8'}; font-size:9.5px; font-weight:700; padding:2px 6px; border-radius:4px; cursor:pointer;">Sahibinden</button>
                     <button type="button" onclick="window.switchAiDescTab('social')" class="smart-outline-tab-btn ${activeTab === 'social' ? 'active' : ''}" style="background:${activeTab === 'social' ? 'rgba(56,189,248,0.2)' : 'transparent'}; border:1px solid ${activeTab === 'social' ? '#38bdf8' : 'rgba(255,255,255,0.15)'}; color:${activeTab === 'social' ? '#bae6fd' : '#94a3b8'}; font-size:9.5px; font-weight:700; padding:2px 6px; border-radius:4px; cursor:pointer;">Instagram</button>
                     <button type="button" onclick="window.switchAiDescTab('reels')" class="smart-outline-tab-btn ${activeTab === 'reels' ? 'active' : ''}" style="background:${activeTab === 'reels' ? 'rgba(234,179,8,0.2)' : 'transparent'}; border:1px solid ${activeTab === 'reels' ? '#eab308' : 'rgba(255,255,255,0.15)'}; color:${activeTab === 'reels' ? '#fef08a' : '#94a3b8'}; font-size:9.5px; font-weight:700; padding:2px 6px; border-radius:4px; cursor:pointer;">🎬 Reels</button>
+                    <button type="button" onclick="window.switchAiDescTab('voiceover')" class="smart-outline-tab-btn smart-voiceover-tab pc-only ${activeTab === 'voiceover' ? 'active' : ''}" style="background:${activeTab === 'voiceover' ? 'rgba(16,185,129,0.2)' : 'transparent'}; border:1px solid ${activeTab === 'voiceover' ? '#10b981' : 'rgba(255,255,255,0.15)'}; color:${activeTab === 'voiceover' ? '#a7f3d0' : '#94a3b8'}; font-size:9.5px; font-weight:700; padding:2px 6px; border-radius:4px; cursor:pointer;">🎙️ Seslendirme</button>
                 </div>
             </div>
 
-            <textarea id="smartGeneratedDescArea" class="smart-desc-area" rows="4" style="width:100%; height:95px; resize:vertical; line-height:1.5; font-size:11.5px; background:#1e293b; color:#f8fafc; border:1px solid #334155; border-radius:8px; padding:8px 10px; box-sizing:border-box;">${descText}</textarea>
+            <textarea id="smartGeneratedDescArea" class="smart-desc-area" rows="4" style="width:100%; height:95px; resize:vertical; line-height:1.5; font-size:11.5px; border-radius:8px; padding:8px 10px; box-sizing:border-box;">${descText}</textarea>
 
             <div style="display:flex; gap:6px; margin-top:6px;">
-                <button type="button" onclick="window.copySmartDescription()" class="smart-outline-action-btn smart-copy-btn" style="flex:1; border:1px solid #6366f1; background:rgba(99,102,241,0.1); color:#c7d2fe; font-size:11px; font-weight:700; padding:6px 0; border-radius:6px; cursor:pointer;">
+                <button type="button" onclick="window.copySmartDescription()" class="smart-outline-action-btn smart-copy-btn" title="Metni Panoya Kopyalar">
                     <i class="fa-solid fa-copy"></i> Metni Kopyala
                 </button>
-                <button type="button" onclick="window.applySmartDescToForm()" class="smart-outline-action-btn smart-apply-btn" style="flex:1; border:1px solid #10b981; background:rgba(16,185,129,0.1); color:#a7f3d0; font-size:11px; font-weight:700; padding:6px 0; border-radius:6px; cursor:pointer;">
+                <button type="button" onclick="window.applySmartDescToForm()" class="smart-outline-action-btn smart-apply-btn" title="İlan Açıklamasına Aktarır">
                     <i class="fa-solid fa-file-pen"></i> Açıklamaya Aktar
                 </button>
+                <button type="button" onclick="if(window.VoiceStudio) window.VoiceStudio.rescanFormAndRegenerate()" class="smart-outline-action-btn smart-rescan-btn pc-only" title="Formdaki güncel fiyat, m² ve detayları yeniden tarar">
+                    <i class="fa-solid fa-arrows-rotate"></i> Yeniden Tara
+                </button>
+            </div>
+
+            <!-- 🎙️ SESLENDİRME STÜDYOSU PANELİ (AI VOICEOVER & MP3 ENGINE - Sadece PC) -->
+            <div id="smartVoiceoverStudioPanel" class="voice-studio-panel pc-only" style="display:${activeTab === 'voiceover' ? 'block' : 'none'};">
+                <div class="voice-studio-header">
+                    <span class="voice-studio-title">
+                        <i class="fa-solid fa-headphones"></i> Emlak Reklam Seslendirme Motoru
+                    </span>
+                    <div id="voiceQuotaDisplay" class="voice-studio-quota">
+                        ${(window.VoiceStudio && typeof window.VoiceStudio.isAdmin === 'function' && window.VoiceStudio.isAdmin()) ? `🛡️ Admin (Nöral) • Kalan Kota: <strong class="voice-quota-val">${window.VoiceStudio.getQuotaStatus().remaining}/${window.VoiceStudio.getQuotaStatus().total}</strong>` : `<span class="voice-quota-free">⚡ Hızlı & Ücretsiz Seslendirme</span>`}
+                    </div>
+                </div>
+
+                <!-- 🪄 AI İLE DÜZENLE / KOMUT VER ÇUBUĞU -->
+                <div class="voice-studio-ai-box">
+                    <div style="display:flex; flex-wrap:wrap; gap:4px; margin-bottom:6px;">
+                        <button type="button" onclick="if(window.VoiceStudio) window.VoiceStudio.refineVoiceoverWithAI('Daha kısa, öz ve 20 saniyelik vurucu bir reklam spotu olarak yaz')" class="voice-studio-quick-btn kisa">⚡ Daha Kısa</button>
+                        <button type="button" onclick="if(window.VoiceStudio) window.VoiceStudio.refineVoiceoverWithAI('Daha heyecanlı, dinamik ve aciliyet hissi veren bir satış spotu olarak yaz')" class="voice-studio-quick-btn vurgu">📢 Daha Vurgulu</button>
+                        <button type="button" onclick="if(window.VoiceStudio) window.VoiceStudio.refineVoiceoverWithAI('Lüks, prestijli, seçkin ve elit yaşam vurgulu bir reklam filmi dış sesi olarak yaz')" class="voice-studio-quick-btn luks">💎 Lüks & Prestij</button>
+                        <button type="button" onclick="if(window.VoiceStudio) window.VoiceStudio.refineVoiceoverWithAI('Yüksek prim getirisi, geleceğe yatırım ve kazanç potansiyelini öne çıkararak yaz')" class="voice-studio-quick-btn yatirim">🌾 Yatırım Odaklı</button>
+                    </div>
+                    <div style="display:flex; gap:4px;">
+                        <input type="text" id="voiceCustomPromptInput" class="voice-studio-input" placeholder="Özel komut (örn: 'Deniz manzarasını öne çıkar', 'Daha samimi dille yaz')..." onkeydown="if(event.key==='Enter'&&window.VoiceStudio) window.VoiceStudio.refineVoiceoverWithAI(this.value)">
+                        <button type="button" onclick="if(window.VoiceStudio) window.VoiceStudio.refineVoiceoverWithAI()" class="voice-studio-btn-refine" title="AI ile Yeniden Üret">
+                            <i class="fa-solid fa-wand-magic-sparkles"></i> Düzenle
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Ses ve Hız Seçimi -->
+                <div style="display:flex; gap:6px; align-items:center; width:100%; box-sizing:border-box; margin-bottom:8px;">
+                    <select id="voiceEngineSelect" class="voice-studio-select" style="flex:1; min-width:0;" title="Ses Motoru Seçimi">
+                        ${(window.VoiceStudio && typeof window.VoiceStudio.isAdmin === 'function' && window.VoiceStudio.isAdmin()) ? `
+                            <option value="charon_neural" selected>🌟 Charon Neural (HD Erkek - Karizmatik) [Admin]</option>
+                            <option value="zephyr_neural">🌟 Zephyr Neural (HD Kadın - Prestijli) [Admin]</option>
+                            <option value="wavenet_male">📻 WaveNet Klasik (Erkek - Spiker) [Admin]</option>
+                            <option value="wavenet_female">📻 WaveNet Kadın (Spiker) [Admin]</option>
+                            <option value="ahmet_neural">🔊 Ahmet (Erkek - Doğal)</option>
+                            <option value="emel_neural">🔊 Emel (Kadın - Kurumsal)</option>
+                            <option value="free_tts">🌐 Standart TTS (Hızlı)</option>
+                        ` : `
+                            <option value="ahmet_neural" selected>🔊 Ahmet (Erkek - Doğal Reklam)</option>
+                            <option value="emel_neural">🔊 Emel (Kadın - Kurumsal & Akıcı)</option>
+                            <option value="free_tts">🌐 Standart Hızlı Seslendirme</option>
+                        `}
+                    </select>
+                    
+                    <select id="voiceSpeedSelect" class="voice-studio-select" style="width:104px; flex-shrink:0; padding-left:4px; padding-right:2px;" title="Seslendirme Hızı">
+                        <option value="0.95">0.95x (Sakin)</option>
+                        <option value="1.0">1.0x (Doğal)</option>
+                        <option value="1.05" selected>1.05x (Dinamik)</option>
+                        <option value="1.15">1.15x (Hızlı)</option>
+                    </select>
+                </div>
+
+                <!-- Aksiyon Butonları (Seslendir & Dinle / Durdur / MP3 İndir) -->
+                <div style="display:flex; gap:6px;">
+                    <button type="button" id="btnVoiceoverPlay" onclick="if(window.VoiceStudio) window.VoiceStudio.generateVoiceover()" class="voice-studio-btn-play">
+                        <i class="fa-solid fa-play"></i> Seslendir ve Dinle
+                    </button>
+                    <button type="button" id="btnVoiceoverStop" onclick="if(window.VoiceStudio) window.VoiceStudio.stopPlayback()" class="voice-studio-btn-stop">
+                        <i class="fa-solid fa-stop"></i>
+                    </button>
+                    <button type="button" id="btnVoiceoverDownload" onclick="if(window.VoiceStudio) window.VoiceStudio.downloadMP3()" disabled class="voice-studio-btn-download" title="Önce seslendirmeniz gerekir">
+                        <i class="fa-solid fa-download"></i> MP3 İndir
+                    </button>
+                </div>
+
+                <!-- Durum Bildirimi ve Oynatıcı -->
+                <div id="voiceStudioStatus" class="voice-studio-status"></div>
+                <audio id="voiceoverAudioPlayer" controls style="width:100%; height:32px; margin-top:6px; display:none; outline:none; border-radius:6px;"></audio>
             </div>
         </div>
     `;
@@ -1185,19 +1336,37 @@ window.switchAiDescTab = function(tabName) {
         if (tabName === 'sahibinden') area.value = window.smartAiDescription || '';
         else if (tabName === 'social') area.value = window.smartAiSocialPost || '';
         else if (tabName === 'reels') area.value = window.smartReelsHook || '';
+        else if (tabName === 'voiceover') area.value = window.smartVoiceoverScript || '';
     }
+
+    // Seslendirme paneli görünürlüğünü güncelle
+    const voicePanel = document.getElementById('smartVoiceoverStudioPanel');
+    if (voicePanel) {
+        voicePanel.style.display = (tabName === 'voiceover') ? 'block' : 'none';
+        if (tabName === 'voiceover' && window.VoiceStudio && typeof window.VoiceStudio.updateQuotaUI === 'function') {
+            window.VoiceStudio.updateQuotaUI();
+        }
+    }
+
     document.querySelectorAll('.smart-outline-tab-btn').forEach(b => {
         const txt = b.innerText.toLowerCase();
         let isActive = false;
         if (tabName === 'sahibinden' && txt.includes('sahibinden')) isActive = true;
         if (tabName === 'social' && txt.includes('instagram')) isActive = true;
         if (tabName === 'reels' && txt.includes('reels')) isActive = true;
+        if (tabName === 'voiceover' && (txt.includes('seslendirme') || txt.includes('ses'))) isActive = true;
 
         if (isActive) {
             b.classList.add('active');
-            b.style.background = tabName === 'sahibinden' ? 'rgba(168,85,247,0.2)' : (tabName === 'social' ? 'rgba(56,189,248,0.2)' : 'rgba(234,179,8,0.2)');
-            b.style.borderColor = tabName === 'sahibinden' ? '#a855f7' : (tabName === 'social' ? '#38bdf8' : '#eab308');
-            b.style.color = tabName === 'sahibinden' ? '#e9d5ff' : (tabName === 'social' ? '#bae6fd' : '#fef08a');
+            let bg = 'rgba(168,85,247,0.2)';
+            let border = '#a855f7';
+            let color = '#e9d5ff';
+            if (tabName === 'social') { bg = 'rgba(56,189,248,0.2)'; border = '#38bdf8'; color = '#bae6fd'; }
+            else if (tabName === 'reels') { bg = 'rgba(234,179,8,0.2)'; border = '#eab308'; color = '#fef08a'; }
+            else if (tabName === 'voiceover') { bg = 'rgba(16,185,129,0.2)'; border = '#10b981'; color = '#a7f3d0'; }
+            b.style.background = bg;
+            b.style.borderColor = border;
+            b.style.color = color;
         } else {
             b.classList.remove('active');
             b.style.background = 'transparent';
@@ -1214,6 +1383,7 @@ window.copySmartDescription = function() {
         if (window.activeAiDescTab === 'sahibinden') textToCopy = window.smartAiDescription;
         else if (window.activeAiDescTab === 'social') textToCopy = window.smartAiSocialPost;
         else if (window.activeAiDescTab === 'reels') textToCopy = window.smartReelsHook;
+        else if (window.activeAiDescTab === 'voiceover') textToCopy = window.smartVoiceoverScript;
     }
     if (!textToCopy) return;
 

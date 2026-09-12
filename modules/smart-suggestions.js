@@ -1315,12 +1315,13 @@ window.renderSmartSuggestionsUI = function() {
 };
 
 // ==================== 3. ETKİLEŞİM & AKSIYON FONKSİYONLARI ====================
-window.toggleSmartSuggestions = function() {
+window.toggleSmartSuggestions = function(forceOpen) {
     const body = document.getElementById('smartSuggestionsBody');
     const chevron = document.getElementById('smartSuggestionsChevron');
     if (!body) return;
 
-    if (body.style.display === 'none' || !body.style.display) {
+    const shouldOpen = (typeof forceOpen === 'boolean') ? forceOpen : (body.style.display === 'none' || !body.style.display);
+    if (shouldOpen) {
         body.style.display = 'block';
         if (chevron) chevron.style.transform = 'rotate(180deg)';
     } else {

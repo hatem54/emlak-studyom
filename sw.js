@@ -1,4 +1,4 @@
-const CACHE_NAME = 'emlak-studiom-v201-20260910-14';
+const CACHE_NAME = 'emlak-studiom-v203-20260912-3';
 const CORE_ASSETS = [
   './app.html',
   './styles.css',

@@ -87,11 +87,18 @@ function isExportIgnoredElement(el) {
 function sanitizeExportClone(clonedDoc) {
     if (!clonedDoc) return;
     try {
-        // 1. Gizli veya kapalı tüm şablon ve overlay elemanlarını klondan tamamen kaldır
+        // 1. Dışa aktarma maskesi ve loading pencerelerini klondan derhal temizle
+        const globalMask = clonedDoc.getElementById('download-overlay-mask');
+        if (globalMask) globalMask.remove();
+        const exportLoader = clonedDoc.getElementById('export-loading-overlay');
+        if (exportLoader) exportLoader.remove();
+
+        // 2. Gizli veya kapalı tüm şablon, overlay ve arayüz kontrol elemanlarını klondan tamamen kaldır
         const hiddenSelectors = [
-            '#elBadge', '#elPrice', '#elDetails', '#elLogo',
+            '#download-overlay-mask', '#export-loading-overlay',
             '#shadow-overlay', '#highlight-overlay', '#vignette-layer', '#mask-layer', '#maskInteractiveSvg',
-            '#export-loading-overlay', '#app-custom-context-menu', '#native-context-menu', '#native-context-overlay',
+            '#canva-render-layer', '#app-custom-context-menu', '#native-context-menu', '#native-context-overlay',
+            '#elBadge', '#elPrice', '#elDetails', '#elLogo',
             '.text-handle', '.text-lock-handle', '.text-resize-handle', '.text-rotate-handle', '.text-delete-handle',
             '.callout-lock-btn', '.callout-controls', '.callout-resizer', '.callout-rotator', '.callout-select-border',
             '.cbtn-del', '.draw-handle', '.vertex-handle', '.polygon-vertex', '.app-context-menu', '.draw-selection-box',
@@ -104,20 +111,45 @@ function sanitizeExportClone(clonedDoc) {
                 const isControlOrHandle = node.classList && (
                     node.classList.contains('text-handle') || node.classList.contains('callout-controls') ||
                     node.classList.contains('callout-resizer') || node.classList.contains('callout-rotator') ||
+                    node.classList.contains('callout-select-border') || node.classList.contains('callout-lock-btn') ||
                     node.classList.contains('cbtn-del') || node.classList.contains('draw-handle') ||
                     node.classList.contains('vertex-handle') || node.classList.contains('polygon-vertex') ||
                     node.classList.contains('cerceve-handle') || node.classList.contains('kolaj-handle') ||
                     node.classList.contains('kolaj-tutamac') ||
                     node.classList.contains('photo-inner-zoom')
                 );
-                const isExplicitlyHidden = (node.style && (node.style.visibility === 'hidden' || node.style.display === 'none' || node.style.opacity === '0')) ||
-                                           (node.id === 'shadow-overlay' && node.style.display === 'none') ||
-                                           (node.id === 'highlight-overlay' && node.style.display === 'none') ||
-                                           (node.id === 'mask-layer' && !node.style.backgroundImage) ||
-                                           (node.id === 'cerceveEditor') ||
-                                           (node.id === 'export-loading-overlay');
 
-                if (isControlOrHandle || isExplicitlyHidden) {
+                // Orijinal DOM'daki gerçek duruma ve klondaki duruma bak
+                let isHidden = false;
+                if (node.style && (node.style.display === 'none' || node.style.visibility === 'hidden' || node.style.opacity === '0')) {
+                    isHidden = true;
+                }
+                const orig = node.id ? document.getElementById(node.id) : null;
+                if (!isHidden && orig && typeof window.getComputedStyle === 'function') {
+                    try {
+                        const comp = window.getComputedStyle(orig);
+                        if (comp.display === 'none' || comp.visibility === 'hidden' || comp.opacity === '0') {
+                            isHidden = true;
+                        }
+                    } catch(e) {}
+                }
+                if (!isHidden && clonedDoc.defaultView && typeof clonedDoc.defaultView.getComputedStyle === 'function') {
+                    try {
+                        const comp = clonedDoc.defaultView.getComputedStyle(node);
+                        if (comp && (comp.display === 'none' || comp.visibility === 'hidden' || comp.opacity === '0')) {
+                            isHidden = true;
+                        }
+                    } catch(e) {}
+                }
+
+                if (node.id === 'mask-layer' && !node.style.backgroundImage && (!orig || !orig.style.backgroundImage)) {
+                    isHidden = true;
+                }
+                if (node.id === 'cerceveEditor' || node.id === 'export-loading-overlay' || node.id === 'download-overlay-mask') {
+                    isHidden = true;
+                }
+
+                if (isControlOrHandle || isHidden) {
                     node.remove();
                 }
             });
@@ -130,19 +162,50 @@ function sanitizeExportClone(clonedDoc) {
             }
         });
 
-        // 2. html2canvas'ın şeffaf tuval üzerine siyah gölge / leke kutuları basmasını engellemek için
-        // klondaki tüm elemanlardan CSS 'backdrop-filter' özelliğini temizle
+        // 3. html2canvas UYUMLULUK TEMİZLİĞİ (Gölge, Çerçeve ve Blur Anormalliklerini Önleme):
+        // a) html2canvas 'backdrop-filter' desteklemez ve şeffaf katmanda leke/siyah kutu basar. Tüm düğümlerden temizle.
+        // b) html2canvas 'inset' gölgeleri ve '0 0 30px' gibi büyük yayılma bulanıklıklarını yanlış hesaplayıp
+        //    kayık leke dikdörtgenleri veya katı beyaz iç çerçeveler basar. Box-shadow'u temiz, tekil bir drop-shadow'a dönüştür.
         const allNodes = clonedDoc.querySelectorAll('*');
         allNodes.forEach(node => {
             if (node.style) {
                 if (node.style.backdropFilter) node.style.backdropFilter = 'none';
                 if (node.style.webkitBackdropFilter) node.style.webkitBackdropFilter = 'none';
+
+                // Box-shadow sanitizasyonu
+                const rawShadow = node.style.boxShadow;
+                if (rawShadow && rawShadow !== 'none' && rawShadow !== '') {
+                    // Inset gölgeleri kaldır (html2canvas inset gölgede iç çerçeve hatası üretir)
+                    let clean = rawShadow
+                        .split(/,(?![^(]*\))/)
+                        .map(s => s.trim())
+                        .filter(s => !s.toLowerCase().startsWith('inset') && !s.toLowerCase().includes(' inset'))
+                        .filter(s => {
+                            // Kayık leke kutusu üreten büyük glow/yayılma gölgelerini filtrele (örn: 0 0 30px rgba(...))
+                            const match = s.match(/([-\d.]+)px\s+([-\d.]+)px\s+([-\d.]+)px/);
+                            if (match) {
+                                const ox = parseFloat(match[1]);
+                                const oy = parseFloat(match[2]);
+                                const blur = parseFloat(match[3]);
+                                if (ox === 0 && oy === 0 && blur >= 20) return false;
+                            }
+                            return true;
+                        });
+
+                    if (clean.length > 0) {
+                        // Birden fazla gölge katmanı varsa en belirgin ilk dış gölgeyi tut
+                        node.style.boxShadow = clean[0];
+                    } else {
+                        node.style.boxShadow = 'none';
+                    }
+                }
             }
         });
     } catch (e) {
         console.warn("Clone sanitization error:", e);
     }
 }
+
 
 let _appLoadingTimeout = null;
 function showAppLoading(title = 'İşlem Yapılıyor...', subtitle = 'Lütfen bekleyin...', timeoutMs = 8000) {
@@ -1031,16 +1094,15 @@ async function saveImage(){
 
         // 2. ui-layer custom items render using html2canvas
         const overlay = document.createElement('div');
+        overlay.id = 'download-overlay-mask';
         overlay.style.position = 'fixed';
         overlay.style.top = '0';
         overlay.style.left = '0';
         overlay.style.width = '100vw';
         overlay.style.height = '100vh';
-        overlay.style.backgroundColor = '#0f172a';
-        overlay.style.zIndex = '9999999';
-        overlay.style.display = 'flex';
-        overlay.style.alignItems = 'center';
-        overlay.style.justifyContent = 'center';
+        overlay.style.backgroundColor = 'transparent';
+        overlay.style.zIndex = '9999990';
+        overlay.style.pointerEvents = 'none';
         document.body.appendChild(overlay);
 
         const oldPosition = canvasEl.style.position;

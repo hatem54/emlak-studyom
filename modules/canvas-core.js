@@ -222,12 +222,17 @@ function applyStylePos(el,c){
     el.style.background = c.bg || c.background || '';
     el.style.color = c.color || '';
     
-    // Kenarlıklar ve köşe yuvarlama
-    el.style.border = c.border || '';
-    el.style.borderTop = c.borderTop || '';
-    el.style.borderBottom = c.borderBottom || '';
-    el.style.borderLeft = c.borderLeft || '';
-    el.style.borderRight = c.borderRight || '';
+    // Kenarlıklar ve köşe yuvarlama (önce eski stilleri sıfırla, sonra sırayla uygula)
+    el.style.border = '';
+    el.style.borderTop = '';
+    el.style.borderBottom = '';
+    el.style.borderLeft = '';
+    el.style.borderRight = '';
+    if (c.border) el.style.border = c.border;
+    if (c.borderTop) el.style.borderTop = c.borderTop;
+    if (c.borderBottom) el.style.borderBottom = c.borderBottom;
+    if (c.borderLeft) el.style.borderLeft = c.borderLeft;
+    if (c.borderRight) el.style.borderRight = c.borderRight;
     
     if(c.radius!==undefined) {
         let rVal = typeof c.radius === 'number' ? Math.max(0, Math.round(c.radius * (finalScale / 1.18))) + 'px' : c.radius;

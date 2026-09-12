@@ -556,7 +556,146 @@ function addSVGCalloutToCanvas(item) {
     if (typeof window.renderLayers === 'function') window.renderLayers();
     
     console.log('✅ Rozet eklendi:', item.name);
+    return wrap;
 }
+
+window.addParcelBadgeToCanvas = function(parcelData, options = {}) {
+    if (!parcelData) return null;
+    const workArea = document.getElementById('workArea') || document.getElementById('canvas-container') || document.querySelector('.main-preview');
+    if (!workArea) return null;
+
+    // Önceki parsel rozetlerini temizle (tekrarlı eklemeyi önle)
+    document.querySelectorAll('.parcel-badge-callout').forEach(e => e.remove());
+
+    const ada = parcelData.ada || '';
+    const parsel = parcelData.parsel || '';
+    const alan = parcelData.alan || '';
+    const loc = [parcelData.ilce, parcelData.mahalle].filter(Boolean).join(' / ');
+    const apText = (ada && parsel) ? `ADA ${ada} / PARSEL ${parsel}` : (parcelData.name || 'TKGM ARSA PARSELİ');
+    const subText = alan ? `📐 ${alan}` + (loc ? `  •  ${loc}` : '') : (loc ? `📍 ${loc}` : '');
+
+    const theme = options.theme || 'cyan';
+    const userScale = typeof options.scale === 'number' ? options.scale : 1.0;
+
+    const themeConfig = {
+        cyan: {
+            bg1: '#0f172a',
+            bg2: '#1e293b',
+            border: '#38bdf8',
+            title: '#ffffff',
+            sub: '#38bdf8',
+            icon: '#38bdf8'
+        },
+        gold: {
+            bg1: '#1c1917',
+            bg2: '#292524',
+            border: '#f59e0b',
+            title: '#fef3c7',
+            sub: '#fbbf24',
+            icon: '#fbbf24'
+        },
+        emerald: {
+            bg1: '#062e24',
+            bg2: '#064e3b',
+            border: '#10b981',
+            title: '#ecfdf5',
+            sub: '#34d399',
+            icon: '#34d399'
+        },
+        dark: {
+            bg1: '#18181b',
+            bg2: '#27272a',
+            border: 'rgba(255,255,255,0.4)',
+            title: '#ffffff',
+            sub: '#cbd5e1',
+            icon: '#cbd5e1'
+        }
+    }[theme] || {
+        bg1: '#0f172a',
+        bg2: '#1e293b',
+        border: '#38bdf8',
+        title: '#ffffff',
+        sub: '#38bdf8',
+        icon: '#38bdf8'
+    };
+
+    // Dinamik SVG Boyutu
+    const approxW = Math.max(280, apText.length * 12 + 80);
+    const badgeW = approxW;
+    const badgeH = subText ? 82 : 56;
+    const gradId = 'pGrad_' + Math.random().toString(36).substr(2, 6);
+
+    const svgHtml = `
+<svg width="${badgeW}" height="${badgeH}" viewBox="0 0 ${badgeW} ${badgeH}" xmlns="http://www.w3.org/2000/svg" shape-rendering="geometricPrecision">
+  <defs>
+    <linearGradient id="${gradId}" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="${themeConfig.bg1}" stop-opacity="0.96"/>
+      <stop offset="100%" stop-color="${themeConfig.bg2}" stop-opacity="0.92"/>
+    </linearGradient>
+  </defs>
+  <rect x="2" y="2" width="${badgeW - 4}" height="${badgeH - 4}" rx="14" fill="url(#${gradId})" stroke="${themeConfig.border}" stroke-width="2"/>
+  <g transform="translate(16, ${subText ? 26 : 33})">
+    <path d="M7 2 L19 2 L24 13 L13 22 L2 13 Z" fill="none" stroke="${themeConfig.icon}" stroke-width="2.2" stroke-linejoin="round"/>
+    <circle cx="13" cy="12" r="3" fill="${themeConfig.icon}"/>
+    <text x="32" y="16" font-family="'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-weight="900" font-size="16" fill="${themeConfig.title}" letter-spacing="0.5px">${apText}</text>
+  </g>
+  ${subText ? `
+  <g transform="translate(48, 62)">
+    <text font-family="'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-weight="700" font-size="12.5" fill="${themeConfig.sub}" letter-spacing="0.3px">${subText}</text>
+  </g>` : ''}
+</svg>`.trim();
+
+    if (typeof addSVGCalloutToCanvas === 'function') {
+        const wrap = addSVGCalloutToCanvas({
+            name: apText,
+            svg: svgHtml
+        });
+        if (wrap) {
+            wrap.classList.add('parcel-badge-callout');
+            wrap.dataset.parcelBadge = 'true';
+            wrap.dataset.theme = theme;
+
+            const cContainer = document.getElementById('canvas-container');
+            const cW = (cContainer && parseFloat(cContainer.style.width)) || 1920;
+            const cH = (cContainer && parseFloat(cContainer.style.height)) || 1080;
+
+            const finalW = parseFloat(wrap.style.width) || (badgeW * 1.5);
+            const finalH = parseFloat(wrap.style.height) || (badgeH * 1.5);
+
+            // Haritada kullanıcının bıraktığı konuma göre orantılı yerleştir
+            let posX, posY;
+            if (options.relX !== undefined && options.relY !== undefined) {
+                posX = Math.round(options.relX * cW);
+                posY = Math.round(options.relY * cH);
+            } else {
+                // Varsayılan: Sağ üst köşe
+                posX = Math.round(cW - finalW - 60);
+                posY = 60;
+            }
+
+            // Sınır kontrolleri
+            posX = Math.max(20, Math.min(cW - finalW - 20, posX));
+            posY = Math.max(20, Math.min(cH - finalH - 20, posY));
+
+            wrap.style.left = posX + 'px';
+            wrap.style.top = posY + 'px';
+
+            // Kullanıcının haritada belirlediği boyut ölçeğini uygula
+            if (userScale && userScale !== 1.0) {
+                const el = wrap.querySelector('.callout-item');
+                if (el) {
+                    wrap.dataset.scale = userScale;
+                    el.dataset.scale = userScale;
+                    wrap.style.transform = `scale(${userScale})`;
+                }
+            }
+
+            if (typeof window.recordHistory === 'function') window.recordHistory('Parsel Rozeti Eklendi');
+            return wrap;
+        }
+    }
+    return null;
+};
 
 window.rebindSVGCallout = function(wrap) {
     if (!wrap) return;

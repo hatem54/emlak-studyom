@@ -6296,6 +6296,84 @@ body[data-theme="dark"] .desc-toggle-item.active {
     border-color: #ef4444;
 }
 
+/* Parsel Rozeti Temaları */
+.sat-map-floating-parcel-info.sat-theme-cyan {
+    background: rgba(15, 23, 42, 0.95);
+    border-color: rgba(56, 189, 248, 0.6);
+}
+.sat-map-floating-parcel-info.sat-theme-cyan .sat-float-icon,
+.sat-map-floating-parcel-info.sat-theme-cyan .sat-float-title {
+    color: #38bdf8;
+}
+
+.sat-map-floating-parcel-info.sat-theme-gold {
+    background: linear-gradient(135deg, rgba(28, 24, 14, 0.96), rgba(38, 30, 16, 0.94));
+    border-color: #f59e0b;
+}
+.sat-map-floating-parcel-info.sat-theme-gold .sat-float-icon,
+.sat-map-floating-parcel-info.sat-theme-gold .sat-float-title {
+    color: #fbbf24;
+}
+
+.sat-map-floating-parcel-info.sat-theme-emerald {
+    background: linear-gradient(135deg, rgba(6, 35, 25, 0.96), rgba(12, 50, 36, 0.94));
+    border-color: #10b981;
+}
+.sat-map-floating-parcel-info.sat-theme-emerald .sat-float-icon,
+.sat-map-floating-parcel-info.sat-theme-emerald .sat-float-title {
+    color: #34d399;
+}
+
+.sat-map-floating-parcel-info.sat-theme-dark {
+    background: rgba(24, 24, 27, 0.95);
+    border-color: rgba(255, 255, 255, 0.4);
+}
+.sat-map-floating-parcel-info.sat-theme-dark .sat-float-icon,
+.sat-map-floating-parcel-info.sat-theme-dark .sat-float-title {
+    color: #ffffff;
+}
+
+.sat-float-actions-group {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-left: 6px;
+    border-left: 1px solid rgba(255, 255, 255, 0.15);
+    padding-left: 6px;
+}
+
+.sat-badge-theme-btns {
+    display: flex;
+    gap: 6px;
+    margin-top: 4px;
+}
+.sat-theme-chip {
+    flex: 1;
+    padding: 6px 4px;
+    font-size: 11px;
+    font-weight: 700;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    background: #1e293b;
+    color: #94a3b8;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: center;
+}
+.sat-theme-chip:hover, .sat-theme-chip.active {
+    background: #334155;
+    color: #ffffff;
+    border-color: #38bdf8;
+}
+.sat-theme-chip[data-theme="gold"].active {
+    border-color: #f59e0b;
+    color: #fbbf24;
+}
+.sat-theme-chip[data-theme="emerald"].active {
+    border-color: #10b981;
+    color: #34d399;
+}
+
 /* SÜRÜKLE-BIRAK ALANI */
 .sat-drag-drop-overlay {
     position: absolute;

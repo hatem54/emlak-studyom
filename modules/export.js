@@ -172,32 +172,22 @@ function sanitizeExportClone(clonedDoc) {
                 if (node.style.backdropFilter) node.style.backdropFilter = 'none';
                 if (node.style.webkitBackdropFilter) node.style.webkitBackdropFilter = 'none';
 
-                // Box-shadow sanitizasyonu
+                // Box-shadow sanitizasyonu (html2canvas şeffaf tuval uyumluluğu)
                 const rawShadow = node.style.boxShadow;
                 if (rawShadow && rawShadow !== 'none' && rawShadow !== '') {
-                    // Inset gölgeleri kaldır (html2canvas inset gölgede iç çerçeve hatası üretir)
-                    let clean = rawShadow
-                        .split(/,(?![^(]*\))/)
-                        .map(s => s.trim())
-                        .filter(s => !s.toLowerCase().startsWith('inset') && !s.toLowerCase().includes(' inset'))
-                        .filter(s => {
-                            // Kayık leke kutusu üreten büyük glow/yayılma gölgelerini filtrele (örn: 0 0 30px rgba(...))
-                            const match = s.match(/([-\d.]+)px\s+([-\d.]+)px\s+([-\d.]+)px/);
-                            if (match) {
-                                const ox = parseFloat(match[1]);
-                                const oy = parseFloat(match[2]);
-                                const blur = parseFloat(match[3]);
-                                if (ox === 0 && oy === 0 && blur >= 20) return false;
-                            }
-                            return true;
-                        });
+                    // Spread-border kontrolü: Örn "0 0 0 1px rgba(245,158,11,.3)" gibi gölgeler gerçekte kenarlıktır
+                    const shadowParts = rawShadow.split(/,(?![^(]*\))/).map(s => s.trim());
+                    shadowParts.forEach(part => {
+                        const spreadMatch = part.match(/0(?:px)?\s+0(?:px)?\s+0(?:px)?\s+([\d.]+)px\s+(.+)/);
+                        if (spreadMatch && (!node.style.border || node.style.border === 'none' || node.style.border === '')) {
+                            node.style.border = `${spreadMatch[1]}px solid ${spreadMatch[2]}`;
+                        }
+                    });
 
-                    if (clean.length > 0) {
-                        // Birden fazla gölge katmanı varsa en belirgin ilk dış gölgeyi tut
-                        node.style.boxShadow = clean[0];
-                    } else {
-                        node.style.boxShadow = 'none';
-                    }
+                    // Standart şablon öğeleri (elBadge, elPrice, elDetails) ve tuval elemanlarında
+                    // html2canvas'ın kirli koyu siyah leke/hale basmasını engellemek için
+                    // gölgeleri tamamen temizle. Öğelerin kendi parlak renkleri ve altın çerçeveleri jilet gibi net kalsın.
+                    node.style.boxShadow = 'none';
                 }
             }
         });

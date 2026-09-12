@@ -94,9 +94,9 @@ const TPL={
     },
     t2:{
         name:'2. Altın Lüks',
-        badge:{top:50,right:50,bg:'linear-gradient(135deg,#fbbf24,#d97706)',color:'#1a1a1a',radius:6,padding:'16px 34px',fontSize:36,fontFamily:"'Playfair Display',serif",fontWeight:900,letterSpacing:'2px',boxShadow:'0 8px 24px rgba(217,119,6,.5), inset 0 2px 4px rgba(255,255,255,.4)',textShadow:'0 1px 2px rgba(255,255,255,.3)'},
-        price:{bottom:60,right:60,bg:'linear-gradient(135deg,rgba(0,0,0,.85),rgba(30,20,0,.75))',color:'#fcd34d',radius:12,padding:'18px 36px',fontSize:64,fontFamily:"'Playfair Display',serif",fontWeight:900,boxShadow:'0 12px 32px rgba(0,0,0,.5), 0 0 0 1px rgba(245,158,11,.3)',textShadow:'0 2px 8px rgba(245,158,11,.4)',backdropFilter:'blur(10px)'},
-        details:{bottom:60,left:60,bg:'linear-gradient(135deg,rgba(0,0,0,.88),rgba(30,20,0,.82))',color:'#fef3c7',radius:14,border:'2px solid rgba(245,158,11,.6)',padding:'26px 40px',fontSize:26,fontFamily:"'Playfair Display',serif",fontWeight:600,lineHeight:1.8,boxShadow:'0 20px 40px rgba(0,0,0,.6), 0 0 30px rgba(245,158,11,.15), inset 0 1px 0 rgba(245,158,11,.2)',backdropFilter:'blur(12px)'}
+        badge:{top:50,right:50,bg:'linear-gradient(135deg,#fbbf24,#d97706)',color:'#1a1a1a',radius:6,padding:'16px 34px',fontSize:36,fontFamily:"'Playfair Display',serif",fontWeight:900,letterSpacing:'2px',border:'2px solid rgba(251,191,36,.85)',boxShadow:'0 8px 24px rgba(217,119,6,.5), inset 0 2px 4px rgba(255,255,255,.4)',textShadow:'0 1px 2px rgba(255,255,255,.3)'},
+        price:{bottom:60,right:60,bg:'linear-gradient(135deg,rgba(0,0,0,.85),rgba(30,20,0,.75))',color:'#fcd34d',radius:12,padding:'18px 36px',fontSize:64,fontFamily:"'Playfair Display',serif",fontWeight:900,border:'2px solid #f59e0b',boxShadow:'0 12px 32px rgba(0,0,0,.5), 0 0 0 1px rgba(245,158,11,.3)',textShadow:'0 2px 8px rgba(245,158,11,.4)',backdropFilter:'blur(10px)'},
+        details:{bottom:60,left:60,bg:'linear-gradient(135deg,rgba(0,0,0,.88),rgba(30,20,0,.82))',color:'#fef3c7',radius:14,border:'2px solid #f59e0b',padding:'26px 40px',fontSize:26,fontFamily:"'Playfair Display',serif",fontWeight:600,lineHeight:1.8,boxShadow:'0 20px 40px rgba(0,0,0,.6), 0 0 30px rgba(245,158,11,.15), inset 0 1px 0 rgba(245,158,11,.2)',backdropFilter:'blur(12px)'}
     },
     t3:{
         name:'3. Neon Gece',

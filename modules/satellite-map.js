@@ -82,6 +82,8 @@
         parcelShowLabel: true,     // Parsel üzerindeki Ada/Parsel rozeti
         parcelLabelMarker: null,   // Leaflet marker / divIcon
         floatingParcelPos: null,   // { relX, relY } kullanıcının sürükleyip bıraktığı bağıl konum
+        parcelBadgeScale: 1.0,     // Taşınabilir parsel rozeti boyut ölçeği (0.7x - 1.8x)
+        parcelBadgeTheme: 'cyan',  // 'cyan' | 'gold' | 'emerald' | 'dark'
         isSettingsDrawerOpen: false, // Hamburger çekmece menüsü açık/kapalı
 
         // Popüler / Hızlı Atlama Konumları (Türkiye)
@@ -336,12 +338,32 @@
                                             <input type="range" id="satParcelStrokeWidthSlider" min="1" max="10" step="0.5" value="3" oninput="window.setParcelStrokeWidth(this.value)" class="sat-range-input">
                                         </div>
 
-                                        <!-- Ada/Parsel Bilgi Etiketi Göster/Gizle -->
+                                        <!-- Ada/Parsel Bilgi Etiketi Göster/Gizle, Boyut ve Tema -->
                                         <div class="sat-drawer-group">
                                             <label class="sat-checkbox-label">
                                                 <input type="checkbox" id="satParcelShowLabelCheck" checked onchange="window.toggleParcelLabel(this.checked)">
                                                 <span>Taşınabilir Ada/Parsel Rozetini Göster</span>
                                             </label>
+                                            
+                                            <!-- Rozet Boyut Ayarı -->
+                                            <div id="satDrawerBadgeControls" style="margin-top:10px;">
+                                                <div class="sat-drawer-label-row">
+                                                    <label>Rozet Boyutu:</label>
+                                                    <span id="satParcelBadgeScaleVal" class="sat-badge-sm">1.0x</span>
+                                                </div>
+                                                <input type="range" id="satParcelBadgeScaleSlider" min="0.7" max="1.8" step="0.1" value="1.0" oninput="window.setFloatingParcelScale(this.value)" class="sat-range-input" title="Rozet Boyutunu Ayarla">
+                                                
+                                                <!-- Rozet Renk Teması -->
+                                                <div class="sat-drawer-label-row" style="margin-top:8px;">
+                                                    <label>Rozet Teması / Rengi:</label>
+                                                </div>
+                                                <div class="sat-badge-theme-btns" id="satBadgeThemeBtns">
+                                                    <button type="button" class="sat-theme-chip active" data-theme="cyan" onclick="window.setFloatingParcelTheme('cyan')" title="Mavi Neon">🔵 Mavi</button>
+                                                    <button type="button" class="sat-theme-chip" data-theme="gold" onclick="window.setFloatingParcelTheme('gold')" title="Altın Lüks">🟡 Altın</button>
+                                                    <button type="button" class="sat-theme-chip" data-theme="emerald" onclick="window.setFloatingParcelTheme('emerald')" title="Zümrüt Yeşili">🟢 Yeşil</button>
+                                                    <button type="button" class="sat-theme-chip" data-theme="dark" onclick="window.setFloatingParcelTheme('dark')" title="Koyu Cam">⚪ Koyu</button>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
 
@@ -2099,6 +2121,16 @@
                                         SatelliteMapModule.closeModal();
                                         if (SatelliteMapModule.parcelData) {
                                             SatelliteMapModule.syncParcelToSmartParser(SatelliteMapModule.parcelData);
+                                            // Parsel rozetini tuval üzerine serbestçe taşınabilir & boyutlandırılabilir eleman olarak ekle
+                                            if (typeof window.addParcelBadgeToCanvas === 'function' && SatelliteMapModule.parcelShowLabel) {
+                                                const relPos = SatelliteMapModule.floatingParcelPos || { relX: 0.72, relY: 0.05 };
+                                                window.addParcelBadgeToCanvas(SatelliteMapModule.parcelData, {
+                                                    relX: relPos.relX,
+                                                    relY: relPos.relY,
+                                                    scale: SatelliteMapModule.parcelBadgeScale || 1.0,
+                                                    theme: SatelliteMapModule.parcelBadgeTheme || 'cyan'
+                                                });
+                                            }
                                         }
                                         if (typeof window.showAppToast === 'function') {
                                             const aiNote = this.aiEnhanceEnabled ? ` (AI %${this.aiEnhanceIntensity || 20} Net)` : '';
@@ -2229,6 +2261,16 @@
                             SatelliteMapModule.closeModal();
                             if (SatelliteMapModule.parcelData) {
                                 SatelliteMapModule.syncParcelToSmartParser(SatelliteMapModule.parcelData);
+                                // Parsel rozetini tuval üzerine serbestçe taşınabilir & boyutlandırılabilir eleman olarak ekle
+                                if (typeof window.addParcelBadgeToCanvas === 'function' && SatelliteMapModule.parcelShowLabel) {
+                                    const relPos = SatelliteMapModule.floatingParcelPos || { relX: 0.72, relY: 0.05 };
+                                    window.addParcelBadgeToCanvas(SatelliteMapModule.parcelData, {
+                                        relX: relPos.relX,
+                                        relY: relPos.relY,
+                                        scale: SatelliteMapModule.parcelBadgeScale || 1.0,
+                                        theme: SatelliteMapModule.parcelBadgeTheme || 'cyan'
+                                    });
+                                }
                             }
                             if (typeof window.showAppToast === 'function') {
                                 const resTag = (this.selectedResolution || '4K').toUpperCase();
@@ -3362,9 +3404,19 @@
                             <span class="sat-float-title">${apStr}</span>
                             <span class="sat-float-sub">${locStr ? locStr : (p.alan || 'TKGM Parsel')}</span>
                         </div>
-                        <button type="button" class="sat-float-btn" onclick="window.zoomToCurrentParcel()" title="Parseli Ortala"><i class="fas fa-crosshairs"></i></button>
-                        <button type="button" class="sat-float-btn remove" onclick="window.clearSatelliteParcel()" title="Parseli Kaldır"><i class="fas fa-times"></i></button>
+                        <div class="sat-float-actions-group">
+                            <button type="button" class="sat-float-btn" onclick="window.setFloatingParcelScale(-0.15)" title="Rozeti Küçült"><i class="fas fa-minus"></i></button>
+                            <button type="button" class="sat-float-btn" onclick="window.setFloatingParcelScale(0.15)" title="Rozeti Büyüt"><i class="fas fa-plus"></i></button>
+                            <button type="button" class="sat-float-btn" onclick="window.toggleFloatingParcelTheme()" title="Renk / Tema Değiştir" id="satFloatThemeBtn"><i class="fas fa-palette"></i></button>
+                            <button type="button" class="sat-float-btn" onclick="window.zoomToCurrentParcel()" title="Parseli Ortala"><i class="fas fa-crosshairs"></i></button>
+                            <button type="button" class="sat-float-btn remove" onclick="window.clearSatelliteParcel()" title="Parseli Kaldır"><i class="fas fa-times"></i></button>
+                        </div>
                     `;
+                    floatInfo.classList.remove('sat-theme-cyan', 'sat-theme-gold', 'sat-theme-emerald', 'sat-theme-dark');
+                    floatInfo.classList.add('sat-theme-' + (this.parcelBadgeTheme || 'cyan'));
+                    floatInfo.style.transform = `scale(${this.parcelBadgeScale || 1.0})`;
+                    floatInfo.style.transformOrigin = 'top right';
+
                     if (!this.floatingParcelPos) {
                         floatInfo.style.top = '14px';
                         floatInfo.style.right = '14px';
@@ -3435,11 +3487,70 @@
                 strokeVal.textContent = `${sw}px`;
             }
 
-            // 8. Show label checkbox
+            // 8. Show label checkbox, scale & theme
             const labelChk = document.getElementById('satParcelShowLabelCheck');
             if (labelChk) {
                 labelChk.checked = !!this.parcelShowLabel;
             }
+            const scaleSlider = document.getElementById('satParcelBadgeScaleSlider');
+            const scaleVal = document.getElementById('satParcelBadgeScaleVal');
+            if (scaleSlider && scaleVal) {
+                scaleSlider.value = this.parcelBadgeScale || 1.0;
+                scaleVal.textContent = `${(this.parcelBadgeScale || 1.0).toFixed(1)}x`;
+            }
+            document.querySelectorAll('#satBadgeThemeBtns .sat-theme-chip').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.theme === (this.parcelBadgeTheme || 'cyan'));
+            });
+        },
+
+        /**
+         * Taşınabilir Parsel Rozetinin Boyutunu Ayarlar (0.65x - 1.8x)
+         */
+        setFloatingParcelScale: function(valOrDelta) {
+            let newScale = this.parcelBadgeScale || 1.0;
+            if (typeof valOrDelta === 'string' || (typeof valOrDelta === 'number' && valOrDelta >= 0.5)) {
+                newScale = parseFloat(valOrDelta);
+            } else if (typeof valOrDelta === 'number') {
+                newScale += valOrDelta;
+            }
+            newScale = Math.max(0.65, Math.min(1.8, Math.round(newScale * 10) / 10));
+            this.parcelBadgeScale = newScale;
+
+            const floatInfo = document.getElementById('satFloatingParcelInfo');
+            if (floatInfo) {
+                floatInfo.style.transform = `scale(${newScale})`;
+                floatInfo.style.transformOrigin = 'top right';
+            }
+            const slider = document.getElementById('satParcelBadgeScaleSlider');
+            if (slider) slider.value = newScale;
+            const badge = document.getElementById('satParcelBadgeScaleVal');
+            if (badge) badge.textContent = `${newScale.toFixed(1)}x`;
+        },
+
+        /**
+         * Taşınabilir Parsel Rozetinin Renk Temasını Ayarlar
+         */
+        setFloatingParcelTheme: function(theme) {
+            const validThemes = ['cyan', 'gold', 'emerald', 'dark'];
+            this.parcelBadgeTheme = validThemes.includes(theme) ? theme : 'cyan';
+            const floatInfo = document.getElementById('satFloatingParcelInfo');
+            if (floatInfo) {
+                floatInfo.classList.remove('sat-theme-cyan', 'sat-theme-gold', 'sat-theme-emerald', 'sat-theme-dark');
+                floatInfo.classList.add('sat-theme-' + this.parcelBadgeTheme);
+            }
+            document.querySelectorAll('#satBadgeThemeBtns .sat-theme-chip').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.theme === this.parcelBadgeTheme);
+            });
+        },
+
+        /**
+         * Hızlı Butonla Parsel Temasını Döndürür
+         */
+        toggleFloatingParcelTheme: function() {
+            const list = ['cyan', 'gold', 'emerald', 'dark'];
+            const curIdx = list.indexOf(this.parcelBadgeTheme || 'cyan');
+            const nextTheme = list[(curIdx + 1) % list.length];
+            this.setFloatingParcelTheme(nextTheme);
         },
 
         /**
@@ -3604,18 +3715,9 @@
 
                 ctx.restore();
 
-                // 4. Ada / Parsel Rozeti (Kullanıcının haritada konumlandırdığı yere veya sağ üste çiz)
-                if (this.parcelShowLabel) {
-                    let badgeX, badgeY;
-                    if (this.floatingParcelPos) {
-                        badgeX = this.floatingParcelPos.relX * targetW + (90 * scale);
-                        badgeY = this.floatingParcelPos.relY * targetH + (24 * scale);
-                    } else {
-                        badgeX = targetW - (130 * scale);
-                        badgeY = 55 * scale;
-                    }
-                    this.drawCanvasParcelBadge(ctx, badgeX, badgeY, this.parcelData, scale);
-                }
+                // 4. Ada / Parsel Rozeti tuval fotoğrafının içine sabit basılmaz.
+                // Kullanıcının tuvalde serbestçe taşıyabilmesi, büyütebilmesi ve renklerini değiştirebilmesi için
+                // aktarım tamamlandığında window.addParcelBadgeToCanvas üzerinden canlı tuval elemanı olarak eklenir.
             } catch(e) {
                 console.warn('drawVectorParcelPolygon hatası:', e);
             }
@@ -4193,6 +4295,18 @@
 
     window.syncCurrentParcelToSmartParser = function() {
         SatelliteMapModule.syncParcelToSmartParser();
+    };
+
+    window.setFloatingParcelScale = function(valOrDelta) {
+        SatelliteMapModule.setFloatingParcelScale(valOrDelta);
+    };
+
+    window.setFloatingParcelTheme = function(theme) {
+        SatelliteMapModule.setFloatingParcelTheme(theme);
+    };
+
+    window.toggleFloatingParcelTheme = function() {
+        SatelliteMapModule.toggleFloatingParcelTheme();
     };
 
     window.SatelliteMapModule = SatelliteMapModule;

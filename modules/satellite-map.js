@@ -60,8 +60,8 @@
         google3DMode: 'HYBRID', // 'HYBRID' (Uydu+Yol) | 'SATELLITE' (Saf Uydu)
         google3DRange: 1400,    // 1400m helikopter/hava kuşu bakış mesafesi (sokak görünümünden uzak)
         google3DTilt: 45,       // 45 derece derinlikli 3D açısı
-        markerEnabled: true,    // Varsayılan olarak açık: Harita adrese gittiğinde pin tam o noktaya yerleşir
-        markerStyle: 'badge',   // 'badge' | 'classic' | 'gold' | 'radar'
+        markerEnabled: false,   // Varsayılan olarak kapalı: Kullanıcı açtığında pin görünür
+        markerStyle: 'pin_modern', // 'pushpin_red' | 'pushpin_gold' | 'pin_modern' | 'pin_gold_luxury' | 'pin_real_estate' | 'pin_neon_cyan' | 'pin_target' | 'pin_radar' | 'pin_flag' | 'pin_vip_star'
         customMarkerText: 'PORTFÖYÜMÜZ',
         markerLatLng: null,
         aiEnhanceEnabled: true, // Varsayılan açık: Picsart tarzı AI uydu netleştirme & süper çözünürlük
@@ -82,8 +82,9 @@
         parcelShowLabel: true,     // Parsel üzerindeki Ada/Parsel rozeti
         parcelLabelMarker: null,   // Leaflet marker / divIcon
         floatingParcelPos: null,   // { relX, relY } kullanıcının sürükleyip bıraktığı bağıl konum
-        parcelBadgeScale: 1.0,     // Taşınabilir parsel rozeti boyut ölçeği (0.7x - 1.8x)
-        parcelBadgeTheme: 'cyan',  // 'cyan' | 'gold' | 'emerald' | 'dark'
+        parcelBadgeScale: 1.0,     // Taşınabilir parsel rozeti boyut ölçeği (0.6x - 2.5x)
+        parcelBadgeTheme: 'gold',  // 'gold' | 'cyan' | 'emerald' | 'dark' | 'sapphire' | 'ruby'
+        parcelBadgeCustomColors: null, // Kullanıcı özel renk seçtiğinde { bg, titleColor, subColor, borderColor, borderWidth }
         isSettingsDrawerOpen: false, // Hamburger çekmece menüsü açık/kapalı
 
         // Popüler / Hızlı Atlama Konumları (Türkiye)
@@ -186,15 +187,21 @@
                         </div>
 
                         <div class="sat-ctrl-group">
-                            <button type="button" id="satToggleMarkerBtn" class="sat-btn-toggle-pin active" onclick="window.toggleSatelliteMarker()" title="Canlı Konum İğnesini (Pin) Göster/Gizle">
-                                <i class="fas fa-map-marker-alt"></i> <span>Pin:</span> <b id="satMarkerStatusText">Açık</b>
+                            <button type="button" id="satToggleMarkerBtn" class="sat-btn-toggle-pin" onclick="window.toggleSatelliteMarker()" title="Canlı Konum İğnesini (Pin) Göster/Gizle">
+                                <i class="fas fa-map-marker-alt"></i> <span>Pin:</span> <b id="satMarkerStatusText">Kapalı</b>
                             </button>
-                            <div id="satMarkerSettingsWrapper" class="sat-marker-settings">
+                            <div id="satMarkerSettingsWrapper" class="sat-marker-settings" style="opacity:0.35; pointer-events:none; filter:grayscale(0.8);">
                                 <select id="satMarkerStyleSelect" class="sat-style-select" onchange="window.setSatelliteMarkerStyle(this.value)" title="Pin Stili">
-                                    <option value="badge" selected>🏷️ Rozet</option>
-                                    <option value="classic">🔴 Klasik</option>
-                                    <option value="gold">💎 Altın</option>
-                                    <option value="radar">🎯 Radar</option>
+                                    <option value="pushpin_red">🔴 Kırmızı Toplu İğne</option>
+                                    <option value="pushpin_gold">🟡 Altın Küre İğne</option>
+                                    <option value="pin_modern" selected>📍 Modern Konum Pini</option>
+                                    <option value="pin_gold_luxury">💎 Altın Lüks Pin</option>
+                                    <option value="pin_real_estate">🏠 Emlak & Villa Pini</option>
+                                    <option value="pin_neon_cyan">⚡ Neon Cyan Pin</option>
+                                    <option value="pin_target">🎯 Taktik Nişangah</option>
+                                    <option value="pin_radar">📡 Canlı Radar</option>
+                                    <option value="pin_flag">🚩 Sınır Bayrağı</option>
+                                    <option value="pin_vip_star">⭐ VIP Yıldız Rozet</option>
                                 </select>
                                 <input type="text" id="satMarkerCustomTextInput" class="sat-marker-text-input" placeholder="Pin Başlığı..." value="PORTFÖYÜMÜZ" oninput="window.setSatelliteMarkerText(this.value)" title="Pin Üzerindeki Metin" style="width: 100px;">
                             </div>
@@ -1105,32 +1112,80 @@
             }
 
             overlay.style.display = 'flex';
-            const style = this.markerStyle || 'badge';
+            let style = this.markerStyle || 'pin_modern';
+            // Eski stiller için uyumluluk
+            if (style === 'badge') style = 'pin_modern';
+            if (style === 'classic') style = 'pushpin_red';
+            if (style === 'gold') style = 'pin_gold_luxury';
+            if (style === 'radar') style = 'pin_radar';
+
             const text = (typeof this.customMarkerText === 'string' && this.customMarkerText.trim().length > 0)
                          ? this.customMarkerText.trim()
                          : 'PORTFÖYÜMÜZ';
+            const escText = this.escapeHtml(text);
 
-            if (style === 'radar') {
-                overlay.className = 'sat-map-pin-overlay radar-mode';
-                overlay.innerHTML = `
-                    <div class="sat-live-radar">
-                        <div class="sat-radar-ring-1"></div>
-                        <div class="sat-radar-ring-2"></div>
-                        <div class="sat-radar-dot"></div>
-                        <div class="sat-radar-cross h"></div>
-                        <div class="sat-radar-cross v"></div>
-                    </div>
-                `;
-            } else if (style === 'gold') {
+            if (style === 'pushpin_red') {
                 overlay.className = 'sat-map-pin-overlay pin-mode';
                 overlay.innerHTML = `
-                    ${text ? `<div class="sat-live-pin-text gold">${this.escapeHtml(text)}</div>` : ''}
+                    ${text ? `<div class="sat-live-pin-text" style="border-color:#ef4444; color:#ffffff;">${escText}</div>` : ''}
                     <div class="sat-live-pin-svg">
-                        <svg width="48" height="60" viewBox="-2 -1 48 60" fill="none" style="overflow: visible;">
-                            <filter id="liveGoldGlow" x="-20%" y="-20%" width="140%" height="140%">
-                                <feDropShadow dx="0" dy="4" stdDeviation="4" flood-color="#000" flood-opacity="0.6"/>
-                            </filter>
-                            <path d="M22 0C10 0 0 10 0 22C0 37 22 58 22 58S44 37 44 22C44 10 34 0 22 0Z" fill="url(#satLiveGoldGrad)" stroke="#ffffff" stroke-width="2.5" filter="url(#liveGoldGlow)"/>
+                        <svg width="42" height="54" viewBox="0 0 42 54" fill="none" style="overflow: visible;">
+                            <ellipse cx="21" cy="53" rx="8" ry="2.5" fill="rgba(0,0,0,0.45)" filter="blur(1.5px)"/>
+                            <polygon points="19.5,24 22.5,24 21,52" fill="#cbd5e1" stroke="#64748b" stroke-width="0.6"/>
+                            <rect x="16" y="21" width="10" height="4" rx="2" fill="url(#satPinMetalCollar)" stroke="#475569" stroke-width="0.5"/>
+                            <circle cx="21" cy="14" r="13" fill="url(#satSphereRedGrad)" stroke="rgba(255,255,255,0.4)" stroke-width="0.8"/>
+                            <ellipse cx="17" cy="10" rx="6" ry="3.5" transform="rotate(-30 17 10)" fill="#ffffff" opacity="0.65"/>
+                            <defs>
+                                <radialGradient id="satSphereRedGrad" cx="35%" cy="30%" r="65%">
+                                    <stop offset="0%" stop-color="#ff7875"/>
+                                    <stop offset="40%" stop-color="#ef4444"/>
+                                    <stop offset="85%" stop-color="#991b1b"/>
+                                    <stop offset="100%" stop-color="#450a0a"/>
+                                </radialGradient>
+                                <linearGradient id="satPinMetalCollar" x1="0%" y1="0%" x2="100%" y2="0%">
+                                    <stop offset="0%" stop-color="#64748b"/>
+                                    <stop offset="50%" stop-color="#f1f5f9"/>
+                                    <stop offset="100%" stop-color="#475569"/>
+                                </linearGradient>
+                            </defs>
+                        </svg>
+                    </div>
+                `;
+            } else if (style === 'pushpin_gold') {
+                overlay.className = 'sat-map-pin-overlay pin-mode';
+                overlay.innerHTML = `
+                    ${text ? `<div class="sat-live-pin-text" style="border-color:#f59e0b; color:#fbbf24;">${escText}</div>` : ''}
+                    <div class="sat-live-pin-svg">
+                        <svg width="42" height="54" viewBox="0 0 42 54" fill="none" style="overflow: visible;">
+                            <ellipse cx="21" cy="53" rx="8" ry="2.5" fill="rgba(0,0,0,0.45)" filter="blur(1.5px)"/>
+                            <polygon points="19.5,24 22.5,24 21,52" fill="#fde047" stroke="#ca8a04" stroke-width="0.6"/>
+                            <rect x="16" y="21" width="10" height="4" rx="2" fill="url(#satPinGoldCollar)" stroke="#a16207" stroke-width="0.5"/>
+                            <circle cx="21" cy="14" r="13" fill="url(#satSphereGoldGrad)" stroke="rgba(255,255,255,0.5)" stroke-width="0.8"/>
+                            <ellipse cx="17" cy="10" rx="6" ry="3.5" transform="rotate(-30 17 10)" fill="#ffffff" opacity="0.65"/>
+                            <defs>
+                                <radialGradient id="satSphereGoldGrad" cx="35%" cy="30%" r="65%">
+                                    <stop offset="0%" stop-color="#fef9c3"/>
+                                    <stop offset="35%" stop-color="#facc15"/>
+                                    <stop offset="75%" stop-color="#ca8a04"/>
+                                    <stop offset="100%" stop-color="#713f12"/>
+                                </radialGradient>
+                                <linearGradient id="satPinGoldCollar" x1="0%" y1="0%" x2="100%" y2="0%">
+                                    <stop offset="0%" stop-color="#a16207"/>
+                                    <stop offset="50%" stop-color="#fef08a"/>
+                                    <stop offset="100%" stop-color="#854d0e"/>
+                                </linearGradient>
+                            </defs>
+                        </svg>
+                    </div>
+                `;
+            } else if (style === 'pin_gold_luxury') {
+                overlay.className = 'sat-map-pin-overlay pin-mode';
+                overlay.innerHTML = `
+                    ${text ? `<div class="sat-live-pin-text" style="border-color:#eab308; color:#fef08a;">${escText}</div>` : ''}
+                    <div class="sat-live-pin-svg">
+                        <svg width="44" height="58" viewBox="0 0 44 58" fill="none" style="overflow: visible;">
+                            <ellipse cx="22" cy="57" rx="10" ry="3" fill="rgba(0,0,0,0.5)" filter="blur(2px)"/>
+                            <path d="M22 0C10 0 0 10 0 22C0 37 22 58 22 58S44 37 44 22C44 10 34 0 22 0Z" fill="url(#satLiveGoldGrad)" stroke="#ffffff" stroke-width="2.5"/>
                             <circle cx="22" cy="21" r="9" fill="#0f172a" stroke="#fef08a" stroke-width="2"/>
                             <path d="M22 15L27 21L22 27L17 21Z" fill="#fde047"/>
                             <defs>
@@ -1142,48 +1197,134 @@
                             </defs>
                         </svg>
                     </div>
-                    <div class="sat-pin-ground-shadow"></div>
                 `;
-            } else if (style === 'classic') {
+            } else if (style === 'pin_real_estate') {
                 overlay.className = 'sat-map-pin-overlay pin-mode';
                 overlay.innerHTML = `
-                    ${text ? `<div class="sat-live-pin-text classic">${this.escapeHtml(text)}</div>` : ''}
+                    ${text ? `<div class="sat-live-pin-text" style="border-color:#10b981; color:#ecfdf5;">${escText}</div>` : ''}
                     <div class="sat-live-pin-svg">
-                        <svg width="46" height="58" viewBox="-2 -1 46 58" fill="none" style="overflow: visible;">
-                            <filter id="liveClassicGlow" x="-20%" y="-20%" width="140%" height="140%">
-                                <feDropShadow dx="0" dy="4" stdDeviation="4" flood-color="#000" flood-opacity="0.6"/>
-                            </filter>
-                            <path d="M21 0C9.4 0 0 9.4 0 21C0 35 21 56 21 56S42 35 42 21C42 9.4 32.6 0 21 0Z" fill="url(#satLiveRedGrad)" stroke="#ffffff" stroke-width="2.5" filter="url(#liveClassicGlow)"/>
-                            <circle cx="21" cy="20" r="8" fill="#ffffff"/>
-                            <circle cx="21" cy="20" r="4.5" fill="#dc2626"/>
+                        <svg width="46" height="60" viewBox="0 0 46 60" fill="none" style="overflow: visible;">
+                            <ellipse cx="23" cy="59" rx="10" ry="3" fill="rgba(0,0,0,0.5)" filter="blur(2px)"/>
+                            <path d="M23 0C10.5 0 0 10.5 0 23C0 39 23 60 23 60S46 39 46 23C46 10.5 35.5 0 23 0Z" fill="url(#satLiveEmeraldGrad)" stroke="#ffffff" stroke-width="2.5"/>
+                            <circle cx="23" cy="22" r="10.5" fill="#ffffff"/>
+                            <path d="M23 15L16 22H19V28H27V22H30L23 15Z" fill="#047857"/>
                             <defs>
-                                <linearGradient id="satLiveRedGrad" x1="0" y1="0" x2="42" y2="56" gradientUnits="userSpaceOnUse">
+                                <linearGradient id="satLiveEmeraldGrad" x1="0" y1="0" x2="46" y2="60" gradientUnits="userSpaceOnUse">
+                                    <stop stop-color="#10b981"/>
+                                    <stop offset="1" stop-color="#064e3b"/>
+                                </linearGradient>
+                            </defs>
+                        </svg>
+                    </div>
+                `;
+            } else if (style === 'pin_neon_cyan') {
+                overlay.className = 'sat-map-pin-overlay pin-mode';
+                overlay.innerHTML = `
+                    ${text ? `<div class="sat-live-pin-text" style="border-color:#38bdf8; color:#e0f2fe; box-shadow:0 0 12px rgba(56,189,248,0.4);">${escText}</div>` : ''}
+                    <div class="sat-live-pin-svg">
+                        <svg width="44" height="58" viewBox="0 0 44 58" fill="none" style="overflow: visible;">
+                            <ellipse cx="22" cy="57" rx="10" ry="3" fill="rgba(0,0,0,0.5)" filter="blur(2px)"/>
+                            <path d="M22 0C10 0 0 10 0 22C0 37 22 58 22 58S44 37 44 22C44 10 34 0 22 0Z" fill="#090d16" stroke="#38bdf8" stroke-width="2.6"/>
+                            <circle cx="22" cy="21" r="8" fill="rgba(56,189,248,0.15)" stroke="#38bdf8" stroke-width="1.8"/>
+                            <circle cx="22" cy="21" r="4" fill="#38bdf8"/>
+                        </svg>
+                    </div>
+                `;
+            } else if (style === 'pin_target') {
+                overlay.className = 'sat-map-pin-overlay radar-mode';
+                overlay.innerHTML = `
+                    ${text ? `<div class="sat-live-pin-text" style="border-color:#ef4444; color:#ffffff; margin-bottom:10px;">${escText}</div>` : ''}
+                    <div class="sat-live-pin-svg">
+                        <svg width="60" height="60" viewBox="0 0 60 60" fill="none" style="overflow: visible;">
+                            <circle cx="30" cy="30" r="28" stroke="#ef4444" stroke-width="1.5" opacity="0.5"/>
+                            <circle cx="30" cy="30" r="20" stroke="#ef4444" stroke-width="2" stroke-dasharray="4 3"/>
+                            <circle cx="30" cy="30" r="10" stroke="#ffffff" stroke-width="2"/>
+                            <circle cx="30" cy="30" r="4" fill="#ef4444"/>
+                            <line x1="2" y1="30" x2="16" y2="30" stroke="#ef4444" stroke-width="2"/>
+                            <line x1="44" y1="30" x2="58" y2="30" stroke="#ef4444" stroke-width="2"/>
+                            <line x1="30" y1="2" x2="30" y2="16" stroke="#ef4444" stroke-width="2"/>
+                            <line x1="30" y1="44" x2="30" y2="58" stroke="#ef4444" stroke-width="2"/>
+                        </svg>
+                    </div>
+                `;
+            } else if (style === 'pin_radar') {
+                overlay.className = 'sat-map-pin-overlay radar-mode';
+                overlay.innerHTML = `
+                    ${text ? `<div class="sat-live-pin-text" style="border-color:#10b981; color:#34d399; margin-bottom:10px;">${escText}</div>` : ''}
+                    <div class="sat-live-pin-svg">
+                        <svg width="60" height="60" viewBox="0 0 60 60" fill="none" style="overflow: visible;">
+                            <circle cx="30" cy="30" r="28" fill="rgba(16, 185, 129, 0.15)" stroke="#10b981" stroke-width="1.5" opacity="0.6"/>
+                            <circle cx="30" cy="30" r="20" stroke="#10b981" stroke-width="2" stroke-dasharray="5 4"/>
+                            <circle cx="30" cy="30" r="10" stroke="#34d399" stroke-width="2"/>
+                            <circle cx="30" cy="30" r="4.5" fill="#10b981" stroke="#ffffff" stroke-width="1.5"/>
+                            <line x1="2" y1="30" x2="16" y2="30" stroke="#10b981" stroke-width="2"/>
+                            <line x1="44" y1="30" x2="58" y2="30" stroke="#10b981" stroke-width="2"/>
+                            <line x1="30" y1="2" x2="30" y2="16" stroke="#10b981" stroke-width="2"/>
+                            <line x1="30" y1="44" x2="30" y2="58" stroke="#10b981" stroke-width="2"/>
+                        </svg>
+                    </div>
+                `;
+            } else if (style === 'pin_flag') {
+                overlay.className = 'sat-map-pin-overlay pin-mode';
+                overlay.innerHTML = `
+                    ${text ? `<div class="sat-live-pin-text" style="border-color:#ef4444; color:#ffffff;">${escText}</div>` : ''}
+                    <div class="sat-live-pin-svg">
+                        <svg width="48" height="58" viewBox="0 0 48 58" fill="none" style="overflow: visible;">
+                            <ellipse cx="10" cy="57" rx="7" ry="2.2" fill="rgba(0,0,0,0.4)" filter="blur(1.5px)"/>
+                            <line x1="10" y1="6" x2="10" y2="56" stroke="#94a3b8" stroke-width="2.5" stroke-linecap="round"/>
+                            <circle cx="10" cy="5" r="3.5" fill="#f59e0b" stroke="#ffffff" stroke-width="1"/>
+                            <path d="M10 8 L44 20 L10 32 Z" fill="url(#satFlagRedGrad)" stroke="#f59e0b" stroke-width="1.8" stroke-linejoin="round"/>
+                            <circle cx="22" cy="20" r="3.5" fill="#fef08a"/>
+                            <defs>
+                                <linearGradient id="satFlagRedGrad" x1="10" y1="8" x2="44" y2="32" gradientUnits="userSpaceOnUse">
                                     <stop stop-color="#ef4444"/>
                                     <stop offset="1" stop-color="#991b1b"/>
                                 </linearGradient>
                             </defs>
                         </svg>
                     </div>
-                    <div class="sat-pin-ground-shadow"></div>
                 `;
-            } else {
-                // badge (Portföy Rozeti)
+            } else if (style === 'pin_vip_star') {
                 overlay.className = 'sat-map-pin-overlay pin-mode';
                 overlay.innerHTML = `
-                    <div class="sat-live-badge-card">
-                        <i class="fas fa-map-marker-alt"></i>
-                        <span>${this.escapeHtml(text)}</span>
-                    </div>
+                    ${text ? `<div class="sat-live-pin-text" style="border-color:#f59e0b; color:#fbbf24;">${escText}</div>` : ''}
                     <div class="sat-live-pin-svg">
-                        <svg width="40" height="48" viewBox="-2 -1 40 48" fill="none" style="overflow: visible;">
-                            <filter id="liveBadgePinGlow" x="-20%" y="-20%" width="140%" height="140%">
-                                <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#000" flood-opacity="0.5"/>
-                            </filter>
-                            <path d="M18 0C8.1 0 0 8.1 0 18C0 30 18 46 18 46S36 30 36 18C36 8.1 27.9 0 18 0Z" fill="#0284c7" stroke="#ffffff" stroke-width="2" filter="url(#liveBadgePinGlow)"/>
-                            <circle cx="18" cy="17" r="7" fill="#ffffff"/>
+                        <svg width="46" height="58" viewBox="0 0 46 58" fill="none" style="overflow: visible;">
+                            <ellipse cx="23" cy="57" rx="8" ry="2.5" fill="rgba(0,0,0,0.4)" filter="blur(1.5px)"/>
+                            <polygon points="17,34 14,56 23,48 32,56 29,34" fill="#991b1b" stroke="#f59e0b" stroke-width="1.5"/>
+                            <circle cx="23" cy="20" r="17" fill="url(#satVipGoldGrad)" stroke="#ffffff" stroke-width="2.5"/>
+                            <circle cx="23" cy="20" r="13" fill="#1e1b18" stroke="#fbbf24" stroke-width="1.5"/>
+                            <!-- 5-Point Star -->
+                            <polygon points="23,11 25.5,17 32,17.5 27,21.5 29,28 23,24 17,28 19,21.5 14,17.5 20.5,17" fill="#fde047"/>
+                            <defs>
+                                <linearGradient id="satVipGoldGrad" x1="6" y1="3" x2="40" y2="37" gradientUnits="userSpaceOnUse">
+                                    <stop stop-color="#fef08a"/>
+                                    <stop offset="0.5" stop-color="#f59e0b"/>
+                                    <stop offset="1" stop-color="#78350f"/>
+                                </linearGradient>
+                            </defs>
                         </svg>
                     </div>
-                    <div class="sat-pin-ground-shadow"></div>
+                `;
+            } else {
+                // pin_modern (Varsayılan Kırmızı/Yakut Damla Konum Pini)
+                overlay.className = 'sat-map-pin-overlay pin-mode';
+                overlay.innerHTML = `
+                    ${text ? `<div class="sat-live-pin-text" style="border-color:#ef4444; color:#ffffff;">${escText}</div>` : ''}
+                    <div class="sat-live-pin-svg">
+                        <svg width="44" height="58" viewBox="0 0 44 58" fill="none" style="overflow: visible;">
+                            <ellipse cx="22" cy="57" rx="10" ry="3" fill="rgba(0,0,0,0.5)" filter="blur(2px)"/>
+                            <path d="M22 0C10 0 0 10 0 22C0 37 22 58 22 58S44 37 44 22C44 10 34 0 22 0Z" fill="url(#satLiveRedGrad2)" stroke="#ffffff" stroke-width="2.5"/>
+                            <circle cx="22" cy="21" r="8" fill="#ffffff"/>
+                            <circle cx="22" cy="21" r="4.5" fill="#dc2626"/>
+                            <defs>
+                                <linearGradient id="satLiveRedGrad2" x1="0" y1="0" x2="44" y2="58" gradientUnits="userSpaceOnUse">
+                                    <stop stop-color="#ef4444"/>
+                                    <stop offset="1" stop-color="#991b1b"/>
+                                </linearGradient>
+                            </defs>
+                        </svg>
+                    </div>
                 `;
             }
         },
@@ -1820,6 +1961,7 @@
          */
         closeModal: function() {
             this.toggleSettingsDrawer(false);
+            this.closeParcelColorPicker();
             const modal = document.getElementById('satelliteMapModal');
             if (modal) {
                 modal.style.display = 'none';
@@ -2065,20 +2207,9 @@
                             this.drawVectorMarker(ctx3d, pinCanvasX, pinCanvasY, this.markerStyle, this.customMarkerText, targetW, wrapper);
                         }
 
-                        // 3D Harita Yakalamasında Yüklü Arsa Rozetini Çiz (Kullanıcının Konumlandırdığı Yere)
-                        if (this.parcelData && this.parcelShowLabel) {
-                            const ctx3d = offCanvas.getContext('2d');
-                            const scale = targetW / 1200;
-                            let badgeX, badgeY;
-                            if (this.floatingParcelPos) {
-                                badgeX = this.floatingParcelPos.relX * targetW + (90 * scale);
-                                badgeY = this.floatingParcelPos.relY * targetH + (24 * scale);
-                            } else {
-                                badgeX = targetW - (130 * scale);
-                                badgeY = 55 * scale;
-                            }
-                            this.drawCanvasParcelBadge(ctx3d, badgeX, badgeY, this.parcelData, scale);
-                        }
+                        // Parsel rozeti tuval fotoğrafının içine sabit basılmaz.
+                        // Kullanıcının tuvalde serbestçe taşıyabilmesi ve boyutlandırabilmesi için
+                        // aktarım sonrası window.addParcelBadgeToCanvas ile canlı eleman olarak eklenir.
 
                         let final3dCanvas = offCanvas;
                         if (this.aiEnhanceEnabled) {
@@ -2121,14 +2252,15 @@
                                         SatelliteMapModule.closeModal();
                                         if (SatelliteMapModule.parcelData) {
                                             SatelliteMapModule.syncParcelToSmartParser(SatelliteMapModule.parcelData);
-                                            // Parsel rozetini tuval üzerine serbestçe taşınabilir & boyutlandırılabilir eleman olarak ekle
+                                            // Parsel rozetini tuval üzerine serbestçe taşınabilir & boyutlandırılabilir eleman olarak ekle (Varsayılan: Sol üst)
                                             if (typeof window.addParcelBadgeToCanvas === 'function' && SatelliteMapModule.parcelShowLabel) {
-                                                const relPos = SatelliteMapModule.floatingParcelPos || { relX: 0.72, relY: 0.05 };
+                                                const relPos = SatelliteMapModule.floatingParcelPos || { relX: 0.04, relY: 0.04 };
                                                 window.addParcelBadgeToCanvas(SatelliteMapModule.parcelData, {
                                                     relX: relPos.relX,
                                                     relY: relPos.relY,
                                                     scale: SatelliteMapModule.parcelBadgeScale || 1.0,
-                                                    theme: SatelliteMapModule.parcelBadgeTheme || 'cyan'
+                                                    theme: SatelliteMapModule.parcelBadgeTheme || 'gold',
+                                                    customColors: SatelliteMapModule.parcelBadgeCustomColors
                                                 });
                                             }
                                         }
@@ -2261,14 +2393,15 @@
                             SatelliteMapModule.closeModal();
                             if (SatelliteMapModule.parcelData) {
                                 SatelliteMapModule.syncParcelToSmartParser(SatelliteMapModule.parcelData);
-                                // Parsel rozetini tuval üzerine serbestçe taşınabilir & boyutlandırılabilir eleman olarak ekle
+                                // Parsel rozetini tuval üzerine serbestçe taşınabilir & boyutlandırılabilir eleman olarak ekle (Varsayılan: Sol üst)
                                 if (typeof window.addParcelBadgeToCanvas === 'function' && SatelliteMapModule.parcelShowLabel) {
-                                    const relPos = SatelliteMapModule.floatingParcelPos || { relX: 0.72, relY: 0.05 };
+                                    const relPos = SatelliteMapModule.floatingParcelPos || { relX: 0.04, relY: 0.04 };
                                     window.addParcelBadgeToCanvas(SatelliteMapModule.parcelData, {
                                         relX: relPos.relX,
                                         relY: relPos.relY,
                                         scale: SatelliteMapModule.parcelBadgeScale || 1.0,
-                                        theme: SatelliteMapModule.parcelBadgeTheme || 'cyan'
+                                        theme: SatelliteMapModule.parcelBadgeTheme || 'gold',
+                                        customColors: SatelliteMapModule.parcelBadgeCustomColors
                                     });
                                 }
                             }
@@ -2297,7 +2430,33 @@
         },
 
         /**
-         * Tuvalin Tam Merkezine Vektörel Konum İğnesi Çizer (SVG Geometrisi ile Birebir Orantılı)
+         * Yıldız Çizim Yardımcısı
+         */
+        drawStarShape: function(ctx, cx, cy, spikes, outerRadius, innerRadius) {
+            let rot = Math.PI / 2 * 3;
+            let x = cx;
+            let y = cy;
+            const step = Math.PI / spikes;
+
+            ctx.beginPath();
+            ctx.moveTo(cx, cy - outerRadius);
+            for (let i = 0; i < spikes; i++) {
+                x = cx + Math.cos(rot) * outerRadius;
+                y = cy + Math.sin(rot) * outerRadius;
+                ctx.lineTo(x, y);
+                rot += step;
+
+                x = cx + Math.cos(rot) * innerRadius;
+                y = cy + Math.sin(rot) * innerRadius;
+                ctx.lineTo(x, y);
+                rot += step;
+            }
+            ctx.lineTo(cx, cy - outerRadius);
+            ctx.closePath();
+        },
+
+        /**
+         * Tuvalin Tam Merkezine Vektörel Konum İğnesi Çizer (SVG Geometrisi ile Birebir Orantılı - 10 Pro Stil)
          */
         drawVectorMarker: function(ctx, cx, cy, style, text, targetW, mapContainer) {
             ctx.save();
@@ -2306,10 +2465,10 @@
             s = Math.max(1.0, Math.min(2.6, s));
 
             const markerText = (typeof text === 'string' && text.trim().length > 0) ? text.trim() : 'PORTFÖYÜMÜZ';
-            const pinStyle = style || 'badge';
+            const pinStyle = style || 'pin_modern';
 
-            if (pinStyle === 'radar') {
-                // 🎯 Radar / Parsel Hedef Halkası
+            if (pinStyle === 'pin_radar' || pinStyle === 'radar') {
+                // 📡 1. Canlı Radar / Parsel Hedef Halkası
                 ctx.translate(cx, cy);
                 ctx.scale(s, s);
 
@@ -2355,11 +2514,222 @@
                 return;
             }
 
-            // Teardrop Pinler (Gold, Classic, Badge)
+            if (pinStyle === 'pin_target') {
+                // 🎯 2. Taktik Nişangah
+                ctx.translate(cx, cy);
+                ctx.scale(s, s);
+
+                ctx.beginPath();
+                ctx.arc(0, 0, 36, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(239, 68, 68, 0.14)';
+                ctx.fill();
+
+                ctx.beginPath();
+                ctx.arc(0, 0, 32, 0, Math.PI * 2);
+                ctx.setLineDash([4, 3]);
+                ctx.lineWidth = 2;
+                ctx.strokeStyle = '#f97316';
+                ctx.stroke();
+                ctx.setLineDash([]);
+
+                ctx.beginPath();
+                ctx.arc(0, 0, 18, 0, Math.PI * 2);
+                ctx.lineWidth = 2.4;
+                ctx.strokeStyle = '#ef4444';
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.arc(0, 0, 5.5, 0, Math.PI * 2);
+                ctx.fillStyle = '#ef4444';
+                ctx.fill();
+                ctx.lineWidth = 2;
+                ctx.strokeStyle = '#ffffff';
+                ctx.stroke();
+
+                ctx.lineWidth = 2.2;
+                ctx.strokeStyle = '#ef4444';
+                ctx.beginPath(); ctx.moveTo(-44, 0); ctx.lineTo(-22, 0); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(22, 0); ctx.lineTo(44, 0); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(0, -44); ctx.lineTo(0, -22); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(0, 22); ctx.lineTo(0, 44); ctx.stroke();
+
+                if (markerText) {
+                    this.drawMarkerLabelBadge(ctx, 0, -56, markerText, '#f97316', '#ffffff', false);
+                }
+
+                ctx.restore();
+                return;
+            }
+
+            if (pinStyle === 'pushpin_red') {
+                // 🔴 3. Kırmızı Toplu İğne
+                ctx.translate(cx, cy);
+                ctx.scale(s, s);
+
+                // Gölge
+                ctx.beginPath();
+                ctx.ellipse(0, 2, 9, 3, 0, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
+                ctx.fill();
+
+                // Çelik İğne (0,0)'a batar
+                ctx.beginPath();
+                ctx.moveTo(9, -24);
+                ctx.lineTo(0, 0);
+                ctx.lineWidth = 3;
+                ctx.strokeStyle = '#cbd5e1';
+                ctx.lineCap = 'round';
+                ctx.stroke();
+
+                // Çelik yansıma
+                ctx.beginPath();
+                ctx.moveTo(8.5, -24);
+                ctx.lineTo(-0.5, 0);
+                ctx.lineWidth = 1;
+                ctx.strokeStyle = '#64748b';
+                ctx.stroke();
+
+                // Kırmızı Küre
+                const headX = 9, headY = -35;
+                const redGrad = ctx.createRadialGradient(headX - 4, headY - 4, 2, headX, headY, 14);
+                redGrad.addColorStop(0, '#f87171');
+                redGrad.addColorStop(0.5, '#dc2626');
+                redGrad.addColorStop(1, '#7f1d1d');
+
+                ctx.beginPath();
+                ctx.arc(headX, headY, 13, 0, Math.PI * 2);
+                ctx.fillStyle = redGrad;
+                ctx.fill();
+                ctx.lineWidth = 1.8;
+                ctx.strokeStyle = '#ffffff';
+                ctx.stroke();
+
+                // 3D Parlama
+                ctx.save();
+                ctx.translate(headX - 4, headY - 4);
+                ctx.rotate(-0.5);
+                ctx.beginPath();
+                ctx.ellipse(0, 0, 4.5, 2.5, 0, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+                ctx.fill();
+                ctx.restore();
+
+                if (markerText) {
+                    this.drawMarkerLabelBadge(ctx, 0, -58, markerText, '#ef4444', '#ffffff', false);
+                }
+
+                ctx.restore();
+                return;
+            }
+
+            if (pinStyle === 'pushpin_gold') {
+                // 🟡 4. Altın Küre Toplu İğne
+                ctx.translate(cx, cy);
+                ctx.scale(s, s);
+
+                // Gölge
+                ctx.beginPath();
+                ctx.ellipse(0, 2, 9, 3, 0, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
+                ctx.fill();
+
+                // Çelik İğne (0,0)'a batar
+                ctx.beginPath();
+                ctx.moveTo(9, -24);
+                ctx.lineTo(0, 0);
+                ctx.lineWidth = 3;
+                ctx.strokeStyle = '#cbd5e1';
+                ctx.lineCap = 'round';
+                ctx.stroke();
+
+                // Altın Küre
+                const headX = 9, headY = -35;
+                const goldSphere = ctx.createRadialGradient(headX - 4, headY - 4, 2, headX, headY, 14);
+                goldSphere.addColorStop(0, '#fef08a');
+                goldSphere.addColorStop(0.5, '#f59e0b');
+                goldSphere.addColorStop(1, '#78350f');
+
+                ctx.beginPath();
+                ctx.arc(headX, headY, 13, 0, Math.PI * 2);
+                ctx.fillStyle = goldSphere;
+                ctx.fill();
+                ctx.lineWidth = 1.8;
+                ctx.strokeStyle = '#ffffff';
+                ctx.stroke();
+
+                // Parlama
+                ctx.save();
+                ctx.translate(headX - 4, headY - 4);
+                ctx.rotate(-0.5);
+                ctx.beginPath();
+                ctx.ellipse(0, 0, 4.5, 2.5, 0, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+                ctx.fill();
+                ctx.restore();
+
+                if (markerText) {
+                    this.drawMarkerLabelBadge(ctx, 0, -58, markerText, '#f59e0b', '#fef08a', false);
+                }
+
+                ctx.restore();
+                return;
+            }
+
+            if (pinStyle === 'pin_flag') {
+                // 🚩 5. Sınır Bayrağı
+                ctx.translate(cx, cy);
+                ctx.scale(s, s);
+
+                // Gölge
+                ctx.beginPath();
+                ctx.ellipse(0, 2, 10, 3, 0, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
+                ctx.fill();
+
+                // Direk
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.lineTo(0, -42);
+                ctx.lineWidth = 3.5;
+                ctx.strokeStyle = '#cbd5e1';
+                ctx.lineCap = 'round';
+                ctx.stroke();
+
+                // Direk Başı Altın Küre
+                ctx.beginPath();
+                ctx.arc(0, -42, 3.5, 0, Math.PI * 2);
+                ctx.fillStyle = '#f59e0b';
+                ctx.fill();
+
+                // Kırmızı Bayrak
+                const flagGrad = ctx.createLinearGradient(0, -40, 26, -30);
+                flagGrad.addColorStop(0, '#ef4444');
+                flagGrad.addColorStop(1, '#b91c1c');
+
+                ctx.beginPath();
+                ctx.moveTo(0, -40);
+                ctx.lineTo(26, -31);
+                ctx.lineTo(0, -22);
+                ctx.closePath();
+                ctx.fillStyle = flagGrad;
+                ctx.fill();
+                ctx.lineWidth = 1.5;
+                ctx.strokeStyle = '#ffffff';
+                ctx.stroke();
+
+                if (markerText) {
+                    this.drawMarkerLabelBadge(ctx, 0, -56, markerText, '#ef4444', '#ffffff', false);
+                }
+
+                ctx.restore();
+                return;
+            }
+
+            // Teardrop Tabanlı Pinler: Modern, Gold Luxury, Real Estate, Neon Cyan, VIP Star
             ctx.translate(cx, cy);
             ctx.scale(s, s);
 
-            // 1. Zemin Yumuşak Gölgesi (Tip tam (0,0)'da)
+            // Zemin Gölgesi
             ctx.save();
             ctx.beginPath();
             ctx.ellipse(0, 2, 12, 3.5, 0, 0, Math.PI * 2);
@@ -2370,12 +2740,133 @@
             // Tip (22, 58)'i (0, 0)'a getirmek için kaydır
             ctx.save();
             ctx.translate(-22, -58);
-
-            // Klasik Google Teardrop Yolu: M22 0C10 0 0 10 0 22C0 37 22 58 22 58S44 37 44 22C44 10 34 0 22 0Z
             const teardrop = new Path2D("M22 0C10 0 0 10 0 22C0 37 22 58 22 58S44 37 44 22C44 10 34 0 22 0Z");
 
-            if (pinStyle === 'gold') {
-                // 💎 Altın Lüks Pin
+            if (pinStyle === 'pin_vip_star') {
+                // ⭐ 6. VIP Yıldız Rozet
+                ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
+                ctx.shadowBlur = 6;
+                ctx.shadowOffsetY = 3;
+
+                ctx.fillStyle = '#18181b';
+                ctx.fill(teardrop);
+
+                ctx.shadowColor = 'transparent';
+                ctx.lineWidth = 2.5;
+                ctx.strokeStyle = '#f59e0b';
+                ctx.stroke(teardrop);
+
+                // İç Koyu Halka
+                ctx.beginPath();
+                ctx.arc(22, 21, 11, 0, Math.PI * 2);
+                ctx.fillStyle = '#1e1b18';
+                ctx.fill();
+                ctx.lineWidth = 1.5;
+                ctx.strokeStyle = '#fbbf24';
+                ctx.stroke();
+
+                // Yıldız
+                ctx.fillStyle = '#fde047';
+                this.drawStarShape(ctx, 22, 21, 5, 7.5, 3.5);
+                ctx.fill();
+
+                ctx.restore();
+
+                if (markerText) {
+                    this.drawMarkerLabelBadge(ctx, 0, -68, '⭐ ' + markerText, '#f59e0b', '#fef08a', false);
+                }
+
+            } else if (pinStyle === 'pin_real_estate' || pinStyle === 'badge') {
+                // 🏠 7. Emlak & Villa Pini
+                ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
+                ctx.shadowBlur = 6;
+                ctx.shadowOffsetY = 3;
+
+                const blueGrad = ctx.createLinearGradient(0, 0, 44, 58);
+                blueGrad.addColorStop(0, '#0284c7');
+                blueGrad.addColorStop(1, '#0369a1');
+
+                ctx.fillStyle = blueGrad;
+                ctx.fill(teardrop);
+
+                ctx.shadowColor = 'transparent';
+                ctx.lineWidth = 2.5;
+                ctx.strokeStyle = '#ffffff';
+                ctx.stroke(teardrop);
+
+                // İç Beyaz Daire
+                ctx.beginPath();
+                ctx.arc(22, 21, 10.5, 0, Math.PI * 2);
+                ctx.fillStyle = '#ffffff';
+                ctx.fill();
+
+                // Ev Çizimi
+                ctx.fillStyle = '#0284c7';
+                ctx.beginPath();
+                ctx.moveTo(22, 14);
+                ctx.lineTo(16, 19.5);
+                ctx.lineTo(18, 19.5);
+                ctx.lineTo(18, 27);
+                ctx.lineTo(26, 27);
+                ctx.lineTo(26, 19.5);
+                ctx.lineTo(28, 19.5);
+                ctx.closePath();
+                ctx.fill();
+
+                // Ev Kapısı
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(20.5, 22.5, 3, 4.5);
+
+                ctx.restore();
+
+                if (markerText) {
+                    this.drawMarkerLabelBadge(ctx, 0, -68, '🏠 ' + markerText, '#38bdf8', '#ffffff', true);
+                }
+
+            } else if (pinStyle === 'pin_neon_cyan') {
+                // ⚡ 8. Neon Cyan Pin
+                ctx.shadowColor = 'rgba(6, 182, 212, 0.5)';
+                ctx.shadowBlur = 8;
+                ctx.shadowOffsetY = 2;
+
+                ctx.fillStyle = '#0f172a';
+                ctx.fill(teardrop);
+
+                ctx.lineWidth = 3;
+                ctx.strokeStyle = '#06b6d4';
+                ctx.stroke(teardrop);
+
+                ctx.shadowColor = 'transparent';
+
+                // İç Şeffaf Cyan Halka
+                ctx.beginPath();
+                ctx.arc(22, 21, 10, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(6, 182, 212, 0.15)';
+                ctx.fill();
+                ctx.lineWidth = 1.5;
+                ctx.strokeStyle = '#22d3ee';
+                ctx.stroke();
+
+                // Şimşek İkonu
+                ctx.fillStyle = '#22d3ee';
+                ctx.beginPath();
+                ctx.moveTo(23, 13);
+                ctx.lineTo(18, 21);
+                ctx.lineTo(22, 21);
+                ctx.lineTo(21, 29);
+                ctx.lineTo(27, 19.5);
+                ctx.lineTo(23, 19.5);
+                ctx.closePath();
+                ctx.fill();
+
+                ctx.restore();
+
+                if (markerText) {
+                    this.drawMarkerLabelBadge(ctx, 0, -68, '⚡ ' + markerText, '#06b6d4', '#67e8f9', false);
+                }
+
+            } else if (pinStyle === 'pin_gold_luxury' || pinStyle === 'gold') {
+                // 💎 9. Altın Lüks Pin
                 ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
                 ctx.shadowBlur = 6;
                 ctx.shadowOffsetY = 3;
@@ -2402,7 +2893,7 @@
                 ctx.strokeStyle = '#fef08a';
                 ctx.stroke();
 
-                // İç Altın Elmas (M22 15L27 21L22 27L17 21Z)
+                // İç Altın Elmas
                 ctx.beginPath();
                 ctx.moveTo(22, 15);
                 ctx.lineTo(27, 21);
@@ -2412,14 +2903,14 @@
                 ctx.fillStyle = '#fde047';
                 ctx.fill();
 
-                ctx.restore(); // Geri dön: orijin (0,0) tip noktası
+                ctx.restore();
 
                 if (markerText) {
                     this.drawMarkerLabelBadge(ctx, 0, -68, markerText, '#eab308', '#fef08a', false);
                 }
 
-            } else if (pinStyle === 'classic') {
-                // 🔴 Kırmızı Klasik Teardrop Pin
+            } else {
+                // 📍 10. Modern Yakut Konum Pini (pin_modern, classic, default)
                 ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
                 ctx.shadowBlur = 6;
                 ctx.shadowOffsetY = 3;
@@ -2452,32 +2943,6 @@
 
                 if (markerText) {
                     this.drawMarkerLabelBadge(ctx, 0, -68, markerText, '#ef4444', '#ffffff', false);
-                }
-
-            } else {
-                // 🏷️ Mavi Rozet Pin (badge)
-                ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
-                ctx.shadowBlur = 6;
-                ctx.shadowOffsetY = 3;
-
-                ctx.fillStyle = '#0284c7';
-                ctx.fill(teardrop);
-
-                ctx.shadowColor = 'transparent';
-                ctx.lineWidth = 2.2;
-                ctx.strokeStyle = '#ffffff';
-                ctx.stroke(teardrop);
-
-                // İç Beyaz Daire
-                ctx.beginPath();
-                ctx.arc(22, 21, 7.5, 0, Math.PI * 2);
-                ctx.fillStyle = '#ffffff';
-                ctx.fill();
-
-                ctx.restore();
-
-                if (markerText) {
-                    this.drawMarkerLabelBadge(ctx, 0, -68, '📍 ' + markerText, '#38bdf8', '#ffffff', true);
                 }
             }
 
@@ -3311,7 +3776,7 @@
             let initialLeft = 0, initialTop = 0;
 
             const onPointerDown = (e) => {
-                if (e.target.closest('.sat-float-btn')) return;
+                if (e.target.closest('.sat-float-btn') || e.target.closest('.sat-float-resizer') || e.target.closest('.sat-color-popover')) return;
                 isDragging = true;
                 el.style.cursor = 'grabbing';
                 const rect = el.getBoundingClientRect();
@@ -3388,7 +3853,7 @@
                 }
             }
 
-            // 2. Floating on-map info (Taşınabilir Tekil Parsel Rozeti)
+            // 2. Floating on-map info (Taşınabilir Tekil Parsel Rozeti - Köşeden Boyutlandırılabilir)
             const floatInfo = document.getElementById('satFloatingParcelInfo');
             if (floatInfo) {
                 if (hasParcel && this.parcelShowLabel) {
@@ -3399,34 +3864,42 @@
                         <div class="sat-drag-handle-grip" title="Sürükleyerek İstediğiniz Yere Taşıyın">
                             <i class="fas fa-grip-vertical"></i>
                         </div>
-                        <div class="sat-float-icon"><i class="fas fa-draw-polygon"></i></div>
+                        <div class="sat-float-icon"><i class="fas fa-location-dot"></i></div>
                         <div class="sat-float-body">
                             <span class="sat-float-title">${apStr}</span>
                             <span class="sat-float-sub">${locStr ? locStr : (p.alan || 'TKGM Parsel')}</span>
                         </div>
                         <div class="sat-float-actions-group">
-                            <button type="button" class="sat-float-btn" onclick="window.setFloatingParcelScale(-0.15)" title="Rozeti Küçült"><i class="fas fa-minus"></i></button>
-                            <button type="button" class="sat-float-btn" onclick="window.setFloatingParcelScale(0.15)" title="Rozeti Büyüt"><i class="fas fa-plus"></i></button>
-                            <button type="button" class="sat-float-btn" onclick="window.toggleFloatingParcelTheme()" title="Renk / Tema Değiştir" id="satFloatThemeBtn"><i class="fas fa-palette"></i></button>
+                            <button type="button" class="sat-float-btn" onclick="window.toggleParcelColorPicker(event)" title="Renk & Stil Ayarları" id="satFloatColorBtn"><i class="fas fa-palette"></i></button>
                             <button type="button" class="sat-float-btn" onclick="window.zoomToCurrentParcel()" title="Parseli Ortala"><i class="fas fa-crosshairs"></i></button>
                             <button type="button" class="sat-float-btn remove" onclick="window.clearSatelliteParcel()" title="Parseli Kaldır"><i class="fas fa-times"></i></button>
                         </div>
+                        <div class="sat-float-resizer" title="Köşeden Çekerek Boyutlandır"></div>
                     `;
                     floatInfo.classList.remove('sat-theme-cyan', 'sat-theme-gold', 'sat-theme-emerald', 'sat-theme-dark');
-                    floatInfo.classList.add('sat-theme-' + (this.parcelBadgeTheme || 'cyan'));
+                    floatInfo.classList.add('sat-theme-' + (this.parcelBadgeTheme || 'gold'));
                     floatInfo.style.transform = `scale(${this.parcelBadgeScale || 1.0})`;
-                    floatInfo.style.transformOrigin = 'top right';
+                    floatInfo.style.transformOrigin = 'top left';
 
                     if (!this.floatingParcelPos) {
-                        floatInfo.style.top = '14px';
-                        floatInfo.style.right = '14px';
-                        floatInfo.style.left = 'auto';
+                        floatInfo.style.top = '16px';
+                        floatInfo.style.left = '16px';
+                        floatInfo.style.right = 'auto';
                         floatInfo.style.bottom = 'auto';
                     }
+                    if (this.parcelBadgeCustomColors) {
+                        this.applyCustomColorsToDOM();
+                    } else {
+                        floatInfo.style.background = '';
+                        floatInfo.style.borderColor = '';
+                        floatInfo.style.borderWidth = '';
+                    }
                     this.initFloatingParcelDrag();
+                    this.initFloatingParcelResize();
                 } else {
                     floatInfo.style.display = 'none';
                     floatInfo.innerHTML = '';
+                    this.closeParcelColorPicker();
                 }
             }
 
@@ -3496,35 +3969,258 @@
             const scaleVal = document.getElementById('satParcelBadgeScaleVal');
             if (scaleSlider && scaleVal) {
                 scaleSlider.value = this.parcelBadgeScale || 1.0;
-                scaleVal.textContent = `${(this.parcelBadgeScale || 1.0).toFixed(1)}x`;
+                scaleVal.textContent = `${(this.parcelBadgeScale || 1.0).toFixed(2)}x`;
             }
             document.querySelectorAll('#satBadgeThemeBtns .sat-theme-chip').forEach(btn => {
-                btn.classList.toggle('active', btn.dataset.theme === (this.parcelBadgeTheme || 'cyan'));
+                btn.classList.toggle('active', btn.dataset.theme === (this.parcelBadgeTheme || 'gold'));
             });
         },
 
         /**
-         * Taşınabilir Parsel Rozetinin Boyutunu Ayarlar (0.65x - 1.8x)
+         * Harita Üzerindeki Ada/Parsel Rozetinin Köşeden Tutularak Boyutlandırılmasını Sağlar
+         */
+        initFloatingParcelResize: function() {
+            const el = document.getElementById('satFloatingParcelInfo');
+            if (!el) return;
+            const resizer = el.querySelector('.sat-float-resizer');
+            if (!resizer || resizer._resizeInitialized) return;
+            resizer._resizeInitialized = true;
+
+            let isResizing = false;
+            let startX = 0;
+            let startScale = 1.0;
+
+            const onPointerDown = (e) => {
+                isResizing = true;
+                startX = e.clientX;
+                startScale = SatelliteMapModule.parcelBadgeScale || 1.0;
+                e.stopPropagation();
+                e.preventDefault();
+                window.addEventListener('pointermove', onPointerMove);
+                window.addEventListener('pointerup', onPointerUp);
+            };
+
+            const onPointerMove = (e) => {
+                if (!isResizing) return;
+                const dx = e.clientX - startX;
+                let newScale = startScale + (dx / 160);
+                newScale = Math.max(0.6, Math.min(2.2, Math.round(newScale * 20) / 20));
+                SatelliteMapModule.setFloatingParcelScale(newScale);
+            };
+
+            const onPointerUp = () => {
+                if (!isResizing) return;
+                isResizing = false;
+                window.removeEventListener('pointermove', onPointerMove);
+                window.removeEventListener('pointerup', onPointerUp);
+            };
+
+            resizer.addEventListener('pointerdown', onPointerDown);
+        },
+
+        /**
+         * Taşınabilir Parsel Rozetinin Boyutunu Ayarlar (0.6x - 2.2x)
          */
         setFloatingParcelScale: function(valOrDelta) {
             let newScale = this.parcelBadgeScale || 1.0;
-            if (typeof valOrDelta === 'string' || (typeof valOrDelta === 'number' && valOrDelta >= 0.5)) {
+            if (typeof valOrDelta === 'string' || (typeof valOrDelta === 'number' && valOrDelta >= 0.4)) {
                 newScale = parseFloat(valOrDelta);
             } else if (typeof valOrDelta === 'number') {
                 newScale += valOrDelta;
             }
-            newScale = Math.max(0.65, Math.min(1.8, Math.round(newScale * 10) / 10));
+            newScale = Math.max(0.6, Math.min(2.2, Math.round(newScale * 20) / 20));
             this.parcelBadgeScale = newScale;
 
             const floatInfo = document.getElementById('satFloatingParcelInfo');
             if (floatInfo) {
                 floatInfo.style.transform = `scale(${newScale})`;
-                floatInfo.style.transformOrigin = 'top right';
+                floatInfo.style.transformOrigin = 'top left';
             }
             const slider = document.getElementById('satParcelBadgeScaleSlider');
             if (slider) slider.value = newScale;
             const badge = document.getElementById('satParcelBadgeScaleVal');
-            if (badge) badge.textContent = `${newScale.toFixed(1)}x`;
+            if (badge) badge.textContent = `${newScale.toFixed(2)}x`;
+        },
+
+        /**
+         * Rozet Renk & Stil Popoverını Açar / Kapatır
+         */
+        toggleParcelColorPicker: function(e) {
+            if (e) {
+                e.stopPropagation();
+                e.preventDefault();
+            }
+            const existing = document.getElementById('satParcelColorPopover');
+            if (existing) {
+                this.closeParcelColorPicker();
+            } else {
+                this.openParcelColorPicker();
+            }
+        },
+
+        openParcelColorPicker: function() {
+            this.closeParcelColorPicker();
+            const floatInfo = document.getElementById('satFloatingParcelInfo');
+            const stage = document.getElementById('satMapStage') || document.body;
+            if (!floatInfo || !stage) return;
+
+            const popover = document.createElement('div');
+            popover.id = 'satParcelColorPopover';
+            popover.className = 'sat-color-popover';
+
+            const curColors = this.parcelBadgeCustomColors || this.getThemeDefaultColors(this.parcelBadgeTheme || 'gold');
+
+            popover.innerHTML = `
+                <div class="sat-popover-header">
+                    <span><i class="fas fa-palette" style="color:#eab308; margin-right:6px;"></i>Rozet Renk & Kenarlık</span>
+                    <button type="button" class="sat-popover-close" onclick="window.closeParcelColorPicker()">&times;</button>
+                </div>
+                <div class="sat-popover-section">
+                    <label class="sat-popover-label">Hazır Renk Temaları</label>
+                    <div class="sat-popover-theme-grid">
+                        <button type="button" class="sat-theme-chip ${(this.parcelBadgeTheme || 'gold') === 'gold' ? 'active' : ''}" onclick="window.applyParcelPresetTheme('gold')">🟡 Altın Lüks</button>
+                        <button type="button" class="sat-theme-chip ${this.parcelBadgeTheme === 'cyan' ? 'active' : ''}" onclick="window.applyParcelPresetTheme('cyan')">🔵 Neon Mavi</button>
+                        <button type="button" class="sat-theme-chip ${this.parcelBadgeTheme === 'emerald' ? 'active' : ''}" onclick="window.applyParcelPresetTheme('emerald')">🟢 Zümrüt Yeşili</button>
+                        <button type="button" class="sat-theme-chip ${this.parcelBadgeTheme === 'dark' ? 'active' : ''}" onclick="window.applyParcelPresetTheme('dark')">⚫ Gece Matı</button>
+                    </div>
+                </div>
+                <div class="sat-popover-section" style="margin-top:10px;">
+                    <label class="sat-popover-label">Özel Renk İnce Ayarları</label>
+                    <div class="sat-color-row">
+                        <span>Zemin Rengi</span>
+                        <input type="color" id="satCustomBgColor" value="${curColors.bgHex || '#0f172a'}" oninput="window.updateParcelCustomStyle()">
+                    </div>
+                    <div class="sat-color-row">
+                        <span>Zemin Opaklık (%<span id="satCustomBgOpVal">${Math.round((curColors.bgOpacity !== undefined ? curColors.bgOpacity : 0.94) * 100)}</span>)</span>
+                        <input type="range" id="satCustomBgOpacity" min="20" max="100" value="${Math.round((curColors.bgOpacity !== undefined ? curColors.bgOpacity : 0.94) * 100)}" oninput="window.updateParcelCustomStyle()" style="width:90px;">
+                    </div>
+                    <div class="sat-color-row">
+                        <span>Başlık Yazı Rengi</span>
+                        <input type="color" id="satCustomTitleColor" value="${curColors.titleColor || '#fef08a'}" oninput="window.updateParcelCustomStyle()">
+                    </div>
+                    <div class="sat-color-row">
+                        <span>Alt Bilgi Yazı Rengi</span>
+                        <input type="color" id="satCustomSubColor" value="${curColors.subColor || '#e2e8f0'}" oninput="window.updateParcelCustomStyle()">
+                    </div>
+                    <div class="sat-color-row">
+                        <span>Çerçeve / Kenar Rengi</span>
+                        <input type="color" id="satCustomBorderColor" value="${curColors.borderColor || '#eab308'}" oninput="window.updateParcelCustomStyle()">
+                    </div>
+                    <div class="sat-color-row">
+                        <span>Kenarlık Kalınlığı (<span id="satCustomBorderWVal">${curColors.borderWidth !== undefined ? curColors.borderWidth : 2}</span>px)</span>
+                        <input type="range" id="satCustomBorderWidth" min="0" max="6" value="${curColors.borderWidth !== undefined ? curColors.borderWidth : 2}" oninput="window.updateParcelCustomStyle()" style="width:90px;">
+                    </div>
+                </div>
+            `;
+
+            stage.appendChild(popover);
+
+            const infoRect = floatInfo.getBoundingClientRect();
+            const stageRect = stage.getBoundingClientRect();
+
+            let left = infoRect.left - stageRect.left;
+            let top = infoRect.bottom - stageRect.top + 8;
+
+            if (left + 295 > stageRect.width) {
+                left = Math.max(10, stageRect.width - 300);
+            }
+            if (top + 330 > stageRect.height) {
+                top = Math.max(10, infoRect.top - stageRect.top - 335);
+            }
+
+            popover.style.left = left + 'px';
+            popover.style.top = top + 'px';
+        },
+
+        closeParcelColorPicker: function() {
+            const existing = document.getElementById('satParcelColorPopover');
+            if (existing) {
+                existing.remove();
+            }
+        },
+
+        getThemeDefaultColors: function(theme) {
+            switch(theme) {
+                case 'gold':
+                    return { bgHex: '#0f172a', bgOpacity: 0.94, titleColor: '#fef08a', subColor: '#fde047', borderColor: '#eab308', borderWidth: 2 };
+                case 'cyan':
+                    return { bgHex: '#0f172a', bgOpacity: 0.94, titleColor: '#ffffff', subColor: '#38bdf8', borderColor: '#0284c7', borderWidth: 2 };
+                case 'emerald':
+                    return { bgHex: '#022c22', bgOpacity: 0.94, titleColor: '#ecfdf5', subColor: '#34d399', borderColor: '#10b981', borderWidth: 2 };
+                case 'dark':
+                    return { bgHex: '#18181b', bgOpacity: 0.95, titleColor: '#ffffff', subColor: '#a1a1aa', borderColor: '#52525b', borderWidth: 1.5 };
+                default:
+                    return { bgHex: '#0f172a', bgOpacity: 0.94, titleColor: '#fef08a', subColor: '#fde047', borderColor: '#eab308', borderWidth: 2 };
+            }
+        },
+
+        applyParcelPresetTheme: function(theme) {
+            this.parcelBadgeTheme = theme;
+            this.parcelBadgeCustomColors = this.getThemeDefaultColors(theme);
+            this.applyCustomColorsToDOM();
+            this.openParcelColorPicker();
+        },
+
+        updateParcelCustomStyle: function() {
+            const bgHex = document.getElementById('satCustomBgColor')?.value || '#0f172a';
+            const bgOpPct = parseInt(document.getElementById('satCustomBgOpacity')?.value || '94', 10);
+            const bgOpacity = bgOpPct / 100;
+            const titleColor = document.getElementById('satCustomTitleColor')?.value || '#ffffff';
+            const subColor = document.getElementById('satCustomSubColor')?.value || '#cbd5e1';
+            const borderColor = document.getElementById('satCustomBorderColor')?.value || '#eab308';
+            const borderWidth = parseInt(document.getElementById('satCustomBorderWidth')?.value || '2', 10);
+
+            const opValEl = document.getElementById('satCustomBgOpVal');
+            if (opValEl) opValEl.textContent = bgOpPct;
+            const bwValEl = document.getElementById('satCustomBorderWVal');
+            if (bwValEl) bwValEl.textContent = borderWidth;
+
+            this.parcelBadgeCustomColors = {
+                bgHex,
+                bgOpacity,
+                titleColor,
+                subColor,
+                borderColor,
+                borderWidth
+            };
+
+            this.applyCustomColorsToDOM();
+        },
+
+        applyCustomColorsToDOM: function() {
+            const floatInfo = document.getElementById('satFloatingParcelInfo');
+            if (!floatInfo) return;
+            const c = this.parcelBadgeCustomColors;
+            if (!c) {
+                floatInfo.style.background = '';
+                floatInfo.style.borderColor = '';
+                floatInfo.style.borderWidth = '';
+                return;
+            }
+
+            let r = 15, g = 23, b = 42;
+            if (c.bgHex && c.bgHex.startsWith('#') && c.bgHex.length === 7) {
+                r = parseInt(c.bgHex.slice(1, 3), 16);
+                g = parseInt(c.bgHex.slice(3, 5), 16);
+                b = parseInt(c.bgHex.slice(5, 7), 16);
+            }
+            floatInfo.style.background = `rgba(${r}, ${g}, ${b}, ${c.bgOpacity !== undefined ? c.bgOpacity : 0.94})`;
+            floatInfo.style.borderColor = c.borderColor || '#eab308';
+            floatInfo.style.borderWidth = (c.borderWidth !== undefined ? c.borderWidth : 2) + 'px';
+            floatInfo.style.borderStyle = (c.borderWidth === 0) ? 'none' : 'solid';
+
+            const titleEl = floatInfo.querySelector('.sat-float-title');
+            if (titleEl && c.titleColor) {
+                titleEl.style.color = c.titleColor;
+            }
+            const subEl = floatInfo.querySelector('.sat-float-sub');
+            if (subEl && c.subColor) {
+                subEl.style.color = c.subColor;
+            }
+            const iconEl = floatInfo.querySelector('.sat-float-icon');
+            if (iconEl && c.borderColor) {
+                iconEl.style.color = c.borderColor;
+            }
         },
 
         /**
@@ -3532,7 +4228,7 @@
          */
         setFloatingParcelTheme: function(theme) {
             const validThemes = ['cyan', 'gold', 'emerald', 'dark'];
-            this.parcelBadgeTheme = validThemes.includes(theme) ? theme : 'cyan';
+            this.parcelBadgeTheme = validThemes.includes(theme) ? theme : 'gold';
             const floatInfo = document.getElementById('satFloatingParcelInfo');
             if (floatInfo) {
                 floatInfo.classList.remove('sat-theme-cyan', 'sat-theme-gold', 'sat-theme-emerald', 'sat-theme-dark');
@@ -3548,7 +4244,7 @@
          */
         toggleFloatingParcelTheme: function() {
             const list = ['cyan', 'gold', 'emerald', 'dark'];
-            const curIdx = list.indexOf(this.parcelBadgeTheme || 'cyan');
+            const curIdx = list.indexOf(this.parcelBadgeTheme || 'gold');
             const nextTheme = list[(curIdx + 1) % list.length];
             this.setFloatingParcelTheme(nextTheme);
         },
@@ -4305,8 +5001,24 @@
         SatelliteMapModule.setFloatingParcelTheme(theme);
     };
 
-    window.toggleFloatingParcelTheme = function() {
-        SatelliteMapModule.toggleFloatingParcelTheme();
+    window.toggleParcelColorPicker = function(event) {
+        SatelliteMapModule.toggleParcelColorPicker(event);
+    };
+
+    window.openParcelColorPicker = function() {
+        SatelliteMapModule.openParcelColorPicker();
+    };
+
+    window.closeParcelColorPicker = function() {
+        SatelliteMapModule.closeParcelColorPicker();
+    };
+
+    window.applyParcelPresetTheme = function(theme) {
+        SatelliteMapModule.applyParcelPresetTheme(theme);
+    };
+
+    window.updateParcelCustomStyle = function() {
+        SatelliteMapModule.updateParcelCustomStyle();
     };
 
     window.SatelliteMapModule = SatelliteMapModule;

@@ -6374,6 +6374,99 @@ body[data-theme="dark"] .desc-toggle-item.active {
     color: #34d399;
 }
 
+/* Parsel Rozeti Köşe Yeniden Boyutlandırma Tutamacı */
+.sat-float-resizer {
+    position: absolute;
+    bottom: -1px;
+    right: -1px;
+    width: 14px;
+    height: 14px;
+    cursor: nwse-resize;
+    background: transparent;
+    border-right: 2.5px solid rgba(255, 255, 255, 0.75);
+    border-bottom: 2.5px solid rgba(255, 255, 255, 0.75);
+    border-bottom-right-radius: 6px;
+    z-index: 10;
+    touch-action: none;
+}
+.sat-float-resizer:hover {
+    border-color: #38bdf8;
+}
+
+/* Parsel Rozeti Renk & Stil Popover */
+.sat-color-popover {
+    position: absolute;
+    z-index: 1000;
+    background: #0f172a;
+    border: 1.5px solid rgba(56, 189, 248, 0.4);
+    box-shadow: 0 16px 36px rgba(0, 0, 0, 0.7), 0 0 20px rgba(56, 189, 248, 0.15);
+    border-radius: 12px;
+    padding: 14px;
+    width: 280px;
+    color: #f8fafc;
+    backdrop-filter: blur(14px);
+    font-size: 12px;
+    user-select: none;
+}
+.sat-popover-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-weight: 700;
+    font-size: 12.5px;
+    margin-bottom: 10px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+.sat-popover-close {
+    background: transparent;
+    border: none;
+    color: #94a3b8;
+    cursor: pointer;
+    font-size: 14px;
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+.sat-popover-close:hover {
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.1);
+}
+.sat-popover-section {
+    margin-bottom: 10px;
+}
+.sat-popover-label {
+    display: block;
+    font-size: 11px;
+    font-weight: 700;
+    color: #94a3b8;
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+.sat-popover-theme-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 5px;
+}
+.sat-color-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+    font-size: 11.5px;
+    color: #cbd5e1;
+}
+.sat-color-row input[type="color"] {
+    -webkit-appearance: none;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 6px;
+    width: 28px;
+    height: 24px;
+    padding: 1px;
+    background: transparent;
+    cursor: pointer;
+}
+
 /* SÜRÜKLE-BIRAK ALANI */
 .sat-drag-drop-overlay {
     position: absolute;

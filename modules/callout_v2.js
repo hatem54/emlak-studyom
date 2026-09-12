@@ -574,14 +574,15 @@ window.addParcelBadgeToCanvas = function(parcelData, options = {}) {
     const apText = (ada && parsel) ? `ADA ${ada} / PARSEL ${parsel}` : (parcelData.name || 'TKGM ARSA PARSELİ');
     const subText = alan ? `📐 ${alan}` + (loc ? `  •  ${loc}` : '') : (loc ? `📍 ${loc}` : '');
 
-    const theme = options.theme || 'cyan';
+    const theme = options.theme || 'gold';
     const userScale = typeof options.scale === 'number' ? options.scale : 1.0;
 
-    const themeConfig = {
+    const presetThemes = {
         cyan: {
             bg1: '#0f172a',
             bg2: '#1e293b',
             border: '#38bdf8',
+            borderWidth: 2,
             title: '#ffffff',
             sub: '#38bdf8',
             icon: '#38bdf8'
@@ -590,6 +591,7 @@ window.addParcelBadgeToCanvas = function(parcelData, options = {}) {
             bg1: '#1c1917',
             bg2: '#292524',
             border: '#f59e0b',
+            borderWidth: 2,
             title: '#fef3c7',
             sub: '#fbbf24',
             icon: '#fbbf24'
@@ -598,6 +600,7 @@ window.addParcelBadgeToCanvas = function(parcelData, options = {}) {
             bg1: '#062e24',
             bg2: '#064e3b',
             border: '#10b981',
+            borderWidth: 2,
             title: '#ecfdf5',
             sub: '#34d399',
             icon: '#34d399'
@@ -606,18 +609,46 @@ window.addParcelBadgeToCanvas = function(parcelData, options = {}) {
             bg1: '#18181b',
             bg2: '#27272a',
             border: 'rgba(255,255,255,0.4)',
+            borderWidth: 2,
             title: '#ffffff',
             sub: '#cbd5e1',
             icon: '#cbd5e1'
+        },
+        sapphire: {
+            bg1: '#172554',
+            bg2: '#1e3a8a',
+            border: '#3b82f6',
+            borderWidth: 2,
+            title: '#ffffff',
+            sub: '#93c5fd',
+            icon: '#60a5fa'
+        },
+        ruby: {
+            bg1: '#450a0a',
+            bg2: '#7f1d1d',
+            border: '#ef4444',
+            borderWidth: 2,
+            title: '#fef2f2',
+            sub: '#fca5a5',
+            icon: '#f87171'
         }
-    }[theme] || {
-        bg1: '#0f172a',
-        bg2: '#1e293b',
-        border: '#38bdf8',
-        title: '#ffffff',
-        sub: '#38bdf8',
-        icon: '#38bdf8'
     };
+
+    let themeConfig = presetThemes[theme] || presetThemes['gold'];
+    if (options.customColors) {
+        const bg = options.customColors.bg || options.customColors.bgHex || themeConfig.bg1;
+        const op = options.customColors.bgOpacity !== undefined ? options.customColors.bgOpacity : 0.95;
+        themeConfig = {
+            bg1: bg,
+            bg2: options.customColors.bg2 || bg,
+            bgOp: op,
+            border: options.customColors.borderColor || themeConfig.border,
+            borderWidth: options.customColors.borderWidth !== undefined ? options.customColors.borderWidth : themeConfig.borderWidth,
+            title: options.customColors.titleColor || themeConfig.title,
+            sub: options.customColors.subColor || themeConfig.sub,
+            icon: options.customColors.borderColor || options.customColors.subColor || themeConfig.icon
+        };
+    }
 
     // Dinamik SVG Boyutu
     const approxW = Math.max(280, apText.length * 12 + 80);
@@ -629,18 +660,19 @@ window.addParcelBadgeToCanvas = function(parcelData, options = {}) {
 <svg width="${badgeW}" height="${badgeH}" viewBox="0 0 ${badgeW} ${badgeH}" xmlns="http://www.w3.org/2000/svg" shape-rendering="geometricPrecision">
   <defs>
     <linearGradient id="${gradId}" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="${themeConfig.bg1}" stop-opacity="0.96"/>
-      <stop offset="100%" stop-color="${themeConfig.bg2}" stop-opacity="0.92"/>
+      <stop offset="0%" stop-color="${themeConfig.bg1}" stop-opacity="${themeConfig.bgOp !== undefined ? themeConfig.bgOp : 0.96}"/>
+      <stop offset="100%" stop-color="${themeConfig.bg2}" stop-opacity="${themeConfig.bgOp !== undefined ? Math.max(0, themeConfig.bgOp - 0.05) : 0.92}"/>
     </linearGradient>
   </defs>
-  <rect x="2" y="2" width="${badgeW - 4}" height="${badgeH - 4}" rx="14" fill="url(#${gradId})" stroke="${themeConfig.border}" stroke-width="2"/>
-  <g transform="translate(16, ${subText ? 26 : 33})">
-    <path d="M7 2 L19 2 L24 13 L13 22 L2 13 Z" fill="none" stroke="${themeConfig.icon}" stroke-width="2.2" stroke-linejoin="round"/>
-    <circle cx="13" cy="12" r="3" fill="${themeConfig.icon}"/>
+  <rect x="2" y="2" width="${badgeW - 4}" height="${badgeH - 4}" rx="14" fill="url(#${gradId})" stroke="${themeConfig.border}" stroke-width="${themeConfig.borderWidth || 2}"/>
+  <g transform="translate(18, ${subText ? 24 : 31})">
+    <!-- Kaliteli Profesyonel Konum Pini İkonu -->
+    <path d="M12 2C7.58 2 4 5.58 4 10c0 5.25 8 13 8 13s8-7.75 8-13c0-4.42-3.58-8-8-8z" fill="${themeConfig.icon}" opacity="0.95"/>
+    <circle cx="12" cy="9.5" r="3.2" fill="#ffffff"/>
     <text x="32" y="16" font-family="'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-weight="900" font-size="16" fill="${themeConfig.title}" letter-spacing="0.5px">${apText}</text>
   </g>
   ${subText ? `
-  <g transform="translate(48, 62)">
+  <g transform="translate(50, 62)">
     <text font-family="'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-weight="700" font-size="12.5" fill="${themeConfig.sub}" letter-spacing="0.3px">${subText}</text>
   </g>` : ''}
 </svg>`.trim();
@@ -662,14 +694,14 @@ window.addParcelBadgeToCanvas = function(parcelData, options = {}) {
             const finalW = parseFloat(wrap.style.width) || (badgeW * 1.5);
             const finalH = parseFloat(wrap.style.height) || (badgeH * 1.5);
 
-            // Haritada kullanıcının bıraktığı konuma göre orantılı yerleştir
+            // Haritada kullanıcının bıraktığı konuma göre orantılı yerleştir (Varsayılan: Sol üst)
             let posX, posY;
             if (options.relX !== undefined && options.relY !== undefined) {
                 posX = Math.round(options.relX * cW);
                 posY = Math.round(options.relY * cH);
             } else {
-                // Varsayılan: Sağ üst köşe
-                posX = Math.round(cW - finalW - 60);
+                // Varsayılan: Sol üst köşe
+                posX = 60;
                 posY = 60;
             }
 

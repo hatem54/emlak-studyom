@@ -96,6 +96,18 @@
                 let val = l.substring(splitIdx + 1).trim();
                 if (key && val) {
                     map[key] = val;
+                    // Emojileri ve özel işaretleri temizleyerek anahtar eşleme gücünü artır
+                    let cleanKey = key.replace(/[^\p{L}\p{N}\s\/\(\)]/gu, '').trim();
+                    if (cleanKey && cleanKey !== key) {
+                        map[cleanKey] = val;
+                    }
+                    // Eğer satır "Ada: 120 | Parsel: 4" veya benzeri ise
+                    if (cleanKey === 'ada' && /parsel/i.test(val)) {
+                        let mAda = val.match(/^(\d+)/);
+                        let mParsel = val.match(/parsel\s*[:=]?\s*(\d+)/i);
+                        if (mAda) map['ada'] = mAda[1];
+                        if (mParsel) map['parsel'] = mParsel[1];
+                    }
                 }
             } else {
                 // Sahibinden kopyalamalarında yan yana gelebilen etiketler
@@ -320,7 +332,7 @@
     function parseSizes(text, tableMap) {
         let brut = tableMap['m² (brüt)'] || tableMap['brüt m²'] || tableMap['brüt alan'] || tableMap['m²'];
         let net = tableMap['m² (net)'] || tableMap['net m²'] || tableMap['net alan'];
-        let arsa = tableMap['arsa alanı'] || tableMap['arsa m²'] || tableMap['toplam alan'];
+        let arsa = tableMap['arsa alanı'] || tableMap['arsa m²'] || tableMap['toplam alan'] || tableMap['alan'] || tableMap['yüzölçümü'] || tableMap['yuzolcumu'];
 
         let brutVal = '', netVal = '', arsaVal = '';
 
@@ -345,8 +357,9 @@
             let mNet = text.match(/(\d[\d\.\,]*)\s*(?:m2|m²)?\s*(?:net)/i) || text.match(/(?:net)\s*[:=]?\s*(\d[\d\.\,]*)\s*(?:m2|m²)?/i);
             if (mNet) netVal = mNet[1].replace(',', '.') + ' m²';
         }
-        if (!brutVal && !netVal) {
-            let mGeneric = text.match(/(\d[\d\.\,]*)\s*(?:m2|m²|metrekare|metre\s*kare|dönüm)/i);
+        if (!brutVal && !netVal && !arsaVal) {
+            let mGeneric = text.match(/(?:toplam\s*alan|yüzölçümü|arsa\s*alanı|alan)\s*[:=]?\s*(\d[\d\.\,]*)\s*(?:m2|m²)?/i) ||
+                           text.match(/(\d[\d\.\,]*)\s*(?:m2|m²|metrekare|metre\s*kare|dönüm)/i);
             if (mGeneric) {
                 let unit = /dönüm/i.test(mGeneric[0]) ? 'Dönüm' : 'm²';
                 brutVal = mGeneric[1].replace(',', '.') + ' ' + unit;
@@ -479,7 +492,7 @@
     function parseLandDetails(text, tableMap) {
         let ada = tableMap['ada no'] || tableMap['ada'];
         let parsel = tableMap['parsel no'] || tableMap['parsel'];
-        let imar = tableMap['imar durumu'] || tableMap['imar'];
+        let imar = tableMap['imar durumu'] || tableMap['imar'] || tableMap['nitelik'];
         let kaks = tableMap['kaks (emsal)'] || tableMap['kaks'] || tableMap['emsal'];
         let gabari = tableMap['gabari'];
         let tapu = tableMap['tapu durumu'] || tableMap['tapu'];
@@ -506,13 +519,21 @@
         if (tapu) tapuVal = tapu.trim();
 
         if (!adaVal || !parselVal) {
-            let mAdaParsel = text.match(/ada\s*[:=]?\s*(\d+)[\s,\/]+parsel\s*[:=]?\s*(\d+)/i) || 
+            let mAdaParsel = text.match(/ada\s*[:=]?\s*(\d+)[\s,\/|]+parsel\s*[:=]?\s*(\d+)/i) || 
                              text.match(/(\d+)\s*ada\s*(\d+)\s*parsel/i) ||
                              text.match(/(\d+)\s*\/\s*(\d+)\s*ada\s*parsel/i);
             if (mAdaParsel) {
-                adaVal = mAdaParsel[1];
-                parselVal = mAdaParsel[2];
+                if (!adaVal) adaVal = mAdaParsel[1];
+                if (!parselVal) parselVal = mAdaParsel[2];
             }
+        }
+        if (!adaVal) {
+            let mAda = text.match(/\bada\s*[:=]?\s*(\d+)\b/i);
+            if (mAda) adaVal = mAda[1];
+        }
+        if (!parselVal) {
+            let mParsel = text.match(/\bparsel\s*[:=]?\s*(\d+)\b/i);
+            if (mParsel) parselVal = mParsel[1];
         }
 
         if (!imarVal) {
@@ -558,9 +579,10 @@
 
     // 13. Konum Ayrıştırıcı (İl / İlçe / Mahalle / Köy)
     function parseLocation(text, tableMap) {
-        let tLoc = tableMap['il / ilçe / mahalle'] || tableMap['konum'] || tableMap['adres'] || tableMap['lokasyon'];
+        let tLoc = tableMap['il / ilçe / mahalle'] || tableMap['konum'] || tableMap['adres'] || tableMap['lokasyon'] || tableMap['mevkii'];
         if (tLoc) {
             let cleanLoc = tLoc.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1').replace(/[\[\]]/g, '').trim();
+            cleanLoc = cleanLoc.replace(/^[^\p{L}\p{N}]+/gu, '').replace(/^(?:konum|adres|lokasyon|mevkii)\s*[:=]?\s*/i, '').trim();
             return cleanLoc.split('\n')[0].trim().replace(/\bMh\.?$/i, 'Mah.').replace(/\bMahallesi$/i, 'Mah.');
         }
 
@@ -574,7 +596,7 @@
         // 1. Satır bazlı slash tespiti (Örn: "Antalya / Manavgat / Evrenseki Mh.")
         const lines = cleanText.split(/\r?\n/);
         for (let line of lines) {
-            let l = line.trim();
+            let l = line.trim().replace(/^[^\p{L}\p{N}]+/gu, '').replace(/^(?:konum|adres|lokasyon|mevkii)\s*[:=]?\s*/i, '').trim();
             if (l.includes('/')) {
                 let parts = l.split('/').map(p => p.trim()).filter(p => p.length > 0);
                 if (parts.length >= 2 && parts.length <= 4) {
@@ -804,7 +826,7 @@
             'canvaRooms', 'f_kat', 'floorInput', 'c_floor', 'canvaFloor', 'f_yas',
             'ageInput', 'c_age', 'canvaAge', 'f_isitma', 'f_konum', 'f_lokasyon',
             'locationInput', 'canvaLocation', 'c_loc', 'c_banyo', 'f_banyo',
-            'f_aidat', 'f_depozito', 'tapuInput', 'adaParselInput', 'c_ada_parsel', 'canvaAdaParsel'
+            'f_aidat', 'f_depozito', 'tapuInput', 'adaParselInput', 'c_ada_parsel', 'c_adaParsel', 'c_araziSize', 'canvaAdaParsel'
         ];
 
         let adaParselText = '';
@@ -818,6 +840,8 @@
 
         directMap['adaParselInput'] = adaParselText;
         directMap['c_ada_parsel'] = adaParselText;
+        directMap['c_adaParsel'] = adaParselText;
+        directMap['c_araziSize'] = finalSize;
         directMap['canvaAdaParsel'] = adaParselText;
 
         allFormFields.forEach(id => {
@@ -988,6 +1012,13 @@
         const parseId = Date.now();
         window._activeParseId = parseId;
 
+        // 🚀 1. ÖNCE YEREL MOTORLA ANINDA (1 milisaniyede) UYGULA (Kullanıcı beklemez, formlar ve rozetler anında dolar)
+        try {
+            applyFinalParseResults(rawText, null);
+        } catch(localErr) {
+            console.warn("Anlık yerel ayrıştırma uyarısı:", localErr);
+        }
+
         try {
             let ai = null;
             const isOnline = (typeof navigator !== 'undefined' && typeof navigator.onLine === 'boolean') ? navigator.onLine : true;
@@ -995,13 +1026,14 @@
             if (isOnline && rawText.length > 15) {
                 try {
                     const controller = new AbortController();
-                    const timeoutId = setTimeout(() => controller.abort(), 15000);
+                    const timeoutId = setTimeout(() => controller.abort(), 3500);
 
                     const directApiKey = (typeof window.getGeminiApiKey === 'function') ? window.getGeminiApiKey() : '';
                     const workerUrl = 'https://small-lab-3110.emlakstudyomtr.workers.dev';
 
-                    if (directApiKey) {
-                        const prompt = `Aşağıdaki Türkçe emlak ilan metnini analiz et ve SADECE JSON formatında şu anahtarları içeren bir nesne döndür:
+                    if (directApiKey && directApiKey.length > 20) {
+                        try {
+                            const prompt = `Aşağıdaki Türkçe emlak ilan metnini analiz et ve SADECE JSON formatında şu anahtarları içeren bir nesne döndür:
 {
   "title": "İlan için çarpıcı başlık",
   "price": "Fiyat (örn: 25.500.000 TL)",
@@ -1015,50 +1047,62 @@
   "regional_highlights": ["Bölge avantajı 1", "Bölge avantajı 2"],
   "description": "Sahibinden için profesyonel ilan açıklaması",
   "social_post": "Instagram paylaşım metni",
-  "voiceover": "Profesyonel emlak reklam filmi ve reels dış sesi için 40-55 saniyelik (70-100 kelime) zengin reklam seslendirme metni. KESİNLİKLE RAKAM (0-9) KULLANMA, TÜM SAYILARI, FİYATLARI VE METREKARELERİ YAZIYLA YAZ (örn: üç artı bir, on sekiz milyon beş yüz bin Türk lirası, yüz kırk beş metrekare)"
+  "voiceover": "Profesyonel emlak reklam filmi ve reels dış sesi için 40-55 saniyelik zengin reklam seslendirme metni."
 }
 
 İlan Metni:
 ${rawText}`;
-                        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${directApiKey}`;
-                        const gRes = await fetch(geminiUrl, {
-                            method: 'POST',
-                            signal: controller.signal,
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                contents: [{ parts: [{ text: prompt }] }],
-                                generationConfig: { temperature: 0.2, maxOutputTokens: 2000 }
-                            })
-                        });
-                        clearTimeout(timeoutId);
-                        const gData = await gRes.json();
-                        let rawAiJson = gData.candidates?.[0]?.content?.parts?.[0]?.text || '';
-                        const jsonMatch = rawAiJson.match(/\{[\s\S]*\}/);
-                        if (jsonMatch) {
-                            try { ai = JSON.parse(jsonMatch[0]); } catch(e) {}
-                        }
-                    } else {
-                        const wRes = await fetch(workerUrl, {
-                            method: 'POST',
-                            signal: controller.signal,
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ action: 'parse', text: rawText })
-                        });
-                        clearTimeout(timeoutId);
-                        const wData = await wRes.json();
-                        if (wData && wData.success && wData.data) {
-                            if (wData.data.title || wData.data.price || wData.data.type) {
-                                ai = wData.data;
-                            } else if (typeof wData.data.description === 'string') {
-                                const jsonMatch = wData.data.description.match(/\{[\s\S]*\}/);
+                            const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${directApiKey}`;
+                            const gRes = await fetch(geminiUrl, {
+                                method: 'POST',
+                                signal: controller.signal,
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    contents: [{ parts: [{ text: prompt }] }],
+                                    generationConfig: { temperature: 0.2, maxOutputTokens: 2000 }
+                                })
+                            });
+                            clearTimeout(timeoutId);
+                            if (gRes.ok) {
+                                const gData = await gRes.json();
+                                let rawAiJson = gData.candidates?.[0]?.content?.parts?.[0]?.text || '';
+                                const jsonMatch = rawAiJson.match(/\{[\s\S]*\}/);
                                 if (jsonMatch) {
-                                    try { ai = JSON.parse(jsonMatch[0]); } catch(e) {}
+                                    ai = JSON.parse(jsonMatch[0]);
                                 }
                             }
+                        } catch (gErr) {
+                            // Direct key hatası durumunda sessizce yerel sonuçlar geçerlidir
+                        }
+                    }
+
+                    if (!ai) {
+                        try {
+                            const wRes = await fetch(workerUrl, {
+                                method: 'POST',
+                                signal: controller.signal,
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ action: 'parse', text: rawText })
+                            });
+                            clearTimeout(timeoutId);
+                            if (wRes.ok) {
+                                const wData = await wRes.json();
+                                if (wData && wData.success && wData.data) {
+                                    if (wData.data.title || wData.data.price || wData.data.type) {
+                                        ai = wData.data;
+                                    } else if (typeof wData.data.description === 'string') {
+                                        const jsonMatch = wData.data.description.match(/\{[\s\S]*\}/);
+                                        if (jsonMatch) {
+                                            ai = JSON.parse(jsonMatch[0]);
+                                        }
+                                    }
+                                }
+                            }
+                        } catch (wErr) {
+                            // Worker hatası durumunda anlık yerel sonuçlar zaten uygulanmıştır
                         }
                     }
                 } catch (aiErr) {
-                    console.log('AI süzme zaman aşımı (15s) veya çevrimdışı, yerel ayrıştırıcı kullanılıyor.');
                     ai = null;
                 }
             }
@@ -1066,8 +1110,10 @@ ${rawText}`;
             // Eğer kullanıcı yeni bir süzme başlattıysa eski isteği gözardı et
             if (window._activeParseId !== parseId) return;
 
-            // Sonuçları tek adımda uygula
-            applyFinalParseResults(rawText, ai);
+            // Eğer AI zenginleştirilmiş veri getirdiyse tekrar uygula
+            if (ai) {
+                applyFinalParseResults(rawText, ai);
+            }
 
         } catch (err) {
             console.error("Metni süzme hatası:", err);

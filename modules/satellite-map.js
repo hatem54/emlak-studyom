@@ -319,8 +319,8 @@
 
                                         <!-- Sınır Çizgisi Rengi ve Kalınlığı -->
                                         <div class="sat-drawer-group">
-                                            <div class="sat-drawer-label-row">
-                                                <label>Kenar Çizgisi:</label>
+                                            <div class="sat-drawer-label-row" style="margin-bottom:6px;">
+                                                <label>Kenar Çizgisi Rengi:</label>
                                                 <div class="sat-stroke-color-picks">
                                                     <button type="button" class="sat-color-dot-sm" style="background:#ffffff;" onclick="window.setParcelStrokeColor('#ffffff')" title="Beyaz Çizgi"></button>
                                                     <button type="button" class="sat-color-dot-sm" style="background:#ef4444;" onclick="window.setParcelStrokeColor('#ef4444')" title="Kırmızı Çizgi"></button>
@@ -329,11 +329,11 @@
                                                     <input type="color" id="satParcelStrokeCustom" value="#ffffff" oninput="window.setParcelStrokeColor(this.value)" class="sat-custom-color-input-sm" title="Özel Çizgi Rengi">
                                                 </div>
                                             </div>
-                                            <div class="sat-stroke-width-btns" id="satStrokeWidthBtns">
-                                                <button type="button" class="sat-sw-btn" data-sw="1.5" onclick="window.setParcelStrokeWidth(1.5)">İnce (1.5px)</button>
-                                                <button type="button" class="sat-sw-btn active" data-sw="3" onclick="window.setParcelStrokeWidth(3)">Normal (3px)</button>
-                                                <button type="button" class="sat-sw-btn" data-sw="5" onclick="window.setParcelStrokeWidth(5)">Kalın (5px)</button>
+                                            <div class="sat-drawer-label-row">
+                                                <label>Kenar Çizgi Kalınlığı:</label>
+                                                <span id="satParcelStrokeWidthVal" class="sat-badge-sm">3px</span>
                                             </div>
+                                            <input type="range" id="satParcelStrokeWidthSlider" min="1" max="10" step="0.5" value="3" oninput="window.setParcelStrokeWidth(this.value)" class="sat-range-input">
                                         </div>
 
                                         <!-- Ada/Parsel Bilgi Etiketi Göster/Gizle -->
@@ -2097,6 +2097,9 @@
                                     }
                                     if (!err) {
                                         SatelliteMapModule.closeModal();
+                                        if (SatelliteMapModule.parcelData) {
+                                            SatelliteMapModule.syncParcelToSmartParser(SatelliteMapModule.parcelData);
+                                        }
                                         if (typeof window.showAppToast === 'function') {
                                             const aiNote = this.aiEnhanceEnabled ? ` (AI %${this.aiEnhanceIntensity || 20} Net)` : '';
                                             window.showAppToast(`🌐 Google 3D görüntüsü${aiNote} (${targetW}x${targetH}) tuvalinize aktarıldı!`, 'success');
@@ -2224,6 +2227,9 @@
                                 markerText: SatelliteMapModule.customMarkerText
                             });
                             SatelliteMapModule.closeModal();
+                            if (SatelliteMapModule.parcelData) {
+                                SatelliteMapModule.syncParcelToSmartParser(SatelliteMapModule.parcelData);
+                            }
                             if (typeof window.showAppToast === 'function') {
                                 const resTag = (this.selectedResolution || '4K').toUpperCase();
                                 const aiNote = this.aiEnhanceEnabled ? ` (AI %${this.aiEnhanceIntensity || 20} Netleştirildi)` : '';
@@ -2927,7 +2933,39 @@
                 }
             }
 
-            // 4. Metni Süz fonksiyonunu otomatik çalıştır (SmartParserPro)
+            // 4. Kategori ve form alanlarını doğrudan ve anında doldur
+            const isTarla = nitelik.toLowerCase().includes('tarla') || nitelik.toLowerCase().includes('bağ') || nitelik.toLowerCase().includes('bahçe');
+            const targetPropType = isTarla ? 'satilik_tarla' : 'satilik_arsa';
+            if (typeof window.switchPropertyType === 'function') {
+                try {
+                    window.switchPropertyType(targetPropType);
+                } catch(e) {}
+            }
+
+            const adaParselStr = (ada && parsel) ? `ADA: ${ada} / PARSEL: ${parsel}` : (ada ? `ADA: ${ada}` : (parsel ? `PARSEL: ${parsel}` : ''));
+            const directFields = {
+                'f_ada': ada,
+                'f_parsel': parsel,
+                'f_alan': alan,
+                'f_m2': alan,
+                'f_arsa': alan,
+                'sizeInput': alan,
+                'c_size': alan,
+                'c_araziSize': alan,
+                'f_konum': locStr,
+                'locationInput': locStr,
+                'f_imar': nitelik || 'Arsa',
+                'adaParselInput': adaParselStr,
+                'c_adaParsel': adaParselStr,
+                'c_ada_parsel': adaParselStr
+            };
+
+            Object.keys(directFields).forEach(id => {
+                const el = document.getElementById(id);
+                if (el && directFields[id]) el.value = directFields[id];
+            });
+
+            // 5. Metni Süz fonksiyonunu otomatik çalıştır (SmartParserPro)
             if (typeof window.smartParse === 'function') {
                 try {
                     window.smartParse();
@@ -2942,8 +2980,34 @@
                 }
             }
 
-            // 5. İlana Özel Hazır Rozetler & Öğeler accordion panelini aç
-            setTimeout(() => {
+            // 6. İlana Özel Hazır Rozetler & Öğeler üret ve accordion panelini AÇIK yap
+            const payload = {
+                title: `SATILIK ${nitelik.toLocaleUpperCase('tr-TR') || 'ARSA'}`,
+                location: locStr,
+                size: alan,
+                ada: ada,
+                parsel: parsel,
+                imar: nitelik,
+                type: targetPropType
+            };
+            if (typeof window.generateSmartSuggestions === 'function') {
+                try {
+                    window.generateSmartSuggestions(payload, generatedText);
+                } catch(e) {}
+            }
+            if (typeof window.renderSmartSuggestionsUI === 'function') {
+                try {
+                    window.renderSmartSuggestionsUI();
+                } catch(e) {}
+            }
+            if (typeof window.renderData === 'function') {
+                try {
+                    window.renderData();
+                } catch(e) {}
+            }
+
+            // Accordion'ı kesin olarak açık hale getir
+            const openSuggestionsAccordion = () => {
                 if (typeof window.toggleSmartSuggestions === 'function') {
                     window.toggleSmartSuggestions(true);
                 } else {
@@ -2954,7 +3018,10 @@
                         if (chevron) chevron.style.transform = 'rotate(180deg)';
                     }
                 }
-            }, 300);
+            };
+            openSuggestionsAccordion();
+            setTimeout(openSuggestionsAccordion, 200);
+            setTimeout(openSuggestionsAccordion, 500);
 
             if (typeof window.showAppToast === 'function') {
                 window.showAppToast('✨ TKGM Parsel bilgileri Metni Süz alanına aktarıldı, otomatik süzüldü ve önerilen rozetler açıldı!', 'success');
@@ -3134,12 +3201,19 @@
         },
 
         /**
-         * Kenar Çizgisi Kalınlığını Ayarlar (1.5, 3, 5)
+         * Kenar Çizgisi Kalınlığını Slider ile Ayarlar (1px - 10px)
          */
         setParcelStrokeWidth: function(width) {
-            this.parcelStrokeWidth = parseFloat(width);
+            this.parcelStrokeWidth = Math.max(0.5, Math.min(15, parseFloat(width) || 3));
+            const strokeVal = document.getElementById('satParcelStrokeWidthVal');
+            if (strokeVal) {
+                strokeVal.textContent = `${this.parcelStrokeWidth}px`;
+            }
+            const strokeSlider = document.getElementById('satParcelStrokeWidthSlider');
+            if (strokeSlider && parseFloat(strokeSlider.value) !== this.parcelStrokeWidth) {
+                strokeSlider.value = this.parcelStrokeWidth;
+            }
             this.updateParcelPolygonStyle();
-            this.updateParcelUI();
         },
 
         /**
@@ -3352,15 +3426,14 @@
                 opVal.textContent = `%${valPct}`;
             }
 
-            // 7. Stroke width buttons
-            const swBtns = document.querySelectorAll('#satStrokeWidthBtns .sat-sw-btn');
-            swBtns.forEach(btn => {
-                if (parseFloat(btn.dataset.sw) === this.parcelStrokeWidth) {
-                    btn.classList.add('active');
-                } else {
-                    btn.classList.remove('active');
-                }
-            });
+            // 7. Stroke width slider & badge
+            const strokeSlider = document.getElementById('satParcelStrokeWidthSlider');
+            const strokeVal = document.getElementById('satParcelStrokeWidthVal');
+            if (strokeSlider && strokeVal) {
+                const sw = this.parcelStrokeWidth || 3;
+                strokeSlider.value = sw;
+                strokeVal.textContent = `${sw}px`;
+            }
 
             // 8. Show label checkbox
             const labelChk = document.getElementById('satParcelShowLabelCheck');

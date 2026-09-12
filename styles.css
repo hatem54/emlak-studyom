@@ -6203,6 +6203,11 @@ body[data-theme="dark"] .desc-toggle-item.active {
     top: 14px;
     right: 14px;
     left: auto;
+    width: max-content !important;
+    min-width: max-content !important;
+    max-width: none !important;
+    white-space: nowrap !important;
+    box-sizing: border-box !important;
     background: rgba(15, 23, 42, 0.94);
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
@@ -6235,6 +6240,7 @@ body[data-theme="dark"] .desc-toggle-item.active {
     align-items: center;
     padding-right: 2px;
     user-select: none;
+    flex-shrink: 0 !important;
 }
 
 .sat-map-floating-parcel-info:active .sat-drag-handle-grip {
@@ -6250,23 +6256,48 @@ body[data-theme="dark"] .desc-toggle-item.active {
 .sat-float-icon {
     font-size: 18px;
     color: #38bdf8;
+    flex-shrink: 0 !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .sat-float-body {
     display: flex;
     flex-direction: column;
+    justify-content: center;
+    white-space: nowrap !important;
+    flex-shrink: 0 !important;
+    min-width: max-content !important;
+    gap: 1px;
 }
 
 .sat-float-title {
     font-size: 12.5px;
     font-weight: 800;
     color: #ffffff;
+    white-space: nowrap !important;
+    overflow: visible !important;
+    line-height: 1.25;
 }
 
 .sat-float-sub {
     font-size: 10.5px;
     color: #94a3b8;
     font-weight: 500;
+    white-space: nowrap !important;
+    overflow: visible !important;
+    line-height: 1.2;
+}
+
+.sat-float-actions-group {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0 !important;
+    white-space: nowrap !important;
+    padding-left: 2px;
+    border-left: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .sat-float-btn {
@@ -6282,6 +6313,7 @@ body[data-theme="dark"] .desc-toggle-item.active {
     cursor: pointer;
     font-size: 11px;
     transition: all 0.15s;
+    flex-shrink: 0 !important;
 }
 
 .sat-float-btn:hover {

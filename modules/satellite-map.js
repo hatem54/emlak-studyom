@@ -3779,6 +3779,8 @@
                 if (e.target.closest('.sat-float-btn') || e.target.closest('.sat-float-resizer') || e.target.closest('.sat-color-popover')) return;
                 isDragging = true;
                 el.style.cursor = 'grabbing';
+                el.style.width = 'max-content';
+                el.style.whiteSpace = 'nowrap';
                 const rect = el.getBoundingClientRect();
                 const stageRect = stage.getBoundingClientRect();
 
@@ -3807,8 +3809,8 @@
                 let newLeft = initialLeft + dx;
                 let newTop = initialTop + dy;
 
-                const maxLeft = Math.max(10, stageRect.width - elRect.width - 10);
-                const maxTop = Math.max(10, stageRect.height - elRect.height - 10);
+                const maxLeft = Math.max(10, Math.floor(stageRect.width - elRect.width - 12));
+                const maxTop = Math.max(10, Math.floor(stageRect.height - elRect.height - 12));
 
                 newLeft = Math.max(10, Math.min(newLeft, maxLeft));
                 newTop = Math.max(10, Math.min(newTop, maxTop));
@@ -4006,6 +4008,22 @@
                 let newScale = startScale + (dx / 160);
                 newScale = Math.max(0.6, Math.min(2.2, Math.round(newScale * 20) / 20));
                 SatelliteMapModule.setFloatingParcelScale(newScale);
+
+                const stage = document.getElementById('satMapStage');
+                if (stage) {
+                    const stageRect = stage.getBoundingClientRect();
+                    const elRect = el.getBoundingClientRect();
+                    if (elRect.right > stageRect.right - 10) {
+                        const shift = elRect.right - (stageRect.right - 10);
+                        const curLeft = parseFloat(el.style.left) || 16;
+                        const adjustedLeft = Math.max(10, curLeft - shift);
+                        el.style.left = adjustedLeft + 'px';
+                        SatelliteMapModule.floatingParcelPos = {
+                            relX: adjustedLeft / stageRect.width,
+                            relY: (parseFloat(el.style.top) || 16) / stageRect.height
+                        };
+                    }
+                }
             };
 
             const onPointerUp = () => {

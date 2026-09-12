@@ -3689,6 +3689,7 @@
             // 3D Haritayı tüm alanı kaplayacak şekilde aç, nişangah kılavuzunu gizle
             container.style.display = 'block';
             if (reticle) reticle.style.display = 'none';
+            this.is3DActive = true;
 
             // 3D Harita butonunu aktif yap
             document.querySelectorAll('.sat-layer-btn').forEach(btn => {
@@ -3775,8 +3776,19 @@
 
             const activeKey = this.getActive3DKey();
 
-            if (window.google && window.google.maps && window.google.maps.maps3d) {
-                mountElement();
+            const readyToMount = () => {
+                if (!this.is3DActive) return;
+                if (window.google && window.google.maps && typeof window.google.maps.importLibrary === 'function') {
+                    window.google.maps.importLibrary("maps3d").catch(() => {}).finally(() => {
+                        mountElement();
+                    });
+                } else {
+                    mountElement();
+                }
+            };
+
+            if (window.google && window.google.maps) {
+                readyToMount();
             } else {
                 const existingScript = document.getElementById('googleMaps3dScript');
                 if (existingScript) existingScript.remove();
@@ -3786,7 +3798,7 @@
                 script.src = `https://maps.googleapis.com/maps/api/js?key=${activeKey}&v=alpha&libraries=maps3d`;
                 script.async = true;
                 script.onload = () => {
-                    setTimeout(mountElement, 300);
+                    setTimeout(readyToMount, 200);
                 };
                 script.onerror = () => {
                     console.warn("Google Maps 3D scripti yüklenemedi.");

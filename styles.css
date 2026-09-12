@@ -109,6 +109,12 @@ h2 .vb{background:var(--gradient-1);color:#fff;font-size:9px;padding:2px 8px;bor
 .sh-badge{padding:14px 32px;font-weight:800;border-radius:8px;font-size:32px;text-transform:uppercase;letter-spacing:2px;box-shadow:0 10px 25px rgba(0,0,0,.3)}
 .sh-price{font-weight:900;font-size:64px;text-shadow:0 4px 15px rgba(0,0,0,.6);padding:10px 20px}
 .sh-box{background:rgba(15,23,42,.92);border-radius:16px;padding:25px 40px;font-size:26px;color:#fff;border:1px solid rgba(255,255,255,.15);box-shadow:0 12px 28px rgba(0,0,0,.45);line-height:1.6}
+#elDetails, #infoLineText, #infoLineText div, #infoLineText span, #infoLineText b {
+    font-family: inherit;
+}
+#infoLineText i.fas, #infoLineText i.far, #infoLineText i.fab {
+    font-family: "Font Awesome 6 Free", "Font Awesome 5 Free", "FontAwesome" !important;
+}
 .added-icon{display:inline-flex !important;align-items:center !important;justify-content:center !important;box-sizing:border-box !important;aspect-ratio:1 / 1 !important;padding:0.28em !important;border-radius:50% !important;line-height:1 !important;text-align:center !important;}
 .added-icon svg{display:block !important;width:1em !important;height:1em !important;max-width:100% !important;max-height:100% !important;flex-shrink:0 !important;}
 
@@ -6240,8 +6246,8 @@ body[data-theme="dark"] .desc-toggle-item.active {
 .sat-map-floating-parcel-info {
     position: absolute;
     top: 14px;
-    right: 14px;
-    left: auto;
+    left: 70px;
+    right: auto;
     width: max-content !important;
     min-width: max-content !important;
     max-width: none !important;

@@ -3884,8 +3884,8 @@
                     floatInfo.style.transformOrigin = 'top left';
 
                     if (!this.floatingParcelPos) {
-                        floatInfo.style.top = '16px';
-                        floatInfo.style.left = '16px';
+                        floatInfo.style.top = '14px';
+                        floatInfo.style.left = '70px';
                         floatInfo.style.right = 'auto';
                         floatInfo.style.bottom = 'auto';
                     }

@@ -4393,9 +4393,48 @@ body[data-theme="light"] #canvas-container {
     box-shadow: 0 20px 50px -10px rgba(15, 23, 42, 0.18), 0 0 0 1px rgba(15, 23, 42, 0.08) !important;
 }
 
-body[data-theme="light"] .settings-box {
+body[data-theme="light"] .settings-box,
+body[data-theme="light"] .el-font-box {
     background: #f8fafc !important;
-    border-color: #e2e8f0 !important;
+    border: 1px solid #e2e8f0 !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03) !important;
+}
+
+body[data-theme="light"] .el-font-box .section-title {
+    color: #0f172a !important;
+    border-bottom-color: #e2e8f0 !important;
+}
+
+body[data-theme="light"] .el-font-box .info-text {
+    color: #64748b !important;
+}
+
+body[data-theme="light"] .el-font-box label {
+    color: #475569 !important;
+}
+
+body[data-theme="light"] .el-font-box select,
+body[data-theme="light"] .el-font-box input[type="text"] {
+    background: #ffffff !important;
+    border: 1px solid #cbd5e1 !important;
+    color: #0f172a !important;
+}
+
+body[data-theme="light"] .el-font-box .slider-group label span:last-child {
+    background: #ffffff !important;
+    border: 1px solid #cbd5e1 !important;
+    color: #1e293b !important;
+    border-radius: 4px !important;
+    padding: 1px 6px !important;
+}
+
+body[data-theme="light"] .saber-settings-panel {
+    border-top: 1px solid #e2e8f0 !important;
+}
+
+body[data-theme="light"] #textSaberOptions {
+    background: #f1f5f9 !important;
+    border: 1px solid #e2e8f0 !important;
 }
 
 /* 6. Canvas Alt Dock & Butonları (Seçenek 2: Mat Çelik Gri) */

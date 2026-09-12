@@ -120,6 +120,17 @@ function setTemplate(k){
         if(typeof elLogo !== 'undefined' && elLogo && t.logo) {
             applyStylePos(elLogo, t.logo);
         }
+
+        // Haritadan gelen ada/parsel rozetinin yazı tipini standart şablon fontuyla senkronize et (özel kilitli değilse)
+        if (t && t.badge && t.badge.fontFamily && typeof window.updateParcelBadgeFont === 'function') {
+            const badges = document.querySelectorAll('.parcel-badge-callout, [data-parcel-badge="true"]');
+            badges.forEach(b => {
+                if (!b.dataset.customFont) {
+                    window.updateParcelBadgeFont(b, { fontFamily: t.badge.fontFamily });
+                }
+            });
+        }
+
         deselectAll();
         renderData();
         if(typeof resizeCanvas === 'function') resizeCanvas();

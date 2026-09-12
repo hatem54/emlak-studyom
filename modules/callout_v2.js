@@ -649,6 +649,9 @@ window.addParcelBadgeToCanvas = function(parcelData, options = {}) {
         };
     }
 
+    // Aktif şablon veya genel tasarım fontunu belirle
+    const activeFont = options.fontFamily || (typeof currentFont !== 'undefined' && currentFont) || (typeof activeLayout !== 'undefined' && typeof TPL !== 'undefined' && TPL[activeLayout] && TPL[activeLayout].badge && TPL[activeLayout].badge.fontFamily) || "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Montserrat', sans-serif";
+
     // Harita ekranındaki rozetle 1:1 orantılı geometrik ölçüler (Kompakt ve şık yatay hap formu)
     const badgeH = subText ? 48 : 38;
     const titleW = Math.round(apText.length * 8.6);
@@ -677,10 +680,10 @@ window.addParcelBadgeToCanvas = function(parcelData, options = {}) {
     <circle cx="10" cy="8.5" r="2.8" fill="#ffffff"/>
   </g>
   <!-- Başlık (Ada / Parsel) -->
-  <text x="38" y="${subText ? 21 : 23}" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Montserrat', sans-serif" font-weight="800" font-size="13.5" fill="${themeConfig.title}" letter-spacing="0.2px">${apText}</text>
+  <text x="38" y="${subText ? 21 : 23}" font-family="${activeFont}" font-weight="800" font-size="13.5" fill="${themeConfig.title}" letter-spacing="0.2px">${apText}</text>
   ${subText ? `
   <!-- Alt Bilgi (Konum / Alan) -->
-  <text x="38" y="36" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Montserrat', sans-serif" font-weight="500" font-size="11" fill="${themeConfig.sub}" letter-spacing="0.2px">${subText}</text>` : ''}
+  <text x="38" y="36" font-family="${activeFont}" font-weight="500" font-size="11" fill="${themeConfig.sub}" letter-spacing="0.2px">${subText}</text>` : ''}
 </svg>`.trim();
 
     if (typeof addSVGCalloutToCanvas === 'function') {
@@ -691,6 +694,10 @@ window.addParcelBadgeToCanvas = function(parcelData, options = {}) {
         if (wrap) {
             wrap.classList.add('parcel-badge-callout');
             wrap.dataset.parcelBadge = 'true';
+            wrap.dataset.isParcelBadge = 'true';
+            wrap.dataset.fontFamily = activeFont;
+            wrap.dataset.titleText = apText;
+            wrap.dataset.subText = subText;
             wrap.dataset.theme = theme;
 
             const cContainer = document.getElementById('canvas-container');
@@ -735,6 +742,107 @@ window.addParcelBadgeToCanvas = function(parcelData, options = {}) {
         }
     }
     return null;
+};
+
+// 🔠 Haritadan gelen ada/parsel rozetinin yazı tipini güncelleyen fonksiyon
+window.updateParcelBadgeFont = function(targetBadgeOrAll, fontOpts = {}) {
+    try {
+        let targets = [];
+        if (targetBadgeOrAll) {
+            if (typeof targetBadgeOrAll === 'string') {
+                targets = Array.from(document.querySelectorAll(targetBadgeOrAll));
+            } else if (targetBadgeOrAll instanceof Element) {
+                const wrap = targetBadgeOrAll.closest('.parcel-badge-callout') || 
+                             (targetBadgeOrAll.classList.contains('parcel-badge-callout') ? targetBadgeOrAll : targetBadgeOrAll.closest('.callout-wrapper') || targetBadgeOrAll);
+                targets = [wrap];
+            } else if (Array.isArray(targetBadgeOrAll)) {
+                targets = targetBadgeOrAll;
+            }
+        } else {
+            targets = Array.from(document.querySelectorAll('.parcel-badge-callout, [data-parcel-badge="true"]'));
+        }
+
+        if (!targets || targets.length === 0) {
+            document.querySelectorAll('.callout-wrapper, .callout-item').forEach(w => {
+                if (w.textContent && w.textContent.includes('Ada') && w.textContent.includes('Parsel')) {
+                    const topWrap = w.closest('.callout-wrapper') || w;
+                    if (!targets.includes(topWrap)) targets.push(topWrap);
+                }
+            });
+        }
+
+        const ff = fontOpts.fontFamily || (typeof currentFont !== 'undefined' && currentFont) || '';
+        const fw = fontOpts.fontWeight;
+        const fs = fontOpts.fontStyle;
+        const ls = fontOpts.letterSpacing;
+
+        targets.forEach(wrap => {
+            if (!wrap) return;
+            const svg = wrap.querySelector('svg');
+            if (!svg) return;
+            const textEls = svg.querySelectorAll('text');
+            if (!textEls || textEls.length === 0) return;
+
+            textEls.forEach(t => {
+                if (ff) {
+                    t.setAttribute('font-family', ff);
+                    t.style.fontFamily = ff;
+                }
+                if (fw) {
+                    t.setAttribute('font-weight', fw);
+                    t.style.fontWeight = fw;
+                }
+                if (fs) {
+                    t.setAttribute('font-style', fs);
+                    t.style.fontStyle = fs;
+                }
+                if (ls !== undefined) {
+                    const lsStr = ls + (String(ls).includes('px') ? '' : 'px');
+                    t.setAttribute('letter-spacing', lsStr);
+                    t.style.letterSpacing = lsStr;
+                }
+            });
+
+            if (ff) wrap.dataset.fontFamily = ff;
+
+            // Metin uzadıysa veya kısaldıysa rozet genişliğini otomatik güncelle (yazı asla kesilmez)
+            let maxTextW = 0;
+            textEls.forEach(t => {
+                let len = 0;
+                try {
+                    len = t.getComputedTextLength ? t.getComputedTextLength() : 0;
+                } catch(e) {}
+                if (!len) {
+                    len = (t.textContent || '').length * 9;
+                }
+                if (len > maxTextW) maxTextW = len;
+            });
+
+            if (maxTextW > 0) {
+                const vb = svg.getAttribute('viewBox');
+                let curH = 48;
+                if (vb) {
+                    const parts = vb.split(' ');
+                    if (parts.length === 4) curH = parseFloat(parts[3]) || 48;
+                }
+                const newBadgeW = Math.max(180, Math.round(maxTextW + 42 + 20));
+                svg.setAttribute('viewBox', `0 0 ${newBadgeW} ${curH}`);
+                svg.setAttribute('width', newBadgeW);
+                const rect = svg.querySelector('rect');
+                if (rect) rect.setAttribute('width', newBadgeW - 4);
+
+                const cContainer = document.getElementById('canvas-container');
+                const cW = (cContainer && parseFloat(cContainer.style.width)) || 1920;
+                const formatRatio = Math.max(1, cW / 1920);
+                const targetW = Math.round(newBadgeW * 1.5 * formatRatio);
+                wrap.style.width = targetW + 'px';
+                const el = wrap.querySelector('.callout-item');
+                if (el) el.style.width = targetW + 'px';
+            }
+        });
+    } catch(err) {
+        console.warn('updateParcelBadgeFont error:', err);
+    }
 };
 
 window.rebindSVGCallout = function(wrap) {

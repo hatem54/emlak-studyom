@@ -1,5 +1,6 @@
-const CACHE_NAME = 'emlak-studiom-v204-20260912-12';
+const CACHE_NAME = 'emlak-studiom-v206-20260913-39';
 const CORE_ASSETS = [
+  './core/utils.js',
   './app.html',
   './styles.css',
   './main.js',
@@ -23,6 +24,7 @@ const CORE_ASSETS = [
 ];
 
 self.addEventListener('install', (event) => {
+  self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
@@ -32,7 +34,6 @@ self.addEventListener('install', (event) => {
         );
       })
   );
-  self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
@@ -54,28 +55,54 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   // Sadece GET isteklerini işle
   if (event.request.method !== 'GET') return;
-  
+
+  // Chrome only-if-cached veya DevTools önbellek denetimlerini tarayıcıya bırak
+  if (event.request.cache === 'only-if-cached') {
+    return;
+  }
+
   const url = new URL(event.request.url);
 
-  // 🛡️ HARİCİ ORIGINLER (Cloudflare Worker, Supabase, Google vb.) TARAYICIYA BIRAKILIR, ASLA ENGELLENMEZ
+  // 🛡️ Harici originler (Cloudflare Worker, Supabase, Google vb.) tarayıcıya bırakılır
   if (url.origin !== self.location.origin) {
     return;
   }
 
-  // YEREL DOSYALAR İÇİN: Her zaman en güncel dosyayı çek (Network-First), internet yoksa cache'den ver
+  // 🛡️ Localhost / 127.0.0.1 geliştirme ortamında HTML ve navigasyon isteklerini doğrudan tarayıcıya bırak (ERR_CACHE_MISS riskini sıfırlar)
+  if (url.hostname === 'localhost' || url.hostname === '127.0.0.1') {
+    if (event.request.mode === 'navigate' || url.pathname.endsWith('.html') || url.pathname === '/') {
+      return;
+    }
+  }
+
+  // 🛡️ Navigasyon (Canlı/Prodüksiyon ortamı)
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request).catch(async () => {
+        const appCached = await caches.match('./app.html') || await caches.match('app.html');
+        return appCached || new Response('Çevrimdışı', { status: 503, statusText: 'Offline' });
+      })
+    );
+    return;
+  }
+
+  // 🛡️ Yerel Statik Dosyalar (CSS, JS, Resimler vb.): Network-First
   event.respondWith(
     fetch(event.request)
       .then((networkResponse) => {
-        if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
+        if (networkResponse && networkResponse.status === 200) {
           const responseToCache = networkResponse.clone();
           caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, responseToCache);
-          });
+            cache.put(event.request, responseToCache).catch(() => {});
+          }).catch(() => {});
         }
         return networkResponse;
       })
-      .catch(() => {
-        return caches.match(event.request);
+      .catch(async () => {
+        const cached = await caches.match(event.request, { ignoreSearch: true });
+        if (cached) return cached;
+        // Asla undefined dönme; Chrome'un ERR_CACHE_MISS vermesini önle
+        return new Response('', { status: 404, statusText: 'Not Found in Cache' });
       })
   );
 });

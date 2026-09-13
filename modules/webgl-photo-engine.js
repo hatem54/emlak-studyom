@@ -101,11 +101,12 @@
                 void main() {
                     vec2 pos = a_position; // -1.0 .. 1.0
 
-                    // 1. Keystone (Perspektif) Deformasyonu
-                    float kY = 1.0 + (pos.y * u_vKeystone * 0.4);
-                    float kX = 1.0 + (pos.x * u_hKeystone * 0.4);
-                    pos.x = pos.x * kY;
-                    pos.y = pos.y * kX;
+                    // 1. Mimari 3D Projektif Homografi (Dikey & Yatay Eğim)
+                    float kY = u_vKeystone * 0.45;
+                    float kX = u_hKeystone * 0.45;
+                    float w = 1.0 - (pos.y * kY + pos.x * kX);
+                    w = max(w, 0.15);
+                    pos = pos / w;
 
                     // 2. En-Boy Ölçeği (Aspect)
                     if (u_aspect > 0.0) {
@@ -129,7 +130,7 @@
                 }
             `;
 
-            // Fragment Shader: 32-bit Kayan Noktalı Profesyonel Lightroom Renk İşi
+            // Fragment Shader: 32-bit Kayan Noktalı Profesyonel Renk İşleme Motoru
             const fsSource = `
                 precision highp float;
                 
@@ -756,24 +757,54 @@
         initBuffers() {
             const gl = this.gl;
             
-            // Fullscreen Quad
-            const positions = new Float32Array([
-                -1.0, -1.0,
-                 1.0, -1.0,
-                -1.0,  1.0,
-                -1.0,  1.0,
-                 1.0, -1.0,
-                 1.0,  1.0
-            ]);
-            
-            const texCoords = new Float32Array([
-                0.0, 1.0,
-                1.0, 1.0,
-                0.0, 0.0,
-                0.0, 0.0,
-                1.0, 1.0,
-                1.0, 0.0
-            ]);
+            // 32x32 Yüksek Yoğunluklu Mesh Izgarası (Dikişsiz Kusursuz 3D Perspektif)
+            const GRID = 32;
+            const totalVertices = GRID * GRID * 6;
+            const positions = new Float32Array(totalVertices * 2);
+            const texCoords = new Float32Array(totalVertices * 2);
+            let ptr = 0;
+
+            for (let iy = 0; iy < GRID; iy++) {
+                const y0 = -1.0 + (iy / GRID) * 2.0;
+                const y1 = -1.0 + ((iy + 1) / GRID) * 2.0;
+                const v0 = (1.0 - y0) * 0.5;
+                const v1 = (1.0 - y1) * 0.5;
+
+                for (let ix = 0; ix < GRID; ix++) {
+                    const x0 = -1.0 + (ix / GRID) * 2.0;
+                    const x1 = -1.0 + ((ix + 1) / GRID) * 2.0;
+                    const u0 = (x0 + 1.0) * 0.5;
+                    const u1 = (x1 + 1.0) * 0.5;
+
+                    // Üçgen 1: Alt-Sol (x0,y0), Alt-Sağ (x1,y0), Üst-Sol (x0,y1)
+                    positions[ptr] = x0; positions[ptr + 1] = y0;
+                    texCoords[ptr] = u0; texCoords[ptr + 1] = v0;
+                    ptr += 2;
+
+                    positions[ptr] = x1; positions[ptr + 1] = y0;
+                    texCoords[ptr] = u1; texCoords[ptr + 1] = v0;
+                    ptr += 2;
+
+                    positions[ptr] = x0; positions[ptr + 1] = y1;
+                    texCoords[ptr] = u0; texCoords[ptr + 1] = v1;
+                    ptr += 2;
+
+                    // Üçgen 2: Üst-Sol (x0,y1), Alt-Sağ (x1,y0), Üst-Sağ (x1,y1)
+                    positions[ptr] = x0; positions[ptr + 1] = y1;
+                    texCoords[ptr] = u0; texCoords[ptr + 1] = v1;
+                    ptr += 2;
+
+                    positions[ptr] = x1; positions[ptr + 1] = y0;
+                    texCoords[ptr] = u1; texCoords[ptr + 1] = v0;
+                    ptr += 2;
+
+                    positions[ptr] = x1; positions[ptr + 1] = y1;
+                    texCoords[ptr] = u1; texCoords[ptr + 1] = v1;
+                    ptr += 2;
+                }
+            }
+
+            this.vertexCount = totalVertices;
 
             this.posBuffer = gl.createBuffer();
             gl.bindBuffer(gl.ARRAY_BUFFER, this.posBuffer);
@@ -861,6 +892,8 @@
             }
 
             gl.viewport(0, 0, targetWidth, targetHeight);
+            gl.clearColor(0.0, 0.0, 0.0, 0.0);
+            gl.clear(gl.COLOR_BUFFER_BIT);
             gl.useProgram(this.program);
 
             // Buffer bağlantıları
@@ -1009,7 +1042,7 @@
             gl.uniform1i(gl.getUniformLocation(this.program, 'u_show_mask_overlay'), options.showMaskOverlay ? 1 : 0);
 
             // Çiz
-            gl.drawArrays(gl.TRIANGLES, 0, 6);
+            gl.drawArrays(gl.TRIANGLES, 0, this.vertexCount || 6);
 
             return this.canvas;
         }

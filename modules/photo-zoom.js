@@ -9,7 +9,20 @@ console.log('🎬 Zoom modülü v4 başlıyor...');
 
 
 // ========== YARDIMCI: Zoom yapılabilir eleman bul ==========
-
+function _getZoomTarget(target) {
+    if (!target) return null;
+    if (target.closest && target.closest('.editable-draw, .draggable, .canvas-el, .cvi-item, .added-icon, .callout-wrap, .svg-callout, .co-neon-block, .vertex-handle, .text-handle, .text-rotate-handle, .text-resize-handle, .callout-controls, .callout-resizer, .callout-rotator, .arrow-heads-group, .color-picker, .ui-panel, button, input, select, textarea')) {
+        return null;
+    }
+    var el = target;
+    if (el && el.classList && el.classList.contains('photo-inner-zoom')) el = el.parentElement;
+    if (!el || !el.classList) return null;
+    if (el.classList.contains('photo-panel') || el.id === 'photo-layer') return el;
+    var photoLayer = el.closest && el.closest('#photo-layer');
+    if (photoLayer) return photoLayer;
+    return null;
+}
+window._getZoomTarget = _getZoomTarget;
 
 function _isPhotoLocked() {
     if (window.AppState && window.AppState.photo && window.AppState.photo.isLocked) return true;
@@ -82,27 +95,53 @@ document.addEventListener('mousedown', function(e){
     e.preventDefault();
 });
 
+var _photoMoveRAF = null;
+var _lastMoveEvt = null;
+
 document.addEventListener('mousemove', function(e){
     if(_isPhotoLocked() || !_dragEl) {
         if(_dragEl) _dragEl = null;
+        window._isPhotoDragging = false;
         return;
     }
     
-    var sf = typeof scaleFactor !== 'undefined' ? scaleFactor : 1;
-    if (sf <= 0) sf = 1;
-    var s = parseFloat(_dragEl.dataset.zpScale) || 1;
-    var x = _dix + (e.clientX - _dsx) / (sf * s);
-    var y = _diy + (e.clientY - _dsy) / (sf * s);
+    _lastMoveEvt = { clientX: e.clientX, clientY: e.clientY };
+    if (_photoMoveRAF) return;
     
-    _dragEl.dataset.zpX = x;
-    _dragEl.dataset.zpY = y;
-    _applyPhotoTransform(_dragEl);
-    if(typeof redrawAll === 'function') redrawAll();
+    _photoMoveRAF = requestAnimationFrame(function(){
+        _photoMoveRAF = null;
+        if (!_dragEl || _isPhotoLocked() || !_lastMoveEvt) {
+            window._isPhotoDragging = false;
+            return;
+        }
+        
+        window._isPhotoDragging = true;
+        var sf = typeof scaleFactor !== 'undefined' ? scaleFactor : 1;
+        if (sf <= 0) sf = 1;
+        var s = parseFloat(_dragEl.dataset.zpScale) || 1;
+        var x = _dix + (_lastMoveEvt.clientX - _dsx) / (sf * s);
+        var y = _diy + (_lastMoveEvt.clientY - _dsy) / (sf * s);
+        
+        _dragEl.dataset.zpX = x;
+        _dragEl.dataset.zpY = y;
+        _applyPhotoTransform(_dragEl);
+        if(typeof redrawAll === 'function') redrawAll();
+    });
 });
 
 document.addEventListener('mouseup', function(){
-    if(_dragEl) _dragEl.style.cursor = 'grab';
-    _dragEl = null;
+    if (_photoMoveRAF) {
+        cancelAnimationFrame(_photoMoveRAF);
+        _photoMoveRAF = null;
+    }
+    window._isPhotoDragging = false;
+    if(_dragEl) {
+        _dragEl.style.cursor = 'grab';
+        var elToBake = _dragEl;
+        _dragEl = null;
+        _applyPhotoTransform(elToBake);
+        if(typeof redrawAll === 'function') redrawAll();
+    }
 });
 
 // ========== TOUCH: PINCH TO ZOOM & PAN ==========
@@ -138,6 +177,7 @@ document.addEventListener('touchmove', function(e){
     if(_isPhotoLocked()) {
         _initialPinchDist = null;
         _dragEl = null;
+        window._isPhotoDragging = false;
         return;
     }
     if(e.touches.length === 2 && _initialPinchDist !== null) {
@@ -145,6 +185,7 @@ document.addEventListener('touchmove', function(e){
         var el = _getZoomTarget(e.target);
         if(!el) return;
         
+        window._isPhotoDragging = true;
         var currentDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
         var ratio = currentDist / _initialPinchDist;
         var s = _initialPinchScale * ratio;
@@ -157,6 +198,7 @@ document.addEventListener('touchmove', function(e){
         if(typeof redrawAll === 'function') redrawAll();
     } else if(e.touches.length === 1 && _dragEl) {
         e.preventDefault();
+        window._isPhotoDragging = true;
         var sf = typeof scaleFactor !== 'undefined' ? scaleFactor : 1;
         if (sf <= 0) sf = 1;
         var s = parseFloat(_dragEl.dataset.zpScale) || 1;
@@ -176,7 +218,13 @@ document.addEventListener('touchend', function(e){
         _initialPinchScale = null;
     }
     if(e.touches.length === 0) {
-        _dragEl = null;
+        window._isPhotoDragging = false;
+        if(_dragEl) {
+            var elToBake = _dragEl;
+            _dragEl = null;
+            _applyPhotoTransform(elToBake);
+            if(typeof redrawAll === 'function') redrawAll();
+        }
     }
 });
 
@@ -240,7 +288,6 @@ document.addEventListener('dblclick', function(e){
     if(yCtrl) { yCtrl.value = 50; yCtrl.dispatchEvent(new Event('input')); }
     
     _applyPhotoTransform(el);
-    if(typeof redrawAll === 'function') redrawAll();
     console.log('Sıfırlandı');
 });
 

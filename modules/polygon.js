@@ -95,7 +95,9 @@ function createPolygonFromSelectedLines() {
         dashStyle: firstLineObj.dashStyle || 'solid',
         glow: firstLineObj.glow || 0,
         fillColor: 'transparent',
-        fillOpacity: 0
+        fillOpacity: 0,
+        hasSaber: firstLineObj.hasSaber || ((window.saberState && window.saberState.active) ? true : false),
+        saberOptions: firstLineObj.saberOptions || ((window.saberState && window.saberState.active) ? JSON.parse(JSON.stringify(window.saberState)) : null)
     };
     
     if (typeof getActivePhotoPanel === 'function' && window.getCurrentPhotoState) {
@@ -113,6 +115,9 @@ function createPolygonFromSelectedLines() {
     }
     
     if(typeof updateDrawHistory === 'function') updateDrawHistory();
+    if (pObj.hasSaber && typeof window.applySaberToPath === 'function') {
+        window.applySaberToPath(drawPaths.length - 1, pObj.saberOptions || window.saberState);
+    }
     if(typeof redrawAll === 'function') redrawAll();
     if(typeof deselectAll === 'function') deselectAll();
     if(pObj.el && typeof selectElement === 'function') selectElement(pObj.el, true);

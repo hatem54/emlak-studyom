@@ -17,6 +17,20 @@ window.updatePhotoLockState = function(isLocked) {
     } else {
         document.body.classList.add('photo-unlocked');
         if (typeof deselectAll === 'function') deselectAll();
+        // ⚡ Görüntü serbest bırakıldığında çizim modunu kapat ki tuvalde sürükleme yapıldığında kopya çizim oluşmasın!
+        if (typeof setDrawMode === 'function') {
+            setDrawMode('off');
+        } else if (typeof window.setDrawMode === 'function') {
+            window.setDrawMode('off');
+        } else {
+            window.drawMode = 'off';
+            const dc = document.getElementById('draw-layer');
+            if (dc) {
+                dc.style.pointerEvents = 'none';
+                dc.style.zIndex = '5';
+            }
+            document.body.classList.remove('draw-mode-active');
+        }
     }
     if (typeof window.updateDockLockUI === 'function') {
         window.updateDockLockUI(isLocked);
@@ -30,6 +44,7 @@ function getActiveV4Element() {
     }
     return document.getElementById('photo-layer');
 }
+window.getActiveV4Element = getActiveV4Element;
 
 function getActivePhotoPanel() {
     if (typeof isCanvaMode !== 'undefined' && isCanvaMode) {
@@ -75,6 +90,10 @@ function getActivePhotoPanel() {
 }
 
 function _getZoomTarget(target){
+    if (!target) return null;
+    if (target.closest && target.closest('.editable-draw, .draggable, .canvas-el, .cvi-item, .added-icon, .callout-wrap, .svg-callout, .co-neon-block, .vertex-handle, .text-handle, .text-rotate-handle, .text-resize-handle, .callout-controls, .callout-resizer, .callout-rotator, .arrow-heads-group, .color-picker, .ui-panel, button, input, select, textarea')) {
+        return null;
+    }
     var el = target;
     // İç eleman ise parent'a çık
     if(el && el.classList && el.classList.contains('photo-inner-zoom')) {
@@ -92,8 +111,11 @@ function _getZoomTarget(target){
     
     return null;
 }
+window._getZoomTarget = _getZoomTarget;
 
 function bindDrag(el){
+    if (!el || el.dataset.dragBound === 'true') return;
+    el.dataset.dragBound = 'true';
     let dragging=false, resizing=false, sx, sy, il, it, iw, ih, moved=false, downTime=0, multiSelectKey=false, moveRAF=null, lastClientX=0, lastClientY=0;
     
     el.addEventListener('mousemove', e => {
@@ -148,7 +170,7 @@ function bindDrag(el){
         const rect = el.getBoundingClientRect();
         const c = e.touches ? e.touches[0] : e;
         
-        const isCallout = el.classList.contains('callout-wrap') || el.classList.contains('svg-callout') || el.classList.contains('co-neon-block');
+        const isCallout = el.classList.contains('callout-wrap') || el.classList.contains('svg-callout') || el.classList.contains('co-neon-block') || el.classList.contains('editable-draw');
         
         if (!isCallout && (!window.selectedElements || window.selectedElements.length <= 1) && (c.clientX >= rect.right - 20 && c.clientY >= rect.bottom - 20)) {
             resizing = true;
@@ -163,18 +185,49 @@ function bindDrag(el){
         sx=c.clientX;
         sy=c.clientY;
         const cs=getComputedStyle(el);
-        il=parseFloat(el.style.left) || parseFloat(cs.left) || el.offsetLeft || 0;
-        it=parseFloat(el.style.top) || parseFloat(cs.top) || el.offsetTop || 0;
+        const parsedL = parseFloat(el.style.left);
+        il = !isNaN(parsedL) ? parsedL : (parseFloat(cs.left) || el.offsetLeft || 0);
+        const parsedT = parseFloat(el.style.top);
+        it = !isNaN(parsedT) ? parsedT : (parseFloat(cs.top) || el.offsetTop || 0);
+        el.dataset.dragStartX = il;
+        el.dataset.dragStartY = it;
         
         if (window.selectedElements && window.selectedElements.length > 0) {
             window.selectedElements.forEach(selEl => {
                 const s_cs = getComputedStyle(selEl);
-                selEl.dataset.dragStartX = parseFloat(selEl.style.left) || parseFloat(s_cs.left) || selEl.offsetLeft || 0;
-                selEl.dataset.dragStartY = parseFloat(selEl.style.top) || parseFloat(s_cs.top) || selEl.offsetTop || 0;
+                const s_parsedL = parseFloat(selEl.style.left);
+                selEl.dataset.dragStartX = !isNaN(s_parsedL) ? s_parsedL : (parseFloat(s_cs.left) || selEl.offsetLeft || 0);
+                const s_parsedT = parseFloat(selEl.style.top);
+                selEl.dataset.dragStartY = !isNaN(s_parsedT) ? s_parsedT : (parseFloat(s_cs.top) || selEl.offsetTop || 0);
                 selEl.dataset.dragStartWidth = selEl.offsetWidth;
                 selEl.dataset.dragStartHeight = selEl.offsetHeight;
                 selEl.dataset.dragStartFontSize = parseFloat(window.getComputedStyle(selEl).fontSize) || 16;
             });
+        }
+        
+        // ⚡ Saber Neon ve sürükleme başlangıç koordinatlarını/boyutlarını önbelleğe al
+        const startTargets = (window.selectedElements && window.selectedElements.length > 0 && window.selectedElements.includes(el))
+            ? window.selectedElements
+            : [el];
+        let hasSaberInDrag = false;
+        startTargets.forEach(tEl => {
+            tEl._cachedDragW = tEl.offsetWidth;
+            tEl._cachedDragH = tEl.offsetHeight;
+            if (tEl.classList.contains('editable-draw')) {
+                const pObj = (typeof drawPaths !== 'undefined')
+                    ? drawPaths.find(p => p.el === tEl || (p.id && p.id === tEl.dataset.pathId) || (tEl.dataset.pathIndex !== undefined && drawPaths[parseInt(tEl.dataset.pathIndex)] === p))
+                    : null;
+                tEl._dragPObj = pObj;
+                if (pObj && pObj.hasSaber && pObj.saberRef) {
+                    hasSaberInDrag = true;
+                    tEl._dragStartSaberX = (pObj.saberRef.dx !== undefined) ? pObj.saberRef.dx : ((pObj.saberRef.graphics && pObj.saberRef.graphics.x !== undefined) ? pObj.saberRef.graphics.x : 0);
+                    tEl._dragStartSaberY = (pObj.saberRef.dy !== undefined) ? pObj.saberRef.dy : ((pObj.saberRef.graphics && pObj.saberRef.graphics.y !== undefined) ? pObj.saberRef.graphics.y : 0);
+                    tEl._dragStartSaberScale = (pObj.saberRef.scale !== undefined) ? pObj.saberRef.scale : ((pObj.saberRef.graphics && pObj.saberRef.graphics.scale) ? pObj.saberRef.graphics.scale.x : 1);
+                }
+            }
+        });
+        if (hasSaberInDrag) {
+            // Saber koordinatları hazırlandı
         }
     }
     function move(e){
@@ -312,12 +365,12 @@ function bindDrag(el){
             let newL = il + deltaX;
             let newT = it + deltaY;
             
+            const curW = el._cachedDragW || el.offsetWidth;
+            const curH = el._cachedDragH || el.offsetHeight;
             if (window.getSnapGuides && !multiSelectKey && !resizing) {
-                // Determine logic dimensions based on parent container scale if v4
-                const rect = el.getBoundingClientRect();
-                const snap = window.getSnapGuides(newL + (el.offsetWidth)/2, newT + (el.offsetHeight)/2, el, false);
-                newL = snap.x - (el.offsetWidth)/2;
-                newT = snap.y - (el.offsetHeight)/2;
+                const snap = window.getSnapGuides(newL + curW / 2, newT + curH / 2, el, false);
+                newL = snap.x - curW / 2;
+                newT = snap.y - curH / 2;
                 if (window.drawSnapGuides) window.drawSnapGuides(snap.guides);
             }
 
@@ -325,21 +378,86 @@ function bindDrag(el){
             el.style.top = newT + 'px';
             el.style.bottom = 'auto';
             el.style.right = 'auto';
+            if (el.classList.contains('editable-draw')) {
+                el.dataset.baseLeft = newL;
+                el.dataset.baseTop = newT;
+            }
             const rot = el.dataset.rotation || 0;
             const scale = el.dataset.scale || 1;
             el.style.transform = `rotate(${rot}deg) scale(${scale})`;
             
-            if (window.selectedElements && window.selectedElements.length > 1 && window.selectedElements.includes(el)) {
-                window.selectedElements.forEach(selEl => {
+            const selectedOtherTargets = (window.selectedElements && window.selectedElements.length > 1 && window.selectedElements.includes(el))
+                ? window.selectedElements
+                : null;
+
+            if (selectedOtherTargets) {
+                selectedOtherTargets.forEach(selEl => {
                     if (selEl !== el) {
                         const s_il = parseFloat(selEl.dataset.dragStartX) || 0;
                         const s_it = parseFloat(selEl.dataset.dragStartY) || 0;
-                        selEl.style.left = (s_il + deltaX) + 'px';
-                        selEl.style.top = (s_it + deltaY) + 'px';
+                        const s_newL = s_il + deltaX;
+                        const s_newT = s_it + deltaY;
+                        selEl.style.left = s_newL + 'px';
+                        selEl.style.top = s_newT + 'px';
                         selEl.style.bottom = 'auto';
                         selEl.style.right = 'auto';
+                        if (selEl.classList.contains('editable-draw')) {
+                            selEl.dataset.baseLeft = s_newL;
+                            selEl.dataset.baseTop = s_newT;
+                        }
                     }
                 });
+            }
+
+            // ⚡ SABER NEON ANLIK SÜRÜKLEME SENKRONİZASYONU (Sıfır Gecikme - GPU Ticker Destekli)
+            // Sürükleme anında DOM reflow yapmadan ve ana thread'i kilitlemeden (autoRender=false)
+            // Pixi container koordinatları güncellenir; sıfır mikro-takılma ile 120 FPS akıcı render!
+            if (window.SaberEngine && typeof window.SaberEngine.setSaberTransform === 'function') {
+                const dragTargets = selectedOtherTargets || [el];
+                
+                dragTargets.forEach(tEl => {
+                    if (tEl.classList.contains('editable-draw') && tEl._dragStartSaberScale !== undefined) {
+                        const pObj = tEl._dragPObj || ((typeof drawPaths !== 'undefined')
+                            ? drawPaths.find(p => p.el === tEl || (p.id && p.id === tEl.dataset.pathId) || (tEl.dataset.pathIndex !== undefined && drawPaths[parseInt(tEl.dataset.pathIndex)] === p))
+                            : null);
+                        
+                        if (pObj && pObj.hasSaber && pObj.saberRef) {
+                            const startX = (tEl.dataset.dragStartX !== undefined && !isNaN(parseFloat(tEl.dataset.dragStartX)))
+                                ? parseFloat(tEl.dataset.dragStartX)
+                                : (tEl === el ? il : (parseFloat(tEl.dataset.baseLeft) || 0));
+                            const startY = (tEl.dataset.dragStartY !== undefined && !isNaN(parseFloat(tEl.dataset.dragStartY)))
+                                ? parseFloat(tEl.dataset.dragStartY)
+                                : (tEl === el ? it : (parseFloat(tEl.dataset.baseTop) || 0));
+                            
+                            const curL = (tEl === el ? newL : (parseFloat(tEl.dataset.dragStartX || 0) + deltaX));
+                            const curT = (tEl === el ? newT : (parseFloat(tEl.dataset.dragStartY || 0) + deltaY));
+                            const dX = curL - startX;
+                            const dY = curT - startY;
+
+                            const rot = (pObj.rotation !== undefined) ? pObj.rotation : (parseFloat(tEl.dataset.rotation) || 0);
+                            const baseW = parseFloat(tEl.dataset.baseWidth) || tEl.offsetWidth || 0;
+                            const baseH = parseFloat(tEl.dataset.baseHeight) || tEl.offsetHeight || 0;
+                            const origCx = startX + baseW / 2;
+                            const origCy = startY + baseH / 2;
+
+                            window.SaberEngine.setSaberTransform(
+                                pObj.saberRef,
+                                tEl._dragStartSaberScale,
+                                tEl._dragStartSaberX + dX,
+                                tEl._dragStartSaberY + dY,
+                                false,
+                                rot,
+                                origCx,
+                                origCy
+                            );
+                        }
+                    }
+                });
+                
+                const sApp = typeof window.SaberEngine.getApp === 'function' ? window.SaberEngine.getApp() : null;
+                if (sApp && sApp.renderer && sApp.stage && (!sApp.ticker || !sApp.ticker.started)) {
+                    try { sApp.renderer.render(sApp.stage); } catch(e) {}
+                }
             }
         }
         });
@@ -347,6 +465,46 @@ function bindDrag(el){
     function up(){
         if (window.clearSnapGuides) window.clearSnapGuides();
         if(!dragging && !resizing)return;
+
+        if (moveRAF) {
+            cancelAnimationFrame(moveRAF);
+            moveRAF = null;
+            if (dragging && !resizing) {
+                const c = { clientX: lastClientX, clientY: lastClientY };
+                const deltaX = (c.clientX - sx) / window.getGlobalScale();
+                const deltaY = (c.clientY - sy) / window.getGlobalScale();
+                let newL = il + deltaX;
+                let newT = it + deltaY;
+                if (window.getSnapGuides && !multiSelectKey && !resizing) {
+                    const snap = window.getSnapGuides(newL + (el.offsetWidth)/2, newT + (el.offsetHeight)/2, el, false);
+                    newL = snap.x - (el.offsetWidth)/2;
+                    newT = snap.y - (el.offsetHeight)/2;
+                }
+                el.style.left = newL + 'px';
+                el.style.top = newT + 'px';
+                if (el.classList.contains('editable-draw')) {
+                    el.dataset.baseLeft = newL;
+                    el.dataset.baseTop = newT;
+                }
+                if (window.selectedElements && window.selectedElements.length > 1 && window.selectedElements.includes(el)) {
+                    window.selectedElements.forEach(selEl => {
+                        if (selEl !== el) {
+                            const s_il = parseFloat(selEl.dataset.dragStartX) || 0;
+                            const s_it = parseFloat(selEl.dataset.dragStartY) || 0;
+                            const s_newL = s_il + deltaX;
+                            const s_newT = s_it + deltaY;
+                            selEl.style.left = s_newL + 'px';
+                            selEl.style.top = s_newT + 'px';
+                            if (selEl.classList.contains('editable-draw')) {
+                                selEl.dataset.baseLeft = s_newL;
+                                selEl.dataset.baseTop = s_newT;
+                            }
+                        }
+                    });
+                }
+            }
+        }
+
         dragging=false;
         resizing=false;
         el.classList.remove('dragging');
@@ -358,41 +516,83 @@ function bindDrag(el){
         }
             
             // --- ADDED LOGIC FOR DRAWING STICKINESS AFTER DRAG ---
-            if (moved && window.selectedElements) {
+            const targets = (window.selectedElements && window.selectedElements.length > 0 && window.selectedElements.includes(el))
+                ? window.selectedElements
+                : [el];
+
+            if (moved) {
                 let photoRefUpdated = false;
                 let currentRef = typeof window.getCurrentPhotoState === 'function' ? window.getCurrentPhotoState() : null;
                 
-                window.selectedElements.forEach(selEl => {
+                targets.forEach(selEl => {
                     if (selEl.classList.contains('editable-draw')) {
-                        let bL = parseFloat(selEl.dataset.baseLeft) || 0;
-                        let bT = parseFloat(selEl.dataset.baseTop) || 0;
-                        let newBL = parseFloat(selEl.style.left) || 0;
-                        let newBT = parseFloat(selEl.style.top) || 0;
-                        selEl.dataset.baseLeft = newBL;
-                        selEl.dataset.baseTop = newBT;
+                        const pathObj = (typeof drawPaths !== 'undefined') ? drawPaths.find(p => p.el === selEl || (p.id && p.id === selEl.dataset.pathId) || (selEl.dataset.pathIndex !== undefined && drawPaths[parseInt(selEl.dataset.pathIndex)] === p)) : null;
+                        if (pathObj && pathObj.el !== selEl) {
+                            pathObj.el = selEl;
+                        }
                         
-                        let deltaL = newBL - bL;
-                        let deltaT = newBT - bT;
-                        
-                        if (typeof drawPaths !== 'undefined' && (deltaL !== 0 || deltaT !== 0)) {
-                            const pathObj = drawPaths.find(p => p.el === selEl);
-                            if (pathObj && pathObj.points && Array.isArray(pathObj.points)) {
-                                pathObj.points.forEach(pt => {
-                                    pt.x += deltaL;
-                                    pt.y += deltaT;
-                                });
-                            } else if (pathObj && typeof pathObj.x1 !== 'undefined') {
-                                pathObj.x1 += deltaL;
-                                pathObj.y1 += deltaT;
-                                pathObj.x2 += deltaL;
-                                pathObj.y2 += deltaT;
+                        const startDragX = (selEl.dataset.dragStartX !== undefined && !isNaN(parseFloat(selEl.dataset.dragStartX))) ? parseFloat(selEl.dataset.dragStartX) : (parseFloat(selEl.dataset.baseLeft) || 0);
+                        const startDragY = (selEl.dataset.dragStartY !== undefined && !isNaN(parseFloat(selEl.dataset.dragStartY))) ? parseFloat(selEl.dataset.dragStartY) : (parseFloat(selEl.dataset.baseTop) || 0);
+                        const newScreenL = parseFloat(selEl.style.left) || 0;
+                        const newScreenT = parseFloat(selEl.style.top) || 0;
+                        const screenDeltaL = newScreenL - startDragX;
+                        const screenDeltaT = newScreenT - startDragY;
+
+                        let tParams = null;
+                        if (pathObj && pathObj.photoRef && typeof window.calculateTransformParams === 'function') {
+                            const currObj = currentRef || (typeof window.getCurrentPhotoState === 'function' ? window.getCurrentPhotoState() : null);
+                            if (currObj) {
+                                tParams = window.calculateTransformParams(pathObj.photoRef, currObj);
                             }
                         }
-                        if (typeof drawPaths !== 'undefined' && currentRef) {
-                            const pathObj = drawPaths.find(p => p.el === selEl);
-                            if (pathObj) {
-                                pathObj.photoRef = currentRef;
-                                photoRefUpdated = true;
+                        const tScale = (tParams && tParams.scale) ? tParams.scale : 1;
+                        const tDx = (tParams && tParams.dx !== undefined) ? tParams.dx : 0;
+                        const tDy = (tParams && tParams.dy !== undefined) ? tParams.dy : 0;
+
+                        selEl.dataset.baseLeft = newScreenL;
+                        selEl.dataset.baseTop = newScreenT;
+                        selEl.dataset.dragStartX = newScreenL;
+                        selEl.dataset.dragStartY = newScreenT;
+                        selEl.dataset.baseWidth = parseFloat(selEl.style.width) || selEl.offsetWidth;
+                        selEl.dataset.baseHeight = parseFloat(selEl.style.height) || selEl.offsetHeight;
+
+                        if (pathObj && (screenDeltaL !== 0 || screenDeltaT !== 0 || (tParams && (tDx !== 0 || tDy !== 0 || tScale !== 1)))) {
+                            if (pathObj.points && Array.isArray(pathObj.points)) {
+                                pathObj.points.forEach(pt => {
+                                    pt.x = (pt.x * tScale + tDx) + screenDeltaL;
+                                    pt.y = (pt.y * tScale + tDy) + screenDeltaT;
+                                });
+                            }
+                            if (typeof pathObj.x1 !== 'undefined') {
+                                pathObj.x1 = (pathObj.x1 * tScale + tDx) + screenDeltaL;
+                                pathObj.y1 = (pathObj.y1 * tScale + tDy) + screenDeltaT;
+                                pathObj.x2 = (pathObj.x2 * tScale + tDx) + screenDeltaL;
+                                pathObj.y2 = (pathObj.y2 * tScale + tDy) + screenDeltaT;
+                            }
+                        }
+
+                        if (pathObj && currentRef) {
+                            pathObj.photoRef = currentRef;
+                            photoRefUpdated = true;
+                        }
+
+                        // Sync originalDrawState to prevent any subsequent cancelDrawEdit from snapping back
+                        if (pathObj && typeof originalDrawState !== 'undefined' && originalDrawState && typeof editingDrawIndex !== 'undefined' && editingDrawIndex >= 0) {
+                            if (drawPaths[editingDrawIndex] === pathObj) {
+                                const backup = { ...pathObj };
+                                delete backup.saberRef;
+                                delete backup.el;
+                                delete backup.photoRef;
+                                try {
+                                    originalDrawState = JSON.parse(JSON.stringify(backup));
+                                    originalDrawState.photoRef = pathObj.photoRef;
+                                } catch(e) {
+                                    originalDrawState = backup;
+                                }
+                                originalDrawState.hasSaber = pathObj.hasSaber;
+                                if (pathObj.saberOptions) originalDrawState.saberOptions = JSON.parse(JSON.stringify(pathObj.saberOptions));
+                                originalDrawState.el = pathObj.el;
+                                originalDrawState.saberRef = pathObj.saberRef;
                             }
                         }
                     }
@@ -404,6 +604,40 @@ function bindDrag(el){
             if (moved && typeof window.recordHistory === 'function') {
                 window.recordHistory('Nesne taşındı/boyutlandırıldı');
             }
+            if (moved && typeof drawPaths !== 'undefined' && window.applySaberToPath) {
+                targets.forEach(selEl => {
+                    const pIdx = drawPaths.findIndex(p => p.el === selEl);
+                    if (pIdx > -1 && drawPaths[pIdx].hasSaber) {
+                        window.applySaberToPath(pIdx, drawPaths[pIdx].saberOptions || window.saberState);
+                    }
+                });
+            }
+            if (moved && typeof redrawAll === 'function') {
+                redrawAll();
+            }
+
+            // ⚡ Drag sırasında açılan geçici Pixi Ticker'ı durdur ve temizle
+            const sApp = window.SaberEngine && typeof window.SaberEngine.getApp === 'function' ? window.SaberEngine.getApp() : null;
+            if (sApp && sApp._dragStartedTicker) {
+                sApp._dragStartedTicker = false;
+                const isAnimActive = (typeof window.isSaberAnimationActive === 'function')
+                    ? window.isSaberAnimationActive()
+                    : document.body.classList.contains('saber-animation-active');
+                if (!isAnimActive && sApp.ticker && sApp.ticker.started) {
+                    sApp.ticker.stop();
+                    if (sApp.renderer && sApp.stage) {
+                        try { sApp.renderer.render(sApp.stage); } catch(e) {}
+                    }
+                }
+            }
+            targets.forEach(selEl => {
+                delete selEl._dragStartSaberX;
+                delete selEl._dragStartSaberY;
+                delete selEl._dragStartSaberScale;
+                delete selEl._cachedDragW;
+                delete selEl._cachedDragH;
+                delete selEl._dragPObj;
+            });
     }
     el.addEventListener('mousedown',down);
     el.addEventListener('touchstart',down,{passive:false});
@@ -416,6 +650,10 @@ document.addEventListener('touchcancel',up);
 
 window.selectedElements = window.selectedElements || [];
 function selectElement(el, isMulti = false, noTabSwitch = false){
+    if (!el) return;
+    if (el.classList && !el.classList.contains('editable-draw') && el.closest && el.closest('.editable-draw')) {
+        el = el.closest('.editable-draw');
+    }
     /* removed lock check to allow unlocking */
     if(el && (el.classList.contains('co-neon-block') || el.classList.contains('callout-wrap') || el.classList.contains('svg-callout') || el.classList.contains('callout-item'))) {
         if(typeof selectCalloutEl === 'function') selectCalloutEl(el);
@@ -427,6 +665,7 @@ function selectElement(el, isMulti = false, noTabSwitch = false){
         window.selectedElements = Array.from(document.querySelectorAll(`[data-group-id="${groupId}"]`));
         window.selectedElements.forEach(e => e.classList.add('el-selected'));
         selectedEl = el;
+        window.selectedEl = el;
     } else if (groupId && isMulti) {
         const groupEls = Array.from(document.querySelectorAll(`[data-group-id="${groupId}"]`));
         const adding = !window.selectedElements.includes(el);
@@ -443,6 +682,7 @@ function selectElement(el, isMulti = false, noTabSwitch = false){
             }
         });
         selectedEl = window.selectedElements.length > 0 ? window.selectedElements[window.selectedElements.length - 1] : null;
+        window.selectedEl = selectedEl;
         if(window.selectedElements.length === 0) deselectAll();
     } else if(isMulti) {
         if(!window.selectedElements.includes(el)) {
@@ -450,10 +690,12 @@ function selectElement(el, isMulti = false, noTabSwitch = false){
             el.classList.add('el-selected');
         }
         selectedEl = window.selectedElements[window.selectedElements.length - 1]; // last one selected is primary
+        window.selectedEl = selectedEl;
     } else {
         deselectAll();
         window.selectedElements = [el];
         selectedEl=el;
+        window.selectedEl = el;
         el.classList.add('el-selected');
     }
     
@@ -492,7 +734,7 @@ function selectElement(el, isMulti = false, noTabSwitch = false){
         if (!noTabSwitch && (!isMobile || window.isLongPressOpen)) {
             if(typeof switchTab === 'function') switchTab('draw');
         }
-        if(typeof loadDrawSettings === 'function') loadDrawSettings(el);
+        if(!isMulti && typeof loadDrawSettings === 'function') loadDrawSettings(el);
         if(!isMulti && (!window.selectedElements || window.selectedElements.length <= 1)) {
             if(typeof showVertexHandles === 'function') showVertexHandles(el);
         } else {
@@ -530,11 +772,15 @@ function deselectAll(){
     document.querySelectorAll('.callout-lock-btn').forEach(c => c.style.display = 'flex');
     document.querySelectorAll('.co-neon-block').forEach(n => n.style.outline = 'none');
     selectedEl=null;
+    window.selectedEl=null;
     window.selectedElements = [];
     if(document.getElementById('noSelMsg')) document.getElementById('noSelMsg').style.display='block';
     if(document.getElementById('elSettings')) document.getElementById('elSettings').style.display='none';
     if(typeof hideVertexHandles === 'function') hideVertexHandles();
     if(typeof window.updateMultiSelectUI === 'function') window.updateMultiSelectUI();
+    if(typeof saveDrawEdit === 'function' && typeof editingDrawIndex !== 'undefined' && editingDrawIndex >= 0) {
+        saveDrawEdit();
+    }
 }
 
 function makeDraggable(el){
@@ -573,6 +819,7 @@ window.ungroupSelected = function() {
         window.selectedElements.forEach(e => e.classList.remove('el-selected'));
         window.selectedElements = [];
         selectedEl = null;
+        window.selectedEl = null;
         if(typeof window.updateMultiSelectUI === 'function') window.updateMultiSelectUI();
     }
     

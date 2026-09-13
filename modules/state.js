@@ -36,7 +36,11 @@ window.AppState = {
     // 6. Şablon veya Mod Geçişlerinde Güvenli Sıfırlama (State Cleanup)
     resetOnTemplateChange: function(newLayoutKey) {
         if (typeof deselectAll === 'function') deselectAll();
-        if (typeof cancelDrawEdit === 'function') cancelDrawEdit();
+        if (typeof saveDrawEdit === 'function' && typeof editingDrawIndex !== 'undefined' && editingDrawIndex >= 0) {
+            saveDrawEdit();
+        } else if (typeof cancelDrawEdit === 'function') {
+            cancelDrawEdit();
+        }
         if (typeof hideVertexHandles === 'function') hideVertexHandles();
         
         // Çizim modunu kapat

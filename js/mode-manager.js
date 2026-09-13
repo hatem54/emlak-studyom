@@ -435,14 +435,14 @@ function validateExportAllowed() {
       }
   }
 
-  // 3. Saber Neon Işık Efekti Kontrolü
+  // 3. Neon Işık Efekti Kontrolü
   if (window.SaberEngine && typeof window.SaberEngine.getApp === 'function') {
       const saberApp = window.SaberEngine.getApp();
       if (saberApp && window.SaberEngine.lines && window.SaberEngine.lines.length > 0) {
           return {
               allowed: false,
-              title: '🔒 Saber Neon Işık Efekti',
-              message: 'Tasarımınızda <strong>Saber Neon Işık Efekti</strong> bulunmaktadır. Bu özellik Pro üyelere aittir.<br><br>👉 <strong>Ücretsiz İndirmek İçin:</strong> Işık efektini kaldırıp tekrar indirmeyi deneyin.'
+              title: '🔒 Neon Işık Efekti',
+              message: 'Tasarımınızda <strong>Neon Işık Efekti</strong> bulunmaktadır. Bu özellik Pro üyelere aittir.<br><br>👉 <strong>Ücretsiz İndirmek İçin:</strong> Işık efektini kaldırıp tekrar indirmeyi deneyin.'
           };
       }
   }

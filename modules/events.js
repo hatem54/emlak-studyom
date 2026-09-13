@@ -788,6 +788,12 @@ document.addEventListener('dblclick', function(e) {
 // Boş tuvale veya canvas zeminine tıklandığında seçimi ve tutamaçları temizle
 document.addEventListener('pointerdown', function(e) {
     if (e.button !== 0 && e.type === 'pointerdown') return; // Sağ tık veya orta tık seçimi bozmasın
+    
+    // Çizim modu aktifken tuvale tıklamak ÇİZİM YAPMAK içindir! Asla çizim modunu kapatma veya seçimi bozma!
+    if (typeof drawMode !== 'undefined' && drawMode !== 'off' && drawMode !== null) {
+        return;
+    }
+
     if (e.target.closest(
         '.draggable, .canvas-el, .callout-wrap, .callout-item, .co-neon-block, .editable-draw, ' +
         '.text-handle, .text-resize-handle, .text-rotate-handle, .text-delete-handle, .text-lock-handle, ' +
@@ -797,10 +803,9 @@ document.addEventListener('pointerdown', function(e) {
     )) {
         return;
     }
-    if (typeof drawMode === 'undefined' || drawMode === 'off' || drawMode === null) {
-        if (typeof deselectAll === 'function') deselectAll();
-        if (typeof closeCalloutPanel === 'function') closeCalloutPanel();
-    }
+    // Boşa tıklandığında seçimi ve tutamaçları temizle ("boşa tıklayınca gitmeli")
+    if (typeof deselectAll === 'function') deselectAll();
+    if (typeof closeCalloutPanel === 'function') closeCalloutPanel();
 });
 
 document.addEventListener('DOMContentLoaded', () => {

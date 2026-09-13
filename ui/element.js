@@ -114,6 +114,24 @@ function applyElSettings(){
         el.dataset.rotation=rot;
         const currentScale = el.dataset.scale || 1; 
         el.style.transform='rotate('+rot+'deg) scale(' + currentScale + ')';
+        if (el.classList.contains('editable-draw')) {
+            const pIdx = parseInt(el.dataset.pathIndex);
+            const pObj = (typeof drawPaths !== 'undefined')
+                ? (drawPaths[pIdx] || drawPaths.find(p => p.el === el || (p.id && p.id === el.dataset.pathId)))
+                : null;
+            if (pObj) {
+                pObj.rotation = parseFloat(rot) || 0;
+                if (pObj.hasSaber && pObj.saberRef && window.SaberEngine && typeof window.SaberEngine.setSaberTransform === 'function') {
+                    const baseL = parseFloat(el.dataset.baseLeft !== undefined ? el.dataset.baseLeft : el.style.left) || 0;
+                    const baseT = parseFloat(el.dataset.baseTop !== undefined ? el.dataset.baseTop : el.style.top) || 0;
+                    const baseW = parseFloat(el.dataset.baseWidth) || el.offsetWidth || 0;
+                    const baseH = parseFloat(el.dataset.baseHeight) || el.offsetHeight || 0;
+                    const pCx = baseL + baseW / 2;
+                    const pCy = baseT + baseH / 2;
+                    window.SaberEngine.setSaberTransform(pObj.saberRef, currentScale, 0, 0, true, pObj.rotation, pCx, pCy);
+                }
+            }
+        }
         el.style.borderRadius=rad+'px';
         el.dataset.shadowVal=sh;
         el.style.boxShadow=+sh>0?'0 '+sh+'px '+(sh*2)+'px rgba(0,0,0,.5)':'none';

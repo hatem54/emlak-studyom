@@ -12,35 +12,61 @@
  */
 
 function applyGlowAndStroke(ctx, p) {
-    if (p.saber) {
-        ctx.globalAlpha = p.opacity;
-        ctx.filter = 'none';
-        
+    const isNeon = !!(p.saber || p.hasSaber || (window.saberState && window.saberState.active));
+    if (isNeon) {
+        ctx.save();
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
         
-        const originalWidth = p.width;
+        const origW = p.width || 4;
+        const sOpts = p.saberOptions || (window.saberState && window.saberState.active ? window.saberState : {}) || {};
+        const coreW = Math.max(1.5, Math.min(sOpts.coreSize || (origW * 0.6) || 3, 8));
+        const glowSize = Math.max(12, sOpts.glowSize || 28);
+        const op = p.opacity || 1;
         
-        ctx.shadowColor = p.color;
-        
-        ctx.lineWidth = originalWidth + 6;
-        ctx.strokeStyle = p.color;
-        ctx.shadowBlur = 20;
+        let glowColor = '#00CEC9';
+        if (sOpts.glowColor) {
+            glowColor = typeof sOpts.glowColor === 'number' ? '#' + sOpts.glowColor.toString(16).padStart(6, '0') : sOpts.glowColor;
+        } else if (p.color) {
+            glowColor = p.color;
+        }
+        let coreColor = '#FFFFFF';
+        if (sOpts.coreColor) {
+            coreColor = typeof sOpts.coreColor === 'number' ? '#' + sOpts.coreColor.toString(16).padStart(6, '0') : sOpts.coreColor;
+        }
+
+        // Toplamsal ışık karışımı (Additive Screen Blend)
+        ctx.globalCompositeOperation = 'screen';
+
+        // 1. Kademe: Geniş Zemin Yayılımı (Volumetric Ground Spill)
+        ctx.shadowColor = glowColor;
+        ctx.shadowBlur = glowSize * 2.2;
+        ctx.strokeStyle = glowColor;
+        ctx.lineWidth = origW + 12;
+        ctx.globalAlpha = 0.35 * op;
         ctx.stroke();
-        
-        ctx.lineWidth = originalWidth + 2;
-        ctx.shadowBlur = 10;
+
+        // 2. Kademe: Dış Atmosferik Neon Halesi (Outer Aura)
+        ctx.shadowBlur = glowSize * 1.2;
+        ctx.lineWidth = origW + 6;
+        ctx.globalAlpha = 0.65 * op;
         ctx.stroke();
-        
-        ctx.lineWidth = originalWidth * 0.4 < 1 ? 1 : originalWidth * 0.4;
-        ctx.strokeStyle = '#ffffff';
-        ctx.shadowBlur = 0;
+
+        // 3. Kademe: Yoğun İç Korona (Inner Corona)
+        ctx.shadowBlur = glowSize * 0.4;
+        ctx.lineWidth = origW + 2;
+        ctx.globalAlpha = 0.9 * op;
         ctx.stroke();
-        
-        ctx.lineWidth = originalWidth;
-        ctx.strokeStyle = p.color;
-        ctx.shadowColor = 'transparent';
-        ctx.shadowBlur = 0;
+
+        // 4. Kademe: Akkor Beyaz Çekirdek (Hot White Core Tube)
+        ctx.shadowColor = '#FFFFFF';
+        ctx.shadowBlur = 4;
+        ctx.strokeStyle = coreColor;
+        ctx.lineWidth = coreW;
+        ctx.globalAlpha = 1.0 * op;
+        ctx.stroke();
+
+        ctx.restore();
     } else {
         if (p.glow > 0) {
             ctx.shadowBlur = p.glow;
@@ -60,6 +86,27 @@ function drawSinglePath(p){
 
     if(p.hidden) return;
 
+    // ⚡ SELF-HEALING: Ensure p.el is connected to the DOM SVG element
+    if (!p.el && p.id) {
+        p.el = document.querySelector(`.editable-draw[data-path-id="${p.id}"]`);
+    }
+    if (!p.el && typeof drawPaths !== 'undefined') {
+        const pIdx = drawPaths.indexOf(p);
+        if (pIdx >= 0) {
+            p.el = document.querySelector(`.editable-draw[data-path-index="${pIdx}"]`);
+        }
+    }
+    if (!p.el && typeof createSVGFromPath === 'function') {
+        p.el = createSVGFromPath(p);
+    }
+    // Ensure p.el is in DOM
+    if (p.el && !p.el.parentElement) {
+        const container = typeof getActiveV4Element === 'function' ? getActiveV4Element() : (document.getElementById('photo-layer') || document.getElementById('canvas-container'));
+        if (container) {
+            container.appendChild(p.el);
+            if (typeof bindDrag === 'function') bindDrag(p.el);
+        }
+    }
 
     drawCtx.save();
     let tParams = null;
@@ -91,7 +138,7 @@ function drawSinglePath(p){
         drawCtx.translate(tParams.dx, tParams.dy);
         drawCtx.scale(tParams.scale, tParams.scale);
         
-        if (p.el && p.el.dataset && p.el.dataset.baseLeft !== undefined) {
+        if (p.el && p.el.dataset && p.el.dataset.baseLeft !== undefined && !p.el.classList.contains('dragging')) {
             const baseL = parseFloat(p.el.dataset.baseLeft);
             const baseT = parseFloat(p.el.dataset.baseTop);
             const baseW = parseFloat(p.el.dataset.baseWidth);
@@ -103,11 +150,32 @@ function drawSinglePath(p){
             p.el.style.height = (baseH * tParams.scale) + 'px';
         }
         
-        if (p.hasSaber && p.saberRef && window.SaberEngine && SaberEngine.setSaberTransform) {
-            SaberEngine.setSaberTransform(p.saberRef, tParams.scale, tParams.dx, tParams.dy);
+        if (p.hasSaber) {
+            if (!p.saberRef && typeof window.applySaberToPath === 'function') {
+                const pIdx = drawPaths.indexOf(p);
+                if (pIdx >= 0) {
+                    p.saberRef = window.applySaberToPath(pIdx, p.saberOptions || window.saberState);
+                }
+            }
+            if (p.saberRef && window.SaberEngine && SaberEngine.setSaberTransform) {
+                const rot = (p.rotation !== undefined) ? p.rotation : (p.el && p.el.dataset.rotation ? parseFloat(p.el.dataset.rotation) : 0);
+                let cx = p.saberRef.centerX;
+                let cy = p.saberRef.centerY;
+                if (p.el) {
+                    const baseL = parseFloat(p.el.dataset.baseLeft !== undefined ? p.el.dataset.baseLeft : p.el.style.left) || 0;
+                    const baseT = parseFloat(p.el.dataset.baseTop !== undefined ? p.el.dataset.baseTop : p.el.style.top) || 0;
+                    const baseW = parseFloat(p.el.dataset.baseWidth) || p.el.offsetWidth || 0;
+                    const baseH = parseFloat(p.el.dataset.baseHeight) || p.el.offsetHeight || 0;
+                    if (baseW > 0 && baseH > 0) {
+                        cx = baseL + baseW / 2;
+                        cy = baseT + baseH / 2;
+                    }
+                }
+                SaberEngine.setSaberTransform(p.saberRef, tParams.scale, tParams.dx, tParams.dy, false, rot, cx, cy);
+            }
         }
     } else {
-        if (p.el && p.el.dataset && p.el.dataset.baseLeft !== undefined) {
+        if (p.el && p.el.dataset && p.el.dataset.baseLeft !== undefined && !p.el.classList.contains('dragging')) {
             const baseL = parseFloat(p.el.dataset.baseLeft);
             const baseT = parseFloat(p.el.dataset.baseTop);
             const baseW = parseFloat(p.el.dataset.baseWidth);
@@ -118,12 +186,36 @@ function drawSinglePath(p){
             p.el.style.width = baseW + 'px';
             p.el.style.height = baseH + 'px';
         }
-        if (p.hasSaber && p.saberRef && window.SaberEngine && SaberEngine.setSaberTransform) {
-            SaberEngine.setSaberTransform(p.saberRef, 1, 0, 0);
+        if (p.hasSaber) {
+            if (!p.saberRef && typeof window.applySaberToPath === 'function') {
+                const pIdx = drawPaths.indexOf(p);
+                if (pIdx >= 0) {
+                    p.saberRef = window.applySaberToPath(pIdx, p.saberOptions || window.saberState);
+                }
+            }
+            if (p.saberRef && window.SaberEngine && SaberEngine.setSaberTransform) {
+                const rot = (p.rotation !== undefined) ? p.rotation : (p.el && p.el.dataset.rotation ? parseFloat(p.el.dataset.rotation) : 0);
+                const curScale = (p.scale !== undefined) ? p.scale : (p.el && p.el.dataset.scale ? parseFloat(p.el.dataset.scale) : 1);
+                let cx = p.saberRef.centerX;
+                let cy = p.saberRef.centerY;
+                if (p.el) {
+                    const baseL = parseFloat(p.el.dataset.baseLeft !== undefined ? p.el.dataset.baseLeft : p.el.style.left) || 0;
+                    const baseT = parseFloat(p.el.dataset.baseTop !== undefined ? p.el.dataset.baseTop : p.el.style.top) || 0;
+                    const baseW = parseFloat(p.el.dataset.baseWidth) || p.el.offsetWidth || 0;
+                    const baseH = parseFloat(p.el.dataset.baseHeight) || p.el.offsetHeight || 0;
+                    if (baseW > 0 && baseH > 0) {
+                        cx = baseL + baseW / 2;
+                        cy = baseT + baseH / 2;
+                    }
+                }
+                SaberEngine.setSaberTransform(p.saberRef, curScale, 0, 0, false, rot, cx, cy);
+            }
         }
     }
-    
-    if (p.el && drawCtx && drawCtx.canvas && (drawCtx.canvas.id === 'drawCanvas' || drawCtx.canvas.id === 'draw-layer')) {
+
+    // ⚡ Asla etkileşimli tuvalde (drawCanvas / draw-layer) raster çizim yapma!
+    // Tüm çizimler DOM SVG elementi olarak mevcuttur. Tuvale çizmek çift/kopya şekil oluşturur!
+    if (drawCtx && drawCtx.canvas && (drawCtx.canvas.id === 'drawCanvas' || drawCtx.canvas.id === 'draw-layer')) {
         drawCtx.restore();
         return;
     }
@@ -249,16 +341,47 @@ function drawSinglePath(p){
                 applyGlowAndStroke(drawCtx, p);
             }
             
-            if(p.showVertices){
+            const isNeonForPts = !!(p.saber || p.hasSaber || (window.saberState && window.saberState.active));
+            const sOptsForPts = p.saberOptions || (window.saberState && window.saberState.active ? window.saberState : {}) || {};
+            const showNodesForPts = isNeonForPts ? (sOptsForPts.energyNodes !== false) : p.showVertices;
+            if(showNodesForPts){
                 drawCtx.save();
-                drawCtx.globalAlpha = 1;
-                drawCtx.fillStyle = p.color;
-                drawCtx.setLineDash([]);
-                p.points.forEach(pt => {
-                    drawCtx.beginPath();
-                    drawCtx.arc(pt.x, pt.y, p.width + 2, 0, Math.PI*2);
-                    drawCtx.fill();
-                });
+                if (isNeonForPts) {
+                    drawCtx.globalCompositeOperation = 'screen';
+                    let glowColor = '#00CEC9';
+                    if (sOptsForPts.glowColor) {
+                        glowColor = typeof sOptsForPts.glowColor === 'number' ? '#' + sOptsForPts.glowColor.toString(16).padStart(6, '0') : sOptsForPts.glowColor;
+                    } else if (p.color) {
+                        glowColor = p.color;
+                    }
+                    const pinR = Math.max(3.5, Math.round(p.width * 0.75));
+                    p.points.forEach(pt => {
+                        // Dış halo
+                        drawCtx.beginPath();
+                        drawCtx.shadowColor = glowColor;
+                        drawCtx.shadowBlur = 12;
+                        drawCtx.strokeStyle = glowColor;
+                        drawCtx.lineWidth = 2;
+                        drawCtx.arc(pt.x, pt.y, pinR * 2.2, 0, Math.PI * 2);
+                        drawCtx.stroke();
+                        // İç akkor çekirdek
+                        drawCtx.beginPath();
+                        drawCtx.shadowColor = '#FFFFFF';
+                        drawCtx.shadowBlur = 4;
+                        drawCtx.fillStyle = '#FFFFFF';
+                        drawCtx.arc(pt.x, pt.y, pinR, 0, Math.PI * 2);
+                        drawCtx.fill();
+                    });
+                } else {
+                    drawCtx.globalAlpha = 1;
+                    drawCtx.fillStyle = p.color;
+                    drawCtx.setLineDash([]);
+                    p.points.forEach(pt => {
+                        drawCtx.beginPath();
+                        drawCtx.arc(pt.x, pt.y, p.width + 2, 0, Math.PI*2);
+                        drawCtx.fill();
+                    });
+                }
                 drawCtx.restore();
             }
         }
@@ -294,12 +417,32 @@ function removeTempPolygonSaber() {
     }
 }
 function setDrawMode(mode){
+    if (mode !== 'off') {
+        // Çizim aracı seçildiğinde fotoğraf serbestse otomatik olarak sabitle
+        if (window.isPhotoLocked === false) {
+            if (typeof window.updatePhotoLockState === 'function') {
+                window.updatePhotoLockState(true);
+            } else {
+                window.isPhotoLocked = true;
+                if (typeof window.updateDockLockUI === 'function') window.updateDockLockUI(true);
+            }
+        }
+    }
     if (mode === 'off') {
         document.querySelectorAll('.editable-draw').forEach(el => {
-            el.style.pointerEvents = 'none';
+            el.style.pointerEvents = 'auto';
             const children = el.querySelectorAll('*');
-            children.forEach(child => child.style.pointerEvents = 'all');
+            children.forEach(child => child.style.pointerEvents = '');
         });
+        if (typeof deselectAll === 'function') deselectAll();
+        if (typeof window.deselectAll === 'function') window.deselectAll();
+        if (typeof hideVertexHandles === 'function') hideVertexHandles();
+        if (typeof window.hideVertexHandles === 'function') window.hideVertexHandles();
+        if (typeof saveDrawEdit === 'function' && typeof editingDrawIndex !== 'undefined' && editingDrawIndex >= 0) {
+            saveDrawEdit();
+        } else if (typeof window.saveDrawEdit === 'function' && typeof editingDrawIndex !== 'undefined' && editingDrawIndex >= 0) {
+            window.saveDrawEdit();
+        }
     } else {
         document.querySelectorAll('.editable-draw').forEach(el => {
             el.style.pointerEvents = 'none';
@@ -307,6 +450,9 @@ function setDrawMode(mode){
             children.forEach(child => child.style.pointerEvents = 'none');
         });
         if (typeof deselectAll === 'function') deselectAll();
+        if (typeof window.deselectAll === 'function') window.deselectAll();
+        if (typeof hideVertexHandles === 'function') hideVertexHandles();
+        if (typeof window.hideVertexHandles === 'function') window.hideVertexHandles();
     }
     removeTempPolygonSaber();
     if(mode!=='polygon'&&polygonBuilding){polygonPoints=[];polygonBuilding=false;redrawAll()}
@@ -336,6 +482,7 @@ function setDrawMode(mode){
         $('canvasHint').textContent=mode==='polygon'?'📍 Tıklayarak köşe ekle, çift tıkla kapat':'✏️ ÇİZİM AKTİF';
     }
 }
+window.setDrawMode = setDrawMode;
 
 function getDrawScaleRatio(){
     if (typeof window.scaleFactor !== 'undefined' && window.scaleFactor > 0) {
@@ -358,8 +505,16 @@ function getDS(){
     const baseW = +$('drawWidth').value || 6;
     const scaleRatio = getDrawScaleRatio();
     const effWidth = Math.max(1, Math.round(baseW * scaleRatio));
+    const isNeonActive = !!(window.saberState && window.saberState.active);
+    
+    let drawCol = $('drawColor') ? $('drawColor').value : '#ef4444';
+    if (isNeonActive && window.saberState) {
+        const gc = window.saberState.glowColor;
+        if (gc) drawCol = typeof gc === 'number' ? '#' + gc.toString(16).padStart(6, '0') : gc;
+    }
+
     return{
-        color:$('drawColor').value,
+        color: drawCol,
         width: effWidth,
         rawWidth: baseW,
         opacity:+$('drawOpacity').value/100,
@@ -368,7 +523,10 @@ function getDS(){
         fillOpacity:+$('fillOpacity').value/100,
         showVertices:$('polyShowVertices')?$('polyShowVertices').checked:true,
         arrowStyle:$('arrowStyleSelect')?parseInt($('arrowStyleSelect').value):1,
-        arrowDir:$('arrowDirSelect')?$('arrowDirSelect').value:'outward'
+        arrowDir:$('arrowDirSelect')?$('arrowDirSelect').value:'outward',
+        saber: isNeonActive,
+        hasSaber: isNeonActive,
+        saberOptions: isNeonActive ? JSON.parse(JSON.stringify(window.saberState)) : null
     };
 }
 
@@ -600,37 +758,70 @@ function dEnd(e){
     }
 
     if (pObj) {
+        const isNeonNow = !!(window.saberState && window.saberState.active);
+        let activeNeonColor = pObj.color;
+        if (isNeonNow && window.saberState && window.saberState.glowColor) {
+            const gc = window.saberState.glowColor;
+            activeNeonColor = typeof gc === 'number' ? '#' + gc.toString(16).padStart(6, '0') : gc;
+        }
+        if (isNeonNow) {
+            pObj.color = activeNeonColor;
+            pObj.hasSaber = true;
+            pObj.saber = true;
+            pObj.saberOptions = JSON.parse(JSON.stringify(window.saberState));
+        }
+
         const el = createSVGFromPath(pObj);
-    if (el) {
-        if (typeof allIcons !== 'undefined') {
-            allIcons.push(el);
-            if (document.getElementById('iconCount')) document.getElementById('iconCount').textContent = allIcons.length;
-        }
-        if (typeof drawPaths !== 'undefined') {
-            const hasEl = drawPaths.some(p => p.el === el);
-            if (!hasEl) {
-                drawRedoPaths = [];
-                drawPaths.push(Object.assign({}, pObj, {
-                    hasSaber: false,
-                    photoRef: photoRef,
-                    el: el
-                }));
-                if (typeof updateDrawHistory === 'function') updateDrawHistory();
+        if (el) {
+            const container = typeof getActiveV4Element === 'function' ? getActiveV4Element() : (document.getElementById('photo-layer') || document.getElementById('canvas-container'));
+            if (container && !el.parentElement) {
+                container.appendChild(el);
             }
-        }
-            // Optionally, switch draw mode to off so they can interact with the element
-            // setDrawMode('off'); removed for continuous drawing
+            if (typeof bindDrag === 'function') {
+                bindDrag(el);
+            }
+            if (typeof allIcons !== 'undefined') {
+                if (!allIcons.includes(el)) allIcons.push(el);
+                if (document.getElementById('iconCount')) document.getElementById('iconCount').textContent = allIcons.length;
+            }
+            if (typeof drawPaths !== 'undefined') {
+                const hasEl = drawPaths.some(p => p.el === el);
+                if (!hasEl) {
+                    drawRedoPaths = [];
+                    const newPathObj = Object.assign({}, pObj, {
+                        id: pObj.id || ('draw-path-' + Date.now() + '-' + Math.floor(Math.random()*10000)),
+                        color: isNeonNow ? activeNeonColor : pObj.color,
+                        hasSaber: isNeonNow,
+                        saber: isNeonNow,
+                        saberOptions: isNeonNow ? JSON.parse(JSON.stringify(window.saberState)) : null,
+                        photoRef: photoRef,
+                        el: el
+                    });
+                    drawPaths.push(newPathObj);
+                    const newIdx = drawPaths.length - 1;
+                    el.dataset.pathIndex = newIdx;
+                    el.dataset.pathId = newPathObj.id;
+                    if (typeof updateSinglePathSvg === 'function') {
+                        updateSinglePathSvg(newPathObj);
+                    }
+                    if (typeof updateDrawHistory === 'function') updateDrawHistory();
+                }
+            }
+            if (typeof window.selectElement === 'function') {
+                window.selectElement(el, false, true);
+            }
         }
     }
 
     currentPath=[];
-    redrawAll();
-    updateDrawHistory();
 
-    // Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â Ã¢Å¡Â¡ SABER HOOK Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â
+    // ─── ⚡ SABER HOOK (redrawAll'dan ÖNCE çalıştır ki transform ve referanslar hemen bağlansın!) ───
     if (window.saberState && window.saberState.active && window.applySaberToPath) {
         window.applySaberToPath(drawPaths.length - 1, JSON.parse(JSON.stringify(window.saberState)));
     }
+
+    redrawAll();
+    updateDrawHistory();
 }
 
 function drawTempPolygon(cursor){
@@ -679,30 +870,68 @@ function closePolygon(){
     const py = parseFloat(document.getElementById('photoYCtrl') ? document.getElementById('photoYCtrl').value : 50);
     const panel = getActivePhotoPanel();
     
-    const pObj = Object.assign({type:'polygon', closed:true, points:polygonPoints.slice(), showVertices: showV, photoRef: typeof window.getCurrentPhotoState === 'function' ? window.getCurrentPhotoState() : null},s);
+    const isNeonNow = !!(window.saberState && window.saberState.active);
+    let activeNeonColor = s.color;
+    if (isNeonNow && window.saberState && window.saberState.glowColor) {
+        const gc = window.saberState.glowColor;
+        activeNeonColor = typeof gc === 'number' ? '#' + gc.toString(16).padStart(6, '0') : gc;
+    }
+
+    const pObj = Object.assign({
+        type: 'polygon',
+        closed: true,
+        points: polygonPoints.slice(),
+        showVertices: showV,
+        photoRef: typeof window.getCurrentPhotoState === 'function' ? window.getCurrentPhotoState() : null,
+        hasSaber: isNeonNow,
+        saber: isNeonNow,
+        saberOptions: isNeonNow ? JSON.parse(JSON.stringify(window.saberState)) : null
+    }, s);
+    if (isNeonNow) {
+        pObj.color = activeNeonColor;
+    }
     
     const el = createSVGFromPath(pObj);
     if (el) {
+        const container = typeof getActiveV4Element === 'function' ? getActiveV4Element() : (document.getElementById('photo-layer') || document.getElementById('canvas-container'));
+        if (container && !el.parentElement) {
+            container.appendChild(el);
+        }
+        if (typeof bindDrag === 'function') {
+            bindDrag(el);
+        }
         if (typeof allIcons !== 'undefined') {
-                allIcons.push(el);
-                if (document.getElementById('iconCount')) document.getElementById('iconCount').textContent = allIcons.length;
-            }
-            if (typeof drawPaths !== 'undefined') {
+            if (!allIcons.includes(el)) allIcons.push(el);
+            if (document.getElementById('iconCount')) document.getElementById('iconCount').textContent = allIcons.length;
+        }
+        if (typeof drawPaths !== 'undefined') {
             const hasEl = drawPaths.some(p => p.el === el);
             if (!hasEl) {
-                drawPaths.push(Object.assign({}, pObj, {
-    hasSaber: false,
-    photoRef: typeof window.getCurrentPhotoState === 'function' ? window.getCurrentPhotoState() : null,
-    el: el
-}));
+                const newPathObj = Object.assign({}, pObj, {
+                    id: pObj.id || ('draw-path-' + Date.now() + '-' + Math.floor(Math.random()*10000)),
+                    color: isNeonNow ? activeNeonColor : pObj.color,
+                    hasSaber: isNeonNow,
+                    saber: isNeonNow,
+                    saberOptions: isNeonNow ? JSON.parse(JSON.stringify(window.saberState)) : null,
+                    photoRef: typeof window.getCurrentPhotoState === 'function' ? window.getCurrentPhotoState() : null,
+                    el: el
+                });
+                drawPaths.push(newPathObj);
+                const newIdx = drawPaths.length - 1;
+                el.dataset.pathIndex = newIdx;
+                el.dataset.pathId = newPathObj.id;
+                if (typeof updateSinglePathSvg === 'function') {
+                    updateSinglePathSvg(newPathObj);
+                }
                 if (typeof updateDrawHistory === 'function') updateDrawHistory();
             }
         }
-        // setDrawMode('off'); removed for continuous drawing
+        if (typeof window.selectElement === 'function') {
+            window.selectElement(el, false, true);
+        }
     }
 
-    
-    // Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â Ã¢Å¡Â¡ SABER HOOK Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â
+    // ─── ⚡ SABER HOOK ───
     if (window.saberState && window.saberState.active && window.applySaberToPath) {
         window.applySaberToPath(drawPaths.length - 1, JSON.parse(JSON.stringify(window.saberState)));
     }
@@ -1310,6 +1539,11 @@ function redrawAll(){
     const h=drawCanvas.height||1080;
     drawCtx.clearRect(0,0,w,h);
     
+    // Saber motorunu drawCanvas boyutuna tam uydur
+    if (window.SaberEngine && typeof window.SaberEngine.resize === 'function') {
+        window.SaberEngine.resize(w, h);
+    }
+    
     // draw-layer and ui-layer now sit in canvas-container natively.
     // Since canva-render-layer no longer creates a stacking context,
     // they interleave with cvr-base children (photo-panel z:1, decorations z:100) automatically!
@@ -1332,6 +1566,14 @@ function redrawAll(){
         errDiv.style.zIndex = "999999";
         errDiv.innerText = "DRAW ERROR: " + e.message;
         document.body.appendChild(errDiv);
+    }
+
+    // Statik neon modunda Pixi WebGL tuvalini anında render et (kaydırma sırasında milimetrik senkronizasyon)
+    if (window.SaberEngine && typeof window.SaberEngine.getApp === 'function') {
+        const sApp = window.SaberEngine.getApp();
+        if (sApp && sApp.renderer && sApp.stage && (!sApp.ticker || !sApp.ticker.started)) {
+            try { sApp.renderer.render(sApp.stage); } catch(e) {}
+        }
     }
 }
 
@@ -1489,7 +1731,7 @@ function startDrawEdit(i, showPanel = true, isMulti = false){
     const p=drawPaths[i];
     if(!p) return;
     
-    // Canvas üzerinde o ögeyi seç ve tutamaçları göster
+    // Canvas üzerinde o ögeyi seç ve tutamaçları göster (yalnızca tekli seçimde!)
     if (!isMulti && (!window.selectedElements || window.selectedElements.length <= 1)) {
         if (p.el && typeof window.selectElement === 'function') {
             if (window.selectedEl !== p.el) {
@@ -1498,8 +1740,8 @@ function startDrawEdit(i, showPanel = true, isMulti = false){
                 showVertexHandles(p.el);
             }
         }
-    } else if (p.el && typeof showVertexHandles === 'function') {
-        showVertexHandles(p.el);
+    } else {
+        if (typeof hideVertexHandles === 'function') hideVertexHandles();
     }
     
     // Backup original state without circular refs
@@ -1516,6 +1758,8 @@ function startDrawEdit(i, showPanel = true, isMulti = false){
     }
     originalDrawState.hasSaber = p.hasSaber;
     if (p.saberOptions) originalDrawState.saberOptions = JSON.parse(JSON.stringify(p.saberOptions));
+    originalDrawState.el = p.el;
+    originalDrawState.saberRef = p.saberRef;
     
     if($('deColor')) $('deColor').value=p.color;
     if($('deWidth')) {
@@ -1525,6 +1769,7 @@ function startDrawEdit(i, showPanel = true, isMulti = false){
         $('deWidth').value = rawW;
         if($('deWidthVal')) $('deWidthVal').textContent = rawW;
     }
+    if($('deDash')) $('deDash').value = p.dashStyle || 'solid';
     if($('deOpacity'))$('deOpacity').value=Math.round(p.opacity*100);
     if($('deOpacityVal'))$('deOpacityVal').textContent=Math.round(p.opacity*100)+'%';
     if($('deFillColor'))$('deFillColor').value=p.fillColor||'#ef4444';
@@ -1579,6 +1824,14 @@ function startDrawEdit(i, showPanel = true, isMulti = false){
             $('deSaberFlickerVal').textContent = flicker; 
         }
         if ($('deSaberPulse')) { $('deSaberPulse').value = currentOpts.pulseSpeed || 0; $('deSaberPulseVal').textContent = currentOpts.pulseSpeed || 0; }
+        if ($('deSaberGroundSpill')) {
+            const spill = Math.round((currentOpts.groundSpill !== undefined ? currentOpts.groundSpill : 0.4) * 100);
+            $('deSaberGroundSpill').value = spill;
+            $('deSaberGroundSpillVal').textContent = spill + '%';
+        }
+        if ($('deSaberEnergyNodes')) {
+            $('deSaberEnergyNodes').checked = currentOpts.energyNodes !== false;
+        }
     }
     
     if($('drawEditPanel')) {
@@ -1609,7 +1862,14 @@ window.setDrawEditSaberColor = function(key) {
 
 window.cancelDrawEdit = function(){
     if (originalDrawState && editingDrawIndex >= 0 && editingDrawIndex < drawPaths.length) {
+        const preservedEl = drawPaths[editingDrawIndex].el || originalDrawState.el;
+        const preservedSaber = drawPaths[editingDrawIndex].saberRef || originalDrawState.saberRef;
         drawPaths[editingDrawIndex] = Object.assign({}, originalDrawState);
+        if (preservedEl) drawPaths[editingDrawIndex].el = preservedEl;
+        if (preservedSaber) drawPaths[editingDrawIndex].saberRef = preservedSaber;
+        if (drawPaths[editingDrawIndex].el && typeof updateSinglePathSvg === 'function') {
+            updateSinglePathSvg(drawPaths[editingDrawIndex]);
+        }
         redrawAll();
     }
     editingDrawIndex=-1;
@@ -1626,6 +1886,9 @@ window.saveDrawEdit = function(){
         const s = window.getGlobalScale();
         p.saberRef.scaleX = s;
         p.saberRef.scaleY = s;
+    }
+    if (p.el && typeof updateSinglePathSvg === 'function') {
+        updateSinglePathSvg(p);
     }
     editingDrawIndex=-1;
     originalDrawState=null;
@@ -1653,11 +1916,13 @@ window.liveUpdateDrawEdit = function(){
     const scaleRatio = getDrawScaleRatio();
     
     if($('deColor')) p.color=$('deColor').value;
+    let rawW = 6;
     if($('deWidth')) {
-        const rawW = +$('deWidth').value;
+        rawW = +$('deWidth').value;
         p.rawWidth = rawW;
         p.width = Math.max(1, Math.round(rawW * scaleRatio));
     }
+    if($('deDash')) p.dashStyle = $('deDash').value;
     if($('deOpacity')) p.opacity=+$('deOpacity').value/100;
     if($('deFillColor')) p.fillColor=$('deFillColor').value;
     if($('deFillOp')) p.fillOpacity=+$('deFillOp').value/100;
@@ -1675,7 +1940,9 @@ window.liveUpdateDrawEdit = function(){
     // SABER UPDATE
     const toggle = $('deSaberToggle');
     const settings = $('deSaberSettings');
-    if (toggle && toggle.checked) {
+    const isNeonActive = !!(toggle && toggle.checked) || !!(window.saberState && window.saberState.active && p.hasSaber !== false);
+    if (toggle) toggle.checked = isNeonActive;
+    if (isNeonActive) {
         if (settings) settings.style.display = 'flex';
         
         const activePresetEl = $('deSaberPresets') ? $('deSaberPresets').querySelector('.active') : null;
@@ -1688,6 +1955,9 @@ window.liveUpdateDrawEdit = function(){
         if (activeColorKey && window.SaberEngine && SaberEngine.colorPresets[activeColorKey]) {
             coreColor = SaberEngine.colorPresets[activeColorKey].core;
             glowColor = SaberEngine.colorPresets[activeColorKey].glow;
+        } else if (p.color && p.color.startsWith('#')) {
+            glowColor = parseInt(p.color.replace('#', ''), 16) || 0x00AAFF;
+            if (p.saberOptions && p.saberOptions.coreColor) coreColor = p.saberOptions.coreColor;
         } else if (p.saberOptions) {
             coreColor = p.saberOptions.coreColor;
             glowColor = p.saberOptions.glowColor;
@@ -1696,15 +1966,21 @@ window.liveUpdateDrawEdit = function(){
             glowColor = saberState.glowColor;
         }
         
+        const dynCore = Math.max(2, Math.round(rawW * 0.7));
+        const dynGlow = Math.max(12, Math.round(rawW * 4.2));
+
         const newOptions = {
             preset: presetKey,
             coreColor: coreColor,
             glowColor: glowColor,
-            coreSize: parseInt($('deSaberCoreSize') ? $('deSaberCoreSize').value : 4),
-            glowSize: parseInt($('deSaberGlowSize') ? $('deSaberGlowSize').value : 30),
+            coreSize: parseInt($('deSaberCoreSize') ? $('deSaberCoreSize').value : dynCore),
+            glowSize: parseInt($('deSaberGlowSize') ? $('deSaberGlowSize').value : dynGlow),
             intensity: parseFloat($('deSaberIntensity') ? $('deSaberIntensity').value : 2.5),
             flickerAmount: parseInt($('deSaberFlicker') ? $('deSaberFlicker').value : 5) / 100,
-            pulseSpeed: parseFloat($('deSaberPulse') ? $('deSaberPulse').value : 0)
+            pulseSpeed: parseFloat($('deSaberPulse') ? $('deSaberPulse').value : 0),
+            groundSpill: parseInt($('deSaberGroundSpill') ? $('deSaberGroundSpill').value : 40) / 100,
+            energyNodes: $('deSaberEnergyNodes') ? $('deSaberEnergyNodes').checked : true,
+            dashStyle: p.dashStyle || 'solid'
         };
         
         // update span labels
@@ -1713,6 +1989,7 @@ window.liveUpdateDrawEdit = function(){
         if ($('deSaberIntensityVal')) $('deSaberIntensityVal').textContent = newOptions.intensity;
         if ($('deSaberFlickerVal')) $('deSaberFlickerVal').textContent = Math.round(newOptions.flickerAmount * 100);
         if ($('deSaberPulseVal')) $('deSaberPulseVal').textContent = newOptions.pulseSpeed;
+        if ($('deSaberGroundSpillVal') && $('deSaberGroundSpill')) $('deSaberGroundSpillVal').textContent = $('deSaberGroundSpill').value + '%';
         
         p.hasSaber = true;
         p.saberOptions = newOptions;
@@ -1731,97 +2008,270 @@ window.liveUpdateDrawEdit = function(){
         }
     }
     
-    // Doğrudan mevcut SVG elementini güncelle (böylece tek nokta kaydırma, boyut ve döndürme ASLA kaybolmaz!)
+    // Doğrudan mevcut SVG elementini güncelle
     if (p.el) {
-        const svg = p.el.querySelector('svg');
-        if (svg) {
-            let vbW = 0;
-            if (svg.viewBox && svg.viewBox.baseVal && svg.viewBox.baseVal.width > 0) {
-                vbW = svg.viewBox.baseVal.width;
-            } else {
-                const vbAttr = svg.getAttribute('viewBox');
-                if (vbAttr) {
-                    const parts = vbAttr.trim().split(/[\s,]+/).map(Number);
-                    if (parts.length === 4 && parts[2] > 0) vbW = parts[2];
-                }
-            }
-            const elW = parseFloat(p.el.style.width) || p.el.offsetWidth;
-            const internalScale = (vbW > 0 && elW > 0) ? (elW / vbW) : 1;
-            const effectiveSvgWidth = Math.max(1, p.width / internalScale);
-            const dotRadius = Math.max(2.5, Math.round((p.width * 0.75) / internalScale));
-            
-            if (p.type === 'arrow') {
-                const shaft = svg.querySelector('.arrow-shaft, line');
-                if (shaft) {
-                    const rawX1 = shaft.dataset.rawX1 !== undefined ? parseFloat(shaft.dataset.rawX1) : (parseFloat(shaft.getAttribute('x1')) || 0);
-                    const rawY1 = shaft.dataset.rawY1 !== undefined ? parseFloat(shaft.dataset.rawY1) : (parseFloat(shaft.getAttribute('y1')) || 0);
-                    const rawX2 = shaft.dataset.rawX2 !== undefined ? parseFloat(shaft.dataset.rawX2) : (parseFloat(shaft.getAttribute('x2')) || 0);
-                    const rawY2 = shaft.dataset.rawY2 !== undefined ? parseFloat(shaft.dataset.rawY2) : (parseFloat(shaft.getAttribute('y2')) || 0);
-                    
-                    const a = Math.atan2(rawY2 - rawY1, rawX2 - rawX1);
-                    const s = p.arrowStyle || 1;
-                    const dir = p.arrowDir || 'outward';
-                    const baseH = Math.max(effectiveSvgWidth * 4.5, 14);
-                    const cutDist = (s === 3 || s === 11 || s === 12) ? 0 : Math.min(baseH * 0.45, 14);
-                    
-                    let lx1 = rawX1, ly1 = rawY1, lx2 = rawX2, ly2 = rawY2;
-                    if(dir === 'outward' || dir === 'both' || s >= 18) {
-                        lx2 -= cutDist * Math.cos(a);
-                        ly2 -= cutDist * Math.sin(a);
-                    }
-                    if(dir === 'inward' || dir === 'both' || s >= 18) {
-                        lx1 += cutDist * Math.cos(a);
-                        ly1 += cutDist * Math.sin(a);
-                    }
-                    shaft.setAttribute('x1', lx1);
-                    shaft.setAttribute('y1', ly1);
-                    shaft.setAttribute('x2', lx2);
-                    shaft.setAttribute('y2', ly2);
-                    shaft.setAttribute('stroke', p.color);
-                    shaft.setAttribute('stroke-width', effectiveSvgWidth);
-                    shaft.setAttribute('stroke-opacity', p.opacity);
-                    const dashArr = typeof getDash === 'function' ? getDash(p.dashStyle, effectiveSvgWidth) : [];
-                    if (dashArr.length > 0) shaft.setAttribute('stroke-dasharray', dashArr.join(','));
-                    else shaft.removeAttribute('stroke-dasharray');
-
-                    const oldHeads = svg.querySelectorAll('.arrow-heads-group, polygon:not(.main-polygon), polyline, circle, rect');
-                    oldHeads.forEach(h => h.remove());
-
-                    const fillStr = `fill="${p.color}"`;
-                    const headsHtml = window.renderSvgArrowHeadsGroup(rawX1, rawY1, rawX2, rawY2, a, effectiveSvgWidth, p.color, fillStr, (p.hasSaber ? `filter="url(#saber-glow-${editingDrawIndex})"` : ''), p.arrowStyle, p.arrowDir);
-                    const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-                    g.className.baseVal = 'arrow-heads-group';
-                    g.innerHTML = headsHtml;
-                    svg.appendChild(g);
-                }
-            } else {
-                const mainShape = svg.querySelector('polygon, path, line, ellipse');
-                if (mainShape) {
-                    mainShape.setAttribute('stroke', p.color);
-                    mainShape.setAttribute('stroke-width', effectiveSvgWidth);
-                    mainShape.setAttribute('stroke-opacity', p.opacity);
-                    const isFillable = mainShape.tagName.toLowerCase() === 'polygon' || mainShape.tagName.toLowerCase() === 'ellipse' || (mainShape.tagName.toLowerCase() === 'path' && p.fillOpacity > 0);
-                    if (isFillable) {
-                        mainShape.setAttribute('fill', p.fillOpacity > 0 ? p.fillColor : 'transparent');
-                        mainShape.setAttribute('fill-opacity', p.fillOpacity || 0);
-                    }
-                    const dashArr = typeof getDash === 'function' ? getDash(p.dashStyle, effectiveSvgWidth) : [];
-                    if (dashArr.length > 0) mainShape.setAttribute('stroke-dasharray', dashArr.join(','));
-                    else mainShape.removeAttribute('stroke-dasharray');
-                }
-                // Köşe noktaları (circle) - orantılı zarif boyutlandırma
-                const circles = svg.querySelectorAll('circle');
-                circles.forEach(c => {
-                    c.setAttribute('fill', p.color);
-                    c.setAttribute('r', dotRadius);
-                    c.style.display = p.showVertices ? 'block' : 'none';
-                });
-            }
-        }
+        updateSinglePathSvg(p);
     }
     
     redrawAll();
 };
+
+// ════════════════════════════════════════════════════════════════
+// 🌟 TEKİL ÇİZİM SVG GÜNCELLEME (NEON BLOOM, HOT CORE, ENERGY PINS)
+// ════════════════════════════════════════════════════════════════
+function updateSinglePathSvg(p) {
+    if (!p || !p.el) return;
+    const isNeon = !!(p.hasSaber || p.saber || (window.saberState && window.saberState.active && p.hasSaber !== false));
+    if (isNeon) {
+        p.el.classList.add('neon-active');
+    } else {
+        p.el.classList.remove('neon-active');
+    }
+    p.el.style.mixBlendMode = 'normal';
+    if (!p.el.parentElement) {
+        const container = typeof getActiveV4Element === 'function' ? getActiveV4Element() : (document.getElementById('photo-layer') || document.getElementById('canvas-container'));
+        if (container) container.appendChild(p.el);
+    }
+    const svg = p.el.querySelector('svg');
+    if (!svg) return;
+
+    let vbW = 0;
+    if (svg.viewBox && svg.viewBox.baseVal && svg.viewBox.baseVal.width > 0) {
+        vbW = svg.viewBox.baseVal.width;
+    } else {
+        const vbAttr = svg.getAttribute('viewBox');
+        if (vbAttr) {
+            const parts = vbAttr.trim().split(/[\s,]+/).map(Number);
+            if (parts.length === 4 && parts[2] > 0) vbW = parts[2];
+        }
+    }
+    const elW = parseFloat(p.el.style.width) || p.el.offsetWidth;
+    const internalScale = (vbW > 0 && elW > 0) ? (elW / vbW) : 1;
+    const effectiveSvgWidth = Math.max(1, p.width / internalScale);
+    const dotRadius = Math.max(2.5, Math.round((p.width * 0.75) / internalScale));
+
+    const sOpts = p.saberOptions || (window.saberState && window.saberState.active ? window.saberState : {}) || {};
+    let glowColor = '#00CEC9';
+    if (sOpts.glowColor) {
+        glowColor = typeof sOpts.glowColor === 'number' ? '#' + sOpts.glowColor.toString(16).padStart(6, '0') : sOpts.glowColor;
+    } else if (p.color && p.color.toLowerCase() !== '#ef4444') {
+        glowColor = p.color;
+    }
+    let coreColor = '#FFFFFF';
+    if (sOpts.coreColor) {
+        coreColor = typeof sOpts.coreColor === 'number' ? '#' + sOpts.coreColor.toString(16).padStart(6, '0') : sOpts.coreColor;
+    }
+    const glowSize = Math.max(12, sOpts.glowSize || 28);
+    const coreSize = Math.max(1.5, Math.min(sOpts.coreSize || Math.round(effectiveSvgWidth * 0.6) || 3, 30));
+    const showEnergyNodes = (sOpts.energyNodes !== false) && (p.type === 'polygon' || p.type === 'rect' || p.type === 'line' || p.showVertices);
+
+    let defs = svg.querySelector('defs');
+    if (!defs) {
+        defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+        svg.insertBefore(defs, svg.firstChild);
+    }
+    while (defs.firstChild) defs.removeChild(defs.firstChild);
+
+    const pathId = p.id || (p.el && p.el.dataset && p.el.dataset.pathId) || ('draw-' + Math.floor(Math.random() * 100000));
+    let filterId = 'neon-bloom-' + pathId;
+
+    if (isNeon) {
+        const dev1 = (glowSize * 0.85).toFixed(1);  // Geniş Zemin Yayılımı
+        const dev2 = (glowSize * 0.35).toFixed(1);  // Dış Neon Halesi
+        const dev3 = (glowSize * 0.12).toFixed(1);  // İç Plazma Koronası
+
+        const filterEl = document.createElementNS('http://www.w3.org/2000/svg', 'filter');
+        filterEl.setAttribute('id', filterId);
+        filterEl.setAttribute('x', '-100%');
+        filterEl.setAttribute('y', '-100%');
+        filterEl.setAttribute('width', '300%');
+        filterEl.setAttribute('height', '300%');
+
+        const b1 = document.createElementNS('http://www.w3.org/2000/svg', 'feGaussianBlur');
+        b1.setAttribute('in', 'SourceGraphic');
+        b1.setAttribute('stdDeviation', dev1);
+        b1.setAttribute('result', 'blurSpill');
+        filterEl.appendChild(b1);
+
+        const b2 = document.createElementNS('http://www.w3.org/2000/svg', 'feGaussianBlur');
+        b2.setAttribute('in', 'SourceGraphic');
+        b2.setAttribute('stdDeviation', dev2);
+        b2.setAttribute('result', 'blurAura');
+        filterEl.appendChild(b2);
+
+        const b3 = document.createElementNS('http://www.w3.org/2000/svg', 'feGaussianBlur');
+        b3.setAttribute('in', 'SourceGraphic');
+        b3.setAttribute('stdDeviation', dev3);
+        b3.setAttribute('result', 'blurCorona');
+        filterEl.appendChild(b3);
+
+        const merge = document.createElementNS('http://www.w3.org/2000/svg', 'feMerge');
+        ['blurSpill', 'blurAura', 'blurCorona', 'SourceGraphic'].forEach(r => {
+            const node = document.createElementNS('http://www.w3.org/2000/svg', 'feMergeNode');
+            node.setAttribute('in', r);
+            merge.appendChild(node);
+        });
+        defs.appendChild(filterEl);
+
+        const fillFilterId = 'neon-fill-bloom-' + pathId;
+        const fillFilter = document.createElementNS('http://www.w3.org/2000/svg', 'filter');
+        fillFilter.setAttribute('id', fillFilterId);
+        fillFilter.setAttribute('x', '-50%');
+        fillFilter.setAttribute('y', '-50%');
+        fillFilter.setAttribute('width', '200%');
+        fillFilter.setAttribute('height', '200%');
+        
+        const fb1 = document.createElementNS('http://www.w3.org/2000/svg', 'feGaussianBlur');
+        fb1.setAttribute('in', 'SourceGraphic');
+        fb1.setAttribute('stdDeviation', '14');
+        fb1.setAttribute('result', 'softGlow');
+        fillFilter.appendChild(fb1);
+        
+        const fb2 = document.createElementNS('http://www.w3.org/2000/svg', 'feGaussianBlur');
+        fb2.setAttribute('in', 'SourceGraphic');
+        fb2.setAttribute('stdDeviation', '4');
+        fb2.setAttribute('result', 'innerGlow');
+        fillFilter.appendChild(fb2);
+        
+        const fMerge = document.createElementNS('http://www.w3.org/2000/svg', 'feMerge');
+        ['softGlow', 'innerGlow', 'SourceGraphic'].forEach(r => {
+            const mNode = document.createElementNS('http://www.w3.org/2000/svg', 'feMergeNode');
+            mNode.setAttribute('in', r);
+            fMerge.appendChild(mNode);
+        });
+        fillFilter.appendChild(fMerge);
+        defs.appendChild(fillFilter);
+    } else if (p.glow > 0) {
+        const std = (p.glow / 2).toFixed(1);
+        const filterEl = document.createElementNS('http://www.w3.org/2000/svg', 'filter');
+        filterEl.setAttribute('id', filterId);
+        const b = document.createElementNS('http://www.w3.org/2000/svg', 'feGaussianBlur');
+        b.setAttribute('stdDeviation', std);
+        b.setAttribute('result', 'coloredBlur');
+        filterEl.appendChild(b);
+        const merge = document.createElementNS('http://www.w3.org/2000/svg', 'feMerge');
+        ['coloredBlur', 'SourceGraphic'].forEach(r => {
+            const node = document.createElementNS('http://www.w3.org/2000/svg', 'feMergeNode');
+            node.setAttribute('in', r);
+            merge.appendChild(node);
+        });
+        filterEl.appendChild(merge);
+        defs.appendChild(filterEl);
+    }
+    const strokeColor = isNeon ? 'transparent' : p.color;
+    const strokeOpacity = isNeon ? 0 : (p.opacity || 1);
+    const strokeWidth = effectiveSvgWidth;
+    const dashArr = (!isNeon && typeof getDash === 'function') ? getDash(p.dashStyle, effectiveSvgWidth) : [];
+
+    if (p.type === 'arrow') {
+        const shaft = svg.querySelector('.arrow-shaft, line');
+        if (shaft) {
+            const rawX1 = shaft.dataset.rawX1 !== undefined ? parseFloat(shaft.dataset.rawX1) : (parseFloat(shaft.getAttribute('x1')) || 0);
+            const rawY1 = shaft.dataset.rawY1 !== undefined ? parseFloat(shaft.dataset.rawY1) : (parseFloat(shaft.getAttribute('y1')) || 0);
+            const rawX2 = shaft.dataset.rawX2 !== undefined ? parseFloat(shaft.dataset.rawX2) : (parseFloat(shaft.getAttribute('x2')) || 0);
+            const rawY2 = shaft.dataset.rawY2 !== undefined ? parseFloat(shaft.dataset.rawY2) : (parseFloat(shaft.getAttribute('y2')) || 0);
+
+            const a = Math.atan2(rawY2 - rawY1, rawX2 - rawX1);
+            const s = p.arrowStyle || 1;
+            const dir = p.arrowDir || 'outward';
+            const baseH = Math.max(effectiveSvgWidth * 4.5, 14);
+            const cutDist = (s === 3 || s === 11 || s === 12) ? 0 : Math.min(baseH * 0.45, 14);
+
+            let lx1 = rawX1, ly1 = rawY1, lx2 = rawX2, ly2 = rawY2;
+            if(dir === 'outward' || dir === 'both' || s >= 18) {
+                lx2 -= cutDist * Math.cos(a);
+                ly2 -= cutDist * Math.sin(a);
+            }
+            if(dir === 'inward' || dir === 'both' || s >= 18) {
+                lx1 += cutDist * Math.cos(a);
+                ly1 += cutDist * Math.sin(a);
+            }
+            shaft.setAttribute('x1', lx1);
+            shaft.setAttribute('y1', ly1);
+            shaft.setAttribute('x2', lx2);
+            shaft.setAttribute('y2', ly2);
+            shaft.setAttribute('stroke', strokeColor);
+            shaft.setAttribute('stroke-width', strokeWidth);
+            shaft.setAttribute('stroke-opacity', strokeOpacity);
+            shaft.removeAttribute('filter');
+
+            if (dashArr.length > 0) shaft.setAttribute('stroke-dasharray', dashArr.join(','));
+            else shaft.removeAttribute('stroke-dasharray');
+
+            // SVG içindeki çekirdek ve kalıntı çizgileri temizle (SaberEngine WebGL üzerinden çizer)
+            let coreLine = svg.querySelector('.arrow-shaft-core, .neon-hot-core');
+            if (coreLine) coreLine.remove();
+
+            const oldHeads = svg.querySelectorAll('.arrow-heads-group, polygon:not(.main-polygon), polyline, circle, rect');
+            oldHeads.forEach(h => h.remove());
+
+            const fillStr = `fill="${isNeon ? 'transparent' : p.color}"`;
+            const headsHtml = window.renderSvgArrowHeadsGroup(rawX1, rawY1, rawX2, rawY2, a, effectiveSvgWidth, strokeColor, fillStr, '', p.arrowStyle, p.arrowDir);
+            const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+            g.className.baseVal = 'arrow-heads-group';
+            g.innerHTML = headsHtml;
+            svg.appendChild(g);
+        }
+    } else {
+        const shapes = svg.querySelectorAll('.main-shape, .main-line, .main-polygon, polygon, ellipse, circle:not(.neon-node-halo):not(.neon-node-core):not(.poly-vertex-dot), rect, path, line:not(.arrow-shaft-core):not(.neon-hot-core)');
+        shapes.forEach(mainShape => {
+            mainShape.setAttribute('stroke', strokeColor);
+            mainShape.setAttribute('stroke-width', strokeWidth);
+            mainShape.setAttribute('stroke-opacity', strokeOpacity);
+            mainShape.removeAttribute('filter');
+
+            const isFillable = mainShape.tagName.toLowerCase() === 'polygon' || mainShape.tagName.toLowerCase() === 'ellipse' || mainShape.tagName.toLowerCase() === 'circle' || mainShape.tagName.toLowerCase() === 'rect' || (mainShape.tagName.toLowerCase() === 'path' && p.fillOpacity > 0);
+            if (isFillable) {
+                if (isNeon && p.fillOpacity > 0) {
+                    mainShape.setAttribute('fill', p.fillColor || '#00e5ff');
+                    mainShape.setAttribute('fill-opacity', Math.min(1, (p.fillOpacity || 0.3) * 1.15));
+                    mainShape.setAttribute('filter', `url(#neon-fill-bloom-${pathId})`);
+                    mainShape.style.mixBlendMode = 'screen';
+                } else {
+                    mainShape.removeAttribute('filter');
+                    mainShape.style.mixBlendMode = 'normal';
+                    mainShape.setAttribute('fill', p.fillOpacity > 0 ? p.fillColor : 'transparent');
+                    mainShape.setAttribute('fill-opacity', p.fillOpacity || 0);
+                }
+            }
+            if (dashArr.length > 0) mainShape.setAttribute('stroke-dasharray', dashArr.join(','));
+            else mainShape.removeAttribute('stroke-dasharray');
+        });
+
+        // Neon aktifken ek güvenlik: SVG içindeki tüm çizim şekillerinin stroke'u şeffaf olmalı
+        if (isNeon) {
+            svg.querySelectorAll('polygon, rect, ellipse, circle:not(.poly-vertex-dot), path, line, polyline').forEach(s => {
+                s.setAttribute('stroke', 'transparent');
+                s.setAttribute('stroke-opacity', '0');
+            });
+        }
+
+        // SVG içindeki çekirdek ve kalıntı çizgileri temizle (SaberEngine WebGL üzerinden çizer)
+        let coreShape = svg.querySelector('.neon-hot-core');
+        if (coreShape) coreShape.remove();
+
+        // Enerji Pinleri / Köşe Noktaları temizle (SaberEngine WebGL üzerinden çizer)
+        svg.querySelectorAll('.neon-node-halo, .neon-node-core').forEach(n => n.remove());
+
+        const circles = svg.querySelectorAll('.poly-vertex-dot');
+        circles.forEach(c => {
+            c.setAttribute('fill', p.color);
+            c.setAttribute('r', dotRadius);
+            c.style.display = (!isNeon && p.showVertices) ? 'block' : 'none';
+        });
+    }
+
+    if (p.el) {
+        if (isNeon) {
+            p.el.classList.add('neon-active');
+            p.el.dataset.drawColor = 'transparent';
+        } else {
+            p.el.classList.remove('neon-active');
+            p.el.dataset.drawColor = p.color;
+        }
+    }
+}
+window.updateSinglePathSvg = updateSinglePathSvg;
 
 
 window.redrawAllToContext = function(targetCtx, scaleMultiplier) {
@@ -1843,6 +2293,7 @@ window.redrawAllToContext = function(targetCtx, scaleMultiplier) {
 
 
 function createSVGFromPath(p) {
+    if (!p.id) p.id = 'draw-path-' + Date.now() + '-' + Math.floor(Math.random()*10000);
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
     const pts = p.type === 'free' ? p.points : (p.type === 'polygon' ? p.points : [{x:p.x1,y:p.y1},{x:p.x2,y:p.y2}]);
     if(!pts || pts.length === 0) return null;
@@ -1854,24 +2305,86 @@ function createSVGFromPath(p) {
         if(pt.y > maxY) maxY = pt.y;
     });
 
-    // Handle single clicks
+    // Tek nokta tıklamaları için güvenlik
     if(minX === maxX) { maxX += 1; }
     if(minY === maxY) { maxY += 1; }
 
-    const padding = p.width * 10 + (p.glow || 0) + 30; 
+    const isNeon = !!(p.hasSaber || p.saber || (window.saberState && window.saberState.active));
+    const sOpts = p.saberOptions || (window.saberState && window.saberState.active ? window.saberState : {}) || {};
+
+    let glowColor = '#00CEC9';
+    if (sOpts.glowColor) {
+        glowColor = typeof sOpts.glowColor === 'number' ? '#' + sOpts.glowColor.toString(16).padStart(6, '0') : sOpts.glowColor;
+    } else if (p.color && p.color.toLowerCase() !== '#ef4444') {
+        glowColor = p.color;
+    }
+
+    let coreColor = '#FFFFFF';
+    if (sOpts.coreColor) {
+        coreColor = typeof sOpts.coreColor === 'number' ? '#' + sOpts.coreColor.toString(16).padStart(6, '0') : sOpts.coreColor;
+    }
+
+    const glowSize = Math.max(12, sOpts.glowSize || 28);
+    const coreSize = (sOpts.coreSize !== undefined && sOpts.coreSize !== null) ? Number(sOpts.coreSize) : 0;
+    const showEnergyNodes = (sOpts.energyNodes !== false) && (p.type === 'polygon' || p.type === 'rect' || p.type === 'line' || p.showVertices);
+
+    // Elemanın seçim alanı (blue bounding box) tam şekil üzerine otursun; SVG overflow:visible olduğundan taşan efektler kırpılmaz
+    const padding = 0;
     minX -= padding;
     minY -= padding;
     maxX += padding;
     maxY += padding;
     
-    const w = maxX - minX;
-    const h = maxY - minY;
+    const w = Math.max(20, maxX - minX);
+    const h = Math.max(20, maxY - minY);
     
-    let svgDefs = p.glow > 0 ? `<defs><filter id="glow-${Date.now()}"><feGaussianBlur stdDeviation="${p.glow/2}" result="coloredBlur"/><feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>` : '';
-    const filterAttr = p.glow > 0 ? `filter="url(#glow-${Date.now()})"` : '';
-    const dashArr = typeof getDash === 'function' ? getDash(p.dashStyle, p.width) : [];
+    const filterId = `neon-bloom-${p.id}`;
+    const fillFilterId = `neon-fill-bloom-${p.id}`;
+    let svgDefs = '';
+    let filterAttr = '';
+
+    if (isNeon) {
+        const dev1 = (glowSize * 0.85).toFixed(1);  // Geniş Zemin Yayılımı
+        const dev2 = (glowSize * 0.35).toFixed(1);  // Dış Neon Halesi
+        const dev3 = (glowSize * 0.12).toFixed(1);  // İç Plazma Koronası
+        svgDefs = `<defs>
+            <filter id="${filterId}" x="-100%" y="-100%" width="300%" height="300%">
+                <feGaussianBlur in="SourceGraphic" stdDeviation="${dev1}" result="blurSpill" />
+                <feGaussianBlur in="SourceGraphic" stdDeviation="${dev2}" result="blurAura" />
+                <feGaussianBlur in="SourceGraphic" stdDeviation="${dev3}" result="blurCorona" />
+                <feMerge>
+                    <feMergeNode in="blurSpill" />
+                    <feMergeNode in="blurAura" />
+                    <feMergeNode in="blurCorona" />
+                    <feMergeNode in="SourceGraphic" />
+                </feMerge>
+            </filter>
+            <filter id="${fillFilterId}" x="-50%" y="-50%" width="200%" height="200%">
+                <feGaussianBlur in="SourceGraphic" stdDeviation="14" result="softGlow" />
+                <feGaussianBlur in="SourceGraphic" stdDeviation="4" result="innerGlow" />
+                <feMerge>
+                    <feMergeNode in="softGlow" />
+                    <feMergeNode in="innerGlow" />
+                    <feMergeNode in="SourceGraphic" />
+                </feMerge>
+            </filter>
+        </defs>`;
+        filterAttr = `filter="url(#${filterId})"`;
+    } else if (p.glow > 0) {
+        const std = (p.glow / 2).toFixed(1);
+        svgDefs = `<defs><filter id="${filterId}"><feGaussianBlur stdDeviation="${std}" result="coloredBlur"/><feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>`;
+        filterAttr = `filter="url(#${filterId})"`;
+    }
+
+    // Neon modu aktifken çizgiyi WebGL Saber motoru çizdiğinden, alt SVG'nin stroke'u 'transparent' yapılır.
+    const strokeColor = isNeon ? 'transparent' : p.color;
+    const strokeWidth = p.width;
+    const dashArr = (!isNeon && typeof getDash === 'function') ? getDash(p.dashStyle, p.width) : [];
     const dashStr = dashArr.length > 0 ? ` stroke-dasharray="${dashArr.join(',')}"` : '';
-    const styleStr = `stroke="${p.color}" stroke-width="${p.width}" stroke-linecap="round" stroke-linejoin="round" fill="${p.fillOpacity > 0 ? p.fillColor : 'transparent'}" fill-opacity="${p.fillOpacity}" stroke-opacity="${p.opacity}"${dashStr}`;
+    const isNeonFill = isNeon && (p.fillOpacity > 0);
+    const fillFilterAttr = isNeonFill ? ` filter="url(#${fillFilterId})"` : '';
+    const fillBlendStyle = isNeonFill ? ' style="mix-blend-mode:screen;"' : '';
+    const styleStr = `stroke="${strokeColor}" stroke-width="${strokeWidth}" stroke-linecap="round" stroke-linejoin="round" fill="${p.fillOpacity > 0 ? (p.fillColor || '#00e5ff') : 'transparent'}" fill-opacity="${p.fillOpacity || 0}" stroke-opacity="${isNeon ? 0 : p.opacity}"${dashStr}${fillFilterAttr}${fillBlendStyle}`;
     const fillStr = `fill="${p.color}" fill-opacity="${p.opacity}"`;
     const dotRadius = Math.max(2.5, Math.round(p.width * 0.75));
     
@@ -1880,34 +2393,23 @@ function createSVGFromPath(p) {
     if(p.type === 'free') {
         let d = `M ${pts[0].x - minX} ${pts[0].y - minY}`;
         for(let i=1; i<pts.length; i++) d += ` L ${pts[i].x - minX} ${pts[i].y - minY}`;
-        body = `<path d="${d}" ${styleStr} ${filterAttr} />`;
+        body = `<path class="main-line" d="${d}" ${styleStr} />`;
     } else if(p.type === 'polygon') {
-        let ptStr = pts.map(pt => `${pt.x - minX},${pt.y - minY}`).join(' ');
-        body = `<polygon points="${ptStr}" ${styleStr} ${filterAttr} />`;
-        if (p.showVertices) {
-            pts.forEach(pt => {
-                body += `<circle cx="${pt.x - minX}" cy="${pt.y - minY}" r="${dotRadius}" fill="${p.color}" ${filterAttr} />`;
-            });
-        }
+        let ptStr = pts.map(pt => `${(pt.x - minX).toFixed(1)},${(pt.y - minY).toFixed(1)}`).join(' ');
+        body = `<polygon class="main-polygon" points="${ptStr}" ${styleStr} />`;
     } else if(p.type === 'rect') {
         const rX = Math.min(p.x1, p.x2) - minX;
         const rY = Math.min(p.y1, p.y2) - minY;
         const rW = Math.abs(p.x2 - p.x1);
         const rH = Math.abs(p.y2 - p.y1);
         const ptStr = `${rX},${rY} ${rX+rW},${rY} ${rX+rW},${rY+rH} ${rX},${rY+rH}`;
-        body = `<polygon points="${ptStr}" ${styleStr} ${filterAttr} />`;
-        if (p.showVertices) {
-            const corners = [{x: rX, y: rY}, {x: rX+rW, y: rY}, {x: rX+rW, y: rY+rH}, {x: rX, y: rY+rH}];
-            corners.forEach(pt => {
-                body += `<circle cx="${pt.x}" cy="${pt.y}" r="${dotRadius}" fill="${p.color}" ${filterAttr} />`;
-            });
-        }
+        body = `<polygon class="main-polygon" points="${ptStr}" ${styleStr} />`;
     } else if(p.type === 'circle') {
         const cx = (p.x1 + p.x2)/2 - minX;
         const cy = (p.y1 + p.y2)/2 - minY;
         const rx = Math.abs(p.x2 - p.x1)/2;
         const ry = Math.abs(p.y2 - p.y1)/2;
-        body = `<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" ${styleStr} ${filterAttr} />`;
+        body = `<ellipse class="main-shape" cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" ${styleStr} />`;
     } else if(p.type === 'line' || p.type === 'arrow') {
         if(p.type === 'arrow') {
             const a = Math.atan2(p.y2 - p.y1, p.x2 - p.x1);
@@ -1928,69 +2430,58 @@ function createSVGFromPath(p) {
                 ly1 += cutDist * Math.sin(a);
             }
             
-            body = `<line class="arrow-shaft" data-raw-x1="${x1}" data-raw-y1="${y1}" data-raw-x2="${x2}" data-raw-y2="${y2}" x1="${lx1}" y1="${ly1}" x2="${lx2}" y2="${ly2}" ${styleStr} ${filterAttr} />`;
-            body += `<g class="arrow-heads-group">` + window.renderSvgArrowHeadsGroup(x1, y1, x2, y2, a, p.width, p.color, fillStr, filterAttr, s, dir) + `</g>`;
+            body = `<line class="arrow-shaft" data-raw-x1="${x1}" data-raw-y1="${y1}" data-raw-x2="${x2}" data-raw-y2="${y2}" x1="${lx1}" y1="${ly1}" x2="${lx2}" y2="${ly2}" ${styleStr} />`;
+            body += `<g class="arrow-heads-group">` + window.renderSvgArrowHeadsGroup(x1, y1, x2, y2, a, p.width, strokeColor, fillStr, '', s, dir) + `</g>`;
         } else {
-            body = `<line class="main-line" x1="${p.x1 - minX}" y1="${p.y1 - minY}" x2="${p.x2 - minX}" y2="${p.y2 - minY}" ${styleStr} ${filterAttr} />`;
+            body = `<line class="main-line" x1="${p.x1 - minX}" y1="${p.y1 - minY}" x2="${p.x2 - minX}" y2="${p.y2 - minY}" ${styleStr} />`;
         }
     }
 
     const svgString = `<svg style="overflow:visible;" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" preserveAspectRatio="none" viewBox="0 0 ${w} ${h}">${svgDefs}${body}</svg>`;
 
     const icon = document.createElement('div');
-    icon.className = 'cvi-item canva-el is-svg-icon editable-draw';
+    icon.className = 'cvi-item canva-el is-svg-icon editable-draw' + (isNeon ? ' neon-active' : '');
     icon.innerHTML = svgString;
     p.el = icon;
     icon.dataset.label = 'Çizim: ' + p.type;
     icon.dataset.drawType = p.type;
-    icon.dataset.drawColor = p.color;
+    icon.dataset.drawColor = strokeColor;
     icon.dataset.drawWidth = p.width;
+    icon.dataset.drawRawWidth = p.rawWidth || (p.width ? Math.max(1, Math.round(p.width / getDrawScaleRatio())) : 6);
     icon.dataset.drawOpacity = p.opacity;
+    icon.dataset.baseWidth = w;
+    icon.dataset.baseHeight = h;
+    icon.dataset.baseLeft = minX;
+    icon.dataset.baseTop = minY;
     if (p.type === 'arrow') {
         icon.dataset.arrowStyle = p.arrowStyle || 1;
         icon.dataset.arrowDir = p.arrowDir || 'outward';
     }
-    icon.dataset.pathIndex = drawPaths.indexOf(p);
-    // Set aspect ratio correctly
+    icon.dataset.pathId = p.id;
+    const fIdx = (typeof drawPaths !== 'undefined') ? drawPaths.indexOf(p) : -1;
+    if (fIdx >= 0) icon.dataset.pathIndex = fIdx;
+    
+    // Boyut ve konumlandırma
     icon.style.width = w + 'px';
     icon.style.height = h + 'px';
     icon.style.left = minX + 'px';
     icon.style.top = minY + 'px';
     icon.style.position = 'absolute';
     icon.style.zIndex = '50';
-    icon.style.pointerEvents = 'none';
-    icon.style.cursor = 'default';
-    icon.dataset.baseWidth = w;
-    icon.dataset.baseHeight = h;
-    icon.dataset.baseLeft = minX;
-    icon.dataset.baseTop = minY;
-    
-    if (p.type === 'polygon' || p.type === 'rect') {
-        let ptArr;
-        if (p.type === 'rect') {
-            const rX = Math.min(p.x1, p.x2) - minX;
-            const rY = Math.min(p.y1, p.y2) - minY;
-            const rW = Math.abs(p.x2 - p.x1);
-            const rH = Math.abs(p.y2 - p.y1);
-            ptArr = [{x: rX, y: rY}, {x: rX + rW, y: rY}, {x: rX + rW, y: rY + rH}, {x: rX, y: rY + rH}];
-        } else {
-            ptArr = pts.map(pt => ({x: pt.x - minX, y: pt.y - minY}));
-        }
-        icon.dataset.polygonPoints = JSON.stringify(ptArr);
+    icon.style.pointerEvents = (typeof drawMode !== 'undefined' && drawMode !== null && drawMode !== 'off') ? 'none' : 'auto';
+    if (p.rotation) {
+        icon.dataset.rotation = p.rotation;
+        icon.style.transform = `rotate(${p.rotation}deg) scale(${p.scale || 1})`;
     }
     
-    const uiLayer = document.getElementById('ui-layer') || document.getElementById('canvas-container');
-    if(uiLayer) uiLayer.appendChild(icon);
-    
-    if(typeof bindDrag !== 'undefined') bindDrag(icon);
-    if(typeof renderLayers === 'function') renderLayers();
-    if(typeof makeDraggable !== 'undefined') makeDraggable(icon);
-    
-    if (typeof drawMode !== 'undefined' && drawMode === 'off') {
-        const children = icon.querySelectorAll('*');
-        children.forEach(child => child.style.pointerEvents = 'visiblePainted');
+    // Güvenli container ekleme ve drag bağlama
+    const container = typeof getActiveV4Element === 'function' ? getActiveV4Element() : (document.getElementById('photo-layer') || document.getElementById('canvas-container'));
+    if (container && !icon.parentElement) {
+        container.appendChild(icon);
     }
-    
+    if (typeof bindDrag === 'function') {
+        bindDrag(icon);
+    }
     return icon;
 }
 window.createSVGFromPath = createSVGFromPath;
@@ -1999,29 +2490,71 @@ window.createSVGFromPath = createSVGFromPath;
 
 window.loadDrawSettings = function(el) {
     if(!el) return;
-    const svg = el.querySelector('svg');
+    const drawEl = (el.classList && el.classList.contains('editable-draw')) ? el : (el.closest ? el.closest('.editable-draw') : el);
+    if(!drawEl) return;
+    const svg = drawEl.querySelector('svg');
     if(!svg) return;
     
-    const firstShape = svg.querySelector('path, polygon, rect, ellipse, line, circle, polyline');
-    if(firstShape) {
-        const color = firstShape.getAttribute('stroke');
-        if(color && color !== 'none') {
-            if(document.getElementById('drawColor')) document.getElementById('drawColor').value = color;
-        } else if(firstShape.getAttribute('fill') && firstShape.getAttribute('fill') !== 'none') {
-            if(document.getElementById('drawColor')) document.getElementById('drawColor').value = firstShape.getAttribute('fill');
+    let p = null;
+    if (typeof drawPaths !== 'undefined') {
+        p = drawPaths.find(item => item.el === drawEl || (item.el && (item.el === drawEl || item.el.contains(drawEl) || drawEl.contains(item.el))));
+        if (!p && drawEl.dataset.pathIndex !== undefined) {
+            const idx = parseInt(drawEl.dataset.pathIndex);
+            if (!isNaN(idx) && idx >= 0 && drawPaths[idx]) p = drawPaths[idx];
         }
-        
-        const w = firstShape.getAttribute('stroke-width');
-        if(w && document.getElementById('drawWidth')) {
-            document.getElementById('drawWidth').value = parseFloat(w);
-            if(document.getElementById('drawWidthVal')) document.getElementById('drawWidthVal').textContent = parseFloat(w);
+    }
+    if (typeof window.syncSaberUIWithDrawing === 'function') {
+        window.syncSaberUIWithDrawing(p);
+    }
+    
+    const isNeon = !!(p && (p.hasSaber || p.saber)) || drawEl.classList.contains('neon-active') || !!(window.saberState && window.saberState.active);
+
+    // COLOR: Neon aktifse kırmızı veya stroke ile ezme
+    let shapeColor = null;
+    if (p && p.color && p.color !== 'transparent') {
+        shapeColor = p.color;
+    } else {
+        const firstShape = svg.querySelector('path, polygon, rect, ellipse, line, circle, polyline');
+        if (firstShape) {
+            const stroke = firstShape.getAttribute('stroke');
+            if (stroke && stroke !== 'none' && stroke !== 'transparent') shapeColor = stroke;
+            else if (firstShape.getAttribute('fill') && firstShape.getAttribute('fill') !== 'none' && firstShape.getAttribute('fill') !== 'transparent') shapeColor = firstShape.getAttribute('fill');
         }
-        
-        const op = firstShape.getAttribute('stroke-opacity') || firstShape.getAttribute('fill-opacity');
-        if(op && document.getElementById('drawOpacity')) {
-            document.getElementById('drawOpacity').value = Math.round(parseFloat(op) * 100);
-            if(document.getElementById('drawOpacityVal')) document.getElementById('drawOpacityVal').textContent = Math.round(parseFloat(op) * 100) + '%';
+    }
+    if (shapeColor && document.getElementById('drawColor') && !isNeon) {
+        document.getElementById('drawColor').value = shapeColor;
+    }
+
+    // WIDTH: Ham slider değerini geri yükle (ölçeklenmiş veya +4 eklenmiş SVG stroke-width'i ASLA slidera yazma!)
+    let rawW = null;
+    if (p && p.rawWidth) {
+        rawW = p.rawWidth;
+    } else if (p && p.width) {
+        rawW = Math.max(1, Math.round(p.width / getDrawScaleRatio()));
+    } else if (drawEl.dataset.drawRawWidth) {
+        rawW = parseFloat(drawEl.dataset.drawRawWidth);
+    } else if (drawEl.dataset.drawWidth) {
+        rawW = Math.max(1, Math.round(parseFloat(drawEl.dataset.drawWidth) / getDrawScaleRatio()));
+    }
+    if (rawW !== null && !isNaN(rawW) && document.getElementById('drawWidth')) {
+        document.getElementById('drawWidth').value = rawW;
+        if (document.getElementById('drawWidthVal')) document.getElementById('drawWidthVal').textContent = rawW;
+    }
+
+    // OPACITY
+    let opVal = null;
+    if (p && p.opacity !== undefined) {
+        opVal = Math.round(p.opacity * 100);
+    } else {
+        const firstShape = svg.querySelector('path, polygon, rect, ellipse, line, circle, polyline');
+        if (firstShape) {
+            const op = firstShape.getAttribute('stroke-opacity') || firstShape.getAttribute('fill-opacity');
+            if (op) opVal = Math.round(parseFloat(op) * 100);
         }
+    }
+    if (opVal !== null && !isNaN(opVal) && document.getElementById('drawOpacity')) {
+        document.getElementById('drawOpacity').value = opVal;
+        if (document.getElementById('drawOpacityVal')) document.getElementById('drawOpacityVal').textContent = opVal + '%';
     }
 };
 
@@ -2032,19 +2565,70 @@ window.updateSelectedDraw = function() {
     
     if (targets.length === 0) return;
     
-    const color = document.getElementById('drawColor') ? document.getElementById('drawColor').value : null;
-    const w = document.getElementById('drawWidth') ? parseFloat(document.getElementById('drawWidth').value) : null;
-    const op = document.getElementById('drawOpacity') ? parseFloat(document.getElementById('drawOpacity').value) / 100 : null;
+    const colorInput = document.getElementById('drawColor');
+    const color = colorInput ? colorInput.value : null;
+    const wInput = document.getElementById('drawWidth');
+    const rawW = wInput ? parseFloat(wInput.value) : null;
+    const opInput = document.getElementById('drawOpacity');
+    const op = opInput ? parseFloat(opInput.value) / 100 : null;
     
+    const scaleRatio = getDrawScaleRatio();
+    const effW = (rawW !== null && !isNaN(rawW)) ? Math.max(1, Math.round(rawW * scaleRatio)) : null;
+
     targets.forEach(el => {
+        let p = null;
+        if (typeof drawPaths !== 'undefined') {
+            p = drawPaths.find(item => item.el === el || (item.el && (item.el === el || item.el.contains(el) || el.contains(item.el))));
+            if (!p && el.dataset.pathIndex !== undefined) {
+                const idx = parseInt(el.dataset.pathIndex);
+                if (!isNaN(idx) && idx >= 0 && drawPaths[idx]) p = drawPaths[idx];
+            }
+        }
+
+        const isNeon = !!(p && (p.hasSaber || p.saber)) || el.classList.contains('neon-active') || !!(window.saberState && window.saberState.active);
+
+        if (p) {
+            if (rawW !== null && !isNaN(rawW)) {
+                p.rawWidth = rawW;
+                p.width = effW;
+            }
+            if (op !== null && !isNaN(op)) {
+                p.opacity = op;
+            }
+            if (!isNeon && color) {
+                p.color = color;
+            }
+            if (isNeon && typeof window.updateSinglePathSvg === 'function') {
+                window.updateSinglePathSvg(p);
+                if (p.hasSaber && p.saberRef && window.applySaberToPath) {
+                    const pIdx = drawPaths.indexOf(p);
+                    if (pIdx >= 0) window.applySaberToPath(pIdx, p.saberOptions || window.saberState);
+                }
+                return;
+            }
+        }
+
         const svg = el.querySelector('svg');
         if(!svg) return;
         const shapes = svg.querySelectorAll('path, polygon, rect, ellipse, line, circle, polyline');
+        if (isNeon) {
+            shapes.forEach(shape => {
+                shape.setAttribute('stroke', 'transparent');
+                shape.setAttribute('stroke-opacity', '0');
+            });
+            el.classList.add('neon-active');
+            el.dataset.drawColor = 'transparent';
+            return;
+        }
         shapes.forEach(shape => {
             if(color !== null && shape.hasAttribute('stroke') && shape.getAttribute('stroke') !== 'none') {
                 shape.setAttribute('stroke', color);
-                if (w !== null && !isNaN(w)) shape.setAttribute('stroke-width', w);
-                if (op !== null && !isNaN(op)) shape.setAttribute('stroke-opacity', op);
+            }
+            if (effW !== null && !isNaN(effW) && shape.hasAttribute('stroke')) {
+                shape.setAttribute('stroke-width', effW);
+            }
+            if (op !== null && !isNaN(op) && shape.hasAttribute('stroke')) {
+                shape.setAttribute('stroke-opacity', op);
             }
             if(color !== null && shape.hasAttribute('fill') && shape.getAttribute('fill') !== 'none') {
                 shape.setAttribute('fill', color);
@@ -2052,7 +2636,8 @@ window.updateSelectedDraw = function() {
             }
         });
         if (color) el.dataset.drawColor = color;
-        if (w) el.dataset.drawWidth = w;
+        if (rawW) el.dataset.drawRawWidth = rawW;
+        if (effW) el.dataset.drawWidth = effW;
         if (op) el.dataset.drawOpacity = op;
     });
 };
@@ -2120,7 +2705,96 @@ window.showVertexHandles = function(el) {
     container.style.width = '100%';
     container.style.height = '100%';
     container.style.pointerEvents = 'none'; 
-    container.style.zIndex = '9999';
+    container.style.zIndex = '10005';
+    
+    function recalcElementBoundsAfterVertexMove(el, pts, isArrowOrLine) {
+        if (!el || !pts || pts.length === 0) return;
+        const svgEl = el.querySelector('svg');
+        if (!svgEl) return;
+        
+        const baseL = parseFloat(el.dataset.baseLeft !== undefined ? el.dataset.baseLeft : el.style.left) || 0;
+        const baseT = parseFloat(el.dataset.baseTop !== undefined ? el.dataset.baseTop : el.style.top) || 0;
+        
+        // Canvas üzerindeki mutlak koordinatlar
+        const absPts = pts.map(p => ({ x: baseL + p.x, y: baseT + p.y }));
+        if (absPts.length === 0) return;
+        
+        const minX = Math.min(...absPts.map(p => p.x));
+        const maxX = Math.max(...absPts.map(p => p.x));
+        const minY = Math.min(...absPts.map(p => p.y));
+        const maxY = Math.max(...absPts.map(p => p.y));
+        
+        const newW = Math.max(20, Math.round(maxX - minX));
+        const newH = Math.max(20, Math.round(maxY - minY));
+        const newL = Math.round(minX);
+        const newT = Math.round(minY);
+        
+        // 1. Element sınırlarını güncelle (Mavi seçim alanı .el-selected el'in box-shadow'udur, anında yeni şekli sarar!)
+        el.style.left = newL + 'px';
+        el.style.top = newT + 'px';
+        el.style.width = newW + 'px';
+        el.style.height = newH + 'px';
+        
+        el.dataset.baseLeft = newL;
+        el.dataset.baseTop = newT;
+        el.dataset.baseWidth = newW;
+        el.dataset.baseHeight = newH;
+        
+        // 2. SVG viewBox'ı yeni sınırlara uyarla
+        svgEl.setAttribute('viewBox', `0 0 ${newW} ${newH}`);
+        
+        // 3. Noktaları yeni lokal koordinat sistemine kaydır
+        const localPts = absPts.map(p => ({
+            x: Math.round((p.x - newL) * 10) / 10,
+            y: Math.round((p.y - newT) * 10) / 10
+        }));
+        
+        if (isArrowOrLine) {
+            const lEl = svgEl.querySelector('line.arrow-shaft, line.main-line, line');
+            if (lEl && localPts.length >= 2) {
+                lEl.setAttribute('x1', localPts[0].x);
+                lEl.setAttribute('y1', localPts[0].y);
+                lEl.setAttribute('x2', localPts[1].x);
+                lEl.setAttribute('y2', localPts[1].y);
+                lEl.dataset.rawX1 = localPts[0].x;
+                lEl.dataset.rawY1 = localPts[0].y;
+                lEl.dataset.rawX2 = localPts[1].x;
+                lEl.dataset.rawY2 = localPts[1].y;
+            }
+        } else {
+            const newPtsStr = localPts.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
+            svgEl.querySelectorAll('polygon').forEach(poly => {
+                poly.setAttribute('points', newPtsStr);
+            });
+            el.dataset.polygonPoints = JSON.stringify(localPts);
+        }
+        
+        // 4. drawPaths içerisindeki pObj verilerini ve neon efektini senkronize et
+        let pIdx = parseInt(el.dataset.pathIndex);
+        let pObj = (typeof drawPaths !== 'undefined' && drawPaths[pIdx]) ? drawPaths[pIdx] : (typeof drawPaths !== 'undefined' ? drawPaths.find(dp => dp.el === el) : null);
+        if (pObj) {
+            pObj.x1 = newL;
+            pObj.y1 = newT;
+            pObj.x2 = newL + newW;
+            pObj.y2 = newT + newH;
+            if (isArrowOrLine && absPts.length >= 2) {
+                pObj.x1 = absPts[0].x;
+                pObj.y1 = absPts[0].y;
+                pObj.x2 = absPts[1].x;
+                pObj.y2 = absPts[1].y;
+            } else {
+                pObj.type = 'polygon';
+                pObj.points = absPts;
+            }
+            if (typeof updateSinglePathSvg === 'function') updateSinglePathSvg(pObj);
+            if (pObj.hasSaber && typeof window.applySaberToPath === 'function') {
+                window.applySaberToPath(pIdx, pObj.saberOptions || window.saberState);
+            }
+        }
+        
+        // 5. Tutamaçları yeni sınırlara ve yüzdelere göre yeniden oluştur
+        window.showVertexHandles(el);
+    }
     
     function createHandle(pt, i, onUpdate) {
         const handle = document.createElement('div');
@@ -2133,22 +2807,40 @@ window.showVertexHandles = function(el) {
         handle.style.transform = 'translate(-50%, -50%)';
         handle.style.background = 'transparent';
         handle.style.borderRadius = '50%';
-        handle.style.cursor = 'default';
+        handle.style.cursor = 'grab';
         handle.style.pointerEvents = 'auto';
+        handle.style.zIndex = '10010';
         
         const visual = document.createElement('div');
+        visual.className = 'vertex-handle-visual';
         visual.style.position = 'absolute';
         visual.style.left = '50%';
         visual.style.top = '50%';
         visual.style.transform = 'translate(-50%, -50%)';
-        visual.style.width = '12px';
-        visual.style.height = '12px';
-        visual.style.background = '#fff';
-        visual.style.border = '2px solid #3b82f6';
+        visual.style.width = '18px';
+        visual.style.height = '18px';
+        visual.style.background = '#ffffff';
+        visual.style.border = '2.5px solid #2563eb';
         visual.style.borderRadius = '50%';
-        visual.style.boxShadow = '0 2px 6px rgba(0,0,0,0.5)';
+        visual.style.boxShadow = '0 0 0 2px rgba(255,255,255,0.9), 0 2px 8px rgba(0,0,0,0.5), 0 0 10px rgba(37,99,235,0.6)';
         visual.style.pointerEvents = 'none';
+        visual.style.transition = 'transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease';
         handle.appendChild(visual);
+
+        handle.addEventListener('mouseenter', () => {
+            if (!handle.classList.contains('active-drag')) {
+                visual.style.transform = 'translate(-50%, -50%) scale(1.25)';
+                visual.style.borderColor = '#00e5ff';
+                visual.style.boxShadow = '0 0 0 2px #ffffff, 0 0 12px #00e5ff';
+            }
+        });
+        handle.addEventListener('mouseleave', () => {
+            if (!handle.classList.contains('active-drag')) {
+                visual.style.transform = 'translate(-50%, -50%)';
+                visual.style.borderColor = '#2563eb';
+                visual.style.boxShadow = '0 0 0 2px rgba(255,255,255,0.9), 0 2px 8px rgba(0,0,0,0.5), 0 0 10px rgba(37,99,235,0.6)';
+            }
+        });
         
         function handleDown(e) {
             if (e.type === 'mousedown' || e.type === 'touchstart') { e.preventDefault(); e.stopPropagation(); }
@@ -2157,6 +2849,12 @@ window.showVertexHandles = function(el) {
             const startY = evt.clientY;
             const startPtX = pt.x;
             const startPtY = pt.y;
+            
+            handle.classList.add('active-drag');
+            handle.style.cursor = 'grabbing';
+            visual.style.transform = 'translate(-50%, -50%) scale(1.35)';
+            visual.style.borderColor = '#00f0ff';
+            visual.style.boxShadow = '0 0 0 2px #fff, 0 0 16px #00f0ff';
             
             const globalScale = typeof window.getGlobalScale === 'function' ? window.getGlobalScale() : 1;
             const curScaleX = (el.offsetWidth / baseW) * globalScale;
@@ -2204,8 +2902,17 @@ window.showVertexHandles = function(el) {
                 document.removeEventListener('touchmove', onMove);
                 document.removeEventListener('touchend', onUp);
                 
+                handle.classList.remove('active-drag');
+                handle.style.cursor = 'grab';
+                visual.style.transform = 'translate(-50%, -50%)';
+                visual.style.borderColor = '#2563eb';
+                visual.style.boxShadow = '0 0 0 2px rgba(255,255,255,0.9), 0 2px 8px rgba(0,0,0,0.5), 0 0 10px rgba(37,99,235,0.6)';
+                
                 if (typeof updateDrawHistory === 'function') updateDrawHistory();
                 if (typeof window.recordHistory === 'function') window.recordHistory('Köşe Noktası Düzenlendi');
+
+                const isLineOrArrow = isArrow || (!polygon && !!lineEl);
+                recalcElementBoundsAfterVertexMove(el, points, isLineOrArrow);
             }
             
             document.addEventListener('mousemove', onMove);
@@ -2271,11 +2978,19 @@ window.showVertexHandles = function(el) {
                 lineEl.setAttribute('y1', ny1);
                 lineEl.setAttribute('x2', nx2);
                 lineEl.setAttribute('y2', ny2);
+                
+                const coreLine = svg.querySelector('.arrow-shaft-core, .neon-hot-core');
+                if (coreLine) {
+                    coreLine.setAttribute('x1', nx1);
+                    coreLine.setAttribute('y1', ny1);
+                    coreLine.setAttribute('x2', nx2);
+                    coreLine.setAttribute('y2', ny2);
+                }
             }
                 
                 if (pObj) {
-                    const baseL = parseFloat(el.dataset.baseLeft) || 0;
-                    const baseT = parseFloat(el.dataset.baseTop) || 0;
+                    const baseL = parseFloat(el.dataset.baseLeft !== undefined ? el.dataset.baseLeft : el.style.left) || 0;
+                    const baseT = parseFloat(el.dataset.baseTop !== undefined ? el.dataset.baseTop : el.style.top) || 0;
                     pObj.x1 = baseL + nx1;
                     pObj.y1 = baseT + ny1;
                     pObj.x2 = baseL + nx2;
@@ -2303,14 +3018,45 @@ window.showVertexHandles = function(el) {
         points.forEach((pt, i) => {
             const handle = createHandle(pt, i, (nx, ny) => {
                 points[i] = {x: nx, y: ny};
-                polygon.setAttribute('points', points.map(p => `${p.x},${p.y}`).join(' '));
+                const newPtsStr = points.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
+                
+                // 1. SVG içindeki TÜM polygonları güncelle (hem neon glow hem neon-hot-core beyaz çizim!)
+                svg.querySelectorAll('polygon').forEach(poly => {
+                    poly.setAttribute('points', newPtsStr);
+                });
                 el.dataset.polygonPoints = JSON.stringify(points);
                 
+                // 2. Enerji pinleri ve köşe dairelerini birebir senkronize et
                 try {
-                    const circles = el.querySelectorAll('circle');
-                    if (circles[i]) {
-                        circles[i].setAttribute('cx', nx);
-                        circles[i].setAttribute('cy', ny);
+                    const halos = svg.querySelectorAll('.neon-node-halo');
+                    if (halos[i]) {
+                        halos[i].setAttribute('cx', nx.toFixed(1));
+                        halos[i].setAttribute('cy', ny.toFixed(1));
+                    }
+                    const cores = svg.querySelectorAll('.neon-node-core');
+                    if (cores[i]) {
+                        cores[i].setAttribute('cx', nx.toFixed(1));
+                        cores[i].setAttribute('cy', ny.toFixed(1));
+                    }
+                    const polyDots = svg.querySelectorAll('.poly-vertex-dot');
+                    if (polyDots[i]) {
+                        polyDots[i].setAttribute('cx', nx.toFixed(1));
+                        polyDots[i].setAttribute('cy', ny.toFixed(1));
+                    }
+                } catch(e) {}
+
+                // 3. drawPaths içindeki pObj koordinatlarını ve saber efektini güncelle
+                try {
+                    let pIdx = parseInt(el.dataset.pathIndex);
+                    let pObj = (typeof drawPaths !== 'undefined' && drawPaths[pIdx]) ? drawPaths[pIdx] : (typeof drawPaths !== 'undefined' ? drawPaths.find(dp => dp.el === el) : null);
+                    if (pObj) {
+                        const baseL = parseFloat(el.dataset.baseLeft !== undefined ? el.dataset.baseLeft : el.style.left) || 0;
+                        const baseT = parseFloat(el.dataset.baseTop !== undefined ? el.dataset.baseTop : el.style.top) || 0;
+                        pObj.type = 'polygon';
+                        pObj.points = points.map(p => ({ x: baseL + p.x, y: baseT + p.y }));
+                        if (pObj.hasSaber && window.applySaberToPath) {
+                            applySaberToPath(pIdx, pObj.saberOptions);
+                        }
                     }
                 } catch(e) {}
             });
@@ -2321,14 +3067,14 @@ window.showVertexHandles = function(el) {
     const rotHandle = document.createElement('div');
     rotHandle.className = 'text-handle text-rotate-handle';
     rotHandle.style.position = 'absolute';
-    rotHandle.style.top = '-24px';
+    rotHandle.style.top = '-28px';
     rotHandle.style.left = '50%';
     rotHandle.style.transform = 'translateX(-50%)';
     rotHandle.style.cursor = 'grab';
     rotHandle.style.pointerEvents = 'auto';
-    rotHandle.style.zIndex = '10000';
+    rotHandle.style.zIndex = '10020';
     rotHandle.title = 'Döndür';
-    rotHandle.innerHTML = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="pointer-events:none;"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.22-10.27l-5.3 5.3"></path></svg>';
+    rotHandle.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#00d2ff" stroke-width="2.5" style="pointer-events:none;"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.22-10.27l-5.3 5.3"></path></svg>';
     
     function rotHandleDown(e) {
         if (e.type === 'mousedown' || e.type === 'touchstart') { e.preventDefault(); e.stopPropagation(); }
@@ -2385,6 +3131,41 @@ window.showVertexHandles = function(el) {
                     });
                 }
                 
+                // ⚡ SABER NEON ANLIK DÖNDÜRME SENKRONİZASYONU (Sıfır Gecikme - WebGL Eşzamanlı)
+                const rotTargets = (window.selectedElements && window.selectedElements.length > 1 && window.selectedElements.includes(el))
+                    ? window.selectedElements
+                    : [el];
+                    
+                rotTargets.forEach(targetEl => {
+                    const tRot = (targetEl === el) ? newRotation : (parseFloat(targetEl.dataset.rotation) || 0);
+                    const tScale = parseFloat(targetEl.dataset.scale) || 1;
+                    
+                    if (targetEl.classList.contains('editable-draw')) {
+                        const pIdx = parseInt(targetEl.dataset.pathIndex);
+                        const pObj = (typeof drawPaths !== 'undefined')
+                            ? (drawPaths[pIdx] || drawPaths.find(p => p.el === targetEl || (p.id && p.id === targetEl.dataset.pathId)))
+                            : null;
+                            
+                        if (pObj) {
+                            pObj.rotation = tRot;
+                            if (pObj.hasSaber && pObj.saberRef && window.SaberEngine && typeof window.SaberEngine.setSaberTransform === 'function') {
+                                const baseL = parseFloat(targetEl.dataset.baseLeft !== undefined ? targetEl.dataset.baseLeft : targetEl.style.left) || 0;
+                                const baseT = parseFloat(targetEl.dataset.baseTop !== undefined ? targetEl.dataset.baseTop : targetEl.style.top) || 0;
+                                const baseW = parseFloat(targetEl.dataset.baseWidth) || targetEl.offsetWidth || 0;
+                                const baseH = parseFloat(targetEl.dataset.baseHeight) || targetEl.offsetHeight || 0;
+                                const pCx = baseL + baseW / 2;
+                                const pCy = baseT + baseH / 2;
+                                window.SaberEngine.setSaberTransform(pObj.saberRef, tScale, 0, 0, false, tRot, pCx, pCy);
+                            }
+                        }
+                    }
+                });
+                
+                const sApp = (window.SaberEngine && typeof window.SaberEngine.getApp === 'function') ? window.SaberEngine.getApp() : null;
+                if (sApp && sApp.renderer && sApp.stage && (!sApp.ticker || !sApp.ticker.started)) {
+                    try { sApp.renderer.render(sApp.stage); } catch(e) {}
+                }
+                
                 if (typeof selectedEl !== 'undefined' && selectedEl === el) {
                     const rotSlider = document.getElementById('elRotate');
                     const rotVal = document.getElementById('elRotateVal');
@@ -2401,6 +3182,15 @@ window.showVertexHandles = function(el) {
             document.removeEventListener('touchmove', onMove);
             document.removeEventListener('touchend', onUp);
             
+            const curRot = parseFloat(el.dataset.rotation) || 0;
+            const pIdx = parseInt(el.dataset.pathIndex);
+            const pObj = (typeof drawPaths !== 'undefined')
+                ? (drawPaths[pIdx] || drawPaths.find(p => p.el === el || (p.id && p.id === el.dataset.pathId)))
+                : null;
+            if (pObj) {
+                pObj.rotation = curRot;
+            }
+            
             if (typeof updateDrawHistory === 'function') updateDrawHistory();
             if (typeof window.recordHistory === 'function') window.recordHistory('Çizim Döndürüldü');
         }
@@ -2413,17 +3203,70 @@ window.showVertexHandles = function(el) {
     rotHandle.addEventListener('mousedown', rotHandleDown);
     rotHandle.addEventListener('touchstart', rotHandleDown, {passive: false});
     container.appendChild(rotHandle);
+
+    // ════════════════════════════════════════════════════════════════
+    // 🗑️ SOL ALT KÖŞE SİLME BUTONU (.text-delete-handle)
+    // Normal ve neon çizimlerde ikon/rozet standartlarında silme
+    // ════════════════════════════════════════════════════════════════
+    const delHandle = document.createElement('div');
+    delHandle.className = 'text-handle text-delete-handle';
+    delHandle.style.position = 'absolute';
+    delHandle.style.bottom = '0px';
+    delHandle.style.left = '0px';
+    delHandle.style.transform = 'translate(-50%, 50%)';
+    delHandle.style.cursor = 'pointer';
+    delHandle.style.pointerEvents = 'auto';
+    delHandle.style.zIndex = '10020';
+    delHandle.title = 'Sil';
+    delHandle.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#f43f5e" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="pointer-events:none;"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>';
+
+    function delHandleClick(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        let pIdx = (typeof drawPaths !== 'undefined') ? drawPaths.findIndex(p => p.el === el) : -1;
+        if (pIdx === -1 && el.dataset.pathIndex !== undefined) {
+            pIdx = parseInt(el.dataset.pathIndex);
+        }
+        
+        if (pIdx > -1 && typeof deleteDrawItem === 'function') {
+            deleteDrawItem(pIdx);
+        } else {
+            if (pIdx > -1 && typeof window.removeSaberFromPath === 'function') {
+                window.removeSaberFromPath(pIdx);
+            }
+            el.remove();
+            if (pIdx > -1 && typeof drawPaths !== 'undefined') {
+                drawPaths.splice(pIdx, 1);
+            }
+            if (typeof redrawAll === 'function') redrawAll();
+            if (typeof updateDrawHistory === 'function') updateDrawHistory();
+            if (typeof window.recordHistory === 'function') window.recordHistory('Çizim Silindi');
+        }
+        if (typeof deselectAll === 'function') deselectAll();
+        if (typeof window.renderLayers === 'function') window.renderLayers();
+    }
+    delHandle.addEventListener('mousedown', (e) => { e.preventDefault(); e.stopPropagation(); });
+    delHandle.addEventListener('touchstart', (e) => { e.preventDefault(); e.stopPropagation(); }, {passive: false});
+    delHandle.addEventListener('click', delHandleClick);
+    delHandle.addEventListener('touchend', delHandleClick);
+    container.appendChild(delHandle);
     
+    // ════════════════════════════════════════════════════════════════
+    // 📐 SAĞ ALT KÖŞE BOYUTLANDIRMA BUTONU (.text-resize-handle)
+    // Köşede tam merkezli (translate 50%, 50%), kayma yok
+    // ════════════════════════════════════════════════════════════════
     const resizeHandle = document.createElement('div');
     resizeHandle.className = 'text-handle text-resize-handle';
     resizeHandle.style.position = 'absolute';
-    resizeHandle.style.bottom = '-6px';
-    resizeHandle.style.right = '-6px';
+    resizeHandle.style.bottom = '0px';
+    resizeHandle.style.right = '0px';
+    resizeHandle.style.transform = 'translate(50%, 50%)';
     resizeHandle.style.cursor = 'nwse-resize';
     resizeHandle.style.pointerEvents = 'auto';
-    resizeHandle.style.zIndex = '10000';
+    resizeHandle.style.zIndex = '10020';
     resizeHandle.title = 'Boyutlandır';
-    resizeHandle.innerHTML = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="pointer-events:none;"><path d="M21 15v6h-6M3 9V3h6M21 21l-7-7M3 3l7 7"></path></svg>';
+    resizeHandle.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#00d2ff" stroke-width="2.5" style="pointer-events:none;"><path d="M21 15v6h-6M3 9V3h6M21 21l-7-7M3 3l7 7"></path></svg>';
     
     function rsDown(e) {
         e.preventDefault();
@@ -2494,8 +3337,68 @@ window.showVertexHandles = function(el) {
             document.removeEventListener('touchmove', rsMove);
             document.removeEventListener('touchend', rsUp);
             
+            const curW = el.offsetWidth;
+            const curH = el.offsetHeight;
+            const baseL = parseFloat(el.dataset.baseLeft !== undefined ? el.dataset.baseLeft : el.style.left) || 0;
+            const baseT = parseFloat(el.dataset.baseTop !== undefined ? el.dataset.baseTop : el.style.top) || 0;
+            const svgEl = el.querySelector('svg');
+            if (svgEl) {
+                svgEl.setAttribute('viewBox', `0 0 ${curW} ${curH}`);
+            }
+            
+            const scaleX = startW > 0 ? (curW / startW) : 1;
+            const scaleY = startH > 0 ? (curH / startH) : 1;
+
+            const pIdx = (typeof drawPaths !== 'undefined') ? drawPaths.findIndex(p => p.el === el) : -1;
+            if (pIdx > -1) {
+                const pObj = drawPaths[pIdx];
+                pObj.x1 = baseL;
+                pObj.y1 = baseT;
+                pObj.x2 = baseL + curW;
+                pObj.y2 = baseT + curH;
+                
+                if (pObj.type === 'rect') {
+                    const rPts = [
+                        {x: 0, y: 0},
+                        {x: curW, y: 0},
+                        {x: curW, y: curH},
+                        {x: 0, y: curH}
+                    ];
+                    el.dataset.polygonPoints = JSON.stringify(rPts);
+                    if (svgEl) {
+                        const rPtsStr = rPts.map(p => `${p.x},${p.y}`).join(' ');
+                        svgEl.querySelectorAll('polygon').forEach(poly => poly.setAttribute('points', rPtsStr));
+                    }
+                    pObj.points = rPts.map(p => ({ x: baseL + p.x, y: baseT + p.y }));
+                } else if (pObj.points && pObj.points.length > 0) {
+                    pObj.points = pObj.points.map(pt => ({
+                        x: baseL + (pt.x - baseL) * scaleX,
+                        y: baseT + (pt.y - baseT) * scaleY
+                    }));
+                    if (el.dataset.polygonPoints) {
+                        try {
+                            const oldPts = JSON.parse(el.dataset.polygonPoints);
+                            const newLocalPts = oldPts.map(pt => ({
+                                x: Math.round(pt.x * scaleX * 10) / 10,
+                                y: Math.round(pt.y * scaleY * 10) / 10
+                            }));
+                            el.dataset.polygonPoints = JSON.stringify(newLocalPts);
+                            if (svgEl) {
+                                const newPtsStr = newLocalPts.map(p => `${p.x},${p.y}`).join(' ');
+                                svgEl.querySelectorAll('polygon').forEach(poly => poly.setAttribute('points', newPtsStr));
+                            }
+                        } catch(e) {}
+                    }
+                }
+                
+                if (typeof updateSinglePathSvg === 'function') updateSinglePathSvg(pObj);
+                if (pObj.hasSaber && typeof window.applySaberToPath === 'function') {
+                    window.applySaberToPath(pIdx, pObj.saberOptions || window.saberState);
+                }
+            }
             if (typeof updateDrawHistory === 'function') updateDrawHistory();
             if (typeof window.recordHistory === 'function') window.recordHistory('Çizim Boyutlandırıldı');
+            window.showVertexHandles(el);
         }
         
         document.addEventListener('mousemove', rsMove);

@@ -48,7 +48,7 @@ function enablePhotoDrag(el){
         // Prevent legacy drag if V4 zoom is active to avoid double-panning
         if(el && (el.dataset.zpReady === '1' || el.querySelector('.photo-inner-zoom'))) return;
         
-        if(e.target.closest('.canvas-el')||e.target.closest('.draggable'))return;
+        if(e.target.closest('.canvas-el, .canva-el, .editable-draw, .draggable, .cvi-item, .added-icon, .callout-wrap, .co-neon-block, .vertex-handle, .text-handle')) return;
         if(typeof drawMode !== 'undefined' && drawMode!=='off')return;
         
         if(e.type === 'touchstart') {
@@ -340,6 +340,7 @@ function requestPhotoRepaint() {
 }
 
 function applyPhotoFilters(){
+    window._photoFilterDirty = true;
     if(typeof isShowingBefore !== 'undefined' && isShowingBefore) { 
         if(typeof setOriginalView === 'function') setOriginalView(false); 
     }
@@ -434,6 +435,97 @@ function resetFilters(){
     if(typeof applyShadowHighlight === 'function') applyShadowHighlight();
 }
 
+function autoFitPerspective() {
+    const vKey = (document.getElementById('keystoneV') ? parseFloat(document.getElementById('keystoneV').value) : 0) / 100.0;
+    const hKey = (document.getElementById('keystoneH') ? parseFloat(document.getElementById('keystoneH').value) : 0) / 100.0;
+    const rotate = document.getElementById('keystoneRotate') ? parseFloat(document.getElementById('keystoneRotate').value) : 0;
+    const aspect = (document.getElementById('keystoneAspect') ? parseFloat(document.getElementById('keystoneAspect').value) : 0) / 100.0;
+
+    // Eğer hiçbir perspektif dönüşümü uygulanmamışsa %100'e getir
+    if (Math.abs(vKey) < 0.001 && Math.abs(hKey) < 0.001 && Math.abs(rotate) < 0.001 && Math.abs(aspect) < 0.001) {
+        const zoomEl = document.getElementById('keystoneZoom');
+        if (zoomEl) zoomEl.value = 100;
+        if (document.getElementById('keystoneZoomVal')) document.getElementById('keystoneZoomVal').textContent = '100%';
+        applyPhotoFilters();
+        return;
+    }
+
+    // Tepe noktası gölgelendiricisindeki projektif dönüşüm fonksiyonu
+    function transform(x, y) {
+        let px = x, py = y;
+        const kY = vKey * 0.45;
+        const kX = hKey * 0.45;
+        let w = Math.max(1.0 - (py * kY + px * kX), 0.15);
+        px /= w;
+        py /= w;
+        if (aspect > 0) py *= (1.0 + aspect * 0.5);
+        else if (aspect < 0) px *= (1.0 - aspect * 0.5);
+        if (Math.abs(rotate) > 0.0001) {
+            const rad = (rotate * Math.PI) / 180.0;
+            const c = Math.cos(rad), s = Math.sin(rad);
+            const rx = px * c - py * s;
+            const ry = px * s + py * c;
+            px = rx; py = ry;
+        }
+        return { x: px, y: py };
+    }
+
+    // Deforme olmuş görselin 4 dış köşe noktası
+    const corners = [
+        transform(-1,  1), // Üst-Sol
+        transform( 1,  1), // Üst-Sağ
+        transform( 1, -1), // Alt-Sağ
+        transform(-1, -1)  // Alt-Sol
+    ];
+
+    // Tuvalin 4 köşesinin ([-1, 1] x [-1, 1]) hiçbir boşluk bırakmadan
+    // görselin içine tam girmesi için gereken minimum ölçeklendirme (zoom) faktörü
+    let maxZoom = 1.0;
+    for (let i = 0; i < 4; i++) {
+        const p1 = corners[i];
+        const p2 = corners[(i + 1) % 4];
+        const dx = p2.x - p1.x;
+        const dy = p2.y - p1.y;
+        let nx = -dy;
+        let ny = dx;
+        let c = -(nx * p1.x + ny * p1.y);
+        if (c < 0) {
+            nx = -nx;
+            ny = -ny;
+            c = -c;
+        }
+        const requiredZoom = (Math.abs(nx) + Math.abs(ny)) / Math.max(c, 0.0001);
+        if (requiredZoom > maxZoom) maxZoom = requiredZoom;
+    }
+
+    // % cinsinden tamsayı ve en az 100
+    let zoomPercent = Math.max(100, Math.ceil(maxZoom * 100));
+    const zoomEl = document.getElementById('keystoneZoom');
+    if (zoomEl) {
+        if (zoomPercent > parseInt(zoomEl.max || '200')) {
+            zoomEl.max = zoomPercent + 20;
+        }
+        zoomEl.value = zoomPercent;
+    }
+    if (document.getElementById('keystoneZoomVal')) {
+        document.getElementById('keystoneZoomVal').textContent = zoomPercent + '%';
+    }
+    applyPhotoFilters();
+}
+
+function resetPerspective() {
+    ['keystoneV', 'keystoneH', 'keystoneRotate', 'keystoneAspect'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = 0;
+    });
+    const zoomEl = document.getElementById('keystoneZoom');
+    if (zoomEl) zoomEl.value = 100;
+    applyPhotoFilters();
+}
+
+window.autoFitPerspective = autoFitPerspective;
+window.resetPerspective = resetPerspective;
+
 function applyPreset(name){
     const p = PRESETS[name];
     if(!p) return;
@@ -517,6 +609,33 @@ function _applyPhotoTransform(el){
     if(typeof redrawAll === 'function') redrawAll();
 }
 
+function hasActiveWebGLFilters(opts) {
+    if (!opts) return false;
+    if (Math.abs(opts.exposure || 0) > 0.001) return true;
+    if (Math.abs(opts.contrast || 0) > 0.001) return true;
+    if (Math.abs(opts.highlights || 0) > 0.001) return true;
+    if (Math.abs(opts.shadows || 0) > 0.001) return true;
+    if (Math.abs(opts.whites || 0) > 0.001) return true;
+    if (Math.abs(opts.blacks || 0) > 0.001) return true;
+    if (Math.abs(opts.temp || 0) > 0.001) return true;
+    if (Math.abs(opts.tint || 0) > 0.001) return true;
+    if (Math.abs((opts.saturate !== undefined ? opts.saturate : 1.0) - 1.0) > 0.01) return true;
+    if (Math.abs(opts.vibrance || 0) > 0.001) return true;
+    if ((opts.sharpness || 0) > 0.001 || (opts.aiSharpen || 0) > 0.001) return true;
+    if ((opts.clarity || 0) > 0.001 || (opts.dehaze || 0) > 0.001) return true;
+    if ((opts.sepia || 0) > 0.001 || (opts.grayscale || 0) > 0.001 || (opts.invert || 0) > 0.001 || (opts.vignette || 0) > 0.001) return true;
+    if (Math.abs(opts.hueRotate || 0) > 0.001 || (opts.blur || 0) > 0.001) return true;
+    if (Math.abs(opts.vKeystone || 0) > 0.001 || Math.abs(opts.hKeystone || 0) > 0.001 || Math.abs(opts.rotate || 0) > 0.001 || Math.abs((opts.aspect || 0)) > 0.001) return true;
+    if (opts.hslHue && Array.from(opts.hslHue).some(v => Math.abs(v) > 0.001)) return true;
+    if (opts.hslSat && Array.from(opts.hslSat).some(v => Math.abs(v) > 0.001)) return true;
+    if (opts.hslLum && Array.from(opts.hslLum).some(v => Math.abs(v) > 0.001)) return true;
+    if (opts.radialMasks && opts.radialMasks.some(m => m.active)) return true;
+    if (opts.linearMasks && opts.linearMasks.some(m => m.active)) return true;
+    if (opts.aiMasks && opts.aiMasks.some(m => m.active)) return true;
+    return false;
+}
+window.hasActiveWebGLFilters = hasActiveWebGLFilters;
+
 function _drawToNativeCanvas(el, inner, canvas, scale, panX, panY, sliderX, sliderY) {
     let rawBg = inner.style.backgroundImage || el.dataset.savedBg || el.style.backgroundImage || '';
     if ((!rawBg || rawBg === 'none') && typeof uploadedImgUrl !== 'undefined' && uploadedImgUrl) {
@@ -594,8 +713,10 @@ function _drawToNativeCanvas(el, inner, canvas, scale, panX, panY, sliderX, slid
         finalH = Math.round(finalH * reductionRatio);
     }
     
-    canvas.width = finalW;
-    canvas.height = finalH;
+    if (canvas.width !== finalW || canvas.height !== finalH) {
+        canvas.width = finalW;
+        canvas.height = finalH;
+    }
     canvas.style.width = '100%';
     canvas.style.height = '100%';
     
@@ -632,7 +753,7 @@ function _drawToNativeCanvas(el, inner, canvas, scale, panX, panY, sliderX, slid
     ctx.translate(-cx, -cy);
     
     ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = 'high';
+    ctx.imageSmoothingQuality = window._isPhotoDragging ? 'low' : 'high';
     
     let imageDrawn = false;
     if (window.isShowingBefore) {
@@ -641,23 +762,49 @@ function _drawToNativeCanvas(el, inner, canvas, scale, panX, panY, sliderX, slid
         ctx.drawImage(img, baseX, baseY, drawW, drawH);
         imageDrawn = true;
     } else if (window.WebGLPhotoEngine && window.WebGLPhotoEngine.initialized && typeof window.getWebGLPhotoOptions === 'function') {
-        try {
-            const opts = window.getWebGLPhotoOptions();
-            window.WebGLPhotoEngine.uploadImage(img);
-            const glCanvas = window.WebGLPhotoEngine.render(drawW, drawH, opts);
-            if (glCanvas) {
-                if (opts.blur && opts.blur > 0) {
-                    ctx.filter = 'blur(' + opts.blur + 'px)';
-                } else {
-                    ctx.filter = 'none';
+        const opts = window.getWebGLPhotoOptions();
+        const hasFilters = hasActiveWebGLFilters(opts);
+        
+        if (!hasFilters) {
+            // ⚡ SIFIR GECİKME: Hiçbir filtre aktif değilken doğrudan donanım hızlandırmalı GPU blit (0.2ms, 120 FPS akıcı!)
+            ctx.filter = 'none';
+            ctx.drawImage(img, baseX, baseY, drawW, drawH);
+            imageDrawn = true;
+        } else {
+            // ⚡ FİLTRELER AKTİFKEN: Sadece filtreler değiştiğinde WebGL render et;
+            // Fotoğrafı taşırken (pan/zoom) her karede WebGL render çalıştırma, önbellekten çiz (0.2ms)!
+            try {
+                if (window._photoFilterDirty || !el._cachedGlCanvas || el._cachedGlCanvas.width !== drawW || el._cachedGlCanvas.height !== drawH) {
+                    window.WebGLPhotoEngine.uploadImage(img);
+                    const glCanvas = window.WebGLPhotoEngine.render(drawW, drawH, opts);
+                    if (glCanvas) {
+                        if (!el._cachedGlCanvas) {
+                            el._cachedGlCanvas = document.createElement('canvas');
+                        }
+                        if (el._cachedGlCanvas.width !== drawW || el._cachedGlCanvas.height !== drawH) {
+                            el._cachedGlCanvas.width = drawW;
+                            el._cachedGlCanvas.height = drawH;
+                        }
+                        const cCtx = el._cachedGlCanvas.getContext('2d');
+                        cCtx.clearRect(0, 0, drawW, drawH);
+                        if (opts.blur && opts.blur > 0) {
+                            cCtx.filter = 'blur(' + opts.blur + 'px)';
+                        } else {
+                            cCtx.filter = 'none';
+                        }
+                        cCtx.drawImage(glCanvas, 0, 0, drawW, drawH);
+                        cCtx.filter = 'none';
+                        window._photoFilterDirty = false;
+                    }
                 }
-                ctx.drawImage(glCanvas, baseX, baseY, drawW, drawH);
-                ctx.filter = 'none';
-                imageDrawn = true;
+                if (el._cachedGlCanvas) {
+                    ctx.drawImage(el._cachedGlCanvas, baseX, baseY, drawW, drawH);
+                    imageDrawn = true;
+                }
+            } catch(err) {
+                console.warn('WebGL render hatası, 2D fallback yapılıyor:', err);
+                imageDrawn = false;
             }
-        } catch(err) {
-            console.warn('WebGL render hatası, 2D fallback yapılıyor:', err);
-            imageDrawn = false;
         }
     }
     

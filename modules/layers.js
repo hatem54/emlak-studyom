@@ -128,8 +128,12 @@ window.layerToggleLock = function(uid, isDrawPath = false, pathIndex = 0) {
         const photoToggle = document.getElementById('photoLockToggle');
         const isLocked = photoToggle ? photoToggle.checked : (window.isPhotoLocked === true);
         const newState = !isLocked;
-        window.isPhotoLocked = newState;
-        if (photoToggle) photoToggle.checked = newState;
+        if (typeof window.updatePhotoLockState === 'function') {
+            window.updatePhotoLockState(newState);
+        } else {
+            window.isPhotoLocked = newState;
+            if (photoToggle) photoToggle.checked = newState;
+        }
         const pl = document.getElementById('photo-layer');
         if (pl) pl.dataset.locked = newState ? 'true' : 'false';
         window.renderLayers();

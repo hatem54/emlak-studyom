@@ -7,7 +7,7 @@
     <title>EmlakStüdyom - Emlak Fotoğraf Düzenleme</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="css/landing.css?v=20260830-3">
+    <link rel="stylesheet" href="css/landing.css?v=20260912-v3">
     <!-- Supabase JS Library -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="js/supabase-client.js?v=20260819-2" defer></script>
@@ -188,50 +188,310 @@
     <!-- Features -->
     <section class="section" id="features">
         <div class="section-header">
-            <div class="section-label"><i class="fas fa-sparkles"></i> Özellikler</div>
-            <h2 class="section-title">Güçlü Düzenleme Araçları</h2>
-            <p class="section-desc">Emlak fotoğrafçılığı için ihtiyacınız olan tüm araçlar tek bir platformda</p>
+            <div class="section-label"><i class="fas fa-sparkles"></i> Profesyonel Stüdyo Özellikleri</div>
+            <h2 class="section-title">Emlak Pazarlamasında Yeni Standart</h2>
+            <p class="section-desc">3B Canlı uydudan mimari perspektife, nöral spiker seslendirmeden resmi kadastro sınırlarına kadar tüm stüdyo araçları tek platformda.</p>
         </div>
         <div class="features-grid">
+            <!-- Kart 1: 3B Haritalar ve Canlı Uydu -->
             <div class="feature-card">
-                <div class="feature-icon purple"><i class="fas fa-palette"></i></div>
-                <h3>80+ Profesyonel Şablon</h3>
-                <p>Klasik, Dinamik, Minimal ve Lüks gibi her stil ve kategoriye uygun, doğrudan kullanıma hazır harika tasarımlar.</p>
+                <div class="feature-card-top">
+                    <div class="feature-card-header">
+                        <div class="feature-icon teal"><i class="fas fa-globe-americas"></i></div>
+                        <span class="feature-tag-badge teal"><i class="fas fa-satellite"></i> 3B UYDU</span>
+                    </div>
+                    <div class="feature-card-content">
+                        <h3>3B Haritalar <span class="amp">&amp;</span> Canlı Uydu</h3>
+                        <p>Google Maps 3D Photorealistic Tiles, Canlı Google Satellite HD ve Esri Maxar uydu katmanları. İl, ilçe, mahalle aramasıyla tek tıkla 4K tuvale aktarın.</p>
+                    </div>
+                </div>
+                <div class="feature-card-visual-block">
+                    <div class="feature-card-img-wrap">
+                        <img src="assets/features/feature-map-3d.jpg" alt="3B Haritalar ve Canlı Uydu" loading="lazy" class="feature-card-img">
+                        <div class="feature-card-img-overlay"></div>
+                    </div>
+                    <div class="feature-visual feature-visual-map">
+                        <div class="fv-header">
+                            <span class="fv-badge-pulse"><span class="fv-dot"></span> Google 3D Tiles</span>
+                            <span class="fv-coord">37.112° N, 27.291° E</span>
+                        </div>
+                        <div class="fv-map-preview">
+                            <div class="fv-map-overlay">
+                                <span class="fv-chip active"><i class="fas fa-cube"></i> 3B Fotorealistik</span>
+                                <span class="fv-chip"><i class="fas fa-satellite"></i> Esri HD</span>
+                            </div>
+                            <div class="fv-map-footer">
+                                <span><i class="fas fa-search-location"></i> İl / İlçe / Mahalle</span>
+                                <span class="fv-status-pill"><i class="fas fa-check"></i> 4K Tuvale Aktar</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
+
+            <!-- Kart 2: TKGM Parsel Sorgu ve KML/KMZ -->
             <div class="feature-card">
-                <div class="feature-icon teal"><i class="fas fa-bolt"></i></div>
-                <h3>Saber ve Işık Efektleri</h3>
-                <p>Yangın, neon, glow ve elektrik gibi göz alıcı ışık efektleriyle emlak fotoğraflarınıza dinamizm ve prestij katın.</p>
+                <div class="feature-card-top">
+                    <div class="feature-card-header">
+                        <div class="feature-icon emerald"><i class="fas fa-map-location-dot"></i></div>
+                        <span class="feature-tag-badge emerald"><i class="fas fa-landmark"></i> TKGM RESMİ</span>
+                    </div>
+                    <div class="feature-card-content">
+                        <h3>Parsel Sorgu <span class="amp">&amp;</span> KML/KMZ Yükleme</h3>
+                        <p>Resmi kadastro parsel sınırlarını KML, KMZ veya GeoJSON dosyası yükleyerek haritaya anında işleyin. Taşınabilir lüks Ada / Parsel / m² rozetleri otomatik oluşturulur.</p>
+                    </div>
+                </div>
+                <div class="feature-card-visual-block">
+                    <div class="feature-card-img-wrap">
+                        <img src="assets/features/feature-cadastre.jpg" alt="TKGM Kadastro Parsel Sorgu" loading="lazy" class="feature-card-img">
+                        <div class="feature-card-img-overlay"></div>
+                    </div>
+                    <div class="feature-visual feature-visual-cadastre">
+                        <div class="fv-cadastre-badge">
+                            <div class="fv-cadastre-top">
+                                <span class="fv-tkgm-tag"><i class="fas fa-landmark"></i> T.C. TKGM KADASTRO</span>
+                                <span class="fv-kml-pill"><i class="fas fa-file-code"></i> KML / KMZ</span>
+                            </div>
+                            <div class="fv-cadastre-main">
+                                <span class="fv-ada-parsel">Ada 1042 / Parsel 18</span>
+                                <span class="fv-area">1.450 m²</span>
+                            </div>
+                            <div class="fv-cadastre-meta">
+                                <span>İmar: Konut / Villa</span>
+                                <span>KAKS: 0.50 • 2 Kat</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
+
+            <!-- Kart 3: Akıllı İlan Metni Süzme 2.0 -->
             <div class="feature-card">
-                <div class="feature-icon pink"><i class="fas fa-certificate"></i></div>
-                <h3>Neon Rozetler ve 270+ Callout</h3>
-                <p>Oda sayısı, otopark, havuz ve öne çıkan detaylar için ışıltılı neon rozetler ve zengin işaretçi kütüphanesi.</p>
+                <div class="feature-card-top">
+                    <div class="feature-card-header">
+                        <div class="feature-icon purple"><i class="fas fa-wand-magic-sparkles"></i></div>
+                        <span class="feature-tag-badge purple"><i class="fas fa-bolt"></i> AI SÜZÜCÜ 2.0</span>
+                    </div>
+                    <div class="feature-card-content">
+                        <h3>Akıllı İlan Metni Süzme</h3>
+                        <p>Sahibinden, Hepsiemlak, Emlakjet veya WhatsApp ilan metnini yapıştırın; Fiyat, m², Oda, Kat, İmar dahil 30+ veriyi saniyeler içinde şablona ve formlara aktarın.</p>
+                    </div>
+                </div>
+                <div class="feature-card-visual-block">
+                    <div class="feature-card-img-wrap">
+                        <img src="assets/features/feature-ai-parser.jpg" alt="Akıllı İlan Metni Süzme" loading="lazy" class="feature-card-img">
+                        <div class="feature-card-img-overlay"></div>
+                    </div>
+                    <div class="feature-visual feature-visual-parser">
+                        <div class="fv-parser-input">
+                            <i class="fas fa-paste"></i>
+                            <span>"Satılık 3+1 Daire 145m² 4.850.000 TL..."</span>
+                        </div>
+                        <div class="fv-parser-arrow"><i class="fas fa-arrow-down"></i> Tek Tıkla 30+ Veri Ayrıştırıldı</div>
+                        <div class="fv-chips-row">
+                            <span class="fv-chip fv-chip-price">₺ 4.850.000</span>
+                            <span class="fv-chip">📐 145 m²</span>
+                            <span class="fv-chip">🛏️ 3+1</span>
+                            <span class="fv-chip">🏢 3. Kat</span>
+                        </div>
+                    </div>
+                </div>
             </div>
+
+            <!-- Kart 4: Kolay Çokgen Çizim ve 20 Ok Stili -->
             <div class="feature-card">
-                <div class="feature-icon purple"><i class="fas fa-wand-magic-sparkles"></i></div>
-                <h3>Akıllı İlan Süzücü ve AI</h3>
-                <p>Sahibinden, Hepsiemlak veya WhatsApp ilan metnini yapıştırın; Fiyat, m², Oda ve İmar bilgilerini saniyeler içinde şablona aktarsın.</p>
+                <div class="feature-card-top">
+                    <div class="feature-card-header">
+                        <div class="feature-icon pink"><i class="fas fa-draw-polygon"></i></div>
+                        <span class="feature-tag-badge pink"><i class="fas fa-magnet"></i> MANYETİK SNAP</span>
+                    </div>
+                    <div class="feature-card-content">
+                        <h3>Çokgen Çizim <span class="amp">&amp;</span> 20 Yön Oku</h3>
+                        <p>Arsa ve villa sınırlarını Manyetik Snap (mıknatıs) hizalama ile sıfır taşmayla çizin. 20 farklı yönde profesyonel imar yön okları ve metraj çizgileriyle donatın.</p>
+                    </div>
+                </div>
+                <div class="feature-card-visual-block">
+                    <div class="feature-card-img-wrap">
+                        <img src="assets/features/feature-polygon-draw.jpg" alt="Çokgen Çizim ve İmar Okları" loading="lazy" class="feature-card-img">
+                        <div class="feature-card-img-overlay"></div>
+                    </div>
+                    <div class="feature-visual feature-visual-draw">
+                        <div class="fv-draw-box">
+                            <div class="fv-poly-tag">
+                                <span><i class="fas fa-draw-polygon"></i> 4 Köşe Arsa Sınırı</span>
+                                <span class="fv-snap-pill"><i class="fas fa-magnet"></i> Manyetik Snap</span>
+                            </div>
+                            <div class="fv-arrows-preview">
+                                <span class="fv-arrow-item"><i class="fas fa-arrow-right-long"></i> İmar Yolu 15m</span>
+                                <span class="fv-arrow-item"><i class="fas fa-compass"></i> Manzara Yönü</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
+
+            <!-- Kart 5: AI Reklam Seslendirme Stüdyosu (.MP3) -->
             <div class="feature-card">
-                <div class="feature-icon teal"><i class="fas fa-expand"></i></div>
-                <h3>Çoklu Format ve Ultra HD (4K)</h3>
-                <p>Instagram, Facebook, Portföy (16:9), Afiş (A4) gibi tüm formatlara anında uyum sağlar. Kristal netliğinde dışa aktarın.</p>
+                <div class="feature-card-top">
+                    <div class="feature-card-header">
+                        <div class="feature-icon indigo"><i class="fas fa-microphone-lines"></i></div>
+                        <span class="feature-tag-badge indigo"><i class="fas fa-volume-high"></i> NÖRAL SPİKER</span>
+                    </div>
+                    <div class="feature-card-content">
+                        <h3>AI Seslendirme <span class="amp">&amp;</span> Reels Metin Yazarı</h3>
+                        <p>İlan detaylarınızdan Reels, TikTok ve Shorts için satış odaklı reklam metinleri üretin. Nöral Türkçe spikerlerle seslendirip doğrudan stüdyo kalitesinde .MP3 indirin.</p>
+                    </div>
+                </div>
+                <div class="feature-card-visual-block">
+                    <div class="feature-card-img-wrap">
+                        <img src="assets/features/feature-voice-studio.jpg" alt="AI Seslendirme ve Reels Metin Yazarı" loading="lazy" class="feature-card-img">
+                        <div class="feature-card-img-overlay"></div>
+                    </div>
+                    <div class="feature-visual feature-visual-audio">
+                        <div class="fv-audio-bar">
+                            <div class="fv-audio-speaker">
+                                <i class="fas fa-volume-high"></i>
+                                <div>
+                                    <div class="fv-speaker-name">Can (Türkçe Spiker)</div>
+                                    <div class="fv-speaker-type">Nöral HD • Sayı <span class="amp">&amp;</span> Fiyat Okuma</div>
+                                </div>
+                            </div>
+                            <div class="fv-wave-animation">
+                                <span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+                            </div>
+                        </div>
+                        <div class="fv-audio-footer">
+                            <span><i class="fas fa-wand-magic-sparkles"></i> Reels Reklam Metni</span>
+                            <span class="fv-download-pill"><i class="fas fa-download"></i> .MP3 İndir</span>
+                        </div>
+                    </div>
+                </div>
             </div>
+
+            <!-- Kart 6: Mimari Perspektif ve WebGL Stüdyo -->
             <div class="feature-card">
-                <div class="feature-icon pink"><i class="fas fa-draw-polygon"></i></div>
-                <h3>Arsa ve Sınır Çizim Araçları</h3>
-                <p>Çokgen (polygon), imar hatları, yön okları ve serbest çizim araçlarıyla arsa ve villa sınırlarını kolayca çizin.</p>
+                <div class="feature-card-top">
+                    <div class="feature-card-header">
+                        <div class="feature-icon cyan"><i class="fas fa-camera-rotate"></i></div>
+                        <span class="feature-tag-badge cyan"><i class="fas fa-cube"></i> 3D HOMOGRAFİ</span>
+                    </div>
+                    <div class="feature-card-content">
+                        <h3>Mimari Perspektif <span class="amp">&amp;</span> WebGL Stüdyo</h3>
+                        <p>Eğimli bina ve oda fotoğraflarını 32x32 mesh grid ile dikleştirin. Tek tıkla "Perspektifi Otomatik Sığdır", AI Gökyüzü / Zemin maskeleme ve 8-kanal HSL renk laboratuvarı.</p>
+                    </div>
+                </div>
+                <div class="feature-card-visual-block">
+                    <div class="feature-card-img-wrap">
+                        <img src="assets/features/feature-perspective.jpg" alt="Mimari Perspektif ve WebGL Stüdyo" loading="lazy" class="feature-card-img">
+                        <div class="feature-card-img-overlay"></div>
+                    </div>
+                    <div class="feature-visual feature-visual-perspective">
+                        <div class="fv-persp-status">
+                            <span><i class="fas fa-cube"></i> 32x32 Mesh Homografi</span>
+                            <span class="fv-autofit-btn"><i class="fas fa-expand-alt"></i> Otomatik Sığdır</span>
+                        </div>
+                        <div class="fv-persp-tools">
+                            <span class="fv-tool-pill"><i class="fas fa-arrows-up-down"></i> Dikey Eğim</span>
+                            <span class="fv-tool-pill"><i class="fas fa-brush"></i> Yerel Maske</span>
+                            <span class="fv-tool-pill"><i class="fas fa-sliders"></i> 8-Kanal HSL</span>
+                        </div>
+                    </div>
+                </div>
             </div>
+
+            <!-- Kart 7: Canlı Neon ve 270+ Vektörel Rozet -->
             <div class="feature-card">
-                <div class="feature-icon purple"><i class="fas fa-layer-group"></i></div>
-                <h3>Katmanlar ve Otomatik Kayıt</h3>
-                <p>Çalışmalarınız anlık olarak otomatik kaydedilir. Gelişmiş katman yöneticisi ile tüm ögeleri kolayca kilitleyip sıralayın.</p>
+                <div class="feature-card-top">
+                    <div class="feature-card-header">
+                        <div class="feature-icon gold"><i class="fas fa-bolt-lightning"></i></div>
+                        <span class="feature-tag-badge gold"><i class="fas fa-crown"></i> 270+ CALLOUT</span>
+                    </div>
+                    <div class="feature-card-content">
+                        <h3>Canlı Neon <span class="amp">&amp;</span> 270+ Vektörel Rozet</h3>
+                        <p>Yangın, ışıma ve elektrik efektli canlı neon hatlarıyla sınırları parlatın. Oda, otopark, havuz, balkon ve fiyat etiketleri için 270'den fazla modern neon rozet ve callout.</p>
+                    </div>
+                </div>
+                <div class="feature-card-visual-block">
+                    <div class="feature-card-img-wrap">
+                        <img src="assets/features/feature-saber-neon.jpg" alt="Canlı Neon ve 270+ Rozet" loading="lazy" class="feature-card-img">
+                        <div class="feature-card-img-overlay"></div>
+                    </div>
+                    <div class="feature-visual feature-visual-saber">
+                        <div class="fv-saber-badge-row">
+                            <div class="fv-neon-badge"><i class="fas fa-bolt"></i> FIRSAT DAİRE</div>
+                            <div class="fv-gold-badge"><i class="fas fa-crown"></i> ULTRA LÜKS</div>
+                        </div>
+                        <div class="fv-callout-strip">
+                            <span><i class="fas fa-swimming-pool"></i> Havuz</span>
+                            <span><i class="fas fa-square-parking"></i> Otopark</span>
+                            <span><i class="fas fa-water"></i> Deniz</span>
+                            <span><i class="fas fa-tree"></i> Bahçe</span>
+                        </div>
+                    </div>
+                </div>
             </div>
+
+            <!-- Kart 8: 80+ Şablon ve Ultra HD 4K -->
             <div class="feature-card">
-                <div class="feature-icon teal"><i class="fas fa-mobile-alt"></i></div>
-                <h3>Her Cihazdan Kolay Erişim</h3>
-                <p>Kurulum veya teknik bilgi gerektirmez. Bilgisayar, tablet veya telefonunuzdan tarayıcı ile hemen çalışın.</p>
+                <div class="feature-card-top">
+                    <div class="feature-card-header">
+                        <div class="feature-icon rose"><i class="fas fa-layer-group"></i></div>
+                        <span class="feature-tag-badge rose"><i class="fas fa-palette"></i> 80+ ŞABLON</span>
+                    </div>
+                    <div class="feature-card-content">
+                        <h3>80+ Şablon <span class="amp">&amp;</span> Ultra HD (4K)</h3>
+                        <p>Klasik, Dinamik, Minimal ve Lüks stiller. Instagram Gönderi (1:1), Hikaye/Reels (9:16), Facebook (16:9), Portföy ve A4 Afiş formatlarında anında filigransız 4K çıktı.</p>
+                    </div>
+                </div>
+                <div class="feature-card-visual-block">
+                    <div class="feature-card-img-wrap">
+                        <img src="assets/features/feature-templates-4k.jpg" alt="80+ Emlak Şablonu ve Çoklu Format" loading="lazy" class="feature-card-img">
+                        <div class="feature-card-img-overlay"></div>
+                    </div>
+                    <div class="feature-visual feature-visual-formats">
+                        <div class="fv-format-grid">
+                            <span class="fv-fmt active">1:1 Kare</span>
+                            <span class="fv-fmt">9:16 Dikey</span>
+                            <span class="fv-fmt">16:9 Yatay</span>
+                            <span class="fv-fmt">A4 Afiş</span>
+                        </div>
+                        <div class="fv-format-footer">
+                            <span><i class="fas fa-check-double"></i> 80+ Şablon Kataloğu</span>
+                            <span class="fv-quality-pill"><i class="fas fa-sparkles"></i> 4K Ultra HD</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Kart 9: Katman Yöneticisi ve Otomatik Bulut Kayıt -->
+            <div class="feature-card">
+                <div class="feature-card-top">
+                    <div class="feature-card-header">
+                        <div class="feature-icon blue"><i class="fas fa-cloud-arrow-up"></i></div>
+                        <span class="feature-tag-badge blue"><i class="fas fa-shield-halved"></i> CANLI OTO-KAYIT</span>
+                    </div>
+                    <div class="feature-card-content">
+                        <h3>Katman Yöneticisi <span class="amp">&amp;</span> Otomatik Kayıt</h3>
+                        <p>Tüm ögeleri Photoshop hassasiyetinde sıralayın, kilitleyin, gizleyin veya harmanlayın. Anlık otomatik kaydetme ve sınırsız Geri/İleri Al (Undo/Redo) ile emeğiniz asla kaybolmaz.</p>
+                    </div>
+                </div>
+                <div class="feature-card-visual-block">
+                    <div class="feature-card-img-wrap">
+                        <img src="assets/features/feature-cloud-layers.jpg" alt="Katman Yöneticisi ve Otomatik Kayıt" loading="lazy" class="feature-card-img">
+                        <div class="feature-card-img-overlay"></div>
+                    </div>
+                    <div class="feature-visual feature-visual-layers">
+                        <div class="fv-layer-list">
+                            <div class="fv-layer-row"><i class="fas fa-lock"></i> Katman 3: Kadastro Ada/Parsel Rozeti</div>
+                            <div class="fv-layer-row"><i class="fas fa-eye"></i> Katman 2: Neon Işık Sınır Çizgisi</div>
+                            <div class="fv-layer-row"><i class="fas fa-image"></i> Katman 1: 4K Canlı Uydu Haritası</div>
+                        </div>
+                        <div class="fv-layer-footer">
+                            <span><i class="fas fa-rotate-left"></i> Geri / İleri</span>
+                            <span class="fv-cloud-pill"><i class="fas fa-check-circle"></i> Anlık Kaydedildi</span>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </section>
@@ -305,37 +565,162 @@
     <!-- How It Works -->
     <section class="section" id="how-it-works">
         <div class="section-header">
-            <div class="section-label"><i class="fas fa-route"></i> Adımlar</div>
+            <div class="section-label"><i class="fas fa-route"></i> Kolay Adımlar</div>
             <h2 class="section-title">Nasıl Çalışır?</h2>
-            <p class="section-desc">Sadece 4 adımda profesyonel emlak görselleri oluşturun</p>
+            <p class="section-desc">Sadece 5 adımda profesyonel emlak afişleri, 3B haritalar ve sesli video görselleri oluşturun</p>
         </div>
         <div class="steps-container">
-            <div class="steps-line"></div>
             <div class="steps-grid">
-                                <div class="step-card">
-                    <div class="step-number">📸</div>
-                    <h3>Adım 1: Fotoğrafı Yükle</h3>
-                    <p>Emlak fotoğrafınızı sürükleyip bırakın veya galeriden seçin. Tüm popüler formatları destekler (JPG, PNG, WEBP).</p>
-                </div>
+                <!-- ADIM 1 -->
                 <div class="step-card">
-                    <div class="step-number">⌨️</div>
-                    <h3>Adım 2: Bilgileri Gir</h3>
-                    <p>İlan detaylarını (fiyat, oda, m²) hızla doldurun. İsterseniz AI asistanımız uzun ilan metinlerinden bu verileri otomatik çeker.</p>
+                    <div class="step-card-top">
+                        <div class="step-card-header">
+                            <span class="step-num-pill teal"><i class="fas fa-camera"></i> ADIM 01</span>
+                            <span class="step-flow-icon teal"><i class="fas fa-cloud-arrow-up"></i></span>
+                        </div>
+                        <div class="step-card-content">
+                            <h3>Fotoğraf <span class="amp">&amp;</span> Harita Yükle</h3>
+                            <p>Emlak fotoğrafınızı sürükleyip bırakın veya canlı 3B Google / Esri uydu haritasını tek tıkla tuvale getirin.</p>
+                        </div>
+                    </div>
+                    <div class="step-card-visual-block">
+                        <div class="step-card-img-wrap">
+                            <img src="assets/steps/step-1-upload.jpg" alt="Adım 1: Fotoğraf ve Harita Yükle" loading="lazy" class="step-card-img">
+                            <div class="step-card-img-overlay"></div>
+                        </div>
+                        <div class="step-visual step-visual-1">
+                            <div class="sv-drop-bar">
+                                <span class="sv-drop-title"><i class="fas fa-cloud-arrow-up"></i> Görseli Bırakın</span>
+                                <span class="sv-pill-tag">Maks 50MB</span>
+                            </div>
+                            <div class="sv-badges-row">
+                                <span class="sv-badge teal"><i class="fas fa-image"></i> JPG/PNG</span>
+                                <span class="sv-badge teal-alt"><i class="fas fa-globe"></i> 3B Canlı Uydu</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
+
+                <!-- ADIM 2 -->
                 <div class="step-card">
-                    <div class="step-number">🎨</div>
-                    <h3>Adım 3: Şablon Seç</h3>
-                    <p>80+ profesyonel şablondan birini seçin veya boş sayfa ile sıfırdan başlayın. Her stil ve platform için uygun tasarımlar mevcut.</p>
+                    <div class="step-card-top">
+                        <div class="step-card-header">
+                            <span class="step-num-pill purple"><i class="fas fa-wand-magic-sparkles"></i> ADIM 02</span>
+                            <span class="step-flow-icon purple"><i class="fas fa-file-lines"></i></span>
+                        </div>
+                        <div class="step-card-content">
+                            <h3>Bilgileri Gir <span class="amp">&amp;</span> AI Süz</h3>
+                            <p>Sahibinden veya WhatsApp metnini yapıştırın; AI fiyat, m², oda ve kat verilerini anında etiketlere dönüştürsün.</p>
+                        </div>
+                    </div>
+                    <div class="step-card-visual-block">
+                        <div class="step-card-img-wrap">
+                            <img src="assets/steps/step-2-parser.jpg" alt="Adım 2: Bilgileri Gir ve AI Süz" loading="lazy" class="step-card-img">
+                            <div class="step-card-img-overlay"></div>
+                        </div>
+                        <div class="step-visual step-visual-2">
+                            <div class="sv-parser-status">
+                                <span><i class="fas fa-robot"></i> AI Veri Süzücü 2.0</span>
+                                <span class="sv-success-dot"><i class="fas fa-check"></i> Ayrıştırıldı</span>
+                            </div>
+                            <div class="sv-badges-row">
+                                <span class="sv-badge purple-price">₺ 6.450.000</span>
+                                <span class="sv-badge purple">165 m²</span>
+                                <span class="sv-badge purple">3+1</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
+
+                <!-- ADIM 3 -->
                 <div class="step-card">
-                    <div class="step-number">✏️</div>
-                    <h3>Adım 4: Düzenle</h3>
-                    <p>Fiyat, oda sayısı, m² gibi bilgileri yerleştirin. Ekstra metin, ikon, sticker veya efekt (neon, glow) ekleyin.</p>
+                    <div class="step-card-top">
+                        <div class="step-card-header">
+                            <span class="step-num-pill pink"><i class="fas fa-layer-group"></i> ADIM 03</span>
+                            <span class="step-flow-icon pink"><i class="fas fa-palette"></i></span>
+                        </div>
+                        <div class="step-card-content">
+                            <h3>80+ Şablondan Seç</h3>
+                            <p>Klasik, Dinamik veya Lüks tarzlar; Instagram Post (1:1), Reels (9:16) ve Afiş formatlarına anında uyarlayın.</p>
+                        </div>
+                    </div>
+                    <div class="step-card-visual-block">
+                        <div class="step-card-img-wrap">
+                            <img src="assets/steps/step-3-templates.jpg" alt="Adım 3: 80+ Şablondan Seç" loading="lazy" class="step-card-img">
+                            <div class="step-card-img-overlay"></div>
+                        </div>
+                        <div class="step-visual step-visual-3">
+                            <div class="sv-formats-bar">
+                                <span class="sv-fmt-pill active">1:1 Post</span>
+                                <span class="sv-fmt-pill">9:16 Reels</span>
+                                <span class="sv-fmt-pill">A4 Afiş</span>
+                            </div>
+                            <div class="sv-badges-row">
+                                <span class="sv-badge pink-alt"><i class="fas fa-swatchbook"></i> 80+ Hazır Stil</span>
+                                <span class="sv-badge pink"><i class="fas fa-sliders"></i> Otomatik Boyut</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
+
+                <!-- ADIM 4 -->
                 <div class="step-card">
-                    <div class="step-number">📥</div>
-                    <h3>Adım 5: İndir ve Paylaş</h3>
-                    <p>İnstagram, Facebook veya A4 formatlarında yüksek çözünürlükte indirin. Doğrudan sosyal medyada paylaşmaya hazır.</p>
+                    <div class="step-card-top">
+                        <div class="step-card-header">
+                            <span class="step-num-pill gold"><i class="fas fa-compass-drafting"></i> ADIM 04</span>
+                            <span class="step-flow-icon gold"><i class="fas fa-bolt"></i></span>
+                        </div>
+                        <div class="step-card-content">
+                            <h3>Çiz, Dikleştir <span class="amp">&amp;</span> Parlat</h3>
+                            <p>Perspektifi tek tıkla dikleştirin, arsa sınırını manyetik snap ile çizin ve canlı neon hatları ekleyin.</p>
+                        </div>
+                    </div>
+                    <div class="step-card-visual-block">
+                        <div class="step-card-img-wrap">
+                            <img src="assets/steps/step-4-editor.jpg" alt="Adım 4: Çiz, Dikleştir ve Parlat" loading="lazy" class="step-card-img">
+                            <div class="step-card-img-overlay"></div>
+                        </div>
+                        <div class="step-visual step-visual-4">
+                            <div class="sv-tools-bar">
+                                <span class="sv-tool-btn active"><i class="fas fa-bolt"></i> Neon Işık</span>
+                                <span class="sv-tool-btn"><i class="fas fa-magnet"></i> Snap Çizim</span>
+                            </div>
+                            <div class="sv-badges-row">
+                                <span class="sv-badge gold"><i class="fas fa-cubes"></i> 32×32 Homografi</span>
+                                <span class="sv-badge gold-alt"><i class="fas fa-location-arrow"></i> İmar Oku</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ADIM 5 -->
+                <div class="step-card">
+                    <div class="step-card-top">
+                        <div class="step-card-header">
+                            <span class="step-num-pill emerald"><i class="fas fa-circle-check"></i> ADIM 05</span>
+                            <span class="step-flow-icon emerald"><i class="fas fa-share-nodes"></i></span>
+                        </div>
+                        <div class="step-card-content">
+                            <h3>4K Ultra HD İndir <span class="amp">&amp;</span> Paylaş</h3>
+                            <p>Sıfır filigranla 4K Ultra HD baskı kalitesinde indirin, yapay zeka spikeriyle seslendirip sosyal medyada paylaşın.</p>
+                        </div>
+                    </div>
+                    <div class="step-card-visual-block">
+                        <div class="step-card-img-wrap">
+                            <img src="assets/steps/step-5-export.jpg" alt="Adım 5: 4K Ultra HD İndir ve Paylaş" loading="lazy" class="step-card-img">
+                            <div class="step-card-img-overlay"></div>
+                        </div>
+                        <div class="step-visual step-visual-5">
+                            <div class="sv-download-bar">
+                                <span class="sv-dl-title"><i class="fas fa-download"></i> 4K Ultra HD</span>
+                                <span class="sv-res-badge">3840×2160</span>
+                            </div>
+                            <div class="sv-badges-row">
+                                <span class="sv-badge emerald"><i class="fas fa-shield-halved"></i> Watermark YOK</span>
+                                <span class="sv-badge emerald-alt"><i class="fas fa-volume-high"></i> .MP3 Hazır</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -365,13 +750,13 @@
                     <li><i class="fas fa-check" style="color:#10b981;"></i> Sınırsız kullanım</li>
                     <li><i class="fas fa-droplet" style="color:#3b82f6;"></i> Watermark var</li>
                     <li><i class="fas fa-arrow-trend-down" style="color:#f59e0b;"></i> Max 720p export</li>
-                    <li class="disabled"><i class="fas fa-xmark"></i> Saber efektleri kilitli</li>
+                    <li class="disabled"><i class="fas fa-xmark"></i> Neon efektleri kilitli</li>
                 </ul>
                 <button class="btn-pricing outline" style="border-color:#f59e0b; color:#f59e0b;" onclick="goToDemo()" onmouseover="this.style.background='#f59e0b'; this.style.color='#fff';" onmouseout="this.style.background='transparent'; this.style.color='#f59e0b';">🚀 Hemen Dene</button>
             </div>
             
             <!-- KART 2: PRO BETA -->
-            <div class="pricing-card featured" style="transform: scale(1.05); z-index: 10; border: 2px solid #8b5cf6; background: linear-gradient(180deg, rgba(30,41,59,1) 0%, rgba(15,23,42,1) 100%);">
+            <div class="pricing-card featured">
                 <div class="popular-badge" style="background: linear-gradient(135deg, #3b82f6, #8b5cf6);">⭐ EN POPÜLER</div>
                 <div style="color: #8b5cf6; font-weight: 800; font-size: 16px; margin-bottom: 8px;">🎉 BETA - ŞİMDİ ÜCRETSİZ</div>
                 <div class="pricing-plan-name">PRO</div>
@@ -380,13 +765,16 @@
                     <span class="pricing-price" style="font-size: 42px; background: linear-gradient(135deg, #3b82f6, #8b5cf6); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">ÜCRETSİZ</span>
                 </div>
                 <ul class="pricing-features">
-                    <li><i class="fas fa-check" style="color:#10b981;"></i> Tüm 80 şablon açık</li>
-                    <li><i class="fas fa-check" style="color:#10b981;"></i> Saber efektleri (Yangın, Neon, Glow, Elektrik)</li>
-                    <li><i class="fas fa-check" style="color:#10b981;"></i> Ultra HD (4K) Yüksek Çözünürlük İndirme</li>
-                    <li><i class="fas fa-check" style="color:#10b981;"></i> Watermark YOK</li>
-                    <li><i class="fas fa-check" style="color:#10b981;"></i> Tüm formatlar (Instagram, Facebook, A4 vs.)</li>
-                    <li><i class="fas fa-check" style="color:#10b981;"></i> Sınırsız kullanım</li>
-                    <li><i class="fas fa-check" style="color:#10b981;"></i> Öncelikli destek</li>
+                    <li><i class="fas fa-check" style="color:#10b981;"></i> <strong>3B Haritalar <span class="amp">&amp;</span> Canlı Uydu</strong> (Google 3D Tiles <span class="amp">&amp;</span> Esri HD)</li>
+                    <li><i class="fas fa-check" style="color:#10b981;"></i> <strong>TKGM Kadastro Parsel <span class="amp">&amp;</span> KML/KMZ</strong> (Resmi rozetler)</li>
+                    <li><i class="fas fa-check" style="color:#10b981;"></i> <strong>Akıllı İlan Metni Süzme 2.0</strong> (Sahibinden <span class="amp">&amp;</span> WhatsApp)</li>
+                    <li><i class="fas fa-check" style="color:#10b981;"></i> <strong>AI Nöral Seslendirme Stüdyosu</strong> (.MP3 ses indirme)</li>
+                    <li><i class="fas fa-check" style="color:#10b981;"></i> <strong>Mimari Perspektif <span class="amp">&amp;</span> WebGL Stüdyo</strong> (3D eğim <span class="amp">&amp;</span> sığdır)</li>
+                    <li><i class="fas fa-check" style="color:#10b981;"></i> <strong>Kolay Çokgen Çizim <span class="amp">&amp;</span> 20 Yön Oku</strong> (Manyetik Snap)</li>
+                    <li><i class="fas fa-check" style="color:#10b981;"></i> <strong>Tüm 80+ Şablon <span class="amp">&amp;</span> Neon Işık Efektleri</strong></li>
+                    <li><i class="fas fa-check" style="color:#10b981;"></i> <strong>Ultra HD (4K) İndirme <span class="amp">&amp;</span> Watermark YOK</strong></li>
+                    <li><i class="fas fa-check" style="color:#10b981;"></i> <strong>Tüm Formatlar (1:1, 9:16 Reels, 16:9, A4)</strong></li>
+                    <li><i class="fas fa-check" style="color:#10b981;"></i> <strong>Sınırsız Kullanım <span class="amp">&amp;</span> Öncelikli Destek</strong></li>
                 </ul>
                 <button class="btn-pricing filled" style="background: linear-gradient(135deg, #3b82f6, #8b5cf6); border:none;" onclick="openModal('register')">✨ Ücretsiz Kayıt Ol</button>
             </div>
@@ -412,8 +800,8 @@
             </div>
         </div>
         
-        <div style="text-align: center; max-width: 650px; margin: 40px auto 0 auto; padding: 15px 20px; background: rgba(59,130,246,0.1); border-radius: 12px; border: 1px solid rgba(59,130,246,0.2);">
-            <p style="color: #93c5fd; font-size: 14px; line-height: 1.6; margin: 0;">💡 <strong>Bilgi:</strong> Beta dönemi 3-6 ay sürecek. Bu süre içinde kayıtlı tüm kullanıcılar Pro özelliklerini ücretsiz kullanır. İleride ücretlendirme başladığında mevcut kullanıcılara özel indirim uygulanacak.</p>
+        <div class="pricing-beta-notice">
+            <p>💡 <strong>Bilgi:</strong> Beta dönemi 3-6 ay sürecek. Bu süre içinde kayıtlı tüm kullanıcılar Pro özelliklerini ücretsiz kullanır. İleride ücretlendirme başladığında mevcut kullanıcılara özel indirim uygulanacak.</p>
         </div>
     </section>
 
@@ -488,7 +876,7 @@
             </div>
             <div class="faq-item">
                 <div class="faq-question" onclick="toggleFaq(this)">Kayıt olmak zorunda mıyım?<i class="fas fa-chevron-down"></i></div>
-                <div class="faq-answer"><p>Zorunlu değil ama önerilir. Kayıtsız kullanımda 3 şablon açık ve watermark bulunur. Kayıt olduğunuzda 80+ şablon, Saber efektleri, watermarksız 4K export gibi tüm özelliklere erişirsiniz.</p></div>
+                <div class="faq-answer"><p>Zorunlu değil ama önerilir. Kayıtsız kullanımda 3 şablon açık ve watermark bulunur. Kayıt olduğunuzda 80+ şablon, Neon efektleri, watermarksız 4K export gibi tüm özelliklere erişirsiniz.</p></div>
             </div>
             <div class="faq-item">
                 <div class="faq-question" onclick="toggleFaq(this)">Hangi cihazlardan kullanabilirim?<i class="fas fa-chevron-down"></i></div>
@@ -507,12 +895,24 @@
                 <div class="faq-answer"><p>Kesinlikle evet! Sahibinden.com, Hepsiemlak veya WhatsApp'taki ilanınızın kapak ve detay tablosunu (Fiyat, m², Oda, Kat, Bina Yaşı, Ada/Parsel, İmar vb.) komple kopyalayıp "Metni Süz" kutusuna yapıştırmanız yeterlidir. Akıllı sistem tüm alanları saniyeler içinde şablonlara ve tuvale aktarır.</p></div>
             </div>
             <div class="faq-item">
+                <div class="faq-question" onclick="toggleFaq(this)">3B Canlı Uydu Haritası ve TKGM Parsel sorgu nasıl çalışır?<i class="fas fa-chevron-down"></i></div>
+                <div class="faq-answer"><p>Uygulama içerisinden Google Maps 3D Photorealistic Tiles, Canlı Google Satellite HD veya Esri Maxar uydu katmanlarını açabilir; aradığınız il, ilçe veya mahalleyi bularak tek tıkla 4K tuvale aktarabilirsiniz. Ayrıca bilgisayarınızdaki KML, KMZ veya GeoJSON kadastro dosyasını yükleyerek resmi arsa/tarla sınırlarını haritaya otomatik çizebilir ve lüks Ada/Parsel/m² rozetleri ekleyebilirsiniz.</p></div>
+            </div>
+            <div class="faq-item">
+                <div class="faq-question" onclick="toggleFaq(this)">AI Seslendirme ile Reels ve TikTok videoları için spiker sesi alabilir miyim?<i class="fas fa-chevron-down"></i></div>
+                <div class="faq-answer"><p>Evet! İlanınızın fiyat, oda ve metrekare bilgilerinden tek tıkla Reels/TikTok reklam metinleri yazdırabilirsiniz. Yerli Nöral Türkçe kadın ve erkek spiker seslerimiz, rakamları ve fiyatları (örneğin 3.250.000 TL'yi "üç milyon iki yüz elli bin Türk Lirası" şeklinde) telaffuz hatasız okur ve stüdyo kalitesinde .MP3 ses dosyası olarak doğrudan bilgisayarınıza indirmenizi sağlar.</p></div>
+            </div>
+            <div class="faq-item">
+                <div class="faq-question" onclick="toggleFaq(this)">Mimari perspektif düzeltme ve otomatik sığdırma nedir?<i class="fas fa-chevron-down"></i></div>
+                <div class="faq-answer"><p>Geniş açı lenslerle veya telefonla çekilen bina ve oda fotoğraflarında duvarların geriye doğru eğilmesi sıkça yaşanır. Mimari Perspektif modülümüz, 32x32 mesh grid ve 3D homografi ile dikey ve yatay eğimleri saniyeler içinde dikleştirir. "Perspektifi Otomatik Sığdır" butonu sayesinde kenarlarda oluşan boşlukları sıfırlayarak fotoğrafı tuvalinize kayıpsız oturtur.</p></div>
+            </div>
+            <div class="faq-item">
                 <div class="faq-question" onclick="toggleFaq(this)">AI Asistan ne işe yarar?<i class="fas fa-chevron-down"></i></div>
                 <div class="faq-answer"><p>İlan metninizi yapıştırdığınızda AI Asistan otomatik olarak fiyat, oda sayısı, metrekare, konum gibi bilgileri ayrıştırır ve form alanlarını doldurur. Böylece dakikalarınızı kurtarır.</p></div>
             </div>
             <div class="faq-item">
                 <div class="faq-question" onclick="toggleFaq(this)">Şu an tam olarak neler dahil?<i class="fas fa-chevron-down"></i></div>
-                <div class="faq-answer"><p>Beta döneminde kayıt olan tüm kullanıcılar: 80+ şablon, Saber efektleri, Ultra HD (4K) yüksek çözünürlük indirme, Instagram/Facebook/A4/16:9 boyutları, neon rozetler, callout ve ikon kütüphanesi ile sınırsız kullanım hakkı kazanır. Ücretsiz.</p></div>
+                <div class="faq-answer"><p>Beta döneminde kayıt olan tüm kullanıcılar: 80+ şablon, Neon efektleri, Ultra HD (4K) yüksek çözünürlük indirme, Instagram/Facebook/A4/16:9 boyutları, neon rozetler, callout ve ikon kütüphanesi ile sınırsız kullanım hakkı kazanır. Ücretsiz.</p></div>
             </div>
             <div class="faq-item">
                 <div class="faq-question" onclick="toggleFaq(this)">Ödeme yapmam gerekiyor mu?<i class="fas fa-chevron-down"></i></div>
@@ -886,14 +1286,22 @@
             entries.forEach(entry => {
                 if (entry.isIntersecting) {
                     entry.target.style.opacity = '1';
-                    entry.target.style.transform = 'translateY(0)';
+                    if (entry.target.classList.contains('featured')) {
+                        entry.target.style.transform = 'scale(1.05)';
+                    } else {
+                        entry.target.style.transform = 'translateY(0)';
+                    }
                 }
             });
         }, observerOptions);
 
         document.querySelectorAll('.feature-card, .step-card, .pricing-card, .testimonial-card, .faq-item').forEach(el => {
             el.style.opacity = '0';
-            el.style.transform = 'translateY(30px)';
+            if (el.classList.contains('featured')) {
+                el.style.transform = 'scale(1.05) translateY(30px)';
+            } else {
+                el.style.transform = 'translateY(30px)';
+            }
             el.style.transition = 'all 0.6s ease';
             observer.observe(el);
         });

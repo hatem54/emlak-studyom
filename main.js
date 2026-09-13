@@ -425,6 +425,8 @@ function applyFinalProjectImage(img, finalDataUrl, finalW, finalH) {
             if (lockToggle) lockToggle.checked = true;
             window.isPhotoLocked = true;
         }
+        const photoLayerEl = document.getElementById('photo-layer');
+        if (photoLayerEl && typeof _preparePhoto === 'function') _preparePhoto(photoLayerEl);
         if (typeof resetPixelCache === 'function') resetPixelCache();
         if (typeof resizeCanvas === 'function') resizeCanvas();
         if (typeof applyPhotoPos === 'function') applyPhotoPos();
@@ -1236,17 +1238,25 @@ function clearAllTemplates(){
     
 
     // 3. Aktif şablon değişkenini sıfırla
-
     if(typeof activeTemplate !== 'undefined') activeTemplate = null;
+    window.activeTemplate = null;
+    activeLayout = '';
+    window.activeLayout = '';
+    window.isCanvaMode = false;
+    if (typeof isCanvaMode !== 'undefined') isCanvaMode = false;
+    if (typeof activeCanvaId !== 'undefined') activeCanvaId = '';
+    window.activeCanvaId = '';
+    window.lastClickedTemplateElement = null;
 
+    const canvaLayer = document.getElementById('canva-render-layer');
+    if (canvaLayer) {
+        canvaLayer.innerHTML = '';
+        canvaLayer.style.display = 'none';
+    }
     
-
     // 4. Tüm şablon butonlarından "active" class'ını kaldır
-
     document.querySelectorAll('.template-btn').forEach(function(b){
-
         b.classList.remove('active');
-
     });
 
     
@@ -1360,28 +1370,56 @@ window.resetActiveTemplateToDefault = function() {
         window.toggleTemplateVisibility(false);
     }
 
-    if (typeof window.showGlobalLoadingOverlay === 'function') {
-        window.showGlobalLoadingOverlay(1200, 'Şablon Sıfırlanıyor...', 'Varsayılan yerleşim ve boyutlar geri yükleniyor...');
+    // 2. Aktif bir şablon olup olmadığını kesin olarak tespit et
+    const canvaLayer = document.getElementById('canva-render-layer');
+    const hasCanvaContent = canvaLayer && canvaLayer.children && canvaLayer.children.length > 0 && canvaLayer.style.display !== 'none';
+    const isCanvaActive = !!((typeof isCanvaMode !== 'undefined' && isCanvaMode) || (typeof activeCanvaId !== 'undefined' && activeCanvaId) || hasCanvaContent || window.activeTemplate || document.getElementById('kolaj-wrapper'));
+
+    const isStdVisible = (
+        (typeof elBadge !== 'undefined' && elBadge && elBadge.style.visibility !== 'hidden' && elBadge.style.display !== 'none') ||
+        (typeof elPrice !== 'undefined' && elPrice && elPrice.style.visibility !== 'hidden' && elPrice.style.display !== 'none') ||
+        (typeof elDetails !== 'undefined' && elDetails && elDetails.style.visibility !== 'hidden' && elDetails.style.display !== 'none')
+    );
+    const hasStandardActive = !!(typeof activeLayout !== 'undefined' && activeLayout && activeLayout !== 'none' && activeLayout !== 'empty' && isStdVisible);
+
+    // 3. EĞER HİÇBİR ŞABLON AKTİF DEĞİLSE (Boş ekran veya sadece fotoğraf/çizim/callout olan ekran):
+    // Kesinlikle otomatik olarak standart 't1' şablonunu AÇMA!
+    if (!isCanvaActive && !hasStandardActive) {
+        if (typeof window.showAppToast === 'function') {
+            window.showAppToast('💡 Tuvalde sıfırlanacak aktif bir şablon bulunmuyor', 'info');
+        } else if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                toast: true,
+                position: 'top-end',
+                icon: 'info',
+                iconColor: '#ffffff',
+                title: '💡 Tuvalde sıfırlanacak aktif bir şablon bulunmuyor',
+                showConfirmButton: false,
+                timer: 2500,
+                background: '#2563eb',
+                color: '#ffffff'
+            });
+        }
+        return;
     }
 
-    // 2. Canva Şablonu Aktif ise
-    if (typeof isCanvaMode !== 'undefined' && isCanvaMode) {
+    // 4. Gerçekten aktif bir şablon varsa konum ve boyutlarını varsayılana getir:
+    if (typeof window.showGlobalLoadingOverlay === 'function') {
+        window.showGlobalLoadingOverlay(1000, 'Şablon Sıfırlanıyor...', 'Varsayılan yerleşim ve boyutlar geri yükleniyor...');
+    }
+
+    // Canva Şablonu Aktif ise
+    if (isCanvaActive) {
         if (typeof refreshActiveCanvaTemplate === 'function') {
             refreshActiveCanvaTemplate();
         } else if (typeof buildCanvaRender === 'function') {
             buildCanvaRender();
         }
     } 
-    // 3. Standart Şablon Aktif ise
-    else if (typeof activeLayout !== 'undefined' && activeLayout && activeLayout !== 'none' && activeLayout !== 'empty') {
+    // Standart Şablon Aktif ise
+    else if (hasStandardActive) {
         if (typeof setTemplate === 'function') {
             setTemplate(activeLayout);
-        }
-    } 
-    // 4. Eğer hiçbir şablon seçili değilse varsayılan t1 şablonunu uygula
-    else {
-        if (typeof setTemplate === 'function') {
-            setTemplate('t1');
         }
     }
 
@@ -1391,16 +1429,19 @@ window.resetActiveTemplateToDefault = function() {
     if (typeof renderLayers === 'function') renderLayers();
     if (typeof window.saveState === 'function') window.saveState();
 
-    if (typeof Swal !== 'undefined') {
+    if (typeof window.showAppToast === 'function') {
+        window.showAppToast('✨ Şablon varsayılana sıfırlandı', 'success');
+    } else if (typeof Swal !== 'undefined') {
         Swal.fire({
             toast: true,
             position: 'top-end',
             icon: 'success',
+            iconColor: '#ffffff',
             title: '✨ Şablon varsayılana sıfırlandı',
             showConfirmButton: false,
-            timer: 1500,
-            background: '#1e293b',
-            color: '#fff'
+            timer: 2000,
+            background: '#2563eb',
+            color: '#ffffff'
         });
     }
 };

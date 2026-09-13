@@ -15,11 +15,13 @@ window.SaberEngine = (function() {
     const defaults = {
         preset: 'fully-lit',
         coreColor: 0xFFFFFF,      // İç renk (beyaz)
-        glowColor: 0x00AAFF,      // Dış parlama (mavi)
-        coreSize: 4,               // İç kalınlık
-        glowSize: 30,              // Dış parlama boyutu
-        intensity: 2.5,            // Parlama şiddeti
-        flickerAmount: 0.05,       // Titreme
+        glowColor: 0x00CEC9,      // Dış parlama (turkuaz/mavi)
+        coreSize: 0,               // İç kalınlık (0 = saf pürüzsüz neon, merkez çizgisi yok)
+        glowSize: 32,              // Dış parlama boyutu
+        intensity: 2.8,            // Parlama şiddeti
+        groundSpill: 0.4,          // Zemin ışığı yayılımı
+        energyNodes: true,         // Işıklı köşe pinleri
+        flickerAmount: 0.02,       // Titreme
         pulseSpeed: 0,             // Nabız hızı (0=kapalı)
         distortionAmount: 0,       // Bozulma
         segments: 50               // Çizgi segmentleri
@@ -135,8 +137,9 @@ window.SaberEngine = (function() {
     function init(canvasContainer) {
         if (app) return; // Zaten başlatılmış
         
-        const w = canvasContainer.offsetWidth || 1920;
-        const h = canvasContainer.offsetHeight || 1080;
+        const dc = document.getElementById('draw-layer') || document.getElementById('drawCanvas');
+        const w = (dc && dc.width) ? dc.width : (canvasContainer.offsetWidth || 1920);
+        const h = (dc && dc.height) ? dc.height : (canvasContainer.offsetHeight || 1080);
         
         app = new PIXI.Application({
             width: w,
@@ -144,8 +147,9 @@ window.SaberEngine = (function() {
             transparent: true,
             backgroundAlpha: 0,
             antialias: true,
-            resolution: window.devicePixelRatio || 1,
-            autoDensity: true
+            resolution: 1,
+            autoDensity: true,
+            preserveDrawingBuffer: true
         });
         
         app.view.style.position = 'absolute';
@@ -154,7 +158,7 @@ window.SaberEngine = (function() {
         app.view.style.width = '100%';
         app.view.style.height = '100%';
         app.view.style.pointerEvents = 'none';
-        app.view.style.zIndex = '40'; // Template layer'larının ve arka planların üzerinde, ui-layer'ın (50) altında
+        app.view.style.zIndex = '55'; // Template layer'larının ve çizimlerin (50) üzerinde
         app.view.id = 'saber-layer';
         
         canvasContainer.appendChild(app.view);
@@ -173,6 +177,59 @@ window.SaberEngine = (function() {
         return app;
     }
     
+    // ═══════════════════════════════════════
+    // 🎨 PATH NOKTALARINI ÇİZ (Düz, Kesikli veya Noktalı)
+    // ═══════════════════════════════════════
+    function renderPathPoints(targetLine, pts, dashStyle) {
+        if (!pts || pts.length === 0) return;
+        if (!dashStyle || dashStyle === 'solid') {
+            targetLine.moveTo(pts[0].x, pts[0].y);
+            for (let i = 1; i < pts.length; i++) {
+                targetLine.lineTo(pts[i].x, pts[i].y);
+            }
+            return;
+        }
+        
+        const isDotted = dashStyle === 'dotted';
+        const dashLen = isDotted ? 6 : 24;
+        const gapLen = isDotted ? 12 : 14;
+        
+        let isDrawing = true;
+        let remaining = dashLen;
+        let curX = pts[0].x;
+        let curY = pts[0].y;
+        targetLine.moveTo(curX, curY);
+        
+        for (let i = 1; i < pts.length; i++) {
+            const targetX = pts[i].x;
+            const targetY = pts[i].y;
+            let segDist = Math.hypot(targetX - curX, targetY - curY);
+            if (segDist < 0.001) continue;
+            
+            const dirX = (targetX - curX) / segDist;
+            const dirY = (targetY - curY) / segDist;
+            
+            while (segDist > 0) {
+                if (segDist <= remaining) {
+                    curX = targetX;
+                    curY = targetY;
+                    if (isDrawing) targetLine.lineTo(curX, curY);
+                    else targetLine.moveTo(curX, curY);
+                    remaining -= segDist;
+                    segDist = 0;
+                } else {
+                    curX += dirX * remaining;
+                    curY += dirY * remaining;
+                    if (isDrawing) targetLine.lineTo(curX, curY);
+                    else targetLine.moveTo(curX, curY);
+                    segDist -= remaining;
+                    isDrawing = !isDrawing;
+                    remaining = isDrawing ? dashLen : gapLen;
+                }
+            }
+        }
+    }
+
     // 🎨 SABER ÇİZGİSİ EKLE
     function drawSaberLine(points, options = {}) {
         if (!app) return null;
@@ -187,48 +244,103 @@ window.SaberEngine = (function() {
         // Rainbow özel bayrağını preset'ten koru
         if (preset.settings.rainbow) opts.rainbow = true;
         
-        // Ana çizgi (core)
+        // Ana çizgi (neon tüp gövdesi + akkor iç çekirdek)
         const line = new PIXI.Graphics();
-        line.lineStyle(opts.coreSize, opts.coreColor, 1);
+
+        // 1. Neon tüp gövdesi (doygun, renkli parlak ana neon tüpü)
+        const coreSizeVal = (opts.coreSize !== undefined && opts.coreSize !== null) ? Number(opts.coreSize) : 0;
+        const tubeThickness = Math.max(2, coreSizeVal + 3);
+        line.lineStyle(tubeThickness, opts.glowColor, 0.95);
+        renderPathPoints(line, points, opts.dashStyle);
+
+        // 2. Akkor iç çekirdek (SADECE kullanıcı akkor çekirdek slider'ını açtıysa çizilir)
+        if (coreSizeVal > 0) {
+            const coreThickness = Math.max(1, Math.round(coreSizeVal * 0.5));
+            const coreAlpha = Math.min(0.65, 0.25 + (coreSizeVal / 30) * 0.4);
+            line.lineStyle(coreThickness, opts.coreColor || opts.glowColor, coreAlpha);
+            renderPathPoints(line, points, opts.dashStyle);
+        }
         
-        if (points.length > 0) {
-            line.moveTo(points[0].x, points[0].y);
-            for (let i = 1; i < points.length; i++) {
-                line.lineTo(points[i].x, points[i].y);
+        // 3. Işıklı Köşe Pinleri (Energy Nodes)
+        // Daire veya serbest çizgide nokta nokta görünmemesi için sadece köşe içeren geometrilerde çizilir
+        const isCurvedOrFree = opts.pathType === 'circle' || opts.pathType === 'free' || opts.shapeType === 'circle' || opts.shapeType === 'free' || opts.isCircle || opts.isFree;
+        if (opts.energyNodes !== false && !isCurvedOrFree && points.length > 2 && (points.length <= 16 || opts.pathType === 'polygon' || opts.pathType === 'rect')) {
+            const pinRadius = Math.max(3, coreSizeVal + 2);
+            for (let i = 0; i < points.length; i++) {
+                line.beginFill(opts.glowColor, 0.9);
+                line.drawCircle(points[i].x, points[i].y, pinRadius);
+                line.endFill();
+                if (coreSizeVal > 0) {
+                    line.beginFill(opts.coreColor || opts.glowColor, 0.7);
+                    line.drawCircle(points[i].x, points[i].y, Math.max(1.5, pinRadius * 0.55));
+                    line.endFill();
+                }
             }
         }
         
-        // Glow filtresi
+        // Glow filtreleri (Zemin Işığı + Ana Neon Parlaması)
         const glowFilter = new PIXI.filters.GlowFilter({
             distance: opts.glowSize,
             outerStrength: opts.intensity,
             innerStrength: 1,
             color: opts.glowColor,
-            quality: 0.5
+            quality: 0.25
         });
         
-        line.filters = [glowFilter];
+        const filters = [glowFilter];
+        let spillFilter = null;
+        const spillRatio = parseFloat(opts.groundSpill !== undefined ? opts.groundSpill : 0.4);
+        if (spillRatio > 0.05) {
+            spillFilter = new PIXI.filters.GlowFilter({
+                distance: Math.round(opts.glowSize * (1.3 + spillRatio * 1.2)),
+                outerStrength: opts.intensity * spillRatio * 0.75,
+                innerStrength: 0,
+                color: opts.glowColor,
+                quality: 0.15
+            });
+            filters.unshift(spillFilter);
+        }
         
-        // Partikül container (fire/sparks için)
+        line.filters = filters;
+        
+        // Partikül container (sadece fire/sparks için filtre bağla)
         const particleContainer = new PIXI.Container();
-        particleContainer.filters = [new PIXI.filters.GlowFilter({
-            distance: opts.glowSize * 0.6,
-            outerStrength: opts.intensity * 0.8,
-            innerStrength: 1,
-            color: opts.glowColor,
-            quality: 0.3
-        })];
+        const presetName = options.preset || 'fully-lit';
+        if (presetName === 'fire' || presetName === 'sparks') {
+            particleContainer.filters = [new PIXI.filters.GlowFilter({
+                distance: opts.glowSize * 0.6,
+                outerStrength: opts.intensity * 0.8,
+                innerStrength: 1,
+                color: opts.glowColor,
+                quality: 0.3
+            })];
+        }
         
-        // Lightning dalları için ayrı container
+        // Lightning dalları için ayrı container (sadece lightning için filtre bağla)
         const branchContainer = new PIXI.Container();
-        branchContainer.filters = [new PIXI.filters.GlowFilter({
-            distance: opts.glowSize * 0.5,
-            outerStrength: opts.intensity,
-            innerStrength: 1,
-            color: opts.glowColor,
-            quality: 0.3
-        })];
+        if (presetName === 'lightning') {
+            branchContainer.filters = [new PIXI.filters.GlowFilter({
+                distance: opts.glowSize * 0.5,
+                outerStrength: opts.intensity,
+                innerStrength: 1,
+                color: opts.glowColor,
+                quality: 0.3
+            })];
+        }
         
+        let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+        if (points && points.length > 0) {
+            for (let i = 0; i < points.length; i++) {
+                const pt = points[i];
+                if (pt.x < minX) minX = pt.x;
+                if (pt.x > maxX) maxX = pt.x;
+                if (pt.y < minY) minY = pt.y;
+                if (pt.y > maxY) maxY = pt.y;
+            }
+        }
+        const centerX = isFinite(minX) ? (minX + maxX) / 2 : 0;
+        const centerY = isFinite(minY) ? (minY + maxY) / 2 : 0;
+
         // Saber verisini sakla (animasyon için)
         const saberData = {
             graphics: line,
@@ -241,7 +353,14 @@ window.SaberEngine = (function() {
             time: 0,
             baseIntensity: opts.intensity,
             filter: glowFilter,
-            presetName: options.preset || 'fully-lit'
+            spillFilter: spillFilter,
+            presetName: options.preset || 'fully-lit',
+            centerX: centerX,
+            centerY: centerY,
+            rotation: 0,
+            scale: 1,
+            dx: 0,
+            dy: 0
         };
         
         sabers.push(saberData);
@@ -256,6 +375,42 @@ window.SaberEngine = (function() {
     function animate(delta) {
         if (typeof updateTextSaberPositions === 'function') updateTextSaberPositions();
         
+        // Animasyon toggle'ı kapalıysa kesinlikle hareket/titreme yapma! (Video export istisnası)
+        const isAnimActive = (typeof window !== 'undefined' && window.isExportingVideo) || ((typeof window.isSaberAnimationActive === 'function')
+            ? window.isSaberAnimationActive()
+            : document.body.classList.contains('saber-animation-active'));
+
+        if (!isAnimActive) {
+            // Animasyon kapalı: Çizimi sabit parlaklıkta ve hareketsiz tut
+            sabers.forEach(saber => {
+                if (saber.filter) saber.filter.outerStrength = saber.baseIntensity;
+                if (saber.spillFilter) {
+                    const sp = parseFloat(saber.options?.groundSpill !== undefined ? saber.options.groundSpill : 0.4);
+                    saber.spillFilter.outerStrength = saber.baseIntensity * sp * 0.75;
+                }
+                if (saber.particles && saber.particles.length > 0) {
+                    saber.particles.forEach(p => {
+                        const s = p.sprite || p;
+                        if (s && s.parent) s.parent.removeChild(s);
+                        if (s && s.destroy) s.destroy();
+                    });
+                    saber.particles = [];
+                }
+                if (saber.branches && saber.branches.length > 0) {
+                    saber.branches.forEach(b => {
+                        const s = b.sprite || b;
+                        if (s && s.parent) s.parent.removeChild(s);
+                        if (s && s.destroy) s.destroy();
+                    });
+                    saber.branches = [];
+                }
+                if (saber._wasDistorted) {
+                    redrawWithDistortion(saber, 0);
+                    saber._wasDistorted = false;
+                }
+            });
+            return;
+        }
         
         sabers.forEach(saber => {
             saber.time += delta * 0.05;
@@ -265,13 +420,21 @@ window.SaberEngine = (function() {
             // ═══ FLICKER (titreme) ═══
             if (opts.flickerAmount > 0 && !opts.pulseSpeed) {
                 const flicker = 1 + (Math.random() - 0.5) * opts.flickerAmount;
-                saber.filter.outerStrength = saber.baseIntensity * flicker;
+                if (saber.filter) saber.filter.outerStrength = saber.baseIntensity * flicker;
+                if (saber.spillFilter) {
+                    const sp = parseFloat(opts.groundSpill !== undefined ? opts.groundSpill : 0.4);
+                    saber.spillFilter.outerStrength = saber.baseIntensity * sp * 0.75 * flicker;
+                }
             }
             
             // ═══ PULSE (nabız) ═══
             if (opts.pulseSpeed > 0 && preset !== 'fire') {
                 const pulse = 1 + Math.sin(saber.time * opts.pulseSpeed) * 0.3;
-                saber.filter.outerStrength = saber.baseIntensity * pulse;
+                if (saber.filter) saber.filter.outerStrength = saber.baseIntensity * pulse;
+                if (saber.spillFilter) {
+                    const sp = parseFloat(opts.groundSpill !== undefined ? opts.groundSpill : 0.4);
+                    saber.spillFilter.outerStrength = saber.baseIntensity * sp * 0.75 * pulse;
+                }
             }
             
             // ═══ RAINBOW (renk geçişi) ═══
@@ -279,7 +442,8 @@ window.SaberEngine = (function() {
                 const hue = (saber.time * 20) % 360;
                 const rgb = hslToRgb(hue / 360, 1, 0.5);
                 const color = (rgb[0] << 16) | (rgb[1] << 8) | rgb[2];
-                saber.filter.color = color;
+                if (saber.filter) saber.filter.color = color;
+                if (saber.spillFilter) saber.spillFilter.color = color;
             }
             
             // ═══ PRESET'E ÖZEL EFEKTLER ═══
@@ -306,17 +470,7 @@ window.SaberEngine = (function() {
                 
                 // Ana çizgide hafif titreşim (electric'ten daha yumuşak)
                 if (Math.random() < 0.25 && saber.graphics && saber.points) {
-                    const line = saber.graphics;
-                    const points = saber.points;
-                    line.clear();
-                    line.lineStyle(saber.options.coreSize, saber.options.coreColor, 1);
-                    if (points.length > 0) {
-                        line.moveTo(points[0].x, points[0].y);
-                        for (let i = 1; i < points.length; i++) {
-                            const offset = (Math.random() - 0.5) * 3;
-                            line.lineTo(points[i].x, points[i].y + offset);
-                        }
-                    }
+                    redrawWithDistortion(saber, 3);
                 }
                 
                 // Küçük enerji parçacıkları (nadir, ince)
@@ -365,9 +519,13 @@ window.SaberEngine = (function() {
                 }
             }
 
-            // ⚡ ELECTRIC - Klasik titreme (mevcut)
-            else if (preset === 'electric' && opts.distortionAmount > 0 && Math.random() < 0.4) {
-                redrawWithDistortion(saber);
+            // ⚡ ELECTRIC - Titreşen elektrik arkı
+            else if (preset === 'electric') {
+                if (Math.random() < 0.55) {
+                    redrawWithDistortion(saber);
+                } else if (Math.random() < 0.25) {
+                    redrawWithDistortion(saber, 1.5);
+                }
             }
             // 🌊 SINE - Dalga hareketi
             else if (preset === 'sine') {
@@ -387,8 +545,17 @@ window.SaberEngine = (function() {
     // ═══════════════════════════════════════
     // 🔮 YARDIMCI: Hem çizgi hem metin için rastgele nokta üret
     function getRandomPoint(saber) {
-        if (saber.points && saber.points.length > 0) {
-            return saber.points[Math.floor(Math.random() * saber.points.length)];
+        if (saber.points && saber.points.length >= 2) {
+            const segIdx = Math.floor(Math.random() * (saber.points.length - 1));
+            const p1 = saber.points[segIdx];
+            const p2 = saber.points[segIdx + 1];
+            const t = Math.random();
+            return {
+                x: p1.x + (p2.x - p1.x) * t,
+                y: p1.y + (p2.y - p1.y) * t
+            };
+        } else if (saber.points && saber.points.length === 1) {
+            return saber.points[0];
         } else if (saber.pixiText) {
             const p = saber.pixiText.style.padding || 0;
             return {
@@ -541,50 +708,72 @@ window.SaberEngine = (function() {
     // ═══════════════════════════════════════
     function animateLightning(saber) {
         // Delice titreme
-        const flicker = 0.4 + Math.random() * 1.2;
-        saber.filter.outerStrength = saber.baseIntensity * flicker;
+        const flicker = 0.5 + Math.random() * 0.9;
+        if (saber.filter) saber.filter.outerStrength = saber.baseIntensity * flicker;
+        if (saber.spillFilter) {
+            const sp = parseFloat(saber.options?.groundSpill !== undefined ? saber.options.groundSpill : 0.4);
+            saber.spillFilter.outerStrength = saber.baseIntensity * sp * 0.75 * flicker;
+        }
         
-        // Ana çizgide sürekli bozulma
-        if (Math.random() < 0.7) redrawWithDistortion(saber);
+        // Ana çizgide sürekli elektrik bozulması (yoğun ark)
+        if (Math.random() < 0.75) {
+            redrawWithDistortion(saber);
+        }
         
-        // Eski dalları temizle
-        saber.branches.forEach(b => {
-            saber.branchContainer.removeChild(b);
-            b.destroy();
-        });
-        saber.branches = [];
+        // Dallar için filtre güvencesi
+        if (saber.branchContainer && (!saber.branchContainer.filters || saber.branchContainer.filters.length === 0)) {
+            saber.branchContainer.filters = [new PIXI.filters.GlowFilter({
+                distance: (saber.options?.glowSize || 25) * 0.5,
+                outerStrength: saber.options?.intensity || 3,
+                innerStrength: 1,
+                color: saber.options?.glowColor || 0xBB88FF,
+                quality: 0.25
+            })];
+        }
         
-        // Yeni dallar - çok yoğun
-        if (Math.random() < 0.35) {
-            const points = saber.points;
+        // Mevcut dalların ömrünü azalt ve bitenleri sil
+        for (let i = saber.branches.length - 1; i >= 0; i--) {
+            const b = saber.branches[i];
+            const sprite = b.sprite || b;
+            b.life = (b.life !== undefined) ? b.life - 1 : 0;
+            if (b.life <= 0) {
+                if (sprite.parent) sprite.parent.removeChild(sprite);
+                if (sprite.destroy) sprite.destroy();
+                saber.branches.splice(i, 1);
+            } else {
+                sprite.alpha = b.life / (b.maxLife || 4);
+            }
+        }
+        
+        // Yeni yıldırım dalları üret (aynı anda ekranda 2-5 dal canlı kalsın)
+        if (saber.branches.length < 5 && Math.random() < 0.65) {
             const branchCount = 1 + Math.floor(Math.random() * 2);
-            
             for (let b = 0; b < branchCount; b++) {
                 const basePoint = getRandomPoint(saber);
                 if (!basePoint) continue;
                 
                 const branch = new PIXI.Graphics();
-                const thickness = 1 + Math.random() * 2;
+                const thickness = 1.5 + Math.random() * 2;
                 branch.lineStyle(thickness, 0xFFFFFF, 0.95);
                 branch.moveTo(basePoint.x, basePoint.y);
                 
                 let x = basePoint.x;
                 let y = basePoint.y;
                 const angle = Math.random() * Math.PI * 2;
-                const length = 30 + Math.random() * 100;
-                const segments = 5 + Math.floor(Math.random() * 6);
+                const length = 25 + Math.random() * 80;
+                const segments = 4 + Math.floor(Math.random() * 5);
                 
                 for (let i = 0; i < segments; i++) {
                     const segLen = length / segments;
-                    x += Math.cos(angle + (Math.random() - 0.5) * 2) * segLen;
-                    y += Math.sin(angle + (Math.random() - 0.5) * 2) * segLen;
+                    x += Math.cos(angle + (Math.random() - 0.5) * 1.8) * segLen;
+                    y += Math.sin(angle + (Math.random() - 0.5) * 1.8) * segLen;
                     branch.lineTo(x, y);
                 }
                 
                 // Alt dallar (küçük çatallar)
                 if (Math.random() < 0.5) {
                     const subAngle = angle + (Math.random() - 0.5) * 2;
-                    const subLen = 15 + Math.random() * 30;
+                    const subLen = 12 + Math.random() * 25;
                     const subX = x + Math.cos(subAngle) * subLen;
                     const subY = y + Math.sin(subAngle) * subLen;
                     branch.moveTo(x, y);
@@ -592,7 +781,12 @@ window.SaberEngine = (function() {
                 }
                 
                 saber.branchContainer.addChild(branch);
-                saber.branches.push(branch);
+                const lifeSpan = 3 + Math.floor(Math.random() * 3);
+                saber.branches.push({
+                    sprite: branch,
+                    life: lifeSpan,
+                    maxLife: lifeSpan
+                });
             }
         }
     }
@@ -607,15 +801,34 @@ window.SaberEngine = (function() {
         const t = saber.time;
         
         line.clear();
-        line.lineStyle(saber.options.coreSize, saber.options.coreColor, 1);
+        const coreVal = (saber.options.coreSize !== undefined && saber.options.coreSize !== null) ? Number(saber.options.coreSize) : 0;
+        const tubeThick = Math.max(2, coreVal + 3);
+        line.lineStyle(tubeThick, saber.options.glowColor, 0.95);
         
-        if (points.length > 0) {
+        const isClosed = points.length > 2 && Math.hypot(points[0].x - points[points.length - 1].x, points[0].y - points[points.length - 1].y) < 3;
+        const len = points.length;
+        
+        if (len > 0) {
             line.moveTo(points[0].x, points[0].y);
-            for (let i = 1; i < points.length; i++) {
-                // Belirgin sinüs dalgası
-                const wave = Math.sin(t * 4 + i * 0.5) * 12;
-                const wave2 = Math.cos(t * 2 + i * 0.3) * 4;
+            for (let i = 1; i < len; i++) {
+                const phase = isClosed ? ((i / (len - 1)) * Math.PI * 2 * 4) : (i * 0.5);
+                const wave = Math.sin(t * 4 + phase) * 10;
+                const wave2 = Math.cos(t * 2 + phase * 0.6) * 3;
                 line.lineTo(points[i].x + wave2, points[i].y + wave);
+            }
+        }
+        if (coreVal > 0) {
+            const coreThick = Math.max(1, Math.round(coreVal * 0.5));
+            const coreAlpha = Math.min(0.65, 0.25 + (coreVal / 30) * 0.4);
+            line.lineStyle(coreThick, saber.options.coreColor || saber.options.glowColor, coreAlpha);
+            if (len > 0) {
+                line.moveTo(points[0].x, points[0].y);
+                for (let i = 1; i < len; i++) {
+                    const phase = isClosed ? ((i / (len - 1)) * Math.PI * 2 * 4) : (i * 0.5);
+                    const wave = Math.sin(t * 4 + phase) * 10;
+                    const wave2 = Math.cos(t * 2 + phase * 0.6) * 3;
+                    line.lineTo(points[i].x + wave2, points[i].y + wave);
+                }
             }
         }
     }
@@ -629,12 +842,32 @@ window.SaberEngine = (function() {
             const line = saber.graphics;
             const points = saber.points;
             line.clear();
-            line.lineStyle(saber.options.coreSize, saber.options.coreColor, 1);
-            if (points.length > 0) {
+            const coreVal = (saber.options.coreSize !== undefined && saber.options.coreSize !== null) ? Number(saber.options.coreSize) : 0;
+            const tubeThick = Math.max(2, coreVal + 3);
+            line.lineStyle(tubeThick, saber.options.glowColor, 0.95);
+            
+            const isClosed = points.length > 2 && Math.hypot(points[0].x - points[points.length - 1].x, points[0].y - points[points.length - 1].y) < 3;
+            const len = points.length;
+            
+            if (len > 0) {
                 line.moveTo(points[0].x, points[0].y);
-                for (let i = 1; i < points.length; i++) {
-                    const wave = Math.sin(t * 3 - i * 0.2) * 6;
+                for (let i = 1; i < len; i++) {
+                    const phase = isClosed ? ((i / (len - 1)) * Math.PI * 2 * 3) : (i * 0.2);
+                    const wave = Math.sin(t * 3 - phase) * 6;
                     line.lineTo(points[i].x + Math.sin(t*2)*wave, points[i].y + Math.cos(t*2)*wave);
+                }
+            }
+            if (coreVal > 0) {
+                const coreThick = Math.max(1, Math.round(coreVal * 0.5));
+                const coreAlpha = Math.min(0.65, 0.25 + (coreVal / 30) * 0.4);
+                line.lineStyle(coreThick, saber.options.coreColor || saber.options.glowColor, coreAlpha);
+                if (len > 0) {
+                    line.moveTo(points[0].x, points[0].y);
+                    for (let i = 1; i < len; i++) {
+                        const phase = isClosed ? ((i / (len - 1)) * Math.PI * 2 * 3) : (i * 0.2);
+                        const wave = Math.sin(t * 3 - phase) * 6;
+                        line.lineTo(points[i].x + Math.sin(t*2)*wave, points[i].y + Math.cos(t*2)*wave);
+                    }
                 }
             }
         }
@@ -691,14 +924,36 @@ window.SaberEngine = (function() {
             const line = saber.graphics;
             const points = saber.points;
             line.clear();
-            line.lineStyle(saber.options.coreSize, saber.options.coreColor, 1);
-            if (points.length > 0) {
+            const coreVal = (saber.options.coreSize !== undefined && saber.options.coreSize !== null) ? Number(saber.options.coreSize) : 0;
+            const tubeThick = Math.max(2, coreVal + 3);
+            line.lineStyle(tubeThick, saber.options.glowColor, 0.95);
+            
+            const isClosed = points.length > 2 && Math.hypot(points[0].x - points[points.length - 1].x, points[0].y - points[points.length - 1].y) < 3;
+            const len = points.length;
+            
+            if (len > 0) {
                 line.moveTo(points[0].x, points[0].y);
-                for (let i = 1; i < points.length; i++) {
-                    const w1 = Math.sin(t * 1.2 + i * 0.15) * 5;
-                    const w2 = Math.cos(t * 0.7 + i * 0.1) * 3;
-                    const w3 = Math.sin(t * 0.4 + i * 0.05) * 2;
+                for (let i = 1; i < len; i++) {
+                    const phase = isClosed ? ((i / (len - 1)) * Math.PI * 2 * 2) : (i * 0.15);
+                    const w1 = Math.sin(t * 1.2 + phase) * 5;
+                    const w2 = Math.cos(t * 0.7 + phase * 0.7) * 3;
+                    const w3 = Math.sin(t * 0.4 + phase * 0.3) * 2;
                     line.lineTo(points[i].x + w2 + w3, points[i].y + w1 + w3);
+                }
+            }
+            if (coreVal > 0) {
+                const coreThick = Math.max(1, Math.round(coreVal * 0.5));
+                const coreAlpha = Math.min(0.65, 0.25 + (coreVal / 30) * 0.4);
+                line.lineStyle(coreThick, saber.options.coreColor || saber.options.glowColor, coreAlpha);
+                if (len > 0) {
+                    line.moveTo(points[0].x, points[0].y);
+                    for (let i = 1; i < len; i++) {
+                        const phase = isClosed ? ((i / (len - 1)) * Math.PI * 2 * 2) : (i * 0.15);
+                        const w1 = Math.sin(t * 1.2 + phase) * 5;
+                        const w2 = Math.cos(t * 0.7 + phase * 0.7) * 3;
+                        const w3 = Math.sin(t * 0.4 + phase * 0.3) * 2;
+                        line.lineTo(points[i].x + w2 + w3, points[i].y + w1 + w3);
+                    }
                 }
             }
         }
@@ -743,24 +998,69 @@ window.SaberEngine = (function() {
         }
     }
     
-    // ⚡ ELECTRIC/LIGHTNING için titreşimli yeniden çizim
-    function redrawWithDistortion(saber) {
+    // ⚡ ELECTRIC/LIGHTNING/ENERGIZE için titreşimli yeniden çizim
+    function redrawWithDistortion(saber, forcedAmount) {
         if (!saber.graphics || !saber.points) return;
         const line = saber.graphics;
         const points = saber.points;
-        const amount = saber.options.distortionAmount;
+        const opts = saber.options || {};
+        const amount = (forcedAmount !== undefined) ? forcedAmount : (opts.distortionAmount || 8);
         
-        line.clear();
-        line.lineStyle(saber.options.coreSize, saber.options.coreColor, 1);
+        const coreSizeVal = (opts.coreSize !== undefined && opts.coreSize !== null) ? Number(opts.coreSize) : 0;
+        const tubeThickness = Math.max(2, coreSizeVal + 3);
         
-        if (points.length > 0) {
-            line.moveTo(points[0].x, points[0].y);
-            for (let i = 1; i < points.length; i++) {
-                const offsetX = (Math.random() - 0.5) * amount;
-                const offsetY = (Math.random() - 0.5) * amount;
-                line.lineTo(points[i].x + offsetX, points[i].y + offsetY);
+        // Kapalı geometri kontrolü (daire, dikdörtgen, kapalı poligon)
+        const isClosed = points.length > 2 && Math.hypot(points[0].x - points[points.length - 1].x, points[0].y - points[points.length - 1].y) < 3;
+        
+        // Noktaları bozulma miktarına göre sars
+        const distorted = [];
+        if (amount <= 0) {
+            for (let i = 0; i < points.length; i++) {
+                distorted.push({ x: points[i].x, y: points[i].y });
+            }
+        } else {
+            for (let i = 0; i < points.length; i++) {
+                if (i === points.length - 1 && isClosed && distorted.length > 0) {
+                    distorted.push({ x: distorted[0].x, y: distorted[0].y });
+                } else {
+                    const ox = (Math.random() - 0.5) * amount;
+                    const oy = (Math.random() - 0.5) * amount;
+                    distorted.push({ x: points[i].x + ox, y: points[i].y + oy });
+                }
             }
         }
+        
+        line.clear();
+        
+        // 1. Neon tüp gövdesi (doygun, renkli parlak ana neon tüpü)
+        line.lineStyle(tubeThickness, opts.glowColor, 0.95);
+        renderPathPoints(line, distorted, opts.dashStyle);
+        
+        // 2. Akkor iç çekirdek (SADECE coreSize > 0 ise)
+        if (coreSizeVal > 0) {
+            const coreThickness = Math.max(1, Math.round(coreSizeVal * 0.5));
+            const coreAlpha = Math.min(0.65, 0.25 + (coreSizeVal / 30) * 0.4);
+            line.lineStyle(coreThickness, opts.coreColor || opts.glowColor, coreAlpha);
+            renderPathPoints(line, distorted, opts.dashStyle);
+        }
+        
+        // 3. Işıklı Köşe Pinleri (Energy Nodes)
+        const isCurvedOrFree = opts.pathType === 'circle' || opts.pathType === 'free' || opts.shapeType === 'circle' || opts.shapeType === 'free' || opts.isCircle || opts.isFree;
+        if (opts.energyNodes !== false && !isCurvedOrFree && distorted.length > 2 && (distorted.length <= 16 || opts.pathType === 'polygon' || opts.pathType === 'rect')) {
+            const pinRadius = Math.max(3, coreSizeVal + 2);
+            for (let i = 0; i < distorted.length; i++) {
+                line.beginFill(opts.glowColor, 0.9);
+                line.drawCircle(distorted[i].x, distorted[i].y, pinRadius);
+                line.endFill();
+                if (coreSizeVal > 0) {
+                    line.beginFill(opts.coreColor || opts.glowColor, 0.7);
+                    line.drawCircle(distorted[i].x, distorted[i].y, Math.max(1.5, pinRadius * 0.55));
+                    line.endFill();
+                }
+            }
+        }
+        
+        saber._wasDistorted = (amount > 0);
     }
     
     // 🧹 TÜM SABER'LARI TEMİZLE
@@ -805,39 +1105,64 @@ window.SaberEngine = (function() {
     // ═══════════════════════════════════════
     function resize(w, h) {
         if (!w || !h) {
-            const canvasContainer = document.getElementById('canvas-container');
-            if (canvasContainer) {
-                w = canvasContainer.offsetWidth || parseInt(canvasContainer.style.width) || 1920;
-                h = canvasContainer.offsetHeight || parseInt(canvasContainer.style.height) || 1080;
+            const dc = document.getElementById('draw-layer') || document.getElementById('drawCanvas');
+            if (dc && dc.width && dc.height) {
+                w = dc.width;
+                h = dc.height;
             } else {
-                w = 1920;
-                h = 1080;
+                const canvasContainer = document.getElementById('canvas-container');
+                if (canvasContainer) {
+                    w = canvasContainer.offsetWidth || parseInt(canvasContainer.style.width) || 1920;
+                    h = canvasContainer.offsetHeight || parseInt(canvasContainer.style.height) || 1080;
+                } else {
+                    w = 1920;
+                    h = 1080;
+                }
             }
         }
         if (app && app.renderer) {
-            app.renderer.resize(w, h);
+            if (app.renderer.width !== w || app.renderer.height !== h) {
+                app.renderer.resize(w, h);
+            }
         }
     }
 
     // ═══════════════════════════════════════
     // 🎯 INDIVIDUAL SABER TRANSFORM
     // ═══════════════════════════════════════
-    function setSaberTransform(saber, scale, dx, dy) {
+    function setSaberTransform(saber, scale = 1, dx = 0, dy = 0, autoRender = true, rotationDeg = 0, pivotX = null, pivotY = null) {
         if (!saber) return;
-        if (saber.graphics) {
-            saber.graphics.x = dx;
-            saber.graphics.y = dy;
-            saber.graphics.scale.set(scale);
+        
+        const cx = (pivotX !== null && pivotX !== undefined) ? pivotX : (saber.centerX || 0);
+        const cy = (pivotY !== null && pivotY !== undefined) ? pivotY : (saber.centerY || 0);
+        const rotRad = (rotationDeg || 0) * Math.PI / 180;
+        const s = (scale !== undefined && scale !== null) ? scale : 1;
+        
+        saber.rotation = rotationDeg || 0;
+        saber.dx = dx || 0;
+        saber.dy = dy || 0;
+        saber.scale = s;
+        if (pivotX !== null && pivotX !== undefined) saber.centerX = pivotX;
+        if (pivotY !== null && pivotY !== undefined) saber.centerY = pivotY;
+
+        const targets = [saber.graphics, saber.particleContainer, saber.branchContainer];
+        for (let i = 0; i < targets.length; i++) {
+            const obj = targets[i];
+            if (!obj) continue;
+            
+            if (rotRad !== 0 || cx !== 0 || cy !== 0) {
+                obj.pivot.set(cx, cy);
+                obj.position.set(cx + (dx || 0), cy + (dy || 0));
+            } else {
+                obj.pivot.set(0, 0);
+                obj.position.set(dx || 0, dy || 0);
+            }
+            obj.rotation = rotRad;
+            obj.scale.set(s);
         }
-        if (saber.particleContainer) {
-            saber.particleContainer.x = dx;
-            saber.particleContainer.y = dy;
-            saber.particleContainer.scale.set(scale);
-        }
-        if (saber.branchContainer) {
-            saber.branchContainer.x = dx;
-            saber.branchContainer.y = dy;
-            saber.branchContainer.scale.set(scale);
+
+        if (autoRender && app && app.renderer && app.stage && (!app.ticker || !app.ticker.started)) {
+            try { app.renderer.render(app.stage); } catch(e) {}
         }
     }
 
@@ -1022,6 +1347,7 @@ window.SaberEngine = (function() {
 
     function updateTextSaberPositions() {
         if (!app || !app.textContainer) return;
+        if (!app.textObjects || Object.keys(app.textObjects).length === 0) return;
         const container = document.getElementById('canvas-container');
         if (container && app.renderer) {
             const currentW = container.offsetWidth || 1920;
@@ -1057,6 +1383,80 @@ window.SaberEngine = (function() {
         }
     }
 
+    // ═══════════════════════════════════════
+    // ⚡ SLIDER CANLI GÜNCELLEME (In-Place Fast Update)
+    // Sürükleme anında WebGL filtrelerini sıfırdan yaratmak yerine
+    // sadece uniform değerlerini ve kaliteyi günceller (120 FPS akıcılık)
+    // ═══════════════════════════════════════
+    function updateSaberParameters(saber, newOptions = {}, isSliding = false) {
+        if (!saber) return;
+        const opts = Object.assign(saber.options || {}, newOptions);
+        
+        // 1. Kalite yönetimi: Kaydırma anında GPU yükünü düşür (0.1 / 0.08), bırakınca tam kalite (0.25 / 0.15)
+        const targetGlowQuality = isSliding ? 0.1 : 0.25;
+        const targetSpillQuality = isSliding ? 0.08 : 0.15;
+        
+        if (saber.filter) {
+            if (saber.filter.quality !== targetGlowQuality) saber.filter.quality = targetGlowQuality;
+            if (opts.glowSize !== undefined) saber.filter.distance = opts.glowSize;
+            if (opts.intensity !== undefined) {
+                saber.baseIntensity = opts.intensity;
+                saber.filter.outerStrength = opts.intensity;
+            }
+            if (opts.glowColor !== undefined) saber.filter.color = opts.glowColor;
+        }
+        
+        if (saber.spillFilter) {
+            if (saber.spillFilter.quality !== targetSpillQuality) saber.spillFilter.quality = targetSpillQuality;
+            if (opts.glowSize !== undefined) saber.spillFilter.distance = opts.glowSize * 2.5;
+            if (opts.intensity !== undefined || opts.groundSpill !== undefined) {
+                const sp = parseFloat(opts.groundSpill !== undefined ? opts.groundSpill : 0.4);
+                saber.spillFilter.outerStrength = (saber.baseIntensity || 2.5) * sp * 0.75;
+            }
+            if (opts.glowColor !== undefined) saber.spillFilter.color = opts.glowColor;
+        }
+        
+        // 2. Çizgi geometrisi güncellemesi (coreSize veya renk değişimi için)
+        if (saber.graphics && saber.points) {
+            const line = saber.graphics;
+            const points = saber.points;
+            const coreSizeVal = (opts.coreSize !== undefined && opts.coreSize !== null) ? Number(opts.coreSize) : 0;
+            const tubeThickness = Math.max(2, coreSizeVal + 3);
+            
+            line.clear();
+            line.lineStyle(tubeThickness, opts.glowColor, 0.95);
+            renderPathPoints(line, points, opts.dashStyle);
+            
+            if (coreSizeVal > 0) {
+                const coreThickness = Math.max(1, Math.round(coreSizeVal * 0.5));
+                const coreAlpha = Math.min(0.65, 0.25 + (coreSizeVal / 30) * 0.4);
+                line.lineStyle(coreThickness, opts.coreColor || opts.glowColor, coreAlpha);
+                renderPathPoints(line, points, opts.dashStyle);
+            }
+            
+            // Energy nodes (Işıklı Köşe Pinleri)
+            const isCurvedOrFree = opts.pathType === 'circle' || opts.pathType === 'free' || opts.shapeType === 'circle' || opts.shapeType === 'free' || opts.isCircle || opts.isFree;
+            if (opts.energyNodes !== false && !isCurvedOrFree && points.length > 2 && (points.length <= 16 || opts.pathType === 'polygon' || opts.pathType === 'rect')) {
+                const pinRadius = Math.max(3, coreSizeVal + 2);
+                for (let i = 0; i < points.length; i++) {
+                    line.beginFill(opts.glowColor, 0.9);
+                    line.drawCircle(points[i].x, points[i].y, pinRadius);
+                    line.endFill();
+                    if (coreSizeVal > 0) {
+                        line.beginFill(opts.coreColor || opts.glowColor, 0.7);
+                        line.drawCircle(points[i].x, points[i].y, Math.max(1.5, pinRadius * 0.55));
+                        line.endFill();
+                    }
+                }
+            }
+        }
+        
+        // Animasyon çalışmıyorsa tuvali tek kare render et
+        if (app && app.renderer && app.stage && (!app.ticker || !app.ticker.started)) {
+            try { app.renderer.render(app.stage); } catch(e) {}
+        }
+    }
+
     return {
         init: init,
         resize: resize,
@@ -1064,6 +1464,7 @@ window.SaberEngine = (function() {
         removeTextSaber: removeTextSaber,
         updateTextSaberPositions: updateTextSaberPositions,
         drawSaberLine: drawSaberLine,
+        updateSaberParameters: updateSaberParameters,
         clear: clear,
         presets: presets,
         colorPresets: colorPresets,
@@ -1102,7 +1503,14 @@ window.applySaberToPath = function(pathIndex, saberOptions) {
     // Path tipine göre noktalar
     let points = [];
     if (path.type === 'free' || path.type === 'polygon') {
-        points = path.points || [];
+        points = path.points ? path.points.slice() : [];
+        if (path.type === 'polygon' && points.length > 2) {
+            const first = points[0];
+            const last = points[points.length - 1];
+            if (Math.hypot(first.x - last.x, first.y - last.y) > 2) {
+                points.push({ x: first.x, y: first.y });
+            }
+        }
     } else if (path.type === 'line') {
         points = [{x: path.x1, y: path.y1}, {x: path.x2, y: path.y2}];
     } else if (path.type === 'arrow') {
@@ -1116,18 +1524,31 @@ window.applySaberToPath = function(pathIndex, saberOptions) {
             {x: path.x2, y: path.y2}
         ];
     } else if (path.type === 'rect') {
-        points = [
-            {x: path.x1, y: path.y1}, {x: path.x2, y: path.y1},
-            {x: path.x2, y: path.y2}, {x: path.x1, y: path.y2},
-            {x: path.x1, y: path.y1}
-        ];
+        if (path.points && path.points.length >= 4) {
+            points = path.points.slice();
+            const first = points[0];
+            const last = points[points.length - 1];
+            if (Math.hypot(first.x - last.x, first.y - last.y) > 2) {
+                points.push({ x: first.x, y: first.y });
+            }
+        } else {
+            const minX = Math.min(path.x1, path.x2);
+            const maxX = Math.max(path.x1, path.x2);
+            const minY = Math.min(path.y1, path.y2);
+            const maxY = Math.max(path.y1, path.y2);
+            points = [
+                {x: minX, y: minY}, {x: maxX, y: minY},
+                {x: maxX, y: maxY}, {x: minX, y: maxY},
+                {x: minX, y: minY}
+            ];
+        }
     } else if (path.type === 'circle') {
         const cx = (path.x1 + path.x2) / 2;
         const cy = (path.y1 + path.y2) / 2;
         const rx = Math.abs(path.x2 - path.x1) / 2;
         const ry = Math.abs(path.y2 - path.y1) / 2;
-        for (let i = 0; i <= 40; i++) {
-            const angle = (i / 40) * Math.PI * 2;
+        for (let i = 0; i <= 64; i++) {
+            const angle = (i / 64) * Math.PI * 2;
             points.push({x: cx + Math.cos(angle) * rx, y: cy + Math.sin(angle) * ry});
         }
     }
@@ -1138,11 +1559,85 @@ window.applySaberToPath = function(pathIndex, saberOptions) {
         SaberEngine.init(document.getElementById('canvas-container'));
     }
     
-    const saberObj = SaberEngine.drawSaberLine(points, saberOptions);
+    const app = SaberEngine.getApp();
+    const isAnimActive = (typeof window.isSaberAnimationActive === 'function')
+        ? window.isSaberAnimationActive()
+        : document.body.classList.contains('saber-animation-active');
+
+    if (app && app.ticker) {
+        if (isAnimActive && !app.ticker.started) {
+            app.ticker.start();
+        } else if (!isAnimActive && app.ticker.started) {
+            app.ticker.stop();
+        }
+    }
+    
+    const dc = document.getElementById('draw-layer') || document.getElementById('drawCanvas');
+    if (dc && app && app.renderer) {
+        const targetW = dc.width || 1920;
+        const targetH = dc.height || 1080;
+        if (app.renderer.width !== targetW || app.renderer.height !== targetH) {
+            SaberEngine.resize(targetW, targetH);
+        }
+    }
+    
+    const effectiveOptions = Object.assign({}, saberOptions);
+    effectiveOptions.pathType = path.type;
+    effectiveOptions.dashStyle = path.dashStyle || 'solid';
+    if (path.type === 'circle' || path.type === 'free') {
+        effectiveOptions.energyNodes = false;
+    }
+    const saberObj = SaberEngine.drawSaberLine(points, effectiveOptions);
     if (saberObj) {
         path.saberRef = saberObj;
         path.hasSaber = true;
         path.saberOptions = saberOptions;
+        
+        // Element rotasyonu ve merkezini belirle
+        const rot = (path.rotation !== undefined) 
+            ? path.rotation 
+            : (path.el && path.el.dataset.rotation ? parseFloat(path.el.dataset.rotation) : 0);
+        path.rotation = rot;
+
+        const curScale = (path.scale !== undefined)
+            ? path.scale
+            : (path.el && path.el.dataset.scale ? parseFloat(path.el.dataset.scale) : 1);
+
+        let cx = saberObj.centerX;
+        let cy = saberObj.centerY;
+        if (path.el) {
+            const baseL = parseFloat(path.el.dataset.baseLeft !== undefined ? path.el.dataset.baseLeft : path.el.style.left) || 0;
+            const baseT = parseFloat(path.el.dataset.baseTop !== undefined ? path.el.dataset.baseTop : path.el.style.top) || 0;
+            const baseW = parseFloat(path.el.dataset.baseWidth) || path.el.offsetWidth || 0;
+            const baseH = parseFloat(path.el.dataset.baseHeight) || path.el.offsetHeight || 0;
+            if (baseW > 0 && baseH > 0) {
+                cx = baseL + baseW / 2;
+                cy = baseT + baseH / 2;
+            }
+        }
+
+        // Fotoğraf halihazırda hareket ettirilmişse transformu hemen ver!
+        let tScale = curScale;
+        let tDx = 0;
+        let tDy = 0;
+        if (path.photoRef && typeof window.getCurrentPhotoState === 'function' && typeof window.calculateTransformParams === 'function') {
+            const currObj = window.getCurrentPhotoState();
+            if (currObj) {
+                const tParams = window.calculateTransformParams(path.photoRef, currObj);
+                if (tParams) {
+                    tScale = tParams.scale;
+                    tDx = tParams.dx;
+                    tDy = tParams.dy;
+                }
+            }
+        }
+        
+        if (rot !== 0 || tScale !== 1 || tDx !== 0 || tDy !== 0) {
+            SaberEngine.setSaberTransform(saberObj, tScale, tDx, tDy, false, rot, cx, cy);
+        }
+    }
+    if (app && app.renderer && (!app.ticker || !app.ticker.started)) {
+        try { app.renderer.render(app.stage); } catch(e) {}
     }
     return saberObj;
 };
@@ -1154,7 +1649,7 @@ window.addSaberToPath = function(pathIndex) {
         preset: state.preset || 'fully-lit',
         coreColor: state.coreColor || 0xFFFFFF,
         glowColor: state.glowColor || 0x00AAFF,
-        coreSize: state.coreSize || 4,
+        coreSize: (state.coreSize !== undefined) ? state.coreSize : 0,
         glowSize: state.glowSize || 30,
         intensity: state.intensity || 2.5,
         flickerAmount: state.flickerAmount || 0.05,

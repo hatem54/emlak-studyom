@@ -1,6 +1,6 @@
 // ================================================================
-// ⚡ SABER UI CONTROLLER
-// Saber accordion + preset/renk seçimi + slider ayarları
+// ⚡ SABER / NEON UI CONTROLLER
+// Neon accordion + preset/renk seçimi + slider ayarları + canlı senkronizasyon
 // ================================================================
 
 (function initSaberUI() {
@@ -9,12 +9,14 @@
     window.saberState = {
         active: false,
         preset: 'fully-lit',
-        colorPreset: 'mavi',
+        colorPreset: 'turkuaz',
         coreColor: 0xFFFFFF,
-        glowColor: 0x00AAFF,
-        coreSize: 4,
+        glowColor: 0x00CEC9,
+        coreSize: 0,
         glowSize: 30,
         intensity: 2.5,
+        groundSpill: 0.4,
+        energyNodes: true,
         flickerAmount: 0.05,
         pulseSpeed: 0
     };
@@ -36,7 +38,7 @@
             const container = document.getElementById('canvas-container');
             if (container) SaberEngine.init(container);
         }
-        console.log('✅ Saber UI hazır');
+        console.log('✅ Neon / Saber UI hazır');
     }
     
     // ═══ ACCORDION AÇIP KAPA ═══
@@ -50,7 +52,23 @@
             const isOpen = content.style.display !== 'none';
             content.style.display = isOpen ? 'none' : 'block';
             accordion.classList.toggle('open', !isOpen);
+            if (!isOpen) {
+                if (typeof deselectAll === 'function') deselectAll();
+                if (typeof setDrawMode === 'function') setDrawMode('off');
+            }
         });
+    }
+    
+    // Kullanıcı bir ayara dokunduğunda neon kapalıysa otomatik aç
+    function activateSaberIfInactive() {
+        const toggle = document.getElementById('saberModeToggle');
+        if (toggle && !toggle.checked) {
+            toggle.checked = true;
+            window.saberState.active = true;
+            console.log('⚡ Neon efektleri otomatik aktifleştirildi');
+        } else {
+            window.saberState.active = true;
+        }
     }
     
     // ═══ SABER MODU TOGGLE ═══
@@ -60,7 +78,13 @@
         
         toggle.addEventListener('change', (e) => {
             window.saberState.active = e.target.checked;
-            console.log(e.target.checked ? '⚡ SABER AKTİF' : '🚫 SABER KAPALI');
+            console.log(e.target.checked ? '⚡ NEON EFEKTLERİ AKTİF' : '🚫 NEON EFEKTLERİ KAPALI');
+            
+            // Neon açıldığında veya değiştiğinde tuvaldeki seçim ve tutamaçları temizle ("neon açınca bu kaybolmalı")
+            if (typeof deselectAll === 'function') deselectAll();
+            if (typeof setDrawMode === 'function') setDrawMode('off');
+            
+            previewSaber();
         });
     }
     
@@ -78,12 +102,13 @@
             item.className = 'saber-preset-item';
             if (key === window.saberState.preset) item.classList.add('active');
             item.innerHTML = `
-                <div>${p.icon}</div>
+                <div class="saber-preset-icon">${p.icon}</div>
                 <div class="saber-preset-name">${p.name}</div>
             `;
             item.dataset.preset = key;
             
             item.addEventListener('click', () => {
+                activateSaberIfInactive();
                 grid.querySelectorAll('.saber-preset-item').forEach(el => el.classList.remove('active'));
                 item.classList.add('active');
                 window.saberState.preset = key;
@@ -91,43 +116,50 @@
                 // Preset ayarlarını sliderlara uygula
                 const s = p.settings;
                 if (s.glowSize !== undefined) {
-                    document.getElementById('saberGlowSize').value = s.glowSize;
-                    document.getElementById('saberGlowSizeVal').textContent = s.glowSize;
+                    const el = document.getElementById('saberGlowSize');
+                    if (el) el.value = s.glowSize;
+                    const val = document.getElementById('saberGlowSizeVal');
+                    if (val) val.textContent = s.glowSize;
                     window.saberState.glowSize = s.glowSize;
                 }
                 if (s.intensity !== undefined) {
-                    document.getElementById('saberIntensity').value = s.intensity;
-                    document.getElementById('saberIntensityVal').textContent = s.intensity;
+                    const el = document.getElementById('saberIntensity');
+                    if (el) el.value = s.intensity;
+                    const val = document.getElementById('saberIntensityVal');
+                    if (val) val.textContent = s.intensity;
                     window.saberState.intensity = s.intensity;
                 }
                 if (s.flickerAmount !== undefined) {
                     const flickerVal = Math.round(s.flickerAmount * 100);
-                    document.getElementById('saberFlicker').value = flickerVal;
-                    document.getElementById('saberFlickerVal').textContent = flickerVal;
+                    const el = document.getElementById('saberFlicker');
+                    if (el) el.value = flickerVal;
+                    const val = document.getElementById('saberFlickerVal');
+                    if (val) val.textContent = flickerVal;
                     window.saberState.flickerAmount = s.flickerAmount;
                 }
                 if (s.pulseSpeed !== undefined) {
-                    document.getElementById('saberPulse').value = s.pulseSpeed;
-                    document.getElementById('saberPulseVal').textContent = s.pulseSpeed;
+                    const el = document.getElementById('saberPulse');
+                    if (el) el.value = s.pulseSpeed;
+                    const val = document.getElementById('saberPulseVal');
+                    if (val) val.textContent = s.pulseSpeed;
                     window.saberState.pulseSpeed = s.pulseSpeed;
                 }
                 
                 // Preset'in kendi rengini uygula
                 if (s.coreColor !== undefined) {
                     window.saberState.coreColor = s.coreColor;
-                    document.getElementById('saberCustomCore').value = 
-                        '#' + s.coreColor.toString(16).padStart(6, '0');
+                    const cIn = document.getElementById('saberCustomCore');
+                    if (cIn) cIn.value = '#' + s.coreColor.toString(16).padStart(6, '0');
                 }
                 if (s.glowColor !== undefined) {
                     window.saberState.glowColor = s.glowColor;
-                    document.getElementById('saberCustomGlow').value = 
-                        '#' + s.glowColor.toString(16).padStart(6, '0');
-                    // Preset renk paletindeki active class'ı kaldır
+                    const gIn = document.getElementById('saberCustomGlow');
+                    if (gIn) gIn.value = '#' + s.glowColor.toString(16).padStart(6, '0');
                     document.querySelectorAll('.saber-color-item').forEach(el => 
                         el.classList.remove('active'));
                 }
 
-                console.log('🎨 Preset:', p.name);
+                console.log('🎨 Preset uygulandı:', p.name);
                 previewSaber();
             });
             
@@ -150,23 +182,25 @@
             const item = document.createElement('div');
             item.className = 'saber-color-item';
             if (key === window.saberState.colorPreset) item.classList.add('active');
-            item.style.background = hexGlow;
-            item.style.color = hexGlow;
+            item.style.backgroundColor = hexGlow;
             item.title = key;
             item.dataset.color = key;
             
             item.addEventListener('click', () => {
+                activateSaberIfInactive();
                 grid.querySelectorAll('.saber-color-item').forEach(el => el.classList.remove('active'));
                 item.classList.add('active');
                 window.saberState.colorPreset = key;
                 window.saberState.coreColor = c.core;
                 window.saberState.glowColor = c.glow;
                 
-                // Custom color inputlarını da güncelle
-                document.getElementById('saberCustomGlow').value = hexGlow;
-                document.getElementById('saberCustomCore').value = '#' + c.core.toString(16).padStart(6, '0');
+                // Custom color inputlarını güncelle
+                const gIn = document.getElementById('saberCustomGlow');
+                if (gIn) gIn.value = hexGlow;
+                const cIn = document.getElementById('saberCustomCore');
+                if (cIn) cIn.value = '#' + c.core.toString(16).padStart(6, '0');
                 
-                console.log('🎨 Renk:', key);
+                console.log('🎨 Renk seçildi:', key);
                 previewSaber();
             });
             
@@ -174,15 +208,58 @@
         });
     }
     
-    // ═══ SLIDER'LAR ═══
+    // ═══ SLIDER'LAR (Hızlı Canlı Güncelleme & Geçici Kalite Düşürme) ═══
+    let _isUserSlidingSaber = false;
+    let _sliderRafId = null;
+
+    function scheduleSaberSliderUpdate(isSliding = false) {
+        if (_sliderRafId) {
+            cancelAnimationFrame(_sliderRafId);
+            _sliderRafId = null;
+        }
+        
+        if (isSliding) {
+            _isUserSlidingSaber = true;
+            _sliderRafId = requestAnimationFrame(() => {
+                _sliderRafId = null;
+                previewSaber(true, true);
+            });
+        } else {
+            _isUserSlidingSaber = false;
+            previewSaber(true, false);
+        }
+    }
+
+    // Kullanıcı mouse veya parmağını slider dışına kaydırıp bıraksa bile tam kaliteye dönsün
+    window.addEventListener('pointerup', () => {
+        if (_isUserSlidingSaber) {
+            scheduleSaberSliderUpdate(false);
+        }
+    });
+    window.addEventListener('touchend', () => {
+        if (_isUserSlidingSaber) {
+            scheduleSaberSliderUpdate(false);
+        }
+    });
+
     function setupSliders() {
         const sliders = [
             { id: 'saberCoreSize', valId: 'saberCoreSizeVal', stateKey: 'coreSize', parse: parseInt },
             { id: 'saberGlowSize', valId: 'saberGlowSizeVal', stateKey: 'glowSize', parse: parseInt },
             { id: 'saberIntensity', valId: 'saberIntensityVal', stateKey: 'intensity', parse: parseFloat },
             { id: 'saberFlicker', valId: 'saberFlickerVal', stateKey: 'flickerAmount', parse: (v) => parseInt(v) / 100 },
-            { id: 'saberPulse', valId: 'saberPulseVal', stateKey: 'pulseSpeed', parse: parseFloat }
+            { id: 'saberPulse', valId: 'saberPulseVal', stateKey: 'pulseSpeed', parse: parseFloat },
+            { id: 'saberGroundSpill', valId: 'saberGroundSpillVal', stateKey: 'groundSpill', parse: (v) => parseInt(v) / 100 }
         ];
+
+        const nodeCheckbox = document.getElementById('saberEnergyNodes');
+        if (nodeCheckbox) {
+            nodeCheckbox.addEventListener('change', (e) => {
+                activateSaberIfInactive();
+                window.saberState.energyNodes = e.target.checked;
+                previewSaber(true, false);
+            });
+        }
         
         sliders.forEach(s => {
             const input = document.getElementById(s.id);
@@ -190,10 +267,17 @@
             if (!input || !val) return;
             
             input.addEventListener('input', () => {
-                const displayVal = s.stateKey === 'flickerAmount' ? input.value : input.value;
+                activateSaberIfInactive();
+                const displayVal = s.stateKey === 'groundSpill' ? (input.value + '%') : input.value;
                 val.textContent = displayVal;
                 window.saberState[s.stateKey] = s.parse(input.value);
-                previewSaber();
+                // Sürükleme esnasında anında 120 FPS akıcı ve geçici hafif kaliteli güncelleme
+                scheduleSaberSliderUpdate(true);
+            });
+
+            // Slider bırakıldığı an tam kaliteye geri dön
+            input.addEventListener('change', () => {
+                scheduleSaberSliderUpdate(false);
             });
         });
     }
@@ -205,17 +289,24 @@
         
         if (glow) {
             glow.addEventListener('input', () => {
+                activateSaberIfInactive();
                 window.saberState.glowColor = parseInt(glow.value.replace('#', ''), 16);
-                // Preset renk seçimini kaldır
                 document.querySelectorAll('.saber-color-item').forEach(el => el.classList.remove('active'));
-                previewSaber();
+                scheduleSaberSliderUpdate(true);
+            });
+            glow.addEventListener('change', () => {
+                scheduleSaberSliderUpdate(false);
             });
         }
         
         if (core) {
             core.addEventListener('input', () => {
+                activateSaberIfInactive();
                 window.saberState.coreColor = parseInt(core.value.replace('#', ''), 16);
-                previewSaber();
+                scheduleSaberSliderUpdate(true);
+            });
+            core.addEventListener('change', () => {
+                scheduleSaberSliderUpdate(false);
             });
         }
     }
@@ -226,19 +317,230 @@
         if (!btn) return;
         
         btn.addEventListener('click', () => {
+            if (typeof drawPaths !== 'undefined') {
+                drawPaths.forEach(p => {
+                    p.hasSaber = false;
+                    p.saber = false;
+                    if (typeof window.updateSinglePathSvg === 'function') {
+                        window.updateSinglePathSvg(p);
+                    }
+                });
+            }
             if (window.SaberEngine) {
                 SaberEngine.clear();
-                console.log('🗑️ Saber temizlendi');
             }
+            const toggle = document.getElementById('saberModeToggle');
+            if (toggle) toggle.checked = false;
+            window.saberState.active = false;
+            if (typeof redrawAll === 'function') redrawAll();
+            if (typeof updateDrawHistory === 'function') updateDrawHistory();
+            console.log('🗑️ Neon efektleri temizlendi');
         });
     }
     
-    // ═══ CANLI ÖNIZLEME (TEST ÇİZGİSİ) ═══
-    function previewSaber() {
-        // Preview özelliği kaldırıldı - kullanıcı 
-        // çizim yaparken doğal olarak görecek.
-        // Motor sadece ilk çizimde başlatılır.
+    // ═══ SEÇİLİ ÇİZİM İLE SABER PANELİNİ SENKRONİZE ET ═══
+    window.syncSaberUIWithDrawing = function(p) {
+        if (!p) return;
+        // Çoklu seçim varsa tek bir çizimin durumuna göre global neon durumunu ezme
+        if (window.selectedElements && window.selectedElements.length > 1) {
+            const hasAnySaber = window.selectedElements.some(el => {
+                const pathObj = typeof drawPaths !== 'undefined' && drawPaths.find(dp => dp.el === el);
+                return pathObj && (pathObj.hasSaber || pathObj.saber);
+            });
+            if (hasAnySaber) {
+                window.saberState.active = true;
+                const toggle = document.getElementById('saberModeToggle');
+                if (toggle) toggle.checked = true;
+            }
+            return;
+        }
+        const toggle = document.getElementById('saberModeToggle');
+        const isNeon = !!(p.hasSaber || p.saber);
+        window.saberState.active = isNeon;
+        if (toggle) toggle.checked = isNeon;
+        
+        if (isNeon && p.saberOptions) {
+            Object.assign(window.saberState, p.saberOptions);
+            
+            // Sliderları güncelle
+            const coreInput = document.getElementById('saberCoreSize');
+            if (coreInput && window.saberState.coreSize !== undefined) {
+                coreInput.value = window.saberState.coreSize;
+                const v = document.getElementById('saberCoreSizeVal');
+                if (v) v.textContent = window.saberState.coreSize;
+            }
+            const glowInput = document.getElementById('saberGlowSize');
+            if (glowInput && window.saberState.glowSize !== undefined) {
+                glowInput.value = window.saberState.glowSize;
+                const v = document.getElementById('saberGlowSizeVal');
+                if (v) v.textContent = window.saberState.glowSize;
+            }
+            const intInput = document.getElementById('saberIntensity');
+            if (intInput && window.saberState.intensity !== undefined) {
+                intInput.value = window.saberState.intensity;
+                const v = document.getElementById('saberIntensityVal');
+                if (v) v.textContent = window.saberState.intensity;
+            }
+            const fInput = document.getElementById('saberFlicker');
+            if (fInput && window.saberState.flickerAmount !== undefined) {
+                const fVal = Math.round(window.saberState.flickerAmount * 100);
+                fInput.value = fVal;
+                const v = document.getElementById('saberFlickerVal');
+                if (v) v.textContent = fVal;
+            }
+            const pInput = document.getElementById('saberPulse');
+            if (pInput && window.saberState.pulseSpeed !== undefined) {
+                pInput.value = window.saberState.pulseSpeed;
+                const v = document.getElementById('saberPulseVal');
+                if (v) v.textContent = window.saberState.pulseSpeed;
+            }
+            const gInput = document.getElementById('saberGroundSpill');
+            if (gInput && window.saberState.groundSpill !== undefined) {
+                const gVal = Math.round(window.saberState.groundSpill * 100);
+                gInput.value = gVal;
+                const v = document.getElementById('saberGroundSpillVal');
+                if (v) v.textContent = gVal + '%';
+            }
+            const nodeCb = document.getElementById('saberEnergyNodes');
+            if (nodeCb && window.saberState.energyNodes !== undefined) {
+                nodeCb.checked = window.saberState.energyNodes !== false;
+            }
+            
+            // Preset kartını vurgula
+            const grid = document.getElementById('saberPresetGrid');
+            if (grid && window.saberState.preset) {
+                grid.querySelectorAll('.saber-preset-item').forEach(el => {
+                    el.classList.toggle('active', el.dataset.preset === window.saberState.preset);
+                });
+            }
+            
+            // Renk ikonunu vurgula
+            const colorGrid = document.getElementById('saberColorGrid');
+            if (colorGrid && window.saberState.colorPreset) {
+                colorGrid.querySelectorAll('.saber-color-item').forEach(el => {
+                    el.classList.toggle('active', el.dataset.color === window.saberState.colorPreset);
+                });
+            }
+            
+            // Özel renk pickler
+            if (window.saberState.glowColor) {
+                const gHex = typeof window.saberState.glowColor === 'number' 
+                    ? '#' + window.saberState.glowColor.toString(16).padStart(6, '0') 
+                    : window.saberState.glowColor;
+                const gEl = document.getElementById('saberCustomGlow');
+                if (gEl) gEl.value = gHex;
+            }
+            if (window.saberState.coreColor) {
+                const cHex = typeof window.saberState.coreColor === 'number' 
+                    ? '#' + window.saberState.coreColor.toString(16).padStart(6, '0') 
+                    : window.saberState.coreColor;
+                const cEl = document.getElementById('saberCustomCore');
+                if (cEl) cEl.value = cHex;
+            }
+        }
+    };
+    
+    // ═══ CANLI GÜNCELLEME (SEÇİLİ VEYA MEVCUT ÇİZİMLER İÇİN) ═══
+    function previewSaber(inPlace = false, isSliding = false) {
+        let targetEls = [];
+        if (window.selectedElements && window.selectedElements.length > 0) {
+            targetEls = [...window.selectedElements];
+        } else if (window.selectedEl) {
+            targetEls = [window.selectedEl];
+        }
+        
+        let targetPaths = [];
+        if (typeof drawPaths !== 'undefined' && drawPaths.length > 0) {
+            targetEls.forEach(rawEl => {
+                if (!rawEl) return;
+                const el = (rawEl.classList && rawEl.classList.contains('editable-draw')) 
+                    ? rawEl 
+                    : (rawEl.closest ? rawEl.closest('.editable-draw') : null);
+                if (el) {
+                    const found = drawPaths.find(p => p.el === el || (p.el && (p.el === el || p.el.contains(el) || el.contains(p.el))));
+                    if (found && !targetPaths.includes(found)) {
+                        targetPaths.push(found);
+                    }
+                }
+            });
+            
+            // Eğer editingDrawIndex aktifse, onu da ekle
+            if (targetPaths.length === 0 && typeof editingDrawIndex !== 'undefined' && editingDrawIndex >= 0 && drawPaths[editingDrawIndex]) {
+                targetPaths.push(drawPaths[editingDrawIndex]);
+            }
+            
+            // Eğer hiçbir çizim seçili değilse, tuvaldeki TÜM çizimleri neon moduna al
+            if (targetPaths.length === 0 && typeof drawPaths !== 'undefined') {
+                targetPaths = [...drawPaths];
+            }
+
+            // Neon modu aktifken, tuvaldeki zaten neonlu olan diğer tüm çizimleri de güncel ayarlarla senkron tut
+            if (window.saberState.active && typeof drawPaths !== 'undefined') {
+                drawPaths.forEach(p => {
+                    if ((p.hasSaber || p.saber) && !targetPaths.includes(p)) {
+                        targetPaths.push(p);
+                    }
+                });
+            }
+        }
+        
+        // Hedeflenen tüm çizimlere neon ayarlarını uygula
+        targetPaths.forEach(p => {
+            p.hasSaber = !!window.saberState.active;
+            p.saber = !!window.saberState.active;
+            p.saberOptions = JSON.parse(JSON.stringify(window.saberState));
+            
+            if (inPlace && p.saberRef && window.SaberEngine && window.SaberEngine.updateSaberParameters) {
+                // ⚡ Hızlı in-place güncelleme (filtre shaders silip yaratmadan)
+                window.SaberEngine.updateSaberParameters(p.saberRef, window.saberState, isSliding);
+                if (!isSliding && typeof window.updateSinglePathSvg === 'function') {
+                    window.updateSinglePathSvg(p);
+                }
+            } else {
+                if (typeof window.updateSinglePathSvg === 'function') {
+                    window.updateSinglePathSvg(p);
+                }
+                if (typeof drawPaths !== 'undefined') {
+                    const idx = drawPaths.indexOf(p);
+                    if (idx > -1) {
+                        if (window.saberState.active && window.applySaberToPath) {
+                            window.applySaberToPath(idx, p.saberOptions);
+                        } else if (!window.saberState.active && window.removeSaberFromPath) {
+                            window.removeSaberFromPath(idx);
+                        }
+                    }
+                }
+            }
+        });
+        
+        const isAnimActive = (typeof window.isSaberAnimationActive === 'function')
+            ? window.isSaberAnimationActive()
+            : document.body.classList.contains('saber-animation-active');
+
+        if (window.saberState.active && window.SaberEngine) {
+            const app = window.SaberEngine.getApp();
+            if (app && app.ticker) {
+                if (isAnimActive && !app.ticker.started) {
+                    app.ticker.start();
+                } else if (!isAnimActive) {
+                    if (app.ticker.started) app.ticker.stop();
+                    if (app.renderer && app.stage) {
+                        try { app.renderer.render(app.stage); } catch(e) {}
+                    }
+                }
+            }
+        } else if (!window.saberState.active && targetPaths.length === 0 && window.SaberEngine) {
+            window.SaberEngine.clear();
+        }
+        
+        // Sürükleme (isSliding) esnasında ağır DOM ve tuval yeniden çizimlerini atla (120 FPS akıcılık)
+        if (!isSliding) {
+            if (typeof redrawAll === 'function') redrawAll();
+            if (typeof updateDrawHistory === 'function') updateDrawHistory();
+        }
     }
+    
+    window.previewSaber = previewSaber;
     
 })();
 

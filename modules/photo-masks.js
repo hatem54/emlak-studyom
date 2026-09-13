@@ -1,6 +1,6 @@
 /**
  * ====================================================================
- * EmlakStüdyom Lightroom Mask Manager (Çoklu Maske, AI & Tuval Etkileşimi)
+ * EmlakStüdyom Pro Mask Manager (Çoklu Maske, AI & Tuval Etkileşimi)
  * modules/photo-masks.js
  * ====================================================================
  * 
@@ -17,60 +17,14 @@
     class PhotoMasksManager {
         constructor() {
             // Maske Katmanları Koleksiyonu
-            this.masks = [
-                {
-                    id: 'rad_1',
-                    type: 'radial',
-                    name: 'Radyal Maske 1',
-                    active: false,
-                    showOverlay: true,
-                    settings: {
-                        cx: 0.5,
-                        cy: 0.5,
-                        rx: 0.25,
-                        ry: 0.20,
-                        angle: 0,
-                        feather: 0.5,
-                        spread: 0.5, // %0: Keskin, %100: En Saydam
-                        invert: false,
-                        exposure: 0,
-                        temp: 0,
-                        highlights: 0,
-                        shadows: 0,
-                        saturate: 1.0,
-                        amount: 1.0
-                    }
-                },
-                {
-                    id: 'lin_1',
-                    type: 'linear',
-                    name: 'Doğrusal Gradyan 1',
-                    active: false,
-                    showOverlay: true,
-                    settings: {
-                        x1: 0.5,
-                        y1: 0.12,
-                        x2: 0.5,
-                        y2: 0.50,
-                        feather: 0.5,
-                        spread: 0.5,
-                        invert: false,
-                        exposure: 0,
-                        temp: 0,
-                        highlights: 0,
-                        shadows: 0,
-                        saturate: 1.0,
-                        amount: 1.0
-                    }
-                }
-            ];
-
-            this.selectedMaskId = 'rad_1';
+            this.masks = [];
+            this.selectedMaskId = null;
             this.activeTool = null; // null, 'radial', 'linear', 'ai'
-            this.activeMaskType = 'radial';
-            this.isGuidesVisible = true;
+            this.activeMaskType = null;
+            this.isGuidesVisible = false;
             this.showOverlay = true;
             this.isCreatingNew = null; // null, 'radial', 'linear'
+            this.panelsCollapsed = true;
 
             // Sürükleme durumu
             this.isDragging = false;
@@ -119,6 +73,7 @@
             this.containerEl = document.getElementById('canvas-container');
             this.bindCanvasEvents();
             this.bindAccordionEvents();
+            this.updatePanelsVisibility();
             this.renderLayersList();
             this.syncFromSelected();
             this.renderSvg();
@@ -129,7 +84,12 @@
             if (acc) {
                 acc.addEventListener('toggle', () => {
                     if (acc.open) {
-                        this.showGuides();
+                        const mask = this.getSelectedMask();
+                        if (mask && mask.active) {
+                            this.showGuides();
+                        } else {
+                            this.updatePanelsVisibility();
+                        }
                     } else {
                         this.hideGuides();
                     }
@@ -216,12 +176,15 @@
         }
 
         selectMask(id) {
+            this.panelsCollapsed = false;
             this.selectedMaskId = id;
             const mask = this.masks.find(m => m.id === id);
             if (!mask) return;
 
             this.isGuidesVisible = true;
             this.showOverlay = true;
+            mask.active = true;
+            mask.showPin = true;
 
             // ÖNEMLİ KURAL: Bir maske seçilince diğer tüm maskelerin kılavuz dolgusu (showOverlay) kapatılır.
             // Sadece seçilen maskenin kılavuz dolgusu açık kalır (önceki maske ayarları fotoğrafta korunur).
@@ -277,11 +240,63 @@
             this.notifyChange();
         }
 
+        
+        clickMaskButton(type) {
+            const rCont = document.getElementById('radialMaskControls');
+            const lCont = document.getElementById('linearMaskControls');
+            
+            // Panel şu an açık mı?
+            const isCurrentlyOpen = (type === 'radial' && rCont && rCont.style.display === 'block') ||
+                                    (type === 'linear' && lCont && lCont.style.display === 'block');
+
+            if (isCurrentlyOpen) {
+                // Zaten açıksa kapat ve ekrandaki işaretçiyi gizle
+                this.panelsCollapsed = true;
+                this.hideGuides();
+                this.updatePanelsVisibility();
+                return;
+            }
+
+            // Kapalıysa AÇ ve ekrandaki işaretçiyi mutlaka görünür yap
+            this.panelsCollapsed = false;
+
+            let mask = this.masks.find(m => m.type === type);
+            if (!mask) {
+                this.addMask(type);
+                mask = this.getSelectedMask();
+            } else {
+                mask.active = true;
+                mask.showOverlay = true;
+                mask.showPin = true;
+                this.selectMask(mask.id);
+            }
+
+            if (mask) {
+                mask.active = true;
+                mask.showOverlay = true;
+                mask.showPin = true;
+            }
+
+            this.isGuidesVisible = true;
+            this.activeTool = type;
+            this.showGuides();
+            this.updatePanelsVisibility();
+            this.syncFromSelected();
+            this.renderLayersList();
+            this.renderSvg();
+            this.notifyChange();
+        }
+
+        toggleMaskAccordion(type) {
+            this.clickMaskButton(type);
+        }
+
         openMask(type) {
             const existing = this.masks.find(m => m.type === type);
             if (existing) {
                 existing.active = true;
                 existing.showOverlay = true;
+                existing.showPin = true;
                 this.selectMask(existing.id);
             } else {
                 this.addMask(type);
@@ -310,15 +325,16 @@
         }
 
         showGuides() {
-            this.isGuidesVisible = true;
             const mask = this.getSelectedMask();
-            if (mask) {
-                this.activeTool = mask.type.startsWith('ai_') ? 'ai' : mask.type;
-            } else if (this.masks.length > 0) {
-                this.selectMask(this.masks[0].id);
-            } else {
-                this.addMask('radial');
+            if (!mask) {
+                this.isGuidesVisible = false;
+                if (this.svgEl) this.svgEl.innerHTML = '';
+                return;
             }
+            this.isGuidesVisible = true;
+            mask.active = true;
+            mask.showPin = true;
+            this.activeTool = mask.type.startsWith('ai_') ? 'ai' : mask.type;
             this.updateToolButtons();
             this.updateSvgPointerEvents();
             this.renderLayersList();
@@ -329,24 +345,19 @@
             const rCont = document.getElementById('radialMaskControls');
             const lCont = document.getElementById('linearMaskControls');
             const aCont = document.getElementById('aiMaskControls');
-            const rChev = document.getElementById('radialMaskChevron');
-            const lChev = document.getElementById('linearMaskChevron');
+            const btnRad = document.getElementById('btnMaskRadial');
+            const btnLin = document.getElementById('btnMaskLinear');
 
             const mask = this.getSelectedMask();
             const type = mask ? mask.type : null;
+            const collapsed = !!this.panelsCollapsed;
 
-            if (rCont) rCont.style.display = (type === 'radial') ? 'block' : 'none';
-            if (lCont) lCont.style.display = (type === 'linear') ? 'block' : 'none';
-            if (aCont) aCont.style.display = (type && type.startsWith('ai_')) ? 'block' : 'none';
+            if (rCont) rCont.style.display = (type === 'radial' && !collapsed) ? 'block' : 'none';
+            if (lCont) lCont.style.display = (type === 'linear' && !collapsed) ? 'block' : 'none';
+            if (aCont) aCont.style.display = (type && type.startsWith('ai_') && !collapsed) ? 'block' : 'none';
 
-            if (rChev) {
-                rChev.classList.toggle('fa-chevron-up', type === 'radial');
-                rChev.classList.toggle('fa-bars', type !== 'radial');
-            }
-            if (lChev) {
-                lChev.classList.toggle('fa-chevron-up', type === 'linear');
-                lChev.classList.toggle('fa-bars', type !== 'linear');
-            }
+            if (btnRad) btnRad.classList.toggle('active', type === 'radial' && !collapsed);
+            if (btnLin) btnLin.classList.toggle('active', type === 'linear' && !collapsed);
         }
 
         updateToolButtons() {
@@ -474,6 +485,18 @@
             }
         }
 
+        togglePinVisibility(show) {
+            const mask = this.getSelectedMask();
+            if (mask) {
+                mask.showPin = (show !== undefined) ? show : (mask.showPin === false ? true : false);
+                const radTog = document.getElementById('mask_rad_pin_toggle');
+                const linTog = document.getElementById('mask_lin_pin_toggle');
+                if (radTog) radTog.checked = (mask.showPin !== false);
+                if (linTog) linTog.checked = (mask.showPin !== false);
+                this.renderSvg();
+            }
+        }
+
         toggleRadialOverlay(show) {
             const mask = this.getSelectedMask();
             if (mask && mask.type === 'radial') {
@@ -557,6 +580,8 @@
                 if (inv) inv.checked = !!s.invert;
                 const over = document.getElementById('mask_rad_overlay');
                 if (over) over.checked = !!mask.showOverlay;
+                const pinTog = document.getElementById('mask_rad_pin_toggle');
+                if (pinTog) pinTog.checked = (mask.showPin !== false);
                 const tog = document.getElementById('radialMaskToggle');
                 if (tog) tog.checked = !!mask.active;
             } else if (mask.type === 'linear') {
@@ -577,6 +602,8 @@
                 if (inv) inv.checked = !!s.invert;
                 const over = document.getElementById('mask_lin_overlay');
                 if (over) over.checked = !!mask.showOverlay;
+                const linPinTog = document.getElementById('mask_lin_pin_toggle');
+                if (linPinTog) linPinTog.checked = (mask.showPin !== false);
                 const tog = document.getElementById('linearMaskToggle');
                 if (tog) tog.checked = !!mask.active;
             } else if (mask.type.startsWith('ai_')) {
@@ -1423,14 +1450,14 @@
             }
 
             const mask = this.getSelectedMask();
-            if (!mask || !mask.active) {
+            if (!mask || !mask.active || mask.showPin === false) {
                 this.svgEl.innerHTML = '';
                 return;
             }
 
             let html = '';
 
-            // 1. RADYAL MASKE SVG ÇİZİMİ
+            // 1. RADYAL MASKE SVG ÇİZİMİ (Lightroom Stili)
             if (mask.type === 'radial') {
                 const s = mask.settings;
                 const cx = s.cx * 1000;
@@ -1447,59 +1474,78 @@
 
                 html += `<g transform="translate(${cx}, ${cy}) rotate(${angle})">`;
 
-                // A. Seçili Alan İç Dolgu Tonu: BÜTÜN ALANDAN TUTUP TAŞIMA (Anywhere-drag)
-                html += `<ellipse cx="0" cy="0" rx="${rx}" ry="${ry}" fill="rgba(6, 182, 212, 0.12)" data-mask-action="drag_radial_pin" cursor="${pinCursor}" style="cursor:${pinCursor}; pointer-events:all;" />`;
+                // A. Seçili Alan İç Taşıma Bölgesi (Anywhere-drag)
+                html += `<ellipse cx="0" cy="0" rx="${rx}" ry="${ry}" fill="rgba(56, 189, 248, 0.03)" data-mask-action="drag_radial_pin" cursor="${pinCursor}" style="cursor:${pinCursor}; pointer-events:all;" />`;
 
-                // B. Dış Yumuşama (Spread/Feather) Kılavuz Çizgisi
-                html += `<ellipse cx="0" cy="0" rx="${fRx}" ry="${fRy}" fill="none" stroke="rgba(0, 0, 0, 0.8)" stroke-width="3.5" stroke-dasharray="6,6" vector-effect="non-scaling-stroke" pointer-events="none" />`;
-                html += `<ellipse cx="0" cy="0" rx="${fRx}" ry="${fRy}" fill="none" stroke="rgba(255, 255, 255, 0.95)" stroke-width="2" stroke-dasharray="6,6" vector-effect="non-scaling-stroke" pointer-events="none" />`;
+                // B. Dış Yumuşama (Feather / Spread) Kılavuz Çizgisi (İnce, zarif kesikli çizgi)
+                html += `<ellipse cx="0" cy="0" rx="${fRx}" ry="${fRy}" fill="none" stroke="rgba(0, 0, 0, 0.5)" stroke-width="2" stroke-dasharray="4,4" vector-effect="non-scaling-stroke" pointer-events="none" />`;
+                html += `<ellipse cx="0" cy="0" rx="${fRx}" ry="${fRy}" fill="none" stroke="rgba(255, 255, 255, 0.85)" stroke-width="1" stroke-dasharray="4,4" vector-effect="non-scaling-stroke" pointer-events="none" />`;
 
-                // C. Ana Radyal Elips (Dış Kontur da Çift Yönlü Taşınabilir)
-                html += `<ellipse cx="0" cy="0" rx="${rx}" ry="${ry}" fill="none" stroke="rgba(0, 0, 0, 0.95)" stroke-width="6" data-mask-action="drag_radial_pin" cursor="${pinCursor}" style="cursor:${pinCursor}; pointer-events:all;" vector-effect="non-scaling-stroke" />`;
-                html += `<ellipse cx="0" cy="0" rx="${rx}" ry="${ry}" fill="none" stroke="#00e5ff" stroke-width="2.8" stroke-dasharray="9,5" pointer-events="none" vector-effect="non-scaling-stroke" />`;
+                // C. Ana Radyal Elips (Yüksek kontrastlı, net ve ince çizgi)
+                html += `<ellipse cx="0" cy="0" rx="${rx}" ry="${ry}" fill="none" stroke="rgba(0, 0, 0, 0.65)" stroke-width="2.6" vector-effect="non-scaling-stroke" pointer-events="none" />`;
+                html += `<ellipse cx="0" cy="0" rx="${rx}" ry="${ry}" fill="none" stroke="#ffffff" stroke-width="1.3" data-mask-action="drag_radial_pin" cursor="${pinCursor}" style="cursor:${pinCursor}; pointer-events:all;" vector-effect="non-scaling-stroke" />`;
 
-                // D. Döndürme Kılavuz Çubuğu
-                const rotStemLen = 44;
-                html += `<line x1="0" y1="${-ry}" x2="0" y2="${-ry - rotStemLen}" stroke="rgba(0, 0, 0, 0.85)" stroke-width="4" vector-effect="non-scaling-stroke" pointer-events="none" />`;
-                html += `<line x1="0" y1="${-ry}" x2="0" y2="${-ry - rotStemLen}" stroke="#f59e0b" stroke-width="2.4" stroke-dasharray="4,3" vector-effect="non-scaling-stroke" pointer-events="none" />`;
-
-                // E. Döndürme Kolu Tutamacı
+                // D. Döndürme Kılavuz Kolu
+                const rotStemLen = 30;
+                html += `<line x1="0" y1="${-ry}" x2="0" y2="${-ry - rotStemLen}" stroke="rgba(0, 0, 0, 0.5)" stroke-width="2" vector-effect="non-scaling-stroke" pointer-events="none" />`;
+                html += `<line x1="0" y1="${-ry}" x2="0" y2="${-ry - rotStemLen}" stroke="rgba(255, 255, 255, 0.85)" stroke-width="1" stroke-dasharray="3,3" vector-effect="non-scaling-stroke" pointer-events="none" />`;
                 html += `
-                    <g data-mask-action="rotate_radial" transform="translate(0, ${-ry - rotStemLen})" cursor="${rotCursor}" style="cursor:${rotCursor}; pointer-events:all; filter: drop-shadow(0 3px 6px rgba(0,0,0,0.85));">
-                        <circle r="16" fill="rgba(245, 158, 11, 0.25)" />
-                        <circle r="12.5" fill="#0f172a" stroke="#f59e0b" stroke-width="2.5" vector-effect="non-scaling-stroke" />
-                        <path d="M-4,-4 A 6 6 0 0 1 5,-1 L 3,1 M 5,-1 L 5,-4 M 4,4 A 6 6 0 0 1 -5,1 L -3,-1 M -5,1 L -5,4" fill="none" stroke="#fbbf24" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                    <g data-mask-action="rotate_radial" transform="translate(0, ${-ry - rotStemLen})" cursor="${rotCursor}" style="cursor:${rotCursor}; pointer-events:all; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.6));">
+                        <circle r="14" fill="transparent" />
+                        <circle r="8.5" fill="#1e293b" stroke="#ffffff" stroke-width="1.4" vector-effect="non-scaling-stroke" />
+                        <path d="M-3,-3 A 4.5 4.5 0 0 1 3.8,-0.8 L 2.4,0.6 M 3.8,-0.8 L 3.8,-3 M 3,3 A 4.5 4.5 0 0 1 -3.8,0.8 L -2.4,-0.6 M -3.8,0.8 L -3.8,3" fill="none" stroke="#ffffff" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" />
                     </g>
                 `;
 
-                // F. 4 Kardinal Baklava Tutamaç (Genişletme / Boyutlandırma)
-                const dSize = 14;
+                // E. 4 Kardinal Tutamaç (Doğu, Batı, Kuzey, Güney - Küçük, zarif yuvarlak kontrol noktaları)
                 // East
-                html += `<rect data-mask-action="drag_radial_h" x="${rx - dSize/2}" y="${-dSize/2}" width="${dSize}" height="${dSize}" transform="rotate(45, ${rx}, 0)" fill="#ffffff" stroke="#0f172a" stroke-width="2.5" vector-effect="non-scaling-stroke" cursor="ew-resize" style="cursor:ew-resize; pointer-events:all; filter: drop-shadow(0 2px 5px rgba(0,0,0,0.75));" />`;
-                html += `<circle cx="${rx}" cy="0" r="2.5" fill="#0284c7" pointer-events="none" />`;
-                // West
-                html += `<rect data-mask-action="drag_radial_h" x="${-rx - dSize/2}" y="${-dSize/2}" width="${dSize}" height="${dSize}" transform="rotate(45, ${-rx}, 0)" fill="#ffffff" stroke="#0f172a" stroke-width="2.5" vector-effect="non-scaling-stroke" cursor="ew-resize" style="cursor:ew-resize; pointer-events:all; filter: drop-shadow(0 2px 5px rgba(0,0,0,0.75));" />`;
-                html += `<circle cx="${-rx}" cy="0" r="2.5" fill="#0284c7" pointer-events="none" />`;
-                // North
-                html += `<rect data-mask-action="drag_radial_v" x="${-dSize/2}" y="${-ry - dSize/2}" width="${dSize}" height="${dSize}" transform="rotate(45, 0, ${-ry})" fill="#ffffff" stroke="#0f172a" stroke-width="2.5" vector-effect="non-scaling-stroke" cursor="ns-resize" style="cursor:ns-resize; pointer-events:all; filter: drop-shadow(0 2px 5px rgba(0,0,0,0.75));" />`;
-                html += `<circle cx="0" cy="${-ry}" r="2.5" fill="#0284c7" pointer-events="none" />`;
-                // South
-                html += `<rect data-mask-action="drag_radial_v" x="${-dSize/2}" y="${ry - dSize/2}" width="${dSize}" height="${dSize}" transform="rotate(45, 0, ${ry})" fill="#ffffff" stroke="#0f172a" stroke-width="2.5" vector-effect="non-scaling-stroke" cursor="ns-resize" style="cursor:ns-resize; pointer-events:all; filter: drop-shadow(0 2px 5px rgba(0,0,0,0.75));" />`;
-                html += `<circle cx="0" cy="${ry}" r="2.5" fill="#0284c7" pointer-events="none" />`;
-
-                // G. Merkez Taşıma Pini: EL İKONU (Grab / Grabbing Cursor)
                 html += `
-                    <g data-mask-action="drag_radial_pin" transform="translate(0, 0)" cursor="${pinCursor}" style="cursor:${pinCursor}; pointer-events:all; filter: drop-shadow(0 3px 8px rgba(0,0,0,0.85));">
-                        <circle r="20" fill="rgba(0, 229, 255, 0.25)" />
-                        <circle r="14" fill="#0f172a" stroke="#ffffff" stroke-width="2.5" vector-effect="non-scaling-stroke" />
-                        <path d="M-3.5,-4 C-3.5,-5.2 -2.6,-5.8 -1.6,-5.8 C-0.7,-5.8 0,-5.2 0,-4 L0,-0.8 C0.4,-1.2 1.1,-1.5 1.9,-1.1 C2.5,-0.7 2.9,-0.1 2.9,0.7 L2.9,2.4 C2.9,4.8 1.1,6.2 -0.8,6.2 C-2.7,6.2 -4.4,4.7 -4.4,2.4 L-4.4,-0.8 C-4.4,-1.6 -3.6,-2.3 -2.6,-2.3 C-2.3,-2.3 -2,-2.1 -1.7,-1.9 L-1.7,-4 Z" fill="#00e5ff" />
+                    <g data-mask-action="drag_radial_h" transform="translate(${rx}, 0)" cursor="ew-resize" style="cursor:ew-resize; pointer-events:all; filter: drop-shadow(0 1px 3px rgba(0,0,0,0.6));">
+                        <circle r="14" fill="transparent" />
+                        <circle r="4.5" fill="#ffffff" stroke="#0f172a" stroke-width="1.5" vector-effect="non-scaling-stroke" />
+                        <circle r="1.5" fill="#0284c7" />
+                    </g>
+                `;
+                // West
+                html += `
+                    <g data-mask-action="drag_radial_h" transform="translate(${-rx}, 0)" cursor="ew-resize" style="cursor:ew-resize; pointer-events:all; filter: drop-shadow(0 1px 3px rgba(0,0,0,0.6));">
+                        <circle r="14" fill="transparent" />
+                        <circle r="4.5" fill="#ffffff" stroke="#0f172a" stroke-width="1.5" vector-effect="non-scaling-stroke" />
+                        <circle r="1.5" fill="#0284c7" />
+                    </g>
+                `;
+                // North
+                html += `
+                    <g data-mask-action="drag_radial_v" transform="translate(0, ${-ry})" cursor="ns-resize" style="cursor:ns-resize; pointer-events:all; filter: drop-shadow(0 1px 3px rgba(0,0,0,0.6));">
+                        <circle r="14" fill="transparent" />
+                        <circle r="4.5" fill="#ffffff" stroke="#0f172a" stroke-width="1.5" vector-effect="non-scaling-stroke" />
+                        <circle r="1.5" fill="#0284c7" />
+                    </g>
+                `;
+                // South
+                html += `
+                    <g data-mask-action="drag_radial_v" transform="translate(0, ${ry})" cursor="ns-resize" style="cursor:ns-resize; pointer-events:all; filter: drop-shadow(0 1px 3px rgba(0,0,0,0.6));">
+                        <circle r="14" fill="transparent" />
+                        <circle r="4.5" fill="#ffffff" stroke="#0f172a" stroke-width="1.5" vector-effect="non-scaling-stroke" />
+                        <circle r="1.5" fill="#0284c7" />
+                    </g>
+                `;
+
+                // F. Merkez Taşıma Pini (İkonik Hedef Rozeti)
+                html += `
+                    <g data-mask-action="drag_radial_pin" transform="translate(0, 0)" cursor="${pinCursor}" style="cursor:${pinCursor}; pointer-events:all; filter: drop-shadow(0 2px 6px rgba(0,0,0,0.7));">
+                        <circle r="18" fill="transparent" />
+                        <circle r="11" fill="rgba(0,0,0,0.3)" />
+                        <circle r="9.5" fill="#18181b" stroke="#ffffff" stroke-width="2" vector-effect="non-scaling-stroke" />
+                        <circle r="5.5" fill="none" stroke="rgba(255, 255, 255, 0.4)" stroke-width="0.8" vector-effect="non-scaling-stroke" />
+                        <circle r="2.8" fill="#38bdf8" />
                     </g>
                 `;
 
                 html += `</g>`;
             }
 
-            // 2. DOĞRUSAL GRADYAN SVG ÇİZİMİ
+            // 2. DOĞRUSAL GRADYAN SVG ÇİZİMİ (Lightroom Stili)
             else if (mask.type === 'linear') {
                 const s = mask.settings;
                 const x1 = s.x1 * 1000;
@@ -1524,47 +1570,51 @@
                 const p2_a = { x: x2 - nx * span, y: y2 - ny * span };
                 const p2_b = { x: x2 + nx * span, y: y2 + ny * span };
 
-                // A. P1-P2 arası Taşıma Bandı: BÜTÜN ALANDAN TUTUP TAŞIMA (Anywhere-drag)
-                html += `<polygon points="${p1_a.x},${p1_a.y} ${p1_b.x},${p1_b.y} ${p2_b.x},${p2_b.y} ${p2_a.x},${p2_a.y}" fill="rgba(192, 132, 252, 0.08)" data-mask-action="drag_linear_pin" cursor="${pinCursor}" style="cursor:${pinCursor}; pointer-events:all;" />`;
+                // A. P1-P2 arası Taşıma Bandı (Anywhere-drag)
+                html += `<polygon points="${p1_a.x},${p1_a.y} ${p1_b.x},${p1_b.y} ${p2_b.x},${p2_b.y} ${p2_a.x},${p2_a.y}" fill="rgba(192, 132, 252, 0.04)" data-mask-action="drag_linear_pin" cursor="${pinCursor}" style="cursor:${pinCursor}; pointer-events:all;" />`;
 
-                // 1. Çizgi: 100% Etki Sınırı
-                html += `<line x1="${p1_a.x}" y1="${p1_a.y}" x2="${p1_b.x}" y2="${p1_b.y}" stroke="rgba(0, 0, 0, 0.85)" stroke-width="4.5" vector-effect="non-scaling-stroke" pointer-events="none" />`;
-                html += `<line x1="${p1_a.x}" y1="${p1_a.y}" x2="${p1_b.x}" y2="${p1_b.y}" stroke="rgba(255, 255, 255, 0.95)" stroke-width="2.2" stroke-dasharray="6,6" vector-effect="non-scaling-stroke" pointer-events="none" />`;
+                // 1. Çizgi: 100% Etki Sınırı (Üst kesikli çizgi)
+                html += `<line x1="${p1_a.x}" y1="${p1_a.y}" x2="${p1_b.x}" y2="${p1_b.y}" stroke="rgba(0, 0, 0, 0.5)" stroke-width="2.2" stroke-dasharray="5,5" vector-effect="non-scaling-stroke" pointer-events="none" />`;
+                html += `<line x1="${p1_a.x}" y1="${p1_a.y}" x2="${p1_b.x}" y2="${p1_b.y}" stroke="rgba(255, 255, 255, 0.85)" stroke-width="1.2" stroke-dasharray="5,5" vector-effect="non-scaling-stroke" pointer-events="none" />`;
 
-                // 2. Çizgi: 50% Orta Geçiş Pivotu (Bu çizgi de taşınabilir)
-                html += `<line x1="${pm_a.x}" y1="${pm_a.y}" x2="${pm_b.x}" y2="${pm_b.y}" stroke="rgba(0, 0, 0, 0.85)" stroke-width="6" data-mask-action="drag_linear_pin" cursor="${pinCursor}" style="cursor:${pinCursor}; pointer-events:all;" vector-effect="non-scaling-stroke" />`;
-                html += `<line x1="${pm_a.x}" y1="${pm_a.y}" x2="${pm_b.x}" y2="${pm_b.y}" stroke="#c084fc" stroke-width="2.8" pointer-events="none" vector-effect="non-scaling-stroke" />`;
+                // 2. Çizgi: 50% Orta Geçiş Pivotu (Net düz beyaz çizgi)
+                html += `<line x1="${pm_a.x}" y1="${pm_a.y}" x2="${pm_b.x}" y2="${pm_b.y}" stroke="rgba(0, 0, 0, 0.6)" stroke-width="3" data-mask-action="drag_linear_pin" cursor="${pinCursor}" style="cursor:${pinCursor}; pointer-events:all;" vector-effect="non-scaling-stroke" />`;
+                html += `<line x1="${pm_a.x}" y1="${pm_a.y}" x2="${pm_b.x}" y2="${pm_b.y}" stroke="#ffffff" stroke-width="1.4" pointer-events="none" vector-effect="non-scaling-stroke" />`;
 
-                // 3. Çizgi: 0% Bitiş Sınırı
-                html += `<line x1="${p2_a.x}" y1="${p2_a.y}" x2="${p2_b.x}" y2="${p2_b.y}" stroke="rgba(0, 0, 0, 0.85)" stroke-width="4" vector-effect="non-scaling-stroke" pointer-events="none" />`;
-                html += `<line x1="${p2_a.x}" y1="${p2_a.y}" x2="${p2_b.x}" y2="${p2_b.y}" stroke="rgba(255, 255, 255, 0.75)" stroke-width="2" stroke-dasharray="5,5" vector-effect="non-scaling-stroke" pointer-events="none" />`;
+                // 3. Çizgi: 0% Bitiş Sınırı (Alt kesikli çizgi)
+                html += `<line x1="${p2_a.x}" y1="${p2_a.y}" x2="${p2_b.x}" y2="${p2_b.y}" stroke="rgba(0, 0, 0, 0.5)" stroke-width="2.2" stroke-dasharray="5,5" vector-effect="non-scaling-stroke" pointer-events="none" />`;
+                html += `<line x1="${p2_a.x}" y1="${p2_a.y}" x2="${p2_b.x}" y2="${p2_b.y}" stroke="rgba(255, 255, 255, 0.75)" stroke-width="1.2" stroke-dasharray="5,5" vector-effect="non-scaling-stroke" pointer-events="none" />`;
 
-                // Eksen Yön Kılavuzu (P1 -> P2)
-                html += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="rgba(0, 0, 0, 0.85)" stroke-width="4" vector-effect="non-scaling-stroke" pointer-events="none" />`;
-                html += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#fbbf24" stroke-width="2.2" stroke-dasharray="4,4" vector-effect="non-scaling-stroke" pointer-events="none" />`;
+                // Eksen Yön Kılavuzu (P1 -> P2 bağlantı çizgisi)
+                html += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="rgba(0, 0, 0, 0.5)" stroke-width="2" vector-effect="non-scaling-stroke" pointer-events="none" />`;
+                html += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="rgba(255, 255, 255, 0.85)" stroke-width="1" stroke-dasharray="3,3" vector-effect="non-scaling-stroke" pointer-events="none" />`;
 
-                // Merkez Taşıma Pini: EL İKONU
+                // Merkez Taşıma Pini (İkonik Hedef Rozeti)
                 html += `
-                    <g data-mask-action="drag_linear_pin" transform="translate(${mx}, ${my})" cursor="${pinCursor}" style="cursor:${pinCursor}; pointer-events:all; filter: drop-shadow(0 3px 8px rgba(0,0,0,0.85));">
-                        <circle r="20" fill="rgba(192, 132, 252, 0.25)" />
-                        <circle r="14" fill="#0f172a" stroke="#ffffff" stroke-width="2.5" vector-effect="non-scaling-stroke" />
-                        <path d="M-3.5,-4 C-3.5,-5.2 -2.6,-5.8 -1.6,-5.8 C-0.7,-5.8 0,-5.2 0,-4 L0,-0.8 C0.4,-1.2 1.1,-1.5 1.9,-1.1 C2.5,-0.7 2.9,-0.1 2.9,0.7 L2.9,2.4 C2.9,4.8 1.1,6.2 -0.8,6.2 C-2.7,6.2 -4.4,4.7 -4.4,2.4 L-4.4,-0.8 C-4.4,-1.6 -3.6,-2.3 -2.6,-2.3 C-2.3,-2.3 -2,-2.1 -1.7,-1.9 L-1.7,-4 Z" fill="#c084fc" />
+                    <g data-mask-action="drag_linear_pin" transform="translate(${mx}, ${my})" cursor="${pinCursor}" style="cursor:${pinCursor}; pointer-events:all; filter: drop-shadow(0 2px 6px rgba(0,0,0,0.7));">
+                        <circle r="18" fill="transparent" />
+                        <circle r="11" fill="rgba(0,0,0,0.3)" />
+                        <circle r="9.5" fill="#18181b" stroke="#ffffff" stroke-width="2" vector-effect="non-scaling-stroke" />
+                        <circle r="5.5" fill="none" stroke="rgba(255, 255, 255, 0.4)" stroke-width="0.8" vector-effect="non-scaling-stroke" />
+                        <circle r="2.8" fill="#c084fc" />
                     </g>
                 `;
 
-                // P1 Tutamacı
+                // P1 Tutamacı (Zarif yuvarlak kontrol pini)
                 html += `
-                    <g data-mask-action="drag_linear_p1" transform="translate(${x1}, ${y1})" cursor="ns-resize" style="cursor:ns-resize; pointer-events:all; filter: drop-shadow(0 2px 5px rgba(0,0,0,0.75));">
-                        <circle r="10" fill="#ffffff" stroke="#0f172a" stroke-width="2.5" vector-effect="non-scaling-stroke" />
-                        <circle r="3.5" fill="#a855f7" pointer-events="none" />
+                    <g data-mask-action="drag_linear_p1" transform="translate(${x1}, ${y1})" cursor="ns-resize" style="cursor:ns-resize; pointer-events:all; filter: drop-shadow(0 1px 3px rgba(0,0,0,0.6));">
+                        <circle r="14" fill="transparent" />
+                        <circle r="4.5" fill="#ffffff" stroke="#0f172a" stroke-width="1.5" vector-effect="non-scaling-stroke" />
+                        <circle r="1.5" fill="#a855f7" />
                     </g>
                 `;
 
-                // P2 Tutamacı
+                // P2 Tutamacı (Zarif yuvarlak kontrol pini)
                 html += `
-                    <g data-mask-action="drag_linear_p2" transform="translate(${x2}, ${y2})" cursor="ns-resize" style="cursor:ns-resize; pointer-events:all; filter: drop-shadow(0 2px 5px rgba(0,0,0,0.75));">
-                        <circle r="10" fill="#ffffff" stroke="#0f172a" stroke-width="2.5" vector-effect="non-scaling-stroke" />
-                        <circle r="3.5" fill="#7c3aed" pointer-events="none" />
+                    <g data-mask-action="drag_linear_p2" transform="translate(${x2}, ${y2})" cursor="ns-resize" style="cursor:ns-resize; pointer-events:all; filter: drop-shadow(0 1px 3px rgba(0,0,0,0.6));">
+                        <circle r="14" fill="transparent" />
+                        <circle r="4.5" fill="#ffffff" stroke="#0f172a" stroke-width="1.5" vector-effect="non-scaling-stroke" />
+                        <circle r="1.5" fill="#7c3aed" />
                     </g>
                 `;
             }
@@ -1583,6 +1633,7 @@
                     name: m.name,
                     active: m.active,
                     showOverlay: m.showOverlay,
+                    showPin: m.showPin !== undefined ? m.showPin : true,
                     settings: { ...m.settings }
                 })),
                 selectedMaskId: this.selectedMaskId,

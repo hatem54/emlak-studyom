@@ -43,12 +43,30 @@ function initAutoSaveDB() {
     });
 }
 
+function sanitizeStateForDB(state) {
+    if (!state) return state;
+    try {
+        return JSON.parse(JSON.stringify(state, (key, value) => {
+            if (key === 'saberRef' || key === 'el' || key === 'graphics' || key === 'particleContainer' || key === 'branchContainer' || key === '_dragEl') {
+                return undefined;
+            }
+            if (typeof value === 'function' || value instanceof Element || value instanceof Node) {
+                return undefined;
+            }
+            return value;
+        }));
+    } catch(e) {
+        return state;
+    }
+}
+
 function saveStateToDB(state) {
     if (!dbInstance) return Promise.reject('DB not initialized');
     return new Promise((resolve, reject) => {
+        const cleanState = sanitizeStateForDB(state);
         const transaction = dbInstance.transaction([STORE_NAME], 'readwrite');
         const store = transaction.objectStore(STORE_NAME);
-        const request = store.put({ id: 'latest_save', timestamp: Date.now(), state: state });
+        const request = store.put({ id: 'latest_save', timestamp: Date.now(), state: cleanState });
         
         request.onsuccess = () => resolve();
         request.onerror = (e) => reject(e.target.error);
@@ -82,11 +100,12 @@ function deleteStateFromDB() {
 function saveHistoryToDB(state) {
     if (!dbInstance) return Promise.reject('DB not initialized');
     return new Promise((resolve, reject) => {
+        const cleanState = sanitizeStateForDB(state);
         const transaction = dbInstance.transaction([STORE_NAME], 'readwrite');
         const store = transaction.objectStore(STORE_NAME);
         
         const timestamp = Date.now();
-        const request = store.put({ id: 'history_' + timestamp, timestamp: timestamp, state: state, isHistory: true });
+        const request = store.put({ id: 'history_' + timestamp, timestamp: timestamp, state: cleanState, isHistory: true });
         
         request.onsuccess = () => {
             cleanupOldHistory().then(resolve).catch(reject);
@@ -207,6 +226,7 @@ async function performAutoSave() {
                     clone.elId = clone.el.id;
                     delete clone.el;
                 }
+                delete clone.saberRef;
                 return clone;
             }), 
             extraFieldCounter: typeof extraFieldCounter !== 'undefined' ? extraFieldCounter : (window.extraFieldCounter || 0), 

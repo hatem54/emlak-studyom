@@ -160,6 +160,31 @@
         });
     };
 
+    // 🌟 Çoklu işlem sonrası çizim ve neon (Saber) senkronizasyonu
+    function syncMovedDrawElements(items) {
+        if (typeof drawPaths === 'undefined' || !items || items.length === 0) return;
+        items.forEach(it => {
+            const el = it ? (it.el || it) : null;
+            if (!el || !el.classList || !el.classList.contains('editable-draw')) return;
+            const pIdx = drawPaths.findIndex(p => p.el === el);
+            if (pIdx > -1) {
+                const pObj = drawPaths[pIdx];
+                if (typeof window.updateSinglePathSvg === 'function') {
+                    window.updateSinglePathSvg(pObj);
+                }
+                if (pObj.hasSaber && typeof window.applySaberToPath === 'function') {
+                    window.applySaberToPath(pIdx, pObj.saberOptions || window.saberState);
+                }
+            }
+        });
+        if (window.SaberEngine) {
+            const app = window.SaberEngine.getApp();
+            if (app && app.renderer && app.stage) {
+                try { app.renderer.render(app.stage); } catch(e) {}
+            }
+        }
+    }
+
     // Akıllı Sıralama & Üst Üste Binmeyi Önleme (Smart Stacking)
     window.multiSelectStack = function(direction = 'vertical', customGap = null) {
         const elements = (window.selectedElements && window.selectedElements.length > 1)
@@ -250,6 +275,7 @@
             });
         }
 
+        syncMovedDrawElements(items);
         if (typeof redrawAll === 'function') redrawAll();
         if (typeof updateDrawHistory === 'function') updateDrawHistory();
         if (typeof renderLayers === 'function') renderLayers();
@@ -337,6 +363,7 @@
             }
         });
 
+        syncMovedDrawElements(items);
         if (typeof redrawAll === 'function') redrawAll();
         if (typeof updateDrawHistory === 'function') updateDrawHistory();
         if (typeof renderLayers === 'function') renderLayers();
@@ -461,6 +488,7 @@
             }
         });
 
+        syncMovedDrawElements(items);
         if (typeof redrawAll === 'function') redrawAll();
         if (typeof updateDrawHistory === 'function') updateDrawHistory();
         if (typeof renderLayers === 'function') renderLayers();
@@ -547,6 +575,8 @@
             }
         }
 
+        syncMovedDrawElements(items);
+        if (typeof redrawAll === 'function') redrawAll();
         if (typeof updateDrawHistory === 'function') updateDrawHistory();
         if (typeof window.recordHistory === 'function') window.recordHistory('Aralıklar Eşitlendi (' + axis + ')');
     };
@@ -614,7 +644,13 @@
             el.remove();
             if (typeof drawPaths !== 'undefined') {
                 const idx = drawPaths.findIndex(p => p.el === el);
-                if (idx > -1) drawPaths.splice(idx, 1);
+                if (idx > -1) {
+                    const p = drawPaths[idx];
+                    if (p.hasSaber && typeof window.removeSaberFromPath === 'function') {
+                        window.removeSaberFromPath(idx);
+                    }
+                    drawPaths.splice(idx, 1);
+                }
             }
         });
         
@@ -632,14 +668,17 @@
                 el.style.color = color;
             }
             if (el.classList.contains('editable-draw')) {
-                const svg = el.querySelector('svg');
-                if (svg) {
-                    const shapes = svg.querySelectorAll('path, polygon, rect, ellipse, line, circle, polyline');
-                    shapes.forEach(shape => {
-                        if(shape.hasAttribute('stroke') && shape.getAttribute('stroke') !== 'none') {
-                            shape.setAttribute('stroke', color);
-                        }
-                    });
+                const isNeon = el.classList.contains('neon-active');
+                if (!isNeon) {
+                    const svg = el.querySelector('svg');
+                    if (svg) {
+                        const shapes = svg.querySelectorAll('path, polygon, rect, ellipse, line, circle, polyline');
+                        shapes.forEach(shape => {
+                            if(shape.hasAttribute('stroke') && shape.getAttribute('stroke') !== 'none') {
+                                shape.setAttribute('stroke', color);
+                            }
+                        });
+                    }
                 }
             }
         });
@@ -695,6 +734,7 @@
             const curScale = el.dataset.scale || 1;
             el.style.transform = `rotate(${newRot}deg) scale(${curScale})`;
         });
+        syncMovedDrawElements(window.selectedElements);
         if (typeof redrawAll === 'function') redrawAll();
         if (typeof updateDrawHistory === 'function') updateDrawHistory();
         if (typeof renderLayers === 'function') renderLayers();
@@ -720,6 +760,7 @@
                 if (el.dataset.baseHeight !== undefined) el.dataset.baseHeight = newH;
             }
         });
+        syncMovedDrawElements(window.selectedElements);
         if (typeof redrawAll === 'function') redrawAll();
         if (typeof updateDrawHistory === 'function') updateDrawHistory();
         if (typeof renderLayers === 'function') renderLayers();

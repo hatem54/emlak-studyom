@@ -99,6 +99,9 @@ function resizeCanvas(){
         drawLayerEl.style.height = canvasH + 'px';
         if (typeof redrawAll === 'function') redrawAll();
     }
+    if (window.SaberEngine && typeof window.SaberEngine.resize === 'function') {
+        window.SaberEngine.resize(canvasW, canvasH);
+    }
     
     const isMob = typeof window.isMobileDevice === 'function' ? window.isMobileDevice() : window.innerWidth <= 768;
     const isLand = isMob && window.innerWidth > window.innerHeight;
@@ -389,6 +392,10 @@ window.togglePhotoLockFromDock = function() {
         window.updatePhotoLockState(newState);
     } else {
         window.isPhotoLocked = newState;
+        if (!newState) {
+            if (typeof setDrawMode === 'function') setDrawMode('off');
+            else if (typeof window.setDrawMode === 'function') window.setDrawMode('off');
+        }
     }
     window.updateDockLockUI(newState);
 };

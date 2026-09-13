@@ -184,4 +184,101 @@ function enableInlineEdit(el) {
     }, { passive: true });
 }
 
+/**
+ * Global App Toast (Klasik Mavi Bilgi & Bildirim Ekranı)
+ * Emlak Stüdiom genelinde kullanılan şık, animasyonlu bildirim balonu.
+ */
+window.showAppToast = function(message, type = 'info', durationMs = 2800) {
+    try {
+        const oldToast = document.getElementById('appGlobalToast');
+        if (oldToast) {
+            oldToast.remove();
+        }
+
+        const toast = document.createElement('div');
+        toast.id = 'appGlobalToast';
+        toast.setAttribute('role', 'alert');
+
+        // Renk paleti - Varsayılan / info: Klasik Emlak Stüdiom Derin Kraliyet Mavisi (#1d4ed8 -> #2563eb)
+        let bg = 'linear-gradient(135deg, #1d4ed8 0%, #2563eb 100%)';
+        let defaultIcon = '💡';
+        let shadow = '0 10px 25px -5px rgba(37, 99, 235, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.35)';
+
+        if (type === 'success') {
+            bg = 'linear-gradient(135deg, #059669 0%, #10b981 100%)';
+            defaultIcon = '✨';
+            shadow = '0 10px 25px -5px rgba(16, 185, 129, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.35)';
+        } else if (type === 'error') {
+            bg = 'linear-gradient(135deg, #b91c1c 0%, #ef4444 100%)';
+            defaultIcon = '⚠️';
+            shadow = '0 10px 25px -5px rgba(239, 68, 68, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.35)';
+        } else if (type === 'warning') {
+            bg = 'linear-gradient(135deg, #d97706 0%, #f59e0b 100%)';
+            defaultIcon = '⚡';
+            shadow = '0 10px 25px -5px rgba(245, 158, 11, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.35)';
+        }
+
+        const isMobile = (typeof window !== 'undefined' && window.innerWidth <= 768);
+
+        toast.style.cssText = `
+            position: fixed;
+            top: ${isMobile ? '16px' : '24px'};
+            ${isMobile ? 'left: 50%; right: auto; width: calc(100% - 32px); max-width: 380px;' : 'right: 24px; left: auto; max-width: 440px;'}
+            transform: ${isMobile ? 'translate(-50%, -16px)' : 'translateY(-16px)'};
+            background: ${bg};
+            color: #ffffff;
+            padding: 12px 20px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            box-shadow: ${shadow};
+            font-family: 'Space Grotesk', 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+            font-size: 13.5px;
+            font-weight: 600;
+            letter-spacing: 0.2px;
+            line-height: 1.45;
+            display: flex;
+            align-items: center;
+            justify-content: ${isMobile ? 'center' : 'flex-start'};
+            gap: 10px;
+            opacity: 0;
+            z-index: 999999999;
+            pointer-events: auto;
+            cursor: pointer;
+            transition: opacity 0.26s cubic-bezier(0.16, 1, 0.3, 1), transform 0.26s cubic-bezier(0.16, 1, 0.3, 1);
+            user-select: none;
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+        `;
+
+        // Eğer mesaj başında emoji veya ikon yoksa varsayılan ikon ekle
+        const msgStr = String(message || '');
+        const hasLeadingEmoji = /^[^\p{L}\p{N}\s]/u.test(msgStr.trim());
+        const contentHtml = hasLeadingEmoji ? msgStr : `<span style="font-size:16px;">${defaultIcon}</span> <span>${msgStr}</span>`;
+        toast.innerHTML = contentHtml;
+
+        const dismissToast = () => {
+            if (!toast || !toast.parentNode) return;
+            toast.style.opacity = '0';
+            toast.style.transform = isMobile ? 'translate(-50%, -16px)' : 'translateY(-16px)';
+            setTimeout(() => {
+                if (toast && toast.parentNode) toast.parentNode.removeChild(toast);
+            }, 280);
+        };
+
+        toast.addEventListener('click', dismissToast);
+        document.body.appendChild(toast);
+
+        // Giriş animasyonu
+        requestAnimationFrame(() => {
+            toast.style.opacity = '1';
+            toast.style.transform = isMobile ? 'translate(-50%, 0)' : 'translateY(0)';
+        });
+
+        setTimeout(dismissToast, durationMs);
+    } catch(err) {
+        console.warn('showAppToast error:', err);
+    }
+};
+
+
 

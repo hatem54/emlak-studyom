@@ -2606,6 +2606,17 @@ document.addEventListener('DOMContentLoaded', () => {
 // ?? �EK�LLER MOD�L� (CANVA TARZI TEMEL �EK�LLER)
 // ==============================================
 
+window.hexToRgba = function(hex, opacity) {
+    if(!hex || !hex.startsWith('#')) return hex;
+    if(hex.length === 4) {
+        hex = '#' + hex[1]+hex[1] + hex[2]+hex[2] + hex[3]+hex[3];
+    }
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    return \gba(\, \, \, \)\;
+};
+
 window.addShape = function(type) {
     const cContainer = document.getElementById('canvas-container');
     if (!cContainer) return;
@@ -2613,7 +2624,9 @@ window.addShape = function(type) {
     el.className = 'canvas-el draggable shape-el';
     el.dataset.shapeType = type;
     el.dataset.bgColor = '#3b82f6';
+    el.dataset.bgOpacity = '100';
     el.dataset.borderColor = '#ffffff';
+    el.dataset.borderOpacity = '100';
     el.dataset.borderWidth = '0';
     el.dataset.radius = '0';
     el.dataset.opacity = '100';
@@ -2635,7 +2648,6 @@ window.addShape = function(type) {
     inner.style.alignItems = 'center';
     inner.style.justifyContent = 'center';
     
-    // Default shape settings
     el.style.width = '100px';
     el.style.height = '100px';
 
@@ -2686,9 +2698,11 @@ window.addShape = function(type) {
     el.appendChild(inner);
     cContainer.appendChild(el);
     
-    // Set initial custom properties
-    el.style.setProperty('--shape-bg', el.dataset.bgColor);
-    el.style.setProperty('--shape-border', el.dataset.borderColor);
+    const bgRgba = window.hexToRgba(el.dataset.bgColor, el.dataset.bgOpacity);
+    const bcRgba = window.hexToRgba(el.dataset.borderColor, el.dataset.borderOpacity);
+    
+    el.style.setProperty('--shape-bg', bgRgba);
+    el.style.setProperty('--shape-border', bcRgba);
     el.style.setProperty('--shape-border-width', el.dataset.borderWidth + 'px');
     el.style.opacity = el.dataset.opacity / 100;
 
@@ -2706,7 +2720,18 @@ window.loadShapeSettings = function(el) {
     const isLine = type.includes('line');
     
     if (document.getElementById('shapeBgColor')) document.getElementById('shapeBgColor').value = el.dataset.bgColor || '#3b82f6';
+    if (document.getElementById('shapeBgOpacity')) {
+        const val = el.dataset.bgOpacity || '100';
+        document.getElementById('shapeBgOpacity').value = val;
+        if(document.getElementById('shapeBgOpacityVal')) document.getElementById('shapeBgOpacityVal').textContent = val + '%';
+    }
+    
     if (document.getElementById('shapeBorderColor')) document.getElementById('shapeBorderColor').value = el.dataset.borderColor || '#ffffff';
+    if (document.getElementById('shapeBorderOpacity')) {
+        const val = el.dataset.borderOpacity || '100';
+        document.getElementById('shapeBorderOpacity').value = val;
+        if(document.getElementById('shapeBorderOpacityVal')) document.getElementById('shapeBorderOpacityVal').textContent = val + '%';
+    }
     
     const bW = document.getElementById('shapeBorderWidth');
     if (bW) {
@@ -2717,7 +2742,7 @@ window.loadShapeSettings = function(el) {
     const rC = document.getElementById('shapeRadiusContainer');
     if (rC) {
         if (type === 'rectangle' || type === 'circle') {
-            rC.style.display = 'block';
+            rC.style.display = 'flex';
             const sR = document.getElementById('shapeRadius');
             if(sR) {
                 sR.value = el.dataset.radius || '0';
@@ -2739,20 +2764,29 @@ window.applyShapeSettings = function() {
     if (!selectedEl || !selectedEl.classList.contains('shape-el')) return;
     
     const bg = document.getElementById('shapeBgColor').value;
+    const bgOp = document.getElementById('shapeBgOpacity').value;
     const bc = document.getElementById('shapeBorderColor').value;
+    const bcOp = document.getElementById('shapeBorderOpacity').value;
     const bw = document.getElementById('shapeBorderWidth').value;
     const op = document.getElementById('shapeOpacity').value;
     
     selectedEl.dataset.bgColor = bg;
+    selectedEl.dataset.bgOpacity = bgOp;
     selectedEl.dataset.borderColor = bc;
+    selectedEl.dataset.borderOpacity = bcOp;
     selectedEl.dataset.borderWidth = bw;
     selectedEl.dataset.opacity = op;
     
-    selectedEl.style.setProperty('--shape-bg', bg);
-    selectedEl.style.setProperty('--shape-border', bc);
+    const bgRgba = window.hexToRgba(bg, bgOp);
+    const bcRgba = window.hexToRgba(bc, bcOp);
+    
+    selectedEl.style.setProperty('--shape-bg', bgRgba);
+    selectedEl.style.setProperty('--shape-border', bcRgba);
     selectedEl.style.setProperty('--shape-border-width', bw + 'px');
     selectedEl.style.opacity = op / 100;
 
+    if (document.getElementById('shapeBgOpacityVal')) document.getElementById('shapeBgOpacityVal').textContent = bgOp + '%';
+    if (document.getElementById('shapeBorderOpacityVal')) document.getElementById('shapeBorderOpacityVal').textContent = bcOp + '%';
     if (document.getElementById('shapeBorderWidthVal')) document.getElementById('shapeBorderWidthVal').textContent = bw + 'px';
     if (document.getElementById('shapeOpacityVal')) document.getElementById('shapeOpacityVal').textContent = op + '%';
 
@@ -2767,16 +2801,18 @@ window.applyShapeSettings = function() {
             
             inner.style.borderRadius = rad + (type === 'circle' ? '%' : 'px');
             if(type === 'rectangle') {
-               inner.style.border = bw + 'px solid ' + bc;
+               inner.style.border = bw + 'px solid ' + bcRgba;
+               inner.style.backgroundColor = bgRgba;
             } else {
-               inner.style.border = bw + 'px solid ' + bc;
+               inner.style.border = bw + 'px solid ' + bcRgba;
+               inner.style.backgroundColor = bgRgba;
             }
         } else if (type === 'line') {
-            inner.style.borderTop = bw + 'px solid ' + bc;
+            inner.style.borderTop = bw + 'px solid ' + bcRgba;
         } else if (type === 'dashed-line') {
-            inner.style.borderTop = bw + 'px dashed ' + bc;
+            inner.style.borderTop = bw + 'px dashed ' + bcRgba;
         } else if (type === 'dotted-line') {
-            inner.style.borderTop = bw + 'px dotted ' + bc;
+            inner.style.borderTop = bw + 'px dotted ' + bcRgba;
         }
     }
     
@@ -2805,4 +2841,5 @@ document.addEventListener('mousedown', (e) => {
         });
     }
 });
+
 

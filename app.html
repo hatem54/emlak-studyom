@@ -1524,14 +1524,22 @@
                 <span class="section-title" style="margin:0;border:none">📐 Seçili Şekil Ayarları</span>
             </div>
             <div class="settings-box">
-                <div class="color-row">
-                    <label>🎨 Dolgu Rengi</label>
-                    <input type="color" id="shapeBgColor" value="#3b82f6" oninput="applyShapeSettings()">
-                </div>
-                <div class="color-row">
-                    <label>🖋️ Çerçeve Rengi</label>
-                    <input type="color" id="shapeBorderColor" value="#ffffff" oninput="applyShapeSettings()">
-                </div>
+                                  <div class="color-row">
+                      <label>🎨 Dolgu Rengi</label>
+                      <input type="color" id="shapeBgColor" value="#3b82f6" oninput="applyShapeSettings()">
+                  </div>
+                  <div class="slider-group" style="margin-top:-8px; margin-bottom:12px;">
+                      <label><span style="font-size:11px; opacity:0.8;">Dolgu Opaklığı</span><span id="shapeBgOpacityVal" style="font-size:11px;">100%</span></label>
+                      <input type="range" id="shapeBgOpacity" min="0" max="100" value="100" oninput="applyShapeSettings()">
+                  </div>
+                                  <div class="color-row">
+                      <label>🖋️ Çerçeve Rengi</label>
+                      <input type="color" id="shapeBorderColor" value="#ffffff" oninput="applyShapeSettings()">
+                  </div>
+                  <div class="slider-group" style="margin-top:-8px; margin-bottom:12px;">
+                      <label><span style="font-size:11px; opacity:0.8;">Çerçeve Opaklığı</span><span id="shapeBorderOpacityVal" style="font-size:11px;">100%</span></label>
+                      <input type="range" id="shapeBorderOpacity" min="0" max="100" value="100" oninput="applyShapeSettings()">
+                  </div>
                 <div class="slider-group">
                     <label><span>Çerçeve Kalınlığı</span><span id="shapeBorderWidthVal">0px</span></label>
                     <input type="range" id="shapeBorderWidth" min="0" max="40" value="0" oninput="applyShapeSettings()">
@@ -2909,6 +2917,7 @@ window.addEventListener('DOMContentLoaded', () => {
 </body>
 
 </html>
+
 
 
 

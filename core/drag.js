@@ -785,6 +785,8 @@ function deselectAll(){
     window.selectedElements = [];
     if(document.getElementById('noSelMsg')) document.getElementById('noSelMsg').style.display='block';
     if(document.getElementById('elSettings')) document.getElementById('elSettings').style.display='none';
+    if(document.getElementById('shapeSettingsPanel')) document.getElementById('shapeSettingsPanel').style.display='none';
+    if(document.getElementById('calloutSettingsPanel')) document.getElementById('calloutSettingsPanel').style.display='none';
     if(typeof hideVertexHandles === 'function') hideVertexHandles();
     if(typeof window.updateMultiSelectUI === 'function') window.updateMultiSelectUI();
     if(typeof saveDrawEdit === 'function' && typeof editingDrawIndex !== 'undefined' && editingDrawIndex >= 0) {
@@ -1057,3 +1059,4 @@ function createPolygonFromSelectedLines() {
     deselectAll();
     if(pObj.el && typeof selectElement === 'function') selectElement(pObj.el);
 }
+

@@ -839,6 +839,14 @@ async function applyRestoredState(state) {
                         wrap.dataset.rotation = item.rotation || 0;
                         if (item.dataset) {
                             Object.keys(item.dataset).forEach(k => { wrap.dataset[k] = item.dataset[k]; });
+                            if (item.kind === 'shape') {
+                                const bgRgba = (typeof window.hexToRgba === 'function') ? window.hexToRgba(wrap.dataset.bgColor, wrap.dataset.bgOpacity || '100') : wrap.dataset.bgColor;
+                                const bcRgba = (typeof window.hexToRgba === 'function') ? window.hexToRgba(wrap.dataset.borderColor, wrap.dataset.borderOpacity || '100') : wrap.dataset.borderColor;
+                                wrap.style.setProperty('--shape-bg', bgRgba);
+                                wrap.style.setProperty('--shape-border', bcRgba);
+                                wrap.style.setProperty('--shape-border-width', (wrap.dataset.borderWidth || '0') + 'px');
+                                wrap.style.opacity = (wrap.dataset.opacity || '100') / 100;
+                            }
                         }
 
                         workArea.appendChild(wrap);
@@ -1121,4 +1129,5 @@ async function renderProjectHistory() {
         container.innerHTML = '<div style="font-size:11px; color:#ef4444; text-align:center; padding:10px;">Geçmiş yüklenirken hata oluştu.</div>';
     }
 }
+
 

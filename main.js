@@ -2712,11 +2712,12 @@ window.addShape = function(type) {
 };
 
 window.loadShapeSettings = function(el) {
+    try {
     const panel = document.getElementById('shapeSettingsPanel');
     if (!panel) return;
     panel.style.display = 'block';
     
-    const type = el.dataset.shapeType;
+    const type = el.dataset.shapeType || '';
     const isLine = type.includes('line');
     
     if (document.getElementById('shapeBgColor')) document.getElementById('shapeBgColor').value = el.dataset.bgColor || '#3b82f6';
@@ -2761,6 +2762,7 @@ window.loadShapeSettings = function(el) {
 };
 
 window.applyShapeSettings = function() {
+    try {
     if (!selectedEl || !selectedEl.classList.contains('shape-el')) return;
     
     const bg = document.getElementById('shapeBgColor').value;
@@ -2817,6 +2819,7 @@ window.applyShapeSettings = function() {
     }
     
     if (typeof requestAutoSave === 'function') requestAutoSave();
+    } catch(err) { console.error('Shape Settings Error:', err); }
 };
 
 window.deleteSelectedShape = function() {
@@ -2841,6 +2844,9 @@ document.addEventListener('mousedown', (e) => {
         });
     }
 });
+
+
+
 
 
 

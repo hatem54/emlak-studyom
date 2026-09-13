@@ -82,7 +82,36 @@ function applyGlowAndStroke(ctx, p) {
     }
 }
 
-function drawSinglePath(p){
+function applyPathFill(ctx, p, isNeon) {
+    if (!(p.fillOpacity > 0)) return;
+    ctx.save();
+    if (isNeon) {
+        ctx.globalCompositeOperation = 'screen';
+        const fColor = p.fillColor || '#00e5ff';
+        const fOp = Math.min(1, (p.fillOpacity || 0.3) * 1.15);
+        ctx.fillStyle = fColor;
+        ctx.globalAlpha = fOp;
+        ctx.shadowColor = fColor;
+        ctx.shadowBlur = 18;
+        ctx.fill();
+        ctx.shadowBlur = 6;
+        ctx.fill();
+    } else {
+        ctx.fillStyle = p.fillColor || '#ef4444';
+        ctx.globalAlpha = p.fillOpacity;
+        if (p.fillGlow > 0) {
+            ctx.shadowBlur = p.fillGlow;
+            ctx.shadowColor = p.fillColor;
+        } else {
+            ctx.shadowBlur = 0;
+            ctx.shadowColor = 'transparent';
+        }
+        ctx.fill();
+    }
+    ctx.restore();
+}
+
+function drawSinglePath(p, options = {}){
 
     if(p.hidden) return;
 
@@ -220,14 +249,48 @@ function drawSinglePath(p){
         return;
     }
     
+    // Rotasyon ve Ölçekleme (Merkez Etrafında)
+    const rot = (p.rotation !== undefined) ? p.rotation : (p.el && p.el.dataset && p.el.dataset.rotation ? parseFloat(p.el.dataset.rotation) : 0);
+    const curScale = (p.scale !== undefined) ? p.scale : (p.el && p.el.dataset && p.el.dataset.scale ? parseFloat(p.el.dataset.scale) : 1);
+    if (rot || (curScale && curScale !== 1)) {
+        let cx = 0, cy = 0;
+        if (p.el) {
+            const baseL = parseFloat(p.el.dataset.baseLeft !== undefined ? p.el.dataset.baseLeft : p.el.style.left) || 0;
+            const baseT = parseFloat(p.el.dataset.baseTop !== undefined ? p.el.dataset.baseTop : p.el.style.top) || 0;
+            const baseW = parseFloat(p.el.dataset.baseWidth) || p.el.offsetWidth || 0;
+            const baseH = parseFloat(p.el.dataset.baseHeight) || p.el.offsetHeight || 0;
+            cx = baseL + baseW / 2;
+            cy = baseT + baseH / 2;
+        } else if (p.type === 'circle' || p.type === 'rect' || p.type === 'line' || p.type === 'arrow') {
+            cx = (p.x1 + p.x2) / 2;
+            cy = (p.y1 + p.y2) / 2;
+        } else if (p.points && p.points.length > 0) {
+            let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+            p.points.forEach(pt => {
+                if (pt.x < minX) minX = pt.x;
+                if (pt.x > maxX) maxX = pt.x;
+                if (pt.y < minY) minY = pt.y;
+                if (pt.y > maxY) maxY = pt.y;
+            });
+            cx = (minX + maxX) / 2;
+            cy = (minY + maxY) / 2;
+        }
+        if (cx || cy) {
+            drawCtx.translate(cx, cy);
+            if (rot) drawCtx.rotate(rot * Math.PI / 180);
+            if (curScale && curScale !== 1) drawCtx.scale(curScale, curScale);
+            drawCtx.translate(-cx, -cy);
+        }
+    }
+
+    const isNeon = !!(p.hasSaber || p.saber || (window.saberState && window.saberState.active && p.hasSaber !== false));
+    const skipNeonStrokes = !!(options && options.skipNeonStrokes);
+
     drawCtx.globalAlpha = p.opacity;
     drawCtx.strokeStyle = p.color;
     drawCtx.lineWidth = p.width;
     drawCtx.lineCap = 'round';
     drawCtx.lineJoin = 'round';
-    
-    
-    
     drawCtx.setLineDash(getDash(p.dashStyle, p.width));
     
     drawCtx.beginPath();
@@ -238,7 +301,13 @@ function drawSinglePath(p){
             for(let i=1; i<p.points.length; i++) {
                 drawCtx.lineTo(p.points[i].x, p.points[i].y);
             }
-            applyGlowAndStroke(drawCtx, p);
+            if(p.fillOpacity > 0){
+                drawCtx.closePath();
+                applyPathFill(drawCtx, p, isNeon);
+            }
+            if(!skipNeonStrokes || !isNeon){
+                applyGlowAndStroke(drawCtx, p);
+            }
         }
     } else if(p.type === 'line' || p.type === 'arrow'){
         if(typeof p.x1 !== 'undefined' && typeof p.x2 !== 'undefined') {
@@ -260,12 +329,16 @@ function drawSinglePath(p){
                 }
                 drawCtx.moveTo(lx1, ly1);
                 drawCtx.lineTo(lx2, ly2);
-                applyGlowAndStroke(drawCtx, p);
-                arrowHead(drawCtx, p.x1, p.y1, p.x2, p.y2, p.width, p.color, p.opacity, p.arrowStyle, p.arrowDir);
+                if(!skipNeonStrokes || !isNeon){
+                    applyGlowAndStroke(drawCtx, p);
+                    arrowHead(drawCtx, p.x1, p.y1, p.x2, p.y2, p.width, p.color, p.opacity, p.arrowStyle, p.arrowDir);
+                }
             } else {
                 drawCtx.moveTo(p.x1, p.y1);
                 drawCtx.lineTo(p.x2, p.y2);
-                applyGlowAndStroke(drawCtx, p);
+                if(!skipNeonStrokes || !isNeon){
+                    applyGlowAndStroke(drawCtx, p);
+                }
             }
         }
     } else if(p.type === 'rect'){
@@ -275,21 +348,10 @@ function drawSinglePath(p){
             const rw = Math.abs(p.x2 - p.x1);
             const rh = Math.abs(p.y2 - p.y1);
             drawCtx.rect(rx, ry, rw, rh);
-            if(p.fillOpacity > 0){
-                drawCtx.fillStyle = p.fillColor;
-                drawCtx.globalAlpha = p.fillOpacity;
-                if(p.fillGlow > 0){
-                    drawCtx.shadowBlur = p.fillGlow;
-                    drawCtx.shadowColor = p.fillColor;
-                } else {
-                    drawCtx.shadowBlur = 0;
-                    drawCtx.shadowColor = 'transparent';
-                }
-                drawCtx.fill();
-                drawCtx.shadowBlur = 0;
-                drawCtx.shadowColor = 'transparent';
+            applyPathFill(drawCtx, p, isNeon);
+            if(!skipNeonStrokes || !isNeon){
+                applyGlowAndStroke(drawCtx, p);
             }
-            applyGlowAndStroke(drawCtx, p);
         }
     } else if(p.type === 'circle'){
         if(typeof p.x1 !== 'undefined' && typeof p.x2 !== 'undefined') {
@@ -298,21 +360,10 @@ function drawSinglePath(p){
             const rx2 = Math.max(Math.abs(p.x2 - p.x1) / 2, 1);
             const ry2 = Math.max(Math.abs(p.y2 - p.y1) / 2, 1);
             drawCtx.ellipse(cx, cy, rx2, ry2, 0, 0, Math.PI*2);
-            if(p.fillOpacity > 0){
-                drawCtx.fillStyle = p.fillColor;
-                drawCtx.globalAlpha = p.fillOpacity;
-                if(p.fillGlow > 0){
-                    drawCtx.shadowBlur = p.fillGlow;
-                    drawCtx.shadowColor = p.fillColor;
-                } else {
-                    drawCtx.shadowBlur = 0;
-                    drawCtx.shadowColor = 'transparent';
-                }
-                drawCtx.fill();
-                drawCtx.shadowBlur = 0;
-                drawCtx.shadowColor = 'transparent';
+            applyPathFill(drawCtx, p, isNeon);
+            if(!skipNeonStrokes || !isNeon){
+                applyGlowAndStroke(drawCtx, p);
             }
-            applyGlowAndStroke(drawCtx, p);
         }
     } else if(p.type === 'polygon'){
         if(p.points && p.points.length > 0){
@@ -320,31 +371,18 @@ function drawSinglePath(p){
             for(let i=1; i<p.points.length; i++){
                 drawCtx.lineTo(p.points[i].x, p.points[i].y);
             }
-            if(p.closed){
+            if(p.closed !== false){
                 drawCtx.closePath();
-                if(p.fillOpacity > 0){
-                    drawCtx.fillStyle = p.fillColor;
-                    drawCtx.globalAlpha = p.fillOpacity;
-                    if(p.fillGlow > 0){
-                        drawCtx.shadowBlur = p.fillGlow;
-                        drawCtx.shadowColor = p.fillColor;
-                    } else {
-                        drawCtx.shadowBlur = 0;
-                        drawCtx.shadowColor = 'transparent';
-                    }
-                    drawCtx.fill();
-                    drawCtx.shadowBlur = 0;
-                    drawCtx.shadowColor = 'transparent';
-                }
-                applyGlowAndStroke(drawCtx, p);
-            } else {
+                applyPathFill(drawCtx, p, isNeon);
+            }
+            if(!skipNeonStrokes || !isNeon){
                 applyGlowAndStroke(drawCtx, p);
             }
             
-            const isNeonForPts = !!(p.saber || p.hasSaber || (window.saberState && window.saberState.active));
+            const isNeonForPts = isNeon;
             const sOptsForPts = p.saberOptions || (window.saberState && window.saberState.active ? window.saberState : {}) || {};
             const showNodesForPts = isNeonForPts ? (sOptsForPts.energyNodes !== false) : p.showVertices;
-            if(showNodesForPts){
+            if(showNodesForPts && (!skipNeonStrokes || !isNeon)){
                 drawCtx.save();
                 if (isNeonForPts) {
                     drawCtx.globalCompositeOperation = 'screen';
@@ -2349,16 +2387,17 @@ function updateSinglePathSvg(p) {
 window.updateSinglePathSvg = updateSinglePathSvg;
 
 
-window.redrawAllToContext = function(targetCtx, scaleMultiplier) {
+window.redrawAllToContext = function(targetCtx, scaleMultiplier, options = {}) {
     const oldCtx = drawCtx;
     drawCtx = targetCtx;
     drawCtx.save();
     drawCtx.setTransform(1, 0, 0, 1, 0, 0); // Reset html2canvas's residual transform!
     drawCtx.scale(scaleMultiplier, scaleMultiplier);
-    if (typeof drawPaths !== 'undefined' && drawPaths.length > 0) {
-        drawPaths.forEach(p => {
+    const activeDrawPaths = (typeof drawPaths !== 'undefined' && Array.isArray(drawPaths)) ? drawPaths : (window.drawPaths || []);
+    if (activeDrawPaths && activeDrawPaths.length > 0) {
+        activeDrawPaths.forEach(p => {
             if (typeof drawSinglePath === 'function') {
-                drawSinglePath(p);
+                drawSinglePath(p, options);
             }
         });
     }

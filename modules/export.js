@@ -59,6 +59,7 @@ function isExportIgnoredElement(el) {
     if (el.style && (el.style.display === 'none' || el.style.visibility === 'hidden')) return true;
 
     if (el.classList) {
+        if (el.classList.contains('editable-draw')) return true;
         if (el.classList.contains('el-selected')) return true;
         if (el.classList.contains('photo-inner-zoom')) return true;
         if (el.classList.contains('text-handle') ||
@@ -103,6 +104,7 @@ function sanitizeExportClone(clonedDoc) {
         }
         const clonedSaber = clonedDoc.getElementById('saber-layer');
         if (clonedSaber) clonedSaber.remove();
+        clonedDoc.querySelectorAll('.editable-draw').forEach(el => el.remove());
 
         if (window.isExportingVideo) {
             const clonedDraw = clonedDoc.getElementById('draw-layer') || clonedDoc.getElementById('drawCanvas');
@@ -1007,6 +1009,27 @@ async function saveImage(){
                 onclone: (clonedDoc) => sanitizeExportClone(clonedDoc)
             });
             ctx.drawImage(finalHtml2Canvas, 0, 0, targetW, targetH);
+
+            // Çizimleri ve dolguları export canvasına bas
+            if (typeof window.redrawAllToContext === 'function') {
+                const hasSaberActive = !!(window.SaberEngine && typeof window.SaberEngine.getApp === 'function');
+                window.redrawAllToContext(ctx, outputScale, { skipNeonStrokes: hasSaberActive });
+            }
+
+            // 3. PixiJS Saber Neon ekle ve motoru eski haline geri getir
+            if (window.SaberEngine && typeof window.SaberEngine.getApp === 'function') {
+                const saberApp = window.SaberEngine.getApp();
+                if (saberApp && saberApp.view) {
+                    ctx.drawImage(saberApp.view, 0, 0, targetW, targetH);
+                    if (saberApp.renderer && saberApp.stage) {
+                        saberApp.renderer.resize(currentW, currentH);
+                        saberApp.stage.scale.set(1);
+                        saberApp.renderer.render(saberApp.stage);
+                        saberApp.view.style.width = '100%';
+                        saberApp.view.style.height = '100%';
+                    }
+                }
+            }
             
             // Filtreleri eski haline döndür
             window.isExportingNow = false;
@@ -1015,18 +1038,6 @@ async function saveImage(){
                 p.style.filter = savedFilters.get(p) || '';
                 if (typeof _applyPhotoTransform === 'function') _applyPhotoTransform(p); // Tekrar preview çözünürlüğünde ve filtresiz fiziksel canvas olarak geri yükle
             });
-            
-            // 3. PixiJS motorunu eski haline (düşük çözünürlüğe) geri getir
-            if (window.SaberEngine && typeof window.SaberEngine.getApp === 'function') {
-                const saberApp = window.SaberEngine.getApp();
-                if (saberApp && saberApp.view && saberApp.renderer && saberApp.stage) {
-                    saberApp.renderer.resize(currentW, currentH);
-                    saberApp.stage.scale.set(1);
-                    saberApp.renderer.render(saberApp.stage);
-                    saberApp.view.style.width = '100%';
-                    saberApp.view.style.height = '100%';
-                }
-            }
 
         } catch (e) {
             console.error("Single Pass V2 Render Error:", e);
@@ -1109,6 +1120,12 @@ async function saveImage(){
             ctx.restore();
         }
         } // Close the masterImgObj condition
+
+        // Çizimleri ve dolguları export canvasına bas (html2canvas öncesi z-index uyumu)
+        if (typeof window.redrawAllToContext === 'function') {
+            const hasSaberActive = !!(window.SaberEngine && typeof window.SaberEngine.getApp === 'function');
+            window.redrawAllToContext(ctx, outputScale, { skipNeonStrokes: hasSaberActive });
+        }
 
         // 2. ui-layer custom items render using html2canvas
         const overlay = document.createElement('div');
@@ -1196,6 +1213,8 @@ async function saveImage(){
                     saberApp.renderer.resize(currentW, currentH);
                     saberApp.stage.scale.set(1);
                     saberApp.renderer.render(saberApp.stage);
+                    saberApp.view.style.width = '100%';
+                    saberApp.view.style.height = '100%';
                 } else {
                     ctx.drawImage(saberApp.view, 0, 0, targetW, targetH);
                 }
@@ -1559,6 +1578,12 @@ async function exportAnimatedVideo(options = {}) {
         try {
             baseCtx.drawImage(drawCanvas, 0, 0, targetW, targetH);
         } catch(e) {}
+    }
+
+    // Çizimleri ve dolguları video temel tuvaline bas
+    if (typeof window.redrawAllToContext === 'function') {
+        const hasSaberActive = !!(window.SaberEngine && typeof window.SaberEngine.getApp === 'function');
+        window.redrawAllToContext(baseCtx, outputScale, { skipNeonStrokes: hasSaberActive });
     }
 
     // 4. Şablon, metinler ve rozetler (Sadece varsa html2canvas çalıştır)
@@ -2008,8 +2033,13 @@ async function startBatchExport(){
         // --- UI RESTORE ---
         document.querySelectorAll('.photo-panel, #photo-layer').forEach(p => { if (typeof _applyPhotoTransform === 'function') _applyPhotoTransform(p); });
 
+        // Çizimleri ve dolguları export canvasına bas
+        if (typeof window.redrawAllToContext === 'function') {
+            const hasSaberActive = !!(window.SaberEngine && typeof window.SaberEngine.getApp === 'function');
+            window.redrawAllToContext(ctx, outputScale, { skipNeonStrokes: hasSaberActive });
+        }
             
-            if (window.SaberEngine && typeof window.SaberEngine.getApp === 'function') {
+        if (window.SaberEngine && typeof window.SaberEngine.getApp === 'function') {
                 const saberApp = window.SaberEngine.getApp();
                 if (saberApp && saberApp.view) {
                     if (saberApp.renderer && saberApp.stage) {
@@ -2077,6 +2107,12 @@ async function startBatchExport(){
                 }
                 ctx.filter = 'none'; // Sifirla
                 ctx.restore();
+            }
+
+            // Çizimleri ve dolguları export canvasına bas (html2canvas öncesi z-index uyumu)
+            if (typeof window.redrawAllToContext === 'function') {
+                const hasSaberActive = !!(window.SaberEngine && typeof window.SaberEngine.getApp === 'function');
+                window.redrawAllToContext(ctx, outputScale, { skipNeonStrokes: hasSaberActive });
             }
 
             // 2. ui-layer custom items render using html2canvas (SABLONSUZ MOD - Batch)

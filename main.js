@@ -2759,6 +2759,7 @@ window.loadShapeSettings = function(el) {
         opW.value = el.dataset.opacity || '100';
         if (document.getElementById('shapeOpacityVal')) document.getElementById('shapeOpacityVal').textContent = opW.value + '%';
     }
+    } catch(err) { console.error('Shape Settings Load Error:', err); }
 };
 
 window.applyShapeSettings = function() {
@@ -2844,6 +2845,7 @@ document.addEventListener('mousedown', (e) => {
         });
     }
 });
+
 
 
 

@@ -2602,4 +2602,185 @@ document.addEventListener('DOMContentLoaded', () => {
         window.addEventListener('touchend', restorePanel);
         window.addEventListener('touchcancel', restorePanel);
     });
+});// ==============================================
+// ?? ÞEKÝLLER MODÜLÜ (CANVA TARZI TEMEL ÞEKÝLLER)
+// ==============================================
+
+window.addShape = function(type) {
+    const cContainer = document.getElementById('canvas-container');
+    if (!cContainer) return;
+
+    const el = document.createElement('div');
+    el.className = 'canvas-el draggable shape-el';
+    el.dataset.shapeType = type;
+    el.dataset.bgColor = '#3b82f6';
+    el.dataset.borderColor = '#ffffff';
+    el.dataset.borderWidth = '0';
+    el.dataset.radius = '0';
+    el.dataset.opacity = '100';
+    
+    // Rastgele konum
+    const targetCanvasW = cContainer.offsetWidth || 1920;
+    const targetCanvasH = cContainer.offsetHeight || 1080;
+    el.style.left = Math.round(targetCanvasW / 2 - 50) + 'px';
+    el.style.top = Math.round(targetCanvasH / 2 - 50) + 'px';
+    el.style.position = 'absolute';
+    el.style.boxSizing = 'border-box';
+    el.style.zIndex = '50';
+
+    const inner = document.createElement('div');
+    inner.className = 'shape-inner';
+    inner.style.width = '100%';
+    inner.style.height = '100%';
+    inner.style.boxSizing = 'border-box';
+    
+    if (type === 'rectangle') {
+        el.style.width = '120px';
+        el.style.height = '80px';
+        inner.style.backgroundColor = '#3b82f6';
+    } else if (type === 'circle') {
+        el.style.width = '100px';
+        el.style.height = '100px';
+        el.dataset.radius = '50';
+        inner.style.backgroundColor = '#3b82f6';
+        inner.style.borderRadius = '50%';
+    } else if (type === 'line') {
+        el.style.width = '150px';
+        el.style.height = '10px';
+        el.dataset.bgColor = 'transparent';
+        el.dataset.borderColor = '#ffffff';
+        el.dataset.borderWidth = '4';
+        inner.style.borderTop = '4px solid #ffffff';
+        inner.style.marginTop = '3px';
+    } else if (type === 'dashed-line') {
+        el.style.width = '150px';
+        el.style.height = '10px';
+        el.dataset.bgColor = 'transparent';
+        el.dataset.borderColor = '#ffffff';
+        el.dataset.borderWidth = '4';
+        inner.style.borderTop = '4px dashed #ffffff';
+        inner.style.marginTop = '3px';
+    }
+
+    el.appendChild(inner);
+
+    const resizer = document.createElement('div');
+    resizer.className = 'callout-resizer';
+    resizer.innerHTML = '<i class="fa-solid fa-up-right-and-down-left-from-center"></i>';
+    resizer.style.display = 'none';
+    el.appendChild(resizer);
+    
+    const rotator = document.createElement('div');
+    rotator.className = 'callout-rotator';
+    rotator.innerHTML = '<i class="fa-solid fa-rotate-right"></i>';
+    rotator.style.display = 'none';
+    el.appendChild(rotator);
+
+    cContainer.appendChild(el);
+    if (typeof bindDrag === 'function') bindDrag(el);
+    if (typeof selectElement === 'function') selectElement(el);
+    if (typeof saveState === 'function') saveState();
+};
+
+window.loadShapeSettings = function(el) {
+    const panel = document.getElementById('shapeSettingsPanel');
+    if (!panel) return;
+    panel.style.display = 'block';
+    
+    const type = el.dataset.shapeType;
+    const radCont = document.getElementById('shapeRadiusContainer');
+    if (type === 'line' || type === 'dashed-line') {
+        radCont.style.display = 'none';
+    } else {
+        radCont.style.display = 'block';
+    }
+
+    document.getElementById('shapeBgColor').value = el.dataset.bgColor || '#3b82f6';
+    document.getElementById('shapeBorderColor').value = el.dataset.borderColor || '#ffffff';
+    
+    const bw = el.dataset.borderWidth || '0';
+    document.getElementById('shapeBorderWidth').value = bw;
+    document.getElementById('shapeBorderWidthVal').textContent = bw + 'px';
+    
+    const rad = el.dataset.radius || '0';
+    document.getElementById('shapeRadius').value = rad;
+    
+    if (type === 'circle') {
+        document.getElementById('shapeRadiusVal').textContent = '50%';
+        document.getElementById('shapeRadius').disabled = true;
+    } else {
+        document.getElementById('shapeRadiusVal').textContent = rad + 'px';
+        document.getElementById('shapeRadius').disabled = false;
+    }
+
+    const op = el.dataset.opacity || '100';
+    document.getElementById('shapeOpacity').value = op;
+    document.getElementById('shapeOpacityVal').textContent = op + '%';
+};
+
+window.applyShapeSettings = function() {
+    if (!window.selectedEl || !window.selectedEl.classList.contains('shape-el')) return;
+    const el = window.selectedEl;
+    const inner = el.querySelector('.shape-inner');
+    if (!inner) return;
+
+    const type = el.dataset.shapeType;
+    
+    const bg = document.getElementById('shapeBgColor').value;
+    const bc = document.getElementById('shapeBorderColor').value;
+    const bw = document.getElementById('shapeBorderWidth').value;
+    const rad = document.getElementById('shapeRadius').value;
+    const op = document.getElementById('shapeOpacity').value;
+
+    el.dataset.bgColor = bg;
+    el.dataset.borderColor = bc;
+    el.dataset.borderWidth = bw;
+    el.dataset.radius = rad;
+    el.dataset.opacity = op;
+
+    document.getElementById('shapeBorderWidthVal').textContent = bw + 'px';
+    if (type !== 'circle') document.getElementById('shapeRadiusVal').textContent = rad + 'px';
+    document.getElementById('shapeOpacityVal').textContent = op + '%';
+
+    el.style.opacity = (op / 100).toString();
+
+    if (type === 'line') {
+        inner.style.borderTop = bw + 'px solid ' + bc;
+        inner.style.backgroundColor = 'transparent';
+    } else if (type === 'dashed-line') {
+        inner.style.borderTop = bw + 'px dashed ' + bc;
+        inner.style.backgroundColor = 'transparent';
+    } else {
+        inner.style.backgroundColor = bg;
+        inner.style.border = bw + 'px solid ' + bc;
+        if (type !== 'circle') {
+            inner.style.borderRadius = rad + 'px';
+        }
+    }
+
+    if (typeof requestAutoSave === 'function') requestAutoSave();
+};
+
+window.deleteSelectedShape = function() {
+    if (window.selectedEl && window.selectedEl.classList.contains('shape-el')) {
+        window.selectedEl.remove();
+        document.getElementById('shapeSettingsPanel').style.display = 'none';
+        if (typeof saveState === 'function') saveState();
+    }
+};
+
+document.addEventListener('mousedown', (e) => {
+    if (e.target.id === 'canvas-container' || e.target.id === 'workArea') {
+        const p = document.getElementById('shapeSettingsPanel');
+        if (p) p.style.display = 'none';
+        
+        // Hide shape handles
+        document.querySelectorAll('.shape-el').forEach(el => {
+            const res = el.querySelector('.callout-resizer');
+            const rot = el.querySelector('.callout-rotator');
+            if (res) res.style.display = 'none';
+            if (rot) rot.style.display = 'none';
+            el.style.outline = 'none';
+        });
+    }
 });

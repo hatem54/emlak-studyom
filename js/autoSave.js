@@ -385,6 +385,32 @@ async function performAutoSave() {
             });
         });
 
+        // D. Şekiller (Shapes)
+        document.querySelectorAll('#canvas-container .shape-el, #workArea .shape-el').forEach(wrap => {
+            const left = parseFloat(wrap.style.left) || 0;
+            const top = parseFloat(wrap.style.top) || 0;
+            const width = parseFloat(wrap.style.width) || wrap.offsetWidth;
+            const height = parseFloat(wrap.style.height) || wrap.offsetHeight;
+            const scale = parseFloat(wrap.dataset.scale) || 1.0;
+            const userScale = parseFloat(wrap.dataset.userScale) || scale;
+            const rotation = parseFloat(wrap.dataset.rotation) || 0;
+            
+            customItems.push({
+                kind: 'shape',
+                html: wrap.innerHTML,
+                left: left,
+                top: top,
+                xPercent: canvasW > 0 ? (left / canvasW) : 0,
+                yPercent: canvasH > 0 ? (top / canvasH) : 0,
+                width: width,
+                height: height,
+                scale: scale,
+                userScale: userScale,
+                rotation: rotation,
+                dataset: Object.assign({}, wrap.dataset)
+            });
+        });
+
         state.customItems = customItems;
         await saveStateToDB(state);
         
@@ -780,11 +806,15 @@ async function applyRestoredState(state) {
                     el.addEventListener('dblclick', () => {
                         if (typeof switchTab === 'function') switchTab('element');
                     });
-                } else if (item.kind === 'callout') {
+                } else if (item.kind === 'callout' || item.kind === 'shape') {
                     const workArea = document.getElementById('canvas-container') || document.getElementById('workArea');
                     if (workArea && item.html) {
                         const wrap = document.createElement('div');
-                        wrap.className = item.isNeon ? 'co-neon-block draggable' : 'callout-wrap svg-callout draggable';
+                        if (item.kind === 'shape') {
+                            wrap.className = 'canvas-el draggable shape-el';
+                        } else {
+                            wrap.className = item.isNeon ? 'co-neon-block draggable' : 'callout-wrap svg-callout draggable';
+                        }
                         wrap.innerHTML = sanitizeRestoredHtml(item.html);
                         const posX = typeof item.left !== 'undefined' ? item.left : Math.round(item.xPercent * targetCanvasW);
                         const posY = typeof item.top !== 'undefined' ? item.top : Math.round(item.yPercent * targetCanvasH);

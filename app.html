@@ -136,6 +136,7 @@
         <div style="display:flex; flex-direction:column; gap:8px;">
             <button class="btn-action" style="text-align:left; background:linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(168, 85, 247, 0.2)); color:var(--text); border:1px solid rgba(168, 85, 247, 0.4); padding:15px; margin-bottom:8px; display:flex; align-items:center; gap:10px; font-size:14px; font-weight:600;" onclick="document.getElementById('mainTabs').classList.remove('active'); if(typeof showTemplateColorModal === 'function') showTemplateColorModal()"><i class="fas fa-wand-magic-sparkles" style="color:#a855f7;"></i> PRO Renk Paleti & Eşleştirici</button>
             <button class="btn-action" style="text-align:left; background:var(--dark-3); color:var(--text); border:1px solid rgba(108,92,231,0.2); padding:15px; margin-bottom:8px; display:flex; align-items:center; gap:10px; font-size:14px;" onclick="document.getElementById('mainTabs').classList.remove('active'); switchTab('font')">🔠 Font</button>
+            <button class="btn-action" style="text-align:left; background:var(--dark-3); color:var(--text); border:1px solid rgba(108,92,231,0.2); padding:15px; margin-bottom:8px; display:flex; align-items:center; gap:10px; font-size:14px;" onclick="document.getElementById('mainTabs').classList.remove('active'); switchTab('shapes')">📐 Şekiller</button>
             <button class="btn-action" style="text-align:left; background:var(--dark-3); color:var(--text); border:1px solid rgba(108,92,231,0.2); padding:15px; margin-bottom:8px; display:flex; align-items:center; gap:10px; font-size:14px;" onclick="document.getElementById('mainTabs').classList.remove('active'); switchTab('qr')">📱 QR Kod</button>
             <button class="btn-action" style="text-align:left; background:var(--dark-3); color:var(--text); border:1px solid rgba(108,92,231,0.2); padding:15px; margin-bottom:8px; display:flex; align-items:center; gap:10px; font-size:14px;" onclick="document.getElementById('mainTabs').classList.remove('active'); switchTab('brand')">🏢 Marka</button>
             <button class="btn-action" style="text-align:left; background:var(--dark-3); color:#ef4444; border:1px solid rgba(239,68,68,0.2); padding:15px; margin-bottom:8px; display:flex; align-items:center; gap:10px; font-size:14px;" onclick="confirmClearDrafts()">🗑️ Taslakları Temizle</button>
@@ -1512,6 +1513,67 @@
 
     <!-- TOPLU / ÇIKTI FORMATLARI -->
     
+    <!-- ŞEKİLLER SEKMESİ -->
+    <div id="tab-shapes" class="dynamic-field" style="display:none;">
+        <div class="section-title">📐 Temel Şekiller</div>
+        <p class="info-text">Tasarımınıza canva tarzı temel şekiller, çizgiler ve oklar ekleyin.</p>
+        
+        <!-- ŞEKİL AYARLARI PANELİ (seçilince açılır) -->
+        <details id="shapeSettingsPanel" style="display:none; background:#1e293b; border:1px solid #334155; border-radius:10px; margin-bottom:12px; margin-top:10px;">
+            <summary style="font-size:11px; font-weight:700; color:#a855f7; text-transform:uppercase; letter-spacing:1px; padding:12px; cursor:pointer; list-style:none; display:flex; justify-content:space-between; align-items:center;" onclick="this.querySelector('i').classList.toggle('fa-chevron-up'); this.querySelector('i').classList.toggle('fa-chevron-down');"><span>📐 Seçili Şekil Ayarları</span><i class="fa-solid fa-chevron-down" style="font-size:12px; color:#94a3b8;"></i></summary>
+            <div style="padding: 0 12px 12px 12px;">
+                <div class="color-row">
+                    <label>🎨 Dolgu Rengi</label>
+                    <input type="color" id="shapeBgColor" value="#3b82f6" oninput="applyShapeSettings()">
+                </div>
+                <div class="color-row">
+                    <label>🖋️ Çerçeve Rengi</label>
+                    <input type="color" id="shapeBorderColor" value="#ffffff" oninput="applyShapeSettings()">
+                </div>
+                <div style="margin-bottom:8px;">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                        <label style="font-size:11px; color:#94a3b8;">Çerçeve Kalınlığı (px)</label>
+                        <span id="shapeBorderWidthVal" style="font-size:11px; color:#e2e8f0; font-weight:700;">2px</span>
+                    </div>
+                    <input type="range" id="shapeBorderWidth" min="0" max="20" value="2" style="width:100%;" oninput="applyShapeSettings()">
+                </div>
+                <div style="margin-bottom:8px;" id="shapeRadiusContainer">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                        <label style="font-size:11px; color:#94a3b8;">Köşe Ovalleştirme (px)</label>
+                        <span id="shapeRadiusVal" style="font-size:11px; color:#e2e8f0; font-weight:700;">0px</span>
+                    </div>
+                    <input type="range" id="shapeRadius" min="0" max="200" value="0" style="width:100%;" oninput="applyShapeSettings()">
+                </div>
+                <div style="margin-bottom:8px;" id="shapeOpacityContainer">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                        <label style="font-size:11px; color:#94a3b8;">Opaklık (%)</label>
+                        <span id="shapeOpacityVal" style="font-size:11px; color:#e2e8f0; font-weight:700;">100%</span>
+                    </div>
+                    <input type="range" id="shapeOpacity" min="10" max="100" value="100" style="width:100%;" oninput="applyShapeSettings()">
+                </div>
+                <button class="btn-action" style="background:#ef4444; width:100%; margin-top:10px;" onclick="deleteSelectedShape()">🗑️ Şekli Sil</button>
+            </div>
+        </details>
+
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:15px;">
+            <button class="btn-action" onclick="addShape('rectangle')" style="display:flex; flex-direction:column; align-items:center; gap:8px; padding:15px; background:var(--dark-3); border:1px solid rgba(255,255,255,0.1);">
+                <div style="width:30px; height:20px; border:2px solid var(--text); border-radius:4px;"></div>
+                <span style="font-size:12px;">Dikdörtgen</span>
+            </button>
+            <button class="btn-action" onclick="addShape('circle')" style="display:flex; flex-direction:column; align-items:center; gap:8px; padding:15px; background:var(--dark-3); border:1px solid rgba(255,255,255,0.1);">
+                <div style="width:24px; height:24px; border:2px solid var(--text); border-radius:50%;"></div>
+                <span style="font-size:12px;">Daire / Elips</span>
+            </button>
+            <button class="btn-action" onclick="addShape('line')" style="display:flex; flex-direction:column; align-items:center; gap:8px; padding:15px; background:var(--dark-3); border:1px solid rgba(255,255,255,0.1);">
+                <div style="width:30px; height:2px; background:var(--text); margin-top:10px; margin-bottom:10px;"></div>
+                <span style="font-size:12px;">Düz Çizgi</span>
+            </button>
+            <button class="btn-action" onclick="addShape('dashed-line')" style="display:flex; flex-direction:column; align-items:center; gap:8px; padding:15px; background:var(--dark-3); border:1px solid rgba(255,255,255,0.1);">
+                <div style="width:30px; height:2px; border-bottom:2px dashed var(--text); margin-top:10px; margin-bottom:10px;"></div>
+                <span style="font-size:12px;">Kesik Çizgi</span>
+            </button>
+        </div>
+    </div>
     <!-- 📱 QR KOD PANELİ -->
     <div id="tab-qr" class="dynamic-field">
         <div class="section-title">📱 QR Kod Oluşturucu</div>

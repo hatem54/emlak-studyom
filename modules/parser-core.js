@@ -996,9 +996,9 @@
     async function executeSmartParse() {
         const aiTextEl = document.getElementById('aiText');
         if (!aiTextEl) return;
-        const rawText = aiTextEl.value;
-        if (!rawText || !rawText.trim()) {
-            alert("Lütfen önce ayrıştırılacak ilan metnini yapıştırın!");
+        let rawText = aiTextEl.value.trim();
+        if (!rawText) {
+            alert("Lütfen önce ayrıştırılacak ilan metnini veya ilan URL'sini yapıştırın!");
             return;
         }
 
@@ -1007,6 +1007,45 @@
             parseBtn.disabled = true;
             parseBtn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles fa-spin"></i> 🤖 Yapay Zeka Çözümlüyor...';
             parseBtn.style.opacity = '0.9';
+        }
+
+        // URL Kontrolü (http:// veya https:// ile başlıyorsa)
+        if (rawText.startsWith('http://') || rawText.startsWith('https://')) {
+            try {
+                if (parseBtn) parseBtn.innerHTML = '<i class="fa-solid fa-globe fa-spin"></i> URL İçeriği Okunuyor...';
+                // allorigins.win üzerinden proxy isteği atarak sayfa içeriğini çekiyoruz
+                const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(rawText)}`;
+                const response = await fetch(proxyUrl);
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.contents) {
+                        // Sadece body metnini al (HTML taglarını temizle)
+                        const parser = new DOMParser();
+                        const doc = parser.parseFromString(data.contents, "text/html");
+                        // Gizli elementleri ve script/style taglarını sil
+                        const scripts = doc.querySelectorAll('script, style, noscript, iframe, link, meta, header, footer, nav');
+                        scripts.forEach(s => s.remove());
+                        let extractedText = doc.body ? doc.body.innerText.replace(/\s+/g, ' ').trim() : '';
+                        if (extractedText.length > 50) {
+                            rawText = extractedText;
+                            aiTextEl.value = rawText; // Textarea'yı çekilen metinle güncelle
+                        } else {
+                            throw new Error('İçerik çekilemedi veya çok kısa.');
+                        }
+                    }
+                } else {
+                    throw new Error('Proxy sunucu hatası.');
+                }
+            } catch (err) {
+                console.warn('URL Scraping error:', err);
+                alert("Site engellemesi (CORS/Cloudflare) nedeniyle URL okunamadı. Lütfen ilan metnini doğrudan kopyalayıp yapıştırın.");
+                if (parseBtn) {
+                    parseBtn.disabled = false;
+                    parseBtn.innerHTML = '🤖 Metni Süz';
+                    parseBtn.style.opacity = '1';
+                }
+                return;
+            }
         }
 
         const parseId = Date.now();

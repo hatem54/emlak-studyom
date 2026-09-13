@@ -702,9 +702,9 @@ function selectElement(el, isMulti = false, noTabSwitch = false){
     // Restore visuals for all selected callouts
     if (window.selectedElements && window.selectedElements.length > 0) {
         window.selectedElements.forEach(selEl => {
-            const isCallout = selEl.classList.contains('co-neon-block') || selEl.classList.contains('callout-wrap') || selEl.classList.contains('svg-callout');
+            const isCallout = selEl.classList.contains('co-neon-block') || selEl.classList.contains('callout-wrap') || selEl.classList.contains('svg-callout') || selEl.classList.contains('shape-el');
             if (isCallout && selEl.dataset.locked !== 'true') {
-                if(selEl.classList.contains('co-neon-block')) {
+                if(selEl.classList.contains('co-neon-block') || selEl.classList.contains('shape-el')) {
                     selEl.style.outline = '1px dashed rgba(255,255,255,0.4)';
                 } 
                 
@@ -725,6 +725,15 @@ function selectElement(el, isMulti = false, noTabSwitch = false){
     // Check if grouping is active or can be activated
     if(typeof updateGroupUI === 'function') updateGroupUI();
     if(typeof window.updateMultiSelectUI === 'function') window.updateMultiSelectUI();
+    
+    if(el.classList.contains('shape-el')) {
+        const isMobile = typeof window.isMobileDevice === 'function' ? window.isMobileDevice() : window.innerWidth <= 768;
+        if (!noTabSwitch && (!isMobile || window.isLongPressOpen)) {
+            if(typeof switchTab === 'function') switchTab('shapes');
+        }
+        if(!isMulti && typeof window.loadShapeSettings === 'function') window.loadShapeSettings(el);
+    }
+
     
     if(el.classList.contains('editable-draw') || el.closest('.editable-draw')) {
         const drawEl = el.classList.contains('editable-draw') ? el : el.closest('.editable-draw');
@@ -760,7 +769,7 @@ function selectElement(el, isMulti = false, noTabSwitch = false){
         if(document.getElementById('elLabel')) document.getElementById('elLabel').textContent=el.dataset.label||'Eleman';
         if(typeof loadElSettings === 'function') loadElSettings(el);
         if(typeof loadElFont === 'function') loadElFont(el);
-        if(!noTabSwitch && typeof switchTab === 'function' && !el.classList.contains('co-neon-block') && !el.classList.contains('callout-wrap') && !el.classList.contains('svg-callout') && !el.classList.contains('callout-item')) switchTab('element');
+        if(!noTabSwitch && typeof switchTab === 'function' && !el.classList.contains('shape-el') && !el.classList.contains('co-neon-block') && !el.classList.contains('callout-wrap') && !el.classList.contains('svg-callout') && !el.classList.contains('callout-item')) switchTab('element');
         if (el.classList.contains('canvas-el') && typeof window.addTextHandles === 'function') window.addTextHandles(el);
     }
 }
@@ -770,7 +779,7 @@ function deselectAll(){
     document.querySelectorAll('.text-handle:not(.text-lock-handle)').forEach(h=>h.remove());
     document.querySelectorAll('.callout-controls, .callout-resizer, .callout-rotator, .callout-select-border').forEach(c => c.style.display = 'none');
     document.querySelectorAll('.callout-lock-btn').forEach(c => c.style.display = 'flex');
-    document.querySelectorAll('.co-neon-block').forEach(n => n.style.outline = 'none');
+    document.querySelectorAll('.co-neon-block, .shape-el').forEach(n => n.style.outline = 'none');
     selectedEl=null;
     window.selectedEl=null;
     window.selectedElements = [];

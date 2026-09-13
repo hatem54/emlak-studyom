@@ -551,10 +551,7 @@ function initSaberAnimToggles() {
             createAnimToggle('saberEnergyNodesAnim', 'saberEnergyNodes', 'saberModeToggle');
         }
 
-        // Çizim Objesi Özellikleri
-        if (document.getElementById('deSaberToggle')) {
-            createAnimToggle('deSaberAnim', 'deSaberToggle');
-        } 
+        // Çizim Objesi Özellikleri - anim toggle kaldırıldı 
         
         // Dinamik diğer checkbox'lar
         const allCheckboxes = document.querySelectorAll('input[type="checkbox"]');

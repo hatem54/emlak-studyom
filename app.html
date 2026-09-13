@@ -1292,65 +1292,77 @@
         <div class="draw-history" id="drawHistory"><div style="text-align:center;color:#475569;font-size:10px;padding:8px">Henüz çizim yok</div></div>
         <div id="drawEditPanel" style="display:none" class="settings-box">
             <div class="section-title" style="margin-top:0">✏️ Düzenle — <span id="drawEditLabel">#1</span></div>
-            <div class="color-row"><label>Çizgi Rengi</label><input type="color" id="deColor" value="#ef4444" oninput="liveUpdateDrawEdit()"></div>
-            <div class="slider-group"><label><span>Kalınlık</span><span id="deWidthVal">6</span></label><input type="range" id="deWidth" min="1" max="40" value="6" oninput="liveUpdateDrawEdit()"></div>
-            <div class="color-row">
-                <label>Çizgi Stili</label>
-                <select id="deDash" onchange="liveUpdateDrawEdit()" style="background:#1e293b; color:#fff; border:1px solid #334155; padding:4px 8px; border-radius:4px; font-size:12px; max-width:130px;">
-                    <option value="solid">Düz Çizgi</option>
-                    <option value="dashed">Kesikli Çizgi</option>
-                    <option value="dotted">Noktalı Çizgi</option>
-                </select>
-            </div>
-            <div class="slider-group"><label><span>Opaklık</span><span id="deOpacityVal">100%</span></label><input type="range" id="deOpacity" min="10" max="100" value="100" oninput="liveUpdateDrawEdit()"></div>
-            <div class="color-row"><label>Dolgu Rengi</label><input type="color" id="deFillColor" value="#ef4444" oninput="liveUpdateDrawEdit()"></div>
-            <div class="slider-group"><label><span>Dolgu Opaklık</span><span id="deFillOpVal">0%</span></label><input type="range" id="deFillOp" min="0" max="100" value="0" oninput="liveUpdateDrawEdit()"></div>
-            <label style="display:flex; align-items:center; gap:8px; margin-top:8px; cursor:pointer; font-size:13px; color:#e2e8f0;"><input type="checkbox" id="dePolyShowVertices" checked onchange="liveUpdateDrawEdit()"> Köşelerde Nokta Bırak</label>
-            
-            <div id="deArrowSettings" style="display:none; background:#0f172a; border:1px solid #334155; border-radius:6px; padding:8px; margin-top:8px;">
-                <div style="font-size:11px; font-weight:bold; color:#60a5fa; margin-bottom:6px;">➡️ Ok Ayarları</div>
-                <div class="input-group" style="margin-bottom:6px;">
-                    <label style="font-size:11px;">Ok Yönü</label>
-                    <select id="deArrowDir" onchange="liveUpdateDrawEdit()" style="width:100%; background:#1e293b; color:#fff; border:1px solid #334155; padding:4px; border-radius:4px;">
-                        <option value="outward">➡️ Dışa / Hedefe Doğru</option>
-                        <option value="inward">⬅️ İçe / Ögeye Doğru</option>
-                        <option value="both">↔️ Çift Yönlü</option>
+            <!-- 1. NORMAL ÇİZİM AYARLARI (Sadece Neon Kapalıyken Görünür) -->
+            <div id="deNormalSettingsGroup">
+                <div class="color-row"><label>Çizgi Rengi</label><input type="color" id="deColor" value="#ef4444" oninput="liveUpdateDrawEdit()"></div>
+                <div class="slider-group"><label><span>Kalınlık</span><span id="deWidthVal">6</span></label><input type="range" id="deWidth" min="1" max="40" value="6" oninput="liveUpdateDrawEdit()"></div>
+                <div class="color-row">
+                    <label>Çizgi Stili</label>
+                    <select id="deDash" onchange="liveUpdateDrawEdit()" style="background:#1e293b; color:#fff; border:1px solid #334155; padding:4px 8px; border-radius:4px; font-size:12px; max-width:130px;">
+                        <option value="solid">Düz Çizgi</option>
+                        <option value="dashed">Kesikli Çizgi</option>
+                        <option value="dotted">Noktalı Çizgi</option>
                     </select>
                 </div>
-                <div class="input-group">
-                    <label style="font-size:11px;">Ok Ucu Stili</label>
-                    <select id="deArrowStyle" onchange="liveUpdateDrawEdit()" style="width:100%; background:#1e293b; color:#fff; border:1px solid #334155; padding:4px; border-radius:4px;">
-                        <option value="1">1. Klasik Keskin Ok</option>
-                        <option value="2">2. Stealth / Çentikli Kanat</option>
-                        <option value="3">3. Zarif Açık V</option>
-                        <option value="4">4. Kalın Dolu Chevron</option>
-                        <option value="5">5. Dolu Elmas (Baklava)</option>
-                        <option value="6">6. İçi Boş Elmas</option>
-                        <option value="7">7. Dairesel Dolu Nokta</option>
-                        <option value="8">8. Hedef / Halka</option>
-                        <option value="9">9. Kare / Teknik Blok</option>
-                        <option value="10">10. İçi Boş Kare</option>
-                        <option value="11">11. T-Çizgi / Stoper</option>
-                        <option value="12">12. 45° Çapraz Kesit</option>
-                        <option value="13">13. Çift Katman Ok</option>
-                        <option value="14">14. Üç Katman Akış</option>
-                        <option value="15">15. Kavisli Bıçak</option>
-                        <option value="16">16. Yumuşak Yuvarlak Üçgen</option>
-                        <option value="17">17. İğne Roket Dart</option>
-                        <option value="18">18. Harita Pini (Nokta-Ok)</option>
-                        <option value="19">19. Çift Yönlü Mimari Ok</option>
-                        <option value="20">20. T-Bar ve Ok Kombosu</option>
-                    </select>
+                <div class="slider-group"><label><span>Opaklık</span><span id="deOpacityVal">100%</span></label><input type="range" id="deOpacity" min="10" max="100" value="100" oninput="liveUpdateDrawEdit()"></div>
+                
+                <div id="dePolyVerticesGroup">
+                    <label style="display:flex; align-items:center; gap:8px; margin-top:8px; cursor:pointer; font-size:13px; color:#e2e8f0;"><input type="checkbox" id="dePolyShowVertices" checked onchange="liveUpdateDrawEdit()"> Köşelerde Nokta Bırak</label>
                 </div>
+                
+                <div id="deArrowSettings" style="display:none; background:#0f172a; border:1px solid #334155; border-radius:6px; padding:8px; margin-top:8px;">
+                    <div style="font-size:11px; font-weight:bold; color:#60a5fa; margin-bottom:6px;">➡️ Ok Ayarları</div>
+                    <div class="input-group" style="margin-bottom:6px;">
+                        <label style="font-size:11px;">Ok Yönü</label>
+                        <select id="deArrowDir" onchange="liveUpdateDrawEdit()" style="width:100%; background:#1e293b; color:#fff; border:1px solid #334155; padding:4px; border-radius:4px;">
+                            <option value="outward">➡️ Dışa / Hedefe Doğru</option>
+                            <option value="inward">⬅️ İçe / Ögeye Doğru</option>
+                            <option value="both">↔️ Çift Yönlü</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <label style="font-size:11px;">Ok Ucu Stili</label>
+                        <select id="deArrowStyle" onchange="liveUpdateDrawEdit()" style="width:100%; background:#1e293b; color:#fff; border:1px solid #334155; padding:4px; border-radius:4px;">
+                            <option value="1">1. Klasik Keskin Ok</option>
+                            <option value="2">2. Stealth / Çentikli Kanat</option>
+                            <option value="3">3. Zarif Açık V</option>
+                            <option value="4">4. Kalın Dolu Chevron</option>
+                            <option value="5">5. Dolu Elmas (Baklava)</option>
+                            <option value="6">6. İçi Boş Elmas</option>
+                            <option value="7">7. Dairesel Dolu Nokta</option>
+                            <option value="8">8. Hedef / Halka</option>
+                            <option value="9">9. Kare / Teknik Blok</option>
+                            <option value="10">10. İçi Boş Kare</option>
+                            <option value="11">11. T-Çizgi / Stoper</option>
+                            <option value="12">12. 45° Çapraz Kesit</option>
+                            <option value="13">13. Çift Katman Ok</option>
+                            <option value="14">14. Üç Katman Akış</option>
+                            <option value="15">15. Kavisli Bıçak</option>
+                            <option value="16">16. Yumuşak Yuvarlak Üçgen</option>
+                            <option value="17">17. İğne Roket Dart</option>
+                            <option value="18">18. Harita Pini (Nokta-Ok)</option>
+                            <option value="19">19. Çift Yönlü Mimari Ok</option>
+                            <option value="20">20. T-Bar ve Ok Kombosu</option>
+                        </select>
+                    </div>
+                </div>
+
+                <button type="button" class="btn-action" onclick="toggleCurrentDrawNeon()" style="background:rgba(0,206,201,0.15); border:1px solid rgba(0,206,201,0.4); color:#00CEC9; width:100%; padding:8px; font-size:12px; margin-top:10px; border-radius:6px; cursor:pointer;">
+                    <i class="fas fa-bolt"></i> Bu Çizime Neon Efekti Ekle
+                </button>
             </div>
             
-            <hr style="border:0;border-top:1px solid rgba(108, 92, 231, 0.2);margin:16px 0 12px 0;">
-            <div class="section-title" style="color:#00CEC9; margin-top:0">⚡ NEON EFEKTİ</div>
-            <label style="display:flex; align-items:center; gap:8px; margin-bottom:12px; cursor:pointer; font-size:13px; color:#e2e8f0; font-weight:bold;">
-                <input type="checkbox" id="deSaberToggle" onchange="liveUpdateDrawEdit()"> Neon Efekti Aktif
-            </label>
+            <!-- 2. DOLGU AYARLARI (Kare, Daire, Çokgen gibi doldurulabilir şekiller için) -->
+            <div id="deFillGroup" style="margin-top:8px;">
+                <div class="color-row"><label>Dolgu Rengi</label><input type="color" id="deFillColor" value="#ef4444" oninput="liveUpdateDrawEdit()"></div>
+                <div class="slider-group"><label><span>Dolgu Opaklık</span><span id="deFillOpVal">0%</span></label><input type="range" id="deFillOp" min="0" max="100" value="0" oninput="liveUpdateDrawEdit()"></div>
+            </div>
+
+            <!-- Arka plan kod uyumluluğu için gizli toggle -->
+            <input type="checkbox" id="deSaberToggle" style="display:none;" onchange="liveUpdateDrawEdit()">
             
-            <div id="deSaberSettings" style="display:none; flex-direction:column; gap:12px;">
+            <!-- 3. NEON AYARLARI (Sadece Neon Aktifken Görünür) -->
+            <div id="deSaberSettings" style="display:none; flex-direction:column; gap:12px; margin-top:8px;">
                 <div>
                     <div style="font-size:11px; font-weight:800; color:rgba(0,206,201,0.9); margin-bottom:8px; text-transform:uppercase; letter-spacing:1px;">Efekt Tipi</div>
                     <div id="deSaberPresets" class="sep-preset-grid"></div>
@@ -1364,7 +1376,7 @@
                 <div>
                     <div class="sep-slider-row">
                         <label>Akkor Çekirdek</label>
-                        <input type="range" id="deSaberCoreSize" min="1" max="30" value="4" oninput="liveUpdateDrawEdit()">
+                        <input type="range" id="deSaberCoreSize" min="0" max="30" value="4" oninput="liveUpdateDrawEdit()">
                         <span id="deSaberCoreSizeVal">4</span>
                     </div>
                     <div class="sep-slider-row">
@@ -1396,8 +1408,11 @@
                         <input type="checkbox" id="deSaberEnergyNodes" checked onchange="liveUpdateDrawEdit()"> Işıklı Köşe Pinleri
                     </label>
                 </div>
+
+                <button type="button" class="btn-action" onclick="toggleCurrentDrawNeon()" style="background:rgba(239,68,68,0.15); border:1px solid rgba(239,68,68,0.4); color:#fca5a5; width:100%; padding:8px; font-size:12px; margin-top:4px; border-radius:6px; cursor:pointer;">
+                    <i class="fas fa-bolt"></i> Neon Efektini Kaldır (Normal Çizim Yap)
+                </button>
             </div>
-            <hr style="border:0;border-top:1px solid rgba(108, 92, 231, 0.2);margin:12px 0 16px 0;">
 
             <button class="btn-action btn-blue" onclick="applyDrawEdit()" style="width:100%; margin-top:10px;"><i class="fas fa-check"></i> Bitti</button>
         </div>
@@ -1965,10 +1980,10 @@
     <script src="ui/icons.js?v=20260819-11"></script>
     <script src="modules/callout_v2.js?v=20260913-02"></script>
     <script src="modules/other-callouts.js?v=20260910-1"></script>
-<script src="modules/draw.js?v=20260913-50"></script>
+<script src="modules/draw.js?v=20260913-51"></script>
 <script src="modules/layers.js?v=20260913-06"></script>
-<script src="modules/saber.js?v=20260913-50"></script>
-<script src="ui/saber-ui.js?v=20260913-50"></script>
+<script src="modules/saber.js?v=20260913-51"></script>
+<script src="ui/saber-ui.js?v=20260913-51"></script>
 
     <script src="ui/fonts.js?v=20260913-02"></script>
 <script src="modules/icon-library.js"></script>

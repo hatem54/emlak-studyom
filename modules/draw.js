@@ -1688,7 +1688,7 @@ function updateDrawHistory(){
                     if (e.target.closest('.dh-del, .dh-saber, .dh-saber-add, .dh-edit')) return;
                     startDrawEdit(i, false);
                 };
-                const saberBtn = p.hasSaber ? `<button class="dh-btn dh-saber" onclick="startDrawEdit(${i}, true)" title="Neon Ayarları"><i class="fas fa-magic"></i></button>` : `<button class="dh-btn dh-saber-add" onclick="addSaberToPath(${i})" title="Neon Ekle"><i class="fas fa-bolt"></i></button>`;
+                const saberBtn = p.hasSaber ? '' : `<button class="dh-btn dh-saber-add" onclick="addSaberToPath(${i})" title="Neon Ekle"><i class="fas fa-bolt"></i></button>`;
                 let activeColor = p.color;
                 if (p.hasSaber || p.saber) {
                     const sOpts = p.saberOptions || (window.saberState && window.saberState.active ? window.saberState : null);
@@ -1820,12 +1820,25 @@ function startDrawEdit(i, showPanel = true, isMulti = false){
         }
     }
     
+    const isNeon = !!(p.hasSaber || p.saber);
+    
+    // Normal ayarlar grubu: Sadece Neon KAPALIYKEN görünür
+    const normGroup = $('deNormalSettingsGroup');
+    if (normGroup) normGroup.style.display = isNeon ? 'none' : 'block';
+    
+    // Dolgu ayarları grubu: Sadece doldurulabilir şekillerde görünür
+    const fillGroup = $('deFillGroup');
+    if (fillGroup) {
+        const isFillable = (p.type === 'rect' || p.type === 'circle' || p.type === 'polygon' || p.type === 'free');
+        fillGroup.style.display = isFillable ? 'block' : 'none';
+    }
+    
     // SABER UI SETUP
     const toggle = $('deSaberToggle');
     const settings = $('deSaberSettings');
-    if (toggle && settings) {
-        toggle.checked = !!p.hasSaber;
-        settings.style.display = p.hasSaber ? 'flex' : 'none';
+    if (toggle) toggle.checked = isNeon;
+    if (settings) {
+        settings.style.display = isNeon ? 'flex' : 'none';
         
         const presets = window.SaberEngine ? SaberEngine.presets : {};
         const colors = window.SaberEngine ? SaberEngine.colorPresets : {};
@@ -1938,6 +1951,22 @@ window.applyDrawEdit = function(){
     window.saveDrawEdit();
 };
 
+window.toggleCurrentDrawNeon = function() {
+    if (typeof editingDrawIndex === 'undefined' || editingDrawIndex < 0 || typeof drawPaths === 'undefined' || !drawPaths[editingDrawIndex]) return;
+    const p = drawPaths[editingDrawIndex];
+    if (p.hasSaber || p.saber) {
+        if (window.removeSaberFromPath) window.removeSaberFromPath(editingDrawIndex);
+        p.hasSaber = false;
+        p.saber = false;
+    } else {
+        if (window.addSaberToPath) window.addSaberToPath(editingDrawIndex);
+        p.hasSaber = true;
+        p.saber = true;
+    }
+    startDrawEdit(editingDrawIndex, true);
+    if (typeof updateDrawHistory === 'function') updateDrawHistory();
+};
+
 window.startDrawEdit = startDrawEdit;
 window.updateDrawHistory = updateDrawHistory;
 
@@ -1973,8 +2002,16 @@ window.liveUpdateDrawEdit = function(){
     // SABER UPDATE
     const toggle = $('deSaberToggle');
     const settings = $('deSaberSettings');
-    const isNeonActive = !!(toggle && toggle.checked) || !!(p.hasSaber) || !!(p.saber) || !!(window.saberState && window.saberState.active && p.hasSaber !== false);
+    const isNeonActive = !!(p.hasSaber) || !!(p.saber);
     if (toggle) toggle.checked = isNeonActive;
+    
+    const normGroup = $('deNormalSettingsGroup');
+    if (normGroup) normGroup.style.display = isNeonActive ? 'none' : 'block';
+    const fillGroup = $('deFillGroup');
+    if (fillGroup) {
+        const isFillable = (p.type === 'rect' || p.type === 'circle' || p.type === 'polygon' || p.type === 'free');
+        fillGroup.style.display = isFillable ? 'block' : 'none';
+    }
     if (isNeonActive) {
         if (settings) settings.style.display = 'flex';
         

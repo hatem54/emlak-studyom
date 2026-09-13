@@ -1,4 +1,4 @@
-﻿/**
+/**
  * ============================================
  * DRAG & SELECT MODULE
  * core/drag.js
@@ -47,6 +47,9 @@ function getActiveV4Element() {
 window.getActiveV4Element = getActiveV4Element;
 
 function getActivePhotoPanel() {
+    if (window._isPhotoDragging && window._cachedPhotoPanelMetrics) {
+        return window._cachedPhotoPanelMetrics;
+    }
     if (typeof isCanvaMode !== 'undefined' && isCanvaMode) {
         let p = document.querySelector('.photo-panel');
         let renderLayer = document.getElementById('canva-render-layer');
@@ -68,23 +71,31 @@ function getActivePhotoPanel() {
                 let w = r1.width / scaleX - (bL + bR);
                 let h = r1.height / scaleY - (bT + bB);
                 
-                return { w, h, left, top };
+                const res = { w, h, left, top };
+                if (window._isPhotoDragging) window._cachedPhotoPanelMetrics = res;
+                return res;
             }
         }
     }
     if (typeof getActiveV4Element === 'function') {
         const pl = getActiveV4Element();
         if(pl && pl.dataset.zpReady === '1') {
-            return { w: pl.offsetWidth, h: pl.offsetHeight, left: pl.offsetLeft, top: pl.offsetTop };
+            const res = { w: pl.offsetWidth, h: pl.offsetHeight, left: pl.offsetLeft, top: pl.offsetTop };
+            if (window._isPhotoDragging) window._cachedPhotoPanelMetrics = res;
+            return res;
         }
     }
     const photoEl = document.getElementById('photo-1');
     if(photoEl) {
-        return { w: photoEl.offsetWidth, h: photoEl.offsetHeight, left: photoEl.offsetLeft, top: photoEl.offsetTop };
+        const res = { w: photoEl.offsetWidth, h: photoEl.offsetHeight, left: photoEl.offsetLeft, top: photoEl.offsetTop };
+        if (window._isPhotoDragging) window._cachedPhotoPanelMetrics = res;
+        return res;
     }
     const photoLayer = document.getElementById('photo-layer');
     if(photoLayer && photoLayer.offsetWidth > 0) {
-        return { w: photoLayer.offsetWidth, h: photoLayer.offsetHeight, left: photoLayer.offsetLeft, top: photoLayer.offsetTop };
+        const res = { w: photoLayer.offsetWidth, h: photoLayer.offsetHeight, left: photoLayer.offsetLeft, top: photoLayer.offsetTop };
+        if (window._isPhotoDragging) window._cachedPhotoPanelMetrics = res;
+        return res;
     }
     return { w: 1920, h: 1080, left: 0, top: 0 };
 }

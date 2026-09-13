@@ -1163,7 +1163,7 @@ window.SaberEngine = (function() {
             obj.scale.set(s);
         }
 
-        if (autoRender && app && app.renderer && app.stage && (!app.ticker || !app.ticker.started)) {
+        if (autoRender && app && app.renderer && app.stage) {
             try { app.renderer.render(app.stage); } catch(e) {}
         }
     }
@@ -1453,8 +1453,8 @@ window.SaberEngine = (function() {
             }
         }
         
-        // Animasyon çalışmıyorsa tuvali tek kare render et
-        if (app && app.renderer && app.stage && (!app.ticker || !app.ticker.started)) {
+        // Tuvali tek kare render et
+        if (app && app.renderer && app.stage) {
             try { app.renderer.render(app.stage); } catch(e) {}
         }
     }
@@ -1648,7 +1648,7 @@ window.applySaberToPath = function(pathIndex, saberOptions) {
             SaberEngine.setSaberTransform(saberObj, tScale, tDx, tDy, false, rot, cx, cy);
         }
     }
-    if (app && app.renderer && (!app.ticker || !app.ticker.started)) {
+    if (app && app.renderer && app.stage) {
         try { app.renderer.render(app.stage); } catch(e) {}
     }
     return saberObj;

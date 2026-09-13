@@ -51,7 +51,6 @@ document.addEventListener('wheel', function(e){
     
     el.dataset.zpScale = s;
     _applyPhotoTransform(el);
-    if(typeof redrawAll === 'function') redrawAll();
 }, { passive: false });
 
 // ========== SÜRÜKLEME ==========
@@ -85,6 +84,7 @@ document.addEventListener('mousedown', function(e){
     
     _preparePhoto(el);
     
+    window._isPhotoDragging = true;
     _dragEl = el;
     _dsx = e.clientX;
     _dsy = e.clientY;
@@ -102,6 +102,7 @@ document.addEventListener('mousemove', function(e){
     if(_isPhotoLocked() || !_dragEl) {
         if(_dragEl) _dragEl = null;
         window._isPhotoDragging = false;
+        window._cachedPhotoPanelMetrics = null;
         return;
     }
     
@@ -112,6 +113,7 @@ document.addEventListener('mousemove', function(e){
         _photoMoveRAF = null;
         if (!_dragEl || _isPhotoLocked() || !_lastMoveEvt) {
             window._isPhotoDragging = false;
+            window._cachedPhotoPanelMetrics = null;
             return;
         }
         
@@ -129,7 +131,6 @@ document.addEventListener('mousemove', function(e){
         _dragEl.dataset.zpX = x;
         _dragEl.dataset.zpY = y;
         _applyPhotoTransform(_dragEl);
-        if(typeof redrawAll === 'function') redrawAll();
     });
 });
 
@@ -139,12 +140,12 @@ document.addEventListener('mouseup', function(){
         _photoMoveRAF = null;
     }
     window._isPhotoDragging = false;
+    window._cachedPhotoPanelMetrics = null;
     if(_dragEl) {
         _dragEl.style.cursor = 'grab';
         var elToBake = _dragEl;
         _dragEl = null;
         _applyPhotoTransform(elToBake);
-        if(typeof redrawAll === 'function') redrawAll();
     }
 });
 
@@ -169,6 +170,7 @@ document.addEventListener('touchstart', function(e){
         if(!canPanWithLeftClick) return;
         
         _preparePhoto(el);
+        window._isPhotoDragging = true;
         _dragEl = el;
         _dsx = e.touches[0].clientX;
         _dsy = e.touches[0].clientY;
@@ -182,6 +184,7 @@ document.addEventListener('touchmove', function(e){
         _initialPinchDist = null;
         _dragEl = null;
         window._isPhotoDragging = false;
+        window._cachedPhotoPanelMetrics = null;
         return;
     }
     if(e.touches.length === 2 && _initialPinchDist !== null) {
@@ -199,7 +202,6 @@ document.addEventListener('touchmove', function(e){
         
         el.dataset.zpScale = s;
         _applyPhotoTransform(el);
-        if(typeof redrawAll === 'function') redrawAll();
     } else if(e.touches.length === 1 && _dragEl) {
         e.preventDefault();
         window._isPhotoDragging = true;
@@ -216,7 +218,6 @@ document.addEventListener('touchmove', function(e){
         _dragEl.dataset.zpX = x;
         _dragEl.dataset.zpY = y;
         _applyPhotoTransform(_dragEl);
-        if(typeof redrawAll === 'function') redrawAll();
     }
 }, {passive: false});
 
@@ -227,11 +228,11 @@ document.addEventListener('touchend', function(e){
     }
     if(e.touches.length === 0) {
         window._isPhotoDragging = false;
+        window._cachedPhotoPanelMetrics = null;
         if(_dragEl) {
             var elToBake = _dragEl;
             _dragEl = null;
             _applyPhotoTransform(elToBake);
-            if(typeof redrawAll === 'function') redrawAll();
         }
     }
 });

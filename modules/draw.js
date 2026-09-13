@@ -140,7 +140,7 @@ function drawSinglePath(p, options = {}){
     drawCtx.save();
     let tParams = null;
     if(p.photoRef && (typeof uploadedImgW !== 'undefined' ? uploadedImgW : 1920) > 0) {
-        const currObj = typeof window.getCurrentPhotoState === 'function' ? window.getCurrentPhotoState() : null;
+        const currObj = (options && options.currPhotoState) ? options.currPhotoState : (typeof window.getCurrentPhotoState === 'function' ? window.getCurrentPhotoState() : null);
         if (currObj) {
             const hasChanged = 
                 currObj.z !== p.photoRef.z || 
@@ -1582,7 +1582,7 @@ window.createArrowPickerPopover = function() {
     document.body.appendChild(popover);
 };
 
-function redrawAll(){
+function redrawAll(options = {}){
     const w=drawCanvas.width||1920;
     const h=drawCanvas.height||1080;
     drawCtx.clearRect(0,0,w,h);
@@ -1600,8 +1600,10 @@ function redrawAll(){
         container.appendChild(drawCanvas);
     }
 
+    const currPhotoState = (options && options.currPhotoState) ? options.currPhotoState : (typeof window.getCurrentPhotoState === 'function' ? window.getCurrentPhotoState() : null);
+
     try {
-        drawPaths.forEach(p=>drawSinglePath(p));
+        drawPaths.forEach(p=>drawSinglePath(p, { currPhotoState }));
     } catch(e) {
         console.error("RedrawAll error:", e);
         const errDiv = document.createElement("div");
@@ -1616,10 +1618,10 @@ function redrawAll(){
         document.body.appendChild(errDiv);
     }
 
-    // Statik neon modunda Pixi WebGL tuvalini anında render et (kaydırma sırasında milimetrik senkronizasyon)
+    // Statik ve dinamik neon modunda Pixi WebGL tuvalini anında render et (kaydırma sırasında sıfır gecikme senkronizasyonu)
     if (window.SaberEngine && typeof window.SaberEngine.getApp === 'function') {
         const sApp = window.SaberEngine.getApp();
-        if (sApp && sApp.renderer && sApp.stage && (!sApp.ticker || !sApp.ticker.started)) {
+        if (sApp && sApp.renderer && sApp.stage) {
             try { sApp.renderer.render(sApp.stage); } catch(e) {}
         }
     }

@@ -716,9 +716,9 @@ function _drawToNativeCanvas(el, inner, canvas, scale, panX, panY, sliderX, slid
     if (canvas.width !== finalW || canvas.height !== finalH) {
         canvas.width = finalW;
         canvas.height = finalH;
+        canvas.style.width = '100%';
+        canvas.style.height = '100%';
     }
-    canvas.style.width = '100%';
-    canvas.style.height = '100%';
     
     let ctx = canvas.getContext('2d');
     ctx.clearRect(0, 0, canvas.width, canvas.height);

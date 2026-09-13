@@ -128,7 +128,15 @@ function applyElSettings(){
                     const baseH = parseFloat(el.dataset.baseHeight) || el.offsetHeight || 0;
                     const pCx = baseL + baseW / 2;
                     const pCy = baseT + baseH / 2;
-                    window.SaberEngine.setSaberTransform(pObj.saberRef, currentScale, 0, 0, true, pObj.rotation, pCx, pCy);
+                    let tParams = null;
+                    if (pObj.photoRef && typeof window.getCurrentPhotoState === 'function' && typeof window.calculateTransformParams === 'function') {
+                        const currObj = window.getCurrentPhotoState();
+                        if (currObj) tParams = window.calculateTransformParams(pObj.photoRef, currObj);
+                    }
+                    const finalScale = (tParams ? tParams.scale : 1) * currentScale;
+                    const finalDx = tParams ? (pCx * (tParams.scale - 1) + tParams.dx) : 0;
+                    const finalDy = tParams ? (pCy * (tParams.scale - 1) + tParams.dy) : 0;
+                    window.SaberEngine.setSaberTransform(pObj.saberRef, finalScale, finalDx, finalDy, true, pObj.rotation, pCx, pCy);
                 }
             }
         }

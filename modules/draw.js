@@ -188,6 +188,7 @@ function drawSinglePath(p, options = {}){
             }
             if (p.saberRef && window.SaberEngine && SaberEngine.setSaberTransform) {
                 const rot = (p.rotation !== undefined) ? p.rotation : (p.el && p.el.dataset.rotation ? parseFloat(p.el.dataset.rotation) : 0);
+                const curScale = (p.scale !== undefined) ? p.scale : (p.el && p.el.dataset.scale ? parseFloat(p.el.dataset.scale) : 1);
                 let cx = p.saberRef.centerX;
                 let cy = p.saberRef.centerY;
                 if (p.el) {
@@ -200,7 +201,10 @@ function drawSinglePath(p, options = {}){
                         cy = baseT + baseH / 2;
                     }
                 }
-                SaberEngine.setSaberTransform(p.saberRef, tParams.scale, tParams.dx, tParams.dy, false, rot, cx, cy);
+                const totalScale = tParams.scale * curScale;
+                const sDx = cx * (tParams.scale - 1) + tParams.dx;
+                const sDy = cy * (tParams.scale - 1) + tParams.dy;
+                SaberEngine.setSaberTransform(p.saberRef, totalScale, sDx, sDy, false, rot, cx, cy);
             }
         }
     } else {
@@ -3269,7 +3273,15 @@ window.showVertexHandles = function(el) {
                                 const baseH = parseFloat(targetEl.dataset.baseHeight) || targetEl.offsetHeight || 0;
                                 const pCx = baseL + baseW / 2;
                                 const pCy = baseT + baseH / 2;
-                                window.SaberEngine.setSaberTransform(pObj.saberRef, tScale, 0, 0, false, tRot, pCx, pCy);
+                                let tParams = null;
+                                if (pObj.photoRef && typeof window.getCurrentPhotoState === 'function' && typeof window.calculateTransformParams === 'function') {
+                                    const currObj = window.getCurrentPhotoState();
+                                    if (currObj) tParams = window.calculateTransformParams(pObj.photoRef, currObj);
+                                }
+                                const finalScale = (tParams ? tParams.scale : 1) * tScale;
+                                const finalDx = tParams ? (pCx * (tParams.scale - 1) + tParams.dx) : 0;
+                                const finalDy = tParams ? (pCy * (tParams.scale - 1) + tParams.dy) : 0;
+                                window.SaberEngine.setSaberTransform(pObj.saberRef, finalScale, finalDx, finalDy, false, tRot, pCx, pCy);
                             }
                         }
                     }

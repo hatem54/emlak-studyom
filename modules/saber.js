@@ -1133,8 +1133,10 @@ window.SaberEngine = (function() {
     function setSaberTransform(saber, scale = 1, dx = 0, dy = 0, autoRender = true, rotationDeg = 0, pivotX = null, pivotY = null) {
         if (!saber) return;
         
-        const cx = (pivotX !== null && pivotX !== undefined) ? pivotX : (saber.centerX || 0);
-        const cy = (pivotY !== null && pivotY !== undefined) ? pivotY : (saber.centerY || 0);
+        const hasCustomPivot = (pivotX !== null && pivotX !== undefined) || (pivotY !== null && pivotY !== undefined);
+        const hasRotation = (rotationDeg !== 0 && rotationDeg !== null && rotationDeg !== undefined);
+        const cx = hasCustomPivot ? pivotX : (hasRotation ? (saber.centerX || 0) : 0);
+        const cy = hasCustomPivot ? pivotY : (hasRotation ? (saber.centerY || 0) : 0);
         const rotRad = (rotationDeg || 0) * Math.PI / 180;
         const s = (scale !== undefined && scale !== null) ? scale : 1;
         
@@ -1635,9 +1637,9 @@ window.applySaberToPath = function(pathIndex, saberOptions) {
             if (currObj) {
                 const tParams = window.calculateTransformParams(path.photoRef, currObj);
                 if (tParams) {
-                    tScale = tParams.scale;
-                    tDx = tParams.dx;
-                    tDy = tParams.dy;
+                    tScale = tParams.scale * curScale;
+                    tDx = cx * (tParams.scale - 1) + tParams.dx;
+                    tDy = cy * (tParams.scale - 1) + tParams.dy;
                 }
             }
         }

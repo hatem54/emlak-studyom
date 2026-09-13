@@ -1,4 +1,4 @@
-const CACHE_NAME = 'emlak-studiom-v206-20260913-56';
+const CACHE_NAME = 'emlak-studiom-v206-20260913-57';
 const CORE_ASSETS = [
   './core/utils.js',
   './app.html',

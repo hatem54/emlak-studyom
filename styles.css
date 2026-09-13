@@ -6790,10 +6790,10 @@ body[data-theme="dark"] .desc-toggle-item.active {
 }
 
 .sat-float-btn.sat-float-neon-btn.active {
-    background: linear-gradient(135deg, rgba(0, 206, 201, 0.3), rgba(14, 165, 233, 0.3));
-    border-color: #00CEC9;
-    color: #00CEC9;
-    box-shadow: 0 0 10px rgba(0, 206, 201, 0.5);
+    background: transparent !important;
+    border-color: #00CEC9 !important;
+    color: #00CEC9 !important;
+    box-shadow: none !important;
 }
 
 /* Parsel Rozeti Temaları */
@@ -7468,14 +7468,18 @@ body[data-theme="dark"] .desc-toggle-item.active {
     background: #0f172a;
     border-bottom: 1px solid #334155;
     display: flex;
-    justify-content: space-between;
+    justify-content: flex-start;
     align-items: center;
     flex-wrap: nowrap;
-    overflow-x: hidden;
+    overflow-x: auto;
     overflow-y: hidden;
-    gap: 8px;
+    gap: 12px;
     scrollbar-width: none;
     flex-shrink: 0;
+}
+
+.sat-controls-bar::-webkit-scrollbar {
+    display: none;
 }
 
 .sat-ctrl-group {
@@ -7738,25 +7742,14 @@ body[data-theme="dark"] .desc-toggle-item.active {
     font-weight: 700;
 }
 
-/* ⚡ Satellite Map Saber Neon Kontrolleri */
-.sat-ctrl-neon-group {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    background: rgba(15, 23, 42, 0.85);
-    border: 1px solid rgba(0, 206, 201, 0.3);
-    padding: 2px 6px;
-    border-radius: 8px;
-    transition: all 0.2s ease;
-}
-
+/* ⚡ Satellite Map Saber Neon Kontrolleri (Dolgusuz / Outline Tasarım) */
 .sat-btn-toggle-neon {
-    background: transparent;
-    border: 1px solid transparent;
+    background: transparent !important;
+    border: 1px solid #334155;
     color: #94a3b8;
     font-size: 11px;
     font-weight: 600;
-    padding: 4px 8px;
+    padding: 4px 9px;
     border-radius: 6px;
     cursor: pointer;
     display: inline-flex;
@@ -7768,60 +7761,39 @@ body[data-theme="dark"] .desc-toggle-item.active {
 }
 
 .sat-btn-toggle-neon:hover {
+    border-color: #00CEC9;
     color: #00CEC9;
-    background: rgba(0, 206, 201, 0.1);
+    background: transparent !important;
 }
 
 .sat-btn-toggle-neon.active {
-    background: rgba(0, 206, 201, 0.2);
+    background: transparent !important;
     border-color: #00CEC9;
     color: #00CEC9;
-    box-shadow: 0 0 10px rgba(0, 206, 201, 0.35);
+    box-shadow: none !important;
 }
 
 .sat-btn-toggle-neon b {
     font-weight: 700;
 }
 
-.sat-neon-quick-settings {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    transition: all 0.2s ease;
-}
-
-.sat-neon-quick-select {
-    background: #0f172a;
-    border: 1px solid #334155;
-    color: #e2e8f0;
-    font-size: 11px;
-    padding: 2px 6px;
-    border-radius: 5px;
-    outline: none;
-    cursor: pointer;
-}
-
-.sat-neon-quick-select:focus {
-    border-color: #00CEC9;
-}
-
-/* Çekmece Saber Neon Kartı */
+/* Çekmece Saber Neon Kartı (Dolgusuz Outline Kart) */
 .sat-drawer-neon-card {
-    background: rgba(15, 23, 42, 0.95);
-    border: 1px solid rgba(0, 206, 201, 0.25);
+    background: transparent !important;
+    border: 1px solid rgba(0, 206, 201, 0.25) !important;
     border-radius: 8px;
     padding: 10px 12px;
     transition: all 0.2s ease;
 }
 
 .sat-drawer-neon-card.active {
-    border-color: #00CEC9;
-    box-shadow: 0 0 12px rgba(0, 206, 201, 0.2);
+    border-color: #00CEC9 !important;
+    box-shadow: none !important;
 }
 
 .sat-pill-toggle-btn {
-    background: rgba(255, 255, 255, 0.08);
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    background: transparent !important;
+    border: 1px solid #334155 !important;
     color: #94a3b8;
     font-size: 11px;
     font-weight: 700;
@@ -7832,15 +7804,16 @@ body[data-theme="dark"] .desc-toggle-item.active {
 }
 
 .sat-pill-toggle-btn:hover {
-    border-color: #00CEC9;
-    color: #f8fafc;
+    border-color: #00CEC9 !important;
+    color: #00CEC9;
+    background: transparent !important;
 }
 
 .sat-pill-toggle-btn.active {
-    background: #00CEC9;
-    border-color: #00CEC9;
-    color: #04121e;
-    box-shadow: 0 0 10px rgba(0, 206, 201, 0.6);
+    background: transparent !important;
+    border-color: #00CEC9 !important;
+    color: #00CEC9 !important;
+    box-shadow: none !important;
 }
 
 .sat-neon-color-picks {
@@ -7859,6 +7832,7 @@ body[data-theme="dark"] .desc-toggle-item.active {
     transition: transform 0.15s, border-color 0.15s;
     outline: none;
     padding: 0;
+    box-shadow: none !important;
 }
 
 .sat-neon-color-picks .sat-color-dot-sm:hover {

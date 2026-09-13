@@ -10,7 +10,24 @@ window.layerToggleVisibility = function(uid, isDrawPath = false, pathIndex = 0) 
                 if (p.el) {
                     p.el.style.display = p.hidden ? 'none' : '';
                 }
-                if (window.forceRedrawAll) window.forceRedrawAll();
+                if (p.saberRef) {
+                    if (window.SaberEngine && typeof window.SaberEngine.setSaberVisibility === 'function') {
+                        window.SaberEngine.setSaberVisibility(p.saberRef, !p.hidden);
+                    } else {
+                        if (p.saberRef.graphics) p.saberRef.graphics.visible = !p.hidden;
+                        if (p.saberRef.particleContainer) p.saberRef.particleContainer.visible = !p.hidden;
+                        if (p.saberRef.branchContainer) p.saberRef.branchContainer.visible = !p.hidden;
+                    }
+                }
+                if (p.hidden) {
+                    if (typeof editingDrawIndex !== 'undefined' && editingDrawIndex === pathIndex) {
+                        if (typeof deselectAll === 'function') deselectAll();
+                    }
+                    if (p.el && p.el.classList.contains('el-selected')) {
+                        p.el.classList.remove('el-selected');
+                    }
+                }
+                if (typeof redrawAll === 'function') redrawAll();
                 window.renderLayers();
             }
         }
@@ -117,7 +134,7 @@ window.layerToggleLock = function(uid, isDrawPath = false, pathIndex = 0) {
                         if (p.el.style.pointerEvents === 'none') p.el.style.pointerEvents = 'auto'; // Unlock fallback
                     }
                 }
-                if (window.forceRedrawAll) window.forceRedrawAll();
+                if (typeof redrawAll === 'function') redrawAll();
                 window.renderLayers();
             }
         }
@@ -208,6 +225,10 @@ window.layerSelect = function(uid, event, isDoubleClick = false) {
     
     if (uid.startsWith('draw_')) {
         let drawIndex = parseInt(uid.split('_')[1]);
+        if (typeof drawPaths !== 'undefined' && drawPaths[drawIndex]) {
+            if (drawPaths[drawIndex].hidden) return; // Gizliyse seçme
+            if (drawPaths[drawIndex].locked) return; // Kilitliyse seçme
+        }
         if (typeof editingDrawIndex !== 'undefined') editingDrawIndex = drawIndex;
         if (typeof drawPaths !== 'undefined' && drawPaths[drawIndex] && drawPaths[drawIndex].el) {
             if (typeof window.selectElement === 'function') window.selectElement(drawPaths[drawIndex].el, false, true);

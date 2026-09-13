@@ -383,6 +383,7 @@ window.SaberEngine = (function() {
         if (!isAnimActive) {
             // Animasyon kapalı: Çizimi sabit parlaklıkta ve hareketsiz tut
             sabers.forEach(saber => {
+                if (saber.visible === false) return;
                 if (saber.filter) saber.filter.outerStrength = saber.baseIntensity;
                 if (saber.spillFilter) {
                     const sp = parseFloat(saber.options?.groundSpill !== undefined ? saber.options.groundSpill : 0.4);
@@ -413,6 +414,7 @@ window.SaberEngine = (function() {
         }
         
         sabers.forEach(saber => {
+            if (saber.visible === false) return;
             saber.time += delta * 0.05;
             const opts = saber.options;
             const preset = saber.presetName;
@@ -1168,6 +1170,21 @@ window.SaberEngine = (function() {
         }
     }
 
+    // ═══════════════════════════════════════
+    // 👁️ SABER GÖRÜNÜRLÜK AYARI (Gizle / Göster)
+    // ═══════════════════════════════════════
+    function setSaberVisibility(saber, isVisible = true) {
+        if (!saber) return;
+        const v = !!isVisible;
+        saber.visible = v;
+        if (saber.graphics) saber.graphics.visible = v;
+        if (saber.particleContainer) saber.particleContainer.visible = v;
+        if (saber.branchContainer) saber.branchContainer.visible = v;
+        if (app && app.renderer && app.stage) {
+            try { app.renderer.render(app.stage); } catch(e) {}
+        }
+    }
+
     // 💡 PUBLIC API
 
     function hexToPixiColor(hex) {
@@ -1473,7 +1490,8 @@ window.SaberEngine = (function() {
         defaults: defaults,
         getApp: () => app,
         getSabers: () => sabers,
-        setSaberTransform: setSaberTransform
+        setSaberTransform: setSaberTransform,
+        setSaberVisibility: setSaberVisibility
     };
 })();
 

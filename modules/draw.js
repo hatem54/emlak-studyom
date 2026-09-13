@@ -113,7 +113,35 @@ function applyPathFill(ctx, p, isNeon) {
 
 function drawSinglePath(p, options = {}){
 
-    if(p.hidden) return;
+    if(p.hidden) {
+        if (p.el) {
+            p.el.style.display = 'none';
+        }
+        if (p.saberRef) {
+            if (window.SaberEngine && typeof window.SaberEngine.setSaberVisibility === 'function') {
+                window.SaberEngine.setSaberVisibility(p.saberRef, false);
+            } else {
+                if (p.saberRef.graphics) p.saberRef.graphics.visible = false;
+                if (p.saberRef.particleContainer) p.saberRef.particleContainer.visible = false;
+                if (p.saberRef.branchContainer) p.saberRef.branchContainer.visible = false;
+            }
+        }
+        return;
+    }
+
+    // Gizli değilse görünür yap
+    if (p.el && p.el.style.display === 'none') {
+        p.el.style.display = '';
+    }
+    if (p.saberRef) {
+        if (window.SaberEngine && typeof window.SaberEngine.setSaberVisibility === 'function') {
+            window.SaberEngine.setSaberVisibility(p.saberRef, true);
+        } else {
+            if (p.saberRef.graphics) p.saberRef.graphics.visible = true;
+            if (p.saberRef.particleContainer) p.saberRef.particleContainer.visible = true;
+            if (p.saberRef.branchContainer) p.saberRef.branchContainer.visible = true;
+        }
+    }
 
     // ⚡ SELF-HEALING: Ensure p.el is connected to the DOM SVG element
     if (!p.el && p.id) {

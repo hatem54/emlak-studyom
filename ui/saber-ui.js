@@ -490,6 +490,25 @@
             p.saber = !!window.saberState.active;
             p.saberOptions = JSON.parse(JSON.stringify(window.saberState));
             
+            if (window.saberState.active) {
+                let glowHex = '#00CEC9';
+                if (window.saberState.glowColor) {
+                    glowHex = typeof window.saberState.glowColor === 'number'
+                        ? '#' + window.saberState.glowColor.toString(16).padStart(6, '0')
+                        : window.saberState.glowColor;
+                }
+                p.color = glowHex;
+                if (!p.fillColor || p.fillColor === '#ef4444' || p.fillColor === '#e74c3c') {
+                    p.fillColor = glowHex;
+                }
+                if (typeof editingDrawIndex !== 'undefined' && editingDrawIndex >= 0 && typeof drawPaths !== 'undefined' && drawPaths[editingDrawIndex] === p) {
+                    const deCol = document.getElementById('deColor');
+                    if (deCol) deCol.value = glowHex;
+                    const deFill = document.getElementById('deFillColor');
+                    if (deFill && (!p.fillColor || p.fillColor === glowHex)) deFill.value = glowHex;
+                }
+            }
+            
             if (inPlace && p.saberRef && window.SaberEngine && window.SaberEngine.updateSaberParameters) {
                 // ⚡ Hızlı in-place güncelleme (filtre shaders silip yaratmadan)
                 window.SaberEngine.updateSaberParameters(p.saberRef, window.saberState, isSliding);
@@ -512,6 +531,10 @@
                 }
             }
         });
+        
+        if (typeof updateDrawHistory === 'function') {
+            updateDrawHistory();
+        }
         
         const isAnimActive = (typeof window.isSaberAnimationActive === 'function')
             ? window.isSaberAnimationActive()

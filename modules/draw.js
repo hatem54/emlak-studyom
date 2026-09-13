@@ -766,6 +766,9 @@ function dEnd(e){
         }
         if (isNeonNow) {
             pObj.color = activeNeonColor;
+            if (!pObj.fillColor || pObj.fillColor === '#ef4444' || pObj.fillColor === '#e74c3c') {
+                pObj.fillColor = activeNeonColor;
+            }
             pObj.hasSaber = true;
             pObj.saber = true;
             pObj.saberOptions = JSON.parse(JSON.stringify(window.saberState));
@@ -889,6 +892,9 @@ function closePolygon(){
     }, s);
     if (isNeonNow) {
         pObj.color = activeNeonColor;
+        if (!pObj.fillColor || pObj.fillColor === '#ef4444' || pObj.fillColor === '#e74c3c') {
+            pObj.fillColor = activeNeonColor;
+        }
     }
     
     const el = createSVGFromPath(pObj);
@@ -1682,8 +1688,17 @@ function updateDrawHistory(){
                     if (e.target.closest('.dh-del, .dh-saber, .dh-saber-add, .dh-edit')) return;
                     startDrawEdit(i, false);
                 };
-                const saberBtn = p.hasSaber ? `<button class="dh-btn dh-saber" onclick="startDrawEdit(${i}, true)" title="Saber Ayarları"><i class="fas fa-magic"></i></button>` : `<button class="dh-btn dh-saber-add" onclick="addSaberToPath(${i})" title="Saber Ekle"><i class="fas fa-bolt"></i></button>`;
-                item.innerHTML='<span><span class="dh-color" style="background:'+p.color+'"></span>'+(names[p.type]||p.type)+' #'+(i+1)+(p.fillOpacity>0?' <i class="fas fa-fill-drip" style="font-size:10px; margin-left:4px;"></i>':'')+'</span><span>'+saberBtn+'<button class="dh-btn dh-edit" onclick="startDrawEdit('+i+', true)" title="Düzenle"><i class="fas fa-pen"></i></button><button class="dh-btn dh-del" onclick="deleteDrawItem('+i+')" title="Sil"><i class="fas fa-trash"></i></button></span>';
+                const saberBtn = p.hasSaber ? `<button class="dh-btn dh-saber" onclick="startDrawEdit(${i}, true)" title="Neon Ayarları"><i class="fas fa-magic"></i></button>` : `<button class="dh-btn dh-saber-add" onclick="addSaberToPath(${i})" title="Neon Ekle"><i class="fas fa-bolt"></i></button>`;
+                let activeColor = p.color;
+                if (p.hasSaber || p.saber) {
+                    const sOpts = p.saberOptions || (window.saberState && window.saberState.active ? window.saberState : null);
+                    if (sOpts && sOpts.glowColor) {
+                        activeColor = typeof sOpts.glowColor === 'number' 
+                            ? '#' + sOpts.glowColor.toString(16).padStart(6, '0') 
+                            : sOpts.glowColor;
+                    }
+                }
+                item.innerHTML='<span><span class="dh-color" style="background:'+activeColor+'"></span>'+(names[p.type]||p.type)+' #'+(i+1)+(p.fillOpacity>0?' <i class="fas fa-fill-drip" style="font-size:10px; margin-left:4px;"></i>':'')+'</span><span>'+saberBtn+'<button class="dh-btn dh-edit" onclick="startDrawEdit('+i+', true)" title="Düzenle"><i class="fas fa-pen"></i></button><button class="dh-btn dh-del" onclick="deleteDrawItem('+i+')" title="Sil"><i class="fas fa-trash"></i></button></span>';
                 h.appendChild(item);
             });
         }
@@ -1761,7 +1776,25 @@ function startDrawEdit(i, showPanel = true, isMulti = false){
     originalDrawState.el = p.el;
     originalDrawState.saberRef = p.saberRef;
     
-    if($('deColor')) $('deColor').value=p.color;
+    let activePathColor = p.color;
+    if (p.hasSaber || p.saber) {
+        const sOpts = p.saberOptions || (window.saberState && window.saberState.active ? window.saberState : null);
+        if (sOpts && sOpts.glowColor) {
+            activePathColor = typeof sOpts.glowColor === 'number'
+                ? '#' + sOpts.glowColor.toString(16).padStart(6, '0')
+                : sOpts.glowColor;
+        } else if (window.saberState && window.saberState.glowColor) {
+            activePathColor = typeof window.saberState.glowColor === 'number'
+                ? '#' + window.saberState.glowColor.toString(16).padStart(6, '0')
+                : window.saberState.glowColor;
+        }
+        p.color = activePathColor;
+        if (!p.fillColor || p.fillColor === '#ef4444' || p.fillColor === '#e74c3c') {
+            p.fillColor = activePathColor;
+        }
+    }
+    
+    if($('deColor')) $('deColor').value=activePathColor;
     if($('deWidth')) {
         const scaleRatio = getDrawScaleRatio();
         const rawW = p.rawWidth || Math.max(1, Math.round(p.width / scaleRatio)) || p.width;
@@ -1772,7 +1805,7 @@ function startDrawEdit(i, showPanel = true, isMulti = false){
     if($('deDash')) $('deDash').value = p.dashStyle || 'solid';
     if($('deOpacity'))$('deOpacity').value=Math.round(p.opacity*100);
     if($('deOpacityVal'))$('deOpacityVal').textContent=Math.round(p.opacity*100)+'%';
-    if($('deFillColor'))$('deFillColor').value=p.fillColor||'#ef4444';
+    if($('deFillColor'))$('deFillColor').value=p.fillColor||activePathColor;
     if($('deFillOp'))$('deFillOp').value=Math.round((p.fillOpacity||0)*100);
     if($('deFillOpVal'))$('deFillOpVal').textContent=Math.round((p.fillOpacity||0)*100)+'%';
     if($('dePolyShowVertices')) {
@@ -1940,27 +1973,29 @@ window.liveUpdateDrawEdit = function(){
     // SABER UPDATE
     const toggle = $('deSaberToggle');
     const settings = $('deSaberSettings');
-    const isNeonActive = !!(toggle && toggle.checked) || !!(window.saberState && window.saberState.active && p.hasSaber !== false);
+    const isNeonActive = !!(toggle && toggle.checked) || !!(p.hasSaber) || !!(p.saber) || !!(window.saberState && window.saberState.active && p.hasSaber !== false);
     if (toggle) toggle.checked = isNeonActive;
     if (isNeonActive) {
         if (settings) settings.style.display = 'flex';
         
         const activePresetEl = $('deSaberPresets') ? $('deSaberPresets').querySelector('.active') : null;
-        const presetKey = activePresetEl ? activePresetEl.dataset.preset : 'fully-lit';
+        const presetKey = activePresetEl ? activePresetEl.dataset.preset : ((p.saberOptions && p.saberOptions.preset) || (window.saberState && window.saberState.preset) || 'fully-lit');
         
         let coreColor = 0xFFFFFF;
-        let glowColor = 0x00AAFF;
+        let glowColor = 0x00CEC9;
         
         const activeColorKey = $('deSaberColors') ? $('deSaberColors').dataset.activeColor : null;
         if (activeColorKey && window.SaberEngine && SaberEngine.colorPresets[activeColorKey]) {
             coreColor = SaberEngine.colorPresets[activeColorKey].core;
             glowColor = SaberEngine.colorPresets[activeColorKey].glow;
         } else if (p.color && p.color.startsWith('#')) {
-            glowColor = parseInt(p.color.replace('#', ''), 16) || 0x00AAFF;
+            glowColor = parseInt(p.color.replace('#', ''), 16) || 0x00CEC9;
             if (p.saberOptions && p.saberOptions.coreColor) coreColor = p.saberOptions.coreColor;
-        } else if (p.saberOptions) {
-            coreColor = p.saberOptions.coreColor;
-            glowColor = p.saberOptions.glowColor;
+            else if (window.saberState && window.saberState.coreColor) coreColor = window.saberState.coreColor;
+        } else if (p.saberOptions && p.saberOptions.glowColor) {
+            glowColor = typeof p.saberOptions.glowColor === 'number' ? p.saberOptions.glowColor : (parseInt(p.saberOptions.glowColor.replace('#',''), 16) || 0x00CEC9);
+            if (p.saberOptions.coreColor) coreColor = p.saberOptions.coreColor;
+            else if (window.saberState && window.saberState.coreColor) coreColor = window.saberState.coreColor;
         } else if (window.saberState) {
             coreColor = saberState.coreColor;
             glowColor = saberState.glowColor;
@@ -1992,6 +2027,7 @@ window.liveUpdateDrawEdit = function(){
         if ($('deSaberGroundSpillVal') && $('deSaberGroundSpill')) $('deSaberGroundSpillVal').textContent = $('deSaberGroundSpill').value + '%';
         
         p.hasSaber = true;
+        p.saber = true;
         p.saberOptions = newOptions;
         
         if (window.applySaberToPath) {
@@ -2003,6 +2039,7 @@ window.liveUpdateDrawEdit = function(){
     } else {
         if (settings) settings.style.display = 'none';
         p.hasSaber = false;
+        p.saber = false;
         if (window.removeSaberFromPath && p.saberRef) {
             removeSaberFromPath(editingDrawIndex);
         }
@@ -2014,6 +2051,7 @@ window.liveUpdateDrawEdit = function(){
     }
     
     redrawAll();
+    updateDrawHistory();
 };
 
 // ════════════════════════════════════════════════════════════════

@@ -1591,7 +1591,17 @@ window.applySaberToPath = function(pathIndex, saberOptions) {
     if (saberObj) {
         path.saberRef = saberObj;
         path.hasSaber = true;
+        path.saber = true;
         path.saberOptions = saberOptions;
+        const gHex = (saberOptions && saberOptions.glowColor)
+            ? (typeof saberOptions.glowColor === 'number' ? '#' + saberOptions.glowColor.toString(16).padStart(6, '0') : saberOptions.glowColor)
+            : null;
+        if (gHex) {
+            path.color = gHex;
+            if (!path.fillColor || path.fillColor === '#ef4444' || path.fillColor === '#e74c3c') {
+                path.fillColor = gHex;
+            }
+        }
         
         // Element rotasyonu ve merkezini belirle
         const rot = (path.rotation !== undefined) 
@@ -1648,13 +1658,23 @@ window.addSaberToPath = function(pathIndex) {
     const options = {
         preset: state.preset || 'fully-lit',
         coreColor: state.coreColor || 0xFFFFFF,
-        glowColor: state.glowColor || 0x00AAFF,
+        glowColor: state.glowColor || 0x00CEC9,
         coreSize: (state.coreSize !== undefined) ? state.coreSize : 0,
         glowSize: state.glowSize || 30,
         intensity: state.intensity || 2.5,
         flickerAmount: state.flickerAmount || 0.05,
         pulseSpeed: state.pulseSpeed || 0
     };
+    if (typeof drawPaths !== 'undefined' && drawPaths[pathIndex]) {
+        const p = drawPaths[pathIndex];
+        const gHex = typeof options.glowColor === 'number' 
+            ? '#' + options.glowColor.toString(16).padStart(6, '0') 
+            : options.glowColor;
+        p.color = gHex;
+        if (!p.fillColor || p.fillColor === '#ef4444' || p.fillColor === '#e74c3c') {
+            p.fillColor = gHex;
+        }
+    }
     applySaberToPath(pathIndex, options);
     if (typeof updateDrawHistory === 'function') updateDrawHistory();
     console.log('⚡ Saber path #' + pathIndex + ' e eklendi');

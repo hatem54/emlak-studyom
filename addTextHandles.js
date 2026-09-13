@@ -166,9 +166,15 @@ window.addTextHandles = function(el) {
             
             const ratio = Math.max(0.1, (startW + dx) / Math.max(1, startW));
             
-            if (el.dataset.label === 'Özel Kutu') {
-                el.style.width = Math.max(30, startW + dx) + 'px';
-                el.style.height = Math.max(30, startH + dy) + 'px';
+            if (el.dataset.label === 'Özel Kutu' || el.classList.contains('shape-el')) {
+                const isProportional = el.dataset.shapeType === 'circle' || el.dataset.shapeType === 'square';
+                if (isProportional) {
+                    el.style.width = Math.max(30, startW + dx) + 'px';
+                    el.style.height = el.style.width;
+                } else {
+                    el.style.width = Math.max(30, startW + dx) + 'px';
+                    el.style.height = Math.max(10, startH + dy) + 'px';
+                }
             } else if (el.id === 'elLogo' || el.classList.contains('sh-logo') || el.querySelector('img') || el.tagName === 'IMG') {
                 const newW = Math.max(30, Math.round(startW * ratio));
                 el.style.width = newW + 'px';

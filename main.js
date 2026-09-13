@@ -1,4 +1,4 @@
-/* ============================================================
+ï»¿/* ============================================================
 
    main.js â€” v14.1 GÃ¼venli SÃ¼rÃ¼m
 
@@ -2603,7 +2603,7 @@ document.addEventListener('DOMContentLoaded', () => {
         window.addEventListener('touchcancel', restorePanel);
     });
 });// ==============================================
-// ?? ÞEKÝLLER MODÜLÜ (CANVA TARZI TEMEL ÞEKÝLLER)
+// ?? ï¿½EKï¿½LLER MODï¿½Lï¿½ (CANVA TARZI TEMEL ï¿½EKï¿½LLER)
 // ==============================================
 
 window.addShape = function(type) {
@@ -2663,18 +2663,6 @@ window.addShape = function(type) {
     }
 
     el.appendChild(inner);
-
-    const resizer = document.createElement('div');
-    resizer.className = 'callout-resizer';
-    resizer.innerHTML = '<i class="fa-solid fa-up-right-and-down-left-from-center"></i>';
-    resizer.style.display = 'none';
-    el.appendChild(resizer);
-    
-    const rotator = document.createElement('div');
-    rotator.className = 'callout-rotator';
-    rotator.innerHTML = '<i class="fa-solid fa-rotate-right"></i>';
-    rotator.style.display = 'none';
-    el.appendChild(rotator);
 
     cContainer.appendChild(el);
     if (typeof bindDrag === 'function') bindDrag(el);

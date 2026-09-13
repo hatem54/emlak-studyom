@@ -1,4 +1,4 @@
-/**
+﻿/**
  * ============================================
  * DRAG & SELECT MODULE
  * core/drag.js
@@ -713,10 +713,10 @@ function selectElement(el, isMulti = false, noTabSwitch = false){
                 const rot = selEl.querySelector('.callout-rotator');
                 const lk = selEl.querySelector('.callout-lock-btn');
                 const brd = selEl.querySelector('.callout-select-border');
-                if(ctl) ctl.style.display = 'flex';
-                if(res) res.style.display = 'flex';
-                if(rot) rot.style.display = 'flex';
-                if(lk) lk.style.display = 'flex';
+                if(ctl && !selEl.classList.contains('shape-el')) ctl.style.display = 'flex';
+                if(res && !selEl.classList.contains('shape-el')) res.style.display = 'flex';
+                if(rot && !selEl.classList.contains('shape-el')) rot.style.display = 'flex';
+                if(lk && !selEl.classList.contains('shape-el')) lk.style.display = 'flex';
                 if(brd) brd.style.display = 'block';
             }
         });
@@ -770,7 +770,7 @@ function selectElement(el, isMulti = false, noTabSwitch = false){
         if(typeof loadElSettings === 'function') loadElSettings(el);
         if(typeof loadElFont === 'function') loadElFont(el);
         if(!noTabSwitch && typeof switchTab === 'function' && !el.classList.contains('shape-el') && !el.classList.contains('co-neon-block') && !el.classList.contains('callout-wrap') && !el.classList.contains('svg-callout') && !el.classList.contains('callout-item')) switchTab('element');
-        if (el.classList.contains('canvas-el') && typeof window.addTextHandles === 'function') window.addTextHandles(el);
+        if (el.classList.contains('canvas-el') && typeof window.addTextHandles === 'function') window.addTextHandles(el); if(el.classList.contains('shape-el')) { el.querySelectorAll('.callout-controls, .callout-resizer, .callout-rotator, .callout-lock-btn, .callout-select-border').forEach(c => c.remove()); }
     }
 }
 

@@ -1,4 +1,4 @@
-// autoSave.js
+﻿// autoSave.js
 // Handles background Auto-Save using IndexedDB to prevent localStorage limits
 
 const DB_NAME = 'CanvaAutoSaveDB';
@@ -395,9 +395,12 @@ async function performAutoSave() {
             const userScale = parseFloat(wrap.dataset.userScale) || scale;
             const rotation = parseFloat(wrap.dataset.rotation) || 0;
             
+            const clone = wrap.cloneNode(true);
+            clone.querySelectorAll('.text-handle, .callout-resizer, .callout-rotator, .callout-controls, .callout-lock-btn, .callout-select-border').forEach(h => h.remove());
+            
             customItems.push({
                 kind: 'shape',
-                html: wrap.innerHTML,
+                html: clone.innerHTML,
                 left: left,
                 top: top,
                 xPercent: canvasW > 0 ? (left / canvasW) : 0,
@@ -815,7 +818,7 @@ async function applyRestoredState(state) {
                         } else {
                             wrap.className = item.isNeon ? 'co-neon-block draggable' : 'callout-wrap svg-callout draggable';
                         }
-                        wrap.innerHTML = sanitizeRestoredHtml(item.html);
+                        wrap.innerHTML = sanitizeRestoredHtml(item.html); if (item.kind === 'shape') { wrap.querySelectorAll('.text-handle, .callout-resizer, .callout-rotator, .callout-controls, .callout-lock-btn, .callout-select-border').forEach(h => h.remove()); }
                         const posX = typeof item.left !== 'undefined' ? item.left : Math.round(item.xPercent * targetCanvasW);
                         const posY = typeof item.top !== 'undefined' ? item.top : Math.round(item.yPercent * targetCanvasH);
                         wrap.style.position = 'absolute';

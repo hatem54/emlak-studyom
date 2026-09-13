@@ -410,7 +410,10 @@ window.renderLayers = function() {
             `;
             const pnames = {free:'Serbest',line:'Cizgi',arrow:'Ok',rect:'Kare',circle:'Daire',polygon:'Cokgen'};
             paths.forEach((p, idx) => {
-                const name = (pnames[p.type] || p.type) + ' ' + (idx + 1);
+                let name = (pnames[p.type] || p.type) + ' ' + (idx + 1);
+                if (p.isParcel) {
+                    name = (p.hasSaber || p.saber) ? '⚡ Neon Arsa Sınırı' : '📐 Arsa Sınırı (KML)';
+                }
                 const isHidden = p.hidden === true;
                 const isLocked = p.locked === true;
                 const eyeIcon = isHidden ? 'fa-eye-slash' : 'fa-eye';
@@ -429,7 +432,7 @@ window.renderLayers = function() {
                      style="display:flex; justify-content:space-between; align-items:center; background:${bg}; border:${border}; padding:10px 12px; border-radius:6px; margin-bottom:5px; cursor:pointer;"
                      onclick="window.layerSelect('draw_${idx}', event, false)">
                     <div style="display:flex; align-items:center; gap:8px; overflow:hidden;">
-                        <span style="width:12px; height:12px; border-radius:3px; background:${p.color}"></span>
+                        <span style="width:12px; height:12px; border-radius:3px; background:${p.color}; ${(p.hasSaber || p.saber) ? 'box-shadow: 0 0 8px ' + p.color + ';' : ''}"></span>
                         <span style="font-size:12px; color:var(--text); ${isHidden ? 'text-decoration:line-through; opacity:0.5;' : ''}">${name}</span>
                     </div>
                     <div style="display:flex; gap:10px; align-items:center;" onclick="event.stopPropagation();">

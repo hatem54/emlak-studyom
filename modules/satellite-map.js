@@ -85,6 +85,11 @@
         parcelBadgeScale: 1.0,     // Taşınabilir parsel rozeti boyut ölçeği (0.6x - 2.5x)
         parcelBadgeTheme: 'gold',  // 'gold' | 'cyan' | 'emerald' | 'dark' | 'sapphire' | 'ruby'
         parcelBadgeCustomColors: null, // Kullanıcı özel renk seçtiğinde { bg, titleColor, subColor, borderColor, borderWidth }
+        parcelNeonEnabled: false,      // ⚡ Arsa sınırı için Saber Neon açık/kapalı
+        parcelNeonColor: '#00CEC9',    // Neon dış parlama rengi (Canlı Turkuaz)
+        parcelNeonPreset: 'fully-lit', // Saber hazır teması
+        parcelNeonIntensity: 2.8,      // Parlama şiddeti (1.0 - 5.0)
+        parcelNeonGlowSize: 32,        // Parlama genişliği (15px - 60px)
         isSettingsDrawerOpen: false, // Hamburger çekmece menüsü açık/kapalı
 
         // Popüler / Hızlı Atlama Konumları (Türkiye)
@@ -203,7 +208,25 @@
                                     <option value="pin_flag">🚩 Sınır Bayrağı</option>
                                     <option value="pin_vip_star">⭐ VIP Yıldız Rozet</option>
                                 </select>
-                                <input type="text" id="satMarkerCustomTextInput" class="sat-marker-text-input" placeholder="Pin Başlığı..." value="PORTFÖYÜMÜZ" oninput="window.setSatelliteMarkerText(this.value)" title="Pin Üzerindeki Metin" style="width: 100px;">
+                            </div>
+                        </div>
+
+                        <div class="sat-ctrl-group sat-ctrl-neon-group">
+                            <button type="button" id="satToggleNeonBtn" class="sat-btn-toggle-neon" onclick="window.toggleSatelliteParcelNeon()" title="Arsa Parseli İçin ⚡ Saber Neon Efektini Aç / Kapat">
+                                <i class="fas fa-bolt"></i> <span>Neon:</span> <b id="satNeonStatusText">Kapalı</b>
+                            </button>
+                            <div id="satNeonSettingsWrapper" class="sat-neon-quick-settings" style="opacity:0.35; pointer-events:none; filter:grayscale(0.8);">
+                                <select id="satNeonColorPresetSelect" class="sat-style-select" onchange="window.setSatelliteParcelNeonPreset(this.value)" title="Neon Renk Teması">
+                                    <option value="turkuaz" selected>🔵 Turkuaz</option>
+                                    <option value="altin">🟡 Altın</option>
+                                    <option value="mavi">💎 Mavi</option>
+                                    <option value="kirmizi">🔴 Kırmızı</option>
+                                    <option value="yesil">🟢 Yeşil</option>
+                                    <option value="mor">🟣 Mor</option>
+                                    <option value="pembe">🌸 Pembe</option>
+                                    <option value="beyaz">⚪ Beyaz</option>
+                                </select>
+                                <input type="color" id="satNeonCustomColorInput" value="#00CEC9" oninput="window.setSatelliteParcelNeonColor(this.value)" class="sat-custom-color-input-sm" title="Özel Neon Rengi">
                             </div>
                         </div>
                     </div>
@@ -343,6 +366,42 @@
                                                 <span id="satParcelStrokeWidthVal" class="sat-badge-sm">3px</span>
                                             </div>
                                             <input type="range" id="satParcelStrokeWidthSlider" min="1" max="10" step="0.5" value="3" oninput="window.setParcelStrokeWidth(this.value)" class="sat-range-input">
+                                        </div>
+
+                                        <!-- ⚡ Saber Neon Çizim Efekti -->
+                                        <div class="sat-drawer-group sat-drawer-neon-card" id="satDrawerNeonCard">
+                                            <div class="sat-drawer-label-row">
+                                                <label><i class="fas fa-bolt" style="color:#00CEC9;"></i> <b>⚡ Saber Neon Efekti:</b></label>
+                                                <button type="button" id="satDrawerNeonToggleBtn" class="sat-pill-toggle-btn" onclick="window.toggleSatelliteParcelNeon()" title="Neon Efektini Aç/Kapat">
+                                                    <span id="satDrawerNeonToggleText">Kapalı</span>
+                                                </button>
+                                            </div>
+                                            <div id="satDrawerNeonDetails" style="display:none; margin-top:8px;">
+                                                <div class="sat-drawer-label-row" style="margin-bottom:6px;">
+                                                    <label>Neon Rengi:</label>
+                                                    <div class="sat-neon-color-picks">
+                                                        <button type="button" class="sat-color-dot-sm active" style="background:#00CEC9; box-shadow:0 0 8px #00CEC9;" onclick="window.setSatelliteParcelNeonColor('#00CEC9')" title="Turkuaz"></button>
+                                                        <button type="button" class="sat-color-dot-sm" style="background:#FFB800; box-shadow:0 0 8px #FFB800;" onclick="window.setSatelliteParcelNeonColor('#FFB800')" title="Altın"></button>
+                                                        <button type="button" class="sat-color-dot-sm" style="background:#0088FF; box-shadow:0 0 8px #0088FF;" onclick="window.setSatelliteParcelNeonColor('#0088FF')" title="Mavi"></button>
+                                                        <button type="button" class="sat-color-dot-sm" style="background:#00FF44; box-shadow:0 0 8px #00FF44;" onclick="window.setSatelliteParcelNeonColor('#00FF44')" title="Yeşil"></button>
+                                                        <button type="button" class="sat-color-dot-sm" style="background:#FF0044; box-shadow:0 0 8px #FF0044;" onclick="window.setSatelliteParcelNeonColor('#FF0044')" title="Kırmızı"></button>
+                                                        <button type="button" class="sat-color-dot-sm" style="background:#AA00FF; box-shadow:0 0 8px #AA00FF;" onclick="window.setSatelliteParcelNeonColor('#AA00FF')" title="Mor"></button>
+                                                        <button type="button" class="sat-color-dot-sm" style="background:#FFFFFF; box-shadow:0 0 8px #FFFFFF;" onclick="window.setSatelliteParcelNeonColor('#FFFFFF')" title="Beyaz"></button>
+                                                        <input type="color" id="satDrawerNeonColorCustom" value="#00CEC9" oninput="window.setSatelliteParcelNeonColor(this.value)" class="sat-custom-color-input-sm" title="Özel Renk">
+                                                    </div>
+                                                </div>
+                                                <div class="sat-drawer-label-row">
+                                                    <label>Neon Parlama Boyutu (Glow):</label>
+                                                    <span id="satNeonGlowVal" class="sat-badge-sm">32px</span>
+                                                </div>
+                                                <input type="range" id="satNeonGlowSlider" min="15" max="60" value="32" step="1" oninput="window.setSatelliteParcelNeonGlow(this.value)" class="sat-range-input">
+                                                
+                                                <div class="sat-drawer-label-row" style="margin-top:6px;">
+                                                    <label>Parlama Şiddeti (Intensity):</label>
+                                                    <span id="satNeonIntensityVal" class="sat-badge-sm">2.8x</span>
+                                                </div>
+                                                <input type="range" id="satNeonIntensitySlider" min="1.0" max="5.0" value="2.8" step="0.2" oninput="window.setSatelliteParcelNeonIntensity(this.value)" class="sat-range-input">
+                                            </div>
                                         </div>
 
                                         <!-- Ada/Parsel Bilgi Etiketi Göster/Gizle, Boyut ve Tema -->
@@ -1924,6 +1983,7 @@
             modal.style.display = 'flex';
             document.body.style.overflow = 'hidden';
             this.updateParcelUI();
+            this.updateParcelNeonUI();
 
             const input = document.getElementById('satSearchInput');
             if (input && targetQuery) {
@@ -2323,9 +2383,23 @@
                 const ctx = offCanvas.getContext('2d');
                 const cropInfo = offCanvas._cropInfo || { cropX: 0, cropY: 0, cropW: mapContainer.offsetWidth, cropH: mapContainer.offsetHeight };
 
-                // 📐 Eğer TKGM Parsel Poligonu yüklüyse tuval üzerine vektörel çiz (Google Earth stili beyaz dolgu & kenarlık)
+                // 📐 Eğer TKGM Parsel Poligonu yüklüyse koordinatları tuval piksel kadrajına dönüştür
+                let parcelCanvasPoints = null;
                 if (this.parcelPolygon && this.parcelData) {
-                    this.drawVectorParcelPolygon(ctx, targetW, targetH, mapContainer, cropInfo);
+                    if (this.parcelData.latLngs && Array.isArray(this.parcelData.latLngs)) {
+                        parcelCanvasPoints = this.parcelData.latLngs.map(ll => {
+                            const pt = this.map.latLngToContainerPoint([ll[0], ll[1]]);
+                            return {
+                                x: ((pt.x - cropInfo.cropX) / cropInfo.cropW) * targetW,
+                                y: ((pt.y - cropInfo.cropY) / cropInfo.cropH) * targetH
+                            };
+                        });
+                    }
+
+                    // Eğer drawPaths tanımlı değilse (fallback), doğrudan arka plan görseline yak
+                    if (typeof drawPaths === 'undefined') {
+                        this.drawVectorParcelPolygon(ctx, targetW, targetH, mapContainer, cropInfo);
+                    }
                 }
 
                 // 📍 Eğer kullanıcı Konum İğnesi seçtiyse seçilen koordinata vektörel çiz (Kadraj ve çözünürlüğe birebir orantılı)
@@ -2393,6 +2467,12 @@
                             SatelliteMapModule.closeModal();
                             if (SatelliteMapModule.parcelData) {
                                 SatelliteMapModule.syncParcelToSmartParser(SatelliteMapModule.parcelData);
+
+                                // 🚀 Parsel Poligonunu Canlı Tuval Katmanına (drawPaths) ve Saber WebGL Neon Motoruna Aktar
+                                if (parcelCanvasPoints && typeof SatelliteMapModule.transferParcelToCanvas === 'function') {
+                                    SatelliteMapModule.transferParcelToCanvas(parcelCanvasPoints);
+                                }
+
                                 // Parsel rozetini tuval üzerine serbestçe taşınabilir & boyutlandırılabilir eleman olarak ekle (Varsayılan: Sol üst)
                                 if (typeof window.addParcelBadgeToCanvas === 'function' && SatelliteMapModule.parcelShowLabel) {
                                     const relPos = SatelliteMapModule.floatingParcelPos || { relX: 0.04, relY: 0.04 };
@@ -3618,8 +3698,9 @@
                     fillHex8 = this.colorToHex8('#ffffff', opacity);
                 }
 
-                const strokeColorHex = this.colorToHex8(this.parcelStrokeColor || '#ffffff', 1.0);
-                const strokeWidthNum = Math.max(1, Number(this.parcelStrokeWidth) || 3);
+                const isNeon3d = !!this.parcelNeonEnabled;
+                const strokeColorHex = this.colorToHex8(isNeon3d ? (this.parcelNeonColor || '#00CEC9') : (this.parcelStrokeColor || '#ffffff'), 1.0);
+                const strokeWidthNum = Math.max(isNeon3d ? 4 : 1, Number(this.parcelStrokeWidth) || 3);
 
                 // AltitudeMode: CLAMP_TO_GROUND arazi kabartmasına yapışmayı sağlar
                 let altModeObj = 'CLAMP_TO_GROUND';
@@ -3736,15 +3817,29 @@
          */
         updateParcelPolygonStyle: function() {
             if (this.parcelPolygon) {
+                const isNeon = !!this.parcelNeonEnabled;
+                const neonColor = this.parcelNeonColor || '#00CEC9';
+                const strokeColor = isNeon ? neonColor : (this.parcelStrokeColor || '#ffffff');
+                const strokeWidth = isNeon ? Math.max(3.5, this.parcelStrokeWidth || 3) : (this.parcelStrokeWidth || 3);
                 const fillColor = this.parcelFillMode === 'nofill' ? 'transparent' : (this.parcelFillMode === 'white' ? '#ffffff' : (this.parcelFillColor || '#ffffff'));
                 const fillOpacity = this.parcelFillMode === 'nofill' ? 0 : (this.parcelFillOpacity !== undefined ? this.parcelFillOpacity : 0.40);
 
                 this.parcelPolygon.setStyle({
-                    color: this.parcelStrokeColor || '#ffffff',
-                    weight: this.parcelStrokeWidth || 3,
+                    color: strokeColor,
+                    weight: strokeWidth,
                     fillColor: fillColor,
                     fillOpacity: fillOpacity
                 });
+
+                // Canlı Leaflet SVG path neon efekti
+                if (this.parcelPolygon._path) {
+                    if (isNeon) {
+                        this.parcelPolygon._path.style.filter = `drop-shadow(0 0 6px ${neonColor}) drop-shadow(0 0 14px ${neonColor})`;
+                        this.parcelPolygon._path.style.transition = 'filter 0.3s ease, stroke 0.3s ease';
+                    } else {
+                        this.parcelPolygon._path.style.filter = '';
+                    }
+                }
             }
             if (this.is3DActive && this.map3dElement) {
                 this.mount3DParcelPolygon(this.map3dElement);
@@ -3872,6 +3967,7 @@
                             <span class="sat-float-sub">${locStr ? locStr : (p.alan || 'TKGM Parsel')}</span>
                         </div>
                         <div class="sat-float-actions-group">
+                            <button type="button" class="sat-float-btn sat-float-neon-btn ${this.parcelNeonEnabled ? 'active' : ''}" onclick="window.toggleSatelliteParcelNeon(event)" title="⚡ Saber Neon Efektini Aç/Kapat" id="satFloatNeonBtn"><i class="fas fa-bolt"></i></button>
                             <button type="button" class="sat-float-btn" onclick="window.toggleParcelColorPicker(event)" title="Renk & Stil Ayarları" id="satFloatColorBtn"><i class="fas fa-palette"></i></button>
                             <button type="button" class="sat-float-btn" onclick="window.zoomToCurrentParcel()" title="Parseli Ortala"><i class="fas fa-crosshairs"></i></button>
                             <button type="button" class="sat-float-btn remove" onclick="window.clearSatelliteParcel()" title="Parseli Kaldır"><i class="fas fa-times"></i></button>
@@ -3976,6 +4072,9 @@
             document.querySelectorAll('#satBadgeThemeBtns .sat-theme-chip').forEach(btn => {
                 btn.classList.toggle('active', btn.dataset.theme === (this.parcelBadgeTheme || 'gold'));
             });
+
+            // 9. Saber Neon Ayarları UI Senkronizasyonu
+            this.updateParcelNeonUI();
         },
 
         /**
@@ -4435,6 +4534,257 @@
             } catch(e) {
                 console.warn('drawVectorParcelPolygon hatası:', e);
             }
+        },
+
+        /**
+         * ⚡ Arsa Parseli İçin Saber Neon Efektini Açar / Kapatır
+         */
+        toggleSatelliteParcelNeon: function(forceState) {
+            if (typeof forceState === 'boolean') {
+                this.parcelNeonEnabled = forceState;
+            } else {
+                this.parcelNeonEnabled = !this.parcelNeonEnabled;
+            }
+
+            this.updateParcelPolygonStyle();
+            this.updateParcelNeonUI();
+
+            if (typeof window.showAppToast === 'function') {
+                if (this.parcelNeonEnabled) {
+                    window.showAppToast('⚡ Arsa parseli için Saber Neon efekti aktif edildi!', 'success');
+                } else {
+                    window.showAppToast('⚡ Saber Neon efekti kapatıldı (Klasik Çizim Modu)', 'info');
+                }
+            }
+        },
+
+        /**
+         * Neon Rengini Ayarlar (Hex)
+         */
+        setSatelliteParcelNeonColor: function(color) {
+            if (!color) return;
+            this.parcelNeonColor = color;
+            this.parcelNeonEnabled = true;
+            this.updateParcelPolygonStyle();
+            this.updateParcelNeonUI();
+        },
+
+        /**
+         * Neon Hazır Renk Presetini Ayarlar
+         */
+        setSatelliteParcelNeonPreset: function(presetKey) {
+            const mapColors = {
+                'turkuaz': '#00CEC9',
+                'altin': '#FFB800',
+                'mavi': '#0088FF',
+                'kirmizi': '#FF0044',
+                'yesil': '#00FF44',
+                'mor': '#AA00FF',
+                'pembe': '#FF00AA',
+                'beyaz': '#FFFFFF'
+            };
+            const hex = mapColors[presetKey] || '#00CEC9';
+            this.parcelNeonColor = hex;
+            this.parcelNeonEnabled = true;
+            this.updateParcelPolygonStyle();
+            this.updateParcelNeonUI();
+        },
+
+        /**
+         * Neon Dış Parlama Boyutunu Ayarlar (15px - 60px)
+         */
+        setSatelliteParcelNeonGlow: function(val) {
+            this.parcelNeonGlowSize = Math.max(15, Math.min(60, parseInt(val, 10) || 32));
+            const badge = document.getElementById('satNeonGlowVal');
+            if (badge) badge.textContent = `${this.parcelNeonGlowSize}px`;
+            const slider = document.getElementById('satNeonGlowSlider');
+            if (slider && parseInt(slider.value, 10) !== this.parcelNeonGlowSize) {
+                slider.value = this.parcelNeonGlowSize;
+            }
+        },
+
+        /**
+         * Neon Parlama Şiddetini Ayarlar (1.0 - 5.0)
+         */
+        setSatelliteParcelNeonIntensity: function(val) {
+            this.parcelNeonIntensity = Math.max(1.0, Math.min(5.0, parseFloat(val) || 2.8));
+            const badge = document.getElementById('satNeonIntensityVal');
+            if (badge) badge.textContent = `${this.parcelNeonIntensity.toFixed(1)}x`;
+            const slider = document.getElementById('satNeonIntensitySlider');
+            if (slider && parseFloat(slider.value) !== this.parcelNeonIntensity) {
+                slider.value = this.parcelNeonIntensity;
+            }
+        },
+
+        /**
+         * Hex renge karşılık gelen Saber renk preset ismini bulur
+         */
+        getMatchingSaberColorPreset: function(hex) {
+            if (!hex) return 'turkuaz';
+            const h = hex.toString().toLowerCase();
+            if (h.includes('ffb800') || h.includes('f59e0b') || h.includes('eab308') || h.includes('gold') || h.includes('yellow')) return 'altin';
+            if (h.includes('0088ff') || h.includes('0284c7') || h.includes('0ea5e9') || h.includes('38bdf8')) return 'mavi';
+            if (h.includes('ff0044') || h.includes('ef4444') || h.includes('dc2626') || h.includes('red')) return 'kirmizi';
+            if (h.includes('00ff44') || h.includes('10b981') || h.includes('059669') || h.includes('green')) return 'yesil';
+            if (h.includes('aa00ff') || h.includes('8b5cf6') || h.includes('purple')) return 'mor';
+            if (h.includes('ff00aa') || h.includes('ec4899') || h.includes('pink')) return 'pembe';
+            if (h.includes('ffffff') || h.includes('white')) return 'beyaz';
+            return 'turkuaz';
+        },
+
+        /**
+         * Harita Arayüzündeki Tüm Neon Kontrollerini Senkronize Eder
+         */
+        updateParcelNeonUI: function() {
+            const isNeon = !!this.parcelNeonEnabled;
+            const neonColor = this.parcelNeonColor || '#00CEC9';
+
+            // 1. Üst Kontrol Çubuğu Butonu
+            const btn = document.getElementById('satToggleNeonBtn');
+            const statusText = document.getElementById('satNeonStatusText');
+            const wrapper = document.getElementById('satNeonSettingsWrapper');
+            if (btn) btn.classList.toggle('active', isNeon);
+            if (statusText) statusText.textContent = isNeon ? 'Açık' : 'Kapalı';
+            if (wrapper) {
+                wrapper.style.opacity = isNeon ? '1' : '0.35';
+                wrapper.style.pointerEvents = isNeon ? 'auto' : 'none';
+                wrapper.style.filter = isNeon ? 'none' : 'grayscale(0.8)';
+            }
+
+            const presetSel = document.getElementById('satNeonColorPresetSelect');
+            if (presetSel) {
+                presetSel.value = this.getMatchingSaberColorPreset(neonColor);
+            }
+            const customInput = document.getElementById('satNeonCustomColorInput');
+            if (customInput) customInput.value = neonColor;
+
+            // 2. Çekmece Kartı & Butonu
+            const drawerCard = document.getElementById('satDrawerNeonCard');
+            const drawerBtn = document.getElementById('satDrawerNeonToggleBtn');
+            const drawerText = document.getElementById('satDrawerNeonToggleText');
+            const drawerDetails = document.getElementById('satDrawerNeonDetails');
+            if (drawerCard) drawerCard.classList.toggle('active', isNeon);
+            if (drawerBtn) drawerBtn.classList.toggle('active', isNeon);
+            if (drawerText) drawerText.textContent = isNeon ? 'Açık' : 'Kapalı';
+            if (drawerDetails) drawerDetails.style.display = isNeon ? 'block' : 'none';
+
+            const glowBadge = document.getElementById('satNeonGlowVal');
+            if (glowBadge) glowBadge.textContent = `${this.parcelNeonGlowSize || 32}px`;
+            const glowSlider = document.getElementById('satNeonGlowSlider');
+            if (glowSlider) glowSlider.value = this.parcelNeonGlowSize || 32;
+
+            const intBadge = document.getElementById('satNeonIntensityVal');
+            if (intBadge) intBadge.textContent = `${(this.parcelNeonIntensity || 2.8).toFixed(1)}x`;
+            const intSlider = document.getElementById('satNeonIntensitySlider');
+            if (intSlider) intSlider.value = this.parcelNeonIntensity || 2.8;
+
+            const drawerCustom = document.getElementById('satDrawerNeonColorCustom');
+            if (drawerCustom) drawerCustom.value = neonColor;
+
+            // Çekmece renk noktalarını aktifleştir
+            document.querySelectorAll('#satDrawerNeonDetails .sat-color-dot-sm').forEach(dot => {
+                const bg = dot.style.background || '';
+                const isMatch = bg.toLowerCase().includes(neonColor.toLowerCase());
+                dot.classList.toggle('active', isMatch);
+            });
+
+            // 3. Floating Rozet Butonu
+            const floatBtn = document.getElementById('satFloatNeonBtn');
+            if (floatBtn) {
+                floatBtn.classList.toggle('active', isNeon);
+            }
+        },
+
+        /**
+         * 🚀 Parsel Poligonunu Tuval Çizim Katmanına (drawPaths) Canlı Aktarır
+         * Saber Neon Efekti Aktifse WebGL Motoruyla Birlikte Başlatır
+         */
+        transferParcelToCanvas: function(points) {
+            if (!points || !Array.isArray(points) || points.length < 3) return;
+            if (typeof drawPaths === 'undefined') return;
+
+            const isNeon = !!this.parcelNeonEnabled;
+            const neonColor = this.parcelNeonColor || '#00CEC9';
+            const strokeColor = isNeon ? neonColor : (this.parcelStrokeColor || '#ffffff');
+            const strokeWidth = Math.max(1, parseFloat(this.parcelStrokeWidth) || 3);
+            const fillColor = this.parcelFillMode === 'nofill' ? 'transparent' : (this.parcelFillMode === 'white' ? '#ffffff' : (this.parcelFillColor || '#ffffff'));
+            const fillOpacity = this.parcelFillMode === 'nofill' ? 0 : (this.parcelFillOpacity !== undefined ? this.parcelFillOpacity : 0.40);
+
+            // Sayısal RGB hex değeri (PixiJS için)
+            let glowNumeric = 0x00CEC9;
+            try {
+                glowNumeric = parseInt(neonColor.replace('#', '0x'), 16);
+            } catch(e) {}
+
+            const saberOpts = isNeon ? {
+                preset: this.parcelNeonPreset || 'fully-lit',
+                colorPreset: this.getMatchingSaberColorPreset(neonColor),
+                coreColor: 0xFFFFFF,
+                glowColor: glowNumeric,
+                coreSize: 0,
+                glowSize: this.parcelNeonGlowSize || 32,
+                intensity: this.parcelNeonIntensity || 2.8,
+                groundSpill: 0.4,
+                energyNodes: true,
+                flickerAmount: 0.02,
+                pulseSpeed: 0,
+                distortionAmount: 0,
+                active: true
+            } : null;
+
+            const photoRef = (typeof getActivePhotoPanel === 'function' && window.getCurrentPhotoState) 
+                ? window.getCurrentPhotoState() 
+                : null;
+
+            const pObj = {
+                id: 'draw-path-parcel-' + Date.now(),
+                type: 'polygon',
+                points: points.map(pt => ({ x: pt.x, y: pt.y })),
+                color: strokeColor,
+                width: strokeWidth,
+                opacity: 1,
+                dashStyle: 'solid',
+                glow: 0,
+                fillColor: fillColor,
+                fillOpacity: fillOpacity,
+                hasSaber: isNeon,
+                saber: isNeon,
+                saberOptions: saberOpts,
+                photoRef: photoRef,
+                isParcel: true
+            };
+
+            drawPaths.push(pObj);
+            const pIdx = drawPaths.length - 1;
+
+            if (typeof createSVGFromPath === 'function') {
+                const svgEl = createSVGFromPath(pObj);
+                if (svgEl) {
+                    pObj.el = svgEl;
+                    svgEl.dataset.label = isNeon ? '⚡ Neon Arsa Sınırı' : '📐 Arsa Sınırı (KML)';
+                    const container = typeof getActiveV4Element === 'function' ? getActiveV4Element() : (document.getElementById('photo-layer') || document.getElementById('canvas-container'));
+                    if (container && !svgEl.parentElement) {
+                        container.appendChild(svgEl);
+                    }
+                    if (typeof bindDrag === 'function') bindDrag(svgEl);
+                }
+            }
+
+            if (isNeon && typeof window.applySaberToPath === 'function') {
+                pObj.saberRef = window.applySaberToPath(pIdx, pObj.saberOptions);
+                if (window.saberState) {
+                    window.saberState.active = true;
+                    window.saberState.glowColor = glowNumeric;
+                    window.saberState.colorPreset = this.getMatchingSaberColorPreset(neonColor);
+                }
+                const saberToggle = document.getElementById('saberModeToggle');
+                if (saberToggle) saberToggle.checked = true;
+            }
+
+            if (typeof updateDrawHistory === 'function') updateDrawHistory();
+            if (typeof redrawAll === 'function') redrawAll();
+            if (typeof updateLayersList === 'function') updateLayersList();
+            if (typeof renderLayers === 'function') renderLayers();
         },
 
         /**
@@ -5037,6 +5387,26 @@
 
     window.updateParcelCustomStyle = function() {
         SatelliteMapModule.updateParcelCustomStyle();
+    };
+
+    window.toggleSatelliteParcelNeon = function(forceState) {
+        SatelliteMapModule.toggleSatelliteParcelNeon(forceState);
+    };
+
+    window.setSatelliteParcelNeonColor = function(color) {
+        SatelliteMapModule.setSatelliteParcelNeonColor(color);
+    };
+
+    window.setSatelliteParcelNeonPreset = function(preset) {
+        SatelliteMapModule.setSatelliteParcelNeonPreset(preset);
+    };
+
+    window.setSatelliteParcelNeonGlow = function(glow) {
+        SatelliteMapModule.setSatelliteParcelNeonGlow(glow);
+    };
+
+    window.setSatelliteParcelNeonIntensity = function(intensity) {
+        SatelliteMapModule.setSatelliteParcelNeonIntensity(intensity);
     };
 
     window.SatelliteMapModule = SatelliteMapModule;

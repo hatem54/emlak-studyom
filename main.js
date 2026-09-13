@@ -1,4 +1,4 @@
-/* ============================================================
+﻿/* ============================================================
 
    main.js — v14.1 Güvenli Sürüm
 
@@ -2742,7 +2742,7 @@ window.loadShapeSettings = function(el) {
     const rC = document.getElementById('shapeRadiusContainer');
     if (rC) {
         if (type === 'rectangle' || type === 'circle') {
-            rC.style.display = 'flex';
+            rC.style.display = 'block';
             const sR = document.getElementById('shapeRadius');
             if(sR) {
                 sR.value = el.dataset.radius || '0';
@@ -2841,5 +2841,6 @@ document.addEventListener('mousedown', (e) => {
         });
     }
 });
+
 
 

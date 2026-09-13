@@ -1518,42 +1518,56 @@
         <div class="section-title">📐 Temel Şekiller</div>
         <p class="info-text">Tasarımınıza canva tarzı temel şekiller, çizgiler ve oklar ekleyin.</p>
         
-        <!-- ŞEKİL AYARLARI PANELİ -->
+                <!-- ŞEKİL AYARLARI PANELİ -->
         <div id="shapeSettingsPanel" style="display:none; margin-bottom:20px;">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
                 <span class="section-title" style="margin:0;border:none">📐 Seçili Şekil Ayarları</span>
             </div>
             <div class="settings-box">
-                                  <div class="color-row">
-                      <label>🎨 Dolgu Rengi</label>
-                      <input type="color" id="shapeBgColor" value="#3b82f6" oninput="applyShapeSettings()">
-                  </div>
-                  <div class="slider-group" style="margin-top:-8px; margin-bottom:12px;">
-                      <label><span style="font-size:11px; opacity:0.8;">Dolgu Opaklığı</span><span id="shapeBgOpacityVal" style="font-size:11px;">100%</span></label>
-                      <input type="range" id="shapeBgOpacity" min="0" max="100" value="100" oninput="applyShapeSettings()">
-                  </div>
-                                  <div class="color-row">
-                      <label>🖋️ Çerçeve Rengi</label>
-                      <input type="color" id="shapeBorderColor" value="#ffffff" oninput="applyShapeSettings()">
-                  </div>
-                  <div class="slider-group" style="margin-top:-8px; margin-bottom:12px;">
-                      <label><span style="font-size:11px; opacity:0.8;">Çerçeve Opaklığı</span><span id="shapeBorderOpacityVal" style="font-size:11px;">100%</span></label>
-                      <input type="range" id="shapeBorderOpacity" min="0" max="100" value="100" oninput="applyShapeSettings()">
-                  </div>
-                <div class="slider-group">
-                    <label><span>Çerçeve Kalınlığı</span><span id="shapeBorderWidthVal">0px</span></label>
-                    <input type="range" id="shapeBorderWidth" min="0" max="40" value="0" oninput="applyShapeSettings()">
+                <!-- Renkler Grid -->
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:15px; margin-bottom:15px; padding-bottom:10px; border-bottom:1px solid rgba(108,92,231,0.1);">
+                    <!-- Dolgu -->
+                    <div>
+                        <div class="color-row" style="margin-bottom:8px;">
+                            <label>🎨 Dolgu</label>
+                            <input type="color" id="shapeBgColor" value="#3b82f6" oninput="applyShapeSettings()">
+                        </div>
+                        <div class="slider-group">
+                            <label><span>Opaklık</span><span id="shapeBgOpacityVal">100%</span></label>
+                            <input type="range" id="shapeBgOpacity" min="0" max="100" value="100" oninput="applyShapeSettings()">
+                        </div>
+                    </div>
+                    <!-- Çerçeve -->
+                    <div>
+                        <div class="color-row" style="margin-bottom:8px;">
+                            <label>🖋️ Çerçeve</label>
+                            <input type="color" id="shapeBorderColor" value="#ffffff" oninput="applyShapeSettings()">
+                        </div>
+                        <div class="slider-group">
+                            <label><span>Opaklık</span><span id="shapeBorderOpacityVal">100%</span></label>
+                            <input type="range" id="shapeBorderOpacity" min="0" max="100" value="100" oninput="applyShapeSettings()">
+                        </div>
+                    </div>
                 </div>
-                <div class="slider-group" id="shapeRadiusContainer">
-                    <label><span>Köşe Ovalleştirme</span><span id="shapeRadiusVal">0px</span></label>
-                    <input type="range" id="shapeRadius" min="0" max="200" value="0" oninput="applyShapeSettings()">
+
+                <!-- Diğer Ayarlar Grid -->
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:15px;">
+                    <div class="slider-group">
+                        <label><span>Kalınlık</span><span id="shapeBorderWidthVal">0px</span></label>
+                        <input type="range" id="shapeBorderWidth" min="0" max="40" value="0" oninput="applyShapeSettings()">
+                    </div>
+                    <div class="slider-group" id="shapeRadiusContainer">
+                        <label><span>Yuvarlama</span><span id="shapeRadiusVal">0px</span></label>
+                        <input type="range" id="shapeRadius" min="0" max="200" value="0" oninput="applyShapeSettings()">
+                    </div>
+                    <div class="slider-group" id="shapeOpacityContainer" style="grid-column: span 2;">
+                        <label><span>Genel Opaklık</span><span id="shapeOpacityVal">100%</span></label>
+                        <input type="range" id="shapeOpacity" min="10" max="100" value="100" oninput="applyShapeSettings()">
+                    </div>
                 </div>
-                <div class="slider-group" id="shapeOpacityContainer">
-                    <label><span>Opaklık</span><span id="shapeOpacityVal">100%</span></label>
-                    <input type="range" id="shapeOpacity" min="10" max="100" value="100" oninput="applyShapeSettings()">
-                </div>
+                
                 <div style="margin-top:15px;">
-                    <button class="btn-action" style="background:#ef4444; width:100%;" onclick="deleteSelectedShape()">🗑️ Şekli Sil</button>
+                    <button class="btn-action btn-red" style="width:100%;" onclick="deleteSelectedShape()">🗑️ Şekli Sil</button>
                 </div>
             </div>
         </div>
@@ -2917,6 +2931,7 @@ window.addEventListener('DOMContentLoaded', () => {
 </body>
 
 </html>
+
 
 
 

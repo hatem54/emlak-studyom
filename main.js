@@ -2609,7 +2609,6 @@ document.addEventListener('DOMContentLoaded', () => {
 window.addShape = function(type) {
     const cContainer = document.getElementById('canvas-container');
     if (!cContainer) return;
-
     const el = document.createElement('div');
     el.className = 'canvas-el draggable shape-el';
     el.dataset.shapeType = type;
@@ -2619,7 +2618,6 @@ window.addShape = function(type) {
     el.dataset.radius = '0';
     el.dataset.opacity = '100';
     
-    // Rastgele konum
     const targetCanvasW = cContainer.offsetWidth || 1920;
     const targetCanvasH = cContainer.offsetHeight || 1080;
     el.style.left = Math.round(targetCanvasW / 2 - 50) + 'px';
@@ -2633,16 +2631,31 @@ window.addShape = function(type) {
     inner.style.width = '100%';
     inner.style.height = '100%';
     inner.style.boxSizing = 'border-box';
+    inner.style.display = 'flex';
+    inner.style.alignItems = 'center';
+    inner.style.justifyContent = 'center';
     
+    // Default shape settings
+    el.style.width = '100px';
+    el.style.height = '100px';
+
+    const svgs = {
+        'triangle': '<svg viewBox="0 0 100 100" preserveAspectRatio="none" style="width:100%; height:100%; overflow:visible; fill:var(--shape-bg); stroke:var(--shape-border); stroke-width:var(--shape-border-width); stroke-linejoin:round;"><polygon points="50,5 95,95 5,95"/></svg>',
+        'star': '<svg viewBox="0 0 100 100" preserveAspectRatio="none" style="width:100%; height:100%; overflow:visible; fill:var(--shape-bg); stroke:var(--shape-border); stroke-width:var(--shape-border-width); stroke-linejoin:round;"><polygon points="50,5 61,35 98,35 68,57 79,91 50,70 21,91 32,57 2,35 39,35"/></svg>',
+        'heart': '<svg viewBox="0 0 100 100" preserveAspectRatio="none" style="width:100%; height:100%; overflow:visible; fill:var(--shape-bg); stroke:var(--shape-border); stroke-width:var(--shape-border-width); stroke-linejoin:round;"><path d="M50,90 C50,90 5,60 5,30 C5,10 30,10 50,30 C70,10 95,10 95,30 C95,60 50,90 50,90 Z"/></svg>',
+        'hexagon': '<svg viewBox="0 0 100 100" preserveAspectRatio="none" style="width:100%; height:100%; overflow:visible; fill:var(--shape-bg); stroke:var(--shape-border); stroke-width:var(--shape-border-width); stroke-linejoin:round;"><polygon points="25,5 75,5 95,50 75,95 25,95 5,50"/></svg>',
+        'arrow-right': '<svg viewBox="0 0 100 100" preserveAspectRatio="none" style="width:100%; height:100%; overflow:visible; fill:var(--shape-bg); stroke:var(--shape-border); stroke-width:var(--shape-border-width); stroke-linejoin:round;"><polygon points="5,35 60,35 60,15 95,50 60,85 60,65 5,65"/></svg>',
+        'arrow-left': '<svg viewBox="0 0 100 100" preserveAspectRatio="none" style="width:100%; height:100%; overflow:visible; fill:var(--shape-bg); stroke:var(--shape-border); stroke-width:var(--shape-border-width); stroke-linejoin:round;"><polygon points="95,35 40,35 40,15 5,50 40,85 40,65 95,65"/></svg>',
+        'arrow-up': '<svg viewBox="0 0 100 100" preserveAspectRatio="none" style="width:100%; height:100%; overflow:visible; fill:var(--shape-bg); stroke:var(--shape-border); stroke-width:var(--shape-border-width); stroke-linejoin:round;"><polygon points="35,95 35,40 15,40 50,5 85,40 65,40 65,95"/></svg>'
+    };
+
     if (type === 'rectangle') {
         el.style.width = '120px';
         el.style.height = '80px';
-        inner.style.backgroundColor = '#3b82f6';
+        inner.style.backgroundColor = 'var(--shape-bg)';
     } else if (type === 'circle') {
-        el.style.width = '100px';
-        el.style.height = '100px';
         el.dataset.radius = '50';
-        inner.style.backgroundColor = '#3b82f6';
+        inner.style.backgroundColor = 'var(--shape-bg)';
         inner.style.borderRadius = '50%';
     } else if (type === 'line') {
         el.style.width = '150px';
@@ -2650,21 +2663,35 @@ window.addShape = function(type) {
         el.dataset.bgColor = 'transparent';
         el.dataset.borderColor = '#ffffff';
         el.dataset.borderWidth = '4';
-        inner.style.borderTop = '4px solid #ffffff';
-        inner.style.marginTop = '3px';
+        inner.style.borderTop = 'var(--shape-border-width) solid var(--shape-border)';
     } else if (type === 'dashed-line') {
         el.style.width = '150px';
         el.style.height = '10px';
         el.dataset.bgColor = 'transparent';
         el.dataset.borderColor = '#ffffff';
         el.dataset.borderWidth = '4';
-        inner.style.borderTop = '4px dashed #ffffff';
-        inner.style.marginTop = '3px';
+        inner.style.borderTop = 'var(--shape-border-width) dashed var(--shape-border)';
+    } else if (type === 'dotted-line') {
+        el.style.width = '150px';
+        el.style.height = '10px';
+        el.dataset.bgColor = 'transparent';
+        el.dataset.borderColor = '#ffffff';
+        el.dataset.borderWidth = '4';
+        inner.style.borderTop = 'var(--shape-border-width) dotted var(--shape-border)';
+    } else if (svgs[type]) {
+        el.dataset.borderWidth = '0';
+        inner.innerHTML = svgs[type];
     }
-
+    
     el.appendChild(inner);
-
     cContainer.appendChild(el);
+    
+    // Set initial custom properties
+    el.style.setProperty('--shape-bg', el.dataset.bgColor);
+    el.style.setProperty('--shape-border', el.dataset.borderColor);
+    el.style.setProperty('--shape-border-width', el.dataset.borderWidth + 'px');
+    el.style.opacity = el.dataset.opacity / 100;
+
     if (typeof bindDrag === 'function') bindDrag(el);
     if (typeof selectElement === 'function') selectElement(el);
     if (typeof saveState === 'function') saveState();
@@ -2676,85 +2703,91 @@ window.loadShapeSettings = function(el) {
     panel.style.display = 'block';
     
     const type = el.dataset.shapeType;
-    const radCont = document.getElementById('shapeRadiusContainer');
-    if (type === 'line' || type === 'dashed-line') {
-        radCont.style.display = 'none';
-    } else {
-        radCont.style.display = 'block';
+    const isLine = type.includes('line');
+    
+    if (document.getElementById('shapeBgColor')) document.getElementById('shapeBgColor').value = el.dataset.bgColor || '#3b82f6';
+    if (document.getElementById('shapeBorderColor')) document.getElementById('shapeBorderColor').value = el.dataset.borderColor || '#ffffff';
+    
+    const bW = document.getElementById('shapeBorderWidth');
+    if (bW) {
+        bW.value = el.dataset.borderWidth || '0';
+        if (document.getElementById('shapeBorderWidthVal')) document.getElementById('shapeBorderWidthVal').textContent = bW.value + 'px';
     }
-
-    document.getElementById('shapeBgColor').value = el.dataset.bgColor || '#3b82f6';
-    document.getElementById('shapeBorderColor').value = el.dataset.borderColor || '#ffffff';
     
-    const bw = el.dataset.borderWidth || '0';
-    document.getElementById('shapeBorderWidth').value = bw;
-    document.getElementById('shapeBorderWidthVal').textContent = bw + 'px';
-    
-    const rad = el.dataset.radius || '0';
-    document.getElementById('shapeRadius').value = rad;
-    
-    if (type === 'circle') {
-        document.getElementById('shapeRadiusVal').textContent = '50%';
-        document.getElementById('shapeRadius').disabled = true;
-    } else {
-        document.getElementById('shapeRadiusVal').textContent = rad + 'px';
-        document.getElementById('shapeRadius').disabled = false;
+    const rC = document.getElementById('shapeRadiusContainer');
+    if (rC) {
+        if (type === 'rectangle' || type === 'circle') {
+            rC.style.display = 'block';
+            const sR = document.getElementById('shapeRadius');
+            if(sR) {
+                sR.value = el.dataset.radius || '0';
+                if (document.getElementById('shapeRadiusVal')) document.getElementById('shapeRadiusVal').textContent = sR.value + (type === 'circle' ? '%' : 'px');
+            }
+        } else {
+            rC.style.display = 'none';
+        }
     }
-
-    const op = el.dataset.opacity || '100';
-    document.getElementById('shapeOpacity').value = op;
-    document.getElementById('shapeOpacityVal').textContent = op + '%';
+    
+    const opW = document.getElementById('shapeOpacity');
+    if (opW) {
+        opW.value = el.dataset.opacity || '100';
+        if (document.getElementById('shapeOpacityVal')) document.getElementById('shapeOpacityVal').textContent = opW.value + '%';
+    }
 };
 
 window.applyShapeSettings = function() {
-    if (!window.selectedEl || !window.selectedEl.classList.contains('shape-el')) return;
-    const el = window.selectedEl;
-    const inner = el.querySelector('.shape-inner');
-    if (!inner) return;
-
-    const type = el.dataset.shapeType;
+    if (!selectedEl || !selectedEl.classList.contains('shape-el')) return;
     
     const bg = document.getElementById('shapeBgColor').value;
     const bc = document.getElementById('shapeBorderColor').value;
     const bw = document.getElementById('shapeBorderWidth').value;
-    const rad = document.getElementById('shapeRadius').value;
     const op = document.getElementById('shapeOpacity').value;
+    
+    selectedEl.dataset.bgColor = bg;
+    selectedEl.dataset.borderColor = bc;
+    selectedEl.dataset.borderWidth = bw;
+    selectedEl.dataset.opacity = op;
+    
+    selectedEl.style.setProperty('--shape-bg', bg);
+    selectedEl.style.setProperty('--shape-border', bc);
+    selectedEl.style.setProperty('--shape-border-width', bw + 'px');
+    selectedEl.style.opacity = op / 100;
 
-    el.dataset.bgColor = bg;
-    el.dataset.borderColor = bc;
-    el.dataset.borderWidth = bw;
-    el.dataset.radius = rad;
-    el.dataset.opacity = op;
+    if (document.getElementById('shapeBorderWidthVal')) document.getElementById('shapeBorderWidthVal').textContent = bw + 'px';
+    if (document.getElementById('shapeOpacityVal')) document.getElementById('shapeOpacityVal').textContent = op + '%';
 
-    document.getElementById('shapeBorderWidthVal').textContent = bw + 'px';
-    if (type !== 'circle') document.getElementById('shapeRadiusVal').textContent = rad + 'px';
-    document.getElementById('shapeOpacityVal').textContent = op + '%';
-
-    el.style.opacity = (op / 100).toString();
-
-    if (type === 'line') {
-        inner.style.borderTop = bw + 'px solid ' + bc;
-        inner.style.backgroundColor = 'transparent';
-    } else if (type === 'dashed-line') {
-        inner.style.borderTop = bw + 'px dashed ' + bc;
-        inner.style.backgroundColor = 'transparent';
-    } else {
-        inner.style.backgroundColor = bg;
-        inner.style.border = bw + 'px solid ' + bc;
-        if (type !== 'circle') {
-            inner.style.borderRadius = rad + 'px';
+    const inner = selectedEl.querySelector('.shape-inner');
+    if (inner) {
+        const type = selectedEl.dataset.shapeType;
+        
+        if (type === 'rectangle' || type === 'circle') {
+            const rad = document.getElementById('shapeRadius').value;
+            selectedEl.dataset.radius = rad;
+            if (document.getElementById('shapeRadiusVal')) document.getElementById('shapeRadiusVal').textContent = rad + (type === 'circle' ? '%' : 'px');
+            
+            inner.style.borderRadius = rad + (type === 'circle' ? '%' : 'px');
+            if(type === 'rectangle') {
+               inner.style.border = bw + 'px solid ' + bc;
+            } else {
+               inner.style.border = bw + 'px solid ' + bc;
+            }
+        } else if (type === 'line') {
+            inner.style.borderTop = bw + 'px solid ' + bc;
+        } else if (type === 'dashed-line') {
+            inner.style.borderTop = bw + 'px dashed ' + bc;
+        } else if (type === 'dotted-line') {
+            inner.style.borderTop = bw + 'px dotted ' + bc;
         }
     }
-
+    
     if (typeof requestAutoSave === 'function') requestAutoSave();
 };
 
 window.deleteSelectedShape = function() {
-    if (window.selectedEl && window.selectedEl.classList.contains('shape-el')) {
-        window.selectedEl.remove();
-        document.getElementById('shapeSettingsPanel').style.display = 'none';
-        if (typeof saveState === 'function') saveState();
-    }
+    if (!selectedEl || !selectedEl.classList.contains('shape-el')) return;
+    selectedEl.remove();
+    if (typeof deselectAll === 'function') deselectAll();
+    if (typeof saveState === 'function') saveState();
 };
 
 document.addEventListener('mousedown', (e) => {
@@ -2772,3 +2805,4 @@ document.addEventListener('mousedown', (e) => {
         });
     }
 });
+

@@ -141,6 +141,8 @@
                 redeemLicenseCode(code).then(res => {
                     alert(res.message);
                     if (res.success && typeof window.checkUserMode === 'function') window.checkUserMode();
+                }).catch(err => {
+                    alert('Hata: ' + (err.message || err));
                 });
             }
             return;
@@ -195,7 +197,7 @@
                     confirmButtonColor: '#3b82f6'
                 });
             }
-        });
+        }).catch(err => console.error('Swal modal error:', err));
     }
 
     // Dışa aktar

@@ -460,6 +460,9 @@
 
             if (result.blob) {
                 this.currentAudioBlob = result.blob;
+                if (this.currentBlobUrl) {
+                    URL.revokeObjectURL(this.currentBlobUrl);
+                }
                 this.currentBlobUrl = URL.createObjectURL(result.blob);
 
                 if (player) {

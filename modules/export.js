@@ -1246,6 +1246,8 @@ async function saveImage(){
 // 🎬 YÜZEN MİNİ VİDEO BİLDİRİMİ / ARKA PLAN WİDGETI
 // ══════════════════════════════════════════════
 let _videoToastTimeout = null;
+let _videoToastBlobUrl = null; // Bellek sızıntısını önlemek için blob URL referansı
+
 
 function createOrGetVideoToast() {
     let toast = document.getElementById('emlak-video-export-toast');
@@ -1305,6 +1307,7 @@ function updateVideoToastProgress(pct, remainingSec) {
 }
 
 function finishVideoToastSuccess(filename, sizeMb, url) {
+    _videoToastBlobUrl = url;
     const toast = createOrGetVideoToast();
     toast.style.borderColor = 'rgba(16, 185, 129, 0.6)';
     toast.style.boxShadow = '0 16px 40px rgba(0, 0, 0, 0.6), 0 0 24px rgba(16, 185, 129, 0.35)';
@@ -1353,7 +1356,13 @@ function closeVideoToast() {
     if (toast) {
         toast.style.opacity = '0';
         toast.style.transform = 'translateY(12px)';
-        setTimeout(() => { if (toast.parentNode) toast.parentNode.removeChild(toast); }, 250);
+        setTimeout(() => { 
+            if (toast.parentNode) toast.parentNode.removeChild(toast); 
+            if (_videoToastBlobUrl) {
+                URL.revokeObjectURL(_videoToastBlobUrl);
+                _videoToastBlobUrl = null;
+            }
+        }, 250);
     }
 }
 window.closeVideoToast = closeVideoToast;

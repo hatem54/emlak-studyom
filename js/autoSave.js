@@ -19,6 +19,12 @@ window.requestAutoSave = function() {
     }, 1000);
 };
 
+function sanitizeRestoredHtml(html) {
+    if (!html) return '';
+    return html.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+               .replace(/\bon\w+\s*=/gi, 'data-blocked=');
+}
+
 // Initialize IndexedDB
 function initAutoSaveDB() {
     return new Promise((resolve, reject) => {
@@ -600,7 +606,7 @@ async function applyRestoredState(state) {
                 const canvasContainer = document.getElementById('canvas-container');
                 if (canvasContainer) canvasContainer.appendChild(kolajWrap);
             }
-            kolajWrap.innerHTML = state.kolajHtml;
+            kolajWrap.innerHTML = sanitizeRestoredHtml(state.kolajHtml);
             if (state.kolajBg) kolajWrap.style.background = state.kolajBg;
             if (state.kolajAktif && typeof _kolajAktif !== 'undefined') _kolajAktif = state.kolajAktif;
             if (typeof _kolajFormatGuncelle === 'function') _kolajFormatGuncelle();
@@ -609,7 +615,7 @@ async function applyRestoredState(state) {
             if (state.canvaHtml) {
                 const crl = document.getElementById('canva-render-layer');
                 if (crl) {
-                    crl.innerHTML = state.canvaHtml;
+                    crl.innerHTML = sanitizeRestoredHtml(state.canvaHtml);
                     crl.style.display = 'block';
                     crl.querySelectorAll('.photo-panel').forEach(p => {
                         if (typeof _preparePhoto === 'function') _preparePhoto(p);
@@ -779,7 +785,7 @@ async function applyRestoredState(state) {
                     if (workArea && item.html) {
                         const wrap = document.createElement('div');
                         wrap.className = item.isNeon ? 'co-neon-block draggable' : 'callout-wrap svg-callout draggable';
-                        wrap.innerHTML = item.html;
+                        wrap.innerHTML = sanitizeRestoredHtml(item.html);
                         const posX = typeof item.left !== 'undefined' ? item.left : Math.round(item.xPercent * targetCanvasW);
                         const posY = typeof item.top !== 'undefined' ? item.top : Math.round(item.yPercent * targetCanvasH);
                         wrap.style.position = 'absolute';

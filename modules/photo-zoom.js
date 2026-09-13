@@ -122,6 +122,10 @@ document.addEventListener('mousemove', function(e){
         var x = _dix + (_lastMoveEvt.clientX - _dsx) / (sf * s);
         var y = _diy + (_lastMoveEvt.clientY - _dsy) / (sf * s);
         
+        // Sınırlandırma (Clamp) eklenerek fotoğrafın sonsuza kayması engellenir
+        x = Math.max(-3000, Math.min(3000, x));
+        y = Math.max(-3000, Math.min(3000, y));
+
         _dragEl.dataset.zpX = x;
         _dragEl.dataset.zpY = y;
         _applyPhotoTransform(_dragEl);
@@ -205,6 +209,10 @@ document.addEventListener('touchmove', function(e){
         var x = _dix + (e.touches[0].clientX - _dsx) / (sf * s);
         var y = _diy + (e.touches[0].clientY - _dsy) / (sf * s);
         
+        // Sınırlandırma (Clamp) eklenerek fotoğrafın sonsuza kayması engellenir
+        x = Math.max(-3000, Math.min(3000, x));
+        y = Math.max(-3000, Math.min(3000, y));
+
         _dragEl.dataset.zpX = x;
         _dragEl.dataset.zpY = y;
         _applyPhotoTransform(_dragEl);

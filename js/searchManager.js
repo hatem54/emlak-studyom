@@ -425,13 +425,15 @@ window.OmniSearch = {
             btn.onclick = (e) => {
                 e.stopPropagation();
                 this.closeRecent();
-                if (t.evalStr) {
+                const found = this.searchIndex.find(item => item.id === t.id);
+                if (found && typeof found.action === 'function') {
                     try {
-                        eval(t.evalStr);
-                        this.addRecent(t.id, t.name, t.type, t.evalStr);
+                        found.action();
                     } catch(err) {
-                        console.error("Recent tool eval error:", err);
+                        console.error("Recent tool action error:", err);
                     }
+                } else {
+                    console.warn("Recent tool action not found in index:", t.id);
                 }
             };
             list.appendChild(btn);

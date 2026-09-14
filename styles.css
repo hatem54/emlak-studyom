@@ -11884,10 +11884,20 @@ html[data-theme="light"] .tone-curve-canvas-wrap {
     font-weight: 700;
 }
 
-/* Harita İmleci - Ölçüm Modu */
+/* Harita İmleci - Ölçüm Modu (Windows Ok İmleci ve Gezinme) */
 #satelliteLeafletMap.measure-mode-cursor,
 #satelliteLeafletMap.measure-mode-cursor .leaflet-container {
-    cursor: crosshair !important;
+    cursor: default !important;
+}
+
+#satelliteLeafletMap.measure-mode-panning,
+#satelliteLeafletMap.measure-mode-panning .leaflet-container {
+    cursor: grab !important;
+}
+
+#satelliteLeafletMap.measure-mode-panning-active,
+#satelliteLeafletMap.measure-mode-panning-active .leaflet-container {
+    cursor: grabbing !important;
 }
 
 /* 📏 Yüzen Cam Ölçüm Paneli (Floating Glass Panel) */
@@ -11938,6 +11948,44 @@ html[data-theme="light"] .tone-curve-canvas-wrap {
     color: #f59e0b;
     text-transform: uppercase;
     letter-spacing: 0.5px;
+}
+
+/* Mod Değiştirici (Nokta Ekleme / Gezinme) - Sadece Çerçeveli (Outline) */
+.sat-measure-mode-switcher {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    background: transparent !important;
+}
+
+.sat-measure-mode-btn {
+    background: transparent !important;
+    border: 1px solid #334155;
+    color: #94a3b8;
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2.5px 6.5px;
+    border-radius: 5px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    transition: all 0.15s ease;
+    outline: none;
+    box-shadow: none !important;
+}
+
+.sat-measure-mode-btn:hover {
+    border-color: #f59e0b;
+    color: #f59e0b;
+    background: transparent !important;
+}
+
+.sat-measure-mode-btn.active {
+    border-color: #f59e0b;
+    color: #f59e0b;
+    background: transparent !important;
+    box-shadow: none !important;
 }
 
 .sat-measure-header-actions {
@@ -11995,6 +12043,34 @@ html[data-theme="light"] .tone-curve-canvas-wrap {
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
     letter-spacing: 0.5px;
     text-shadow: 0 0 10px rgba(245, 158, 11, 0.25);
+}
+
+.sat-measure-sub-stats {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    margin-top: 5px;
+    margin-bottom: 3px;
+    font-size: 11px;
+    color: #38bdf8;
+    background: transparent;
+    padding: 4px 6px;
+    border-radius: 6px;
+    border: 1px solid rgba(56, 189, 248, 0.25);
+    text-align: center;
+}
+
+.sat-measure-sub-stats span {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    line-height: 1.35;
+}
+
+.sat-measure-sub-stats b {
+    color: #f8fafc;
+    font-weight: 700;
 }
 
 .sat-measure-hint {
@@ -12145,6 +12221,10 @@ html[data-theme="light"] .tone-curve-canvas-wrap {
     margin-top: 3px;
 }
 
+.sat-measure-actions-bar.second-row {
+    margin-top: 4px;
+}
+
 .sat-measure-act-btn {
     flex: 1;
     background: transparent !important;
@@ -12161,6 +12241,17 @@ html[data-theme="light"] .tone-curve-canvas-wrap {
     gap: 5px;
     transition: all 0.15s ease;
     white-space: nowrap;
+    box-shadow: none !important;
+}
+
+.sat-measure-act-btn.snap-all {
+    border-color: rgba(245, 158, 11, 0.45);
+    color: #f59e0b;
+}
+
+.sat-measure-act-btn.snap-all:hover {
+    border-color: #f59e0b;
+    background: transparent !important;
 }
 
 .sat-measure-act-btn.snap {
@@ -12183,6 +12274,33 @@ html[data-theme="light"] .tone-curve-canvas-wrap {
     background: transparent !important;
 }
 
+.sat-measure-act-btn.close-poly {
+    border-color: rgba(168, 85, 247, 0.45);
+    color: #c084fc;
+}
+
+.sat-measure-act-btn.close-poly:hover {
+    border-color: #c084fc;
+    background: transparent !important;
+}
+
+.sat-measure-act-btn.close-poly.active {
+    border-color: #10b981;
+    color: #10b981;
+    background: transparent !important;
+}
+
+.sat-measure-act-btn.undo {
+    border-color: rgba(148, 163, 184, 0.4);
+    color: #94a3b8;
+}
+
+.sat-measure-act-btn.undo:hover {
+    border-color: #cbd5e1;
+    color: #cbd5e1;
+    background: transparent !important;
+}
+
 .sat-measure-act-btn.reset {
     flex: 0 0 auto;
     border-color: rgba(239, 68, 68, 0.4);
@@ -12194,7 +12312,7 @@ html[data-theme="light"] .tone-curve-canvas-wrap {
     background: transparent !important;
 }
 
-/* Haritadaki Sürüklenebilir Ölçüm Tutamaçları (Point A & B) */
+/* Haritadaki Sürüklenebilir Ölçüm Tutamaçları (Köşe Noktaları 1, 2, 3...) */
 .sat-measure-handle-divicon {
     background: transparent !important;
     border: none !important;
@@ -12248,7 +12366,38 @@ html[data-theme="light"] .tone-curve-canvas-wrap {
     100% { transform: scale(0.85); opacity: 0.8; }
 }
 
-/* Harita Üzerindeki Canlı Mesafe Rozeti */
+/* Haritadaki Kenar Orta Noktası Ekleme Tutamacı (+) */
+.sat-measure-midpoint-divicon {
+    background: transparent !important;
+    border: none !important;
+}
+
+.sat-measure-midpoint-handle {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: rgba(15, 23, 42, 0.90);
+    border: 1.5px dashed var(--midpoint-color, #f59e0b);
+    color: var(--midpoint-color, #f59e0b);
+    font-size: 13px;
+    font-weight: 800;
+    line-height: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.65);
+    transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+    user-select: none;
+}
+
+.sat-measure-midpoint-handle:hover {
+    transform: scale(1.35);
+    border-style: solid;
+    background: rgba(15, 23, 42, 0.98);
+}
+
+/* Harita Üzerindeki Canlı Mesafe Rozeti (Kenarlar İçin) */
 .sat-measure-badge-divicon {
     background: transparent !important;
     border: none !important;
@@ -12279,5 +12428,61 @@ html[data-theme="light"] .tone-curve-canvas-wrap {
 .sat-measure-map-badge .sat-badge-text {
     letter-spacing: 0.3px;
 }
+
+/* Harita Ortasındaki Canlı Alan Rozeti */
+.sat-measure-area-badge-divicon {
+    background: transparent !important;
+    border: none !important;
+}
+
+.sat-measure-area-map-badge {
+    background: rgba(15, 23, 42, 0.96);
+    border: 1.8px solid var(--area-color, #f59e0b);
+    border-radius: 9px;
+    padding: 6px 12px;
+    color: #ffffff;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.8);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    pointer-events: none;
+    user-select: none;
+    transform: translate(-50%, -50%);
+    white-space: nowrap;
+}
+
+.sat-measure-area-map-badge .sat-area-badge-main {
+    font-size: 12.5px;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: #ffffff;
+}
+
+.sat-measure-area-map-badge .sat-area-badge-m2 {
+    color: #ffffff;
+}
+
+.sat-measure-area-map-badge .sat-area-badge-donum {
+    color: #94a3b8;
+    font-weight: 600;
+    font-size: 11px;
+}
+
+.sat-measure-area-map-badge .sat-area-badge-sub {
+    font-size: 10px;
+    color: var(--area-color, #f59e0b);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin-top: 2px;
+    font-weight: 600;
+}
+
+.sat-measure-area-map-badge .sat-area-dot {
+    opacity: 0.6;
+}
+
 
 

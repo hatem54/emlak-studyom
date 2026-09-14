@@ -92,20 +92,30 @@
         parcelNeonGlowSize: 32,        // Parlama genişliği (15px - 60px)
         isSettingsDrawerOpen: false, // Hamburger çekmece menüsü açık/kapalı
 
-        // 📏 Noktadan Noktaya Mesafe & Cephe Ölçüm Sistemi
+        // 📏 Noktadan Noktaya & Çok Noktalı Sınır / Alan Ölçüm Sistemi
         measureActive: false,
-        measurePoints: [],         // [L.latLng, L.latLng]
-        measureDistanceMeters: 0,
+        measurePoints: [],         // [L.latLng, L.latLng, ...]
+        measureDistanceMeters: 0,  // Tek segment mesafesi veya toplam çevre
+        measureAreaM2: 0,          // Toplam geodezik alan (m²)
+        measurePerimeterMeters: 0, // Toplam çevre uzunluğu
+        measureIsClosed: true,     // 3+ nokta olduğunda poligon kapalı mı?
+        measureInteractionMode: 'draw', // 'draw' (nokta ekle) | 'pan' (haritada gezin)
         measureCustomText: '',
         measurePreset: 'frontage', // 'frontage' | 'front' | 'depth' | 'setback' | 'distance_only'
         measureStyle: 'cad',       // 'cad' | 'neon' | 'arrow' | 'dashed'
         measureColor: '#f59e0b',   // Varsayılan: Altın Sarısı
         measureBadgeTheme: 'dark', // 'dark' | 'gold' | 'emerald' | 'minimal'
         measureEdgeIndex: 0,       // Parsel kenarına oturturken hangi kenarda olduğumuz
-        measureMarkers: [],        // [markerA, markerB]
-        measureLine: null,         // L.polyline
-        measureBadgeMarker: null,  // L.marker (orta rozet)
+        measureMarkers: [],        // Sürüklenebilir köşe işaretçileri [marker1, marker2, ...]
+        measureLines: [],          // Her kenar için L.polyline
+        measurePolygonLayer: null, // Poligon yarı saydam dolgu katmanı (L.polygon)
+        measureBadgeMarkers: [],   // Her kenar üzerindeki cephe ölçü rozetleri
+        measureAreaBadgeMarker: null, // Poligon merkezindeki Alan & Çevre rozeti
+        measureMidpointMarkers: [], // Kenar ortalarındaki '+' yeni köşe ekleme tutamaçları
         measurePanelCollapsed: false,
+        measureIsNavPanning: false, // Ctrl/Space/Sağ tık ile gezinme anı
+        isSpacePressed: false,
+        isCtrlPressed: false,
 
         // Popüler / Hızlı Atlama Konumları (Türkiye)
         QUICK_LOCATIONS: [
@@ -251,12 +261,20 @@
                             <!-- Yüklü Parsel Bilgi Rozeti (Harita Üzeri Sol Üst) -->
                             <div class="sat-map-floating-parcel-info" id="satFloatingParcelInfo" style="display:none;"></div>
 
-                            <!-- 📏 Canlı Mesafe & Cephe Ölçüm Paneli (Floating Glass Panel) -->
+                            <!-- 📏 Canlı Mesafe, Sınır & Alan Ölçüm Paneli (Floating Glass Panel) -->
                             <div class="sat-measure-floating-panel" id="satMeasureFloatingPanel" style="display:none;">
                                 <div class="sat-measure-panel-header">
                                     <div class="sat-measure-title">
                                         <i class="fas fa-ruler-combined"></i>
-                                        <span>Cephe & Mesafe Ölçümü</span>
+                                        <span>Ölçüm & Alan Analizi</span>
+                                    </div>
+                                    <div class="sat-measure-mode-switcher">
+                                        <button type="button" class="sat-measure-mode-btn active" id="satMeasureModeDrawBtn" onclick="window.setSatelliteMeasureInteractionMode('draw')" title="Sol tık ile yeni köşe noktaları ekleyin">
+                                            <i class="fas fa-pen-nib"></i> <span>Nokta</span>
+                                        </button>
+                                        <button type="button" class="sat-measure-mode-btn" id="satMeasureModePanBtn" onclick="window.setSatelliteMeasureInteractionMode('pan')" title="Sol tık ile haritada serbestçe gezinin ve kaydırın (Ctrl veya Space tuşuna basılı tutarak da yapabilirsiniz)">
+                                            <i class="fas fa-hand"></i> <span>Gezin</span>
+                                        </button>
                                     </div>
                                     <div class="sat-measure-header-actions">
                                         <button type="button" class="sat-measure-btn-min" onclick="window.toggleSatelliteMeasurePanelCollapse()" title="Paneli Küçült / Büyüt">
@@ -269,10 +287,11 @@
                                 </div>
                                 
                                 <div class="sat-measure-panel-body" id="satMeasurePanelBody">
-                                    <!-- Canlı Mesafe Göstergesi -->
+                                    <!-- Canlı Mesafe & Alan Göstergesi -->
                                     <div class="sat-measure-display-box">
                                         <div class="sat-measure-val" id="satMeasureValText">0.0 m</div>
-                                        <div class="sat-measure-hint" id="satMeasureHintText">Haritada 2 noktaya tıklayın veya uçları sürükleyin</div>
+                                        <div class="sat-measure-sub-stats" id="satMeasureSubStats" style="display:none;"></div>
+                                        <div class="sat-measure-hint" id="satMeasureHintText">Haritada noktalara tıklayarak arsayı çevreleyin • Ctrl veya Boşluk tuşuyla haritayı kaydırın</div>
                                     </div>
 
                                     <!-- Hızlı Metin Şablonları (Yola Cephe, Ön Cephe vb.) -->
@@ -319,16 +338,28 @@
                                         </div>
                                     </div>
 
-                                    <!-- Hızlı Eylemler (Parsel Kenarına Oturt & Sıfırla) -->
+                                    <!-- Hızlı Eylemler (Parsel Kilitleri & Sıfırla) -->
                                     <div class="sat-measure-actions-bar">
-                                        <button type="button" id="satBtnSnapParcelEdge" class="sat-measure-act-btn snap" onclick="window.snapSatelliteMeasureToParcelEdge()" title="Ölçüm noktalarını yüklü parselin kenarına kilitler">
-                                            <i class="fas fa-draw-polygon"></i> <span>Parsel Kenarına Oturt</span>
+                                        <button type="button" id="satBtnSnapAllParcel" class="sat-measure-act-btn snap-all" style="display:none;" onclick="window.snapSatelliteMeasureToAllParcelVertices()" title="Yüklü parselin tüm sınırlarını ve alanını otomatik çevreler">
+                                            <i class="fas fa-vector-square"></i> <span>Tüm Parseli Çevrele</span>
+                                        </button>
+                                        <button type="button" id="satBtnSnapParcelEdge" class="sat-measure-act-btn snap" onclick="window.snapSatelliteMeasureToParcelEdge()" title="Ölçüm noktalarını arsanın tek bir kenarına kilitler">
+                                            <i class="fas fa-draw-polygon"></i> <span>Tek Kenar</span>
                                         </button>
                                         <button type="button" id="satBtnCycleParcelEdge" class="sat-measure-act-btn cycle" style="display:none;" onclick="window.cycleSatelliteMeasureParcelEdge()" title="Parselin diğer kenarına geç">
                                             <i class="fas fa-rotate"></i> <span>Diğer Kenar</span>
                                         </button>
-                                        <button type="button" class="sat-measure-act-btn reset" onclick="window.resetSatelliteMeasurePoints()" title="Ölçüm noktalarını sıfırla">
-                                            <i class="fas fa-undo"></i> <span>Sıfırla</span>
+                                    </div>
+
+                                    <div class="sat-measure-actions-bar second-row">
+                                        <button type="button" id="satBtnCloseMeasurePolygon" class="sat-measure-act-btn close-poly" onclick="window.toggleSatelliteMeasureClosed()" title="Arsa alanını kapat veya açık çizgiye dönüştür">
+                                            <i class="fas fa-object-group"></i> <span id="satBtnClosePolyText">Alanı Kapat</span>
+                                        </button>
+                                        <button type="button" class="sat-measure-act-btn undo" onclick="window.undoSatelliteLastMeasurePoint()" title="Son eklenen noktayı geri al">
+                                            <i class="fas fa-rotate-left"></i> <span>Geri Al</span>
+                                        </button>
+                                        <button type="button" class="sat-measure-act-btn reset" onclick="window.resetSatelliteMeasurePoints()" title="Tüm noktaları temizle">
+                                            <i class="fas fa-trash-alt"></i> <span>Sıfırla</span>
                                         </button>
                                     </div>
                                 </div>
@@ -691,6 +722,9 @@
             // Haritaya tıklandığında pin veya ölçüm noktası yerleştir
             this.map.on('click', (e) => {
                 if (this.measureActive) {
+                    if (this.measureInteractionMode === 'pan' || (e.originalEvent && (e.originalEvent.ctrlKey || e.originalEvent.shiftKey)) || this.isSpacePressed || this.measureIsNavPanning) {
+                        return;
+                    }
                     this.handleMeasureMapClick(e.latlng);
                     return;
                 }
@@ -711,7 +745,7 @@
                 this.currentZoom = z;
                 this.updateCoordsBadge();
                 this.updateMarkerOverlayPosition();
-                if (this.measureActive && this.measurePoints && this.measurePoints.length === 2) {
+                if (this.measureActive && this.measurePoints && this.measurePoints.length >= 2) {
                     this.updateMeasureGraphics(true);
                 }
             });
@@ -750,6 +784,7 @@
             });
 
             this.attachMarkerDragListeners();
+            this.initMeasureNavigationListeners();
 
             // Harita hazır olduğunda boyutunu tuvale göre tazele
             setTimeout(() => {
@@ -5255,7 +5290,7 @@
         },
 
         // ==========================================
-        // 📏 NOKTADAN NOKTAYA MESAFE & CEPHE ÖLÇÜM SİSTEMİ
+        // 📏 ÇOK NOKTALI ARSA ÖLÇÜMÜ, ALAN & CEPHE ANALİZ SİSTEMİ
         // ==========================================
 
         /**
@@ -5283,9 +5318,15 @@
             const mapEl = document.getElementById('satelliteLeafletMap');
             if (mapEl) {
                 if (this.measureActive) {
-                    mapEl.classList.add('measure-mode-cursor');
+                    if (this.measureInteractionMode === 'pan') {
+                        mapEl.classList.add('measure-mode-panning');
+                        mapEl.classList.remove('measure-mode-cursor');
+                    } else {
+                        mapEl.classList.add('measure-mode-cursor');
+                        mapEl.classList.remove('measure-mode-panning');
+                    }
                 } else {
-                    mapEl.classList.remove('measure-mode-cursor');
+                    mapEl.classList.remove('measure-mode-cursor', 'measure-mode-panning', 'measure-mode-panning-active');
                 }
             }
 
@@ -5293,14 +5334,15 @@
                 // Eğer daha önce belirlenmiş nokta yoksa
                 if (!this.measurePoints || this.measurePoints.length === 0) {
                     if (this.parcelData && this.parcelData.latLngs && this.parcelData.latLngs.length >= 3) {
-                        // Yüklü parsel varsa otomatik olarak en uzun cepheye kilitle
-                        this.snapMeasureToParcelEdge(0);
+                        // Yüklü parsel varsa otomatik tüm parsel köşelerini çevrele
+                        this.snapMeasureToAllParcelVertices();
                     } else if (this.map) {
                         // Parsel yoksa harita merkezinde iki nokta oluştur
                         const c = this.map.getCenter();
                         const ptA = L.latLng(c.lat, c.lng - 0.00032);
                         const ptB = L.latLng(c.lat, c.lng + 0.00032);
                         this.measurePoints = [ptA, ptB];
+                        this.measureIsClosed = false;
                         this.measureDistanceMeters = ptA.distanceTo(ptB);
                     }
                 }
@@ -5313,6 +5355,114 @@
             this.saveLastLocation({
                 measureData: this.getMeasureDataToSave()
             });
+        },
+
+        /**
+         * Etkileşim Modunu Ayarlar: 'draw' (Nokta Ekle) veya 'pan' (Haritada Gezin)
+         */
+        setMeasureInteractionMode: function(mode) {
+            this.measureInteractionMode = mode || 'draw';
+            const drawBtn = document.getElementById('satMeasureModeDrawBtn');
+            const panBtn = document.getElementById('satMeasureModePanBtn');
+            if (drawBtn) drawBtn.classList.toggle('active', this.measureInteractionMode === 'draw');
+            if (panBtn) panBtn.classList.toggle('active', this.measureInteractionMode === 'pan');
+
+            const mapEl = document.getElementById('satelliteLeafletMap');
+            if (mapEl) {
+                if (this.measureInteractionMode === 'pan') {
+                    mapEl.classList.add('measure-mode-panning');
+                    mapEl.classList.remove('measure-mode-cursor');
+                } else {
+                    mapEl.classList.add('measure-mode-cursor');
+                    mapEl.classList.remove('measure-mode-panning');
+                }
+            }
+
+            const hintEl = document.getElementById('satMeasureHintText');
+            if (hintEl) {
+                if (this.measureInteractionMode === 'pan') {
+                    hintEl.textContent = '✋ Gezinme Modu: Sol tık ile haritayı serbestçe kaydırın, fare tekeriyle yakınlaşın';
+                } else {
+                    hintEl.textContent = '📍 Çizim Modu: Nokta eklemek için haritaya tıklayın • Kaydırmak için Ctrl veya Boşluk tuşuna basılı tutun';
+                }
+            }
+        },
+
+        /**
+         * Harita Gezinme (Ctrl, Space, Sağ Tık Drag) Dinleyicilerini Kurar
+         */
+        initMeasureNavigationListeners: function() {
+            if (this._measureNavListenersInitialized) return;
+            this._measureNavListenersInitialized = true;
+
+            const mapEl = document.getElementById('satelliteLeafletMap');
+
+            // 1. Klavye Kısayolları (Ctrl ve Space)
+            window.addEventListener('keydown', (e) => {
+                if (!this.measureActive) return;
+                // Form inputlarında yazarken klavye gezinmesini engelle
+                if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
+
+                if (e.code === 'Space') {
+                    e.preventDefault();
+                    this.isSpacePressed = true;
+                    if (mapEl) mapEl.classList.add('measure-mode-panning');
+                }
+                if (e.key === 'Control') {
+                    this.isCtrlPressed = true;
+                    if (mapEl) mapEl.classList.add('measure-mode-panning');
+                }
+            });
+
+            window.addEventListener('keyup', (e) => {
+                if (!this.measureActive) return;
+                if (e.code === 'Space') {
+                    this.isSpacePressed = false;
+                }
+                if (e.key === 'Control') {
+                    this.isCtrlPressed = false;
+                }
+                if (!this.isSpacePressed && !this.isCtrlPressed && this.measureInteractionMode !== 'pan') {
+                    if (mapEl) mapEl.classList.remove('measure-mode-panning');
+                }
+            });
+
+            // 2. Mouse Drag (Sağ Tık Pan veya Ctrl/Space Pan)
+            if (mapEl) {
+                mapEl.addEventListener('mousedown', (e) => {
+                    if (!this.measureActive) return;
+                    const isRightClick = (e.button === 2);
+                    const isPanKey = (e.button === 0 && (e.ctrlKey || e.shiftKey || this.isSpacePressed || this.measureInteractionMode === 'pan'));
+
+                    if (isRightClick || isPanKey) {
+                        this.measureIsNavPanning = true;
+                        this.navDragStart = { x: e.clientX, y: e.clientY };
+                        mapEl.classList.add('measure-mode-panning-active');
+                    }
+                });
+
+                window.addEventListener('mousemove', (e) => {
+                    if (!this.measureActive || !this.measureIsNavPanning || !this.navDragStart || !this.map) return;
+                    const dx = e.clientX - this.navDragStart.x;
+                    const dy = e.clientY - this.navDragStart.y;
+                    this.navDragStart = { x: e.clientX, y: e.clientY };
+                    this.map.panBy([-dx, -dy], { animate: false });
+                });
+
+                window.addEventListener('mouseup', (e) => {
+                    if (this.measureIsNavPanning) {
+                        this.measureIsNavPanning = false;
+                        this.navDragStart = null;
+                        if (mapEl) mapEl.classList.remove('measure-mode-panning-active');
+                    }
+                });
+
+                mapEl.addEventListener('contextmenu', (e) => {
+                    if (this.measureActive) {
+                        e.preventDefault(); // Sağ tık tarayıcı menüsünü engelle
+                    }
+                });
+            }
         },
 
         /**
@@ -5384,19 +5534,185 @@
         },
 
         /**
-         * Haritaya Tıklandığında Ölçüm Noktalarını Belirler
+         * WGS84 Elipsoidi Üzerinde Geodezik Poligon Alanını (m²) Hesaplar
+         */
+        calculateGeodesicPolygonArea: function(latLngs) {
+            if (!latLngs || latLngs.length < 3) return 0;
+
+            const pts = latLngs.map(ll => {
+                const lat = Array.isArray(ll) ? ll[0] : ll.lat;
+                const lng = Array.isArray(ll) ? ll[1] : ll.lng;
+                return { lat: lat, lng: lng };
+            });
+
+            if (pts.length > 3) {
+                const first = pts[0];
+                const last = pts[pts.length - 1];
+                if (Math.abs(first.lat - last.lat) < 1e-7 && Math.abs(first.lng - last.lng) < 1e-7) {
+                    pts.pop();
+                }
+            }
+            if (pts.length < 3) return 0;
+
+            const RADIUS = 6378137; // WGS84 Dünya Ekvator Yarıçapı (metre)
+            let total = 0;
+            const len = pts.length;
+
+            for (let i = 0; i < len; i++) {
+                const p1 = pts[i];
+                const p2 = pts[(i + 1) % len];
+                const p3 = pts[(i + 2) % len];
+
+                const phi1 = (p1.lat * Math.PI) / 180;
+                const lambda1 = (p1.lng * Math.PI) / 180;
+                const lambda3 = (p3.lng * Math.PI) / 180;
+
+                total += (lambda3 - lambda1) * Math.sin(phi1);
+            }
+
+            const area = Math.abs((total * RADIUS * RADIUS) / 2.0);
+            return isNaN(area) ? 0 : area;
+        },
+
+        /**
+         * Poligonun Toplam Çevre Uzunluğunu (metre) Hesaplar
+         */
+        calculatePolygonPerimeter: function(latLngs, isClosed) {
+            if (!latLngs || latLngs.length < 2) return 0;
+            let total = 0;
+            for (let i = 0; i < latLngs.length - 1; i++) {
+                total += latLngs[i].distanceTo(latLngs[i + 1]);
+            }
+            if (isClosed && latLngs.length >= 3) {
+                total += latLngs[latLngs.length - 1].distanceTo(latLngs[0]);
+            }
+            return total;
+        },
+
+        /**
+         * Alanı Metrekare, Dönüm ve Hektar Olarak Formatlar
+         */
+        getFormattedAreaInfo: function(areaM2) {
+            if (!areaM2 || areaM2 <= 0) {
+                return { m2Text: '0 m²', donumText: '', subText: '', fullBadgeText: '0 m²' };
+            }
+
+            const m2Rounded = Math.round(areaM2);
+            const m2Formatted = m2Rounded.toLocaleString('tr-TR') + ' m²';
+
+            const donumVal = (areaM2 / 1000).toFixed(2).replace('.', ',');
+            const donumFormatted = `${donumVal} Dönüm`;
+
+            let subText = donumFormatted;
+            if (areaM2 >= 10000) {
+                const hektarVal = (areaM2 / 10000).toFixed(2).replace('.', ',');
+                subText += ` (${hektarVal} Ha)`;
+            }
+
+            return {
+                m2Text: m2Formatted,
+                donumText: donumFormatted,
+                subText: subText,
+                fullBadgeText: `${m2Formatted} • ${donumFormatted}`
+            };
+        },
+
+        /**
+         * Poligon Noktalarının Ağırlık Merkezini (Centroid) Döndürür
+         */
+        getPolygonCentroid: function(latLngs) {
+            if (!latLngs || latLngs.length === 0) return null;
+            let sumLat = 0, sumLng = 0;
+            latLngs.forEach(p => {
+                sumLat += p.lat;
+                sumLng += p.lng;
+            });
+            return L.latLng(sumLat / latLngs.length, sumLng / latLngs.length);
+        },
+
+        /**
+         * Haritaya Tıklandığında Ölçüm Noktası Ekler
          */
         handleMeasureMapClick: function(latlng) {
             if (!this.measureActive || !latlng) return;
 
-            if (!this.measurePoints || this.measurePoints.length >= 2) {
-                // Yeni ölçüme başla (Nokta A)
-                this.measurePoints = [L.latLng(latlng.lat, latlng.lng)];
-                this.measureDistanceMeters = 0;
-            } else {
-                // İkinci noktayı koy (Nokta B)
-                this.measurePoints.push(L.latLng(latlng.lat, latlng.lng));
-                this.measureDistanceMeters = this.measurePoints[0].distanceTo(this.measurePoints[1]);
+            if (!this.measurePoints) this.measurePoints = [];
+            this.measurePoints.push(L.latLng(latlng.lat, latlng.lng));
+
+            // 3 veya daha fazla nokta olduğunda varsayılan kapalı alan yap
+            if (this.measurePoints.length >= 3) {
+                this.measureIsClosed = true;
+            }
+
+            this.updateMeasureGraphics();
+            this.saveLastLocation({
+                measureData: this.getMeasureDataToSave()
+            });
+        },
+
+        /**
+         * Belirtilen İndekse Yeni Ölçüm Noktası Araya Ekler (Midpoint Tutamacı İle)
+         */
+        addMeasurePointAtIndex: function(latlng, index) {
+            if (!this.measurePoints || !latlng) return;
+            const insertIdx = Math.max(0, Math.min(this.measurePoints.length, index));
+            this.measurePoints.splice(insertIdx, 0, L.latLng(latlng.lat, latlng.lng));
+            this.updateMeasureGraphics();
+            this.saveLastLocation({
+                measureData: this.getMeasureDataToSave()
+            });
+        },
+
+        /**
+         * Belirtilen İndeksteki Ölçüm Noktasını Siler
+         */
+        removeMeasurePointAtIndex: function(index) {
+            if (!this.measurePoints || this.measurePoints.length <= index) return;
+            this.measurePoints.splice(index, 1);
+            if (this.measurePoints.length < 3) {
+                this.measureIsClosed = false;
+            }
+            this.updateMeasureGraphics();
+            this.saveLastLocation({
+                measureData: this.getMeasureDataToSave()
+            });
+            if (typeof window.showAppToast === 'function') {
+                window.showAppToast(`🗑️ ${index + 1}. köşe noktası silindi.`, 'info');
+            }
+        },
+
+        /**
+         * Son Eklenen Ölçüm Noktasını Geri Alır
+         */
+        undoLastMeasurePoint: function() {
+            if (!this.measurePoints || this.measurePoints.length === 0) return;
+            this.measurePoints.pop();
+            if (this.measurePoints.length < 3) {
+                this.measureIsClosed = false;
+            }
+            this.updateMeasureGraphics();
+            this.saveLastLocation({
+                measureData: this.getMeasureDataToSave()
+            });
+            if (typeof window.showAppToast === 'function') {
+                window.showAppToast('↩️ Son nokta geri alındı.', 'info');
+            }
+        },
+
+        /**
+         * Poligonun Alanını Kapatır veya Açık Çizgi Yapar
+         */
+        toggleMeasureClosed: function() {
+            if (!this.measurePoints || this.measurePoints.length < 3) {
+                if (typeof window.showAppToast === 'function') {
+                    window.showAppToast('ℹ️ Alanı kapatmak için en az 3 nokta gereklidir.', 'info');
+                }
+                return;
+            }
+            this.measureIsClosed = !this.measureIsClosed;
+            const btnText = document.getElementById('satBtnClosePolyText');
+            if (btnText) {
+                btnText.textContent = this.measureIsClosed ? 'Açık Çizgi Yap' : 'Alanı Kapat';
             }
             this.updateMeasureGraphics();
             this.saveLastLocation({
@@ -5410,23 +5726,33 @@
         resetMeasurePoints: function() {
             this.measurePoints = [];
             this.measureDistanceMeters = 0;
+            this.measureAreaM2 = 0;
+            this.measurePerimeterMeters = 0;
+            this.measureIsClosed = true;
             this.removeMeasureGraphicsFromMap();
+
             const valEl = document.getElementById('satMeasureValText');
             if (valEl) valEl.textContent = '0.0 m';
+            const subStats = document.getElementById('satMeasureSubStats');
+            if (subStats) {
+                subStats.style.display = 'none';
+                subStats.innerHTML = '';
+            }
             const hintEl = document.getElementById('satMeasureHintText');
-            if (hintEl) hintEl.textContent = 'Haritada 2 noktaya tıklayın veya uçları sürükleyin';
+            if (hintEl) hintEl.textContent = 'Haritada noktalara tıklayarak arsayı çevreleyin • Ctrl veya Boşluk tuşuyla haritayı kaydırın';
+
             this.saveLastLocation({
                 measureData: this.getMeasureDataToSave()
             });
             if (typeof window.showAppToast === 'function') {
-                window.showAppToast('📏 Ölçüm sıfırlandı. Harita üzerinde 2 noktaya tıklayarak yeni ölçüm başlatabilirsiniz.', 'info');
+                window.showAppToast('📏 Ölçüm sıfırlandı. Haritada noktalara tıklayarak yeni ölçüm başlatabilirsiniz.', 'info');
             }
         },
 
         /**
          * Mesafe ve Şablona Göre Etiket Metnini Formatlar
          */
-        getFormattedMeasureText: function(meters) {
+        getFormattedMeasureText: function(meters, isPerimeter) {
             const m = (meters !== undefined) ? meters : (this.measureDistanceMeters || 0);
             let distStr = '';
             if (m >= 1000) {
@@ -5436,6 +5762,10 @@
                 if (distStr.endsWith('.0 m')) {
                     distStr = distStr.replace('.0 m', ' m');
                 }
+            }
+
+            if (isPerimeter) {
+                return `Çevre: ${distStr}`;
             }
 
             if (this.measureCustomText && this.measureCustomText.trim()) {
@@ -5479,7 +5809,6 @@
                 }
                 pts.push(L.latLng(lat, lng));
             });
-            // İlk ve son nokta aynıysa sonuncuyu çıkart
             if (pts.length > 2) {
                 const first = pts[0];
                 const last = pts[pts.length - 1];
@@ -5505,7 +5834,56 @@
         },
 
         /**
-         * Ölçüm Noktalarını Parsel Kenarına Oturtur
+         * Yüklü Arsa Parselinin Tüm Köşelerine Tek Tıkla Kilitlenir ve Alanı Çevreler
+         */
+        snapMeasureToAllParcelVertices: function() {
+            if (!this.parcelData || !this.parcelData.latLngs || this.parcelData.latLngs.length < 3) {
+                if (typeof window.showAppToast === 'function') {
+                    window.showAppToast('⚠️ Önce KML / GeoJSON parseli yükleyin.', 'warning');
+                }
+                return;
+            }
+
+            const cleanPts = [];
+            this.parcelData.latLngs.forEach((p, idx) => {
+                const lat = Array.isArray(p) ? p[0] : p.lat;
+                const lng = Array.isArray(p) ? p[1] : p.lng;
+                if (idx > 0) {
+                    const prev = cleanPts[cleanPts.length - 1];
+                    if (Math.abs(lat - prev.lat) < 1e-7 && Math.abs(lng - prev.lng) < 1e-7) return;
+                }
+                cleanPts.push(L.latLng(lat, lng));
+            });
+            if (cleanPts.length > 2) {
+                const first = cleanPts[0];
+                const last = cleanPts[cleanPts.length - 1];
+                if (Math.abs(first.lat - last.lat) < 1e-7 && Math.abs(first.lng - last.lng) < 1e-7) {
+                    cleanPts.pop();
+                }
+            }
+
+            this.measurePoints = cleanPts;
+            this.measureIsClosed = true;
+            this.updateMeasureGraphics();
+
+            if (this.map) {
+                const bounds = L.latLngBounds(this.measurePoints);
+                this.map.panInsideBounds(bounds, { animate: true, padding: [40, 40] });
+            }
+
+            this.saveLastLocation({
+                measureData: this.getMeasureDataToSave()
+            });
+
+            if (typeof window.showAppToast === 'function') {
+                const area = this.calculateGeodesicPolygonArea(this.measurePoints);
+                const areaInfo = this.getFormattedAreaInfo(area);
+                window.showAppToast(`📐 Tüm parsel çevrelendi: ${cleanPts.length} köşe, ${areaInfo.m2Text} (${areaInfo.donumText}).`, 'success');
+            }
+        },
+
+        /**
+         * Ölçüm Noktalarını Parselin Tek Bir Kenarına Oturtur
          */
         snapMeasureToParcelEdge: function(targetIndex) {
             const edges = this.getParcelEdges();
@@ -5518,7 +5896,6 @@
 
             let chosenEdge = null;
             if (targetIndex === undefined || targetIndex === null) {
-                // Varsayılan: En uzun kenara (genelde anayol/ön cephe) oturt
                 const sorted = [...edges].sort((a, b) => b.dist - a.dist);
                 chosenEdge = sorted[0];
                 this.measureEdgeIndex = chosenEdge.index;
@@ -5529,6 +5906,7 @@
             }
 
             this.measurePoints = [chosenEdge.p1, chosenEdge.p2];
+            this.measureIsClosed = false;
             this.measureDistanceMeters = chosenEdge.dist;
             this.updateParcelSnapButtons();
             this.updateMeasureGraphics();
@@ -5559,11 +5937,15 @@
          * Parsel Kenar Kilit Butonlarının Görünürlüğünü Günceller
          */
         updateParcelSnapButtons: function() {
+            const snapAllBtn = document.getElementById('satBtnSnapAllParcel');
             const snapBtn = document.getElementById('satBtnSnapParcelEdge');
             const cycleBtn = document.getElementById('satBtnCycleParcelEdge');
             const hasParcel = !!(this.parcelData && this.parcelData.latLngs && this.parcelData.latLngs.length >= 3);
             const edges = hasParcel ? this.getParcelEdges() : [];
 
+            if (snapAllBtn) {
+                snapAllBtn.style.display = hasParcel ? 'inline-flex' : 'none';
+            }
             if (snapBtn) {
                 snapBtn.style.display = hasParcel ? 'inline-flex' : 'none';
             }
@@ -5580,76 +5962,119 @@
         },
 
         /**
-         * Haritadaki Ölçüm Grafikleri (Marker A, Marker B, Çizgi, Orta Rozet) Günceller
+         * Haritadaki Çoklu Ölçüm Grafiklerini (Köşeler, Kenar Çizgileri, Kenar Rozetleri, Alan Rozeti, Midpoint Tutamaçları) Günceller
          */
         updateMeasureGraphics: function(isFastDrag) {
             if (!this.map) return;
 
             const valEl = document.getElementById('satMeasureValText');
+            const subStats = document.getElementById('satMeasureSubStats');
             const hintEl = document.getElementById('satMeasureHintText');
             const pts = this.measurePoints || [];
+            const color = this.measureColor || '#f59e0b';
+            const isClosed = this.measureIsClosed && (pts.length >= 3);
 
+            // 0 Nokta
             if (pts.length === 0) {
                 this.removeMeasureGraphicsFromMap();
                 if (valEl) valEl.textContent = '0.0 m';
-                if (hintEl) hintEl.textContent = 'Haritada 2 noktaya tıklayın veya uçları sürükleyin';
+                if (subStats) {
+                    subStats.style.display = 'none';
+                    subStats.innerHTML = '';
+                }
+                if (hintEl) hintEl.textContent = 'Haritada noktalara tıklayarak arsayı çevreleyin • Ctrl veya Boşluk tuşuyla haritayı kaydırın';
                 return;
             }
 
+            // 1 Nokta
             if (pts.length === 1) {
+                this.removeMeasureGraphicsFromMap();
                 if (valEl) valEl.textContent = '0.0 m';
+                if (subStats) {
+                    subStats.style.display = 'none';
+                    subStats.innerHTML = '';
+                }
                 if (hintEl) hintEl.textContent = 'Haritada 2. noktaya tıklayın';
 
-                // Yalnızca 1. nokta var: Marker A göster
-                if (this.measureLine) {
-                    this.map.removeLayer(this.measureLine);
-                    this.measureLine = null;
-                }
-                if (this.measureBadgeMarker) {
-                    this.map.removeLayer(this.measureBadgeMarker);
-                    this.measureBadgeMarker = null;
-                }
-                if (this.measureMarkers[1]) {
-                    this.map.removeLayer(this.measureMarkers[1]);
-                    this.measureMarkers.length = 1;
-                }
-
-                if (!this.measureMarkers[0]) {
-                    this.measureMarkers[0] = this.createMeasureHandleMarker(pts[0], 'A', 0);
-                    this.measureMarkers[0].addTo(this.map);
-                } else {
-                    this.measureMarkers[0].setLatLng(pts[0]);
-                }
+                this.measureMarkers = [this.createMeasureHandleMarker(pts[0], '1', 0)];
+                this.measureMarkers[0].addTo(this.map);
                 return;
             }
 
-            // 2 Nokta Mevcut
-            const p1 = pts[0];
-            const p2 = pts[1];
-            this.measureDistanceMeters = p1.distanceTo(p2);
-            const distText = this.getFormattedMeasureText(this.measureDistanceMeters);
+            // 2 veya Daha Fazla Nokta
+            const perimeter = this.calculatePolygonPerimeter(pts, isClosed);
+            this.measurePerimeterMeters = perimeter;
+            const areaM2 = isClosed ? this.calculateGeodesicPolygonArea(pts) : 0;
+            this.measureAreaM2 = areaM2;
 
-            if (valEl) valEl.textContent = distText;
-            if (hintEl) hintEl.textContent = 'Uç noktalardan sürükleyerek mesafeyi canlı ayarlayın';
-
-            // Marker A
-            if (!this.measureMarkers[0]) {
-                this.measureMarkers[0] = this.createMeasureHandleMarker(p1, 'A', 0);
-                this.measureMarkers[0].addTo(this.map);
+            // Panel Metinlerini Güncelle
+            if (pts.length === 2) {
+                const dist = pts[0].distanceTo(pts[1]);
+                this.measureDistanceMeters = dist;
+                const distText = this.getFormattedMeasureText(dist);
+                if (valEl) valEl.textContent = distText;
+                if (subStats) {
+                    subStats.style.display = 'none';
+                    subStats.innerHTML = '';
+                }
+                if (hintEl) hintEl.textContent = 'Uç noktalardan sürükleyin veya 3. noktaya tıklayarak arsayı çevreleyin';
             } else {
-                this.measureMarkers[0].setLatLng(p1);
+                // 3+ Nokta
+                const areaInfo = this.getFormattedAreaInfo(areaM2);
+                if (isClosed) {
+                    if (valEl) valEl.textContent = `${areaInfo.m2Text} (${areaInfo.donumText})`;
+                    if (subStats) {
+                        subStats.style.display = 'block';
+                        const perimStr = (perimeter >= 1000) ? (perimeter / 1000).toFixed(2) + ' km' : Math.round(perimeter) + ' m';
+                        subStats.innerHTML = `<span><i class="fas fa-arrows-split-up-and-left"></i> Çevre: <b>${perimStr}</b></span> <span><i class="fas fa-draw-polygon"></i> <b>${pts.length} Kenar</b></span>`;
+                    }
+                    if (hintEl) hintEl.textContent = 'Köşeleri sürükleyerek arsayı düzenleyin veya kenar ortasındaki (+) ile yeni köşe ekleyin';
+                } else {
+                    const perimStr = (perimeter >= 1000) ? (perimeter / 1000).toFixed(2) + ' km' : Math.round(perimeter) + ' m';
+                    if (valEl) valEl.textContent = `Toplam Uzunluk: ${perimStr}`;
+                    if (subStats) {
+                        subStats.style.display = 'block';
+                        subStats.innerHTML = `<span><i class="fas fa-bezier-curve"></i> <b>${pts.length} Noktalı Açık Sınır</b></span>`;
+                    }
+                    if (hintEl) hintEl.textContent = 'Alanı kapatmak için "Alanı Kapat" butonuna veya ilk noktaya tıklayın';
+                }
             }
 
-            // Marker B
-            if (!this.measureMarkers[1]) {
-                this.measureMarkers[1] = this.createMeasureHandleMarker(p2, 'B', 1);
-                this.measureMarkers[1].addTo(this.map);
-            } else {
-                this.measureMarkers[1].setLatLng(p2);
+            // Kapat / Aç Buton Metni
+            const closeBtnText = document.getElementById('satBtnClosePolyText');
+            if (closeBtnText) {
+                closeBtnText.textContent = isClosed ? 'Açık Çizgi Yap' : 'Alanı Kapat';
             }
 
-            // Çizgi Stili Belirle
-            const color = this.measureColor || '#f59e0b';
+            // 1. Köşe İşaretçileri (Corner Markers)
+            while (this.measureMarkers.length > pts.length) {
+                const rm = this.measureMarkers.pop();
+                if (rm && this.map.hasLayer(rm)) this.map.removeLayer(rm);
+            }
+            pts.forEach((p, idx) => {
+                const label = `${idx + 1}`;
+                if (!this.measureMarkers[idx]) {
+                    this.measureMarkers[idx] = this.createMeasureHandleMarker(p, label, idx);
+                    this.measureMarkers[idx].addTo(this.map);
+                } else {
+                    this.measureMarkers[idx].setLatLng(p);
+                    this.updateMeasureHandleMarkerContent(this.measureMarkers[idx], label);
+                }
+            });
+
+            // 2. Kenar Çizgileri & Kenar Rozetleri
+            const edgeCount = isClosed ? pts.length : (pts.length - 1);
+
+            // Eski çizgileri ve rozetleri temizle
+            while (this.measureLines.length > edgeCount) {
+                const rl = this.measureLines.pop();
+                if (rl && this.map.hasLayer(rl)) this.map.removeLayer(rl);
+            }
+            while (this.measureBadgeMarkers.length > edgeCount) {
+                const rb = this.measureBadgeMarkers.pop();
+                if (rb && this.map.hasLayer(rb)) this.map.removeLayer(rb);
+            }
+
             let lineOpts = {
                 color: color,
                 weight: 3.5,
@@ -5665,44 +6090,135 @@
             } else if (this.measureStyle === 'neon') {
                 lineOpts.color = '#ffffff';
                 lineOpts.weight = 4;
-                lineOpts.className = 'sat-measure-neon-line';
             }
 
-            if (!this.measureLine) {
-                this.measureLine = L.polyline([p1, p2], lineOpts).addTo(this.map);
-            } else {
-                this.measureLine.setLatLngs([p1, p2]);
-                this.measureLine.setStyle(lineOpts);
+            for (let i = 0; i < edgeCount; i++) {
+                const pA = pts[i];
+                const pB = pts[(i + 1) % pts.length];
+                const segDist = pA.distanceTo(pB);
+
+                // Segment Çizgisi
+                if (!this.measureLines[i]) {
+                    this.measureLines[i] = L.polyline([pA, pB], lineOpts).addTo(this.map);
+                } else {
+                    this.measureLines[i].setLatLngs([pA, pB]);
+                    this.measureLines[i].setStyle(lineOpts);
+                }
+
+                // Segment Rozeti
+                const midLat = (pA.lat + pB.lat) / 2;
+                const midLng = (pA.lng + pB.lng) / 2;
+                const midLatLng = L.latLng(midLat, midLng);
+                const segDistStr = (segDist >= 1000) ? (segDist / 1000).toFixed(2) + ' km' : segDist.toFixed(1) + ' m';
+                const badgeLabel = (pts.length <= 2) ? this.getFormattedMeasureText(segDist) : `${segDistStr}`;
+
+                const badgeHtml = `
+                    <div class="sat-measure-map-badge style-${this.measureStyle || 'cad'}" style="border-color:${color};">
+                        <span class="sat-badge-icon" style="color:${color};"><i class="fas fa-ruler"></i></span>
+                        <span class="sat-badge-text">${badgeLabel}</span>
+                    </div>
+                `;
+
+                const badgeIcon = L.divIcon({
+                    className: 'sat-measure-badge-divicon',
+                    html: badgeHtml,
+                    iconSize: [140, 32],
+                    iconAnchor: [70, 16]
+                });
+
+                if (!this.measureBadgeMarkers[i]) {
+                    this.measureBadgeMarkers[i] = L.marker(midLatLng, {
+                        icon: badgeIcon,
+                        interactive: false,
+                        zIndexOffset: 1200
+                    }).addTo(this.map);
+                } else {
+                    this.measureBadgeMarkers[i].setLatLng(midLatLng);
+                    this.measureBadgeMarkers[i].setIcon(badgeIcon);
+                }
             }
 
-            // Orta Rozet
-            const midLat = (p1.lat + p2.lat) / 2;
-            const midLng = (p1.lng + p2.lng) / 2;
-            const midLatLng = L.latLng(midLat, midLng);
+            // 3. Kenar Ortası Yeni Köşe Ekleme Tutamaçları ('+' Midpoint Markers)
+            while (this.measureMidpointMarkers.length > edgeCount) {
+                const rm = this.measureMidpointMarkers.pop();
+                if (rm && this.map.hasLayer(rm)) this.map.removeLayer(rm);
+            }
+            if (!isFastDrag && pts.length >= 2) {
+                for (let i = 0; i < edgeCount; i++) {
+                    const pA = pts[i];
+                    const pB = pts[(i + 1) % pts.length];
+                    const midLatLng = L.latLng((pA.lat + pB.lat) / 2, (pA.lng + pB.lng) / 2);
+                    const insertIdx = i + 1;
 
-            const badgeHtml = `
-                <div class="sat-measure-map-badge style-${this.measureStyle || 'cad'}" style="border-color:${color};">
-                    <span class="sat-badge-icon" style="color:${color};"><i class="fas fa-ruler"></i></span>
-                    <span class="sat-badge-text">${distText}</span>
-                </div>
-            `;
+                    if (!this.measureMidpointMarkers[i]) {
+                        this.measureMidpointMarkers[i] = this.createMeasureMidpointMarker(midLatLng, insertIdx);
+                        this.measureMidpointMarkers[i].addTo(this.map);
+                    } else {
+                        this.measureMidpointMarkers[i].setLatLng(midLatLng);
+                        this.measureMidpointMarkers[i]._insertIndex = insertIdx;
+                    }
+                }
+            }
 
-            const badgeIcon = L.divIcon({
-                className: 'sat-measure-badge-divicon',
-                html: badgeHtml,
-                iconSize: [160, 36],
-                iconAnchor: [80, 18]
-            });
+            // 4. Poligon Yarı Saydam Dolgu Katmanı & Merkez Alan Rozeti (3+ Nokta ve Kapalıysa)
+            if (isClosed && pts.length >= 3) {
+                if (!this.measurePolygonLayer) {
+                    this.measurePolygonLayer = L.polygon(pts, {
+                        color: color,
+                        weight: 1.5,
+                        opacity: 0.5,
+                        fillColor: color,
+                        fillOpacity: 0.16,
+                        interactive: false
+                    }).addTo(this.map);
+                } else {
+                    this.measurePolygonLayer.setLatLngs(pts);
+                    this.measurePolygonLayer.setStyle({
+                        color: color,
+                        fillColor: color
+                    });
+                }
 
-            if (!this.measureBadgeMarker) {
-                this.measureBadgeMarker = L.marker(midLatLng, {
-                    icon: badgeIcon,
-                    interactive: false,
-                    zIndexOffset: 1200
-                }).addTo(this.map);
+                // Merkez Alan Rozeti
+                const centroid = this.getPolygonCentroid(pts);
+                if (centroid) {
+                    const areaInfo = this.getFormattedAreaInfo(areaM2);
+                    const perimStr = (perimeter >= 1000) ? (perimeter / 1000).toFixed(2) + ' km' : Math.round(perimeter) + ' m';
+
+                    const areaBadgeHtml = `
+                        <div class="sat-measure-area-map-badge" style="border-color:${color};">
+                            <div class="area-title"><i class="fas fa-vector-square" style="color:${color};"></i> <span>${areaInfo.m2Text}</span> <small>(${areaInfo.donumText})</small></div>
+                            <div class="area-sub">Çevre: ${perimStr} • ${pts.length} Köşe</div>
+                        </div>
+                    `;
+
+                    const areaBadgeIcon = L.divIcon({
+                        className: 'sat-measure-area-badge-divicon',
+                        html: areaBadgeHtml,
+                        iconSize: [200, 48],
+                        iconAnchor: [100, 24]
+                    });
+
+                    if (!this.measureAreaBadgeMarker) {
+                        this.measureAreaBadgeMarker = L.marker(centroid, {
+                            icon: areaBadgeIcon,
+                            interactive: false,
+                            zIndexOffset: 1400
+                        }).addTo(this.map);
+                    } else {
+                        this.measureAreaBadgeMarker.setLatLng(centroid);
+                        this.measureAreaBadgeMarker.setIcon(areaBadgeIcon);
+                    }
+                }
             } else {
-                this.measureBadgeMarker.setLatLng(midLatLng);
-                this.measureBadgeMarker.setIcon(badgeIcon);
+                if (this.measurePolygonLayer && this.map.hasLayer(this.measurePolygonLayer)) {
+                    this.map.removeLayer(this.measurePolygonLayer);
+                    this.measurePolygonLayer = null;
+                }
+                if (this.measureAreaBadgeMarker && this.map.hasLayer(this.measureAreaBadgeMarker)) {
+                    this.map.removeLayer(this.measureAreaBadgeMarker);
+                    this.measureAreaBadgeMarker = null;
+                }
             }
         },
 
@@ -5712,7 +6228,7 @@
         createMeasureHandleMarker: function(latlng, label, pointIndex) {
             const color = this.measureColor || '#f59e0b';
             const html = `
-                <div class="sat-measure-handle-pin" style="--handle-color:${color};">
+                <div class="sat-measure-handle-pin" style="--handle-color:${color};" title="Köşe ${label}: Sürükleyerek taşıyın, sağ tıklayarak silin">
                     <span class="sat-handle-core">${label}</span>
                     <div class="sat-handle-pulse"></div>
                 </div>
@@ -5727,13 +6243,18 @@
             const marker = L.marker(latlng, {
                 icon: icon,
                 draggable: true,
-                zIndexOffset: 1500
+                zIndexOffset: 1600
             });
+
+            marker._pointIndex = pointIndex;
 
             marker.on('drag', (e) => {
                 const curPos = e.target.getLatLng();
-                this.measurePoints[pointIndex] = curPos;
-                this.updateMeasureGraphics(true);
+                const idx = e.target._pointIndex;
+                if (this.measurePoints && this.measurePoints[idx]) {
+                    this.measurePoints[idx] = curPos;
+                    this.updateMeasureGraphics(true);
+                }
             });
 
             marker.on('dragend', () => {
@@ -5741,6 +6262,67 @@
                 this.saveLastLocation({
                     measureData: this.getMeasureDataToSave()
                 });
+            });
+
+            // İlk noktaya tıklanırsa ve 3+ nokta varsa poligonu kapat
+            marker.on('click', (e) => {
+                L.DomEvent.stopPropagation(e);
+                if (marker._pointIndex === 0 && this.measurePoints.length >= 3 && !this.measureIsClosed) {
+                    this.toggleMeasureClosed();
+                }
+            });
+
+            // Sağ tıkla bu noktayı sil
+            marker.on('contextmenu', (e) => {
+                L.DomEvent.stopPropagation(e);
+                this.removeMeasurePointAtIndex(marker._pointIndex);
+            });
+
+            return marker;
+        },
+
+        /**
+         * Tutamaç İçeriğini Günceller
+         */
+        updateMeasureHandleMarkerContent: function(marker, label) {
+            marker._pointIndex = parseInt(label) - 1;
+            const core = marker.getElement()?.querySelector('.sat-handle-core');
+            if (core) core.textContent = label;
+        },
+
+        /**
+         * Kenar Ortasındaki '+' Yeni Köşe Ekleme Tutamacını Oluşturur
+         */
+        createMeasureMidpointMarker: function(latlng, insertIndex) {
+            const color = this.measureColor || '#f59e0b';
+            const html = `
+                <div class="sat-measure-midpoint-handle" style="--mid-color:${color};" title="Tıklayın veya sürükleyin: Buraya yeni bir köşe ekler">
+                    <i class="fas fa-plus"></i>
+                </div>
+            `;
+            const icon = L.divIcon({
+                className: 'sat-measure-midpoint-divicon',
+                html: html,
+                iconSize: [20, 20],
+                iconAnchor: [10, 10]
+            });
+
+            const marker = L.marker(latlng, {
+                icon: icon,
+                draggable: true,
+                zIndexOffset: 1500
+            });
+
+            marker._insertIndex = insertIndex;
+
+            marker.on('click', (e) => {
+                L.DomEvent.stopPropagation(e);
+                this.addMeasurePointAtIndex(marker.getLatLng(), marker._insertIndex);
+            });
+
+            marker.on('dragstart', (e) => {
+                // Sürükleme başladığında yeni nokta olarak araya sok
+                this.addMeasurePointAtIndex(marker.getLatLng(), marker._insertIndex);
             });
 
             return marker;
@@ -5757,280 +6339,364 @@
                 });
                 this.measureMarkers = [];
             }
-            if (this.measureLine && this.map.hasLayer(this.measureLine)) {
-                this.map.removeLayer(this.measureLine);
-                this.measureLine = null;
+            if (this.measureLines && this.measureLines.length > 0) {
+                this.measureLines.forEach(l => {
+                    if (l && this.map.hasLayer(l)) this.map.removeLayer(l);
+                });
+                this.measureLines = [];
             }
-            if (this.measureBadgeMarker && this.map.hasLayer(this.measureBadgeMarker)) {
-                this.map.removeLayer(this.measureBadgeMarker);
-                this.measureBadgeMarker = null;
+            if (this.measureBadgeMarkers && this.measureBadgeMarkers.length > 0) {
+                this.measureBadgeMarkers.forEach(b => {
+                    if (b && this.map.hasLayer(b)) this.map.removeLayer(b);
+                });
+                this.measureBadgeMarkers = [];
+            }
+            if (this.measureMidpointMarkers && this.measureMidpointMarkers.length > 0) {
+                this.measureMidpointMarkers.forEach(m => {
+                    if (m && this.map.hasLayer(m)) this.map.removeLayer(m);
+                });
+                this.measureMidpointMarkers = [];
+            }
+            if (this.measurePolygonLayer && this.map.hasLayer(this.measurePolygonLayer)) {
+                this.map.removeLayer(this.measurePolygonLayer);
+                this.measurePolygonLayer = null;
+            }
+            if (this.measureAreaBadgeMarker && this.map.hasLayer(this.measureAreaBadgeMarker)) {
+                this.map.removeLayer(this.measureAreaBadgeMarker);
+                this.measureAreaBadgeMarker = null;
             }
         },
 
         /**
-         * Tuval Aktarımında Vektörel Ölçüm Çizgisini & Rozetini Çizer (1080p, 2K, 4K Tam Uyumlu)
+         * Tuval Aktarımında Vektörel Çoklu Ölçüm Çizgilerini, Cephe Rozetlerini & Alan Rozetini Çizer (1080p, 2K, 4K Tam Uyumlu)
          */
         drawVectorMeasurement: function(ctx, targetW, mapContainer, cropInfo) {
             if (!this.measureActive || !this.measurePoints || this.measurePoints.length < 2) return;
-            const p1 = this.measurePoints[0];
-            const p2 = this.measurePoints[1];
-            if (!p1 || !p2) return;
+            const pts = this.measurePoints;
 
             try {
                 ctx.save();
 
-                let ax, ay, bx, by;
-                if (cropInfo && this.map) {
-                    const ptA = this.map.latLngToContainerPoint(p1);
-                    const ptB = this.map.latLngToContainerPoint(p2);
-                    const targetH = (targetW / (cropInfo.cropW || 800)) * (cropInfo.cropH || 450);
-                    ax = ((ptA.x - cropInfo.cropX) / cropInfo.cropW) * targetW;
-                    ay = ((ptA.y - cropInfo.cropY) / cropInfo.cropH) * targetH;
-                    bx = ((ptB.x - cropInfo.cropX) / cropInfo.cropW) * targetW;
-                    by = ((ptB.y - cropInfo.cropY) / cropInfo.cropH) * targetH;
-                } else if (this.map) {
-                    const ptA = this.map.latLngToContainerPoint(p1);
-                    const ptB = this.map.latLngToContainerPoint(p2);
-                    const wrapW = mapContainer ? mapContainer.offsetWidth : 800;
-                    const wrapH = mapContainer ? mapContainer.offsetHeight : 450;
-                    const scale = targetW / wrapW;
-                    ax = ptA.x * scale;
-                    ay = ptA.y * scale;
-                    bx = ptB.x * scale;
-                    by = ptB.y * scale;
-                } else {
+                // Tüm noktaları tuval piksel koordinatlarına dönüştür
+                const canvasPts = [];
+                for (let i = 0; i < pts.length; i++) {
+                    const p = pts[i];
+                    if (cropInfo && this.map) {
+                        const pt = this.map.latLngToContainerPoint(p);
+                        const targetH = (targetW / (cropInfo.cropW || 800)) * (cropInfo.cropH || 450);
+                        canvasPts.push({
+                            x: ((pt.x - cropInfo.cropX) / cropInfo.cropW) * targetW,
+                            y: ((pt.y - cropInfo.cropY) / cropInfo.cropH) * targetH
+                        });
+                    } else if (this.map) {
+                        const pt = this.map.latLngToContainerPoint(p);
+                        const wrapW = mapContainer ? mapContainer.offsetWidth : 800;
+                        const scale = targetW / wrapW;
+                        canvasPts.push({
+                            x: pt.x * scale,
+                            y: pt.y * scale
+                        });
+                    }
+                }
+
+                if (canvasPts.length < 2) {
                     ctx.restore();
                     return;
                 }
 
-                // Ölçek faktörü (Standart 1080p bazlı, 2K/4K için dinamik büyür)
                 const baseScale = Math.max(1.0, Math.min(3.2, targetW / 1280));
                 const color = this.measureColor || '#f59e0b';
                 const style = this.measureStyle || 'cad';
+                const isClosed = this.measureIsClosed && (canvasPts.length >= 3);
+                const edgeCount = isClosed ? canvasPts.length : (canvasPts.length - 1);
 
-                const dx = bx - ax;
-                const dy = by - ay;
-                const len = Math.sqrt(dx * dx + dy * dy);
-                if (len < 10) {
+                // 1. Poligon Yarı Saydam Dolgusu (Kapalıysa)
+                if (isClosed) {
+                    ctx.save();
+                    ctx.beginPath();
+                    canvasPts.forEach((p, idx) => {
+                        if (idx === 0) ctx.moveTo(p.x, p.y);
+                        else ctx.lineTo(p.x, p.y);
+                    });
+                    ctx.closePath();
+                    ctx.fillStyle = this.hexToRgba(color, 0.16);
+                    ctx.fill();
                     ctx.restore();
-                    return;
                 }
 
-                const ux = dx / len;
-                const uy = dy / len;
-                const nx = -uy;
-                const ny = ux;
+                // 2. Her Bir Kenarın Çizimi (CAD, Neon, Ok, Kesikli)
+                for (let i = 0; i < edgeCount; i++) {
+                    const pA = canvasPts[i];
+                    const pB = canvasPts[(i + 1) % canvasPts.length];
+                    const origA = pts[i];
+                    const origB = pts[(i + 1) % pts.length];
 
-                // 1. Çizgi Çizimi
-                if (style === 'neon') {
-                    // ⚡ Neon Saber Çok Katmanlı Parlama
-                    // Katman 1: Geniş Dış Işıma
-                    ctx.save();
-                    ctx.beginPath();
-                    ctx.moveTo(ax, ay);
-                    ctx.lineTo(bx, by);
-                    ctx.shadowColor = color;
-                    ctx.shadowBlur = 24 * baseScale;
-                    ctx.strokeStyle = this.hexToRgba(color, 0.7);
-                    ctx.lineWidth = 9 * baseScale;
-                    ctx.lineCap = 'round';
-                    ctx.stroke();
-                    ctx.restore();
+                    const dx = pB.x - pA.x;
+                    const dy = pB.y - pA.y;
+                    const len = Math.sqrt(dx * dx + dy * dy);
+                    if (len < 5) continue;
 
-                    // Katman 2: Orta Parlama
+                    const ux = dx / len;
+                    const uy = dy / len;
+                    const nx = -uy;
+                    const ny = ux;
+
+                    if (style === 'neon') {
+                        // ⚡ Neon Saber Çok Katmanlı Parlama
+                        ctx.save();
+                        ctx.beginPath();
+                        ctx.moveTo(pA.x, pA.y);
+                        ctx.lineTo(pB.x, pB.y);
+                        ctx.shadowColor = color;
+                        ctx.shadowBlur = 24 * baseScale;
+                        ctx.strokeStyle = this.hexToRgba(color, 0.7);
+                        ctx.lineWidth = 8 * baseScale;
+                        ctx.lineCap = 'round';
+                        ctx.stroke();
+                        ctx.restore();
+
+                        ctx.beginPath();
+                        ctx.moveTo(pA.x, pA.y);
+                        ctx.lineTo(pB.x, pB.y);
+                        ctx.strokeStyle = '#ffffff';
+                        ctx.lineWidth = 2.4 * baseScale;
+                        ctx.lineCap = 'round';
+                        ctx.stroke();
+
+                        // Uç tırnakları
+                        const tickLen = 12 * baseScale;
+                        [ [pA.x, pA.y], [pB.x, pB.y] ].forEach(([x, y]) => {
+                            ctx.beginPath();
+                            ctx.moveTo(x - nx * tickLen, y - ny * tickLen);
+                            ctx.lineTo(x + nx * tickLen, y + ny * tickLen);
+                            ctx.strokeStyle = color;
+                            ctx.lineWidth = 3 * baseScale;
+                            ctx.stroke();
+                        });
+
+                    } else if (style === 'arrow') {
+                        // 🏹 Mimari Ok Çizgisi
+                        ctx.beginPath();
+                        ctx.moveTo(pA.x, pA.y);
+                        ctx.lineTo(pB.x, pB.y);
+                        ctx.strokeStyle = color;
+                        ctx.lineWidth = 3.5 * baseScale;
+                        ctx.lineCap = 'round';
+                        ctx.shadowColor = 'rgba(0, 0, 0, 0.75)';
+                        ctx.shadowBlur = 4 * baseScale;
+                        ctx.stroke();
+
+                        const arrowLen = 14 * baseScale;
+                        const arrowAngle = 0.45;
+                        // A ucu
+                        ctx.beginPath();
+                        ctx.moveTo(pA.x, pA.y);
+                        ctx.lineTo(pA.x + (ux * Math.cos(arrowAngle) - uy * Math.sin(arrowAngle)) * arrowLen,
+                                   pA.y + (uy * Math.cos(arrowAngle) + ux * Math.sin(arrowAngle)) * arrowLen);
+                        ctx.moveTo(pA.x, pA.y);
+                        ctx.lineTo(pA.x + (ux * Math.cos(-arrowAngle) - uy * Math.sin(-arrowAngle)) * arrowLen,
+                                   pA.y + (uy * Math.cos(-arrowAngle) + ux * Math.sin(-arrowAngle)) * arrowLen);
+                        ctx.strokeStyle = color;
+                        ctx.lineWidth = 3.5 * baseScale;
+                        ctx.stroke();
+
+                        // B ucu
+                        ctx.beginPath();
+                        ctx.moveTo(pB.x, pB.y);
+                        ctx.lineTo(pB.x - (ux * Math.cos(arrowAngle) - uy * Math.sin(arrowAngle)) * arrowLen,
+                                   pB.y - (uy * Math.cos(arrowAngle) + ux * Math.sin(arrowAngle)) * arrowLen);
+                        ctx.moveTo(pB.x, pB.y);
+                        ctx.lineTo(pB.x - (ux * Math.cos(-arrowAngle) - uy * Math.sin(-arrowAngle)) * arrowLen,
+                                   pB.y - (uy * Math.cos(-arrowAngle) + ux * Math.sin(-arrowAngle)) * arrowLen);
+                        ctx.strokeStyle = color;
+                        ctx.lineWidth = 3.5 * baseScale;
+                        ctx.stroke();
+
+                    } else if (style === 'dashed') {
+                        // 〰️ Kesikli Çizgi
+                        ctx.save();
+                        ctx.beginPath();
+                        ctx.moveTo(pA.x, pA.y);
+                        ctx.lineTo(pB.x, pB.y);
+                        ctx.setLineDash([9 * baseScale, 6 * baseScale]);
+                        ctx.strokeStyle = color;
+                        ctx.lineWidth = 3.2 * baseScale;
+                        ctx.stroke();
+                        ctx.restore();
+
+                        const tickLen = 11 * baseScale;
+                        [ [pA.x, pA.y], [pB.x, pB.y] ].forEach(([x, y]) => {
+                            ctx.beginPath();
+                            ctx.moveTo(x - nx * tickLen, y - ny * tickLen);
+                            ctx.lineTo(x + nx * tickLen, y + ny * tickLen);
+                            ctx.strokeStyle = color;
+                            ctx.lineWidth = 3.5 * baseScale;
+                            ctx.stroke();
+                        });
+
+                    } else {
+                        // 📐 CAD Boyut Çizgisi
+                        ctx.beginPath();
+                        ctx.moveTo(pA.x, pA.y);
+                        ctx.lineTo(pB.x, pB.y);
+                        ctx.strokeStyle = color;
+                        ctx.lineWidth = 3.2 * baseScale;
+                        ctx.lineCap = 'round';
+                        ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
+                        ctx.shadowBlur = 5 * baseScale;
+                        ctx.stroke();
+
+                        const tickLen = 13 * baseScale;
+                        [ [pA.x, pA.y], [pB.x, pB.y] ].forEach(([x, y]) => {
+                            ctx.beginPath();
+                            ctx.moveTo(x - nx * tickLen, y - ny * tickLen);
+                            ctx.lineTo(x + nx * tickLen, y + ny * tickLen);
+                            ctx.strokeStyle = color;
+                            ctx.lineWidth = 3.5 * baseScale;
+                            ctx.stroke();
+                        });
+                    }
+
+                    // 3. Kenar Mesafe Rozeti
+                    const segDist = origA.distanceTo(origB);
+                    const segDistStr = (segDist >= 1000) ? (segDist / 1000).toFixed(2) + ' km' : segDist.toFixed(1) + ' m';
+                    const edgeLabel = (canvasPts.length <= 2) ? this.getFormattedMeasureText(segDist) : segDistStr;
+
+                    const midX = (pA.x + pB.x) / 2;
+                    const midY = (pA.y + pB.y) / 2;
+                    const offsetDist = 24 * baseScale;
+                    const badgeNormY = (ny < 0) ? ny : -ny;
+                    const badgeNormX = (ny < 0) ? nx : -nx;
+                    const badgeX = midX + badgeNormX * offsetDist;
+                    const badgeY = midY + badgeNormY * offsetDist;
+
                     ctx.save();
-                    ctx.beginPath();
-                    ctx.moveTo(ax, ay);
-                    ctx.lineTo(bx, by);
-                    ctx.shadowColor = color;
+                    ctx.translate(badgeX, badgeY);
+
+                    const fontSize = Math.round(11.5 * baseScale);
+                    ctx.font = `bold ${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Montserrat", sans-serif`;
+                    const textW = ctx.measureText(edgeLabel).width;
+                    const badgeW = Math.max(70 * baseScale, textW + (24 * baseScale));
+                    const badgeH = 26 * baseScale;
+                    const bX = -(badgeW / 2);
+                    const bY = -(badgeH / 2);
+
+                    ctx.shadowColor = 'rgba(0, 0, 0, 0.85)';
                     ctx.shadowBlur = 10 * baseScale;
+                    ctx.shadowOffsetY = 3 * baseScale;
+
+                    ctx.beginPath();
+                    if (typeof ctx.roundRect === 'function') {
+                        ctx.roundRect(bX, bY, badgeW, badgeH, 6 * baseScale);
+                    } else {
+                        ctx.rect(bX, bY, badgeW, badgeH);
+                    }
+                    ctx.fillStyle = 'rgba(15, 23, 42, 0.94)';
+                    ctx.fill();
+
+                    ctx.lineWidth = 1.6 * baseScale;
                     ctx.strokeStyle = color;
-                    ctx.lineWidth = 5 * baseScale;
-                    ctx.lineCap = 'round';
                     ctx.stroke();
+
+                    ctx.shadowColor = 'transparent';
+                    ctx.fillStyle = '#ffffff';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(edgeLabel, 0, 0);
+
                     ctx.restore();
+                }
 
-                    // Katman 3: Parlak Saf Beyaz Çekirdek
-                    ctx.beginPath();
-                    ctx.moveTo(ax, ay);
-                    ctx.lineTo(bx, by);
-                    ctx.strokeStyle = '#ffffff';
-                    ctx.lineWidth = 2.4 * baseScale;
-                    ctx.lineCap = 'round';
-                    ctx.stroke();
+                // 4. Poligon Merkezindeki Büyük Alan & Çevre Rozeti (3+ Nokta ve Kapalıysa)
+                if (isClosed && canvasPts.length >= 3) {
+                    let cenX = 0, cenY = 0;
+                    canvasPts.forEach(p => { cenX += p.x; cenY += p.y; });
+                    cenX /= canvasPts.length;
+                    cenY /= canvasPts.length;
 
-                    // Uç Dik Çizgileri
-                    const tickLen = 14 * baseScale;
-                    [ [ax, ay], [bx, by] ].forEach(([x, y]) => {
-                        ctx.beginPath();
-                        ctx.moveTo(x - nx * tickLen, y - ny * tickLen);
-                        ctx.lineTo(x + nx * tickLen, y + ny * tickLen);
-                        ctx.strokeStyle = color;
-                        ctx.lineWidth = 3 * baseScale;
-                        ctx.stroke();
-                    });
+                    const areaM2 = this.calculateGeodesicPolygonArea(pts);
+                    const perimeter = this.calculatePolygonPerimeter(pts, true);
+                    const areaInfo = this.getFormattedAreaInfo(areaM2);
+                    const perimStr = (perimeter >= 1000) ? (perimeter / 1000).toFixed(2) + ' km' : Math.round(perimeter) + ' m';
 
-                } else if (style === 'arrow') {
-                    // 🏹 Çift Yönlü Mimari Ok Çizgisi
-                    ctx.beginPath();
-                    ctx.moveTo(ax, ay);
-                    ctx.lineTo(bx, by);
-                    ctx.strokeStyle = color;
-                    ctx.lineWidth = 3.5 * baseScale;
-                    ctx.lineCap = 'round';
-                    ctx.shadowColor = 'rgba(0, 0, 0, 0.75)';
-                    ctx.shadowBlur = 4 * baseScale;
-                    ctx.stroke();
-
-                    // Ok Başları (A ve B uçlarına içeri bakan zarif oklar)
-                    const arrowLen = 16 * baseScale;
-                    const arrowAngle = 0.45; // ~26 derece
-
-                    // Nokta A Ok Başı
-                    const aTipX = ax + ux * (arrowLen * 0.9);
-                    const aTipY = ay + uy * (arrowLen * 0.9);
-                    ctx.beginPath();
-                    ctx.moveTo(ax, ay);
-                    ctx.lineTo(ax + (ux * Math.cos(arrowAngle) - uy * Math.sin(arrowAngle)) * arrowLen,
-                               ay + (uy * Math.cos(arrowAngle) + ux * Math.sin(arrowAngle)) * arrowLen);
-                    ctx.moveTo(ax, ay);
-                    ctx.lineTo(ax + (ux * Math.cos(-arrowAngle) - uy * Math.sin(-arrowAngle)) * arrowLen,
-                               ay + (uy * Math.cos(-arrowAngle) + ux * Math.sin(-arrowAngle)) * arrowLen);
-                    ctx.strokeStyle = color;
-                    ctx.lineWidth = 3.5 * baseScale;
-                    ctx.stroke();
-
-                    // Nokta B Ok Başı
-                    ctx.beginPath();
-                    ctx.moveTo(bx, by);
-                    ctx.lineTo(bx - (ux * Math.cos(arrowAngle) - uy * Math.sin(arrowAngle)) * arrowLen,
-                               by - (uy * Math.cos(arrowAngle) + ux * Math.sin(arrowAngle)) * arrowLen);
-                    ctx.moveTo(bx, by);
-                    ctx.lineTo(bx - (ux * Math.cos(-arrowAngle) - uy * Math.sin(-arrowAngle)) * arrowLen,
-                               by - (uy * Math.cos(-arrowAngle) + ux * Math.sin(-arrowAngle)) * arrowLen);
-                    ctx.strokeStyle = color;
-                    ctx.lineWidth = 3.5 * baseScale;
-                    ctx.stroke();
-
-                } else if (style === 'dashed') {
-                    // 〰️ Modern Kesikli Çizgi
                     ctx.save();
+                    ctx.translate(cenX, cenY);
+
+                    const titleText = `${areaInfo.m2Text} (${areaInfo.donumText})`;
+                    const subText = `Çevre: ${perimStr} • ${canvasPts.length} Kenar`;
+
+                    ctx.font = `bold ${Math.round(14 * baseScale)}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Montserrat", sans-serif`;
+                    const titleW = ctx.measureText(titleText).width;
+                    ctx.font = `600 ${Math.round(11 * baseScale)}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Montserrat", sans-serif`;
+                    const subW = ctx.measureText(subText).width;
+
+                    const areaBadgeW = Math.max(titleW, subW) + (36 * baseScale);
+                    const areaBadgeH = 46 * baseScale;
+                    const abX = -(areaBadgeW / 2);
+                    const abY = -(areaBadgeH / 2);
+
+                    ctx.shadowColor = 'rgba(0, 0, 0, 0.9)';
+                    ctx.shadowBlur = 16 * baseScale;
+                    ctx.shadowOffsetY = 6 * baseScale;
+
                     ctx.beginPath();
-                    ctx.moveTo(ax, ay);
-                    ctx.lineTo(bx, by);
-                    ctx.setLineDash([10 * baseScale, 7 * baseScale]);
+                    if (typeof ctx.roundRect === 'function') {
+                        ctx.roundRect(abX, abY, areaBadgeW, areaBadgeH, 9 * baseScale);
+                    } else {
+                        ctx.rect(abX, abY, areaBadgeW, areaBadgeH);
+                    }
+                    ctx.fillStyle = 'rgba(15, 23, 42, 0.96)';
+                    ctx.fill();
+
+                    ctx.lineWidth = 2.2 * baseScale;
                     ctx.strokeStyle = color;
-                    ctx.lineWidth = 3.2 * baseScale;
-                    ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
-                    ctx.shadowBlur = 5 * baseScale;
                     ctx.stroke();
+
+                    ctx.shadowColor = 'transparent';
+
+                    // Ana Satır (Alan)
+                    ctx.fillStyle = '#ffffff';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.font = `bold ${Math.round(13.5 * baseScale)}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Montserrat", sans-serif`;
+                    ctx.fillText('📐 ' + titleText, 0, abY + (16 * baseScale));
+
+                    // Alt Satır (Çevre & Kenar)
+                    ctx.fillStyle = color;
+                    ctx.font = `600 ${Math.round(10.5 * baseScale)}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Montserrat", sans-serif`;
+                    ctx.fillText(subText, 0, abY + (33 * baseScale));
+
                     ctx.restore();
+                }
 
-                    // Uçlarda dik sınırlayıcı çizgiler
-                    const tickLen = 12 * baseScale;
-                    [ [ax, ay], [bx, by] ].forEach(([x, y]) => {
-                        ctx.beginPath();
-                        ctx.moveTo(x - nx * tickLen, y - ny * tickLen);
-                        ctx.lineTo(x + nx * tickLen, y + ny * tickLen);
-                        ctx.strokeStyle = color;
-                        ctx.lineWidth = 3.5 * baseScale;
-                        ctx.stroke();
-                    });
+                // 5. Köşe Tutamaç Çemberleri (1, 2, 3...)
+                canvasPts.forEach((p, idx) => {
+                    ctx.save();
+                    ctx.translate(p.x, p.y);
 
-                } else {
-                    // 📐 CAD Boyut Çizgisi (Profesyonel Mimari Ölçülendirme)
-                    // Ana çizgi
-                    ctx.beginPath();
-                    ctx.moveTo(ax, ay);
-                    ctx.lineTo(bx, by);
-                    ctx.strokeStyle = color;
-                    ctx.lineWidth = 3.2 * baseScale;
-                    ctx.lineCap = 'round';
+                    const r = 11 * baseScale;
                     ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
-                    ctx.shadowBlur = 5 * baseScale;
+                    ctx.shadowBlur = 8 * baseScale;
+
+                    ctx.beginPath();
+                    ctx.arc(0, 0, r, 0, Math.PI * 2);
+                    ctx.fillStyle = 'rgba(15, 23, 42, 0.96)';
+                    ctx.fill();
+
+                    ctx.lineWidth = 2.2 * baseScale;
+                    ctx.strokeStyle = color;
                     ctx.stroke();
 
-                    // Uç dik CAD tırnakları (perpendicular tick marks)
-                    const tickLen = 14 * baseScale;
-                    [ [ax, ay], [bx, by] ].forEach(([x, y]) => {
-                        ctx.beginPath();
-                        ctx.moveTo(x - nx * tickLen, y - ny * tickLen);
-                        ctx.lineTo(x + nx * tickLen, y + ny * tickLen);
-                        ctx.strokeStyle = color;
-                        ctx.lineWidth = 3.5 * baseScale;
-                        ctx.stroke();
+                    ctx.shadowColor = 'transparent';
+                    ctx.fillStyle = color;
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.font = `bold ${Math.round(10 * baseScale)}px monospace`;
+                    ctx.fillText(`${idx + 1}`, 0, 0.5);
 
-                        // Uç nokta dairesi
-                        ctx.beginPath();
-                        ctx.arc(x, y, 4 * baseScale, 0, Math.PI * 2);
-                        ctx.fillStyle = '#ffffff';
-                        ctx.fill();
-                        ctx.lineWidth = 2 * baseScale;
-                        ctx.strokeStyle = color;
-                        ctx.stroke();
-                    });
-                }
+                    ctx.restore();
+                });
 
-                // 2. Orta Ölçüm Rozeti (Floating Badge)
-                const distText = this.getFormattedMeasureText(p1.distanceTo(p2));
-                const midX = (ax + bx) / 2;
-                const midY = (ay + by) / 2;
-
-                // Rozeti çizginin hafif üzerine veya açısına göre konumlandır
-                const offsetDist = 26 * baseScale;
-                // Her zaman yukarı baksın
-                const badgeNormY = (ny < 0) ? ny : -ny;
-                const badgeNormX = (ny < 0) ? nx : -nx;
-                const badgeX = midX + badgeNormX * offsetDist;
-                const badgeY = midY + badgeNormY * offsetDist;
-
-                ctx.save();
-                ctx.translate(badgeX, badgeY);
-
-                const fontSize = Math.round(13 * baseScale);
-                ctx.font = `bold ${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Montserrat", sans-serif`;
-                const textMetrics = ctx.measureText(distText);
-                const badgeW = Math.max(90 * baseScale, textMetrics.width + (36 * baseScale));
-                const badgeH = 32 * baseScale;
-                const radius = 7 * baseScale;
-                const bX = -(badgeW / 2);
-                const bY = -(badgeH / 2);
-
-                // Rozet Derinlik Gölgesi
-                ctx.shadowColor = 'rgba(0, 0, 0, 0.85)';
-                ctx.shadowBlur = 12 * baseScale;
-                ctx.shadowOffsetY = 4 * baseScale;
-
-                // Rozet Arka Planı (Koyu Cam Efekti)
-                ctx.beginPath();
-                if (typeof ctx.roundRect === 'function') {
-                    ctx.roundRect(bX, bY, badgeW, badgeH, radius);
-                } else {
-                    ctx.rect(bX, bY, badgeW, badgeH);
-                }
-                ctx.fillStyle = 'rgba(15, 23, 42, 0.94)';
-                ctx.fill();
-
-                // Rozet Kenarlığı
-                ctx.lineWidth = 1.8 * baseScale;
-                ctx.strokeStyle = color;
-                ctx.stroke();
-
-                ctx.shadowColor = 'transparent';
-
-                // Küçük ikon / çizgi noktası
-                ctx.beginPath();
-                ctx.arc(bX + (14 * baseScale), 0, 3.5 * baseScale, 0, Math.PI * 2);
-                ctx.fillStyle = color;
-                ctx.fill();
-
-                // Rozet Metni
-                ctx.fillStyle = '#ffffff';
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillText(distText, (6 * baseScale), 0);
-
-                ctx.restore();
                 ctx.restore();
 
             } catch(e) {
@@ -6049,6 +6715,10 @@
                     ? this.measurePoints.map(p => ({ lat: p.lat, lng: p.lng }))
                     : [],
                 distanceMeters: this.measureDistanceMeters || 0,
+                areaM2: this.measureAreaM2 || 0,
+                perimeterMeters: this.measurePerimeterMeters || 0,
+                isClosed: !!this.measureIsClosed,
+                interactionMode: this.measureInteractionMode || 'draw',
                 preset: this.measurePreset || 'frontage',
                 customText: this.measureCustomText || '',
                 style: this.measureStyle || 'cad',
@@ -6069,13 +6739,14 @@
             if (data.color) this.measureColor = data.color;
             if (data.edgeIndex !== undefined) this.measureEdgeIndex = data.edgeIndex;
             if (data.collapsed !== undefined) this.measurePanelCollapsed = data.collapsed;
+            if (data.isClosed !== undefined) this.measureIsClosed = data.isClosed;
+            if (data.interactionMode) this.measureInteractionMode = data.interactionMode;
 
-            if (data.points && Array.isArray(data.points) && data.points.length >= 2) {
-                this.measurePoints = [
-                    L.latLng(data.points[0].lat, data.points[0].lng),
-                    L.latLng(data.points[1].lat, data.points[1].lng)
-                ];
-                this.measureDistanceMeters = this.measurePoints[0].distanceTo(this.measurePoints[1]);
+            if (data.points && Array.isArray(data.points) && data.points.length >= 1) {
+                this.measurePoints = data.points.map(p => L.latLng(p.lat, p.lng));
+                if (this.measurePoints.length >= 2) {
+                    this.measureDistanceMeters = this.measurePoints[0].distanceTo(this.measurePoints[1]);
+                }
             }
 
             // Arayüz elemanlarını senkronize et
@@ -6661,8 +7332,24 @@
         SatelliteMapModule.snapMeasureToParcelEdge(idx);
     };
 
+    window.snapSatelliteMeasureToAllParcelVertices = function() {
+        SatelliteMapModule.snapMeasureToAllParcelVertices();
+    };
+
     window.cycleSatelliteMeasureParcelEdge = function() {
         SatelliteMapModule.cycleMeasureParcelEdge();
+    };
+
+    window.toggleSatelliteMeasureClosed = function() {
+        SatelliteMapModule.toggleMeasureClosed();
+    };
+
+    window.undoSatelliteLastMeasurePoint = function() {
+        SatelliteMapModule.undoLastMeasurePoint();
+    };
+
+    window.setSatelliteMeasureInteractionMode = function(mode) {
+        SatelliteMapModule.setMeasureInteractionMode(mode);
     };
 
     window.resetSatelliteMeasurePoints = function() {

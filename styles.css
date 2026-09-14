@@ -12552,6 +12552,184 @@ html[data-theme="light"] .tone-curve-canvas-wrap {
     background: transparent !important;
 }
 
+/* ==========================================================================
+   ➕ Çoklu Çizim Sistemi (Multi-Drawing & Akordiyon Katman Yönetimi)
+   ========================================================================== */
+.sat-measure-top-add {
+    margin-bottom: 7px;
+}
+
+.sat-btn-add-drawing {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(0, 245, 212, 0.2));
+    border: 1px dashed rgba(245, 158, 11, 0.7);
+    border-radius: 8px;
+    color: #fef08a;
+    font-size: 11.5px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+    outline: none;
+}
+
+.sat-btn-add-drawing:hover {
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.35), rgba(0, 245, 212, 0.35));
+    border-color: #f59e0b;
+    color: #ffffff;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 14px rgba(245, 158, 11, 0.3);
+}
+
+.sat-btn-add-drawing i {
+    font-size: 13px;
+    color: #f59e0b;
+    transition: transform 0.2s ease;
+}
+
+.sat-btn-add-drawing:hover i {
+    transform: rotate(90deg);
+}
+
+.sat-measure-drawings-container {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    margin-bottom: 6px;
+}
+
+.sat-drawing-card {
+    background: rgba(15, 23, 42, 0.75);
+    border: 1px solid rgba(148, 163, 184, 0.25);
+    border-radius: 8px;
+    overflow: hidden;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.sat-drawing-card.is-active {
+    border-color: rgba(56, 189, 248, 0.75);
+    box-shadow: 0 0 12px rgba(56, 189, 248, 0.25);
+    background: rgba(15, 23, 42, 0.9);
+}
+
+.sat-drawing-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 7px 10px;
+    background: rgba(30, 41, 59, 0.5);
+    cursor: pointer;
+    transition: background 0.15s ease;
+    user-select: none;
+    gap: 6px;
+}
+
+.sat-drawing-header:hover {
+    background: rgba(51, 65, 85, 0.65);
+}
+
+.sat-drawing-card.is-active .sat-drawing-header {
+    background: rgba(30, 41, 59, 0.85);
+    border-bottom: 1px solid rgba(56, 189, 248, 0.3);
+}
+
+.sat-drawing-header-left {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 11px;
+    font-weight: 700;
+    color: #e2e8f0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+    min-width: 0;
+}
+
+.sat-drawing-dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.sat-drawing-title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.sat-drawing-type-pill {
+    font-size: 9.5px;
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-weight: 600;
+    flex-shrink: 0;
+}
+
+.sat-drawing-type-pill.poly {
+    background: rgba(245, 158, 11, 0.2);
+    color: #fbbf24;
+    border: 1px solid rgba(245, 158, 11, 0.4);
+}
+
+.sat-drawing-type-pill.line {
+    background: rgba(56, 189, 248, 0.2);
+    color: #38bdf8;
+    border: 1px solid rgba(56, 189, 248, 0.4);
+}
+
+.sat-drawing-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    flex-shrink: 0;
+}
+
+.sat-drawing-act-btn {
+    background: transparent;
+    border: none;
+    color: #94a3b8;
+    padding: 3px 5px;
+    font-size: 11px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: color 0.15s, background 0.15s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.sat-drawing-act-btn:hover {
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.sat-drawing-act-btn.vis.muted {
+    color: #64748b;
+    opacity: 0.6;
+}
+
+.sat-drawing-act-btn.del:hover {
+    color: #ef4444;
+    background: rgba(239, 68, 68, 0.18);
+}
+
+.sat-drawing-body {
+    padding: 9px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+}
+
+
+
 /* Haritadaki Sürüklenebilir Ölçüm Tutamaçları (Köşe Noktaları 1, 2, 3...) */
 .sat-measure-handle-divicon {
     background: transparent !important;

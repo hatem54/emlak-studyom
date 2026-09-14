@@ -94,7 +94,10 @@
 
         // 📏 Noktadan Noktaya & Çok Noktalı Sınır / Alan Ölçüm Sistemi
         measureActive: false,
-        measurePoints: [],         // [L.latLng, L.latLng, ...]
+        measureDrawings: [],       // Çoklu çizimler listesi [{ id, title, points, isClosed, style, color, preset, ... }]
+        activeDrawingId: null,     // O an aktif/düzenlenen çizimin id'si
+        DRAWING_COLORS: ['#f59e0b', '#00f5d4', '#0ea5e9', '#ef4444', '#10b981', '#a855f7', '#ec4899', '#ffffff'],
+        measurePoints: [],         // [L.latLng, L.latLng, ...] (Aktif çizim ile senkron)
         measureDistanceMeters: 0,  // Tek segment mesafesi veya toplam çevre
         measureAreaM2: 0,          // Toplam geodezik alan (m²)
         measurePerimeterMeters: 0, // Toplam çevre uzunluğu
@@ -558,104 +561,23 @@
                             <button type="button" onclick="window.setSatelliteLayer('google_sat')" style="background:#38bdf8; color:#0f172a; font-weight:700; border:none; border-radius:5px; padding:3px 9px; font-size:11px; cursor:pointer; margin-left:8px; white-space:nowrap;">2D'ye Geç</button>
                         </div>
 
-                        <!-- Canlı Mesafe & Alan Göstergesi (2D Only) -->
-                        <div class="sat-measure-display-box sat-2d-only-row" id="satMeasureDisplayBox">
-                            <div class="sat-measure-val" id="satMeasureValText">0.0 m</div>
-                            <div class="sat-measure-sub-stats" id="satMeasureSubStats" style="display:none;"></div>
-                            <div class="sat-measure-hint" id="satMeasureHintText">Haritada noktalara tıklayarak arsayı çevreleyin • Ctrl veya Boşluk tuşuyla haritayı kaydırın</div>
+                        <!-- ➕ Yeni Çizim Ekle Üst Butonu (2D Only) -->
+                        <div class="sat-measure-top-add sat-2d-only-row" id="satMeasureTopAdd">
+                            <button type="button" class="sat-btn-add-drawing" onclick="window.addNewSatelliteDrawing()" title="Haritaya bağımsız yeni bir ölçüm çizgisi veya poligon alanı ekleyin">
+                                <i class="fas fa-plus-circle"></i> <span>Yeni Çizim Ekle</span>
+                            </button>
                         </div>
 
-                        <!-- Hızlı Metin Şablonları (Yola Cephe, Ön Cephe vb.) (2D Only) -->
-                        <div class="sat-measure-row sat-2d-only-row" id="satMeasureRowPresets">
-                            <label class="sat-measure-label">Etiket Şablonu:</label>
-                            <div class="sat-measure-chips">
-                                <button type="button" class="sat-measure-chip active" data-preset="frontage" onclick="window.setSatelliteMeasurePreset('frontage')">Yola Cephe</button>
-                                <button type="button" class="sat-measure-chip" data-preset="front" onclick="window.setSatelliteMeasurePreset('front')">Ön Cephe</button>
-                                <button type="button" class="sat-measure-chip" data-preset="depth" onclick="window.setSatelliteMeasurePreset('depth')">Derinlik</button>
-                                <button type="button" class="sat-measure-chip" data-preset="setback" onclick="window.setSatelliteMeasurePreset('setback')">Yol Terki</button>
-                                <button type="button" class="sat-measure-chip" data-preset="distance_only" onclick="window.setSatelliteMeasurePreset('distance_only')">Sadece Metre</button>
-                            </div>
+                        <!-- 📋 Çizimler Akordiyon Listesi (Çizim 1, Çizim 2, ...) (2D Only) -->
+                        <div class="sat-measure-drawings-container sat-2d-only-row" id="satMeasureDrawingsList">
+                            <!-- renderDrawingsListUI ile dinamik doldurulur -->
                         </div>
 
-                        <!-- Özel Metin Girişi (2D Only) -->
-                        <div class="sat-measure-row sat-2d-only-row" id="satMeasureRowCustomText">
-                            <input type="text" id="satMeasureTextInput" class="sat-measure-text-input" placeholder="Etiket metnini özelleştirin..." oninput="window.setSatelliteMeasureCustomText(this.value)">
-                        </div>
-
-                        <!-- Çizgi ve İşaretleme Stili (2D Only) -->
-                        <div class="sat-measure-row sat-2d-only-row" id="satMeasureRowStyles">
-                            <div class="sat-measure-sub-row">
-                                <label class="sat-measure-label">CAD Stili:</label>
-                                <div class="sat-measure-style-pills">
-                                    <button type="button" class="sat-measure-style-btn active" data-style="cad" onclick="window.setSatelliteMeasureStyle('cad')" title="CAD Boyut Çizgisi">📐 CAD</button>
-                                    <button type="button" class="sat-measure-style-btn" data-style="neon" onclick="window.setSatelliteMeasureStyle('neon')" title="Neon Işıltılı">⚡ Neon</button>
-                                    <button type="button" class="sat-measure-style-btn" data-style="arrow" onclick="window.setSatelliteMeasureStyle('arrow')" title="Çift Yönlü Ok">🏹 Ok</button>
-                                    <button type="button" class="sat-measure-style-btn" data-style="dashed" onclick="window.setSatelliteMeasureStyle('dashed')" title="Kesikli Çizgi">〰️ Kesikli</button>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Arsa Alanı Görünümü & İçeriği (Çerçevesiz / Kutulu) (2D Only) -->
-                        <div class="sat-measure-row sat-2d-only-row" id="satMeasureRowArea">
-                            <div class="sat-measure-sub-row">
-                                <label class="sat-measure-label">Alan Gösterimi:</label>
-                                <div class="sat-measure-chips">
-                                    <button type="button" class="sat-measure-chip active" id="satAreaModeFramelessBtn" data-areamode="frameless" onclick="window.setSatelliteMeasureAreaDisplayMode('frameless')" title="Arka plansız, şık çerçevesiz saf metin">✨ Çerçevesiz</button>
-                                    <button type="button" class="sat-measure-chip" id="satAreaModeBoxBtn" data-areamode="box" onclick="window.setSatelliteMeasureAreaDisplayMode('box')" title="Koyu cam kutulu rozet">🏷️ Kutulu</button>
-                                </div>
-                            </div>
-                            <div class="sat-measure-chips" style="margin-top: 3px;">
-                                <button type="button" class="sat-measure-chip active" id="satAreaContentM2OnlyBtn" data-contentmode="m2_only" onclick="window.setSatelliteMeasureAreaContentMode('m2_only')" title="Sadece arsanın metrekare değerini gösterir">Sadece m²</button>
-                                <button type="button" class="sat-measure-chip" id="satAreaContentM2DonumBtn" data-contentmode="m2_donum" onclick="window.setSatelliteMeasureAreaContentMode('m2_donum')" title="m² ve Dönüm değerini birlikte gösterir">m² + Dönüm</button>
-                                <button type="button" class="sat-measure-chip" id="satAreaContentDetailedBtn" data-contentmode="detailed" onclick="window.setSatelliteMeasureAreaContentMode('detailed')" title="m², Dönüm, Çevre ve Köşe sayısını gösterir">Detaylı (+Çevre)</button>
-                            </div>
-                        </div>
-
-                        <!-- Yazı Tipi (Font) & Boyutlandırma (2D Only) -->
-                        <div class="sat-measure-row sat-2d-only-row" id="satMeasureRowFont">
-                            <div class="sat-measure-sub-row">
-                                <label class="sat-measure-label">Yazı & Boyut:</label>
-                                <div class="sat-measure-font-controls">
-                                    <select id="satMeasureFontSelect" class="sat-measure-select" onchange="window.setSatelliteMeasureFontFamily(this.value)">
-                                        <option value="Montserrat" selected>Montserrat</option>
-                                    </select>
-                                    <div class="sat-measure-size-btns">
-                                        <button type="button" class="sat-measure-size-btn" onclick="window.adjustSatelliteMeasureFontSize(-1)" title="Yazı boyutunu küçült">A-</button>
-                                        <span class="sat-measure-size-val" id="satMeasureFontSizeText">16px</span>
-                                        <button type="button" class="sat-measure-size-btn" onclick="window.adjustSatelliteMeasureFontSize(1)" title="Yazı boyutunu büyüt">A+</button>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="sat-measure-chips" style="margin-top: 3px;">
-                                <button type="button" class="sat-measure-chip active" id="satFontTargetAllBtn" onclick="window.setSatelliteMeasureFontTarget('all')" title="Font ve boyut ayarlarını tüm ölçüm metinlerine uygular">Tüm Metinler</button>
-                                <button type="button" class="sat-measure-chip" id="satFontTargetAreaBtn" onclick="window.setSatelliteMeasureFontTarget('area')" title="Sadece arsa alanı metnini boyutlandırır">Sadece Alan</button>
-                                <button type="button" class="sat-measure-chip" id="satFontTargetEdgesBtn" onclick="window.setSatelliteMeasureFontTarget('edges')" title="Sadece kenar mesafe metinlerini boyutlandırır">Sadece Kenarlar</button>
-                            </div>
-                        </div>
-
-                        <!-- 2D CAD Mesafe Renk Paleti (2D Only) -->
-                        <div class="sat-measure-row sat-2d-only-row" id="satMeasureRowCadColor">
-                            <div class="sat-measure-sub-row">
-                                <label class="sat-measure-label">CAD Renk:</label>
-                                <div class="sat-measure-colors" id="satCadColorPalette">
-                                    <button type="button" class="sat-measure-color-dot active" style="background:#f59e0b;" data-color="#f59e0b" onclick="window.setSatelliteMeasureColor('#f59e0b')" title="Altın Sarısı"></button>
-                                    <button type="button" class="sat-measure-color-dot" style="background:#00f5d4;" data-color="#00f5d4" onclick="window.setSatelliteMeasureColor('#00f5d4')" title="Neon Cyan"></button>
-                                    <button type="button" class="sat-measure-color-dot" style="background:#ffffff;" data-color="#ffffff" onclick="window.setSatelliteMeasureColor('#ffffff')" title="Saf Beyaz"></button>
-                                    <button type="button" class="sat-measure-color-dot" style="background:#10b981;" data-color="#10b981" onclick="window.setSatelliteMeasureColor('#10b981')" title="Zümrüt Yeşili"></button>
-                                    <button type="button" class="sat-measure-color-dot" style="background:#ef4444;" data-color="#ef4444" onclick="window.setSatelliteMeasureColor('#ef4444')" title="Canlı Kırmızı"></button>
-                                    <label class="sat-measure-color-custom-btn" id="satMeasureCustomColorLabel" title="Özel Renk Seçici (Palet)">
-                                        <i class="fas fa-palette"></i>
-                                        <input type="color" id="satMeasureCustomColorInput" value="#f59e0b" oninput="window.setSatelliteMeasureColor(this.value)">
-                                    </label>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- 1. Bölüm: Kenar Çizgisi & Neon Parlama (Hem 2D Hem 3D) -->
+                        <!-- 1. Bölüm: Parsel Kenar Çizgisi & Neon Parlama (Hem 2D Hem 3D) -->
                         <div class="sat-measure-row" id="satMeasureStrokeRow">
                             <div class="sat-measure-sub-row" style="margin-bottom:6px;">
                                 <div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
-                                    <label class="sat-measure-label" style="margin-bottom:0;"><i class="fas fa-pen" style="margin-right:4px; opacity:0.8;"></i> Çizgi Rengi:</label>
+                                    <label class="sat-measure-label" style="margin-bottom:0;"><i class="fas fa-pen" style="margin-right:4px; opacity:0.8;"></i> Parsel Çizgisi:</label>
                                     <button type="button" id="satMeasureNeonToggleBtn" class="sat-pill-toggle-btn" onclick="window.toggleSatelliteParcelNeon()" style="padding:2px 10px; font-size:11px; border-radius:12px; cursor:pointer; font-weight:600; border:1px solid #475569; background:transparent; color:#94a3b8; transition:all 0.2s ease;">
                                         <i class="fas fa-bolt"></i> Neon: <b>Kapalı</b>
                                     </button>
@@ -708,60 +630,6 @@
                                 <span>Dolgu Saydamlığı: <b id="satMeasureFillOpacityText" style="color:#e2e8f0;">%40</b></span>
                                 <input type="range" id="satMeasureFillOpacitySlider" min="5" max="95" step="5" value="40" oninput="window.setParcelOpacity(this.value)" style="width:110px; accent-color:#38bdf8;">
                             </div>
-                        </div>
-
-                        <!-- Metre & Rozet Gösterimi (Aç / Kapat & Kenar Filtresi) (2D Only) -->
-                        <div class="sat-measure-row sat-2d-only-row" id="satMeasureVisibilityRow">
-                            <div class="sat-measure-sub-row">
-                                <label class="sat-measure-label">Gösterim:</label>
-                                <div class="sat-measure-chips">
-                                    <button type="button" class="sat-measure-chip active" id="satVisEdgeDistancesBtn" onclick="window.toggleSatelliteMeasureAllEdges()" title="Kenar mesafelerini (metreleri) haritada ve şablonda aç / kapat">📏 Kenarlar</button>
-                                    <button type="button" class="sat-measure-chip active" id="satVisAreaBtn" onclick="window.toggleSatelliteMeasureAreaBadge()" title="Arsa m² alan rozetini haritada ve şablonda aç / kapat">🏷️ Arsa m²</button>
-                                    <button type="button" class="sat-measure-chip active" id="satVisHandlesBtn" onclick="window.toggleSatelliteMeasureHandles()" title="Köşe tutamaçlarını ve numaralarını haritada aç / kapat">📍 Köşeler</button>
-                                </div>
-                            </div>
-                            <!-- Kenar Bazlı Detaylı Seçici (Hangi kenarlar gösterilecek?) -->
-                            <div class="sat-measure-edge-selector-wrap" id="satMeasureEdgeSelectorWrap" style="display:none;">
-                                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:4px; font-size:10.5px; color:#94a3b8;">
-                                    <span>Kenar Filtresi:</span>
-                                    <div style="display:flex; gap:6px; align-items:center;">
-                                        <button type="button" class="sat-measure-mini-text-btn" onclick="window.toggleSatelliteMeasureAllEdgesBulk(true)" title="Tüm kenar metrelerini göster">Tümünü Aç</button>
-                                        <span style="opacity:0.35;">|</span>
-                                        <button type="button" class="sat-measure-mini-text-btn" onclick="window.toggleSatelliteMeasureAllEdgesBulk(false)" title="Tüm kenar metrelerini gizle">Tümünü Kapat</button>
-                                    </div>
-                                </div>
-                                <div class="sat-measure-edge-chips-grid" id="satMeasureEdgeChipsGrid">
-                                    <!-- updateEdgeSelectorUI ile otomatik doldurulur -->
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Hızlı Eylemler (Parsel Kilitleri & Sıfırla - 3 Düzenli Satır) (2D Only) -->
-                        <div class="sat-measure-actions-bar full-row sat-2d-only-row" id="satMeasureRowSnapAll" style="display:none;">
-                            <button type="button" id="satBtnSnapAllParcel" class="sat-measure-act-btn snap-all" onclick="window.snapSatelliteMeasureToAllParcelVertices()" title="Yüklü parselin tüm sınırlarını ve alanını otomatik çevreler">
-                                <i class="fas fa-vector-square"></i> <span>📐 Tüm Parseli Çevrele</span>
-                            </button>
-                        </div>
-
-                        <div class="sat-measure-actions-bar edge-row sat-2d-only-row" id="satMeasureRowEdgeNav" style="display:none;">
-                            <button type="button" id="satBtnSnapParcelEdge" class="sat-measure-act-btn snap" onclick="window.snapSatelliteMeasureToParcelEdge()" title="Ölçüm noktalarını arsanın tek bir kenarına kilitler">
-                                <i class="fas fa-draw-polygon"></i> <span>Tek Kenar</span>
-                            </button>
-                            <button type="button" id="satBtnCycleParcelEdge" class="sat-measure-act-btn cycle" onclick="window.cycleSatelliteMeasureParcelEdge()" title="Parselin diğer kenarına geç">
-                                <i class="fas fa-rotate"></i> <span id="satCycleEdgeText">Diğer Kenar</span>
-                            </button>
-                        </div>
-
-                        <div class="sat-measure-actions-bar second-row sat-2d-only-row" id="satMeasureRowActions">
-                            <button type="button" id="satBtnCloseMeasurePolygon" class="sat-measure-act-btn close-poly" onclick="window.toggleSatelliteMeasureClosed()" title="Arsa alanını kapat veya açık çizgiye dönüştür">
-                                <i class="fas fa-object-group"></i> <span id="satBtnClosePolyText">Alanı Kapat</span>
-                            </button>
-                            <button type="button" class="sat-measure-act-btn undo" onclick="window.undoSatelliteLastMeasurePoint()" title="Son eklenen noktayı geri al">
-                                <i class="fas fa-rotate-left"></i> <span>Geri Al</span>
-                            </button>
-                            <button type="button" class="sat-measure-act-btn reset" onclick="window.resetSatelliteMeasurePoints()" title="Tüm noktaları temizle">
-                                <i class="fas fa-trash-alt"></i> <span>Sıfırla</span>
-                            </button>
                         </div>
                     </div>
                 </div>
@@ -2823,8 +2691,8 @@
                             this.drawVectorMarker(ctx3d, pinCanvasX, pinCanvasY, this.markerStyle, this.customMarkerText, targetW, wrapper);
                         }
 
-                        // 📏 Eğer Ölçüm Aracı aktifse ve 2 veya daha fazla nokta varsa 3D tuvaline vektörel çiz
-                        if (this.measureActive && this.measurePoints && this.measurePoints.length >= 2) {
+                        // 📏 Eğer Ölçüm Aracı aktifse ve görünür çizimler varsa 3D tuvaline vektörel çiz
+                        if (this.measureActive && (this.hasVisibleDrawings ? this.hasVisibleDrawings() : (this.measurePoints && this.measurePoints.length >= 2))) {
                             const ctx3d = offCanvas.getContext('2d');
                             const wrapper = document.getElementById('satMapWrapper');
                             this.drawVectorMeasurement(ctx3d, targetW, wrapper, null, { bakeBadges: false, bakeHandles: false });
@@ -2927,7 +2795,7 @@
                                         }
 
                                         // 📐 Ölçüm Rozetlerini Tuval Üzerine Serbestçe Taşınabilir Elemanlar Olarak Ekle
-                                        if (SatelliteMapModule.measureActive && SatelliteMapModule.measurePoints && SatelliteMapModule.measurePoints.length >= 2) {
+                                        if (SatelliteMapModule.measureActive && (SatelliteMapModule.hasVisibleDrawings ? SatelliteMapModule.hasVisibleDrawings() : (SatelliteMapModule.measurePoints && SatelliteMapModule.measurePoints.length >= 2))) {
                                             SatelliteMapModule.addMeasureBadgesToCanvas(targetW, targetH);
                                         }
 
@@ -2992,7 +2860,8 @@
 
                 // 📐 Eğer TKGM Parsel Poligonu yüklüyse koordinatları tuval piksel kadrajına dönüştür
                 let parcelCanvasPoints = null;
-                const shouldDrawDefaultParcel = !(this.measureActive && this.measureHideDefaultParcel && this.measurePoints && this.measurePoints.length >= 2);
+                const hasMeas = (this.hasVisibleDrawings ? this.hasVisibleDrawings() : (this.measurePoints && this.measurePoints.length >= 2));
+                const shouldDrawDefaultParcel = !(this.measureActive && this.measureHideDefaultParcel && hasMeas);
                 if (this.parcelPolygon && this.parcelData) {
                     if (this.parcelData.latLngs && Array.isArray(this.parcelData.latLngs)) {
                         parcelCanvasPoints = this.parcelData.latLngs.map(ll => {
@@ -3022,8 +2891,8 @@
                     this.drawVectorMarker(ctx, pinCanvasX, pinCanvasY, this.markerStyle, this.customMarkerText, targetW, mapContainer);
                 }
 
-                // 📏 Eğer Ölçüm Aracı aktifse ve 2 veya daha fazla nokta varsa 2D tuvaline vektörel çiz
-                if (this.measureActive && this.measurePoints && this.measurePoints.length >= 2) {
+                // 📏 Eğer Ölçüm Aracı aktifse ve görünür çizimler varsa 2D tuvaline vektörel çiz
+                if (this.measureActive && (this.hasVisibleDrawings ? this.hasVisibleDrawings() : (this.measurePoints && this.measurePoints.length >= 2))) {
                     this.drawVectorMeasurement(ctx, targetW, mapContainer, cropInfo, { bakeBadges: false, bakeHandles: false });
                 }
 
@@ -3105,7 +2974,7 @@
                             }
 
                             // 📐 Ölçüm Rozetlerini Tuval Üzerine Serbestçe Taşınabilir Elemanlar Olarak Ekle
-                            if (SatelliteMapModule.measureActive && SatelliteMapModule.measurePoints && SatelliteMapModule.measurePoints.length >= 2) {
+                            if (SatelliteMapModule.measureActive && (SatelliteMapModule.hasVisibleDrawings ? SatelliteMapModule.hasVisibleDrawings() : (SatelliteMapModule.measurePoints && SatelliteMapModule.measurePoints.length >= 2))) {
                                 SatelliteMapModule.addMeasureBadgesToCanvas(targetW, targetH);
                             }
 
@@ -5916,24 +5785,26 @@
             }
 
             if (this.measureActive) {
+                const active = this.getActiveDrawing();
                 // Eğer daha önce belirlenmiş nokta yoksa
-                if (!this.measurePoints || this.measurePoints.length === 0) {
+                if (!active.points || active.points.length === 0) {
                     if (this.parcelData && this.parcelData.latLngs && this.parcelData.latLngs.length >= 3) {
                         // Yüklü parsel varsa otomatik tüm parsel köşelerini çevrele
-                        this.snapMeasureToAllParcelVertices();
+                        this.snapDrawingToParcel(active.id);
                     } else if (this.map) {
                         // Parsel yoksa harita merkezinde iki nokta oluştur
                         const c = this.map.getCenter();
                         const ptA = L.latLng(c.lat, c.lng - 0.00032);
                         const ptB = L.latLng(c.lat, c.lng + 0.00032);
-                        this.measurePoints = [ptA, ptB];
-                        this.measureIsClosed = false;
-                        this.measureDistanceMeters = ptA.distanceTo(ptB);
+                        active.points = [ptA, ptB];
+                        active.isClosed = false;
+                        active.distanceMeters = ptA.distanceTo(ptB);
                     }
                 }
                 this.syncMeasureUI();
                 this.updateParcelSnapButtons();
                 this.updateMeasureGraphics();
+                this.renderDrawingsListUI();
             } else {
                 this.removeMeasureGraphicsFromMap();
                 if (this.parcelPolygon && this.map) {
@@ -6553,33 +6424,692 @@
         },
 
         /**
-         * Haritaya Tıklandığında Ölçüm Noktası Ekler
+         * Aktif Ölçüm Çizimini Döndürür (Yoksa Varsayılan Çizim 1'i Başlatır)
+         */
+        getActiveDrawing: function() {
+            if (!this.measureDrawings || !Array.isArray(this.measureDrawings) || this.measureDrawings.length === 0) {
+                const initialPts = (Array.isArray(this.measurePoints) && this.measurePoints.length > 0) ? this.measurePoints : [];
+                const d1 = {
+                    id: 'draw_1',
+                    title: 'Çizim 1',
+                    visible: true,
+                    isExpanded: true,
+                    points: initialPts,
+                    isClosed: (this.measureIsClosed !== undefined) ? this.measureIsClosed : (initialPts.length >= 3),
+                    style: this.measureStyle || 'cad',
+                    color: this.measureColor || '#f59e0b',
+                    preset: this.measurePreset || 'frontage',
+                    customText: this.measureCustomText || '',
+                    showEdgeDistances: this.measureShowEdgeDistances !== false,
+                    showArea: this.measureShowArea !== false,
+                    showHandles: this.measureShowHandles !== false,
+                    hiddenEdges: Object.assign({}, this.measureHiddenEdges || {}),
+                    badgeCustomPositions: Object.assign({}, this.measureBadgeCustomPositions || {}),
+                    areaBadgeCustomPos: this.measureAreaBadgeCustomPos || null,
+                    areaRotation: this.measureAreaRotation || 0,
+                    areaScale: this.measureAreaScale || 1.0,
+                    areaSelected: false,
+                    areaDisplayMode: this.measureAreaDisplayMode || 'frameless',
+                    areaContentMode: this.measureAreaContentMode || 'm2_only',
+                    distanceMeters: this.measureDistanceMeters || 0,
+                    areaM2: this.measureAreaM2 || 0,
+                    perimeterMeters: this.measurePerimeterMeters || 0,
+                    markers: Array.isArray(this.measureMarkers) ? this.measureMarkers : [],
+                    lines: Array.isArray(this.measureLines) ? this.measureLines : [],
+                    polygonLayer: this.measurePolygonLayer || null,
+                    badgeMarkers: Array.isArray(this.measureBadgeMarkers) ? this.measureBadgeMarkers : [],
+                    areaBadgeMarker: this.measureAreaBadgeMarker || null
+                };
+                this.measureDrawings = [d1];
+                this.activeDrawingId = 'draw_1';
+            }
+            let active = this.measureDrawings.find(d => d.id === this.activeDrawingId);
+            if (!active) {
+                active = this.measureDrawings[0];
+                this.activeDrawingId = active.id;
+            }
+            // Geriye dönük uyumluluk: Tekil özellikler aktif çizim ile senkronize tutulur
+            this.measurePoints = active.points;
+            this.measureColor = active.color;
+            this.measureStyle = active.style;
+            this.measurePreset = active.preset;
+            this.measureCustomText = active.customText;
+            this.measureIsClosed = active.isClosed;
+            this.measureDistanceMeters = active.distanceMeters;
+            this.measureAreaM2 = active.areaM2;
+            this.measurePerimeterMeters = active.perimeterMeters;
+            this.measureShowEdgeDistances = active.showEdgeDistances;
+            this.measureShowArea = active.showArea;
+            this.measureShowHandles = active.showHandles;
+            this.measureHiddenEdges = active.hiddenEdges;
+            this.measureBadgeCustomPositions = active.badgeCustomPositions;
+            this.measureAreaBadgeCustomPos = active.areaBadgeCustomPos;
+            this.measureAreaRotation = active.areaRotation;
+            this.measureAreaScale = active.areaScale;
+            this.measureAreaDisplayMode = active.areaDisplayMode;
+            this.measureAreaContentMode = active.areaContentMode;
+            return active;
+        },
+
+        /**
+         * Tüm Çizimleri Döndürür
+         */
+        getAllDrawings: function() {
+            this.getActiveDrawing();
+            return this.measureDrawings || [];
+        },
+
+        /**
+         * En Az 2 Noktası Olan Görünür Çizim Var mı Kontrol Eder
+         */
+        hasVisibleDrawings: function() {
+            if (!this.measureActive) return false;
+            const drawings = this.getAllDrawings();
+            return drawings.some(d => d.visible !== false && d.points && d.points.length >= 2);
+        },
+
+        /**
+         * Yeni Bağımsız Çizim Ekler
+         */
+        addNewDrawing: function(options = {}) {
+            this.getActiveDrawing();
+            const count = this.measureDrawings.length + 1;
+            const colorIdx = (count - 1) % this.DRAWING_COLORS.length;
+            const color = options.color || this.DRAWING_COLORS[colorIdx] || '#00f5d4';
+            const newId = 'draw_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4);
+
+            // Önceki çizimlerin akordiyonlarını kapat
+            this.measureDrawings.forEach(d => { d.isExpanded = false; });
+
+            const newDrawing = {
+                id: newId,
+                title: options.title || `Çizim ${count}`,
+                visible: true,
+                isExpanded: true,
+                points: options.points ? options.points.map(p => L.latLng(p.lat || p[0], p.lng || p[1])) : [],
+                isClosed: options.isClosed !== undefined ? options.isClosed : false,
+                style: options.style || 'cad',
+                color: color,
+                preset: options.preset || 'frontage',
+                customText: options.customText || '',
+                showEdgeDistances: options.showEdgeDistances !== false,
+                showArea: options.showArea !== false,
+                showHandles: options.showHandles !== false,
+                hiddenEdges: {},
+                badgeCustomPositions: {},
+                areaBadgeCustomPos: null,
+                areaRotation: 0,
+                areaScale: 1.0,
+                areaSelected: false,
+                areaDisplayMode: 'frameless',
+                areaContentMode: 'm2_only',
+                distanceMeters: 0,
+                areaM2: 0,
+                perimeterMeters: 0,
+                markers: [],
+                lines: [],
+                polygonLayer: null,
+                badgeMarkers: [],
+                areaBadgeMarker: null
+            };
+
+            this.measureDrawings.push(newDrawing);
+            this.activeDrawingId = newId;
+
+            if (!this.measureActive) {
+                this.toggleMeasure(true);
+            }
+            this.setMeasureInteractionMode('draw');
+
+            this.updateMeasureGraphics();
+            this.renderDrawingsListUI();
+
+            if (typeof window.showAppToast === 'function') {
+                window.showAppToast(`➕ ${newDrawing.title} eklendi. Haritada tıklayarak yeni noktaları belirleyin.`, 'success');
+            }
+
+            this.saveLastLocation({ measureData: this.getMeasureDataToSave() });
+            return newDrawing;
+        },
+
+        /**
+         * Belirtilen Çizimi Aktif Olarak Seçer
+         */
+        selectDrawing: function(id) {
+            const drawing = this.measureDrawings.find(d => d.id === id);
+            if (!drawing) return;
+            this.activeDrawingId = id;
+            drawing.isExpanded = true;
+            this.updateMeasureGraphics();
+            this.renderDrawingsListUI();
+            if (typeof window.showAppToast === 'function') {
+                window.showAppToast(`📍 ${drawing.title} seçildi.`, 'info');
+            }
+        },
+
+        /**
+         * Çizimi Siler
+         */
+        deleteDrawing: function(id) {
+            if (!this.measureDrawings || this.measureDrawings.length <= 1) {
+                this.resetDrawingPoints(id);
+                if (typeof window.showAppToast === 'function') {
+                    window.showAppToast('ℹ️ Çizim sıfırlandı.', 'info');
+                }
+                return;
+            }
+            const idx = this.measureDrawings.findIndex(d => d.id === id);
+            if (idx === -1) return;
+            const removed = this.measureDrawings.splice(idx, 1)[0];
+            this.removeLayersForDrawing(removed);
+
+            if (this.activeDrawingId === id) {
+                const newActive = this.measureDrawings[Math.max(0, idx - 1)] || this.measureDrawings[0];
+                this.activeDrawingId = newActive.id;
+                newActive.isExpanded = true;
+            }
+
+            this.updateMeasureGraphics();
+            this.renderDrawingsListUI();
+            if (typeof window.showAppToast === 'function') {
+                window.showAppToast(`🗑️ ${removed.title} silindi.`, 'info');
+            }
+            this.saveLastLocation({ measureData: this.getMeasureDataToSave() });
+        },
+
+        /**
+         * Çizimin Harita/Şablon Görünürlüğünü Açıp Kapatır
+         */
+        toggleDrawingVisibility: function(id) {
+            const drawing = this.measureDrawings.find(d => d.id === id);
+            if (!drawing) return;
+            drawing.visible = (drawing.visible === false) ? true : false;
+            if (!drawing.visible) {
+                this.removeLayersForDrawing(drawing);
+            }
+            this.updateMeasureGraphics();
+            this.renderDrawingsListUI();
+            if (typeof window.showAppToast === 'function') {
+                window.showAppToast(`${drawing.visible ? '👁️' : '🚫'} ${drawing.title} ${drawing.visible ? 'gösterildi' : 'gizlendi'}.`, 'info');
+            }
+            this.saveLastLocation({ measureData: this.getMeasureDataToSave() });
+        },
+
+        /**
+         * Çizim Akordiyonunu Açar / Kapatır
+         */
+        toggleDrawingAccordion: function(id) {
+            const drawing = this.measureDrawings.find(d => d.id === id);
+            if (!drawing) return;
+            drawing.isExpanded = !drawing.isExpanded;
+            this.renderDrawingsListUI();
+        },
+
+        /**
+         * Çizimin Leaflet Harita Katmanlarını Temizler
+         */
+        removeLayersForDrawing: function(drawing) {
+            if (!drawing || !this.map) return;
+            if (Array.isArray(drawing.markers)) {
+                drawing.markers.forEach(m => { if (m && this.map.hasLayer(m)) this.map.removeLayer(m); });
+                drawing.markers = [];
+            }
+            if (Array.isArray(drawing.lines)) {
+                drawing.lines.forEach(l => { if (l && this.map.hasLayer(l)) this.map.removeLayer(l); });
+                drawing.lines = [];
+            }
+            if (drawing.polygonLayer && this.map.hasLayer(drawing.polygonLayer)) {
+                this.map.removeLayer(drawing.polygonLayer);
+                drawing.polygonLayer = null;
+            }
+            if (Array.isArray(drawing.badgeMarkers)) {
+                drawing.badgeMarkers.forEach(b => { if (b && this.map.hasLayer(b)) this.map.removeLayer(b); });
+                drawing.badgeMarkers = [];
+            }
+            if (drawing.areaBadgeMarker && this.map.hasLayer(drawing.areaBadgeMarker)) {
+                this.map.removeLayer(drawing.areaBadgeMarker);
+                drawing.areaBadgeMarker = null;
+            }
+        },
+
+        /**
+         * Çizimin Kapalı Poligon / Açık Çizgi Durumunu Değiştirir
+         */
+        toggleDrawingClosed: function(id) {
+            const drawing = id ? this.measureDrawings.find(d => d.id === id) : this.getActiveDrawing();
+            if (!drawing) return;
+            if (!drawing.points || drawing.points.length < 3) {
+                if (typeof window.showAppToast === 'function') {
+                    window.showAppToast('ℹ️ Alanı kapatmak için en az 3 nokta gereklidir.', 'info');
+                }
+                return;
+            }
+            drawing.isClosed = !drawing.isClosed;
+            this.updateMeasureGraphics();
+            this.renderDrawingsListUI();
+            this.saveLastLocation({ measureData: this.getMeasureDataToSave() });
+        },
+
+        /**
+         * Çizimdeki Son Eklenen Noktayı Geri Alır
+         */
+        undoLastPointForDrawing: function(id) {
+            const drawing = id ? this.measureDrawings.find(d => d.id === id) : this.getActiveDrawing();
+            if (!drawing || !drawing.points || drawing.points.length === 0) return;
+            drawing.points.pop();
+            if (drawing.points.length < 3) {
+                drawing.isClosed = false;
+            }
+            this.updateMeasureGraphics();
+            this.renderDrawingsListUI();
+            this.saveLastLocation({ measureData: this.getMeasureDataToSave() });
+            if (typeof window.showAppToast === 'function') {
+                window.showAppToast(`↩️ ${drawing.title}: Son nokta geri alındı.`, 'info');
+            }
+        },
+
+        /**
+         * Çizimdeki Tüm Noktaları Sıfırlar
+         */
+        resetDrawingPoints: function(id) {
+            const drawing = id ? this.measureDrawings.find(d => d.id === id) : this.getActiveDrawing();
+            if (!drawing) return;
+            drawing.points = [];
+            drawing.distanceMeters = 0;
+            drawing.areaM2 = 0;
+            drawing.perimeterMeters = 0;
+            drawing.isClosed = false;
+            drawing.badgeCustomPositions = {};
+            drawing.areaBadgeCustomPos = null;
+            drawing.areaRotation = 0;
+            drawing.areaScale = 1.0;
+            drawing.areaSelected = false;
+            this.removeLayersForDrawing(drawing);
+            this.updateMeasureGraphics();
+            this.renderDrawingsListUI();
+            this.saveLastLocation({ measureData: this.getMeasureDataToSave() });
+        },
+
+        /**
+         * Çizimi Yüklü TKGM Parseline Kilitler
+         */
+        snapDrawingToParcel: function(id) {
+            const drawing = id ? this.measureDrawings.find(d => d.id === id) : this.getActiveDrawing();
+            if (!drawing) return;
+            if (!this.parcelData || !this.parcelData.latLngs || this.parcelData.latLngs.length < 3) {
+                if (typeof window.showAppToast === 'function') {
+                    window.showAppToast('⚠️ Parseli çevrelemek için önce KML / GeoJSON parseli yükleyin.', 'warning');
+                }
+                return;
+            }
+            const cleanPts = [];
+            this.parcelData.latLngs.forEach((p, idx) => {
+                const lat = Array.isArray(p) ? p[0] : p.lat;
+                const lng = Array.isArray(p) ? p[1] : p.lng;
+                if (idx > 0) {
+                    const prev = cleanPts[cleanPts.length - 1];
+                    if (Math.abs(lat - prev.lat) < 1e-7 && Math.abs(lng - prev.lng) < 1e-7) return;
+                }
+                cleanPts.push(L.latLng(lat, lng));
+            });
+            if (cleanPts.length > 2) {
+                const first = cleanPts[0];
+                const last = cleanPts[cleanPts.length - 1];
+                if (Math.abs(first.lat - last.lat) < 1e-7 && Math.abs(first.lng - last.lng) < 1e-7) {
+                    cleanPts.pop();
+                }
+            }
+            drawing.points = cleanPts;
+            drawing.isClosed = true;
+            this.updateMeasureGraphics();
+            this.renderDrawingsListUI();
+            if (this.map) {
+                const bounds = L.latLngBounds(drawing.points);
+                this.map.panInsideBounds(bounds, { animate: true, padding: [40, 40] });
+            }
+            this.saveLastLocation({ measureData: this.getMeasureDataToSave() });
+            if (typeof window.showAppToast === 'function') {
+                const area = this.calculateGeodesicPolygonArea(drawing.points);
+                const areaInfo = this.getFormattedAreaInfo(area);
+                window.showAppToast(`📐 ${drawing.title}: Parsel çevrelendi (${cleanPts.length} köşe, ${areaInfo.m2Text}).`, 'success');
+            }
+        },
+
+        setDrawingStyle: function(id, style) {
+            const d = this.measureDrawings.find(x => x.id === id);
+            if (d) {
+                d.style = style;
+                this.updateMeasureGraphics();
+                this.renderDrawingsListUI();
+                this.saveLastLocation({ measureData: this.getMeasureDataToSave() });
+            }
+        },
+
+        setDrawingColor: function(id, color) {
+            const d = this.measureDrawings.find(x => x.id === id);
+            if (d) {
+                d.color = color;
+                this.updateMeasureGraphics();
+                this.renderDrawingsListUI();
+                this.saveLastLocation({ measureData: this.getMeasureDataToSave() });
+            }
+        },
+
+        setDrawingPreset: function(id, preset) {
+            const d = this.measureDrawings.find(x => x.id === id);
+            if (d) {
+                d.preset = preset;
+                this.updateMeasureGraphics();
+                this.renderDrawingsListUI();
+                this.saveLastLocation({ measureData: this.getMeasureDataToSave() });
+            }
+        },
+
+        setDrawingCustomText: function(id, text) {
+            const d = this.measureDrawings.find(x => x.id === id);
+            if (d) {
+                d.customText = (typeof text === 'string') ? text : '';
+                this.updateMeasureGraphics();
+                this.renderDrawingsListUI();
+                this.saveLastLocation({ measureData: this.getMeasureDataToSave() });
+            }
+        },
+
+        setDrawingAreaDisplayMode: function(id, mode) {
+            const d = this.measureDrawings.find(x => x.id === id);
+            if (d) {
+                d.areaDisplayMode = mode;
+                this.updateMeasureGraphics();
+                this.renderDrawingsListUI();
+                this.saveLastLocation({ measureData: this.getMeasureDataToSave() });
+            }
+        },
+
+        setDrawingAreaContentMode: function(id, mode) {
+            const d = this.measureDrawings.find(x => x.id === id);
+            if (d) {
+                d.areaContentMode = mode;
+                this.updateMeasureGraphics();
+                this.renderDrawingsListUI();
+                this.saveLastLocation({ measureData: this.getMeasureDataToSave() });
+            }
+        },
+
+        toggleDrawingEdgeDistances: function(id) {
+            const d = this.measureDrawings.find(x => x.id === id);
+            if (d) {
+                d.showEdgeDistances = (d.showEdgeDistances === false) ? true : false;
+                this.updateMeasureGraphics();
+                this.renderDrawingsListUI();
+                this.saveLastLocation({ measureData: this.getMeasureDataToSave() });
+            }
+        },
+
+        toggleDrawingAreaBadge: function(id) {
+            const d = this.measureDrawings.find(x => x.id === id);
+            if (d) {
+                d.showArea = (d.showArea === false) ? true : false;
+                this.updateMeasureGraphics();
+                this.renderDrawingsListUI();
+                this.saveLastLocation({ measureData: this.getMeasureDataToSave() });
+            }
+        },
+
+        toggleDrawingHandles: function(id) {
+            const d = this.measureDrawings.find(x => x.id === id);
+            if (d) {
+                d.showHandles = (d.showHandles === false) ? true : false;
+                this.updateMeasureGraphics();
+                this.renderDrawingsListUI();
+                this.saveLastLocation({ measureData: this.getMeasureDataToSave() });
+            }
+        },
+
+        toggleDrawingSingleEdge: function(id, edgeIdx, e) {
+            if (e && e.stopPropagation) e.stopPropagation();
+            const d = this.measureDrawings.find(x => x.id === id);
+            if (!d) return;
+            d.hiddenEdges = d.hiddenEdges || {};
+            d.hiddenEdges[edgeIdx] = !d.hiddenEdges[edgeIdx];
+            this.updateMeasureGraphics();
+            this.renderDrawingsListUI();
+            this.saveLastLocation({ measureData: this.getMeasureDataToSave() });
+        },
+
+        /**
+         * Çizimler Akordiyon Listesini Panel Üzerinde Dinamik Render Eder
+         */
+        renderDrawingsListUI: function() {
+            const listEl = document.getElementById('satMeasureDrawingsList');
+            if (!listEl) return;
+            const drawings = this.getAllDrawings();
+            if (drawings.length === 0) {
+                listEl.innerHTML = `
+                    <div style="padding:10px; text-align:center; color:#94a3b8; font-size:11px; background:rgba(0,0,0,0.3); border-radius:8px;">
+                        Henüz çizim eklenmedi. Yukarıdaki <b>"Yeni Çizim Ekle"</b> butonuna basarak başlayabilirsiniz.
+                    </div>
+                `;
+                return;
+            }
+
+            let html = '';
+            drawings.forEach((drawing, idx) => {
+                const isActive = (drawing.id === this.activeDrawingId);
+                const pts = drawing.points || [];
+                const isClosed = drawing.isClosed && (pts.length >= 3);
+                const perimeter = drawing.perimeterMeters || (pts.length >= 2 ? this.calculatePolygonPerimeter(pts, isClosed) : 0);
+                const areaM2 = drawing.areaM2 || (isClosed ? this.calculateGeodesicPolygonArea(pts) : 0);
+                const dist = drawing.distanceMeters || (pts.length === 2 ? pts[0].distanceTo(pts[1]) : perimeter);
+                const areaInfo = this.getFormattedAreaInfo(areaM2);
+
+                let valText = '0.0 m';
+                let typeBadge = 'Mesafe';
+                let subStatsHtml = '';
+                let hintText = 'Haritaya tıklayarak yeni noktalar ekleyin';
+
+                if (pts.length === 0) {
+                    valText = '0.0 m';
+                    hintText = 'Haritaya tıklayarak ilk noktayı ekleyin';
+                } else if (pts.length === 1) {
+                    valText = '0.0 m';
+                    hintText = '2. noktaya tıklayarak çizgiyi oluşturun';
+                } else if (pts.length === 2) {
+                    valText = this.getFormattedMeasureText(dist, false, drawing.preset, drawing.customText);
+                    hintText = '3. noktaya tıklayarak alanı çevreleyebilir veya uçlardan sürükleyebilirsiniz';
+                } else {
+                    if (isClosed) {
+                        typeBadge = 'Alan';
+                        valText = `${areaInfo.m2Text} (${areaInfo.donumText})`;
+                        const perimStr = (perimeter >= 1000) ? (perimeter / 1000).toFixed(2) + ' km' : Math.round(perimeter) + ' m';
+                        subStatsHtml = `
+                            <div class="sat-measure-sub-stats">
+                                <span><i class="fas fa-arrows-split-up-and-left"></i> Çevre: <b>${perimStr}</b></span>
+                                <span><i class="fas fa-draw-polygon"></i> <b>${pts.length} Kenar</b></span>
+                            </div>`;
+                        hintText = 'Köşeleri sürükleyerek arsayı düzenleyin veya kenarlara tıklayarak yeni köşe ekleyin';
+                    } else {
+                        typeBadge = 'Açık Sınır';
+                        const perimStr = (perimeter >= 1000) ? (perimeter / 1000).toFixed(2) + ' km' : Math.round(perimeter) + ' m';
+                        valText = `Toplam Uzunluk: ${perimStr}`;
+                        subStatsHtml = `
+                            <div class="sat-measure-sub-stats">
+                                <span><i class="fas fa-bezier-curve"></i> <b>${pts.length} Noktalı Çizgi</b></span>
+                            </div>`;
+                        hintText = 'Alanı kapatmak için "Alanı Kapat" butonuna veya ilk noktaya tıklayın';
+                    }
+                }
+
+                const colorPalette = ['#f59e0b', '#00f5d4', '#0ea5e9', '#ef4444', '#10b981', '#a855f7', '#ffffff'];
+                const colorsHtml = colorPalette.map(c => `
+                    <button type="button" class="sat-measure-color-dot ${drawing.color.toLowerCase() === c.toLowerCase() ? 'active' : ''}" style="background:${c};" onclick="window.setSatelliteDrawingColor('${drawing.id}', '${c}')"></button>
+                `).join('');
+
+                const hasParcel = !!(this.parcelData && this.parcelData.latLngs && this.parcelData.latLngs.length >= 3);
+
+                html += `
+                    <div class="sat-drawing-card ${isActive ? 'is-active' : ''} ${drawing.isExpanded ? 'is-expanded' : 'is-collapsed'}" data-drawing-id="${drawing.id}">
+                        <div class="sat-drawing-header" onclick="window.selectSatelliteDrawing('${drawing.id}')">
+                            <div class="sat-drawing-header-left">
+                                <span class="sat-drawing-dot" style="background:${drawing.color}; box-shadow: 0 0 6px ${drawing.color}aa;"></span>
+                                <span class="sat-drawing-title" title="${this.escapeHtml(drawing.title)}">${this.escapeHtml(drawing.title)}</span>
+                                <span class="sat-drawing-type-pill ${isClosed ? 'poly' : 'line'}">${typeBadge}</span>
+                            </div>
+                            <div class="sat-drawing-header-actions" onclick="event.stopPropagation()">
+                                <button type="button" class="sat-drawing-act-btn vis ${drawing.visible !== false ? '' : 'muted'}" onclick="window.toggleSatelliteDrawingVisibility('${drawing.id}')" title="${drawing.visible !== false ? 'Haritada ve Şablonda Gizle' : 'Haritada ve Şablonda Göster'}">
+                                    <i class="fas fa-${drawing.visible !== false ? 'eye' : 'eye-slash'}"></i>
+                                </button>
+                                ${drawings.length > 1 ? `
+                                <button type="button" class="sat-drawing-act-btn del" onclick="window.deleteSatelliteDrawing('${drawing.id}')" title="Bu Çizimi Sil">
+                                    <i class="fas fa-trash-alt"></i>
+                                </button>` : ''}
+                                <button type="button" class="sat-drawing-act-btn toggle" onclick="window.toggleSatelliteDrawingAccordion('${drawing.id}')" title="Ayarları Aç / Kapat">
+                                    <i class="fas fa-chevron-${drawing.isExpanded ? 'up' : 'down'}"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        ${drawing.isExpanded ? `
+                        <div class="sat-drawing-body">
+                            <!-- Canlı Mesafe & Alan Göstergesi -->
+                            <div class="sat-measure-display-box">
+                                <div class="sat-measure-val">${valText}</div>
+                                ${subStatsHtml}
+                                <div class="sat-measure-hint">${hintText}</div>
+                            </div>
+
+                            <!-- Hızlı Eylemler (Parsel Kilidi & Kapat/Geri Al/Temizle) -->
+                            ${hasParcel ? `
+                            <div class="sat-measure-actions-bar full-row" style="margin-bottom:4px;">
+                                <button type="button" class="sat-measure-act-btn snap-all" onclick="window.snapSatelliteDrawingToParcel('${drawing.id}')" title="Yüklü parselin tüm sınırlarını bu çizime kilitler">
+                                    <i class="fas fa-vector-square"></i> <span>📐 Tüm Parseli Çevrele</span>
+                                </button>
+                            </div>` : ''}
+
+                            <div class="sat-measure-actions-bar second-row" style="margin-bottom:6px;">
+                                <button type="button" class="sat-measure-act-btn close-poly" onclick="window.toggleSatelliteDrawingClosed('${drawing.id}')" title="Alanı kapat veya açık çizgiye dönüştür">
+                                    <i class="fas fa-object-group"></i> <span>${isClosed ? 'Açık Çizgi Yap' : 'Alanı Kapat'}</span>
+                                </button>
+                                <button type="button" class="sat-measure-act-btn undo" onclick="window.undoSatelliteDrawingLastPoint('${drawing.id}')" title="Son eklenen noktayı geri al">
+                                    <i class="fas fa-rotate-left"></i> <span>Geri Al</span>
+                                </button>
+                                <button type="button" class="sat-measure-act-btn reset" onclick="window.resetSatelliteDrawingPoints('${drawing.id}')" title="Bu çizimdeki tüm noktaları temizle">
+                                    <i class="fas fa-trash-alt"></i> <span>Temizle</span>
+                                </button>
+                            </div>
+
+                            <!-- Çizim Rengi Paleti -->
+                            <div class="sat-measure-row" style="margin-bottom:4px;">
+                                <div class="sat-measure-sub-row">
+                                    <label class="sat-measure-label"><i class="fas fa-palette" style="color:${drawing.color}; margin-right:4px;"></i> Çizim Rengi:</label>
+                                    <div class="sat-measure-colors">
+                                        ${colorsHtml}
+                                        <label class="sat-measure-color-custom-btn" title="Özel Renk Seçici">
+                                            <i class="fas fa-eye-dropper"></i>
+                                            <input type="color" value="${drawing.color}" oninput="window.setSatelliteDrawingColor('${drawing.id}', this.value)">
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- CAD Stili -->
+                            <div class="sat-measure-row" style="margin-bottom:4px;">
+                                <div class="sat-measure-sub-row">
+                                    <label class="sat-measure-label">CAD Stili:</label>
+                                    <div class="sat-measure-style-pills">
+                                        <button type="button" class="sat-measure-style-btn ${drawing.style === 'cad' ? 'active' : ''}" onclick="window.setSatelliteDrawingStyle('${drawing.id}', 'cad')">📐 CAD</button>
+                                        <button type="button" class="sat-measure-style-btn ${drawing.style === 'neon' ? 'active' : ''}" onclick="window.setSatelliteDrawingStyle('${drawing.id}', 'neon')">⚡ Neon</button>
+                                        <button type="button" class="sat-measure-style-btn ${drawing.style === 'arrow' ? 'active' : ''}" onclick="window.setSatelliteDrawingStyle('${drawing.id}', 'arrow')">🏹 Ok</button>
+                                        <button type="button" class="sat-measure-style-btn ${drawing.style === 'dashed' ? 'active' : ''}" onclick="window.setSatelliteDrawingStyle('${drawing.id}', 'dashed')">〰️ Kesikli</button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Hızlı Metin Şablonları -->
+                            <div class="sat-measure-row" style="margin-bottom:4px;">
+                                <label class="sat-measure-label">Etiket Şablonu:</label>
+                                <div class="sat-measure-chips">
+                                    <button type="button" class="sat-measure-chip ${drawing.preset === 'frontage' ? 'active' : ''}" onclick="window.setSatelliteDrawingPreset('${drawing.id}', 'frontage')">Yola Cephe</button>
+                                    <button type="button" class="sat-measure-chip ${drawing.preset === 'road_dist' ? 'active' : ''}" onclick="window.setSatelliteDrawingPreset('${drawing.id}', 'road_dist')">Yola Mesafe</button>
+                                    <button type="button" class="sat-measure-chip ${drawing.preset === 'front' ? 'active' : ''}" onclick="window.setSatelliteDrawingPreset('${drawing.id}', 'front')">Ön Cephe</button>
+                                    <button type="button" class="sat-measure-chip ${drawing.preset === 'depth' ? 'active' : ''}" onclick="window.setSatelliteDrawingPreset('${drawing.id}', 'depth')">Derinlik</button>
+                                    <button type="button" class="sat-measure-chip ${drawing.preset === 'setback' ? 'active' : ''}" onclick="window.setSatelliteDrawingPreset('${drawing.id}', 'setback')">Yol Terki</button>
+                                    <button type="button" class="sat-measure-chip ${drawing.preset === 'distance_only' ? 'active' : ''}" onclick="window.setSatelliteDrawingPreset('${drawing.id}', 'distance_only')">Sadece Metre</button>
+                                </div>
+                            </div>
+
+                            <!-- Özel Metin Girişi -->
+                            <div class="sat-measure-row" style="margin-bottom:4px;">
+                                <input type="text" class="sat-measure-text-input" placeholder="Özel etiket metni (örn: Yola 50 m)..." value="${this.escapeHtml(drawing.customText || '')}" oninput="window.setSatelliteDrawingCustomText('${drawing.id}', this.value)">
+                            </div>
+
+                            <!-- Arsa Alanı Gösterimi (Eğer 3+ nokta ve kapalıysa) -->
+                            ${isClosed && pts.length >= 3 ? `
+                            <div class="sat-measure-row" style="margin-bottom:4px;">
+                                <div class="sat-measure-sub-row">
+                                    <label class="sat-measure-label">Alan Rozeti:</label>
+                                    <div class="sat-measure-chips">
+                                        <button type="button" class="sat-measure-chip ${drawing.areaDisplayMode === 'frameless' ? 'active' : ''}" onclick="window.setSatelliteDrawingAreaDisplayMode('${drawing.id}', 'frameless')">✨ Çerçevesiz</button>
+                                        <button type="button" class="sat-measure-chip ${drawing.areaDisplayMode === 'box' ? 'active' : ''}" onclick="window.setSatelliteDrawingAreaDisplayMode('${drawing.id}', 'box')">🏷️ Kutulu</button>
+                                    </div>
+                                </div>
+                                <div class="sat-measure-chips" style="margin-top: 3px;">
+                                    <button type="button" class="sat-measure-chip ${drawing.areaContentMode === 'm2_only' ? 'active' : ''}" onclick="window.setSatelliteDrawingAreaContentMode('${drawing.id}', 'm2_only')">Sadece m²</button>
+                                    <button type="button" class="sat-measure-chip ${drawing.areaContentMode === 'm2_donum' ? 'active' : ''}" onclick="window.setSatelliteDrawingAreaContentMode('${drawing.id}', 'm2_donum')">m² + Dönüm</button>
+                                    <button type="button" class="sat-measure-chip ${drawing.areaContentMode === 'detailed' ? 'active' : ''}" onclick="window.setSatelliteDrawingAreaContentMode('${drawing.id}', 'detailed')">Detaylı (+Çevre)</button>
+                                </div>
+                            </div>` : ''}
+
+                            <!-- Gösterim Seçenekleri (Kenarlar, Arsa m², Köşeler) -->
+                            <div class="sat-measure-row">
+                                <div class="sat-measure-sub-row">
+                                    <label class="sat-measure-label">Gösterim:</label>
+                                    <div class="sat-measure-chips">
+                                        <button type="button" class="sat-measure-chip ${drawing.showEdgeDistances !== false ? 'active' : ''}" onclick="window.toggleSatelliteDrawingEdgeDistances('${drawing.id}')">📏 Kenarlar</button>
+                                        <button type="button" class="sat-measure-chip ${drawing.showArea !== false ? 'active' : ''}" onclick="window.toggleSatelliteDrawingAreaBadge('${drawing.id}')">🏷️ Arsa m²</button>
+                                        <button type="button" class="sat-measure-chip ${drawing.showHandles !== false ? 'active' : ''}" onclick="window.toggleSatelliteDrawingHandles('${drawing.id}')">📍 Köşeler</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>` : ''}
+                    </div>
+                `;
+            });
+
+            listEl.innerHTML = html;
+        },
+
+        /**
+         * Haritaya Tıklandığında Ölçüm Noktası Ekler (Aktif Çizime Ekler)
          */
         handleMeasureMapClick: function(latlng) {
             if (!this.measureActive || !latlng) return;
 
-            if (!this.measurePoints) this.measurePoints = [];
-            this.measurePoints.push(L.latLng(latlng.lat, latlng.lng));
+            const active = this.getActiveDrawing();
+            if (!active.points) active.points = [];
+            active.points.push(L.latLng(latlng.lat, latlng.lng));
 
-            // 3 veya daha fazla nokta olduğunda varsayılan kapalı alan yap
-            if (this.measurePoints.length >= 3) {
-                this.measureIsClosed = true;
+            // 3 veya daha fazla nokta olduğunda ve daha önce kapatılmamışsa alan moduna al
+            if (active.points.length >= 3 && active.isClosed === undefined) {
+                active.isClosed = true;
             }
 
             this.updateMeasureGraphics();
+            this.renderDrawingsListUI();
             this.saveLastLocation({
                 measureData: this.getMeasureDataToSave()
             });
         },
 
         /**
-         * Belirtilen İndekse Yeni Ölçüm Noktası Araya Ekler (Midpoint Tutamacı İle)
+         * Belirtilen İndekse Yeni Ölçüm Noktası Araya Ekler
          */
-        addMeasurePointAtIndex: function(latlng, index) {
-            if (!this.measurePoints || !latlng) return;
-            const insertIdx = Math.max(0, Math.min(this.measurePoints.length, index));
-            this.measurePoints.splice(insertIdx, 0, L.latLng(latlng.lat, latlng.lng));
+        addMeasurePointAtIndex: function(latlng, index, drawingId) {
+            const drawing = drawingId ? this.measureDrawings.find(d => d.id === drawingId) : this.getActiveDrawing();
+            if (!drawing || !drawing.points || !latlng) return;
+            const insertIdx = Math.max(0, Math.min(drawing.points.length, index));
+            drawing.points.splice(insertIdx, 0, L.latLng(latlng.lat, latlng.lng));
             this.updateMeasureGraphics();
+            this.renderDrawingsListUI();
             this.saveLastLocation({
                 measureData: this.getMeasureDataToSave()
             });
@@ -6588,13 +7118,15 @@
         /**
          * Belirtilen İndeksteki Ölçüm Noktasını Siler
          */
-        removeMeasurePointAtIndex: function(index) {
-            if (!this.measurePoints || this.measurePoints.length <= index) return;
-            this.measurePoints.splice(index, 1);
-            if (this.measurePoints.length < 3) {
-                this.measureIsClosed = false;
+        removeMeasurePointAtIndex: function(index, drawingId) {
+            const drawing = drawingId ? this.measureDrawings.find(d => d.id === drawingId) : this.getActiveDrawing();
+            if (!drawing || !drawing.points || drawing.points.length <= index) return;
+            drawing.points.splice(index, 1);
+            if (drawing.points.length < 3) {
+                drawing.isClosed = false;
             }
             this.updateMeasureGraphics();
+            this.renderDrawingsListUI();
             this.saveLastLocation({
                 measureData: this.getMeasureDataToSave()
             });
@@ -6606,77 +7138,22 @@
         /**
          * Son Eklenen Ölçüm Noktasını Geri Alır
          */
-        undoLastMeasurePoint: function() {
-            if (!this.measurePoints || this.measurePoints.length === 0) return;
-            this.measurePoints.pop();
-            if (this.measurePoints.length < 3) {
-                this.measureIsClosed = false;
-            }
-            this.updateMeasureGraphics();
-            this.saveLastLocation({
-                measureData: this.getMeasureDataToSave()
-            });
-            if (typeof window.showAppToast === 'function') {
-                window.showAppToast('↩️ Son nokta geri alındı.', 'info');
-            }
+        undoLastMeasurePoint: function(drawingId) {
+            this.undoLastPointForDrawing(drawingId);
         },
 
         /**
          * Poligonun Alanını Kapatır veya Açık Çizgi Yapar
          */
-        toggleMeasureClosed: function() {
-            if (!this.measurePoints || this.measurePoints.length < 3) {
-                if (typeof window.showAppToast === 'function') {
-                    window.showAppToast('ℹ️ Alanı kapatmak için en az 3 nokta gereklidir.', 'info');
-                }
-                return;
-            }
-            this.measureIsClosed = !this.measureIsClosed;
-            const btnText = document.getElementById('satBtnClosePolyText');
-            if (btnText) {
-                btnText.textContent = this.measureIsClosed ? 'Açık Çizgi Yap' : 'Alanı Kapat';
-            }
-            this.updateMeasureGraphics();
-            this.saveLastLocation({
-                measureData: this.getMeasureDataToSave()
-            });
+        toggleMeasureClosed: function(drawingId) {
+            this.toggleDrawingClosed(drawingId);
         },
 
         /**
          * Ölçüm Noktalarını Sıfırlar
          */
-        resetMeasurePoints: function() {
-            this.measurePoints = [];
-            this.measureDistanceMeters = 0;
-            this.measureAreaM2 = 0;
-            this.measurePerimeterMeters = 0;
-            this.measureIsClosed = true;
-            this.measureBadgeCustomPositions = {};
-            this.measureAreaBadgeCustomPos = null;
-            this.measureAreaRotation = 0;
-            this.measureAreaScale = 1.0;
-            this.measureAreaSelected = false;
-            this.removeMeasureGraphicsFromMap();
-            if (this.parcelPolygon && this.map) {
-                if (!this.map.hasLayer(this.parcelPolygon)) {
-                    this.parcelPolygon.addTo(this.map);
-                }
-                this.updateParcelPolygonStyle();
-            }
-
-            const valEl = document.getElementById('satMeasureValText');
-            if (valEl) valEl.textContent = '0.0 m';
-            const subStats = document.getElementById('satMeasureSubStats');
-            if (subStats) {
-                subStats.style.display = 'none';
-                subStats.innerHTML = '';
-            }
-            const hintEl = document.getElementById('satMeasureHintText');
-            if (hintEl) hintEl.textContent = 'Haritada noktalara tıklayarak arsayı çevreleyin • Ctrl veya Boşluk tuşuyla haritayı kaydırın';
-
-            this.saveLastLocation({
-                measureData: this.getMeasureDataToSave()
-            });
+        resetMeasurePoints: function(drawingId) {
+            this.resetDrawingPoints(drawingId);
             if (typeof window.showAppToast === 'function') {
                 window.showAppToast('📏 Ölçüm sıfırlandı. Haritada noktalara tıklayarak yeni ölçüm başlatabilirsiniz.', 'info');
             }
@@ -6685,7 +7162,7 @@
         /**
          * Mesafe ve Şablona Göre Etiket Metnini Formatlar
          */
-        getFormattedMeasureText: function(meters, isPerimeter) {
+        getFormattedMeasureText: function(meters, isPerimeter, customPreset, customText) {
             const m = (meters !== undefined) ? meters : (this.measureDistanceMeters || 0);
             let distStr = '';
             if (m >= 1000) {
@@ -6701,17 +7178,21 @@
                 return `Çevre: ${distStr}`;
             }
 
-            if (this.measureCustomText && this.measureCustomText.trim()) {
-                const ct = this.measureCustomText.trim();
+            const cText = (customText !== undefined) ? customText : this.measureCustomText;
+            if (cText && cText.trim()) {
+                const ct = cText.trim();
                 if (ct.includes('{d}') || ct.includes('{m}')) {
                     return ct.replace(/\{[dm]\}/g, distStr);
                 }
                 return `${distStr} ${ct}`;
             }
 
-            switch (this.measurePreset) {
+            const preset = (customPreset !== undefined) ? customPreset : this.measurePreset;
+            switch (preset) {
                 case 'frontage':
                     return `${distStr} Yola Cephe`;
+                case 'road_dist':
+                    return `${distStr} Yola Mesafe`;
                 case 'front':
                     return `${distStr} Ön Cephe`;
                 case 'depth':
@@ -6908,54 +7389,17 @@
         },
 
         /**
-         * Haritadaki Çoklu Ölçüm Grafiklerini (Köşeler, Kenar Çizgileri, Kenar Rozetleri, Alan Rozeti, Midpoint Tutamaçları) Günceller
+         * Haritadaki Çoklu Ölçüm Grafiklerini (Tüm Çizimler, Köşeler, Kenarlar, Rozetler) Günceller
          */
         updateMeasureGraphics: function(isFastDrag) {
             if (!this.map) return;
+            const drawings = this.getAllDrawings();
+            const active = this.getActiveDrawing();
 
-            const valEl = document.getElementById('satMeasureValText');
-            const subStats = document.getElementById('satMeasureSubStats');
-            const hintEl = document.getElementById('satMeasureHintText');
-            const pts = this.measurePoints || [];
-            const color = this.measureColor || '#f59e0b';
-            const isClosed = this.measureIsClosed && (pts.length >= 3);
-
-            // 0 Nokta
-            if (pts.length === 0) {
-                this.removeMeasureGraphicsFromMap();
-                if (valEl) valEl.textContent = '0.0 m';
-                if (subStats) {
-                    subStats.style.display = 'none';
-                    subStats.innerHTML = '';
-                }
-                if (hintEl) hintEl.textContent = 'Haritada noktalara tıklayarak arsayı çevreleyin • Ctrl veya Boşluk tuşuyla haritayı kaydırın';
-                return;
-            }
-
-            // 1 Nokta
-            if (pts.length === 1) {
-                this.removeMeasureGraphicsFromMap();
-                if (valEl) valEl.textContent = '0.0 m';
-                if (subStats) {
-                    subStats.style.display = 'none';
-                    subStats.innerHTML = '';
-                }
-                if (hintEl) hintEl.textContent = 'Haritada 2. noktaya tıklayın';
-
-                this.measureMarkers = [this.createMeasureHandleMarker(pts[0], '1', 0)];
-                this.measureMarkers[0].addTo(this.map);
-                return;
-            }
-
-            // 2 veya Daha Fazla Nokta
-            const perimeter = this.calculatePolygonPerimeter(pts, isClosed);
-            this.measurePerimeterMeters = perimeter;
-            const areaM2 = isClosed ? this.calculateGeodesicPolygonArea(pts) : 0;
-            this.measureAreaM2 = areaM2;
-
-            // Beyaz TKGM Parsel Katmanı Çakışmasını Önle (Ölçüm açıkken alttaki beyaz çizgiyi haritadan tamamen kaldır/ekle)
+            // Beyaz TKGM Parsel Katmanı Çakışmasını Önle
+            const hasVisibleWithPoints = drawings.some(d => d.visible !== false && d.points && d.points.length >= 2);
             if (this.parcelPolygon && this.map) {
-                const shouldHideParcel = this.measureActive && this.measureHideDefaultParcel && (pts.length >= 2);
+                const shouldHideParcel = this.measureActive && this.measureHideDefaultParcel && hasVisibleWithPoints;
                 if (shouldHideParcel) {
                     if (this.map.hasLayer(this.parcelPolygon)) {
                         this.map.removeLayer(this.parcelPolygon);
@@ -6968,427 +7412,436 @@
                 }
             }
 
-            // Panel Metinlerini Güncelle
-            if (pts.length === 2) {
-                const dist = pts[0].distanceTo(pts[1]);
-                this.measureDistanceMeters = dist;
-                const distText = this.getFormattedMeasureText(dist);
-                if (valEl) valEl.textContent = distText;
-                if (subStats) {
-                    subStats.style.display = 'none';
-                    subStats.innerHTML = '';
+            // Her çizimi sırayla güncelle
+            drawings.forEach(drawing => {
+                if (drawing.visible === false) {
+                    this.removeLayersForDrawing(drawing);
+                    return;
                 }
-                if (hintEl) hintEl.textContent = 'Uç noktalardan sürükleyin veya 3. noktaya tıklayarak arsayı çevreleyin';
-            } else {
-                // 3+ Nokta
-                const areaInfo = this.getFormattedAreaInfo(areaM2);
-                if (isClosed) {
-                    if (valEl) valEl.textContent = `${areaInfo.m2Text} (${areaInfo.donumText})`;
-                    if (subStats) {
-                        subStats.style.display = 'block';
-                        const perimStr = (perimeter >= 1000) ? (perimeter / 1000).toFixed(2) + ' km' : Math.round(perimeter) + ' m';
-                        subStats.innerHTML = `<span><i class="fas fa-arrows-split-up-and-left"></i> Çevre: <b>${perimStr}</b></span> <span><i class="fas fa-draw-polygon"></i> <b>${pts.length} Kenar</b></span>`;
-                    }
-                    if (hintEl) hintEl.textContent = 'Köşeleri sürükleyerek arsayı düzenleyin veya kenar ortasındaki (+) ile yeni köşe ekleyin';
-                } else {
-                    const perimStr = (perimeter >= 1000) ? (perimeter / 1000).toFixed(2) + ' km' : Math.round(perimeter) + ' m';
-                    if (valEl) valEl.textContent = `Toplam Uzunluk: ${perimStr}`;
-                    if (subStats) {
-                        subStats.style.display = 'block';
-                        subStats.innerHTML = `<span><i class="fas fa-bezier-curve"></i> <b>${pts.length} Noktalı Açık Sınır</b></span>`;
-                    }
-                    if (hintEl) hintEl.textContent = 'Alanı kapatmak için "Alanı Kapat" butonuna veya ilk noktaya tıklayın';
-                }
-            }
 
-            // Kapat / Aç Buton Metni
-            const closeBtnText = document.getElementById('satBtnClosePolyText');
-            if (closeBtnText) {
-                closeBtnText.textContent = isClosed ? 'Açık Çizgi Yap' : 'Alanı Kapat';
-            }
+                const pts = drawing.points || [];
+                const color = drawing.color || '#f59e0b';
+                const isClosed = drawing.isClosed && (pts.length >= 3);
+                const isActive = (drawing.id === this.activeDrawingId);
 
-            // 1. Köşe İşaretçileri (Corner Markers)
-            while (this.measureMarkers.length > pts.length) {
-                const rm = this.measureMarkers.pop();
-                if (rm && this.map.hasLayer(rm)) this.map.removeLayer(rm);
-            }
-            pts.forEach((p, idx) => {
-                const label = `${idx + 1}`;
-                if (!this.measureMarkers[idx]) {
-                    this.measureMarkers[idx] = this.createMeasureHandleMarker(p, label, idx);
-                    if (this.measureShowHandles !== false) {
-                        this.measureMarkers[idx].addTo(this.map);
+                drawing.perimeterMeters = pts.length >= 2 ? this.calculatePolygonPerimeter(pts, isClosed) : 0;
+                drawing.areaM2 = isClosed ? this.calculateGeodesicPolygonArea(pts) : 0;
+                drawing.distanceMeters = pts.length === 2 ? pts[0].distanceTo(pts[1]) : drawing.perimeterMeters;
+
+                // 1. Köşe İşaretçileri (Handles) - YALNIZCA AKTİF ÇİZİM İÇİN GÖSTERİLİR
+                if (!isActive || pts.length === 0) {
+                    while (drawing.markers.length > 0) {
+                        const rm = drawing.markers.pop();
+                        if (rm && this.map.hasLayer(rm)) this.map.removeLayer(rm);
                     }
                 } else {
-                    this.measureMarkers[idx].setLatLng(p);
-                    this.updateMeasureHandleMarkerContent(this.measureMarkers[idx], label, color);
-                    if (this.measureShowHandles !== false) {
-                        if (!this.map.hasLayer(this.measureMarkers[idx])) {
-                            this.measureMarkers[idx].addTo(this.map);
+                    while (drawing.markers.length > pts.length) {
+                        const rm = drawing.markers.pop();
+                        if (rm && this.map.hasLayer(rm)) this.map.removeLayer(rm);
+                    }
+                    pts.forEach((p, idx) => {
+                        const label = `${idx + 1}`;
+                        if (!drawing.markers[idx]) {
+                            drawing.markers[idx] = this.createMeasureHandleMarker(p, label, idx, color, drawing.id);
+                            if (drawing.showHandles !== false) {
+                                drawing.markers[idx].addTo(this.map);
+                            }
+                        } else {
+                            drawing.markers[idx].setLatLng(p);
+                            drawing.markers[idx]._pointIndex = idx;
+                            drawing.markers[idx]._drawingId = drawing.id;
+                            this.updateMeasureHandleMarkerContent(drawing.markers[idx], label, color);
+                            if (drawing.showHandles !== false) {
+                                if (!this.map.hasLayer(drawing.markers[idx])) {
+                                    drawing.markers[idx].addTo(this.map);
+                                }
+                            } else {
+                                if (this.map.hasLayer(drawing.markers[idx])) {
+                                    this.map.removeLayer(drawing.markers[idx]);
+                                }
+                            }
+                        }
+                    });
+                }
+
+                // 2. Kenar Çizgileri & Kenar Rozetleri
+                const edgeCount = (pts.length < 2) ? 0 : (isClosed ? pts.length : (pts.length - 1));
+
+                while (drawing.lines.length > edgeCount) {
+                    const rl = drawing.lines.pop();
+                    if (rl && this.map.hasLayer(rl)) this.map.removeLayer(rl);
+                }
+                while (drawing.badgeMarkers.length > edgeCount) {
+                    const rb = drawing.badgeMarkers.pop();
+                    if (rb && this.map.hasLayer(rb)) this.map.removeLayer(rb);
+                }
+
+                if (edgeCount > 0) {
+                    let lineOpts = {
+                        color: color,
+                        weight: isActive ? 3.8 : 3.2,
+                        opacity: isActive ? 0.98 : 0.85,
+                        lineCap: 'round',
+                        lineJoin: 'round',
+                        dashArray: null
+                    };
+
+                    if (drawing.style === 'dashed') {
+                        lineOpts.dashArray = '7, 6';
+                        lineOpts.weight = 3;
+                    } else if (drawing.style === 'neon') {
+                        lineOpts.color = color;
+                        lineOpts.weight = 4.2;
+                    }
+
+                    for (let i = 0; i < edgeCount; i++) {
+                        const pA = pts[i];
+                        const pB = pts[(i + 1) % pts.length];
+                        const segDist = pA.distanceTo(pB);
+
+                        const onLineClick = (e) => {
+                            L.DomEvent.stopPropagation(e);
+                            if (this.measureInteractionMode === 'pan' || this.isCtrlPressed || this.isSpacePressed) return;
+                            if (drawing.id !== this.activeDrawingId) {
+                                this.selectDrawing(drawing.id);
+                                return;
+                            }
+                            this.addMeasurePointAtIndex(e.latlng, i + 1, drawing.id);
+                        };
+
+                        if (!drawing.lines[i]) {
+                            drawing.lines[i] = L.polyline([pA, pB], lineOpts).addTo(this.map);
+                            drawing.lines[i].on('click', onLineClick);
+                        } else {
+                            drawing.lines[i].setLatLngs([pA, pB]);
+                            drawing.lines[i].setStyle(lineOpts);
+                            drawing.lines[i].off('click');
+                            drawing.lines[i].on('click', onLineClick);
+                        }
+
+                        if (drawing.lines[i]._path) {
+                            if (drawing.style === 'neon') {
+                                drawing.lines[i]._path.style.filter = `drop-shadow(0 0 4px ${color}) drop-shadow(0 0 10px ${color})`;
+                                drawing.lines[i]._path.style.transition = 'filter 0.2s ease, stroke 0.2s ease';
+                            } else {
+                                drawing.lines[i]._path.style.filter = '';
+                            }
+                        }
+
+                        // Segment Rozeti
+                        const isEdgeHidden = (drawing.showEdgeDistances === false) || !!(drawing.hiddenEdges && drawing.hiddenEdges[i]);
+                        if (isEdgeHidden) {
+                            if (drawing.badgeMarkers[i] && this.map.hasLayer(drawing.badgeMarkers[i])) {
+                                this.map.removeLayer(drawing.badgeMarkers[i]);
+                            }
+                        } else {
+                            const midLat = (pA.lat + pB.lat) / 2;
+                            const midLng = (pA.lng + pB.lng) / 2;
+                            const defaultMid = L.latLng(midLat, midLng);
+                            const customBadgePos = drawing.badgeCustomPositions && (drawing.badgeCustomPositions[i] || drawing.badgeCustomPositions[String(i)]);
+                            const badgePos = customBadgePos || defaultMid;
+
+                            const segDistStr = (segDist >= 1000) ? (segDist / 1000).toFixed(2) + ' km' : segDist.toFixed(1) + ' m';
+                            const badgeLabel = (pts.length <= 2) ? this.getFormattedMeasureText(segDist, false, drawing.preset, drawing.customText) : `${segDistStr}`;
+                            const edgeFontSize = this.measureEdgeFontSize || 12;
+                            const fontFamily = this.measureFontFamily || 'Montserrat';
+
+                            const badgeHtml = `
+                                <div class="sat-measure-map-badge style-${drawing.style || 'cad'}" style="border-color:${color}; font-family:'${fontFamily}', sans-serif; font-size:${edgeFontSize}px;" title="${this.escapeHtml(drawing.title)}: Sürükleyerek taşıyabilirsiniz (Kaldırmak için ✕'e tıklayın)">
+                                    <span class="sat-badge-icon" style="color:${color}; font-size:${Math.round(edgeFontSize * 0.9)}px;"><i class="fas fa-ruler"></i></span>
+                                    <span class="sat-badge-text">${badgeLabel}</span>
+                                    <button type="button" class="sat-badge-hide-btn" onclick="window.toggleSatelliteDrawingSingleEdge('${drawing.id}', ${i}, event)" title="Bu kenar metresini kaldır">✕</button>
+                                </div>
+                            `;
+
+                            const badgeIcon = L.divIcon({
+                                className: 'sat-measure-badge-divicon',
+                                html: badgeHtml,
+                                iconSize: [160, 40],
+                                iconAnchor: [80, 20]
+                            });
+
+                            if (!drawing.badgeMarkers[i]) {
+                                const badgeMarker = L.marker(badgePos, {
+                                    icon: badgeIcon,
+                                    draggable: true,
+                                    zIndexOffset: 1300
+                                }).addTo(this.map);
+
+                                const edgeIdx = i;
+                                const dId = drawing.id;
+                                const updateEdgeBadgePos = (pos) => {
+                                    if (!pos) return;
+                                    const targetD = this.measureDrawings.find(x => x.id === dId);
+                                    if (targetD) {
+                                        targetD.badgeCustomPositions = targetD.badgeCustomPositions || {};
+                                        targetD.badgeCustomPositions[edgeIdx] = pos;
+                                        targetD.badgeCustomPositions[String(edgeIdx)] = pos;
+                                    }
+                                };
+
+                                badgeMarker.on('drag', (e) => {
+                                    badgeMarker._hasBeenDragged = true;
+                                    updateEdgeBadgePos(e.target.getLatLng());
+                                });
+                                badgeMarker.on('dragend', (e) => {
+                                    badgeMarker._hasBeenDragged = true;
+                                    updateEdgeBadgePos(e.target.getLatLng());
+                                    this.saveLastLocation({ measureData: this.getMeasureDataToSave() });
+                                });
+                                badgeMarker.on('dblclick', (e) => {
+                                    L.DomEvent.stopPropagation(e);
+                                    badgeMarker._hasBeenDragged = false;
+                                    const targetD = this.measureDrawings.find(x => x.id === dId);
+                                    if (targetD && targetD.badgeCustomPositions) {
+                                        delete targetD.badgeCustomPositions[edgeIdx];
+                                        delete targetD.badgeCustomPositions[String(edgeIdx)];
+                                    }
+                                    this.updateMeasureGraphics();
+                                });
+                                badgeMarker.on('click', (e) => {
+                                    L.DomEvent.stopPropagation(e);
+                                    if (this.activeDrawingId !== dId) {
+                                        this.selectDrawing(dId);
+                                    }
+                                });
+
+                                if (customBadgePos) {
+                                    badgeMarker._hasBeenDragged = true;
+                                }
+                                drawing.badgeMarkers[i] = badgeMarker;
+                            } else {
+                                if (!this.map.hasLayer(drawing.badgeMarkers[i])) {
+                                    drawing.badgeMarkers[i].addTo(this.map);
+                                }
+                                if (customBadgePos) {
+                                    drawing.badgeMarkers[i]._hasBeenDragged = true;
+                                }
+                                drawing.badgeMarkers[i].setLatLng(badgePos);
+                                drawing.badgeMarkers[i].setIcon(badgeIcon);
+                            }
+                        }
+                    }
+                }
+
+                // 3. Poligon Yarı Saydam Dolgu Katmanı & Merkez Alan Rozeti (3+ Nokta ve Kapalıysa)
+                if (isClosed && pts.length >= 3) {
+                    if (!drawing.polygonLayer) {
+                        drawing.polygonLayer = L.polygon(pts, {
+                            stroke: false,
+                            weight: 0,
+                            fillColor: color,
+                            fillOpacity: 0.16,
+                            interactive: false
+                        }).addTo(this.map);
+                    } else {
+                        drawing.polygonLayer.setLatLngs(pts);
+                        drawing.polygonLayer.setStyle({
+                            stroke: false,
+                            weight: 0,
+                            fillColor: color,
+                            fillOpacity: 0.16
+                        });
+                    }
+
+                    // Merkez Alan Rozeti
+                    if (drawing.showArea !== false) {
+                        const centroid = this.getPolygonCentroid(pts);
+                        if (centroid) {
+                            const areaInfo = this.getFormattedAreaInfo(drawing.areaM2);
+                            const perimStr = (drawing.perimeterMeters >= 1000) ? (drawing.perimeterMeters / 1000).toFixed(2) + ' km' : Math.round(drawing.perimeterMeters) + ' m';
+                            const areaPos = drawing.areaBadgeCustomPos || centroid;
+                            const areaDisplayMode = drawing.areaDisplayMode || 'frameless';
+                            const areaContentMode = drawing.areaContentMode || 'm2_only';
+                            const areaFontSize = this.measureAreaFontSize || 16;
+                            const fontFamily = this.measureFontFamily || 'Montserrat';
+
+                            let titleText = '';
+                            let subTextHtml = '';
+
+                            if (areaContentMode === 'm2_only') {
+                                titleText = `${areaInfo.m2Text}`;
+                            } else if (areaContentMode === 'm2_donum') {
+                                titleText = `${areaInfo.m2Text} <small style="opacity:0.85; font-size:0.85em;">(${areaInfo.donumText})</small>`;
+                            } else {
+                                titleText = `${areaInfo.m2Text} <small style="opacity:0.85; font-size:0.85em;">(${areaInfo.donumText})</small>`;
+                                subTextHtml = `<div class="area-sub" style="color:${color}; font-size:${Math.round(areaFontSize * 0.68)}px;">Çevre: ${perimStr} • ${pts.length} Köşe</div>`;
+                            }
+
+                            const isFrameless = (areaDisplayMode === 'frameless');
+                            const isSelected = !!drawing.areaSelected;
+                            const rot = drawing.areaRotation || 0;
+                            const scale = drawing.areaScale || 1.0;
+
+                            const areaBadgeHtml = `
+                                <div class="sat-measure-area-wrapper ${isSelected ? 'is-selected' : ''}" data-drawing-id="${drawing.id}" style="transform: rotate(${rot}deg) scale(${scale}); transform-origin: center center;">
+                                    <div class="sat-measure-area-map-badge ${isFrameless ? 'frameless' : ''}" style="${isFrameless ? '' : `border-color:${color};`} font-family:'${fontFamily}', sans-serif;" title="${this.escapeHtml(drawing.title)} Alanı: Tıklayınca tutamaçlar açılır, sürükleyerek taşıyabilirsiniz">
+                                        <div class="area-title" style="font-size:${areaFontSize}px;">
+                                            ${isFrameless ? '' : `<i class="fas fa-vector-square" style="color:${color};"></i> `}<span>${titleText}</span>
+                                        </div>
+                                        ${subTextHtml}
+                                    </div>
+                                    <div class="sat-area-select-border"></div>
+                                    <div class="sat-area-handle sat-area-rotate-handle" title="Döndür">
+                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#00d2ff" stroke-width="2.5" style="pointer-events:none;"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.22-10.27l-5.3 5.3"></path></svg>
+                                    </div>
+                                    <div class="sat-area-handle sat-area-resize-handle" title="Büyüt / Küçült">
+                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#00d2ff" stroke-width="2.5" style="pointer-events:none;"><path d="M21 15v6h-6M3 9V3h6M21 21l-7-7M3 3l7 7"></path></svg>
+                                    </div>
+                                    <div class="sat-area-handle sat-area-delete-handle" title="Sil / Gizle">
+                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#f43f5e" stroke-width="2.5" style="pointer-events:none;"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                                    </div>
+                                </div>
+                            `;
+
+                            const areaBadgeIcon = L.divIcon({
+                                className: 'sat-measure-area-badge-divicon',
+                                html: areaBadgeHtml,
+                                iconSize: [300, 100],
+                                iconAnchor: [150, 50]
+                            });
+
+                            if (!drawing.areaBadgeMarker) {
+                                const aMarker = L.marker(areaPos, {
+                                    icon: areaBadgeIcon,
+                                    draggable: true,
+                                    zIndexOffset: 1450
+                                }).addTo(this.map);
+
+                                const dId = drawing.id;
+                                aMarker.on('drag', (e) => {
+                                    aMarker._hasBeenDragged = true;
+                                    const targetD = this.measureDrawings.find(x => x.id === dId);
+                                    if (targetD) targetD.areaBadgeCustomPos = e.target.getLatLng();
+                                });
+                                aMarker.on('dragend', (e) => {
+                                    aMarker._hasBeenDragged = true;
+                                    const targetD = this.measureDrawings.find(x => x.id === dId);
+                                    if (targetD) targetD.areaBadgeCustomPos = e.target.getLatLng();
+                                    this.saveLastLocation({ measureData: this.getMeasureDataToSave() });
+                                });
+                                aMarker.on('dblclick', (e) => {
+                                    L.DomEvent.stopPropagation(e);
+                                    aMarker._hasBeenDragged = false;
+                                    const targetD = this.measureDrawings.find(x => x.id === dId);
+                                    if (targetD) {
+                                        targetD.areaBadgeCustomPos = null;
+                                        targetD.areaRotation = 0;
+                                        targetD.areaScale = 1.0;
+                                    }
+                                    this.updateMeasureGraphics();
+                                    if (typeof window.showAppToast === 'function') {
+                                        window.showAppToast('🔄 Alan konumu ve boyutu sıfırlandı.', 'info');
+                                    }
+                                });
+                                aMarker.on('click', (e) => {
+                                    L.DomEvent.stopPropagation(e);
+                                    if (this.activeDrawingId !== dId) {
+                                        this.selectDrawing(dId);
+                                    }
+                                    this.selectMeasureAreaBadge(dId);
+                                });
+
+                                if (drawing.areaBadgeCustomPos) {
+                                    aMarker._hasBeenDragged = true;
+                                }
+
+                                drawing.areaBadgeMarker = aMarker;
+                                this.attachMeasureAreaBadgeListeners(aMarker, drawing.id);
+                            } else {
+                                if (!this.map.hasLayer(drawing.areaBadgeMarker)) {
+                                    drawing.areaBadgeMarker.addTo(this.map);
+                                }
+                                if (drawing.areaBadgeCustomPos) {
+                                    drawing.areaBadgeMarker._hasBeenDragged = true;
+                                }
+                                drawing.areaBadgeMarker.setLatLng(areaPos);
+                                drawing.areaBadgeMarker.setIcon(areaBadgeIcon);
+                                this.attachMeasureAreaBadgeListeners(drawing.areaBadgeMarker, drawing.id);
+                            }
                         }
                     } else {
-                        if (this.map.hasLayer(this.measureMarkers[idx])) {
-                            this.map.removeLayer(this.measureMarkers[idx]);
+                        if (drawing.areaBadgeMarker && this.map.hasLayer(drawing.areaBadgeMarker)) {
+                            this.map.removeLayer(drawing.areaBadgeMarker);
+                            drawing.areaBadgeMarker = null;
                         }
+                    }
+                } else {
+                    if (drawing.polygonLayer && this.map.hasLayer(drawing.polygonLayer)) {
+                        this.map.removeLayer(drawing.polygonLayer);
+                        drawing.polygonLayer = null;
+                    }
+                    if (drawing.areaBadgeMarker && this.map.hasLayer(drawing.areaBadgeMarker)) {
+                        this.map.removeLayer(drawing.areaBadgeMarker);
+                        drawing.areaBadgeMarker = null;
                     }
                 }
             });
 
-            // 2. Kenar Çizgileri & Kenar Rozetleri
-            const edgeCount = isClosed ? pts.length : (pts.length - 1);
-
-            // Eski çizgileri ve rozetleri temizle
-            while (this.measureLines.length > edgeCount) {
-                const rl = this.measureLines.pop();
-                if (rl && this.map.hasLayer(rl)) this.map.removeLayer(rl);
-            }
-            while (this.measureBadgeMarkers.length > edgeCount) {
-                const rb = this.measureBadgeMarkers.pop();
-                if (rb && this.map.hasLayer(rb)) this.map.removeLayer(rb);
-            }
-
-            let lineOpts = {
-                color: color,
-                weight: 3.5,
-                opacity: 0.95,
-                lineCap: 'round',
-                lineJoin: 'round',
-                dashArray: null
-            };
-
-            if (this.measureStyle === 'dashed') {
-                lineOpts.dashArray = '7, 6';
-                lineOpts.weight = 3;
-            } else if (this.measureStyle === 'neon') {
-                lineOpts.color = color;
-                lineOpts.weight = 4;
-            }
-
-            for (let i = 0; i < edgeCount; i++) {
-                const pA = pts[i];
-                const pB = pts[(i + 1) % pts.length];
-                const segDist = pA.distanceTo(pB);
-
-                // Segment Çizgisi (Tıklanabilir - araya köşe noktası ekler)
-                const onLineClick = (e) => {
-                    L.DomEvent.stopPropagation(e);
-                    if (this.measureInteractionMode === 'pan' || this.isCtrlPressed || this.isSpacePressed) return;
-                    this.addMeasurePointAtIndex(e.latlng, i + 1);
-                };
-
-                if (!this.measureLines[i]) {
-                    this.measureLines[i] = L.polyline([pA, pB], lineOpts).addTo(this.map);
-                    this.measureLines[i].on('click', onLineClick);
-                } else {
-                    this.measureLines[i].setLatLngs([pA, pB]);
-                    this.measureLines[i].setStyle(lineOpts);
-                    this.measureLines[i].off('click');
-                    this.measureLines[i].on('click', onLineClick);
-                }
-
-                if (this.measureLines[i]._path) {
-                    if (this.measureStyle === 'neon') {
-                        this.measureLines[i]._path.style.filter = `drop-shadow(0 0 4px ${color}) drop-shadow(0 0 10px ${color})`;
-                        this.measureLines[i]._path.style.transition = 'filter 0.2s ease, stroke 0.2s ease';
-                    } else {
-                        this.measureLines[i]._path.style.filter = '';
-                    }
-                }
-
-                // Segment Rozeti (Taşınabilir / Draggable)
-                const isEdgeHidden = (this.measureShowEdgeDistances === false) || !!(this.measureHiddenEdges && this.measureHiddenEdges[i]);
-
-                if (isEdgeHidden) {
-                    if (this.measureBadgeMarkers[i] && this.map.hasLayer(this.measureBadgeMarkers[i])) {
-                        this.map.removeLayer(this.measureBadgeMarkers[i]);
-                    }
-                } else {
-                    const midLat = (pA.lat + pB.lat) / 2;
-                    const midLng = (pA.lng + pB.lng) / 2;
-                    const defaultMid = L.latLng(midLat, midLng);
-                    const customBadgePos = this.measureBadgeCustomPositions && (this.measureBadgeCustomPositions[i] || this.measureBadgeCustomPositions[String(i)]);
-                    const badgePos = customBadgePos || defaultMid;
-
-                    const segDistStr = (segDist >= 1000) ? (segDist / 1000).toFixed(2) + ' km' : segDist.toFixed(1) + ' m';
-                    const badgeLabel = (pts.length <= 2) ? this.getFormattedMeasureText(segDist) : `${segDistStr}`;
-                    const edgeFontSize = this.measureEdgeFontSize || 12;
-                    const fontFamily = this.measureFontFamily || 'Montserrat';
-
-                    const badgeHtml = `
-                        <div class="sat-measure-map-badge style-${this.measureStyle || 'cad'}" style="border-color:${color}; font-family:'${fontFamily}', sans-serif; font-size:${edgeFontSize}px;" title="Sürükleyerek istediğiniz yere taşıyabilirsiniz (Kaldırmak için sağdaki ✕'e tıklayın)">
-                            <span class="sat-badge-icon" style="color:${color}; font-size:${Math.round(edgeFontSize * 0.9)}px;"><i class="fas fa-ruler"></i></span>
-                            <span class="sat-badge-text">${badgeLabel}</span>
-                            <button type="button" class="sat-badge-hide-btn" onclick="window.toggleSatelliteMeasureSingleEdge(${i}, event)" title="Bu kenar metresini kaldır">✕</button>
-                        </div>
-                    `;
-
-                    // 🎯 Tam görsel merkezleme: [160, 40] boyut ve [80, 20] anchor ile flexbox tam çakışır
-                    const badgeIcon = L.divIcon({
-                        className: 'sat-measure-badge-divicon',
-                        html: badgeHtml,
-                        iconSize: [160, 40],
-                        iconAnchor: [80, 20]
-                    });
-
-                    if (!this.measureBadgeMarkers[i]) {
-                        const badgeMarker = L.marker(badgePos, {
-                            icon: badgeIcon,
-                            draggable: true,
-                            zIndexOffset: 1300
-                        }).addTo(this.map);
-
-                        const edgeIdx = i;
-                        const updateEdgeBadgePos = (pos) => {
-                            if (!pos) return;
-                            this.measureBadgeCustomPositions = this.measureBadgeCustomPositions || {};
-                            this.measureBadgeCustomPositions[edgeIdx] = pos;
-                            this.measureBadgeCustomPositions[String(edgeIdx)] = pos;
-                        };
-
-                        badgeMarker.on('drag', (e) => {
-                            badgeMarker._hasBeenDragged = true;
-                            updateEdgeBadgePos(e.target.getLatLng());
-                        });
-                        badgeMarker.on('dragend', (e) => {
-                            badgeMarker._hasBeenDragged = true;
-                            updateEdgeBadgePos(e.target.getLatLng());
-                            this.saveLastLocation({ measureData: this.getMeasureDataToSave() });
-                        });
-                        badgeMarker.on('dblclick', (e) => {
-                            L.DomEvent.stopPropagation(e);
-                            badgeMarker._hasBeenDragged = false;
-                            if (this.measureBadgeCustomPositions) {
-                                delete this.measureBadgeCustomPositions[edgeIdx];
-                                delete this.measureBadgeCustomPositions[String(edgeIdx)];
-                            }
-                            this.updateMeasureGraphics();
-                        });
-                        badgeMarker.on('click', (e) => {
-                            L.DomEvent.stopPropagation(e);
-                        });
-
-                        if (customBadgePos) {
-                            badgeMarker._hasBeenDragged = true;
-                        }
-
-                        this.measureBadgeMarkers[i] = badgeMarker;
-                    } else {
-                        if (!this.map.hasLayer(this.measureBadgeMarkers[i])) {
-                            this.measureBadgeMarkers[i].addTo(this.map);
-                        }
-                        if (customBadgePos) {
-                            this.measureBadgeMarkers[i]._hasBeenDragged = true;
-                        }
-                        this.measureBadgeMarkers[i].setLatLng(badgePos);
-                        this.measureBadgeMarkers[i].setIcon(badgeIcon);
-                    }
-                }
-            }
-
-            // 3. Eski midpoint marker'ları kaldır (artık doğrudan kenar çizgisine tıklayarak nokta eklenir)
-            while (this.measureMidpointMarkers.length > 0) {
-                const rm = this.measureMidpointMarkers.pop();
-                if (rm && this.map.hasLayer(rm)) this.map.removeLayer(rm);
-            }
-
-            // 4. Poligon Yarı Saydam Dolgu Katmanı & Merkez Alan Rozeti (3+ Nokta ve Kapalıysa)
-            if (isClosed && pts.length >= 3) {
-                if (!this.measurePolygonLayer) {
-                    this.measurePolygonLayer = L.polygon(pts, {
-                        stroke: false,
-                        weight: 0,
-                        fillColor: color,
-                        fillOpacity: 0.16,
-                        interactive: false
-                    }).addTo(this.map);
-                } else {
-                    this.measurePolygonLayer.setLatLngs(pts);
-                    this.measurePolygonLayer.setStyle({
-                        stroke: false,
-                        weight: 0,
-                        fillColor: color,
-                        fillOpacity: 0.16
-                    });
-                }
-
-                // Merkez Alan Rozeti (Taşınabilir / Draggable)
-                if (this.measureShowArea !== false) {
-                    const centroid = this.getPolygonCentroid(pts);
-                    if (centroid) {
-                        const areaInfo = this.getFormattedAreaInfo(areaM2);
-                        const perimStr = (perimeter >= 1000) ? (perimeter / 1000).toFixed(2) + ' km' : Math.round(perimeter) + ' m';
-                        const areaPos = this.measureAreaBadgeCustomPos || centroid;
-                        const areaDisplayMode = this.measureAreaDisplayMode || 'frameless';
-                        const areaContentMode = this.measureAreaContentMode || 'm2_only';
-                        const areaFontSize = this.measureAreaFontSize || 16;
-                        const fontFamily = this.measureFontFamily || 'Montserrat';
-
-                        let titleText = '';
-                        let subTextHtml = '';
-
-                        if (areaContentMode === 'm2_only') {
-                            titleText = `${areaInfo.m2Text}`;
-                        } else if (areaContentMode === 'm2_donum') {
-                            titleText = `${areaInfo.m2Text} <small style="opacity:0.85; font-size:0.85em;">(${areaInfo.donumText})</small>`;
-                        } else {
-                            titleText = `${areaInfo.m2Text} <small style="opacity:0.85; font-size:0.85em;">(${areaInfo.donumText})</small>`;
-                            subTextHtml = `<div class="area-sub" style="color:${color}; font-size:${Math.round(areaFontSize * 0.68)}px;">Çevre: ${perimStr} • ${pts.length} Köşe</div>`;
-                        }
-
-                        const isFrameless = (areaDisplayMode === 'frameless');
-                        const isSelected = !!this.measureAreaSelected;
-                        const rot = this.measureAreaRotation || 0;
-                        const scale = this.measureAreaScale || 1.0;
-
-                        const areaBadgeHtml = `
-                            <div class="sat-measure-area-wrapper ${isSelected ? 'is-selected' : ''}" id="satMeasureAreaWrapper" style="transform: rotate(${rot}deg) scale(${scale}); transform-origin: center center;">
-                                <div class="sat-measure-area-map-badge ${isFrameless ? 'frameless' : ''}" style="${isFrameless ? '' : `border-color:${color};`} font-family:'${fontFamily}', sans-serif;" title="Arsa m² alanı: Tıklayınca tutamaçlar açılır, sürükleyerek taşıyabilirsiniz (Sıfırlamak için çift tıklayın)">
-                                    <div class="area-title" style="font-size:${areaFontSize}px;">
-                                        ${isFrameless ? '' : `<i class="fas fa-vector-square" style="color:${color};"></i> `}<span>${titleText}</span>
-                                    </div>
-                                    ${subTextHtml}
-                                </div>
-                                <div class="sat-area-select-border"></div>
-                                <div class="sat-area-handle sat-area-rotate-handle" title="Döndür">
-                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#00d2ff" stroke-width="2.5" style="pointer-events:none;"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.22-10.27l-5.3 5.3"></path></svg>
-                                </div>
-                                <div class="sat-area-handle sat-area-resize-handle" title="Büyüt / Küçült">
-                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#00d2ff" stroke-width="2.5" style="pointer-events:none;"><path d="M21 15v6h-6M3 9V3h6M21 21l-7-7M3 3l7 7"></path></svg>
-                                </div>
-                                <div class="sat-area-handle sat-area-delete-handle" title="Sil / Gizle">
-                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#f43f5e" stroke-width="2.5" style="pointer-events:none;"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-                                </div>
-                            </div>
-                        `;
-
-                        // 🎯 Tam görsel merkezleme: [300, 100] boyut ve [150, 50] anchor ile flexbox tam çakışır
-                        const areaBadgeIcon = L.divIcon({
-                            className: 'sat-measure-area-badge-divicon',
-                            html: areaBadgeHtml,
-                            iconSize: [300, 100],
-                            iconAnchor: [150, 50]
-                        });
-
-                        if (!this.measureAreaBadgeMarker) {
-                            const aMarker = L.marker(areaPos, {
-                                icon: areaBadgeIcon,
-                                draggable: true,
-                                zIndexOffset: 1450
-                            }).addTo(this.map);
-
-                            aMarker.on('drag', (e) => {
-                                aMarker._hasBeenDragged = true;
-                                this.measureAreaBadgeCustomPos = e.target.getLatLng();
-                            });
-                            aMarker.on('dragend', (e) => {
-                                aMarker._hasBeenDragged = true;
-                                this.measureAreaBadgeCustomPos = e.target.getLatLng();
-                                this.saveLastLocation({ measureData: this.getMeasureDataToSave() });
-                            });
-                            aMarker.on('dblclick', (e) => {
-                                L.DomEvent.stopPropagation(e);
-                                aMarker._hasBeenDragged = false;
-                                this.measureAreaBadgeCustomPos = null;
-                                this.measureAreaRotation = 0;
-                                this.measureAreaScale = 1.0;
-                                this.updateMeasureGraphics();
-                                if (typeof window.showAppToast === 'function') {
-                                    window.showAppToast('🔄 Arsa m² alanı konumu ve boyutu sıfırlandı.', 'info');
-                                }
-                            });
-                            aMarker.on('click', (e) => {
-                                L.DomEvent.stopPropagation(e);
-                                this.selectMeasureAreaBadge();
-                            });
-
-                            if (this.measureAreaBadgeCustomPos) {
-                                aMarker._hasBeenDragged = true;
-                            }
-
-                            this.measureAreaBadgeMarker = aMarker;
-                            this.attachMeasureAreaBadgeListeners(aMarker);
-                        } else {
-                            if (!this.map.hasLayer(this.measureAreaBadgeMarker)) {
-                                this.measureAreaBadgeMarker.addTo(this.map);
-                            }
-                            if (this.measureAreaBadgeCustomPos) {
-                                this.measureAreaBadgeMarker._hasBeenDragged = true;
-                            }
-                            this.measureAreaBadgeMarker.setLatLng(areaPos);
-                            this.measureAreaBadgeMarker.setIcon(areaBadgeIcon);
-                            this.attachMeasureAreaBadgeListeners(this.measureAreaBadgeMarker);
-                        }
-                    }
-                } else {
-                    if (this.measureAreaBadgeMarker && this.map.hasLayer(this.measureAreaBadgeMarker)) {
-                        this.map.removeLayer(this.measureAreaBadgeMarker);
-                        this.measureAreaBadgeMarker = null;
-                    }
-                }
-            } else {
-                if (this.measurePolygonLayer && this.map.hasLayer(this.measurePolygonLayer)) {
-                    this.map.removeLayer(this.measurePolygonLayer);
-                    this.measurePolygonLayer = null;
-                }
-                if (this.measureAreaBadgeMarker && this.map.hasLayer(this.measureAreaBadgeMarker)) {
-                    this.map.removeLayer(this.measureAreaBadgeMarker);
-                    this.measureAreaBadgeMarker = null;
-                }
-            }
-
-            // 5. Paneldeki Kenar Filtresi Çiplerini Güncelle
-            this.updateEdgeSelectorUI(pts, isClosed);
+            // UI Kartlarını Güncelle
+            this.renderDrawingsListUI();
         },
 
         /**
          * Harita Ortasındaki Arsa m² Rozetini Seçer ve Tutamaçları Gösterir
          */
-        selectMeasureAreaBadge: function() {
+        selectMeasureAreaBadge: function(drawingId) {
+            const d = drawingId ? this.measureDrawings.find(x => x.id === drawingId) : this.getActiveDrawing();
+            if (d) d.areaSelected = true;
             this.measureAreaSelected = true;
-            const wrap = document.getElementById('satMeasureAreaWrapper');
-            if (wrap) {
-                wrap.classList.add('is-selected');
-            }
+            document.querySelectorAll('.sat-measure-area-wrapper').forEach(wrap => {
+                if (!drawingId || wrap.dataset.drawingId === drawingId) {
+                    wrap.classList.add('is-selected');
+                }
+            });
         },
 
         /**
          * Arsa m² Rozeti Seçimini Kaldırır ve Tutamaçları Gizler
          */
-        deselectMeasureAreaBadge: function() {
-            this.measureAreaSelected = false;
-            const wrap = document.getElementById('satMeasureAreaWrapper');
-            if (wrap) {
-                wrap.classList.remove('is-selected');
+        deselectMeasureAreaBadge: function(drawingId) {
+            if (drawingId) {
+                const d = this.measureDrawings.find(x => x.id === drawingId);
+                if (d) d.areaSelected = false;
+            } else {
+                if (this.measureDrawings) this.measureDrawings.forEach(d => { d.areaSelected = false; });
             }
+            this.measureAreaSelected = false;
+            document.querySelectorAll('.sat-measure-area-wrapper').forEach(wrap => {
+                if (!drawingId || wrap.dataset.drawingId === drawingId) {
+                    wrap.classList.remove('is-selected');
+                }
+            });
         },
 
         /**
          * Arsa m² Rozetinin Döndürme, Büyütme ve Silme Tutamaç Dinleyicilerini Bağlar
          */
-        attachMeasureAreaBadgeListeners: function(aMarker) {
+        attachMeasureAreaBadgeListeners: function(aMarker, drawingId) {
             if (!aMarker) return;
             const el = (typeof aMarker.getElement === 'function') ? aMarker.getElement() : aMarker._icon;
             if (!el) {
-                setTimeout(() => this.attachMeasureAreaBadgeListeners(aMarker), 35);
+                setTimeout(() => this.attachMeasureAreaBadgeListeners(aMarker, drawingId), 35);
                 return;
             }
-            const wrapper = el.querySelector('#satMeasureAreaWrapper') || el.querySelector('.sat-measure-area-wrapper');
+            const wrapper = el.querySelector('.sat-measure-area-wrapper');
             if (!wrapper || wrapper._handlesBound) return;
             wrapper._handlesBound = true;
 
             const self = this;
+            const dId = drawingId || wrapper.dataset.drawingId;
             const rotHandle = wrapper.querySelector('.sat-area-rotate-handle');
             const resHandle = wrapper.querySelector('.sat-area-resize-handle');
             const delHandle = wrapper.querySelector('.sat-area-delete-handle');
 
-            // 1. Rozete Tıklandığında Seçim (Tutamaçları Göster)
+            // 1. Rozete Tıklandığında Seçim
             wrapper.addEventListener('pointerdown', (e) => {
                 if (e.target.closest('.sat-area-handle')) return;
                 L.DomEvent.stopPropagation(e);
-                self.selectMeasureAreaBadge();
+                self.selectMeasureAreaBadge(dId);
             });
 
-            // 2. 🔄 Döndürme Tutamacı (Rotator Handle)
+            // 2. 🔄 Döndürme Tutamacı
             if (rotHandle) {
                 const onRotDown = (e) => {
                     e.stopPropagation();
@@ -7399,12 +7852,13 @@
                         aMarker.dragging.disable();
                     }
 
+                    const targetD = self.measureDrawings.find(x => x.id === dId);
                     const evt = e.touches ? e.touches[0] : e;
                     const rect = wrapper.getBoundingClientRect();
                     const centerX = rect.left + rect.width / 2;
                     const centerY = rect.top + rect.height / 2;
                     const startAngle = Math.atan2(evt.clientY - centerY, evt.clientX - centerX) * (180 / Math.PI);
-                    const startRot = self.measureAreaRotation || 0;
+                    const startRot = targetD ? (targetD.areaRotation || 0) : 0;
 
                     rotHandle.style.cursor = 'grabbing';
 
@@ -7418,8 +7872,9 @@
                         if (newRot > 180) newRot -= 360;
                         else if (newRot < -180) newRot += 360;
 
+                        if (targetD) targetD.areaRotation = newRot;
                         self.measureAreaRotation = newRot;
-                        const curScale = self.measureAreaScale || 1.0;
+                        const curScale = targetD ? (targetD.areaScale || 1.0) : 1.0;
                         wrapper.style.transform = `rotate(${newRot}deg) scale(${curScale})`;
                     };
 
@@ -7446,7 +7901,7 @@
                 rotHandle.addEventListener('touchstart', onRotDown, { passive: false });
             }
 
-            // 3. 📐 Büyütme / Boyutlandırma Tutamacı (Resize / Scale Handle)
+            // 3. 📐 Boyutlandırma Tutamacı
             if (resHandle) {
                 const onResDown = (e) => {
                     e.stopPropagation();
@@ -7457,12 +7912,13 @@
                         aMarker.dragging.disable();
                     }
 
+                    const targetD = self.measureDrawings.find(x => x.id === dId);
                     const evt = e.touches ? e.touches[0] : e;
                     const rect = wrapper.getBoundingClientRect();
                     const centerX = rect.left + rect.width / 2;
                     const centerY = rect.top + rect.height / 2;
                     const startDist = Math.hypot(evt.clientX - centerX, evt.clientY - centerY);
-                    const startScale = self.measureAreaScale || 1.0;
+                    const startScale = targetD ? (targetD.areaScale || 1.0) : 1.0;
 
                     const onMove = (me) => {
                         me.preventDefault();
@@ -7472,8 +7928,9 @@
                         let ratio = startDist > 0 ? (curDist / startDist) : 1;
                         let newScale = Math.max(0.5, Math.min(3.0, parseFloat((startScale * ratio).toFixed(2))));
 
+                        if (targetD) targetD.areaScale = newScale;
                         self.measureAreaScale = newScale;
-                        const curRot = self.measureAreaRotation || 0;
+                        const curRot = targetD ? (targetD.areaRotation || 0) : 0;
                         wrapper.style.transform = `rotate(${curRot}deg) scale(${newScale})`;
                     };
 
@@ -7499,14 +7956,14 @@
                 resHandle.addEventListener('touchstart', onResDown, { passive: false });
             }
 
-            // 4. 🗑️ Silme Tutamacı (Delete Handle)
+            // 4. 🗑️ Silme Tutamacı
             if (delHandle) {
                 const onDelAction = (e) => {
                     e.stopPropagation();
                     e.preventDefault();
                     L.DomEvent.stopPropagation(e);
-                    self.measureAreaSelected = false;
-                    self.toggleMeasureAreaBadge(false);
+                    self.deselectMeasureAreaBadge(dId);
+                    self.toggleDrawingAreaBadge(dId);
                 };
 
                 delHandle.addEventListener('pointerdown', (e) => { e.stopPropagation(); L.DomEvent.stopPropagation(e); });
@@ -7518,12 +7975,12 @@
         /**
          * Ölçüm Uç Noktası İçin Draggable Marker Oluşturur
          */
-        createMeasureHandleMarker: function(latlng, label, pointIndex) {
-            const color = this.measureColor || '#f59e0b';
+        createMeasureHandleMarker: function(latlng, label, pointIndex, color, drawingId) {
+            const handleColor = color || this.measureColor || '#f59e0b';
             const html = `
-                <div class="sat-measure-handle-pin" style="--handle-color:${color};" title="Köşe ${label}: Sürükleyerek taşıyın, sağ tıklayarak silin">
-                    <span class="sat-handle-core" style="border-color:${color}; color:${color};">${label}</span>
-                    <div class="sat-handle-pulse" style="border-color:${color};"></div>
+                <div class="sat-measure-handle-pin" style="--handle-color:${handleColor};" title="Köşe ${label}: Sürükleyerek taşıyın, sağ tıklayarak silin">
+                    <span class="sat-handle-core" style="border-color:${handleColor}; color:${handleColor};">${label}</span>
+                    <div class="sat-handle-pulse" style="border-color:${handleColor};"></div>
                 </div>
             `;
             const icon = L.divIcon({
@@ -7540,12 +7997,15 @@
             });
 
             marker._pointIndex = pointIndex;
+            marker._drawingId = drawingId || (this.getActiveDrawing() ? this.getActiveDrawing().id : null);
 
             marker.on('drag', (e) => {
                 const curPos = e.target.getLatLng();
                 const idx = e.target._pointIndex;
-                if (this.measurePoints && this.measurePoints[idx]) {
-                    this.measurePoints[idx] = curPos;
+                const dId = e.target._drawingId;
+                const drawing = dId ? this.measureDrawings.find(d => d.id === dId) : this.getActiveDrawing();
+                if (drawing && drawing.points && drawing.points[idx]) {
+                    drawing.points[idx] = curPos;
                     this.updateMeasureGraphics(true);
                 }
             });
@@ -7557,18 +8017,18 @@
                 });
             });
 
-            // İlk noktaya tıklanırsa ve 3+ nokta varsa poligonu kapat
             marker.on('click', (e) => {
                 L.DomEvent.stopPropagation(e);
-                if (marker._pointIndex === 0 && this.measurePoints.length >= 3 && !this.measureIsClosed) {
-                    this.toggleMeasureClosed();
+                const dId = marker._drawingId;
+                const drawing = dId ? this.measureDrawings.find(d => d.id === dId) : this.getActiveDrawing();
+                if (drawing && marker._pointIndex === 0 && drawing.points.length >= 3 && !drawing.isClosed) {
+                    this.toggleDrawingClosed(drawing.id);
                 }
             });
 
-            // Sağ tıkla bu noktayı sil
             marker.on('contextmenu', (e) => {
                 L.DomEvent.stopPropagation(e);
-                this.removeMeasurePointAtIndex(marker._pointIndex);
+                this.removeMeasurePointAtIndex(marker._pointIndex, marker._drawingId);
             });
 
             return marker;
@@ -7608,6 +8068,9 @@
          */
         removeMeasureGraphicsFromMap: function() {
             if (!this.map) return;
+            if (this.measureDrawings && Array.isArray(this.measureDrawings)) {
+                this.measureDrawings.forEach(d => this.removeLayersForDrawing(d));
+            }
             if (this.measureMarkers && this.measureMarkers.length > 0) {
                 this.measureMarkers.forEach(m => {
                     if (m && this.map.hasLayer(m)) this.map.removeLayer(m);
@@ -7652,10 +8115,28 @@
          * Tuval Aktarımında Vektörel Çoklu Ölçüm Çizgilerini, Cephe Rozetlerini & Alan Rozetini Çizer (1080p, 2K, 4K Tam Uyumlu)
          */
         drawVectorMeasurement: function(ctx, targetW, mapContainer, cropInfo, options = {}) {
-            if (!this.measureActive || !this.measurePoints || this.measurePoints.length < 2) return;
-            const pts = this.measurePoints;
+            if (!this.measureActive) return;
+            const drawings = this.getAllDrawings().filter(d => d.visible !== false && d.points && d.points.length >= 2);
+            if (drawings.length === 0) return;
+
+            this._cachedMeasureCanvasBadgesList = [];
+
+            drawings.forEach(drawing => {
+                this._drawSingleVectorMeasurement(ctx, drawing, targetW, mapContainer, cropInfo, options);
+            });
+
+            // Geriye dönük uyumluluk: tekil önbellek aktif veya ilk çizim verisini tutsun
+            if (this._cachedMeasureCanvasBadgesList.length > 0) {
+                const activeCached = this._cachedMeasureCanvasBadgesList.find(b => b.drawingId === this.activeDrawingId) || this._cachedMeasureCanvasBadgesList[0];
+                this._cachedMeasureCanvasBadges = activeCached;
+            }
+        },
+
+        _drawSingleVectorMeasurement: function(ctx, drawing, targetW, mapContainer, cropInfo, options = {}) {
+            if (!drawing || !drawing.points || drawing.points.length < 2) return;
+            const pts = drawing.points;
             const bakeBadges = options.bakeBadges !== false;
-            const bakeHandles = (options && options.bakeHandles === true);
+            const bakeHandles = (options && options.bakeHandles === true && drawing.showHandles !== false && drawing.id === this.activeDrawingId);
 
             try {
                 ctx.save();
@@ -7693,13 +8174,15 @@
                 }
 
                 const baseScale = Math.max(1.0, Math.min(3.2, targetW / 1280));
-                const color = this.measureColor || '#f59e0b';
-                const style = this.measureStyle || 'cad';
-                const isClosed = this.measureIsClosed && (canvasPts.length >= 3);
+                const color = drawing.color || '#f59e0b';
+                const style = drawing.style || 'cad';
+                const isClosed = drawing.isClosed && (canvasPts.length >= 3);
                 const edgeCount = isClosed ? canvasPts.length : (canvasPts.length - 1);
 
                 // Tuvale canlı aktarılacak rozetlerin koordinat ve metin verilerini önbelleğe al
-                this._cachedMeasureCanvasBadges = {
+                const drawingBadgeData = {
+                    drawingId: drawing.id,
+                    drawingTitle: drawing.title,
                     color: color,
                     fontFamily: this.measureFontFamily || 'Montserrat',
                     edges: [],
@@ -7722,7 +8205,7 @@
 
                 // 2. Kenar Sınır Çizgileri
                 if (isClosed && canvasPts.length >= 3) {
-                    // 🛡️ Kapalı Poligon / Arsa Sınırı: Tek parça, pürüzsüz ve temiz arsa sınır çizgisi (Köşelerde çirkin çapraz çentikler / X'ler yok)
+                    // 🛡️ Kapalı Poligon / Arsa Sınırı: Tek parça, pürüzsüz ve temiz arsa sınır çizgisi
                     ctx.save();
                     ctx.beginPath();
                     canvasPts.forEach((p, idx) => {
@@ -7734,7 +8217,6 @@
                     ctx.lineCap = 'round';
 
                     if (style === 'neon') {
-                        // ⚡ Neon Saber Çok Katmanlı Parlama
                         ctx.shadowColor = color;
                         ctx.shadowBlur = 24 * baseScale;
                         ctx.strokeStyle = this.hexToRgba(color, 0.75);
@@ -7746,7 +8228,6 @@
                         ctx.lineWidth = 2.4 * baseScale;
                         ctx.stroke();
                     } else if (style === 'dashed') {
-                        // 〰️ Kesikli Çizgi
                         ctx.setLineDash([9 * baseScale, 6 * baseScale]);
                         ctx.strokeStyle = color;
                         ctx.lineWidth = 3.2 * baseScale;
@@ -7754,7 +8235,6 @@
                         ctx.shadowBlur = 5 * baseScale;
                         ctx.stroke();
                     } else {
-                        // 📐 CAD / Standart Temiz Arsa Sınır Çizgisi
                         ctx.strokeStyle = color;
                         ctx.lineWidth = 3.2 * baseScale;
                         ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
@@ -7870,22 +8350,22 @@
                     }
 
                     // 3. Kenar Mesafe Rozeti (Taşınmış koordinat desteği)
-                    const isEdgeHidden = (this.measureShowEdgeDistances === false) || !!(this.measureHiddenEdges && this.measureHiddenEdges[i]);
+                    const isEdgeHidden = (drawing.showEdgeDistances === false) || !!(drawing.hiddenEdges && drawing.hiddenEdges[i]);
                     if (!isEdgeHidden) {
                         const segDist = origA.distanceTo(origB);
                         const segDistStr = (segDist >= 1000) ? (segDist / 1000).toFixed(2) + ' km' : segDist.toFixed(1) + ' m';
-                        const edgeLabel = (canvasPts.length <= 2) ? this.getFormattedMeasureText(segDist) : segDistStr;
+                        const edgeLabel = (canvasPts.length <= 2) ? this.getFormattedMeasureText(segDist, false, drawing.preset, drawing.customText) : segDistStr;
 
                         let badgeX, badgeY;
-                        const isCustomEdgeBadge = (this.measureBadgeMarkers && this.measureBadgeMarkers[i] && this.measureBadgeMarkers[i]._hasBeenDragged) ||
-                                                  (this.measureBadgeCustomPositions && (this.measureBadgeCustomPositions[i] || this.measureBadgeCustomPositions[String(i)]));
+                        const isCustomEdgeBadge = (drawing.badgeMarkers && drawing.badgeMarkers[i] && drawing.badgeMarkers[i]._hasBeenDragged) ||
+                                                  (drawing.badgeCustomPositions && (drawing.badgeCustomPositions[i] || drawing.badgeCustomPositions[String(i)]));
 
                         let markerLatLng = null;
                         if (isCustomEdgeBadge) {
-                            if (this.measureBadgeMarkers && this.measureBadgeMarkers[i] && typeof this.measureBadgeMarkers[i].getLatLng === 'function') {
-                                markerLatLng = this.measureBadgeMarkers[i].getLatLng();
-                            } else if (this.measureBadgeCustomPositions) {
-                                markerLatLng = this.measureBadgeCustomPositions[i] || this.measureBadgeCustomPositions[String(i)];
+                            if (drawing.badgeMarkers && drawing.badgeMarkers[i] && typeof drawing.badgeMarkers[i].getLatLng === 'function') {
+                                markerLatLng = drawing.badgeMarkers[i].getLatLng();
+                            } else if (drawing.badgeCustomPositions) {
+                                markerLatLng = drawing.badgeCustomPositions[i] || drawing.badgeCustomPositions[String(i)];
                             }
                         }
 
@@ -7907,7 +8387,7 @@
                             badgeY = midY + badgeNormY * offsetDist;
                         }
 
-                        this._cachedMeasureCanvasBadges.edges.push({
+                        drawingBadgeData.edges.push({
                             index: i,
                             label: edgeLabel,
                             x: badgeX,
@@ -7956,19 +8436,19 @@
                 }
 
                 // 4. Poligon Merkezindeki Büyük Alan Rozeti (3+ Nokta ve Kapalıysa)
-                if (isClosed && canvasPts.length >= 3 && (this.measureShowArea !== false)) {
+                if (isClosed && canvasPts.length >= 3 && (drawing.showArea !== false)) {
                     let cenX, cenY;
                     let areaTargetLatLng = null;
 
-                    if (this.measureAreaBadgeCustomPos) {
-                        areaTargetLatLng = (this.measureAreaBadgeMarker && typeof this.measureAreaBadgeMarker.getLatLng === 'function')
-                            ? this.measureAreaBadgeMarker.getLatLng()
-                            : this.measureAreaBadgeCustomPos;
-                    } else if (this.measureAreaBadgeMarker && this.measureAreaBadgeMarker._hasBeenDragged && typeof this.measureAreaBadgeMarker.getLatLng === 'function') {
-                        areaTargetLatLng = this.measureAreaBadgeMarker.getLatLng();
+                    if (drawing.areaBadgeCustomPos) {
+                        areaTargetLatLng = (drawing.areaBadgeMarker && typeof drawing.areaBadgeMarker.getLatLng === 'function')
+                            ? drawing.areaBadgeMarker.getLatLng()
+                            : drawing.areaBadgeCustomPos;
+                    } else if (drawing.areaBadgeMarker && drawing.areaBadgeMarker._hasBeenDragged && typeof drawing.areaBadgeMarker.getLatLng === 'function') {
+                        areaTargetLatLng = drawing.areaBadgeMarker.getLatLng();
                     } else {
-                        areaTargetLatLng = (this.measureAreaBadgeMarker && typeof this.measureAreaBadgeMarker.getLatLng === 'function')
-                            ? this.measureAreaBadgeMarker.getLatLng()
+                        areaTargetLatLng = (drawing.areaBadgeMarker && typeof drawing.areaBadgeMarker.getLatLng === 'function')
+                            ? drawing.areaBadgeMarker.getLatLng()
                             : this.getPolygonCentroid(pts);
                     }
 
@@ -7992,8 +8472,8 @@
                     const areaInfo = this.getFormattedAreaInfo(areaM2);
                     const perimStr = (perimeter >= 1000) ? (perimeter / 1000).toFixed(2) + ' km' : Math.round(perimeter) + ' m';
 
-                    const areaDisplayMode = this.measureAreaDisplayMode || 'frameless';
-                    const areaContentMode = this.measureAreaContentMode || 'm2_only';
+                    const areaDisplayMode = drawing.areaDisplayMode || 'frameless';
+                    const areaContentMode = drawing.areaContentMode || 'm2_only';
                     const areaFontSize = Math.round((this.measureAreaFontSize || 16) * baseScale);
                     const fontFamily = this.measureFontFamily || 'Montserrat';
 
@@ -8009,28 +8489,27 @@
                         subText = `Çevre: ${perimStr} • ${canvasPts.length} Kenar`;
                     }
 
-                    this._cachedMeasureCanvasBadges.area = {
+                    drawingBadgeData.area = {
                         titleText: titleText,
                         subText: subText,
                         areaDisplayMode: areaDisplayMode,
                         x: cenX,
                         y: cenY,
-                        rotation: this.measureAreaRotation || 0,
-                        scale: this.measureAreaScale || 1.0
+                        rotation: drawing.areaRotation || 0,
+                        scale: drawing.areaScale || 1.0
                     };
 
                     if (bakeBadges) {
                         ctx.save();
                         ctx.translate(cenX, cenY);
-                        if (this.measureAreaRotation) {
-                            ctx.rotate((this.measureAreaRotation * Math.PI) / 180);
+                        if (drawing.areaRotation) {
+                            ctx.rotate((drawing.areaRotation * Math.PI) / 180);
                         }
-                        if (this.measureAreaScale && this.measureAreaScale !== 1.0) {
-                            ctx.scale(this.measureAreaScale, this.measureAreaScale);
+                        if (drawing.areaScale && drawing.areaScale !== 1.0) {
+                            ctx.scale(drawing.areaScale, drawing.areaScale);
                         }
 
                         if (areaDisplayMode === 'frameless') {
-                            // ✨ Çerçevesiz (Arka plansız, şık yüksek kontrastlı gölgeli saf metin)
                             ctx.shadowColor = 'rgba(0, 0, 0, 0.95)';
                             ctx.shadowBlur = 14 * baseScale;
                             ctx.shadowOffsetY = 3 * baseScale;
@@ -8047,7 +8526,6 @@
                                 ctx.fillText(subText, 0, 10 * baseScale);
                             }
                         } else {
-                            // 🏷️ Kutulu (Koyu cam rozet)
                             ctx.font = `bold ${areaFontSize}px "${fontFamily}", -apple-system, sans-serif`;
                             const titleW = ctx.measureText('📐 ' + titleText).width;
                             const subW = subText ? ctx.measureText(subText).width : 0;
@@ -8092,8 +8570,7 @@
                 }
 
                 // 5. Köşe Tutamaç Çemberleri (1, 2, 3...)
-                // Not: Şablona aktarımda düzenleme noktaları (1, 2, 3, 4) tuvale aktarılmaz, sadece harita düzenleme anında gösterilir
-                if (bakeHandles && this.measureShowHandles !== false) {
+                if (bakeHandles && drawing.showHandles !== false) {
                     canvasPts.forEach((p, idx) => {
                         ctx.save();
                         ctx.translate(p.x, p.y);
@@ -8122,6 +8599,7 @@
                     });
                 }
 
+                this._cachedMeasureCanvasBadgesList.push(drawingBadgeData);
                 ctx.restore();
 
             } catch(e) {
@@ -8134,9 +8612,11 @@
          * Ölçüm Rozetlerini (Metre & Alan) Tuval Üzerine Canlı, Serbestçe Taşınabilir SVG Callout Elemanları Olarak Ekler
          */
         addMeasureBadgesToCanvas: function(targetW, targetH) {
-            if (!this._cachedMeasureCanvasBadges) return;
-            const badgeData = this._cachedMeasureCanvasBadges;
-            if ((!badgeData.edges || badgeData.edges.length === 0) && !badgeData.area) return;
+            const badgeLists = (this._cachedMeasureCanvasBadgesList && this._cachedMeasureCanvasBadgesList.length > 0)
+                ? this._cachedMeasureCanvasBadgesList
+                : (this._cachedMeasureCanvasBadges ? [this._cachedMeasureCanvasBadges] : []);
+
+            if (badgeLists.length === 0) return;
 
             const addSvgFn = (typeof window.addSVGCalloutToCanvas === 'function')
                 ? window.addSVGCalloutToCanvas
@@ -8150,17 +8630,21 @@
             const cW = (cContainer && parseFloat(cContainer.style.width)) || targetW || 1920;
             const cH = (cContainer && parseFloat(cContainer.style.height)) || targetH || 1080;
             const formatRatio = Math.max(1, cW / 1920);
-            const color = badgeData.color || '#f59e0b';
-            const fontFamily = badgeData.fontFamily || 'Montserrat';
 
-            // 1. Kenar Mesafe Rozetleri (Canlı & Sürüklenebilir)
-            if (Array.isArray(badgeData.edges)) {
-                badgeData.edges.forEach(edge => {
-                    const badgeSvgW = Math.max(88, Math.round(edge.label.length * 11 + 32));
-                    const badgeSvgH = 34;
-                    const badgeId = 'meas_b_' + edge.index + '_' + Math.random().toString(36).substr(2, 5);
+            badgeLists.forEach(badgeData => {
+                if ((!badgeData.edges || badgeData.edges.length === 0) && !badgeData.area) return;
+                const color = badgeData.color || '#f59e0b';
+                const fontFamily = badgeData.fontFamily || 'Montserrat';
+                const dTitle = badgeData.drawingTitle || 'Çizim';
 
-                    const svgHtml = `
+                // 1. Kenar Mesafe Rozetleri (Canlı & Sürüklenebilir)
+                if (Array.isArray(badgeData.edges)) {
+                    badgeData.edges.forEach(edge => {
+                        const badgeSvgW = Math.max(88, Math.round(edge.label.length * 11 + 32));
+                        const badgeSvgH = 34;
+                        const badgeId = 'meas_b_' + (badgeData.drawingId || 'd') + '_' + edge.index + '_' + Math.random().toString(36).substr(2, 5);
+
+                        const svgHtml = `
 <svg width="${badgeSvgW}" height="${badgeSvgH}" viewBox="0 0 ${badgeSvgW} ${badgeSvgH}" xmlns="http://www.w3.org/2000/svg" shape-rendering="geometricPrecision">
   <defs>
     <filter id="sh_${badgeId}" x="-20%" y="-25%" width="140%" height="150%">
@@ -8171,52 +8655,53 @@
   <text x="${badgeSvgW / 2}" y="${badgeSvgH / 2 + 1}" font-family="${fontFamily}, -apple-system, BlinkMacSystemFont, sans-serif" font-weight="700" font-size="13" fill="#ffffff" text-anchor="middle" dominant-baseline="middle" letter-spacing="0.3px">${edge.label}</text>
 </svg>`.trim();
 
-                    const wrap = addSvgFn({
-                        name: `Kenar ${edge.index + 1}: ${edge.label}`,
-                        svg: svgHtml
-                    });
+                        const wrap = addSvgFn({
+                            name: `${dTitle} Kenar ${edge.index + 1}: ${edge.label}`,
+                            svg: svgHtml
+                        });
 
-                    if (wrap) {
-                        wrap.classList.add('sat-measure-callout', 'sat-measure-badge-callout');
-                        wrap.dataset.isMeasureBadge = 'true';
-                        wrap.dataset.edgeIndex = String(edge.index);
-                        wrap.dataset.edgeDist = edge.label;
+                        if (wrap) {
+                            wrap.classList.add('sat-measure-callout', 'sat-measure-badge-callout');
+                            wrap.dataset.isMeasureBadge = 'true';
+                            wrap.dataset.drawingId = badgeData.drawingId || '';
+                            wrap.dataset.edgeIndex = String(edge.index);
+                            wrap.dataset.edgeDist = edge.label;
 
-                        const finalW = Math.round(badgeSvgW * 1.15 * formatRatio);
-                        const finalH = Math.round(badgeSvgH * 1.15 * formatRatio);
+                            const finalW = Math.round(badgeSvgW * 1.15 * formatRatio);
+                            const finalH = Math.round(badgeSvgH * 1.15 * formatRatio);
 
-                        wrap.style.width = finalW + 'px';
-                        wrap.style.height = finalH + 'px';
-                        const el = wrap.querySelector('.callout-item');
-                        if (el) {
-                            el.style.width = finalW + 'px';
-                            el.style.height = finalH + 'px';
+                            wrap.style.width = finalW + 'px';
+                            wrap.style.height = finalH + 'px';
+                            const el = wrap.querySelector('.callout-item');
+                            if (el) {
+                                el.style.width = finalW + 'px';
+                                el.style.height = finalH + 'px';
+                            }
+
+                            // Rozet merkezini tam haritadaki konumuna denk getir
+                            const posX = Math.round(edge.x - finalW / 2);
+                            const posY = Math.round(edge.y - finalH / 2);
+
+                            wrap.style.left = posX + 'px';
+                            wrap.style.top = posY + 'px';
                         }
+                    });
+                }
 
-                        // Rozet merkezini tam haritadaki konumuna denk getir
-                        const posX = Math.round(edge.x - finalW / 2);
-                        const posY = Math.round(edge.y - finalH / 2);
+                // 2. Alan Rozeti (Canlı & Sürüklenebilir)
+                if (badgeData.area) {
+                    const area = badgeData.area;
+                    const areaBadgeId = 'meas_area_' + (badgeData.drawingId || 'd') + '_' + Math.random().toString(36).substr(2, 5);
+                    let areaSvgHtml = '';
+                    let badgeSvgW, badgeSvgH;
 
-                        wrap.style.left = posX + 'px';
-                        wrap.style.top = posY + 'px';
-                    }
-                });
-            }
+                    if (area.areaDisplayMode === 'boxed') {
+                        const titleW = Math.round(area.titleText.length * 10.5 + 44);
+                        const subW = area.subText ? Math.round(area.subText.length * 7.5 + 32) : 0;
+                        badgeSvgW = Math.max(170, Math.max(titleW, subW) + 24);
+                        badgeSvgH = area.subText ? 52 : 38;
 
-            // 2. Alan Rozeti (Canlı & Sürüklenebilir)
-            if (badgeData.area) {
-                const area = badgeData.area;
-                const areaBadgeId = 'meas_area_' + Math.random().toString(36).substr(2, 5);
-                let areaSvgHtml = '';
-                let badgeSvgW, badgeSvgH;
-
-                if (area.areaDisplayMode === 'boxed') {
-                    const titleW = Math.round(area.titleText.length * 10.5 + 44);
-                    const subW = area.subText ? Math.round(area.subText.length * 7.5 + 32) : 0;
-                    badgeSvgW = Math.max(170, Math.max(titleW, subW) + 24);
-                    badgeSvgH = area.subText ? 52 : 38;
-
-                    areaSvgHtml = `
+                        areaSvgHtml = `
 <svg width="${badgeSvgW}" height="${badgeSvgH}" viewBox="0 0 ${badgeSvgW} ${badgeSvgH}" xmlns="http://www.w3.org/2000/svg" shape-rendering="geometricPrecision">
   <defs>
     <filter id="sh_${areaBadgeId}" x="-20%" y="-20%" width="140%" height="150%">
@@ -8227,13 +8712,13 @@
   <text x="${badgeSvgW / 2}" y="${area.subText ? 20 : badgeSvgH / 2 + 1}" font-family="${fontFamily}, -apple-system, BlinkMacSystemFont, sans-serif" font-weight="800" font-size="14" fill="#ffffff" text-anchor="middle" dominant-baseline="middle" letter-spacing="0.2px">📐 ${area.titleText}</text>
   ${area.subText ? `<text x="${badgeSvgW / 2}" y="37" font-family="${fontFamily}, -apple-system, BlinkMacSystemFont, sans-serif" font-weight="600" font-size="11" fill="${color}" text-anchor="middle" dominant-baseline="middle" letter-spacing="0.2px">${area.subText}</text>` : ''}
 </svg>`.trim();
-                } else {
-                    const titleW = Math.round(area.titleText.length * 12 + 30);
-                    const subW = area.subText ? Math.round(area.subText.length * 8 + 20) : 0;
-                    badgeSvgW = Math.max(160, Math.max(titleW, subW) + 16);
-                    badgeSvgH = area.subText ? 48 : 34;
+                    } else {
+                        const titleW = Math.round(area.titleText.length * 12 + 30);
+                        const subW = area.subText ? Math.round(area.subText.length * 8 + 20) : 0;
+                        badgeSvgW = Math.max(160, Math.max(titleW, subW) + 16);
+                        badgeSvgH = area.subText ? 48 : 34;
 
-                    areaSvgHtml = `
+                        areaSvgHtml = `
 <svg width="${badgeSvgW}" height="${badgeSvgH}" viewBox="0 0 ${badgeSvgW} ${badgeSvgH}" xmlns="http://www.w3.org/2000/svg" shape-rendering="geometricPrecision">
   <defs>
     <filter id="sh_${areaBadgeId}" x="-30%" y="-30%" width="160%" height="160%">
@@ -8243,43 +8728,45 @@
   <text x="${badgeSvgW / 2}" y="${area.subText ? 18 : badgeSvgH / 2 + 1}" font-family="${fontFamily}, -apple-system, BlinkMacSystemFont, sans-serif" font-weight="800" font-size="16" fill="#ffffff" text-anchor="middle" dominant-baseline="middle" letter-spacing="0.3px" filter="url(#sh_${areaBadgeId})">${area.titleText}</text>
   ${area.subText ? `<text x="${badgeSvgW / 2}" y="35" font-family="${fontFamily}, -apple-system, BlinkMacSystemFont, sans-serif" font-weight="700" font-size="11.5" fill="${color}" text-anchor="middle" dominant-baseline="middle" letter-spacing="0.2px" filter="url(#sh_${areaBadgeId})">${area.subText}</text>` : ''}
 </svg>`.trim();
-                }
-
-                const wrap = addSvgFn({
-                    name: `Alan: ${area.titleText}`,
-                    svg: areaSvgHtml
-                });
-
-                if (wrap) {
-                    wrap.classList.add('sat-measure-callout', 'sat-measure-area-callout');
-                    wrap.dataset.isMeasureAreaBadge = 'true';
-
-                    const finalW = Math.round(badgeSvgW * 1.25 * formatRatio);
-                    const finalH = Math.round(badgeSvgH * 1.25 * formatRatio);
-
-                    wrap.style.width = finalW + 'px';
-                    wrap.style.height = finalH + 'px';
-                    const el = wrap.querySelector('.callout-item');
-                    if (el) {
-                        el.style.width = finalW + 'px';
-                        el.style.height = finalH + 'px';
                     }
 
-                    const posX = Math.round(area.x - finalW / 2);
-                    const posY = Math.round(area.y - finalH / 2);
+                    const wrap = addSvgFn({
+                        name: `${dTitle} Alanı: ${area.titleText}`,
+                        svg: areaSvgHtml
+                    });
 
-                    wrap.style.left = posX + 'px';
-                    wrap.style.top = posY + 'px';
+                    if (wrap) {
+                        wrap.classList.add('sat-measure-callout', 'sat-measure-area-callout');
+                        wrap.dataset.isMeasureAreaBadge = 'true';
+                        wrap.dataset.drawingId = badgeData.drawingId || '';
 
-                    const areaScale = (area.scale !== undefined && !isNaN(area.scale)) ? area.scale : 1.0;
-                    const rotation = (area.rotation !== undefined && !isNaN(area.rotation)) ? area.rotation : 0;
+                        const finalW = Math.round(badgeSvgW * 1.25 * formatRatio);
+                        const finalH = Math.round(badgeSvgH * 1.25 * formatRatio);
 
-                    wrap.dataset.rotation = String(rotation);
-                    wrap.dataset.scale = String(areaScale);
-                    wrap.dataset.userScale = String(areaScale);
-                    wrap.style.transform = `rotate(${rotation}deg) scale(${areaScale})`;
+                        wrap.style.width = finalW + 'px';
+                        wrap.style.height = finalH + 'px';
+                        const el = wrap.querySelector('.callout-item');
+                        if (el) {
+                            el.style.width = finalW + 'px';
+                            el.style.height = finalH + 'px';
+                        }
+
+                        const posX = Math.round(area.x - finalW / 2);
+                        const posY = Math.round(area.y - finalH / 2);
+
+                        wrap.style.left = posX + 'px';
+                        wrap.style.top = posY + 'px';
+
+                        const areaScale = (area.scale !== undefined && !isNaN(area.scale)) ? area.scale : 1.0;
+                        const rotation = (area.rotation !== undefined && !isNaN(area.rotation)) ? area.rotation : 0;
+
+                        wrap.dataset.rotation = String(rotation);
+                        wrap.dataset.scale = String(areaScale);
+                        wrap.dataset.userScale = String(areaScale);
+                        wrap.style.transform = `rotate(${rotation}deg) scale(${areaScale})`;
+                    }
                 }
-            }
+            });
 
             if (typeof window.recordHistory === 'function') {
                 window.recordHistory('Ölçüm Rozetleri Tuvale Eklendi');
@@ -8373,101 +8860,205 @@
             if (this.measurePoints && this.measurePoints.length >= 2) {
                 this.updateEdgeSelectorUI(this.measurePoints, this.measureIsClosed);
             }
+
+            // 13. Akordiyon Çizimler Listesi Render
+            this.renderDrawingsListUI();
         },
 
         /**
-         * Kaydedilecek Ölçüm Verilerini Döndürür
+         * Kaydedilecek Ölçüm Verilerini Döndürür (Çoklu Çizimler Destekli)
          */
         getMeasureDataToSave: function() {
-            return {
-                active: !!this.measureActive,
-                panelVisible: (this.measurePanelVisible !== undefined ? !!this.measurePanelVisible : true),
-                points: (this.measurePoints && this.measurePoints.length > 0)
-                    ? this.measurePoints.map(p => ({ lat: p.lat, lng: p.lng }))
-                    : [],
-                distanceMeters: this.measureDistanceMeters || 0,
-                areaM2: this.measureAreaM2 || 0,
-                perimeterMeters: this.measurePerimeterMeters || 0,
-                isClosed: !!this.measureIsClosed,
-                interactionMode: this.measureInteractionMode || 'draw',
-                preset: this.measurePreset || 'frontage',
-                customText: this.measureCustomText || '',
-                style: this.measureStyle || 'cad',
-                color: this.measureColor || '#f59e0b',
-                edgeIndex: this.measureEdgeIndex || 0,
-                collapsed: !!this.measurePanelCollapsed,
-                badgeCustomPositions: (this.measureBadgeCustomPositions)
-                    ? Object.keys(this.measureBadgeCustomPositions).reduce((acc, k) => {
-                        const p = this.measureBadgeCustomPositions[k];
+            const active = this.getActiveDrawing();
+            const drawings = (this.measureDrawings || []).map(d => ({
+                id: d.id,
+                title: d.title,
+                visible: d.visible !== false,
+                isExpanded: !!d.isExpanded,
+                points: (d.points && d.points.length > 0) ? d.points.map(p => ({ lat: p.lat, lng: p.lng })) : [],
+                distanceMeters: d.distanceMeters || 0,
+                areaM2: d.areaM2 || 0,
+                perimeterMeters: d.perimeterMeters || 0,
+                isClosed: !!d.isClosed,
+                style: d.style || 'cad',
+                color: d.color || '#f59e0b',
+                preset: d.preset || 'frontage',
+                customText: d.customText || '',
+                showEdgeDistances: d.showEdgeDistances !== false,
+                showArea: d.showArea !== false,
+                showHandles: d.showHandles !== false,
+                hiddenEdges: d.hiddenEdges || {},
+                badgeCustomPositions: d.badgeCustomPositions
+                    ? Object.keys(d.badgeCustomPositions).reduce((acc, k) => {
+                        const p = d.badgeCustomPositions[k];
                         if (p) acc[k] = { lat: p.lat, lng: p.lng };
                         return acc;
                     }, {})
                     : {},
-                areaBadgeCustomPos: this.measureAreaBadgeCustomPos ? { lat: this.measureAreaBadgeCustomPos.lat, lng: this.measureAreaBadgeCustomPos.lng } : null,
-                areaRotation: this.measureAreaRotation || 0,
-                areaScale: this.measureAreaScale || 1.0,
-                areaDisplayMode: this.measureAreaDisplayMode || 'frameless',
-                areaContentMode: this.measureAreaContentMode || 'm2_only',
+                areaBadgeCustomPos: d.areaBadgeCustomPos ? { lat: d.areaBadgeCustomPos.lat, lng: d.areaBadgeCustomPos.lng } : null,
+                areaRotation: d.areaRotation || 0,
+                areaScale: d.areaScale || 1.0,
+                areaDisplayMode: d.areaDisplayMode || 'frameless',
+                areaContentMode: d.areaContentMode || 'm2_only'
+            }));
+
+            return {
+                active: !!this.measureActive,
+                panelVisible: (this.measurePanelVisible !== undefined ? !!this.measurePanelVisible : true),
+                activeDrawingId: this.activeDrawingId || (drawings[0] ? drawings[0].id : 'draw_1'),
+                drawings: drawings,
+                // Tekil çizim geriye dönük uyumluluk alanları:
+                points: active && active.points ? active.points.map(p => ({ lat: p.lat, lng: p.lng })) : [],
+                distanceMeters: active ? (active.distanceMeters || 0) : 0,
+                areaM2: active ? (active.areaM2 || 0) : 0,
+                perimeterMeters: active ? (active.perimeterMeters || 0) : 0,
+                isClosed: active ? !!active.isClosed : false,
+                interactionMode: this.measureInteractionMode || 'draw',
+                preset: active ? (active.preset || 'frontage') : 'frontage',
+                customText: active ? (active.customText || '') : '',
+                style: active ? (active.style || 'cad') : 'cad',
+                color: active ? (active.color || '#f59e0b') : '#f59e0b',
+                edgeIndex: this.measureEdgeIndex || 0,
+                collapsed: !!this.measurePanelCollapsed,
+                badgeCustomPositions: active && active.badgeCustomPositions
+                    ? Object.keys(active.badgeCustomPositions).reduce((acc, k) => {
+                        const p = active.badgeCustomPositions[k];
+                        if (p) acc[k] = { lat: p.lat, lng: p.lng };
+                        return acc;
+                    }, {})
+                    : {},
+                areaBadgeCustomPos: active && active.areaBadgeCustomPos ? { lat: active.areaBadgeCustomPos.lat, lng: active.areaBadgeCustomPos.lng } : null,
+                areaRotation: active ? (active.areaRotation || 0) : 0,
+                areaScale: active ? (active.areaScale || 1.0) : 1.0,
+                areaDisplayMode: active ? (active.areaDisplayMode || 'frameless') : 'frameless',
+                areaContentMode: active ? (active.areaContentMode || 'm2_only') : 'm2_only',
                 fontFamily: this.measureFontFamily || 'Montserrat',
                 fontTarget: this.measureFontTarget || 'all',
                 areaFontSize: this.measureAreaFontSize || 16,
                 edgeFontSize: this.measureEdgeFontSize || 12,
                 hideDefaultParcel: (this.measureHideDefaultParcel !== undefined ? !!this.measureHideDefaultParcel : true),
                 panelPos: this.measurePanelPos || null,
-                showEdgeDistances: (this.measureShowEdgeDistances !== undefined ? !!this.measureShowEdgeDistances : true),
-                showArea: (this.measureShowArea !== undefined ? !!this.measureShowArea : true),
-                showHandles: (this.measureShowHandles !== undefined ? !!this.measureShowHandles : true),
-                hiddenEdges: this.measureHiddenEdges || {}
+                showEdgeDistances: active ? (active.showEdgeDistances !== false) : true,
+                showArea: active ? (active.showArea !== false) : true,
+                showHandles: active ? (active.showHandles !== false) : true,
+                hiddenEdges: active ? (active.hiddenEdges || {}) : {}
             };
         },
 
         /**
-         * Hafızadan Gelen Ölçüm Verilerini Geri Yükler
+         * Hafızadan Gelen Ölçüm Verilerini Geri Yükler (Çoklu Çizimler Destekli)
          */
         restoreMeasureData: function(data) {
             if (!data) return;
-            if (data.preset) this.measurePreset = data.preset;
-            if (data.customText !== undefined) this.measureCustomText = data.customText;
-            if (data.style) this.measureStyle = data.style;
-            if (data.color) this.measureColor = data.color;
-            if (data.edgeIndex !== undefined) this.measureEdgeIndex = data.edgeIndex;
-            if (data.collapsed !== undefined) this.measurePanelCollapsed = data.collapsed;
-            if (data.isClosed !== undefined) this.measureIsClosed = data.isClosed;
             if (data.interactionMode) this.measureInteractionMode = data.interactionMode;
-            if (data.areaDisplayMode) this.measureAreaDisplayMode = data.areaDisplayMode;
-            if (data.areaContentMode) this.measureAreaContentMode = data.areaContentMode;
+            if (data.collapsed !== undefined) this.measurePanelCollapsed = data.collapsed;
             if (data.fontFamily) this.measureFontFamily = data.fontFamily;
             if (data.fontTarget) this.measureFontTarget = data.fontTarget;
             if (data.areaFontSize) this.measureAreaFontSize = data.areaFontSize;
             if (data.edgeFontSize) this.measureEdgeFontSize = data.edgeFontSize;
             if (data.hideDefaultParcel !== undefined) this.measureHideDefaultParcel = data.hideDefaultParcel;
             if (data.panelPos) this.measurePanelPos = data.panelPos;
-            if (data.showEdgeDistances !== undefined) this.measureShowEdgeDistances = data.showEdgeDistances;
-            if (data.showArea !== undefined) this.measureShowArea = data.showArea;
-            if (data.showHandles !== undefined) this.measureShowHandles = data.showHandles;
-            if (data.hiddenEdges) this.measureHiddenEdges = Object.assign({}, data.hiddenEdges);
             if (data.panelVisible !== undefined) this.measurePanelVisible = data.panelVisible;
 
-            if (data.badgeCustomPositions) {
-                this.measureBadgeCustomPositions = {};
-                Object.keys(data.badgeCustomPositions).forEach(k => {
-                    const p = data.badgeCustomPositions[k];
-                    if (p && p.lat !== undefined && p.lng !== undefined) {
-                        this.measureBadgeCustomPositions[k] = L.latLng(p.lat, p.lng);
+            if (data.drawings && Array.isArray(data.drawings) && data.drawings.length > 0) {
+                // Çoklu çizimleri geri yükle
+                this.measureDrawings = data.drawings.map(d => {
+                    const pts = (d.points && Array.isArray(d.points))
+                        ? d.points.map(p => L.latLng(p.lat, p.lng))
+                        : [];
+                    const badgePos = {};
+                    if (d.badgeCustomPositions) {
+                        Object.keys(d.badgeCustomPositions).forEach(k => {
+                            const p = d.badgeCustomPositions[k];
+                            if (p && p.lat !== undefined && p.lng !== undefined) {
+                                badgePos[k] = L.latLng(p.lat, p.lng);
+                            }
+                        });
                     }
+                    let areaPos = null;
+                    if (d.areaBadgeCustomPos && d.areaBadgeCustomPos.lat !== undefined) {
+                        areaPos = L.latLng(d.areaBadgeCustomPos.lat, d.areaBadgeCustomPos.lng);
+                    }
+                    return {
+                        id: d.id || ('draw_' + Math.random().toString(36).substr(2, 6)),
+                        title: d.title || 'Çizim',
+                        visible: d.visible !== false,
+                        isExpanded: !!d.isExpanded,
+                        points: pts,
+                        isClosed: !!d.isClosed,
+                        style: d.style || 'cad',
+                        color: d.color || '#f59e0b',
+                        preset: d.preset || 'frontage',
+                        customText: d.customText || '',
+                        showEdgeDistances: d.showEdgeDistances !== false,
+                        showArea: d.showArea !== false,
+                        showHandles: d.showHandles !== false,
+                        hiddenEdges: Object.assign({}, d.hiddenEdges || {}),
+                        badgeCustomPositions: badgePos,
+                        areaBadgeCustomPos: areaPos,
+                        areaRotation: d.areaRotation || 0,
+                        areaScale: d.areaScale || 1.0,
+                        areaSelected: false,
+                        areaDisplayMode: d.areaDisplayMode || 'frameless',
+                        areaContentMode: d.areaContentMode || 'm2_only',
+                        distanceMeters: d.distanceMeters || 0,
+                        areaM2: d.areaM2 || 0,
+                        perimeterMeters: d.perimeterMeters || 0,
+                        markers: [],
+                        lines: [],
+                        polygonLayer: null,
+                        badgeMarkers: [],
+                        areaBadgeMarker: null
+                    };
                 });
-            }
-            if (data.areaBadgeCustomPos && data.areaBadgeCustomPos.lat !== undefined) {
-                this.measureAreaBadgeCustomPos = L.latLng(data.areaBadgeCustomPos.lat, data.areaBadgeCustomPos.lng);
-            }
-            if (data.areaRotation !== undefined) this.measureAreaRotation = data.areaRotation;
-            if (data.areaScale !== undefined) this.measureAreaScale = data.areaScale;
-
-            if (data.points && Array.isArray(data.points) && data.points.length >= 1) {
-                this.measurePoints = data.points.map(p => L.latLng(p.lat, p.lng));
-                if (this.measurePoints.length >= 2) {
-                    this.measureDistanceMeters = this.measurePoints[0].distanceTo(this.measurePoints[1]);
+                this.activeDrawingId = data.activeDrawingId || this.measureDrawings[0].id;
+                this.getActiveDrawing();
+            } else if (data.points && Array.isArray(data.points) && data.points.length >= 1) {
+                // Tekil eski veriyi Çizim 1 olarak geri yükle
+                const pts = data.points.map(p => L.latLng(p.lat, p.lng));
+                const badgePos = {};
+                if (data.badgeCustomPositions) {
+                    Object.keys(data.badgeCustomPositions).forEach(k => {
+                        const p = data.badgeCustomPositions[k];
+                        if (p && p.lat !== undefined && p.lng !== undefined) {
+                            badgePos[k] = L.latLng(p.lat, p.lng);
+                        }
+                    });
                 }
+                const d1 = {
+                    id: 'draw_1',
+                    title: 'Çizim 1',
+                    visible: true,
+                    isExpanded: true,
+                    points: pts,
+                    isClosed: !!data.isClosed,
+                    style: data.style || 'cad',
+                    color: data.color || '#f59e0b',
+                    preset: data.preset || 'frontage',
+                    customText: data.customText || '',
+                    showEdgeDistances: data.showEdgeDistances !== false,
+                    showArea: data.showArea !== false,
+                    showHandles: data.showHandles !== false,
+                    hiddenEdges: Object.assign({}, data.hiddenEdges || {}),
+                    badgeCustomPositions: badgePos,
+                    areaBadgeCustomPos: (data.areaBadgeCustomPos && data.areaBadgeCustomPos.lat !== undefined) ? L.latLng(data.areaBadgeCustomPos.lat, data.areaBadgeCustomPos.lng) : null,
+                    areaRotation: data.areaRotation || 0,
+                    areaScale: data.areaScale || 1.0,
+                    areaSelected: false,
+                    areaDisplayMode: data.areaDisplayMode || 'frameless',
+                    areaContentMode: data.areaContentMode || 'm2_only',
+                    distanceMeters: data.distanceMeters || 0,
+                    areaM2: data.areaM2 || 0,
+                    perimeterMeters: data.perimeterMeters || 0,
+                    markers: [],
+                    lines: [],
+                    polygonLayer: null,
+                    badgeMarkers: [],
+                    areaBadgeMarker: null
+                };
+                this.measureDrawings = [d1];
+                this.activeDrawingId = 'draw_1';
+                this.getActiveDrawing();
             }
 
             // Arayüz elemanlarını senkronize et
@@ -9572,6 +10163,85 @@
 
     window.toggleSatelliteMeasureSingleEdge = function(idx, event) {
         SatelliteMapModule.toggleMeasureSingleEdge(idx, event);
+    };
+
+    // ==========================================
+    // 📐 ÇOKLU ÇİZİM GLOBAL PENCERE FONKSİYONLARI
+    // ==========================================
+    window.addNewSatelliteDrawing = function(options) {
+        return SatelliteMapModule.addNewDrawing(options);
+    };
+
+    window.selectSatelliteDrawing = function(id) {
+        SatelliteMapModule.selectDrawing(id);
+    };
+
+    window.deleteSatelliteDrawing = function(id) {
+        SatelliteMapModule.deleteDrawing(id);
+    };
+
+    window.toggleSatelliteDrawingVisibility = function(id) {
+        SatelliteMapModule.toggleDrawingVisibility(id);
+    };
+
+    window.toggleSatelliteDrawingAccordion = function(id) {
+        SatelliteMapModule.toggleDrawingAccordion(id);
+    };
+
+    window.snapSatelliteDrawingToParcel = function(id) {
+        SatelliteMapModule.snapDrawingToParcel(id);
+    };
+
+    window.toggleSatelliteDrawingClosed = function(id) {
+        SatelliteMapModule.toggleDrawingClosed(id);
+    };
+
+    window.undoSatelliteDrawingLastPoint = function(id) {
+        SatelliteMapModule.undoLastPointForDrawing(id);
+    };
+
+    window.resetSatelliteDrawingPoints = function(id) {
+        SatelliteMapModule.resetDrawingPoints(id);
+    };
+
+    window.setSatelliteDrawingColor = function(id, color) {
+        SatelliteMapModule.setDrawingColor(id, color);
+    };
+
+    window.setSatelliteDrawingStyle = function(id, style) {
+        SatelliteMapModule.setDrawingStyle(id, style);
+    };
+
+    window.setSatelliteDrawingPreset = function(id, preset) {
+        SatelliteMapModule.setDrawingPreset(id, preset);
+    };
+
+    window.setSatelliteDrawingCustomText = function(id, text) {
+        SatelliteMapModule.setDrawingCustomText(id, text);
+    };
+
+    window.setSatelliteDrawingAreaDisplayMode = function(id, mode) {
+        SatelliteMapModule.setDrawingAreaDisplayMode(id, mode);
+    };
+
+    window.setSatelliteDrawingAreaContentMode = function(id, mode) {
+        SatelliteMapModule.setDrawingAreaContentMode(id, mode);
+    };
+
+    window.toggleSatelliteDrawingEdgeDistances = function(id) {
+        SatelliteMapModule.toggleDrawingEdgeDistances(id);
+    };
+
+    window.toggleSatelliteDrawingAreaBadge = function(id) {
+        SatelliteMapModule.toggleDrawingAreaBadge(id);
+    };
+
+    window.toggleSatelliteDrawingHandles = function(id) {
+        SatelliteMapModule.toggleDrawingHandles(id);
+    };
+
+    window.toggleSatelliteDrawingSingleEdge = function(id, edgeIdx, event) {
+        SatelliteMapModule.toggleDrawingSingleEdge(id, edgeIdx, event);
     };
 
     window.SatelliteMapModule = SatelliteMapModule;

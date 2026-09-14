@@ -298,7 +298,7 @@
                                         <button type="button" class="sat-measure-btn-min" onclick="window.toggleSatelliteMeasurePanelCollapse()" title="Paneli Küçült / Büyüt">
                                             <i class="fas fa-chevron-up" id="satMeasureMinIcon"></i>
                                         </button>
-                                        <button type="button" class="sat-measure-btn-close" onclick="window.toggleSatelliteMeasure(false)" title="Ölçümü Kapat">
+                                        <button type="button" class="sat-measure-btn-close" onclick="window.closeSatelliteMeasurePanel()" title="Paneli Gizle (Ölçümler Haritada Kalır)">
                                             <i class="fas fa-times"></i>
                                         </button>
                                     </div>
@@ -2307,7 +2307,7 @@
                         this.map.setView([this.currentLat, this.currentLng], this.currentZoom, { animate: false });
                         this.map.invalidateSize();
                         // Eğer parsel varsa ve haritada katman olarak yoksa tekrar yükle
-                        if (this.parcelData && (!this.parcelPolygon || !this.map.hasLayer(this.parcelPolygon))) {
+                        if (this.parcelData && !this.parcelPolygon) {
                             this.loadParcelPolygon(this.parcelData);
                         }
                     }
@@ -5423,6 +5423,19 @@
          * Ölçüm Aracını Açar veya Kapatır
          */
         toggleMeasure: function(forceState) {
+            const panel = document.getElementById('satMeasureFloatingPanel');
+            const isPanelHidden = panel && (panel.style.display === 'none' || !this.measurePanelVisible);
+
+            // Eğer ölçüm zaten haritada açıksa ve sadece panel gizlenmişse, butona tıklandığında paneli geri getir
+            if (forceState === undefined && this.measureActive && isPanelHidden) {
+                panel.style.display = 'flex';
+                this.measurePanelVisible = true;
+                this.restoreMeasurePanelPosition(panel);
+                this.syncMeasureUI();
+                this.updateMeasureGraphics();
+                return;
+            }
+
             const newState = (forceState !== undefined) ? !!forceState : !this.measureActive;
             this.measureActive = newState;
 
@@ -5431,9 +5444,9 @@
             if (btn) btn.classList.toggle('active', this.measureActive);
             if (statusText) statusText.textContent = this.measureActive ? 'Açık' : 'Kapalı';
 
-            const panel = document.getElementById('satMeasureFloatingPanel');
             if (panel) {
                 panel.style.display = this.measureActive ? 'flex' : 'none';
+                this.measurePanelVisible = this.measureActive;
                 if (this.measurePanelCollapsed) {
                     panel.classList.add('collapsed');
                 } else {
@@ -5441,7 +5454,7 @@
                 }
                 if (this.measureActive) {
                     this.restoreMeasurePanelPosition(panel);
-                    this.updateMeasureParcelVisibilityButton();
+                    this.syncMeasureUI();
                 }
             }
 
@@ -5476,6 +5489,7 @@
                         this.measureDistanceMeters = ptA.distanceTo(ptB);
                     }
                 }
+                this.syncMeasureUI();
                 this.updateParcelSnapButtons();
                 this.updateMeasureGraphics();
             } else {
@@ -5488,6 +5502,23 @@
                 }
             }
 
+            this.saveLastLocation({
+                measureData: this.getMeasureDataToSave()
+            });
+        },
+
+        /**
+         * Ölçüm Panelini Gizler (Ölçümler ve Çizimler Haritada Kalır)
+         */
+        closeMeasurePanel: function() {
+            const panel = document.getElementById('satMeasureFloatingPanel');
+            if (panel) {
+                panel.style.display = 'none';
+            }
+            this.measurePanelVisible = false;
+            if (typeof window.showAppToast === 'function') {
+                window.showAppToast('📏 Ölçüm paneli gizlendi. Ölçümler haritada aktif kalır.', 'info');
+            }
             this.saveLastLocation({
                 measureData: this.getMeasureDataToSave()
             });
@@ -5608,12 +5639,17 @@
             this.measurePanelCollapsed = !this.measurePanelCollapsed;
             const panel = document.getElementById('satMeasureFloatingPanel');
             const icon = document.getElementById('satMeasureMinIcon');
+            const btn = icon ? icon.closest('.sat-measure-btn-min') : null;
             if (panel) {
                 panel.classList.toggle('collapsed', this.measurePanelCollapsed);
             }
             if (icon) {
                 icon.className = this.measurePanelCollapsed ? 'fas fa-chevron-down' : 'fas fa-chevron-up';
             }
+            if (btn) {
+                btn.title = this.measurePanelCollapsed ? 'Paneli Büyüt (Aç)' : 'Paneli Küçült';
+            }
+            this.saveLastLocation({ measureData: this.getMeasureDataToSave() });
         },
 
         /**
@@ -7063,11 +7099,119 @@
         },
 
         /**
+         * Ölçüm Paneli Arayüz Elemanlarını (Renk, Stil, Font, Çipler, Filtreler) Mevcut Ayarlarla Eşler
+         */
+        syncMeasureUI: function() {
+            // 1. Özel Metin Inputu
+            const input = document.getElementById('satMeasureTextInput');
+            if (input) input.value = this.measureCustomText || '';
+
+            // 2. Hızlı Metin Şablonu Çipleri
+            document.querySelectorAll('.sat-measure-chip[data-preset]').forEach(chip => {
+                chip.classList.toggle('active', chip.dataset.preset === (this.measurePreset || 'frontage'));
+            });
+
+            // 3. Çizgi ve İşaretleme Stili Butonları
+            document.querySelectorAll('.sat-measure-style-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.style === (this.measureStyle || 'cad'));
+            });
+
+            // 4. Renk Paleti ve Özel Renk Inputu
+            const activeColor = this.measureColor || '#f59e0b';
+            let matchedColor = false;
+            document.querySelectorAll('.sat-measure-color-dot').forEach(dot => {
+                const isMatch = dot.dataset.color && dot.dataset.color.toLowerCase() === activeColor.toLowerCase();
+                dot.classList.toggle('active', isMatch);
+                if (isMatch) matchedColor = true;
+            });
+            const customLabel = document.getElementById('satMeasureCustomColorLabel');
+            const customInput = document.getElementById('satMeasureCustomColorInput');
+            if (customLabel) {
+                customLabel.classList.toggle('active', !matchedColor);
+                if (!matchedColor) {
+                    customLabel.style.color = activeColor;
+                    customLabel.style.borderColor = activeColor;
+                } else {
+                    customLabel.style.color = '';
+                    customLabel.style.borderColor = '';
+                }
+            }
+            if (customInput && typeof activeColor === 'string' && activeColor.startsWith('#')) {
+                customInput.value = activeColor;
+            }
+
+            // 5. Beyaz Parsel Katmanı Göz Butonu
+            this.updateMeasureParcelVisibilityButton();
+
+            // 6. Gösterim Butonları (Kenarlar, Arsa m², Köşeler)
+            const edgeVisBtn = document.getElementById('satVisEdgeDistancesBtn');
+            if (edgeVisBtn) edgeVisBtn.classList.toggle('active', this.measureShowEdgeDistances !== false);
+            const areaVisBtn = document.getElementById('satVisAreaBtn');
+            if (areaVisBtn) areaVisBtn.classList.toggle('active', this.measureShowArea !== false);
+            const handlesVisBtn = document.getElementById('satVisHandlesBtn');
+            if (handlesVisBtn) handlesVisBtn.classList.toggle('active', this.measureShowHandles !== false);
+
+            // 7. Alan Görünüm ve İçerik Butonları
+            const framelessBtn = document.getElementById('satAreaModeFramelessBtn');
+            const boxBtn = document.getElementById('satAreaModeBoxBtn');
+            if (framelessBtn) framelessBtn.classList.toggle('active', (this.measureAreaDisplayMode || 'frameless') === 'frameless');
+            if (boxBtn) boxBtn.classList.toggle('active', this.measureAreaDisplayMode === 'box');
+
+            const m2OnlyBtn = document.getElementById('satAreaContentM2OnlyBtn');
+            const m2DonumBtn = document.getElementById('satAreaContentM2DonumBtn');
+            const detailedBtn = document.getElementById('satAreaContentDetailedBtn');
+            if (m2OnlyBtn) m2OnlyBtn.classList.toggle('active', (this.measureAreaContentMode || 'm2_only') === 'm2_only');
+            if (m2DonumBtn) m2DonumBtn.classList.toggle('active', this.measureAreaContentMode === 'm2_donum');
+            if (detailedBtn) detailedBtn.classList.toggle('active', this.measureAreaContentMode === 'detailed');
+
+            // 8. Font ve Boyut Arayüzü
+            this.populateMeasureFonts();
+            const fontSel = document.getElementById('satMeasureFontSelect');
+            if (fontSel) fontSel.value = this.measureFontFamily || 'Montserrat';
+
+            const curSize = (this.measureFontTarget === 'edges') ? (this.measureEdgeFontSize || 12) : (this.measureAreaFontSize || 16);
+            const sizeEl = document.getElementById('satMeasureFontSizeText');
+            if (sizeEl) sizeEl.textContent = `${curSize}px`;
+
+            const allBtn = document.getElementById('satFontTargetAllBtn');
+            const areaBtn = document.getElementById('satFontTargetAreaBtn');
+            const edgesBtn = document.getElementById('satFontTargetEdgesBtn');
+            if (allBtn) allBtn.classList.toggle('active', (this.measureFontTarget || 'all') === 'all');
+            if (areaBtn) areaBtn.classList.toggle('active', this.measureFontTarget === 'area');
+            if (edgesBtn) edgesBtn.classList.toggle('active', this.measureFontTarget === 'edges');
+
+            // 9. Küçültme (Collapse) İkonu
+            const minIcon = document.getElementById('satMeasureMinIcon');
+            if (minIcon) {
+                minIcon.className = this.measurePanelCollapsed ? 'fas fa-chevron-down' : 'fas fa-chevron-up';
+            }
+            const minBtn = minIcon ? minIcon.closest('.sat-measure-btn-min') : null;
+            if (minBtn) {
+                minBtn.title = this.measurePanelCollapsed ? 'Paneli Büyüt (Aç)' : 'Paneli Küçült';
+            }
+
+            // 10. Etkileşim Modu (Nokta / Gezin)
+            const drawBtn = document.getElementById('satMeasureModeDrawBtn');
+            const panBtn = document.getElementById('satMeasureModePanBtn');
+            if (drawBtn) drawBtn.classList.toggle('active', (this.measureInteractionMode || 'draw') === 'draw');
+            if (panBtn) panBtn.classList.toggle('active', this.measureInteractionMode === 'pan');
+
+            // 11. Parsel Kenar Kilit Butonları
+            this.updateParcelSnapButtons();
+
+            // 12. Kenar Çipleri Listesi
+            if (this.measurePoints && this.measurePoints.length >= 2) {
+                this.updateEdgeSelectorUI(this.measurePoints, this.measureIsClosed);
+            }
+        },
+
+        /**
          * Kaydedilecek Ölçüm Verilerini Döndürür
          */
         getMeasureDataToSave: function() {
             return {
                 active: !!this.measureActive,
+                panelVisible: (this.measurePanelVisible !== undefined ? !!this.measurePanelVisible : true),
                 points: (this.measurePoints && this.measurePoints.length > 0)
                     ? this.measurePoints.map(p => ({ lat: p.lat, lng: p.lng }))
                     : [],
@@ -7130,6 +7274,7 @@
             if (data.showArea !== undefined) this.measureShowArea = data.showArea;
             if (data.showHandles !== undefined) this.measureShowHandles = data.showHandles;
             if (data.hiddenEdges) this.measureHiddenEdges = Object.assign({}, data.hiddenEdges);
+            if (data.panelVisible !== undefined) this.measurePanelVisible = data.panelVisible;
 
             if (data.badgeCustomPositions) {
                 this.measureBadgeCustomPositions = {};
@@ -7152,55 +7297,8 @@
             }
 
             // Arayüz elemanlarını senkronize et
-            const input = document.getElementById('satMeasureTextInput');
-            if (input) input.value = this.measureCustomText || '';
-
-            document.querySelectorAll('.sat-measure-chip[data-preset]').forEach(chip => {
-                chip.classList.toggle('active', chip.dataset.preset === (this.measurePreset || 'frontage'));
-            });
-            document.querySelectorAll('.sat-measure-style-btn').forEach(btn => {
-                btn.classList.toggle('active', btn.dataset.style === (this.measureStyle || 'cad'));
-            });
-            this.setMeasureColor(this.measureColor || '#f59e0b');
-            this.updateMeasureParcelVisibilityButton();
+            this.syncMeasureUI();
             this.restoreMeasurePanelPosition();
-
-            // Gösterim butonlarını senkronize et
-            const edgeVisBtn = document.getElementById('satVisEdgeDistancesBtn');
-            if (edgeVisBtn) edgeVisBtn.classList.toggle('active', this.measureShowEdgeDistances !== false);
-            const areaVisBtn = document.getElementById('satVisAreaBtn');
-            if (areaVisBtn) areaVisBtn.classList.toggle('active', this.measureShowArea !== false);
-            const handlesVisBtn = document.getElementById('satVisHandlesBtn');
-            if (handlesVisBtn) handlesVisBtn.classList.toggle('active', this.measureShowHandles !== false);
-
-            // Alan Görünüm ve İçerik butonlarını senkronize et
-            const framelessBtn = document.getElementById('satAreaModeFramelessBtn');
-            const boxBtn = document.getElementById('satAreaModeBoxBtn');
-            if (framelessBtn) framelessBtn.classList.toggle('active', this.measureAreaDisplayMode === 'frameless');
-            if (boxBtn) boxBtn.classList.toggle('active', this.measureAreaDisplayMode === 'box');
-
-            const m2OnlyBtn = document.getElementById('satAreaContentM2OnlyBtn');
-            const m2DonumBtn = document.getElementById('satAreaContentM2DonumBtn');
-            const detailedBtn = document.getElementById('satAreaContentDetailedBtn');
-            if (m2OnlyBtn) m2OnlyBtn.classList.toggle('active', this.measureAreaContentMode === 'm2_only');
-            if (m2DonumBtn) m2DonumBtn.classList.toggle('active', this.measureAreaContentMode === 'm2_donum');
-            if (detailedBtn) detailedBtn.classList.toggle('active', this.measureAreaContentMode === 'detailed');
-
-            // Font ve boyut arayüzü
-            this.populateMeasureFonts();
-            const fontSel = document.getElementById('satMeasureFontSelect');
-            if (fontSel) fontSel.value = this.measureFontFamily || 'Montserrat';
-
-            const curSize = (this.measureFontTarget === 'edges') ? (this.measureEdgeFontSize || 12) : (this.measureAreaFontSize || 16);
-            const sizeEl = document.getElementById('satMeasureFontSizeText');
-            if (sizeEl) sizeEl.textContent = `${curSize}px`;
-
-            const allBtn = document.getElementById('satFontTargetAllBtn');
-            const areaBtn = document.getElementById('satFontTargetAreaBtn');
-            const edgesBtn = document.getElementById('satFontTargetEdgesBtn');
-            if (allBtn) allBtn.classList.toggle('active', this.measureFontTarget === 'all');
-            if (areaBtn) areaBtn.classList.toggle('active', this.measureFontTarget === 'area');
-            if (edgesBtn) edgesBtn.classList.toggle('active', this.measureFontTarget === 'edges');
 
             if (data.active) {
                 this.toggleMeasure(true);
@@ -7613,6 +7711,14 @@
             };
 
             header.addEventListener('pointerdown', onPointerDown);
+
+            // Küçültülmüş panel başlığına tıklandığında paneli tekrar büyüt
+            header.addEventListener('click', (e) => {
+                if (e.target.closest('button') || e.target.closest('input')) return;
+                if (panel.classList.contains('collapsed')) {
+                    this.toggleMeasurePanelCollapse();
+                }
+            });
         },
 
         /**
@@ -8191,6 +8297,10 @@
     // 📏 Noktadan Noktaya Mesafe & Cephe Ölçüm Sistemi Global Fonksiyonları
     window.toggleSatelliteMeasure = function(forceState) {
         SatelliteMapModule.toggleMeasure(forceState);
+    };
+
+    window.closeSatelliteMeasurePanel = function() {
+        SatelliteMapModule.closeMeasurePanel();
     };
 
     window.toggleSatelliteMeasurePanelCollapse = function() {

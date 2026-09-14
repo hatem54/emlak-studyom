@@ -6291,6 +6291,7 @@ body[data-theme="dark"] .desc-toggle-item.active {
 
 .sat-modal-container {
     width: auto;
+    min-width: min(96vw, 780px);
     max-width: 98vw;
     height: auto;
     max-height: 96vh;
@@ -7539,22 +7540,16 @@ body[data-theme="dark"] .desc-toggle-item.active {
 }
 
 .sat-controls-bar {
-    padding: 6px 14px;
+    padding: 6px 12px;
     background: #0f172a;
     border-bottom: 1px solid #334155;
     display: flex;
     justify-content: flex-start;
     align-items: center;
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    overflow-y: hidden;
-    gap: 12px;
-    scrollbar-width: none;
+    flex-wrap: wrap;
+    gap: 6px 10px;
     flex-shrink: 0;
-}
-
-.sat-controls-bar::-webkit-scrollbar {
-    display: none;
+    max-width: 100%;
 }
 
 .sat-ctrl-group {
@@ -11928,11 +11923,44 @@ html[data-theme="light"] .tone-curve-canvas-wrap {
 }
 
 .sat-measure-floating-panel.collapsed {
-    width: 230px;
+    width: auto !important;
+    min-width: 210px !important;
+    max-width: 300px !important;
+    border-color: rgba(245, 158, 11, 0.7) !important;
 }
 
-.sat-measure-floating-panel.collapsed .sat-measure-panel-body {
-    display: none;
+.sat-measure-floating-panel.collapsed .sat-measure-panel-body,
+.sat-measure-floating-panel.collapsed .sat-measure-mode-switcher,
+.sat-measure-floating-panel.collapsed .sat-measure-btn-parcel-layer {
+    display: none !important;
+}
+
+.sat-measure-floating-panel.collapsed .sat-measure-panel-header {
+    border-bottom: none !important;
+    padding: 7px 10px !important;
+    gap: 10px !important;
+    cursor: pointer;
+}
+
+.sat-measure-floating-panel.collapsed .sat-measure-header-actions {
+    display: flex !important;
+    align-items: center !important;
+    gap: 5px !important;
+    margin-left: auto !important;
+}
+
+.sat-measure-floating-panel.collapsed .sat-measure-btn-min {
+    color: #f59e0b !important;
+    background: rgba(245, 158, 11, 0.2) !important;
+    border: 1px solid rgba(245, 158, 11, 0.5) !important;
+    border-radius: 5px !important;
+    padding: 3px 8px !important;
+    font-size: 11px !important;
+}
+
+.sat-measure-floating-panel.collapsed .sat-measure-btn-min:hover {
+    background: rgba(245, 158, 11, 0.35) !important;
+    color: #ffffff !important;
 }
 
 /* Panel Üst Başlık (Sürükleme Tutamacı) */

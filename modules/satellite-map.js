@@ -4278,17 +4278,17 @@
 
         /**
          * Google 3D (<gmp-map-3d>) Üzerine Arsa Poligonunu Yerleştirir (Google Earth 3D Dolgu & Kenarlık)
+         * Var olan poligon ve polyline elemanlarını silip baştan yaratmak yerine yerinde (in-place)
+         * attribute ve property güncelleyerek WebGL takılmalarını, renk donmalarını ve bellek sızıntılarını önler.
          */
         mount3DParcelPolygon: async function(map3d) {
-            if (!map3d) map3d = this.map3dElement;
-            if (!map3d || !this.parcelData || !this.parcelData.latLngs || this.parcelData.latLngs.length < 3) return;
-            try {
-                // Eski 3D poligonları ve sınır çizgilerini temizle
-                const existingPoly = map3d.querySelectorAll('gmp-polygon-3d');
-                existingPoly.forEach(el => { try { el.remove(); } catch(e){} });
-                const existingLines = map3d.querySelectorAll('gmp-polyline-3d');
-                existingLines.forEach(el => { try { el.remove(); } catch(e){} });
+            const map3dEl = map3d || this.map3dElement || document.querySelector('gmp-map-3d') || document.getElementById('sat3dMapHost')?.querySelector('gmp-map-3d');
+            if (!map3dEl) return;
+            this.map3dElement = map3dEl;
 
+            if (!this.parcelData || !this.parcelData.latLngs || this.parcelData.latLngs.length < 3) return;
+
+            try {
                 // Köşe koordinatlarını hazırla
                 const rawPts = this.parcelData.latLngs;
                 const coords = [];
@@ -4302,15 +4302,6 @@
                 }
                 if (coords.length < 3) return;
 
-                // İlk ve son nokta aynıysa kapatma noktasını temizle (Google Maps 3D poligonu otomatik kapatır)
-                if (coords.length > 3) {
-                    const first = coords[0];
-                    const last = coords[coords.length - 1];
-                    if (Math.abs(first.lat - last.lat) < 1e-7 && Math.abs(first.lng - last.lng) < 1e-7) {
-                        coords.pop();
-                    }
-                }
-
                 // Winding sırasını counter-clockwise (saat yönünün tersi) yap
                 // WebGL'de saat yönü poligonların normal yüzü aşağı baktığı için dolgu görünmez!
                 let sum = 0;
@@ -4321,19 +4312,18 @@
                 }
                 const orientedCoords = (sum > 0) ? coords.slice().reverse() : coords;
 
-                // Kapalı polyline halkası (çizgi bitimi başlangıç noktasına bağlansın)
-                const closedPolylineCoords = orientedCoords.slice();
-                if (closedPolylineCoords.length > 0) {
-                    closedPolylineCoords.push({
-                        lat: closedPolylineCoords[0].lat,
-                        lng: closedPolylineCoords[0].lng,
-                        altitude: 0
-                    });
+                // Google Maps 3D standartları: Kapalı poligon ve çizgi halkası (ilk nokta = son nokta)
+                const firstPt = orientedCoords[0];
+                const lastPt = orientedCoords[orientedCoords.length - 1];
+                const isClosed = Math.abs(firstPt.lat - lastPt.lat) < 1e-7 && Math.abs(firstPt.lng - lastPt.lng) < 1e-7;
+                const closedCoords = orientedCoords.slice();
+                if (!isClosed) {
+                    closedCoords.push({ lat: firstPt.lat, lng: firstPt.lng, altitude: 0 });
                 }
 
                 // Dolgu ve Kenarlık Renkleri (Google 3D Maps katı #RRGGBBAA hex standardı)
                 const isNeon3d = !!this.parcelNeonEnabled;
-                const neonColor = this.parcelNeonColor || '#00CEC9';
+                const neonColor = this.parcelNeonColor || this.parcelStrokeColor || '#00CEC9';
                 const strokeColor = this.parcelStrokeColor || '#ffffff';
                 const opacity = (this.parcelFillOpacity !== undefined ? this.parcelFillOpacity : 0.40);
 
@@ -4349,7 +4339,6 @@
                     fillHex8 = this.colorToHex8('#ffffff', opacity);
                 }
 
-                const strokeHex8 = this.colorToHex8(strokeColor, 1.0);
                 const strokeW = Math.max(1, this.parcelStrokeWidth || 3);
                 // Neon aktifken poligonun kendi konturunu tamamen saydam yapıyoruz ki çok katmanlı Saber aurası temiz ışısın
                 const polyStrokeHex8 = isNeon3d ? '#ffffff00' : this.colorToHex8(strokeColor, 1.0);
@@ -4361,29 +4350,32 @@
                     altModeObj = window.google.maps.maps3d.AltitudeMode.CLAMP_TO_GROUND || 'CLAMP_TO_GROUND';
                 }
 
+                // ==========================================
                 // 1. Zemin Dolgu Poligonu (<gmp-polygon-3d>)
-                let poly3d = null;
-                if (window.google && window.google.maps && window.google.maps.maps3d && typeof window.google.maps.maps3d.Polygon3DElement === 'function') {
-                    try {
-                        poly3d = new window.google.maps.maps3d.Polygon3DElement({
-                            altitudeMode: altModeObj,
-                            fillColor: fillHex8,
-                            strokeColor: polyStrokeHex8,
-                            strokeWidth: polyStrokeW,
-                            extruded: false,
-                            drawsOccludedSegments: true
-                        });
-                        poly3d.coordinates = orientedCoords;
-                        poly3d.path = orientedCoords;
-                    } catch(elemErr) {
-                        console.warn('Polygon3DElement oluşturma fallback:', elemErr);
+                // ==========================================
+                let poly3d = map3dEl.querySelector('gmp-polygon-3d');
+                if (!poly3d) {
+                    const PolygonClass = (window.google && window.google.maps && window.google.maps.maps3d && typeof window.google.maps.maps3d.Polygon3DElement === 'function')
+                        ? window.google.maps.maps3d.Polygon3DElement
+                        : null;
+                    if (PolygonClass) {
+                        try {
+                            poly3d = new PolygonClass({
+                                altitudeMode: altModeObj,
+                                fillColor: fillHex8,
+                                strokeColor: polyStrokeHex8,
+                                strokeWidth: polyStrokeW,
+                                extruded: false
+                            });
+                        } catch(e) {}
                     }
+                    if (!poly3d || !(poly3d instanceof Node)) {
+                        poly3d = document.createElement('gmp-polygon-3d');
+                    }
+                    map3dEl.appendChild(poly3d);
                 }
 
-                if (!poly3d || !(poly3d instanceof Node)) {
-                    poly3d = document.createElement('gmp-polygon-3d');
-                }
-
+                // Hem HTML attribute hem de DOM property olarak yerinde güncelle
                 poly3d.setAttribute('altitude-mode', 'clamp-to-ground');
                 poly3d.setAttribute('fill-color', fillHex8);
                 poly3d.setAttribute('stroke-color', polyStrokeHex8);
@@ -4395,82 +4387,84 @@
                 poly3d.strokeColor = polyStrokeHex8;
                 poly3d.strokeWidth = polyStrokeW;
                 poly3d.extruded = false;
-                poly3d.path = orientedCoords;
-                poly3d.outerCoordinates = orientedCoords;
-                poly3d.coordinates = orientedCoords;
+                poly3d.path = closedCoords;
+                poly3d.outerCoordinates = closedCoords;
+                poly3d.coordinates = closedCoords;
 
-                map3d.appendChild(poly3d);
-
-                try {
-                    poly3d.outerCoordinates = orientedCoords;
-                    poly3d.coordinates = orientedCoords;
-                    poly3d.fillColor = fillHex8;
-                    poly3d.strokeColor = polyStrokeHex8;
-                    poly3d.strokeWidth = polyStrokeW;
-                } catch(e) {}
-
-                // 2. Canlı 3D Vektörel Sınır Hatları (<gmp-polyline-3d>)
-                // Google Maps 3D'de poligon sınır çizgileri ve Neon hatları Polyline3D ile çizilir!
+                // =========================================================
+                // 2. Canlı 3D Vektörel Sınır & Neon Hatları (<gmp-polyline-3d>)
+                // =========================================================
                 const PolylineClass = (window.google && window.google.maps && window.google.maps.maps3d && typeof window.google.maps.maps3d.Polyline3DElement === 'function')
                     ? window.google.maps.maps3d.Polyline3DElement
                     : null;
 
-                const createPolyline3D = (lineColorHex8, widthPx) => {
-                    let line = null;
-                    if (PolylineClass) {
-                        try {
-                            line = new PolylineClass({
-                                altitudeMode: altModeObj,
-                                strokeColor: lineColorHex8,
-                                strokeWidth: widthPx,
-                                drawsOccludedSegments: true,
-                                coordinates: closedPolylineCoords
-                            });
-                            line.coordinates = closedPolylineCoords;
-                            line.path = closedPolylineCoords;
-                        } catch(e) {}
-                    }
-                    if (!line || !(line instanceof Node)) {
-                        line = document.createElement('gmp-polyline-3d');
-                    }
-                    line.setAttribute('altitude-mode', 'clamp-to-ground');
-                    line.setAttribute('stroke-color', lineColorHex8);
-                    line.setAttribute('stroke-width', widthPx.toString());
-                    line.setAttribute('draws-occluded-segments', '');
-                    line.altitudeMode = altModeObj;
-                    line.strokeColor = lineColorHex8;
-                    line.strokeWidth = widthPx;
-                    line.coordinates = closedPolylineCoords;
-                    line.path = closedPolylineCoords;
-                    map3d.appendChild(line);
-                    try {
-                        line.coordinates = closedPolylineCoords;
-                        line.strokeColor = lineColorHex8;
-                    } catch(e) {}
-                    return line;
-                };
+                const existingLines = Array.from(map3dEl.querySelectorAll('gmp-polyline-3d'));
 
+                // Hedef Çizgi Katmanları Listesi: [{ color, width }]
+                const desiredLines = [];
                 if (isNeon3d) {
                     // ⚡ Otantik Saber Neon Motoru (3D Çok Katmanlı Işıma & Akkor Saf Beyaz Çekirdek)
-                    // Katman 1: Geniş Dış Atmosferik Halo (Soft Corona / Bloom - ~22px)
+                    // Katman 1: Geniş Dış Atmosferik Halo (Soft Corona / Bloom - ~20px)
                     const outerGlowW = Math.max(16, strokeW * 5.5);
                     const outerGlowHex8 = this.colorToHex8(neonColor, 0.28);
-                    createPolyline3D(outerGlowHex8, outerGlowW);
+                    desiredLines.push({ color: outerGlowHex8, width: outerGlowW });
 
                     // Katman 2: Yoğun Plazma Işıma Kuşağı (Mid Saturated Beam Aura - ~9px)
                     const midGlowW = Math.max(7.5, strokeW * 2.6);
                     const midGlowHex8 = this.colorToHex8(neonColor, 0.78);
-                    createPolyline3D(midGlowHex8, midGlowW);
+                    desiredLines.push({ color: midGlowHex8, width: midGlowW });
 
                     // Katman 3: Süper Sıcak Akkor Çekirdek (Ultra-hot Luminous Pure White Core - ~2.5px)
-                    // Gerçek neon tüpü & Saber ışın kılıcı standardı:
-                    // Merkez saf akkor beyaz (#ffffff) parlar, kenarlardan seçili neon renginin aurası yayılır!
+                    // Gerçek Saber neon tüpü standardı: merkez saf akkor beyaz (#ffffff) parlar!
                     const coreW = Math.max(2.2, strokeW * 0.75);
-                    createPolyline3D('#ffffffff', coreW);
+                    desiredLines.push({ color: '#ffffffff', width: coreW });
                 } else {
                     // Klasik Çizim Modu: Net tek katman vektörel sınır çizgisi
                     const strokeColorHex = this.colorToHex8(strokeColor, 1.0);
-                    createPolyline3D(strokeColorHex, strokeW);
+                    desiredLines.push({ color: strokeColorHex, width: strokeW });
+                }
+
+                // Gerekli sayıda polyline oluştur veya var olanları yerinde anında güncelle
+                for (let i = 0; i < desiredLines.length; i++) {
+                    const cfg = desiredLines[i];
+                    let line = existingLines[i];
+                    if (!line) {
+                        if (PolylineClass) {
+                            try {
+                                line = new PolylineClass({
+                                    altitudeMode: altModeObj,
+                                    strokeColor: cfg.color,
+                                    strokeWidth: cfg.width,
+                                    drawsOccludedSegments: true
+                                });
+                            } catch(e) {}
+                        }
+                        if (!line || !(line instanceof Node)) {
+                            line = document.createElement('gmp-polyline-3d');
+                        }
+                        map3dEl.appendChild(line);
+                    }
+                    line.setAttribute('altitude-mode', 'clamp-to-ground');
+                    line.setAttribute('stroke-color', cfg.color);
+                    line.setAttribute('stroke-width', cfg.width.toString());
+                    line.setAttribute('draws-occluded-segments', '');
+                    line.altitudeMode = altModeObj;
+                    line.strokeColor = cfg.color;
+                    line.strokeWidth = cfg.width;
+                    line.drawsOccludedSegments = true;
+                    line.path = closedCoords;
+                    line.coordinates = closedCoords;
+                }
+
+                // Fazla kalan polylineler varsa (örneğin Neon 3 çizgiden Klasik 1 çizgiye dönüldüğünde)
+                for (let j = desiredLines.length; j < existingLines.length; j++) {
+                    try {
+                        existingLines[j].strokeColor = '#ffffff00';
+                        existingLines[j].strokeWidth = 0;
+                        existingLines[j].setAttribute('stroke-color', '#ffffff00');
+                        existingLines[j].setAttribute('stroke-width', '0');
+                        existingLines[j].remove();
+                    } catch(e) {}
                 }
             } catch(err) {
                 console.warn('Google 3D polygon yerleştirme hatası:', err);
@@ -4569,62 +4563,72 @@
         },
 
         /**
-         * Leaflet Poligonunun Stilini Anlık Günceller
+         * Hem 2D Leaflet Hem De 3D Google Earth Poligon/Çizgi Stillerini Anında Günceller
          */
         updateParcelPolygonStyle: function() {
-            if (this.parcelPolygon && this.map) {
-                const shouldHideParcel = this.measureActive && this.measureHideDefaultParcel && (this.measurePoints && this.measurePoints.length >= 2);
-                if (shouldHideParcel) {
-                    if (this.map.hasLayer(this.parcelPolygon)) {
-                        this.map.removeLayer(this.parcelPolygon);
-                    }
-                    return;
-                }
-                if (!this.map.hasLayer(this.parcelPolygon)) {
-                    this.parcelPolygon.addTo(this.map);
-                }
-
-                const isNeon = !!this.parcelNeonEnabled;
-                const neonColor = this.parcelNeonColor || this.parcelStrokeColor || '#00CEC9';
-                const strokeColor = this.parcelStrokeColor || '#ffffff';
-                const strokeWidth = this.parcelStrokeWidth || 3;
-
-                let fillColor = 'transparent';
-                let fillOpacity = 0;
-                if (this.parcelFillMode === 'nofill') {
-                    fillColor = 'transparent';
-                    fillOpacity = 0;
-                } else if (this.parcelFillMode === 'color') {
-                    fillColor = this.parcelFillColor || '#f59e0b';
-                    fillOpacity = this.parcelFillOpacity !== undefined ? this.parcelFillOpacity : 0.40;
-                } else if (this.parcelFillMode === 'neon') {
-                    fillColor = neonColor;
-                    fillOpacity = this.parcelFillOpacity !== undefined ? this.parcelFillOpacity : 0.35;
-                } else {
-                    // 'white' modu: Saf beyaz yarı saydam dolgu (neon aktif olsa bile zemin beyaz kalır)
-                    fillColor = '#ffffff';
-                    fillOpacity = this.parcelFillOpacity !== undefined ? this.parcelFillOpacity : 0.40;
-                }
-
-                this.parcelPolygon.setStyle({
-                    color: isNeon ? '#ffffff' : strokeColor,
-                    weight: isNeon ? Math.max(2, strokeWidth * 0.85) : strokeWidth,
-                    fillColor: fillColor,
-                    fillOpacity: fillOpacity
-                });
-
-                // Canlı Leaflet SVG path neon efekti (Akkor beyaz çekirdek + renkli ışık aurası)
-                if (this.parcelPolygon._path) {
-                    if (isNeon) {
-                        this.parcelPolygon._path.style.filter = `drop-shadow(0 0 3px #ffffff) drop-shadow(0 0 8px ${neonColor}) drop-shadow(0 0 20px ${neonColor})`;
-                        this.parcelPolygon._path.style.transition = 'filter 0.3s ease, stroke 0.3s ease';
+            try {
+                if (this.parcelPolygon && this.map) {
+                    const shouldHideParcel = this.measureActive && this.measureHideDefaultParcel && (this.measurePoints && this.measurePoints.length >= 2);
+                    if (shouldHideParcel) {
+                        if (this.map.hasLayer(this.parcelPolygon)) {
+                            this.map.removeLayer(this.parcelPolygon);
+                        }
                     } else {
-                        this.parcelPolygon._path.style.filter = '';
+                        if (!this.map.hasLayer(this.parcelPolygon)) {
+                            this.parcelPolygon.addTo(this.map);
+                        }
+
+                        const isNeon = !!this.parcelNeonEnabled;
+                        const neonColor = this.parcelNeonColor || this.parcelStrokeColor || '#00CEC9';
+                        const strokeColor = this.parcelStrokeColor || '#ffffff';
+                        const strokeWidth = this.parcelStrokeWidth || 3;
+
+                        let fillColor = 'transparent';
+                        let fillOpacity = 0;
+                        if (this.parcelFillMode === 'nofill') {
+                            fillColor = 'transparent';
+                            fillOpacity = 0;
+                        } else if (this.parcelFillMode === 'color') {
+                            fillColor = this.parcelFillColor || '#f59e0b';
+                            fillOpacity = this.parcelFillOpacity !== undefined ? this.parcelFillOpacity : 0.40;
+                        } else if (this.parcelFillMode === 'neon') {
+                            fillColor = neonColor;
+                            fillOpacity = this.parcelFillOpacity !== undefined ? this.parcelFillOpacity : 0.35;
+                        } else {
+                            // 'white' modu: Saf beyaz yarı saydam dolgu (neon aktif olsa bile zemin beyaz kalır)
+                            fillColor = '#ffffff';
+                            fillOpacity = this.parcelFillOpacity !== undefined ? this.parcelFillOpacity : 0.40;
+                        }
+
+                        this.parcelPolygon.setStyle({
+                            color: isNeon ? '#ffffff' : strokeColor,
+                            weight: isNeon ? Math.max(2, strokeWidth * 0.85) : strokeWidth,
+                            fillColor: fillColor,
+                            fillOpacity: fillOpacity
+                        });
+
+                        // Canlı Leaflet SVG path neon efekti (Akkor beyaz çekirdek + renkli ışık aurası)
+                        if (this.parcelPolygon._path) {
+                            if (isNeon) {
+                                this.parcelPolygon._path.style.filter = `drop-shadow(0 0 3px #ffffff) drop-shadow(0 0 8px ${neonColor}) drop-shadow(0 0 20px ${neonColor})`;
+                                this.parcelPolygon._path.style.transition = 'filter 0.3s ease, stroke 0.3s ease';
+                            } else {
+                                this.parcelPolygon._path.style.filter = '';
+                            }
+                        }
                     }
                 }
+            } catch(e) {
+                console.warn("Leaflet arsa stil güncelleme hatası:", e);
             }
-            if (this.is3DActive && this.map3dElement) {
-                this.mount3DParcelPolygon(this.map3dElement);
+
+            // 3D Harita Açık veya DOM'da gmp-map-3d varsa 3D Parseli Hemen Güncelle
+            const map3d = this.map3dElement || document.querySelector('gmp-map-3d') || document.getElementById('sat3dMapHost')?.querySelector('gmp-map-3d');
+            const is3dContainerVisible = (document.getElementById('sat3dContainer')?.style.display !== 'none');
+            if (map3d && (this.is3DActive || is3dContainerVisible)) {
+                this.map3dElement = map3d;
+                this.is3DActive = true;
+                this.mount3DParcelPolygon(map3d);
             }
         },
 
@@ -5209,9 +5213,15 @@
                 this.map.removeLayer(this.parcelLabelMarker);
                 this.parcelLabelMarker = null;
             }
-            if (this.map3dElement) {
-                const existing = this.map3dElement.querySelectorAll('gmp-polygon-3d');
-                existing.forEach(el => { try { el.remove(); } catch(e){} });
+            const map3d = this.map3dElement || document.querySelector('gmp-map-3d');
+            if (map3d) {
+                map3d.querySelectorAll('gmp-polygon-3d, gmp-polyline-3d').forEach(el => {
+                    try {
+                        el.setAttribute('stroke-color', '#ffffff00');
+                        el.setAttribute('stroke-width', '0');
+                        el.remove();
+                    } catch(e){}
+                });
             }
             this.parcelData = null;
             this.floatingParcelPos = null;

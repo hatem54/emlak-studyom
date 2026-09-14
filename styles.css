@@ -11900,7 +11900,7 @@ html[data-theme="light"] .tone-curve-canvas-wrap {
     cursor: grabbing !important;
 }
 
-/* 📏 Yüzen Cam Ölçüm Paneli (Floating Glass Panel) */
+/* 📏 Yüzen Cam Ölçüm Paneli (Floating Glass Panel - Sürüklenebilir) */
 .sat-measure-floating-panel {
     position: absolute;
     bottom: 18px;
@@ -11908,7 +11908,7 @@ html[data-theme="light"] .tone-curve-canvas-wrap {
     z-index: 1050;
     width: 320px;
     max-width: calc(100% - 36px);
-    background: rgba(15, 23, 42, 0.90) !important;
+    background: rgba(15, 23, 42, 0.92) !important;
     backdrop-filter: blur(14px);
     -webkit-backdrop-filter: blur(14px);
     border: 1px solid rgba(245, 158, 11, 0.45);
@@ -11917,8 +11917,14 @@ html[data-theme="light"] .tone-curve-canvas-wrap {
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    transition: all 0.25s ease;
+    transition: width 0.2s ease, opacity 0.2s ease;
     user-select: none;
+}
+
+.sat-measure-floating-panel.is-dragging {
+    transition: none !important;
+    box-shadow: 0 24px 50px rgba(0, 0, 0, 0.9);
+    border-color: #f59e0b;
 }
 
 .sat-measure-floating-panel.collapsed {
@@ -11929,7 +11935,7 @@ html[data-theme="light"] .tone-curve-canvas-wrap {
     display: none;
 }
 
-/* Panel Üst Başlık */
+/* Panel Üst Başlık (Sürükleme Tutamacı) */
 .sat-measure-panel-header {
     display: flex;
     align-items: center;
@@ -11937,17 +11943,25 @@ html[data-theme="light"] .tone-curve-canvas-wrap {
     padding: 9px 12px;
     background: rgba(0, 0, 0, 0.35);
     border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    cursor: move;
+}
+
+.sat-measure-drag-handle {
+    font-size: 11px;
+    color: rgba(245, 158, 11, 0.7);
+    cursor: move;
 }
 
 .sat-measure-title {
     display: flex;
     align-items: center;
-    gap: 7px;
+    gap: 6px;
     font-size: 11.5px;
     font-weight: 700;
     color: #f59e0b;
     text-transform: uppercase;
     letter-spacing: 0.5px;
+    cursor: move;
 }
 
 /* Mod Değiştirici (Nokta Ekleme / Gezinme) - Sadece Çerçeveli (Outline) */
@@ -11991,7 +12005,34 @@ html[data-theme="light"] .tone-curve-canvas-wrap {
 .sat-measure-header-actions {
     display: flex;
     align-items: center;
-    gap: 3px;
+    gap: 4px;
+}
+
+.sat-measure-btn-parcel-layer {
+    background: transparent !important;
+    border: 1px solid #334155;
+    color: #94a3b8;
+    cursor: pointer;
+    padding: 3px 6px;
+    font-size: 11px;
+    border-radius: 5px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s ease;
+    box-shadow: none !important;
+}
+
+.sat-measure-btn-parcel-layer:hover {
+    border-color: #38bdf8;
+    color: #38bdf8;
+    background: transparent !important;
+}
+
+.sat-measure-btn-parcel-layer.active {
+    border-color: rgba(245, 158, 11, 0.6);
+    color: #f59e0b;
+    background: transparent !important;
 }
 
 .sat-measure-btn-min,
@@ -12186,7 +12227,7 @@ html[data-theme="light"] .tone-curve-canvas-wrap {
     box-shadow: none !important;
 }
 
-/* Renk Noktaları */
+/* Renk Noktaları & Genel Renk Seçici */
 .sat-measure-colors {
     display: flex;
     gap: 6px;
@@ -12214,15 +12255,82 @@ html[data-theme="light"] .tone-curve-canvas-wrap {
     border-color: #ffffff !important;
 }
 
-/* Alt Aksiyon Butonları (Dolgusuz / Outline) */
+.sat-measure-color-custom-btn {
+    position: relative;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: 1px dashed rgba(255, 255, 255, 0.45);
+    background: transparent !important;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: #cbd5e1;
+    font-size: 10px;
+    transition: all 0.2s ease;
+    overflow: hidden;
+    margin-left: 2px;
+    box-shadow: none !important;
+}
+
+.sat-measure-color-custom-btn:hover,
+.sat-measure-color-custom-btn.active {
+    border-color: #f59e0b;
+    color: #f59e0b;
+    border-style: solid;
+    transform: scale(1.2);
+}
+
+.sat-measure-color-custom-btn input[type="color"] {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    cursor: pointer;
+    padding: 0;
+    border: none;
+}
+
+/* Alt Aksiyon Butonları (Dolgusuz / Outline - 3 Düzenli Satır) */
 .sat-measure-actions-bar {
     display: flex;
     gap: 5px;
     margin-top: 3px;
+    width: 100%;
+}
+
+.sat-measure-actions-bar.full-row {
+    margin-top: 4px;
+}
+
+.sat-measure-actions-bar.full-row .sat-measure-act-btn {
+    width: 100%;
+    flex: 1 1 100%;
+    justify-content: center;
+}
+
+.sat-measure-actions-bar.edge-row {
+    margin-top: 3px;
+    gap: 5px;
+}
+
+.sat-measure-actions-bar.edge-row .sat-measure-act-btn {
+    flex: 1 1 50%;
+    min-width: 0;
+    justify-content: center;
+}
+
+.sat-measure-actions-bar.edge-row .sat-measure-act-btn span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .sat-measure-actions-bar.second-row {
-    margin-top: 4px;
+    margin-top: 3px;
 }
 
 .sat-measure-act-btn {
@@ -12480,7 +12588,7 @@ html[data-theme="light"] .tone-curve-canvas-wrap {
 }
 
 .sat-measure-select {
-    background: rgba(15, 23, 42, 0.9) !important;
+    background: rgba(15, 23, 42, 0.95) !important;
     border: 1px solid #334155;
     color: #cbd5e1;
     font-size: 10.5px;
@@ -12490,11 +12598,27 @@ html[data-theme="light"] .tone-curve-canvas-wrap {
     outline: none;
     cursor: pointer;
     transition: border-color 0.15s ease;
+    max-width: 130px;
+    text-overflow: ellipsis;
 }
 
 .sat-measure-select:focus,
 .sat-measure-select:hover {
     border-color: #f59e0b;
+}
+
+.sat-measure-select optgroup {
+    background: #0f172a;
+    color: #f59e0b;
+    font-weight: 700;
+    font-size: 11px;
+}
+
+.sat-measure-select option {
+    background: #1e293b;
+    color: #f8fafc;
+    font-weight: 500;
+    font-size: 11px;
 }
 
 .sat-measure-size-btns {

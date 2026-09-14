@@ -121,6 +121,8 @@
         measureAreaFontSize: 16, // piksel
         measureEdgeFontSize: 12, // piksel
         measurePanelCollapsed: false,
+        measureHideDefaultParcel: true, // Ölçüm açıkken varsayılan beyaz parsel konturunu gizler (çakışmayı önler)
+        measurePanelPos: null, // { left, top, relX, relY } panelin taşındığı konum
         measureIsNavPanning: false, // Ctrl/Space/Sağ tık ile gezinme anı
         isSpacePressed: false,
         isCtrlPressed: false,
@@ -271,10 +273,11 @@
 
                             <!-- 📏 Canlı Mesafe, Sınır & Alan Ölçüm Paneli (Floating Glass Panel) -->
                             <div class="sat-measure-floating-panel" id="satMeasureFloatingPanel" style="display:none;">
-                                <div class="sat-measure-panel-header">
+                                <div class="sat-measure-panel-header" title="Paneli sürükleyerek istediğiniz yere taşıyabilirsiniz">
                                     <div class="sat-measure-title">
+                                        <i class="fas fa-grip-vertical sat-measure-drag-handle" title="Taşımak için sürükleyin"></i>
                                         <i class="fas fa-ruler-combined"></i>
-                                        <span>Ölçüm & Alan Analizi</span>
+                                        <span>Ölçüm & Alan</span>
                                     </div>
                                     <div class="sat-measure-mode-switcher">
                                         <button type="button" class="sat-measure-mode-btn active" id="satMeasureModeDrawBtn" onclick="window.setSatelliteMeasureInteractionMode('draw')" title="Sol tık ile yeni köşe noktaları ekleyin">
@@ -285,6 +288,9 @@
                                         </button>
                                     </div>
                                     <div class="sat-measure-header-actions">
+                                        <button type="button" class="sat-measure-btn-parcel-layer active" id="satMeasureToggleParcelBtn" onclick="window.toggleSatelliteMeasureParcelLayer()" title="Beyaz TKGM Parsel Katmanını Gizle / Göster">
+                                            <i class="fas fa-eye-slash" id="satMeasureParcelLayerIcon"></i>
+                                        </button>
                                         <button type="button" class="sat-measure-btn-min" onclick="window.toggleSatelliteMeasurePanelCollapse()" title="Paneli Küçült / Büyüt">
                                             <i class="fas fa-chevron-up" id="satMeasureMinIcon"></i>
                                         </button>
@@ -355,12 +361,6 @@
                                             <div class="sat-measure-font-controls">
                                                 <select id="satMeasureFontSelect" class="sat-measure-select" onchange="window.setSatelliteMeasureFontFamily(this.value)">
                                                     <option value="Montserrat" selected>Montserrat</option>
-                                                    <option value="Inter">Inter</option>
-                                                    <option value="Roboto">Roboto</option>
-                                                    <option value="Poppins">Poppins</option>
-                                                    <option value="Oswald">Oswald</option>
-                                                    <option value="Playfair Display">Playfair</option>
-                                                    <option value="Space Grotesk">Space Grotesk</option>
                                                 </select>
                                                 <div class="sat-measure-size-btns">
                                                     <button type="button" class="sat-measure-size-btn" onclick="window.adjustSatelliteMeasureFontSize(-1)" title="Yazı boyutunu küçült">A-</button>
@@ -376,7 +376,7 @@
                                         </div>
                                     </div>
 
-                                    <!-- Renk Paleti -->
+                                    <!-- Renk Paleti & Genel Renk Seçici -->
                                     <div class="sat-measure-row">
                                         <div class="sat-measure-sub-row">
                                             <label class="sat-measure-label">Renk:</label>
@@ -386,20 +386,27 @@
                                                 <button type="button" class="sat-measure-color-dot" style="background:#ffffff;" data-color="#ffffff" onclick="window.setSatelliteMeasureColor('#ffffff')" title="Saf Beyaz"></button>
                                                 <button type="button" class="sat-measure-color-dot" style="background:#10b981;" data-color="#10b981" onclick="window.setSatelliteMeasureColor('#10b981')" title="Zümrüt Yeşili"></button>
                                                 <button type="button" class="sat-measure-color-dot" style="background:#ef4444;" data-color="#ef4444" onclick="window.setSatelliteMeasureColor('#ef4444')" title="Canlı Kırmızı"></button>
+                                                <label class="sat-measure-color-custom-btn" id="satMeasureCustomColorLabel" title="Özel Renk Seçici (Palet)">
+                                                    <i class="fas fa-palette"></i>
+                                                    <input type="color" id="satMeasureCustomColorInput" value="#f59e0b" oninput="window.setSatelliteMeasureColor(this.value)">
+                                                </label>
                                             </div>
                                         </div>
                                     </div>
 
-                                    <!-- Hızlı Eylemler (Parsel Kilitleri & Sıfırla) -->
-                                    <div class="sat-measure-actions-bar">
-                                        <button type="button" id="satBtnSnapAllParcel" class="sat-measure-act-btn snap-all" style="display:none;" onclick="window.snapSatelliteMeasureToAllParcelVertices()" title="Yüklü parselin tüm sınırlarını ve alanını otomatik çevreler">
-                                            <i class="fas fa-vector-square"></i> <span>Tüm Parseli Çevrele</span>
+                                    <!-- Hızlı Eylemler (Parsel Kilitleri & Sıfırla - 3 Düzenli Satır) -->
+                                    <div class="sat-measure-actions-bar full-row" id="satMeasureRowSnapAll" style="display:none;">
+                                        <button type="button" id="satBtnSnapAllParcel" class="sat-measure-act-btn snap-all" onclick="window.snapSatelliteMeasureToAllParcelVertices()" title="Yüklü parselin tüm sınırlarını ve alanını otomatik çevreler">
+                                            <i class="fas fa-vector-square"></i> <span>📐 Tüm Parseli Çevrele</span>
                                         </button>
+                                    </div>
+
+                                    <div class="sat-measure-actions-bar edge-row" id="satMeasureRowEdgeNav" style="display:none;">
                                         <button type="button" id="satBtnSnapParcelEdge" class="sat-measure-act-btn snap" onclick="window.snapSatelliteMeasureToParcelEdge()" title="Ölçüm noktalarını arsanın tek bir kenarına kilitler">
                                             <i class="fas fa-draw-polygon"></i> <span>Tek Kenar</span>
                                         </button>
-                                        <button type="button" id="satBtnCycleParcelEdge" class="sat-measure-act-btn cycle" style="display:none;" onclick="window.cycleSatelliteMeasureParcelEdge()" title="Parselin diğer kenarına geç">
-                                            <i class="fas fa-rotate"></i> <span>Diğer Kenar</span>
+                                        <button type="button" id="satBtnCycleParcelEdge" class="sat-measure-act-btn cycle" onclick="window.cycleSatelliteMeasureParcelEdge()" title="Parselin diğer kenarına geç">
+                                            <i class="fas fa-rotate"></i> <span id="satCycleEdgeText">Diğer Kenar</span>
                                         </button>
                                     </div>
 
@@ -700,6 +707,8 @@
             }
 
             this.initDragDropListeners();
+            this.initMeasurePanelDraggable();
+            this.populateMeasureFonts();
         },
 
         /**
@@ -2220,6 +2229,8 @@
 
             modal.style.display = 'flex';
             document.body.style.overflow = 'hidden';
+            this.populateMeasureFonts();
+            this.restoreMeasurePanelPosition();
             this.updateParcelUI();
             this.updateParcelNeonUI();
 
@@ -2600,8 +2611,8 @@
                             this.drawVectorMarker(ctx3d, pinCanvasX, pinCanvasY, this.markerStyle, this.customMarkerText, targetW, wrapper);
                         }
 
-                        // 📏 Eğer Ölçüm Aracı aktifse ve 2 nokta varsa 3D tuvaline vektörel çiz
-                        if (this.measureActive && this.measurePoints && this.measurePoints.length === 2) {
+                        // 📏 Eğer Ölçüm Aracı aktifse ve 2 veya daha fazla nokta varsa 3D tuvaline vektörel çiz
+                        if (this.measureActive && this.measurePoints && this.measurePoints.length >= 2) {
                             const ctx3d = offCanvas.getContext('2d');
                             const wrapper = document.getElementById('satMapWrapper');
                             this.drawVectorMeasurement(ctx3d, targetW, wrapper, null);
@@ -2763,6 +2774,7 @@
 
                 // 📐 Eğer TKGM Parsel Poligonu yüklüyse koordinatları tuval piksel kadrajına dönüştür
                 let parcelCanvasPoints = null;
+                const shouldDrawDefaultParcel = !(this.measureActive && this.measureHideDefaultParcel && this.measurePoints && this.measurePoints.length >= 2);
                 if (this.parcelPolygon && this.parcelData) {
                     if (this.parcelData.latLngs && Array.isArray(this.parcelData.latLngs)) {
                         parcelCanvasPoints = this.parcelData.latLngs.map(ll => {
@@ -2775,7 +2787,7 @@
                     }
 
                     // Eğer drawPaths tanımlı değilse (fallback), doğrudan arka plan görseline yak
-                    if (typeof drawPaths === 'undefined') {
+                    if (typeof drawPaths === 'undefined' && shouldDrawDefaultParcel) {
                         this.drawVectorParcelPolygon(ctx, targetW, targetH, mapContainer, cropInfo);
                     }
                 }
@@ -2792,8 +2804,8 @@
                     this.drawVectorMarker(ctx, pinCanvasX, pinCanvasY, this.markerStyle, this.customMarkerText, targetW, mapContainer);
                 }
 
-                // 📏 Eğer Ölçüm Aracı aktifse ve 2 nokta varsa 2D tuvaline vektörel çiz
-                if (this.measureActive && this.measurePoints && this.measurePoints.length === 2) {
+                // 📏 Eğer Ölçüm Aracı aktifse ve 2 veya daha fazla nokta varsa 2D tuvaline vektörel çiz
+                if (this.measureActive && this.measurePoints && this.measurePoints.length >= 2) {
                     this.drawVectorMeasurement(ctx, targetW, mapContainer, cropInfo);
                 }
 
@@ -2856,8 +2868,8 @@
                             if (SatelliteMapModule.parcelData) {
                                 SatelliteMapModule.syncParcelToSmartParser(SatelliteMapModule.parcelData);
 
-                                // 🚀 Parsel Poligonunu Canlı Tuval Katmanına (drawPaths) ve Saber WebGL Neon Motoruna Aktar
-                                if (parcelCanvasPoints && typeof SatelliteMapModule.transferParcelToCanvas === 'function') {
+                                // 🚀 Parsel Poligonunu Canlı Tuval Katmanına (drawPaths) ve Saber WebGL Neon Motoruna Aktar (Ölçüm açıkken çakışmayı önlemek için kontrol edilir)
+                                if (shouldDrawDefaultParcel && parcelCanvasPoints && typeof SatelliteMapModule.transferParcelToCanvas === 'function') {
                                     SatelliteMapModule.transferParcelToCanvas(parcelCanvasPoints);
                                 }
 
@@ -5365,6 +5377,10 @@
                 } else {
                     panel.classList.remove('collapsed');
                 }
+                if (this.measureActive) {
+                    this.restoreMeasurePanelPosition(panel);
+                    this.updateMeasureParcelVisibilityButton();
+                }
             }
 
             const mapEl = document.getElementById('satelliteLeafletMap');
@@ -5402,6 +5418,12 @@
                 this.updateMeasureGraphics();
             } else {
                 this.removeMeasureGraphicsFromMap();
+                if (this.parcelPolygon) {
+                    if (this.parcelPolygon._path) {
+                        this.parcelPolygon._path.style.display = '';
+                    }
+                    this.updateParcelPolygonStyle();
+                }
             }
 
             this.saveLastLocation({
@@ -5576,9 +5598,29 @@
          */
         setMeasureColor: function(color) {
             this.measureColor = color || '#f59e0b';
+            let matched = false;
             document.querySelectorAll('.sat-measure-color-dot').forEach(dot => {
-                dot.classList.toggle('active', dot.dataset.color === this.measureColor);
+                const isMatch = dot.dataset.color && dot.dataset.color.toLowerCase() === this.measureColor.toLowerCase();
+                dot.classList.toggle('active', isMatch);
+                if (isMatch) matched = true;
             });
+
+            const customLabel = document.getElementById('satMeasureCustomColorLabel');
+            const customInput = document.getElementById('satMeasureCustomColorInput');
+            if (customLabel) {
+                customLabel.classList.toggle('active', !matched);
+                if (!matched) {
+                    customLabel.style.color = this.measureColor;
+                    customLabel.style.borderColor = this.measureColor;
+                } else {
+                    customLabel.style.color = '';
+                    customLabel.style.borderColor = '';
+                }
+            }
+            if (customInput && typeof this.measureColor === 'string' && this.measureColor.startsWith('#')) {
+                customInput.value = this.measureColor;
+            }
+
             this.updateMeasureGraphics();
             this.saveLastLocation({
                 measureData: this.getMeasureDataToSave()
@@ -6008,14 +6050,23 @@
          * Parsel Kenar Kilit Butonlarının Görünürlüğünü Günceller
          */
         updateParcelSnapButtons: function() {
+            const rowSnapAll = document.getElementById('satMeasureRowSnapAll');
+            const rowEdgeNav = document.getElementById('satMeasureRowEdgeNav');
             const snapAllBtn = document.getElementById('satBtnSnapAllParcel');
             const snapBtn = document.getElementById('satBtnSnapParcelEdge');
             const cycleBtn = document.getElementById('satBtnCycleParcelEdge');
+            const cycleSpan = document.getElementById('satCycleEdgeText');
             const hasParcel = !!(this.parcelData && this.parcelData.latLngs && this.parcelData.latLngs.length >= 3);
             const edges = hasParcel ? this.getParcelEdges() : [];
 
+            if (rowSnapAll) {
+                rowSnapAll.style.display = hasParcel ? 'flex' : 'none';
+            }
             if (snapAllBtn) {
                 snapAllBtn.style.display = hasParcel ? 'inline-flex' : 'none';
+            }
+            if (rowEdgeNav) {
+                rowEdgeNav.style.display = hasParcel ? 'flex' : 'none';
             }
             if (snapBtn) {
                 snapBtn.style.display = hasParcel ? 'inline-flex' : 'none';
@@ -6024,8 +6075,12 @@
                 if (hasParcel && edges.length > 1) {
                     cycleBtn.style.display = 'inline-flex';
                     const cur = (this.measureEdgeIndex !== undefined ? this.measureEdgeIndex : 0) + 1;
-                    const span = cycleBtn.querySelector('span');
-                    if (span) span.textContent = `Diğer Kenar (${cur}/${edges.length})`;
+                    if (cycleSpan) {
+                        cycleSpan.textContent = `Diğer Kenar (${cur}/${edges.length})`;
+                    } else {
+                        const span = cycleBtn.querySelector('span');
+                        if (span) span.textContent = `Diğer Kenar (${cur}/${edges.length})`;
+                    }
                 } else {
                     cycleBtn.style.display = 'none';
                 }
@@ -6077,6 +6132,26 @@
             this.measurePerimeterMeters = perimeter;
             const areaM2 = isClosed ? this.calculateGeodesicPolygonArea(pts) : 0;
             this.measureAreaM2 = areaM2;
+
+            // Beyaz TKGM Parsel Katmanı Çakışmasını Önle (Ölçüm açıkken alttaki beyaz çizgiyi gizle/göster)
+            if (this.parcelPolygon) {
+                const shouldHideParcel = this.measureActive && this.measureHideDefaultParcel && (pts.length >= 2);
+                if (shouldHideParcel) {
+                    this.parcelPolygon.setStyle({
+                        opacity: 0,
+                        fillOpacity: 0,
+                        weight: 0
+                    });
+                    if (this.parcelPolygon._path) {
+                        this.parcelPolygon._path.style.display = 'none';
+                    }
+                } else {
+                    if (this.parcelPolygon._path) {
+                        this.parcelPolygon._path.style.display = '';
+                    }
+                    this.updateParcelPolygonStyle();
+                }
+            }
 
             // Panel Metinlerini Güncelle
             if (pts.length === 2) {
@@ -6453,6 +6528,12 @@
             if (this.measureAreaBadgeMarker && this.map.hasLayer(this.measureAreaBadgeMarker)) {
                 this.map.removeLayer(this.measureAreaBadgeMarker);
                 this.measureAreaBadgeMarker = null;
+            }
+            if (this.parcelPolygon) {
+                if (this.parcelPolygon._path) {
+                    this.parcelPolygon._path.style.display = '';
+                }
+                this.updateParcelPolygonStyle();
             }
         },
 
@@ -6884,7 +6965,9 @@
                 fontFamily: this.measureFontFamily || 'Montserrat',
                 fontTarget: this.measureFontTarget || 'all',
                 areaFontSize: this.measureAreaFontSize || 16,
-                edgeFontSize: this.measureEdgeFontSize || 12
+                edgeFontSize: this.measureEdgeFontSize || 12,
+                hideDefaultParcel: (this.measureHideDefaultParcel !== undefined ? !!this.measureHideDefaultParcel : true),
+                panelPos: this.measurePanelPos || null
             };
         },
 
@@ -6907,6 +6990,8 @@
             if (data.fontTarget) this.measureFontTarget = data.fontTarget;
             if (data.areaFontSize) this.measureAreaFontSize = data.areaFontSize;
             if (data.edgeFontSize) this.measureEdgeFontSize = data.edgeFontSize;
+            if (data.hideDefaultParcel !== undefined) this.measureHideDefaultParcel = data.hideDefaultParcel;
+            if (data.panelPos) this.measurePanelPos = data.panelPos;
 
             if (data.badgeCustomPositions) {
                 this.measureBadgeCustomPositions = {};
@@ -6938,9 +7023,9 @@
             document.querySelectorAll('.sat-measure-style-btn').forEach(btn => {
                 btn.classList.toggle('active', btn.dataset.style === (this.measureStyle || 'cad'));
             });
-            document.querySelectorAll('.sat-measure-color-dot').forEach(dot => {
-                dot.classList.toggle('active', dot.dataset.color === (this.measureColor || '#f59e0b'));
-            });
+            this.setMeasureColor(this.measureColor || '#f59e0b');
+            this.updateMeasureParcelVisibilityButton();
+            this.restoreMeasurePanelPosition();
 
             // Alan Görünüm ve İçerik butonlarını senkronize et
             const framelessBtn = document.getElementById('satAreaModeFramelessBtn');
@@ -6956,6 +7041,7 @@
             if (detailedBtn) detailedBtn.classList.toggle('active', this.measureAreaContentMode === 'detailed');
 
             // Font ve boyut arayüzü
+            this.populateMeasureFonts();
             const fontSel = document.getElementById('satMeasureFontSelect');
             if (fontSel) fontSel.value = this.measureFontFamily || 'Montserrat';
 
@@ -7049,6 +7135,254 @@
 
             this.updateMeasureGraphics();
             this.saveLastLocation({ measureData: this.getMeasureDataToSave() });
+        },
+
+        /**
+         * Ölçüm Esnasında Varsayılan Beyaz Parsel Katmanını Gizler / Gösterir
+         */
+        toggleMeasureParcelLayer: function() {
+            this.measureHideDefaultParcel = !this.measureHideDefaultParcel;
+            this.updateMeasureParcelVisibilityButton();
+            this.updateMeasureGraphics();
+            if (typeof window.showAppToast === 'function') {
+                const msg = this.measureHideDefaultParcel 
+                    ? '👁️ Orijinal beyaz parsel katmanı gizlendi (sadece ölçüm görünür).' 
+                    : '👁️ Orijinal beyaz parsel katmanı görünür yapıldı.';
+                window.showAppToast(msg, 'info');
+            }
+            this.saveLastLocation({ measureData: this.getMeasureDataToSave() });
+        },
+
+        /**
+         * Parsel Katmanı Gizle/Göster Butonunun İkonunu ve Başlığını Günceller
+         */
+        updateMeasureParcelVisibilityButton: function() {
+            const btn = document.getElementById('satMeasureToggleParcelBtn');
+            const icon = document.getElementById('satMeasureParcelLayerIcon');
+            if (btn && icon) {
+                if (this.measureHideDefaultParcel) {
+                    btn.classList.add('active');
+                    icon.className = 'fas fa-eye-slash';
+                    btn.title = 'Beyaz Parsel Katmanı Gizli (Göstermek için tıklayın)';
+                } else {
+                    btn.classList.remove('active');
+                    icon.className = 'fas fa-eye';
+                    btn.title = 'Beyaz Parsel Katmanı Görünür (Gizlemek için tıklayın)';
+                }
+            }
+        },
+
+        /**
+         * Font Seçici Açılır Kutusunu Projedeki Tüm Fontlarla (js/fonts.config.js - 42 Font) Doldurur
+         */
+        populateMeasureFonts: function() {
+            const fontSel = document.getElementById('satMeasureFontSelect');
+            if (!fontSel) return;
+
+            const fontSource = (typeof window !== 'undefined' && window.FONTS && Array.isArray(window.FONTS)) 
+                ? window.FONTS 
+                : (typeof FONTS !== 'undefined' && Array.isArray(FONTS) ? FONTS : null);
+
+            const fallbackFonts = [
+                {name:'✒️ Dancing Script',family:"'Dancing Script',cursive",cat:'✒️ Kıvrımlı & Zarif'},
+                {name:'✒️ Great Vibes',family:"'Great Vibes',cursive",cat:'✒️ Kıvrımlı & Zarif'},
+                {name:'✒️ Pacifico',family:"'Pacifico',cursive",cat:'✒️ Kıvrımlı & Zarif'},
+                {name:'✒️ Satisfy',family:"'Satisfy',cursive",cat:'✒️ Kıvrımlı & Zarif'},
+                {name:'✒️ Allura',family:"'Allura',cursive",cat:'✒️ Kıvrımlı & Zarif'},
+                {name:'✒️ Sacramento',family:"'Sacramento',cursive",cat:'✒️ Kıvrımlı & Zarif'},
+                {name:'✒️ Yellowtail',family:"'Yellowtail',cursive",cat:'✒️ Kıvrımlı & Zarif'},
+                {name:'✒️ Kaushan Script',family:"'Kaushan Script',cursive",cat:'✒️ Kıvrımlı & Zarif'},
+                {name:'✒️ Alex Brush',family:"'Alex Brush',cursive",cat:'✒️ Kıvrımlı & Zarif'},
+                {name:'✒️ Parisienne',family:"'Parisienne',cursive",cat:'✒️ Kıvrımlı & Zarif'},
+                {name:'✒️ Marck Script',family:"'Marck Script',cursive",cat:'✒️ Kıvrımlı & Zarif'},
+                {name:'✒️ Cookie',family:"'Cookie',cursive",cat:'✒️ Kıvrımlı & Zarif'},
+                {name:'✒️ Tangerine',family:"'Tangerine',cursive",cat:'✒️ Kıvrımlı & Zarif'},
+                {name:'✒️ Berkshire Swash',family:"'Berkshire Swash',cursive",cat:'✒️ Kıvrımlı & Zarif'},
+                {name:'✒️ Yesteryear',family:"'Yesteryear',cursive",cat:'✒️ Kıvrımlı & Zarif'},
+                {name:'✒️ Caveat',family:"'Caveat',cursive",cat:'✒️ Kıvrımlı & Zarif'},
+                {name:'👑 Playfair Display',family:"'Playfair Display',serif",cat:'👑 Klasik & Lüks'},
+                {name:'👑 Cormorant Garamond',family:"'Cormorant Garamond',serif",cat:'👑 Klasik & Lüks'},
+                {name:'👑 Cinzel',family:"'Cinzel',serif",cat:'👑 Klasik & Lüks'},
+                {name:'👑 Cinzel Decorative',family:"'Cinzel Decorative',serif",cat:'👑 Klasik & Lüks'},
+                {name:'👑 Italiana',family:"'Italiana',serif",cat:'👑 Klasik & Lüks'},
+                {name:'👑 Prata',family:"'Prata',serif",cat:'👑 Klasik & Lüks'},
+                {name:'👑 Abril Fatface',family:"'Abril Fatface',cursive",cat:'👑 Klasik & Lüks'},
+                {name:'👑 Yeseva One',family:"'Yeseva One',serif",cat:'👑 Klasik & Lüks'},
+                {name:'👑 Libre Baskerville',family:"'Libre Baskerville',serif",cat:'👑 Klasik & Lüks'},
+                {name:'👑 Lora',family:"'Lora',serif",cat:'👑 Klasik & Lüks'},
+                {name:'👑 Merriweather',family:"'Merriweather',serif",cat:'👑 Klasik & Lüks'},
+                {name:'👑 Georgia',family:"Georgia,serif",cat:'👑 Klasik & Lüks'},
+                {name:'🚀 Montserrat',family:"'Montserrat',sans-serif",cat:'🚀 Modern Sans-Serif'},
+                {name:'🚀 Poppins',family:"'Poppins',sans-serif",cat:'🚀 Modern Sans-Serif'},
+                {name:'🚀 Raleway',family:"'Raleway',sans-serif",cat:'🚀 Modern Sans-Serif'},
+                {name:'🚀 Inter',family:"'Inter',sans-serif",cat:'🚀 Modern Sans-Serif'},
+                {name:'🚀 Nunito',family:"'Nunito',sans-serif",cat:'🚀 Modern Sans-Serif'},
+                {name:'🚀 Roboto',family:"'Roboto',sans-serif",cat:'🚀 Modern Sans-Serif'},
+                {name:'🚀 Josefin Sans',family:"'Josefin Sans',sans-serif",cat:'🚀 Modern Sans-Serif'},
+                {name:'💥 Bebas Neue',family:"'Bebas Neue',sans-serif",cat:'💥 Bold & Impact'},
+                {name:'💥 Oswald',family:"'Oswald',sans-serif",cat:'💥 Bold & Impact'},
+                {name:'💥 Archivo Black',family:"'Archivo Black',sans-serif",cat:'💥 Bold & Impact'},
+                {name:'💥 Shrikhand',family:"'Shrikhand',cursive",cat:'💥 Bold & Impact'},
+                {name:'🎯 Amatic SC',family:"'Amatic SC',cursive",cat:'🎯 Dekoratif'}
+            ];
+
+            const list = (fontSource && fontSource.length > 0) ? fontSource : fallbackFonts;
+            const groups = {};
+            list.forEach(f => {
+                const cat = f.cat || 'Diğer Fontlar';
+                if (!groups[cat]) groups[cat] = [];
+                groups[cat].push(f);
+            });
+
+            let html = '';
+            const selectedVal = (this.measureFontFamily || 'Montserrat').toLowerCase();
+
+            Object.keys(groups).forEach(catName => {
+                html += `<optgroup label="${catName}">`;
+                groups[catName].forEach(item => {
+                    const cleanName = item.family.split(',')[0].replace(/['"]/g, '').trim();
+                    const isSel = (cleanName.toLowerCase() === selectedVal);
+                    html += `<option value="${cleanName}" ${isSel ? 'selected' : ''}>${item.name || cleanName}</option>`;
+                });
+                html += `</optgroup>`;
+            });
+
+            fontSel.innerHTML = html;
+            const options = Array.from(fontSel.options);
+            const found = options.find(opt => opt.value.toLowerCase() === selectedVal);
+            if (found) {
+                fontSel.value = found.value;
+            } else if (fontSel.options.length > 0) {
+                fontSel.value = fontSel.options[0].value;
+            }
+        },
+
+        /**
+         * Ölçüm Paneline Sürükleme (Draggable) Yeteneği Kazandırır
+         */
+        initMeasurePanelDraggable: function() {
+            const panel = document.getElementById('satMeasureFloatingPanel');
+            if (!panel || panel._hasDraggable) return;
+            panel._hasDraggable = true;
+
+            const header = panel.querySelector('.sat-measure-panel-header');
+            if (!header) return;
+
+            let isDragging = false;
+            let startX = 0;
+            let startY = 0;
+            let initialLeft = 0;
+            let initialTop = 0;
+
+            const onPointerDown = (e) => {
+                if (e.target.closest('button') || e.target.closest('input') || e.target.closest('select') || e.target.closest('label')) return;
+
+                const stage = document.getElementById('satMapStage') || panel.offsetParent || document.body;
+                const stageRect = stage.getBoundingClientRect();
+                const rect = panel.getBoundingClientRect();
+
+                isDragging = true;
+                startX = e.clientX;
+                startY = e.clientY;
+                initialLeft = rect.left - stageRect.left;
+                initialTop = rect.top - stageRect.top;
+
+                panel.style.left = initialLeft + 'px';
+                panel.style.top = initialTop + 'px';
+                panel.style.bottom = 'auto';
+                panel.style.right = 'auto';
+                panel.classList.add('is-dragging');
+                header.style.cursor = 'grabbing';
+
+                window.addEventListener('pointermove', onPointerMove);
+                window.addEventListener('pointerup', onPointerUp);
+                e.preventDefault();
+            };
+
+            const onPointerMove = (e) => {
+                if (!isDragging) return;
+                const dx = e.clientX - startX;
+                const dy = e.clientY - startY;
+
+                const stage = document.getElementById('satMapStage') || panel.offsetParent || document.body;
+                const stageRect = stage.getBoundingClientRect();
+                const panelRect = panel.getBoundingClientRect();
+
+                let newLeft = initialLeft + dx;
+                let newTop = initialTop + dy;
+
+                const maxLeft = Math.max(10, Math.floor(stageRect.width - panelRect.width - 10));
+                const maxTop = Math.max(10, Math.floor(stageRect.height - panelRect.height - 10));
+
+                newLeft = Math.max(10, Math.min(newLeft, maxLeft));
+                newTop = Math.max(10, Math.min(newTop, maxTop));
+
+                panel.style.left = newLeft + 'px';
+                panel.style.top = newTop + 'px';
+
+                this.measurePanelPos = {
+                    left: newLeft,
+                    top: newTop,
+                    relX: newLeft / Math.max(1, stageRect.width),
+                    relY: newTop / Math.max(1, stageRect.height)
+                };
+            };
+
+            const onPointerUp = () => {
+                if (!isDragging) return;
+                isDragging = false;
+                panel.classList.remove('is-dragging');
+                header.style.cursor = 'move';
+                window.removeEventListener('pointermove', onPointerMove);
+                window.removeEventListener('pointerup', onPointerUp);
+
+                if (this.measurePanelPos) {
+                    try {
+                        localStorage.setItem('sat_measure_panel_pos', JSON.stringify(this.measurePanelPos));
+                    } catch(e) {}
+                }
+                this.saveLastLocation({ measureData: this.getMeasureDataToSave() });
+            };
+
+            header.addEventListener('pointerdown', onPointerDown);
+        },
+
+        /**
+         * Ölçüm Panelinin Konumunu Hafızadan Geri Yükler
+         */
+        restoreMeasurePanelPosition: function(panel) {
+            if (!panel) panel = document.getElementById('satMeasureFloatingPanel');
+            if (!panel) return;
+
+            let pos = this.measurePanelPos;
+            if (!pos) {
+                try {
+                    const saved = localStorage.getItem('sat_measure_panel_pos');
+                    if (saved) pos = JSON.parse(saved);
+                } catch(e) {}
+            }
+
+            if (pos && typeof pos.left === 'number' && typeof pos.top === 'number') {
+                const stage = document.getElementById('satMapStage') || panel.offsetParent || document.body;
+                const stageRect = stage.getBoundingClientRect();
+                if (stageRect.width > 120 && stageRect.height > 120) {
+                    const maxLeft = Math.max(10, Math.floor(stageRect.width - (panel.offsetWidth || 320) - 10));
+                    const maxTop = Math.max(10, Math.floor(stageRect.height - (panel.offsetHeight || 280) - 10));
+                    const left = Math.max(10, Math.min(pos.left, maxLeft));
+                    const top = Math.max(10, Math.min(pos.top, maxTop));
+                    panel.style.left = `${left}px`;
+                    panel.style.top = `${top}px`;
+                    panel.style.bottom = 'auto';
+                    panel.style.right = 'auto';
+                    return;
+                }
+            }
+
+            // Varsayılan pozisyon (Sol Alt)
+            panel.style.bottom = '18px';
+            panel.style.left = '18px';
+            panel.style.top = 'auto';
+            panel.style.right = 'auto';
         },
 
         /**
@@ -7657,6 +7991,10 @@
 
     window.adjustSatelliteMeasureFontSize = function(delta) {
         SatelliteMapModule.adjustMeasureFontSize(delta);
+    };
+
+    window.toggleSatelliteMeasureParcelLayer = function() {
+        SatelliteMapModule.toggleMeasureParcelLayer();
     };
 
     window.SatelliteMapModule = SatelliteMapModule;

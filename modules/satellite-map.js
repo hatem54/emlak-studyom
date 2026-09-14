@@ -2827,7 +2827,7 @@
                         if (this.measureActive && this.measurePoints && this.measurePoints.length >= 2) {
                             const ctx3d = offCanvas.getContext('2d');
                             const wrapper = document.getElementById('satMapWrapper');
-                            this.drawVectorMeasurement(ctx3d, targetW, wrapper, null, { bakeBadges: false });
+                            this.drawVectorMeasurement(ctx3d, targetW, wrapper, null, { bakeBadges: false, bakeHandles: false });
                         }
 
                         // Parsel rozeti tuval fotoğrafının içine sabit basılmaz.
@@ -3024,7 +3024,7 @@
 
                 // 📏 Eğer Ölçüm Aracı aktifse ve 2 veya daha fazla nokta varsa 2D tuvaline vektörel çiz
                 if (this.measureActive && this.measurePoints && this.measurePoints.length >= 2) {
-                    this.drawVectorMeasurement(ctx, targetW, mapContainer, cropInfo, { bakeBadges: false });
+                    this.drawVectorMeasurement(ctx, targetW, mapContainer, cropInfo, { bakeBadges: false, bakeHandles: false });
                 }
 
                 // Yüksek kaliteli JPEG DataURL al (AI netleştirme açıksa doğrudan uygula)
@@ -7655,6 +7655,7 @@
             if (!this.measureActive || !this.measurePoints || this.measurePoints.length < 2) return;
             const pts = this.measurePoints;
             const bakeBadges = options.bakeBadges !== false;
+            const bakeHandles = (options && options.bakeHandles === true);
 
             try {
                 ctx.save();
@@ -8075,7 +8076,8 @@
                 }
 
                 // 5. Köşe Tutamaç Çemberleri (1, 2, 3...)
-                if (this.measureShowHandles !== false) {
+                // Not: Şablona aktarımda düzenleme noktaları (1, 2, 3, 4) tuvale aktarılmaz, sadece harita düzenleme anında gösterilir
+                if (bakeHandles && this.measureShowHandles !== false) {
                     canvasPts.forEach((p, idx) => {
                         ctx.save();
                         ctx.translate(p.x, p.y);

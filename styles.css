@@ -11844,3 +11844,440 @@ html[data-theme="light"] .tone-curve-canvas-wrap {
     animation: videoToastSlideIn 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
+/* ==========================================================================
+   📏 SATELLITE MAP MEASURE & FRONTAGE SYSTEM (Ölçüm & Cephe Sistemi)
+   Strikt Kural: Butonlar ve çipler kesinlikle dolgusuz (outline) tasarımdır.
+   ========================================================================== */
+
+/* Kontrol Barındaki Ölçüm Butonu (Dolgusuz / Outline Tasarım) */
+.sat-btn-toggle-measure {
+    background: transparent !important;
+    border: 1px solid #334155;
+    color: #94a3b8;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 4px 9px;
+    border-radius: 6px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    flex-shrink: 0;
+    white-space: nowrap;
+    transition: all 0.2s ease;
+}
+
+.sat-btn-toggle-measure:hover {
+    border-color: #f59e0b;
+    color: #f59e0b;
+    background: transparent !important;
+}
+
+.sat-btn-toggle-measure.active {
+    background: transparent !important;
+    border-color: #f59e0b;
+    color: #f59e0b;
+    box-shadow: none !important;
+}
+
+.sat-btn-toggle-measure b {
+    font-weight: 700;
+}
+
+/* Harita İmleci - Ölçüm Modu */
+#satelliteLeafletMap.measure-mode-cursor,
+#satelliteLeafletMap.measure-mode-cursor .leaflet-container {
+    cursor: crosshair !important;
+}
+
+/* 📏 Yüzen Cam Ölçüm Paneli (Floating Glass Panel) */
+.sat-measure-floating-panel {
+    position: absolute;
+    bottom: 18px;
+    left: 18px;
+    z-index: 1050;
+    width: 320px;
+    max-width: calc(100% - 36px);
+    background: rgba(15, 23, 42, 0.90) !important;
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid rgba(245, 158, 11, 0.45);
+    border-radius: 12px;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.7);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    transition: all 0.25s ease;
+    user-select: none;
+}
+
+.sat-measure-floating-panel.collapsed {
+    width: 230px;
+}
+
+.sat-measure-floating-panel.collapsed .sat-measure-panel-body {
+    display: none;
+}
+
+/* Panel Üst Başlık */
+.sat-measure-panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 9px 12px;
+    background: rgba(0, 0, 0, 0.35);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.sat-measure-title {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 11.5px;
+    font-weight: 700;
+    color: #f59e0b;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.sat-measure-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+}
+
+.sat-measure-btn-min,
+.sat-measure-btn-close {
+    background: transparent !important;
+    border: none;
+    color: #94a3b8;
+    cursor: pointer;
+    padding: 3px 6px;
+    font-size: 12px;
+    border-radius: 4px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.15s, transform 0.15s;
+}
+
+.sat-measure-btn-min:hover {
+    color: #38bdf8;
+    background: transparent !important;
+}
+
+.sat-measure-btn-close:hover {
+    color: #ef4444;
+    background: transparent !important;
+}
+
+/* Panel Gövdesi */
+.sat-measure-panel-body {
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+}
+
+/* Canlı Mesafe Kutusu */
+.sat-measure-display-box {
+    background: rgba(0, 0, 0, 0.45);
+    border: 1px dashed rgba(245, 158, 11, 0.4);
+    border-radius: 8px;
+    padding: 7px 10px;
+    text-align: center;
+}
+
+.sat-measure-val {
+    font-size: 19px;
+    font-weight: 800;
+    color: #f59e0b;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    letter-spacing: 0.5px;
+    text-shadow: 0 0 10px rgba(245, 158, 11, 0.25);
+}
+
+.sat-measure-hint {
+    font-size: 10.5px;
+    color: #94a3b8;
+    margin-top: 2px;
+}
+
+/* Satır Düzeni */
+.sat-measure-row {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.sat-measure-sub-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.sat-measure-label {
+    font-size: 10.5px;
+    font-weight: 600;
+    color: #cbd5e1;
+    white-space: nowrap;
+}
+
+/* Etiket Şablon Çipleri (Dolgusuz / Outline) */
+.sat-measure-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.sat-measure-chip {
+    background: transparent !important;
+    border: 1px solid #334155;
+    color: #94a3b8;
+    font-size: 10.5px;
+    font-weight: 600;
+    padding: 3px 7px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+}
+
+.sat-measure-chip:hover {
+    border-color: #f59e0b;
+    color: #f59e0b;
+    background: transparent !important;
+}
+
+.sat-measure-chip.active {
+    border-color: #f59e0b;
+    color: #f59e0b;
+    background: transparent !important;
+    box-shadow: none !important;
+}
+
+/* Özel Metin Girişi */
+.sat-measure-text-input {
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid #334155;
+    border-radius: 6px;
+    color: #f1f5f9;
+    font-size: 11px;
+    padding: 5px 8px;
+    width: 100%;
+    box-sizing: border-box;
+    outline: none;
+    transition: border-color 0.15s;
+}
+
+.sat-measure-text-input:focus {
+    border-color: #f59e0b;
+}
+
+/* Stil Butonları (Dolgusuz / Outline) */
+.sat-measure-style-pills {
+    display: flex;
+    gap: 4px;
+    flex: 1;
+}
+
+.sat-measure-style-btn {
+    flex: 1;
+    background: transparent !important;
+    border: 1px solid #334155;
+    color: #94a3b8;
+    font-size: 10px;
+    font-weight: 600;
+    padding: 4px 5px;
+    border-radius: 5px;
+    cursor: pointer;
+    text-align: center;
+    white-space: nowrap;
+    transition: all 0.15s ease;
+}
+
+.sat-measure-style-btn:hover {
+    border-color: #f59e0b;
+    color: #f59e0b;
+    background: transparent !important;
+}
+
+.sat-measure-style-btn.active {
+    border-color: #f59e0b;
+    color: #f59e0b;
+    background: transparent !important;
+    box-shadow: none !important;
+}
+
+/* Renk Noktaları */
+.sat-measure-colors {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+}
+
+.sat-measure-color-dot {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    cursor: pointer;
+    transition: transform 0.15s, border-color 0.15s;
+    padding: 0;
+    outline: none;
+    box-shadow: none !important;
+}
+
+.sat-measure-color-dot:hover {
+    transform: scale(1.2);
+}
+
+.sat-measure-color-dot.active {
+    transform: scale(1.25);
+    border-color: #ffffff !important;
+}
+
+/* Alt Aksiyon Butonları (Dolgusuz / Outline) */
+.sat-measure-actions-bar {
+    display: flex;
+    gap: 5px;
+    margin-top: 3px;
+}
+
+.sat-measure-act-btn {
+    flex: 1;
+    background: transparent !important;
+    border: 1px solid #334155;
+    color: #94a3b8;
+    font-size: 10.5px;
+    font-weight: 600;
+    padding: 5px 7px;
+    border-radius: 6px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+}
+
+.sat-measure-act-btn.snap {
+    border-color: rgba(56, 189, 248, 0.45);
+    color: #38bdf8;
+}
+
+.sat-measure-act-btn.snap:hover {
+    border-color: #38bdf8;
+    background: transparent !important;
+}
+
+.sat-measure-act-btn.cycle {
+    border-color: rgba(16, 185, 129, 0.45);
+    color: #10b981;
+}
+
+.sat-measure-act-btn.cycle:hover {
+    border-color: #10b981;
+    background: transparent !important;
+}
+
+.sat-measure-act-btn.reset {
+    flex: 0 0 auto;
+    border-color: rgba(239, 68, 68, 0.4);
+    color: #ef4444;
+}
+
+.sat-measure-act-btn.reset:hover {
+    border-color: #ef4444;
+    background: transparent !important;
+}
+
+/* Haritadaki Sürüklenebilir Ölçüm Tutamaçları (Point A & B) */
+.sat-measure-handle-divicon {
+    background: transparent !important;
+    border: none !important;
+}
+
+.sat-measure-handle-pin {
+    position: relative;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: grab;
+}
+
+.sat-measure-handle-pin:active {
+    cursor: grabbing;
+}
+
+.sat-handle-core {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: rgba(15, 23, 42, 0.94);
+    border: 2px solid var(--handle-color, #f59e0b);
+    color: var(--handle-color, #f59e0b);
+    font-size: 11px;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.75);
+    z-index: 2;
+}
+
+.sat-handle-pulse {
+    position: absolute;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 1.5px solid var(--handle-color, #f59e0b);
+    opacity: 0.6;
+    animation: satHandlePulseAnim 2s infinite ease-in-out;
+    pointer-events: none;
+    z-index: 1;
+}
+
+@keyframes satHandlePulseAnim {
+    0% { transform: scale(0.85); opacity: 0.8; }
+    50% { transform: scale(1.35); opacity: 0.15; }
+    100% { transform: scale(0.85); opacity: 0.8; }
+}
+
+/* Harita Üzerindeki Canlı Mesafe Rozeti */
+.sat-measure-badge-divicon {
+    background: transparent !important;
+    border: none !important;
+}
+
+.sat-measure-map-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    background: rgba(15, 23, 42, 0.94);
+    border: 1.5px solid #f59e0b;
+    border-radius: 7px;
+    color: #ffffff;
+    font-size: 11.5px;
+    font-weight: 700;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.7);
+    white-space: nowrap;
+    pointer-events: none;
+    user-select: none;
+    transform: translateY(-50%);
+}
+
+.sat-measure-map-badge .sat-badge-icon {
+    font-size: 10.5px;
+}
+
+.sat-measure-map-badge .sat-badge-text {
+    letter-spacing: 0.3px;
+}
+
+

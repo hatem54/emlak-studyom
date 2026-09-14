@@ -3891,6 +3891,11 @@
                 interactive: true
             }).addTo(this.map);
 
+            // KML yüklendiğinde Saber Neon'u otomatik aktif et ve hem 2D hem 3D stilini anında uygula
+            this.parcelNeonEnabled = true;
+            this.updateParcelPolygonStyle();
+            this.updateParcelNeonUI();
+
             // Hover / Click Popup
             const adaParselStr = (parcelInfo.ada && parcelInfo.parsel) ? `Ada: ${parcelInfo.ada} / Parsel: ${parcelInfo.parsel}` : (parcelInfo.name || 'TKGM Parseli');
             const locStr = [parcelInfo.il, parcelInfo.ilce, parcelInfo.mahalle].filter(Boolean).join(' • ');
@@ -4198,9 +4203,11 @@
             if (!map3d) map3d = this.map3dElement;
             if (!map3d || !this.parcelData || !this.parcelData.latLngs || this.parcelData.latLngs.length < 3) return;
             try {
-                // Eski 3D poligonları temizle
-                const existing = map3d.querySelectorAll('gmp-polygon-3d');
-                existing.forEach(el => { try { el.remove(); } catch(e){} });
+                // Eski 3D poligonları ve sınır çizgilerini temizle
+                const existingPoly = map3d.querySelectorAll('gmp-polygon-3d');
+                existingPoly.forEach(el => { try { el.remove(); } catch(e){} });
+                const existingLines = map3d.querySelectorAll('gmp-polyline-3d');
+                existingLines.forEach(el => { try { el.remove(); } catch(e){} });
 
                 // Köşe koordinatlarını hazırla
                 const rawPts = this.parcelData.latLngs;
@@ -4234,6 +4241,16 @@
                 }
                 const orientedCoords = (sum > 0) ? coords.slice().reverse() : coords;
 
+                // Kapalı polyline halkası (çizgi bitimi başlangıç noktasına bağlansın)
+                const closedPolylineCoords = orientedCoords.slice();
+                if (closedPolylineCoords.length > 0) {
+                    closedPolylineCoords.push({
+                        lat: closedPolylineCoords[0].lat,
+                        lng: closedPolylineCoords[0].lng,
+                        altitude: 0
+                    });
+                }
+
                 // Dolgu ve Kenarlık Renkleri (Google 3D Maps katı #RRGGBBAA hex standardı)
                 const isNeon3d = !!this.parcelNeonEnabled;
                 const neonColor = this.parcelNeonColor || '#00CEC9';
@@ -4249,29 +4266,26 @@
                     fillHex8 = this.colorToHex8(isNeon3d ? neonColor : '#ffffff', opacity);
                 }
 
-                const strokeColorHex = this.colorToHex8(isNeon3d ? neonColor : (this.parcelStrokeColor || '#ffffff'), 1.0);
-                const strokeWidthNum = Math.max(isNeon3d ? 4 : 1, Number(this.parcelStrokeWidth) || 3);
-
                 // AltitudeMode: CLAMP_TO_GROUND arazi kabartmasına yapışmayı sağlar
                 let altModeObj = 'CLAMP_TO_GROUND';
                 if (window.google && window.google.maps && window.google.maps.maps3d && window.google.maps.maps3d.AltitudeMode) {
                     altModeObj = window.google.maps.maps3d.AltitudeMode.CLAMP_TO_GROUND || 'CLAMP_TO_GROUND';
                 }
 
+                // 1. Zemin Dolgu Poligonu (<gmp-polygon-3d>)
                 let poly3d = null;
                 if (window.google && window.google.maps && window.google.maps.maps3d && typeof window.google.maps.maps3d.Polygon3DElement === 'function') {
                     try {
                         poly3d = new window.google.maps.maps3d.Polygon3DElement({
                             altitudeMode: altModeObj,
                             fillColor: fillHex8,
-                            strokeColor: strokeColorHex,
-                            strokeWidth: strokeWidthNum,
+                            strokeColor: '#00000000',
+                            strokeWidth: 0,
                             extruded: false,
                             drawsOccludedSegments: true
                         });
-                        poly3d.path = orientedCoords;
-                        poly3d.outerCoordinates = orientedCoords;
                         poly3d.coordinates = orientedCoords;
+                        poly3d.path = orientedCoords;
                     } catch(elemErr) {
                         console.warn('Polygon3DElement oluşturma fallback:', elemErr);
                     }
@@ -4281,23 +4295,121 @@
                     poly3d = document.createElement('gmp-polygon-3d');
                 }
 
-                // Hem HTML attribute hem DOM property olarak tanımla (çift güvence)
                 poly3d.setAttribute('altitude-mode', 'clamp-to-ground');
                 poly3d.setAttribute('fill-color', fillHex8);
-                poly3d.setAttribute('stroke-color', strokeColorHex);
-                poly3d.setAttribute('stroke-width', strokeWidthNum.toString());
+                poly3d.setAttribute('stroke-color', '#00000000');
+                poly3d.setAttribute('stroke-width', '0');
                 poly3d.setAttribute('draws-occluded-segments', '');
 
                 poly3d.altitudeMode = altModeObj;
                 poly3d.fillColor = fillHex8;
-                poly3d.strokeColor = strokeColorHex;
-                poly3d.strokeWidth = strokeWidthNum;
+                poly3d.strokeColor = '#00000000';
+                poly3d.strokeWidth = 0;
                 poly3d.extruded = false;
                 poly3d.path = orientedCoords;
                 poly3d.outerCoordinates = orientedCoords;
                 poly3d.coordinates = orientedCoords;
 
                 map3d.appendChild(poly3d);
+
+                // 2. Canlı 3D Vektörel Sınır Hatları (<gmp-polyline-3d>)
+                // Google Maps 3D'de poligon sınır çizgileri ve Neon hatları Polyline3D ile çizilir!
+                const PolylineClass = (window.google && window.google.maps && window.google.maps.maps3d && typeof window.google.maps.maps3d.Polyline3DElement === 'function')
+                    ? window.google.maps.maps3d.Polyline3DElement
+                    : null;
+
+                if (isNeon3d) {
+                    // A) Dış Neon Işıltı Halosu (Geniş & Yarı Saydam Aura - 14px)
+                    const haloHex8 = this.colorToHex8(neonColor, 0.45);
+                    let haloLine = null;
+                    if (PolylineClass) {
+                        try {
+                            haloLine = new PolylineClass({
+                                altitudeMode: altModeObj,
+                                strokeColor: haloHex8,
+                                strokeWidth: 14,
+                                drawsOccludedSegments: true,
+                                coordinates: closedPolylineCoords
+                            });
+                            haloLine.coordinates = closedPolylineCoords;
+                            haloLine.path = closedPolylineCoords;
+                        } catch(e) {}
+                    }
+                    if (!haloLine || !(haloLine instanceof Node)) {
+                        haloLine = document.createElement('gmp-polyline-3d');
+                    }
+                    haloLine.setAttribute('altitude-mode', 'clamp-to-ground');
+                    haloLine.setAttribute('stroke-color', haloHex8);
+                    haloLine.setAttribute('stroke-width', '14');
+                    haloLine.setAttribute('draws-occluded-segments', '');
+                    haloLine.altitudeMode = altModeObj;
+                    haloLine.strokeColor = haloHex8;
+                    haloLine.strokeWidth = 14;
+                    haloLine.coordinates = closedPolylineCoords;
+                    haloLine.path = closedPolylineCoords;
+                    map3d.appendChild(haloLine);
+
+                    // B) İç Yüksek Yoğunluklu Neon Çekirdeği (Canlı Işın Kılıcı Çizgisi - 5px)
+                    const coreHex8 = this.colorToHex8(neonColor, 1.0);
+                    let coreLine = null;
+                    if (PolylineClass) {
+                        try {
+                            coreLine = new PolylineClass({
+                                altitudeMode: altModeObj,
+                                strokeColor: coreHex8,
+                                strokeWidth: 5,
+                                drawsOccludedSegments: true,
+                                coordinates: closedPolylineCoords
+                            });
+                            coreLine.coordinates = closedPolylineCoords;
+                            coreLine.path = closedPolylineCoords;
+                        } catch(e) {}
+                    }
+                    if (!coreLine || !(coreLine instanceof Node)) {
+                        coreLine = document.createElement('gmp-polyline-3d');
+                    }
+                    coreLine.setAttribute('altitude-mode', 'clamp-to-ground');
+                    coreLine.setAttribute('stroke-color', coreHex8);
+                    coreLine.setAttribute('stroke-width', '5');
+                    coreLine.setAttribute('draws-occluded-segments', '');
+                    coreLine.altitudeMode = altModeObj;
+                    coreLine.strokeColor = coreHex8;
+                    coreLine.strokeWidth = 5;
+                    coreLine.coordinates = closedPolylineCoords;
+                    coreLine.path = closedPolylineCoords;
+                    map3d.appendChild(coreLine);
+                } else {
+                    // Klasik Çizim Modu: Net beyaz sınır çizgisi
+                    const strokeColorHex = this.colorToHex8(this.parcelStrokeColor || '#ffffff', 1.0);
+                    const strokeWidthNum = Math.max(3, Number(this.parcelStrokeWidth) || 4);
+                    let solidLine = null;
+                    if (PolylineClass) {
+                        try {
+                            solidLine = new PolylineClass({
+                                altitudeMode: altModeObj,
+                                strokeColor: strokeColorHex,
+                                strokeWidth: strokeWidthNum,
+                                drawsOccludedSegments: true,
+                                coordinates: closedPolylineCoords
+                            });
+                            solidLine.coordinates = closedPolylineCoords;
+                            solidLine.path = closedPolylineCoords;
+                        } catch(e) {}
+                    }
+                    if (!solidLine || !(solidLine instanceof Node)) {
+                        solidLine = document.createElement('gmp-polyline-3d');
+                    }
+                    solidLine.setAttribute('altitude-mode', 'clamp-to-ground');
+                    solidLine.setAttribute('stroke-color', strokeColorHex);
+                    solidLine.setAttribute('stroke-width', strokeWidthNum.toString());
+                    solidLine.setAttribute('draws-occluded-segments', '');
+                    solidLine.altitudeMode = altModeObj;
+                    solidLine.strokeColor = strokeColorHex;
+                    solidLine.strokeWidth = strokeWidthNum;
+                    solidLine.coordinates = closedPolylineCoords;
+                    solidLine.path = closedPolylineCoords;
+                    map3d.appendChild(solidLine);
+                }
             } catch(err) {
                 console.warn('Google 3D polygon yerleştirme hatası:', err);
             }
@@ -5143,7 +5255,7 @@
                     window.showAppToast('ℹ️ Saber Neon efekti arsa/parsel sınırları üzerinde parlar. Önce bir KML/KMZ veya Parsel yükleyin.', 'info', 4500);
                 } else if (this.parcelNeonEnabled) {
                     if (this.is3DActive) {
-                        window.showAppToast('⚡ 3D modunda yüksek kontrastlı neon hat uygulandı. (Tam ışıldayan Saber efekti 2D HD modunda parlar)', 'info', 4500);
+                        window.showAppToast('⚡ 3D Dünya üzerinde parlayan Saber Neon hatları aktif edildi!', 'success', 4000);
                     } else {
                         window.showAppToast('⚡ Arsa parseli için Saber Neon efekti aktif edildi!', 'success');
                     }

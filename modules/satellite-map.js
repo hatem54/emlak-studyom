@@ -548,6 +548,12 @@
                     </div>
                     
                     <div class="sat-measure-panel-body" id="satMeasurePanelBody">
+                        <!-- ℹ️ 3D Modu Bilgilendirme Uyarısı (Metreler 2D Haritada Çizilir) -->
+                        <div id="satMeasure3dNotice" style="display:none; align-items:center; justify-content:space-between; background:rgba(245,158,11,0.18); border:1px solid rgba(245,158,11,0.45); border-radius:8px; padding:6px 10px; margin-bottom:8px; font-size:11px; color:#fde68a;">
+                            <span><i class="fas fa-info-circle"></i> Cephe metreleri ve CAD çizgileri <strong>2D HD Uydu</strong> haritasında görünür.</span>
+                            <button type="button" onclick="window.setSatelliteLayer('google_sat')" style="background:#f59e0b; color:#0f172a; font-weight:700; border:none; border-radius:5px; padding:3px 9px; font-size:11px; cursor:pointer; margin-left:8px; white-space:nowrap;">2D'ye Geç</button>
+                        </div>
+
                         <!-- Canlı Mesafe & Alan Göstergesi -->
                         <div class="sat-measure-display-box">
                             <div class="sat-measure-val" id="satMeasureValText">0.0 m</div>
@@ -1253,6 +1259,7 @@
                     if (this.measureActive) {
                         this.updateMeasureGraphics();
                     }
+                    this.syncMeasureUI();
                 }
             }, 60);
         },
@@ -7541,6 +7548,12 @@
          * Ölçüm Paneli Arayüz Elemanlarını (Renk, Stil, Font, Çipler, Filtreler) Mevcut Ayarlarla Eşler
          */
         syncMeasureUI: function() {
+            // 0. 3D Modu Bilgilendirme Uyarısı
+            const notice3d = document.getElementById('satMeasure3dNotice');
+            if (notice3d) {
+                notice3d.style.display = this.is3DActive ? 'flex' : 'none';
+            }
+
             // 1. Özel Metin Inputu
             const input = document.getElementById('satMeasureTextInput');
             if (input) input.value = this.measureCustomText || '';
@@ -8272,6 +8285,7 @@
             if (this.measureActive && typeof window.showAppToast === 'function') {
                 window.showAppToast('ℹ️ 3D Dünya modunda köşe ölçümleri gizlenir. 2D HD Uyduya döndüğünüzde tüm ölçümleriniz korunur.', 'info', 4500);
             }
+            this.syncMeasureUI();
 
             this.suppressGoogleDevBanners();
 

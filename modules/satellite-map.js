@@ -3892,8 +3892,8 @@
 
             // 📐 Parsel Yüklendiğinde Varsayılan Kenar Metrelerini ve Alan Rozetini Otomatik Başlat
             if (!this.measurePoints || this.measurePoints.length === 0) {
-                this.snapMeasureToAllParcelVertices();
                 this.measureActive = true;
+                this.snapMeasureToAllParcelVertices();
                 const mBtn = document.getElementById('satToggleMeasureBtn');
                 const mStatus = document.getElementById('satMeasureStatusText');
                 if (mBtn) mBtn.classList.add('active');
@@ -4295,7 +4295,18 @@
          * Leaflet Poligonunun Stilini Anlık Günceller
          */
         updateParcelPolygonStyle: function() {
-            if (this.parcelPolygon) {
+            if (this.parcelPolygon && this.map) {
+                const shouldHideParcel = this.measureActive && this.measureHideDefaultParcel && (this.measurePoints && this.measurePoints.length >= 2);
+                if (shouldHideParcel) {
+                    if (this.map.hasLayer(this.parcelPolygon)) {
+                        this.map.removeLayer(this.parcelPolygon);
+                    }
+                    return;
+                }
+                if (!this.map.hasLayer(this.parcelPolygon)) {
+                    this.parcelPolygon.addTo(this.map);
+                }
+
                 const isNeon = !!this.parcelNeonEnabled;
                 const neonColor = this.parcelNeonColor || '#00CEC9';
                 const strokeColor = isNeon ? neonColor : (this.parcelStrokeColor || '#ffffff');
@@ -5469,9 +5480,9 @@
                 this.updateMeasureGraphics();
             } else {
                 this.removeMeasureGraphicsFromMap();
-                if (this.parcelPolygon) {
-                    if (this.parcelPolygon._path) {
-                        this.parcelPolygon._path.style.display = '';
+                if (this.parcelPolygon && this.map) {
+                    if (!this.map.hasLayer(this.parcelPolygon)) {
+                        this.parcelPolygon.addTo(this.map);
                     }
                     this.updateParcelPolygonStyle();
                 }
@@ -5894,6 +5905,12 @@
             this.measureBadgeCustomPositions = {};
             this.measureAreaBadgeCustomPos = null;
             this.removeMeasureGraphicsFromMap();
+            if (this.parcelPolygon && this.map) {
+                if (!this.map.hasLayer(this.parcelPolygon)) {
+                    this.parcelPolygon.addTo(this.map);
+                }
+                this.updateParcelPolygonStyle();
+            }
 
             const valEl = document.getElementById('satMeasureValText');
             if (valEl) valEl.textContent = '0.0 m';
@@ -6184,21 +6201,16 @@
             const areaM2 = isClosed ? this.calculateGeodesicPolygonArea(pts) : 0;
             this.measureAreaM2 = areaM2;
 
-            // Beyaz TKGM Parsel Katmanı Çakışmasını Önle (Ölçüm açıkken alttaki beyaz çizgiyi gizle/göster)
-            if (this.parcelPolygon) {
+            // Beyaz TKGM Parsel Katmanı Çakışmasını Önle (Ölçüm açıkken alttaki beyaz çizgiyi haritadan tamamen kaldır/ekle)
+            if (this.parcelPolygon && this.map) {
                 const shouldHideParcel = this.measureActive && this.measureHideDefaultParcel && (pts.length >= 2);
                 if (shouldHideParcel) {
-                    this.parcelPolygon.setStyle({
-                        opacity: 0,
-                        fillOpacity: 0,
-                        weight: 0
-                    });
-                    if (this.parcelPolygon._path) {
-                        this.parcelPolygon._path.style.display = 'none';
+                    if (this.map.hasLayer(this.parcelPolygon)) {
+                        this.map.removeLayer(this.parcelPolygon);
                     }
                 } else {
-                    if (this.parcelPolygon._path) {
-                        this.parcelPolygon._path.style.display = '';
+                    if (!this.map.hasLayer(this.parcelPolygon)) {
+                        this.parcelPolygon.addTo(this.map);
                     }
                     this.updateParcelPolygonStyle();
                 }
@@ -6257,7 +6269,7 @@
                     }
                 } else {
                     this.measureMarkers[idx].setLatLng(p);
-                    this.updateMeasureHandleMarkerContent(this.measureMarkers[idx], label);
+                    this.updateMeasureHandleMarkerContent(this.measureMarkers[idx], label, color);
                     if (this.measureShowHandles !== false) {
                         if (!this.map.hasLayer(this.measureMarkers[idx])) {
                             this.measureMarkers[idx].addTo(this.map);
@@ -6296,7 +6308,7 @@
                 lineOpts.dashArray = '7, 6';
                 lineOpts.weight = 3;
             } else if (this.measureStyle === 'neon') {
-                lineOpts.color = '#ffffff';
+                lineOpts.color = color;
                 lineOpts.weight = 4;
             }
 
@@ -6320,6 +6332,15 @@
                     this.measureLines[i].setStyle(lineOpts);
                     this.measureLines[i].off('click');
                     this.measureLines[i].on('click', onLineClick);
+                }
+
+                if (this.measureLines[i]._path) {
+                    if (this.measureStyle === 'neon') {
+                        this.measureLines[i]._path.style.filter = `drop-shadow(0 0 4px ${color}) drop-shadow(0 0 10px ${color})`;
+                        this.measureLines[i]._path.style.transition = 'filter 0.2s ease, stroke 0.2s ease';
+                    } else {
+                        this.measureLines[i]._path.style.filter = '';
+                    }
                 }
 
                 // Segment Rozeti (Taşınabilir / Draggable)
@@ -6402,9 +6423,8 @@
             if (isClosed && pts.length >= 3) {
                 if (!this.measurePolygonLayer) {
                     this.measurePolygonLayer = L.polygon(pts, {
-                        color: color,
-                        weight: 1.5,
-                        opacity: 0.5,
+                        stroke: false,
+                        weight: 0,
                         fillColor: color,
                         fillOpacity: 0.16,
                         interactive: false
@@ -6412,8 +6432,10 @@
                 } else {
                     this.measurePolygonLayer.setLatLngs(pts);
                     this.measurePolygonLayer.setStyle({
-                        color: color,
-                        fillColor: color
+                        stroke: false,
+                        weight: 0,
+                        fillColor: color,
+                        fillOpacity: 0.16
                     });
                 }
 
@@ -6514,8 +6536,8 @@
             const color = this.measureColor || '#f59e0b';
             const html = `
                 <div class="sat-measure-handle-pin" style="--handle-color:${color};" title="Köşe ${label}: Sürükleyerek taşıyın, sağ tıklayarak silin">
-                    <span class="sat-handle-core">${label}</span>
-                    <div class="sat-handle-pulse"></div>
+                    <span class="sat-handle-core" style="border-color:${color}; color:${color};">${label}</span>
+                    <div class="sat-handle-pulse" style="border-color:${color};"></div>
                 </div>
             `;
             const icon = L.divIcon({
@@ -6569,10 +6591,26 @@
         /**
          * Tutamaç İçeriğini Günceller
          */
-        updateMeasureHandleMarkerContent: function(marker, label) {
+        updateMeasureHandleMarkerContent: function(marker, label, color) {
             marker._pointIndex = parseInt(label) - 1;
-            const core = marker.getElement()?.querySelector('.sat-handle-core');
-            if (core) core.textContent = label;
+            const el = marker.getElement();
+            if (!el) return;
+            const pin = el.querySelector('.sat-measure-handle-pin');
+            if (pin && color) {
+                pin.style.setProperty('--handle-color', color);
+            }
+            const core = el.querySelector('.sat-handle-core');
+            if (core) {
+                core.textContent = label;
+                if (color) {
+                    core.style.borderColor = color;
+                    core.style.color = color;
+                }
+            }
+            const pulse = el.querySelector('.sat-handle-pulse');
+            if (pulse && color) {
+                pulse.style.borderColor = color;
+            }
         },
 
         createMeasureMidpointMarker: function() {
@@ -6616,9 +6654,9 @@
                 this.map.removeLayer(this.measureAreaBadgeMarker);
                 this.measureAreaBadgeMarker = null;
             }
-            if (this.parcelPolygon) {
-                if (this.parcelPolygon._path) {
-                    this.parcelPolygon._path.style.display = '';
+            if (this.parcelPolygon && this.map) {
+                if (!this.map.hasLayer(this.parcelPolygon)) {
+                    this.parcelPolygon.addTo(this.map);
                 }
                 this.updateParcelPolygonStyle();
             }
@@ -6720,8 +6758,8 @@
                         ctx.beginPath();
                         ctx.moveTo(pA.x, pA.y);
                         ctx.lineTo(pB.x, pB.y);
-                        ctx.strokeStyle = '#ffffff';
-                        ctx.lineWidth = 2.4 * baseScale;
+                        ctx.strokeStyle = color;
+                        ctx.lineWidth = 3.2 * baseScale;
                         ctx.lineCap = 'round';
                         ctx.stroke();
 

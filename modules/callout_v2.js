@@ -558,6 +558,7 @@ function addSVGCalloutToCanvas(item) {
     console.log('✅ Rozet eklendi:', item.name);
     return wrap;
 }
+window.addSVGCalloutToCanvas = addSVGCalloutToCanvas;
 
 window.addParcelBadgeToCanvas = function(parcelData, options = {}) {
     if (!parcelData) return null;

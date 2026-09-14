@@ -2651,7 +2651,7 @@
                         if (this.measureActive && this.measurePoints && this.measurePoints.length >= 2) {
                             const ctx3d = offCanvas.getContext('2d');
                             const wrapper = document.getElementById('satMapWrapper');
-                            this.drawVectorMeasurement(ctx3d, targetW, wrapper, null);
+                            this.drawVectorMeasurement(ctx3d, targetW, wrapper, null, { bakeBadges: false });
                         }
 
                         // Parsel rozeti tuval fotoğrafının içine sabit basılmaz.
@@ -2749,6 +2749,12 @@
                                                 });
                                             }
                                         }
+
+                                        // 📐 Ölçüm Rozetlerini Tuval Üzerine Serbestçe Taşınabilir Elemanlar Olarak Ekle
+                                        if (SatelliteMapModule.measureActive && SatelliteMapModule.measurePoints && SatelliteMapModule.measurePoints.length >= 2) {
+                                            SatelliteMapModule.addMeasureBadgesToCanvas(targetW, targetH);
+                                        }
+
                                         if (typeof window.showAppToast === 'function') {
                                             const aiNote = this.aiEnhanceEnabled ? ` (AI %${this.aiEnhanceIntensity || 20} Net)` : '';
                                             window.showAppToast(`🌐 Google 3D görüntüsü${aiNote} (${targetW}x${targetH}) tuvalinize aktarıldı!`, 'success');
@@ -2842,7 +2848,7 @@
 
                 // 📏 Eğer Ölçüm Aracı aktifse ve 2 veya daha fazla nokta varsa 2D tuvaline vektörel çiz
                 if (this.measureActive && this.measurePoints && this.measurePoints.length >= 2) {
-                    this.drawVectorMeasurement(ctx, targetW, mapContainer, cropInfo);
+                    this.drawVectorMeasurement(ctx, targetW, mapContainer, cropInfo, { bakeBadges: false });
                 }
 
                 // Yüksek kaliteli JPEG DataURL al (AI netleştirme açıksa doğrudan uygula)
@@ -2921,6 +2927,12 @@
                                     });
                                 }
                             }
+
+                            // 📐 Ölçüm Rozetlerini Tuval Üzerine Serbestçe Taşınabilir Elemanlar Olarak Ekle
+                            if (SatelliteMapModule.measureActive && SatelliteMapModule.measurePoints && SatelliteMapModule.measurePoints.length >= 2) {
+                                SatelliteMapModule.addMeasureBadgesToCanvas(targetW, targetH);
+                            }
+
                             if (typeof window.showAppToast === 'function') {
                                 const resTag = (this.selectedResolution || '4K').toUpperCase();
                                 const aiNote = this.aiEnhanceEnabled ? ` (AI %${this.aiEnhanceIntensity || 20} Netleştirildi)` : '';
@@ -6736,9 +6748,10 @@
         /**
          * Tuval Aktarımında Vektörel Çoklu Ölçüm Çizgilerini, Cephe Rozetlerini & Alan Rozetini Çizer (1080p, 2K, 4K Tam Uyumlu)
          */
-        drawVectorMeasurement: function(ctx, targetW, mapContainer, cropInfo) {
+        drawVectorMeasurement: function(ctx, targetW, mapContainer, cropInfo, options = {}) {
             if (!this.measureActive || !this.measurePoints || this.measurePoints.length < 2) return;
             const pts = this.measurePoints;
+            const bakeBadges = options.bakeBadges !== false;
 
             try {
                 ctx.save();
@@ -6780,6 +6793,14 @@
                 const style = this.measureStyle || 'cad';
                 const isClosed = this.measureIsClosed && (canvasPts.length >= 3);
                 const edgeCount = isClosed ? canvasPts.length : (canvasPts.length - 1);
+
+                // Tuvale canlı aktarılacak rozetlerin koordinat ve metin verilerini önbelleğe al
+                this._cachedMeasureCanvasBadges = {
+                    color: color,
+                    fontFamily: this.measureFontFamily || 'Montserrat',
+                    edges: [],
+                    area: null
+                };
 
                 // 1. Poligon Yarı Saydam Dolgusu (Kapalıysa)
                 if (isClosed) {
@@ -6966,42 +6987,51 @@
                             badgeY = midY + badgeNormY * offsetDist;
                         }
 
-                        ctx.save();
-                        ctx.translate(badgeX, badgeY);
+                        this._cachedMeasureCanvasBadges.edges.push({
+                            index: i,
+                            label: edgeLabel,
+                            x: badgeX,
+                            y: badgeY
+                        });
 
-                        const fontFamily = this.measureFontFamily || 'Montserrat';
-                        const edgeFontSize = Math.round((this.measureEdgeFontSize || 12) * baseScale);
-                        ctx.font = `bold ${edgeFontSize}px "${fontFamily}", -apple-system, sans-serif`;
-                        const textW = ctx.measureText(edgeLabel).width;
-                        const badgeW = Math.max(68 * baseScale, textW + (22 * baseScale));
-                        const badgeH = Math.round(edgeFontSize * 1.8) + (6 * baseScale);
-                        const bX = -(badgeW / 2);
-                        const bY = -(badgeH / 2);
+                        if (bakeBadges) {
+                            ctx.save();
+                            ctx.translate(badgeX, badgeY);
 
-                        ctx.shadowColor = 'rgba(0, 0, 0, 0.85)';
-                        ctx.shadowBlur = 10 * baseScale;
-                        ctx.shadowOffsetY = 3 * baseScale;
+                            const fontFamily = this.measureFontFamily || 'Montserrat';
+                            const edgeFontSize = Math.round((this.measureEdgeFontSize || 12) * baseScale);
+                            ctx.font = `bold ${edgeFontSize}px "${fontFamily}", -apple-system, sans-serif`;
+                            const textW = ctx.measureText(edgeLabel).width;
+                            const badgeW = Math.max(68 * baseScale, textW + (22 * baseScale));
+                            const badgeH = Math.round(edgeFontSize * 1.8) + (6 * baseScale);
+                            const bX = -(badgeW / 2);
+                            const bY = -(badgeH / 2);
 
-                        ctx.beginPath();
-                        if (typeof ctx.roundRect === 'function') {
-                            ctx.roundRect(bX, bY, badgeW, badgeH, 6 * baseScale);
-                        } else {
-                            ctx.rect(bX, bY, badgeW, badgeH);
+                            ctx.shadowColor = 'rgba(0, 0, 0, 0.85)';
+                            ctx.shadowBlur = 10 * baseScale;
+                            ctx.shadowOffsetY = 3 * baseScale;
+
+                            ctx.beginPath();
+                            if (typeof ctx.roundRect === 'function') {
+                                ctx.roundRect(bX, bY, badgeW, badgeH, 6 * baseScale);
+                            } else {
+                                ctx.rect(bX, bY, badgeW, badgeH);
+                            }
+                            ctx.fillStyle = 'rgba(15, 23, 42, 0.94)';
+                            ctx.fill();
+
+                            ctx.lineWidth = 1.6 * baseScale;
+                            ctx.strokeStyle = color;
+                            ctx.stroke();
+
+                            ctx.shadowColor = 'transparent';
+                            ctx.fillStyle = '#ffffff';
+                            ctx.textAlign = 'center';
+                            ctx.textBaseline = 'middle';
+                            ctx.fillText(edgeLabel, 0, 0);
+
+                            ctx.restore();
                         }
-                        ctx.fillStyle = 'rgba(15, 23, 42, 0.94)';
-                        ctx.fill();
-
-                        ctx.lineWidth = 1.6 * baseScale;
-                        ctx.strokeStyle = color;
-                        ctx.stroke();
-
-                        ctx.shadowColor = 'transparent';
-                        ctx.fillStyle = '#ffffff';
-                        ctx.textAlign = 'center';
-                        ctx.textBaseline = 'middle';
-                        ctx.fillText(edgeLabel, 0, 0);
-
-                        ctx.restore();
                     }
                 }
 
@@ -7059,68 +7089,78 @@
                         subText = `Çevre: ${perimStr} • ${canvasPts.length} Kenar`;
                     }
 
-                    ctx.save();
-                    ctx.translate(cenX, cenY);
+                    this._cachedMeasureCanvasBadges.area = {
+                        titleText: titleText,
+                        subText: subText,
+                        areaDisplayMode: areaDisplayMode,
+                        x: cenX,
+                        y: cenY
+                    };
 
-                    if (areaDisplayMode === 'frameless') {
-                        // ✨ Çerçevesiz (Arka plansız, şık yüksek kontrastlı gölgeli saf metin)
-                        ctx.shadowColor = 'rgba(0, 0, 0, 0.95)';
-                        ctx.shadowBlur = 14 * baseScale;
-                        ctx.shadowOffsetY = 3 * baseScale;
+                    if (bakeBadges) {
+                        ctx.save();
+                        ctx.translate(cenX, cenY);
 
-                        ctx.fillStyle = '#ffffff';
-                        ctx.textAlign = 'center';
-                        ctx.textBaseline = 'middle';
-                        ctx.font = `800 ${areaFontSize}px "${fontFamily}", -apple-system, sans-serif`;
-                        ctx.fillText(titleText, 0, subText ? -(8 * baseScale) : 0);
+                        if (areaDisplayMode === 'frameless') {
+                            // ✨ Çerçevesiz (Arka plansız, şık yüksek kontrastlı gölgeli saf metin)
+                            ctx.shadowColor = 'rgba(0, 0, 0, 0.95)';
+                            ctx.shadowBlur = 14 * baseScale;
+                            ctx.shadowOffsetY = 3 * baseScale;
 
-                        if (subText) {
-                            ctx.fillStyle = color;
-                            ctx.font = `700 ${Math.round(areaFontSize * 0.68)}px "${fontFamily}", -apple-system, sans-serif`;
-                            ctx.fillText(subText, 0, 10 * baseScale);
-                        }
-                    } else {
-                        // 🏷️ Kutulu (Koyu cam rozet)
-                        ctx.font = `bold ${areaFontSize}px "${fontFamily}", -apple-system, sans-serif`;
-                        const titleW = ctx.measureText('📐 ' + titleText).width;
-                        const subW = subText ? ctx.measureText(subText).width : 0;
-                        const areaBadgeW = Math.max(titleW, subW) + (32 * baseScale);
-                        const areaBadgeH = subText ? (46 * baseScale) : (34 * baseScale);
-                        const abX = -(areaBadgeW / 2);
-                        const abY = -(areaBadgeH / 2);
+                            ctx.fillStyle = '#ffffff';
+                            ctx.textAlign = 'center';
+                            ctx.textBaseline = 'middle';
+                            ctx.font = `800 ${areaFontSize}px "${fontFamily}", -apple-system, sans-serif`;
+                            ctx.fillText(titleText, 0, subText ? -(8 * baseScale) : 0);
 
-                        ctx.shadowColor = 'rgba(0, 0, 0, 0.9)';
-                        ctx.shadowBlur = 16 * baseScale;
-                        ctx.shadowOffsetY = 6 * baseScale;
-
-                        ctx.beginPath();
-                        if (typeof ctx.roundRect === 'function') {
-                            ctx.roundRect(abX, abY, areaBadgeW, areaBadgeH, 8 * baseScale);
+                            if (subText) {
+                                ctx.fillStyle = color;
+                                ctx.font = `700 ${Math.round(areaFontSize * 0.68)}px "${fontFamily}", -apple-system, sans-serif`;
+                                ctx.fillText(subText, 0, 10 * baseScale);
+                            }
                         } else {
-                            ctx.rect(abX, abY, areaBadgeW, areaBadgeH);
+                            // 🏷️ Kutulu (Koyu cam rozet)
+                            ctx.font = `bold ${areaFontSize}px "${fontFamily}", -apple-system, sans-serif`;
+                            const titleW = ctx.measureText('📐 ' + titleText).width;
+                            const subW = subText ? ctx.measureText(subText).width : 0;
+                            const areaBadgeW = Math.max(titleW, subW) + (32 * baseScale);
+                            const areaBadgeH = subText ? (46 * baseScale) : (34 * baseScale);
+                            const abX = -(areaBadgeW / 2);
+                            const abY = -(areaBadgeH / 2);
+
+                            ctx.shadowColor = 'rgba(0, 0, 0, 0.9)';
+                            ctx.shadowBlur = 16 * baseScale;
+                            ctx.shadowOffsetY = 6 * baseScale;
+
+                            ctx.beginPath();
+                            if (typeof ctx.roundRect === 'function') {
+                                ctx.roundRect(abX, abY, areaBadgeW, areaBadgeH, 8 * baseScale);
+                            } else {
+                                ctx.rect(abX, abY, areaBadgeW, areaBadgeH);
+                            }
+                            ctx.fillStyle = 'rgba(15, 23, 42, 0.96)';
+                            ctx.fill();
+
+                            ctx.lineWidth = 2 * baseScale;
+                            ctx.strokeStyle = color;
+                            ctx.stroke();
+
+                            ctx.shadowColor = 'transparent';
+                            ctx.fillStyle = '#ffffff';
+                            ctx.textAlign = 'center';
+                            ctx.textBaseline = 'middle';
+                            ctx.font = `bold ${areaFontSize}px "${fontFamily}", -apple-system, sans-serif`;
+                            ctx.fillText('📐 ' + titleText, 0, subText ? abY + (16 * baseScale) : 0);
+
+                            if (subText) {
+                                ctx.fillStyle = color;
+                                ctx.font = `600 ${Math.round(areaFontSize * 0.65)}px "${fontFamily}", -apple-system, sans-serif`;
+                                ctx.fillText(subText, 0, abY + (33 * baseScale));
+                            }
                         }
-                        ctx.fillStyle = 'rgba(15, 23, 42, 0.96)';
-                        ctx.fill();
 
-                        ctx.lineWidth = 2 * baseScale;
-                        ctx.strokeStyle = color;
-                        ctx.stroke();
-
-                        ctx.shadowColor = 'transparent';
-                        ctx.fillStyle = '#ffffff';
-                        ctx.textAlign = 'center';
-                        ctx.textBaseline = 'middle';
-                        ctx.font = `bold ${areaFontSize}px "${fontFamily}", -apple-system, sans-serif`;
-                        ctx.fillText('📐 ' + titleText, 0, subText ? abY + (16 * baseScale) : 0);
-
-                        if (subText) {
-                            ctx.fillStyle = color;
-                            ctx.font = `600 ${Math.round(areaFontSize * 0.65)}px "${fontFamily}", -apple-system, sans-serif`;
-                            ctx.fillText(subText, 0, abY + (33 * baseScale));
-                        }
+                        ctx.restore();
                     }
-
-                    ctx.restore();
                 }
 
                 // 5. Köşe Tutamaç Çemberleri (1, 2, 3...)
@@ -7158,6 +7198,154 @@
             } catch(e) {
                 console.warn('drawVectorMeasurement hatası:', e);
                 ctx.restore();
+            }
+        },
+
+        /**
+         * Ölçüm Rozetlerini (Metre & Alan) Tuval Üzerine Canlı, Serbestçe Taşınabilir SVG Callout Elemanları Olarak Ekler
+         */
+        addMeasureBadgesToCanvas: function(targetW, targetH) {
+            if (!this._cachedMeasureCanvasBadges) return;
+            const badgeData = this._cachedMeasureCanvasBadges;
+            if ((!badgeData.edges || badgeData.edges.length === 0) && !badgeData.area) return;
+
+            const addSvgFn = (typeof window.addSVGCalloutToCanvas === 'function')
+                ? window.addSVGCalloutToCanvas
+                : (typeof addSVGCalloutToCanvas === 'function' ? addSVGCalloutToCanvas : null);
+            if (!addSvgFn) return;
+
+            // Önceki ölçüm rozetlerini temizle (tekrarlı eklemeyi önle)
+            document.querySelectorAll('.sat-measure-badge-callout, .sat-measure-area-callout').forEach(e => e.remove());
+
+            const cContainer = document.getElementById('canvas-container');
+            const cW = (cContainer && parseFloat(cContainer.style.width)) || targetW || 1920;
+            const cH = (cContainer && parseFloat(cContainer.style.height)) || targetH || 1080;
+            const formatRatio = Math.max(1, cW / 1920);
+            const color = badgeData.color || '#f59e0b';
+            const fontFamily = badgeData.fontFamily || 'Montserrat';
+
+            // 1. Kenar Mesafe Rozetleri (Canlı & Sürüklenebilir)
+            if (Array.isArray(badgeData.edges)) {
+                badgeData.edges.forEach(edge => {
+                    const badgeSvgW = Math.max(88, Math.round(edge.label.length * 11 + 32));
+                    const badgeSvgH = 34;
+                    const badgeId = 'meas_b_' + edge.index + '_' + Math.random().toString(36).substr(2, 5);
+
+                    const svgHtml = `
+<svg width="${badgeSvgW}" height="${badgeSvgH}" viewBox="0 0 ${badgeSvgW} ${badgeSvgH}" xmlns="http://www.w3.org/2000/svg" shape-rendering="geometricPrecision">
+  <defs>
+    <filter id="sh_${badgeId}" x="-20%" y="-25%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#000000" flood-opacity="0.85"/>
+    </filter>
+  </defs>
+  <rect x="2" y="2" width="${badgeSvgW - 4}" height="${badgeSvgH - 4}" rx="6" fill="#0f172a" fill-opacity="0.94" stroke="${color}" stroke-width="1.6" filter="url(#sh_${badgeId})"/>
+  <text x="${badgeSvgW / 2}" y="${badgeSvgH / 2 + 1}" font-family="${fontFamily}, -apple-system, BlinkMacSystemFont, sans-serif" font-weight="700" font-size="13" fill="#ffffff" text-anchor="middle" dominant-baseline="middle" letter-spacing="0.3px">${edge.label}</text>
+</svg>`.trim();
+
+                    const wrap = addSvgFn({
+                        name: `Kenar ${edge.index + 1}: ${edge.label}`,
+                        svg: svgHtml
+                    });
+
+                    if (wrap) {
+                        wrap.classList.add('sat-measure-callout', 'sat-measure-badge-callout');
+                        wrap.dataset.isMeasureBadge = 'true';
+                        wrap.dataset.edgeIndex = String(edge.index);
+                        wrap.dataset.edgeDist = edge.label;
+
+                        const finalW = Math.round(badgeSvgW * 1.15 * formatRatio);
+                        const finalH = Math.round(badgeSvgH * 1.15 * formatRatio);
+
+                        wrap.style.width = finalW + 'px';
+                        wrap.style.height = finalH + 'px';
+                        const el = wrap.querySelector('.callout-item');
+                        if (el) {
+                            el.style.width = finalW + 'px';
+                            el.style.height = finalH + 'px';
+                        }
+
+                        // Rozet merkezini tam haritadaki konumuna denk getir
+                        const posX = Math.round(edge.x - finalW / 2);
+                        const posY = Math.round(edge.y - finalH / 2);
+
+                        wrap.style.left = posX + 'px';
+                        wrap.style.top = posY + 'px';
+                    }
+                });
+            }
+
+            // 2. Alan Rozeti (Canlı & Sürüklenebilir)
+            if (badgeData.area) {
+                const area = badgeData.area;
+                const areaBadgeId = 'meas_area_' + Math.random().toString(36).substr(2, 5);
+                let areaSvgHtml = '';
+                let badgeSvgW, badgeSvgH;
+
+                if (area.areaDisplayMode === 'boxed') {
+                    const titleW = Math.round(area.titleText.length * 10.5 + 44);
+                    const subW = area.subText ? Math.round(area.subText.length * 7.5 + 32) : 0;
+                    badgeSvgW = Math.max(170, Math.max(titleW, subW) + 24);
+                    badgeSvgH = area.subText ? 52 : 38;
+
+                    areaSvgHtml = `
+<svg width="${badgeSvgW}" height="${badgeSvgH}" viewBox="0 0 ${badgeSvgW} ${badgeSvgH}" xmlns="http://www.w3.org/2000/svg" shape-rendering="geometricPrecision">
+  <defs>
+    <filter id="sh_${areaBadgeId}" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="3" stdDeviation="4" flood-color="#000000" flood-opacity="0.9"/>
+    </filter>
+  </defs>
+  <rect x="2" y="2" width="${badgeSvgW - 4}" height="${badgeSvgH - 4}" rx="8" fill="#0f172a" fill-opacity="0.96" stroke="${color}" stroke-width="2" filter="url(#sh_${areaBadgeId})"/>
+  <text x="${badgeSvgW / 2}" y="${area.subText ? 20 : badgeSvgH / 2 + 1}" font-family="${fontFamily}, -apple-system, BlinkMacSystemFont, sans-serif" font-weight="800" font-size="14" fill="#ffffff" text-anchor="middle" dominant-baseline="middle" letter-spacing="0.2px">📐 ${area.titleText}</text>
+  ${area.subText ? `<text x="${badgeSvgW / 2}" y="37" font-family="${fontFamily}, -apple-system, BlinkMacSystemFont, sans-serif" font-weight="600" font-size="11" fill="${color}" text-anchor="middle" dominant-baseline="middle" letter-spacing="0.2px">${area.subText}</text>` : ''}
+</svg>`.trim();
+                } else {
+                    const titleW = Math.round(area.titleText.length * 12 + 30);
+                    const subW = area.subText ? Math.round(area.subText.length * 8 + 20) : 0;
+                    badgeSvgW = Math.max(160, Math.max(titleW, subW) + 16);
+                    badgeSvgH = area.subText ? 48 : 34;
+
+                    areaSvgHtml = `
+<svg width="${badgeSvgW}" height="${badgeSvgH}" viewBox="0 0 ${badgeSvgW} ${badgeSvgH}" xmlns="http://www.w3.org/2000/svg" shape-rendering="geometricPrecision">
+  <defs>
+    <filter id="sh_${areaBadgeId}" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="#000000" flood-opacity="0.95"/>
+    </filter>
+  </defs>
+  <text x="${badgeSvgW / 2}" y="${area.subText ? 18 : badgeSvgH / 2 + 1}" font-family="${fontFamily}, -apple-system, BlinkMacSystemFont, sans-serif" font-weight="800" font-size="16" fill="#ffffff" text-anchor="middle" dominant-baseline="middle" letter-spacing="0.3px" filter="url(#sh_${areaBadgeId})">${area.titleText}</text>
+  ${area.subText ? `<text x="${badgeSvgW / 2}" y="35" font-family="${fontFamily}, -apple-system, BlinkMacSystemFont, sans-serif" font-weight="700" font-size="11.5" fill="${color}" text-anchor="middle" dominant-baseline="middle" letter-spacing="0.2px" filter="url(#sh_${areaBadgeId})">${area.subText}</text>` : ''}
+</svg>`.trim();
+                }
+
+                const wrap = addSvgFn({
+                    name: `Alan: ${area.titleText}`,
+                    svg: areaSvgHtml
+                });
+
+                if (wrap) {
+                    wrap.classList.add('sat-measure-callout', 'sat-measure-area-callout');
+                    wrap.dataset.isMeasureAreaBadge = 'true';
+
+                    const finalW = Math.round(badgeSvgW * 1.25 * formatRatio);
+                    const finalH = Math.round(badgeSvgH * 1.25 * formatRatio);
+
+                    wrap.style.width = finalW + 'px';
+                    wrap.style.height = finalH + 'px';
+                    const el = wrap.querySelector('.callout-item');
+                    if (el) {
+                        el.style.width = finalW + 'px';
+                        el.style.height = finalH + 'px';
+                    }
+
+                    const posX = Math.round(area.x - finalW / 2);
+                    const posY = Math.round(area.y - finalH / 2);
+
+                    wrap.style.left = posX + 'px';
+                    wrap.style.top = posY + 'px';
+                }
+            }
+
+            if (typeof window.recordHistory === 'function') {
+                window.recordHistory('Ölçüm Rozetleri Tuvale Eklendi');
             }
         },
 

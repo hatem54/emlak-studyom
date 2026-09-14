@@ -131,10 +131,19 @@ let polyMarqueeStartY = 0;
 
 window.startMobileMarquee = function(x, y) {
     if(typeof drawMode !== 'undefined' && drawMode !== 'off') return;
+    
+    // Önceki açık kalan veya yetim seçim kutularını kesin olarak temizle
+    document.querySelectorAll('.poly-marquee-box').forEach(el => el.remove());
+    if (polyMarqueeBox) {
+        try { polyMarqueeBox.remove(); } catch(e) {}
+        polyMarqueeBox = null;
+    }
+
     polyMarqueeStartX = x;
     polyMarqueeStartY = y;
     
     polyMarqueeBox = document.createElement('div');
+    polyMarqueeBox.className = 'poly-marquee-box';
     polyMarqueeBox.style.position = 'fixed';
     polyMarqueeBox.style.border = '1px dashed #3b82f6';
     polyMarqueeBox.style.backgroundColor = 'rgba(59, 130, 246, 0.1)';
@@ -151,7 +160,7 @@ document.addEventListener('mousedown', e => {
     if (e.button !== 0) return; // Sağ tık seçim kutusu başlatmasın
     if(typeof drawMode !== 'undefined' && drawMode !== 'off') return;
     if(!e.target || !e.target.closest) return;
-    const cTarget = e.target.closest('.canvas-el, .added-icon, .draggable, .cvi-item, .co-neon-block, .vertex-handle, .text-handle, .callout-controls, .callout-resizer, .callout-rotator, .lp-item, .panel, .lp-header, .editable-draw');
+    const cTarget = e.target.closest('.canvas-el, .added-icon, .draggable, .cvi-item, .co-neon-block, .vertex-handle, .text-handle, .callout-controls, .callout-resizer, .callout-rotator, .lp-item, .panel, .lp-header, .editable-draw, .callout-wrap, .callout-item, .svg-callout, .sat-measure-callout, .parcel-badge-callout');
     
     if (e.target.closest('.panel, .lp-header, button, input, select, textarea, .modal-overlay, .app-context-menu')) return;
     
@@ -201,9 +210,10 @@ document.addEventListener('mousemove', handleMarqueeMove);
 document.addEventListener('touchmove', handleMarqueeMove, {passive: true});
 
 const handleMarqueeEnd = function(e) {
+    document.querySelectorAll('.poly-marquee-box').forEach(el => el.remove());
     if(polyMarqueeBox) {
         const mRect = polyMarqueeBox.getBoundingClientRect();
-        polyMarqueeBox.remove();
+        try { polyMarqueeBox.remove(); } catch(err) {}
         polyMarqueeBox = null;
         
         if (mRect.width > 5 && mRect.height > 5) {
@@ -211,7 +221,7 @@ const handleMarqueeEnd = function(e) {
             if (!multiSelectKey && typeof deselectAll === 'function') {
                 deselectAll();
             }
-            const rawElements = Array.from(document.querySelectorAll('.cvi-item, .co-neon-block, .draggable, .added-icon, .canvas-el, .editable-draw'));
+            const rawElements = Array.from(document.querySelectorAll('.cvi-item, .co-neon-block, .draggable, .added-icon, .canvas-el, .editable-draw, .callout-wrap'));
             // Sadece en üst seviye elemanları seç (iç içe seçimi ve çift sayımı önle)
             const elements = rawElements.filter(el => {
                 return !rawElements.some(parent => parent !== el && parent.contains(el));
@@ -253,5 +263,16 @@ const handleMarqueeEnd = function(e) {
     }
 };
 
-document.addEventListener('mouseup', handleMarqueeEnd);
-document.addEventListener('touchend', handleMarqueeEnd);
+window.addEventListener('mouseup', handleMarqueeEnd, true);
+window.addEventListener('touchend', handleMarqueeEnd, true);
+window.addEventListener('touchcancel', handleMarqueeEnd, true);
+window.addEventListener('blur', () => {
+    document.querySelectorAll('.poly-marquee-box').forEach(el => el.remove());
+    if (polyMarqueeBox) { try { polyMarqueeBox.remove(); } catch(e) {} polyMarqueeBox = null; }
+}, true);
+window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+        document.querySelectorAll('.poly-marquee-box').forEach(el => el.remove());
+        if (polyMarqueeBox) { try { polyMarqueeBox.remove(); } catch(e) {} polyMarqueeBox = null; }
+    }
+}, true);

@@ -850,10 +850,12 @@
                 attribution: '&copy; Google'
             });
 
-            // 4. Esri World Imagery (Maxar HD Alternatif)
+            // 4. Esri World Imagery (Maxar HD Alternatif - Güvenli maxNativeZoom: 17 ile hata karoları engellenir)
             this.esriSatLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
                 maxZoom: 21,
-                maxNativeZoom: 19,
+                maxNativeZoom: 17,
+                className: 'sat-tile-esri',
+                errorTileUrl: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7',
                 crossOrigin: 'anonymous',
                 attribution: '&copy; Esri, Maxar'
             });
@@ -1188,7 +1190,11 @@
         flyTo: function(lat, lng, zoom, immediate) {
             this.currentLat = lat;
             this.currentLng = lng;
-            this.currentZoom = zoom || 17;
+            let targetZoom = zoom || 17;
+            if (this.activeLayer === 'esri_sat' && targetZoom > 16) {
+                targetZoom = 16;
+            }
+            this.currentZoom = targetZoom;
             this.markerLatLng = (typeof L !== 'undefined' && L.latLng) ? L.latLng(lat, lng) : null;
 
             if (this.is3DActive && this.map3dElement) {
@@ -1305,6 +1311,11 @@
                 }
             } else if (type === 'esri_sat') {
                 this.esriSatLayer.addTo(this.map);
+                // Kullanıcı isteği: Esri aşırı yakından başlayınca hata karosu geliyordu.
+                // Esri katmanına geçildiğinde güvenli, keskin ve geniş açılı zoom 16'ya çek
+                if (this.currentZoom > 16) {
+                    this.currentZoom = 16;
+                }
             } else if (type === 'osm') {
                 this.osmLayer.addTo(this.map);
             }
@@ -2026,6 +2037,9 @@
                 if (low.includes('ada') || low.includes('parsel') || low.includes('sokak') || low.includes('cadde')) {
                     targetZoom = 17;
                 }
+                if (this.activeLayer === 'esri_sat' && targetZoom > 16) {
+                    targetZoom = 16;
+                }
 
                 // Bulunan hedef koordinatı ve pini birebir haritadaki yere eşitle
                 this.currentLat = lat;
@@ -2428,6 +2442,9 @@
                 } else if (hasSavedLocation || this.parcelData) {
                     // Son kaydedilen adrese ve koordinata doğrudan git ve pini yerleştir
                     if (this.map) {
+                        if (this.activeLayer === 'esri_sat' && this.currentZoom > 16) {
+                            this.currentZoom = 16;
+                        }
                         this.map.setView([this.currentLat, this.currentLng], this.currentZoom, { animate: false });
                         this.map.invalidateSize();
                         // Eğer parsel varsa ve haritada katman olarak yoksa tekrar yükle
@@ -2523,9 +2540,11 @@
         fetchAndStitchHighResTiles: async function(targetW, targetH, targetZoom) {
             if (!this.map) throw new Error('Harita hazır değil.');
 
-            // Esri ve OSM sunucuları en fazla zoom 19 seviyesine kadar karo barındırır (404 hatasını önlemek için sınırla)
+            // Esri ve OSM sunucuları için karo sınırlandırması (Esri için zoom 17, OSM için zoom 19; 404 ve hata ekranını önlemek için)
             const activeLayer = this.activeLayer;
-            if ((activeLayer === 'esri_sat' || activeLayer === 'osm') && targetZoom > 19) {
+            if (activeLayer === 'esri_sat' && targetZoom > 17) {
+                targetZoom = 17;
+            } else if (activeLayer === 'osm' && targetZoom > 19) {
                 targetZoom = 19;
             }
 
@@ -2609,6 +2628,9 @@
             ctx.imageSmoothingQuality = 'high';
 
             let validCount = 0;
+            if (activeLayer === 'esri_sat' && !this.aiEnhanceEnabled) {
+                ctx.filter = 'contrast(108%) saturate(115%) brightness(102%)';
+            }
             results.forEach(({ item, img }) => {
                 if (!img) return;
                 validCount++;
@@ -2618,6 +2640,7 @@
                 const destY = Math.round(tilePixelY - minY);
                 ctx.drawImage(img, destX, destY, tileSize, tileSize);
             });
+            ctx.filter = 'none';
 
             // En az %50 karo geldiyse geçerli kabul et
             if (validCount >= Math.ceil(tileCoords.length * 0.5)) {
@@ -2682,10 +2705,17 @@
 
                     if (dx + dw > 0 && dx < targetW && dy + dh > 0 && dy < targetH) {
                         ctx.globalAlpha = isNaN(opacity) ? 1.0 : opacity;
+                        if (this.activeLayer === 'esri_sat' && !this.aiEnhanceEnabled) {
+                            ctx.filter = 'contrast(108%) saturate(115%) brightness(102%)';
+                        }
                         ctx.drawImage(tile, dx, dy, dw, dh);
+                        if (this.activeLayer === 'esri_sat' && !this.aiEnhanceEnabled) {
+                            ctx.filter = 'none';
+                        }
                     }
                 } catch(e) {}
             });
+            ctx.filter = 'none';
             ctx.globalAlpha = 1.0;
             canvas._cropInfo = { cropX, cropY, cropW, cropH, scale, mapW, mapH };
             return canvas;
@@ -3997,9 +4027,10 @@
                         console.warn("3D harita parsele odaklanma:", e);
                     }
                 } else {
+                    const safeMaxZoom = (this.activeLayer === 'esri_sat') ? 16 : 19;
                     this.map.fitBounds(bounds, {
                         padding: [45, 45],
-                        maxZoom: 19,
+                        maxZoom: safeMaxZoom,
                         animate: true,
                         duration: 1.2
                     });
@@ -5267,7 +5298,8 @@
             if (this.parcelPolygon && this.map) {
                 const bounds = this.parcelPolygon.getBounds();
                 if (bounds.isValid()) {
-                    this.map.fitBounds(bounds, { padding: [45, 45], maxZoom: 19, animate: true, duration: 1.0 });
+                    const safeMaxZoom = (this.activeLayer === 'esri_sat') ? 16 : 19;
+                    this.map.fitBounds(bounds, { padding: [45, 45], maxZoom: safeMaxZoom, animate: true, duration: 1.0 });
                 }
             }
         },

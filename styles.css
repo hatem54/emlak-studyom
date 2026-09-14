@@ -7951,6 +7951,13 @@ body[data-theme="dark"] .desc-toggle-item.active {
     z-index: 1;
 }
 
+/* Esri HD Uydu Karoları Netlik, Kontrast ve GPU Donanım Optimizasyonu */
+#satelliteLeafletMap .leaflet-tile.sat-tile-esri {
+    filter: contrast(1.08) saturate(1.15) brightness(1.02);
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
+}
+
 /* Şablon Kadraj Format Butonları */
 .sat-format-btns {
     display: flex;

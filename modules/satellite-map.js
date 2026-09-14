@@ -519,14 +519,15 @@
                 </div>
 
                 <!-- 📏 Canlı Mesafe, Sınır & Alan Ölçüm Paneli (Floating Glass Panel - Serbest & Ekrandan Taşabilir) -->
+                <!-- 📏 Canlı Mesafe, Sınır & Alan Ölçüm Paneli (Floating Glass Panel - Serbest & Ekrandan Taşabilir) -->
                 <div class="sat-measure-floating-panel" id="satMeasureFloatingPanel" style="display:none;">
                     <div class="sat-measure-panel-header" title="Paneli sürükleyerek istediğiniz yere taşıyabilirsiniz">
                         <div class="sat-measure-title">
                             <i class="fas fa-grip-vertical sat-measure-drag-handle" title="Taşımak için sürükleyin"></i>
-                            <i class="fas fa-ruler-combined"></i>
-                            <span>Ölçüm & Alan</span>
+                            <i class="fas fa-ruler-combined" id="satMeasureHeaderIcon"></i>
+                            <span id="satMeasureHeaderTitle">Ölçüm & Alan</span>
                         </div>
-                        <div class="sat-measure-mode-switcher">
+                        <div class="sat-measure-mode-switcher" id="satMeasureModeSwitcher">
                             <button type="button" class="sat-measure-mode-btn active" id="satMeasureModeDrawBtn" onclick="window.setSatelliteMeasureInteractionMode('draw')" title="Sol tık ile yeni köşe noktaları ekleyin">
                                 <i class="fas fa-pen-nib"></i> <span>Nokta</span>
                             </button>
@@ -548,21 +549,21 @@
                     </div>
                     
                     <div class="sat-measure-panel-body" id="satMeasurePanelBody">
-                        <!-- ℹ️ 3D Modu Bilgilendirme Uyarısı (Metreler 2D Haritada Çizilir) -->
-                        <div id="satMeasure3dNotice" style="display:none; align-items:center; justify-content:space-between; background:rgba(245,158,11,0.18); border:1px solid rgba(245,158,11,0.45); border-radius:8px; padding:6px 10px; margin-bottom:8px; font-size:11px; color:#fde68a;">
-                            <span><i class="fas fa-info-circle"></i> Cephe metreleri ve CAD çizgileri <strong>2D HD Uydu</strong> haritasında görünür.</span>
-                            <button type="button" onclick="window.setSatelliteLayer('google_sat')" style="background:#f59e0b; color:#0f172a; font-weight:700; border:none; border-radius:5px; padding:3px 9px; font-size:11px; cursor:pointer; margin-left:8px; white-space:nowrap;">2D'ye Geç</button>
+                        <!-- ℹ️ 3D Modu Bilgilendirme Uyarısı -->
+                        <div id="satMeasure3dNotice" style="display:none; align-items:center; justify-content:space-between; background:rgba(56,189,248,0.15); border:1px solid rgba(56,189,248,0.4); border-radius:8px; padding:6px 10px; margin-bottom:6px; font-size:11px; color:#bae6fd;">
+                            <span><i class="fas fa-cube" style="color:#38bdf8; margin-right:4px;"></i> 3D Dünya: Arsa çizgisi, neon ve dolgu ayarları aktiftir.</span>
+                            <button type="button" onclick="window.setSatelliteLayer('google_sat')" style="background:#38bdf8; color:#0f172a; font-weight:700; border:none; border-radius:5px; padding:3px 9px; font-size:11px; cursor:pointer; margin-left:8px; white-space:nowrap;">2D'ye Geç</button>
                         </div>
 
-                        <!-- Canlı Mesafe & Alan Göstergesi -->
-                        <div class="sat-measure-display-box">
+                        <!-- Canlı Mesafe & Alan Göstergesi (2D Only) -->
+                        <div class="sat-measure-display-box sat-2d-only-row" id="satMeasureDisplayBox">
                             <div class="sat-measure-val" id="satMeasureValText">0.0 m</div>
                             <div class="sat-measure-sub-stats" id="satMeasureSubStats" style="display:none;"></div>
                             <div class="sat-measure-hint" id="satMeasureHintText">Haritada noktalara tıklayarak arsayı çevreleyin • Ctrl veya Boşluk tuşuyla haritayı kaydırın</div>
                         </div>
 
-                        <!-- Hızlı Metin Şablonları (Yola Cephe, Ön Cephe vb.) -->
-                        <div class="sat-measure-row">
+                        <!-- Hızlı Metin Şablonları (Yola Cephe, Ön Cephe vb.) (2D Only) -->
+                        <div class="sat-measure-row sat-2d-only-row" id="satMeasureRowPresets">
                             <label class="sat-measure-label">Etiket Şablonu:</label>
                             <div class="sat-measure-chips">
                                 <button type="button" class="sat-measure-chip active" data-preset="frontage" onclick="window.setSatelliteMeasurePreset('frontage')">Yola Cephe</button>
@@ -573,15 +574,15 @@
                             </div>
                         </div>
 
-                        <!-- Özel Metin Girişi -->
-                        <div class="sat-measure-row">
+                        <!-- Özel Metin Girişi (2D Only) -->
+                        <div class="sat-measure-row sat-2d-only-row" id="satMeasureRowCustomText">
                             <input type="text" id="satMeasureTextInput" class="sat-measure-text-input" placeholder="Etiket metnini özelleştirin..." oninput="window.setSatelliteMeasureCustomText(this.value)">
                         </div>
 
-                        <!-- Çizgi ve İşaretleme Stili -->
-                        <div class="sat-measure-row">
+                        <!-- Çizgi ve İşaretleme Stili (2D Only) -->
+                        <div class="sat-measure-row sat-2d-only-row" id="satMeasureRowStyles">
                             <div class="sat-measure-sub-row">
-                                <label class="sat-measure-label">Stil:</label>
+                                <label class="sat-measure-label">CAD Stili:</label>
                                 <div class="sat-measure-style-pills">
                                     <button type="button" class="sat-measure-style-btn active" data-style="cad" onclick="window.setSatelliteMeasureStyle('cad')" title="CAD Boyut Çizgisi">📐 CAD</button>
                                     <button type="button" class="sat-measure-style-btn" data-style="neon" onclick="window.setSatelliteMeasureStyle('neon')" title="Neon Işıltılı">⚡ Neon</button>
@@ -591,8 +592,8 @@
                             </div>
                         </div>
 
-                        <!-- Arsa Alanı Görünümü & İçeriği (Çerçevesiz / Kutulu) -->
-                        <div class="sat-measure-row">
+                        <!-- Arsa Alanı Görünümü & İçeriği (Çerçevesiz / Kutulu) (2D Only) -->
+                        <div class="sat-measure-row sat-2d-only-row" id="satMeasureRowArea">
                             <div class="sat-measure-sub-row">
                                 <label class="sat-measure-label">Alan Gösterimi:</label>
                                 <div class="sat-measure-chips">
@@ -607,8 +608,8 @@
                             </div>
                         </div>
 
-                        <!-- Yazı Tipi (Font) & Boyutlandırma -->
-                        <div class="sat-measure-row">
+                        <!-- Yazı Tipi (Font) & Boyutlandırma (2D Only) -->
+                        <div class="sat-measure-row sat-2d-only-row" id="satMeasureRowFont">
                             <div class="sat-measure-sub-row">
                                 <label class="sat-measure-label">Yazı & Boyut:</label>
                                 <div class="sat-measure-font-controls">
@@ -629,11 +630,11 @@
                             </div>
                         </div>
 
-                        <!-- Renk Paleti & Genel Renk Seçici -->
-                        <div class="sat-measure-row">
+                        <!-- 2D CAD Mesafe Renk Paleti (2D Only) -->
+                        <div class="sat-measure-row sat-2d-only-row" id="satMeasureRowCadColor">
                             <div class="sat-measure-sub-row">
-                                <label class="sat-measure-label">Renk:</label>
-                                <div class="sat-measure-colors">
+                                <label class="sat-measure-label">CAD Renk:</label>
+                                <div class="sat-measure-colors" id="satCadColorPalette">
                                     <button type="button" class="sat-measure-color-dot active" style="background:#f59e0b;" data-color="#f59e0b" onclick="window.setSatelliteMeasureColor('#f59e0b')" title="Altın Sarısı"></button>
                                     <button type="button" class="sat-measure-color-dot" style="background:#00f5d4;" data-color="#00f5d4" onclick="window.setSatelliteMeasureColor('#00f5d4')" title="Neon Cyan"></button>
                                     <button type="button" class="sat-measure-color-dot" style="background:#ffffff;" data-color="#ffffff" onclick="window.setSatelliteMeasureColor('#ffffff')" title="Saf Beyaz"></button>
@@ -647,21 +648,85 @@
                             </div>
                         </div>
 
-                        <!-- Arsa Dolgusu & Neon Seçici -->
+                        <!-- 1. Bölüm: Kenar Çizgisi Rengi ve Kalınlığı (Hem 2D Hem 3D) -->
+                        <div class="sat-measure-row" id="satMeasureStrokeRow">
+                            <div class="sat-measure-sub-row" style="margin-bottom:6px;">
+                                <label class="sat-measure-label"><i class="fas fa-pen" style="margin-right:4px; opacity:0.8;"></i> Çizgi Rengi:</label>
+                                <div class="sat-measure-colors" id="satStrokeColorPalette">
+                                    <button type="button" class="sat-measure-color-dot sat-stroke-dot active" style="background:#ffffff;" data-color="#ffffff" onclick="window.setParcelStrokeColor('#ffffff')" title="Beyaz"></button>
+                                    <button type="button" class="sat-measure-color-dot sat-stroke-dot" style="background:#f59e0b;" data-color="#f59e0b" onclick="window.setParcelStrokeColor('#f59e0b')" title="Altın Sarısı"></button>
+                                    <button type="button" class="sat-measure-color-dot sat-stroke-dot" style="background:#00f5d4;" data-color="#00f5d4" onclick="window.setParcelStrokeColor('#00f5d4')" title="Turkuaz"></button>
+                                    <button type="button" class="sat-measure-color-dot sat-stroke-dot" style="background:#ef4444;" data-color="#ef4444" onclick="window.setParcelStrokeColor('#ef4444')" title="Kırmızı"></button>
+                                    <button type="button" class="sat-measure-color-dot sat-stroke-dot" style="background:#10b981;" data-color="#10b981" onclick="window.setParcelStrokeColor('#10b981')" title="Yeşil"></button>
+                                    <button type="button" class="sat-measure-color-dot sat-stroke-dot" style="background:#a855f7;" data-color="#a855f7" onclick="window.setParcelStrokeColor('#a855f7')" title="Mor"></button>
+                                    <label class="sat-measure-color-custom-btn" id="satStrokeCustomLabel" title="Özel Çizgi Rengi">
+                                        <i class="fas fa-eye-dropper"></i>
+                                        <input type="color" id="satStrokeCustomInput" value="#ffffff" oninput="window.setParcelStrokeColor(this.value)">
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="sat-color-row" style="margin-bottom:0; display:flex; justify-content:space-between; align-items:center; font-size:11px; color:#94a3b8;">
+                                <span>Çizgi Kalınlığı: <b id="satMeasureStrokeWidthText" style="color:#e2e8f0;">3px</b></span>
+                                <input type="range" id="satMeasureStrokeWidthSlider" min="1" max="10" step="0.5" value="3" oninput="window.setParcelStrokeWidth(this.value)" style="width:110px; accent-color:#38bdf8;">
+                            </div>
+                        </div>
+
+                        <!-- 2. Bölüm: ⚡ Saber Neon Parlama Hattı (Hem 2D Hem 3D) -->
+                        <div class="sat-measure-row" id="satMeasureNeonRow">
+                            <div class="sat-measure-sub-row" style="margin-bottom:6px;">
+                                <div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
+                                    <label class="sat-measure-label" style="margin-bottom:0;"><i class="fas fa-bolt" style="color:#00CEC9; margin-right:4px;"></i> Saber Neon:</label>
+                                    <button type="button" id="satMeasureNeonToggleBtn" class="sat-pill-toggle-btn" onclick="window.toggleSatelliteParcelNeon()" style="padding:2px 9px; font-size:10.5px; border-radius:12px; cursor:pointer; font-weight:600; border:1px solid #475569; background:transparent; color:#94a3b8;">
+                                        <i class="fas fa-bolt"></i> Neon: <b>Kapalı</b>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="sat-measure-colors" id="satNeonColorPalette" style="margin-bottom:4px;">
+                                <button type="button" class="sat-measure-color-dot sat-neon-dot active" style="background:#00CEC9;" data-color="#00cec9" onclick="window.setSatelliteParcelNeonColor('#00CEC9')" title="Turkuaz"></button>
+                                <button type="button" class="sat-measure-color-dot sat-neon-dot" style="background:#f59e0b;" data-color="#f59e0b" onclick="window.setSatelliteParcelNeonColor('#f59e0b')" title="Altın"></button>
+                                <button type="button" class="sat-measure-color-dot sat-neon-dot" style="background:#0ea5e9;" data-color="#0ea5e9" onclick="window.setSatelliteParcelNeonColor('#0ea5e9')" title="Neon Mavi"></button>
+                                <button type="button" class="sat-measure-color-dot sat-neon-dot" style="background:#10b981;" data-color="#10b981" onclick="window.setSatelliteParcelNeonColor('#10b981')" title="Yeşil"></button>
+                                <button type="button" class="sat-measure-color-dot sat-neon-dot" style="background:#ef4444;" data-color="#ef4444" onclick="window.setSatelliteParcelNeonColor('#ef4444')" title="Kırmızı"></button>
+                                <button type="button" class="sat-measure-color-dot sat-neon-dot" style="background:#aa00ff;" data-color="#aa00ff" onclick="window.setSatelliteParcelNeonColor('#aa00ff')" title="Mor"></button>
+                                <button type="button" class="sat-measure-color-dot sat-neon-dot" style="background:#ffffff;" data-color="#ffffff" onclick="window.setSatelliteParcelNeonColor('#ffffff')" title="Saf Beyaz"></button>
+                                <label class="sat-measure-color-custom-btn" id="satNeonCustomLabel" title="Özel Neon Rengi">
+                                    <i class="fas fa-eye-dropper"></i>
+                                    <input type="color" id="satNeonCustomInput" value="#00CEC9" oninput="window.setSatelliteParcelNeonColor(this.value)">
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- 3. Bölüm: 🎨 Arsa Zemin Dolgusu (Hem 2D Hem 3D) -->
                         <div class="sat-measure-row" id="satMeasureFillRow">
-                            <div class="sat-measure-sub-row">
-                                <label class="sat-measure-label">Dolgu:</label>
+                            <div class="sat-measure-sub-row" style="margin-bottom:6px;">
+                                <label class="sat-measure-label"><i class="fas fa-fill-drip" style="margin-right:4px; opacity:0.8;"></i> Arsa Dolgusu:</label>
                                 <div class="sat-measure-chips" id="satMeasureFillModeChips">
                                     <button type="button" class="sat-measure-chip active" data-fill="white" onclick="window.setParcelFillMode('white')" title="Beyaz yarı saydam arsa dolgusu">⚪ Beyaz</button>
                                     <button type="button" class="sat-measure-chip" data-fill="color" onclick="window.setParcelFillMode('color')" title="Seçili renkte arsa dolgusu">🎨 Renkli</button>
                                     <button type="button" class="sat-measure-chip" data-fill="nofill" onclick="window.setParcelFillMode('nofill')" title="Sadece sınır çizgisi (şeffaf iç dolgu)">🚫 Şeffaf</button>
-                                    <button type="button" class="sat-measure-chip" id="satMeasureNeonQuickBtn" onclick="window.toggleSatelliteParcelNeon()" title="⚡ Saber Neon Parlama Çizgisini Aç / Kapat">⚡ Neon</button>
                                 </div>
+                            </div>
+                            <!-- Renkli Dolgu Paleti -->
+                            <div class="sat-measure-colors" id="satFillColorPalette" style="margin-bottom:6px; display:none;">
+                                <button type="button" class="sat-measure-color-dot sat-fill-dot" style="background:#f59e0b;" data-color="#f59e0b" onclick="window.setParcelColor('#f59e0b')" title="Altın Sarısı"></button>
+                                <button type="button" class="sat-measure-color-dot sat-fill-dot" style="background:#00CEC9;" data-color="#00cec9" onclick="window.setParcelColor('#00CEC9')" title="Turkuaz"></button>
+                                <button type="button" class="sat-measure-color-dot sat-fill-dot" style="background:#0ea5e9;" data-color="#0ea5e9" onclick="window.setParcelColor('#0ea5e9')" title="Mavi"></button>
+                                <button type="button" class="sat-measure-color-dot sat-fill-dot" style="background:#10b981;" data-color="#10b981" onclick="window.setParcelColor('#10b981')" title="Yeşil"></button>
+                                <button type="button" class="sat-measure-color-dot sat-fill-dot" style="background:#ef4444;" data-color="#ef4444" onclick="window.setParcelColor('#ef4444')" title="Kırmızı"></button>
+                                <button type="button" class="sat-measure-color-dot sat-fill-dot" style="background:#aa00ff;" data-color="#aa00ff" onclick="window.setParcelColor('#aa00ff')" title="Mor"></button>
+                                <label class="sat-measure-color-custom-btn" id="satFillCustomLabel" title="Özel Dolgu Rengi">
+                                    <i class="fas fa-eye-dropper"></i>
+                                    <input type="color" id="satFillCustomInput" value="#f59e0b" oninput="window.setParcelColor(this.value)">
+                                </label>
+                            </div>
+                            <div class="sat-color-row" style="margin-bottom:0; display:flex; justify-content:space-between; align-items:center; font-size:11px; color:#94a3b8;">
+                                <span>Dolgu Saydamlığı: <b id="satMeasureFillOpacityText" style="color:#e2e8f0;">%40</b></span>
+                                <input type="range" id="satMeasureFillOpacitySlider" min="5" max="95" step="5" value="40" oninput="window.setParcelOpacity(this.value)" style="width:110px; accent-color:#38bdf8;">
                             </div>
                         </div>
 
-                        <!-- Metre & Rozet Gösterimi (Aç / Kapat & Kenar Filtresi) -->
-                        <div class="sat-measure-row" id="satMeasureVisibilityRow">
+                        <!-- Metre & Rozet Gösterimi (Aç / Kapat & Kenar Filtresi) (2D Only) -->
+                        <div class="sat-measure-row sat-2d-only-row" id="satMeasureVisibilityRow">
                             <div class="sat-measure-sub-row">
                                 <label class="sat-measure-label">Gösterim:</label>
                                 <div class="sat-measure-chips">
@@ -686,14 +751,14 @@
                             </div>
                         </div>
 
-                        <!-- Hızlı Eylemler (Parsel Kilitleri & Sıfırla - 3 Düzenli Satır) -->
-                        <div class="sat-measure-actions-bar full-row" id="satMeasureRowSnapAll" style="display:none;">
+                        <!-- Hızlı Eylemler (Parsel Kilitleri & Sıfırla - 3 Düzenli Satır) (2D Only) -->
+                        <div class="sat-measure-actions-bar full-row sat-2d-only-row" id="satMeasureRowSnapAll" style="display:none;">
                             <button type="button" id="satBtnSnapAllParcel" class="sat-measure-act-btn snap-all" onclick="window.snapSatelliteMeasureToAllParcelVertices()" title="Yüklü parselin tüm sınırlarını ve alanını otomatik çevreler">
                                 <i class="fas fa-vector-square"></i> <span>📐 Tüm Parseli Çevrele</span>
                             </button>
                         </div>
 
-                        <div class="sat-measure-actions-bar edge-row" id="satMeasureRowEdgeNav" style="display:none;">
+                        <div class="sat-measure-actions-bar edge-row sat-2d-only-row" id="satMeasureRowEdgeNav" style="display:none;">
                             <button type="button" id="satBtnSnapParcelEdge" class="sat-measure-act-btn snap" onclick="window.snapSatelliteMeasureToParcelEdge()" title="Ölçüm noktalarını arsanın tek bir kenarına kilitler">
                                 <i class="fas fa-draw-polygon"></i> <span>Tek Kenar</span>
                             </button>
@@ -702,7 +767,7 @@
                             </button>
                         </div>
 
-                        <div class="sat-measure-actions-bar second-row">
+                        <div class="sat-measure-actions-bar second-row sat-2d-only-row" id="satMeasureRowActions">
                             <button type="button" id="satBtnCloseMeasurePolygon" class="sat-measure-act-btn close-poly" onclick="window.toggleSatelliteMeasureClosed()" title="Arsa alanını kapat veya açık çizgiye dönüştür">
                                 <i class="fas fa-object-group"></i> <span id="satBtnClosePolyText">Alanı Kapat</span>
                             </button>
@@ -1224,6 +1289,7 @@
                 }
                 this.is3DActive = false;
                 this.map3dElement = null;
+                this.updateUIModeFor2D3D(false);
 
                 // Nişangah / pin kılavuzunu tekrar görünür yap
                 const reticle = document.getElementById('satReticleOverlay');
@@ -4286,14 +4352,14 @@
                 // Dolgu ve Kenarlık Renkleri (Google 3D Maps katı #RRGGBBAA hex standardı)
                 const isNeon3d = !!this.parcelNeonEnabled;
                 const neonColor = this.parcelNeonColor || '#00CEC9';
-                const strokeColor = isNeon3d ? neonColor : (this.parcelStrokeColor || '#ffffff');
+                const strokeColor = this.parcelStrokeColor || '#ffffff';
                 const opacity = (this.parcelFillOpacity !== undefined ? this.parcelFillOpacity : 0.40);
 
                 let fillHex8 = '#ffffff66';
                 if (this.parcelFillMode === 'nofill') {
                     fillHex8 = '#ffffff00'; // Tam saydam dolgusuz
                 } else if (this.parcelFillMode === 'color') {
-                    fillHex8 = this.colorToHex8(this.parcelFillColor || neonColor || '#f59e0b', opacity);
+                    fillHex8 = this.colorToHex8(this.parcelFillColor || '#f59e0b', opacity);
                 } else if (this.parcelFillMode === 'neon') {
                     fillHex8 = this.colorToHex8(neonColor, opacity);
                 } else {
@@ -4302,7 +4368,7 @@
                 }
 
                 const strokeHex8 = this.colorToHex8(strokeColor, 1.0);
-                const strokeW = isNeon3d ? Math.max(5, this.parcelStrokeWidth || 4) : Math.max(3, this.parcelStrokeWidth || 3);
+                const strokeW = Math.max(1, this.parcelStrokeWidth || 3);
 
                 // AltitudeMode: CLAMP_TO_GROUND arazi kabartmasına yapışmayı sağlar
                 let altModeObj = 'CLAMP_TO_GROUND';
@@ -4399,15 +4465,15 @@
                         haloLine.strokeColor = haloHex8;
                     } catch(e) {}
 
-                    // B) İç Yüksek Yoğunluklu Neon Çekirdeği (Canlı Işın Kılıcı Çizgisi - 5px)
-                    const coreHex8 = this.colorToHex8(neonColor, 1.0);
+                    // B) İç Sınır Çizgisi (Kenar Çizgisi)
+                    const coreHex8 = this.colorToHex8(strokeColor, 1.0);
                     let coreLine = null;
                     if (PolylineClass) {
                         try {
                             coreLine = new PolylineClass({
                                 altitudeMode: altModeObj,
                                 strokeColor: coreHex8,
-                                strokeWidth: 5,
+                                strokeWidth: Math.max(2, this.parcelStrokeWidth || 3),
                                 drawsOccludedSegments: true,
                                 coordinates: closedPolylineCoords
                             });
@@ -4420,11 +4486,11 @@
                     }
                     coreLine.setAttribute('altitude-mode', 'clamp-to-ground');
                     coreLine.setAttribute('stroke-color', coreHex8);
-                    coreLine.setAttribute('stroke-width', '5');
+                    coreLine.setAttribute('stroke-width', (Math.max(2, this.parcelStrokeWidth || 3)).toString());
                     coreLine.setAttribute('draws-occluded-segments', '');
                     coreLine.altitudeMode = altModeObj;
                     coreLine.strokeColor = coreHex8;
-                    coreLine.strokeWidth = 5;
+                    coreLine.strokeWidth = Math.max(2, this.parcelStrokeWidth || 3);
                     coreLine.coordinates = closedPolylineCoords;
                     coreLine.path = closedPolylineCoords;
                     map3d.appendChild(coreLine);
@@ -4479,11 +4545,11 @@
         setParcelFillMode: function(mode) {
             this.parcelFillMode = mode;
             if (mode === 'color' && !this.parcelFillColor) {
-                this.parcelFillColor = this.parcelNeonColor || this.measureColor || '#f59e0b';
+                this.parcelFillColor = '#f59e0b';
             }
             this.updateParcelPolygonStyle();
             this.updateParcelUI();
-            this.syncAllColorPickersUI(this.measureColor || this.parcelNeonColor);
+            this.syncAllColorPickersUI();
         },
 
         /**
@@ -4495,7 +4561,7 @@
             this.parcelFillMode = 'color';
             this.updateParcelPolygonStyle();
             this.updateParcelUI();
-            this.syncAllColorPickersUI(color);
+            this.syncAllColorPickersUI();
         },
 
         /**
@@ -4503,11 +4569,18 @@
          */
         setParcelOpacity: function(val) {
             this.parcelFillOpacity = parseFloat(val) / 100;
-            this.updateParcelPolygonStyle();
             const opVal = document.getElementById('satParcelOpacityVal');
             if (opVal) opVal.textContent = `%${val}`;
+            const mOpVal = document.getElementById('satMeasureFillOpacityText');
+            if (mOpVal) mOpVal.textContent = `%${val}`;
             const popoverOpVal = document.getElementById('satPopoverOpVal');
             if (popoverOpVal) popoverOpVal.textContent = `%${val}`;
+            const mOpSlider = document.getElementById('satMeasureFillOpacitySlider');
+            if (mOpSlider && parseInt(mOpSlider.value, 10) !== parseInt(val, 10)) mOpSlider.value = val;
+            const opSlider = document.getElementById('satParcelOpacitySlider');
+            if (opSlider && parseInt(opSlider.value, 10) !== parseInt(val, 10)) opSlider.value = val;
+            this.updateParcelPolygonStyle();
+            this.updateParcelUI();
         },
 
         /**
@@ -4516,16 +4589,9 @@
         setParcelStrokeColor: function(color) {
             if (!color) return;
             this.parcelStrokeColor = color;
-            this.parcelNeonColor = color;
-            this.measureColor = color;
-            if (this.parcelFillMode === 'color') {
-                this.parcelFillColor = color;
-            }
             this.updateParcelPolygonStyle();
-            this.updateParcelNeonUI();
             this.updateParcelUI();
-            this.updateMeasureGraphics();
-            this.syncAllColorPickersUI(color);
+            this.syncAllColorPickersUI();
         },
 
         /**
@@ -4534,12 +4600,16 @@
         setParcelStrokeWidth: function(width) {
             this.parcelStrokeWidth = Math.max(0.5, Math.min(15, parseFloat(width) || 3));
             const strokeVal = document.getElementById('satParcelStrokeWidthVal');
-            if (strokeVal) {
-                strokeVal.textContent = `${this.parcelStrokeWidth}px`;
-            }
+            if (strokeVal) strokeVal.textContent = `${this.parcelStrokeWidth}px`;
+            const mStrokeVal = document.getElementById('satMeasureStrokeWidthText');
+            if (mStrokeVal) mStrokeVal.textContent = `${this.parcelStrokeWidth}px`;
             const strokeSlider = document.getElementById('satParcelStrokeWidthSlider');
             if (strokeSlider && parseFloat(strokeSlider.value) !== this.parcelStrokeWidth) {
                 strokeSlider.value = this.parcelStrokeWidth;
+            }
+            const mStrokeSlider = document.getElementById('satMeasureStrokeWidthSlider');
+            if (mStrokeSlider && parseFloat(mStrokeSlider.value) !== this.parcelStrokeWidth) {
+                mStrokeSlider.value = this.parcelStrokeWidth;
             }
             const popoverStrokeVal = document.getElementById('satPopoverStrokeVal');
             if (popoverStrokeVal) popoverStrokeVal.textContent = `${this.parcelStrokeWidth}px`;
@@ -4548,6 +4618,7 @@
                 popoverStrokeSlider.value = this.parcelStrokeWidth;
             }
             this.updateParcelPolygonStyle();
+            this.updateParcelUI();
         },
 
         /**
@@ -4576,8 +4647,8 @@
 
                 const isNeon = !!this.parcelNeonEnabled;
                 const neonColor = this.parcelNeonColor || '#00CEC9';
-                const strokeColor = isNeon ? neonColor : (this.parcelStrokeColor || '#ffffff');
-                const strokeWidth = isNeon ? Math.max(3.5, this.parcelStrokeWidth || 3) : (this.parcelStrokeWidth || 3);
+                const strokeColor = this.parcelStrokeColor || '#ffffff';
+                const strokeWidth = this.parcelStrokeWidth || 3;
 
                 let fillColor = 'transparent';
                 let fillOpacity = 0;
@@ -4585,13 +4656,13 @@
                     fillColor = 'transparent';
                     fillOpacity = 0;
                 } else if (this.parcelFillMode === 'color') {
-                    fillColor = this.parcelFillColor || neonColor || '#f59e0b';
+                    fillColor = this.parcelFillColor || '#f59e0b';
                     fillOpacity = this.parcelFillOpacity !== undefined ? this.parcelFillOpacity : 0.40;
                 } else if (this.parcelFillMode === 'neon') {
                     fillColor = neonColor;
                     fillOpacity = this.parcelFillOpacity !== undefined ? this.parcelFillOpacity : 0.35;
                 } else {
-                    // 'white' modu: Saf beyaz yarı saydam dolgu (neon aktif olsa bile beyaz kalır)
+                    // 'white' modu: Saf beyaz yarı saydam dolgu (neon aktif olsa bile zemin beyaz kalır)
                     fillColor = '#ffffff';
                     fillOpacity = this.parcelFillOpacity !== undefined ? this.parcelFillOpacity : 0.40;
                 }
@@ -5344,17 +5415,22 @@
                 // 3. Kenar Çizgisi (Vektörel net ve kaliteli)
                 const isNeon = !!this.parcelNeonEnabled;
                 const neonColor = this.parcelNeonColor || '#00CEC9';
-                const strokeColor = isNeon ? neonColor : (this.parcelStrokeColor || '#ffffff');
-                const baseWidth = isNeon ? Math.max(3.5, this.parcelStrokeWidth || 3) : (this.parcelStrokeWidth || 3);
+                const strokeColor = this.parcelStrokeColor || '#ffffff';
+                const baseWidth = this.parcelStrokeWidth || 3;
                 const strokeW = Math.max(1.8, baseWidth * scale * 0.75);
                 ctx.lineWidth = strokeW;
                 ctx.strokeStyle = strokeColor;
                 ctx.lineJoin = 'round';
                 ctx.lineCap = 'round';
 
-                // Kenarlık için hafif derinlik gölgesi
-                ctx.shadowColor = 'rgba(0, 0, 0, 0.65)';
-                ctx.shadowBlur = 5 * scale;
+                if (isNeon) {
+                    ctx.shadowColor = neonColor;
+                    ctx.shadowBlur = 12 * scale;
+                } else {
+                    // Kenarlık için hafif derinlik gölgesi
+                    ctx.shadowColor = 'rgba(0, 0, 0, 0.65)';
+                    ctx.shadowBlur = 5 * scale;
+                }
                 ctx.stroke();
 
                 ctx.restore();
@@ -5403,17 +5479,11 @@
         setSatelliteParcelNeonColor: function(color) {
             if (!color) return;
             this.parcelNeonColor = color;
-            this.parcelStrokeColor = color;
-            this.measureColor = color;
             this.parcelNeonEnabled = true;
-            if (this.parcelFillMode === 'color') {
-                this.parcelFillColor = color;
-            }
             this.updateParcelPolygonStyle();
             this.updateParcelNeonUI();
             this.updateParcelUI();
-            this.updateMeasureGraphics();
-            this.syncAllColorPickersUI(color);
+            this.syncAllColorPickersUI();
         },
 
         /**
@@ -5562,7 +5632,7 @@
 
             const isNeon = !!this.parcelNeonEnabled;
             const neonColor = this.parcelNeonColor || '#00CEC9';
-            const strokeColor = isNeon ? neonColor : (this.parcelStrokeColor || '#ffffff');
+            const strokeColor = this.parcelStrokeColor || '#ffffff';
             const strokeWidth = Math.max(1, parseFloat(this.parcelStrokeWidth) || 3);
             
             let fillColor = 'transparent';
@@ -5754,15 +5824,6 @@
          * Ölçüm Aracını Açar veya Kapatır
          */
         toggleMeasure: function(forceState) {
-            // 3D mod açıksa WebGL üzerinde Leaflet ölçüm çizgileri çizilemeyeceğinden
-            // kullanıcıyı bilgilendirerek akıcı bir şekilde 2D HD Uydu moduna geçir
-            if (this.is3DActive) {
-                if (typeof window.showAppToast === 'function') {
-                    window.showAppToast('📏 Ölçüm aracı ve cephe metreleri 2D HD Uydu haritasında çalışır. HD Uydu moduna geçildi.', 'info', 4000);
-                }
-                this.setLayer('google_sat');
-            }
-
             const panel = document.getElementById('satMeasureFloatingPanel');
             const isPanelHidden = panel && (panel.style.display === 'none' || !this.measurePanelVisible);
 
@@ -5771,8 +5832,11 @@
                 panel.style.display = 'flex';
                 this.measurePanelVisible = true;
                 this.restoreMeasurePanelPosition(panel);
+                this.updateUIModeFor2D3D(this.is3DActive);
                 this.syncMeasureUI();
-                this.updateMeasureGraphics();
+                if (!this.is3DActive) {
+                    this.updateMeasureGraphics();
+                }
                 return;
             }
 
@@ -5794,8 +5858,13 @@
                 }
                 if (this.measureActive) {
                     this.restoreMeasurePanelPosition(panel);
-                    this.syncMeasureUI();
                 }
+            }
+
+            this.updateUIModeFor2D3D(this.is3DActive);
+            this.syncMeasureUI();
+            if (!this.is3DActive) {
+                this.updateMeasureGraphics();
             }
 
             const mapEl = document.getElementById('satelliteLeafletMap');
@@ -6032,21 +6101,12 @@
         },
 
         /**
-         * Ölçüm Çizgisi, Arsa Sınırı ve Neon Rengini Birlikte Ayarlar
+         * 2D CAD Ölçüm Çizgisi Rengini Ayarlar
          */
         setMeasureColor: function(color) {
             if (!color) return;
             this.measureColor = color;
-            this.parcelNeonColor = color;
-            this.parcelStrokeColor = color;
-            if (this.parcelFillMode === 'color') {
-                this.parcelFillColor = color;
-            }
-
-            this.syncAllColorPickersUI(color);
-            this.updateParcelPolygonStyle();
-            this.updateParcelNeonUI();
-            this.updateParcelUI();
+            this.syncAllColorPickersUI();
             this.updateMeasureGraphics();
             this.saveLastLocation({
                 measureData: this.getMeasureDataToSave()
@@ -6054,91 +6114,307 @@
         },
 
         /**
-         * Tüm Harita Arayüzündeki (Panel, Çekmece, Rozet Popover) Renk Seçicileri Senkronize Eder
+         * 2D ve 3D Modları Arasında Ölçüm Paneli ve Harita Araç Çubuğunu Dinamik Uyarlar
          */
-        syncAllColorPickersUI: function(activeColor) {
-            if (!activeColor) activeColor = this.measureColor || this.parcelNeonColor || this.parcelStrokeColor || '#f59e0b';
-            const colorLower = activeColor.toLowerCase();
+        updateUIModeFor2D3D: function(is3D) {
+            this.is3DActive = !!is3D;
+            const panel = document.getElementById('satMeasureFloatingPanel');
+            const headerTitle = document.getElementById('satMeasureHeaderTitle');
+            const headerIcon = document.getElementById('satMeasureHeaderIcon');
+            const modeSwitcher = document.getElementById('satMeasureModeSwitcher');
+            const toggleParcelBtn = document.getElementById('satMeasureToggleParcelBtn');
+            const notice3d = document.getElementById('satMeasure3dNotice');
 
-            // 1. Ölçüm Paneli Noktaları (.sat-measure-color-dot)
-            let matchedMeasure = false;
-            document.querySelectorAll('.sat-measure-color-dot').forEach(dot => {
-                const isMatch = dot.dataset.color && dot.dataset.color.toLowerCase() === colorLower;
-                dot.classList.toggle('active', isMatch);
-                if (isMatch) matchedMeasure = true;
-            });
+            // 3D'de desteklenmeyen üst butonlar
+            const labelsBtn = document.getElementById('satToggleLabelsBtn');
+            const markerBtn = document.getElementById('satToggleMarkerBtn');
+            const markerSettings = document.getElementById('satMarkerSettingsWrapper');
+            const pinOverlay = document.getElementById('satMapPinOverlay');
+            const reticleOverlay = document.getElementById('satReticleOverlay');
 
-            // 2. Ölçüm Paneli Özel Renk İkonu & Inputu
-            const customLabel = document.getElementById('satMeasureCustomColorLabel');
-            const customInput = document.getElementById('satMeasureCustomColorInput');
-            if (customLabel) {
-                customLabel.classList.toggle('active', !matchedMeasure);
-                if (!matchedMeasure) {
-                    customLabel.style.color = activeColor;
-                    customLabel.style.borderColor = activeColor;
-                } else {
-                    customLabel.style.color = '';
-                    customLabel.style.borderColor = '';
+            if (this.is3DActive) {
+                if (panel) {
+                    panel.classList.add('sat-panel-mode-3d');
+                }
+                if (headerTitle) headerTitle.textContent = '3D Arsa & Çizgi Ayarları';
+                if (headerIcon) headerIcon.className = 'fas fa-cube';
+                if (modeSwitcher) modeSwitcher.style.display = 'none';
+                if (toggleParcelBtn) toggleParcelBtn.style.display = 'none';
+                if (notice3d) notice3d.style.display = 'flex';
+
+                // 2D'ye özel satırları gizle
+                document.querySelectorAll('.sat-2d-only-row').forEach(el => {
+                    el.style.display = 'none';
+                });
+
+                // 3D'de desteklenmeyen araçları gizle
+                if (labelsBtn) labelsBtn.style.display = 'none';
+                if (markerBtn) markerBtn.style.display = 'none';
+                if (markerSettings) markerSettings.style.display = 'none';
+                if (pinOverlay) pinOverlay.style.display = 'none';
+                if (reticleOverlay) reticleOverlay.style.display = 'none';
+            } else {
+                if (panel) {
+                    panel.classList.remove('sat-panel-mode-3d');
+                }
+                if (headerTitle) headerTitle.textContent = 'Ölçüm & Alan';
+                if (headerIcon) headerIcon.className = 'fas fa-ruler-combined';
+                if (modeSwitcher) modeSwitcher.style.display = 'inline-flex';
+                if (toggleParcelBtn) toggleParcelBtn.style.display = 'inline-flex';
+                if (notice3d) notice3d.style.display = 'none';
+
+                // 2D satırlarını geri göster
+                document.querySelectorAll('.sat-2d-only-row').forEach(el => {
+                    if (el.id === 'satMeasureRowSnapAll' || el.id === 'satMeasureRowEdgeNav') {
+                        // Parsel kilitleme butonları updateParcelSnapButtons ile yönetilir
+                    } else if (el.id === 'satMeasureSubStats') {
+                        // Sub stats kendi durumuna göre açılır
+                    } else {
+                        el.style.display = '';
+                    }
+                });
+
+                // Üst butonları geri göster
+                if (labelsBtn) labelsBtn.style.display = '';
+                if (markerBtn) markerBtn.style.display = '';
+                if (this.markerEnabled) {
+                    if (pinOverlay) pinOverlay.style.display = 'flex';
+                    if (reticleOverlay) reticleOverlay.style.display = 'flex';
                 }
             }
-            if (customInput && typeof activeColor === 'string' && activeColor.startsWith('#')) {
-                customInput.value = activeColor;
-            }
 
-            // 3. Çekmece Neon Renk Noktaları
-            document.querySelectorAll('#satDrawerNeonDetails .sat-color-dot-sm').forEach(dot => {
-                const bg = (dot.style.background || '').toLowerCase();
-                dot.classList.toggle('active', bg.includes(colorLower));
+            this.syncAllColorPickersUI();
+        },
+
+        /**
+         * Tüm Harita Arayüzündeki (Panel, Çekmece, Rozet Popover) Renk Seçicileri Senkronize Eder
+         */
+        syncAllColorPickersUI: function() {
+            const strokeColorLower = (this.parcelStrokeColor || '#ffffff').toLowerCase();
+            const neonColorLower = (this.parcelNeonColor || '#00CEC9').toLowerCase();
+            const fillColorLower = (this.parcelFillColor || '#f59e0b').toLowerCase();
+            const cadColorLower = (this.measureColor || '#f59e0b').toLowerCase();
+            const fillMode = this.parcelFillMode || 'white';
+            const isNeon = !!this.parcelNeonEnabled;
+
+            // =====================================
+            // 1. Kenar Çizgisi Rengi & Kalınlığı
+            // =====================================
+            let matchedStroke = false;
+            document.querySelectorAll('.sat-stroke-dot').forEach(dot => {
+                const isMatch = dot.dataset.color && dot.dataset.color.toLowerCase() === strokeColorLower;
+                dot.classList.toggle('active', isMatch);
+                if (isMatch) matchedStroke = true;
             });
-            const drawerNeonCustom = document.getElementById('satDrawerNeonColorCustom');
-            if (drawerNeonCustom && typeof activeColor === 'string' && activeColor.startsWith('#')) {
-                drawerNeonCustom.value = activeColor;
+            const strokeCustomLabel = document.getElementById('satStrokeCustomLabel');
+            const strokeCustomInput = document.getElementById('satStrokeCustomInput');
+            if (strokeCustomLabel) {
+                strokeCustomLabel.classList.toggle('active', !matchedStroke);
+                if (!matchedStroke) {
+                    strokeCustomLabel.style.color = this.parcelStrokeColor || '#ffffff';
+                    strokeCustomLabel.style.borderColor = this.parcelStrokeColor || '#ffffff';
+                } else {
+                    strokeCustomLabel.style.color = '';
+                    strokeCustomLabel.style.borderColor = '';
+                }
+            }
+            if (strokeCustomInput && typeof this.parcelStrokeColor === 'string' && this.parcelStrokeColor.startsWith('#')) {
+                strokeCustomInput.value = this.parcelStrokeColor;
             }
 
-            // 4. Çekmece Sınır Çizgisi Noktaları
+            // Çekmece Sınır Çizgisi Noktaları
             document.querySelectorAll('.sat-stroke-color-picks .sat-color-dot-sm').forEach(dot => {
                 const bg = (dot.style.background || '').toLowerCase();
-                dot.classList.toggle('active', bg.includes(colorLower));
+                dot.classList.toggle('active', bg.includes(strokeColorLower));
             });
-            const strokeCustom = document.getElementById('satParcelStrokeCustom');
-            if (strokeCustom && typeof activeColor === 'string' && activeColor.startsWith('#')) {
-                strokeCustom.value = activeColor;
+            const drawerStrokeCustom = document.getElementById('satParcelStrokeCustom');
+            if (drawerStrokeCustom && typeof this.parcelStrokeColor === 'string' && this.parcelStrokeColor.startsWith('#')) {
+                drawerStrokeCustom.value = this.parcelStrokeColor;
             }
 
-            // 5. Çekmece Dolgu Renk Noktaları
-            document.querySelectorAll('#satParcelColorPalette .sat-color-dot').forEach(dot => {
+            // Çizgi Kalınlığı Slider ve Değerleri
+            const strokeWidthVal = this.parcelStrokeWidth || 3;
+            const mStrokeText = document.getElementById('satMeasureStrokeWidthText');
+            if (mStrokeText) mStrokeText.textContent = `${strokeWidthVal}px`;
+            const mStrokeSlider = document.getElementById('satMeasureStrokeWidthSlider');
+            if (mStrokeSlider && parseFloat(mStrokeSlider.value) !== strokeWidthVal) mStrokeSlider.value = strokeWidthVal;
+            const drawerStrokeVal = document.getElementById('satParcelStrokeWidthVal');
+            if (drawerStrokeVal) drawerStrokeVal.textContent = `${strokeWidthVal}px`;
+            const drawerStrokeSlider = document.getElementById('satParcelStrokeWidthSlider');
+            if (drawerStrokeSlider && parseFloat(drawerStrokeSlider.value) !== strokeWidthVal) drawerStrokeSlider.value = strokeWidthVal;
+            const popoverStrokeVal = document.getElementById('satPopoverStrokeVal');
+            if (popoverStrokeVal) popoverStrokeVal.textContent = `${strokeWidthVal}px`;
+            const popoverStrokeSlider = document.getElementById('satPopoverStrokeSlider');
+            if (popoverStrokeSlider && parseFloat(popoverStrokeSlider.value) !== strokeWidthVal) popoverStrokeSlider.value = strokeWidthVal;
+
+            // =====================================
+            // 2. ⚡ Saber Neon Parlama Hattı
+            // =====================================
+            const neonToggleBtn = document.getElementById('satMeasureNeonToggleBtn');
+            if (neonToggleBtn) {
+                neonToggleBtn.classList.toggle('active', isNeon);
+                neonToggleBtn.style.borderColor = isNeon ? (this.parcelNeonColor || '#00CEC9') : '#475569';
+                neonToggleBtn.style.color = isNeon ? (this.parcelNeonColor || '#00CEC9') : '#94a3b8';
+                neonToggleBtn.innerHTML = `<i class="fas fa-bolt"></i> Neon: <b>${isNeon ? 'Açık' : 'Kapalı'}</b>`;
+            }
+
+            let matchedNeon = false;
+            document.querySelectorAll('.sat-neon-dot').forEach(dot => {
+                const isMatch = dot.dataset.color && dot.dataset.color.toLowerCase() === neonColorLower;
+                dot.classList.toggle('active', isMatch);
+                if (isMatch) matchedNeon = true;
+            });
+            const neonCustomLabel = document.getElementById('satNeonCustomLabel');
+            const neonCustomInput = document.getElementById('satNeonCustomInput');
+            if (neonCustomLabel) {
+                neonCustomLabel.classList.toggle('active', !matchedNeon);
+                if (!matchedNeon) {
+                    neonCustomLabel.style.color = this.parcelNeonColor || '#00CEC9';
+                    neonCustomLabel.style.borderColor = this.parcelNeonColor || '#00CEC9';
+                } else {
+                    neonCustomLabel.style.color = '';
+                    neonCustomLabel.style.borderColor = '';
+                }
+            }
+            if (neonCustomInput && typeof this.parcelNeonColor === 'string' && this.parcelNeonColor.startsWith('#')) {
+                neonCustomInput.value = this.parcelNeonColor;
+            }
+
+            // Çekmece & Popover Neon Kontrolleri
+            const drawerNeonToggle = document.getElementById('satDrawerNeonToggleBtn');
+            const drawerNeonText = document.getElementById('satDrawerNeonToggleText');
+            const drawerNeonDetails = document.getElementById('satDrawerNeonDetails');
+            if (drawerNeonToggle) drawerNeonToggle.classList.toggle('active', isNeon);
+            if (drawerNeonText) drawerNeonText.textContent = isNeon ? 'Açık' : 'Kapalı';
+            if (drawerNeonDetails) drawerNeonDetails.style.display = isNeon ? 'block' : 'none';
+            document.querySelectorAll('#satDrawerNeonDetails .sat-color-dot-sm').forEach(dot => {
                 const bg = (dot.style.background || '').toLowerCase();
-                dot.classList.toggle('active', bg.includes(colorLower));
+                dot.classList.toggle('active', bg.includes(neonColorLower));
             });
-            const fillColorCustom = document.getElementById('satParcelColorCustom');
-            if (fillColorCustom && typeof activeColor === 'string' && activeColor.startsWith('#')) {
-                fillColorCustom.value = activeColor;
+            const drawerNeonCustom = document.getElementById('satDrawerNeonColorCustom');
+            if (drawerNeonCustom && typeof this.parcelNeonColor === 'string' && this.parcelNeonColor.startsWith('#')) {
+                drawerNeonCustom.value = this.parcelNeonColor;
             }
 
-            // 6. Popover Renk Noktaları
+            const popoverNeonToggle = document.getElementById('satPopoverNeonToggle');
+            if (popoverNeonToggle) {
+                popoverNeonToggle.classList.toggle('active', isNeon);
+                popoverNeonToggle.style.borderColor = isNeon ? (this.parcelNeonColor || '#00CEC9') : '#475569';
+                popoverNeonToggle.style.color = isNeon ? (this.parcelNeonColor || '#00CEC9') : '#94a3b8';
+                popoverNeonToggle.innerHTML = `<i class="fas fa-bolt"></i> Neon: <b>${isNeon ? 'Açık' : 'Kapalı'}</b>`;
+            }
             document.querySelectorAll('.sat-popover-color-dot').forEach(dot => {
-                const isMatch = dot.dataset.color && dot.dataset.color.toLowerCase() === colorLower;
+                const isMatch = dot.dataset.color && dot.dataset.color.toLowerCase() === neonColorLower;
                 dot.classList.toggle('active', isMatch);
             });
             const popoverCustom = document.getElementById('satPopoverCustomColor');
-            if (popoverCustom && typeof activeColor === 'string' && activeColor.startsWith('#')) {
-                popoverCustom.value = activeColor;
+            if (popoverCustom && typeof this.parcelNeonColor === 'string' && this.parcelNeonColor.startsWith('#')) {
+                popoverCustom.value = this.parcelNeonColor;
             }
 
-            // 7. Ölçüm Paneli Dolgu Çipleri
+            const topNeonBtn = document.getElementById('satToggleNeonBtn');
+            const topNeonStatus = document.getElementById('satNeonStatusText');
+            if (topNeonBtn) topNeonBtn.classList.toggle('active', isNeon);
+            if (topNeonStatus) topNeonStatus.textContent = isNeon ? 'Açık' : 'Kapalı';
+
+            const floatNeonBtn = document.getElementById('satFloatNeonBtn');
+            if (floatNeonBtn) {
+                floatNeonBtn.classList.toggle('active', isNeon);
+                floatNeonBtn.style.borderColor = isNeon ? (this.parcelNeonColor || '#00CEC9') : 'rgba(255, 255, 255, 0.15)';
+                floatNeonBtn.style.color = isNeon ? (this.parcelNeonColor || '#00CEC9') : '#cbd5e1';
+            }
+
+            // =====================================
+            // 3. 🎨 Arsa Zemin Dolgusu
+            // =====================================
             document.querySelectorAll('#satMeasureFillModeChips .sat-measure-chip[data-fill]').forEach(chip => {
-                chip.classList.toggle('active', chip.dataset.fill === (this.parcelFillMode || 'white'));
+                chip.classList.toggle('active', chip.dataset.fill === fillMode);
             });
-            const neonQuickBtn = document.getElementById('satMeasureNeonQuickBtn');
-            if (neonQuickBtn) {
-                neonQuickBtn.classList.toggle('active', !!this.parcelNeonEnabled);
-                if (this.parcelNeonEnabled) {
-                    neonQuickBtn.style.borderColor = this.parcelNeonColor || '#00CEC9';
-                    neonQuickBtn.style.color = this.parcelNeonColor || '#00CEC9';
+            const fillPalette = document.getElementById('satFillColorPalette');
+            if (fillPalette) {
+                fillPalette.style.display = (fillMode === 'color') ? 'flex' : 'none';
+            }
+            let matchedFill = false;
+            document.querySelectorAll('.sat-fill-dot').forEach(dot => {
+                const isMatch = dot.dataset.color && dot.dataset.color.toLowerCase() === fillColorLower;
+                dot.classList.toggle('active', isMatch);
+                if (isMatch) matchedFill = true;
+            });
+            const fillCustomLabel = document.getElementById('satFillCustomLabel');
+            const fillCustomInput = document.getElementById('satFillCustomInput');
+            if (fillCustomLabel) {
+                fillCustomLabel.classList.toggle('active', !matchedFill);
+                if (!matchedFill) {
+                    fillCustomLabel.style.color = this.parcelFillColor || '#f59e0b';
+                    fillCustomLabel.style.borderColor = this.parcelFillColor || '#f59e0b';
                 } else {
-                    neonQuickBtn.style.borderColor = '';
-                    neonQuickBtn.style.color = '';
+                    fillCustomLabel.style.color = '';
+                    fillCustomLabel.style.borderColor = '';
                 }
+            }
+            if (fillCustomInput && typeof this.parcelFillColor === 'string' && this.parcelFillColor.startsWith('#')) {
+                fillCustomInput.value = this.parcelFillColor;
+            }
+
+            // Çekmece Dolgu Elemanları
+            document.querySelectorAll('#satFillModeBtns .sat-fill-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.mode === fillMode);
+            });
+            const drawerFillGroup = document.getElementById('satParcelColorGroup');
+            if (drawerFillGroup) {
+                drawerFillGroup.style.display = (fillMode === 'color') ? 'block' : 'none';
+            }
+            document.querySelectorAll('#satParcelColorPalette .sat-color-dot').forEach(dot => {
+                const bg = (dot.style.background || '').toLowerCase();
+                dot.classList.toggle('active', bg.includes(fillColorLower));
+            });
+            const drawerFillCustom = document.getElementById('satParcelColorCustom');
+            if (drawerFillCustom && typeof this.parcelFillColor === 'string' && this.parcelFillColor.startsWith('#')) {
+                drawerFillCustom.value = this.parcelFillColor;
+            }
+
+            // Popover Dolgu Butonları
+            document.querySelectorAll('.sat-fill-btn[onclick*="setParcelFillMode"]').forEach(btn => {
+                const isMatch = (btn.getAttribute('onclick') || '').includes(`'${fillMode}'`);
+                btn.classList.toggle('active', isMatch);
+            });
+
+            // Dolgu Saydamlığı (Slider & Text)
+            const opPct = Math.round((this.parcelFillOpacity !== undefined ? this.parcelFillOpacity : 0.40) * 100);
+            const mOpText = document.getElementById('satMeasureFillOpacityText');
+            if (mOpText) mOpText.textContent = `%${opPct}`;
+            const mOpSlider = document.getElementById('satMeasureFillOpacitySlider');
+            if (mOpSlider && parseInt(mOpSlider.value, 10) !== opPct) mOpSlider.value = opPct;
+            const drawerOpVal = document.getElementById('satParcelOpacityVal');
+            if (drawerOpVal) drawerOpVal.textContent = `%${opPct}`;
+            const drawerOpSlider = document.getElementById('satParcelOpacitySlider');
+            if (drawerOpSlider && parseInt(drawerOpSlider.value, 10) !== opPct) drawerOpSlider.value = opPct;
+            const popoverOpVal = document.getElementById('satPopoverOpVal');
+            if (popoverOpVal) popoverOpVal.textContent = `%${opPct}`;
+
+            // =====================================
+            // 4. 2D CAD Boyut / Mesafe Çizgisi Rengi
+            // =====================================
+            let matchedCad = false;
+            document.querySelectorAll('#satCadColorPalette .sat-measure-color-dot').forEach(dot => {
+                const isMatch = dot.dataset.color && dot.dataset.color.toLowerCase() === cadColorLower;
+                dot.classList.toggle('active', isMatch);
+                if (isMatch) matchedCad = true;
+            });
+            const cadCustomLabel = document.getElementById('satMeasureCustomColorLabel');
+            const cadCustomInput = document.getElementById('satMeasureCustomColorInput');
+            if (cadCustomLabel) {
+                cadCustomLabel.classList.toggle('active', !matchedCad);
+                if (!matchedCad) {
+                    cadCustomLabel.style.color = this.measureColor || '#f59e0b';
+                    cadCustomLabel.style.borderColor = this.measureColor || '#f59e0b';
+                } else {
+                    cadCustomLabel.style.color = '';
+                    cadCustomLabel.style.borderColor = '';
+                }
+            }
+            if (cadCustomInput && typeof this.measureColor === 'string' && this.measureColor.startsWith('#')) {
+                cadCustomInput.value = this.measureColor;
             }
         },
 
@@ -7758,11 +8034,8 @@
          * Ölçüm Paneli Arayüz Elemanlarını (Renk, Stil, Font, Çipler, Filtreler) Mevcut Ayarlarla Eşler
          */
         syncMeasureUI: function() {
-            // 0. 3D Modu Bilgilendirme Uyarısı
-            const notice3d = document.getElementById('satMeasure3dNotice');
-            if (notice3d) {
-                notice3d.style.display = this.is3DActive ? 'flex' : 'none';
-            }
+            // 0. 2D / 3D Mod Uyarlaması
+            this.updateUIModeFor2D3D(this.is3DActive);
 
             // 1. Özel Metin Inputu
             const input = document.getElementById('satMeasureTextInput');
@@ -7779,8 +8052,7 @@
             });
 
             // 4. Renk Paleti, Dolgu ve Neon Kontrolleri Senkronizasyonu
-            const activeColor = this.measureColor || this.parcelNeonColor || '#f59e0b';
-            this.syncAllColorPickersUI(activeColor);
+            this.syncAllColorPickersUI();
 
             // 5. Beyaz Parsel Katmanı Göz Butonu
             this.updateMeasureParcelVisibilityButton();

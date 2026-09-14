@@ -648,22 +648,28 @@
                             </div>
                         </div>
 
-                        <!-- 1. Bölüm: Kenar Çizgisi Rengi ve Kalınlığı (Hem 2D Hem 3D) -->
+                        <!-- 1. Bölüm: Kenar Çizgisi & Neon Parlama (Hem 2D Hem 3D) -->
                         <div class="sat-measure-row" id="satMeasureStrokeRow">
                             <div class="sat-measure-sub-row" style="margin-bottom:6px;">
-                                <label class="sat-measure-label"><i class="fas fa-pen" style="margin-right:4px; opacity:0.8;"></i> Çizgi Rengi:</label>
-                                <div class="sat-measure-colors" id="satStrokeColorPalette">
-                                    <button type="button" class="sat-measure-color-dot sat-stroke-dot active" style="background:#ffffff;" data-color="#ffffff" onclick="window.setParcelStrokeColor('#ffffff')" title="Beyaz"></button>
-                                    <button type="button" class="sat-measure-color-dot sat-stroke-dot" style="background:#f59e0b;" data-color="#f59e0b" onclick="window.setParcelStrokeColor('#f59e0b')" title="Altın Sarısı"></button>
-                                    <button type="button" class="sat-measure-color-dot sat-stroke-dot" style="background:#00f5d4;" data-color="#00f5d4" onclick="window.setParcelStrokeColor('#00f5d4')" title="Turkuaz"></button>
-                                    <button type="button" class="sat-measure-color-dot sat-stroke-dot" style="background:#ef4444;" data-color="#ef4444" onclick="window.setParcelStrokeColor('#ef4444')" title="Kırmızı"></button>
-                                    <button type="button" class="sat-measure-color-dot sat-stroke-dot" style="background:#10b981;" data-color="#10b981" onclick="window.setParcelStrokeColor('#10b981')" title="Yeşil"></button>
-                                    <button type="button" class="sat-measure-color-dot sat-stroke-dot" style="background:#a855f7;" data-color="#a855f7" onclick="window.setParcelStrokeColor('#a855f7')" title="Mor"></button>
-                                    <label class="sat-measure-color-custom-btn" id="satStrokeCustomLabel" title="Özel Çizgi Rengi">
-                                        <i class="fas fa-eye-dropper"></i>
-                                        <input type="color" id="satStrokeCustomInput" value="#ffffff" oninput="window.setParcelStrokeColor(this.value)">
-                                    </label>
+                                <div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
+                                    <label class="sat-measure-label" style="margin-bottom:0;"><i class="fas fa-pen" style="margin-right:4px; opacity:0.8;"></i> Çizgi Rengi:</label>
+                                    <button type="button" id="satMeasureNeonToggleBtn" class="sat-pill-toggle-btn" onclick="window.toggleSatelliteParcelNeon()" style="padding:2px 10px; font-size:11px; border-radius:12px; cursor:pointer; font-weight:600; border:1px solid #475569; background:transparent; color:#94a3b8; transition:all 0.2s ease;">
+                                        <i class="fas fa-bolt"></i> Neon: <b>Kapalı</b>
+                                    </button>
                                 </div>
+                            </div>
+                            <div class="sat-measure-colors" id="satStrokeColorPalette" style="margin-bottom:6px;">
+                                <button type="button" class="sat-measure-color-dot sat-stroke-dot active" style="background:#ffffff;" data-color="#ffffff" onclick="window.setParcelStrokeColor('#ffffff')" title="Beyaz"></button>
+                                <button type="button" class="sat-measure-color-dot sat-stroke-dot" style="background:#f59e0b;" data-color="#f59e0b" onclick="window.setParcelStrokeColor('#f59e0b')" title="Altın Sarısı"></button>
+                                <button type="button" class="sat-measure-color-dot sat-stroke-dot" style="background:#00f5d4;" data-color="#00f5d4" onclick="window.setParcelStrokeColor('#00f5d4')" title="Turkuaz"></button>
+                                <button type="button" class="sat-measure-color-dot sat-stroke-dot" style="background:#0ea5e9;" data-color="#0ea5e9" onclick="window.setParcelStrokeColor('#0ea5e9')" title="Mavi"></button>
+                                <button type="button" class="sat-measure-color-dot sat-stroke-dot" style="background:#10b981;" data-color="#10b981" onclick="window.setParcelStrokeColor('#10b981')" title="Yeşil"></button>
+                                <button type="button" class="sat-measure-color-dot sat-stroke-dot" style="background:#ef4444;" data-color="#ef4444" onclick="window.setParcelStrokeColor('#ef4444')" title="Kırmızı"></button>
+                                <button type="button" class="sat-measure-color-dot sat-stroke-dot" style="background:#a855f7;" data-color="#a855f7" onclick="window.setParcelStrokeColor('#a855f7')" title="Mor"></button>
+                                <label class="sat-measure-color-custom-btn" id="satStrokeCustomLabel" title="Özel Çizgi Rengi">
+                                    <i class="fas fa-eye-dropper"></i>
+                                    <input type="color" id="satStrokeCustomInput" value="#ffffff" oninput="window.setParcelStrokeColor(this.value)">
+                                </label>
                             </div>
                             <div class="sat-color-row" style="margin-bottom:0; display:flex; justify-content:space-between; align-items:center; font-size:11px; color:#94a3b8;">
                                 <span>Çizgi Kalınlığı: <b id="satMeasureStrokeWidthText" style="color:#e2e8f0;">3px</b></span>
@@ -671,32 +677,7 @@
                             </div>
                         </div>
 
-                        <!-- 2. Bölüm: ⚡ Saber Neon Parlama Hattı (Hem 2D Hem 3D) -->
-                        <div class="sat-measure-row" id="satMeasureNeonRow">
-                            <div class="sat-measure-sub-row" style="margin-bottom:6px;">
-                                <div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
-                                    <label class="sat-measure-label" style="margin-bottom:0;"><i class="fas fa-bolt" style="color:#00CEC9; margin-right:4px;"></i> Saber Neon:</label>
-                                    <button type="button" id="satMeasureNeonToggleBtn" class="sat-pill-toggle-btn" onclick="window.toggleSatelliteParcelNeon()" style="padding:2px 9px; font-size:10.5px; border-radius:12px; cursor:pointer; font-weight:600; border:1px solid #475569; background:transparent; color:#94a3b8;">
-                                        <i class="fas fa-bolt"></i> Neon: <b>Kapalı</b>
-                                    </button>
-                                </div>
-                            </div>
-                            <div class="sat-measure-colors" id="satNeonColorPalette" style="margin-bottom:4px;">
-                                <button type="button" class="sat-measure-color-dot sat-neon-dot active" style="background:#00CEC9;" data-color="#00cec9" onclick="window.setSatelliteParcelNeonColor('#00CEC9')" title="Turkuaz"></button>
-                                <button type="button" class="sat-measure-color-dot sat-neon-dot" style="background:#f59e0b;" data-color="#f59e0b" onclick="window.setSatelliteParcelNeonColor('#f59e0b')" title="Altın"></button>
-                                <button type="button" class="sat-measure-color-dot sat-neon-dot" style="background:#0ea5e9;" data-color="#0ea5e9" onclick="window.setSatelliteParcelNeonColor('#0ea5e9')" title="Neon Mavi"></button>
-                                <button type="button" class="sat-measure-color-dot sat-neon-dot" style="background:#10b981;" data-color="#10b981" onclick="window.setSatelliteParcelNeonColor('#10b981')" title="Yeşil"></button>
-                                <button type="button" class="sat-measure-color-dot sat-neon-dot" style="background:#ef4444;" data-color="#ef4444" onclick="window.setSatelliteParcelNeonColor('#ef4444')" title="Kırmızı"></button>
-                                <button type="button" class="sat-measure-color-dot sat-neon-dot" style="background:#aa00ff;" data-color="#aa00ff" onclick="window.setSatelliteParcelNeonColor('#aa00ff')" title="Mor"></button>
-                                <button type="button" class="sat-measure-color-dot sat-neon-dot" style="background:#ffffff;" data-color="#ffffff" onclick="window.setSatelliteParcelNeonColor('#ffffff')" title="Saf Beyaz"></button>
-                                <label class="sat-measure-color-custom-btn" id="satNeonCustomLabel" title="Özel Neon Rengi">
-                                    <i class="fas fa-eye-dropper"></i>
-                                    <input type="color" id="satNeonCustomInput" value="#00CEC9" oninput="window.setSatelliteParcelNeonColor(this.value)">
-                                </label>
-                            </div>
-                        </div>
-
-                        <!-- 3. Bölüm: 🎨 Arsa Zemin Dolgusu (Hem 2D Hem 3D) -->
+                        <!-- 2. Bölüm: 🎨 Arsa Zemin Dolgusu (Hem 2D Hem 3D) -->
                         <div class="sat-measure-row" id="satMeasureFillRow">
                             <div class="sat-measure-sub-row" style="margin-bottom:6px;">
                                 <label class="sat-measure-label"><i class="fas fa-fill-drip" style="margin-right:4px; opacity:0.8;"></i> Arsa Dolgusu:</label>
@@ -706,9 +687,10 @@
                                     <button type="button" class="sat-measure-chip" data-fill="nofill" onclick="window.setParcelFillMode('nofill')" title="Sadece sınır çizgisi (şeffaf iç dolgu)">🚫 Şeffaf</button>
                                 </div>
                             </div>
-                            <!-- Renkli Dolgu Paleti -->
-                            <div class="sat-measure-colors" id="satFillColorPalette" style="margin-bottom:6px; display:none;">
-                                <button type="button" class="sat-measure-color-dot sat-fill-dot" style="background:#f59e0b;" data-color="#f59e0b" onclick="window.setParcelColor('#f59e0b')" title="Altın Sarısı"></button>
+                            <!-- Zemin Dolgu Renk Paleti (Her zaman görünür & doğrudan seçilebilir) -->
+                            <div class="sat-measure-colors" id="satFillColorPalette" style="margin-bottom:6px; display:flex;">
+                                <button type="button" class="sat-measure-color-dot sat-fill-dot" style="background:#ffffff;" data-color="#ffffff" onclick="window.setParcelColor('#ffffff')" title="Saf Beyaz"></button>
+                                <button type="button" class="sat-measure-color-dot sat-fill-dot active" style="background:#f59e0b;" data-color="#f59e0b" onclick="window.setParcelColor('#f59e0b')" title="Altın Sarısı"></button>
                                 <button type="button" class="sat-measure-color-dot sat-fill-dot" style="background:#00CEC9;" data-color="#00cec9" onclick="window.setParcelColor('#00CEC9')" title="Turkuaz"></button>
                                 <button type="button" class="sat-measure-color-dot sat-fill-dot" style="background:#0ea5e9;" data-color="#0ea5e9" onclick="window.setParcelColor('#0ea5e9')" title="Mavi"></button>
                                 <button type="button" class="sat-measure-color-dot sat-fill-dot" style="background:#10b981;" data-color="#10b981" onclick="window.setParcelColor('#10b981')" title="Yeşil"></button>
@@ -4369,6 +4351,9 @@
 
                 const strokeHex8 = this.colorToHex8(strokeColor, 1.0);
                 const strokeW = Math.max(1, this.parcelStrokeWidth || 3);
+                // Neon aktifken poligonun kendi konturunu tamamen saydam yapıyoruz ki çok katmanlı Saber aurası temiz ışısın
+                const polyStrokeHex8 = isNeon3d ? '#ffffff00' : this.colorToHex8(strokeColor, 1.0);
+                const polyStrokeW = isNeon3d ? 0 : strokeW;
 
                 // AltitudeMode: CLAMP_TO_GROUND arazi kabartmasına yapışmayı sağlar
                 let altModeObj = 'CLAMP_TO_GROUND';
@@ -4383,8 +4368,8 @@
                         poly3d = new window.google.maps.maps3d.Polygon3DElement({
                             altitudeMode: altModeObj,
                             fillColor: fillHex8,
-                            strokeColor: strokeHex8,
-                            strokeWidth: strokeW,
+                            strokeColor: polyStrokeHex8,
+                            strokeWidth: polyStrokeW,
                             extruded: false,
                             drawsOccludedSegments: true
                         });
@@ -4401,14 +4386,14 @@
 
                 poly3d.setAttribute('altitude-mode', 'clamp-to-ground');
                 poly3d.setAttribute('fill-color', fillHex8);
-                poly3d.setAttribute('stroke-color', strokeHex8);
-                poly3d.setAttribute('stroke-width', strokeW.toString());
+                poly3d.setAttribute('stroke-color', polyStrokeHex8);
+                poly3d.setAttribute('stroke-width', polyStrokeW.toString());
                 poly3d.setAttribute('draws-occluded-segments', '');
 
                 poly3d.altitudeMode = altModeObj;
                 poly3d.fillColor = fillHex8;
-                poly3d.strokeColor = strokeHex8;
-                poly3d.strokeWidth = strokeW;
+                poly3d.strokeColor = polyStrokeHex8;
+                poly3d.strokeWidth = polyStrokeW;
                 poly3d.extruded = false;
                 poly3d.path = orientedCoords;
                 poly3d.outerCoordinates = orientedCoords;
@@ -4420,8 +4405,8 @@
                     poly3d.outerCoordinates = orientedCoords;
                     poly3d.coordinates = orientedCoords;
                     poly3d.fillColor = fillHex8;
-                    poly3d.strokeColor = strokeHex8;
-                    poly3d.strokeWidth = strokeW;
+                    poly3d.strokeColor = polyStrokeHex8;
+                    poly3d.strokeWidth = polyStrokeW;
                 } catch(e) {}
 
                 // 2. Canlı 3D Vektörel Sınır Hatları (<gmp-polyline-3d>)
@@ -4430,109 +4415,62 @@
                     ? window.google.maps.maps3d.Polyline3DElement
                     : null;
 
-                if (isNeon3d) {
-                    // A) Dış Neon Işıltı Halosu (Geniş & Yarı Saydam Aura - 14px)
-                    const haloHex8 = this.colorToHex8(neonColor, 0.45);
-                    let haloLine = null;
+                const createPolyline3D = (lineColorHex8, widthPx) => {
+                    let line = null;
                     if (PolylineClass) {
                         try {
-                            haloLine = new PolylineClass({
+                            line = new PolylineClass({
                                 altitudeMode: altModeObj,
-                                strokeColor: haloHex8,
-                                strokeWidth: 14,
+                                strokeColor: lineColorHex8,
+                                strokeWidth: widthPx,
                                 drawsOccludedSegments: true,
                                 coordinates: closedPolylineCoords
                             });
-                            haloLine.coordinates = closedPolylineCoords;
-                            haloLine.path = closedPolylineCoords;
+                            line.coordinates = closedPolylineCoords;
+                            line.path = closedPolylineCoords;
                         } catch(e) {}
                     }
-                    if (!haloLine || !(haloLine instanceof Node)) {
-                        haloLine = document.createElement('gmp-polyline-3d');
+                    if (!line || !(line instanceof Node)) {
+                        line = document.createElement('gmp-polyline-3d');
                     }
-                    haloLine.setAttribute('altitude-mode', 'clamp-to-ground');
-                    haloLine.setAttribute('stroke-color', haloHex8);
-                    haloLine.setAttribute('stroke-width', '14');
-                    haloLine.setAttribute('draws-occluded-segments', '');
-                    haloLine.altitudeMode = altModeObj;
-                    haloLine.strokeColor = haloHex8;
-                    haloLine.strokeWidth = 14;
-                    haloLine.coordinates = closedPolylineCoords;
-                    haloLine.path = closedPolylineCoords;
-                    map3d.appendChild(haloLine);
+                    line.setAttribute('altitude-mode', 'clamp-to-ground');
+                    line.setAttribute('stroke-color', lineColorHex8);
+                    line.setAttribute('stroke-width', widthPx.toString());
+                    line.setAttribute('draws-occluded-segments', '');
+                    line.altitudeMode = altModeObj;
+                    line.strokeColor = lineColorHex8;
+                    line.strokeWidth = widthPx;
+                    line.coordinates = closedPolylineCoords;
+                    line.path = closedPolylineCoords;
+                    map3d.appendChild(line);
                     try {
-                        haloLine.coordinates = closedPolylineCoords;
-                        haloLine.strokeColor = haloHex8;
+                        line.coordinates = closedPolylineCoords;
+                        line.strokeColor = lineColorHex8;
                     } catch(e) {}
+                    return line;
+                };
 
-                    // B) İç Sınır Çizgisi (Kenar Çizgisi)
-                    const coreHex8 = this.colorToHex8(strokeColor, 1.0);
-                    let coreLine = null;
-                    if (PolylineClass) {
-                        try {
-                            coreLine = new PolylineClass({
-                                altitudeMode: altModeObj,
-                                strokeColor: coreHex8,
-                                strokeWidth: Math.max(2, this.parcelStrokeWidth || 3),
-                                drawsOccludedSegments: true,
-                                coordinates: closedPolylineCoords
-                            });
-                            coreLine.coordinates = closedPolylineCoords;
-                            coreLine.path = closedPolylineCoords;
-                        } catch(e) {}
-                    }
-                    if (!coreLine || !(coreLine instanceof Node)) {
-                        coreLine = document.createElement('gmp-polyline-3d');
-                    }
-                    coreLine.setAttribute('altitude-mode', 'clamp-to-ground');
-                    coreLine.setAttribute('stroke-color', coreHex8);
-                    coreLine.setAttribute('stroke-width', (Math.max(2, this.parcelStrokeWidth || 3)).toString());
-                    coreLine.setAttribute('draws-occluded-segments', '');
-                    coreLine.altitudeMode = altModeObj;
-                    coreLine.strokeColor = coreHex8;
-                    coreLine.strokeWidth = Math.max(2, this.parcelStrokeWidth || 3);
-                    coreLine.coordinates = closedPolylineCoords;
-                    coreLine.path = closedPolylineCoords;
-                    map3d.appendChild(coreLine);
-                    try {
-                        coreLine.coordinates = closedPolylineCoords;
-                        coreLine.strokeColor = coreHex8;
-                    } catch(e) {}
+                if (isNeon3d) {
+                    // ⚡ Otantik Saber Neon Motoru (3D Çok Katmanlı Işıma & Akkor Saf Beyaz Çekirdek)
+                    // Katman 1: Geniş Dış Atmosferik Halo (Soft Corona / Bloom - ~22px)
+                    const outerGlowW = Math.max(16, strokeW * 5.5);
+                    const outerGlowHex8 = this.colorToHex8(neonColor, 0.28);
+                    createPolyline3D(outerGlowHex8, outerGlowW);
+
+                    // Katman 2: Yoğun Plazma Işıma Kuşağı (Mid Saturated Beam Aura - ~9px)
+                    const midGlowW = Math.max(7.5, strokeW * 2.6);
+                    const midGlowHex8 = this.colorToHex8(neonColor, 0.78);
+                    createPolyline3D(midGlowHex8, midGlowW);
+
+                    // Katman 3: Süper Sıcak Akkor Çekirdek (Ultra-hot Luminous Pure White Core - ~2.5px)
+                    // Gerçek neon tüpü & Saber ışın kılıcı standardı:
+                    // Merkez saf akkor beyaz (#ffffff) parlar, kenarlardan seçili neon renginin aurası yayılır!
+                    const coreW = Math.max(2.2, strokeW * 0.75);
+                    createPolyline3D('#ffffffff', coreW);
                 } else {
-                    // Klasik Çizim Modu: Net beyaz veya seçilen sınır çizgisi
+                    // Klasik Çizim Modu: Net tek katman vektörel sınır çizgisi
                     const strokeColorHex = this.colorToHex8(strokeColor, 1.0);
-                    const strokeWidthNum = strokeW;
-                    let solidLine = null;
-                    if (PolylineClass) {
-                        try {
-                            solidLine = new PolylineClass({
-                                altitudeMode: altModeObj,
-                                strokeColor: strokeColorHex,
-                                strokeWidth: strokeWidthNum,
-                                drawsOccludedSegments: true,
-                                coordinates: closedPolylineCoords
-                            });
-                            solidLine.coordinates = closedPolylineCoords;
-                            solidLine.path = closedPolylineCoords;
-                        } catch(e) {}
-                    }
-                    if (!solidLine || !(solidLine instanceof Node)) {
-                        solidLine = document.createElement('gmp-polyline-3d');
-                    }
-                    solidLine.setAttribute('altitude-mode', 'clamp-to-ground');
-                    solidLine.setAttribute('stroke-color', strokeColorHex);
-                    solidLine.setAttribute('stroke-width', strokeWidthNum.toString());
-                    solidLine.setAttribute('draws-occluded-segments', '');
-                    solidLine.altitudeMode = altModeObj;
-                    solidLine.strokeColor = strokeColorHex;
-                    solidLine.strokeWidth = strokeWidthNum;
-                    solidLine.coordinates = closedPolylineCoords;
-                    solidLine.path = closedPolylineCoords;
-                    map3d.appendChild(solidLine);
-                    try {
-                        solidLine.coordinates = closedPolylineCoords;
-                        solidLine.strokeColor = strokeColorHex;
-                    } catch(e) {}
+                    createPolyline3D(strokeColorHex, strokeW);
                 }
             } catch(err) {
                 console.warn('Google 3D polygon yerleştirme hatası:', err);
@@ -4589,6 +4527,7 @@
         setParcelStrokeColor: function(color) {
             if (!color) return;
             this.parcelStrokeColor = color;
+            this.parcelNeonColor = color; // Neon her zaman seçilen çizgi rengiyle senkron parlar
             this.updateParcelPolygonStyle();
             this.updateParcelUI();
             this.syncAllColorPickersUI();
@@ -4646,7 +4585,7 @@
                 }
 
                 const isNeon = !!this.parcelNeonEnabled;
-                const neonColor = this.parcelNeonColor || '#00CEC9';
+                const neonColor = this.parcelNeonColor || this.parcelStrokeColor || '#00CEC9';
                 const strokeColor = this.parcelStrokeColor || '#ffffff';
                 const strokeWidth = this.parcelStrokeWidth || 3;
 
@@ -4668,16 +4607,16 @@
                 }
 
                 this.parcelPolygon.setStyle({
-                    color: strokeColor,
-                    weight: strokeWidth,
+                    color: isNeon ? '#ffffff' : strokeColor,
+                    weight: isNeon ? Math.max(2, strokeWidth * 0.85) : strokeWidth,
                     fillColor: fillColor,
                     fillOpacity: fillOpacity
                 });
 
-                // Canlı Leaflet SVG path neon efekti
+                // Canlı Leaflet SVG path neon efekti (Akkor beyaz çekirdek + renkli ışık aurası)
                 if (this.parcelPolygon._path) {
                     if (isNeon) {
-                        this.parcelPolygon._path.style.filter = `drop-shadow(0 0 6px ${neonColor}) drop-shadow(0 0 14px ${neonColor})`;
+                        this.parcelPolygon._path.style.filter = `drop-shadow(0 0 3px #ffffff) drop-shadow(0 0 8px ${neonColor}) drop-shadow(0 0 20px ${neonColor})`;
                         this.parcelPolygon._path.style.transition = 'filter 0.3s ease, stroke 0.3s ease';
                     } else {
                         this.parcelPolygon._path.style.filter = '';
@@ -5414,7 +5353,7 @@
 
                 // 3. Kenar Çizgisi (Vektörel net ve kaliteli)
                 const isNeon = !!this.parcelNeonEnabled;
-                const neonColor = this.parcelNeonColor || '#00CEC9';
+                const neonColor = this.parcelNeonColor || this.parcelStrokeColor || '#00CEC9';
                 const strokeColor = this.parcelStrokeColor || '#ffffff';
                 const baseWidth = this.parcelStrokeWidth || 3;
                 const strokeW = Math.max(1.8, baseWidth * scale * 0.75);
@@ -5424,14 +5363,29 @@
                 ctx.lineCap = 'round';
 
                 if (isNeon) {
+                    // Dış zengin neon halo kuşağı
+                    ctx.save();
                     ctx.shadowColor = neonColor;
-                    ctx.shadowBlur = 12 * scale;
+                    ctx.shadowBlur = 18 * scale;
+                    ctx.strokeStyle = this.hexToRgba(neonColor, 0.80);
+                    ctx.lineWidth = strokeW * 2.4;
+                    ctx.stroke();
+                    ctx.restore();
+
+                    // İç süper akkor beyaz çekirdek
+                    ctx.save();
+                    ctx.shadowColor = neonColor;
+                    ctx.shadowBlur = 5 * scale;
+                    ctx.strokeStyle = '#ffffff';
+                    ctx.lineWidth = Math.max(1.5, strokeW * 0.85);
+                    ctx.stroke();
+                    ctx.restore();
                 } else {
                     // Kenarlık için hafif derinlik gölgesi
                     ctx.shadowColor = 'rgba(0, 0, 0, 0.65)';
                     ctx.shadowBlur = 5 * scale;
+                    ctx.stroke();
                 }
-                ctx.stroke();
 
                 ctx.restore();
 
@@ -5451,6 +5405,9 @@
                 this.parcelNeonEnabled = forceState;
             } else {
                 this.parcelNeonEnabled = !this.parcelNeonEnabled;
+            }
+            if (this.parcelNeonEnabled) {
+                this.parcelNeonColor = this.parcelStrokeColor || '#00CEC9';
             }
 
             this.updateParcelPolygonStyle();
@@ -5479,6 +5436,7 @@
         setSatelliteParcelNeonColor: function(color) {
             if (!color) return;
             this.parcelNeonColor = color;
+            this.parcelStrokeColor = color;
             this.parcelNeonEnabled = true;
             this.updateParcelPolygonStyle();
             this.updateParcelNeonUI();
@@ -6253,31 +6211,11 @@
             const neonToggleBtn = document.getElementById('satMeasureNeonToggleBtn');
             if (neonToggleBtn) {
                 neonToggleBtn.classList.toggle('active', isNeon);
-                neonToggleBtn.style.borderColor = isNeon ? (this.parcelNeonColor || '#00CEC9') : '#475569';
-                neonToggleBtn.style.color = isNeon ? (this.parcelNeonColor || '#00CEC9') : '#94a3b8';
+                const activeNeonColor = this.parcelStrokeColor || '#00CEC9';
+                neonToggleBtn.style.borderColor = isNeon ? activeNeonColor : '#475569';
+                neonToggleBtn.style.color = isNeon ? activeNeonColor : '#94a3b8';
+                neonToggleBtn.style.boxShadow = isNeon ? `0 0 10px ${activeNeonColor}55` : 'none';
                 neonToggleBtn.innerHTML = `<i class="fas fa-bolt"></i> Neon: <b>${isNeon ? 'Açık' : 'Kapalı'}</b>`;
-            }
-
-            let matchedNeon = false;
-            document.querySelectorAll('.sat-neon-dot').forEach(dot => {
-                const isMatch = dot.dataset.color && dot.dataset.color.toLowerCase() === neonColorLower;
-                dot.classList.toggle('active', isMatch);
-                if (isMatch) matchedNeon = true;
-            });
-            const neonCustomLabel = document.getElementById('satNeonCustomLabel');
-            const neonCustomInput = document.getElementById('satNeonCustomInput');
-            if (neonCustomLabel) {
-                neonCustomLabel.classList.toggle('active', !matchedNeon);
-                if (!matchedNeon) {
-                    neonCustomLabel.style.color = this.parcelNeonColor || '#00CEC9';
-                    neonCustomLabel.style.borderColor = this.parcelNeonColor || '#00CEC9';
-                } else {
-                    neonCustomLabel.style.color = '';
-                    neonCustomLabel.style.borderColor = '';
-                }
-            }
-            if (neonCustomInput && typeof this.parcelNeonColor === 'string' && this.parcelNeonColor.startsWith('#')) {
-                neonCustomInput.value = this.parcelNeonColor;
             }
 
             // Çekmece & Popover Neon Kontrolleri
@@ -6332,19 +6270,26 @@
             });
             const fillPalette = document.getElementById('satFillColorPalette');
             if (fillPalette) {
-                fillPalette.style.display = (fillMode === 'color') ? 'flex' : 'none';
+                fillPalette.style.display = 'flex';
+                fillPalette.style.opacity = (fillMode === 'nofill') ? '0.5' : '1';
             }
             let matchedFill = false;
             document.querySelectorAll('.sat-fill-dot').forEach(dot => {
-                const isMatch = dot.dataset.color && dot.dataset.color.toLowerCase() === fillColorLower;
+                let isMatch = false;
+                if (fillMode === 'white') {
+                    isMatch = dot.dataset.color && dot.dataset.color.toLowerCase() === '#ffffff';
+                } else if (fillMode === 'color') {
+                    isMatch = dot.dataset.color && dot.dataset.color.toLowerCase() === fillColorLower;
+                }
                 dot.classList.toggle('active', isMatch);
                 if (isMatch) matchedFill = true;
             });
             const fillCustomLabel = document.getElementById('satFillCustomLabel');
             const fillCustomInput = document.getElementById('satFillCustomInput');
             if (fillCustomLabel) {
-                fillCustomLabel.classList.toggle('active', !matchedFill);
-                if (!matchedFill) {
+                const isCustomActive = (fillMode === 'color' && !matchedFill);
+                fillCustomLabel.classList.toggle('active', isCustomActive);
+                if (isCustomActive) {
                     fillCustomLabel.style.color = this.parcelFillColor || '#f59e0b';
                     fillCustomLabel.style.borderColor = this.parcelFillColor || '#f59e0b';
                 } else {

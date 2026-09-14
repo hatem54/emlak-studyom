@@ -275,185 +275,6 @@
                             <!-- Yüklü Parsel Bilgi Rozeti (Harita Üzeri Sol Üst) -->
                             <div class="sat-map-floating-parcel-info" id="satFloatingParcelInfo" style="display:none;"></div>
 
-                            <!-- 📏 Canlı Mesafe, Sınır & Alan Ölçüm Paneli (Floating Glass Panel) -->
-                            <div class="sat-measure-floating-panel" id="satMeasureFloatingPanel" style="display:none;">
-                                <div class="sat-measure-panel-header" title="Paneli sürükleyerek istediğiniz yere taşıyabilirsiniz">
-                                    <div class="sat-measure-title">
-                                        <i class="fas fa-grip-vertical sat-measure-drag-handle" title="Taşımak için sürükleyin"></i>
-                                        <i class="fas fa-ruler-combined"></i>
-                                        <span>Ölçüm & Alan</span>
-                                    </div>
-                                    <div class="sat-measure-mode-switcher">
-                                        <button type="button" class="sat-measure-mode-btn active" id="satMeasureModeDrawBtn" onclick="window.setSatelliteMeasureInteractionMode('draw')" title="Sol tık ile yeni köşe noktaları ekleyin">
-                                            <i class="fas fa-pen-nib"></i> <span>Nokta</span>
-                                        </button>
-                                        <button type="button" class="sat-measure-mode-btn" id="satMeasureModePanBtn" onclick="window.setSatelliteMeasureInteractionMode('pan')" title="Sol tık ile haritada serbestçe gezinin ve kaydırın (Ctrl veya Space tuşuna basılı tutarak da yapabilirsiniz)">
-                                            <i class="fas fa-hand"></i> <span>Gezin</span>
-                                        </button>
-                                    </div>
-                                    <div class="sat-measure-header-actions">
-                                        <button type="button" class="sat-measure-btn-parcel-layer active" id="satMeasureToggleParcelBtn" onclick="window.toggleSatelliteMeasureParcelLayer()" title="Beyaz TKGM Parsel Katmanını Gizle / Göster">
-                                            <i class="fas fa-eye-slash" id="satMeasureParcelLayerIcon"></i>
-                                        </button>
-                                        <button type="button" class="sat-measure-btn-min" onclick="window.toggleSatelliteMeasurePanelCollapse()" title="Paneli Küçült / Büyüt">
-                                            <i class="fas fa-chevron-up" id="satMeasureMinIcon"></i>
-                                        </button>
-                                        <button type="button" class="sat-measure-btn-close" onclick="window.closeSatelliteMeasurePanel()" title="Paneli Gizle (Ölçümler Haritada Kalır)">
-                                            <i class="fas fa-times"></i>
-                                        </button>
-                                    </div>
-                                </div>
-                                
-                                <div class="sat-measure-panel-body" id="satMeasurePanelBody">
-                                    <!-- Canlı Mesafe & Alan Göstergesi -->
-                                    <div class="sat-measure-display-box">
-                                        <div class="sat-measure-val" id="satMeasureValText">0.0 m</div>
-                                        <div class="sat-measure-sub-stats" id="satMeasureSubStats" style="display:none;"></div>
-                                        <div class="sat-measure-hint" id="satMeasureHintText">Haritada noktalara tıklayarak arsayı çevreleyin • Ctrl veya Boşluk tuşuyla haritayı kaydırın</div>
-                                    </div>
-
-                                    <!-- Hızlı Metin Şablonları (Yola Cephe, Ön Cephe vb.) -->
-                                    <div class="sat-measure-row">
-                                        <label class="sat-measure-label">Etiket Şablonu:</label>
-                                        <div class="sat-measure-chips">
-                                            <button type="button" class="sat-measure-chip active" data-preset="frontage" onclick="window.setSatelliteMeasurePreset('frontage')">Yola Cephe</button>
-                                            <button type="button" class="sat-measure-chip" data-preset="front" onclick="window.setSatelliteMeasurePreset('front')">Ön Cephe</button>
-                                            <button type="button" class="sat-measure-chip" data-preset="depth" onclick="window.setSatelliteMeasurePreset('depth')">Derinlik</button>
-                                            <button type="button" class="sat-measure-chip" data-preset="setback" onclick="window.setSatelliteMeasurePreset('setback')">Yol Terki</button>
-                                            <button type="button" class="sat-measure-chip" data-preset="distance_only" onclick="window.setSatelliteMeasurePreset('distance_only')">Sadece Metre</button>
-                                        </div>
-                                    </div>
-
-                                    <!-- Özel Metin Girişi -->
-                                    <div class="sat-measure-row">
-                                        <input type="text" id="satMeasureTextInput" class="sat-measure-text-input" placeholder="Etiket metnini özelleştirin..." oninput="window.setSatelliteMeasureCustomText(this.value)">
-                                    </div>
-
-                                    <!-- Çizgi ve İşaretleme Stili -->
-                                    <div class="sat-measure-row">
-                                        <div class="sat-measure-sub-row">
-                                            <label class="sat-measure-label">Stil:</label>
-                                            <div class="sat-measure-style-pills">
-                                                <button type="button" class="sat-measure-style-btn active" data-style="cad" onclick="window.setSatelliteMeasureStyle('cad')" title="CAD Boyut Çizgisi">📐 CAD</button>
-                                                <button type="button" class="sat-measure-style-btn" data-style="neon" onclick="window.setSatelliteMeasureStyle('neon')" title="Neon Işıltılı">⚡ Neon</button>
-                                                <button type="button" class="sat-measure-style-btn" data-style="arrow" onclick="window.setSatelliteMeasureStyle('arrow')" title="Çift Yönlü Ok">🏹 Ok</button>
-                                                <button type="button" class="sat-measure-style-btn" data-style="dashed" onclick="window.setSatelliteMeasureStyle('dashed')" title="Kesikli Çizgi">〰️ Kesikli</button>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <!-- Arsa Alanı Görünümü & İçeriği (Çerçevesiz / Kutulu) -->
-                                    <div class="sat-measure-row">
-                                        <div class="sat-measure-sub-row">
-                                            <label class="sat-measure-label">Alan Gösterimi:</label>
-                                            <div class="sat-measure-chips">
-                                                <button type="button" class="sat-measure-chip active" id="satAreaModeFramelessBtn" data-areamode="frameless" onclick="window.setSatelliteMeasureAreaDisplayMode('frameless')" title="Arka plansız, şık çerçevesiz saf metin">✨ Çerçevesiz</button>
-                                                <button type="button" class="sat-measure-chip" id="satAreaModeBoxBtn" data-areamode="box" onclick="window.setSatelliteMeasureAreaDisplayMode('box')" title="Koyu cam kutulu rozet">🏷️ Kutulu</button>
-                                            </div>
-                                        </div>
-                                        <div class="sat-measure-chips" style="margin-top: 3px;">
-                                            <button type="button" class="sat-measure-chip active" id="satAreaContentM2OnlyBtn" data-contentmode="m2_only" onclick="window.setSatelliteMeasureAreaContentMode('m2_only')" title="Sadece arsanın metrekare değerini gösterir">Sadece m²</button>
-                                            <button type="button" class="sat-measure-chip" id="satAreaContentM2DonumBtn" data-contentmode="m2_donum" onclick="window.setSatelliteMeasureAreaContentMode('m2_donum')" title="m² ve Dönüm değerini birlikte gösterir">m² + Dönüm</button>
-                                            <button type="button" class="sat-measure-chip" id="satAreaContentDetailedBtn" data-contentmode="detailed" onclick="window.setSatelliteMeasureAreaContentMode('detailed')" title="m², Dönüm, Çevre ve Köşe sayısını gösterir">Detaylı (+Çevre)</button>
-                                        </div>
-                                    </div>
-
-                                    <!-- Yazı Tipi (Font) & Boyutlandırma -->
-                                    <div class="sat-measure-row">
-                                        <div class="sat-measure-sub-row">
-                                            <label class="sat-measure-label">Yazı & Boyut:</label>
-                                            <div class="sat-measure-font-controls">
-                                                <select id="satMeasureFontSelect" class="sat-measure-select" onchange="window.setSatelliteMeasureFontFamily(this.value)">
-                                                    <option value="Montserrat" selected>Montserrat</option>
-                                                </select>
-                                                <div class="sat-measure-size-btns">
-                                                    <button type="button" class="sat-measure-size-btn" onclick="window.adjustSatelliteMeasureFontSize(-1)" title="Yazı boyutunu küçült">A-</button>
-                                                    <span class="sat-measure-size-val" id="satMeasureFontSizeText">16px</span>
-                                                    <button type="button" class="sat-measure-size-btn" onclick="window.adjustSatelliteMeasureFontSize(1)" title="Yazı boyutunu büyüt">A+</button>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="sat-measure-chips" style="margin-top: 3px;">
-                                            <button type="button" class="sat-measure-chip active" id="satFontTargetAllBtn" onclick="window.setSatelliteMeasureFontTarget('all')" title="Font ve boyut ayarlarını tüm ölçüm metinlerine uygular">Tüm Metinler</button>
-                                            <button type="button" class="sat-measure-chip" id="satFontTargetAreaBtn" onclick="window.setSatelliteMeasureFontTarget('area')" title="Sadece arsa alanı metnini boyutlandırır">Sadece Alan</button>
-                                            <button type="button" class="sat-measure-chip" id="satFontTargetEdgesBtn" onclick="window.setSatelliteMeasureFontTarget('edges')" title="Sadece kenar mesafe metinlerini boyutlandırır">Sadece Kenarlar</button>
-                                        </div>
-                                    </div>
-
-                                    <!-- Renk Paleti & Genel Renk Seçici -->
-                                    <div class="sat-measure-row">
-                                        <div class="sat-measure-sub-row">
-                                            <label class="sat-measure-label">Renk:</label>
-                                            <div class="sat-measure-colors">
-                                                <button type="button" class="sat-measure-color-dot active" style="background:#f59e0b;" data-color="#f59e0b" onclick="window.setSatelliteMeasureColor('#f59e0b')" title="Altın Sarısı"></button>
-                                                <button type="button" class="sat-measure-color-dot" style="background:#00f5d4;" data-color="#00f5d4" onclick="window.setSatelliteMeasureColor('#00f5d4')" title="Neon Cyan"></button>
-                                                <button type="button" class="sat-measure-color-dot" style="background:#ffffff;" data-color="#ffffff" onclick="window.setSatelliteMeasureColor('#ffffff')" title="Saf Beyaz"></button>
-                                                <button type="button" class="sat-measure-color-dot" style="background:#10b981;" data-color="#10b981" onclick="window.setSatelliteMeasureColor('#10b981')" title="Zümrüt Yeşili"></button>
-                                                <button type="button" class="sat-measure-color-dot" style="background:#ef4444;" data-color="#ef4444" onclick="window.setSatelliteMeasureColor('#ef4444')" title="Canlı Kırmızı"></button>
-                                                <label class="sat-measure-color-custom-btn" id="satMeasureCustomColorLabel" title="Özel Renk Seçici (Palet)">
-                                                    <i class="fas fa-palette"></i>
-                                                    <input type="color" id="satMeasureCustomColorInput" value="#f59e0b" oninput="window.setSatelliteMeasureColor(this.value)">
-                                                </label>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <!-- Metre & Rozet Gösterimi (Aç / Kapat & Kenar Filtresi) -->
-                                    <div class="sat-measure-row" id="satMeasureVisibilityRow">
-                                        <div class="sat-measure-sub-row">
-                                            <label class="sat-measure-label">Gösterim:</label>
-                                            <div class="sat-measure-chips">
-                                                <button type="button" class="sat-measure-chip active" id="satVisEdgeDistancesBtn" onclick="window.toggleSatelliteMeasureAllEdges()" title="Kenar mesafelerini (metreleri) haritada ve şablonda aç / kapat">📏 Kenarlar</button>
-                                                <button type="button" class="sat-measure-chip active" id="satVisAreaBtn" onclick="window.toggleSatelliteMeasureAreaBadge()" title="Arsa m² alan rozetini haritada ve şablonda aç / kapat">🏷️ Arsa m²</button>
-                                                <button type="button" class="sat-measure-chip active" id="satVisHandlesBtn" onclick="window.toggleSatelliteMeasureHandles()" title="Köşe tutamaçlarını ve numaralarını haritada aç / kapat">📍 Köşeler</button>
-                                            </div>
-                                        </div>
-                                        <!-- Kenar Bazlı Detaylı Seçici (Hangi kenarlar gösterilecek?) -->
-                                        <div class="sat-measure-edge-selector-wrap" id="satMeasureEdgeSelectorWrap" style="display:none;">
-                                            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:4px; font-size:10.5px; color:#94a3b8;">
-                                                <span>Kenar Filtresi:</span>
-                                                <div style="display:flex; gap:6px; align-items:center;">
-                                                    <button type="button" class="sat-measure-mini-text-btn" onclick="window.toggleSatelliteMeasureAllEdgesBulk(true)" title="Tüm kenar metrelerini göster">Tümünü Aç</button>
-                                                    <span style="opacity:0.35;">|</span>
-                                                    <button type="button" class="sat-measure-mini-text-btn" onclick="window.toggleSatelliteMeasureAllEdgesBulk(false)" title="Tüm kenar metrelerini gizle">Tümünü Kapat</button>
-                                                </div>
-                                            </div>
-                                            <div class="sat-measure-edge-chips-grid" id="satMeasureEdgeChipsGrid">
-                                                <!-- updateEdgeSelectorUI ile otomatik doldurulur -->
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <!-- Hızlı Eylemler (Parsel Kilitleri & Sıfırla - 3 Düzenli Satır) -->
-                                    <div class="sat-measure-actions-bar full-row" id="satMeasureRowSnapAll" style="display:none;">
-                                        <button type="button" id="satBtnSnapAllParcel" class="sat-measure-act-btn snap-all" onclick="window.snapSatelliteMeasureToAllParcelVertices()" title="Yüklü parselin tüm sınırlarını ve alanını otomatik çevreler">
-                                            <i class="fas fa-vector-square"></i> <span>📐 Tüm Parseli Çevrele</span>
-                                        </button>
-                                    </div>
-
-                                    <div class="sat-measure-actions-bar edge-row" id="satMeasureRowEdgeNav" style="display:none;">
-                                        <button type="button" id="satBtnSnapParcelEdge" class="sat-measure-act-btn snap" onclick="window.snapSatelliteMeasureToParcelEdge()" title="Ölçüm noktalarını arsanın tek bir kenarına kilitler">
-                                            <i class="fas fa-draw-polygon"></i> <span>Tek Kenar</span>
-                                        </button>
-                                        <button type="button" id="satBtnCycleParcelEdge" class="sat-measure-act-btn cycle" onclick="window.cycleSatelliteMeasureParcelEdge()" title="Parselin diğer kenarına geç">
-                                            <i class="fas fa-rotate"></i> <span id="satCycleEdgeText">Diğer Kenar</span>
-                                        </button>
-                                    </div>
-
-                                    <div class="sat-measure-actions-bar second-row">
-                                        <button type="button" id="satBtnCloseMeasurePolygon" class="sat-measure-act-btn close-poly" onclick="window.toggleSatelliteMeasureClosed()" title="Arsa alanını kapat veya açık çizgiye dönüştür">
-                                            <i class="fas fa-object-group"></i> <span id="satBtnClosePolyText">Alanı Kapat</span>
-                                        </button>
-                                        <button type="button" class="sat-measure-act-btn undo" onclick="window.undoSatelliteLastMeasurePoint()" title="Son eklenen noktayı geri al">
-                                            <i class="fas fa-rotate-left"></i> <span>Geri Al</span>
-                                        </button>
-                                        <button type="button" class="sat-measure-act-btn reset" onclick="window.resetSatelliteMeasurePoints()" title="Tüm noktaları temizle">
-                                            <i class="fas fa-trash-alt"></i> <span>Sıfırla</span>
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-
                             <!-- Harita Üzerine Sürükle-Bırak Overlay -->
                             <div class="sat-drag-drop-overlay" id="satDragDropOverlay" style="display:none;">
                                 <div class="sat-drag-drop-box">
@@ -695,6 +516,185 @@
                             <feConvolveMatrix id="satAiMatrix" order="3" preserveAlpha="true" kernelMatrix="0 -0.4 0 -0.4 2.6 -0.4 0 -0.4 0"/>
                         </filter>
                     </svg>
+                </div>
+
+                <!-- 📏 Canlı Mesafe, Sınır & Alan Ölçüm Paneli (Floating Glass Panel - Serbest & Ekrandan Taşabilir) -->
+                <div class="sat-measure-floating-panel" id="satMeasureFloatingPanel" style="display:none;">
+                    <div class="sat-measure-panel-header" title="Paneli sürükleyerek istediğiniz yere taşıyabilirsiniz">
+                        <div class="sat-measure-title">
+                            <i class="fas fa-grip-vertical sat-measure-drag-handle" title="Taşımak için sürükleyin"></i>
+                            <i class="fas fa-ruler-combined"></i>
+                            <span>Ölçüm & Alan</span>
+                        </div>
+                        <div class="sat-measure-mode-switcher">
+                            <button type="button" class="sat-measure-mode-btn active" id="satMeasureModeDrawBtn" onclick="window.setSatelliteMeasureInteractionMode('draw')" title="Sol tık ile yeni köşe noktaları ekleyin">
+                                <i class="fas fa-pen-nib"></i> <span>Nokta</span>
+                            </button>
+                            <button type="button" class="sat-measure-mode-btn" id="satMeasureModePanBtn" onclick="window.setSatelliteMeasureInteractionMode('pan')" title="Sol tık ile haritada serbestçe gezinin ve kaydırın (Ctrl veya Space tuşuna basılı tutarak da yapabilirsiniz)">
+                                <i class="fas fa-hand"></i> <span>Gezin</span>
+                            </button>
+                        </div>
+                        <div class="sat-measure-header-actions">
+                            <button type="button" class="sat-measure-btn-parcel-layer active" id="satMeasureToggleParcelBtn" onclick="window.toggleSatelliteMeasureParcelLayer()" title="Beyaz TKGM Parsel Katmanını Gizle / Göster">
+                                <i class="fas fa-eye-slash" id="satMeasureParcelLayerIcon"></i>
+                            </button>
+                            <button type="button" class="sat-measure-btn-min" onclick="window.toggleSatelliteMeasurePanelCollapse()" title="Paneli Küçült / Büyüt">
+                                <i class="fas fa-chevron-up" id="satMeasureMinIcon"></i>
+                            </button>
+                            <button type="button" class="sat-measure-btn-close" onclick="window.closeSatelliteMeasurePanel()" title="Paneli Gizle (Ölçümler Haritada Kalır)">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="sat-measure-panel-body" id="satMeasurePanelBody">
+                        <!-- Canlı Mesafe & Alan Göstergesi -->
+                        <div class="sat-measure-display-box">
+                            <div class="sat-measure-val" id="satMeasureValText">0.0 m</div>
+                            <div class="sat-measure-sub-stats" id="satMeasureSubStats" style="display:none;"></div>
+                            <div class="sat-measure-hint" id="satMeasureHintText">Haritada noktalara tıklayarak arsayı çevreleyin • Ctrl veya Boşluk tuşuyla haritayı kaydırın</div>
+                        </div>
+
+                        <!-- Hızlı Metin Şablonları (Yola Cephe, Ön Cephe vb.) -->
+                        <div class="sat-measure-row">
+                            <label class="sat-measure-label">Etiket Şablonu:</label>
+                            <div class="sat-measure-chips">
+                                <button type="button" class="sat-measure-chip active" data-preset="frontage" onclick="window.setSatelliteMeasurePreset('frontage')">Yola Cephe</button>
+                                <button type="button" class="sat-measure-chip" data-preset="front" onclick="window.setSatelliteMeasurePreset('front')">Ön Cephe</button>
+                                <button type="button" class="sat-measure-chip" data-preset="depth" onclick="window.setSatelliteMeasurePreset('depth')">Derinlik</button>
+                                <button type="button" class="sat-measure-chip" data-preset="setback" onclick="window.setSatelliteMeasurePreset('setback')">Yol Terki</button>
+                                <button type="button" class="sat-measure-chip" data-preset="distance_only" onclick="window.setSatelliteMeasurePreset('distance_only')">Sadece Metre</button>
+                            </div>
+                        </div>
+
+                        <!-- Özel Metin Girişi -->
+                        <div class="sat-measure-row">
+                            <input type="text" id="satMeasureTextInput" class="sat-measure-text-input" placeholder="Etiket metnini özelleştirin..." oninput="window.setSatelliteMeasureCustomText(this.value)">
+                        </div>
+
+                        <!-- Çizgi ve İşaretleme Stili -->
+                        <div class="sat-measure-row">
+                            <div class="sat-measure-sub-row">
+                                <label class="sat-measure-label">Stil:</label>
+                                <div class="sat-measure-style-pills">
+                                    <button type="button" class="sat-measure-style-btn active" data-style="cad" onclick="window.setSatelliteMeasureStyle('cad')" title="CAD Boyut Çizgisi">📐 CAD</button>
+                                    <button type="button" class="sat-measure-style-btn" data-style="neon" onclick="window.setSatelliteMeasureStyle('neon')" title="Neon Işıltılı">⚡ Neon</button>
+                                    <button type="button" class="sat-measure-style-btn" data-style="arrow" onclick="window.setSatelliteMeasureStyle('arrow')" title="Çift Yönlü Ok">🏹 Ok</button>
+                                    <button type="button" class="sat-measure-style-btn" data-style="dashed" onclick="window.setSatelliteMeasureStyle('dashed')" title="Kesikli Çizgi">〰️ Kesikli</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Arsa Alanı Görünümü & İçeriği (Çerçevesiz / Kutulu) -->
+                        <div class="sat-measure-row">
+                            <div class="sat-measure-sub-row">
+                                <label class="sat-measure-label">Alan Gösterimi:</label>
+                                <div class="sat-measure-chips">
+                                    <button type="button" class="sat-measure-chip active" id="satAreaModeFramelessBtn" data-areamode="frameless" onclick="window.setSatelliteMeasureAreaDisplayMode('frameless')" title="Arka plansız, şık çerçevesiz saf metin">✨ Çerçevesiz</button>
+                                    <button type="button" class="sat-measure-chip" id="satAreaModeBoxBtn" data-areamode="box" onclick="window.setSatelliteMeasureAreaDisplayMode('box')" title="Koyu cam kutulu rozet">🏷️ Kutulu</button>
+                                </div>
+                            </div>
+                            <div class="sat-measure-chips" style="margin-top: 3px;">
+                                <button type="button" class="sat-measure-chip active" id="satAreaContentM2OnlyBtn" data-contentmode="m2_only" onclick="window.setSatelliteMeasureAreaContentMode('m2_only')" title="Sadece arsanın metrekare değerini gösterir">Sadece m²</button>
+                                <button type="button" class="sat-measure-chip" id="satAreaContentM2DonumBtn" data-contentmode="m2_donum" onclick="window.setSatelliteMeasureAreaContentMode('m2_donum')" title="m² ve Dönüm değerini birlikte gösterir">m² + Dönüm</button>
+                                <button type="button" class="sat-measure-chip" id="satAreaContentDetailedBtn" data-contentmode="detailed" onclick="window.setSatelliteMeasureAreaContentMode('detailed')" title="m², Dönüm, Çevre ve Köşe sayısını gösterir">Detaylı (+Çevre)</button>
+                            </div>
+                        </div>
+
+                        <!-- Yazı Tipi (Font) & Boyutlandırma -->
+                        <div class="sat-measure-row">
+                            <div class="sat-measure-sub-row">
+                                <label class="sat-measure-label">Yazı & Boyut:</label>
+                                <div class="sat-measure-font-controls">
+                                    <select id="satMeasureFontSelect" class="sat-measure-select" onchange="window.setSatelliteMeasureFontFamily(this.value)">
+                                        <option value="Montserrat" selected>Montserrat</option>
+                                    </select>
+                                    <div class="sat-measure-size-btns">
+                                        <button type="button" class="sat-measure-size-btn" onclick="window.adjustSatelliteMeasureFontSize(-1)" title="Yazı boyutunu küçült">A-</button>
+                                        <span class="sat-measure-size-val" id="satMeasureFontSizeText">16px</span>
+                                        <button type="button" class="sat-measure-size-btn" onclick="window.adjustSatelliteMeasureFontSize(1)" title="Yazı boyutunu büyüt">A+</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="sat-measure-chips" style="margin-top: 3px;">
+                                <button type="button" class="sat-measure-chip active" id="satFontTargetAllBtn" onclick="window.setSatelliteMeasureFontTarget('all')" title="Font ve boyut ayarlarını tüm ölçüm metinlerine uygular">Tüm Metinler</button>
+                                <button type="button" class="sat-measure-chip" id="satFontTargetAreaBtn" onclick="window.setSatelliteMeasureFontTarget('area')" title="Sadece arsa alanı metnini boyutlandırır">Sadece Alan</button>
+                                <button type="button" class="sat-measure-chip" id="satFontTargetEdgesBtn" onclick="window.setSatelliteMeasureFontTarget('edges')" title="Sadece kenar mesafe metinlerini boyutlandırır">Sadece Kenarlar</button>
+                            </div>
+                        </div>
+
+                        <!-- Renk Paleti & Genel Renk Seçici -->
+                        <div class="sat-measure-row">
+                            <div class="sat-measure-sub-row">
+                                <label class="sat-measure-label">Renk:</label>
+                                <div class="sat-measure-colors">
+                                    <button type="button" class="sat-measure-color-dot active" style="background:#f59e0b;" data-color="#f59e0b" onclick="window.setSatelliteMeasureColor('#f59e0b')" title="Altın Sarısı"></button>
+                                    <button type="button" class="sat-measure-color-dot" style="background:#00f5d4;" data-color="#00f5d4" onclick="window.setSatelliteMeasureColor('#00f5d4')" title="Neon Cyan"></button>
+                                    <button type="button" class="sat-measure-color-dot" style="background:#ffffff;" data-color="#ffffff" onclick="window.setSatelliteMeasureColor('#ffffff')" title="Saf Beyaz"></button>
+                                    <button type="button" class="sat-measure-color-dot" style="background:#10b981;" data-color="#10b981" onclick="window.setSatelliteMeasureColor('#10b981')" title="Zümrüt Yeşili"></button>
+                                    <button type="button" class="sat-measure-color-dot" style="background:#ef4444;" data-color="#ef4444" onclick="window.setSatelliteMeasureColor('#ef4444')" title="Canlı Kırmızı"></button>
+                                    <label class="sat-measure-color-custom-btn" id="satMeasureCustomColorLabel" title="Özel Renk Seçici (Palet)">
+                                        <i class="fas fa-palette"></i>
+                                        <input type="color" id="satMeasureCustomColorInput" value="#f59e0b" oninput="window.setSatelliteMeasureColor(this.value)">
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Metre & Rozet Gösterimi (Aç / Kapat & Kenar Filtresi) -->
+                        <div class="sat-measure-row" id="satMeasureVisibilityRow">
+                            <div class="sat-measure-sub-row">
+                                <label class="sat-measure-label">Gösterim:</label>
+                                <div class="sat-measure-chips">
+                                    <button type="button" class="sat-measure-chip active" id="satVisEdgeDistancesBtn" onclick="window.toggleSatelliteMeasureAllEdges()" title="Kenar mesafelerini (metreleri) haritada ve şablonda aç / kapat">📏 Kenarlar</button>
+                                    <button type="button" class="sat-measure-chip active" id="satVisAreaBtn" onclick="window.toggleSatelliteMeasureAreaBadge()" title="Arsa m² alan rozetini haritada ve şablonda aç / kapat">🏷️ Arsa m²</button>
+                                    <button type="button" class="sat-measure-chip active" id="satVisHandlesBtn" onclick="window.toggleSatelliteMeasureHandles()" title="Köşe tutamaçlarını ve numaralarını haritada aç / kapat">📍 Köşeler</button>
+                                </div>
+                            </div>
+                            <!-- Kenar Bazlı Detaylı Seçici (Hangi kenarlar gösterilecek?) -->
+                            <div class="sat-measure-edge-selector-wrap" id="satMeasureEdgeSelectorWrap" style="display:none;">
+                                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:4px; font-size:10.5px; color:#94a3b8;">
+                                    <span>Kenar Filtresi:</span>
+                                    <div style="display:flex; gap:6px; align-items:center;">
+                                        <button type="button" class="sat-measure-mini-text-btn" onclick="window.toggleSatelliteMeasureAllEdgesBulk(true)" title="Tüm kenar metrelerini göster">Tümünü Aç</button>
+                                        <span style="opacity:0.35;">|</span>
+                                        <button type="button" class="sat-measure-mini-text-btn" onclick="window.toggleSatelliteMeasureAllEdgesBulk(false)" title="Tüm kenar metrelerini gizle">Tümünü Kapat</button>
+                                    </div>
+                                </div>
+                                <div class="sat-measure-edge-chips-grid" id="satMeasureEdgeChipsGrid">
+                                    <!-- updateEdgeSelectorUI ile otomatik doldurulur -->
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Hızlı Eylemler (Parsel Kilitleri & Sıfırla - 3 Düzenli Satır) -->
+                        <div class="sat-measure-actions-bar full-row" id="satMeasureRowSnapAll" style="display:none;">
+                            <button type="button" id="satBtnSnapAllParcel" class="sat-measure-act-btn snap-all" onclick="window.snapSatelliteMeasureToAllParcelVertices()" title="Yüklü parselin tüm sınırlarını ve alanını otomatik çevreler">
+                                <i class="fas fa-vector-square"></i> <span>📐 Tüm Parseli Çevrele</span>
+                            </button>
+                        </div>
+
+                        <div class="sat-measure-actions-bar edge-row" id="satMeasureRowEdgeNav" style="display:none;">
+                            <button type="button" id="satBtnSnapParcelEdge" class="sat-measure-act-btn snap" onclick="window.snapSatelliteMeasureToParcelEdge()" title="Ölçüm noktalarını arsanın tek bir kenarına kilitler">
+                                <i class="fas fa-draw-polygon"></i> <span>Tek Kenar</span>
+                            </button>
+                            <button type="button" id="satBtnCycleParcelEdge" class="sat-measure-act-btn cycle" onclick="window.cycleSatelliteMeasureParcelEdge()" title="Parselin diğer kenarına geç">
+                                <i class="fas fa-rotate"></i> <span id="satCycleEdgeText">Diğer Kenar</span>
+                            </button>
+                        </div>
+
+                        <div class="sat-measure-actions-bar second-row">
+                            <button type="button" id="satBtnCloseMeasurePolygon" class="sat-measure-act-btn close-poly" onclick="window.toggleSatelliteMeasureClosed()" title="Arsa alanını kapat veya açık çizgiye dönüştür">
+                                <i class="fas fa-object-group"></i> <span id="satBtnClosePolyText">Alanı Kapat</span>
+                            </button>
+                            <button type="button" class="sat-measure-act-btn undo" onclick="window.undoSatelliteLastMeasurePoint()" title="Son eklenen noktayı geri al">
+                                <i class="fas fa-rotate-left"></i> <span>Geri Al</span>
+                            </button>
+                            <button type="button" class="sat-measure-act-btn reset" onclick="window.resetSatelliteMeasurePoints()" title="Tüm noktaları temizle">
+                                <i class="fas fa-trash-alt"></i> <span>Sıfırla</span>
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>`;
 
@@ -7624,7 +7624,7 @@
         },
 
         /**
-         * Ölçüm Paneline Sürükleme (Draggable) Yeteneği Kazandırır
+         * Ölçüm Paneline Sürükleme (Draggable) Yeteneği Kazandırır (Serbest / Ekrandan Taşabilir)
          */
         initMeasurePanelDraggable: function() {
             const panel = document.getElementById('satMeasureFloatingPanel');
@@ -7643,15 +7643,12 @@
             const onPointerDown = (e) => {
                 if (e.target.closest('button') || e.target.closest('input') || e.target.closest('select') || e.target.closest('label')) return;
 
-                const stage = document.getElementById('satMapStage') || panel.offsetParent || document.body;
-                const stageRect = stage.getBoundingClientRect();
-                const rect = panel.getBoundingClientRect();
-
                 isDragging = true;
                 startX = e.clientX;
                 startY = e.clientY;
-                initialLeft = rect.left - stageRect.left;
-                initialTop = rect.top - stageRect.top;
+                const rect = panel.getBoundingClientRect();
+                initialLeft = rect.left;
+                initialTop = rect.top;
 
                 panel.style.left = initialLeft + 'px';
                 panel.style.top = initialTop + 'px';
@@ -7670,27 +7667,28 @@
                 const dx = e.clientX - startX;
                 const dy = e.clientY - startY;
 
-                const stage = document.getElementById('satMapStage') || panel.offsetParent || document.body;
-                const stageRect = stage.getBoundingClientRect();
-                const panelRect = panel.getBoundingClientRect();
-
                 let newLeft = initialLeft + dx;
                 let newTop = initialTop + dy;
 
-                const maxLeft = Math.max(10, Math.floor(stageRect.width - panelRect.width - 10));
-                const maxTop = Math.max(10, Math.floor(stageRect.height - panelRect.height - 10));
+                const winW = window.innerWidth;
+                const winH = window.innerHeight;
+                const pW = panel.offsetWidth || 320;
+                const pH = panel.offsetHeight || 400;
 
-                newLeft = Math.max(10, Math.min(newLeft, maxLeft));
-                newTop = Math.max(10, Math.min(newTop, maxTop));
+                // Serbest sürükleme: Harita sınırlarına veya ekrana hapsolmaz.
+                // Kullanıcı alt butonları görmek için paneli yukarıya (negatif top) taşıyabilir,
+                // sağa/sola serbestçe kaydırabilir. Sadece panelin ekrandan tamamen kaybolmasını önleyen güvenlik payı:
+                newLeft = Math.max(-pW + 60, Math.min(newLeft, winW - 60));
+                newTop = Math.max(-pH + 50, Math.min(newTop, winH - 40));
 
                 panel.style.left = newLeft + 'px';
                 panel.style.top = newTop + 'px';
+                panel.style.bottom = 'auto';
+                panel.style.right = 'auto';
 
                 this.measurePanelPos = {
                     left: newLeft,
-                    top: newTop,
-                    relX: newLeft / Math.max(1, stageRect.width),
-                    relY: newTop / Math.max(1, stageRect.height)
+                    top: newTop
                 };
             };
 
@@ -7722,7 +7720,7 @@
         },
 
         /**
-         * Ölçüm Panelinin Konumunu Hafızadan Geri Yükler
+         * Ölçüm Panelinin Konumunu Hafızadan Geri Yükler (Serbest Pozisyon)
          */
         restoreMeasurePanelPosition: function(panel) {
             if (!panel) panel = document.getElementById('satMeasureFloatingPanel');
@@ -7736,27 +7734,37 @@
                 } catch(e) {}
             }
 
+            const winW = window.innerWidth;
+            const winH = window.innerHeight;
+
             if (pos && typeof pos.left === 'number' && typeof pos.top === 'number') {
-                const stage = document.getElementById('satMapStage') || panel.offsetParent || document.body;
-                const stageRect = stage.getBoundingClientRect();
-                if (stageRect.width > 120 && stageRect.height > 120) {
-                    const maxLeft = Math.max(10, Math.floor(stageRect.width - (panel.offsetWidth || 320) - 10));
-                    const maxTop = Math.max(10, Math.floor(stageRect.height - (panel.offsetHeight || 280) - 10));
-                    const left = Math.max(10, Math.min(pos.left, maxLeft));
-                    const top = Math.max(10, Math.min(pos.top, maxTop));
-                    panel.style.left = `${left}px`;
-                    panel.style.top = `${top}px`;
-                    panel.style.bottom = 'auto';
-                    panel.style.right = 'auto';
-                    return;
-                }
+                const pW = panel.offsetWidth || 320;
+                const pH = panel.offsetHeight || 400;
+                const left = Math.max(-pW + 60, Math.min(pos.left, winW - 60));
+                const top = Math.max(-pH + 50, Math.min(pos.top, winH - 40));
+                panel.style.left = `${left}px`;
+                panel.style.top = `${top}px`;
+                panel.style.bottom = 'auto';
+                panel.style.right = 'auto';
+                return;
             }
 
-            // Varsayılan pozisyon (Sol Alt)
-            panel.style.bottom = '18px';
-            panel.style.left = '18px';
-            panel.style.top = 'auto';
-            panel.style.right = 'auto';
+            // Varsayılan serbest pozisyon: Haritanın sol üst köşesine hizala
+            const stage = document.getElementById('satMapStage') || document.querySelector('.sat-modal-container');
+            if (stage) {
+                const sRect = stage.getBoundingClientRect();
+                const defLeft = Math.max(16, Math.round(sRect.left + 16));
+                const defTop = Math.max(16, Math.round(sRect.top + 16));
+                panel.style.left = `${defLeft}px`;
+                panel.style.top = `${defTop}px`;
+                panel.style.bottom = 'auto';
+                panel.style.right = 'auto';
+            } else {
+                panel.style.left = '24px';
+                panel.style.top = '90px';
+                panel.style.bottom = 'auto';
+                panel.style.right = 'auto';
+            }
         },
 
         /**

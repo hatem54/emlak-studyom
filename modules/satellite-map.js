@@ -647,6 +647,19 @@
                             </div>
                         </div>
 
+                        <!-- Arsa Dolgusu & Neon Seçici -->
+                        <div class="sat-measure-row" id="satMeasureFillRow">
+                            <div class="sat-measure-sub-row">
+                                <label class="sat-measure-label">Dolgu:</label>
+                                <div class="sat-measure-chips" id="satMeasureFillModeChips">
+                                    <button type="button" class="sat-measure-chip active" data-fill="white" onclick="window.setParcelFillMode('white')" title="Beyaz yarı saydam arsa dolgusu">⚪ Beyaz</button>
+                                    <button type="button" class="sat-measure-chip" data-fill="color" onclick="window.setParcelFillMode('color')" title="Seçili renkte arsa dolgusu">🎨 Renkli</button>
+                                    <button type="button" class="sat-measure-chip" data-fill="nofill" onclick="window.setParcelFillMode('nofill')" title="Sadece sınır çizgisi (şeffaf iç dolgu)">🚫 Şeffaf</button>
+                                    <button type="button" class="sat-measure-chip" id="satMeasureNeonQuickBtn" onclick="window.toggleSatelliteParcelNeon()" title="⚡ Saber Neon Parlama Çizgisini Aç / Kapat">⚡ Neon</button>
+                                </div>
+                            </div>
+                        </div>
+
                         <!-- Metre & Rozet Gösterimi (Aç / Kapat & Kenar Filtresi) -->
                         <div class="sat-measure-row" id="satMeasureVisibilityRow">
                             <div class="sat-measure-sub-row">
@@ -4196,7 +4209,19 @@
             } else if (hex.length === 8) {
                 return '#' + hex.toLowerCase();
             } else if (hex.length !== 6) {
-                hex = 'ffffff';
+                const named = {
+                    'white': 'ffffff',
+                    'black': '000000',
+                    'red': 'ef4444',
+                    'blue': '0284c7',
+                    'green': '10b981',
+                    'yellow': 'f59e0b',
+                    'cyan': '00cec9',
+                    'purple': 'aa00ff',
+                    'transparent': 'ffffff00'
+                };
+                hex = named[hex.toLowerCase()] || 'ffffff';
+                if (hex.length === 8) return '#' + hex.toLowerCase();
             }
             const alphaInt = Math.round(Math.max(0, Math.min(1, opacity)) * 255);
             const alphaHex = alphaInt.toString(16).padStart(2, '0');
@@ -4261,17 +4286,23 @@
                 // Dolgu ve Kenarlık Renkleri (Google 3D Maps katı #RRGGBBAA hex standardı)
                 const isNeon3d = !!this.parcelNeonEnabled;
                 const neonColor = this.parcelNeonColor || '#00CEC9';
-                const opacity = (this.parcelFillOpacity !== undefined ? this.parcelFillOpacity : (isNeon3d ? 0.35 : 0.50));
+                const strokeColor = isNeon3d ? neonColor : (this.parcelStrokeColor || '#ffffff');
+                const opacity = (this.parcelFillOpacity !== undefined ? this.parcelFillOpacity : 0.40);
 
-                let fillHex8 = '#ffffff80';
+                let fillHex8 = '#ffffff66';
                 if (this.parcelFillMode === 'nofill') {
                     fillHex8 = '#ffffff00'; // Tam saydam dolgusuz
                 } else if (this.parcelFillMode === 'color') {
-                    fillHex8 = this.colorToHex8(this.parcelFillColor || '#f59e0b', opacity);
+                    fillHex8 = this.colorToHex8(this.parcelFillColor || neonColor || '#f59e0b', opacity);
+                } else if (this.parcelFillMode === 'neon') {
+                    fillHex8 = this.colorToHex8(neonColor, opacity);
                 } else {
-                    // Neon aktifse dolgu da neon renginde olsun, beyaz olmasın
-                    fillHex8 = this.colorToHex8(isNeon3d ? neonColor : '#ffffff', opacity);
+                    // 'white' modu: Saf beyaz yarı saydam dolgu (neon aktif olsa bile zemin beyaz kalır)
+                    fillHex8 = this.colorToHex8('#ffffff', opacity);
                 }
+
+                const strokeHex8 = this.colorToHex8(strokeColor, 1.0);
+                const strokeW = isNeon3d ? Math.max(5, this.parcelStrokeWidth || 4) : Math.max(3, this.parcelStrokeWidth || 3);
 
                 // AltitudeMode: CLAMP_TO_GROUND arazi kabartmasına yapışmayı sağlar
                 let altModeObj = 'CLAMP_TO_GROUND';
@@ -4286,8 +4317,8 @@
                         poly3d = new window.google.maps.maps3d.Polygon3DElement({
                             altitudeMode: altModeObj,
                             fillColor: fillHex8,
-                            strokeColor: '#00000000',
-                            strokeWidth: 0,
+                            strokeColor: strokeHex8,
+                            strokeWidth: strokeW,
                             extruded: false,
                             drawsOccludedSegments: true
                         });
@@ -4304,20 +4335,28 @@
 
                 poly3d.setAttribute('altitude-mode', 'clamp-to-ground');
                 poly3d.setAttribute('fill-color', fillHex8);
-                poly3d.setAttribute('stroke-color', '#00000000');
-                poly3d.setAttribute('stroke-width', '0');
+                poly3d.setAttribute('stroke-color', strokeHex8);
+                poly3d.setAttribute('stroke-width', strokeW.toString());
                 poly3d.setAttribute('draws-occluded-segments', '');
 
                 poly3d.altitudeMode = altModeObj;
                 poly3d.fillColor = fillHex8;
-                poly3d.strokeColor = '#00000000';
-                poly3d.strokeWidth = 0;
+                poly3d.strokeColor = strokeHex8;
+                poly3d.strokeWidth = strokeW;
                 poly3d.extruded = false;
                 poly3d.path = orientedCoords;
                 poly3d.outerCoordinates = orientedCoords;
                 poly3d.coordinates = orientedCoords;
 
                 map3d.appendChild(poly3d);
+
+                try {
+                    poly3d.outerCoordinates = orientedCoords;
+                    poly3d.coordinates = orientedCoords;
+                    poly3d.fillColor = fillHex8;
+                    poly3d.strokeColor = strokeHex8;
+                    poly3d.strokeWidth = strokeW;
+                } catch(e) {}
 
                 // 2. Canlı 3D Vektörel Sınır Hatları (<gmp-polyline-3d>)
                 // Google Maps 3D'de poligon sınır çizgileri ve Neon hatları Polyline3D ile çizilir!
@@ -4355,6 +4394,10 @@
                     haloLine.coordinates = closedPolylineCoords;
                     haloLine.path = closedPolylineCoords;
                     map3d.appendChild(haloLine);
+                    try {
+                        haloLine.coordinates = closedPolylineCoords;
+                        haloLine.strokeColor = haloHex8;
+                    } catch(e) {}
 
                     // B) İç Yüksek Yoğunluklu Neon Çekirdeği (Canlı Işın Kılıcı Çizgisi - 5px)
                     const coreHex8 = this.colorToHex8(neonColor, 1.0);
@@ -4385,10 +4428,14 @@
                     coreLine.coordinates = closedPolylineCoords;
                     coreLine.path = closedPolylineCoords;
                     map3d.appendChild(coreLine);
+                    try {
+                        coreLine.coordinates = closedPolylineCoords;
+                        coreLine.strokeColor = coreHex8;
+                    } catch(e) {}
                 } else {
-                    // Klasik Çizim Modu: Net beyaz sınır çizgisi
-                    const strokeColorHex = this.colorToHex8(this.parcelStrokeColor || '#ffffff', 1.0);
-                    const strokeWidthNum = Math.max(3, Number(this.parcelStrokeWidth) || 4);
+                    // Klasik Çizim Modu: Net beyaz veya seçilen sınır çizgisi
+                    const strokeColorHex = this.colorToHex8(strokeColor, 1.0);
+                    const strokeWidthNum = strokeW;
                     let solidLine = null;
                     if (PolylineClass) {
                         try {
@@ -4416,6 +4463,10 @@
                     solidLine.coordinates = closedPolylineCoords;
                     solidLine.path = closedPolylineCoords;
                     map3d.appendChild(solidLine);
+                    try {
+                        solidLine.coordinates = closedPolylineCoords;
+                        solidLine.strokeColor = strokeColorHex;
+                    } catch(e) {}
                 }
             } catch(err) {
                 console.warn('Google 3D polygon yerleştirme hatası:', err);
@@ -4427,18 +4478,24 @@
          */
         setParcelFillMode: function(mode) {
             this.parcelFillMode = mode;
+            if (mode === 'color' && !this.parcelFillColor) {
+                this.parcelFillColor = this.parcelNeonColor || this.measureColor || '#f59e0b';
+            }
             this.updateParcelPolygonStyle();
             this.updateParcelUI();
+            this.syncAllColorPickersUI(this.measureColor || this.parcelNeonColor);
         },
 
         /**
          * Arsa Dolgu Rengini Değiştirir
          */
         setParcelColor: function(color) {
+            if (!color) return;
             this.parcelFillColor = color;
             this.parcelFillMode = 'color';
             this.updateParcelPolygonStyle();
             this.updateParcelUI();
+            this.syncAllColorPickersUI(color);
         },
 
         /**
@@ -4449,14 +4506,26 @@
             this.updateParcelPolygonStyle();
             const opVal = document.getElementById('satParcelOpacityVal');
             if (opVal) opVal.textContent = `%${val}`;
+            const popoverOpVal = document.getElementById('satPopoverOpVal');
+            if (popoverOpVal) popoverOpVal.textContent = `%${val}`;
         },
 
         /**
          * Kenar Çizgisi Rengini Ayarlar
          */
         setParcelStrokeColor: function(color) {
+            if (!color) return;
             this.parcelStrokeColor = color;
+            this.parcelNeonColor = color;
+            this.measureColor = color;
+            if (this.parcelFillMode === 'color') {
+                this.parcelFillColor = color;
+            }
             this.updateParcelPolygonStyle();
+            this.updateParcelNeonUI();
+            this.updateParcelUI();
+            this.updateMeasureGraphics();
+            this.syncAllColorPickersUI(color);
         },
 
         /**
@@ -4471,6 +4540,12 @@
             const strokeSlider = document.getElementById('satParcelStrokeWidthSlider');
             if (strokeSlider && parseFloat(strokeSlider.value) !== this.parcelStrokeWidth) {
                 strokeSlider.value = this.parcelStrokeWidth;
+            }
+            const popoverStrokeVal = document.getElementById('satPopoverStrokeVal');
+            if (popoverStrokeVal) popoverStrokeVal.textContent = `${this.parcelStrokeWidth}px`;
+            const popoverStrokeSlider = document.getElementById('satPopoverStrokeSlider');
+            if (popoverStrokeSlider && parseFloat(popoverStrokeSlider.value) !== this.parcelStrokeWidth) {
+                popoverStrokeSlider.value = this.parcelStrokeWidth;
             }
             this.updateParcelPolygonStyle();
         },
@@ -4510,11 +4585,15 @@
                     fillColor = 'transparent';
                     fillOpacity = 0;
                 } else if (this.parcelFillMode === 'color') {
-                    fillColor = this.parcelFillColor || '#f59e0b';
+                    fillColor = this.parcelFillColor || neonColor || '#f59e0b';
                     fillOpacity = this.parcelFillOpacity !== undefined ? this.parcelFillOpacity : 0.40;
+                } else if (this.parcelFillMode === 'neon') {
+                    fillColor = neonColor;
+                    fillOpacity = this.parcelFillOpacity !== undefined ? this.parcelFillOpacity : 0.35;
                 } else {
-                    fillColor = isNeon ? neonColor : '#ffffff';
-                    fillOpacity = this.parcelFillOpacity !== undefined ? this.parcelFillOpacity : (isNeon ? 0.35 : 0.40);
+                    // 'white' modu: Saf beyaz yarı saydam dolgu (neon aktif olsa bile beyaz kalır)
+                    fillColor = '#ffffff';
+                    fillOpacity = this.parcelFillOpacity !== undefined ? this.parcelFillOpacity : 0.40;
                 }
 
                 this.parcelPolygon.setStyle({
@@ -4882,53 +4961,97 @@
             const popover = document.createElement('div');
             popover.id = 'satParcelColorPopover';
             popover.className = 'sat-color-popover';
+            popover.style.width = '315px';
+            popover.style.maxHeight = '490px';
+            popover.style.overflowY = 'auto';
 
             const curColors = this.parcelBadgeCustomColors || this.getThemeDefaultColors(this.parcelBadgeTheme || 'gold');
+            const curActiveColor = (this.parcelNeonColor || this.parcelStrokeColor || '#00CEC9').toLowerCase();
 
             popover.innerHTML = `
                 <div class="sat-popover-header">
-                    <span><i class="fas fa-palette" style="color:#eab308; margin-right:6px;"></i>Rozet Renk & Kenarlık</span>
+                    <span><i class="fas fa-palette" style="color:#f59e0b; margin-right:6px;"></i>Arsa Çizgi, Dolgu & Rozet</span>
                     <button type="button" class="sat-popover-close" onclick="window.closeParcelColorPicker()">&times;</button>
                 </div>
-                <div class="sat-popover-section">
-                    <label class="sat-popover-label">Hazır Renk Temaları</label>
-                    <div class="sat-popover-theme-grid">
-                        <button type="button" class="sat-theme-chip ${(this.parcelBadgeTheme || 'gold') === 'gold' ? 'active' : ''}" onclick="window.applyParcelPresetTheme('gold')">🟡 Altın Lüks</button>
-                        <button type="button" class="sat-theme-chip ${this.parcelBadgeTheme === 'cyan' ? 'active' : ''}" onclick="window.applyParcelPresetTheme('cyan')">🔵 Neon Mavi</button>
-                        <button type="button" class="sat-theme-chip ${this.parcelBadgeTheme === 'emerald' ? 'active' : ''}" onclick="window.applyParcelPresetTheme('emerald')">🟢 Zümrüt Yeşili</button>
-                        <button type="button" class="sat-theme-chip ${this.parcelBadgeTheme === 'dark' ? 'active' : ''}" onclick="window.applyParcelPresetTheme('dark')">⚫ Gece Matı</button>
+
+                <!-- 1. Bölüm: Arsa Kenar & Saber Neon Çizgisi -->
+                <div class="sat-popover-section" style="border-bottom:1px solid rgba(255,255,255,0.08); padding-bottom:10px; margin-bottom:10px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                        <label class="sat-popover-label" style="margin-bottom:0;">⚡ Kenar & Neon Çizgisi</label>
+                        <button type="button" id="satPopoverNeonToggle" class="sat-pill-toggle-btn ${this.parcelNeonEnabled ? 'active' : ''}" onclick="window.toggleSatelliteParcelNeon(); window.openParcelColorPicker();" style="padding:2px 8px; font-size:10.5px; border-radius:12px; border:1px solid ${this.parcelNeonEnabled ? (this.parcelNeonColor || '#00CEC9') : '#475569'}; background:transparent; color:${this.parcelNeonEnabled ? (this.parcelNeonColor || '#00CEC9') : '#94a3b8'}; cursor:pointer;">
+                            <i class="fas fa-bolt"></i> Neon: <b>${this.parcelNeonEnabled ? 'Açık' : 'Kapalı'}</b>
+                        </button>
+                    </div>
+
+                    <!-- Renk Noktaları -->
+                    <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap; margin-bottom:8px;">
+                        <button type="button" class="sat-measure-color-dot sat-popover-color-dot ${(curActiveColor === '#00cec9' || curActiveColor === '#00f5d4') ? 'active' : ''}" style="background:#00CEC9;" data-color="#00CEC9" onclick="window.setSatelliteParcelNeonColor('#00CEC9')" title="Turkuaz"></button>
+                        <button type="button" class="sat-measure-color-dot sat-popover-color-dot ${(curActiveColor === '#ffb800' || curActiveColor === '#f59e0b') ? 'active' : ''}" style="background:#f59e0b;" data-color="#f59e0b" onclick="window.setSatelliteParcelNeonColor('#f59e0b')" title="Altın"></button>
+                        <button type="button" class="sat-measure-color-dot sat-popover-color-dot ${curActiveColor === '#0ea5e9' ? 'active' : ''}" style="background:#0ea5e9;" data-color="#0ea5e9" onclick="window.setSatelliteParcelNeonColor('#0ea5e9')" title="Neon Mavi"></button>
+                        <button type="button" class="sat-measure-color-dot sat-popover-color-dot ${curActiveColor === '#10b981' ? 'active' : ''}" style="background:#10b981;" data-color="#10b981" onclick="window.setSatelliteParcelNeonColor('#10b981')" title="Zümrüt Yeşili"></button>
+                        <button type="button" class="sat-measure-color-dot sat-popover-color-dot ${curActiveColor === '#ef4444' ? 'active' : ''}" style="background:#ef4444;" data-color="#ef4444" onclick="window.setSatelliteParcelNeonColor('#ef4444')" title="Canlı Kırmızı"></button>
+                        <button type="button" class="sat-measure-color-dot sat-popover-color-dot ${curActiveColor === '#aa00ff' ? 'active' : ''}" style="background:#aa00ff;" data-color="#aa00ff" onclick="window.setSatelliteParcelNeonColor('#aa00ff')" title="Neon Mor"></button>
+                        <button type="button" class="sat-measure-color-dot sat-popover-color-dot ${curActiveColor === '#ffffff' ? 'active' : ''}" style="background:#ffffff;" data-color="#ffffff" onclick="window.setSatelliteParcelNeonColor('#ffffff')" title="Saf Beyaz"></button>
+                        <label class="sat-measure-color-custom-btn" style="width:20px; height:20px;" title="Özel Renk Seç (Damlalık)">
+                            <i class="fas fa-eye-dropper"></i>
+                            <input type="color" id="satPopoverCustomColor" value="${curActiveColor.startsWith('#') ? curActiveColor : '#00CEC9'}" oninput="window.setSatelliteParcelNeonColor(this.value)">
+                        </label>
+                    </div>
+
+                    <!-- Çizgi Kalınlığı -->
+                    <div class="sat-color-row" style="margin-bottom:0;">
+                        <span>Çizgi Kalınlığı (<span id="satPopoverStrokeVal">${this.parcelStrokeWidth || 3}px</span>)</span>
+                        <input type="range" id="satPopoverStrokeSlider" min="1" max="10" step="0.5" value="${this.parcelStrokeWidth || 3}" oninput="window.setParcelStrokeWidth(this.value)" style="width:110px;">
                     </div>
                 </div>
-                <div class="sat-popover-section" style="margin-top:10px;">
-                    <label class="sat-popover-label">Özel Renk İnce Ayarları</label>
-                    <div class="sat-color-row">
-                        <span>Zemin Rengi</span>
-                        <input type="color" id="satCustomBgColor" value="${curColors.bgHex || '#0f172a'}" oninput="window.updateParcelCustomStyle()">
+
+                <!-- 2. Bölüm: Arsa Zemin Dolgusu -->
+                <div class="sat-popover-section" style="border-bottom:1px solid rgba(255,255,255,0.08); padding-bottom:10px; margin-bottom:10px;">
+                    <label class="sat-popover-label">🎨 Arsa Zemin Dolgusu</label>
+                    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:5px; margin-bottom:8px;">
+                        <button type="button" class="sat-fill-btn ${(this.parcelFillMode || 'white') === 'white' ? 'active' : ''}" onclick="window.setParcelFillMode('white'); window.openParcelColorPicker();" title="Beyaz yarı saydam arsa dolgusu">⚪ Beyaz</button>
+                        <button type="button" class="sat-fill-btn ${this.parcelFillMode === 'color' ? 'active' : ''}" onclick="window.setParcelFillMode('color'); window.openParcelColorPicker();" title="Seçili renkte arsa dolgusu">🎨 Renkli</button>
+                        <button type="button" class="sat-fill-btn ${this.parcelFillMode === 'nofill' ? 'active' : ''}" onclick="window.setParcelFillMode('nofill'); window.openParcelColorPicker();" title="Şeffaf arsa dolgusu (sadece sınır çizgisi)">🚫 Şeffaf</button>
                     </div>
-                    <div class="sat-color-row">
-                        <span>Zemin Opaklık (%<span id="satCustomBgOpVal">${Math.round((curColors.bgOpacity !== undefined ? curColors.bgOpacity : 0.94) * 100)}</span>)</span>
-                        <input type="range" id="satCustomBgOpacity" min="20" max="100" value="${Math.round((curColors.bgOpacity !== undefined ? curColors.bgOpacity : 0.94) * 100)}" oninput="window.updateParcelCustomStyle()" style="width:90px;">
+                    <div class="sat-color-row" style="margin-bottom:0;">
+                        <span>Dolgu Saydamlığı (<span id="satPopoverOpVal">%${Math.round((this.parcelFillOpacity !== undefined ? this.parcelFillOpacity : 0.40) * 100)}</span>)</span>
+                        <input type="range" min="5" max="95" step="5" value="${Math.round((this.parcelFillOpacity !== undefined ? this.parcelFillOpacity : 0.40) * 100)}" oninput="window.setParcelOpacity(this.value)" style="width:110px;">
                     </div>
-                    <div class="sat-color-row">
-                        <span>Başlık Yazı Rengi</span>
-                        <input type="color" id="satCustomTitleColor" value="${curColors.titleColor || '#fef08a'}" oninput="window.updateParcelCustomStyle()">
+                </div>
+
+                <!-- 3. Bölüm: Bilgi Rozeti (Kart) Görünümü -->
+                <div class="sat-popover-section">
+                    <div style="display:flex; justify-content:space-between; align-items:center; cursor:pointer;" onclick="const d = document.getElementById('satPopoverBadgeDetails'); if (d) d.style.display = d.style.display === 'none' ? 'block' : 'none';">
+                        <label class="sat-popover-label" style="cursor:pointer; margin-bottom:0;">🏷️ Rozet Kartı Teması</label>
+                        <i class="fas fa-chevron-down" style="font-size:10px; color:#94a3b8;"></i>
                     </div>
-                    <div class="sat-color-row">
-                        <span>Alt Bilgi Yazı Rengi</span>
-                        <input type="color" id="satCustomSubColor" value="${curColors.subColor || '#e2e8f0'}" oninput="window.updateParcelCustomStyle()">
-                    </div>
-                    <div class="sat-color-row">
-                        <span>Çerçeve / Kenar Rengi</span>
-                        <input type="color" id="satCustomBorderColor" value="${curColors.borderColor || '#eab308'}" oninput="window.updateParcelCustomStyle()">
-                    </div>
-                    <div class="sat-color-row">
-                        <span>Kenarlık Kalınlığı (<span id="satCustomBorderWVal">${curColors.borderWidth !== undefined ? curColors.borderWidth : 2}</span>px)</span>
-                        <input type="range" id="satCustomBorderWidth" min="0" max="6" value="${curColors.borderWidth !== undefined ? curColors.borderWidth : 2}" oninput="window.updateParcelCustomStyle()" style="width:90px;">
+                    <div id="satPopoverBadgeDetails" style="display:none; margin-top:8px;">
+                        <div class="sat-popover-theme-grid" style="margin-bottom:8px;">
+                            <button type="button" class="sat-theme-chip ${(this.parcelBadgeTheme || 'gold') === 'gold' ? 'active' : ''}" onclick="window.applyParcelPresetTheme('gold')">🟡 Altın Lüks</button>
+                            <button type="button" class="sat-theme-chip ${this.parcelBadgeTheme === 'cyan' ? 'active' : ''}" onclick="window.applyParcelPresetTheme('cyan')">🔵 Neon Mavi</button>
+                            <button type="button" class="sat-theme-chip ${this.parcelBadgeTheme === 'emerald' ? 'active' : ''}" onclick="window.applyParcelPresetTheme('emerald')">🟢 Zümrüt</button>
+                            <button type="button" class="sat-theme-chip ${this.parcelBadgeTheme === 'dark' ? 'active' : ''}" onclick="window.applyParcelPresetTheme('dark')">⚫ Gece Matı</button>
+                        </div>
+                        <div class="sat-color-row">
+                            <span>Rozet Zemin Rengi</span>
+                            <input type="color" id="satCustomBgColor" value="${curColors.bgHex || '#0f172a'}" oninput="window.updateParcelCustomStyle()">
+                        </div>
+                        <div class="sat-color-row">
+                            <span>Başlık Yazı Rengi</span>
+                            <input type="color" id="satCustomTitleColor" value="${curColors.titleColor || '#fef08a'}" oninput="window.updateParcelCustomStyle()">
+                        </div>
+                        <div class="sat-color-row">
+                            <span>Rozet Çerçeve Rengi</span>
+                            <input type="color" id="satCustomBorderColor" value="${curColors.borderColor || '#eab308'}" oninput="window.updateParcelCustomStyle()">
+                        </div>
                     </div>
                 </div>
             `;
 
             stage.appendChild(popover);
+
+            // Popover renk noktalarının aktifliğini ayarla
+            this.syncAllColorPickersUI(curActiveColor);
 
             const infoRect = floatInfo.getBoundingClientRect();
             const stageRect = stage.getBoundingClientRect();
@@ -4936,11 +5059,11 @@
             let left = infoRect.left - stageRect.left;
             let top = infoRect.bottom - stageRect.top + 8;
 
-            if (left + 295 > stageRect.width) {
-                left = Math.max(10, stageRect.width - 300);
+            if (left + 325 > stageRect.width) {
+                left = Math.max(10, stageRect.width - 330);
             }
-            if (top + 330 > stageRect.height) {
-                top = Math.max(10, infoRect.top - stageRect.top - 335);
+            if (top + 470 > stageRect.height) {
+                top = Math.max(10, infoRect.top - stageRect.top - 475);
             }
 
             popover.style.left = left + 'px';
@@ -5210,11 +5333,11 @@
                     const neonColor = this.parcelNeonColor || '#00CEC9';
                     let fillColor = '#ffffff';
                     if (this.parcelFillMode === 'color') {
-                        fillColor = this.parcelFillColor || '#f59e0b';
-                    } else if (isNeon) {
+                        fillColor = this.parcelFillColor || neonColor || '#f59e0b';
+                    } else if (this.parcelFillMode === 'neon') {
                         fillColor = neonColor;
                     }
-                    ctx.fillStyle = this.hexToRgba(fillColor, this.parcelFillOpacity !== undefined ? this.parcelFillOpacity : (isNeon ? 0.35 : 0.40));
+                    ctx.fillStyle = this.hexToRgba(fillColor, this.parcelFillOpacity !== undefined ? this.parcelFillOpacity : 0.40);
                     ctx.fill();
                 }
 
@@ -5256,6 +5379,8 @@
 
             this.updateParcelPolygonStyle();
             this.updateParcelNeonUI();
+            this.updateParcelUI();
+            this.syncAllColorPickersUI();
 
             if (typeof window.showAppToast === 'function') {
                 if (!this.parcelData || !this.parcelData.latLngs || this.parcelData.latLngs.length < 3) {
@@ -5278,9 +5403,17 @@
         setSatelliteParcelNeonColor: function(color) {
             if (!color) return;
             this.parcelNeonColor = color;
+            this.parcelStrokeColor = color;
+            this.measureColor = color;
             this.parcelNeonEnabled = true;
+            if (this.parcelFillMode === 'color') {
+                this.parcelFillColor = color;
+            }
             this.updateParcelPolygonStyle();
             this.updateParcelNeonUI();
+            this.updateParcelUI();
+            this.updateMeasureGraphics();
+            this.syncAllColorPickersUI(color);
         },
 
         /**
@@ -5298,10 +5431,7 @@
                 'beyaz': '#FFFFFF'
             };
             const hex = mapColors[presetKey] || '#00CEC9';
-            this.parcelNeonColor = hex;
-            this.parcelNeonEnabled = true;
-            this.updateParcelPolygonStyle();
-            this.updateParcelNeonUI();
+            this.setSatelliteParcelNeonColor(hex);
         },
 
         /**
@@ -5443,10 +5573,13 @@
             } else if (this.parcelFillMode === 'color') {
                 fillColor = this.parcelFillColor || '#f59e0b';
                 fillOpacity = this.parcelFillOpacity !== undefined ? this.parcelFillOpacity : 0.40;
+            } else if (this.parcelFillMode === 'neon') {
+                fillColor = neonColor;
+                fillOpacity = this.parcelFillOpacity !== undefined ? this.parcelFillOpacity : 0.35;
             } else {
-                // Neon aktifse dolgu da neon renginde olsun, beyaz kalmasın
-                fillColor = isNeon ? neonColor : (this.parcelFillColor || '#ffffff');
-                fillOpacity = this.parcelFillOpacity !== undefined ? this.parcelFillOpacity : (isNeon ? 0.35 : 0.40);
+                // 'white' modu: Saf beyaz yarı saydam dolgu (neon açık olsa bile beyaz kalır)
+                fillColor = '#ffffff';
+                fillOpacity = this.parcelFillOpacity !== undefined ? this.parcelFillOpacity : 0.40;
             }
 
             // Sayısal RGB hex değeri (PixiJS için)
@@ -5899,37 +6032,114 @@
         },
 
         /**
-         * Ölçüm Çizgisi ve Rozet Rengini Ayarlar
+         * Ölçüm Çizgisi, Arsa Sınırı ve Neon Rengini Birlikte Ayarlar
          */
         setMeasureColor: function(color) {
-            this.measureColor = color || '#f59e0b';
-            let matched = false;
+            if (!color) return;
+            this.measureColor = color;
+            this.parcelNeonColor = color;
+            this.parcelStrokeColor = color;
+            if (this.parcelFillMode === 'color') {
+                this.parcelFillColor = color;
+            }
+
+            this.syncAllColorPickersUI(color);
+            this.updateParcelPolygonStyle();
+            this.updateParcelNeonUI();
+            this.updateParcelUI();
+            this.updateMeasureGraphics();
+            this.saveLastLocation({
+                measureData: this.getMeasureDataToSave()
+            });
+        },
+
+        /**
+         * Tüm Harita Arayüzündeki (Panel, Çekmece, Rozet Popover) Renk Seçicileri Senkronize Eder
+         */
+        syncAllColorPickersUI: function(activeColor) {
+            if (!activeColor) activeColor = this.measureColor || this.parcelNeonColor || this.parcelStrokeColor || '#f59e0b';
+            const colorLower = activeColor.toLowerCase();
+
+            // 1. Ölçüm Paneli Noktaları (.sat-measure-color-dot)
+            let matchedMeasure = false;
             document.querySelectorAll('.sat-measure-color-dot').forEach(dot => {
-                const isMatch = dot.dataset.color && dot.dataset.color.toLowerCase() === this.measureColor.toLowerCase();
+                const isMatch = dot.dataset.color && dot.dataset.color.toLowerCase() === colorLower;
                 dot.classList.toggle('active', isMatch);
-                if (isMatch) matched = true;
+                if (isMatch) matchedMeasure = true;
             });
 
+            // 2. Ölçüm Paneli Özel Renk İkonu & Inputu
             const customLabel = document.getElementById('satMeasureCustomColorLabel');
             const customInput = document.getElementById('satMeasureCustomColorInput');
             if (customLabel) {
-                customLabel.classList.toggle('active', !matched);
-                if (!matched) {
-                    customLabel.style.color = this.measureColor;
-                    customLabel.style.borderColor = this.measureColor;
+                customLabel.classList.toggle('active', !matchedMeasure);
+                if (!matchedMeasure) {
+                    customLabel.style.color = activeColor;
+                    customLabel.style.borderColor = activeColor;
                 } else {
                     customLabel.style.color = '';
                     customLabel.style.borderColor = '';
                 }
             }
-            if (customInput && typeof this.measureColor === 'string' && this.measureColor.startsWith('#')) {
-                customInput.value = this.measureColor;
+            if (customInput && typeof activeColor === 'string' && activeColor.startsWith('#')) {
+                customInput.value = activeColor;
             }
 
-            this.updateMeasureGraphics();
-            this.saveLastLocation({
-                measureData: this.getMeasureDataToSave()
+            // 3. Çekmece Neon Renk Noktaları
+            document.querySelectorAll('#satDrawerNeonDetails .sat-color-dot-sm').forEach(dot => {
+                const bg = (dot.style.background || '').toLowerCase();
+                dot.classList.toggle('active', bg.includes(colorLower));
             });
+            const drawerNeonCustom = document.getElementById('satDrawerNeonColorCustom');
+            if (drawerNeonCustom && typeof activeColor === 'string' && activeColor.startsWith('#')) {
+                drawerNeonCustom.value = activeColor;
+            }
+
+            // 4. Çekmece Sınır Çizgisi Noktaları
+            document.querySelectorAll('.sat-stroke-color-picks .sat-color-dot-sm').forEach(dot => {
+                const bg = (dot.style.background || '').toLowerCase();
+                dot.classList.toggle('active', bg.includes(colorLower));
+            });
+            const strokeCustom = document.getElementById('satParcelStrokeCustom');
+            if (strokeCustom && typeof activeColor === 'string' && activeColor.startsWith('#')) {
+                strokeCustom.value = activeColor;
+            }
+
+            // 5. Çekmece Dolgu Renk Noktaları
+            document.querySelectorAll('#satParcelColorPalette .sat-color-dot').forEach(dot => {
+                const bg = (dot.style.background || '').toLowerCase();
+                dot.classList.toggle('active', bg.includes(colorLower));
+            });
+            const fillColorCustom = document.getElementById('satParcelColorCustom');
+            if (fillColorCustom && typeof activeColor === 'string' && activeColor.startsWith('#')) {
+                fillColorCustom.value = activeColor;
+            }
+
+            // 6. Popover Renk Noktaları
+            document.querySelectorAll('.sat-popover-color-dot').forEach(dot => {
+                const isMatch = dot.dataset.color && dot.dataset.color.toLowerCase() === colorLower;
+                dot.classList.toggle('active', isMatch);
+            });
+            const popoverCustom = document.getElementById('satPopoverCustomColor');
+            if (popoverCustom && typeof activeColor === 'string' && activeColor.startsWith('#')) {
+                popoverCustom.value = activeColor;
+            }
+
+            // 7. Ölçüm Paneli Dolgu Çipleri
+            document.querySelectorAll('#satMeasureFillModeChips .sat-measure-chip[data-fill]').forEach(chip => {
+                chip.classList.toggle('active', chip.dataset.fill === (this.parcelFillMode || 'white'));
+            });
+            const neonQuickBtn = document.getElementById('satMeasureNeonQuickBtn');
+            if (neonQuickBtn) {
+                neonQuickBtn.classList.toggle('active', !!this.parcelNeonEnabled);
+                if (this.parcelNeonEnabled) {
+                    neonQuickBtn.style.borderColor = this.parcelNeonColor || '#00CEC9';
+                    neonQuickBtn.style.color = this.parcelNeonColor || '#00CEC9';
+                } else {
+                    neonQuickBtn.style.borderColor = '';
+                    neonQuickBtn.style.color = '';
+                }
+            }
         },
 
         /**
@@ -7568,29 +7778,9 @@
                 btn.classList.toggle('active', btn.dataset.style === (this.measureStyle || 'cad'));
             });
 
-            // 4. Renk Paleti ve Özel Renk Inputu
-            const activeColor = this.measureColor || '#f59e0b';
-            let matchedColor = false;
-            document.querySelectorAll('.sat-measure-color-dot').forEach(dot => {
-                const isMatch = dot.dataset.color && dot.dataset.color.toLowerCase() === activeColor.toLowerCase();
-                dot.classList.toggle('active', isMatch);
-                if (isMatch) matchedColor = true;
-            });
-            const customLabel = document.getElementById('satMeasureCustomColorLabel');
-            const customInput = document.getElementById('satMeasureCustomColorInput');
-            if (customLabel) {
-                customLabel.classList.toggle('active', !matchedColor);
-                if (!matchedColor) {
-                    customLabel.style.color = activeColor;
-                    customLabel.style.borderColor = activeColor;
-                } else {
-                    customLabel.style.color = '';
-                    customLabel.style.borderColor = '';
-                }
-            }
-            if (customInput && typeof activeColor === 'string' && activeColor.startsWith('#')) {
-                customInput.value = activeColor;
-            }
+            // 4. Renk Paleti, Dolgu ve Neon Kontrolleri Senkronizasyonu
+            const activeColor = this.measureColor || this.parcelNeonColor || '#f59e0b';
+            this.syncAllColorPickersUI(activeColor);
 
             // 5. Beyaz Parsel Katmanı Göz Butonu
             this.updateMeasureParcelVisibilityButton();

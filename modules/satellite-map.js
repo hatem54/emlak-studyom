@@ -4363,8 +4363,8 @@
                             poly3d = new PolygonClass({
                                 altitudeMode: altModeObj,
                                 fillColor: fillHex8,
-                                strokeColor: polyStrokeHex8,
-                                strokeWidth: polyStrokeW,
+                                strokeColor: '#ffffff00',
+                                strokeWidth: 0,
                                 extruded: false
                             });
                         } catch(e) {}
@@ -4375,17 +4375,17 @@
                     map3dEl.appendChild(poly3d);
                 }
 
-                // Hem HTML attribute hem de DOM property olarak yerinde güncelle
+                // Dolgu poligonunun kenarlığını her zaman sıfır yapıyoruz; tüm kenar çizgilerini tek elden Polyline3D yönetecek (z-fighting önleme)
                 poly3d.setAttribute('altitude-mode', 'clamp-to-ground');
                 poly3d.setAttribute('fill-color', fillHex8);
-                poly3d.setAttribute('stroke-color', polyStrokeHex8);
-                poly3d.setAttribute('stroke-width', polyStrokeW.toString());
+                poly3d.setAttribute('stroke-color', '#ffffff00');
+                poly3d.setAttribute('stroke-width', '0');
                 poly3d.setAttribute('draws-occluded-segments', '');
 
                 poly3d.altitudeMode = altModeObj;
                 poly3d.fillColor = fillHex8;
-                poly3d.strokeColor = polyStrokeHex8;
-                poly3d.strokeWidth = polyStrokeW;
+                poly3d.strokeColor = '#ffffff00';
+                poly3d.strokeWidth = 0;
                 poly3d.extruded = false;
                 poly3d.path = closedCoords;
                 poly3d.outerCoordinates = closedCoords;
@@ -4401,26 +4401,42 @@
                 const existingLines = Array.from(map3dEl.querySelectorAll('gmp-polyline-3d'));
 
                 // Hedef Çizgi Katmanları Listesi: [{ color, width }]
+                // Pürüzsüz mikro-gradyan mimarisi: Çizgiler ayrışmaz, ortada garip beyaz çizgi veya zayıf soluk şeritler oluşturmaz.
                 const desiredLines = [];
+                const activeColor = strokeColor || '#f59e0b';
+
                 if (isNeon3d) {
-                    // ⚡ Otantik Saber Neon Motoru (3D Çok Katmanlı Işıma & Akkor Saf Beyaz Çekirdek)
-                    // Katman 1: Geniş Dış Atmosferik Halo (Soft Corona / Bloom - ~20px)
-                    const outerGlowW = Math.max(16, strokeW * 5.5);
-                    const outerGlowHex8 = this.colorToHex8(neonColor, 0.28);
-                    desiredLines.push({ color: outerGlowHex8, width: outerGlowW });
+                    // ⚡ 3D Saber Neon Motoru (Pürüzsüz Mikro-Gradyan Işıma)
+                    // Seçilen rengi saf ve net gösterir; ayrık beyaz çizgi veya zayıf soluk şeritler oluşturmaz.
+                    // Katman 0: En Dış Geniş Yumuşak Korona (Bloom Halesi)
+                    const outerW = strokeW + Math.min(8, Math.max(4, strokeW * 0.9));
+                    desiredLines.push({
+                        color: this.colorToHex8(activeColor, 0.28),
+                        width: outerW
+                    });
 
-                    // Katman 2: Yoğun Plazma Işıma Kuşağı (Mid Saturated Beam Aura - ~9px)
-                    const midGlowW = Math.max(7.5, strokeW * 2.6);
-                    const midGlowHex8 = this.colorToHex8(neonColor, 0.78);
-                    desiredLines.push({ color: midGlowHex8, width: midGlowW });
+                    // Katman 1: Orta Yoğun Işıma Kuşağı (Plazma Aydınlatması)
+                    const midW = strokeW + Math.min(5, Math.max(2.5, strokeW * 0.55));
+                    desiredLines.push({
+                        color: this.colorToHex8(activeColor, 0.55),
+                        width: midW
+                    });
 
-                    // Katman 3: Süper Sıcak Akkor Çekirdek (Ultra-hot Luminous Pure White Core - ~2.5px)
-                    // Gerçek Saber neon tüpü standardı: merkez saf akkor beyaz (#ffffff) parlar!
-                    const coreW = Math.max(2.2, strokeW * 0.75);
-                    desiredLines.push({ color: '#ffffffff', width: coreW });
+                    // Katman 2: İç Plazma Halesi (Sıcak Çekirdek Çevresi)
+                    const innerW = strokeW + Math.min(2.5, Math.max(1.2, strokeW * 0.25));
+                    desiredLines.push({
+                        color: this.colorToHex8(activeColor, 0.85),
+                        width: innerW
+                    });
+
+                    // Katman 3: En Üst - Saf, Dolgun, Net Çekirdek Hattı (Kullanıcının seçtiği tam renkte ve kalınlıkta!)
+                    desiredLines.push({
+                        color: this.colorToHex8(activeColor, 1.0),
+                        width: strokeW
+                    });
                 } else {
                     // Klasik Çizim Modu: Net tek katman vektörel sınır çizgisi
-                    const strokeColorHex = this.colorToHex8(strokeColor, 1.0);
+                    const strokeColorHex = this.colorToHex8(activeColor, 1.0);
                     desiredLines.push({ color: strokeColorHex, width: strokeW });
                 }
 
@@ -4456,7 +4472,7 @@
                     line.coordinates = closedCoords;
                 }
 
-                // Fazla kalan polylineler varsa (örneğin Neon 3 çizgiden Klasik 1 çizgiye dönüldüğünde)
+                // Fazla kalan polylineler varsa (örneğin Neon modundan Klasik 1 çizgiye dönüldüğünde)
                 for (let j = desiredLines.length; j < existingLines.length; j++) {
                     try {
                         existingLines[j].strokeColor = '#ffffff00';
@@ -4601,16 +4617,16 @@
                         }
 
                         this.parcelPolygon.setStyle({
-                            color: isNeon ? '#ffffff' : strokeColor,
-                            weight: isNeon ? Math.max(2, strokeWidth * 0.85) : strokeWidth,
+                            color: strokeColor,
+                            weight: strokeWidth,
                             fillColor: fillColor,
                             fillOpacity: fillOpacity
                         });
 
-                        // Canlı Leaflet SVG path neon efekti (Akkor beyaz çekirdek + renkli ışık aurası)
+                        // Canlı Leaflet SVG path neon efekti (Seçilen rengin zengin katmanlı ışıması)
                         if (this.parcelPolygon._path) {
                             if (isNeon) {
-                                this.parcelPolygon._path.style.filter = `drop-shadow(0 0 3px #ffffff) drop-shadow(0 0 8px ${neonColor}) drop-shadow(0 0 20px ${neonColor})`;
+                                this.parcelPolygon._path.style.filter = `drop-shadow(0 0 2px ${neonColor}) drop-shadow(0 0 6px ${neonColor}) drop-shadow(0 0 14px ${neonColor})`;
                                 this.parcelPolygon._path.style.transition = 'filter 0.3s ease, stroke 0.3s ease';
                             } else {
                                 this.parcelPolygon._path.style.filter = '';

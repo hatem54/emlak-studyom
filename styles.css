@@ -12366,38 +12366,7 @@ html[data-theme="light"] .tone-curve-canvas-wrap {
     100% { transform: scale(0.85); opacity: 0.8; }
 }
 
-/* Haritadaki Kenar Orta Noktası Ekleme Tutamacı (+) */
-.sat-measure-midpoint-divicon {
-    background: transparent !important;
-    border: none !important;
-}
-
-.sat-measure-midpoint-handle {
-    width: 18px;
-    height: 18px;
-    border-radius: 50%;
-    background: rgba(15, 23, 42, 0.90);
-    border: 1.5px dashed var(--midpoint-color, #f59e0b);
-    color: var(--midpoint-color, #f59e0b);
-    font-size: 13px;
-    font-weight: 800;
-    line-height: 15px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.65);
-    transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease;
-    user-select: none;
-}
-
-.sat-measure-midpoint-handle:hover {
-    transform: scale(1.35);
-    border-style: solid;
-    background: rgba(15, 23, 42, 0.98);
-}
-
-/* Harita Üzerindeki Canlı Mesafe Rozeti (Kenarlar İçin) */
+/* Harita Üzerindeki Canlı Mesafe Rozeti (Kenarlar İçin - Taşınabilir) */
 .sat-measure-badge-divicon {
     background: transparent !important;
     border: none !important;
@@ -12416,9 +12385,15 @@ html[data-theme="light"] .tone-curve-canvas-wrap {
     font-weight: 700;
     box-shadow: 0 6px 18px rgba(0, 0, 0, 0.7);
     white-space: nowrap;
-    pointer-events: none;
+    cursor: grab;
     user-select: none;
     transform: translateY(-50%);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.sat-measure-map-badge:active {
+    cursor: grabbing;
+    transform: translateY(-50%) scale(1.04);
 }
 
 .sat-measure-map-badge .sat-badge-icon {
@@ -12429,7 +12404,7 @@ html[data-theme="light"] .tone-curve-canvas-wrap {
     letter-spacing: 0.3px;
 }
 
-/* Harita Ortasındaki Canlı Alan Rozeti */
+/* Harita Ortasındaki Canlı Alan Rozeti (Taşınabilir, Kutulu & Çerçevesiz) */
 .sat-measure-area-badge-divicon {
     background: transparent !important;
     border: none !important;
@@ -12439,20 +12414,26 @@ html[data-theme="light"] .tone-curve-canvas-wrap {
     background: rgba(15, 23, 42, 0.96);
     border: 1.8px solid var(--area-color, #f59e0b);
     border-radius: 9px;
-    padding: 6px 12px;
+    padding: 6px 14px;
     color: #ffffff;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.8);
     display: flex;
     flex-direction: column;
     align-items: center;
-    pointer-events: none;
+    cursor: grab;
     user-select: none;
     transform: translate(-50%, -50%);
     white-space: nowrap;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 
-.sat-measure-area-map-badge .sat-area-badge-main {
-    font-size: 12.5px;
+.sat-measure-area-map-badge:active {
+    cursor: grabbing;
+    transform: translate(-50%, -50%) scale(1.04);
+}
+
+.sat-measure-area-map-badge .area-title {
+    font-size: 14px;
     font-weight: 800;
     display: flex;
     align-items: center;
@@ -12460,18 +12441,8 @@ html[data-theme="light"] .tone-curve-canvas-wrap {
     color: #ffffff;
 }
 
-.sat-measure-area-map-badge .sat-area-badge-m2 {
-    color: #ffffff;
-}
-
-.sat-measure-area-map-badge .sat-area-badge-donum {
-    color: #94a3b8;
-    font-weight: 600;
-    font-size: 11px;
-}
-
-.sat-measure-area-map-badge .sat-area-badge-sub {
-    font-size: 10px;
+.sat-measure-area-map-badge .area-sub {
+    font-size: 10.5px;
     color: var(--area-color, #f59e0b);
     display: flex;
     align-items: center;
@@ -12480,8 +12451,86 @@ html[data-theme="light"] .tone-curve-canvas-wrap {
     font-weight: 600;
 }
 
-.sat-measure-area-map-badge .sat-area-dot {
-    opacity: 0.6;
+/* ✨ Çerçevesiz (Arka plansız, şık yüksek kontrastlı gölgeli saf metin) */
+.sat-measure-area-map-badge.frameless {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+}
+
+.sat-measure-area-map-badge.frameless .area-title {
+    color: #ffffff;
+    font-weight: 800;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.95), 0 0 14px rgba(0, 0, 0, 0.92);
+}
+
+.sat-measure-area-map-badge.frameless .area-sub {
+    color: var(--area-color, #f59e0b);
+    font-weight: 700;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.95);
+    margin-top: 3px;
+}
+
+/* 🔤 Tipografi ve Boyutlandırma Kontrolleri */
+.sat-measure-font-controls {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.sat-measure-select {
+    background: rgba(15, 23, 42, 0.9) !important;
+    border: 1px solid #334155;
+    color: #cbd5e1;
+    font-size: 10.5px;
+    font-weight: 600;
+    padding: 3px 6px;
+    border-radius: 5px;
+    outline: none;
+    cursor: pointer;
+    transition: border-color 0.15s ease;
+}
+
+.sat-measure-select:focus,
+.sat-measure-select:hover {
+    border-color: #f59e0b;
+}
+
+.sat-measure-size-btns {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    border: 1px solid #334155;
+    border-radius: 5px;
+    padding: 1px 3px;
+}
+
+.sat-measure-size-btn {
+    background: transparent !important;
+    border: none;
+    color: #94a3b8;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 5px;
+    cursor: pointer;
+    border-radius: 3px;
+    transition: color 0.15s ease;
+    box-shadow: none !important;
+}
+
+.sat-measure-size-btn:hover {
+    color: #f59e0b;
+    background: transparent !important;
+}
+
+.sat-measure-size-val {
+    font-size: 10px;
+    font-weight: 700;
+    color: #f8fafc;
+    min-width: 28px;
+    text-align: center;
+    font-family: monospace;
 }
 
 

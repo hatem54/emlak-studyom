@@ -7023,6 +7023,8 @@ body[data-theme="dark"] .desc-toggle-item.active {
     flex-direction: column;
     transition: right 0.28s cubic-bezier(0.16, 1, 0.3, 1);
     pointer-events: auto;
+    overflow-x: hidden !important;
+    box-sizing: border-box;
 }
 
 .sat-drawer-panel.open {
@@ -7037,6 +7039,7 @@ body[data-theme="dark"] .desc-toggle-item.active {
     align-items: center;
     justify-content: space-between;
     flex-shrink: 0;
+    box-sizing: border-box;
 }
 
 .sat-drawer-title {
@@ -7075,11 +7078,32 @@ body[data-theme="dark"] .desc-toggle-item.active {
 .sat-drawer-content {
     flex: 1;
     overflow-y: auto;
+    overflow-x: hidden !important;
     padding: 14px;
     display: flex;
     flex-direction: column;
     gap: 16px;
     scrollbar-width: thin;
+    scrollbar-color: #334155 transparent;
+    box-sizing: border-box;
+}
+
+.sat-drawer-content::-webkit-scrollbar {
+    width: 6px;
+    height: 0px !important;
+}
+
+.sat-drawer-content::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.sat-drawer-content::-webkit-scrollbar-thumb {
+    background: #334155;
+    border-radius: 4px;
+}
+
+.sat-drawer-content::-webkit-scrollbar-thumb:hover {
+    background: #475569;
 }
 
 .sat-drawer-section {
@@ -7090,6 +7114,10 @@ body[data-theme="dark"] .desc-toggle-item.active {
     display: flex;
     flex-direction: column;
     gap: 10px;
+    box-sizing: border-box;
+    overflow-x: hidden !important;
+    width: 100%;
+    max-width: 100%;
 }
 
 .sat-section-title {
@@ -7111,7 +7139,32 @@ body[data-theme="dark"] .desc-toggle-item.active {
     gap: 6px;
     max-height: 220px;
     overflow-y: auto;
-    padding-right: 2px;
+    overflow-x: hidden !important;
+    padding-right: 4px;
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 100%;
+    scrollbar-width: thin;
+    scrollbar-color: #475569 rgba(15, 23, 42, 0.6);
+}
+
+.sat-drawer-quick-grid::-webkit-scrollbar {
+    width: 5px;
+    height: 0px !important;
+}
+
+.sat-drawer-quick-grid::-webkit-scrollbar-track {
+    background: rgba(15, 23, 42, 0.5);
+    border-radius: 4px;
+}
+
+.sat-drawer-quick-grid::-webkit-scrollbar-thumb {
+    background: #475569;
+    border-radius: 4px;
+}
+
+.sat-drawer-quick-grid::-webkit-scrollbar-thumb:hover {
+    background: #64748b;
 }
 
 .sat-drawer-quick-btn {
@@ -7127,14 +7180,36 @@ body[data-theme="dark"] .desc-toggle-item.active {
     align-items: center;
     gap: 8px;
     text-align: left;
-    transition: all 0.15s ease;
+    transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.sat-drawer-quick-btn span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+}
+
+.sat-drawer-quick-btn i {
+    flex-shrink: 0;
+    transition: transform 0.15s ease, color 0.15s ease;
 }
 
 .sat-drawer-quick-btn:hover {
     background: rgba(56, 189, 248, 0.15);
     border-color: #38bdf8;
     color: #ffffff;
-    transform: translateX(3px);
+}
+
+.sat-drawer-quick-btn:hover i {
+    transform: scale(1.2) translateX(2px);
+    color: #38bdf8;
 }
 
 .sat-parcel-upload-box {
@@ -8671,6 +8746,10 @@ body[data-theme="light"] .sat-drawer-quick-btn:hover {
     background: #e0f2fe;
     border-color: #0284c7;
     color: #0369a1;
+}
+
+body[data-theme="light"] .sat-drawer-quick-btn:hover i {
+    color: #0284c7;
 }
 
 body[data-theme="light"] .sat-btn-sync-parser {

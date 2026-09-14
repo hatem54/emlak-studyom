@@ -7720,7 +7720,51 @@
                     ctx.restore();
                 }
 
-                // 2. Her Bir Kenarın Çizimi (CAD, Neon, Ok, Kesikli)
+                // 2. Kenar Sınır Çizgileri
+                if (isClosed && canvasPts.length >= 3) {
+                    // 🛡️ Kapalı Poligon / Arsa Sınırı: Tek parça, pürüzsüz ve temiz arsa sınır çizgisi (Köşelerde çirkin çapraz çentikler / X'ler yok)
+                    ctx.save();
+                    ctx.beginPath();
+                    canvasPts.forEach((p, idx) => {
+                        if (idx === 0) ctx.moveTo(p.x, p.y);
+                        else ctx.lineTo(p.x, p.y);
+                    });
+                    ctx.closePath();
+                    ctx.lineJoin = 'round';
+                    ctx.lineCap = 'round';
+
+                    if (style === 'neon') {
+                        // ⚡ Neon Saber Çok Katmanlı Parlama
+                        ctx.shadowColor = color;
+                        ctx.shadowBlur = 24 * baseScale;
+                        ctx.strokeStyle = this.hexToRgba(color, 0.75);
+                        ctx.lineWidth = 7 * baseScale;
+                        ctx.stroke();
+
+                        ctx.shadowColor = 'transparent';
+                        ctx.strokeStyle = '#ffffff';
+                        ctx.lineWidth = 2.4 * baseScale;
+                        ctx.stroke();
+                    } else if (style === 'dashed') {
+                        // 〰️ Kesikli Çizgi
+                        ctx.setLineDash([9 * baseScale, 6 * baseScale]);
+                        ctx.strokeStyle = color;
+                        ctx.lineWidth = 3.2 * baseScale;
+                        ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
+                        ctx.shadowBlur = 5 * baseScale;
+                        ctx.stroke();
+                    } else {
+                        // 📐 CAD / Standart Temiz Arsa Sınır Çizgisi
+                        ctx.strokeStyle = color;
+                        ctx.lineWidth = 3.2 * baseScale;
+                        ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
+                        ctx.shadowBlur = 5 * baseScale;
+                        ctx.stroke();
+                    }
+                    ctx.restore();
+                }
+
+                // 3. Kenar Çizgileri (Sadece Açık Çizgilerde) ve Mesafe Rozetleri
                 for (let i = 0; i < edgeCount; i++) {
                     const pA = canvasPts[i];
                     const pB = canvasPts[(i + 1) % canvasPts.length];
@@ -7737,120 +7781,92 @@
                     const nx = -uy;
                     const ny = ux;
 
-                    if (style === 'neon') {
-                        // ⚡ Neon Saber Çok Katmanlı Parlama
-                        ctx.save();
-                        ctx.beginPath();
-                        ctx.moveTo(pA.x, pA.y);
-                        ctx.lineTo(pB.x, pB.y);
-                        ctx.shadowColor = color;
-                        ctx.shadowBlur = 24 * baseScale;
-                        ctx.strokeStyle = this.hexToRgba(color, 0.7);
-                        ctx.lineWidth = 8 * baseScale;
-                        ctx.lineCap = 'round';
-                        ctx.stroke();
-                        ctx.restore();
-
-                        ctx.beginPath();
-                        ctx.moveTo(pA.x, pA.y);
-                        ctx.lineTo(pB.x, pB.y);
-                        ctx.strokeStyle = color;
-                        ctx.lineWidth = 3.2 * baseScale;
-                        ctx.lineCap = 'round';
-                        ctx.stroke();
-
-                        // Uç tırnakları
-                        const tickLen = 12 * baseScale;
-                        [ [pA.x, pA.y], [pB.x, pB.y] ].forEach(([x, y]) => {
+                    // Eğer poligon kapalı değilse (açık çizgi / cetvel ölçümü), çizgiyi segment olarak çiz
+                    if (!isClosed) {
+                        if (style === 'neon') {
+                            ctx.save();
                             ctx.beginPath();
-                            ctx.moveTo(x - nx * tickLen, y - ny * tickLen);
-                            ctx.lineTo(x + nx * tickLen, y + ny * tickLen);
-                            ctx.strokeStyle = color;
-                            ctx.lineWidth = 3 * baseScale;
+                            ctx.moveTo(pA.x, pA.y);
+                            ctx.lineTo(pB.x, pB.y);
+                            ctx.shadowColor = color;
+                            ctx.shadowBlur = 24 * baseScale;
+                            ctx.strokeStyle = this.hexToRgba(color, 0.7);
+                            ctx.lineWidth = 8 * baseScale;
+                            ctx.lineCap = 'round';
                             ctx.stroke();
-                        });
+                            ctx.restore();
 
-                    } else if (style === 'arrow') {
-                        // 🏹 Mimari Ok Çizgisi
-                        ctx.beginPath();
-                        ctx.moveTo(pA.x, pA.y);
-                        ctx.lineTo(pB.x, pB.y);
-                        ctx.strokeStyle = color;
-                        ctx.lineWidth = 3.5 * baseScale;
-                        ctx.lineCap = 'round';
-                        ctx.shadowColor = 'rgba(0, 0, 0, 0.75)';
-                        ctx.shadowBlur = 4 * baseScale;
-                        ctx.stroke();
-
-                        const arrowLen = 14 * baseScale;
-                        const arrowAngle = 0.45;
-                        // A ucu
-                        ctx.beginPath();
-                        ctx.moveTo(pA.x, pA.y);
-                        ctx.lineTo(pA.x + (ux * Math.cos(arrowAngle) - uy * Math.sin(arrowAngle)) * arrowLen,
-                                   pA.y + (uy * Math.cos(arrowAngle) + ux * Math.sin(arrowAngle)) * arrowLen);
-                        ctx.moveTo(pA.x, pA.y);
-                        ctx.lineTo(pA.x + (ux * Math.cos(-arrowAngle) - uy * Math.sin(-arrowAngle)) * arrowLen,
-                                   pA.y + (uy * Math.cos(-arrowAngle) + ux * Math.sin(-arrowAngle)) * arrowLen);
-                        ctx.strokeStyle = color;
-                        ctx.lineWidth = 3.5 * baseScale;
-                        ctx.stroke();
-
-                        // B ucu
-                        ctx.beginPath();
-                        ctx.moveTo(pB.x, pB.y);
-                        ctx.lineTo(pB.x - (ux * Math.cos(arrowAngle) - uy * Math.sin(arrowAngle)) * arrowLen,
-                                   pB.y - (uy * Math.cos(arrowAngle) + ux * Math.sin(arrowAngle)) * arrowLen);
-                        ctx.moveTo(pB.x, pB.y);
-                        ctx.lineTo(pB.x - (ux * Math.cos(-arrowAngle) - uy * Math.sin(-arrowAngle)) * arrowLen,
-                                   pB.y - (uy * Math.cos(-arrowAngle) + ux * Math.sin(-arrowAngle)) * arrowLen);
-                        ctx.strokeStyle = color;
-                        ctx.lineWidth = 3.5 * baseScale;
-                        ctx.stroke();
-
-                    } else if (style === 'dashed') {
-                        // 〰️ Kesikli Çizgi
-                        ctx.save();
-                        ctx.beginPath();
-                        ctx.moveTo(pA.x, pA.y);
-                        ctx.lineTo(pB.x, pB.y);
-                        ctx.setLineDash([9 * baseScale, 6 * baseScale]);
-                        ctx.strokeStyle = color;
-                        ctx.lineWidth = 3.2 * baseScale;
-                        ctx.stroke();
-                        ctx.restore();
-
-                        const tickLen = 11 * baseScale;
-                        [ [pA.x, pA.y], [pB.x, pB.y] ].forEach(([x, y]) => {
                             ctx.beginPath();
-                            ctx.moveTo(x - nx * tickLen, y - ny * tickLen);
-                            ctx.lineTo(x + nx * tickLen, y + ny * tickLen);
+                            ctx.moveTo(pA.x, pA.y);
+                            ctx.lineTo(pB.x, pB.y);
+                            ctx.strokeStyle = color;
+                            ctx.lineWidth = 3.2 * baseScale;
+                            ctx.lineCap = 'round';
+                            ctx.stroke();
+                        } else if (style === 'arrow') {
+                            ctx.beginPath();
+                            ctx.moveTo(pA.x, pA.y);
+                            ctx.lineTo(pB.x, pB.y);
                             ctx.strokeStyle = color;
                             ctx.lineWidth = 3.5 * baseScale;
+                            ctx.lineCap = 'round';
+                            ctx.shadowColor = 'rgba(0, 0, 0, 0.75)';
+                            ctx.shadowBlur = 4 * baseScale;
                             ctx.stroke();
-                        });
 
-                    } else {
-                        // 📐 CAD Boyut Çizgisi
-                        ctx.beginPath();
-                        ctx.moveTo(pA.x, pA.y);
-                        ctx.lineTo(pB.x, pB.y);
-                        ctx.strokeStyle = color;
-                        ctx.lineWidth = 3.2 * baseScale;
-                        ctx.lineCap = 'round';
-                        ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
-                        ctx.shadowBlur = 5 * baseScale;
-                        ctx.stroke();
-
-                        const tickLen = 13 * baseScale;
-                        [ [pA.x, pA.y], [pB.x, pB.y] ].forEach(([x, y]) => {
+                            if (canvasPts.length === 2) {
+                                const arrowLen = 14 * baseScale;
+                                const arrowAngle = 0.45;
+                                ctx.beginPath();
+                                ctx.moveTo(pA.x, pA.y);
+                                ctx.lineTo(pA.x + (ux * Math.cos(arrowAngle) - uy * Math.sin(arrowAngle)) * arrowLen,
+                                           pA.y + (uy * Math.cos(arrowAngle) + ux * Math.sin(arrowAngle)) * arrowLen);
+                                ctx.moveTo(pA.x, pA.y);
+                                ctx.lineTo(pA.x + (ux * Math.cos(-arrowAngle) - uy * Math.sin(-arrowAngle)) * arrowLen,
+                                           pA.y + (uy * Math.cos(-arrowAngle) + ux * Math.sin(-arrowAngle)) * arrowLen);
+                                ctx.moveTo(pB.x, pB.y);
+                                ctx.lineTo(pB.x - (ux * Math.cos(arrowAngle) - uy * Math.sin(arrowAngle)) * arrowLen,
+                                           pB.y - (uy * Math.cos(arrowAngle) + ux * Math.sin(arrowAngle)) * arrowLen);
+                                ctx.moveTo(pB.x, pB.y);
+                                ctx.lineTo(pB.x - (ux * Math.cos(-arrowAngle) - uy * Math.sin(-arrowAngle)) * arrowLen,
+                                           pB.y - (uy * Math.cos(-arrowAngle) + ux * Math.sin(-arrowAngle)) * arrowLen);
+                                ctx.strokeStyle = color;
+                                ctx.lineWidth = 3.5 * baseScale;
+                                ctx.stroke();
+                            }
+                        } else if (style === 'dashed') {
+                            ctx.save();
                             ctx.beginPath();
-                            ctx.moveTo(x - nx * tickLen, y - ny * tickLen);
-                            ctx.lineTo(x + nx * tickLen, y + ny * tickLen);
+                            ctx.moveTo(pA.x, pA.y);
+                            ctx.lineTo(pB.x, pB.y);
+                            ctx.setLineDash([9 * baseScale, 6 * baseScale]);
                             ctx.strokeStyle = color;
-                            ctx.lineWidth = 3.5 * baseScale;
+                            ctx.lineWidth = 3.2 * baseScale;
                             ctx.stroke();
-                        });
+                            ctx.restore();
+                        } else {
+                            ctx.beginPath();
+                            ctx.moveTo(pA.x, pA.y);
+                            ctx.lineTo(pB.x, pB.y);
+                            ctx.strokeStyle = color;
+                            ctx.lineWidth = 3.2 * baseScale;
+                            ctx.lineCap = 'round';
+                            ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
+                            ctx.shadowBlur = 5 * baseScale;
+                            ctx.stroke();
+
+                            if (canvasPts.length === 2) {
+                                const tickLen = 13 * baseScale;
+                                [ [pA.x, pA.y], [pB.x, pB.y] ].forEach(([x, y]) => {
+                                    ctx.beginPath();
+                                    ctx.moveTo(x - nx * tickLen, y - ny * tickLen);
+                                    ctx.lineTo(x + nx * tickLen, y + ny * tickLen);
+                                    ctx.strokeStyle = color;
+                                    ctx.lineWidth = 3.5 * baseScale;
+                                    ctx.stroke();
+                                });
+                            }
+                        }
                     }
 
                     // 3. Kenar Mesafe Rozeti (Taşınmış koordinat desteği)

@@ -12174,6 +12174,84 @@ html[data-theme="light"] .tone-curve-canvas-wrap {
     box-shadow: none !important;
 }
 
+/* Kenar Seçici & Filtre Izgarası (Dolgusuz / Outline) */
+.sat-measure-edge-selector-wrap {
+    width: 100%;
+    margin-top: 4px;
+    padding-top: 5px;
+    border-top: 1px dashed rgba(255, 255, 255, 0.1);
+}
+
+.sat-measure-mini-text-btn {
+    background: transparent !important;
+    border: none;
+    color: #38bdf8;
+    font-size: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 0 2px;
+    text-decoration: underline;
+    transition: color 0.15s ease;
+}
+
+.sat-measure-mini-text-btn:hover {
+    color: #7dd3fc;
+}
+
+.sat-measure-edge-chips-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    max-height: 84px;
+    overflow-y: auto;
+    padding-right: 2px;
+}
+
+.sat-measure-edge-chip {
+    background: transparent !important;
+    border: 1px solid #334155;
+    color: #cbd5e1;
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2.5px 6px;
+    border-radius: 4px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+    box-shadow: none !important;
+}
+
+.sat-measure-edge-chip.active {
+    border-color: #f59e0b;
+    color: #f59e0b;
+    background: transparent !important;
+}
+
+.sat-measure-edge-chip.hidden {
+    border-color: #1e293b;
+    color: #64748b;
+    opacity: 0.55;
+    text-decoration: line-through;
+    background: transparent !important;
+}
+
+.sat-measure-edge-chip:hover {
+    border-color: #f59e0b;
+    color: #f59e0b;
+}
+
+.sat-measure-edge-chip .chip-num {
+    font-weight: 700;
+}
+
+.sat-measure-edge-chip .chip-status {
+    font-size: 9px;
+    font-weight: 800;
+}
+
 /* Özel Metin Girişi */
 .sat-measure-text-input {
     background: rgba(0, 0, 0, 0.35);
@@ -12510,6 +12588,26 @@ html[data-theme="light"] .tone-curve-canvas-wrap {
 
 .sat-measure-map-badge .sat-badge-text {
     letter-spacing: 0.3px;
+}
+
+.sat-measure-map-badge .sat-badge-hide-btn {
+    background: transparent !important;
+    border: none;
+    color: rgba(255, 255, 255, 0.45);
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1;
+    padding: 2px 4px;
+    margin-left: 3px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.sat-measure-map-badge .sat-badge-hide-btn:hover {
+    color: #ef4444;
+    background: rgba(239, 68, 68, 0.22) !important;
+    transform: scale(1.15);
 }
 
 /* Harita Ortasındaki Canlı Alan Rozeti (Taşınabilir, Kutulu & Çerçevesiz) */

@@ -87,15 +87,15 @@ function applyPathFill(ctx, p, isNeon) {
     ctx.save();
     if (isNeon) {
         ctx.globalCompositeOperation = 'screen';
-        const fColor = p.fillColor || '#00e5ff';
-        const fOp = Math.min(1, (p.fillOpacity || 0.3) * 1.15);
+        const fColor = p.fillColor || '#00CEC9';
+        const fOp = p.fillOpacity !== undefined ? Math.min(1, Math.max(0, p.fillOpacity)) : 0.35;
         ctx.fillStyle = fColor;
         ctx.globalAlpha = fOp;
         ctx.shadowColor = fColor;
-        ctx.shadowBlur = 18;
+        ctx.shadowBlur = 10;
         ctx.fill();
-        ctx.shadowBlur = 6;
-        ctx.fill();
+        ctx.shadowBlur = 0;
+        ctx.shadowColor = 'transparent';
     } else {
         ctx.fillStyle = p.fillColor || '#ef4444';
         ctx.globalAlpha = p.fillOpacity;
@@ -1711,39 +1711,54 @@ function redoLastDraw() {
 
 function clearAllDrawings(){
     removeTempPolygonSaber();
-    drawPaths.forEach(path => {
-        if (path.saberRef && window.SaberEngine) {
-            try {
-                const app = SaberEngine.getApp();
-                const sabers = SaberEngine.getSabers();
-                const saberIdx = sabers.indexOf(path.saberRef);
-                if (saberIdx > -1) {
-                    const s = sabers[saberIdx];
-                    if (s.graphics && s.graphics.parent) s.graphics.parent.removeChild(s.graphics);
-                    if (s.particleContainer && s.particleContainer.parent) s.particleContainer.parent.removeChild(s.particleContainer);
-                    if (s.branchContainer && s.branchContainer.parent) s.branchContainer.parent.removeChild(s.branchContainer);
-                    sabers.splice(saberIdx, 1);
-                }
-            } catch(e) { console.warn('Saber temizleme hatasÃ„Â±:', e); }
-        }
-        if (path.el) {
-            path.el.remove();
-            if (typeof allIcons !== 'undefined') {
-                const idx = allIcons.indexOf(path.el);
-                if(idx > -1) allIcons.splice(idx, 1);
+    if (window.SaberEngine && typeof window.SaberEngine.clear === 'function') {
+        try { window.SaberEngine.clear(); } catch(e) {}
+    }
+    if (typeof drawPaths !== 'undefined' && Array.isArray(drawPaths)) {
+        drawPaths.forEach(path => {
+            if (path.saberRef && window.SaberEngine) {
+                try {
+                    const sabers = SaberEngine.getSabers ? SaberEngine.getSabers() : [];
+                    const saberIdx = sabers.indexOf(path.saberRef);
+                    if (saberIdx > -1) {
+                        const s = sabers[saberIdx];
+                        if (s.graphics && s.graphics.parent) s.graphics.parent.removeChild(s.graphics);
+                        if (s.particleContainer && s.particleContainer.parent) s.particleContainer.parent.removeChild(s.particleContainer);
+                        if (s.branchContainer && s.branchContainer.parent) s.branchContainer.parent.removeChild(s.branchContainer);
+                        sabers.splice(saberIdx, 1);
+                    }
+                } catch(e) { console.warn('Saber temizleme hatası:', e); }
             }
-        }
-    });
-    // Ensure absolutely all SVG drawings are removed even if orphaned
-    document.querySelectorAll('.editable-draw').forEach(el => el.remove());
+            if (path.el) {
+                try { path.el.remove(); } catch(e){}
+                if (typeof allIcons !== 'undefined') {
+                    const idx = allIcons.indexOf(path.el);
+                    if(idx > -1) allIcons.splice(idx, 1);
+                }
+            }
+        });
+    }
+    // Ensure absolutely all SVG drawings and parcel elements are removed even if orphaned
+    try {
+        document.querySelectorAll('.editable-draw, .draw-svg-item, [data-path-id], [id^="draw-path-parcel-"]').forEach(el => el.remove());
+    } catch(e) {}
+    
+    // Clear 2D draw canvas
+    const drawCanvas = document.getElementById('draw-layer') || document.getElementById('drawCanvas');
+    if (drawCanvas && drawCanvas.getContext) {
+        const dCtx = drawCanvas.getContext('2d');
+        if (dCtx) dCtx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
+    }
     
     drawPaths=[];
+    if (typeof window !== 'undefined') window.drawPaths = drawPaths;
     polygonPoints=[];
     polygonBuilding=false;
-    redrawAll();
-    updateDrawHistory();
-    cancelDrawEdit();
+    if (typeof redrawAll === 'function') redrawAll();
+    if (typeof updateDrawHistory === 'function') updateDrawHistory();
+    if (typeof cancelDrawEdit === 'function') cancelDrawEdit();
 }
+window.clearAllDrawings = clearAllDrawings;
 
 function updateDrawHistory(){
     const h=$('drawHistory');

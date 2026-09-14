@@ -1020,13 +1020,20 @@ async function saveImage(){
             if (window.SaberEngine && typeof window.SaberEngine.getApp === 'function') {
                 const saberApp = window.SaberEngine.getApp();
                 if (saberApp && saberApp.view) {
-                    ctx.drawImage(saberApp.view, 0, 0, targetW, targetH);
                     if (saberApp.renderer && saberApp.stage) {
+                        saberApp.renderer.resize(targetW, targetH);
+                        saberApp.stage.scale.set(outputScale);
+                        saberApp.renderer.render(saberApp.stage);
+                        ctx.save();
+                        ctx.drawImage(saberApp.view, 0, 0, targetW, targetH);
+                        ctx.restore();
                         saberApp.renderer.resize(currentW, currentH);
                         saberApp.stage.scale.set(1);
                         saberApp.renderer.render(saberApp.stage);
                         saberApp.view.style.width = '100%';
                         saberApp.view.style.height = '100%';
+                    } else {
+                        ctx.drawImage(saberApp.view, 0, 0, targetW, targetH);
                     }
                 }
             }

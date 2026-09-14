@@ -1,4 +1,4 @@
-﻿/* ============================================================
+/* ============================================================
 
    main.js — v14.1 Güvenli Sürüm
 
@@ -672,17 +672,17 @@ function bindInputs(){
 
 
                 document.getElementById('photo-change-confirm').onclick = () => {
-
                     modal.remove();
-
-                    drawPaths.length = 0; // Çizimleri temizle
-
-                    if (typeof redrawAll === 'function') redrawAll(); // DOM'dan sil
-
+                    if (typeof window.clearAllDrawings === 'function') {
+                        window.clearAllDrawings();
+                    } else if (typeof clearAllDrawings === 'function') {
+                        clearAllDrawings();
+                    } else {
+                        drawPaths.length = 0;
+                        document.querySelectorAll('.editable-draw, .draw-svg-item').forEach(el => el.remove());
+                    }
                     processPhotoChange();
-
                 };
-
             } else {
                 processPhotoChange();
             }
@@ -725,15 +725,36 @@ function bindInputs(){
             img.src = dataUrl;
         };
 
-        if (typeof drawPaths !== 'undefined' && drawPaths.length > 0 && typeof uploadedImgUrl !== 'undefined' && uploadedImgUrl) {
-            if (confirm("Yeni bir uydu görseli yüklendiğinde mevcut çizimler temizlenecektir. Devam etmek istiyor musunuz?")) {
-                drawPaths.length = 0;
-                if (typeof redrawAll === 'function') redrawAll();
+        const hasManualDrawings = (typeof drawPaths !== 'undefined' && Array.isArray(drawPaths))
+            ? drawPaths.some(p => !p.isParcel)
+            : false;
+
+        const shouldConfirm = !window._skipDrawConfirm && hasManualDrawings && (typeof uploadedImgUrl !== 'undefined' && uploadedImgUrl);
+
+        if (shouldConfirm) {
+            if (confirm("Yeni bir görsel yüklendiğinde mevcut çizimler temizlenecektir. Devam etmek istiyor musunuz?")) {
+                if (typeof window.clearAllDrawings === 'function') {
+                    window.clearAllDrawings();
+                } else if (typeof clearAllDrawings === 'function') {
+                    clearAllDrawings();
+                } else {
+                    drawPaths.length = 0;
+                    document.querySelectorAll('.editable-draw, .draw-svg-item').forEach(el => el.remove());
+                }
                 proceed();
             } else {
                 if (typeof window.hideAppLoading === 'function') window.hideAppLoading();
             }
         } else {
+            // Harita / Parsel aktarımlarında ve parsel çizimlerinde uyarısız, temiz ve kesintisiz geçiş
+            if (typeof window.clearAllDrawings === 'function') {
+                window.clearAllDrawings();
+            } else if (typeof clearAllDrawings === 'function') {
+                clearAllDrawings();
+            } else if (typeof drawPaths !== 'undefined') {
+                drawPaths.length = 0;
+                document.querySelectorAll('.editable-draw, .draw-svg-item').forEach(el => el.remove());
+            }
             proceed();
         }
     };

@@ -2291,7 +2291,10 @@
                         const dataUrl = final3dCanvas.toDataURL('image/jpeg', 0.96);
                         if (dataUrl && dataUrl.length > 1000) {
                             if (typeof window.applyProjectImageFromDataUrl === 'function') {
+                                window._skipDrawConfirm = true;
+                                if (typeof window.clearAllDrawings === 'function') window.clearAllDrawings();
                                 window.applyProjectImageFromDataUrl(dataUrl, (err) => {
+                                    delete window._skipDrawConfirm;
                                     if (captureBtn) {
                                         captureBtn.innerHTML = '<i class="fas fa-camera-retro"></i> <span>📸 Şablona Aktar</span>';
                                         captureBtn.disabled = false;
@@ -2436,7 +2439,10 @@
 
                 // Ana uygulamaya aktar (Şablonun boyutunu bozmadan tam çözünürlükte uygular)
                 if (typeof window.applyProjectImageFromDataUrl === 'function') {
+                    window._skipDrawConfirm = true;
+                    if (typeof window.clearAllDrawings === 'function') window.clearAllDrawings();
                     window.applyProjectImageFromDataUrl(dataUrl, (err) => {
+                        delete window._skipDrawConfirm;
                         if (captureBtn) {
                             captureBtn.innerHTML = '<i class="fas fa-camera-retro"></i> <span>📸 Şablona Aktar</span>';
                             captureBtn.disabled = false;

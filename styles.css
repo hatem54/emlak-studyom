@@ -12845,6 +12845,14 @@ html[data-theme="light"] .tone-curve-canvas-wrap {
     transform: scale(1.15);
 }
 
+.sat-measure-total-badge {
+    padding: 5px 12px;
+    font-weight: 800;
+    border-width: 1.8px;
+    background: rgba(15, 23, 42, 0.96);
+    box-shadow: 0 8px 22px rgba(0, 0, 0, 0.8), 0 0 10px rgba(245, 158, 11, 0.2);
+}
+
 /* Harita Ortasındaki Canlı Alan Rozeti (Taşınabilir, Kutulu & Çerçevesiz, Tutamaçlı) */
 .sat-measure-area-badge-divicon {
     background: transparent !important;

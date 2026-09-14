@@ -786,14 +786,16 @@
 
             // 4. Esri World Imagery (Maxar HD Alternatif)
             this.esriSatLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-                maxZoom: 19,
+                maxZoom: 21,
+                maxNativeZoom: 19,
                 crossOrigin: 'anonymous',
                 attribution: '&copy; Esri, Maxar'
             });
 
             // 5. OpenStreetMap Standart Şehir Haritası
             this.osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                maxZoom: 19,
+                maxZoom: 21,
+                maxNativeZoom: 19,
                 crossOrigin: 'anonymous',
                 attribution: '&copy; OpenStreetMap'
             });
@@ -1162,8 +1164,40 @@
                 return;
             }
 
-            // 3D mod açıksa kapat
+            // 3D mod açıksa kapat ve 2D Leaflet'e senkronize dön
             if (this.is3DActive) {
+                if (this.map3dElement) {
+                    try {
+                        let centerLat = null, centerLng = null;
+                        const center = this.map3dElement.center;
+                        if (center) {
+                            if (typeof center.lat === 'number') centerLat = center.lat;
+                            else if (typeof center.lat === 'function') centerLat = center.lat();
+                            if (typeof center.lng === 'number') centerLng = center.lng;
+                            else if (typeof center.lng === 'function') centerLng = center.lng();
+                        }
+                        if (centerLat === null) {
+                            const centerAttr = this.map3dElement.getAttribute('center');
+                            if (centerAttr) {
+                                const parts = centerAttr.split(',');
+                                if (parts.length >= 2) {
+                                    const p0 = parseFloat(parts[0]);
+                                    const p1 = parseFloat(parts[1]);
+                                    if (!isNaN(p0) && !isNaN(p1)) {
+                                        centerLat = p0;
+                                        centerLng = p1;
+                                    }
+                                }
+                            }
+                        }
+                        if (centerLat !== null && centerLng !== null) {
+                            this.currentLat = centerLat;
+                            this.currentLng = centerLng;
+                        }
+                    } catch(e) {
+                        console.warn("3D koordinat senkron hatası:", e);
+                    }
+                }
                 const c3d = document.getElementById('sat3dContainer');
                 if (c3d) {
                     c3d.style.display = 'none';
@@ -1171,9 +1205,17 @@
                 }
                 this.is3DActive = false;
                 this.map3dElement = null;
+
+                // Nişangah / pin kılavuzunu tekrar görünür yap
+                const reticle = document.getElementById('satReticleOverlay');
+                if (reticle) reticle.style.display = (this.markerEnabled ? 'flex' : 'none');
             }
 
+            if (!this.map) {
+                this.initMap();
+            }
             if (!this.map) return;
+
             this.activeLayer = type;
 
             // Buton aktiflik sınıfları
@@ -1199,6 +1241,20 @@
             } else if (type === 'osm') {
                 this.osmLayer.addTo(this.map);
             }
+
+            // Leaflet harita merkezini, boyutunu ve çizimlerini anında güncelle
+            this.map.setView([this.currentLat, this.currentLng], this.currentZoom, { animate: false });
+            this.map.invalidateSize();
+            setTimeout(() => {
+                if (this.map) {
+                    this.map.invalidateSize();
+                    this.updateMarkerOverlayPosition();
+                    this.updateCoordsBadge();
+                    if (this.measureActive) {
+                        this.updateMeasureGraphics();
+                    }
+                }
+            }, 60);
         },
 
         /**
@@ -2399,6 +2455,12 @@
         fetchAndStitchHighResTiles: async function(targetW, targetH, targetZoom) {
             if (!this.map) throw new Error('Harita hazır değil.');
 
+            // Esri ve OSM sunucuları en fazla zoom 19 seviyesine kadar karo barındırır (404 hatasını önlemek için sınırla)
+            const activeLayer = this.activeLayer;
+            if ((activeLayer === 'esri_sat' || activeLayer === 'osm') && targetZoom > 19) {
+                targetZoom = 19;
+            }
+
             const center = this.map.getCenter();
             const centerPt = this.map.project(center, targetZoom);
 
@@ -2414,7 +2476,6 @@
             const endTileY = Math.floor(maxY / tileSize);
 
             const tileCoords = [];
-            const activeLayer = this.activeLayer;
             const showLabels = this.showMapLabels;
 
             for (let ty = startTileY; ty <= endTileY; ty++) {
@@ -5078,8 +5139,14 @@
             this.updateParcelNeonUI();
 
             if (typeof window.showAppToast === 'function') {
-                if (this.parcelNeonEnabled) {
-                    window.showAppToast('⚡ Arsa parseli için Saber Neon efekti aktif edildi!', 'success');
+                if (!this.parcelData || !this.parcelData.latLngs || this.parcelData.latLngs.length < 3) {
+                    window.showAppToast('ℹ️ Saber Neon efekti arsa/parsel sınırları üzerinde parlar. Önce bir KML/KMZ veya Parsel yükleyin.', 'info', 4500);
+                } else if (this.parcelNeonEnabled) {
+                    if (this.is3DActive) {
+                        window.showAppToast('⚡ 3D modunda yüksek kontrastlı neon hat uygulandı. (Tam ışıldayan Saber efekti 2D HD modunda parlar)', 'info', 4500);
+                    } else {
+                        window.showAppToast('⚡ Arsa parseli için Saber Neon efekti aktif edildi!', 'success');
+                    }
                 } else {
                     window.showAppToast('⚡ Saber Neon efekti kapatıldı (Klasik Çizim Modu)', 'info');
                 }
@@ -5435,6 +5502,15 @@
          * Ölçüm Aracını Açar veya Kapatır
          */
         toggleMeasure: function(forceState) {
+            // 3D mod açıksa WebGL üzerinde Leaflet ölçüm çizgileri çizilemeyeceğinden
+            // kullanıcıyı bilgilendirerek akıcı bir şekilde 2D HD Uydu moduna geçir
+            if (this.is3DActive) {
+                if (typeof window.showAppToast === 'function') {
+                    window.showAppToast('📏 Ölçüm aracı ve cephe metreleri 2D HD Uydu haritasında çalışır. HD Uydu moduna geçildi.', 'info', 4000);
+                }
+                this.setLayer('google_sat');
+            }
+
             const panel = document.getElementById('satMeasureFloatingPanel');
             const isPanelHidden = panel && (panel.style.display === 'none' || !this.measurePanelVisible);
 
@@ -8073,12 +8149,17 @@
             container.style.display = 'block';
             if (reticle) reticle.style.display = 'none';
             this.is3DActive = true;
+            this.activeLayer = 'google_3d';
 
             // 3D Harita butonunu aktif yap
             document.querySelectorAll('.sat-layer-btn').forEach(btn => {
                 if (btn.dataset.layer === 'google_3d') btn.classList.add('active');
                 else btn.classList.remove('active');
             });
+
+            if (this.measureActive && typeof window.showAppToast === 'function') {
+                window.showAppToast('ℹ️ 3D Dünya modunda köşe ölçümleri gizlenir. 2D HD Uyduya döndüğünüzde tüm ölçümleriniz korunur.', 'info', 4500);
+            }
 
             this.suppressGoogleDevBanners();
 
@@ -8265,15 +8346,6 @@
         },
 
         exitGoogle3DMode: function() {
-            this.is3DActive = false;
-            this.map3dElement = null;
-            const container = document.getElementById('sat3dContainer');
-            const reticle = document.getElementById('satReticleOverlay');
-            if (container) {
-                container.style.display = 'none';
-                container.innerHTML = '';
-            }
-            if (reticle) reticle.style.display = (this.markerEnabled ? 'flex' : 'none');
             this.setLayer('google_sat');
         },
 

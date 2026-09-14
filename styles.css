@@ -12667,13 +12667,139 @@ html[data-theme="light"] .tone-curve-canvas-wrap {
     transform: scale(1.15);
 }
 
-/* Harita Ortasındaki Canlı Alan Rozeti (Taşınabilir, Kutulu & Çerçevesiz) */
+/* Harita Ortasındaki Canlı Alan Rozeti (Taşınabilir, Kutulu & Çerçevesiz, Tutamaçlı) */
 .sat-measure-area-badge-divicon {
     background: transparent !important;
     border: none !important;
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
+    overflow: visible !important;
+    pointer-events: none !important;
+}
+
+.sat-measure-area-wrapper {
+    position: relative;
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    pointer-events: auto;
+    cursor: grab;
+    user-select: none;
+    touch-action: none;
+}
+
+.sat-measure-area-wrapper:active {
+    cursor: grabbing;
+}
+
+/* Seçim Çerçevesi (İkon ve Rozet standartlarında kesikli mavi border) */
+.sat-area-select-border {
+    position: absolute;
+    top: -7px;
+    left: -9px;
+    right: -9px;
+    bottom: -7px;
+    border: 2px dashed #00d2ff;
+    border-radius: 12px;
+    pointer-events: none;
+    display: none;
+    box-shadow: 0 0 12px rgba(0, 210, 255, 0.4);
+    z-index: 10010;
+}
+
+.sat-measure-area-wrapper.is-selected .sat-area-select-border {
+    display: block;
+}
+
+/* Tutamaçlar (Döndür, Büyüt, Sil) - Koyu cam & Cyan / Rose renk paleti */
+.sat-area-handle {
+    position: absolute;
+    width: 24px;
+    height: 24px;
+    min-width: 24px;
+    min-height: 24px;
+    background: #1e2238 !important;
+    border-radius: 50% !important;
+    display: none;
+    justify-content: center;
+    align-items: center;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.8), 0 0 8px rgba(0, 210, 255, 0.4) !important;
+    cursor: pointer;
+    z-index: 10050;
+    box-sizing: border-box !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    pointer-events: auto;
+    transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.sat-area-handle:hover {
+    transform: scale(1.15);
+}
+
+.sat-measure-area-wrapper.is-selected .sat-area-handle {
+    display: flex;
+}
+
+/* 🔄 Döndürme Tutamacı (Üst Orta) */
+.sat-area-rotate-handle {
+    top: -26px;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 2px solid #00d2ff !important;
+    cursor: grab;
+}
+
+.sat-area-rotate-handle:hover {
+    transform: translateX(-50%) scale(1.15);
+}
+
+.sat-area-rotate-handle:active {
+    cursor: grabbing;
+    background: #00d2ff !important;
+}
+.sat-area-rotate-handle:active svg {
+    stroke: #0f172a !important;
+}
+
+/* 📐 Büyütme / Boyutlandırma Tutamacı (Sağ Alt) */
+.sat-area-resize-handle {
+    bottom: -7px;
+    right: -9px;
+    transform: translate(50%, 50%);
+    border: 2px solid #00d2ff !important;
+    cursor: nwse-resize;
+}
+
+.sat-area-resize-handle:hover {
+    transform: translate(50%, 50%) scale(1.15);
+}
+
+.sat-area-resize-handle:active {
+    background: #00d2ff !important;
+}
+.sat-area-resize-handle:active svg {
+    stroke: #0f172a !important;
+}
+
+/* 🗑️ Silme Tutamacı (Sol Alt) */
+.sat-area-delete-handle {
+    bottom: -7px;
+    left: -9px;
+    transform: translate(-50%, 50%);
+    border: 2px solid #f43f5e !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.8), 0 0 8px rgba(244, 63, 94, 0.4) !important;
+    cursor: pointer;
+}
+
+.sat-area-delete-handle:hover {
+    transform: translate(-50%, 50%) scale(1.15);
+    background: #f43f5e !important;
+}
+.sat-area-delete-handle:hover svg {
+    stroke: #ffffff !important;
 }
 
 .sat-measure-area-map-badge {
@@ -12689,13 +12815,7 @@ html[data-theme="light"] .tone-curve-canvas-wrap {
     cursor: grab;
     user-select: none;
     white-space: nowrap;
-    transform: none;
-    transition: transform 0.15s ease, box-shadow 0.15s ease;
-}
-
-.sat-measure-area-map-badge:active {
-    cursor: grabbing;
-    transform: scale(1.04);
+    transition: box-shadow 0.15s ease;
 }
 
 .sat-measure-area-map-badge .area-title {

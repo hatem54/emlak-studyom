@@ -114,6 +114,9 @@
         measureMidpointMarkers: [], // (Kaldırıldı - kenara tıklayarak nokta eklenir)
         measureBadgeCustomPositions: {}, // { [edgeIdx]: L.latLng }
         measureAreaBadgeCustomPos: null, // L.latLng (sürüklenen merkez alan rozeti konumu)
+        measureAreaRotation: 0,        // Ortadaki m² rozeti döndürme açısı (Derece)
+        measureAreaScale: 1.0,         // Ortadaki m² rozeti büyütme/ölçek çarpanı (0.5 - 3.0)
+        measureAreaSelected: false,    // Ortadaki m² rozeti seçili mi (tutamaçlar aktif mi)
         measureAreaDisplayMode: 'frameless', // 'frameless' (çerçevesiz arkaplansız) | 'box' (kutulu rozet)
         measureAreaContentMode: 'm2_only', // 'm2_only' (Sadece m²) | 'm2_donum' (m² + Dönüm) | 'detailed' (m² + Dönüm + Çevre)
         measureFontFamily: 'Montserrat', // 'Montserrat' | 'Inter' | 'Roboto' | 'Poppins' | 'Oswald' | 'Playfair Display' | 'Space Grotesk'
@@ -882,6 +885,9 @@
 
             // Haritaya tıklandığında pin veya ölçüm noktası yerleştir
             this.map.on('click', (e) => {
+                if (this.measureAreaSelected) {
+                    this.deselectMeasureAreaBadge();
+                }
                 if (this.measureActive) {
                     if (this.measureInteractionMode === 'pan' || (e.originalEvent && (e.originalEvent.ctrlKey || e.originalEvent.shiftKey)) || this.isSpacePressed || this.measureIsNavPanning) {
                         return;
@@ -896,6 +902,17 @@
                     markerLng: e.latlng.lng
                 });
             });
+
+            // Harita kapsayıcısına tıklandığında tutamaçları temizle (dışarı tıklandığında)
+            const mapWrap = document.getElementById('satMapWrapper') || document.getElementById('satMapStage');
+            if (mapWrap && !mapWrap._areaDeselectBound) {
+                mapWrap._areaDeselectBound = true;
+                mapWrap.addEventListener('pointerdown', (e) => {
+                    if (this.measureAreaSelected && !e.target.closest('#satMeasureAreaWrapper') && !e.target.closest('.sat-area-handle')) {
+                        this.deselectMeasureAreaBadge();
+                    }
+                });
+            }
 
             // Harita hareket ettikçe koordinatları, pin ve ölçüm pozisyonunu güncelle
             this.map.on('move', () => {
@@ -6636,6 +6653,9 @@
             this.measureIsClosed = true;
             this.measureBadgeCustomPositions = {};
             this.measureAreaBadgeCustomPos = null;
+            this.measureAreaRotation = 0;
+            this.measureAreaScale = 1.0;
+            this.measureAreaSelected = false;
             this.removeMeasureGraphicsFromMap();
             if (this.parcelPolygon && this.map) {
                 if (!this.map.hasLayer(this.parcelPolygon)) {
@@ -7216,21 +7236,37 @@
                         }
 
                         const isFrameless = (areaDisplayMode === 'frameless');
+                        const isSelected = !!this.measureAreaSelected;
+                        const rot = this.measureAreaRotation || 0;
+                        const scale = this.measureAreaScale || 1.0;
+
                         const areaBadgeHtml = `
-                            <div class="sat-measure-area-map-badge ${isFrameless ? 'frameless' : ''}" style="${isFrameless ? '' : `border-color:${color};`} font-family:'${fontFamily}', sans-serif;" title="Arsa alanı metni: Sürükleyerek taşıyabilirsiniz (Sıfırlamak için çift tıklayın)">
-                                <div class="area-title" style="font-size:${areaFontSize}px;">
-                                    ${isFrameless ? '' : `<i class="fas fa-vector-square" style="color:${color};"></i> `}<span>${titleText}</span>
+                            <div class="sat-measure-area-wrapper ${isSelected ? 'is-selected' : ''}" id="satMeasureAreaWrapper" style="transform: rotate(${rot}deg) scale(${scale}); transform-origin: center center;">
+                                <div class="sat-measure-area-map-badge ${isFrameless ? 'frameless' : ''}" style="${isFrameless ? '' : `border-color:${color};`} font-family:'${fontFamily}', sans-serif;" title="Arsa m² alanı: Tıklayınca tutamaçlar açılır, sürükleyerek taşıyabilirsiniz (Sıfırlamak için çift tıklayın)">
+                                    <div class="area-title" style="font-size:${areaFontSize}px;">
+                                        ${isFrameless ? '' : `<i class="fas fa-vector-square" style="color:${color};"></i> `}<span>${titleText}</span>
+                                    </div>
+                                    ${subTextHtml}
                                 </div>
-                                ${subTextHtml}
+                                <div class="sat-area-select-border"></div>
+                                <div class="sat-area-handle sat-area-rotate-handle" title="Döndür">
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#00d2ff" stroke-width="2.5" style="pointer-events:none;"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.22-10.27l-5.3 5.3"></path></svg>
+                                </div>
+                                <div class="sat-area-handle sat-area-resize-handle" title="Büyüt / Küçült">
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#00d2ff" stroke-width="2.5" style="pointer-events:none;"><path d="M21 15v6h-6M3 9V3h6M21 21l-7-7M3 3l7 7"></path></svg>
+                                </div>
+                                <div class="sat-area-handle sat-area-delete-handle" title="Sil / Gizle">
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#f43f5e" stroke-width="2.5" style="pointer-events:none;"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                                </div>
                             </div>
                         `;
 
-                        // 🎯 Tam görsel merkezleme: [260, 70] boyut ve [130, 35] anchor ile flexbox tam çakışır
+                        // 🎯 Tam görsel merkezleme: [300, 100] boyut ve [150, 50] anchor ile flexbox tam çakışır
                         const areaBadgeIcon = L.divIcon({
                             className: 'sat-measure-area-badge-divicon',
                             html: areaBadgeHtml,
-                            iconSize: [260, 70],
-                            iconAnchor: [130, 35]
+                            iconSize: [300, 100],
+                            iconAnchor: [150, 50]
                         });
 
                         if (!this.measureAreaBadgeMarker) {
@@ -7253,10 +7289,16 @@
                                 L.DomEvent.stopPropagation(e);
                                 aMarker._hasBeenDragged = false;
                                 this.measureAreaBadgeCustomPos = null;
+                                this.measureAreaRotation = 0;
+                                this.measureAreaScale = 1.0;
                                 this.updateMeasureGraphics();
+                                if (typeof window.showAppToast === 'function') {
+                                    window.showAppToast('🔄 Arsa m² alanı konumu ve boyutu sıfırlandı.', 'info');
+                                }
                             });
                             aMarker.on('click', (e) => {
                                 L.DomEvent.stopPropagation(e);
+                                this.selectMeasureAreaBadge();
                             });
 
                             if (this.measureAreaBadgeCustomPos) {
@@ -7264,6 +7306,7 @@
                             }
 
                             this.measureAreaBadgeMarker = aMarker;
+                            this.attachMeasureAreaBadgeListeners(aMarker);
                         } else {
                             if (!this.map.hasLayer(this.measureAreaBadgeMarker)) {
                                 this.measureAreaBadgeMarker.addTo(this.map);
@@ -7273,6 +7316,7 @@
                             }
                             this.measureAreaBadgeMarker.setLatLng(areaPos);
                             this.measureAreaBadgeMarker.setIcon(areaBadgeIcon);
+                            this.attachMeasureAreaBadgeListeners(this.measureAreaBadgeMarker);
                         }
                     }
                 } else {
@@ -7294,6 +7338,181 @@
 
             // 5. Paneldeki Kenar Filtresi Çiplerini Güncelle
             this.updateEdgeSelectorUI(pts, isClosed);
+        },
+
+        /**
+         * Harita Ortasındaki Arsa m² Rozetini Seçer ve Tutamaçları Gösterir
+         */
+        selectMeasureAreaBadge: function() {
+            this.measureAreaSelected = true;
+            const wrap = document.getElementById('satMeasureAreaWrapper');
+            if (wrap) {
+                wrap.classList.add('is-selected');
+            }
+        },
+
+        /**
+         * Arsa m² Rozeti Seçimini Kaldırır ve Tutamaçları Gizler
+         */
+        deselectMeasureAreaBadge: function() {
+            this.measureAreaSelected = false;
+            const wrap = document.getElementById('satMeasureAreaWrapper');
+            if (wrap) {
+                wrap.classList.remove('is-selected');
+            }
+        },
+
+        /**
+         * Arsa m² Rozetinin Döndürme, Büyütme ve Silme Tutamaç Dinleyicilerini Bağlar
+         */
+        attachMeasureAreaBadgeListeners: function(aMarker) {
+            if (!aMarker) return;
+            const el = (typeof aMarker.getElement === 'function') ? aMarker.getElement() : aMarker._icon;
+            if (!el) {
+                setTimeout(() => this.attachMeasureAreaBadgeListeners(aMarker), 35);
+                return;
+            }
+            const wrapper = el.querySelector('#satMeasureAreaWrapper') || el.querySelector('.sat-measure-area-wrapper');
+            if (!wrapper || wrapper._handlesBound) return;
+            wrapper._handlesBound = true;
+
+            const self = this;
+            const rotHandle = wrapper.querySelector('.sat-area-rotate-handle');
+            const resHandle = wrapper.querySelector('.sat-area-resize-handle');
+            const delHandle = wrapper.querySelector('.sat-area-delete-handle');
+
+            // 1. Rozete Tıklandığında Seçim (Tutamaçları Göster)
+            wrapper.addEventListener('pointerdown', (e) => {
+                if (e.target.closest('.sat-area-handle')) return;
+                L.DomEvent.stopPropagation(e);
+                self.selectMeasureAreaBadge();
+            });
+
+            // 2. 🔄 Döndürme Tutamacı (Rotator Handle)
+            if (rotHandle) {
+                const onRotDown = (e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    L.DomEvent.stopPropagation(e);
+
+                    if (aMarker.dragging && typeof aMarker.dragging.disable === 'function') {
+                        aMarker.dragging.disable();
+                    }
+
+                    const evt = e.touches ? e.touches[0] : e;
+                    const rect = wrapper.getBoundingClientRect();
+                    const centerX = rect.left + rect.width / 2;
+                    const centerY = rect.top + rect.height / 2;
+                    const startAngle = Math.atan2(evt.clientY - centerY, evt.clientX - centerX) * (180 / Math.PI);
+                    const startRot = self.measureAreaRotation || 0;
+
+                    rotHandle.style.cursor = 'grabbing';
+
+                    const onMove = (me) => {
+                        me.preventDefault();
+                        me.stopPropagation();
+                        const mEvt = me.touches ? me.touches[0] : me;
+                        const currentAngle = Math.atan2(mEvt.clientY - centerY, mEvt.clientX - centerX) * (180 / Math.PI);
+                        let diff = currentAngle - startAngle;
+                        let newRot = Math.round((startRot + diff) % 360);
+                        if (newRot > 180) newRot -= 360;
+                        else if (newRot < -180) newRot += 360;
+
+                        self.measureAreaRotation = newRot;
+                        const curScale = self.measureAreaScale || 1.0;
+                        wrapper.style.transform = `rotate(${newRot}deg) scale(${curScale})`;
+                    };
+
+                    const onUp = () => {
+                        rotHandle.style.cursor = 'grab';
+                        window.removeEventListener('pointermove', onMove, { capture: true });
+                        window.removeEventListener('pointerup', onUp, { capture: true });
+                        window.removeEventListener('touchmove', onMove, { capture: true });
+                        window.removeEventListener('touchend', onUp, { capture: true });
+
+                        if (aMarker.dragging && typeof aMarker.dragging.enable === 'function') {
+                            aMarker.dragging.enable();
+                        }
+                        self.saveLastLocation({ measureData: self.getMeasureDataToSave() });
+                    };
+
+                    window.addEventListener('pointermove', onMove, { capture: true, passive: false });
+                    window.addEventListener('pointerup', onUp, { capture: true });
+                    window.addEventListener('touchmove', onMove, { capture: true, passive: false });
+                    window.addEventListener('touchend', onUp, { capture: true });
+                };
+
+                rotHandle.addEventListener('pointerdown', onRotDown);
+                rotHandle.addEventListener('touchstart', onRotDown, { passive: false });
+            }
+
+            // 3. 📐 Büyütme / Boyutlandırma Tutamacı (Resize / Scale Handle)
+            if (resHandle) {
+                const onResDown = (e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    L.DomEvent.stopPropagation(e);
+
+                    if (aMarker.dragging && typeof aMarker.dragging.disable === 'function') {
+                        aMarker.dragging.disable();
+                    }
+
+                    const evt = e.touches ? e.touches[0] : e;
+                    const rect = wrapper.getBoundingClientRect();
+                    const centerX = rect.left + rect.width / 2;
+                    const centerY = rect.top + rect.height / 2;
+                    const startDist = Math.hypot(evt.clientX - centerX, evt.clientY - centerY);
+                    const startScale = self.measureAreaScale || 1.0;
+
+                    const onMove = (me) => {
+                        me.preventDefault();
+                        me.stopPropagation();
+                        const mEvt = me.touches ? me.touches[0] : me;
+                        const curDist = Math.hypot(mEvt.clientX - centerX, mEvt.clientY - centerY);
+                        let ratio = startDist > 0 ? (curDist / startDist) : 1;
+                        let newScale = Math.max(0.5, Math.min(3.0, parseFloat((startScale * ratio).toFixed(2))));
+
+                        self.measureAreaScale = newScale;
+                        const curRot = self.measureAreaRotation || 0;
+                        wrapper.style.transform = `rotate(${curRot}deg) scale(${newScale})`;
+                    };
+
+                    const onUp = () => {
+                        window.removeEventListener('pointermove', onMove, { capture: true });
+                        window.removeEventListener('pointerup', onUp, { capture: true });
+                        window.removeEventListener('touchmove', onMove, { capture: true });
+                        window.removeEventListener('touchend', onUp, { capture: true });
+
+                        if (aMarker.dragging && typeof aMarker.dragging.enable === 'function') {
+                            aMarker.dragging.enable();
+                        }
+                        self.saveLastLocation({ measureData: self.getMeasureDataToSave() });
+                    };
+
+                    window.addEventListener('pointermove', onMove, { capture: true, passive: false });
+                    window.addEventListener('pointerup', onUp, { capture: true });
+                    window.addEventListener('touchmove', onMove, { capture: true, passive: false });
+                    window.addEventListener('touchend', onUp, { capture: true });
+                };
+
+                resHandle.addEventListener('pointerdown', onResDown);
+                resHandle.addEventListener('touchstart', onResDown, { passive: false });
+            }
+
+            // 4. 🗑️ Silme Tutamacı (Delete Handle)
+            if (delHandle) {
+                const onDelAction = (e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    L.DomEvent.stopPropagation(e);
+                    self.measureAreaSelected = false;
+                    self.toggleMeasureAreaBadge(false);
+                };
+
+                delHandle.addEventListener('pointerdown', (e) => { e.stopPropagation(); L.DomEvent.stopPropagation(e); });
+                delHandle.addEventListener('touchstart', (e) => { e.stopPropagation(); L.DomEvent.stopPropagation(e); }, { passive: false });
+                delHandle.addEventListener('click', onDelAction);
+            }
         },
 
         /**
@@ -7778,12 +7997,20 @@
                         subText: subText,
                         areaDisplayMode: areaDisplayMode,
                         x: cenX,
-                        y: cenY
+                        y: cenY,
+                        rotation: this.measureAreaRotation || 0,
+                        scale: this.measureAreaScale || 1.0
                     };
 
                     if (bakeBadges) {
                         ctx.save();
                         ctx.translate(cenX, cenY);
+                        if (this.measureAreaRotation) {
+                            ctx.rotate((this.measureAreaRotation * Math.PI) / 180);
+                        }
+                        if (this.measureAreaScale && this.measureAreaScale !== 1.0) {
+                            ctx.scale(this.measureAreaScale, this.measureAreaScale);
+                        }
 
                         if (areaDisplayMode === 'frameless') {
                             // ✨ Çerçevesiz (Arka plansız, şık yüksek kontrastlı gölgeli saf metin)
@@ -8025,6 +8252,14 @@
 
                     wrap.style.left = posX + 'px';
                     wrap.style.top = posY + 'px';
+
+                    const areaScale = (area.scale !== undefined && !isNaN(area.scale)) ? area.scale : 1.0;
+                    const rotation = (area.rotation !== undefined && !isNaN(area.rotation)) ? area.rotation : 0;
+
+                    wrap.dataset.rotation = String(rotation);
+                    wrap.dataset.scale = String(areaScale);
+                    wrap.dataset.userScale = String(areaScale);
+                    wrap.style.transform = `rotate(${rotation}deg) scale(${areaScale})`;
                 }
             }
 
@@ -8151,6 +8386,8 @@
                     }, {})
                     : {},
                 areaBadgeCustomPos: this.measureAreaBadgeCustomPos ? { lat: this.measureAreaBadgeCustomPos.lat, lng: this.measureAreaBadgeCustomPos.lng } : null,
+                areaRotation: this.measureAreaRotation || 0,
+                areaScale: this.measureAreaScale || 1.0,
                 areaDisplayMode: this.measureAreaDisplayMode || 'frameless',
                 areaContentMode: this.measureAreaContentMode || 'm2_only',
                 fontFamily: this.measureFontFamily || 'Montserrat',
@@ -8205,6 +8442,8 @@
             if (data.areaBadgeCustomPos && data.areaBadgeCustomPos.lat !== undefined) {
                 this.measureAreaBadgeCustomPos = L.latLng(data.areaBadgeCustomPos.lat, data.areaBadgeCustomPos.lng);
             }
+            if (data.areaRotation !== undefined) this.measureAreaRotation = data.areaRotation;
+            if (data.areaScale !== undefined) this.measureAreaScale = data.areaScale;
 
             if (data.points && Array.isArray(data.points) && data.points.length >= 1) {
                 this.measurePoints = data.points.map(p => L.latLng(p.lat, p.lng));

@@ -420,9 +420,13 @@ function resetFilters(){
     
     // Maskeleri Sıfırla
     if (window.PhotoMasksManager) {
-        window.PhotoMasksManager.toggleRadial(false);
-        window.PhotoMasksManager.toggleLinear(false);
-        window.PhotoMasksManager.toggleOverlay(false);
+        if (typeof window.PhotoMasksManager.resetAll === 'function') {
+            window.PhotoMasksManager.resetAll();
+        } else {
+            window.PhotoMasksManager.toggleRadial(false);
+            window.PhotoMasksManager.toggleLinear(false);
+            window.PhotoMasksManager.toggleOverlay(false);
+        }
     }
 
     // AI Netleştirmeyi Kapat

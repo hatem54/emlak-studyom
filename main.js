@@ -1541,6 +1541,9 @@ window.resetEntireWorkspace = function() {
 
                 // 3. Filtreleri sıfırla
                 if (typeof resetFilters === 'function') resetFilters();
+                if (window.PhotoMasksManager && typeof window.PhotoMasksManager.resetAll === 'function') {
+                    window.PhotoMasksManager.resetAll();
+                }
 
                 // 4. İkonları sil
                 if (typeof deleteAllIcons === 'function') deleteAllIcons();

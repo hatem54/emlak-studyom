@@ -240,7 +240,29 @@
             this.notifyChange();
         }
 
-        
+        resetAll() {
+            this.masks = [];
+            this.selectedMaskId = null;
+            this.activeTool = null;
+            this.activeMaskType = null;
+            this.isGuidesVisible = false;
+            this.panelsCollapsed = true;
+            this.isCreatingNew = null;
+            this.isDragging = false;
+            this.dragMode = null;
+            if (this.svgEl) this.svgEl.innerHTML = '';
+
+            const acc = document.getElementById('photoMasksAccordion');
+            if (acc) acc.open = false;
+
+            this.updatePanelsVisibility();
+            this.updateToolButtons();
+            this.updateSvgPointerEvents();
+            this.renderLayersList();
+            this.syncFromSelected();
+            this.notifyChange();
+        }
+
         clickMaskButton(type) {
             const rCont = document.getElementById('radialMaskControls');
             const lCont = document.getElementById('linearMaskControls');
@@ -465,8 +487,14 @@
             const mask = this.getSelectedMask();
             if (mask && mask.type === 'radial') {
                 mask.active = (enable !== undefined) ? enable : !mask.active;
+                if (!mask.active) this.hideGuides();
                 this.renderLayersList();
                 this.renderSvg();
+                this.notifyChange();
+            } else if (enable === false) {
+                this.masks.filter(m => m.type === 'radial').forEach(m => { m.active = false; });
+                this.hideGuides();
+                this.renderLayersList();
                 this.notifyChange();
             } else {
                 this.openMask('radial');
@@ -477,8 +505,14 @@
             const mask = this.getSelectedMask();
             if (mask && mask.type === 'linear') {
                 mask.active = (enable !== undefined) ? enable : !mask.active;
+                if (!mask.active) this.hideGuides();
                 this.renderLayersList();
                 this.renderSvg();
+                this.notifyChange();
+            } else if (enable === false) {
+                this.masks.filter(m => m.type === 'linear').forEach(m => { m.active = false; });
+                this.hideGuides();
+                this.renderLayersList();
                 this.notifyChange();
             } else {
                 this.openMask('linear');

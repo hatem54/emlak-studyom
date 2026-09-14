@@ -906,7 +906,10 @@ function bindInputs(){
             const dataUrl = offCanvas.toDataURL('image/jpeg', 0.95);
 
             if (typeof window.applyProjectImageFromDataUrl === 'function') {
+                window._skipDrawConfirm = true;
+                if (typeof window.clearAllDrawings === 'function') window.clearAllDrawings();
                 window.applyProjectImageFromDataUrl(dataUrl, (err) => {
+                    delete window._skipDrawConfirm;
                     if (typeof window.hideAppLoading === 'function') window.hideAppLoading();
                     if (!err) {
                         if (typeof window.closeSatelliteMapModal === 'function') {

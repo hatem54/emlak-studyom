@@ -614,6 +614,12 @@
                 this.currentZoom = z;
                 this.updateCoordsBadge();
                 this.updateMarkerOverlayPosition();
+                this.saveLastLocation({
+                    lat: c.lat,
+                    lng: c.lng,
+                    zoom: z,
+                    is3D: false
+                });
             });
 
             this.map.on('zoomend', () => {
@@ -817,7 +823,11 @@
                     zoom: (data.zoom !== undefined) ? data.zoom : (existing.zoom || this.currentZoom),
                     markerLat: (data.markerLat !== undefined) ? data.markerLat : (this.markerLatLng ? this.markerLatLng.lat : this.currentLat),
                     markerLng: (data.markerLng !== undefined) ? data.markerLng : (this.markerLatLng ? this.markerLatLng.lng : this.currentLng),
-                    markerText: (data.markerText !== undefined) ? data.markerText : (existing.markerText || this.customMarkerText || '')
+                    markerText: (data.markerText !== undefined) ? data.markerText : (existing.markerText || this.customMarkerText || ''),
+                    is3D: (data.is3D !== undefined) ? data.is3D : (this.is3DActive || existing.is3D || false),
+                    range: (data.range !== undefined) ? data.range : (existing.range || 650),
+                    tilt: (data.tilt !== undefined) ? data.tilt : (existing.tilt || 45),
+                    parcelData: (data.parcelData !== undefined) ? data.parcelData : (this.parcelData || existing.parcelData || null)
                 };
                 localStorage.setItem('emlak_sat_last_location', JSON.stringify(toSave));
             } catch(e) {
@@ -843,28 +853,48 @@
         /**
          * Haritada Bulunan Adres Rozetini Günceller
          */
-        updateFoundAddressBadge: function(text) {
+        updateFoundAddressBadge: function(address) {
             const badge = document.getElementById('satFoundAddressBadge');
-            const textEl = document.getElementById('satFoundAddressText');
-            if (!badge || !textEl) return;
-            if (text && text.trim()) {
-                textEl.innerText = text.trim();
+            const textSpan = document.getElementById('satFoundAddressText');
+            if (!badge || !textSpan) return;
+
+            if (address && address.trim()) {
+                textSpan.innerText = address.trim();
                 badge.style.display = 'flex';
-                badge.title = 'Aktif Konum: ' + text.trim();
             } else {
                 badge.style.display = 'none';
             }
         },
 
         /**
+         * Harita Koordinat Rozetini Günceller (Sol Alt)
+         */
+        updateCoordsBadge: function() {
+            const badge = document.getElementById('satCoordsBadge');
+            if (!badge) return;
+            const latStr = this.currentLat.toFixed(5);
+            const lngStr = this.currentLng.toFixed(5);
+            badge.innerText = `${latStr}, ${lngStr} (Zoom: ${this.currentZoom})`;
+        },
+
+        /**
          * Belirtilen Koordinata Uçar veya Doğrudan Odaklar
          */
         flyTo: function(lat, lng, zoom, immediate) {
-            if (!this.map) return;
             this.currentLat = lat;
             this.currentLng = lng;
             this.currentZoom = zoom || 17;
-            this.markerLatLng = L.latLng(lat, lng);
+            this.markerLatLng = (typeof L !== 'undefined' && L.latLng) ? L.latLng(lat, lng) : null;
+
+            if (this.is3DActive && this.map3dElement) {
+                try {
+                    this.map3dElement.setAttribute('center', `${lat},${lng},0`);
+                    this.map3dElement.setAttribute('range', '1200');
+                    this.map3dElement.setAttribute('tilt', '45');
+                } catch(e) {}
+            }
+
+            if (!this.map) return;
 
             if (immediate) {
                 this.map.setView([lat, lng], this.currentZoom);
@@ -1939,9 +1969,10 @@
             const detected = this.detectLocationFromProject();
 
             let targetQuery = '';
-            if (detected) {
-                targetQuery = detected;
-            } else if (lastLoc && lastLoc.lat && lastLoc.lng) {
+            const hasSavedLocation = !!(lastLoc && typeof lastLoc.lat === 'number' && typeof lastLoc.lng === 'number');
+
+            if (hasSavedLocation) {
+                // 1. ÖNCELİK: En son kullanılan/bırakılan harita konumu ve parseli
                 targetQuery = lastLoc.address || '';
                 this.currentLat = lastLoc.lat;
                 this.currentLng = lastLoc.lng;
@@ -1950,6 +1981,24 @@
                 if (lastLoc.markerText) {
                     this.customMarkerText = lastLoc.markerText;
                 }
+                if (lastLoc.parcelData && !this.parcelData) {
+                    this.parcelData = lastLoc.parcelData;
+                }
+                if (lastLoc.is3D) {
+                    this.google3DRange = lastLoc.range || 650;
+                    this.google3DTilt = lastLoc.tilt || 45;
+                }
+            } else if (this.parcelData && this.parcelData.latLngs && this.parcelData.latLngs.length >= 3) {
+                // 2. ÖNCELİK: Mevcut oturumdaki parsel verisi
+                const pBounds = this.getParcelCenterAndBounds();
+                if (pBounds && pBounds.center) {
+                    this.currentLat = pBounds.center.lat;
+                    this.currentLng = pBounds.center.lng;
+                    this.markerLatLng = L.latLng(this.currentLat, this.currentLng);
+                }
+            } else if (detected) {
+                // 3. ÖNCELİK: Sadece geçmişte hiçbir harita/parsel kaydı yoksa proje formundan algıla
+                targetQuery = detected;
             }
 
             const savedMarkerStyle = localStorage.getItem('emlak_sat_marker_style');
@@ -1978,25 +2027,56 @@
                 input.value = targetQuery;
             }
 
-
             setTimeout(() => {
                 this.initMap();
                 this.updateMapWrapperDimensions();
                 this.attachMarkerDragListeners();
                 this.applyLiveMapAiPreview();
 
-                if (detected) {
-                    this.searchLocation(detected);
-                } else if (lastLoc && lastLoc.lat && lastLoc.lng) {
-                    // Son kaydedilen adrese ve koordinata doğrudan git ve pini yerleştir
-                    this.map.setView([this.currentLat, this.currentLng], this.currentZoom);
-                    this.updateMarkerOverlayPosition();
+                const shouldRestore3D = (lastLoc && lastLoc.is3D) || this.is3DActive;
+
+                if (shouldRestore3D) {
+                    // 3D mod aktifse veya en son 3D kullanılmışsa 3D ekranını koru
+                    if (!this.is3DActive) {
+                        this.initGoogle3DEarthMode();
+                    } else if (this.map3dElement) {
+                        try {
+                            this.map3dElement.setAttribute('center', `${this.currentLat},${this.currentLng},0`);
+                            if (lastLoc && lastLoc.range) {
+                                this.map3dElement.setAttribute('range', lastLoc.range.toString());
+                            }
+                            if (lastLoc && lastLoc.tilt) {
+                                this.map3dElement.setAttribute('tilt', lastLoc.tilt.toString());
+                            }
+                            if (this.parcelData) {
+                                this.mount3DParcelPolygon(this.map3dElement);
+                            }
+                        } catch(e) {
+                            console.warn("3D harita konumu yenileme hatası:", e);
+                        }
+                    }
                     this.updateCoordsBadge();
-                    if (lastLoc.address) {
+                    if (lastLoc && lastLoc.address) {
                         this.updateFoundAddressBadge(lastLoc.address);
                     }
-                } else if (input && input.value.trim()) {
-                    this.searchLocation(input.value.trim());
+                } else if (hasSavedLocation || this.parcelData) {
+                    // Son kaydedilen adrese ve koordinata doğrudan git ve pini yerleştir
+                    if (this.map) {
+                        this.map.setView([this.currentLat, this.currentLng], this.currentZoom, { animate: false });
+                        this.map.invalidateSize();
+                        // Eğer parsel varsa ve haritada katman olarak yoksa tekrar yükle
+                        if (this.parcelData && (!this.parcelPolygon || !this.map.hasLayer(this.parcelPolygon))) {
+                            this.loadParcelPolygon(this.parcelData);
+                        }
+                    }
+                    this.updateMarkerOverlayPosition();
+                    this.updateCoordsBadge();
+                    if (lastLoc && lastLoc.address) {
+                        this.updateFoundAddressBadge(lastLoc.address);
+                    }
+                } else if (detected) {
+                    // YALNIZCA sıfır geçmiş/hafıza varsa ve algılanan bir proje konumu varsa ara
+                    this.searchLocation(detected);
                 } else if (this.map) {
                     this.map.invalidateSize();
                     this.updateMarkerOverlayPosition();
@@ -2008,6 +2088,49 @@
          * Modalı Kapatır
          */
         closeModal: function() {
+            try {
+                let curLat = this.currentLat;
+                let curLng = this.currentLng;
+                let curRange = this.google3DRange || 650;
+                let curTilt = this.google3DTilt || 45;
+                if (this.is3DActive && this.map3dElement) {
+                    try {
+                        const cAttr = this.map3dElement.getAttribute('center');
+                        if (cAttr) {
+                            const parts = cAttr.split(',');
+                            if (parts.length >= 2) {
+                                curLat = parseFloat(parts[0]) || curLat;
+                                curLng = parseFloat(parts[1]) || curLng;
+                            }
+                        } else if (this.map3dElement.center) {
+                            curLat = this.map3dElement.center.lat || curLat;
+                            curLng = this.map3dElement.center.lng || curLng;
+                        }
+                        curRange = parseFloat(this.map3dElement.getAttribute('range')) || this.map3dElement.range || curRange;
+                        curTilt = parseFloat(this.map3dElement.getAttribute('tilt')) || this.map3dElement.tilt || curTilt;
+                    } catch(e) {}
+                } else if (this.map) {
+                    const c = this.map.getCenter();
+                    curLat = c.lat;
+                    curLng = c.lng;
+                }
+                this.saveLastLocation({
+                    address: document.getElementById('satSearchInput')?.value || '',
+                    lat: curLat,
+                    lng: curLng,
+                    zoom: this.map ? this.map.getZoom() : this.currentZoom,
+                    markerLat: this.markerLatLng ? this.markerLatLng.lat : curLat,
+                    markerLng: this.markerLatLng ? this.markerLatLng.lng : curLng,
+                    markerText: this.customMarkerText,
+                    is3D: this.is3DActive,
+                    range: curRange,
+                    tilt: curTilt,
+                    parcelData: this.parcelData
+                });
+            } catch(e) {
+                console.warn("closeModal save error:", e);
+            }
+
             this.toggleSettingsDrawer(false);
             this.closeParcelColorPicker();
             const modal = document.getElementById('satelliteMapModal');
@@ -2213,8 +2336,24 @@
                 try {
                     const host = document.getElementById('sat3dMapHost');
                     const mapEl = this.map3dElement || (host ? host.querySelector('gmp-map-3d') : null);
-                    const root = mapEl ? (mapEl.shadowRoot || mapEl) : null;
-                    const canvas = root ? root.querySelector('canvas') : null;
+                    
+                    const findCanvasDeep = (root) => {
+                        if (!root) return null;
+                        if (root.tagName === 'CANVAS' && root.width > 0 && root.height > 0) return root;
+                        if (root.shadowRoot) {
+                            const c = findCanvasDeep(root.shadowRoot);
+                            if (c) return c;
+                        }
+                        const directCanvas = root.querySelector ? root.querySelector('canvas') : null;
+                        if (directCanvas && directCanvas.width > 0 && directCanvas.height > 0) return directCanvas;
+                        const children = root.children || [];
+                        for (let i = 0; i < children.length; i++) {
+                            const found = findCanvasDeep(children[i]);
+                            if (found) return found;
+                        }
+                        return null;
+                    };
+                    const canvas = findCanvasDeep(mapEl);
                     if (canvas && canvas.width > 0 && canvas.height > 0) {
                         const targetRatio = targetW / targetH;
                         const cW = canvas.width;
@@ -2300,6 +2439,41 @@
                                         captureBtn.disabled = false;
                                     }
                                     if (!err) {
+                                        let curLat = SatelliteMapModule.currentLat;
+                                        let curLng = SatelliteMapModule.currentLng;
+                                        let curRange = SatelliteMapModule.google3DRange || 650;
+                                        let curTilt = SatelliteMapModule.google3DTilt || 45;
+                                        if (SatelliteMapModule.map3dElement) {
+                                            try {
+                                                const cAttr = SatelliteMapModule.map3dElement.getAttribute('center');
+                                                if (cAttr) {
+                                                    const parts = cAttr.split(',');
+                                                    if (parts.length >= 2) {
+                                                        curLat = parseFloat(parts[0]) || curLat;
+                                                        curLng = parseFloat(parts[1]) || curLng;
+                                                    }
+                                                } else if (SatelliteMapModule.map3dElement.center) {
+                                                    curLat = SatelliteMapModule.map3dElement.center.lat || curLat;
+                                                    curLng = SatelliteMapModule.map3dElement.center.lng || curLng;
+                                                }
+                                                curRange = parseFloat(SatelliteMapModule.map3dElement.getAttribute('range')) || SatelliteMapModule.map3dElement.range || curRange;
+                                                curTilt = parseFloat(SatelliteMapModule.map3dElement.getAttribute('tilt')) || SatelliteMapModule.map3dElement.tilt || curTilt;
+                                            } catch(e) {}
+                                        }
+                                        SatelliteMapModule.saveLastLocation({
+                                            address: document.getElementById('satSearchInput')?.value || '',
+                                            lat: curLat,
+                                            lng: curLng,
+                                            zoom: SatelliteMapModule.currentZoom,
+                                            markerLat: SatelliteMapModule.markerLatLng ? SatelliteMapModule.markerLatLng.lat : curLat,
+                                            markerLng: SatelliteMapModule.markerLatLng ? SatelliteMapModule.markerLatLng.lng : curLng,
+                                            markerText: SatelliteMapModule.customMarkerText,
+                                            is3D: true,
+                                            range: curRange,
+                                            tilt: curTilt,
+                                            parcelData: SatelliteMapModule.parcelData
+                                        });
+
                                         SatelliteMapModule.closeModal();
                                         if (SatelliteMapModule.parcelData) {
                                             SatelliteMapModule.syncParcelToSmartParser(SatelliteMapModule.parcelData);
@@ -2456,7 +2630,9 @@
                                 zoom: SatelliteMapModule.currentZoom,
                                 markerLat: SatelliteMapModule.markerLatLng ? SatelliteMapModule.markerLatLng.lat : SatelliteMapModule.currentLat,
                                 markerLng: SatelliteMapModule.markerLatLng ? SatelliteMapModule.markerLatLng.lng : SatelliteMapModule.currentLng,
-                                markerText: SatelliteMapModule.customMarkerText
+                                markerText: SatelliteMapModule.customMarkerText,
+                                is3D: false,
+                                parcelData: SatelliteMapModule.parcelData
                             });
                             SatelliteMapModule.closeModal();
                             if (SatelliteMapModule.parcelData) {
@@ -3431,6 +3607,19 @@
 
                 this.updateFoundAddressBadge(adaParselStr + (locStr ? ' (' + locStr + ')' : ''));
                 this.updateCoordsBadge();
+
+                this.saveLastLocation({
+                    address: (searchInput ? searchInput.value : '') || (adaParselStr + (locStr ? ' (' + locStr + ')' : '')),
+                    lat: this.currentLat,
+                    lng: this.currentLng,
+                    zoom: this.map ? this.map.getZoom() : (this.currentZoom || 17),
+                    markerLat: this.markerLatLng ? this.markerLatLng.lat : this.currentLat,
+                    markerLng: this.markerLatLng ? this.markerLatLng.lng : this.currentLng,
+                    is3D: this.is3DActive,
+                    range: this.google3DRange || 650,
+                    tilt: this.google3DTilt || 45,
+                    parcelData: this.parcelData
+                });
             }
 
             this.updateParcelUI();

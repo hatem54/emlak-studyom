@@ -6390,9 +6390,8 @@
                     const midLat = (pA.lat + pB.lat) / 2;
                     const midLng = (pA.lng + pB.lng) / 2;
                     const defaultMid = L.latLng(midLat, midLng);
-                    const badgePos = (this.measureBadgeCustomPositions && this.measureBadgeCustomPositions[i]) 
-                        ? this.measureBadgeCustomPositions[i] 
-                        : defaultMid;
+                    const customBadgePos = this.measureBadgeCustomPositions && (this.measureBadgeCustomPositions[i] || this.measureBadgeCustomPositions[String(i)]);
+                    const badgePos = customBadgePos || defaultMid;
 
                     const segDistStr = (segDist >= 1000) ? (segDist / 1000).toFixed(2) + ' km' : segDist.toFixed(1) + ' m';
                     const badgeLabel = (pts.length <= 2) ? this.getFormattedMeasureText(segDist) : `${segDistStr}`;
@@ -6407,11 +6406,12 @@
                         </div>
                     `;
 
+                    // 🎯 Tam görsel merkezleme: [160, 40] boyut ve [80, 20] anchor ile flexbox tam çakışır
                     const badgeIcon = L.divIcon({
                         className: 'sat-measure-badge-divicon',
                         html: badgeHtml,
-                        iconSize: [150, 32],
-                        iconAnchor: [75, 16]
+                        iconSize: [160, 40],
+                        iconAnchor: [80, 20]
                     });
 
                     if (!this.measureBadgeMarkers[i]) {
@@ -6422,15 +6422,28 @@
                         }).addTo(this.map);
 
                         const edgeIdx = i;
-                        badgeMarker.on('dragend', (e) => {
+                        const updateEdgeBadgePos = (pos) => {
+                            if (!pos) return;
                             this.measureBadgeCustomPositions = this.measureBadgeCustomPositions || {};
-                            this.measureBadgeCustomPositions[edgeIdx] = e.target.getLatLng();
+                            this.measureBadgeCustomPositions[edgeIdx] = pos;
+                            this.measureBadgeCustomPositions[String(edgeIdx)] = pos;
+                        };
+
+                        badgeMarker.on('drag', (e) => {
+                            badgeMarker._hasBeenDragged = true;
+                            updateEdgeBadgePos(e.target.getLatLng());
+                        });
+                        badgeMarker.on('dragend', (e) => {
+                            badgeMarker._hasBeenDragged = true;
+                            updateEdgeBadgePos(e.target.getLatLng());
                             this.saveLastLocation({ measureData: this.getMeasureDataToSave() });
                         });
                         badgeMarker.on('dblclick', (e) => {
                             L.DomEvent.stopPropagation(e);
+                            badgeMarker._hasBeenDragged = false;
                             if (this.measureBadgeCustomPositions) {
                                 delete this.measureBadgeCustomPositions[edgeIdx];
+                                delete this.measureBadgeCustomPositions[String(edgeIdx)];
                             }
                             this.updateMeasureGraphics();
                         });
@@ -6438,10 +6451,17 @@
                             L.DomEvent.stopPropagation(e);
                         });
 
+                        if (customBadgePos) {
+                            badgeMarker._hasBeenDragged = true;
+                        }
+
                         this.measureBadgeMarkers[i] = badgeMarker;
                     } else {
                         if (!this.map.hasLayer(this.measureBadgeMarkers[i])) {
                             this.measureBadgeMarkers[i].addTo(this.map);
+                        }
+                        if (customBadgePos) {
+                            this.measureBadgeMarkers[i]._hasBeenDragged = true;
                         }
                         this.measureBadgeMarkers[i].setLatLng(badgePos);
                         this.measureBadgeMarkers[i].setIcon(badgeIcon);
@@ -6509,11 +6529,12 @@
                             </div>
                         `;
 
+                        // 🎯 Tam görsel merkezleme: [260, 70] boyut ve [130, 35] anchor ile flexbox tam çakışır
                         const areaBadgeIcon = L.divIcon({
                             className: 'sat-measure-area-badge-divicon',
                             html: areaBadgeHtml,
-                            iconSize: [220, 56],
-                            iconAnchor: [110, 28]
+                            iconSize: [260, 70],
+                            iconAnchor: [130, 35]
                         });
 
                         if (!this.measureAreaBadgeMarker) {
@@ -6523,22 +6544,36 @@
                                 zIndexOffset: 1450
                             }).addTo(this.map);
 
+                            aMarker.on('drag', (e) => {
+                                aMarker._hasBeenDragged = true;
+                                this.measureAreaBadgeCustomPos = e.target.getLatLng();
+                            });
                             aMarker.on('dragend', (e) => {
+                                aMarker._hasBeenDragged = true;
                                 this.measureAreaBadgeCustomPos = e.target.getLatLng();
                                 this.saveLastLocation({ measureData: this.getMeasureDataToSave() });
                             });
                             aMarker.on('dblclick', (e) => {
                                 L.DomEvent.stopPropagation(e);
+                                aMarker._hasBeenDragged = false;
                                 this.measureAreaBadgeCustomPos = null;
                                 this.updateMeasureGraphics();
                             });
                             aMarker.on('click', (e) => {
                                 L.DomEvent.stopPropagation(e);
                             });
+
+                            if (this.measureAreaBadgeCustomPos) {
+                                aMarker._hasBeenDragged = true;
+                            }
+
                             this.measureAreaBadgeMarker = aMarker;
                         } else {
                             if (!this.map.hasLayer(this.measureAreaBadgeMarker)) {
                                 this.measureAreaBadgeMarker.addTo(this.map);
+                            }
+                            if (this.measureAreaBadgeCustomPos) {
+                                this.measureAreaBadgeMarker._hasBeenDragged = true;
                             }
                             this.measureAreaBadgeMarker.setLatLng(areaPos);
                             this.measureAreaBadgeMarker.setIcon(areaBadgeIcon);
@@ -6901,13 +6936,26 @@
                         const edgeLabel = (canvasPts.length <= 2) ? this.getFormattedMeasureText(segDist) : segDistStr;
 
                         let badgeX, badgeY;
-                        if (this.measureBadgeCustomPositions && this.measureBadgeCustomPositions[i]) {
-                            const customCp = latLngToCanvasPoint(this.measureBadgeCustomPositions[i]);
-                            if (customCp) {
+                        const isCustomEdgeBadge = (this.measureBadgeMarkers && this.measureBadgeMarkers[i] && this.measureBadgeMarkers[i]._hasBeenDragged) ||
+                                                  (this.measureBadgeCustomPositions && (this.measureBadgeCustomPositions[i] || this.measureBadgeCustomPositions[String(i)]));
+
+                        let markerLatLng = null;
+                        if (isCustomEdgeBadge) {
+                            if (this.measureBadgeMarkers && this.measureBadgeMarkers[i] && typeof this.measureBadgeMarkers[i].getLatLng === 'function') {
+                                markerLatLng = this.measureBadgeMarkers[i].getLatLng();
+                            } else if (this.measureBadgeCustomPositions) {
+                                markerLatLng = this.measureBadgeCustomPositions[i] || this.measureBadgeCustomPositions[String(i)];
+                            }
+                        }
+
+                        if (markerLatLng) {
+                            const customCp = latLngToCanvasPoint(markerLatLng);
+                            if (customCp && !isNaN(customCp.x) && !isNaN(customCp.y)) {
                                 badgeX = customCp.x;
                                 badgeY = customCp.y;
                             }
                         }
+
                         if (badgeX === undefined) {
                             const midX = (pA.x + pB.x) / 2;
                             const midY = (pA.y + pB.y) / 2;
@@ -6960,13 +7008,28 @@
                 // 4. Poligon Merkezindeki Büyük Alan Rozeti (3+ Nokta ve Kapalıysa)
                 if (isClosed && canvasPts.length >= 3 && (this.measureShowArea !== false)) {
                     let cenX, cenY;
+                    let areaTargetLatLng = null;
+
                     if (this.measureAreaBadgeCustomPos) {
-                        const customAreaCp = latLngToCanvasPoint(this.measureAreaBadgeCustomPos);
-                        if (customAreaCp) {
+                        areaTargetLatLng = (this.measureAreaBadgeMarker && typeof this.measureAreaBadgeMarker.getLatLng === 'function')
+                            ? this.measureAreaBadgeMarker.getLatLng()
+                            : this.measureAreaBadgeCustomPos;
+                    } else if (this.measureAreaBadgeMarker && this.measureAreaBadgeMarker._hasBeenDragged && typeof this.measureAreaBadgeMarker.getLatLng === 'function') {
+                        areaTargetLatLng = this.measureAreaBadgeMarker.getLatLng();
+                    } else {
+                        areaTargetLatLng = (this.measureAreaBadgeMarker && typeof this.measureAreaBadgeMarker.getLatLng === 'function')
+                            ? this.measureAreaBadgeMarker.getLatLng()
+                            : this.getPolygonCentroid(pts);
+                    }
+
+                    if (areaTargetLatLng) {
+                        const customAreaCp = latLngToCanvasPoint(areaTargetLatLng);
+                        if (customAreaCp && !isNaN(customAreaCp.x) && !isNaN(customAreaCp.y)) {
                             cenX = customAreaCp.x;
                             cenY = customAreaCp.y;
                         }
                     }
+
                     if (cenX === undefined) {
                         let sumX = 0, sumY = 0;
                         canvasPts.forEach(p => { sumX += p.x; sumY += p.y; });

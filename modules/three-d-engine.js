@@ -33,6 +33,9 @@
         planeScale: 1.0,
         showPlaneGrid: true,
         gridColor: '#00d2ff',
+        sunPosX: 550,          // 3D Güneş X Konumu (Sağ Pencere: +550)
+        sunPosY: 250,          // 3D Güneş Y Konumu (Pencere yüksekliği: +250)
+        sunPosZ: -50,          // 3D Güneş Z Konumu (Oda içi pencere derinliği: -50)
         lightAngle: 45,        // Güneş ışığı açısı (0° - 360°)
         lightIntensity: 1.3,
         shadowOpacity: 0.45,   // Zemin gölgesi koyuluğu
@@ -69,6 +72,8 @@
     let iconMesh = null;       // 3D ikon mesh'i (İğne veya Ok)
     let dirLight = null;       // Güneş ışığı
     let ambLight = null;       // Çevre ışığı
+    let sunGroup = null;       // 3D Güneş Grubu (Sphere + Halo)
+    let sunRayLine = null;     // 3D Işık Hüzmesi Çizgisi
 
     let loadedFont = null;
     let isDragging = false;
@@ -224,21 +229,52 @@
         scene.add(ambLight);
 
         dirLight = new THREE.DirectionalLight(0xffffff, state.lightIntensity);
-        dirLight.position.set(250, 450, 600);
+        dirLight.position.set(state.sunPosX, state.sunPosY, state.sunPosZ);
         dirLight.castShadow = true;
         dirLight.shadow.mapSize.width = 2048;
         dirLight.shadow.mapSize.height = 2048;
         dirLight.shadow.camera.near = 10;
-        dirLight.shadow.camera.far = 2500;
-        const d = 600;
+        dirLight.shadow.camera.far = 4500;
+        const d = 900;
         dirLight.shadow.camera.left = -d;
         dirLight.shadow.camera.right = d;
         dirLight.shadow.camera.top = d;
         dirLight.shadow.camera.bottom = -d;
-        dirLight.shadow.bias = -0.0005;
+        dirLight.shadow.bias = -0.0008;
         dirLight.shadow.radius = state.shadowSoftness || 1.5;
         scene.add(dirLight);
         scene.add(dirLight.target);
+
+        // ☀️ 3D Güneş Nesnesi (Gerçek 3D Sahne Ögesi)
+        sunGroup = new THREE.Group();
+        sunGroup.position.set(state.sunPosX, state.sunPosY, state.sunPosZ);
+        const sunSphereGeo = new THREE.SphereGeometry(18, 20, 20);
+        const sunSphereMat = new THREE.MeshBasicMaterial({ color: 0xffd000 });
+        const sunSphere = new THREE.Mesh(sunSphereGeo, sunSphereMat);
+        sunSphere.name = 'sunSphere';
+        sunGroup.add(sunSphere);
+
+        const sunRingGeo = new THREE.RingGeometry(20, 26, 32);
+        const sunRingMat = new THREE.MeshBasicMaterial({
+            color: 0xffaa00,
+            side: THREE.DoubleSide,
+            transparent: true,
+            opacity: 0.8
+        });
+        const sunRing = new THREE.Mesh(sunRingGeo, sunRingMat);
+        sunGroup.add(sunRing);
+        scene.add(sunGroup);
+
+        const rayGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]);
+        const rayMat = new THREE.LineDashedMaterial({
+            color: 0xf59e0b,
+            dashSize: 12,
+            gapSize: 8,
+            transparent: true,
+            opacity: 0.65
+        });
+        sunRayLine = new THREE.Line(rayGeo, rayMat);
+        scene.add(sunRayLine);
 
         // Ana Düzlem Grubu
         planeGroup = new THREE.Group();
@@ -252,14 +288,15 @@
         gridHelper.position.z = 0;
         planeGroup.add(gridHelper);
 
-        // Zemin Gölge Düzlemi (Şeffaf ShadowMaterial)
-        const shadowPlaneGeo = new THREE.PlaneGeometry(1600, 1600);
+        // Zemin Gölge Düzlemi (Şeffaf ShadowMaterial - Çift taraflı ve geniş)
+        const shadowPlaneGeo = new THREE.PlaneGeometry(3200, 3200);
         const shadowPlaneMat = new THREE.ShadowMaterial({
-            opacity: state.shadowOpacity
+            opacity: state.shadowOpacity,
+            side: THREE.DoubleSide
         });
         shadowPlane = new THREE.Mesh(shadowPlaneGeo, shadowPlaneMat);
         shadowPlane.receiveShadow = true;
-        shadowPlane.position.z = -0.2; // Harflerin hemen arkasında
+        shadowPlane.position.z = -0.5; // Harflerin hemen arkasında tam duvar yüzeyinde
         planeGroup.add(shadowPlane);
 
         // Metin ve Öge Taşıyıcı Grup
@@ -378,17 +415,18 @@
             contentGroup.add(textMesh);
         }
 
+        const halfDepth = Math.max(1, state.depth) / 2 + (state.bevelEnabled ? state.bevelThickness : 0);
         if (type === 'combo_pin' && iconMesh && textMesh) {
             const iconWidth = 55;
-            textMesh.position.set(iconWidth / 2 + 10, 0, 0);
-            iconMesh.position.set(-100, 0, 0);
+            textMesh.position.set(iconWidth / 2 + 10, 0, halfDepth);
+            iconMesh.position.set(-100, 0, halfDepth);
         } else if (type === 'combo_arrow' && iconMesh && textMesh) {
             iconMesh.rotation.set(0, 0, -Math.PI / 2);
-            iconMesh.position.set(-110, 0, 0);
-            textMesh.position.set(30, 0, 0);
+            iconMesh.position.set(-110, 0, halfDepth);
+            textMesh.position.set(30, 0, halfDepth);
         } else {
-            if (iconMesh) iconMesh.position.set(0, 0, 0);
-            if (textMesh) textMesh.position.set(0, 0, 0);
+            if (iconMesh) iconMesh.position.set(0, 0, halfDepth);
+            if (textMesh) textMesh.position.set(0, 0, halfDepth);
         }
 
         updateContentTransform();
@@ -438,7 +476,7 @@
             gridHelper.visible = !!state.selected && !!state.showPlaneGrid;
         }
         if (shadowPlane) {
-            shadowPlane.position.set(state.posX, state.posY, zPos - 0.2);
+            shadowPlane.position.set(state.posX, state.posY, zPos - 0.5);
         }
 
         updateLighting();
@@ -447,27 +485,46 @@
 
     function updateLighting() {
         if (!dirLight) return;
+
+        if (sunGroup) {
+            sunGroup.position.set(state.sunPosX, state.sunPosY, state.sunPosZ);
+            if (camera) {
+                sunGroup.quaternion.copy(camera.quaternion);
+            }
+        }
+
         const targetWorldPos = new THREE.Vector3();
         if (contentGroup) {
             contentGroup.getWorldPosition(targetWorldPos);
         } else {
             targetWorldPos.set(0, 0, 0);
         }
+
+        dirLight.position.set(state.sunPosX, state.sunPosY, state.sunPosZ);
         if (dirLight.target) {
             dirLight.target.position.copy(targetWorldPos);
+            dirLight.target.updateMatrixWorld(true);
         }
-
-        const rad = THREE.MathUtils.degToRad(state.lightAngle);
-        const distance = 700;
-        // 0° = Yukarıdan (Top), 90° = Sağdan / Pencereden (Right), 180° = Aşağıdan (Bottom), 270° = Soldan (Left)
-        const lx = targetWorldPos.x + Math.sin(rad) * distance;
-        const ly = targetWorldPos.y + Math.cos(rad) * distance;
-        const lz = targetWorldPos.z + 550;
-
-        dirLight.position.set(lx, ly, lz);
+        dirLight.updateMatrixWorld(true);
         dirLight.intensity = state.lightIntensity;
+
         if (dirLight.shadow) {
             dirLight.shadow.radius = state.shadowSoftness || 1.5;
+            const dist = dirLight.position.distanceTo(targetWorldPos);
+            const d = Math.max(700, dist * 0.85);
+            dirLight.shadow.camera.left = -d;
+            dirLight.shadow.camera.right = d;
+            dirLight.shadow.camera.top = d;
+            dirLight.shadow.camera.bottom = -d;
+            dirLight.shadow.camera.near = 10;
+            dirLight.shadow.camera.far = Math.max(3500, dist + 2000);
+            dirLight.shadow.camera.updateProjectionMatrix();
+        }
+
+        if (sunRayLine && sunRayLine.geometry && sunGroup) {
+            const pts = [sunGroup.position.clone(), targetWorldPos.clone()];
+            sunRayLine.geometry.setFromPoints(pts);
+            sunRayLine.computeLineDistances();
         }
     }
 
@@ -931,24 +988,23 @@
 
         lastOriginScreen = { x: cx, y: cy };
 
-        // 4. Tuval Üstü 360° Güneş Işık Tutamacı (Canvas Sun Controller)
-        const sunDist = Math.max(95, baseLen * 1.35);
-        const sunRad = THREE.MathUtils.degToRad(state.lightAngle);
-        // 0° Üstte (-Y), 90° Sağda / Pencerede (+X), 180° Altta (+Y), 270° Solda (-X)
-        const sunX = cx + Math.sin(sunRad) * sunDist;
-        const sunY = cy - Math.cos(sunRad) * sunDist;
+        // 4. Tuval Üstü 3D Güneş Işık Tutamacı (Real 3D Perspective Projection)
+        const sunWorldVec = new THREE.Vector3(state.sunPosX, state.sunPosY, state.sunPosZ);
+        sunWorldVec.project(camera);
+        const sunScreenX = (sunWorldVec.x + 1) * cw / 2;
+        const sunScreenY = (-sunWorldVec.y + 1) * ch / 2;
 
         const sunLineEl = gizmoOverlayEl.querySelector('#threeDGizmoSunLine');
         if (sunLineEl) {
             sunLineEl.setAttribute('x1', cx);
             sunLineEl.setAttribute('y1', cy);
-            sunLineEl.setAttribute('x2', sunX);
-            sunLineEl.setAttribute('y2', sunY);
+            sunLineEl.setAttribute('x2', sunScreenX);
+            sunLineEl.setAttribute('y2', sunScreenY);
         }
         const sunEl = gizmoOverlayEl.querySelector('#threeDGizmoSun');
         if (sunEl) {
-            sunEl.style.left = sunX + 'px';
-            sunEl.style.top = sunY + 'px';
+            sunEl.style.left = sunScreenX + 'px';
+            sunEl.style.top = sunScreenY + 'px';
         }
     }
 
@@ -1189,38 +1245,64 @@
             dotZ.addEventListener('pointercancel', onUp);
         }
 
-        // 7. Tuval Üstü 360° Güneş Işık Tutamacı (Canvas Sun Controller)
+        // 7. Tuval Üstü 3D Güneş Işık Tutamacı (Canvas 3D Sun Controller)
         const sunEl = overlay.querySelector('#threeDGizmoSun');
         if (sunEl) {
             let isDraggingSun = false;
+            let startClientX = 0;
+            let startClientY = 0;
+            let startSunX = 0;
+            let startSunY = 0;
+            let startSunZ = 0;
+
             sunEl.addEventListener('pointerdown', (e) => {
                 isDraggingSun = true;
+                startClientX = e.clientX;
+                startClientY = e.clientY;
+                startSunX = state.sunPosX;
+                startSunY = state.sunPosY;
+                startSunZ = state.sunPosZ;
                 sunEl.setPointerCapture(e.pointerId);
                 e.stopPropagation();
                 e.preventDefault();
-                showGizmoHud(`☀️ Güneş Açısı: ${state.lightAngle}°`, e.clientX, e.clientY);
+                showGizmoHud(`☀️ 3D Güneş: X: ${state.sunPosX}, Y: ${state.sunPosY}, Z: ${state.sunPosZ} (Shift: Derinlik)`, e.clientX, e.clientY);
             });
 
             sunEl.addEventListener('pointermove', (e) => {
                 if (!isDraggingSun) return;
-                const container = document.getElementById('canvas-container');
-                if (!container) return;
-                const rect = container.getBoundingClientRect();
-                const originClientX = rect.left + lastOriginScreen.x;
-                const originClientY = rect.top + lastOriginScreen.y;
-                const dx = e.clientX - originClientX;
-                const dy = e.clientY - originClientY;
-                let angle = Math.round(Math.atan2(dx, -dy) * (180 / Math.PI));
-                if (angle < 0) angle += 360;
+                const dx = e.clientX - startClientX;
+                const dy = e.clientY - startClientY;
 
-                state.lightAngle = angle;
+                if (e.shiftKey) {
+                    // Shift basılıyken: Derinlik (Z ekseni - Odanın içine/dışına)
+                    state.sunPosZ = Math.round(startSunZ - dy * 2.0);
+                } else {
+                    // Normal sürükleme: X (Sol/Sağ - Pencereye doğru) ve Y (Aşağı/Yukarı)
+                    state.sunPosX = Math.round(startSunX + dx * 1.5);
+                    state.sunPosY = Math.round(startSunY - dy * 1.5);
+                }
+
                 updateLighting();
                 syncControlsUI();
                 updateGizmoPositions();
                 notifyExternalUpdates();
                 requestRender();
-                showGizmoHud(`☀️ Güneş Açısı: ${state.lightAngle}°`, e.clientX, e.clientY);
+                showGizmoHud(`☀️ 3D Güneş: X: ${state.sunPosX}, Y: ${state.sunPosY}, Z: ${state.sunPosZ}px`, e.clientX, e.clientY);
             });
+
+            // Tekerlek ile Güneş Derinliği (Z)
+            sunEl.addEventListener('wheel', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const delta = e.deltaY > 0 ? -30 : 30;
+                state.sunPosZ = Math.max(-1200, Math.min(1200, state.sunPosZ + delta));
+                updateLighting();
+                syncControlsUI();
+                updateGizmoPositions();
+                notifyExternalUpdates();
+                requestRender();
+                showGizmoHud(`☀️ 3D Güneş Derinlik (Z): ${state.sunPosZ}px`, e.clientX, e.clientY);
+            }, { passive: false });
 
             const onSunUp = (e) => {
                 if (!isDraggingSun) return;
@@ -1292,6 +1374,8 @@
             if (gridHelper) {
                 gridHelper.visible = !!state.showPlaneGrid;
             }
+            if (sunGroup) sunGroup.visible = true;
+            if (sunRayLine) sunRayLine.visible = true;
             if (state.gizmoActive && !state.cornerPinActive) {
                 initGizmoOverlay();
                 if (gizmoOverlayEl) {
@@ -1320,6 +1404,8 @@
             if (gridHelper) {
                 gridHelper.visible = false;
             }
+            if (sunGroup) sunGroup.visible = false;
+            if (sunRayLine) sunRayLine.visible = false;
             if (gizmoOverlayEl) gizmoOverlayEl.style.display = 'none';
             if (cornerPinOverlayEl) cornerPinOverlayEl.style.display = 'none';
             if (!options.silent && window.showToast) {
@@ -1642,6 +1728,8 @@
         const prevPinActive = state.cornerPinActive;
         const prevGizmoActive = state.gizmoActive;
         if (gridHelper) gridHelper.visible = false;
+        if (sunGroup) sunGroup.visible = false;
+        if (sunRayLine) sunRayLine.visible = false;
         if (cornerPinOverlayEl) cornerPinOverlayEl.style.display = 'none';
         if (gizmoOverlayEl) gizmoOverlayEl.style.display = 'none';
 
@@ -1671,7 +1759,9 @@
         camera.aspect = curW / curH;
         camera.updateProjectionMatrix();
 
-        if (gridHelper) gridHelper.visible = prevGrid;
+        if (gridHelper) gridHelper.visible = !!state.selected && prevGrid;
+        if (sunGroup) sunGroup.visible = !!state.selected;
+        if (sunRayLine) sunRayLine.visible = !!state.selected;
         if (cornerPinOverlayEl && prevPinActive) cornerPinOverlayEl.style.display = 'block';
         if (gizmoOverlayEl && prevGizmoActive && !prevPinActive) {
             gizmoOverlayEl.style.display = 'block';
@@ -1706,12 +1796,14 @@
         const bevelCheck = panel.querySelector('#threeDBevelCheck');
         const frontColor = panel.querySelector('#threeDFrontColor');
         const sideColor = panel.querySelector('#threeDSideColor');
-        const lightAngle = panel.querySelector('#threeDLightAngle');
+        const sunPosXInput = panel.querySelector('#threeDSunPosX');
+        const sunPosYInput = panel.querySelector('#threeDSunPosY');
+        const sunPosZInput = panel.querySelector('#threeDSunPosZ');
+        const lightIntInput = panel.querySelector('#threeDLightIntensity');
         const shadowOp = panel.querySelector('#threeDShadowOpacity');
         const shadowSoft = panel.querySelector('#threeDShadowSoftness');
         const elevInput = panel.querySelector('#threeDElevationInput');
         const localRotInput = panel.querySelector('#threeDLocalRotInput');
-        const needle = panel.querySelector('#threeDSunNeedle');
 
         if (textInput && textInput.value !== state.text) textInput.value = state.text;
         if (sizeInput) {
@@ -1749,12 +1841,21 @@
         if (bevelCheck) bevelCheck.checked = !!state.bevelEnabled;
         if (frontColor) frontColor.value = state.frontColor;
         if (sideColor) sideColor.value = state.sideColor;
-        if (lightAngle) {
-            lightAngle.value = state.lightAngle;
-            panel.querySelector('#threeDLightVal').textContent = state.lightAngle + '°';
+        if (sunPosXInput) {
+            sunPosXInput.value = state.sunPosX;
+            panel.querySelector('#threeDSunPosXVal').textContent = state.sunPosX + 'px';
         }
-        if (needle) {
-            needle.style.transform = `rotate(${state.lightAngle}deg)`;
+        if (sunPosYInput) {
+            sunPosYInput.value = state.sunPosY;
+            panel.querySelector('#threeDSunPosYVal').textContent = state.sunPosY + 'px';
+        }
+        if (sunPosZInput) {
+            sunPosZInput.value = state.sunPosZ;
+            panel.querySelector('#threeDSunPosZVal').textContent = state.sunPosZ + 'px';
+        }
+        if (lightIntInput) {
+            lightIntInput.value = state.lightIntensity;
+            panel.querySelector('#threeDLightIntensityVal').textContent = state.lightIntensity + 'x';
         }
         if (shadowOp) {
             shadowOp.value = Math.round(state.shadowOpacity * 100);
@@ -2079,43 +2180,55 @@
                     </div>
                 </div>
 
-                <!-- 6. GÜNEŞ PUSULASI & GÖLGE (FAZ 3) -->
+                <!-- 6. 3D GÜNEŞ & ODA IŞIK KAYNAĞI -->
                 <div class="three-d-section">
-                    <div class="three-d-section-title">☀️ GÜNEŞ PUSULASI & ZEMİN GÖLGESİ</div>
+                    <div class="three-d-section-title">☀️ 3D GÜNEŞ & ODA IŞIK KAYNAĞI</div>
                     
-                    <div class="three-d-sun-container">
-                        <div class="three-d-sun-dial" id="threeDSunDial" title="Güneş açısını ayarlamak için çevirin">
-                            <div class="three-d-sun-needle" id="threeDSunNeedle" style="transform: rotate(${state.lightAngle}deg);">
-                                <div class="three-d-sun-glow">☀️</div>
-                            </div>
-                            <div class="three-d-sun-center"></div>
-                            <div class="three-d-compass-mark mark-n">K</div>
-                            <div class="three-d-compass-mark mark-e">D</div>
-                            <div class="three-d-compass-mark mark-s">G</div>
-                            <div class="three-d-compass-mark mark-w">B</div>
-                        </div>
-                        <div class="three-d-sun-controls">
-                            <div class="three-d-row" style="margin-bottom:4px;">
-                                <span class="three-d-label" style="width:75px;">Güneş Açısı:</span>
-                                <input type="range" id="threeDLightAngle" class="three-d-range" min="0" max="360" value="${state.lightAngle}">
-                                <span id="threeDLightVal" class="three-d-val">${state.lightAngle}°</span>
-                            </div>
-                            <div class="three-d-row" style="margin-bottom:4px;">
-                                <span class="three-d-label" style="width:75px;">Gölge Tonu:</span>
-                                <input type="range" id="threeDShadowOpacity" class="three-d-range" min="0" max="100" value="${Math.round(state.shadowOpacity * 100)}">
-                                <span id="threeDShadowVal" class="three-d-val">${Math.round(state.shadowOpacity * 100)}%</span>
-                            </div>
-                            <div class="three-d-row">
-                                <span class="three-d-label" style="width:75px;">Yumuşaklık:</span>
-                                <input type="range" id="threeDShadowSoftness" class="three-d-range" min="1" max="8" step="0.5" value="${state.shadowSoftness || 1.5}">
-                                <span id="threeDShadowSoftVal" class="three-d-val">${state.shadowSoftness || 1.5}x</span>
-                            </div>
-                        </div>
+                    <!-- Hızlı Oda Işığı Presetleri -->
+                    <div class="three-d-presets-grid" style="margin-bottom:8px;">
+                        <button class="three-d-preset-btn" id="threeDSunPresetRight" type="button" title="Sağ Pencere (Işık sağdan vurur, gölge sola duvara düşer)"><i class="fas fa-sun"></i> Sağ Pencere</button>
+                        <button class="three-d-preset-btn" id="threeDSunPresetLeft" type="button" title="Sol Pencere (Işık soldan vurur, gölge sağa duvara düşer)"><i class="fas fa-sun"></i> Sol Pencere</button>
+                        <button class="three-d-preset-btn" id="threeDSunPresetTop" type="button" title="Tavan / Tepe Işığı"><i class="fas fa-lightbulb"></i> Tavan</button>
+                        <button class="three-d-preset-btn" id="threeDSunPresetFront" type="button" title="Karşı / Flaş Işık"><i class="fas fa-camera"></i> Karşı</button>
+                    </div>
+
+                    <!-- 3D Oda Konum Koordinatları -->
+                    <div class="three-d-row" style="margin-bottom:4px;">
+                        <span class="three-d-label" style="width:85px;"><i class="fas fa-arrows-alt-h" style="color:#f59e0b;"></i> X (Pencere):</span>
+                        <input type="range" id="threeDSunPosX" class="three-d-range" min="-1000" max="1000" value="${state.sunPosX}">
+                        <span id="threeDSunPosXVal" class="three-d-val">${state.sunPosX}px</span>
+                    </div>
+                    <div class="three-d-row" style="margin-bottom:4px;">
+                        <span class="three-d-label" style="width:85px;"><i class="fas fa-arrows-alt-v" style="color:#10b981;"></i> Y (Yükseklik):</span>
+                        <input type="range" id="threeDSunPosY" class="three-d-range" min="-600" max="1000" value="${state.sunPosY}">
+                        <span id="threeDSunPosYVal" class="three-d-val">${state.sunPosY}px</span>
+                    </div>
+                    <div class="three-d-row" style="margin-bottom:4px;">
+                        <span class="three-d-label" style="width:85px;"><i class="fas fa-cube" style="color:#00d2ff;"></i> Z (Derinlik):</span>
+                        <input type="range" id="threeDSunPosZ" class="three-d-range" min="-1200" max="1200" value="${state.sunPosZ}">
+                        <span id="threeDSunPosZVal" class="three-d-val">${state.sunPosZ}px</span>
+                    </div>
+
+                    <!-- Gölge ve Işık Ayarları -->
+                    <div class="three-d-row" style="margin-top:6px; margin-bottom:4px;">
+                        <span class="three-d-label" style="width:85px;">Gölge Tonu:</span>
+                        <input type="range" id="threeDShadowOpacity" class="three-d-range" min="0" max="100" value="${Math.round(state.shadowOpacity * 100)}">
+                        <span id="threeDShadowVal" class="three-d-val">${Math.round(state.shadowOpacity * 100)}%</span>
+                    </div>
+                    <div class="three-d-row" style="margin-bottom:4px;">
+                        <span class="three-d-label" style="width:85px;">Yumuşaklık:</span>
+                        <input type="range" id="threeDShadowSoftness" class="three-d-range" min="0.5" max="6" step="0.5" value="${state.shadowSoftness || 1.5}">
+                        <span id="threeDShadowSoftVal" class="three-d-val">${state.shadowSoftness || 1.5}x</span>
+                    </div>
+                    <div class="three-d-row">
+                        <span class="three-d-label" style="width:85px;">Işık Gücü:</span>
+                        <input type="range" id="threeDLightIntensity" class="three-d-range" min="0.5" max="3.0" step="0.1" value="${state.lightIntensity}">
+                        <span id="threeDLightIntensityVal" class="three-d-val">${state.lightIntensity}x</span>
                     </div>
                 </div>
 
                 <div class="three-d-tip-text" style="font-size:10.5px; line-height:1.4; padding:0 2px;">
-                    💡 <em>İpucu: Güneş pusulası üzerinde parmağınızı veya fareyi çevirerek gölgenin fotoğrafınızla tam eşleşmesini sağlayabilirsiniz.</em>
+                    💡 <em>İpucu: Tuvaldeki ☀️ Güneş rozetini tutup pencereye doğru sürükleyerek doğal pencere ışığı ve gölgesi elde edebilirsiniz. Shift tuşu veya tekerlek ile oda derinliğini ayarlayabilirsiniz.</em>
                 </div>
             </div>
 
@@ -2425,76 +2538,131 @@
             });
         });
 
-        // ☀️ İnteraktif Güneş Pusulası Dinleyicisi (Faz 3)
-        const sunDial = panel.querySelector('#threeDSunDial');
-        let isDialDragging = false;
-
-        function updateSunFromDial(e) {
-            const rect = sunDial.getBoundingClientRect();
-            const cx = rect.left + rect.width / 2;
-            const cy = rect.top + rect.height / 2;
-            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-
-            let angle = Math.round(Math.atan2(clientY - cy, clientX - cx) * (180 / Math.PI) + 90);
-            if (angle < 0) angle += 360;
-
-            state.lightAngle = angle;
-            updateLighting();
-            syncControlsUI();
-            updateGizmoPositions();
-            notifyExternalUpdates();
-            requestRender();
+        // ☀️ 3D Güneş & Oda Işığı Dinleyicileri
+        const presetRight = panel.querySelector('#threeDSunPresetRight');
+        if (presetRight) {
+            presetRight.addEventListener('click', () => {
+                state.sunPosX = 550;
+                state.sunPosY = 250;
+                state.sunPosZ = -50;
+                updateLighting();
+                syncControlsUI();
+                updateGizmoPositions();
+                notifyExternalUpdates();
+                requestRender();
+            });
         }
 
-        sunDial.addEventListener('pointerdown', (e) => {
-            isDialDragging = true;
-            sunDial.setPointerCapture(e.pointerId);
-            updateSunFromDial(e);
-            e.preventDefault();
-        });
+        const presetLeft = panel.querySelector('#threeDSunPresetLeft');
+        if (presetLeft) {
+            presetLeft.addEventListener('click', () => {
+                state.sunPosX = -550;
+                state.sunPosY = 250;
+                state.sunPosZ = -50;
+                updateLighting();
+                syncControlsUI();
+                updateGizmoPositions();
+                notifyExternalUpdates();
+                requestRender();
+            });
+        }
 
-        sunDial.addEventListener('pointermove', (e) => {
-            if (!isDialDragging) return;
-            updateSunFromDial(e);
-        });
+        const presetTop = panel.querySelector('#threeDSunPresetTop');
+        if (presetTop) {
+            presetTop.addEventListener('click', () => {
+                state.sunPosX = 0;
+                state.sunPosY = 650;
+                state.sunPosZ = 100;
+                updateLighting();
+                syncControlsUI();
+                updateGizmoPositions();
+                notifyExternalUpdates();
+                requestRender();
+            });
+        }
 
-        const onDialUp = (e) => {
-            if (!isDialDragging) return;
-            isDialDragging = false;
-            try { sunDial.releasePointerCapture(e.pointerId); } catch(ex){}
-        };
-        sunDial.addEventListener('pointerup', onDialUp);
-        sunDial.addEventListener('pointercancel', onDialUp);
+        const presetFront = panel.querySelector('#threeDSunPresetFront');
+        if (presetFront) {
+            presetFront.addEventListener('click', () => {
+                state.sunPosX = 0;
+                state.sunPosY = 200;
+                state.sunPosZ = 600;
+                updateLighting();
+                syncControlsUI();
+                updateGizmoPositions();
+                notifyExternalUpdates();
+                requestRender();
+            });
+        }
 
-        const lightAngle = panel.querySelector('#threeDLightAngle');
-        lightAngle.addEventListener('input', (e) => {
-            state.lightAngle = parseFloat(e.target.value) || 45;
-            panel.querySelector('#threeDLightVal').textContent = state.lightAngle + '°';
-            updateLighting();
-            syncControlsUI();
-            updateGizmoPositions();
-            notifyExternalUpdates();
-            requestRender();
-        });
+        const sunPosXInput = panel.querySelector('#threeDSunPosX');
+        if (sunPosXInput) {
+            sunPosXInput.addEventListener('input', (e) => {
+                state.sunPosX = parseInt(e.target.value) || 0;
+                panel.querySelector('#threeDSunPosXVal').textContent = state.sunPosX + 'px';
+                updateLighting();
+                updateGizmoPositions();
+                notifyExternalUpdates();
+                requestRender();
+            });
+        }
+
+        const sunPosYInput = panel.querySelector('#threeDSunPosY');
+        if (sunPosYInput) {
+            sunPosYInput.addEventListener('input', (e) => {
+                state.sunPosY = parseInt(e.target.value) || 0;
+                panel.querySelector('#threeDSunPosYVal').textContent = state.sunPosY + 'px';
+                updateLighting();
+                updateGizmoPositions();
+                notifyExternalUpdates();
+                requestRender();
+            });
+        }
+
+        const sunPosZInput = panel.querySelector('#threeDSunPosZ');
+        if (sunPosZInput) {
+            sunPosZInput.addEventListener('input', (e) => {
+                state.sunPosZ = parseInt(e.target.value) || 0;
+                panel.querySelector('#threeDSunPosZVal').textContent = state.sunPosZ + 'px';
+                updateLighting();
+                updateGizmoPositions();
+                notifyExternalUpdates();
+                requestRender();
+            });
+        }
+
+        const lightIntensityInput = panel.querySelector('#threeDLightIntensity');
+        if (lightIntensityInput) {
+            lightIntensityInput.addEventListener('input', (e) => {
+                state.lightIntensity = parseFloat(e.target.value) || 1.3;
+                panel.querySelector('#threeDLightIntensityVal').textContent = state.lightIntensity + 'x';
+                updateLighting();
+                notifyExternalUpdates();
+                requestRender();
+            });
+        }
 
         const shadowOp = panel.querySelector('#threeDShadowOpacity');
-        shadowOp.addEventListener('input', (e) => {
-            state.shadowOpacity = (parseFloat(e.target.value) || 45) / 100;
-            panel.querySelector('#threeDShadowVal').textContent = Math.round(state.shadowOpacity * 100) + '%';
-            updatePlaneTransform();
-            notifyExternalUpdates();
-            requestRender();
-        });
+        if (shadowOp) {
+            shadowOp.addEventListener('input', (e) => {
+                state.shadowOpacity = (parseFloat(e.target.value) || 45) / 100;
+                panel.querySelector('#threeDShadowVal').textContent = Math.round(state.shadowOpacity * 100) + '%';
+                updatePlaneTransform();
+                notifyExternalUpdates();
+                requestRender();
+            });
+        }
 
         const shadowSoft = panel.querySelector('#threeDShadowSoftness');
-        shadowSoft.addEventListener('input', (e) => {
-            state.shadowSoftness = parseFloat(e.target.value) || 1.5;
-            panel.querySelector('#threeDShadowSoftVal').textContent = state.shadowSoftness + 'x';
-            updateLighting();
-            notifyExternalUpdates();
-            requestRender();
-        });
+        if (shadowSoft) {
+            shadowSoft.addEventListener('input', (e) => {
+                state.shadowSoftness = parseFloat(e.target.value) || 1.5;
+                panel.querySelector('#threeDShadowSoftVal').textContent = state.shadowSoftness + 'x';
+                updateLighting();
+                notifyExternalUpdates();
+                requestRender();
+            });
+        }
 
         // Header Actions
         panel.querySelector('#threeDResetBtn').addEventListener('click', resetToDefaults);
@@ -2584,6 +2752,8 @@
         if (panel) panel.style.display = 'none';
         state.active = false;
         if (gridHelper) gridHelper.visible = false;
+        if (sunGroup) sunGroup.visible = false;
+        if (sunRayLine) sunRayLine.visible = false;
         if (cornerPinOverlayEl) cornerPinOverlayEl.style.display = 'none';
         if (gizmoOverlayEl) gizmoOverlayEl.style.display = 'none';
         if (canvasBadgeEl) canvasBadgeEl.style.display = 'none';
@@ -2625,6 +2795,10 @@
         state.sideColor = '#92400e';
         state.orientation = 'flat';
         state.showPlaneGrid = true;
+        state.sunPosX = 550;
+        state.sunPosY = 250;
+        state.sunPosZ = -50;
+        state.lightIntensity = 1.2;
         state.shadowOpacity = 0.45;
         state.shadowSoftness = 1.5;
         state.cornerPinActive = false;
@@ -2647,6 +2821,7 @@
 
         setSelected(true, { silent: true, autoLockPhoto: false });
         updatePlaneTransform();
+        updateLighting();
         recreateContentMeshes();
         syncControlsUI();
         notifyExternalUpdates();
@@ -2694,6 +2869,9 @@
             lightIntensity: state.lightIntensity,
             shadowOpacity: state.shadowOpacity,
             shadowSoftness: state.shadowSoftness,
+            sunPosX: state.sunPosX !== undefined ? state.sunPosX : 550,
+            sunPosY: state.sunPosY !== undefined ? state.sunPosY : 250,
+            sunPosZ: state.sunPosZ !== undefined ? state.sunPosZ : -50,
             posX: state.posX,
             posY: state.posY,
             posZ: state.posZ || 0,
@@ -2745,6 +2923,12 @@
             if (data.visible === false) {
                 toggleVisibility(false);
             }
+        } else if (scene) {
+            updateLighting();
+            updatePlaneTransform();
+            recreateContentMeshes();
+            syncControlsUI();
+            requestRender();
         }
     }
 
@@ -2791,6 +2975,21 @@
         setLocalRot: (r) => { state.planeLocalRot = parseFloat(r) || 0; updateContentTransform(); requestRender(); },
         setOrientation: (o) => { state.orientation = o; updateContentTransform(); requestRender(); },
         setLightAngle: (a) => { state.lightAngle = parseFloat(a) || 45; updateLighting(); requestRender(); },
+        setSunPosition: (x, y, z) => {
+            if (x !== undefined) state.sunPosX = parseFloat(x) || 0;
+            if (y !== undefined) state.sunPosY = parseFloat(y) || 0;
+            if (z !== undefined) state.sunPosZ = parseFloat(z) || 0;
+            updateLighting();
+            updateGizmoPositions();
+            syncControlsUI();
+            requestRender();
+        },
+        setLightIntensity: (i) => {
+            state.lightIntensity = parseFloat(i) || 1.2;
+            updateLighting();
+            syncControlsUI();
+            requestRender();
+        },
         setShadowOpacity: (o) => { state.shadowOpacity = (parseFloat(o) || 45) / 100; updatePlaneTransform(); requestRender(); },
         setShadowSoftness: (s) => { state.shadowSoftness = parseFloat(s) || 1.5; updateLighting(); requestRender(); },
         toggleGrid: (show) => { 

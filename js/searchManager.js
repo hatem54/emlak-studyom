@@ -142,6 +142,7 @@ window.OmniSearch = {
             { id: 'tool_voiceover', name: 'Yapay Zeka Seslendirme Stüdyosu (AI Voiceover)', type: 'Araç', evalStr: "if(typeof window.openVoiceoverStudio === 'function') window.openVoiceoverStudio();" },
             { id: 'tool_ai_enhance', name: 'Yapay Zeka Fotoğraf İyileştirme & Filtreler', type: 'Araç', evalStr: "if(typeof switchTab === 'function') switchTab('photo');" },
             { id: 'tool_color_matcher', name: 'PRO Renk Paleti & Şablon Renk Eşleştirici', type: 'Araç', evalStr: "if(typeof showTemplateColorModal === 'function') showTemplateColorModal();" },
+            { id: 'tool_3d_engine', name: '3D Düzlem & Kalınlıklı Metin Yerleştirici (PRO)', type: 'Araç', evalStr: "if(window.ThreeDEngine) window.ThreeDEngine.openStudio();" },
             { id: 'tool_layers', name: 'Katmanlar Paneli (Tüm Nesneleri Yönet)', type: 'Araç', evalStr: "if(typeof switchTab === 'function') switchTab('layers');" },
             { id: 'tool_qr', name: 'QR Kod Oluşturucu', type: 'Araç', evalStr: "if(typeof switchTab === 'function') switchTab('qr');" },
             { id: 'tool_font', name: 'Tipografi & Font Seçimi', type: 'Araç', evalStr: "if(typeof switchTab === 'function') switchTab('font');" },

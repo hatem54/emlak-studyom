@@ -1,4 +1,4 @@
-const CACHE_NAME = 'emlak-studiom-v206-20260914-86';
+const CACHE_NAME = 'emlak-studiom-v206-20260915-87';
 const CORE_ASSETS = [
   './core/utils.js',
   './app.html',
@@ -12,6 +12,7 @@ const CORE_ASSETS = [
   './modules/photo-masks.js',
   './modules/voiceover-studio.js',
   './modules/satellite-map.js',
+  './modules/three-d-engine.js',
   './modules/ai-enhancer.js',
   './modules/canvas-core.js',
   './modules/ui-core.js',
@@ -19,6 +20,8 @@ const CORE_ASSETS = [
   './modules/ai-vision.js',
   './modules/other-callouts.js',
   './assets/logo/logo-icon.png',
+  './assets/vendor/three.min.js',
+  './assets/fonts/helvetiker_bold.typeface.json',
   './ui/pwa-install.js',
   './manifest.json'
 ];

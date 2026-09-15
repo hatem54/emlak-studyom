@@ -29,6 +29,7 @@ function isExportIgnoredElement(el) {
     if (!el) return false;
     if (el.id === 'photo-layer') return true;
     if (el.id === 'saber-layer') return true;
+    if (el.id === 'three-d-layer') return true;
     if (window.isExportingVideo && (el.id === 'draw-layer' || el.id === 'drawCanvas')) return true;
     if (el.id === 'export-loading-overlay') return true;
     if (el.id === 'app-custom-context-menu' || el.id === 'native-context-menu' || el.id === 'native-context-overlay') return true;
@@ -1591,6 +1592,16 @@ async function exportAnimatedVideo(options = {}) {
     if (typeof window.redrawAllToContext === 'function') {
         const hasSaberActive = !!(window.SaberEngine && typeof window.SaberEngine.getApp === 'function');
         window.redrawAllToContext(baseCtx, outputScale, { skipNeonStrokes: hasSaberActive });
+    }
+
+    // 3D WebGL Katmanı (#three-d-layer)
+    const threeDCanvas = document.getElementById('three-d-layer');
+    if (threeDCanvas && threeDCanvas.style.display !== 'none' && threeDCanvas.width > 0) {
+        try {
+            baseCtx.drawImage(threeDCanvas, 0, 0, targetW, targetH);
+        } catch(e) {
+            console.warn('[Export] 3D katman aktarılırken hata:', e);
+        }
     }
 
     // 4. Şablon, metinler ve rozetler (Sadece varsa html2canvas çalıştır)

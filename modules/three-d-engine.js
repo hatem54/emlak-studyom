@@ -41,9 +41,9 @@
         posY: 0,               // Düzlem üzerinde Y konumu
         cornerPinActive: false,// 4 Köşe Tutamaç modu aktif mi?
         gizmoActive: true,     // After Effects tarzı 3D Eksen Gizmo modu aktif mi?
-        gizmoScale: 1.4,       // Tutamaç boyutu ölçeği (0.8 - 2.5) -> Varsayılan %140 (daha belirgin ve akıllı)
+        gizmoScale: 1.7,       // Tutamaç boyutu ölçeği (0.7 - 3.5) -> Varsayılan %170 (daha büyük ve okunaklı)
         gizmoAutoFit: true,    // Nesne ve metin boyutuna göre akıllı orantılama
-        gizmoDistance: 170,    // Eksen açılma mesafesi (90px - 320px)
+        gizmoDistance: 85,     // Eksen açılma mesafesi (40px - 280px) -> Varsayılan 85px (ögeye yakın ve derli toplu)
         gizmoShowLabels: true, // Eksen rozet etiketlerini göster (Eğim, Yatay vb.)
         gizmoShowHud: true,    // Canlı derece HUD bildirimini göster
         gizmoOpacity: 1.0,     // Gizmo opaklığı (0.3 - 1.0)
@@ -414,7 +414,7 @@
         contentGroup.position.set(state.posX, state.posY, state.planeElevation);
         const localRotRad = THREE.MathUtils.degToRad(state.planeLocalRot);
         const standX = (state.orientation === 'standing') ? (Math.PI / 2) : 0;
-        contentGroup.rotation.set(standX, 0, localRotRad);
+        contentGroup.rotation.set(standX, 0, -localRotRad);
         updateGizmoPositions();
     }
 
@@ -738,7 +738,7 @@
             }
         }
 
-        const currentScale = state.gizmoScale || 1.4;
+        const currentScale = state.gizmoScale || 1.7;
         const currentOpacity = (state.gizmoOpacity !== undefined) ? state.gizmoOpacity : 1.0;
 
         // Dinamik CSS Değişkenleri ve Etiket Durumu
@@ -753,37 +753,101 @@
         const cx = (vCenter.x + 1) * cw / 2;
         const cy = (-vCenter.y + 1) * ch / 2;
 
-        const baseLen = (state.gizmoDistance || 170) * (state.gizmoAutoFit ? autoRatio : 1.0) * Math.max(0.65, Math.min(2.2, state.planeScale));
+        // 📏 Kompakt & Doğal Mesafe (Ögeden aşırı uzaklaşmayı önleyen sınırlandırılmış formül)
+        const baseLen = (state.gizmoDistance || 85) * (state.gizmoAutoFit ? Math.min(1.4, autoRatio) : 1.0) * Math.max(0.85, Math.min(1.25, Math.sqrt(state.planeScale)));
 
         // X Ekseni (Pitch)
         const vX = new THREE.Vector3(baseLen, 0, 0);
         contentGroup.localToWorld(vX);
         vX.project(camera);
-        const pxX = (vX.x + 1) * cw / 2;
-        const pyX = (-vX.y + 1) * ch / 2;
+        let pxX = (vX.x + 1) * cw / 2;
+        let pyX = (-vX.y + 1) * ch / 2;
 
         // Y Ekseni (Yaw)
         const vY = new THREE.Vector3(0, baseLen, 0);
         contentGroup.localToWorld(vY);
         vY.project(camera);
-        const pxY = (vY.x + 1) * cw / 2;
-        const pyY = (-vY.y + 1) * ch / 2;
+        let pxY = (vY.x + 1) * cw / 2;
+        let pyY = (-vY.y + 1) * ch / 2;
 
         // Z Ekseni (Roll / Yüzey Normalleri)
         const vZ = new THREE.Vector3(0, 0, baseLen);
         contentGroup.localToWorld(vZ);
         vZ.project(camera);
-        const pxZ = (vZ.x + 1) * cw / 2;
-        const pyZ = (-vZ.y + 1) * ch / 2;
+        let pxZ = (vZ.x + 1) * cw / 2;
+        let pyZ = (-vZ.y + 1) * ch / 2;
 
-        // Halka Rotasyon Tutamacı (Mesafeyle orantılı akıllı çember)
-        const ringRadius = baseLen * 0.62;
-        const rotRad = THREE.MathUtils.degToRad(state.planeLocalRot);
-        const vRot = new THREE.Vector3(Math.cos(rotRad) * ringRadius, Math.sin(rotRad) * ringRadius, 0);
+        // Halka Rotasyon Tutamacı (Mesafeyle orantılı çember - contentGroup ile doğal döner)
+        const ringRadius = Math.max(45, baseLen * 0.72);
+        const vRot = new THREE.Vector3(ringRadius, 0, 0);
         contentGroup.localToWorld(vRot);
         vRot.project(camera);
-        const pxRot = (vRot.x + 1) * cw / 2;
-        const pyRot = (-vRot.y + 1) * ch / 2;
+        let pxRot = (vRot.x + 1) * cw / 2;
+        let pyRot = (-vRot.y + 1) * ch / 2;
+
+        // 🛡️ Çakışma Önleyici Akıllı Konumlandırma (Anti-Overlap & Anti-Collision Relaxation)
+        // Kullanıcı uyarısı: "bazı tutamaçlar üstüste biniyor gibi bunları ayarlayalım"
+        const handles = [
+            { id: 'x', x: pxX, y: pyX },
+            { id: 'y', x: pxY, y: pyY },
+            { id: 'z', x: pxZ, y: pyZ },
+            { id: 'rot', x: pxRot, y: pyRot }
+        ];
+
+        // 1. Merkeze binmeyi önleme (Minimum merkez mesafesi)
+        const minCenterDist = 48 * Math.max(0.9, currentScale * 0.7);
+        handles.forEach((h, idx) => {
+            let dCenter = Math.hypot(h.x - cx, h.y - cy);
+            if (dCenter < minCenterDist) {
+                if (dCenter < 1) {
+                    const fallbackAngle = idx * (Math.PI / 2);
+                    h.x = cx + Math.cos(fallbackAngle) * minCenterDist;
+                    h.y = cy + Math.sin(fallbackAngle) * minCenterDist;
+                } else {
+                    h.x = cx + ((h.x - cx) / dCenter) * minCenterDist;
+                    h.y = cy + ((h.y - cy) / dCenter) * minCenterDist;
+                }
+            }
+        });
+
+        // 2. Tutamaçların birbirinin üstüne binmesini önleme (Pairwise separation relaxation)
+        const minHandleDist = 64 * Math.max(0.85, currentScale * 0.75);
+        for (let iter = 0; iter < 5; iter++) {
+            for (let i = 0; i < handles.length; i++) {
+                for (let j = i + 1; j < handles.length; j++) {
+                    const hA = handles[i];
+                    const hB = handles[j];
+                    let dx = hB.x - hA.x;
+                    let dy = hB.y - hA.y;
+                    let dist = Math.hypot(dx, dy);
+                    if (dist < minHandleDist) {
+                        if (dist < 1) {
+                            dx = 1; dy = 0; dist = 1;
+                        }
+                        const overlap = (minHandleDist - dist) / 2;
+                        const nx = (dx / dist) * overlap;
+                        const ny = (dy / dist) * overlap;
+                        hA.x -= nx;
+                        hA.y -= ny;
+                        hB.x += nx;
+                        hB.y += ny;
+                    }
+                }
+            }
+            // Merkeze çok yaklaşma kontrolü
+            handles.forEach(h => {
+                const d = Math.hypot(h.x - cx, h.y - cy);
+                if (d < minCenterDist && d > 0) {
+                    h.x = cx + ((h.x - cx) / d) * minCenterDist;
+                    h.y = cy + ((h.y - cy) / d) * minCenterDist;
+                }
+            });
+        }
+
+        pxX = handles[0].x; pyX = handles[0].y;
+        pxY = handles[1].x; pyY = handles[1].y;
+        pxZ = handles[2].x; pyZ = handles[2].y;
+        pxRot = handles[3].x; pyRot = handles[3].y;
 
         // SVG Güncelle
         const lineX = gizmoOverlayEl.querySelector('#threeDGizmoLineX');
@@ -797,7 +861,7 @@
         if (ring) {
             ring.setAttribute('cx', cx);
             ring.setAttribute('cy', cy);
-            ring.setAttribute('r', ringRadius);
+            ring.setAttribute('r', Math.hypot(pxRot - cx, pyRot - cy));
         }
 
         // HTML Tutamaçları Konumlandır
@@ -913,7 +977,7 @@
             handleY.addEventListener('pointermove', (e) => {
                 if (!isDraggingY) return;
                 const dx = e.clientX - startClientX;
-                let val = Math.round(startYaw + dx * 0.75);
+                let val = Math.round(startYaw - dx * 0.75);
                 if (val > 180) val -= 360;
                 if (val < -180) val += 360;
                 state.planeYaw = val;
@@ -949,7 +1013,7 @@
             handleZ.addEventListener('pointermove', (e) => {
                 if (!isDraggingZ) return;
                 const dx = e.clientX - startClientX;
-                let val = Math.round(startRoll + dx * 0.75);
+                let val = Math.round(startRoll - dx * 0.75);
                 if (val > 180) val -= 360;
                 if (val < -180) val += 360;
                 state.planeRoll = val;
@@ -973,8 +1037,16 @@
         const handleRot = overlay.querySelector('#threeDGizmoHandleRot');
         if (handleRot) {
             let isDraggingRot = false;
+            let startPointerAngle = 0;
+            let startLocalRot = 0;
             handleRot.addEventListener('pointerdown', (e) => {
                 isDraggingRot = true;
+                const centerEl = overlay.querySelector('#threeDGizmoCenter');
+                const rect = centerEl.getBoundingClientRect();
+                const cx = rect.left + rect.width / 2;
+                const cy = rect.top + rect.height / 2;
+                startPointerAngle = Math.atan2(e.clientY - cy, e.clientX - cx);
+                startLocalRot = state.planeLocalRot || 0;
                 handleRot.setPointerCapture(e.pointerId);
                 e.stopPropagation();
                 e.preventDefault();
@@ -985,9 +1057,11 @@
                 const rect = centerEl.getBoundingClientRect();
                 const cx = rect.left + rect.width / 2;
                 const cy = rect.top + rect.height / 2;
-                let deg = Math.round(Math.atan2(e.clientY - cy, e.clientX - cx) * (180 / Math.PI));
-                if (deg < 0) deg += 360;
-                state.planeLocalRot = deg;
+                const currentPointerAngle = Math.atan2(e.clientY - cy, e.clientX - cx);
+                let deltaDeg = (currentPointerAngle - startPointerAngle) * (180 / Math.PI);
+                let newRot = Math.round((startLocalRot + deltaDeg) % 360);
+                if (newRot < 0) newRot += 360;
+                state.planeLocalRot = newRot;
                 updateContentTransform();
                 syncControlsUI();
                 notifyExternalUpdates();
@@ -1205,7 +1279,7 @@
             dragStart.y = e.clientY;
 
             if (dragMode === 'rotate') {
-                state.planeYaw = Math.round((state.planeYaw + dx * 0.5) % 360);
+                state.planeYaw = Math.round((state.planeYaw - dx * 0.5) % 360);
                 state.planePitch = Math.max(-90, Math.min(90, Math.round(state.planePitch - dy * 0.5)));
                 updatePlaneTransform();
                 syncControlsUI();
@@ -1508,7 +1582,7 @@
         const autoFitCheck = panel.querySelector('#threeDGizmoAutoFitCheck');
         if (autoFitCheck) autoFitCheck.checked = !!state.gizmoAutoFit;
 
-        const scaleVal = Math.round((state.gizmoScale || 1.4) * 100);
+        const scaleVal = Math.round((state.gizmoScale || 1.7) * 100);
         const gizmoScaleInput = panel.querySelector('#threeDGizmoScaleInput');
         if (gizmoScaleInput) {
             gizmoScaleInput.value = scaleVal;
@@ -1519,12 +1593,16 @@
             chip.classList.toggle('active', parseInt(chip.dataset.scale) === scaleVal);
         });
 
+        const currentDist = state.gizmoDistance || 85;
         const distInput = panel.querySelector('#threeDGizmoDistanceInput');
         if (distInput) {
-            distInput.value = state.gizmoDistance || 170;
+            distInput.value = currentDist;
             const distLbl = panel.querySelector('#threeDGizmoDistanceVal');
-            if (distLbl) distLbl.textContent = (state.gizmoDistance || 170) + 'px';
+            if (distLbl) distLbl.textContent = currentDist + 'px';
         }
+        panel.querySelectorAll('.three-d-dist-chip').forEach(chip => {
+            chip.classList.toggle('active', parseInt(chip.dataset.dist) === currentDist);
+        });
 
         const opInput = panel.querySelector('#threeDGizmoOpacityInput');
         if (opInput) {
@@ -1662,22 +1740,28 @@
                         <div class="three-d-setting-item">
                             <div class="three-d-setting-row">
                                 <span class="three-d-setting-lbl">Tutamaç Boyutu:</span>
-                                <input type="range" id="threeDGizmoScaleInput" class="three-d-range" min="80" max="250" step="5" value="${Math.round((state.gizmoScale || 1.4) * 100)}">
-                                <span id="threeDGizmoScaleVal" class="three-d-val">${Math.round((state.gizmoScale || 1.4) * 100)}%</span>
+                                <input type="range" id="threeDGizmoScaleInput" class="three-d-range" min="70" max="350" step="5" value="${Math.round((state.gizmoScale || 1.7) * 100)}">
+                                <span id="threeDGizmoScaleVal" class="three-d-val">${Math.round((state.gizmoScale || 1.7) * 100)}%</span>
                             </div>
                             <div class="three-d-scale-presets">
-                                <button class="three-d-scale-chip ${Math.round((state.gizmoScale || 1.4) * 100) === 100 ? 'active' : ''}" data-scale="100">Normal %100</button>
-                                <button class="three-d-scale-chip ${Math.round((state.gizmoScale || 1.4) * 100) === 140 ? 'active' : ''}" data-scale="140">Büyük %140</button>
-                                <button class="three-d-scale-chip ${Math.round((state.gizmoScale || 1.4) * 100) === 190 ? 'active' : ''}" data-scale="190">Ultra %190</button>
+                                <button class="three-d-scale-chip ${Math.round((state.gizmoScale || 1.7) * 100) === 120 ? 'active' : ''}" data-scale="120">Kompakt %120</button>
+                                <button class="three-d-scale-chip ${Math.round((state.gizmoScale || 1.7) * 100) === 150 ? 'active' : ''}" data-scale="150">Orta %150</button>
+                                <button class="three-d-scale-chip ${Math.round((state.gizmoScale || 1.7) * 100) === 170 ? 'active' : ''}" data-scale="170">Büyük %170</button>
+                                <button class="three-d-scale-chip ${Math.round((state.gizmoScale || 1.7) * 100) === 230 ? 'active' : ''}" data-scale="230">Dev %230</button>
                             </div>
                         </div>
 
-                        <!-- 3. Açılma Mesafesi (Eksen Uzunluğu) -->
+                        <!-- 3. Açılma Mesafesi (Eksen Uzunluğu) + Presets -->
                         <div class="three-d-setting-item">
                             <div class="three-d-setting-row">
                                 <span class="three-d-setting-lbl">Eksen Mesafesi:</span>
-                                <input type="range" id="threeDGizmoDistanceInput" class="three-d-range" min="90" max="320" step="5" value="${state.gizmoDistance || 170}">
-                                <span id="threeDGizmoDistanceVal" class="three-d-val">${state.gizmoDistance || 170}px</span>
+                                <input type="range" id="threeDGizmoDistanceInput" class="three-d-range" min="40" max="280" step="5" value="${state.gizmoDistance || 85}">
+                                <span id="threeDGizmoDistanceVal" class="three-d-val">${state.gizmoDistance || 85}px</span>
+                            </div>
+                            <div class="three-d-dist-presets">
+                                <button class="three-d-dist-chip ${(state.gizmoDistance || 85) === 60 ? 'active' : ''}" data-dist="60">Yakın (60px)</button>
+                                <button class="three-d-dist-chip ${(state.gizmoDistance || 85) === 85 ? 'active' : ''}" data-dist="85">Dengeli (85px)</button>
+                                <button class="three-d-dist-chip ${(state.gizmoDistance || 85) === 130 ? 'active' : ''}" data-dist="130">Geniş (130px)</button>
                             </div>
                         </div>
 
@@ -1902,7 +1986,7 @@
         const gizmoScaleInput = panel.querySelector('#threeDGizmoScaleInput');
         if (gizmoScaleInput) {
             gizmoScaleInput.addEventListener('input', (e) => {
-                const val = parseInt(e.target.value) || 140;
+                const val = parseInt(e.target.value) || 170;
                 state.gizmoScale = val / 100;
                 panel.querySelector('#threeDGizmoScaleVal').textContent = val + '%';
                 updateGizmoPositions();
@@ -1913,7 +1997,7 @@
 
         panel.querySelectorAll('.three-d-scale-chip').forEach(chip => {
             chip.addEventListener('click', () => {
-                const scaleVal = parseInt(chip.dataset.scale) || 140;
+                const scaleVal = parseInt(chip.dataset.scale) || 170;
                 state.gizmoScale = scaleVal / 100;
                 if (gizmoScaleInput) gizmoScaleInput.value = scaleVal;
                 panel.querySelector('#threeDGizmoScaleVal').textContent = scaleVal + '%';
@@ -1923,16 +2007,29 @@
             });
         });
 
-        // Eksen Mesafesi Slider
+        // Eksen Mesafesi Slider & Presets
         const distanceInput = panel.querySelector('#threeDGizmoDistanceInput');
         if (distanceInput) {
             distanceInput.addEventListener('input', (e) => {
-                state.gizmoDistance = parseInt(e.target.value) || 170;
+                state.gizmoDistance = parseInt(e.target.value) || 85;
                 panel.querySelector('#threeDGizmoDistanceVal').textContent = state.gizmoDistance + 'px';
                 updateGizmoPositions();
                 notifyExternalUpdates();
+                syncControlsUI();
             });
         }
+
+        panel.querySelectorAll('.three-d-dist-chip').forEach(chip => {
+            chip.addEventListener('click', () => {
+                const distVal = parseInt(chip.dataset.dist) || 85;
+                state.gizmoDistance = distVal;
+                if (distanceInput) distanceInput.value = distVal;
+                panel.querySelector('#threeDGizmoDistanceVal').textContent = distVal + 'px';
+                updateGizmoPositions();
+                notifyExternalUpdates();
+                syncControlsUI();
+            });
+        });
 
         // Opaklık Slider
         const opacityInput = panel.querySelector('#threeDGizmoOpacityInput');
@@ -2315,9 +2412,9 @@
         state.shadowSoftness = 1.5;
         state.cornerPinActive = false;
         state.gizmoActive = true;
-        state.gizmoScale = 1.4;
+        state.gizmoScale = 1.7;
         state.gizmoAutoFit = true;
-        state.gizmoDistance = 170;
+        state.gizmoDistance = 85;
         state.gizmoShowLabels = true;
         state.gizmoShowHud = true;
         state.gizmoOpacity = 1.0;
@@ -2451,9 +2548,9 @@
         toggleCornerPin: toggleCornerPinMode,
         toggleGizmo: toggleGizmoMode,
         updateGizmo: updateGizmoPositions,
-        setGizmoScale: (s) => { state.gizmoScale = parseFloat(s) || 1.4; updateGizmoPositions(); syncControlsUI(); },
+        setGizmoScale: (s) => { state.gizmoScale = parseFloat(s) || 1.7; updateGizmoPositions(); syncControlsUI(); },
         setGizmoAutoFit: (af) => { state.gizmoAutoFit = !!af; updateGizmoPositions(); syncControlsUI(); },
-        setGizmoDistance: (d) => { state.gizmoDistance = parseInt(d) || 170; updateGizmoPositions(); syncControlsUI(); },
+        setGizmoDistance: (d) => { state.gizmoDistance = parseInt(d) || 85; updateGizmoPositions(); syncControlsUI(); },
         setGizmoOpacity: (op) => { state.gizmoOpacity = parseFloat(op) || 1.0; updateGizmoPositions(); syncControlsUI(); },
         getCanvas: () => canvasEl,
         isLayerActive: () => (canvasEl && canvasEl.style.display !== 'none'),

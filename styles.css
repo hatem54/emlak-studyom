@@ -12853,6 +12853,40 @@ html[data-theme="light"] .tone-curve-canvas-wrap {
     box-shadow: 0 8px 22px rgba(0, 0, 0, 0.8), 0 0 10px rgba(245, 158, 11, 0.2);
 }
 
+/* Harita Ortasındaki Canlı Toplam Mesafe Rozeti (Taşınabilir, Tutamaçlı) */
+.sat-measure-total-divicon {
+    background: transparent !important;
+    border: none !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    overflow: visible !important;
+    pointer-events: none !important;
+}
+
+.sat-measure-total-wrapper {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: auto;
+    cursor: grab;
+    user-select: none;
+    touch-action: none;
+}
+
+.sat-measure-total-wrapper:active {
+    cursor: grabbing;
+}
+
+.sat-measure-total-wrapper.is-selected .sat-area-select-border {
+    display: block;
+}
+
+.sat-measure-total-wrapper.is-selected .sat-area-handle {
+    display: flex;
+}
+
 /* Harita Ortasındaki Canlı Alan Rozeti (Taşınabilir, Kutulu & Çerçevesiz, Tutamaçlı) */
 .sat-measure-area-badge-divicon {
     background: transparent !important;

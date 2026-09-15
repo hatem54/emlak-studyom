@@ -776,8 +776,11 @@
             if (mapWrap && !mapWrap._areaDeselectBound) {
                 mapWrap._areaDeselectBound = true;
                 mapWrap.addEventListener('pointerdown', (e) => {
-                    if (this.measureAreaSelected && !e.target.closest('#satMeasureAreaWrapper') && !e.target.closest('.sat-area-handle')) {
+                    if (this.measureAreaSelected && !e.target.closest('#satMeasureAreaWrapper') && !e.target.closest('.sat-measure-area-wrapper') && !e.target.closest('.sat-area-handle')) {
                         this.deselectMeasureAreaBadge();
+                    }
+                    if (this.measureTotalBadgeSelected && !e.target.closest('.sat-measure-total-wrapper') && !e.target.closest('.sat-area-handle')) {
+                        this.deselectMeasureTotalBadge();
                     }
                 });
             }
@@ -6478,6 +6481,9 @@
                     hiddenEdges: Object.assign({}, this.measureHiddenEdges || {}),
                     badgeCustomPositions: Object.assign({}, this.measureBadgeCustomPositions || {}),
                     totalBadgeCustomPos: null,
+                    totalBadgeRotation: 0,
+                    totalBadgeScale: 1.0,
+                    totalBadgeSelected: false,
                     areaBadgeCustomPos: this.measureAreaBadgeCustomPos || null,
                     areaRotation: this.measureAreaRotation || 0,
                     areaScale: this.measureAreaScale || 1.0,
@@ -6574,6 +6580,9 @@
                 hiddenEdges: {},
                 badgeCustomPositions: {},
                 totalBadgeCustomPos: null,
+                totalBadgeRotation: 0,
+                totalBadgeScale: 1.0,
+                totalBadgeSelected: false,
                 areaBadgeCustomPos: null,
                 areaRotation: 0,
                 areaScale: 1.0,
@@ -6763,6 +6772,9 @@
             drawing.isClosed = false;
             drawing.badgeCustomPositions = {};
             drawing.totalBadgeCustomPos = null;
+            drawing.totalBadgeRotation = 0;
+            drawing.totalBadgeScale = 1.0;
+            drawing.totalBadgeSelected = false;
             drawing.areaBadgeCustomPos = null;
             drawing.areaRotation = 0;
             drawing.areaScale = 1.0;
@@ -7709,19 +7721,34 @@
                     const edgeFontSize = this.measureEdgeFontSize || 12;
                     const fontFamily = this.measureFontFamily || 'Montserrat';
 
+                    const isSelected = !!drawing.totalBadgeSelected;
+                    const rot = drawing.totalBadgeRotation || 0;
+                    const scale = drawing.totalBadgeScale || 1.0;
+
                     const totalBadgeHtml = `
-                        <div class="sat-measure-map-badge sat-measure-total-badge style-${drawing.style || 'cad'}" style="border-color:${color}; font-family:'${fontFamily}', sans-serif; font-size:${edgeFontSize}px;" title="${this.escapeHtml(drawing.title)}: Toplam Mesafe (Sürükleyerek taşıyabilirsiniz, sıfırlamak için çift tıklayın)">
-                            <span class="sat-badge-icon" style="color:${color}; font-size:${Math.round(edgeFontSize * 0.9)}px;"><i class="fas fa-arrows-left-right-to-line"></i></span>
-                            <span class="sat-badge-text">${badgeLabel}</span>
-                            <button type="button" class="sat-badge-hide-btn" onclick="window.setSatelliteDrawingDistanceDisplay('${drawing.id}', 'none')" title="Toplam mesafeyi kapat">✕</button>
+                        <div class="sat-measure-total-wrapper ${isSelected ? 'is-selected' : ''}" data-drawing-id="${drawing.id}" style="transform: rotate(${rot}deg) scale(${scale}); transform-origin: center center;">
+                            <div class="sat-measure-map-badge sat-measure-total-badge style-${drawing.style || 'cad'}" style="border-color:${color}; font-family:'${fontFamily}', sans-serif; font-size:${edgeFontSize}px;" title="${this.escapeHtml(drawing.title)}: Toplam Mesafe (Tıklayınca tutamaçlar açılır, sürükleyerek taşıyabilirsiniz)">
+                                <span class="sat-badge-icon" style="color:${color}; font-size:${Math.round(edgeFontSize * 0.9)}px;"><i class="fas fa-arrows-left-right-to-line"></i></span>
+                                <span class="sat-badge-text">${badgeLabel}</span>
+                            </div>
+                            <div class="sat-area-select-border"></div>
+                            <div class="sat-area-handle sat-area-rotate-handle" title="Döndür">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#00d2ff" stroke-width="2.5" style="pointer-events:none;"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.22-10.27l-5.3 5.3"></path></svg>
+                            </div>
+                            <div class="sat-area-handle sat-area-resize-handle" title="Büyüt / Küçült">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#00d2ff" stroke-width="2.5" style="pointer-events:none;"><path d="M21 15v6h-6M3 9V3h6M21 21l-7-7M3 3l7 7"></path></svg>
+                            </div>
+                            <div class="sat-area-handle sat-area-delete-handle" title="Kapat / Gizle">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#f43f5e" stroke-width="2.5" style="pointer-events:none;"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                            </div>
                         </div>
                     `;
 
                     const totalBadgeIcon = L.divIcon({
                         className: 'sat-measure-badge-divicon sat-measure-total-divicon',
                         html: totalBadgeHtml,
-                        iconSize: [200, 40],
-                        iconAnchor: [100, 20]
+                        iconSize: [260, 80],
+                        iconAnchor: [130, 40]
                     });
 
                     if (!drawing.totalBadgeMarker) {
@@ -7747,20 +7774,29 @@
                             L.DomEvent.stopPropagation(e);
                             tMarker._hasBeenDragged = false;
                             const targetD = this.measureDrawings.find(x => x.id === dId);
-                            if (targetD) targetD.totalBadgeCustomPos = null;
+                            if (targetD) {
+                                targetD.totalBadgeCustomPos = null;
+                                targetD.totalBadgeRotation = 0;
+                                targetD.totalBadgeScale = 1.0;
+                            }
                             this.updateMeasureGraphics();
+                            if (typeof window.showAppToast === 'function') {
+                                window.showAppToast('🔄 Toplam mesafe konumu ve boyutu sıfırlandı.', 'info');
+                            }
                         });
                         tMarker.on('click', (e) => {
                             L.DomEvent.stopPropagation(e);
                             if (this.activeDrawingId !== dId) {
                                 this.selectDrawing(dId);
                             }
+                            this.selectMeasureTotalBadge(dId);
                         });
 
                         if (drawing.totalBadgeCustomPos) {
                             tMarker._hasBeenDragged = true;
                         }
                         drawing.totalBadgeMarker = tMarker;
+                        this.attachMeasureTotalBadgeListeners(tMarker, drawing.id);
                     } else {
                         if (!this.map.hasLayer(drawing.totalBadgeMarker)) {
                             drawing.totalBadgeMarker.addTo(this.map);
@@ -7770,6 +7806,7 @@
                         }
                         drawing.totalBadgeMarker.setLatLng(badgePos);
                         drawing.totalBadgeMarker.setIcon(totalBadgeIcon);
+                        this.attachMeasureTotalBadgeListeners(drawing.totalBadgeMarker, drawing.id);
                     }
                 } else {
                     if (drawing.totalBadgeMarker && this.map.hasLayer(drawing.totalBadgeMarker)) {
@@ -8118,6 +8155,194 @@
                     L.DomEvent.stopPropagation(e);
                     self.deselectMeasureAreaBadge(dId);
                     self.toggleDrawingAreaBadge(dId);
+                };
+
+                delHandle.addEventListener('pointerdown', (e) => { e.stopPropagation(); L.DomEvent.stopPropagation(e); });
+                delHandle.addEventListener('touchstart', (e) => { e.stopPropagation(); L.DomEvent.stopPropagation(e); }, { passive: false });
+                delHandle.addEventListener('click', onDelAction);
+            }
+        },
+
+        /**
+         * Harita Üzerindeki Toplam Mesafe Rozetini Seçer ve Tutamaçları Gösterir
+         */
+        selectMeasureTotalBadge: function(drawingId) {
+            const d = drawingId ? this.measureDrawings.find(x => x.id === drawingId) : this.getActiveDrawing();
+            if (d) d.totalBadgeSelected = true;
+            this.measureTotalBadgeSelected = true;
+            document.querySelectorAll('.sat-measure-total-wrapper').forEach(wrap => {
+                if (!drawingId || wrap.dataset.drawingId === drawingId) {
+                    wrap.classList.add('is-selected');
+                }
+            });
+        },
+
+        /**
+         * Toplam Mesafe Rozeti Seçimini Kaldırır ve Tutamaçları Gizler
+         */
+        deselectMeasureTotalBadge: function(drawingId) {
+            if (drawingId) {
+                const d = this.measureDrawings.find(x => x.id === drawingId);
+                if (d) d.totalBadgeSelected = false;
+            } else {
+                if (this.measureDrawings) this.measureDrawings.forEach(d => { d.totalBadgeSelected = false; });
+            }
+            this.measureTotalBadgeSelected = false;
+            document.querySelectorAll('.sat-measure-total-wrapper').forEach(wrap => {
+                if (!drawingId || wrap.dataset.drawingId === drawingId) {
+                    wrap.classList.remove('is-selected');
+                }
+            });
+        },
+
+        /**
+         * Toplam Mesafe Rozetinin Döndürme, Büyütme ve Silme/Kapatma Tutamaç Dinleyicilerini Bağlar
+         */
+        attachMeasureTotalBadgeListeners: function(tMarker, drawingId) {
+            if (!tMarker) return;
+            const el = (typeof tMarker.getElement === 'function') ? tMarker.getElement() : tMarker._icon;
+            if (!el) {
+                setTimeout(() => this.attachMeasureTotalBadgeListeners(tMarker, drawingId), 35);
+                return;
+            }
+            const wrapper = el.querySelector('.sat-measure-total-wrapper');
+            if (!wrapper || wrapper._handlesBound) return;
+            wrapper._handlesBound = true;
+
+            const self = this;
+            const dId = drawingId || wrapper.dataset.drawingId;
+            const rotHandle = wrapper.querySelector('.sat-area-rotate-handle');
+            const resHandle = wrapper.querySelector('.sat-area-resize-handle');
+            const delHandle = wrapper.querySelector('.sat-area-delete-handle');
+
+            // 1. Rozete Tıklandığında Seçim
+            wrapper.addEventListener('pointerdown', (e) => {
+                if (e.target.closest('.sat-area-handle')) return;
+                L.DomEvent.stopPropagation(e);
+                self.selectMeasureTotalBadge(dId);
+            });
+
+            // 2. 🔄 Döndürme Tutamacı
+            if (rotHandle) {
+                const onRotDown = (e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    L.DomEvent.stopPropagation(e);
+
+                    if (tMarker.dragging && typeof tMarker.dragging.disable === 'function') {
+                        tMarker.dragging.disable();
+                    }
+
+                    const targetD = self.measureDrawings.find(x => x.id === dId);
+                    const evt = e.touches ? e.touches[0] : e;
+                    const rect = wrapper.getBoundingClientRect();
+                    const centerX = rect.left + rect.width / 2;
+                    const centerY = rect.top + rect.height / 2;
+                    const startAngle = Math.atan2(evt.clientY - centerY, evt.clientX - centerX) * (180 / Math.PI);
+                    const startRot = targetD ? (targetD.totalBadgeRotation || 0) : 0;
+
+                    rotHandle.style.cursor = 'grabbing';
+
+                    const onMove = (me) => {
+                        me.preventDefault();
+                        me.stopPropagation();
+                        const mEvt = me.touches ? me.touches[0] : me;
+                        const currentAngle = Math.atan2(mEvt.clientY - centerY, mEvt.clientX - centerX) * (180 / Math.PI);
+                        let diff = currentAngle - startAngle;
+                        let newRot = Math.round((startRot + diff) % 360);
+                        if (newRot > 180) newRot -= 360;
+                        else if (newRot < -180) newRot += 360;
+
+                        if (targetD) targetD.totalBadgeRotation = newRot;
+                        const curScale = targetD ? (targetD.totalBadgeScale || 1.0) : 1.0;
+                        wrapper.style.transform = `rotate(${newRot}deg) scale(${curScale})`;
+                    };
+
+                    const onUp = () => {
+                        rotHandle.style.cursor = 'grab';
+                        window.removeEventListener('pointermove', onMove, { capture: true });
+                        window.removeEventListener('pointerup', onUp, { capture: true });
+                        window.removeEventListener('touchmove', onMove, { capture: true });
+                        window.removeEventListener('touchend', onUp, { capture: true });
+
+                        if (tMarker.dragging && typeof tMarker.dragging.enable === 'function') {
+                            tMarker.dragging.enable();
+                        }
+                        self.saveLastLocation({ measureData: self.getMeasureDataToSave() });
+                    };
+
+                    window.addEventListener('pointermove', onMove, { capture: true, passive: false });
+                    window.addEventListener('pointerup', onUp, { capture: true });
+                    window.addEventListener('touchmove', onMove, { capture: true, passive: false });
+                    window.addEventListener('touchend', onUp, { capture: true });
+                };
+
+                rotHandle.addEventListener('pointerdown', onRotDown);
+                rotHandle.addEventListener('touchstart', onRotDown, { passive: false });
+            }
+
+            // 3. 📐 Boyutlandırma Tutamacı
+            if (resHandle) {
+                const onResDown = (e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    L.DomEvent.stopPropagation(e);
+
+                    if (tMarker.dragging && typeof tMarker.dragging.disable === 'function') {
+                        tMarker.dragging.disable();
+                    }
+
+                    const targetD = self.measureDrawings.find(x => x.id === dId);
+                    const evt = e.touches ? e.touches[0] : e;
+                    const rect = wrapper.getBoundingClientRect();
+                    const centerX = rect.left + rect.width / 2;
+                    const centerY = rect.top + rect.height / 2;
+                    const startDist = Math.hypot(evt.clientX - centerX, evt.clientY - centerY);
+                    const startScale = targetD ? (targetD.totalBadgeScale || 1.0) : 1.0;
+
+                    const onMove = (me) => {
+                        me.preventDefault();
+                        me.stopPropagation();
+                        const mEvt = me.touches ? me.touches[0] : me;
+                        const curDist = Math.hypot(mEvt.clientX - centerX, mEvt.clientY - centerY);
+                        let ratio = startDist > 0 ? (curDist / startDist) : 1;
+                        let newScale = Math.max(0.5, Math.min(3.0, parseFloat((startScale * ratio).toFixed(2))));
+
+                        if (targetD) targetD.totalBadgeScale = newScale;
+                        const curRot = targetD ? (targetD.totalBadgeRotation || 0) : 0;
+                        wrapper.style.transform = `rotate(${curRot}deg) scale(${newScale})`;
+                    };
+
+                    const onUp = () => {
+                        window.removeEventListener('pointermove', onMove, { capture: true });
+                        window.removeEventListener('pointerup', onUp, { capture: true });
+                        window.removeEventListener('touchmove', onMove, { capture: true });
+                        window.removeEventListener('touchend', onUp, { capture: true });
+
+                        if (tMarker.dragging && typeof tMarker.dragging.enable === 'function') {
+                            tMarker.dragging.enable();
+                        }
+                        self.saveLastLocation({ measureData: self.getMeasureDataToSave() });
+                    };
+
+                    window.addEventListener('pointermove', onMove, { capture: true, passive: false });
+                    window.addEventListener('pointerup', onUp, { capture: true });
+                    window.addEventListener('touchmove', onMove, { capture: true, passive: false });
+                    window.addEventListener('touchend', onUp, { capture: true });
+                };
+
+                resHandle.addEventListener('pointerdown', onResDown);
+                resHandle.addEventListener('touchstart', onResDown, { passive: false });
+            }
+
+            // 4. 🗑️ Silme / Kapatma Tutamacı
+            if (delHandle) {
+                const onDelAction = (e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    L.DomEvent.stopPropagation(e);
+                    self.deselectMeasureTotalBadge(dId);
+                    self.setDrawingDistanceDisplay(dId, 'none');
                 };
 
                 delHandle.addEventListener('pointerdown', (e) => { e.stopPropagation(); L.DomEvent.stopPropagation(e); });
@@ -8627,12 +8852,20 @@
                     drawingBadgeData.totalDistance = {
                         label: totalLabel,
                         x: badgeX,
-                        y: badgeY
+                        y: badgeY,
+                        rotation: drawing.totalBadgeRotation || 0,
+                        scale: drawing.totalBadgeScale || 1.0
                     };
 
                     if (bakeBadges) {
                         ctx.save();
                         ctx.translate(badgeX, badgeY);
+                        if (drawing.totalBadgeRotation) {
+                            ctx.rotate((drawing.totalBadgeRotation * Math.PI) / 180);
+                        }
+                        if (drawing.totalBadgeScale && drawing.totalBadgeScale !== 1.0) {
+                            ctx.scale(drawing.totalBadgeScale, drawing.totalBadgeScale);
+                        }
 
                         const fontFamily = this.measureFontFamily || 'Montserrat';
                         const edgeFontSize = Math.round((this.measureEdgeFontSize || 12) * baseScale);
@@ -8969,6 +9202,14 @@
 
                         wrap.style.left = posX + 'px';
                         wrap.style.top = posY + 'px';
+
+                        const totalScale = (total.scale !== undefined && !isNaN(total.scale)) ? total.scale : 1.0;
+                        const rotation = (total.rotation !== undefined && !isNaN(total.rotation)) ? total.rotation : 0;
+
+                        wrap.dataset.rotation = String(rotation);
+                        wrap.dataset.scale = String(totalScale);
+                        wrap.dataset.userScale = String(totalScale);
+                        wrap.style.transform = `rotate(${rotation}deg) scale(${totalScale})`;
                     }
                 }
 
@@ -9181,6 +9422,8 @@
                     }, {})
                     : {},
                 totalBadgeCustomPos: d.totalBadgeCustomPos ? { lat: d.totalBadgeCustomPos.lat, lng: d.totalBadgeCustomPos.lng } : null,
+                totalBadgeRotation: d.totalBadgeRotation || 0,
+                totalBadgeScale: d.totalBadgeScale || 1.0,
                 areaBadgeCustomPos: d.areaBadgeCustomPos ? { lat: d.areaBadgeCustomPos.lat, lng: d.areaBadgeCustomPos.lng } : null,
                 areaRotation: d.areaRotation || 0,
                 areaScale: d.areaScale || 1.0,
@@ -9215,6 +9458,8 @@
                     }, {})
                     : {},
                 totalBadgeCustomPos: active && active.totalBadgeCustomPos ? { lat: active.totalBadgeCustomPos.lat, lng: active.totalBadgeCustomPos.lng } : null,
+                totalBadgeRotation: active ? (active.totalBadgeRotation || 0) : 0,
+                totalBadgeScale: active ? (active.totalBadgeScale || 1.0) : 1.0,
                 areaBadgeCustomPos: active && active.areaBadgeCustomPos ? { lat: active.areaBadgeCustomPos.lat, lng: active.areaBadgeCustomPos.lng } : null,
                 areaRotation: active ? (active.areaRotation || 0) : 0,
                 areaScale: active ? (active.areaScale || 1.0) : 1.0,
@@ -9289,6 +9534,9 @@
                         hiddenEdges: Object.assign({}, d.hiddenEdges || {}),
                         badgeCustomPositions: badgePos,
                         totalBadgeCustomPos: totalPos,
+                        totalBadgeRotation: d.totalBadgeRotation || 0,
+                        totalBadgeScale: d.totalBadgeScale || 1.0,
+                        totalBadgeSelected: false,
                         areaBadgeCustomPos: areaPos,
                         areaRotation: d.areaRotation || 0,
                         areaScale: d.areaScale || 1.0,
@@ -9338,6 +9586,9 @@
                     hiddenEdges: Object.assign({}, data.hiddenEdges || {}),
                     badgeCustomPositions: badgePos,
                     totalBadgeCustomPos: (data.totalBadgeCustomPos && data.totalBadgeCustomPos.lat !== undefined) ? L.latLng(data.totalBadgeCustomPos.lat, data.totalBadgeCustomPos.lng) : null,
+                    totalBadgeRotation: data.totalBadgeRotation || 0,
+                    totalBadgeScale: data.totalBadgeScale || 1.0,
+                    totalBadgeSelected: false,
                     areaBadgeCustomPos: (data.areaBadgeCustomPos && data.areaBadgeCustomPos.lat !== undefined) ? L.latLng(data.areaBadgeCustomPos.lat, data.areaBadgeCustomPos.lng) : null,
                     areaRotation: data.areaRotation || 0,
                     areaScale: data.areaScale || 1.0,

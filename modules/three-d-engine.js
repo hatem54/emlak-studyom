@@ -40,6 +40,7 @@
         posX: 0,               // Düzlem üzerinde X konumu
         posY: 0,               // Düzlem üzerinde Y konumu
         cornerPinActive: false,// 4 Köşe Tutamaç modu aktif mi?
+        gizmoActive: true,     // After Effects tarzı 3D Eksen Gizmo modu aktif mi?
         hasBaked: false
     };
 
@@ -72,6 +73,7 @@
         { x: 0, y: 0 }  // P3: Sol-Alt
     ];
     let cornerPinOverlayEl = null;
+    let gizmoOverlayEl = null;      // 🎯 After Effects 3D Transform Gizmo Overlay
 
     /**
      * 1. Dinamik Kütüphane Yükleyici
@@ -394,6 +396,7 @@
         if (shadowPlane && shadowPlane.material) {
             shadowPlane.material.opacity = state.shadowOpacity;
         }
+        updateGizmoPositions();
     }
 
     function updateContentTransform() {
@@ -403,6 +406,7 @@
         const localRotRad = THREE.MathUtils.degToRad(state.planeLocalRot);
         const standX = (state.orientation === 'standing') ? (Math.PI / 2) : 0;
         contentGroup.rotation.set(standX, 0, localRotRad);
+        updateGizmoPositions();
     }
 
     function updateLighting() {
@@ -479,12 +483,21 @@
         if (cornerPinOverlayEl) {
             cornerPinOverlayEl.style.display = state.cornerPinActive ? 'block' : 'none';
         }
+        // Corner Pin aktifken Gizmo'yu gizle, kapatılınca Gizmo aktifse geri getir
+        if (state.cornerPinActive) {
+            if (gizmoOverlayEl) gizmoOverlayEl.style.display = 'none';
+        } else if (state.gizmoActive) {
+            if (gizmoOverlayEl) {
+                gizmoOverlayEl.style.display = 'block';
+                updateGizmoPositions();
+            }
+        }
         const btn = document.getElementById('threeDCornerPinToggleBtn');
         if (btn) {
             btn.classList.toggle('active', state.cornerPinActive);
             btn.innerHTML = state.cornerPinActive
-                ? '<i class="fas fa-bullseye"></i> 4 Köşe Tutamaç (Aktif)'
-                : '<i class="fas fa-crosshairs"></i> 4 Köşe ile Yüzeye Oturt';
+                ? '<i class="fas fa-bullseye"></i> 4 Köşe (Aktif)'
+                : '<i class="fas fa-crosshairs"></i> 4 Köşe Oturtma';
         }
     }
 
@@ -619,6 +632,345 @@
     }
 
     /**
+     * 7.1 🎯 AFTER EFFECTS TARZI 3D EKSEN GİZMO (3D Transform Gizmo)
+     */
+    function initGizmoOverlay() {
+        const container = document.getElementById('canvas-container');
+        if (!container) return;
+
+        if (gizmoOverlayEl) {
+            updateGizmoPositions();
+            return;
+        }
+
+        const overlay = document.createElement('div');
+        overlay.id = 'threeDGizmoOverlay';
+        overlay.className = 'three-d-gizmo-overlay';
+        overlay.style.display = (state.gizmoActive && !state.cornerPinActive) ? 'block' : 'none';
+
+        overlay.innerHTML = `
+            <svg id="threeDGizmoSvg" class="three-d-gizmo-svg">
+                <defs>
+                    <marker id="gizmoArrowX" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                        <path d="M 0 1.5 L 10 5 L 0 8.5 z" fill="#ef4444"/>
+                    </marker>
+                    <marker id="gizmoArrowY" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                        <path d="M 0 1.5 L 10 5 L 0 8.5 z" fill="#10b981"/>
+                    </marker>
+                    <marker id="gizmoArrowZ" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                        <path d="M 0 1.5 L 10 5 L 0 8.5 z" fill="#0284c7"/>
+                    </marker>
+                </defs>
+                <circle id="threeDGizmoRing" class="three-d-gizmo-ring" cx="0" cy="0" r="85"></circle>
+                <line id="threeDGizmoLineX" class="three-d-gizmo-axis-x" x1="0" y1="0" x2="0" y2="0" marker-end="url(#gizmoArrowX)"></line>
+                <line id="threeDGizmoLineY" class="three-d-gizmo-axis-y" x1="0" y1="0" x2="0" y2="0" marker-end="url(#gizmoArrowY)"></line>
+                <line id="threeDGizmoLineZ" class="three-d-gizmo-axis-z" x1="0" y1="0" x2="0" y2="0" marker-end="url(#gizmoArrowZ)"></line>
+            </svg>
+            <div id="threeDGizmoCenter" class="three-d-gizmo-center" title="Konumlandır (Sürükle)"><i class="fas fa-arrows-up-down-left-right"></i></div>
+            <div id="threeDGizmoHandleX" class="three-d-gizmo-handle three-d-gizmo-handle-x" title="Eğim (Pitch) - Sürükleyin"><i class="fas fa-arrows-split-up-and-left"></i> Eğim (X)</div>
+            <div id="threeDGizmoHandleY" class="three-d-gizmo-handle three-d-gizmo-handle-y" title="Yatay (Yaw) - Sürükleyin"><i class="fas fa-arrows-left-right"></i> Yatay (Y)</div>
+            <div id="threeDGizmoHandleZ" class="three-d-gizmo-handle three-d-gizmo-handle-z" title="Yatırma (Roll) - Sürükleyin"><i class="fas fa-redo-alt"></i> Yatır (Z)</div>
+            <div id="threeDGizmoHandleRot" class="three-d-gizmo-handle three-d-gizmo-handle-rot" title="Düzlem İçi Dönüş (Sürükleyin)"><i class="fas fa-compass"></i> Dönüş</div>
+            <div id="threeDGizmoHud" class="three-d-gizmo-hud"></div>
+        `;
+
+        container.appendChild(overlay);
+        gizmoOverlayEl = overlay;
+        attachGizmoEvents(overlay);
+        updateGizmoPositions();
+    }
+
+    function toggleGizmoMode(forceState) {
+        state.gizmoActive = (forceState !== undefined) ? !!forceState : !state.gizmoActive;
+        if (state.gizmoActive) {
+            initGizmoOverlay();
+            if (gizmoOverlayEl) {
+                gizmoOverlayEl.style.display = state.cornerPinActive ? 'none' : 'block';
+            }
+            updateGizmoPositions();
+        } else {
+            if (gizmoOverlayEl) gizmoOverlayEl.style.display = 'none';
+        }
+
+        const btn = document.getElementById('threeDGizmoToggleBtn');
+        if (btn) {
+            btn.classList.toggle('active', state.gizmoActive);
+            btn.innerHTML = state.gizmoActive
+                ? '<i class="fas fa-arrows-spin"></i> 3D Eksen Gizmo (Aktif)'
+                : '<i class="fas fa-arrows-spin"></i> 3D Eksen Gizmo (Kapalı)';
+        }
+        notifyExternalUpdates();
+    }
+
+    function updateGizmoPositions() {
+        if (!gizmoOverlayEl || !state.gizmoActive || !contentGroup || !camera) return;
+
+        const container = document.getElementById('canvas-container');
+        if (!container) return;
+
+        const cw = container.offsetWidth || 1920;
+        const ch = container.offsetHeight || 1080;
+
+        // 3D Dünya koordinatlarını ekrana yansıt (Project to 2D screen coordinates)
+        const vCenter = new THREE.Vector3(0, 0, 0);
+        contentGroup.localToWorld(vCenter);
+        vCenter.project(camera);
+        const cx = (vCenter.x + 1) * cw / 2;
+        const cy = (-vCenter.y + 1) * ch / 2;
+
+        const baseLen = 140 * Math.max(0.65, Math.min(1.8, state.planeScale));
+
+        // X Ekseni (Pitch)
+        const vX = new THREE.Vector3(baseLen, 0, 0);
+        contentGroup.localToWorld(vX);
+        vX.project(camera);
+        const pxX = (vX.x + 1) * cw / 2;
+        const pyX = (-vX.y + 1) * ch / 2;
+
+        // Y Ekseni (Yaw)
+        const vY = new THREE.Vector3(0, baseLen, 0);
+        contentGroup.localToWorld(vY);
+        vY.project(camera);
+        const pxY = (vY.x + 1) * cw / 2;
+        const pyY = (-vY.y + 1) * ch / 2;
+
+        // Z Ekseni (Roll / Yüzey Normalleri)
+        const vZ = new THREE.Vector3(0, 0, baseLen);
+        contentGroup.localToWorld(vZ);
+        vZ.project(camera);
+        const pxZ = (vZ.x + 1) * cw / 2;
+        const pyZ = (-vZ.y + 1) * ch / 2;
+
+        // Halka Rotasyon Tutamacı
+        const ringRadius = 85 * Math.max(0.65, Math.min(1.8, state.planeScale));
+        const rotRad = THREE.MathUtils.degToRad(state.planeLocalRot);
+        const vRot = new THREE.Vector3(Math.cos(rotRad) * ringRadius, Math.sin(rotRad) * ringRadius, 0);
+        contentGroup.localToWorld(vRot);
+        vRot.project(camera);
+        const pxRot = (vRot.x + 1) * cw / 2;
+        const pyRot = (-vRot.y + 1) * ch / 2;
+
+        // SVG Güncelle
+        const lineX = gizmoOverlayEl.querySelector('#threeDGizmoLineX');
+        const lineY = gizmoOverlayEl.querySelector('#threeDGizmoLineY');
+        const lineZ = gizmoOverlayEl.querySelector('#threeDGizmoLineZ');
+        const ring = gizmoOverlayEl.querySelector('#threeDGizmoRing');
+
+        if (lineX) { lineX.setAttribute('x1', cx); lineX.setAttribute('y1', cy); lineX.setAttribute('x2', pxX); lineX.setAttribute('y2', pyX); }
+        if (lineY) { lineY.setAttribute('x1', cx); lineY.setAttribute('y1', cy); lineY.setAttribute('x2', pxY); lineY.setAttribute('y2', pyY); }
+        if (lineZ) { lineZ.setAttribute('x1', cx); lineZ.setAttribute('y1', cy); lineZ.setAttribute('x2', pxZ); lineZ.setAttribute('y2', pyZ); }
+        if (ring) {
+            ring.setAttribute('cx', cx);
+            ring.setAttribute('cy', cy);
+            ring.setAttribute('r', ringRadius);
+        }
+
+        // HTML Tutamaçları Konumlandır
+        const centerEl = gizmoOverlayEl.querySelector('#threeDGizmoCenter');
+        const handleX = gizmoOverlayEl.querySelector('#threeDGizmoHandleX');
+        const handleY = gizmoOverlayEl.querySelector('#threeDGizmoHandleY');
+        const handleZ = gizmoOverlayEl.querySelector('#threeDGizmoHandleZ');
+        const handleRot = gizmoOverlayEl.querySelector('#threeDGizmoHandleRot');
+
+        if (centerEl) { centerEl.style.left = cx + 'px'; centerEl.style.top = cy + 'px'; }
+        if (handleX) { handleX.style.left = pxX + 'px'; handleX.style.top = pyX + 'px'; }
+        if (handleY) { handleY.style.left = pxY + 'px'; handleY.style.top = pyY + 'px'; }
+        if (handleZ) { handleZ.style.left = pxZ + 'px'; handleZ.style.top = pyZ + 'px'; }
+        if (handleRot) { handleRot.style.left = pxRot + 'px'; handleRot.style.top = pyRot + 'px'; }
+    }
+
+    function attachGizmoEvents(overlay) {
+        const hud = overlay.querySelector('#threeDGizmoHud');
+        function showHud(text, x, y) {
+            if (!hud) return;
+            hud.textContent = text;
+            hud.style.left = x + 'px';
+            hud.style.top = y + 'px';
+            hud.style.display = 'block';
+        }
+        function hideHud() {
+            if (hud) hud.style.display = 'none';
+        }
+
+        // 1. Merkez Tutamaç (Taşıma)
+        const centerEl = overlay.querySelector('#threeDGizmoCenter');
+        if (centerEl) {
+            let isMoving = false;
+            let startClientX, startClientY, origX, origY;
+            centerEl.addEventListener('pointerdown', (e) => {
+                isMoving = true;
+                startClientX = e.clientX;
+                startClientY = e.clientY;
+                origX = state.posX;
+                origY = state.posY;
+                centerEl.setPointerCapture(e.pointerId);
+                e.stopPropagation();
+                e.preventDefault();
+            });
+            centerEl.addEventListener('pointermove', (e) => {
+                if (!isMoving) return;
+                const dx = e.clientX - startClientX;
+                const dy = e.clientY - startClientY;
+                state.posX = origX + dx;
+                state.posY = origY - dy;
+                updateContentTransform();
+                syncControlsUI();
+                notifyExternalUpdates();
+                requestRender();
+                showHud(`📍 Konum: X: ${Math.round(state.posX)}, Y: ${Math.round(state.posY)}`, e.clientX, e.clientY);
+            });
+            const onUp = (e) => {
+                if (!isMoving) return;
+                isMoving = false;
+                hideHud();
+                try { centerEl.releasePointerCapture(e.pointerId); } catch(ex){}
+            };
+            centerEl.addEventListener('pointerup', onUp);
+            centerEl.addEventListener('pointercancel', onUp);
+        }
+
+        // 2. X Tutamacı (Eğim / Pitch)
+        const handleX = overlay.querySelector('#threeDGizmoHandleX');
+        if (handleX) {
+            let isDraggingX = false;
+            let startClientY, startPitch;
+            handleX.addEventListener('pointerdown', (e) => {
+                isDraggingX = true;
+                startClientY = e.clientY;
+                startPitch = state.planePitch;
+                handleX.setPointerCapture(e.pointerId);
+                e.stopPropagation();
+                e.preventDefault();
+            });
+            handleX.addEventListener('pointermove', (e) => {
+                if (!isDraggingX) return;
+                const dy = e.clientY - startClientY;
+                state.planePitch = Math.max(-90, Math.min(90, Math.round(startPitch - dy * 0.75)));
+                updatePlaneTransform();
+                syncControlsUI();
+                notifyExternalUpdates();
+                requestRender();
+                showHud(`📐 Eğim (Pitch): ${state.planePitch}°`, e.clientX, e.clientY);
+            });
+            const onUp = (e) => {
+                if (!isDraggingX) return;
+                isDraggingX = false;
+                hideHud();
+                try { handleX.releasePointerCapture(e.pointerId); } catch(ex){}
+            };
+            handleX.addEventListener('pointerup', onUp);
+            handleX.addEventListener('pointercancel', onUp);
+        }
+
+        // 3. Y Tutamacı (Yatay / Yaw)
+        const handleY = overlay.querySelector('#threeDGizmoHandleY');
+        if (handleY) {
+            let isDraggingY = false;
+            let startClientX, startYaw;
+            handleY.addEventListener('pointerdown', (e) => {
+                isDraggingY = true;
+                startClientX = e.clientX;
+                startYaw = state.planeYaw;
+                handleY.setPointerCapture(e.pointerId);
+                e.stopPropagation();
+                e.preventDefault();
+            });
+            handleY.addEventListener('pointermove', (e) => {
+                if (!isDraggingY) return;
+                const dx = e.clientX - startClientX;
+                let val = Math.round(startYaw + dx * 0.75);
+                if (val > 180) val -= 360;
+                if (val < -180) val += 360;
+                state.planeYaw = val;
+                updatePlaneTransform();
+                syncControlsUI();
+                notifyExternalUpdates();
+                requestRender();
+                showHud(`🔄 Yatay (Yaw): ${state.planeYaw}°`, e.clientX, e.clientY);
+            });
+            const onUp = (e) => {
+                if (!isDraggingY) return;
+                isDraggingY = false;
+                hideHud();
+                try { handleY.releasePointerCapture(e.pointerId); } catch(ex){}
+            };
+            handleY.addEventListener('pointerup', onUp);
+            handleY.addEventListener('pointercancel', onUp);
+        }
+
+        // 4. Z Tutamacı (Yatırma / Roll)
+        const handleZ = overlay.querySelector('#threeDGizmoHandleZ');
+        if (handleZ) {
+            let isDraggingZ = false;
+            let startClientX, startRoll;
+            handleZ.addEventListener('pointerdown', (e) => {
+                isDraggingZ = true;
+                startClientX = e.clientX;
+                startRoll = state.planeRoll;
+                handleZ.setPointerCapture(e.pointerId);
+                e.stopPropagation();
+                e.preventDefault();
+            });
+            handleZ.addEventListener('pointermove', (e) => {
+                if (!isDraggingZ) return;
+                const dx = e.clientX - startClientX;
+                let val = Math.round(startRoll + dx * 0.75);
+                if (val > 180) val -= 360;
+                if (val < -180) val += 360;
+                state.planeRoll = val;
+                updatePlaneTransform();
+                syncControlsUI();
+                notifyExternalUpdates();
+                requestRender();
+                showHud(`🔃 Yatırma (Roll): ${state.planeRoll}°`, e.clientX, e.clientY);
+            });
+            const onUp = (e) => {
+                if (!isDraggingZ) return;
+                isDraggingZ = false;
+                hideHud();
+                try { handleZ.releasePointerCapture(e.pointerId); } catch(ex){}
+            };
+            handleZ.addEventListener('pointerup', onUp);
+            handleZ.addEventListener('pointercancel', onUp);
+        }
+
+        // 5. Dönüş Tutamacı (Local Rotation / Düzlem İçi Döndürme)
+        const handleRot = overlay.querySelector('#threeDGizmoHandleRot');
+        if (handleRot) {
+            let isDraggingRot = false;
+            handleRot.addEventListener('pointerdown', (e) => {
+                isDraggingRot = true;
+                handleRot.setPointerCapture(e.pointerId);
+                e.stopPropagation();
+                e.preventDefault();
+            });
+            handleRot.addEventListener('pointermove', (e) => {
+                if (!isDraggingRot) return;
+                const centerEl = overlay.querySelector('#threeDGizmoCenter');
+                const rect = centerEl.getBoundingClientRect();
+                const cx = rect.left + rect.width / 2;
+                const cy = rect.top + rect.height / 2;
+                let deg = Math.round(Math.atan2(e.clientY - cy, e.clientX - cx) * (180 / Math.PI));
+                if (deg < 0) deg += 360;
+                state.planeLocalRot = deg;
+                updateContentTransform();
+                syncControlsUI();
+                notifyExternalUpdates();
+                requestRender();
+                showHud(`🔄 Düzlem İçi Dönüş: ${state.planeLocalRot}°`, e.clientX, e.clientY);
+            });
+            const onUp = (e) => {
+                if (!isDraggingRot) return;
+                isDraggingRot = false;
+                hideHud();
+                try { handleRot.releasePointerCapture(e.pointerId); } catch(ex){}
+            };
+            handleRot.addEventListener('pointerup', onUp);
+            handleRot.addEventListener('pointercancel', onUp);
+        }
+    }
+
+    /**
      * 8. Tuval Etkileşim Dinleyicileri (Sürükleme ve Döndürme)
      */
     function attachCanvasEvents(cvs) {
@@ -734,8 +1086,10 @@
 
         const prevGrid = state.showPlaneGrid;
         const prevPinActive = state.cornerPinActive;
+        const prevGizmoActive = state.gizmoActive;
         if (gridHelper) gridHelper.visible = false;
         if (cornerPinOverlayEl) cornerPinOverlayEl.style.display = 'none';
+        if (gizmoOverlayEl) gizmoOverlayEl.style.display = 'none';
 
         const drawCanvas = document.getElementById('draw-layer') || document.getElementById('drawCanvas');
         const photoCanvas = document.querySelector('.photo-render-canvas');
@@ -765,6 +1119,10 @@
 
         if (gridHelper) gridHelper.visible = prevGrid;
         if (cornerPinOverlayEl && prevPinActive) cornerPinOverlayEl.style.display = 'block';
+        if (gizmoOverlayEl && prevGizmoActive && !prevPinActive) {
+            gizmoOverlayEl.style.display = 'block';
+            updateGizmoPositions();
+        }
         requestRender();
 
         notifyExternalUpdates();
@@ -864,6 +1222,14 @@
 
         const pinBtn = panel.querySelector('#threeDCornerPinToggleBtn');
         if (pinBtn) pinBtn.classList.toggle('active', !!state.cornerPinActive);
+
+        const gizmoBtn = panel.querySelector('#threeDGizmoToggleBtn');
+        if (gizmoBtn) {
+            gizmoBtn.classList.toggle('active', !!state.gizmoActive);
+            gizmoBtn.innerHTML = state.gizmoActive
+                ? '<i class="fas fa-arrows-spin"></i> 3D Eksen Gizmo (Aktif)'
+                : '<i class="fas fa-arrows-spin"></i> 3D Eksen Gizmo (Kapalı)';
+        }
     }
 
     /**
@@ -934,9 +1300,14 @@
                 <div class="three-d-section">
                     <div class="three-d-section-title">📐 DÜZLEM & AÇI (ARAZİ / DUVAR UYUMU)</div>
                     
-                    <button id="threeDCornerPinToggleBtn" class="three-d-corner-pin-btn">
-                        <i class="fas fa-crosshairs"></i> 4 Köşe ile Yüzeye Oturt
-                    </button>
+                    <div style="display:flex; gap:6px; margin-bottom:8px;">
+                        <button id="threeDGizmoToggleBtn" class="three-d-gizmo-btn ${state.gizmoActive ? 'active' : ''}" style="flex:1;">
+                            <i class="fas fa-arrows-spin"></i> 3D Eksen Gizmo (${state.gizmoActive ? 'Aktif' : 'Kapalı'})
+                        </button>
+                        <button id="threeDCornerPinToggleBtn" class="three-d-corner-pin-btn ${state.cornerPinActive ? 'active' : ''}" style="flex:1;">
+                            <i class="fas fa-crosshairs"></i> 4 Köşe Oturtma
+                        </button>
+                    </div>
 
                     <div class="three-d-presets-grid" style="margin-top:8px;">
                         <button class="three-d-preset-btn" data-preset="ground"><i class="fas fa-mountain"></i> Arsa / Zemin</button>
@@ -1051,7 +1422,7 @@
                     </div>
                 </div>
 
-                <div style="font-size:10.5px; color:#64748b; line-height:1.4; padding:0 2px;">
+                <div class="three-d-tip-text" style="font-size:10.5px; line-height:1.4; padding:0 2px;">
                     💡 <em>İpucu: Güneş pusulası üzerinde parmağınızı veya fareyi çevirerek gölgenin fotoğrafınızla tam eşleşmesini sağlayabilirsiniz.</em>
                 </div>
             </div>
@@ -1083,6 +1454,14 @@
                 recreateContentMeshes();
             });
         });
+
+        // 3D Eksen Gizmo Butonu
+        const gizmoToggleBtn = panel.querySelector('#threeDGizmoToggleBtn');
+        if (gizmoToggleBtn) {
+            gizmoToggleBtn.addEventListener('click', () => {
+                toggleGizmoMode();
+            });
+        }
 
         // Corner Pin Butonu
         const pinToggleBtn = panel.querySelector('#threeDCornerPinToggleBtn');
@@ -1375,6 +1754,11 @@
         initScene();
         syncControlsUI();
         if (canvasEl) canvasEl.style.display = 'block';
+        if (state.gizmoActive && !state.cornerPinActive) {
+            initGizmoOverlay();
+            if (gizmoOverlayEl) gizmoOverlayEl.style.display = 'block';
+            updateGizmoPositions();
+        }
         notifyExternalUpdates();
     }
 
@@ -1384,6 +1768,7 @@
         state.active = false;
         if (gridHelper) gridHelper.visible = false;
         if (cornerPinOverlayEl) cornerPinOverlayEl.style.display = 'none';
+        if (gizmoOverlayEl) gizmoOverlayEl.style.display = 'none';
         state.cornerPinActive = false;
         notifyExternalUpdates();
         requestRender();
@@ -1394,6 +1779,7 @@
         const isVisible = (forceVisible !== undefined) ? forceVisible : (canvasEl.style.display !== 'none');
         canvasEl.style.display = isVisible ? 'none' : 'block';
         if (cornerPinOverlayEl) cornerPinOverlayEl.style.display = (isVisible && state.cornerPinActive) ? 'block' : 'none';
+        if (gizmoOverlayEl) gizmoOverlayEl.style.display = (isVisible && state.gizmoActive && !state.cornerPinActive) ? 'block' : 'none';
         const btn = document.getElementById('threeDVisHeaderBtn');
         if (btn) {
             btn.innerHTML = isVisible ? '<i class="fas fa-eye-slash" style="color:#ef4444;"></i>' : '<i class="fas fa-eye"></i>';
@@ -1422,9 +1808,14 @@
         state.shadowOpacity = 0.45;
         state.shadowSoftness = 1.5;
         state.cornerPinActive = false;
+        state.gizmoActive = true;
 
         cornerPins[0] = { x: 0, y: 0 };
         if (cornerPinOverlayEl) cornerPinOverlayEl.style.display = 'none';
+        if (gizmoOverlayEl) {
+            gizmoOverlayEl.style.display = 'block';
+            updateGizmoPositions();
+        }
 
         updatePlaneTransform();
         recreateContentMeshes();
@@ -1477,6 +1868,7 @@
             posX: state.posX,
             posY: state.posY,
             cornerPinActive: state.cornerPinActive,
+            gizmoActive: state.gizmoActive,
             cornerPins: cornerPins.map(p => ({ x: p.x, y: p.y })),
             visible: canvasEl ? (canvasEl.style.display !== 'none') : true,
             hasBaked: !!state.hasBaked
@@ -1486,6 +1878,10 @@
     async function restoreData(data) {
         if (!data) return;
         Object.assign(state, data);
+
+        if (data.gizmoActive !== undefined) {
+            state.gizmoActive = !!data.gizmoActive;
+        }
 
         if (data.cornerPins && Array.isArray(data.cornerPins)) {
             data.cornerPins.forEach((p, i) => {
@@ -1515,6 +1911,8 @@
         toggleVisibility: toggleVisibility,
         resetToDefaults: resetToDefaults,
         toggleCornerPin: toggleCornerPinMode,
+        toggleGizmo: toggleGizmoMode,
+        updateGizmo: updateGizmoPositions,
         getCanvas: () => canvasEl,
         isLayerActive: () => (canvasEl && canvasEl.style.display !== 'none'),
         getDataToSave: getDataToSave,

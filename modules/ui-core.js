@@ -243,7 +243,7 @@ window.openExtraIconPicker = function(fieldId) {
     content.innerHTML = `
         <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #334155; padding-bottom:10px;">
             <span style="font-weight:700; color:#f8fafc; font-size:14px; display:flex; align-items:center; gap:8px;">
-                <span>✨ İkon Seç / Değiştir</span>
+                <span>✨ İkon Seç & Değiştir</span>
             </span>
             <button type="button" onclick="document.getElementById('extraIconPickerModal').remove()" style="background:none; border:none; color:#94a3b8; font-size:18px; cursor:pointer; padding:4px 8px;">✕</button>
         </div>

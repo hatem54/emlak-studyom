@@ -1268,8 +1268,8 @@
                         <button class="three-d-elem-btn active" data-type="text"><i class="fas fa-font"></i> Metin</button>
                         <button class="three-d-elem-btn" data-type="pin"><i class="fas fa-map-marker-alt"></i> 3D İğne</button>
                         <button class="three-d-elem-btn" data-type="arrow"><i class="fas fa-arrow-up"></i> 3D Yön Oku</button>
-                        <button class="three-d-elem-btn" data-type="combo_pin"><i class="fas fa-map-pin"></i> İğne + Metin</button>
-                        <button class="three-d-elem-btn" data-type="combo_arrow"><i class="fas fa-location-arrow"></i> Ok + Metin</button>
+                        <button class="three-d-elem-btn" data-type="combo_pin"><i class="fas fa-map-pin"></i> İğne & Metin</button>
+                        <button class="three-d-elem-btn" data-type="combo_arrow"><i class="fas fa-location-arrow"></i> Ok & Metin</button>
                     </div>
                 </div>
 
@@ -1310,7 +1310,7 @@
                     </div>
 
                     <div class="three-d-presets-grid" style="margin-top:8px;">
-                        <button class="three-d-preset-btn" data-preset="ground"><i class="fas fa-mountain"></i> Arsa / Zemin</button>
+                        <button class="three-d-preset-btn" data-preset="ground"><i class="fas fa-mountain"></i> Arsa & Zemin</button>
                         <button class="three-d-preset-btn" data-preset="totem"><i class="fas fa-sign-hanging"></i> Arsa Totem</button>
                         <button class="three-d-preset-btn" data-preset="left_wall"><i class="fas fa-building"></i> Sol Duvar</button>
                         <button class="three-d-preset-btn" data-preset="right_wall"><i class="fas fa-building"></i> Sağ Duvar</button>
@@ -1363,7 +1363,7 @@
                 <div class="three-d-section">
                     <div class="three-d-section-title">🎨 RENK & DURUŞ MODU</div>
                     <div class="three-d-btn-group" style="margin-bottom:10px;">
-                        <button id="threeDOrientFlatBtn" class="three-d-tab-btn active"><i class="fas fa-layer-group"></i> Zemine / Duvara Yatık</button>
+                        <button id="threeDOrientFlatBtn" class="three-d-tab-btn active"><i class="fas fa-layer-group"></i> Zemin & Duvara Yatık</button>
                         <button id="threeDOrientStandBtn" class="three-d-tab-btn"><i class="fas fa-monument"></i> Zemine Dik (Tabela)</button>
                     </div>
 

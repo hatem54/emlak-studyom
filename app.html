@@ -41,7 +41,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,300,0,0" />
     <link rel="icon" type="image/jpeg" href="assets/logo/logo-icon.png">
-    <link rel="stylesheet" href="styles.css?v=20260915-91">
+    <link rel="stylesheet" href="styles.css?v=20260915-92">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <!-- ⚡ SABER EFFECT ENGINE - PixiJS + Filters -->
     <script src="https://cdn.jsdelivr.net/npm/pixi.js@7.4.0/dist/pixi.min.js"></script>
@@ -101,10 +101,10 @@
 <div class="panel">
     <div class="tabs" id="mainTabs">
     <button class="tab-btn active" data-tab="data" onclick="switchTab('data')" data-tooltip="Emlak detaylarını (fiyat, durum) girin">📝 Giriş</button>
-    <button class="tab-btn" data-tab="photo" onclick="switchTab('photo')" data-tooltip="Fotoğraf ayarlamaları ve filtreler">📸 Fotoğraf</button>
-    <button class="tab-btn" data-tab="draw" onclick="switchTab('draw')" data-tooltip="Serbest çizim ve ok ekleme">🖌️ Çizim</button>
-    <button class="tab-btn" data-tab="canva" onclick="switchTab('canva')" data-tooltip="Kolaj ve özel şablonlar">🎨 Şablonlar</button>
-    <button class="tab-btn" data-tab="callout" onclick="switchTab('callout')" data-tooltip="Dikkat çekici rozetler ve etiketler">🏷️ Rozetler</button>
+    <button class="tab-btn" data-tab="photo" onclick="switchTab('photo')" data-tooltip="Fotoğraf ayarlamaları & filtreler">📸 Fotoğraf</button>
+    <button class="tab-btn" data-tab="draw" onclick="switchTab('draw')" data-tooltip="Serbest çizim & ok ekleme">🖌️ Çizim</button>
+    <button class="tab-btn" data-tab="canva" onclick="switchTab('canva')" data-tooltip="Kolaj & özel şablonlar">🎨 Şablonlar</button>
+    <button class="tab-btn" data-tab="callout" onclick="switchTab('callout')" data-tooltip="Dikkat çekici rozetler & etiketler">🏷️ Rozetler</button>
     <button class="tab-btn" data-tab="icons" onclick="switchTab('icons')" data-tooltip="Emlak & iletişim ikonları">✨ İkon</button>
     <button class="tab-btn" data-tab="element" onclick="switchTab('element')" data-tooltip="Seçili nesneleri düzenleyin">🎛️ Element</button>
     <button class="tab-btn" data-tab="layers" onclick="switchTab('layers')" data-tooltip="Katmanlar"><i class="fas fa-layer-group"></i> Katmanlar</button>
@@ -112,10 +112,10 @@
 
     <button class="tab-btn" onclick="addCustomTextBox()" data-tooltip="Kutu içinde metin ekle">🔤 Çerçeveli Yazı</button>
 
-    <button class="tab-btn" data-tab="settings" onclick="switchTab('settings')" data-tooltip="Ayarlar ve ek araçlar">⚙️ Ekstra Araçlar</button>
+    <button class="tab-btn" data-tab="settings" onclick="switchTab('settings')" data-tooltip="Ayarlar & ek araçlar">⚙️ Ekstra Araçlar</button>
 
     <button class="tab-btn" data-tab="batch" onclick="switchTab('batch')" data-tooltip="Toplu veya farklı formatta indirin">📥 Çıktı</button>
-    <button class="tab-btn btn-tab-reset" onclick="window.resetEntireWorkspace()" data-tooltip="Çalışmayı ve tuvali tamamen sıfırla">🗑️ Sayfayı Temizle</button>
+    <button class="tab-btn btn-tab-reset" onclick="window.resetEntireWorkspace()" data-tooltip="Çalışmayı & tuvali tamamen sıfırla">🗑️ Sayfayı Temizle</button>
   </div>
 
     <!-- VERİLER -->
@@ -134,7 +134,7 @@
         
 <div class="section-title">⚙️ Ekstra Araçlar</div>
         <div style="display:flex; flex-direction:column; gap:8px;">
-            <button class="btn-action" style="text-align:left; background:linear-gradient(135deg, rgba(14, 165, 233, 0.2), rgba(99, 102, 241, 0.2)); color:var(--text); border:1px solid rgba(14, 165, 233, 0.4); padding:15px; margin-bottom:8px; display:flex; align-items:center; gap:10px; font-size:14px; font-weight:600;" onclick="document.getElementById('mainTabs').classList.remove('active'); if(window.ThreeDEngine) window.ThreeDEngine.openStudio();"><i class="fas fa-cube" style="color:#0ea5e9;"></i> 🧊 3D Düzlem & Metin (PRO)</button>
+            <button class="btn-action" style="text-align:left; background:linear-gradient(135deg, rgba(14, 165, 233, 0.2), rgba(99, 102, 241, 0.2)); color:var(--text); border:1px solid rgba(14, 165, 233, 0.4); padding:15px; margin-bottom:8px; display:flex; align-items:center; gap:10px; font-size:14px; font-weight:600;" onclick="document.getElementById('mainTabs').classList.remove('active'); if(window.ThreeDEngine) window.ThreeDEngine.openStudio();">🧊 3D Düzlem & Metin (PRO)</button>
             <button class="btn-action" style="text-align:left; background:linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(168, 85, 247, 0.2)); color:var(--text); border:1px solid rgba(168, 85, 247, 0.4); padding:15px; margin-bottom:8px; display:flex; align-items:center; gap:10px; font-size:14px; font-weight:600;" onclick="document.getElementById('mainTabs').classList.remove('active'); if(typeof showTemplateColorModal === 'function') showTemplateColorModal()"><i class="fas fa-wand-magic-sparkles" style="color:#a855f7;"></i> PRO Renk Paleti & Eşleştirici</button>
             <button class="btn-action" style="text-align:left; background:var(--dark-3); color:var(--text); border:1px solid rgba(108,92,231,0.2); padding:15px; margin-bottom:8px; display:flex; align-items:center; gap:10px; font-size:14px;" onclick="document.getElementById('mainTabs').classList.remove('active'); switchTab('font')">🔠 Font</button>
             <button class="btn-action" style="text-align:left; background:var(--dark-3); color:var(--text); border:1px solid rgba(108,92,231,0.2); padding:15px; margin-bottom:8px; display:flex; align-items:center; gap:10px; font-size:14px;" onclick="document.getElementById('mainTabs').classList.remove('active'); switchTab('shapes')">📐 Şekiller</button>
@@ -178,7 +178,7 @@
             <div style="display:flex; align-items:center; gap:6px;">
                 <button type="button" class="btn-action" style="flex:1; background:linear-gradient(135deg, #0ea5e9, #0284c7); border:none; padding:10px 12px; border-radius:8px; color:white; font-weight:600; font-size:13px; display:flex; align-items:center; justify-content:center; gap:8px; box-shadow:0 4px 14px rgba(14,165,233,0.3); cursor:pointer; transition:all 0.2s;" onclick="document.getElementById('imageInput').click()">
                     <i class="fas fa-image" style="font-size:14px;"></i>
-                    <span id="bgUploadBtnText">Fotoğraf Seç / Yükle</span>
+                    <span id="bgUploadBtnText">Fotoğraf Seç & Yükle</span>
                 </button>
                 <button id="clearBgBtn" style="background:rgba(239,68,68,0.15); border:1px solid rgba(239,68,68,0.3); color:#ef4444; cursor:pointer; font-size:14px; width:38px; height:38px; border-radius:8px; display:none; align-items:center; justify-content:center; transition:all 0.2s;" title="Görseli Sil" onclick="if(typeof clearBgImage==='function') clearBgImage();">
                     <i class="fas fa-trash-alt"></i>
@@ -189,7 +189,7 @@
             <!-- Harita / Uydu Görseli Çek (Sadece PC / Tablet) -->
             <div class="sat-map-launch-row pc-only" style="display:flex; align-items:center; gap:6px;">
                 <button type="button" class="btn-action" id="openSatelliteMapBtn" style="flex:1; background:linear-gradient(135deg, #10b981, #059669); border:none; padding:9px 12px; border-radius:8px; color:white; font-weight:600; font-size:12.5px; display:flex; align-items:center; justify-content:center; gap:8px; box-shadow:0 4px 14px rgba(16,185,129,0.25); cursor:pointer; transition:all 0.2s;" onclick="if(window.openSatelliteMapModal) window.openSatelliteMapModal();">
-                    <span id="satMapBtnText">🛰️ Harita / Uydu Görseli Çek</span>
+                    <span id="satMapBtnText">🛰️ Harita & Uydu Görseli Çek</span>
                 </button>
             </div>
 
@@ -526,24 +526,24 @@
         <!-- 🌈 8-KANAL PROFESYONEL EMLAK HSL AKORDEONU -->
         <details class="hsl-accordion">
             <summary onclick="const i=this.querySelector('i.fa-chevron-down, i.fa-chevron-up'); if(i){i.classList.toggle('fa-chevron-up'); i.classList.toggle('fa-chevron-down');}">
-                <span><i class="fa-solid fa-palette" style="color:#ec4899;"></i> 8-Kanal Renk Ayarı (Renk / Doygunluk / Işık)</span>
+                <span><i class="fa-solid fa-palette" style="color:#ec4899;"></i> 8-Kanal Renk Ayarı (Renk & Doygunluk & Işık)</span>
                 <i class="fa-solid fa-chevron-down" style="font-size:12px;"></i>
             </summary>
             <div>
                 <!-- 8 Renk Noktası -->
                 <div class="hsl-dots-bar">
-                    <div class="hsl-color-dot active" data-color="red" style="background:#ef4444;" title="Kırmızı (Tuğla / Çatı)"></div>
-                    <div class="hsl-color-dot" data-color="orange" style="background:#f97316;" title="Turuncu (Ahşap / Parke / Laminant)"></div>
-                    <div class="hsl-color-dot" data-color="yellow" style="background:#eab308;" title="Sarı (İç Aydınlatma / Avize)"></div>
-                    <div class="hsl-color-dot" data-color="green" style="background:#22c55e;" title="Yeşil (Bahçe / Peyzaj / Bitki)"></div>
-                    <div class="hsl-color-dot" data-color="aqua" style="background:#06b6d4;" title="Turkuaz (Havuz Suyu / Deniz / Jakuzi)"></div>
-                    <div class="hsl-color-dot" data-color="blue" style="background:#3b82f6;" title="Mavi (Gökyüzü / Pencere)"></div>
-                    <div class="hsl-color-dot" data-color="purple" style="background:#a855f7;" title="Mor (Dekor / Çiçek)"></div>
+                    <div class="hsl-color-dot active" data-color="red" style="background:#ef4444;" title="Kırmızı (Tuğla & Çatı)"></div>
+                    <div class="hsl-color-dot" data-color="orange" style="background:#f97316;" title="Turuncu (Ahşap & Parke & Laminant)"></div>
+                    <div class="hsl-color-dot" data-color="yellow" style="background:#eab308;" title="Sarı (İç Aydınlatma & Avize)"></div>
+                    <div class="hsl-color-dot" data-color="green" style="background:#22c55e;" title="Yeşil (Bahçe & Peyzaj & Bitki)"></div>
+                    <div class="hsl-color-dot" data-color="aqua" style="background:#06b6d4;" title="Turkuaz (Havuz Suyu & Deniz & Jakuzi)"></div>
+                    <div class="hsl-color-dot" data-color="blue" style="background:#3b82f6;" title="Mavi (Gökyüzü & Pencere)"></div>
+                    <div class="hsl-color-dot" data-color="purple" style="background:#a855f7;" title="Mor (Dekor & Çiçek)"></div>
                     <div class="hsl-color-dot" data-color="magenta" style="background:#ec4899;" title="Magenta (Vurgu Işığı)"></div>
                 </div>
                 
                 <!-- Aktif Renk Başlığı -->
-                <div id="hslActiveColorLabel" style="text-align:center; color:#ef4444; font-weight:bold; font-size:13.5px; margin-bottom:12px;">🔴 Kırmızı (Tuğla / Çatı)</div>
+                <div id="hslActiveColorLabel" style="text-align:center; color:#ef4444; font-weight:bold; font-size:13.5px; margin-bottom:12px;">🔴 Kırmızı (Tuğla & Çatı)</div>
                 
                 <!-- 3 Evrensel Kaydırıcı -->
                 <div class="slider-group">
@@ -1424,7 +1424,7 @@
 
     <!-- CANVA -->
 <div id="tab-canva" class="dynamic-field">
-    <button class="btn-action btn-red" onclick="clearAllTemplates()" style="width:100%; margin-bottom:8px; font-weight:bold;"><i class="fas fa-trash-alt"></i> Şablonu Kaldır / Temizle</button>
+    <button class="btn-action btn-red" onclick="clearAllTemplates()" style="width:100%; margin-bottom:8px; font-weight:bold;"><i class="fas fa-trash-alt"></i> Şablonu Kaldır & Temizle</button>
     <button type="button" id="btnToggleTemplateTab" class="btn-action" onclick="window.toggleTemplateVisibility()" style="width:100%; margin-bottom:12px; font-weight:bold; background:rgba(56, 189, 248, 0.15); border:1px solid rgba(56, 189, 248, 0.4); color:#38bdf8; display:flex; align-items:center; justify-content:center; gap:8px; padding:10px;">
         <span class="palette-slash-container" style="position:relative; display:inline-flex; align-items:center; justify-content:center;">
             <i class="fas fa-palette" id="tabTemplatePaletteIcon"></i>
@@ -1489,7 +1489,7 @@
         </div>
         <!-- Metin Düzenle -->
         <div class="input-group" style="margin-top:6px;">
-            <label>📝 Rozet Başlığı / Metin</label>
+            <label>📝 Rozet Başlığı & Metin</label>
             <textarea id="coLabelText" placeholder="Metin..." oninput="applyCalloutSettings()" style="background:#0f172a; border:1px solid #334155; color:#e2e8f0; border-radius:6px; padding:6px 8px; font-size:12px; width:100%; min-height:60px;"></textarea>
         </div>
         <!-- Eylem Butonları -->
@@ -1632,7 +1632,7 @@
     <p class="info-text">Farklı platformlar için farklı boyutlarda önizle ve indir</p>
     
     <div class="input-group">
-        <label>📏 Format (Önizleme + İndirme)</label>
+        <label>📏 Format (Önizleme & İndirme)</label>
         <select id="exportFormat" onchange="window.userHasManuallyChangedFormat = true; document.getElementById('previewFormat').value = this.value; switchPreviewFormat();"></select>
     </div>
     
@@ -1654,13 +1654,13 @@
           <label>Dosya Tipi</label>
           <select id="exportFileType">
               <option value="jpg">JPG (En iyi Optimizasyon)</option>
-              <option value="png">PNG (Kayıpsız / Şeffaf)</option>
+              <option value="png">PNG (Kayıpsız & Şeffaf)</option>
               <option value="mp4">MP4 / WebM Video (3 sn Canlı Animasyon)</option>
           </select>
       </div>
 
       <div class="input-group">
-          <label>Çıktı Kalitesi / Çözünürlük</label>
+          <label>Çıktı Kalitesi & Çözünürlük</label>
           <select id="exportScale" onchange="if(window.updateExportScaleDisplay) window.updateExportScaleDisplay();">
               <option value="0.5">0.5x</option>
               <option value="0.75">0.75x</option>
@@ -1884,7 +1884,7 @@
         <div class="popover-header">
             <div style="display:flex; align-items:center; gap:6px; font-weight:700; font-size:13px; color:#38bdf8;">
                 <i class="fas fa-th"></i>
-                <span>Izgara / Kılavuz Ayarları</span>
+                <span>Izgara & Kılavuz Ayarları</span>
             </div>
             <button type="button" class="popover-close-btn" onclick="window.closeGridSettingsPopover()" title="Kapat">✕</button>
         </div>
@@ -2000,7 +2000,7 @@
 <script src="modules/polygon.js?v=20260914-70"></script>
 <script src="modules/snap.js?v=1785302098411"></script>
 <script src="core.js?v=20260822-3"></script>
-<script src="modules/ui-core.js?v=20260905-1"></script>
+<script src="modules/ui-core.js?v=20260915-92"></script>
 <script src="modules/canvas-zoom.js?v=20260819-4"></script>
 <script src="modules/templates-core.js?v=20260913-02"></script>
 <script src="modules/multi-select.js?v=20260913-05"></script>
@@ -2030,7 +2030,7 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="modules/ai-enhancer.js?v=20260910-14"></script>
     <script src="modules/satellite-map.js?v=20260914-86"></script>
-    <script src="modules/three-d-engine.js?v=20260915-91"></script>
+    <script src="modules/three-d-engine.js?v=20260915-92"></script>
 
 <!-- Gizli inputlar: Fotoğraf zoom ve pan ayarlarının arka planda çalışabilmesi için -->
 <div style="display:none;">
@@ -2929,7 +2929,7 @@ function toggleMobileMenu() {
       </div>
   </div>
 
-  <script src="js/searchManager.js?v=20260908-1"></script>
+  <script src="js/searchManager.js?v=20260915-92"></script>
 
 <script>
 window.addEventListener('DOMContentLoaded', () => {

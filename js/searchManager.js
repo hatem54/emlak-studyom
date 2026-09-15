@@ -134,10 +134,10 @@ window.OmniSearch = {
         const tools = [
             { id: 'tool_callout', name: 'Vurgu Rozeti Ekle', type: 'Araç', evalStr: "if(typeof switchTab === 'function') switchTab('callout'); if(typeof window.addCallout === 'function') window.addCallout();" },
             { id: 'tool_neon', name: 'Neon Rozet Ekle', type: 'Araç', evalStr: "if(typeof switchTab === 'function') switchTab('callout'); if(typeof window.addNeonCallout === 'function') window.addNeonCallout();" },
-            { id: 'tool_text', name: 'Özel Çerçeveli Metin / Başlık Kutusu', type: 'Araç', evalStr: "if(typeof window.addCustomTextBox === 'function') window.addCustomTextBox();" },
+            { id: 'tool_text', name: 'Özel Çerçeveli Metin & Başlık Kutusu', type: 'Araç', evalStr: "if(typeof window.addCustomTextBox === 'function') window.addCustomTextBox();" },
             { id: 'tool_free_text', name: 'Serbest Yazı Ekle', type: 'Araç', evalStr: "if(typeof window.addCustomTextOnly === 'function') window.addCustomTextOnly();" },
             { id: 'tool_draw_free', name: 'Serbest Çizim (Kalem Modu)', type: 'Araç', evalStr: "if(typeof switchTab === 'function') switchTab('draw'); if(typeof setDrawMode === 'function') setDrawMode('free');" },
-            { id: 'tool_draw_line', name: 'Ölçü / Düz Çizgi Çek', type: 'Araç', evalStr: "if(typeof switchTab === 'function') switchTab('draw'); if(typeof setDrawMode === 'function') setDrawMode('line');" },
+            { id: 'tool_draw_line', name: 'Ölçü & Düz Çizgi Çek', type: 'Araç', evalStr: "if(typeof switchTab === 'function') switchTab('draw'); if(typeof setDrawMode === 'function') setDrawMode('line');" },
             { id: 'tool_sat_map', name: 'Uydu Harita & Parsel Görseli Çek', type: 'Araç', evalStr: "if(typeof window.openSatelliteMapModal === 'function') window.openSatelliteMapModal();" },
             { id: 'tool_voiceover', name: 'Yapay Zeka Seslendirme Stüdyosu (AI Voiceover)', type: 'Araç', evalStr: "if(typeof window.openVoiceoverStudio === 'function') window.openVoiceoverStudio();" },
             { id: 'tool_ai_enhance', name: 'Yapay Zeka Fotoğraf İyileştirme & Filtreler', type: 'Araç', evalStr: "if(typeof switchTab === 'function') switchTab('photo');" },

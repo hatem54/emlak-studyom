@@ -92,6 +92,7 @@
     let arcScreenTangents = {
         yz: { x: 0, y: 1 }
     };
+    let lastOriginScreen = { x: 0, y: 0 };
 
     /**
      * 1. Dinamik Kütüphane Yükleyici
@@ -237,6 +238,7 @@
         dirLight.shadow.bias = -0.0005;
         dirLight.shadow.radius = state.shadowSoftness || 1.5;
         scene.add(dirLight);
+        scene.add(dirLight.target);
 
         // Ana Düzlem Grubu
         planeGroup = new THREE.Group();
@@ -409,7 +411,7 @@
         planeGroup.scale.set(state.planeScale, state.planeScale, state.planeScale);
 
         if (gridHelper) {
-            gridHelper.visible = !!state.showPlaneGrid;
+            gridHelper.visible = !!state.selected && !!state.showPlaneGrid;
         }
         if (shadowPlane && shadowPlane.material) {
             shadowPlane.material.opacity = state.shadowOpacity;
@@ -433,21 +435,35 @@
         // Duvara yaslandığında gride dayanınca kalmaz, grid ögeden asla kopmaz.
         if (gridHelper) {
             gridHelper.position.set(state.posX, state.posY, zPos);
+            gridHelper.visible = !!state.selected && !!state.showPlaneGrid;
         }
         if (shadowPlane) {
             shadowPlane.position.set(state.posX, state.posY, zPos - 0.2);
         }
 
+        updateLighting();
         updateGizmoPositions();
     }
 
     function updateLighting() {
         if (!dirLight) return;
+        const targetWorldPos = new THREE.Vector3();
+        if (contentGroup) {
+            contentGroup.getWorldPosition(targetWorldPos);
+        } else {
+            targetWorldPos.set(0, 0, 0);
+        }
+        if (dirLight.target) {
+            dirLight.target.position.copy(targetWorldPos);
+        }
+
         const rad = THREE.MathUtils.degToRad(state.lightAngle);
-        const distance = 600;
-        const lx = Math.cos(rad) * distance;
-        const ly = Math.sin(rad) * distance;
-        const lz = 500;
+        const distance = 700;
+        // 0° = Yukarıdan (Top), 90° = Sağdan / Pencereden (Right), 180° = Aşağıdan (Bottom), 270° = Soldan (Left)
+        const lx = targetWorldPos.x + Math.sin(rad) * distance;
+        const ly = targetWorldPos.y + Math.cos(rad) * distance;
+        const lz = targetWorldPos.z + 550;
+
         dirLight.position.set(lx, ly, lz);
         dirLight.intensity = state.lightIntensity;
         if (dirLight.shadow) {
@@ -717,6 +733,8 @@
                 <line id="threeDGizmoLineX" class="three-d-gizmo-axis-x" x1="0" y1="0" x2="0" y2="0" marker-end="url(#gizmoArrowX)"></line>
                 <line id="threeDGizmoLineY" class="three-d-gizmo-axis-y" x1="0" y1="0" x2="0" y2="0" marker-end="url(#gizmoArrowY)"></line>
                 <line id="threeDGizmoLineZ" class="three-d-gizmo-axis-z" x1="0" y1="0" x2="0" y2="0" marker-end="url(#gizmoArrowZ)"></line>
+                <!-- Güneş Işık Çizgisi -->
+                <line id="threeDGizmoSunLine" class="three-d-gizmo-sun-line" x1="0" y1="0" x2="0" y2="0"></line>
                 <!-- Merkez Pivot Referans Noktası (Kaba buton yerine estetik pivot) -->
                 <circle id="threeDGizmoOriginDot" class="three-d-gizmo-origin-dot" cx="0" cy="0" r="3.5"></circle>
             </svg>
@@ -728,6 +746,8 @@
             <div id="threeDGizmoDotX" class="three-d-gizmo-dot three-d-gizmo-dot-x" title="Eğim (Pitch) Döndür - Kırmızı Nokta"><span class="three-d-gizmo-dot-lbl">Eğim</span></div>
             <div id="threeDGizmoDotY" class="three-d-gizmo-dot three-d-gizmo-dot-y" title="Yatay (Yaw) Döndür - Yeşil Nokta"><span class="three-d-gizmo-dot-lbl">Yatay</span></div>
             <div id="threeDGizmoDotZ" class="three-d-gizmo-dot three-d-gizmo-dot-z" title="Düzlem İçi Dönüş (Roll) - Mavi Nokta"><span class="three-d-gizmo-dot-lbl">Dönüş</span></div>
+            <!-- Tuval Üstü 360° Güneş Işık Tutamacı -->
+            <div id="threeDGizmoSun" class="three-d-gizmo-sun" title="☀️ Güneş Işık Yönü (Tuvalde 360° Serbestçe Sürükleyin)"><i class="fas fa-sun"></i></div>
             <div id="threeDGizmoHud" class="three-d-gizmo-hud"></div>
         `;
 
@@ -908,6 +928,28 @@
         if (dotXEl && arcYZ.midPt) { dotXEl.style.left = arcYZ.midPt.x + 'px'; dotXEl.style.top = arcYZ.midPt.y + 'px'; }
         if (dotYEl && arcXZ.midPt) { dotYEl.style.left = arcXZ.midPt.x + 'px'; dotYEl.style.top = arcXZ.midPt.y + 'px'; }
         if (dotZEl && arcXY.midPt) { dotZEl.style.left = arcXY.midPt.x + 'px'; dotZEl.style.top = arcXY.midPt.y + 'px'; }
+
+        lastOriginScreen = { x: cx, y: cy };
+
+        // 4. Tuval Üstü 360° Güneş Işık Tutamacı (Canvas Sun Controller)
+        const sunDist = Math.max(95, baseLen * 1.35);
+        const sunRad = THREE.MathUtils.degToRad(state.lightAngle);
+        // 0° Üstte (-Y), 90° Sağda / Pencerede (+X), 180° Altta (+Y), 270° Solda (-X)
+        const sunX = cx + Math.sin(sunRad) * sunDist;
+        const sunY = cy - Math.cos(sunRad) * sunDist;
+
+        const sunLineEl = gizmoOverlayEl.querySelector('#threeDGizmoSunLine');
+        if (sunLineEl) {
+            sunLineEl.setAttribute('x1', cx);
+            sunLineEl.setAttribute('y1', cy);
+            sunLineEl.setAttribute('x2', sunX);
+            sunLineEl.setAttribute('y2', sunY);
+        }
+        const sunEl = gizmoOverlayEl.querySelector('#threeDGizmoSun');
+        if (sunEl) {
+            sunEl.style.left = sunX + 'px';
+            sunEl.style.top = sunY + 'px';
+        }
     }
 
     function attachGizmoEvents(overlay) {
@@ -1146,6 +1188,49 @@
             dotZ.addEventListener('pointerup', onUp);
             dotZ.addEventListener('pointercancel', onUp);
         }
+
+        // 7. Tuval Üstü 360° Güneş Işık Tutamacı (Canvas Sun Controller)
+        const sunEl = overlay.querySelector('#threeDGizmoSun');
+        if (sunEl) {
+            let isDraggingSun = false;
+            sunEl.addEventListener('pointerdown', (e) => {
+                isDraggingSun = true;
+                sunEl.setPointerCapture(e.pointerId);
+                e.stopPropagation();
+                e.preventDefault();
+                showGizmoHud(`☀️ Güneş Açısı: ${state.lightAngle}°`, e.clientX, e.clientY);
+            });
+
+            sunEl.addEventListener('pointermove', (e) => {
+                if (!isDraggingSun) return;
+                const container = document.getElementById('canvas-container');
+                if (!container) return;
+                const rect = container.getBoundingClientRect();
+                const originClientX = rect.left + lastOriginScreen.x;
+                const originClientY = rect.top + lastOriginScreen.y;
+                const dx = e.clientX - originClientX;
+                const dy = e.clientY - originClientY;
+                let angle = Math.round(Math.atan2(dx, -dy) * (180 / Math.PI));
+                if (angle < 0) angle += 360;
+
+                state.lightAngle = angle;
+                updateLighting();
+                syncControlsUI();
+                updateGizmoPositions();
+                notifyExternalUpdates();
+                requestRender();
+                showGizmoHud(`☀️ Güneş Açısı: ${state.lightAngle}°`, e.clientX, e.clientY);
+            });
+
+            const onSunUp = (e) => {
+                if (!isDraggingSun) return;
+                isDraggingSun = false;
+                hideGizmoHud();
+                try { sunEl.releasePointerCapture(e.pointerId); } catch(ex){}
+            };
+            sunEl.addEventListener('pointerup', onSunUp);
+            sunEl.addEventListener('pointercancel', onSunUp);
+        }
     }
 
     /**
@@ -1204,6 +1289,9 @@
                 }
             }
             if (canvasEl) canvasEl.style.pointerEvents = 'auto';
+            if (gridHelper) {
+                gridHelper.visible = !!state.showPlaneGrid;
+            }
             if (state.gizmoActive && !state.cornerPinActive) {
                 initGizmoOverlay();
                 if (gizmoOverlayEl) {
@@ -1219,7 +1307,7 @@
                 }
             }
             if (!options.silent && window.showToast) {
-                window.showToast('🎯 3D Öge Seçildi — Düzenleme & Büyütme Aktif (Kısayol: 3 | Bırakmak: ESC)', 'info');
+                window.showToast('🎯 3D Öge Seçildi — Tutamaçlar & Grid Aktif (Kısayol: 3 | Bırakmak: Boşa Tıkla/ESC)', 'info');
             }
         } else {
             // 3D öge seçimi bırakıldı
@@ -1229,10 +1317,13 @@
                 }
             }
             if (canvasEl) canvasEl.style.pointerEvents = 'none';
+            if (gridHelper) {
+                gridHelper.visible = false;
+            }
             if (gizmoOverlayEl) gizmoOverlayEl.style.display = 'none';
             if (cornerPinOverlayEl) cornerPinOverlayEl.style.display = 'none';
             if (!options.silent && window.showToast) {
-                window.showToast('🔓 3D Seçimi Bırakıldı — Görsel Serbest (Kısayol: 3 ile Seç)', 'info');
+                window.showToast('🔓 3D Seçimi Bırakıldı — Tutamaçlar & Grid Kapandı (Seçmek İçin Yazıya Tıkla/[3])', 'info');
             }
         }
 
@@ -1341,10 +1432,14 @@
         let isPointerDown = false;
 
         cvs.addEventListener('pointerdown', (e) => {
-            if (!state.active || !state.selected || window.isPhotoLocked === false || state.cornerPinActive) return;
+            if (!state.active || !state.selected || state.cornerPinActive) return;
             const isHit = check3DHit(e.clientX, e.clientY);
             const isRotateModifier = (e.button === 2 || e.altKey || e.shiftKey);
-            if (!isHit && !isRotateModifier) return;
+            if (!isHit && !isRotateModifier) {
+                // Boş alana tıklandı: 3D seçimini bırak, tutamaçlar ve grid kapansın, görsel serbest kalsın!
+                setSelected(false);
+                return;
+            }
 
             isPointerDown = true;
             dragStart.x = e.clientX;
@@ -1355,6 +1450,7 @@
             if (dragMode === 'move') {
                 showGizmoHud(`📍 Konum: X: ${Math.round(state.posX)}, Y: ${Math.round(state.posY)}`, e.clientX, e.clientY);
             }
+            e.stopPropagation();
             e.preventDefault();
         });
 
@@ -1383,8 +1479,11 @@
                 syncControlsUI();
                 showGizmoHud(`🔄 Yatay: ${state.planeYaw}°, Eğim: ${state.planePitch}°`, e.clientX, e.clientY);
             } else {
-                state.posX += dx * (1 / state.planeScale);
-                state.posY -= dy * (1 / state.planeScale);
+                // 🎯 3D Perspektif Eksen İzdüşümleriyle Doğal Taşıma
+                const projX = dx * axisScreenDirs.x.x + dy * axisScreenDirs.x.y;
+                const projY = dx * axisScreenDirs.y.x + dy * axisScreenDirs.y.y;
+                state.posX += projX * (1 / state.planeScale);
+                state.posY += projY * (1 / state.planeScale);
                 updateContentTransform();
                 syncControlsUI();
                 showGizmoHud(`📍 Konum: X: ${Math.round(state.posX)}, Y: ${Math.round(state.posY)}`, e.clientX, e.clientY);
@@ -1428,7 +1527,7 @@
         if (container && !container._threeDContainerEventsAttached) {
             container._threeDContainerEventsAttached = true;
 
-            // Capture phase: 3D öge seçili değilken (görsel serbestken) doğrudan 3D yazı/mesh'e tıklanırsa seç
+            // Capture phase: 3D öge seçili değilken (görsel serbestken) doğrudan 3D yazı/mesh'e tıklanırsa seç ve hemen taşımaya başla
             container.addEventListener('pointerdown', (e) => {
                 if (!state.active || state.selected) return;
                 if (e.button !== 0) return; // Yalnızca sol tık
@@ -1436,6 +1535,14 @@
                     e.stopPropagation();
                     e.preventDefault();
                     setSelected(true, { autoLockPhoto: true });
+                    // İlk tıklamada bırakmadan hemen taşımaya başla
+                    isPointerDown = true;
+                    dragStart.x = e.clientX;
+                    dragStart.y = e.clientY;
+                    dragMode = 'move';
+                    cvs.style.cursor = 'grabbing';
+                    try { cvs.setPointerCapture(e.pointerId); } catch(ex){}
+                    showGizmoHud(`📍 Konum: X: ${Math.round(state.posX)}, Y: ${Math.round(state.posY)}`, e.clientX, e.clientY);
                 }
             }, true);
 
@@ -2246,7 +2353,7 @@
         const gridCheck = panel.querySelector('#threeDGridCheck');
         gridCheck.addEventListener('change', (e) => {
             state.showPlaneGrid = e.target.checked;
-            if (gridHelper) gridHelper.visible = state.showPlaneGrid;
+            if (gridHelper) gridHelper.visible = !!state.selected && state.showPlaneGrid;
             requestRender();
         });
 
@@ -2335,6 +2442,7 @@
             state.lightAngle = angle;
             updateLighting();
             syncControlsUI();
+            updateGizmoPositions();
             notifyExternalUpdates();
             requestRender();
         }
@@ -2365,6 +2473,7 @@
             panel.querySelector('#threeDLightVal').textContent = state.lightAngle + '°';
             updateLighting();
             syncControlsUI();
+            updateGizmoPositions();
             notifyExternalUpdates();
             requestRender();
         });
@@ -2686,7 +2795,7 @@
         setShadowSoftness: (s) => { state.shadowSoftness = parseFloat(s) || 1.5; updateLighting(); requestRender(); },
         toggleGrid: (show) => { 
             state.showPlaneGrid = (show !== undefined) ? !!show : !state.showPlaneGrid;
-            if (gridHelper) gridHelper.visible = state.showPlaneGrid;
+            if (gridHelper) gridHelper.visible = !!state.selected && state.showPlaneGrid;
             requestRender();
         }
     };

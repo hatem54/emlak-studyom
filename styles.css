@@ -13950,6 +13950,64 @@ html[data-theme="light"] .tone-curve-canvas-wrap {
     to { opacity: 1; transform: translate(-50%, -140%) scale(1); }
 }
 
+/* 3D Sun Light Gizmo (Tuval Üstü 360° Güneş Işık Tutamacı) */
+.three-d-gizmo-sun {
+    position: absolute;
+    width: calc(26px * var(--gizmo-scale, 1.0));
+    height: calc(26px * var(--gizmo-scale, 1.0));
+    border-radius: 50%;
+    background: linear-gradient(135deg, #fef08a 0%, #f59e0b 50%, #d97706 100%);
+    border: calc(1.8px * var(--gizmo-scale, 1.0)) solid #ffffff;
+    color: #451a03;
+    font-size: calc(13px * var(--gizmo-scale, 1.0));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transform: translate(-50%, -50%);
+    cursor: grab;
+    pointer-events: auto;
+    user-select: none;
+    touch-action: none;
+    z-index: 100416;
+    box-shadow: 0 0 14px rgba(245, 158, 11, 0.95), 0 0 4px rgba(254, 240, 138, 0.8), 0 2px 6px rgba(0, 0, 0, 0.5);
+    transition: transform 0.12s ease, box-shadow 0.12s ease;
+    box-sizing: border-box;
+    animation: sunPulse 2.5s infinite ease-in-out;
+}
+
+.three-d-gizmo-sun::after {
+    content: '';
+    position: absolute;
+    top: -10px;
+    left: -10px;
+    right: -10px;
+    bottom: -10px;
+    border-radius: 50%;
+}
+
+.three-d-gizmo-sun:hover {
+    transform: translate(-50%, -50%) scale(1.25);
+    box-shadow: 0 0 22px rgba(245, 158, 11, 1), 0 0 8px rgba(255, 255, 255, 0.95);
+}
+
+.three-d-gizmo-sun:active {
+    cursor: grabbing;
+    transform: translate(-50%, -50%) scale(1.35);
+    animation: none;
+}
+
+@keyframes sunPulse {
+    0%, 100% { box-shadow: 0 0 12px rgba(245, 158, 11, 0.85), 0 0 4px rgba(254, 240, 138, 0.6); }
+    50% { box-shadow: 0 0 22px rgba(245, 158, 11, 1), 0 0 10px rgba(254, 240, 138, 0.95); }
+}
+
+.three-d-gizmo-sun-line {
+    stroke: rgba(245, 158, 11, 0.7);
+    stroke-width: calc(1.4px * var(--gizmo-scale, 1.0));
+    stroke-dasharray: 4, 3;
+    filter: drop-shadow(0 0 3px rgba(245, 158, 11, 0.75));
+}
+
 .three-d-gizmo-btn {
     width: 100%;
     background: rgba(255, 255, 255, 0.05);

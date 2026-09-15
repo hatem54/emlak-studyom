@@ -13757,173 +13757,173 @@ html[data-theme="light"] .tone-curve-canvas-wrap {
 }
 
 .three-d-gizmo-axis-z {
-    stroke: #0284c7;
+    stroke: #00d2ff;
     stroke-width: calc(2.2px * var(--gizmo-scale, 1.0));
     stroke-linecap: round;
-    filter: drop-shadow(0 0 3px rgba(2, 132, 199, 0.65));
+    filter: drop-shadow(0 0 3px rgba(0, 210, 255, 0.65));
 }
 
-.three-d-gizmo-ring {
+.three-d-gizmo-origin-dot {
+    fill: #ffffff;
+    stroke: #00d2ff;
+    stroke-width: 1.5px;
+    filter: drop-shadow(0 0 4px rgba(0, 210, 255, 0.85));
+    pointer-events: none;
+}
+
+/* 3D Quadrant Arcs (Döndürme Yayları) */
+.three-d-gizmo-arc {
     fill: none;
-    stroke: rgba(0, 210, 255, 0.45);
-    stroke-width: calc(1.5px * var(--gizmo-scale, 1.0));
-    stroke-dasharray: 4, 3;
+    stroke-width: calc(2px * var(--gizmo-scale, 1.0));
+    stroke-linecap: round;
+    opacity: 0.85;
+    transition: stroke-width 0.15s, opacity 0.15s;
 }
 
-.three-d-gizmo-center {
+.three-d-gizmo-arc-x {
+    stroke: #ef4444;
+    filter: drop-shadow(0 0 3px rgba(239, 68, 68, 0.65));
+}
+
+.three-d-gizmo-arc-y {
+    stroke: #10b981;
+    filter: drop-shadow(0 0 3px rgba(16, 185, 129, 0.65));
+}
+
+.three-d-gizmo-arc-z {
+    stroke: #00d2ff;
+    filter: drop-shadow(0 0 3px rgba(0, 210, 255, 0.65));
+}
+
+/* 3D Rotation Beads / Dots (Yay Üzerindeki Renkli Noktalar) */
+.three-d-gizmo-dot {
     position: absolute;
-    width: calc(24px * var(--gizmo-scale, 1.0));
-    height: calc(24px * var(--gizmo-scale, 1.0));
-    margin-left: calc(-12px * var(--gizmo-scale, 1.0));
-    margin-top: calc(-12px * var(--gizmo-scale, 1.0));
+    width: calc(14px * var(--gizmo-scale, 1.0));
+    height: calc(14px * var(--gizmo-scale, 1.0));
     border-radius: 50%;
-    background: radial-gradient(circle, #f59e0b 0%, #d97706 100%);
     border: calc(1.8px * var(--gizmo-scale, 1.0)) solid #ffffff;
-    box-shadow: 0 0 10px rgba(245, 158, 11, 0.8), 0 2px 5px rgba(0, 0, 0, 0.5);
-    cursor: move;
+    transform: translate(-50%, -50%);
+    cursor: grab;
     pointer-events: auto;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #ffffff;
-    font-size: calc(10px * var(--gizmo-scale, 1.0));
     user-select: none;
     touch-action: none;
-    transition: transform 0.1s, box-shadow 0.1s;
-    z-index: 100415;
+    z-index: 100416;
+    transition: transform 0.12s ease, box-shadow 0.12s ease;
+    box-sizing: border-box;
 }
 
-.three-d-gizmo-center::after {
+.three-d-gizmo-dot::after {
     content: '';
     position: absolute;
-    top: -8px;
-    left: -8px;
-    right: -8px;
-    bottom: -8px;
+    top: -12px;
+    left: -12px;
+    right: -12px;
+    bottom: -12px;
     border-radius: 50%;
 }
 
-.three-d-gizmo-center:hover {
-    transform: scale(1.2);
-    box-shadow: 0 0 14px rgba(245, 158, 11, 1);
+.three-d-gizmo-dot:hover {
+    transform: translate(-50%, -50%) scale(1.35);
 }
 
-.three-d-gizmo-center:active {
-    transform: scale(1.25);
-    background: #00d2ff;
-    border-color: #ffffff;
+.three-d-gizmo-dot:active {
+    cursor: grabbing;
+    transform: translate(-50%, -50%) scale(1.45);
 }
 
-.three-d-gizmo-handle {
+.three-d-gizmo-dot-x {
+    background: radial-gradient(circle at 35% 35%, #fca5a5, #ef4444 70%, #b91c1c 100%);
+    box-shadow: 0 0 10px rgba(239, 68, 68, 0.9), 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.three-d-gizmo-dot-y {
+    background: radial-gradient(circle at 35% 35%, #6ee7b7, #10b981 70%, #047857 100%);
+    box-shadow: 0 0 10px rgba(16, 185, 129, 0.9), 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.three-d-gizmo-dot-z {
+    background: radial-gradient(circle at 35% 35%, #67e8f9, #00d2ff 70%, #0284c7 100%);
+    box-shadow: 0 0 10px rgba(0, 210, 255, 0.9), 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.three-d-gizmo-dot-lbl {
+    display: none;
     position: absolute;
-    width: calc(26px * var(--gizmo-scale, 1.0));
-    height: calc(26px * var(--gizmo-scale, 1.0));
-    border-radius: 50%;
-    font-family: 'Space Grotesk', 'ClassicAmpersand', sans-serif;
-    font-size: calc(11.5px * var(--gizmo-scale, 1.0));
-    font-weight: 800;
-    letter-spacing: 0;
+    left: calc(100% + 5px);
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 9.5px;
+    font-weight: 700;
     color: #ffffff;
-    pointer-events: auto;
-    user-select: none;
-    touch-action: none;
+    background: rgba(15, 23, 42, 0.9);
+    padding: 1px 6px;
+    border-radius: 4px;
+    white-space: nowrap;
+    pointer-events: none;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+}
+
+.three-d-gizmo-overlay.show-labels .three-d-gizmo-dot-lbl {
+    display: block;
+}
+
+/* 3D Axis Tip Handles (Eksen Uçlarındaki X, Y, Z Kaydırma Butonları) */
+.three-d-gizmo-tip {
+    position: absolute;
+    width: calc(20px * var(--gizmo-scale, 1.0));
+    height: calc(20px * var(--gizmo-scale, 1.0));
+    border-radius: 50%;
+    border: calc(1.6px * var(--gizmo-scale, 1.0)) solid #ffffff;
+    font-family: 'Space Grotesk', 'ClassicAmpersand', sans-serif;
+    font-size: calc(10.5px * var(--gizmo-scale, 1.0));
+    font-weight: 800;
+    color: #ffffff;
     display: flex;
     align-items: center;
     justify-content: center;
     transform: translate(-50%, -50%);
     cursor: grab;
-    transition: transform 0.12s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.12s ease;
-    white-space: nowrap;
+    pointer-events: auto;
+    user-select: none;
+    touch-action: none;
     z-index: 100415;
+    transition: transform 0.12s ease, box-shadow 0.12s ease;
     box-sizing: border-box;
-    border: calc(1.8px * var(--gizmo-scale, 1.0)) solid #ffffff;
-    padding: 0;
 }
 
-/* Touch & Click hitbox expander so small circle is super easy to grab */
-.three-d-gizmo-handle::after {
+.three-d-gizmo-tip::after {
     content: '';
     position: absolute;
-    top: -8px;
-    left: -8px;
-    right: -8px;
-    bottom: -8px;
+    top: -10px;
+    left: -10px;
+    right: -10px;
+    bottom: -10px;
     border-radius: 50%;
 }
 
-.three-d-gizmo-handle:active {
+.three-d-gizmo-tip:hover {
+    transform: translate(-50%, -50%) scale(1.25);
+}
+
+.three-d-gizmo-tip:active {
     cursor: grabbing;
-    transform: translate(-50%, -50%) scale(1.2);
+    transform: translate(-50%, -50%) scale(1.35);
 }
 
-.three-d-gizmo-handle-x {
+.three-d-gizmo-tip-x {
     background: #ef4444;
-    box-shadow: 0 0 10px rgba(239, 68, 68, 0.75), 0 2px 5px rgba(0, 0, 0, 0.45);
+    box-shadow: 0 0 8px rgba(239, 68, 68, 0.8), 0 2px 4px rgba(0, 0, 0, 0.45);
 }
 
-.three-d-gizmo-handle-x:hover {
-    transform: translate(-50%, -50%) scale(1.18);
-    box-shadow: 0 0 16px rgba(239, 68, 68, 1);
-}
-
-.three-d-gizmo-handle-y {
+.three-d-gizmo-tip-y {
     background: #10b981;
-    box-shadow: 0 0 10px rgba(16, 185, 129, 0.75), 0 2px 5px rgba(0, 0, 0, 0.45);
+    box-shadow: 0 0 8px rgba(16, 185, 129, 0.8), 0 2px 4px rgba(0, 0, 0, 0.45);
 }
 
-.three-d-gizmo-handle-y:hover {
-    transform: translate(-50%, -50%) scale(1.18);
-    box-shadow: 0 0 16px rgba(16, 185, 129, 1);
-}
-
-.three-d-gizmo-handle-z {
-    background: #0284c7;
-    box-shadow: 0 0 10px rgba(2, 132, 199, 0.75), 0 2px 5px rgba(0, 0, 0, 0.45);
-}
-
-.three-d-gizmo-handle-z:hover {
-    transform: translate(-50%, -50%) scale(1.18);
-    box-shadow: 0 0 16px rgba(2, 132, 199, 1);
-}
-
-.three-d-gizmo-handle-rot {
+.three-d-gizmo-tip-z {
     background: #00d2ff;
     color: #0f172a;
-    font-size: calc(10.5px * var(--gizmo-scale, 1.0));
-    box-shadow: 0 0 10px rgba(0, 210, 255, 0.75), 0 2px 5px rgba(0, 0, 0, 0.45);
-}
-
-.three-d-gizmo-handle-rot:hover {
-    transform: translate(-50%, -50%) scale(1.18);
-    box-shadow: 0 0 16px rgba(0, 210, 255, 1);
-}
-
-.three-d-gizmo-tag {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    line-height: 1;
-}
-
-.three-d-gizmo-lbl {
-    display: none;
-    font-size: 9.5px;
-    font-weight: 700;
-    margin-left: 3px;
-    letter-spacing: 0.2px;
-}
-
-/* Rozet etiketleri açık mod (Show Labels) */
-.three-d-gizmo-overlay.show-labels .three-d-gizmo-handle {
-    width: auto;
-    min-width: calc(26px * var(--gizmo-scale, 1.0));
-    height: calc(24px * var(--gizmo-scale, 1.0));
-    padding: 0 calc(7px * var(--gizmo-scale, 1.0)) 0 calc(6px * var(--gizmo-scale, 1.0));
-    border-radius: calc(12px * var(--gizmo-scale, 1.0));
-}
-
-.three-d-gizmo-overlay.show-labels .three-d-gizmo-lbl {
-    display: inline;
+    box-shadow: 0 0 8px rgba(0, 210, 255, 0.8), 0 2px 4px rgba(0, 0, 0, 0.45);
 }
 
 .three-d-gizmo-hud {

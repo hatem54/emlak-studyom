@@ -641,8 +641,24 @@
     }
 
     /**
-     * 7.1 🎯 AFTER EFFECTS TARZI 3D EKSEN GİZMO (3D Transform Gizmo)
+     * 7.1 🎯 3D EKSEN GİZMO (3D Transform Gimbal with Arcs, Beads & Axis Tips)
      */
+    function showGizmoHud(text, x, y) {
+        if (!gizmoOverlayEl || state.gizmoShowHud === false) return;
+        const hud = gizmoOverlayEl.querySelector('#threeDGizmoHud');
+        if (!hud) return;
+        hud.textContent = text;
+        hud.style.left = (x + 14) + 'px';
+        hud.style.top = (y - 32) + 'px';
+        hud.style.display = 'block';
+    }
+
+    function hideGizmoHud() {
+        if (!gizmoOverlayEl) return;
+        const hud = gizmoOverlayEl.querySelector('#threeDGizmoHud');
+        if (hud) hud.style.display = 'none';
+    }
+
     function initGizmoOverlay() {
         const container = document.getElementById('canvas-container');
         if (!container) return;
@@ -660,26 +676,35 @@
         overlay.innerHTML = `
             <svg id="threeDGizmoSvg" class="three-d-gizmo-svg">
                 <defs>
-                    <marker id="gizmoArrowX" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+                    <marker id="gizmoArrowX" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
                         <path d="M 0 1.5 L 10 5 L 0 8.5 z" fill="#ef4444"/>
                     </marker>
-                    <marker id="gizmoArrowY" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+                    <marker id="gizmoArrowY" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
                         <path d="M 0 1.5 L 10 5 L 0 8.5 z" fill="#10b981"/>
                     </marker>
-                    <marker id="gizmoArrowZ" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
-                        <path d="M 0 1.5 L 10 5 L 0 8.5 z" fill="#0284c7"/>
+                    <marker id="gizmoArrowZ" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                        <path d="M 0 1.5 L 10 5 L 0 8.5 z" fill="#00d2ff"/>
                     </marker>
                 </defs>
-                <circle id="threeDGizmoRing" class="three-d-gizmo-ring" cx="0" cy="0" r="110"></circle>
+                <!-- 3D Döndürme Yayları (Quadrant Arcs) -->
+                <path id="threeDGizmoArcX" class="three-d-gizmo-arc three-d-gizmo-arc-x"></path>
+                <path id="threeDGizmoArcY" class="three-d-gizmo-arc three-d-gizmo-arc-y"></path>
+                <path id="threeDGizmoArcZ" class="three-d-gizmo-arc three-d-gizmo-arc-z"></path>
+                <!-- 3D Eksen Çizgileri ve Ok Uçları -->
                 <line id="threeDGizmoLineX" class="three-d-gizmo-axis-x" x1="0" y1="0" x2="0" y2="0" marker-end="url(#gizmoArrowX)"></line>
                 <line id="threeDGizmoLineY" class="three-d-gizmo-axis-y" x1="0" y1="0" x2="0" y2="0" marker-end="url(#gizmoArrowY)"></line>
                 <line id="threeDGizmoLineZ" class="three-d-gizmo-axis-z" x1="0" y1="0" x2="0" y2="0" marker-end="url(#gizmoArrowZ)"></line>
+                <!-- Merkez Pivot Referans Noktası (Kaba buton yerine estetik pivot) -->
+                <circle id="threeDGizmoOriginDot" class="three-d-gizmo-origin-dot" cx="0" cy="0" r="3.5"></circle>
             </svg>
-            <div id="threeDGizmoCenter" class="three-d-gizmo-center" title="Konumlandır (XY Sürükle)"><i class="fas fa-arrows-up-down-left-right"></i></div>
-            <div id="threeDGizmoHandleX" class="three-d-gizmo-handle three-d-gizmo-handle-x" title="Eğim (Pitch) - Sürükleyin"><b class="three-d-gizmo-tag">X</b><span class="three-d-gizmo-lbl">Eğim</span></div>
-            <div id="threeDGizmoHandleY" class="three-d-gizmo-handle three-d-gizmo-handle-y" title="Yatay (Yaw) - Sürükleyin"><b class="three-d-gizmo-tag">Y</b><span class="three-d-gizmo-lbl">Yatay</span></div>
-            <div id="threeDGizmoHandleZ" class="three-d-gizmo-handle three-d-gizmo-handle-z" title="Yatırma (Roll) - Sürükleyin"><b class="three-d-gizmo-tag">Z</b><span class="three-d-gizmo-lbl">Yatır</span></div>
-            <div id="threeDGizmoHandleRot" class="three-d-gizmo-handle three-d-gizmo-handle-rot" title="Düzlem İçi Dönüş (Sürükleyin)"><b class="three-d-gizmo-tag"><i class="fas fa-rotate"></i></b><span class="three-d-gizmo-lbl">Dönüş</span></div>
+            <!-- Eksen Ucu Tutamaçları (Kaydırma / Eksen Boyunca Taşıma) -->
+            <div id="threeDGizmoTipX" class="three-d-gizmo-tip three-d-gizmo-tip-x" title="X Ekseni Kaydır (Sürükleyin)">X</div>
+            <div id="threeDGizmoTipY" class="three-d-gizmo-tip three-d-gizmo-tip-y" title="Y Ekseni Kaydır (Sürükleyin)">Y</div>
+            <div id="threeDGizmoTipZ" class="three-d-gizmo-tip three-d-gizmo-tip-z" title="Z Yükseklik / Derinlik (Sürükleyin)">Z</div>
+            <!-- Yay Üzerindeki Renkli Döndürme Noktaları (Beads / Dots) -->
+            <div id="threeDGizmoDotX" class="three-d-gizmo-dot three-d-gizmo-dot-x" title="Eğim (Pitch) Döndür - Kırmızı Nokta"><span class="three-d-gizmo-dot-lbl">Eğim</span></div>
+            <div id="threeDGizmoDotY" class="three-d-gizmo-dot three-d-gizmo-dot-y" title="Yatay (Yaw) Döndür - Yeşil Nokta"><span class="three-d-gizmo-dot-lbl">Yatay</span></div>
+            <div id="threeDGizmoDotZ" class="three-d-gizmo-dot three-d-gizmo-dot-z" title="Düzlem İçi Dönüş (Roll) - Mavi Nokta"><span class="three-d-gizmo-dot-lbl">Dönüş</span></div>
             <div id="threeDGizmoHud" class="three-d-gizmo-hud"></div>
         `;
 
@@ -730,8 +755,7 @@
                     const sz = new THREE.Vector3();
                     bbox.getSize(sz);
                     const maxDim = Math.max(sz.x, sz.y, sz.z);
-                    // 150px referans genişliği kabul edilir, büyük metinlerde eksenler dışarı açılır
-                    autoRatio = Math.max(1.0, Math.min(2.8, maxDim / 150));
+                    autoRatio = Math.max(1.0, Math.min(2.5, maxDim / 150));
                 }
             } catch (ex) {
                 autoRatio = 1.0;
@@ -741,243 +765,257 @@
         const currentScale = state.gizmoScale || 1.0;
         const currentOpacity = (state.gizmoOpacity !== undefined) ? state.gizmoOpacity : 1.0;
 
-        // Dinamik CSS Değişkenleri ve Etiket Durumu
         gizmoOverlayEl.style.setProperty('--gizmo-scale', currentScale);
         gizmoOverlayEl.style.setProperty('--gizmo-opacity', currentOpacity);
         gizmoOverlayEl.classList.toggle('show-labels', !!state.gizmoShowLabels);
 
-        // 3D Dünya koordinatlarını ekrana yansıt (Project to 2D screen coordinates)
-        const vCenter = new THREE.Vector3(0, 0, 0);
-        contentGroup.localToWorld(vCenter);
-        vCenter.project(camera);
-        const cx = (vCenter.x + 1) * cw / 2;
-        const cy = (-vCenter.y + 1) * ch / 2;
-
-        // 📏 Kompakt & Doğal Mesafe (Ögeden aşırı uzaklaşmayı önleyen sınırlandırılmış formül)
-        const baseLen = (state.gizmoDistance || 75) * (state.gizmoAutoFit ? Math.min(1.25, autoRatio) : 1.0) * Math.max(0.9, Math.min(1.15, Math.sqrt(state.planeScale)));
-
-        // X Ekseni (Pitch)
-        const vX = new THREE.Vector3(baseLen, 0, 0);
-        contentGroup.localToWorld(vX);
-        vX.project(camera);
-        let pxX = (vX.x + 1) * cw / 2;
-        let pyX = (-vX.y + 1) * ch / 2;
-
-        // Y Ekseni (Yaw)
-        const vY = new THREE.Vector3(0, baseLen, 0);
-        contentGroup.localToWorld(vY);
-        vY.project(camera);
-        let pxY = (vY.x + 1) * cw / 2;
-        let pyY = (-vY.y + 1) * ch / 2;
-
-        // Z Ekseni (Roll / Yüzey Normalleri)
-        const vZ = new THREE.Vector3(0, 0, baseLen);
-        contentGroup.localToWorld(vZ);
-        vZ.project(camera);
-        let pxZ = (vZ.x + 1) * cw / 2;
-        let pyZ = (-vZ.y + 1) * ch / 2;
-
-        // Halka Rotasyon Tutamacı (Mesafeyle orantılı çember - contentGroup ile doğal döner)
-        const ringRadius = Math.max(38, baseLen * 0.72);
-        const vRot = new THREE.Vector3(ringRadius, 0, 0);
-        contentGroup.localToWorld(vRot);
-        vRot.project(camera);
-        let pxRot = (vRot.x + 1) * cw / 2;
-        let pyRot = (-vRot.y + 1) * ch / 2;
-
-        // 🛡️ Çakışma Önleyici Akıllı Konumlandırma (Anti-Overlap & Anti-Collision Relaxation)
-        // Kullanıcı uyarısı: "bazı tutamaçlar üstüste biniyor gibi bunları ayarlayalım"
-        const handles = [
-            { id: 'x', x: pxX, y: pyX },
-            { id: 'y', x: pxY, y: pyY },
-            { id: 'z', x: pxZ, y: pyZ },
-            { id: 'rot', x: pxRot, y: pyRot }
-        ];
-
-        // 1. Merkeze binmeyi önleme (Minimum merkez mesafesi)
-        const minCenterDist = 30 * Math.max(0.7, currentScale);
-        handles.forEach((h, idx) => {
-            let dCenter = Math.hypot(h.x - cx, h.y - cy);
-            if (dCenter < minCenterDist) {
-                if (dCenter < 1) {
-                    const fallbackAngle = idx * (Math.PI / 2);
-                    h.x = cx + Math.cos(fallbackAngle) * minCenterDist;
-                    h.y = cy + Math.sin(fallbackAngle) * minCenterDist;
-                } else {
-                    h.x = cx + ((h.x - cx) / dCenter) * minCenterDist;
-                    h.y = cy + ((h.y - cy) / dCenter) * minCenterDist;
-                }
-            }
-        });
-
-        // 2. Tutamaçların birbirinin üstüne binmesini önleme (Pairwise separation relaxation)
-        const minHandleDist = (state.gizmoShowLabels ? 48 : 34) * Math.max(0.7, currentScale);
-        for (let iter = 0; iter < 5; iter++) {
-            for (let i = 0; i < handles.length; i++) {
-                for (let j = i + 1; j < handles.length; j++) {
-                    const hA = handles[i];
-                    const hB = handles[j];
-                    let dx = hB.x - hA.x;
-                    let dy = hB.y - hA.y;
-                    let dist = Math.hypot(dx, dy);
-                    if (dist < minHandleDist) {
-                        if (dist < 1) {
-                            dx = 1; dy = 0; dist = 1;
-                        }
-                        const overlap = (minHandleDist - dist) / 2;
-                        const nx = (dx / dist) * overlap;
-                        const ny = (dy / dist) * overlap;
-                        hA.x -= nx;
-                        hA.y -= ny;
-                        hB.x += nx;
-                        hB.y += ny;
-                    }
-                }
-            }
-            // Merkeze çok yaklaşma kontrolü
-            handles.forEach(h => {
-                const d = Math.hypot(h.x - cx, h.y - cy);
-                if (d < minCenterDist && d > 0) {
-                    h.x = cx + ((h.x - cx) / d) * minCenterDist;
-                    h.y = cy + ((h.y - cy) / d) * minCenterDist;
-                }
-            });
+        // 3D Dünya koordinatlarını ekrana yansıtıcı yardımcı fonksiyon
+        function projectLocalPoint(vec3) {
+            const v = vec3.clone();
+            contentGroup.localToWorld(v);
+            v.project(camera);
+            return {
+                x: (v.x + 1) * cw / 2,
+                y: (-v.y + 1) * ch / 2,
+                z: v.z
+            };
         }
 
-        pxX = handles[0].x; pyX = handles[0].y;
-        pxY = handles[1].x; pyY = handles[1].y;
-        pxZ = handles[2].x; pyZ = handles[2].y;
-        pxRot = handles[3].x; pyRot = handles[3].y;
+        // Merkez (Origin)
+        const pOrigin = projectLocalPoint(new THREE.Vector3(0, 0, 0));
+        const cx = pOrigin.x;
+        const cy = pOrigin.y;
+
+        // 📏 Kompakt & Doğal Mesafe
+        const baseLen = (state.gizmoDistance || 75) * (state.gizmoAutoFit ? Math.min(1.25, autoRatio) : 1.0) * Math.max(0.9, Math.min(1.15, Math.sqrt(state.planeScale)));
+
+        // Eksen Çizgisi Bitişleri (Ok uçları)
+        const pLineX = projectLocalPoint(new THREE.Vector3(baseLen, 0, 0));
+        const pLineY = projectLocalPoint(new THREE.Vector3(0, baseLen, 0));
+        const pLineZ = projectLocalPoint(new THREE.Vector3(0, 0, baseLen));
+
+        // Eksen Ucu Butonları (X, Y, Z harfleri - çizginin hemen ucunda)
+        const pTipX = projectLocalPoint(new THREE.Vector3(baseLen * 1.16, 0, 0));
+        const pTipY = projectLocalPoint(new THREE.Vector3(0, baseLen * 1.16, 0));
+        const pTipZ = projectLocalPoint(new THREE.Vector3(0, 0, baseLen * 1.16));
+
+        // 3D Yaylar (Quadrant Arcs) ve Üzerindeki Renkli Noktalar
+        const arcR = baseLen * 0.72;
+
+        function build3DArc(vStartDir, vEndDir, steps = 6) {
+            const pts = [];
+            let midPt = null;
+            for (let i = 0; i <= steps; i++) {
+                const angle = (i / steps) * (Math.PI / 2);
+                const vx = (vStartDir.x * Math.cos(angle) + vEndDir.x * Math.sin(angle)) * arcR;
+                const vy = (vStartDir.y * Math.cos(angle) + vEndDir.y * Math.sin(angle)) * arcR;
+                const vz = (vStartDir.z * Math.cos(angle) + vEndDir.z * Math.sin(angle)) * arcR;
+                const pt = projectLocalPoint(new THREE.Vector3(vx, vy, vz));
+                pts.push(pt);
+                if (i === Math.floor(steps / 2)) {
+                    midPt = pt;
+                }
+            }
+            const d = 'M ' + pts.map(p => `${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(' L ');
+            return { d, midPt };
+        }
+
+        // 1. Kırmızı Yay YZ (Pitch / Eğim: Y ile Z ekseni arası, X etrafında döner)
+        const arcYZ = build3DArc(new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0, 1));
+        // 2. Yeşil Yay XZ (Yaw / Yatay: X ile Z ekseni arası, Y etrafında döner)
+        const arcXZ = build3DArc(new THREE.Vector3(1, 0, 0), new THREE.Vector3(0, 0, 1));
+        // 3. Mavi Yay XY (LocalRot / Dönüş: X ile Y ekseni arası, Z etrafında döner)
+        const arcXY = build3DArc(new THREE.Vector3(1, 0, 0), new THREE.Vector3(0, 1, 0));
 
         // SVG Güncelle
         const lineX = gizmoOverlayEl.querySelector('#threeDGizmoLineX');
         const lineY = gizmoOverlayEl.querySelector('#threeDGizmoLineY');
         const lineZ = gizmoOverlayEl.querySelector('#threeDGizmoLineZ');
-        const ring = gizmoOverlayEl.querySelector('#threeDGizmoRing');
+        const arcXEl = gizmoOverlayEl.querySelector('#threeDGizmoArcX');
+        const arcYEl = gizmoOverlayEl.querySelector('#threeDGizmoArcY');
+        const arcZEl = gizmoOverlayEl.querySelector('#threeDGizmoArcZ');
+        const originDot = gizmoOverlayEl.querySelector('#threeDGizmoOriginDot');
 
-        if (lineX) { lineX.setAttribute('x1', cx); lineX.setAttribute('y1', cy); lineX.setAttribute('x2', pxX); lineX.setAttribute('y2', pyX); }
-        if (lineY) { lineY.setAttribute('x1', cx); lineY.setAttribute('y1', cy); lineY.setAttribute('x2', pxY); lineY.setAttribute('y2', pyY); }
-        if (lineZ) { lineZ.setAttribute('x1', cx); lineZ.setAttribute('y1', cy); lineZ.setAttribute('x2', pxZ); lineZ.setAttribute('y2', pyZ); }
-        if (ring) {
-            ring.setAttribute('cx', cx);
-            ring.setAttribute('cy', cy);
-            ring.setAttribute('r', Math.hypot(pxRot - cx, pyRot - cy));
-        }
+        if (lineX) { lineX.setAttribute('x1', cx); lineX.setAttribute('y1', cy); lineX.setAttribute('x2', pLineX.x); lineX.setAttribute('y2', pLineX.y); }
+        if (lineY) { lineY.setAttribute('x1', cx); lineY.setAttribute('y1', cy); lineY.setAttribute('x2', pLineY.x); lineY.setAttribute('y2', pLineY.y); }
+        if (lineZ) { lineZ.setAttribute('x1', cx); lineZ.setAttribute('y1', cy); lineZ.setAttribute('x2', pLineZ.x); lineZ.setAttribute('y2', pLineZ.y); }
 
-        // HTML Tutamaçları Konumlandır
-        const centerEl = gizmoOverlayEl.querySelector('#threeDGizmoCenter');
-        const handleX = gizmoOverlayEl.querySelector('#threeDGizmoHandleX');
-        const handleY = gizmoOverlayEl.querySelector('#threeDGizmoHandleY');
-        const handleZ = gizmoOverlayEl.querySelector('#threeDGizmoHandleZ');
-        const handleRot = gizmoOverlayEl.querySelector('#threeDGizmoHandleRot');
+        if (arcXEl) arcXEl.setAttribute('d', arcYZ.d);
+        if (arcYEl) arcYEl.setAttribute('d', arcXZ.d);
+        if (arcZEl) arcZEl.setAttribute('d', arcXY.d);
 
-        if (centerEl) { centerEl.style.left = cx + 'px'; centerEl.style.top = cy + 'px'; }
-        if (handleX) { handleX.style.left = pxX + 'px'; handleX.style.top = pyX + 'px'; }
-        if (handleY) { handleY.style.left = pxY + 'px'; handleY.style.top = pyY + 'px'; }
-        if (handleZ) { handleZ.style.left = pxZ + 'px'; handleZ.style.top = pyZ + 'px'; }
-        if (handleRot) { handleRot.style.left = pxRot + 'px'; handleRot.style.top = pyRot + 'px'; }
+        if (originDot) { originDot.setAttribute('cx', cx); originDot.setAttribute('cy', cy); }
+
+        // HTML Tutamaçları ve Noktaları Konumlandır
+        const tipXEl = gizmoOverlayEl.querySelector('#threeDGizmoTipX');
+        const tipYEl = gizmoOverlayEl.querySelector('#threeDGizmoTipY');
+        const tipZEl = gizmoOverlayEl.querySelector('#threeDGizmoTipZ');
+
+        const dotXEl = gizmoOverlayEl.querySelector('#threeDGizmoDotX');
+        const dotYEl = gizmoOverlayEl.querySelector('#threeDGizmoDotY');
+        const dotZEl = gizmoOverlayEl.querySelector('#threeDGizmoDotZ');
+
+        if (tipXEl) { tipXEl.style.left = pTipX.x + 'px'; tipXEl.style.top = pTipX.y + 'px'; }
+        if (tipYEl) { tipYEl.style.left = pTipY.x + 'px'; tipYEl.style.top = pTipY.y + 'px'; }
+        if (tipZEl) { tipZEl.style.left = pTipZ.x + 'px'; tipZEl.style.top = pTipZ.y + 'px'; }
+
+        if (dotXEl && arcYZ.midPt) { dotXEl.style.left = arcYZ.midPt.x + 'px'; dotXEl.style.top = arcYZ.midPt.y + 'px'; }
+        if (dotYEl && arcXZ.midPt) { dotYEl.style.left = arcXZ.midPt.x + 'px'; dotYEl.style.top = arcXZ.midPt.y + 'px'; }
+        if (dotZEl && arcXY.midPt) { dotZEl.style.left = arcXY.midPt.x + 'px'; dotZEl.style.top = arcXY.midPt.y + 'px'; }
     }
 
     function attachGizmoEvents(overlay) {
-        const hud = overlay.querySelector('#threeDGizmoHud');
-        function showHud(text, x, y) {
-            if (!hud || state.gizmoShowHud === false) return;
-            hud.textContent = text;
-            hud.style.left = x + 'px';
-            hud.style.top = y + 'px';
-            hud.style.display = 'block';
-        }
-        function hideHud() {
-            if (hud) hud.style.display = 'none';
-        }
-
-        // 1. Merkez Tutamaç (Taşıma)
-        const centerEl = overlay.querySelector('#threeDGizmoCenter');
-        if (centerEl) {
-            let isMoving = false;
-            let startClientX, startClientY, origX, origY;
-            centerEl.addEventListener('pointerdown', (e) => {
-                isMoving = true;
+        // 1. Tip X (X Ekseni Kaydırma)
+        const tipX = overlay.querySelector('#threeDGizmoTipX');
+        if (tipX) {
+            let isDragging = false;
+            let startClientX, origPosX;
+            tipX.addEventListener('pointerdown', (e) => {
+                isDragging = true;
                 startClientX = e.clientX;
-                startClientY = e.clientY;
-                origX = state.posX;
-                origY = state.posY;
-                centerEl.setPointerCapture(e.pointerId);
+                origPosX = state.posX;
+                tipX.setPointerCapture(e.pointerId);
                 e.stopPropagation();
                 e.preventDefault();
             });
-            centerEl.addEventListener('pointermove', (e) => {
-                if (!isMoving) return;
+            tipX.addEventListener('pointermove', (e) => {
+                if (!isDragging) return;
                 const dx = e.clientX - startClientX;
-                const dy = e.clientY - startClientY;
-                state.posX = origX + dx;
-                state.posY = origY - dy;
+                state.posX = origPosX + dx * (1 / state.planeScale);
                 updateContentTransform();
                 syncControlsUI();
                 notifyExternalUpdates();
                 requestRender();
-                showHud(`📍 Konum: X: ${Math.round(state.posX)}, Y: ${Math.round(state.posY)}`, e.clientX, e.clientY);
+                showGizmoHud(`📐 X Ekseni: ${Math.round(state.posX)}px`, e.clientX, e.clientY);
             });
             const onUp = (e) => {
-                if (!isMoving) return;
-                isMoving = false;
-                hideHud();
-                try { centerEl.releasePointerCapture(e.pointerId); } catch(ex){}
+                if (!isDragging) return;
+                isDragging = false;
+                hideGizmoHud();
+                try { tipX.releasePointerCapture(e.pointerId); } catch(ex){}
             };
-            centerEl.addEventListener('pointerup', onUp);
-            centerEl.addEventListener('pointercancel', onUp);
+            tipX.addEventListener('pointerup', onUp);
+            tipX.addEventListener('pointercancel', onUp);
         }
 
-        // 2. X Tutamacı (Eğim / Pitch)
-        const handleX = overlay.querySelector('#threeDGizmoHandleX');
-        if (handleX) {
-            let isDraggingX = false;
-            let startClientY, startPitch;
-            handleX.addEventListener('pointerdown', (e) => {
-                isDraggingX = true;
+        // 2. Tip Y (Y Ekseni Kaydırma)
+        const tipY = overlay.querySelector('#threeDGizmoTipY');
+        if (tipY) {
+            let isDragging = false;
+            let startClientY, origPosY;
+            tipY.addEventListener('pointerdown', (e) => {
+                isDragging = true;
                 startClientY = e.clientY;
-                startPitch = state.planePitch;
-                handleX.setPointerCapture(e.pointerId);
+                origPosY = state.posY;
+                tipY.setPointerCapture(e.pointerId);
                 e.stopPropagation();
                 e.preventDefault();
             });
-            handleX.addEventListener('pointermove', (e) => {
-                if (!isDraggingX) return;
+            tipY.addEventListener('pointermove', (e) => {
+                if (!isDragging) return;
                 const dy = e.clientY - startClientY;
+                state.posY = origPosY - dy * (1 / state.planeScale);
+                updateContentTransform();
+                syncControlsUI();
+                notifyExternalUpdates();
+                requestRender();
+                showGizmoHud(`📐 Y Ekseni: ${Math.round(state.posY)}px`, e.clientX, e.clientY);
+            });
+            const onUp = (e) => {
+                if (!isDragging) return;
+                isDragging = false;
+                hideGizmoHud();
+                try { tipY.releasePointerCapture(e.pointerId); } catch(ex){}
+            };
+            tipY.addEventListener('pointerup', onUp);
+            tipY.addEventListener('pointercancel', onUp);
+        }
+
+        // 3. Tip Z (Z Ekseni / Yükseklik)
+        const tipZ = overlay.querySelector('#threeDGizmoTipZ');
+        if (tipZ) {
+            let isDragging = false;
+            let startClientY, origElev;
+            tipZ.addEventListener('pointerdown', (e) => {
+                isDragging = true;
+                startClientY = e.clientY;
+                origElev = state.planeElevation || 0;
+                tipZ.setPointerCapture(e.pointerId);
+                e.stopPropagation();
+                e.preventDefault();
+            });
+            tipZ.addEventListener('pointermove', (e) => {
+                if (!isDragging) return;
+                const dy = e.clientY - startClientY;
+                state.planeElevation = Math.max(0, Math.min(100, Math.round(origElev - dy * 0.5)));
+                updateContentTransform();
+                syncControlsUI();
+                notifyExternalUpdates();
+                requestRender();
+                showGizmoHud(`📐 Z Yükseklik: ${state.planeElevation}px`, e.clientX, e.clientY);
+            });
+            const onUp = (e) => {
+                if (!isDragging) return;
+                isDragging = false;
+                hideGizmoHud();
+                try { tipZ.releasePointerCapture(e.pointerId); } catch(ex){}
+            };
+            tipZ.addEventListener('pointerup', onUp);
+            tipZ.addEventListener('pointercancel', onUp);
+        }
+
+        // 4. Dot X (Kırmızı Nokta: Eğim / Pitch)
+        const dotX = overlay.querySelector('#threeDGizmoDotX');
+        if (dotX) {
+            let isDragging = false;
+            let startClientY, startPitch;
+            dotX.addEventListener('pointerdown', (e) => {
+                isDragging = true;
+                startClientY = e.clientY;
+                startPitch = state.planePitch;
+                dotX.setPointerCapture(e.pointerId);
+                e.stopPropagation();
+                e.preventDefault();
+            });
+            dotX.addEventListener('pointermove', (e) => {
+                if (!isDragging) return;
+                const dy = e.clientY - startClientY;
+                // Yukarı çekince dikleşsin (pitch artar), aşağı çekince yatsın (pitch azalır)
                 state.planePitch = Math.max(-90, Math.min(90, Math.round(startPitch - dy * 0.75)));
                 updatePlaneTransform();
                 syncControlsUI();
                 notifyExternalUpdates();
                 requestRender();
-                showHud(`📐 Eğim (Pitch): ${state.planePitch}°`, e.clientX, e.clientY);
+                showGizmoHud(`📐 Eğim (Pitch): ${state.planePitch}°`, e.clientX, e.clientY);
             });
             const onUp = (e) => {
-                if (!isDraggingX) return;
-                isDraggingX = false;
-                hideHud();
-                try { handleX.releasePointerCapture(e.pointerId); } catch(ex){}
+                if (!isDragging) return;
+                isDragging = false;
+                hideGizmoHud();
+                try { dotX.releasePointerCapture(e.pointerId); } catch(ex){}
             };
-            handleX.addEventListener('pointerup', onUp);
-            handleX.addEventListener('pointercancel', onUp);
+            dotX.addEventListener('pointerup', onUp);
+            dotX.addEventListener('pointercancel', onUp);
         }
 
-        // 3. Y Tutamacı (Yatay / Yaw)
-        const handleY = overlay.querySelector('#threeDGizmoHandleY');
-        if (handleY) {
-            let isDraggingY = false;
+        // 5. Dot Y (Yeşil Nokta: Yatay Dönüş / Yaw)
+        const dotY = overlay.querySelector('#threeDGizmoDotY');
+        if (dotY) {
+            let isDragging = false;
             let startClientX, startYaw;
-            handleY.addEventListener('pointerdown', (e) => {
-                isDraggingY = true;
+            dotY.addEventListener('pointerdown', (e) => {
+                isDragging = true;
                 startClientX = e.clientX;
                 startYaw = state.planeYaw;
-                handleY.setPointerCapture(e.pointerId);
+                dotY.setPointerCapture(e.pointerId);
                 e.stopPropagation();
                 e.preventDefault();
             });
-            handleY.addEventListener('pointermove', (e) => {
-                if (!isDraggingY) return;
+            dotY.addEventListener('pointermove', (e) => {
+                if (!isDragging) return;
                 const dx = e.clientX - startClientX;
-                let val = Math.round(startYaw - dx * 0.75);
+                // Sağa çekince sağa dönsün (+dx)
+                let val = Math.round(startYaw + dx * 0.75);
                 if (val > 180) val -= 360;
                 if (val < -180) val += 360;
                 state.planeYaw = val;
@@ -985,78 +1023,50 @@
                 syncControlsUI();
                 notifyExternalUpdates();
                 requestRender();
-                showHud(`🔄 Yatay (Yaw): ${state.planeYaw}°`, e.clientX, e.clientY);
+                showGizmoHud(`🔄 Yatay (Yaw): ${state.planeYaw}°`, e.clientX, e.clientY);
             });
             const onUp = (e) => {
-                if (!isDraggingY) return;
-                isDraggingY = false;
-                hideHud();
-                try { handleY.releasePointerCapture(e.pointerId); } catch(ex){}
+                if (!isDragging) return;
+                isDragging = false;
+                hideGizmoHud();
+                try { dotY.releasePointerCapture(e.pointerId); } catch(ex){}
             };
-            handleY.addEventListener('pointerup', onUp);
-            handleY.addEventListener('pointercancel', onUp);
+            dotY.addEventListener('pointerup', onUp);
+            dotY.addEventListener('pointercancel', onUp);
         }
 
-        // 4. Z Tutamacı (Yatırma / Roll)
-        const handleZ = overlay.querySelector('#threeDGizmoHandleZ');
-        if (handleZ) {
-            let isDraggingZ = false;
-            let startClientX, startRoll;
-            handleZ.addEventListener('pointerdown', (e) => {
-                isDraggingZ = true;
-                startClientX = e.clientX;
-                startRoll = state.planeRoll;
-                handleZ.setPointerCapture(e.pointerId);
-                e.stopPropagation();
-                e.preventDefault();
-            });
-            handleZ.addEventListener('pointermove', (e) => {
-                if (!isDraggingZ) return;
-                const dx = e.clientX - startClientX;
-                let val = Math.round(startRoll - dx * 0.75);
-                if (val > 180) val -= 360;
-                if (val < -180) val += 360;
-                state.planeRoll = val;
-                updatePlaneTransform();
-                syncControlsUI();
-                notifyExternalUpdates();
-                requestRender();
-                showHud(`🔃 Yatırma (Roll): ${state.planeRoll}°`, e.clientX, e.clientY);
-            });
-            const onUp = (e) => {
-                if (!isDraggingZ) return;
-                isDraggingZ = false;
-                hideHud();
-                try { handleZ.releasePointerCapture(e.pointerId); } catch(ex){}
-            };
-            handleZ.addEventListener('pointerup', onUp);
-            handleZ.addEventListener('pointercancel', onUp);
-        }
-
-        // 5. Dönüş Tutamacı (Local Rotation / Düzlem İçi Döndürme)
-        const handleRot = overlay.querySelector('#threeDGizmoHandleRot');
-        if (handleRot) {
-            let isDraggingRot = false;
+        // 6. Dot Z (Mavi Nokta: Düzlem İçi Dönüş / Local Rotation)
+        const dotZ = overlay.querySelector('#threeDGizmoDotZ');
+        if (dotZ) {
+            let isDragging = false;
             let startPointerAngle = 0;
             let startLocalRot = 0;
-            handleRot.addEventListener('pointerdown', (e) => {
-                isDraggingRot = true;
-                const centerEl = overlay.querySelector('#threeDGizmoCenter');
-                const rect = centerEl.getBoundingClientRect();
-                const cx = rect.left + rect.width / 2;
-                const cy = rect.top + rect.height / 2;
+            dotZ.addEventListener('pointerdown', (e) => {
+                isDragging = true;
+                const vOrigin = new THREE.Vector3(0, 0, 0);
+                contentGroup.localToWorld(vOrigin);
+                vOrigin.project(camera);
+                const container = document.getElementById('canvas-container');
+                const rect = container ? container.getBoundingClientRect() : { left: 0, top: 0, width: 1920, height: 1080 };
+                const cx = rect.left + (vOrigin.x + 1) * rect.width / 2;
+                const cy = rect.top + (-vOrigin.y + 1) * rect.height / 2;
+
                 startPointerAngle = Math.atan2(e.clientY - cy, e.clientX - cx);
                 startLocalRot = state.planeLocalRot || 0;
-                handleRot.setPointerCapture(e.pointerId);
+                dotZ.setPointerCapture(e.pointerId);
                 e.stopPropagation();
                 e.preventDefault();
             });
-            handleRot.addEventListener('pointermove', (e) => {
-                if (!isDraggingRot) return;
-                const centerEl = overlay.querySelector('#threeDGizmoCenter');
-                const rect = centerEl.getBoundingClientRect();
-                const cx = rect.left + rect.width / 2;
-                const cy = rect.top + rect.height / 2;
+            dotZ.addEventListener('pointermove', (e) => {
+                if (!isDragging) return;
+                const vOrigin = new THREE.Vector3(0, 0, 0);
+                contentGroup.localToWorld(vOrigin);
+                vOrigin.project(camera);
+                const container = document.getElementById('canvas-container');
+                const rect = container ? container.getBoundingClientRect() : { left: 0, top: 0, width: 1920, height: 1080 };
+                const cx = rect.left + (vOrigin.x + 1) * rect.width / 2;
+                const cy = rect.top + (-vOrigin.y + 1) * rect.height / 2;
+
                 const currentPointerAngle = Math.atan2(e.clientY - cy, e.clientX - cx);
                 let deltaDeg = (currentPointerAngle - startPointerAngle) * (180 / Math.PI);
                 let newRot = Math.round((startLocalRot + deltaDeg) % 360);
@@ -1066,16 +1076,16 @@
                 syncControlsUI();
                 notifyExternalUpdates();
                 requestRender();
-                showHud(`🔄 Düzlem İçi Dönüş: ${state.planeLocalRot}°`, e.clientX, e.clientY);
+                showGizmoHud(`🔄 Düzlem İçi Dönüş: ${state.planeLocalRot}°`, e.clientX, e.clientY);
             });
             const onUp = (e) => {
-                if (!isDraggingRot) return;
-                isDraggingRot = false;
-                hideHud();
-                try { handleRot.releasePointerCapture(e.pointerId); } catch(ex){}
+                if (!isDragging) return;
+                isDragging = false;
+                hideGizmoHud();
+                try { dotZ.releasePointerCapture(e.pointerId); } catch(ex){}
             };
-            handleRot.addEventListener('pointerup', onUp);
-            handleRot.addEventListener('pointercancel', onUp);
+            dotZ.addEventListener('pointerup', onUp);
+            dotZ.addEventListener('pointercancel', onUp);
         }
     }
 
@@ -1106,7 +1116,17 @@
             });
         }
         const intersects = raycaster.intersectObjects(targetObjects, true);
-        return (intersects && intersects.length > 0);
+        if (intersects && intersects.length > 0) return true;
+
+        // Harfler arası boşluklar için tolerans payı (Bounding box testi)
+        try {
+            const box = new THREE.Box3().setFromObject(contentGroup);
+            if (!box.isEmpty()) {
+                box.expandByScalar(12);
+                if (raycaster.ray.intersectsBox(box)) return true;
+            }
+        } catch (ex) {}
+        return false;
     }
 
     /**
@@ -1263,30 +1283,52 @@
 
         cvs.addEventListener('pointerdown', (e) => {
             if (!state.active || !state.selected || window.isPhotoLocked === false || state.cornerPinActive) return;
+            const isHit = check3DHit(e.clientX, e.clientY);
+            const isRotateModifier = (e.button === 2 || e.altKey || e.shiftKey);
+            if (!isHit && !isRotateModifier) return;
+
             isPointerDown = true;
             dragStart.x = e.clientX;
             dragStart.y = e.clientY;
-            dragMode = (e.button === 2 || e.altKey || e.shiftKey) ? 'rotate' : 'move';
+            dragMode = isRotateModifier ? 'rotate' : 'move';
+            cvs.style.cursor = (dragMode === 'move') ? 'grabbing' : 'crosshair';
             cvs.setPointerCapture(e.pointerId);
+            if (dragMode === 'move') {
+                showGizmoHud(`📍 Konum: X: ${Math.round(state.posX)}, Y: ${Math.round(state.posY)}`, e.clientX, e.clientY);
+            }
             e.preventDefault();
         });
 
         cvs.addEventListener('pointermove', (e) => {
-            if (!isPointerDown || !state.active || !state.selected || state.cornerPinActive) return;
+            if (!state.active || !state.selected || state.cornerPinActive) return;
+
+            if (!isPointerDown) {
+                // Üzerine gelindiğinde (Hover) doğrudan tutma imleci göster
+                if (check3DHit(e.clientX, e.clientY)) {
+                    cvs.style.cursor = 'grab';
+                } else if (cvs.style.cursor === 'grab') {
+                    cvs.style.cursor = 'default';
+                }
+                return;
+            }
+
             const dx = e.clientX - dragStart.x;
             const dy = e.clientY - dragStart.y;
             dragStart.x = e.clientX;
             dragStart.y = e.clientY;
 
             if (dragMode === 'rotate') {
-                state.planeYaw = Math.round((state.planeYaw - dx * 0.5) % 360);
+                state.planeYaw = Math.round((state.planeYaw + dx * 0.5) % 360);
                 state.planePitch = Math.max(-90, Math.min(90, Math.round(state.planePitch - dy * 0.5)));
                 updatePlaneTransform();
                 syncControlsUI();
+                showGizmoHud(`🔄 Yatay: ${state.planeYaw}°, Eğim: ${state.planePitch}°`, e.clientX, e.clientY);
             } else {
                 state.posX += dx * (1 / state.planeScale);
                 state.posY -= dy * (1 / state.planeScale);
                 updateContentTransform();
+                syncControlsUI();
+                showGizmoHud(`📍 Konum: X: ${Math.round(state.posX)}, Y: ${Math.round(state.posY)}`, e.clientX, e.clientY);
             }
             notifyExternalUpdates();
             requestRender();
@@ -1295,7 +1337,13 @@
         const onPointerUp = (e) => {
             if (!isPointerDown) return;
             isPointerDown = false;
+            hideGizmoHud();
             try { cvs.releasePointerCapture(e.pointerId); } catch(ex){}
+            if (check3DHit(e.clientX, e.clientY)) {
+                cvs.style.cursor = 'grab';
+            } else {
+                cvs.style.cursor = 'default';
+            }
         };
 
         cvs.addEventListener('pointerup', onPointerUp);

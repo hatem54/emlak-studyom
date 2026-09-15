@@ -13536,14 +13536,14 @@ html[data-theme="light"] .tone-curve-canvas-wrap {
 
 .three-d-pin-node {
     position: absolute;
-    width: 32px;
-    height: 32px;
-    margin-left: -16px;
-    margin-top: -16px;
+    width: 38px;
+    height: 38px;
+    margin-left: -19px;
+    margin-top: -19px;
     border-radius: 50%;
     background: #0f172a;
     border: 2.5px solid #00d2ff;
-    box-shadow: 0 0 14px rgba(0, 210, 255, 0.8), 0 2px 8px rgba(0, 0, 0, 0.8);
+    box-shadow: 0 0 16px rgba(0, 210, 255, 0.85), 0 2px 8px rgba(0, 0, 0, 0.8);
     cursor: grab;
     pointer-events: auto;
     display: flex;
@@ -13563,7 +13563,7 @@ html[data-theme="light"] .tone-curve-canvas-wrap {
 }
 
 .three-d-pin-node .pin-tag {
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 800;
     color: #00d2ff;
     pointer-events: none;
@@ -13719,6 +13719,8 @@ html[data-theme="light"] .tone-curve-canvas-wrap {
 
 /* ================= 🎯 3D EKSEN GİZMO (AFTER EFFECTS TRANSFORM GIZMO) ================= */
 .three-d-gizmo-overlay {
+    --gizmo-scale: 1.4;
+    --gizmo-opacity: 1;
     position: absolute;
     top: 0;
     left: 0;
@@ -13726,6 +13728,8 @@ html[data-theme="light"] .tone-curve-canvas-wrap {
     height: 100%;
     pointer-events: none;
     z-index: 100410;
+    opacity: var(--gizmo-opacity, 1);
+    transition: opacity 0.15s ease;
 }
 
 .three-d-gizmo-svg {
@@ -13740,41 +13744,41 @@ html[data-theme="light"] .tone-curve-canvas-wrap {
 
 .three-d-gizmo-axis-x {
     stroke: #ef4444;
-    stroke-width: 3.5px;
+    stroke-width: calc(3.8px * var(--gizmo-scale, 1.4));
     stroke-linecap: round;
     filter: drop-shadow(0 0 6px rgba(239, 68, 68, 0.85));
 }
 
 .three-d-gizmo-axis-y {
     stroke: #10b981;
-    stroke-width: 3.5px;
+    stroke-width: calc(3.8px * var(--gizmo-scale, 1.4));
     stroke-linecap: round;
     filter: drop-shadow(0 0 6px rgba(16, 185, 129, 0.85));
 }
 
 .three-d-gizmo-axis-z {
     stroke: #0284c7;
-    stroke-width: 3.5px;
+    stroke-width: calc(3.8px * var(--gizmo-scale, 1.4));
     stroke-linecap: round;
     filter: drop-shadow(0 0 6px rgba(2, 132, 199, 0.85));
 }
 
 .three-d-gizmo-ring {
     fill: none;
-    stroke: rgba(0, 210, 255, 0.5);
-    stroke-width: 2px;
+    stroke: rgba(0, 210, 255, 0.55);
+    stroke-width: calc(2.2px * var(--gizmo-scale, 1.4));
     stroke-dasharray: 6, 4;
 }
 
 .three-d-gizmo-center {
     position: absolute;
-    width: 34px;
-    height: 34px;
-    margin-left: -17px;
-    margin-top: -17px;
+    width: calc(36px * var(--gizmo-scale, 1.4));
+    height: calc(36px * var(--gizmo-scale, 1.4));
+    margin-left: calc(-18px * var(--gizmo-scale, 1.4));
+    margin-top: calc(-18px * var(--gizmo-scale, 1.4));
     border-radius: 50%;
     background: radial-gradient(circle, #f59e0b 0%, #d97706 100%);
-    border: 2.5px solid #ffffff;
+    border: calc(2.5px * var(--gizmo-scale, 1.4)) solid #ffffff;
     box-shadow: 0 0 16px rgba(245, 158, 11, 0.9), 0 2px 8px rgba(0, 0, 0, 0.8);
     cursor: move;
     pointer-events: auto;
@@ -13782,7 +13786,7 @@ html[data-theme="light"] .tone-curve-canvas-wrap {
     align-items: center;
     justify-content: center;
     color: #ffffff;
-    font-size: 12px;
+    font-size: calc(13px * var(--gizmo-scale, 1.4));
     user-select: none;
     touch-action: none;
     transition: transform 0.1s;
@@ -13802,9 +13806,9 @@ html[data-theme="light"] .tone-curve-canvas-wrap {
 
 .three-d-gizmo-handle {
     position: absolute;
-    padding: 3px 8px;
-    border-radius: 20px;
-    font-size: 10px;
+    padding: calc(4.5px * var(--gizmo-scale, 1.4)) calc(10px * var(--gizmo-scale, 1.4));
+    border-radius: calc(20px * var(--gizmo-scale, 1.4));
+    font-size: calc(11px * var(--gizmo-scale, 1.4));
     font-weight: 800;
     letter-spacing: 0.3px;
     color: #ffffff;
@@ -13813,7 +13817,7 @@ html[data-theme="light"] .tone-curve-canvas-wrap {
     touch-action: none;
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: calc(5px * var(--gizmo-scale, 1.4));
     transform: translate(-50%, -50%);
     cursor: grab;
     transition: transform 0.1s, box-shadow 0.1s;
@@ -13865,6 +13869,16 @@ html[data-theme="light"] .tone-curve-canvas-wrap {
 
 .three-d-gizmo-handle-rot:hover {
     box-shadow: 0 0 18px rgba(0, 210, 255, 1);
+}
+
+/* Rozet etiketlerini gizleme modu */
+.three-d-gizmo-overlay.hide-labels .three-d-gizmo-handle span {
+    display: none;
+}
+
+.three-d-gizmo-overlay.hide-labels .three-d-gizmo-handle {
+    padding: calc(6px * var(--gizmo-scale, 1.4)) calc(7px * var(--gizmo-scale, 1.4));
+    border-radius: 50%;
 }
 
 .three-d-gizmo-hud {
@@ -13924,6 +13938,179 @@ html[data-theme="light"] .tone-curve-canvas-wrap {
     font-weight: 700;
     box-shadow: 0 2px 10px rgba(255, 255, 255, 0.15);
     transform: translateY(-1px);
+}
+
+/* Tutamaç Ayarları Aç/Kapat Butonu (Dişli/Ayar İkonu) */
+.three-d-gizmo-gear-btn {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1.5px solid rgba(255, 255, 255, 0.22);
+    border-radius: 8px;
+    color: #cbd5e1;
+    width: 36px;
+    min-width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 13px;
+}
+
+.three-d-gizmo-gear-btn:hover:not(.active) {
+    background: rgba(255, 255, 255, 0.12);
+    border-color: rgba(255, 255, 255, 0.35);
+    color: #ffffff;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    transform: translateY(-1px);
+}
+
+.three-d-gizmo-gear-btn.active {
+    background: rgba(255, 255, 255, 0.2);
+    border-color: #00d2ff;
+    color: #00d2ff;
+    box-shadow: 0 0 10px rgba(0, 210, 255, 0.35);
+    transform: translateY(-1px);
+}
+
+/* ================= 🎛️ TUTAMAÇ & GİZMO AYARLARI ALT PANELİ ================= */
+.three-d-gizmo-settings-box {
+    margin-bottom: 10px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    animation: fadeInSlideDown 0.2s ease-out;
+}
+
+@keyframes fadeInSlideDown {
+    from { opacity: 0; transform: translateY(-6px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.three-d-settings-box-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.three-d-settings-box-title {
+    font-size: 11.5px;
+    font-weight: 700;
+    color: #38bdf8;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: 'ClassicAmpersand', 'Space Grotesk', sans-serif;
+}
+
+.three-d-box-close-btn {
+    background: transparent;
+    border: none;
+    color: #94a3b8;
+    font-size: 12px;
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 4px;
+    transition: all 0.15s ease;
+}
+
+.three-d-box-close-btn:hover {
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.three-d-setting-item {
+    margin-bottom: 8px;
+}
+
+.three-d-checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 11px;
+    color: #cbd5e1;
+    cursor: pointer;
+    user-select: none;
+    font-family: 'ClassicAmpersand', 'Space Grotesk', sans-serif;
+}
+
+.three-d-checkbox-label input[type="checkbox"] {
+    cursor: pointer;
+    accent-color: #0284c7;
+    width: 14px;
+    height: 14px;
+}
+
+.three-d-setting-name {
+    font-weight: 600;
+}
+
+.three-d-setting-desc {
+    font-size: 9.5px;
+    color: #94a3b8;
+    margin-top: 2px;
+    margin-left: 21px;
+    line-height: 1.3;
+}
+
+.three-d-setting-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.three-d-setting-lbl {
+    font-size: 11px;
+    color: #94a3b8;
+    min-width: 90px;
+    font-weight: 600;
+}
+
+.three-d-scale-presets {
+    display: flex;
+    gap: 5px;
+    margin-top: 6px;
+}
+
+.three-d-scale-chip {
+    flex: 1;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: #cbd5e1;
+    font-family: 'ClassicAmpersand', 'Space Grotesk', sans-serif;
+    font-size: 10px;
+    font-weight: 600;
+    padding: 4px 6px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    text-align: center;
+}
+
+.three-d-scale-chip:hover:not(.active) {
+    background: rgba(255, 255, 255, 0.1);
+    color: #ffffff;
+}
+
+.three-d-scale-chip.active {
+    background: rgba(255, 255, 255, 0.2);
+    border-color: #38bdf8;
+    color: #38bdf8;
+    font-weight: 700;
+}
+
+.three-d-setting-toggles {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 6px;
+    padding-top: 6px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 /* ================= ☀️ 3D STÜDYO GÜNDÜZ (LIGHT) TEMASI ================= */
@@ -14067,6 +14254,95 @@ body[data-theme="light"] .three-d-gizmo-btn.active {
     font-weight: 700 !important;
     box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.08), 0 2px 5px rgba(0, 0, 0, 0.04) !important;
     transform: translateY(-1px) !important;
+}
+
+/* Tutamaç Ayar Butonu - Giriş Sekmesi Uyumu */
+body[data-theme="light"] .three-d-gizmo-gear-btn {
+    background: #ffffff !important;
+    border: 1.5px solid #cbd5e1 !important;
+    color: #475569 !important;
+    border-radius: 8px !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03) !important;
+    transition: all 0.2s ease !important;
+}
+
+body[data-theme="light"] .three-d-gizmo-gear-btn:hover:not(.active) {
+    background: #f1f5f9 !important;
+    border-color: #94a3b8 !important;
+    color: #0f172a !important;
+    box-shadow: 0 2px 6px rgba(100, 116, 139, 0.18) !important;
+    transform: translateY(-1px) !important;
+}
+
+body[data-theme="light"] .three-d-gizmo-gear-btn.active {
+    background: linear-gradient(180deg, #f1f5f9 0%, #e2e8f0 100%) !important;
+    border: 1.5px solid #64748b !important;
+    color: #0f172a !important;
+    font-weight: 700 !important;
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.08), 0 2px 5px rgba(0, 0, 0, 0.04) !important;
+    transform: translateY(-1px) !important;
+}
+
+/* Tutamaç & Gizmo Ayarları Alt Paneli - Dolgusuz, Temiz Panel Çizgileri */
+body[data-theme="light"] .three-d-gizmo-settings-box {
+    background: #ffffff !important;
+    border: 1px solid #e2e8f0 !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03) !important;
+}
+
+body[data-theme="light"] .three-d-settings-box-header {
+    border-bottom: 1px solid #f1f5f9 !important;
+}
+
+body[data-theme="light"] .three-d-settings-box-title {
+    color: #0f172a !important;
+    font-weight: 800 !important;
+}
+
+body[data-theme="light"] .three-d-box-close-btn {
+    color: #64748b !important;
+}
+
+body[data-theme="light"] .three-d-box-close-btn:hover {
+    color: #0f172a !important;
+    background: #f1f5f9 !important;
+}
+
+body[data-theme="light"] .three-d-checkbox-label {
+    color: #334155 !important;
+}
+
+body[data-theme="light"] .three-d-setting-desc {
+    color: #64748b !important;
+}
+
+body[data-theme="light"] .three-d-setting-lbl {
+    color: #475569 !important;
+    font-weight: 600 !important;
+}
+
+body[data-theme="light"] .three-d-scale-chip {
+    background: #ffffff !important;
+    border: 1px solid #e2e8f0 !important;
+    color: #475569 !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02) !important;
+}
+
+body[data-theme="light"] .three-d-scale-chip:hover:not(.active) {
+    background: #f1f5f9 !important;
+    border-color: #cbd5e1 !important;
+    color: #0f172a !important;
+}
+
+body[data-theme="light"] .three-d-scale-chip.active {
+    background: #e2e8f0 !important;
+    border: 1.5px solid #64748b !important;
+    color: #0f172a !important;
+    font-weight: 700 !important;
+}
+
+body[data-theme="light"] .three-d-setting-toggles {
+    border-top: 1px solid #f1f5f9 !important;
 }
 
 body[data-theme="light"] .three-d-color-item {

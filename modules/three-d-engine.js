@@ -41,6 +41,13 @@
         posY: 0,               // Düzlem üzerinde Y konumu
         cornerPinActive: false,// 4 Köşe Tutamaç modu aktif mi?
         gizmoActive: true,     // After Effects tarzı 3D Eksen Gizmo modu aktif mi?
+        gizmoScale: 1.4,       // Tutamaç boyutu ölçeği (0.8 - 2.5) -> Varsayılan %140 (daha belirgin ve akıllı)
+        gizmoAutoFit: true,    // Nesne ve metin boyutuna göre akıllı orantılama
+        gizmoDistance: 170,    // Eksen açılma mesafesi (90px - 320px)
+        gizmoShowLabels: true, // Eksen rozet etiketlerini göster (Eğim, Yatay vb.)
+        gizmoShowHud: true,    // Canlı derece HUD bildirimini göster
+        gizmoOpacity: 1.0,     // Gizmo opaklığı (0.3 - 1.0)
+        gizmoSettingsOpen: false, // Sol panel ayar kutusu açık mı?
         hasBaked: false
     };
 
@@ -651,26 +658,26 @@
         overlay.innerHTML = `
             <svg id="threeDGizmoSvg" class="three-d-gizmo-svg">
                 <defs>
-                    <marker id="gizmoArrowX" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                    <marker id="gizmoArrowX" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
                         <path d="M 0 1.5 L 10 5 L 0 8.5 z" fill="#ef4444"/>
                     </marker>
-                    <marker id="gizmoArrowY" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                    <marker id="gizmoArrowY" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
                         <path d="M 0 1.5 L 10 5 L 0 8.5 z" fill="#10b981"/>
                     </marker>
-                    <marker id="gizmoArrowZ" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                    <marker id="gizmoArrowZ" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
                         <path d="M 0 1.5 L 10 5 L 0 8.5 z" fill="#0284c7"/>
                     </marker>
                 </defs>
-                <circle id="threeDGizmoRing" class="three-d-gizmo-ring" cx="0" cy="0" r="85"></circle>
+                <circle id="threeDGizmoRing" class="three-d-gizmo-ring" cx="0" cy="0" r="110"></circle>
                 <line id="threeDGizmoLineX" class="three-d-gizmo-axis-x" x1="0" y1="0" x2="0" y2="0" marker-end="url(#gizmoArrowX)"></line>
                 <line id="threeDGizmoLineY" class="three-d-gizmo-axis-y" x1="0" y1="0" x2="0" y2="0" marker-end="url(#gizmoArrowY)"></line>
                 <line id="threeDGizmoLineZ" class="three-d-gizmo-axis-z" x1="0" y1="0" x2="0" y2="0" marker-end="url(#gizmoArrowZ)"></line>
             </svg>
             <div id="threeDGizmoCenter" class="three-d-gizmo-center" title="Konumlandır (Sürükle)"><i class="fas fa-arrows-up-down-left-right"></i></div>
-            <div id="threeDGizmoHandleX" class="three-d-gizmo-handle three-d-gizmo-handle-x" title="Eğim (Pitch) - Sürükleyin"><i class="fas fa-arrows-split-up-and-left"></i> Eğim (X)</div>
-            <div id="threeDGizmoHandleY" class="three-d-gizmo-handle three-d-gizmo-handle-y" title="Yatay (Yaw) - Sürükleyin"><i class="fas fa-arrows-left-right"></i> Yatay (Y)</div>
-            <div id="threeDGizmoHandleZ" class="three-d-gizmo-handle three-d-gizmo-handle-z" title="Yatırma (Roll) - Sürükleyin"><i class="fas fa-redo-alt"></i> Yatır (Z)</div>
-            <div id="threeDGizmoHandleRot" class="three-d-gizmo-handle three-d-gizmo-handle-rot" title="Düzlem İçi Dönüş (Sürükleyin)"><i class="fas fa-compass"></i> Dönüş</div>
+            <div id="threeDGizmoHandleX" class="three-d-gizmo-handle three-d-gizmo-handle-x" title="Eğim (Pitch) - Sürükleyin"><i class="fas fa-arrows-split-up-and-left"></i> <span>Eğim (X)</span></div>
+            <div id="threeDGizmoHandleY" class="three-d-gizmo-handle three-d-gizmo-handle-y" title="Yatay (Yaw) - Sürükleyin"><i class="fas fa-arrows-left-right"></i> <span>Yatay (Y)</span></div>
+            <div id="threeDGizmoHandleZ" class="three-d-gizmo-handle three-d-gizmo-handle-z" title="Yatırma (Roll) - Sürükleyin"><i class="fas fa-redo-alt"></i> <span>Yatır (Z)</span></div>
+            <div id="threeDGizmoHandleRot" class="three-d-gizmo-handle three-d-gizmo-handle-rot" title="Düzlem İçi Dönüş (Sürükleyin)"><i class="fas fa-compass"></i> <span>Dönüş</span></div>
             <div id="threeDGizmoHud" class="three-d-gizmo-hud"></div>
         `;
 
@@ -711,6 +718,32 @@
         const cw = container.offsetWidth || 1920;
         const ch = container.offsetHeight || 1080;
 
+        // 🧠 Akıllı Orantılama: 3D nesnenin/metnin gerçek sınır kutusunu (bounding box) hesapla
+        let autoRatio = 1.0;
+        if (state.gizmoAutoFit && contentGroup) {
+            try {
+                contentGroup.updateMatrixWorld(true);
+                const bbox = new THREE.Box3().setFromObject(contentGroup);
+                if (!bbox.isEmpty()) {
+                    const sz = new THREE.Vector3();
+                    bbox.getSize(sz);
+                    const maxDim = Math.max(sz.x, sz.y, sz.z);
+                    // 150px referans genişliği kabul edilir, büyük metinlerde eksenler dışarı açılır
+                    autoRatio = Math.max(1.0, Math.min(2.8, maxDim / 150));
+                }
+            } catch (ex) {
+                autoRatio = 1.0;
+            }
+        }
+
+        const currentScale = state.gizmoScale || 1.4;
+        const currentOpacity = (state.gizmoOpacity !== undefined) ? state.gizmoOpacity : 1.0;
+
+        // Dinamik CSS Değişkenleri ve Etiket Durumu
+        gizmoOverlayEl.style.setProperty('--gizmo-scale', currentScale);
+        gizmoOverlayEl.style.setProperty('--gizmo-opacity', currentOpacity);
+        gizmoOverlayEl.classList.toggle('hide-labels', state.gizmoShowLabels === false);
+
         // 3D Dünya koordinatlarını ekrana yansıt (Project to 2D screen coordinates)
         const vCenter = new THREE.Vector3(0, 0, 0);
         contentGroup.localToWorld(vCenter);
@@ -718,7 +751,7 @@
         const cx = (vCenter.x + 1) * cw / 2;
         const cy = (-vCenter.y + 1) * ch / 2;
 
-        const baseLen = 140 * Math.max(0.65, Math.min(1.8, state.planeScale));
+        const baseLen = (state.gizmoDistance || 170) * (state.gizmoAutoFit ? autoRatio : 1.0) * Math.max(0.65, Math.min(2.2, state.planeScale));
 
         // X Ekseni (Pitch)
         const vX = new THREE.Vector3(baseLen, 0, 0);
@@ -741,8 +774,8 @@
         const pxZ = (vZ.x + 1) * cw / 2;
         const pyZ = (-vZ.y + 1) * ch / 2;
 
-        // Halka Rotasyon Tutamacı
-        const ringRadius = 85 * Math.max(0.65, Math.min(1.8, state.planeScale));
+        // Halka Rotasyon Tutamacı (Mesafeyle orantılı akıllı çember)
+        const ringRadius = baseLen * 0.62;
         const rotRad = THREE.MathUtils.degToRad(state.planeLocalRot);
         const vRot = new THREE.Vector3(Math.cos(rotRad) * ringRadius, Math.sin(rotRad) * ringRadius, 0);
         contentGroup.localToWorld(vRot);
@@ -782,7 +815,7 @@
     function attachGizmoEvents(overlay) {
         const hud = overlay.querySelector('#threeDGizmoHud');
         function showHud(text, x, y) {
-            if (!hud) return;
+            if (!hud || state.gizmoShowHud === false) return;
             hud.textContent = text;
             hud.style.left = x + 'px';
             hud.style.top = y + 'px';
@@ -1230,6 +1263,49 @@
                 ? '<i class="fas fa-arrows-spin"></i> 3D Eksen Gizmo (Aktif)'
                 : '<i class="fas fa-arrows-spin"></i> 3D Eksen Gizmo (Kapalı)';
         }
+
+        const gizmoSettingsBox = panel.querySelector('#threeDGizmoSettingsBox');
+        if (gizmoSettingsBox) {
+            gizmoSettingsBox.style.display = state.gizmoSettingsOpen ? 'block' : 'none';
+        }
+        const gizmoSettingsBtn = panel.querySelector('#threeDGizmoSettingsToggleBtn');
+        if (gizmoSettingsBtn) {
+            gizmoSettingsBtn.classList.toggle('active', !!state.gizmoSettingsOpen);
+        }
+        const autoFitCheck = panel.querySelector('#threeDGizmoAutoFitCheck');
+        if (autoFitCheck) autoFitCheck.checked = !!state.gizmoAutoFit;
+
+        const scaleVal = Math.round((state.gizmoScale || 1.4) * 100);
+        const gizmoScaleInput = panel.querySelector('#threeDGizmoScaleInput');
+        if (gizmoScaleInput) {
+            gizmoScaleInput.value = scaleVal;
+            const scaleLbl = panel.querySelector('#threeDGizmoScaleVal');
+            if (scaleLbl) scaleLbl.textContent = scaleVal + '%';
+        }
+        panel.querySelectorAll('.three-d-scale-chip').forEach(chip => {
+            chip.classList.toggle('active', parseInt(chip.dataset.scale) === scaleVal);
+        });
+
+        const distInput = panel.querySelector('#threeDGizmoDistanceInput');
+        if (distInput) {
+            distInput.value = state.gizmoDistance || 170;
+            const distLbl = panel.querySelector('#threeDGizmoDistanceVal');
+            if (distLbl) distLbl.textContent = (state.gizmoDistance || 170) + 'px';
+        }
+
+        const opInput = panel.querySelector('#threeDGizmoOpacityInput');
+        if (opInput) {
+            const opVal = Math.round((state.gizmoOpacity !== undefined ? state.gizmoOpacity : 1.0) * 100);
+            opInput.value = opVal;
+            const opLbl = panel.querySelector('#threeDGizmoOpacityVal');
+            if (opLbl) opLbl.textContent = opVal + '%';
+        }
+
+        const labelsCheck = panel.querySelector('#threeDGizmoShowLabelsCheck');
+        if (labelsCheck) labelsCheck.checked = state.gizmoShowLabels !== false;
+
+        const hudCheck = panel.querySelector('#threeDGizmoShowHudCheck');
+        if (hudCheck) hudCheck.checked = state.gizmoShowHud !== false;
     }
 
     /**
@@ -1304,9 +1380,77 @@
                         <button id="threeDGizmoToggleBtn" class="three-d-gizmo-btn ${state.gizmoActive ? 'active' : ''}" style="flex:1;">
                             <i class="fas fa-arrows-spin"></i> 3D Eksen Gizmo (${state.gizmoActive ? 'Aktif' : 'Kapalı'})
                         </button>
+                        <button id="threeDGizmoSettingsToggleBtn" class="three-d-gizmo-gear-btn ${state.gizmoSettingsOpen ? 'active' : ''}" title="Tutamaç & Eksen Ayarları">
+                            <i class="fas fa-sliders"></i>
+                        </button>
                         <button id="threeDCornerPinToggleBtn" class="three-d-corner-pin-btn ${state.cornerPinActive ? 'active' : ''}" style="flex:1;">
                             <i class="fas fa-crosshairs"></i> 4 Köşe Oturtma
                         </button>
+                    </div>
+
+                    <!-- TUTAMAÇ & GİZMO AYARLARI ALT PANELİ (Panel Stilinde, Dolgusuz / Temiz Çizgili) -->
+                    <div id="threeDGizmoSettingsBox" class="three-d-gizmo-settings-box" style="display:${state.gizmoSettingsOpen ? 'block' : 'none'};">
+                        <div class="three-d-settings-box-header">
+                            <div class="three-d-settings-box-title">
+                                <i class="fas fa-sliders" style="color:#0284c7;"></i> Tutamaç & Eksen Ayarları
+                            </div>
+                            <button id="threeDGizmoSettingsCloseBtn" class="three-d-box-close-btn" title="Kapat">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+
+                        <!-- 1. Akıllı Orantılama Switch -->
+                        <div class="three-d-setting-item">
+                            <label class="three-d-checkbox-label">
+                                <input type="checkbox" id="threeDGizmoAutoFitCheck" ${state.gizmoAutoFit ? 'checked' : ''}>
+                                <span class="three-d-setting-name">🧠 Nesneye Göre Akıllı Orantıla</span>
+                            </label>
+                            <div class="three-d-setting-desc">Metin veya nesne büyüdükçe tutamaçlar otomatik dışarıya açılır.</div>
+                        </div>
+
+                        <!-- 2. Tutamaç Boyutu (Scale) Slider + Presets -->
+                        <div class="three-d-setting-item">
+                            <div class="three-d-setting-row">
+                                <span class="three-d-setting-lbl">Tutamaç Boyutu:</span>
+                                <input type="range" id="threeDGizmoScaleInput" class="three-d-range" min="80" max="250" step="5" value="${Math.round((state.gizmoScale || 1.4) * 100)}">
+                                <span id="threeDGizmoScaleVal" class="three-d-val">${Math.round((state.gizmoScale || 1.4) * 100)}%</span>
+                            </div>
+                            <div class="three-d-scale-presets">
+                                <button class="three-d-scale-chip ${Math.round((state.gizmoScale || 1.4) * 100) === 100 ? 'active' : ''}" data-scale="100">Normal %100</button>
+                                <button class="three-d-scale-chip ${Math.round((state.gizmoScale || 1.4) * 100) === 140 ? 'active' : ''}" data-scale="140">Büyük %140</button>
+                                <button class="three-d-scale-chip ${Math.round((state.gizmoScale || 1.4) * 100) === 190 ? 'active' : ''}" data-scale="190">Ultra %190</button>
+                            </div>
+                        </div>
+
+                        <!-- 3. Açılma Mesafesi (Eksen Uzunluğu) -->
+                        <div class="three-d-setting-item">
+                            <div class="three-d-setting-row">
+                                <span class="three-d-setting-lbl">Eksen Mesafesi:</span>
+                                <input type="range" id="threeDGizmoDistanceInput" class="three-d-range" min="90" max="320" step="5" value="${state.gizmoDistance || 170}">
+                                <span id="threeDGizmoDistanceVal" class="three-d-val">${state.gizmoDistance || 170}px</span>
+                            </div>
+                        </div>
+
+                        <!-- 4. Gizmo Opaklığı -->
+                        <div class="three-d-setting-item">
+                            <div class="three-d-setting-row">
+                                <span class="three-d-setting-lbl">Gizmo Opaklığı:</span>
+                                <input type="range" id="threeDGizmoOpacityInput" class="three-d-range" min="30" max="100" step="5" value="${Math.round((state.gizmoOpacity || 1.0) * 100)}">
+                                <span id="threeDGizmoOpacityVal" class="three-d-val">${Math.round((state.gizmoOpacity || 1.0) * 100)}%</span>
+                            </div>
+                        </div>
+
+                        <!-- 5. Eksen Rozetleri & Canlı HUD -->
+                        <div class="three-d-setting-toggles">
+                            <label class="three-d-checkbox-label">
+                                <input type="checkbox" id="threeDGizmoShowLabelsCheck" ${state.gizmoShowLabels !== false ? 'checked' : ''}>
+                                <span>🏷️ Eksen Rozetleri (X, Y, Z, Dönüş)</span>
+                            </label>
+                            <label class="three-d-checkbox-label">
+                                <input type="checkbox" id="threeDGizmoShowHudCheck" ${state.gizmoShowHud !== false ? 'checked' : ''}>
+                                <span>💬 Canlı Derece HUD Bildirimi</span>
+                            </label>
+                        </div>
                     </div>
 
                     <div class="three-d-presets-grid" style="margin-top:8px;">
@@ -1460,6 +1604,106 @@
         if (gizmoToggleBtn) {
             gizmoToggleBtn.addEventListener('click', () => {
                 toggleGizmoMode();
+            });
+        }
+
+        // Tutamaç & Gizmo Ayarları Aç/Kapat
+        const gizmoSettingsToggleBtn = panel.querySelector('#threeDGizmoSettingsToggleBtn');
+        const gizmoSettingsBox = panel.querySelector('#threeDGizmoSettingsBox');
+        const gizmoSettingsCloseBtn = panel.querySelector('#threeDGizmoSettingsCloseBtn');
+
+        function toggleGizmoSettings(open) {
+            state.gizmoSettingsOpen = (open !== undefined) ? !!open : !state.gizmoSettingsOpen;
+            if (gizmoSettingsBox) {
+                gizmoSettingsBox.style.display = state.gizmoSettingsOpen ? 'block' : 'none';
+            }
+            if (gizmoSettingsToggleBtn) {
+                gizmoSettingsToggleBtn.classList.toggle('active', !!state.gizmoSettingsOpen);
+            }
+            notifyExternalUpdates();
+        }
+
+        if (gizmoSettingsToggleBtn) {
+            gizmoSettingsToggleBtn.addEventListener('click', () => toggleGizmoSettings());
+        }
+        if (gizmoSettingsCloseBtn) {
+            gizmoSettingsCloseBtn.addEventListener('click', () => toggleGizmoSettings(false));
+        }
+
+        // Akıllı Orantılama Checkbox
+        const autoFitCheck = panel.querySelector('#threeDGizmoAutoFitCheck');
+        if (autoFitCheck) {
+            autoFitCheck.addEventListener('change', (e) => {
+                state.gizmoAutoFit = e.target.checked;
+                updateGizmoPositions();
+                notifyExternalUpdates();
+            });
+        }
+
+        // Tutamaç Boyutu Slider & Presets
+        const gizmoScaleInput = panel.querySelector('#threeDGizmoScaleInput');
+        if (gizmoScaleInput) {
+            gizmoScaleInput.addEventListener('input', (e) => {
+                const val = parseInt(e.target.value) || 140;
+                state.gizmoScale = val / 100;
+                panel.querySelector('#threeDGizmoScaleVal').textContent = val + '%';
+                updateGizmoPositions();
+                notifyExternalUpdates();
+                syncControlsUI();
+            });
+        }
+
+        panel.querySelectorAll('.three-d-scale-chip').forEach(chip => {
+            chip.addEventListener('click', () => {
+                const scaleVal = parseInt(chip.dataset.scale) || 140;
+                state.gizmoScale = scaleVal / 100;
+                if (gizmoScaleInput) gizmoScaleInput.value = scaleVal;
+                panel.querySelector('#threeDGizmoScaleVal').textContent = scaleVal + '%';
+                updateGizmoPositions();
+                notifyExternalUpdates();
+                syncControlsUI();
+            });
+        });
+
+        // Eksen Mesafesi Slider
+        const distanceInput = panel.querySelector('#threeDGizmoDistanceInput');
+        if (distanceInput) {
+            distanceInput.addEventListener('input', (e) => {
+                state.gizmoDistance = parseInt(e.target.value) || 170;
+                panel.querySelector('#threeDGizmoDistanceVal').textContent = state.gizmoDistance + 'px';
+                updateGizmoPositions();
+                notifyExternalUpdates();
+            });
+        }
+
+        // Opaklık Slider
+        const opacityInput = panel.querySelector('#threeDGizmoOpacityInput');
+        if (opacityInput) {
+            opacityInput.addEventListener('input', (e) => {
+                const val = parseInt(e.target.value) || 100;
+                state.gizmoOpacity = val / 100;
+                panel.querySelector('#threeDGizmoOpacityVal').textContent = val + '%';
+                updateGizmoPositions();
+                notifyExternalUpdates();
+            });
+        }
+
+        // Eksen Rozetleri Checkbox
+        const showLabelsCheck = panel.querySelector('#threeDGizmoShowLabelsCheck');
+        if (showLabelsCheck) {
+            showLabelsCheck.addEventListener('change', (e) => {
+                state.gizmoShowLabels = e.target.checked;
+                updateGizmoPositions();
+                notifyExternalUpdates();
+            });
+        }
+
+        // Canlı HUD Checkbox
+        const showHudCheck = panel.querySelector('#threeDGizmoShowHudCheck');
+        if (showHudCheck) {
+            showHudCheck.addEventListener('change', (e) => {
+                state.gizmoShowHud = e.target.checked;
+                notifyExternalUpdates();
             });
         }
 
@@ -1809,6 +2053,13 @@
         state.shadowSoftness = 1.5;
         state.cornerPinActive = false;
         state.gizmoActive = true;
+        state.gizmoScale = 1.4;
+        state.gizmoAutoFit = true;
+        state.gizmoDistance = 170;
+        state.gizmoShowLabels = true;
+        state.gizmoShowHud = true;
+        state.gizmoOpacity = 1.0;
+        state.gizmoSettingsOpen = false;
 
         cornerPins[0] = { x: 0, y: 0 };
         if (cornerPinOverlayEl) cornerPinOverlayEl.style.display = 'none';
@@ -1869,6 +2120,13 @@
             posY: state.posY,
             cornerPinActive: state.cornerPinActive,
             gizmoActive: state.gizmoActive,
+            gizmoScale: state.gizmoScale,
+            gizmoAutoFit: !!state.gizmoAutoFit,
+            gizmoDistance: state.gizmoDistance,
+            gizmoShowLabels: state.gizmoShowLabels !== false,
+            gizmoShowHud: state.gizmoShowHud !== false,
+            gizmoOpacity: state.gizmoOpacity,
+            gizmoSettingsOpen: !!state.gizmoSettingsOpen,
             cornerPins: cornerPins.map(p => ({ x: p.x, y: p.y })),
             visible: canvasEl ? (canvasEl.style.display !== 'none') : true,
             hasBaked: !!state.hasBaked
@@ -1882,6 +2140,13 @@
         if (data.gizmoActive !== undefined) {
             state.gizmoActive = !!data.gizmoActive;
         }
+        if (data.gizmoScale !== undefined) state.gizmoScale = data.gizmoScale;
+        if (data.gizmoAutoFit !== undefined) state.gizmoAutoFit = !!data.gizmoAutoFit;
+        if (data.gizmoDistance !== undefined) state.gizmoDistance = data.gizmoDistance;
+        if (data.gizmoShowLabels !== undefined) state.gizmoShowLabels = data.gizmoShowLabels !== false;
+        if (data.gizmoShowHud !== undefined) state.gizmoShowHud = data.gizmoShowHud !== false;
+        if (data.gizmoOpacity !== undefined) state.gizmoOpacity = data.gizmoOpacity;
+        if (data.gizmoSettingsOpen !== undefined) state.gizmoSettingsOpen = !!data.gizmoSettingsOpen;
 
         if (data.cornerPins && Array.isArray(data.cornerPins)) {
             data.cornerPins.forEach((p, i) => {
@@ -1913,6 +2178,10 @@
         toggleCornerPin: toggleCornerPinMode,
         toggleGizmo: toggleGizmoMode,
         updateGizmo: updateGizmoPositions,
+        setGizmoScale: (s) => { state.gizmoScale = parseFloat(s) || 1.4; updateGizmoPositions(); syncControlsUI(); },
+        setGizmoAutoFit: (af) => { state.gizmoAutoFit = !!af; updateGizmoPositions(); syncControlsUI(); },
+        setGizmoDistance: (d) => { state.gizmoDistance = parseInt(d) || 170; updateGizmoPositions(); syncControlsUI(); },
+        setGizmoOpacity: (op) => { state.gizmoOpacity = parseFloat(op) || 1.0; updateGizmoPositions(); syncControlsUI(); },
         getCanvas: () => canvasEl,
         isLayerActive: () => (canvasEl && canvasEl.style.display !== 'none'),
         getDataToSave: getDataToSave,

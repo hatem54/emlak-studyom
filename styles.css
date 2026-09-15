@@ -13614,3 +13614,73 @@ html[data-theme="light"] .tone-curve-canvas-wrap {
     color: #0f172a;
     box-shadow: 0 0 20px rgba(0, 210, 255, 0.6);
 }
+
+/* ================= ☀️ 3D GÜNEŞ PUSULASI (FAZ 3) ================= */
+.three-d-sun-container {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.three-d-sun-dial {
+    position: relative;
+    width: 68px;
+    height: 68px;
+    min-width: 68px;
+    border-radius: 50%;
+    background: radial-gradient(circle, #1e293b 0%, #0f172a 100%);
+    border: 2px solid #0ea5e9;
+    box-shadow: 0 0 10px rgba(14, 165, 233, 0.3), inset 0 0 8px rgba(0, 0, 0, 0.6);
+    cursor: pointer;
+    user-select: none;
+    touch-action: none;
+}
+
+.three-d-sun-center {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 6px;
+    height: 6px;
+    margin-left: -3px;
+    margin-top: -3px;
+    border-radius: 50%;
+    background: #38bdf8;
+}
+
+.three-d-sun-needle {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    transition: transform 0.05s ease-out;
+}
+
+.three-d-sun-glow {
+    position: absolute;
+    top: 4px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 14px;
+    filter: drop-shadow(0 0 6px #f59e0b);
+}
+
+.three-d-compass-mark {
+    position: absolute;
+    font-size: 8.5px;
+    font-weight: 800;
+    color: #64748b;
+    pointer-events: none;
+}
+
+.three-d-compass-mark.mark-n { top: 2px; left: 50%; transform: translateX(-50%); }
+.three-d-compass-mark.mark-s { bottom: 2px; left: 50%; transform: translateX(-50%); }
+.three-d-compass-mark.mark-e { right: 4px; top: 50%; transform: translateY(-50%); }
+.three-d-compass-mark.mark-w { left: 4px; top: 50%; transform: translateY(-50%); }
+
+.three-d-sun-controls {
+    flex: 1;
+}
+

@@ -447,10 +447,42 @@ window.renderLayers = function() {
         }
     }
 
-    if (html === '' && drawHtml === '') {
+    // 3D Düzlem & Metin Katmanı (ThreeDEngine)
+    let threeDHtml = '';
+    if (window.ThreeDEngine && typeof window.ThreeDEngine.isLayerActive === 'function' && window.ThreeDEngine.isLayerActive()) {
+        const tState = window.ThreeDEngine.state || {};
+        let label = '3D: ' + (tState.text || 'Metin');
+        if (tState.elementType === 'pin') label = '📍 3D Konum İğnesi';
+        else if (tState.elementType === 'arrow') label = '➡️ 3D Yönlendirme Oku';
+        else if (tState.elementType === 'combo_pin') label = '📍 3D İğne + Metin';
+        else if (tState.elementType === 'combo_arrow') label = '➡️ 3D Ok + Metin';
+
+        const cvs = window.ThreeDEngine.getCanvas();
+        const isVis = cvs ? (cvs.style.display !== 'none') : true;
+        const eyeIcon = isVis ? 'fa-eye' : 'fa-eye-slash';
+        const isSelected = !!tState.active;
+        const bg = isSelected ? 'rgba(14,165,233, 0.2)' : 'var(--dark-3)';
+        const border = isSelected ? '1px solid #0ea5e9' : '1px solid rgba(14,165,233, 0.3)';
+
+        threeDHtml = `
+        <div class="layer-item three-d-layer-item ${isSelected ? 'selected' : ''}" 
+             style="display:flex; justify-content:space-between; align-items:center; background:${bg}; border:${border}; padding:10px 12px; border-radius:6px; margin-bottom:8px; cursor:pointer; box-shadow: 0 2px 10px rgba(14,165,233,0.15);"
+             onclick="if(window.ThreeDEngine) window.ThreeDEngine.openStudio();">
+            <div style="display:flex; align-items:center; gap:8px; overflow:hidden;">
+                <i class="fas fa-cube" style="color:#0ea5e9; font-size:13px;"></i>
+                <span style="font-size:12px; font-weight:700; color:#38bdf8; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:180px;">${label}</span>
+            </div>
+            <div style="display:flex; gap:10px; align-items:center;" onclick="event.stopPropagation();">
+                <i class="fas ${eyeIcon}" style="cursor:pointer; font-size:12px; color: ${isVis ? 'var(--text-muted)' : '#ef4444'};" onclick="if(window.ThreeDEngine) { window.ThreeDEngine.toggleVisibility(); window.renderLayers(); }" title="Gizle/Goster"></i>
+                <span style="font-size:10px; font-weight:bold; color:#0ea5e9; background:rgba(14,165,233,0.15); padding:2px 6px; border-radius:4px;">3D</span>
+            </div>
+        </div>`;
+    }
+
+    if (html === '' && drawHtml === '' && threeDHtml === '') {
          container.innerHTML = '<div style="padding:15px;text-align:center;color:rgba(255,255,255,0.4);font-size:12px;">Tuvalde henuz nesne yok</div>';
     } else {
-         container.innerHTML = html + drawHtml;
+         container.innerHTML = threeDHtml + html + drawHtml;
     }
 };
 

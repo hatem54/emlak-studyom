@@ -1,7 +1,7 @@
 /**
  * Emlak Stüdyom - 3D Düzlem & Metin Yerleştirici Motoru (ThreeDEngine)
- * Faz 2: 4 Köşe Tutamaç (Corner Pin), 3D Vektörel İkonlar (İğne, Ok, Rozet),
- * Düzlem İçi Döndürme, Havada Süzülme ve Gelişmiş Zemin Gölgesi.
+ * Faz 3: Katmanlar Paneli Entegrasyonu, Otomatik Kayıt (AutoSave / State Persistence),
+ * İnteraktif Güneş Pusulası ve 4K Ultra-HD Fırınlama.
  * 
  * Lisans: MIT (Three.js r128 tabanlı, %100 ticari kullanıma uygun)
  */
@@ -9,7 +9,7 @@
 (function(window) {
     'use strict';
 
-    // 🌟 MOTOR DURUMU VE AYARLARI (FAZ 2)
+    // 🌟 MOTOR DURUMU VE AYARLARI (FAZ 3)
     const state = {
         loaded: false,
         active: false,
@@ -36,6 +36,7 @@
         lightAngle: 45,        // Güneş ışığı açısı (0° - 360°)
         lightIntensity: 1.3,
         shadowOpacity: 0.45,   // Zemin gölgesi koyuluğu
+        shadowSoftness: 1.5,   // Gölge yumuşaklığı (blur radius)
         posX: 0,               // Düzlem üzerinde X konumu
         posY: 0,               // Düzlem üzerinde Y konumu
         cornerPinActive: false,// 4 Köşe Tutamaç modu aktif mi?
@@ -214,6 +215,7 @@
         dirLight.shadow.camera.top = d;
         dirLight.shadow.camera.bottom = -d;
         dirLight.shadow.bias = -0.0005;
+        dirLight.shadow.radius = state.shadowSoftness || 1.5;
         scene.add(dirLight);
 
         // Ana Düzlem Grubu
@@ -256,7 +258,6 @@
      */
     function createPinShape() {
         const s = new THREE.Shape();
-        // Konum İğnesi (Damla formu + merkez delik)
         s.moveTo(0, 0);
         s.bezierCurveTo(-14, 22, -24, 42, -24, 60);
         s.absarc(0, 60, 24, Math.PI, 0, false);
@@ -270,7 +271,6 @@
 
     function createArrowShape() {
         const s = new THREE.Shape();
-        // Kalın Yön Oku (Arsa girişi ve cephe yönlendirmesi için)
         s.moveTo(0, 50);
         s.lineTo(24, 18);
         s.lineTo(10, 18);
@@ -283,12 +283,11 @@
     }
 
     /**
-     * 4. 3D Geometrileri ve Mesh'leri Yeniden Oluşturma (Faz 2)
+     * 4. 3D Geometrileri ve Mesh'leri Yeniden Oluşturma
      */
     function recreateContentMeshes() {
         if (!contentGroup) return;
 
-        // Eski nesneleri temizle
         if (textMesh) {
             contentGroup.remove(textMesh);
             if (textMesh.geometry) textMesh.geometry.dispose();
@@ -300,7 +299,6 @@
             iconMesh = null;
         }
 
-        // Materyaller
         const frontMat = new THREE.MeshStandardMaterial({
             color: new THREE.Color(state.frontColor),
             roughness: state.roughness,
@@ -324,7 +322,6 @@
 
         const type = state.elementType;
 
-        // 1. 3D İkon Oluştur (Gerekiyorsa)
         if (type === 'pin' || type === 'combo_pin') {
             const pinGeo = new THREE.ExtrudeGeometry(createPinShape(), extrudeOpts);
             pinGeo.center();
@@ -339,7 +336,6 @@
             contentGroup.add(iconMesh);
         }
 
-        // 2. 3D Metin Oluştur (Gerekiyorsa)
         if ((type === 'text' || type === 'combo_pin' || type === 'combo_arrow') && loadedFont) {
             const textString = state.text.trim() || 'METİN';
             const textGeo = new THREE.TextGeometry(textString, {
@@ -360,15 +356,12 @@
             contentGroup.add(textMesh);
         }
 
-        // 3. Kombine Yerleşim (İkon + Metin yan yana veya bağımsız)
         if (type === 'combo_pin' && iconMesh && textMesh) {
-            // İğneyi sola, metni sağa al
             const iconWidth = 55;
             textMesh.position.set(iconWidth / 2 + 10, 0, 0);
             iconMesh.position.set(-100, 0, 0);
         } else if (type === 'combo_arrow' && iconMesh && textMesh) {
-            // Oku sola (metni gösterecek şekilde), metni sağa al
-            iconMesh.rotation.set(0, 0, -Math.PI / 2); // Sağa bak
+            iconMesh.rotation.set(0, 0, -Math.PI / 2);
             iconMesh.position.set(-110, 0, 0);
             textMesh.position.set(30, 0, 0);
         } else {
@@ -377,6 +370,7 @@
         }
 
         updateContentTransform();
+        notifyExternalUpdates();
         requestRender();
     }
 
@@ -405,15 +399,9 @@
     function updateContentTransform() {
         if (!contentGroup) return;
 
-        // Düzlem üzerinde X-Y konumu ve havada süzülme yüksekliği (Elevation Z)
         contentGroup.position.set(state.posX, state.posY, state.planeElevation);
-
-        // Düzlem içi kendi etrafında dönüş (Local Rotation)
         const localRotRad = THREE.MathUtils.degToRad(state.planeLocalRot);
-
-        // Duruş Modu: 'flat' (zemine/duvara yatık) vs 'standing' (zemine 90° dik totem)
         const standX = (state.orientation === 'standing') ? (Math.PI / 2) : 0;
-
         contentGroup.rotation.set(standX, 0, localRotRad);
     }
 
@@ -426,6 +414,9 @@
         const lz = 500;
         dirLight.position.set(lx, ly, lz);
         dirLight.intensity = state.lightIntensity;
+        if (dirLight.shadow) {
+            dirLight.shadow.radius = state.shadowSoftness || 1.5;
+        }
     }
 
     /**
@@ -451,8 +442,6 @@
 
     /**
      * 7. 🎯 4 KÖŞE TUTAMAÇ KALİBRATÖRÜ (Corner Pin Plane Controller)
-     * Kullanıcının ekrandaki 4 tutamacı arsa/duvar köşelerine sürükleyerek
-     * 3D açıyı ve düzlemi tam yüzeye oturtmasını sağlar.
      */
     function initCornerPinOverlay() {
         const container = document.getElementById('canvas-container');
@@ -508,16 +497,14 @@
         const cx = cw / 2 + state.posX;
         const cy = ch / 2 - state.posY;
 
-        // Düzlemin mevcut açısına göre 4 köşe hesapla
         const halfW = 180 * state.planeScale;
         const halfH = 90 * state.planeScale;
 
-        // Eğer ilk kez açılıyorsa varsayılan açılı dörtgen yerleştir
         if (cornerPins[0].x === 0 && cornerPins[0].y === 0) {
-            cornerPins[0] = { x: cx - halfW * 0.75, y: cy - halfH * 1.1 }; // P0: Sol-Üst
-            cornerPins[1] = { x: cx + halfW * 0.75, y: cy - halfH * 1.1 }; // P1: Sağ-Üst
-            cornerPins[2] = { x: cx + halfW * 1.1,  y: cy + halfH * 1.1 }; // P2: Sağ-Alt
-            cornerPins[3] = { x: cx - halfW * 1.1,  y: cy + halfH * 1.1 }; // P3: Sol-Alt
+            cornerPins[0] = { x: cx - halfW * 0.75, y: cy - halfH * 1.1 };
+            cornerPins[1] = { x: cx + halfW * 0.75, y: cy - halfH * 1.1 };
+            cornerPins[2] = { x: cx + halfW * 1.1,  y: cy + halfH * 1.1 };
+            cornerPins[3] = { x: cx - halfW * 1.1,  y: cy + halfH * 1.1 };
         }
 
         renderCornerPinDOM();
@@ -579,34 +566,27 @@
         });
     }
 
-    /**
-     * 🎯 4 Köşe Geometrisinden 3D Açı Çözücü (Perspective Solver)
-     */
     function solvePerspectiveFromCornerPins() {
         const container = document.getElementById('canvas-container');
         if (!container) return;
         const cw = container.offsetWidth || 1920;
         const ch = container.offsetHeight || 1080;
 
-        const p0 = cornerPins[0]; // Sol-Üst
-        const p1 = cornerPins[1]; // Sağ-Üst
-        const p2 = cornerPins[2]; // Sağ-Alt
-        const p3 = cornerPins[3]; // Sol-Alt
+        const p0 = cornerPins[0];
+        const p1 = cornerPins[1];
+        const p2 = cornerPins[2];
+        const p3 = cornerPins[3];
 
-        // 1. Merkez Konum
         const cx = (p0.x + p1.x + p2.x + p3.x) / 4;
         const cy = (p0.y + p1.y + p2.y + p3.y) / 4;
         state.posX = Math.round(cx - cw / 2);
         state.posY = Math.round(-(cy - ch / 2));
 
-        // 2. Kenar Uzunlukları
         const topW = Math.hypot(p1.x - p0.x, p1.y - p0.y);
         const botW = Math.hypot(p2.x - p3.x, p2.y - p3.y);
         const leftH = Math.hypot(p3.x - p0.x, p3.y - p0.y);
         const rightH = Math.hypot(p2.x - p1.x, p2.y - p1.y);
 
-        // 3. Eğim (Pitch): Üst genişlik ile alt genişlik oranı
-        // Üst kenar dar ise zemin geriye doğru yatıyor demektir (negatif pitch).
         const widthRatio = topW / Math.max(1, botW);
         let solvedPitch = 0;
         if (widthRatio < 1) {
@@ -616,8 +596,6 @@
         }
         state.planePitch = Math.max(-85, Math.min(85, solvedPitch));
 
-        // 4. Yatay Açı (Yaw): Sol yükseklik ile sağ yükseklik oranı
-        // Sol kenar sağ kenardan daha uzunsa sağa doğru açı vardır (pozitif yaw).
         const heightRatio = leftH / Math.max(1, rightH);
         let solvedYaw = 0;
         if (heightRatio > 1) {
@@ -627,17 +605,16 @@
         }
         state.planeYaw = Math.max(-80, Math.min(80, solvedYaw));
 
-        // 5. Yatırma (Roll): Alt kenarın ufuk çizgisine göre açısı
         const rollRad = Math.atan2(p2.y - p3.y, p2.x - p3.x);
         state.planeRoll = Math.round(rollRad * (180 / Math.PI));
 
-        // 6. Ölçek (Scale): Ortalama genişlik referansı
         const avgW = (topW + botW) / 2;
         state.planeScale = Math.max(0.25, Math.min(3.0, parseFloat((avgW / 360).toFixed(2))));
 
         updatePlaneTransform();
         updateContentTransform();
         syncControlsUI();
+        notifyExternalUpdates();
         requestRender();
     }
 
@@ -670,11 +647,11 @@
                 updatePlaneTransform();
                 syncControlsUI();
             } else {
-                // Düzlem üzerinde taşıma
                 state.posX += dx * (1 / state.planeScale);
                 state.posY -= dy * (1 / state.planeScale);
                 updateContentTransform();
             }
+            notifyExternalUpdates();
             requestRender();
         });
 
@@ -698,6 +675,7 @@
             state.planeScale = Math.max(0.2, Math.min(3.0, parseFloat((state.planeScale + delta).toFixed(2))));
             updatePlaneTransform();
             syncControlsUI();
+            notifyExternalUpdates();
             requestRender();
         }, { passive: false });
     }
@@ -707,37 +685,31 @@
      */
     function applyPreset(presetKey) {
         switch (presetKey) {
-            case 'ground': // Arsa Zemin Düzlemi (Yatık)
+            case 'ground':
                 state.planePitch = -65;
                 state.planeYaw = 15;
                 state.planeRoll = 0;
                 state.orientation = 'flat';
                 break;
-            case 'totem': // Arsa Tabelası / Totem (Zemine 90° Dik)
+            case 'totem':
                 state.planePitch = -65;
                 state.planeYaw = 15;
                 state.planeRoll = 0;
                 state.orientation = 'standing';
                 break;
-            case 'left_wall': // Bina Sol Cephesi (Açılı Duvar)
+            case 'left_wall':
                 state.planePitch = 0;
                 state.planeYaw = 35;
                 state.planeRoll = 0;
                 state.orientation = 'flat';
                 break;
-            case 'right_wall': // Bina Sağ Cephesi (Açılı Duvar)
+            case 'right_wall':
                 state.planePitch = 0;
                 state.planeYaw = -35;
                 state.planeRoll = 0;
                 state.orientation = 'flat';
                 break;
-            case 'roof': // Eğimli Çatı Düzlemi
-                state.planePitch = -35;
-                state.planeYaw = 25;
-                state.planeRoll = 10;
-                state.orientation = 'flat';
-                break;
-            case 'straight': // Düz Ön Cephe
+            case 'straight':
             default:
                 state.planePitch = 0;
                 state.planeYaw = 0;
@@ -750,38 +722,57 @@
         updateContentTransform();
         syncControlsUI();
         if (state.cornerPinActive) updateCornerPinHandlesFromScene();
+        notifyExternalUpdates();
         requestRender();
     }
 
     /**
-     * 10. Tuvale Fırınlama (Bake to Main 2D Canvas)
+     * 10. 4K Ultra-HD Tuvale Fırınlama (Hi-Res Bake)
      */
     function bakeToCanvas() {
         if (!renderer || !canvasEl) return false;
 
-        // Izgarayı ve Corner Pin tutamaçlarını geçici gizle
         const prevGrid = state.showPlaneGrid;
         const prevPinActive = state.cornerPinActive;
         if (gridHelper) gridHelper.visible = false;
         if (cornerPinOverlayEl) cornerPinOverlayEl.style.display = 'none';
-        requestRender();
 
         const drawCanvas = document.getElementById('draw-layer') || document.getElementById('drawCanvas');
+        const photoCanvas = document.querySelector('.photo-render-canvas');
+
+        const nativeW = (photoCanvas && photoCanvas.width > 0) ? photoCanvas.width : (drawCanvas ? drawCanvas.width : 1920);
+        const nativeH = (photoCanvas && photoCanvas.height > 0) ? photoCanvas.height : (drawCanvas ? drawCanvas.height : 1080);
+
+        // Geçici Ultra-HD Çözünürlükte Render
+        const curW = canvasEl.width;
+        const curH = canvasEl.height;
+        renderer.setSize(nativeW, nativeH, false);
+        camera.aspect = nativeW / nativeH;
+        camera.updateProjectionMatrix();
+
+        renderer.render(scene, camera);
+
         if (drawCanvas && drawCanvas.getContext) {
             const ctx = drawCanvas.getContext('2d');
             ctx.drawImage(canvasEl, 0, 0, drawCanvas.width, drawCanvas.height);
             state.hasBaked = true;
         }
 
-        // Durumları geri getir
+        // Boyutları orijinal durumuna geri getir
+        renderer.setSize(curW, curH, false);
+        camera.aspect = curW / curH;
+        camera.updateProjectionMatrix();
+
         if (gridHelper) gridHelper.visible = prevGrid;
         if (cornerPinOverlayEl && prevPinActive) cornerPinOverlayEl.style.display = 'block';
         requestRender();
 
+        notifyExternalUpdates();
+
         if (window.showToast) {
-            window.showToast('✅ 3D Ögeler Başarıyla Tuvale Fırınlandı!', 3000);
+            window.showToast('✅ 3D Ögeler 4K Ultra-HD Kalitede Tuvale Fırınlandı!', 3500);
         } else {
-            alert('3D Ögeler Başarıyla Tuvale Fırınlandı!');
+            alert('3D Ögeler 4K Ultra-HD Kalitede Tuvale Fırınlandı!');
         }
         return true;
     }
@@ -805,8 +796,10 @@
         const sideColor = panel.querySelector('#threeDSideColor');
         const lightAngle = panel.querySelector('#threeDLightAngle');
         const shadowOp = panel.querySelector('#threeDShadowOpacity');
+        const shadowSoft = panel.querySelector('#threeDShadowSoftness');
         const elevInput = panel.querySelector('#threeDElevationInput');
         const localRotInput = panel.querySelector('#threeDLocalRotInput');
+        const needle = panel.querySelector('#threeDSunNeedle');
 
         if (textInput && textInput.value !== state.text) textInput.value = state.text;
         if (sizeInput) {
@@ -848,29 +841,33 @@
             lightAngle.value = state.lightAngle;
             panel.querySelector('#threeDLightVal').textContent = state.lightAngle + '°';
         }
+        if (needle) {
+            needle.style.transform = `rotate(${state.lightAngle}deg)`;
+        }
         if (shadowOp) {
             shadowOp.value = Math.round(state.shadowOpacity * 100);
             panel.querySelector('#threeDShadowVal').textContent = Math.round(state.shadowOpacity * 100) + '%';
         }
+        if (shadowSoft) {
+            shadowSoft.value = state.shadowSoftness;
+            panel.querySelector('#threeDShadowSoftVal').textContent = state.shadowSoftness + 'x';
+        }
 
-        // Öge türü seçici butonları
         panel.querySelectorAll('.three-d-elem-btn').forEach(btn => {
             btn.classList.toggle('active', btn.getAttribute('data-type') === state.elementType);
         });
 
-        // Duruş modu butonları
         const flatBtn = panel.querySelector('#threeDOrientFlatBtn');
         const standBtn = panel.querySelector('#threeDOrientStandBtn');
         if (flatBtn) flatBtn.classList.toggle('active', state.orientation === 'flat');
         if (standBtn) standBtn.classList.toggle('active', state.orientation === 'standing');
 
-        // Corner pin butonu
         const pinBtn = panel.querySelector('#threeDCornerPinToggleBtn');
         if (pinBtn) pinBtn.classList.toggle('active', !!state.cornerPinActive);
     }
 
     /**
-     * 12. Kayan Pro Kontrol Panelini Dinamik Oluşturma (Faz 2)
+     * 12. Kayan Pro Kontrol Panelini Dinamik Oluşturma (Faz 3)
      */
     function ensureStudioPanel() {
         let panel = document.getElementById('threeDStudioPanel');
@@ -898,7 +895,7 @@
             </div>
 
             <div class="three-d-body custom-scrollbar">
-                <!-- 1. ÖGE TÜRÜ SEÇİMİ (FAZ 2) -->
+                <!-- 1. ÖGE TÜRÜ SEÇİMİ -->
                 <div class="three-d-section">
                     <div class="three-d-section-title">📦 3D ÖGE TÜRÜ</div>
                     <div class="three-d-elem-grid">
@@ -933,11 +930,10 @@
                     </div>
                 </div>
 
-                <!-- 3. DÜZLEM VE AÇI AYARLARI (CORNER PIN ENTEGRE) -->
+                <!-- 3. DÜZLEM VE AÇI AYARLARI -->
                 <div class="three-d-section">
                     <div class="three-d-section-title">📐 DÜZLEM & AÇI (ARAZİ / DUVAR UYUMU)</div>
                     
-                    <!-- 🎯 CORNER PIN BUTTON (FAZ 2) -->
                     <button id="threeDCornerPinToggleBtn" class="three-d-corner-pin-btn">
                         <i class="fas fa-crosshairs"></i> 4 Köşe ile Yüzeye Oturt
                     </button>
@@ -977,7 +973,7 @@
                     </div>
                 </div>
 
-                <!-- 4. İNCE AYARLAR (DÖNÜŞ & HAVADA SÜZÜLME) (FAZ 2) -->
+                <!-- 4. İNCE AYARLAR (DÖNÜŞ & HAVADA SÜZÜLME) -->
                 <div class="three-d-section">
                     <div class="three-d-section-title">🔄 İNCE AYARLAR & HAVADA SÜZÜLME</div>
                     <div class="three-d-row">
@@ -1020,30 +1016,50 @@
                     </div>
                 </div>
 
-                <!-- 6. GÜNEŞ IŞIĞI & GÖLGE -->
+                <!-- 6. GÜNEŞ PUSULASI & GÖLGE (FAZ 3) -->
                 <div class="three-d-section">
-                    <div class="three-d-section-title">☀️ GÜNEŞ IŞIĞI & ZEMİN GÖLGESİ</div>
-                    <div class="three-d-row">
-                        <span class="three-d-label">Güneş Açısı:</span>
-                        <input type="range" id="threeDLightAngle" class="three-d-range" min="0" max="360" value="${state.lightAngle}">
-                        <span id="threeDLightVal" class="three-d-val">${state.lightAngle}°</span>
-                    </div>
-                    <div class="three-d-row">
-                        <span class="three-d-label">Zemin Gölgesi:</span>
-                        <input type="range" id="threeDShadowOpacity" class="three-d-range" min="0" max="100" value="${Math.round(state.shadowOpacity * 100)}">
-                        <span id="threeDShadowVal" class="three-d-val">${Math.round(state.shadowOpacity * 100)}%</span>
+                    <div class="three-d-section-title">☀️ GÜNEŞ PUSULASI & ZEMİN GÖLGESİ</div>
+                    
+                    <div class="three-d-sun-container">
+                        <div class="three-d-sun-dial" id="threeDSunDial" title="Güneş açısını ayarlamak için çevirin">
+                            <div class="three-d-sun-needle" id="threeDSunNeedle" style="transform: rotate(${state.lightAngle}deg);">
+                                <div class="three-d-sun-glow">☀️</div>
+                            </div>
+                            <div class="three-d-sun-center"></div>
+                            <div class="three-d-compass-mark mark-n">K</div>
+                            <div class="three-d-compass-mark mark-e">D</div>
+                            <div class="three-d-compass-mark mark-s">G</div>
+                            <div class="three-d-compass-mark mark-w">B</div>
+                        </div>
+                        <div class="three-d-sun-controls">
+                            <div class="three-d-row" style="margin-bottom:4px;">
+                                <span class="three-d-label" style="width:75px;">Güneş Açısı:</span>
+                                <input type="range" id="threeDLightAngle" class="three-d-range" min="0" max="360" value="${state.lightAngle}">
+                                <span id="threeDLightVal" class="three-d-val">${state.lightAngle}°</span>
+                            </div>
+                            <div class="three-d-row" style="margin-bottom:4px;">
+                                <span class="three-d-label" style="width:75px;">Gölge Tonu:</span>
+                                <input type="range" id="threeDShadowOpacity" class="three-d-range" min="0" max="100" value="${Math.round(state.shadowOpacity * 100)}">
+                                <span id="threeDShadowVal" class="three-d-val">${Math.round(state.shadowOpacity * 100)}%</span>
+                            </div>
+                            <div class="three-d-row">
+                                <span class="three-d-label" style="width:75px;">Yumuşaklık:</span>
+                                <input type="range" id="threeDShadowSoftness" class="three-d-range" min="1" max="8" step="0.5" value="${state.shadowSoftness || 1.5}">
+                                <span id="threeDShadowSoftVal" class="three-d-val">${state.shadowSoftness || 1.5}x</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
                 <div style="font-size:10.5px; color:#64748b; line-height:1.4; padding:0 2px;">
-                    💡 <em>İpucu: "4 Köşe ile Yüzeye Oturt" butonuna basarak arsanın 4 sınırını tutamaçlarla işaretleyebilirsiniz.</em>
+                    💡 <em>İpucu: Güneş pusulası üzerinde parmağınızı veya fareyi çevirerek gölgenin fotoğrafınızla tam eşleşmesini sağlayabilirsiniz.</em>
                 </div>
             </div>
 
             <!-- FOOTER AKSİYONLAR -->
             <div class="three-d-footer">
                 <button id="threeDBakeBtn" class="three-d-primary-btn">
-                    <i class="fas fa-magic"></i> Tuvale Fırınla / Aktar
+                    <i class="fas fa-magic"></i> 4K Ultra-HD Tuvale Fırınla
                 </button>
             </div>
         `;
@@ -1055,10 +1071,10 @@
     }
 
     /**
-     * 13. Panel Kontrol Olay Dinleyicileri (Faz 2)
+     * 13. Panel Kontrol Olay Dinleyicileri
      */
     function bindPanelEvents(panel) {
-        // Öge Türü Seçimi (Faz 2)
+        // Öge Türü
         panel.querySelectorAll('.three-d-elem-btn').forEach(btn => {
             btn.addEventListener('click', () => {
                 panel.querySelectorAll('.three-d-elem-btn').forEach(b => b.classList.remove('active'));
@@ -1068,7 +1084,7 @@
             });
         });
 
-        // Corner Pin Butonu (Faz 2)
+        // Corner Pin Butonu
         const pinToggleBtn = panel.querySelector('#threeDCornerPinToggleBtn');
         pinToggleBtn.addEventListener('click', () => {
             toggleCornerPinMode();
@@ -1108,6 +1124,7 @@
             panel.querySelector('#threeDPitchVal').textContent = state.planePitch + '°';
             updatePlaneTransform();
             if (state.cornerPinActive) updateCornerPinHandlesFromScene();
+            notifyExternalUpdates();
             requestRender();
         });
 
@@ -1117,6 +1134,7 @@
             panel.querySelector('#threeDYawVal').textContent = state.planeYaw + '°';
             updatePlaneTransform();
             if (state.cornerPinActive) updateCornerPinHandlesFromScene();
+            notifyExternalUpdates();
             requestRender();
         });
 
@@ -1126,6 +1144,7 @@
             panel.querySelector('#threeDRollVal').textContent = state.planeRoll + '°';
             updatePlaneTransform();
             if (state.cornerPinActive) updateCornerPinHandlesFromScene();
+            notifyExternalUpdates();
             requestRender();
         });
 
@@ -1135,6 +1154,7 @@
             panel.querySelector('#threeDScaleVal').textContent = Math.round(state.planeScale * 100) + '%';
             updatePlaneTransform();
             if (state.cornerPinActive) updateCornerPinHandlesFromScene();
+            notifyExternalUpdates();
             requestRender();
         });
 
@@ -1145,12 +1165,13 @@
             requestRender();
         });
 
-        // İnce Ayarlar: Düzlem İçi Dönüş & Yükseklik (Faz 2)
+        // İnce Ayarlar: Düzlem İçi Dönüş & Yükseklik
         const localRotInput = panel.querySelector('#threeDLocalRotInput');
         localRotInput.addEventListener('input', (e) => {
             state.planeLocalRot = parseFloat(e.target.value) || 0;
             panel.querySelector('#threeDLocalRotVal').textContent = state.planeLocalRot + '°';
             updateContentTransform();
+            notifyExternalUpdates();
             requestRender();
         });
 
@@ -1159,6 +1180,7 @@
             state.planeElevation = parseFloat(e.target.value) || 0;
             panel.querySelector('#threeDElevationVal').textContent = state.planeElevation + 'px';
             updateContentTransform();
+            notifyExternalUpdates();
             requestRender();
         });
 
@@ -1177,12 +1199,14 @@
             state.orientation = 'flat';
             syncControlsUI();
             updateContentTransform();
+            notifyExternalUpdates();
             requestRender();
         });
         standBtn.addEventListener('click', () => {
             state.orientation = 'standing';
             syncControlsUI();
             updateContentTransform();
+            notifyExternalUpdates();
             requestRender();
         });
 
@@ -1209,12 +1233,54 @@
             });
         });
 
-        // Işık ve Gölge
+        // ☀️ İnteraktif Güneş Pusulası Dinleyicisi (Faz 3)
+        const sunDial = panel.querySelector('#threeDSunDial');
+        let isDialDragging = false;
+
+        function updateSunFromDial(e) {
+            const rect = sunDial.getBoundingClientRect();
+            const cx = rect.left + rect.width / 2;
+            const cy = rect.top + rect.height / 2;
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+            let angle = Math.round(Math.atan2(clientY - cy, clientX - cx) * (180 / Math.PI) + 90);
+            if (angle < 0) angle += 360;
+
+            state.lightAngle = angle;
+            updateLighting();
+            syncControlsUI();
+            notifyExternalUpdates();
+            requestRender();
+        }
+
+        sunDial.addEventListener('pointerdown', (e) => {
+            isDialDragging = true;
+            sunDial.setPointerCapture(e.pointerId);
+            updateSunFromDial(e);
+            e.preventDefault();
+        });
+
+        sunDial.addEventListener('pointermove', (e) => {
+            if (!isDialDragging) return;
+            updateSunFromDial(e);
+        });
+
+        const onDialUp = (e) => {
+            if (!isDialDragging) return;
+            isDialDragging = false;
+            try { sunDial.releasePointerCapture(e.pointerId); } catch(ex){}
+        };
+        sunDial.addEventListener('pointerup', onDialUp);
+        sunDial.addEventListener('pointercancel', onDialUp);
+
         const lightAngle = panel.querySelector('#threeDLightAngle');
         lightAngle.addEventListener('input', (e) => {
             state.lightAngle = parseFloat(e.target.value) || 45;
             panel.querySelector('#threeDLightVal').textContent = state.lightAngle + '°';
             updateLighting();
+            syncControlsUI();
+            notifyExternalUpdates();
             requestRender();
         });
 
@@ -1223,6 +1289,16 @@
             state.shadowOpacity = (parseFloat(e.target.value) || 45) / 100;
             panel.querySelector('#threeDShadowVal').textContent = Math.round(state.shadowOpacity * 100) + '%';
             updatePlaneTransform();
+            notifyExternalUpdates();
+            requestRender();
+        });
+
+        const shadowSoft = panel.querySelector('#threeDShadowSoftness');
+        shadowSoft.addEventListener('input', (e) => {
+            state.shadowSoftness = parseFloat(e.target.value) || 1.5;
+            panel.querySelector('#threeDShadowSoftVal').textContent = state.shadowSoftness + 'x';
+            updateLighting();
+            notifyExternalUpdates();
             requestRender();
         });
 
@@ -1299,6 +1375,7 @@
         initScene();
         syncControlsUI();
         if (canvasEl) canvasEl.style.display = 'block';
+        notifyExternalUpdates();
     }
 
     function closeStudio() {
@@ -1308,6 +1385,7 @@
         if (gridHelper) gridHelper.visible = false;
         if (cornerPinOverlayEl) cornerPinOverlayEl.style.display = 'none';
         state.cornerPinActive = false;
+        notifyExternalUpdates();
         requestRender();
     }
 
@@ -1320,6 +1398,7 @@
         if (btn) {
             btn.innerHTML = isVisible ? '<i class="fas fa-eye-slash" style="color:#ef4444;"></i>' : '<i class="fas fa-eye"></i>';
         }
+        notifyExternalUpdates();
     }
 
     function resetToDefaults() {
@@ -1341,6 +1420,7 @@
         state.orientation = 'flat';
         state.showPlaneGrid = true;
         state.shadowOpacity = 0.45;
+        state.shadowSoftness = 1.5;
         state.cornerPinActive = false;
 
         cornerPins[0] = { x: 0, y: 0 };
@@ -1349,6 +1429,79 @@
         updatePlaneTransform();
         recreateContentMeshes();
         syncControlsUI();
+        notifyExternalUpdates();
+    }
+
+    /**
+     * 16. Dış Sistemleri Tetikleme (Katmanlar Paneli & AutoSave)
+     */
+    function notifyExternalUpdates() {
+        if (typeof window.renderLayers === 'function') {
+            window.renderLayers();
+        }
+        if (typeof window.triggerAutoSave === 'function') {
+            window.triggerAutoSave();
+        }
+    }
+
+    /**
+     * 17. 💾 Proje Kaydetme & Geri Yükleme API'si (Faz 3)
+     */
+    function getDataToSave() {
+        if (!state.active && !canvasEl) return null;
+        return {
+            active: !!state.active,
+            elementType: state.elementType,
+            text: state.text,
+            textSize: state.textSize,
+            depth: state.depth,
+            bevelEnabled: state.bevelEnabled,
+            bevelThickness: state.bevelThickness,
+            bevelSize: state.bevelSize,
+            frontColor: state.frontColor,
+            sideColor: state.sideColor,
+            roughness: state.roughness,
+            metalness: state.metalness,
+            orientation: state.orientation,
+            planePitch: state.planePitch,
+            planeYaw: state.planeYaw,
+            planeRoll: state.planeRoll,
+            planeElevation: state.planeElevation,
+            planeLocalRot: state.planeLocalRot,
+            planeScale: state.planeScale,
+            showPlaneGrid: state.showPlaneGrid,
+            lightAngle: state.lightAngle,
+            lightIntensity: state.lightIntensity,
+            shadowOpacity: state.shadowOpacity,
+            shadowSoftness: state.shadowSoftness,
+            posX: state.posX,
+            posY: state.posY,
+            cornerPinActive: state.cornerPinActive,
+            cornerPins: cornerPins.map(p => ({ x: p.x, y: p.y })),
+            visible: canvasEl ? (canvasEl.style.display !== 'none') : true,
+            hasBaked: !!state.hasBaked
+        };
+    }
+
+    async function restoreData(data) {
+        if (!data) return;
+        Object.assign(state, data);
+
+        if (data.cornerPins && Array.isArray(data.cornerPins)) {
+            data.cornerPins.forEach((p, i) => {
+                if (cornerPins[i]) {
+                    cornerPins[i].x = p.x;
+                    cornerPins[i].y = p.y;
+                }
+            });
+        }
+
+        if (data.active || data.visible) {
+            await openStudio();
+            if (data.visible === false) {
+                toggleVisibility(false);
+            }
+        }
     }
 
     // 🌟 DIŞA AÇILAN API (Public API)
@@ -1364,6 +1517,8 @@
         toggleCornerPin: toggleCornerPinMode,
         getCanvas: () => canvasEl,
         isLayerActive: () => (canvasEl && canvasEl.style.display !== 'none'),
+        getDataToSave: getDataToSave,
+        restoreData: restoreData,
 
         // Canlı Parametre Güncelleyiciler
         setElementType: (t) => { state.elementType = t; recreateContentMeshes(); syncControlsUI(); },
@@ -1382,6 +1537,7 @@
         setOrientation: (o) => { state.orientation = o; updateContentTransform(); requestRender(); },
         setLightAngle: (a) => { state.lightAngle = parseFloat(a) || 45; updateLighting(); requestRender(); },
         setShadowOpacity: (o) => { state.shadowOpacity = (parseFloat(o) || 45) / 100; updatePlaneTransform(); requestRender(); },
+        setShadowSoftness: (s) => { state.shadowSoftness = parseFloat(s) || 1.5; updateLighting(); requestRender(); },
         toggleGrid: (show) => { 
             state.showPlaneGrid = (show !== undefined) ? !!show : !state.showPlaneGrid;
             if (gridHelper) gridHelper.visible = state.showPlaneGrid;

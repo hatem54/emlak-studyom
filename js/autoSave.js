@@ -1,4 +1,4 @@
-﻿// autoSave.js
+// autoSave.js
 // Handles background Auto-Save using IndexedDB to prevent localStorage limits
 
 const DB_NAME = 'CanvaAutoSaveDB';
@@ -415,6 +415,12 @@ async function performAutoSave() {
         });
 
         state.customItems = customItems;
+
+        // 3D Stüdyo Katmanı Verileri
+        if (window.ThreeDEngine && typeof window.ThreeDEngine.getDataToSave === 'function') {
+            state.threeDData = window.ThreeDEngine.getDataToSave();
+        }
+
         await saveStateToDB(state);
         
         if (Date.now() - lastHistorySaveTime > HISTORY_INTERVAL) {
@@ -910,6 +916,11 @@ async function applyRestoredState(state) {
         if(typeof window.renderLayers === 'function') window.renderLayers();
         if(fontToRestore && typeof applyFontSettings === 'function') applyFontSettings();
         if(typeof window.resetCanvasZoom === 'function') window.resetCanvasZoom();
+
+        // 8.1. 3D Düzlem & Metin Katmanını Geri Yükle
+        if (state.threeDData && window.ThreeDEngine && typeof window.ThreeDEngine.restoreData === 'function') {
+            window.ThreeDEngine.restoreData(state.threeDData);
+        }
 
         // 9. Çizim Modunu Kapat ve Çizimleri Tıklanabilir Yap
         if (typeof setDrawMode === 'function') setDrawMode('off');

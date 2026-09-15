@@ -48,6 +48,7 @@
         gizmoShowHud: true,    // Canlı derece HUD bildirimini göster
         gizmoOpacity: 1.0,     // Gizmo opaklığı (0.3 - 1.0)
         gizmoSettingsOpen: false, // Sol panel ayar kutusu açık mı?
+        selected: true,        // 3D öge tuvalde seçili mi? (Görsel serbestken false olur)
         hasBaked: false
     };
 
@@ -56,6 +57,7 @@
     let camera = null;
     let renderer = null;
     let canvasEl = null;       // #three-d-layer canvas
+    let canvasBadgeEl = null;  // Tuval üstü yüzen 3D/Görsel durum rozeti
     let animFrameId = null;
 
     let planeGroup = null;     // Açı ve pozisyon alan ana düzlem grubu
@@ -692,7 +694,7 @@
         if (state.gizmoActive) {
             initGizmoOverlay();
             if (gizmoOverlayEl) {
-                gizmoOverlayEl.style.display = state.cornerPinActive ? 'none' : 'block';
+                gizmoOverlayEl.style.display = (state.cornerPinActive || !state.selected) ? 'none' : 'block';
             }
             updateGizmoPositions();
         } else {
@@ -710,7 +712,7 @@
     }
 
     function updateGizmoPositions() {
-        if (!gizmoOverlayEl || !state.gizmoActive || !contentGroup || !camera) return;
+        if (!gizmoOverlayEl || !state.gizmoActive || !state.selected || !contentGroup || !camera) return;
 
         const container = document.getElementById('canvas-container');
         if (!container) return;
@@ -1004,13 +1006,189 @@
     }
 
     /**
-     * 8. Tuval Etkileşim Dinleyicileri (Sürükleme ve Döndürme)
+     * 8.1. 3D Nesne Tıklama Algılama (Raycasting)
+     * Tuvalde doğrudan 3D yazı/nesne üzerine tıklanıp tıklanmadığını tespit eder.
+     */
+    function check3DHit(clientX, clientY) {
+        if (!camera || !contentGroup || !canvasEl) return false;
+        const container = document.getElementById('canvas-container');
+        if (!container) return false;
+        const rect = container.getBoundingClientRect();
+        if (clientX < rect.left || clientX > rect.right || clientY < rect.top || clientY > rect.bottom) return false;
+
+        const mouseVec = new THREE.Vector2(
+            ((clientX - rect.left) / rect.width) * 2 - 1,
+            -((clientY - rect.top) / rect.height) * 2 + 1
+        );
+        const raycaster = new THREE.Raycaster();
+        raycaster.setFromCamera(mouseVec, camera);
+
+        const targetObjects = [];
+        if (textMesh) targetObjects.push(textMesh);
+        if (iconMesh) targetObjects.push(iconMesh);
+        if (targetObjects.length === 0 && contentGroup) {
+            contentGroup.traverse((child) => {
+                if (child.isMesh && child !== shadowPlane) targetObjects.push(child);
+            });
+        }
+        const intersects = raycaster.intersectObjects(targetObjects, true);
+        return (intersects && intersects.length > 0);
+    }
+
+    /**
+     * 8.2. 3D Öge Seçim Yönetimi
+     * Görsel serbestken seçimi düşürür, tuşla/tıklamayla yeniden seçildiğinde fotoğrafı kilitler.
+     */
+    function setSelected(selected, options = {}) {
+        if (!state.active && selected) return;
+        state.selected = !!selected;
+
+        if (state.selected) {
+            // 3D öge seçildiğinde görseli kilitle ki tekerlek/sürükleme çakışmasın
+            if (options.autoLockPhoto !== false && window.isPhotoLocked === false) {
+                if (typeof window.updatePhotoLockState === 'function') {
+                    window.updatePhotoLockState(true);
+                }
+            }
+            if (canvasEl) canvasEl.style.pointerEvents = 'auto';
+            if (state.gizmoActive && !state.cornerPinActive) {
+                initGizmoOverlay();
+                if (gizmoOverlayEl) {
+                    gizmoOverlayEl.style.display = 'block';
+                    updateGizmoPositions();
+                }
+            }
+            if (state.cornerPinActive) {
+                initCornerPinOverlay();
+                if (cornerPinOverlayEl) {
+                    cornerPinOverlayEl.style.display = 'block';
+                    updateCornerPinVisuals();
+                }
+            }
+            if (!options.silent && window.showToast) {
+                window.showToast('🎯 3D Öge Seçildi — Düzenleme & Büyütme Aktif (Kısayol: 3 | Bırakmak: ESC)', 'info');
+            }
+        } else {
+            // 3D öge seçimi bırakıldı
+            if (options.autoUnlockPhoto === true && window.isPhotoLocked === true) {
+                if (typeof window.updatePhotoLockState === 'function') {
+                    window.updatePhotoLockState(false);
+                }
+            }
+            if (canvasEl) canvasEl.style.pointerEvents = 'none';
+            if (gizmoOverlayEl) gizmoOverlayEl.style.display = 'none';
+            if (cornerPinOverlayEl) cornerPinOverlayEl.style.display = 'none';
+            if (!options.silent && window.showToast) {
+                window.showToast('🔓 3D Seçimi Bırakıldı — Görsel Serbest (Kısayol: 3 ile Seç)', 'info');
+            }
+        }
+
+        updateSelectionUI();
+        notifyExternalUpdates();
+        requestRender();
+    }
+
+    function toggleSelection(options = {}) {
+        if (!state.active) return;
+        setSelected(!state.selected, options);
+    }
+
+    function onPhotoLockChanged(isLocked) {
+        if (!state.active) return;
+        if (!isLocked) {
+            // Görsel serbest bırakıldıysa 3D ögenin seçimi otomatik düşsün
+            if (state.selected) {
+                setSelected(false, { silent: false, autoUnlockPhoto: false });
+            }
+        }
+    }
+
+    /**
+     * 8.3. Tuval Üstü Durum Rozeti & Arayüz Senkronizasyonu
+     */
+    function initCanvasBadge() {
+        const container = document.getElementById('canvas-container');
+        if (!container) return;
+        if (canvasBadgeEl && canvasBadgeEl.parentElement) return;
+
+        const badge = document.createElement('div');
+        badge.id = 'threeDCanvasBadge';
+        badge.className = 'three-d-canvas-badge';
+        badge.innerHTML = `
+            <div class="three-d-badge-pill">
+                <span class="three-d-badge-dot"></span>
+                <span class="three-d-badge-text">3D Öge Seçili</span>
+                <kbd class="three-d-badge-kbd">3</kbd>
+            </div>
+        `;
+        badge.addEventListener('click', (e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            toggleSelection();
+        });
+        container.appendChild(badge);
+        canvasBadgeEl = badge;
+        updateSelectionUI();
+    }
+
+    function updateSelectionUI() {
+        // 1. Sol Panel Bölüm 3 Güncellemesi
+        const bar = document.getElementById('threeDSelectionBar');
+        const title = document.getElementById('threeDSelTitle');
+        const sub = document.getElementById('threeDSelSub');
+        const btnText = document.getElementById('threeDSelBtnText');
+        const selBtn = document.getElementById('threeDSelectionToggleBtn');
+
+        if (bar) {
+            bar.classList.toggle('is-selected', !!state.selected);
+            bar.classList.toggle('is-free', !state.selected);
+        }
+        if (title) {
+            title.textContent = state.selected ? '🎯 3D Öge Seçili' : '⚪ 3D Öge Boşta (Görsel Serbest)';
+        }
+        if (sub) {
+            sub.textContent = state.selected
+                ? 'Tekerlek ile 3D büyütme & sürükleme aktif'
+                : 'Fotoğraf zoom & kaydırma serbest (Seçmek için [3])';
+        }
+        if (btnText) {
+            btnText.textContent = state.selected ? 'Seçimi Bırak' : '3D Seç & Kilitle';
+        }
+        if (selBtn) {
+            selBtn.classList.toggle('btn-deselect', !!state.selected);
+            selBtn.classList.toggle('btn-select', !state.selected);
+            selBtn.title = state.selected ? '3D Seçimini Bırak (Görseli Serbest Yap)' : '3D Ögeyi Seç ve Görseli Kilitle';
+        }
+
+        // 2. Tuval Üstü Yüzen Rozet (Canvas Badge) Güncellemesi
+        if (!canvasBadgeEl && state.active) {
+            initCanvasBadge();
+        }
+        if (canvasBadgeEl) {
+            canvasBadgeEl.style.display = state.active ? 'flex' : 'none';
+            canvasBadgeEl.classList.toggle('is-selected', !!state.selected);
+            canvasBadgeEl.classList.toggle('is-free', !state.selected);
+            const txt = canvasBadgeEl.querySelector('.three-d-badge-text');
+            if (txt) {
+                txt.textContent = state.selected ? '3D Öge Seçili' : 'Görsel Serbest';
+            }
+            const pill = canvasBadgeEl.querySelector('.three-d-badge-pill');
+            if (pill) {
+                pill.title = state.selected
+                    ? '3D Öge Seçili. Tekerlekle boyutlandırabilir veya sürükleyebilirsiniz. Bırakmak için tıklayın veya [3] tuşuna basın.'
+                    : 'Görsel Serbest. Zoom ve kaydırma aktif. 3D ögeyi seçmek için tıklayın veya [3] tuşuna basın.';
+            }
+        }
+    }
+
+    /**
+     * 8. Tuval Etkileşim Dinleyicileri (Sürükleme, Döndürme, Tıklama & Tekerlek)
      */
     function attachCanvasEvents(cvs) {
         let isPointerDown = false;
 
         cvs.addEventListener('pointerdown', (e) => {
-            if (!state.active || state.cornerPinActive) return;
+            if (!state.active || !state.selected || window.isPhotoLocked === false || state.cornerPinActive) return;
             isPointerDown = true;
             dragStart.x = e.clientX;
             dragStart.y = e.clientY;
@@ -1020,7 +1198,7 @@
         });
 
         cvs.addEventListener('pointermove', (e) => {
-            if (!isPointerDown || !state.active || state.cornerPinActive) return;
+            if (!isPointerDown || !state.active || !state.selected || state.cornerPinActive) return;
             const dx = e.clientX - dragStart.x;
             const dy = e.clientY - dragStart.y;
             dragStart.x = e.clientX;
@@ -1054,7 +1232,7 @@
         });
 
         cvs.addEventListener('wheel', (e) => {
-            if (!state.active) return;
+            if (!state.active || !state.selected || window.isPhotoLocked === false) return;
             e.preventDefault();
             const delta = e.deltaY > 0 ? -0.05 : 0.05;
             state.planeScale = Math.max(0.2, Math.min(3.0, parseFloat((state.planeScale + delta).toFixed(2))));
@@ -1063,6 +1241,61 @@
             notifyExternalUpdates();
             requestRender();
         }, { passive: false });
+
+        // 🎯 Tuval Konteyneri Dinleyicileri (Seçim kapalıyken tıklamayla doğrudan seçme & Hover cursor)
+        const container = document.getElementById('canvas-container');
+        if (container && !container._threeDContainerEventsAttached) {
+            container._threeDContainerEventsAttached = true;
+
+            // Capture phase: 3D öge seçili değilken (görsel serbestken) doğrudan 3D yazı/mesh'e tıklanırsa seç
+            container.addEventListener('pointerdown', (e) => {
+                if (!state.active || state.selected) return;
+                if (e.button !== 0) return; // Yalnızca sol tık
+                if (check3DHit(e.clientX, e.clientY)) {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    setSelected(true, { autoLockPhoto: true });
+                }
+            }, true);
+
+            // Hover imleci (Üzerine gelindiğinde el işareti göster)
+            let lastCheckTime = 0;
+            container.addEventListener('pointermove', (e) => {
+                if (!state.active || state.selected) return;
+                const now = Date.now();
+                if (now - lastCheckTime < 60) return;
+                lastCheckTime = now;
+
+                if (check3DHit(e.clientX, e.clientY)) {
+                    container.style.cursor = 'pointer';
+                } else if (container.style.cursor === 'pointer') {
+                    container.style.cursor = '';
+                }
+            });
+        }
+
+        // ⌨️ Klavye Kısayolları (3 ve ESC)
+        if (!window._threeDKeyEventsAttached) {
+            window._threeDKeyEventsAttached = true;
+            window.addEventListener('keydown', (e) => {
+                // Metin kutusu veya form elemanındayken kısayolları engelle
+                const tag = (document.activeElement && document.activeElement.tagName) ? document.activeElement.tagName.toUpperCase() : '';
+                if (tag === 'INPUT' || tag === 'TEXTAREA' || (document.activeElement && document.activeElement.isContentEditable)) {
+                    return;
+                }
+
+                if (e.key === '3' || e.code === 'Digit3' || e.code === 'Numpad3') {
+                    if (state.active) {
+                        e.preventDefault();
+                        toggleSelection();
+                    }
+                } else if (e.key === 'Escape') {
+                    if (state.active && state.selected) {
+                        setSelected(false);
+                    }
+                }
+            });
+        }
     }
 
     /**
@@ -1306,6 +1539,8 @@
 
         const hudCheck = panel.querySelector('#threeDGizmoShowHudCheck');
         if (hudCheck) hudCheck.checked = state.gizmoShowHud !== false;
+
+        updateSelectionUI();
     }
 
     /**
@@ -1376,6 +1611,21 @@
                 <div class="three-d-section">
                     <div class="three-d-section-title">📐 DÜZLEM & AÇI (ARAZİ / DUVAR UYUMU)</div>
                     
+                    <!-- 🎯 3D SEÇİM & MOD ÇUBUĞU (Kullanıcı İsteği: Görsel serbestken seçim düşer, 3 tuşuyla tekrar seçilir) -->
+                    <div id="threeDSelectionBar" class="three-d-selection-bar ${state.selected ? 'is-selected' : 'is-free'}">
+                        <div class="three-d-selection-info">
+                            <span class="three-d-status-dot"></span>
+                            <div class="three-d-status-texts">
+                                <span class="three-d-status-title" id="threeDSelTitle">${state.selected ? '🎯 3D Öge Seçili' : '⚪ 3D Öge Boşta (Görsel Serbest)'}</span>
+                                <span class="three-d-status-sub" id="threeDSelSub">${state.selected ? 'Tekerlek ile 3D büyütme & sürükleme aktif' : 'Fotoğraf zoom & kaydırma serbest (Seçmek için [3])'}</span>
+                            </div>
+                        </div>
+                        <button type="button" id="threeDSelectionToggleBtn" class="three-d-sel-btn ${state.selected ? 'btn-deselect' : 'btn-select'}" title="${state.selected ? '3D Seçimini Bırak (Görseli Serbest Yap)' : '3D Ögeyi Seç ve Görseli Kilitle'}">
+                            <span id="threeDSelBtnText">${state.selected ? 'Seçimi Bırak' : '3D Seç & Kilitle'}</span>
+                            <kbd class="three-d-kbd">3</kbd>
+                        </button>
+                    </div>
+
                     <div style="display:flex; gap:6px; margin-bottom:8px;">
                         <button id="threeDGizmoToggleBtn" class="three-d-gizmo-btn ${state.gizmoActive ? 'active' : ''}" style="flex:1;">
                             <i class="fas fa-arrows-spin"></i> 3D Eksen Gizmo (${state.gizmoActive ? 'Aktif' : 'Kapalı'})
@@ -1598,6 +1848,14 @@
                 recreateContentMeshes();
             });
         });
+
+        // 🎯 3D Seçim Aç/Kapa Butonu
+        const selToggleBtn = panel.querySelector('#threeDSelectionToggleBtn');
+        if (selToggleBtn) {
+            selToggleBtn.addEventListener('click', () => {
+                toggleSelection();
+            });
+        }
 
         // 3D Eksen Gizmo Butonu
         const gizmoToggleBtn = panel.querySelector('#threeDGizmoToggleBtn');
@@ -1996,7 +2254,9 @@
         }
 
         initScene();
+        setSelected(true, { silent: true, autoLockPhoto: false });
         syncControlsUI();
+        initCanvasBadge();
         if (canvasEl) canvasEl.style.display = 'block';
         if (state.gizmoActive && !state.cornerPinActive) {
             initGizmoOverlay();
@@ -2013,6 +2273,7 @@
         if (gridHelper) gridHelper.visible = false;
         if (cornerPinOverlayEl) cornerPinOverlayEl.style.display = 'none';
         if (gizmoOverlayEl) gizmoOverlayEl.style.display = 'none';
+        if (canvasBadgeEl) canvasBadgeEl.style.display = 'none';
         state.cornerPinActive = false;
         notifyExternalUpdates();
         requestRender();
@@ -2022,8 +2283,9 @@
         if (!canvasEl) return;
         const isVisible = (forceVisible !== undefined) ? forceVisible : (canvasEl.style.display !== 'none');
         canvasEl.style.display = isVisible ? 'none' : 'block';
-        if (cornerPinOverlayEl) cornerPinOverlayEl.style.display = (isVisible && state.cornerPinActive) ? 'block' : 'none';
-        if (gizmoOverlayEl) gizmoOverlayEl.style.display = (isVisible && state.gizmoActive && !state.cornerPinActive) ? 'block' : 'none';
+        if (cornerPinOverlayEl) cornerPinOverlayEl.style.display = (isVisible && state.cornerPinActive && state.selected) ? 'block' : 'none';
+        if (gizmoOverlayEl) gizmoOverlayEl.style.display = (isVisible && state.gizmoActive && !state.cornerPinActive && state.selected) ? 'block' : 'none';
+        if (canvasBadgeEl) canvasBadgeEl.style.display = (isVisible && state.active) ? 'flex' : 'none';
         const btn = document.getElementById('threeDVisHeaderBtn');
         if (btn) {
             btn.innerHTML = isVisible ? '<i class="fas fa-eye-slash" style="color:#ef4444;"></i>' : '<i class="fas fa-eye"></i>';
@@ -2060,6 +2322,7 @@
         state.gizmoShowHud = true;
         state.gizmoOpacity = 1.0;
         state.gizmoSettingsOpen = false;
+        state.selected = true;
 
         cornerPins[0] = { x: 0, y: 0 };
         if (cornerPinOverlayEl) cornerPinOverlayEl.style.display = 'none';
@@ -2068,6 +2331,7 @@
             updateGizmoPositions();
         }
 
+        setSelected(true, { silent: true, autoLockPhoto: false });
         updatePlaneTransform();
         recreateContentMeshes();
         syncControlsUI();
@@ -2127,6 +2391,7 @@
             gizmoShowHud: state.gizmoShowHud !== false,
             gizmoOpacity: state.gizmoOpacity,
             gizmoSettingsOpen: !!state.gizmoSettingsOpen,
+            selected: state.selected !== false,
             cornerPins: cornerPins.map(p => ({ x: p.x, y: p.y })),
             visible: canvasEl ? (canvasEl.style.display !== 'none') : true,
             hasBaked: !!state.hasBaked
@@ -2137,6 +2402,9 @@
         if (!data) return;
         Object.assign(state, data);
 
+        if (data.selected !== undefined) {
+            state.selected = !!data.selected;
+        }
         if (data.gizmoActive !== undefined) {
             state.gizmoActive = !!data.gizmoActive;
         }
@@ -2175,6 +2443,11 @@
         bakeToCanvas: bakeToCanvas,
         toggleVisibility: toggleVisibility,
         resetToDefaults: resetToDefaults,
+        setSelected: setSelected,
+        toggleSelection: toggleSelection,
+        isSelected: () => !!state.selected,
+        isActive: () => !!state.active,
+        onPhotoLockChanged: onPhotoLockChanged,
         toggleCornerPin: toggleCornerPinMode,
         toggleGizmo: toggleGizmoMode,
         updateGizmo: updateGizmoPositions,

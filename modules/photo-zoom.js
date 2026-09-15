@@ -20,6 +20,10 @@ function _getZoomTarget(target) {
     if (el.classList.contains('photo-panel') || el.id === 'photo-layer') return el;
     var photoLayer = el.closest && el.closest('#photo-layer');
     if (photoLayer) return photoLayer;
+    if (el.id === 'canvas-container' || (el.classList && el.classList.contains('canvas-wrapper')) || (el.closest && el.closest('#canvas-container'))) {
+        var pl = document.getElementById('photo-layer');
+        if (pl) return pl;
+    }
     return null;
 }
 window._getZoomTarget = _getZoomTarget;

@@ -107,7 +107,7 @@ document.addEventListener('click', (e) => {
 // Service Worker Registration
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js?v=20260915-93')
+        navigator.serviceWorker.register('./sw.js?v=20260915-94')
             .then(registration => {
                 registration.update();
                 console.log('SW registered: ', registration);

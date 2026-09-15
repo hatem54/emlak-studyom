@@ -35,6 +35,10 @@ window.updatePhotoLockState = function(isLocked) {
     if (typeof window.updateDockLockUI === 'function') {
         window.updateDockLockUI(isLocked);
     }
+    // ⚡ 3D Motoru için görsel kilidi değişim hook'u (Görsel serbest olunca 3D seçimi düşer)
+    if (window.ThreeDEngine && typeof window.ThreeDEngine.onPhotoLockChanged === 'function') {
+        window.ThreeDEngine.onPhotoLockChanged(isLocked);
+    }
 };
 
 function getActiveV4Element() {
@@ -802,6 +806,10 @@ function deselectAll(){
     if(typeof window.updateMultiSelectUI === 'function') window.updateMultiSelectUI();
     if(typeof saveDrawEdit === 'function' && typeof editingDrawIndex !== 'undefined' && editingDrawIndex >= 0) {
         saveDrawEdit();
+    }
+    // ⚡ 3D Öge seçimi hook'u
+    if (window.ThreeDEngine && typeof window.ThreeDEngine.setSelected === 'function') {
+        window.ThreeDEngine.setSelected(false, { silent: true, autoUnlockPhoto: false });
     }
 }
 

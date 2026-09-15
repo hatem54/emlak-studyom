@@ -14397,6 +14397,311 @@ body[data-theme="light"] .three-d-tip-text {
     color: #64748b !important;
 }
 
+/* ================= 🎯 3D SEÇİM & MOD ÇUBUĞU (Kullanıcı İsteği) ================= */
+.three-d-selection-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    margin-bottom: 10px;
+    background: rgba(15, 23, 42, 0.65);
+    border: 1px solid rgba(56, 189, 248, 0.25);
+    transition: all 0.25s ease;
+}
+
+.three-d-selection-bar.is-selected {
+    background: rgba(14, 165, 233, 0.12);
+    border-color: rgba(56, 189, 248, 0.45);
+    box-shadow: 0 0 10px rgba(56, 189, 248, 0.15);
+}
+
+.three-d-selection-bar.is-free {
+    background: rgba(30, 41, 59, 0.5);
+    border-color: rgba(148, 163, 184, 0.2);
+}
+
+.three-d-selection-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    flex: 1;
+}
+
+.three-d-status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    transition: background 0.25s ease, box-shadow 0.25s ease;
+}
+
+.three-d-selection-bar.is-selected .three-d-status-dot {
+    background: #10b981;
+    box-shadow: 0 0 8px #10b981;
+}
+
+.three-d-selection-bar.is-free .three-d-status-dot {
+    background: #94a3b8;
+    box-shadow: none;
+}
+
+.three-d-status-texts {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.three-d-status-title {
+    font-size: 11.5px;
+    font-weight: 700;
+    color: #f8fafc;
+    line-height: 1.25;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.three-d-status-sub {
+    font-size: 10px;
+    color: #94a3b8;
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.three-d-sel-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 9px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.2s ease;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    background: rgba(255, 255, 255, 0.08);
+    color: #f8fafc;
+}
+
+.three-d-sel-btn:hover {
+    background: rgba(255, 255, 255, 0.16);
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+.three-d-sel-btn.btn-select {
+    background: rgba(14, 165, 233, 0.2);
+    border-color: rgba(56, 189, 248, 0.5);
+    color: #38bdf8;
+}
+
+.three-d-sel-btn.btn-select:hover {
+    background: rgba(14, 165, 233, 0.35);
+    border-color: #38bdf8;
+    color: #ffffff;
+}
+
+.three-d-sel-btn.btn-deselect {
+    background: rgba(239, 68, 68, 0.12);
+    border-color: rgba(239, 68, 68, 0.35);
+    color: #fca5a5;
+}
+
+.three-d-sel-btn.btn-deselect:hover {
+    background: rgba(239, 68, 68, 0.25);
+    border-color: #ef4444;
+    color: #ffffff;
+}
+
+.three-d-kbd {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 4px;
+    border-radius: 3px;
+    font-family: inherit;
+    font-size: 9.5px;
+    font-weight: 700;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: inherit;
+}
+
+/* ================= 🚀 TUVAL ÜSTÜ YÜZEN ROZET (CANVAS BADGE) ================= */
+.three-d-canvas-badge {
+    position: absolute;
+    top: 14px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 70;
+    pointer-events: auto;
+    display: none;
+    user-select: none;
+    cursor: pointer;
+    transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.three-d-canvas-badge:hover {
+    transform: translateX(-50%) translateY(-1px) scale(1.03);
+}
+
+.three-d-badge-pill {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 12px;
+    border-radius: 20px;
+    background: rgba(15, 23, 42, 0.88);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+    color: #f8fafc;
+    font-size: 11.5px;
+    font-weight: 600;
+    transition: all 0.2s ease;
+}
+
+.three-d-canvas-badge.is-selected .three-d-badge-pill {
+    border-color: rgba(16, 185, 129, 0.5);
+    box-shadow: 0 4px 14px rgba(16, 185, 129, 0.2);
+}
+
+.three-d-canvas-badge.is-free .three-d-badge-pill {
+    border-color: rgba(148, 163, 184, 0.3);
+    background: rgba(30, 41, 59, 0.9);
+}
+
+.three-d-badge-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #10b981;
+    box-shadow: 0 0 6px #10b981;
+    transition: all 0.2s ease;
+}
+
+.three-d-canvas-badge.is-free .three-d-badge-dot {
+    background: #94a3b8;
+    box-shadow: none;
+}
+
+.three-d-badge-text {
+    line-height: 1;
+}
+
+.three-d-badge-kbd {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-size: 9.5px;
+    font-weight: 800;
+    background: rgba(255, 255, 255, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    color: inherit;
+    line-height: 1.2;
+}
+
+/* ================= ☀️ GÜNDÜZ TEMASI (LIGHT THEME) DOLGUSUZ PANEL UYARLAMASI ================= */
+body[data-theme="light"] .three-d-selection-bar {
+    background: #ffffff !important;
+    border: 1px solid #e2e8f0 !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03) !important;
+}
+
+body[data-theme="light"] .three-d-selection-bar.is-selected {
+    background: #f0fdf4 !important;
+    border: 1px solid #bbf7d0 !important;
+    box-shadow: 0 2px 6px rgba(16, 185, 129, 0.08) !important;
+}
+
+body[data-theme="light"] .three-d-selection-bar.is-free {
+    background: #f8fafc !important;
+    border: 1px solid #e2e8f0 !important;
+}
+
+body[data-theme="light"] .three-d-status-title {
+    color: #0f172a !important;
+}
+
+body[data-theme="light"] .three-d-status-sub {
+    color: #64748b !important;
+}
+
+body[data-theme="light"] .three-d-sel-btn {
+    background: #ffffff !important;
+    border: 1px solid #cbd5e1 !important;
+    color: #334155 !important;
+}
+
+body[data-theme="light"] .three-d-sel-btn:hover {
+    background: #f8fafc !important;
+    border-color: #94a3b8 !important;
+    color: #0f172a !important;
+}
+
+body[data-theme="light"] .three-d-sel-btn.btn-select {
+    background: #f0f9ff !important;
+    border-color: #0284c7 !important;
+    color: #0284c7 !important;
+}
+
+body[data-theme="light"] .three-d-sel-btn.btn-select:hover {
+    background: #e0f2fe !important;
+    border-color: #0369a1 !important;
+    color: #0369a1 !important;
+}
+
+body[data-theme="light"] .three-d-sel-btn.btn-deselect {
+    background: #fef2f2 !important;
+    border-color: #f87171 !important;
+    color: #dc2626 !important;
+}
+
+body[data-theme="light"] .three-d-sel-btn.btn-deselect:hover {
+    background: #fee2e2 !important;
+    border-color: #ef4444 !important;
+    color: #b91c1c !important;
+}
+
+body[data-theme="light"] .three-d-kbd {
+    background: #f1f5f9 !important;
+    border: 1px solid #cbd5e1 !important;
+    color: #334155 !important;
+}
+
+body[data-theme="light"] .three-d-badge-pill {
+    background: rgba(255, 255, 255, 0.95) !important;
+    border: 1px solid #cbd5e1 !important;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08) !important;
+    color: #0f172a !important;
+}
+
+body[data-theme="light"] .three-d-canvas-badge.is-selected .three-d-badge-pill {
+    border-color: #10b981 !important;
+    box-shadow: 0 4px 14px rgba(16, 185, 129, 0.15) !important;
+}
+
+body[data-theme="light"] .three-d-canvas-badge.is-free .three-d-badge-pill {
+    border-color: #cbd5e1 !important;
+    background: rgba(248, 250, 252, 0.95) !important;
+}
+
+body[data-theme="light"] .three-d-badge-kbd {
+    background: #f1f5f9 !important;
+    border: 1px solid #cbd5e1 !important;
+    color: #334155 !important;
+}
+
 /* ================= 🔤 STANDART & (AMPERSAND) GENEL KURAL ================= */
 .amp, .ampersand {
     font-family: 'ClassicAmpersand', 'Inter', 'Segoe UI', Arial, sans-serif !important;

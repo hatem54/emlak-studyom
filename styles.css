@@ -13353,24 +13353,28 @@ html[data-theme="light"] .tone-curve-canvas-wrap {
 }
 
 .three-d-preset-btn {
-    background: #0f172a;
+    background: rgba(255, 255, 255, 0.05);
     border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: 6px;
-    color: #e2e8f0;
-    font-size: 10.5px;
+    border-radius: 8px;
+    color: #cbd5e1;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 11px;
+    font-weight: 600;
     padding: 7px 4px;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 5px;
-    transition: all 0.15s;
+    transition: all 0.2s ease;
 }
 
 .three-d-preset-btn:hover {
-    background: rgba(14, 165, 233, 0.2);
-    border-color: #38bdf8;
-    color: #38bdf8;
+    background: rgba(255, 255, 255, 0.12);
+    border-color: rgba(255, 255, 255, 0.3);
+    color: #ffffff;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    transform: translateY(-1px);
 }
 
 .three-d-btn-group {
@@ -13380,25 +13384,37 @@ html[data-theme="light"] .tone-curve-canvas-wrap {
 
 .three-d-tab-btn {
     flex: 1;
-    background: #0f172a;
+    background: rgba(255, 255, 255, 0.05);
     border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: 6px;
-    color: #94a3b8;
+    border-radius: 8px;
+    color: #cbd5e1;
+    font-family: 'Space Grotesk', sans-serif;
     font-size: 11px;
+    font-weight: 600;
     padding: 8px;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 6px;
-    transition: all 0.15s;
+    transition: all 0.2s ease;
+}
+
+.three-d-tab-btn:hover:not(.active) {
+    background: rgba(255, 255, 255, 0.12);
+    border-color: rgba(255, 255, 255, 0.3);
+    color: #ffffff;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    transform: translateY(-1px);
 }
 
 .three-d-tab-btn.active {
-    background: rgba(14, 165, 233, 0.25);
-    border-color: #0ea5e9;
-    color: #fff;
+    background: rgba(255, 255, 255, 0.2);
+    border: 1.5px solid rgba(255, 255, 255, 0.6);
+    color: #ffffff;
     font-weight: 700;
+    box-shadow: 0 2px 10px rgba(255, 255, 255, 0.12);
+    transform: translateY(-1px);
 }
 
 .three-d-color-row {
@@ -13557,62 +13573,72 @@ html[data-theme="light"] .tone-curve-canvas-wrap {
 }
 
 .three-d-elem-btn {
-    background: #0f172a;
+    background: rgba(255, 255, 255, 0.05);
     border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: 7px;
-    color: #94a3b8;
-    font-size: 10.5px;
+    border-radius: 8px;
+    color: #cbd5e1;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 11px;
+    font-weight: 600;
     padding: 7px 4px;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 5px;
-    transition: all 0.15s;
+    transition: all 0.2s ease;
 }
 
-.three-d-elem-btn:hover {
-    background: rgba(14, 165, 233, 0.15);
-    border-color: #38bdf8;
-    color: #38bdf8;
+.three-d-elem-btn:hover:not(.active) {
+    background: rgba(255, 255, 255, 0.12);
+    border-color: rgba(255, 255, 255, 0.3);
+    color: #ffffff;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    transform: translateY(-1px);
 }
 
 .three-d-elem-btn.active {
-    background: rgba(14, 165, 233, 0.3);
-    border-color: #00d2ff;
+    background: rgba(255, 255, 255, 0.2);
+    border: 1.5px solid rgba(255, 255, 255, 0.6);
     color: #ffffff;
     font-weight: 700;
-    box-shadow: 0 0 10px rgba(0, 210, 255, 0.25);
+    box-shadow: 0 2px 10px rgba(255, 255, 255, 0.12);
+    transform: translateY(-1px);
 }
 
 .three-d-corner-pin-btn {
     width: 100%;
-    background: linear-gradient(135deg, rgba(0, 210, 255, 0.15), rgba(99, 102, 241, 0.15));
-    border: 1.5px dashed #00d2ff;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1.5px dashed rgba(255, 255, 255, 0.22);
     border-radius: 8px;
-    color: #00d2ff;
-    font-weight: 700;
-    font-size: 12px;
-    padding: 9px;
+    color: #cbd5e1;
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 600;
+    font-size: 11.5px;
+    padding: 8px 6px;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
-    transition: all 0.2s;
-    box-shadow: 0 2px 10px rgba(0, 210, 255, 0.15);
+    gap: 6px;
+    transition: all 0.2s ease;
 }
 
-.three-d-corner-pin-btn:hover {
-    background: rgba(0, 210, 255, 0.25);
-    box-shadow: 0 0 15px rgba(0, 210, 255, 0.4);
+.three-d-corner-pin-btn:hover:not(.active) {
+    background: rgba(255, 255, 255, 0.12);
+    border-color: rgba(255, 255, 255, 0.35);
+    color: #ffffff;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    transform: translateY(-1px);
 }
 
 .three-d-corner-pin-btn.active {
-    background: #00d2ff;
-    border-color: #ffffff;
-    color: #0f172a;
-    box-shadow: 0 0 20px rgba(0, 210, 255, 0.6);
+    background: rgba(255, 255, 255, 0.2);
+    border: 1.5px solid rgba(255, 255, 255, 0.6);
+    color: #ffffff;
+    font-weight: 700;
+    box-shadow: 0 2px 10px rgba(255, 255, 255, 0.15);
+    transform: translateY(-1px);
 }
 
 /* ================= ☀️ 3D GÜNEŞ PUSULASI (FAZ 3) ================= */
@@ -13860,11 +13886,12 @@ html[data-theme="light"] .tone-curve-canvas-wrap {
 
 .three-d-gizmo-btn {
     width: 100%;
-    background: linear-gradient(135deg, rgba(0, 210, 255, 0.15), rgba(99, 102, 241, 0.15));
-    border: 1.5px dashed #00d2ff;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1.5px dashed rgba(255, 255, 255, 0.22);
     border-radius: 8px;
-    color: #00d2ff;
-    font-weight: 700;
+    color: #cbd5e1;
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 600;
     font-size: 11.5px;
     padding: 8px 6px;
     cursor: pointer;
@@ -13872,20 +13899,24 @@ html[data-theme="light"] .tone-curve-canvas-wrap {
     align-items: center;
     justify-content: center;
     gap: 6px;
-    transition: all 0.2s;
-    box-shadow: 0 2px 10px rgba(0, 210, 255, 0.15);
+    transition: all 0.2s ease;
 }
 
-.three-d-gizmo-btn:hover {
-    background: rgba(0, 210, 255, 0.25);
-    box-shadow: 0 0 15px rgba(0, 210, 255, 0.4);
+.three-d-gizmo-btn:hover:not(.active) {
+    background: rgba(255, 255, 255, 0.12);
+    border-color: rgba(255, 255, 255, 0.35);
+    color: #ffffff;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    transform: translateY(-1px);
 }
 
 .three-d-gizmo-btn.active {
-    background: #00d2ff;
-    border-color: #ffffff;
-    color: #0f172a;
-    box-shadow: 0 0 20px rgba(0, 210, 255, 0.6);
+    background: rgba(255, 255, 255, 0.2);
+    border: 1.5px solid rgba(255, 255, 255, 0.6);
+    color: #ffffff;
+    font-weight: 700;
+    box-shadow: 0 2px 10px rgba(255, 255, 255, 0.15);
+    transform: translateY(-1px);
 }
 
 /* ================= ☀️ 3D STÜDYO GÜNDÜZ (LIGHT) TEMASI ================= */
@@ -13914,9 +13945,9 @@ body[data-theme="light"] .three-d-icon-btn:hover {
 }
 
 body[data-theme="light"] .three-d-loading {
-    background: #f0f9ff !important;
-    color: #0284c7 !important;
-    border-bottom: 1px solid #bae6fd !important;
+    background: #f8fafc !important;
+    color: #334155 !important;
+    border-bottom: 1px solid #e2e8f0 !important;
 }
 
 body[data-theme="light"] .three-d-body {
@@ -13931,7 +13962,7 @@ body[data-theme="light"] .three-d-section {
 }
 
 body[data-theme="light"] .three-d-section-title {
-    color: #0284c7 !important;
+    color: #1e293b !important;
     font-weight: 800 !important;
 }
 
@@ -13941,7 +13972,7 @@ body[data-theme="light"] .three-d-label {
 }
 
 body[data-theme="light"] .three-d-val {
-    color: #0284c7 !important;
+    color: #475569 !important;
     font-weight: 700 !important;
 }
 
@@ -13952,62 +13983,83 @@ body[data-theme="light"] .three-d-input {
 }
 
 body[data-theme="light"] .three-d-input:focus {
-    border-color: #0284c7 !important;
-    box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.15) !important;
+    border-color: #64748b !important;
+    box-shadow: 0 0 0 3px rgba(100, 116, 139, 0.15) !important;
 }
 
 body[data-theme="light"] .three-d-range {
-    accent-color: #0284c7 !important;
+    accent-color: #475569 !important;
 }
 
-/* Net ve keskin butonlar */
+/* ================= 🔘 GİRİŞ SEKMESİ TARZI BUTONLAR (GÜNDÜZ TEMASI) ================= */
+/* Normal durum: Temiz zemin, ince kenarlık */
 body[data-theme="light"] .three-d-elem-btn,
 body[data-theme="light"] .three-d-preset-btn,
 body[data-theme="light"] .three-d-tab-btn {
     background: #ffffff !important;
-    border: 1px solid #cbd5e1 !important;
-    color: #1e293b !important;
+    border: 1px solid #e2e8f0 !important;
+    color: #475569 !important;
+    font-family: 'Space Grotesk', sans-serif !important;
+    font-size: 11px !important;
     font-weight: 600 !important;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03) !important;
+    border-radius: 8px !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03) !important;
+    transition: all 0.2s ease !important;
 }
 
-body[data-theme="light"] .three-d-elem-btn:hover,
-body[data-theme="light"] .three-d-preset-btn:hover,
-body[data-theme="light"] .three-d-tab-btn:hover {
-    background: #f0f9ff !important;
-    border-color: #0284c7 !important;
-    color: #0284c7 !important;
+/* Üzerine gelince gri yanacak şekilde (Hover) */
+body[data-theme="light"] .three-d-elem-btn:hover:not(.active),
+body[data-theme="light"] .three-d-preset-btn:hover:not(.active),
+body[data-theme="light"] .three-d-tab-btn:hover:not(.active) {
+    background: #f1f5f9 !important;
+    border-color: #cbd5e1 !important;
+    color: #0f172a !important;
+    box-shadow: 0 2px 6px rgba(100, 116, 139, 0.18) !important;
+    transform: translateY(-1px) !important;
 }
 
+/* Aktif durum: Giriş Sekmesi gibi (Mat Çelik / Antrasit Gri Dolgu + Koyu Yazı) */
 body[data-theme="light"] .three-d-elem-btn.active,
 body[data-theme="light"] .three-d-tab-btn.active {
-    background: #0284c7 !important;
-    border-color: #0284c7 !important;
-    color: #ffffff !important;
+    background: linear-gradient(180deg, #f1f5f9 0%, #e2e8f0 100%) !important;
+    border: 1.5px solid #94a3b8 !important;
+    color: #0f172a !important;
     font-weight: 700 !important;
-    box-shadow: 0 2px 8px rgba(2, 132, 199, 0.3) !important;
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.08), 0 2px 5px rgba(0, 0, 0, 0.04) !important;
+    transform: translateY(-1px) !important;
 }
 
+/* 3D Eksen Gizmo ve 4 Köşe Butonları - Giriş Sekmesi Uyumu */
 body[data-theme="light"] .three-d-corner-pin-btn,
 body[data-theme="light"] .three-d-gizmo-btn {
-    background: #f0f9ff !important;
-    border: 1.5px dashed #0284c7 !important;
-    color: #0284c7 !important;
-    font-weight: 700 !important;
+    background: #ffffff !important;
+    border: 1.5px dashed #cbd5e1 !important;
+    color: #475569 !important;
+    font-family: 'Space Grotesk', sans-serif !important;
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    border-radius: 8px !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03) !important;
+    transition: all 0.2s ease !important;
 }
 
-body[data-theme="light"] .three-d-corner-pin-btn:hover,
-body[data-theme="light"] .three-d-gizmo-btn:hover {
-    background: #e0f2fe !important;
-    box-shadow: 0 0 10px rgba(2, 132, 199, 0.2) !important;
+body[data-theme="light"] .three-d-corner-pin-btn:hover:not(.active),
+body[data-theme="light"] .three-d-gizmo-btn:hover:not(.active) {
+    background: #f1f5f9 !important;
+    border-color: #94a3b8 !important;
+    color: #0f172a !important;
+    box-shadow: 0 2px 6px rgba(100, 116, 139, 0.18) !important;
+    transform: translateY(-1px) !important;
 }
 
 body[data-theme="light"] .three-d-corner-pin-btn.active,
 body[data-theme="light"] .three-d-gizmo-btn.active {
-    background: #0284c7 !important;
-    border-color: #0284c7 !important;
-    color: #ffffff !important;
-    box-shadow: 0 2px 10px rgba(2, 132, 199, 0.35) !important;
+    background: linear-gradient(180deg, #f1f5f9 0%, #e2e8f0 100%) !important;
+    border: 1.5px solid #64748b !important;
+    color: #0f172a !important;
+    font-weight: 700 !important;
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.08), 0 2px 5px rgba(0, 0, 0, 0.04) !important;
+    transform: translateY(-1px) !important;
 }
 
 body[data-theme="light"] .three-d-color-item {
@@ -14022,7 +14074,7 @@ body[data-theme="light"] .three-d-color-lbl {
 
 body[data-theme="light"] .three-d-sun-dial {
     background: radial-gradient(circle, #f8fafc 0%, #e2e8f0 100%) !important;
-    border: 2px solid #0284c7 !important;
+    border: 2px solid #94a3b8 !important;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08) !important;
 }
 
@@ -14032,7 +14084,7 @@ body[data-theme="light"] .three-d-compass-mark {
 }
 
 body[data-theme="light"] .three-d-sun-center {
-    background: #0284c7 !important;
+    background: #f59e0b !important;
 }
 
 body[data-theme="light"] .three-d-footer {
@@ -14041,8 +14093,17 @@ body[data-theme="light"] .three-d-footer {
 }
 
 body[data-theme="light"] .three-d-primary-btn {
-    background: linear-gradient(135deg, #0284c7, #4f46e5) !important;
-    box-shadow: 0 4px 14px rgba(2, 132, 199, 0.35) !important;
+    background: linear-gradient(180deg, #334155 0%, #1e293b 100%) !important;
+    border: 1px solid #0f172a !important;
+    color: #ffffff !important;
+    font-weight: 700 !important;
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.25) !important;
+}
+
+body[data-theme="light"] .three-d-primary-btn:hover {
+    background: linear-gradient(180deg, #475569 0%, #334155 100%) !important;
+    box-shadow: 0 6px 18px rgba(15, 23, 42, 0.35) !important;
+    transform: translateY(-1px) !important;
 }
 
 body[data-theme="light"] .three-d-section label {

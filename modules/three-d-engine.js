@@ -41,10 +41,10 @@
         posY: 0,               // Düzlem üzerinde Y konumu
         cornerPinActive: false,// 4 Köşe Tutamaç modu aktif mi?
         gizmoActive: true,     // After Effects tarzı 3D Eksen Gizmo modu aktif mi?
-        gizmoScale: 1.7,       // Tutamaç boyutu ölçeği (0.7 - 3.5) -> Varsayılan %170 (daha büyük ve okunaklı)
+        gizmoScale: 1.0,       // Tutamaç boyutu ölçeği (0.6 - 2.0) -> Varsayılan %100 (zarif, estetik ve kompakt)
         gizmoAutoFit: true,    // Nesne ve metin boyutuna göre akıllı orantılama
-        gizmoDistance: 85,     // Eksen açılma mesafesi (40px - 280px) -> Varsayılan 85px (ögeye yakın ve derli toplu)
-        gizmoShowLabels: true, // Eksen rozet etiketlerini göster (Eğim, Yatay vb.)
+        gizmoDistance: 75,     // Eksen açılma mesafesi (40px - 200px) -> Varsayılan 75px (ögeye yakın ve dengeli)
+        gizmoShowLabels: false,// Eksen rozet metinleri (false: şık dairesel X,Y,Z,⟳ rozetleri | true: metinli mikro-kapsül)
         gizmoShowHud: true,    // Canlı derece HUD bildirimini göster
         gizmoOpacity: 1.0,     // Gizmo opaklığı (0.3 - 1.0)
         gizmoSettingsOpen: false, // Sol panel ayar kutusu açık mı?
@@ -675,11 +675,11 @@
                 <line id="threeDGizmoLineY" class="three-d-gizmo-axis-y" x1="0" y1="0" x2="0" y2="0" marker-end="url(#gizmoArrowY)"></line>
                 <line id="threeDGizmoLineZ" class="three-d-gizmo-axis-z" x1="0" y1="0" x2="0" y2="0" marker-end="url(#gizmoArrowZ)"></line>
             </svg>
-            <div id="threeDGizmoCenter" class="three-d-gizmo-center" title="Konumlandır (Sürükle)"><i class="fas fa-arrows-up-down-left-right"></i></div>
-            <div id="threeDGizmoHandleX" class="three-d-gizmo-handle three-d-gizmo-handle-x" title="Eğim (Pitch) - Sürükleyin"><i class="fas fa-arrows-split-up-and-left"></i> <span>Eğim (X)</span></div>
-            <div id="threeDGizmoHandleY" class="three-d-gizmo-handle three-d-gizmo-handle-y" title="Yatay (Yaw) - Sürükleyin"><i class="fas fa-arrows-left-right"></i> <span>Yatay (Y)</span></div>
-            <div id="threeDGizmoHandleZ" class="three-d-gizmo-handle three-d-gizmo-handle-z" title="Yatırma (Roll) - Sürükleyin"><i class="fas fa-redo-alt"></i> <span>Yatır (Z)</span></div>
-            <div id="threeDGizmoHandleRot" class="three-d-gizmo-handle three-d-gizmo-handle-rot" title="Düzlem İçi Dönüş (Sürükleyin)"><i class="fas fa-compass"></i> <span>Dönüş</span></div>
+            <div id="threeDGizmoCenter" class="three-d-gizmo-center" title="Konumlandır (XY Sürükle)"><i class="fas fa-arrows-up-down-left-right"></i></div>
+            <div id="threeDGizmoHandleX" class="three-d-gizmo-handle three-d-gizmo-handle-x" title="Eğim (Pitch) - Sürükleyin"><b class="three-d-gizmo-tag">X</b><span class="three-d-gizmo-lbl">Eğim</span></div>
+            <div id="threeDGizmoHandleY" class="three-d-gizmo-handle three-d-gizmo-handle-y" title="Yatay (Yaw) - Sürükleyin"><b class="three-d-gizmo-tag">Y</b><span class="three-d-gizmo-lbl">Yatay</span></div>
+            <div id="threeDGizmoHandleZ" class="three-d-gizmo-handle three-d-gizmo-handle-z" title="Yatırma (Roll) - Sürükleyin"><b class="three-d-gizmo-tag">Z</b><span class="three-d-gizmo-lbl">Yatır</span></div>
+            <div id="threeDGizmoHandleRot" class="three-d-gizmo-handle three-d-gizmo-handle-rot" title="Düzlem İçi Dönüş (Sürükleyin)"><b class="three-d-gizmo-tag"><i class="fas fa-rotate"></i></b><span class="three-d-gizmo-lbl">Dönüş</span></div>
             <div id="threeDGizmoHud" class="three-d-gizmo-hud"></div>
         `;
 
@@ -738,13 +738,13 @@
             }
         }
 
-        const currentScale = state.gizmoScale || 1.7;
+        const currentScale = state.gizmoScale || 1.0;
         const currentOpacity = (state.gizmoOpacity !== undefined) ? state.gizmoOpacity : 1.0;
 
         // Dinamik CSS Değişkenleri ve Etiket Durumu
         gizmoOverlayEl.style.setProperty('--gizmo-scale', currentScale);
         gizmoOverlayEl.style.setProperty('--gizmo-opacity', currentOpacity);
-        gizmoOverlayEl.classList.toggle('hide-labels', state.gizmoShowLabels === false);
+        gizmoOverlayEl.classList.toggle('show-labels', !!state.gizmoShowLabels);
 
         // 3D Dünya koordinatlarını ekrana yansıt (Project to 2D screen coordinates)
         const vCenter = new THREE.Vector3(0, 0, 0);
@@ -754,7 +754,7 @@
         const cy = (-vCenter.y + 1) * ch / 2;
 
         // 📏 Kompakt & Doğal Mesafe (Ögeden aşırı uzaklaşmayı önleyen sınırlandırılmış formül)
-        const baseLen = (state.gizmoDistance || 85) * (state.gizmoAutoFit ? Math.min(1.4, autoRatio) : 1.0) * Math.max(0.85, Math.min(1.25, Math.sqrt(state.planeScale)));
+        const baseLen = (state.gizmoDistance || 75) * (state.gizmoAutoFit ? Math.min(1.25, autoRatio) : 1.0) * Math.max(0.9, Math.min(1.15, Math.sqrt(state.planeScale)));
 
         // X Ekseni (Pitch)
         const vX = new THREE.Vector3(baseLen, 0, 0);
@@ -778,7 +778,7 @@
         let pyZ = (-vZ.y + 1) * ch / 2;
 
         // Halka Rotasyon Tutamacı (Mesafeyle orantılı çember - contentGroup ile doğal döner)
-        const ringRadius = Math.max(45, baseLen * 0.72);
+        const ringRadius = Math.max(38, baseLen * 0.72);
         const vRot = new THREE.Vector3(ringRadius, 0, 0);
         contentGroup.localToWorld(vRot);
         vRot.project(camera);
@@ -795,7 +795,7 @@
         ];
 
         // 1. Merkeze binmeyi önleme (Minimum merkez mesafesi)
-        const minCenterDist = 48 * Math.max(0.9, currentScale * 0.7);
+        const minCenterDist = 30 * Math.max(0.7, currentScale);
         handles.forEach((h, idx) => {
             let dCenter = Math.hypot(h.x - cx, h.y - cy);
             if (dCenter < minCenterDist) {
@@ -811,7 +811,7 @@
         });
 
         // 2. Tutamaçların birbirinin üstüne binmesini önleme (Pairwise separation relaxation)
-        const minHandleDist = 64 * Math.max(0.85, currentScale * 0.75);
+        const minHandleDist = (state.gizmoShowLabels ? 48 : 34) * Math.max(0.7, currentScale);
         for (let iter = 0; iter < 5; iter++) {
             for (let i = 0; i < handles.length; i++) {
                 for (let j = i + 1; j < handles.length; j++) {
@@ -1582,7 +1582,7 @@
         const autoFitCheck = panel.querySelector('#threeDGizmoAutoFitCheck');
         if (autoFitCheck) autoFitCheck.checked = !!state.gizmoAutoFit;
 
-        const scaleVal = Math.round((state.gizmoScale || 1.7) * 100);
+        const scaleVal = Math.round((state.gizmoScale || 1.0) * 100);
         const gizmoScaleInput = panel.querySelector('#threeDGizmoScaleInput');
         if (gizmoScaleInput) {
             gizmoScaleInput.value = scaleVal;
@@ -1593,7 +1593,7 @@
             chip.classList.toggle('active', parseInt(chip.dataset.scale) === scaleVal);
         });
 
-        const currentDist = state.gizmoDistance || 85;
+        const currentDist = state.gizmoDistance || 75;
         const distInput = panel.querySelector('#threeDGizmoDistanceInput');
         if (distInput) {
             distInput.value = currentDist;
@@ -1613,7 +1613,7 @@
         }
 
         const labelsCheck = panel.querySelector('#threeDGizmoShowLabelsCheck');
-        if (labelsCheck) labelsCheck.checked = state.gizmoShowLabels !== false;
+        if (labelsCheck) labelsCheck.checked = !!state.gizmoShowLabels;
 
         const hudCheck = panel.querySelector('#threeDGizmoShowHudCheck');
         if (hudCheck) hudCheck.checked = state.gizmoShowHud !== false;
@@ -1740,14 +1740,14 @@
                         <div class="three-d-setting-item">
                             <div class="three-d-setting-row">
                                 <span class="three-d-setting-lbl">Tutamaç Boyutu:</span>
-                                <input type="range" id="threeDGizmoScaleInput" class="three-d-range" min="70" max="350" step="5" value="${Math.round((state.gizmoScale || 1.7) * 100)}">
-                                <span id="threeDGizmoScaleVal" class="three-d-val">${Math.round((state.gizmoScale || 1.7) * 100)}%</span>
+                                <input type="range" id="threeDGizmoScaleInput" class="three-d-range" min="60" max="200" step="5" value="${Math.round((state.gizmoScale || 1.0) * 100)}">
+                                <span id="threeDGizmoScaleVal" class="three-d-val">${Math.round((state.gizmoScale || 1.0) * 100)}%</span>
                             </div>
                             <div class="three-d-scale-presets">
-                                <button class="three-d-scale-chip ${Math.round((state.gizmoScale || 1.7) * 100) === 120 ? 'active' : ''}" data-scale="120">Kompakt %120</button>
-                                <button class="three-d-scale-chip ${Math.round((state.gizmoScale || 1.7) * 100) === 150 ? 'active' : ''}" data-scale="150">Orta %150</button>
-                                <button class="three-d-scale-chip ${Math.round((state.gizmoScale || 1.7) * 100) === 170 ? 'active' : ''}" data-scale="170">Büyük %170</button>
-                                <button class="three-d-scale-chip ${Math.round((state.gizmoScale || 1.7) * 100) === 230 ? 'active' : ''}" data-scale="230">Dev %230</button>
+                                <button class="three-d-scale-chip ${Math.round((state.gizmoScale || 1.0) * 100) === 80 ? 'active' : ''}" data-scale="80">Kompakt %80</button>
+                                <button class="three-d-scale-chip ${Math.round((state.gizmoScale || 1.0) * 100) === 100 ? 'active' : ''}" data-scale="100">Normal %100</button>
+                                <button class="three-d-scale-chip ${Math.round((state.gizmoScale || 1.0) * 100) === 125 ? 'active' : ''}" data-scale="125">Belirgin %125</button>
+                                <button class="three-d-scale-chip ${Math.round((state.gizmoScale || 1.0) * 100) === 150 ? 'active' : ''}" data-scale="150">Geniş %150</button>
                             </div>
                         </div>
 
@@ -1755,13 +1755,13 @@
                         <div class="three-d-setting-item">
                             <div class="three-d-setting-row">
                                 <span class="three-d-setting-lbl">Eksen Mesafesi:</span>
-                                <input type="range" id="threeDGizmoDistanceInput" class="three-d-range" min="40" max="280" step="5" value="${state.gizmoDistance || 85}">
-                                <span id="threeDGizmoDistanceVal" class="three-d-val">${state.gizmoDistance || 85}px</span>
+                                <input type="range" id="threeDGizmoDistanceInput" class="three-d-range" min="40" max="200" step="5" value="${state.gizmoDistance || 75}">
+                                <span id="threeDGizmoDistanceVal" class="three-d-val">${state.gizmoDistance || 75}px</span>
                             </div>
                             <div class="three-d-dist-presets">
-                                <button class="three-d-dist-chip ${(state.gizmoDistance || 85) === 60 ? 'active' : ''}" data-dist="60">Yakın (60px)</button>
-                                <button class="three-d-dist-chip ${(state.gizmoDistance || 85) === 85 ? 'active' : ''}" data-dist="85">Dengeli (85px)</button>
-                                <button class="three-d-dist-chip ${(state.gizmoDistance || 85) === 130 ? 'active' : ''}" data-dist="130">Geniş (130px)</button>
+                                <button class="three-d-dist-chip ${(state.gizmoDistance || 75) === 55 ? 'active' : ''}" data-dist="55">Kompakt (55px)</button>
+                                <button class="three-d-dist-chip ${(state.gizmoDistance || 75) === 75 ? 'active' : ''}" data-dist="75">Dengeli (75px)</button>
+                                <button class="three-d-dist-chip ${(state.gizmoDistance || 75) === 110 ? 'active' : ''}" data-dist="110">Açık (110px)</button>
                             </div>
                         </div>
 
@@ -1777,8 +1777,8 @@
                         <!-- 5. Eksen Rozetleri & Canlı HUD -->
                         <div class="three-d-setting-toggles">
                             <label class="three-d-checkbox-label">
-                                <input type="checkbox" id="threeDGizmoShowLabelsCheck" ${state.gizmoShowLabels !== false ? 'checked' : ''}>
-                                <span>🏷️ Eksen Rozetleri (X, Y, Z, Dönüş)</span>
+                                <input type="checkbox" id="threeDGizmoShowLabelsCheck" ${state.gizmoShowLabels ? 'checked' : ''}>
+                                <span>🏷️ Eksen Rozet Metinleri (Eğim, Yatay vb.)</span>
                             </label>
                             <label class="three-d-checkbox-label">
                                 <input type="checkbox" id="threeDGizmoShowHudCheck" ${state.gizmoShowHud !== false ? 'checked' : ''}>
@@ -1986,7 +1986,7 @@
         const gizmoScaleInput = panel.querySelector('#threeDGizmoScaleInput');
         if (gizmoScaleInput) {
             gizmoScaleInput.addEventListener('input', (e) => {
-                const val = parseInt(e.target.value) || 170;
+                const val = parseInt(e.target.value) || 100;
                 state.gizmoScale = val / 100;
                 panel.querySelector('#threeDGizmoScaleVal').textContent = val + '%';
                 updateGizmoPositions();
@@ -1997,7 +1997,7 @@
 
         panel.querySelectorAll('.three-d-scale-chip').forEach(chip => {
             chip.addEventListener('click', () => {
-                const scaleVal = parseInt(chip.dataset.scale) || 170;
+                const scaleVal = parseInt(chip.dataset.scale) || 100;
                 state.gizmoScale = scaleVal / 100;
                 if (gizmoScaleInput) gizmoScaleInput.value = scaleVal;
                 panel.querySelector('#threeDGizmoScaleVal').textContent = scaleVal + '%';
@@ -2011,7 +2011,7 @@
         const distanceInput = panel.querySelector('#threeDGizmoDistanceInput');
         if (distanceInput) {
             distanceInput.addEventListener('input', (e) => {
-                state.gizmoDistance = parseInt(e.target.value) || 85;
+                state.gizmoDistance = parseInt(e.target.value) || 75;
                 panel.querySelector('#threeDGizmoDistanceVal').textContent = state.gizmoDistance + 'px';
                 updateGizmoPositions();
                 notifyExternalUpdates();
@@ -2021,7 +2021,7 @@
 
         panel.querySelectorAll('.three-d-dist-chip').forEach(chip => {
             chip.addEventListener('click', () => {
-                const distVal = parseInt(chip.dataset.dist) || 85;
+                const distVal = parseInt(chip.dataset.dist) || 75;
                 state.gizmoDistance = distVal;
                 if (distanceInput) distanceInput.value = distVal;
                 panel.querySelector('#threeDGizmoDistanceVal').textContent = distVal + 'px';
@@ -2412,10 +2412,10 @@
         state.shadowSoftness = 1.5;
         state.cornerPinActive = false;
         state.gizmoActive = true;
-        state.gizmoScale = 1.7;
+        state.gizmoScale = 1.0;
         state.gizmoAutoFit = true;
-        state.gizmoDistance = 85;
-        state.gizmoShowLabels = true;
+        state.gizmoDistance = 75;
+        state.gizmoShowLabels = false;
         state.gizmoShowHud = true;
         state.gizmoOpacity = 1.0;
         state.gizmoSettingsOpen = false;
@@ -2548,9 +2548,9 @@
         toggleCornerPin: toggleCornerPinMode,
         toggleGizmo: toggleGizmoMode,
         updateGizmo: updateGizmoPositions,
-        setGizmoScale: (s) => { state.gizmoScale = parseFloat(s) || 1.7; updateGizmoPositions(); syncControlsUI(); },
+        setGizmoScale: (s) => { state.gizmoScale = parseFloat(s) || 1.0; updateGizmoPositions(); syncControlsUI(); },
         setGizmoAutoFit: (af) => { state.gizmoAutoFit = !!af; updateGizmoPositions(); syncControlsUI(); },
-        setGizmoDistance: (d) => { state.gizmoDistance = parseInt(d) || 85; updateGizmoPositions(); syncControlsUI(); },
+        setGizmoDistance: (d) => { state.gizmoDistance = parseInt(d) || 75; updateGizmoPositions(); syncControlsUI(); },
         setGizmoOpacity: (op) => { state.gizmoOpacity = parseFloat(op) || 1.0; updateGizmoPositions(); syncControlsUI(); },
         getCanvas: () => canvasEl,
         isLayerActive: () => (canvasEl && canvasEl.style.display !== 'none'),

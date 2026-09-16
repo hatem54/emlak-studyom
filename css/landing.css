@@ -3330,7 +3330,8 @@ body.menu-open {
 
     /* Navbar Desktop (Light Theme) */
     body[data-theme="light"] .navbar {
-        background: #f8fafc url("../assets/header-skyline-gemini-matched.png") no-repeat center center !important;
+        background: #f8fafc url("../assets/header-skyline-gemini-matched.webp") no-repeat center center !important;
+        background: #f8fafc image-set(url("../assets/header-skyline-gemini-matched.webp") type("image/webp"), url("../assets/header-skyline-gemini-matched.png") type("image/png")) no-repeat center center !important;
         background-size: cover !important;
         border-bottom: 1px solid rgba(0, 0, 0, 0.1) !important;
         height: 120px !important;

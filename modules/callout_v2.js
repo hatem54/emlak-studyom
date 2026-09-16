@@ -393,17 +393,8 @@ function addSVGCalloutToCanvas(item) {
 
     el.addEventListener('dblclick', function(e){
         e.stopPropagation();
-        if (e.target.tagName === 'text' || e.target.tagName === 'tspan') {
-            const newText = prompt('Metni düzenle (Silmek için boş bırakın):', e.target.textContent);
-            if(newText !== null) e.target.textContent = newText.trim();
-        } else {
-            const texts = Array.from(el.querySelectorAll('text, tspan'));
-            if (texts.length > 0) {
-                 texts.forEach(t => {
-                     const val = prompt('Metni düzenle (Silmek için boş bırakın):', t.textContent);
-                     if (val !== null) t.textContent = val.trim();
-                 });
-            }
+        if (typeof window.openQuickEdit3DModal === 'function') {
+            window.openQuickEdit3DModal(el, e.clientX, e.clientY);
         }
     });
     

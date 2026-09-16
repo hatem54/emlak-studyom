@@ -102,6 +102,9 @@ function resizeCanvas(){
     if (window.SaberEngine && typeof window.SaberEngine.resize === 'function') {
         window.SaberEngine.resize(canvasW, canvasH);
     }
+    if (window.ThreeDEngine && typeof window.ThreeDEngine.resize === 'function') {
+        window.ThreeDEngine.resize(canvasW, canvasH);
+    }
     
     const isMob = typeof window.isMobileDevice === 'function' ? window.isMobileDevice() : window.innerWidth <= 768;
     const isLand = isMob && window.innerWidth > window.innerHeight;

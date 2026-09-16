@@ -53,7 +53,12 @@
         gizmoOpacity: 1.0,     // Gizmo opaklığı (0.3 - 1.0)
         gizmoSettingsOpen: false, // Sol panel ayar kutusu açık mı?
         selected: true,        // 3D öge tuvalde seçili mi? (Görsel serbestken false olur)
-        hasBaked: false
+        hasBaked: false,
+        // 🌟 3D ROZET & İKON DURUMU
+        badgeBgColor: '#0f172a',      // Rozet taban zemin rengi
+        badgeSubtext: '',             // Rozet alt başlık (Slogan)
+        selectedIconId: 'ev-14',      // Seçili ikon ID'si (window.ICON_LIBRARY)
+        customIconSvg: null           // Tuvalden aktarılan özel SVG içeriği
     };
 
     // 🌟 THREE.JS SAHNE NESNELERİ
@@ -70,6 +75,7 @@
     let contentGroup = null;   // Metin ve ögeleri taşıyan grup
     let textMesh = null;       // 3D kabartma harf mesh'i
     let iconMesh = null;       // 3D ikon mesh'i (İğne veya Ok)
+    let badgeMesh = null;      // 🌟 3D Rozet / Kalkan / Plaket / Madalyon gövdesi
     let dirLight = null;       // Güneş ışığı
     let ambLight = null;       // Çevre ışığı
     let sunGroup = null;       // 3D Güneş Grubu (Sphere + Halo)
@@ -315,6 +321,451 @@
     /**
      * 3. 3D Vektörel Şekil ve İkon Geometrileri (Procedural THREE.Shape)
      */
+    function createPillShape(width = 220, height = 70) {
+        const s = new THREE.Shape();
+        const r = height / 2;
+        const straightW = (width / 2) - r;
+        s.moveTo(-straightW, -r);
+        s.lineTo(straightW, -r);
+        s.absarc(straightW, 0, r, -Math.PI / 2, Math.PI / 2, false);
+        s.lineTo(-straightW, r);
+        s.absarc(-straightW, 0, r, Math.PI / 2, (3 * Math.PI) / 2, false);
+        s.closePath();
+        return s;
+    }
+
+    function createShieldShape(width = 160, height = 180) {
+        const s = new THREE.Shape();
+        const halfW = width / 2;
+        const top = height * 0.45;
+        const bottom = -height * 0.55;
+        const midY = -height * 0.05;
+        s.moveTo(0, top + 10);
+        s.quadraticCurveTo(halfW * 0.5, top + 14, halfW, top);
+        s.lineTo(halfW, midY);
+        s.bezierCurveTo(halfW, bottom * 0.5, halfW * 0.4, bottom * 0.85, 0, bottom);
+        s.bezierCurveTo(-halfW * 0.4, bottom * 0.85, -halfW, bottom * 0.5, -halfW, midY);
+        s.lineTo(-halfW, top);
+        s.quadraticCurveTo(-halfW * 0.5, top + 14, 0, top + 10);
+        s.closePath();
+        return s;
+    }
+
+    function createCardShape(width = 220, height = 120, radius = 16) {
+        const s = new THREE.Shape();
+        const halfW = width / 2;
+        const halfH = height / 2;
+        const r = Math.min(radius, halfW, halfH);
+        s.moveTo(-halfW + r, -halfH);
+        s.lineTo(halfW - r, -halfH);
+        s.absarc(halfW - r, -halfH + r, r, -Math.PI / 2, 0, false);
+        s.lineTo(halfW, halfH - r);
+        s.absarc(halfW - r, halfH - r, r, 0, Math.PI / 2, false);
+        s.lineTo(-halfW + r, halfH);
+        s.absarc(-halfW + r, halfH - r, r, Math.PI / 2, Math.PI, false);
+        s.lineTo(-halfW, -halfH + r);
+        s.absarc(-halfW + r, -halfH + r, r, Math.PI, (3 * Math.PI) / 2, false);
+        s.closePath();
+        return s;
+    }
+
+    function createCoinShape(radius = 75) {
+        const s = new THREE.Shape();
+        s.absarc(0, 0, radius, 0, Math.PI * 2, false);
+        return s;
+    }
+
+    function getShapeBounds(shape) {
+        if (!shape || typeof shape.extractPoints !== 'function') {
+            return { minX: -100, maxX: 100, minY: -50, maxY: 50, width: 200, height: 100 };
+        }
+        const points = shape.extractPoints(12).shape || [];
+        let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+        points.forEach(p => {
+            if (p.x < minX) minX = p.x;
+            if (p.x > maxX) maxX = p.x;
+            if (p.y < minY) minY = p.y;
+            if (p.y > maxY) maxY = p.y;
+        });
+        if (minX === Infinity) {
+            minX = -100; maxX = 100; minY = -50; maxY = 50;
+        }
+        return { minX, maxX, minY, maxY, width: maxX - minX || 1, height: maxY - minY || 1 };
+    }
+
+    function getNormalizedUVGenerator(minX, maxX, minY, maxY) {
+        const w = maxX - minX || 1;
+        const h = maxY - minY || 1;
+        return {
+            generateTopUV: function(geometry, vertices, indexA, indexB, indexC) {
+                const ax = (vertices[indexA * 3] - minX) / w;
+                const ay = (vertices[indexA * 3 + 1] - minY) / h;
+                const bx = (vertices[indexB * 3] - minX) / w;
+                const by = (vertices[indexB * 3 + 1] - minY) / h;
+                const cx = (vertices[indexC * 3] - minX) / w;
+                const cy = (vertices[indexC * 3 + 1] - minY) / h;
+                return [
+                    new THREE.Vector2(ax, ay),
+                    new THREE.Vector2(bx, by),
+                    new THREE.Vector2(cx, cy)
+                ];
+            },
+            generateSideWallUV: function() {
+                return [
+                    new THREE.Vector2(0, 0),
+                    new THREE.Vector2(1, 0),
+                    new THREE.Vector2(1, 1),
+                    new THREE.Vector2(0, 1)
+                ];
+            }
+        };
+    }
+
+    function getIconSvgById(iconId) {
+        if (!iconId || iconId === 'none') return null;
+        if (window.ICON_LIBRARY) {
+            for (const catKey of Object.keys(window.ICON_LIBRARY)) {
+                const cat = window.ICON_LIBRARY[catKey];
+                if (cat && Array.isArray(cat.items)) {
+                    const found = cat.items.find(it => it.id === iconId);
+                    if (found && found.svg) return found.svg;
+                }
+            }
+        }
+        return null;
+    }
+
+    function ensureSvgXmlns(svgStr) {
+        if (!svgStr) return '';
+        if (!svgStr.includes('xmlns=')) {
+            return svgStr.replace('<svg', '<svg xmlns="http://www.w3.org/2000/svg"');
+        }
+        return svgStr;
+    }
+
+    const svgImageCache = new Map();
+
+    function getSvgImage(iconId, callback) {
+        if (!iconId || iconId === 'none') {
+            if (typeof callback === 'function') callback(null);
+            return;
+        }
+        if (svgImageCache.has(iconId)) {
+            const cached = svgImageCache.get(iconId);
+            if (cached && cached.complete) {
+                if (typeof callback === 'function') callback(cached);
+                return;
+            }
+        }
+        const rawSvg = getIconSvgById(iconId);
+        if (!rawSvg) {
+            if (typeof callback === 'function') callback(null);
+            return;
+        }
+        try {
+            const safeSvg = ensureSvgXmlns(rawSvg);
+            const blob = new Blob([safeSvg], { type: 'image/svg+xml;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const img = new Image();
+            img.onload = () => {
+                URL.revokeObjectURL(url);
+                svgImageCache.set(iconId, img);
+                if (typeof callback === 'function') callback(img);
+            };
+            img.onerror = () => {
+                URL.revokeObjectURL(url);
+                if (typeof callback === 'function') callback(null);
+            };
+            img.src = url;
+        } catch(e) {
+            if (typeof callback === 'function') callback(null);
+        }
+    }
+
+    function drawRoundRect(ctx, x, y, width, height, radius) {
+        ctx.beginPath();
+        ctx.moveTo(x + radius, y);
+        ctx.lineTo(x + width - radius, y);
+        ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+        ctx.lineTo(x + width, y + height - radius);
+        ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+        ctx.lineTo(x + radius, y + height);
+        ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+        ctx.lineTo(x, y + radius);
+        ctx.quadraticCurveTo(x, y, x + radius, y);
+        ctx.closePath();
+    }
+
+    function drawShieldPath(ctx, x, y, w, h) {
+        const halfW = w / 2;
+        const topY = y + 10;
+        const midY = y + h * 0.45;
+        const botY = y + h;
+        ctx.beginPath();
+        ctx.moveTo(x + halfW, y);
+        ctx.quadraticCurveTo(x + w * 0.75, topY, x + w, topY + 20);
+        ctx.lineTo(x + w, midY);
+        ctx.bezierCurveTo(x + w, botY * 0.8, x + halfW * 1.3, botY - 10, x + halfW, botY);
+        ctx.bezierCurveTo(x + halfW * 0.7, botY - 10, x, botY * 0.8, x, midY);
+        ctx.lineTo(x, topY + 20);
+        ctx.quadraticCurveTo(x + w * 0.25, topY, x + halfW, y);
+        ctx.closePath();
+    }
+
+    function drawBadgeText(ctx, mainText, subText, x, y, maxW, textColor, accentColor, align = 'center') {
+        ctx.save();
+        ctx.textAlign = align;
+        ctx.textBaseline = 'middle';
+
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.7)';
+        ctx.shadowBlur = 10;
+        ctx.shadowOffsetX = 0;
+        ctx.shadowOffsetY = 4;
+
+        const hasSub = !!subText;
+
+        if (hasSub) {
+            ctx.fillStyle = textColor || '#ffffff';
+            ctx.font = '900 76px "ClassicAmpersand", "Space Grotesk", "Inter", sans-serif';
+            let fontSize = 76;
+            while (ctx.measureText(mainText).width > maxW && fontSize > 32) {
+                fontSize -= 4;
+                ctx.font = '900 ' + fontSize + 'px "ClassicAmpersand", "Space Grotesk", "Inter", sans-serif';
+            }
+            ctx.fillText(mainText, x, y - 32);
+
+            ctx.fillStyle = accentColor || '#f59e0b';
+            let subFontSize = Math.round(fontSize * 0.52);
+            ctx.font = '700 ' + subFontSize + 'px "ClassicAmpersand", "Space Grotesk", "Inter", sans-serif';
+            while (ctx.measureText(subText).width > maxW && subFontSize > 20) {
+                subFontSize -= 2;
+                ctx.font = '700 ' + subFontSize + 'px "ClassicAmpersand", "Space Grotesk", "Inter", sans-serif';
+            }
+            ctx.fillText(subText, x, y + 42);
+        } else {
+            ctx.fillStyle = textColor || '#ffffff';
+            let fontSize = 86;
+            ctx.font = '900 ' + fontSize + 'px "ClassicAmpersand", "Space Grotesk", "Inter", sans-serif';
+            while (ctx.measureText(mainText).width > maxW && fontSize > 32) {
+                fontSize -= 4;
+                ctx.font = '900 ' + fontSize + 'px "ClassicAmpersand", "Space Grotesk", "Inter", sans-serif';
+            }
+            ctx.fillText(mainText, x, y);
+        }
+        ctx.restore();
+    }
+
+    
+    function getSvgImageFromRaw(rawSvg, callback) {
+        if (!rawSvg) { if (typeof callback === 'function') callback(null); return; }
+        try {
+            const safeSvg = ensureSvgXmlns(rawSvg);
+            const blob = new Blob([safeSvg], { type: 'image/svg+xml;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const img = new Image();
+            img.onload = () => {
+                URL.revokeObjectURL(url);
+                if (typeof callback === 'function') callback(img);
+            };
+            img.onerror = () => {
+                URL.revokeObjectURL(url);
+                if (typeof callback === 'function') callback(null);
+            };
+            img.src = url;
+        } catch(e) {
+            if (typeof callback === 'function') callback(null);
+        }
+    }
+
+    function createBadgeTexture(type, text, subtext, iconId, bgColor, textColor, accentColor, onUpdate) {
+        let cw = 1024;
+        let ch = 512;
+        if (type === 'badge_pill') {
+            cw = 1024; ch = 326;
+        } else if (type === 'badge_shield') {
+            cw = 896; ch = 1024;
+        } else if (type === 'badge_card') {
+            cw = 1024; ch = 560;
+        } else if (type === 'badge_coin' || type === 'icon_3d') {
+            cw = 1024; ch = 1024;
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = cw;
+        canvas.height = ch;
+        const ctx = canvas.getContext('2d');
+
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.minFilter = THREE.LinearFilter;
+        texture.magFilter = THREE.LinearFilter;
+        if (renderer && renderer.capabilities) {
+            texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
+        }
+
+        function renderPass(iconImg) {
+            ctx.clearRect(0, 0, cw, ch);
+
+            // 1. Zemin Dolgusu
+            ctx.fillStyle = bgColor || '#0f172a';
+            ctx.fillRect(0, 0, cw, ch);
+
+            // 2. Yüzey Lüks Sheen Gradyanı
+            const sheen = ctx.createLinearGradient(0, 0, cw, ch);
+            sheen.addColorStop(0, 'rgba(255, 255, 255, 0.18)');
+            sheen.addColorStop(0.35, 'rgba(255, 255, 255, 0.03)');
+            sheen.addColorStop(0.7, 'rgba(0, 0, 0, 0.10)');
+            sheen.addColorStop(1, 'rgba(0, 0, 0, 0.35)');
+            ctx.fillStyle = sheen;
+            ctx.fillRect(0, 0, cw, ch);
+
+            // 3. İç Rozet Çerçevesi
+            ctx.save();
+            ctx.strokeStyle = accentColor || textColor || '#f59e0b';
+            ctx.lineWidth = 10;
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.4)';
+            ctx.shadowBlur = 8;
+
+            if (type === 'badge_pill') {
+                const r = (ch - 32) / 2;
+                drawRoundRect(ctx, 16, 16, cw - 32, ch - 32, r);
+                ctx.stroke();
+            } else if (type === 'badge_card') {
+                drawRoundRect(ctx, 20, 20, cw - 40, ch - 40, 36);
+                ctx.stroke();
+            } else if (type === 'badge_coin' || type === 'icon_3d') {
+                ctx.beginPath();
+                ctx.arc(cw / 2, ch / 2, (cw / 2) - 24, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.lineWidth = 4;
+                ctx.beginPath();
+                ctx.arc(cw / 2, ch / 2, (cw / 2) - 44, 0, Math.PI * 2);
+                ctx.stroke();
+            } else if (type === 'badge_shield') {
+                drawShieldPath(ctx, 24, 24, cw - 48, ch - 48);
+                ctx.stroke();
+            }
+            ctx.restore();
+
+            // 4. İkon ve Metin Yerleşimi
+            const hasIcon = !!iconImg;
+            const mainStr = (text || '').trim();
+            const subStr = (subtext || '').trim();
+
+            if (type === 'badge_pill') {
+                if (hasIcon) {
+                    const iconCenterX = 163;
+                    const iconCenterY = ch / 2;
+                    const iconBoxSize = 190;
+
+                    ctx.save();
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.12)';
+                    ctx.beginPath();
+                    ctx.arc(iconCenterX, iconCenterY, 95, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.strokeStyle = accentColor || textColor || '#f59e0b';
+                    ctx.lineWidth = 5;
+                    ctx.stroke();
+
+                    ctx.drawImage(iconImg, iconCenterX - iconBoxSize / 2, iconCenterY - iconBoxSize / 2, iconBoxSize, iconBoxSize);
+                    ctx.restore();
+
+                    const textLeft = 295;
+                    const textMaxW = cw - textLeft - 60;
+                    drawBadgeText(ctx, mainStr, subStr, textLeft, ch / 2, textMaxW, textColor, accentColor, 'left');
+                } else {
+                    drawBadgeText(ctx, mainStr, subStr, cw / 2, ch / 2, cw - 120, textColor, accentColor, 'center');
+                }
+            } else if (type === 'badge_shield') {
+                if (hasIcon) {
+                    const iconSize = 340;
+                    const iconY = 320;
+                    ctx.save();
+                    ctx.drawImage(iconImg, (cw - iconSize) / 2, iconY - iconSize / 2, iconSize, iconSize);
+                    ctx.restore();
+
+                    const textY = 660;
+                    drawBadgeText(ctx, mainStr, subStr, cw / 2, textY, cw - 160, textColor, accentColor, 'center');
+                } else {
+                    drawBadgeText(ctx, mainStr, subStr, cw / 2, ch / 2, cw - 160, textColor, accentColor, 'center');
+                }
+            } else if (type === 'badge_card') {
+                if (hasIcon) {
+                    const iconCenterX = 180;
+                    const iconCenterY = ch / 2;
+                    const iconBoxSize = 200;
+
+                    ctx.save();
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+                    drawRoundRect(ctx, iconCenterX - 100, iconCenterY - 100, 200, 200, 26);
+                    ctx.fill();
+                    ctx.strokeStyle = accentColor || textColor || '#f59e0b';
+                    ctx.lineWidth = 4;
+                    ctx.stroke();
+
+                    ctx.drawImage(iconImg, iconCenterX - 85, iconCenterY - 85, 170, 170);
+                    ctx.restore();
+
+                    const textLeft = 330;
+                    const textMaxW = cw - textLeft - 50;
+                    drawBadgeText(ctx, mainStr, subStr, textLeft, ch / 2, textMaxW, textColor, accentColor, 'left');
+                } else {
+                    drawBadgeText(ctx, mainStr, subStr, cw / 2, ch / 2, cw - 120, textColor, accentColor, 'center');
+                }
+            } else if (type === 'badge_coin') {
+                if (hasIcon) {
+                    const iconSize = 400;
+                    const iconY = 410;
+                    ctx.drawImage(iconImg, (cw - iconSize) / 2, iconY - iconSize / 2, iconSize, iconSize);
+                    drawBadgeText(ctx, mainStr, subStr, cw / 2, 770, cw - 200, textColor, accentColor, 'center');
+                } else {
+                    drawBadgeText(ctx, mainStr, subStr, cw / 2, ch / 2, cw - 200, textColor, accentColor, 'center');
+                }
+            } else if (type === 'icon_3d') {
+                if (hasIcon) {
+                    if (mainStr) {
+                        const iconSize = 480;
+                        const iconY = 400;
+                        ctx.drawImage(iconImg, (cw - iconSize) / 2, iconY - iconSize / 2, iconSize, iconSize);
+                        drawBadgeText(ctx, mainStr, subStr, cw / 2, 800, cw - 180, textColor, accentColor, 'center');
+                    } else {
+                        const iconSize = 650;
+                        ctx.drawImage(iconImg, (cw - iconSize) / 2, (ch - iconSize) / 2, iconSize, iconSize);
+                    }
+                } else {
+                    drawBadgeText(ctx, mainStr || '3D İKON', subStr, cw / 2, ch / 2, cw - 180, textColor, accentColor, 'center');
+                }
+            }
+
+            texture.needsUpdate = true;
+            if (typeof onUpdate === 'function') onUpdate();
+        }
+
+        // Pass 1: Senkron çizim
+        let initialImg = null;
+        if (iconId && iconId !== 'none' && svgImageCache.has(iconId)) {
+            const cached = svgImageCache.get(iconId);
+            if (cached && cached.complete) initialImg = cached;
+        }
+        renderPass(initialImg);
+
+        // Pass 2: Asenkron (eğer önbellekte yoksa) veya özel tuval SVG'si
+        if (state.customIconSvg) {
+            getSvgImageFromRaw(state.customIconSvg, (loadedImg) => {
+                if (loadedImg) {
+                    renderPass(loadedImg);
+                }
+            });
+        } else if (!initialImg && iconId && iconId !== 'none') {
+            getSvgImage(iconId, (loadedImg) => {
+                if (loadedImg) {
+                    renderPass(loadedImg);
+                }
+            });
+        }
+
+        return texture;
+    }
+
     function createPinShape() {
         const s = new THREE.Shape();
         s.moveTo(0, 0);
@@ -356,6 +807,22 @@
             contentGroup.remove(iconMesh);
             if (iconMesh.geometry) iconMesh.geometry.dispose();
             iconMesh = null;
+        }
+        if (badgeMesh) {
+            contentGroup.remove(badgeMesh);
+            if (badgeMesh.geometry) badgeMesh.geometry.dispose();
+            if (badgeMesh.material) {
+                if (Array.isArray(badgeMesh.material)) {
+                    badgeMesh.material.forEach(m => {
+                        if (m && m.map) m.map.dispose();
+                        if (m) m.dispose();
+                    });
+                } else {
+                    if (badgeMesh.material.map) badgeMesh.material.map.dispose();
+                    badgeMesh.material.dispose();
+                }
+            }
+            badgeMesh = null;
         }
 
         const frontMat = new THREE.MeshStandardMaterial({
@@ -413,6 +880,57 @@
             textMesh = new THREE.Mesh(textGeo, [frontMat, sideMat]);
             textMesh.castShadow = true;
             contentGroup.add(textMesh);
+        } else if (type.startsWith('badge_') || type === 'icon_3d') {
+            let shape = null;
+            if (type === 'badge_pill') {
+                shape = createPillShape(220, 70);
+            } else if (type === 'badge_shield') {
+                shape = createShieldShape(160, 180);
+            } else if (type === 'badge_card') {
+                shape = createCardShape(220, 120, 16);
+            } else if (type === 'badge_coin' || type === 'icon_3d') {
+                shape = createCoinShape(75);
+            } else {
+                shape = createPillShape(220, 70);
+            }
+
+            const bounds = getShapeBounds(shape);
+            const uvGen = getNormalizedUVGenerator(bounds.minX, bounds.maxX, bounds.minY, bounds.maxY);
+
+            const badgeExtrudeOpts = {
+                depth: Math.max(1, state.depth),
+                bevelEnabled: !!state.bevelEnabled,
+                bevelThickness: state.bevelThickness,
+                bevelSize: state.bevelSize,
+                bevelSegments: 3,
+                curveSegments: 16,
+                UVGenerator: uvGen
+            };
+
+            const badgeGeo = new THREE.ExtrudeGeometry(shape, badgeExtrudeOpts);
+            badgeGeo.center();
+
+            const badgeTex = createBadgeTexture(
+                type,
+                state.text,
+                state.badgeSubtext,
+                state.selectedIconId,
+                state.badgeBgColor,
+                state.frontColor,
+                state.frontColor,
+                () => requestRender()
+            );
+
+            const badgeFrontMat = new THREE.MeshStandardMaterial({
+                map: badgeTex,
+                roughness: state.roughness,
+                metalness: state.metalness
+            });
+
+            badgeMesh = new THREE.Mesh(badgeGeo, [badgeFrontMat, sideMat]);
+            badgeMesh.castShadow = true;
+            badgeMesh.receiveShadow = true;
+            contentGroup.add(badgeMesh);
         }
 
         const halfDepth = Math.max(1, state.depth) / 2 + (state.bevelEnabled ? state.bevelThickness : 0);
@@ -427,6 +945,7 @@
         } else {
             if (iconMesh) iconMesh.position.set(0, 0, halfDepth);
             if (textMesh) textMesh.position.set(0, 0, halfDepth);
+            if (badgeMesh) badgeMesh.position.set(0, 0, halfDepth);
         }
 
         updateContentTransform();
@@ -1336,6 +1855,7 @@
         const targetObjects = [];
         if (textMesh) targetObjects.push(textMesh);
         if (iconMesh) targetObjects.push(iconMesh);
+        if (badgeMesh) targetObjects.push(badgeMesh);
         if (targetObjects.length === 0 && contentGroup) {
             contentGroup.traverse((child) => {
                 if (child.isMesh && child !== shadowPlane) targetObjects.push(child);
@@ -1870,6 +2390,46 @@
             btn.classList.toggle('active', btn.getAttribute('data-type') === state.elementType);
         });
 
+        // 🌟 Rozet & İkon Paneli Senkronizasyonu
+        const badgeSection = panel.querySelector('#threeDBadgeSection');
+        const textRow = panel.querySelector('#threeDTextRow');
+        const sizeRow = panel.querySelector('#threeDSizeRow');
+        const textSecTitle = panel.querySelector('#threeDTextSectionTitle');
+
+        const isBadge = state.elementType && (state.elementType.startsWith('badge_') || state.elementType === 'icon_3d');
+        if (badgeSection) badgeSection.style.display = isBadge ? 'block' : 'none';
+        if (textRow) textRow.style.display = isBadge ? 'none' : 'flex';
+        if (sizeRow) sizeRow.style.display = isBadge ? 'none' : 'flex';
+        if (textSecTitle) textSecTitle.textContent = isBadge ? '📐 3D KALINLIK & IŞIK PAHI' : '🔤 METİN & 3D KALINLIK';
+
+        if (isBadge) {
+            const bMainText = panel.querySelector('#threeDBadgeMainText');
+            if (bMainText && bMainText.value !== state.text) bMainText.value = state.text;
+
+            const bSubText = panel.querySelector('#threeDBadgeSubText');
+            if (bSubText && bSubText.value !== (state.badgeSubtext || '')) bSubText.value = state.badgeSubtext || '';
+
+            const bBgColor = panel.querySelector('#threeDBadgeBgColor');
+            if (bBgColor) bBgColor.value = state.badgeBgColor || '#0f172a';
+
+            const bTextColor = panel.querySelector('#threeDBadgeTextColor');
+            if (bTextColor) bTextColor.value = state.frontColor;
+
+            const bSideColor = panel.querySelector('#threeDBadgeSideColor');
+            if (bSideColor) bSideColor.value = state.sideColor;
+
+            // İkon Önizleme
+            const iconPreview = panel.querySelector('#threeDSelectedIconPreview');
+            if (iconPreview) {
+                if (state.selectedIconId && state.selectedIconId !== 'none') {
+                    const svgStr = getIconSvgById(state.selectedIconId);
+                    iconPreview.innerHTML = svgStr || '<span style="font-size:11px; color:#64748b;">(İkonsuz)</span>';
+                } else {
+                    iconPreview.innerHTML = '<span style="font-size:11px; color:#64748b;">(İkonsuz)</span>';
+                }
+            }
+        }
+
         const flatBtn = panel.querySelector('#threeDOrientFlatBtn');
         const standBtn = panel.querySelector('#threeDOrientStandBtn');
         if (flatBtn) flatBtn.classList.toggle('active', state.orientation === 'flat');
@@ -1968,6 +2528,7 @@
                 <!-- 1. ÖGE TÜRÜ SEÇİMİ -->
                 <div class="three-d-section">
                     <div class="three-d-section-title">📦 3D ÖGE TÜRÜ</div>
+                    <div class="three-d-elem-subhead">🔤 Metin & Yön</div>
                     <div class="three-d-elem-grid">
                         <button class="three-d-elem-btn active" data-type="text"><i class="fas fa-font"></i> Metin</button>
                         <button class="three-d-elem-btn" data-type="pin"><i class="fas fa-map-marker-alt"></i> 3D İğne</button>
@@ -1975,15 +2536,80 @@
                         <button class="three-d-elem-btn" data-type="combo_pin"><i class="fas fa-map-pin"></i> İğne & Metin</button>
                         <button class="three-d-elem-btn" data-type="combo_arrow"><i class="fas fa-location-arrow"></i> Ok & Metin</button>
                     </div>
+                    <div class="three-d-elem-subhead" style="margin-top:8px;">🏷️ 3D Rozetler & İkon (Kalınlık & 6 Yön)</div>
+                    <div class="three-d-elem-grid">
+                        <button class="three-d-elem-btn" data-type="badge_pill" title="Kapsül Rozet"><i class="fas fa-capsules"></i> Kapsül Rozet</button>
+                        <button class="three-d-elem-btn" data-type="badge_shield" title="Güvenlik Kalkanı"><i class="fas fa-shield-halved"></i> Kalkan Rozet</button>
+                        <button class="three-d-elem-btn" data-type="badge_card" title="Bilgi Kartı / Plaket"><i class="fas fa-id-card"></i> Plaket Kart</button>
+                        <button class="three-d-elem-btn" data-type="badge_coin" title="Dairesel Madalyon"><i class="fas fa-coins"></i> Madalyon</button>
+                        <button class="three-d-elem-btn" data-type="icon_3d" title="3D Bağımsız İkon"><i class="fas fa-gem"></i> 3D İkon</button>
+                    </div>
+                </div>
+
+                <!-- 🌟 1B. 3D ROZET & İKON AYARLARI -->
+                <div class="three-d-section" id="threeDBadgeSection" style="display:none;">
+                    <div class="three-d-section-title">🏷️ 3D ROZET & İKON AYARLARI</div>
+                    
+                    <!-- İkon Seçimi & Önizleme -->
+                    <div class="three-d-badge-icon-row">
+                        <div class="three-d-selected-icon-preview" id="threeDSelectedIconPreview" title="Seçili İkon Önizleme">
+                            <!-- SVG dinamik yüklenir -->
+                        </div>
+                        <div style="flex:1; display:flex; gap:6px;">
+                            <button type="button" id="threeDOpenIconPickerBtn" class="three-d-icon-picker-btn">
+                                <i class="fas fa-icons"></i> 🖼️ İkon Seç (200+ İkon)
+                            </button>
+                            <button type="button" id="threeDRemoveIconBtn" class="three-d-icon-clear-btn" title="İkonsuz Kullan">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Rozet Metinleri -->
+                    <div class="three-d-row" style="margin-top:8px; margin-bottom:6px;">
+                        <input type="text" id="threeDBadgeMainText" class="three-d-input" placeholder="Ana Rozet Başlığı (örn: SATILIK 1.250 m²)..." value="${state.text}">
+                    </div>
+                    <div class="three-d-row" style="margin-bottom:8px;">
+                        <input type="text" id="threeDBadgeSubText" class="three-d-input" placeholder="Alt Başlık / Slogan (örn: MÜSTAKİL TAPU)..." value="${state.badgeSubtext || ''}">
+                    </div>
+
+                    <!-- Rozet Zemin & Kenarlık Renkleri -->
+                    <div class="three-d-color-row" style="margin-bottom:8px;">
+                        <div class="three-d-color-item">
+                            <span class="three-d-color-lbl">Rozet Gövde</span>
+                            <input type="color" id="threeDBadgeBgColor" value="${state.badgeBgColor || '#0f172a'}" class="three-d-color-picker">
+                        </div>
+                        <div class="three-d-color-item">
+                            <span class="three-d-color-lbl">Yazı / Vurgu</span>
+                            <input type="color" id="threeDBadgeTextColor" value="${state.frontColor}" class="three-d-color-picker">
+                        </div>
+                        <div class="three-d-color-item">
+                            <span class="three-d-color-lbl">3D Yan Kalınlık</span>
+                            <input type="color" id="threeDBadgeSideColor" value="${state.sideColor}" class="three-d-color-picker">
+                        </div>
+                    </div>
+
+                    <!-- Hızlı Emlak Rozet Temaları -->
+                    <div class="three-d-badge-themes-title">Hızlı Emlak Rozet Temaları:</div>
+                    <div class="three-d-badge-themes-row">
+                        <button type="button" class="three-d-badge-theme-chip" data-bg="#b91c1c" data-front="#ffffff" data-side="#7f1d1d" title="Emlak Kırmızı"><span style="background:#b91c1c;"></span>🔴 Kırmızı</button>
+                        <button type="button" class="three-d-badge-theme-chip" data-bg="#0f172a" data-front="#f59e0b" data-side="#92400e" title="Altın Lüks"><span style="background:#f59e0b;"></span>🟡 Altın</button>
+                        <button type="button" class="three-d-badge-theme-chip" data-bg="#1e3a8a" data-front="#ffffff" data-side="#172554" title="Kurumsal Mavi"><span style="background:#1e3a8a;"></span>🔵 Kurumsal</button>
+                        <button type="button" class="three-d-badge-theme-chip" data-bg="#047857" data-front="#ffffff" data-side="#064e3b" title="Fırsat Zümrüt"><span style="background:#047857;"></span>🟢 Fırsat</button>
+                        <button type="button" class="three-d-badge-theme-chip" data-bg="#ffffff" data-front="#0f172a" data-side="#94a3b8" title="Mat Beyaz"><span style="background:#ffffff; border:1px solid #cbd5e1;"></span>⚪ Beyaz</button>
+                        <button type="button" class="three-d-badge-theme-chip" data-bg="#581c87" data-front="#facc15" data-side="#3b0764" title="VIP Mor"><span style="background:#581c87;"></span>🟣 VIP Mor</button>
+                        <button type="button" class="three-d-badge-theme-chip" data-bg="#c2410c" data-front="#ffffff" data-side="#7c2d12" title="Canlı Turuncu"><span style="background:#c2410c;"></span>🟠 Turuncu</button>
+                        <button type="button" class="three-d-badge-theme-chip" data-bg="#1e293b" data-front="#38bdf8" data-side="#0284c7" title="Neon Cyan"><span style="background:#38bdf8;"></span>💎 Neon</button>
+                    </div>
                 </div>
 
                 <!-- 2. METİN & 3D KALINLIK -->
                 <div class="three-d-section" id="threeDTextSection">
-                    <div class="three-d-section-title">🔤 METİN & 3D KALINLIK</div>
-                    <div class="three-d-row" style="margin-bottom:8px;">
+                    <div class="three-d-section-title" id="threeDTextSectionTitle">🔤 METİN & 3D KALINLIK</div>
+                    <div class="three-d-row" id="threeDTextRow" style="margin-bottom:8px;">
                         <input type="text" id="threeDTextInput" class="three-d-input" placeholder="Yazı metni girin..." value="${state.text}">
                     </div>
-                    <div class="three-d-row">
+                    <div class="three-d-row" id="threeDSizeRow">
                         <span class="three-d-label">Boyut:</span>
                         <input type="range" id="threeDSizeInput" class="three-d-range" min="14" max="110" value="${state.textSize}">
                         <span id="threeDSizeVal" class="three-d-val">${state.textSize}px</span>
@@ -2259,6 +2885,86 @@
                 recreateContentMeshes();
             });
         });
+
+        // 🌟 Rozet & İkon Girişleri ve Butonları
+        const bMainText = panel.querySelector('#threeDBadgeMainText');
+        if (bMainText) {
+            bMainText.addEventListener('input', (e) => {
+                state.text = e.target.value;
+                const origText = panel.querySelector('#threeDTextInput');
+                if (origText) origText.value = state.text;
+                recreateContentMeshes();
+            });
+        }
+
+        const bSubText = panel.querySelector('#threeDBadgeSubText');
+        if (bSubText) {
+            bSubText.addEventListener('input', (e) => {
+                state.badgeSubtext = e.target.value;
+                recreateContentMeshes();
+            });
+        }
+
+        const bBgColor = panel.querySelector('#threeDBadgeBgColor');
+        if (bBgColor) {
+            bBgColor.addEventListener('input', (e) => {
+                state.badgeBgColor = e.target.value;
+                recreateContentMeshes();
+            });
+        }
+
+        const bTextColor = panel.querySelector('#threeDBadgeTextColor');
+        if (bTextColor) {
+            bTextColor.addEventListener('input', (e) => {
+                state.frontColor = e.target.value;
+                const origFront = panel.querySelector('#threeDFrontColor');
+                if (origFront) origFront.value = state.frontColor;
+                recreateContentMeshes();
+            });
+        }
+
+        const bSideColor = panel.querySelector('#threeDBadgeSideColor');
+        if (bSideColor) {
+            bSideColor.addEventListener('input', (e) => {
+                state.sideColor = e.target.value;
+                const origSide = panel.querySelector('#threeDSideColor');
+                if (origSide) origSide.value = state.sideColor;
+                recreateContentMeshes();
+            });
+        }
+
+        // Hızlı Rozet Temaları
+        panel.querySelectorAll('.three-d-badge-theme-chip').forEach(chip => {
+            chip.addEventListener('click', () => {
+                const bg = chip.getAttribute('data-bg');
+                const front = chip.getAttribute('data-front');
+                const side = chip.getAttribute('data-side');
+                if (bg) state.badgeBgColor = bg;
+                if (front) state.frontColor = front;
+                if (side) state.sideColor = side;
+                recreateContentMeshes();
+                syncControlsUI();
+                if (window.showToast) window.showToast('🎨 Rozet Teması Uygulandı', 'info');
+            });
+        });
+
+        // İkon Seç & Kaldır Butonları
+        const openIconBtn = panel.querySelector('#threeDOpenIconPickerBtn');
+        if (openIconBtn) {
+            openIconBtn.addEventListener('click', () => {
+                openIconPicker();
+            });
+        }
+
+        const removeIconBtn = panel.querySelector('#threeDRemoveIconBtn');
+        if (removeIconBtn) {
+            removeIconBtn.addEventListener('click', () => {
+                state.selectedIconId = 'none';
+                recreateContentMeshes();
+                syncControlsUI();
+                if (window.showToast) window.showToast('İkon kaldırıldı (salt rozet modu)', 'info');
+            });
+        }
 
         // 🎯 3D Seçim Aç/Kapa Butonu
         const selToggleBtn = panel.querySelector('#threeDSelectionToggleBtn');
@@ -2887,13 +3593,19 @@
             selected: state.selected !== false,
             cornerPins: cornerPins.map(p => ({ x: p.x, y: p.y })),
             visible: canvasEl ? (canvasEl.style.display !== 'none') : true,
-            hasBaked: !!state.hasBaked
+            hasBaked: !!state.hasBaked,
+            badgeBgColor: state.badgeBgColor,
+            badgeSubtext: state.badgeSubtext,
+            selectedIconId: state.selectedIconId
         };
     }
 
     async function restoreData(data) {
         if (!data) return;
         Object.assign(state, data);
+        if (data.badgeBgColor) state.badgeBgColor = data.badgeBgColor;
+        if (data.badgeSubtext !== undefined) state.badgeSubtext = data.badgeSubtext;
+        if (data.selectedIconId) state.selectedIconId = data.selectedIconId;
 
         if (data.selected !== undefined) {
             state.selected = !!data.selected;
@@ -2932,6 +3644,337 @@
         }
     }
 
+    /**
+     * 14. 3D İkon Seçici Modal & Popover Motoru
+     */
+    let iconPickerModalEl = null;
+    let activeIconCategory = 'all';
+
+    function ensureIconPickerModal() {
+        if (iconPickerModalEl && document.body.contains(iconPickerModalEl)) return iconPickerModalEl;
+
+        iconPickerModalEl = document.createElement('div');
+        iconPickerModalEl.id = 'threeDIconPickerModal';
+        iconPickerModalEl.className = 'three-d-modal-backdrop';
+        iconPickerModalEl.style.display = 'none';
+
+        iconPickerModalEl.innerHTML = `
+            <div class="three-d-modal-content">
+                <div class="three-d-modal-header">
+                    <div class="three-d-modal-title">
+                        <i class="fas fa-icons" style="color:#38bdf8;"></i> 3D İkon Kütüphanesi
+                        <span class="three-d-modal-badge">200+ İkon</span>
+                    </div>
+                    <button type="button" class="three-d-modal-close" id="threeDIconPickerCloseBtn">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                
+                <div class="three-d-icon-search-wrap">
+                    <i class="fas fa-search three-d-icon-search-icon"></i>
+                    <input type="text" id="threeDIconSearchInput" class="three-d-icon-search-input" placeholder="🔍 İkon ara... (örn: villa, havuz, araba, tapu, bahçe, anahtar)" autocomplete="off">
+                </div>
+
+                <div class="three-d-category-chips-scroll custom-scrollbar" id="threeDIconCategoryChips"></div>
+
+                <div class="three-d-icon-cards-grid custom-scrollbar" id="threeDIconCardsGrid"></div>
+            </div>
+        `;
+
+        document.body.appendChild(iconPickerModalEl);
+
+        // Kapatma butonu & Arka plan tıklaması
+        const closeBtn = iconPickerModalEl.querySelector('#threeDIconPickerCloseBtn');
+        if (closeBtn) {
+            closeBtn.addEventListener('click', () => closeIconPicker());
+        }
+        iconPickerModalEl.addEventListener('click', (e) => {
+            if (e.target === iconPickerModalEl) closeIconPicker();
+        });
+
+        // Arama kutusu dinleyicisi
+        const searchInput = iconPickerModalEl.querySelector('#threeDIconSearchInput');
+        if (searchInput) {
+            searchInput.addEventListener('input', (e) => {
+                filterIconGrid(e.target.value);
+            });
+        }
+
+        renderIconCategories();
+        renderIconGrid();
+        return iconPickerModalEl;
+    }
+
+    function renderIconCategories() {
+        if (!iconPickerModalEl) return;
+        const container = iconPickerModalEl.querySelector('#threeDIconCategoryChips');
+        if (!container || !window.ICON_LIBRARY) return;
+
+        let html = `<button type="button" class="three-d-cat-chip ${activeIconCategory === 'all' ? 'active' : ''}" data-cat="all">✨ Tümü (200)</button>`;
+
+        Object.keys(window.ICON_LIBRARY).forEach(key => {
+            const cat = window.ICON_LIBRARY[key];
+            const title = cat.title || key;
+            const count = (cat.items && cat.items.length) || 0;
+            html += `<button type="button" class="three-d-cat-chip ${activeIconCategory === key ? 'active' : ''}" data-cat="${key}">${title} (${count})</button>`;
+        });
+
+        container.innerHTML = html;
+
+        container.querySelectorAll('.three-d-cat-chip').forEach(btn => {
+            btn.addEventListener('click', () => {
+                container.querySelectorAll('.three-d-cat-chip').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                activeIconCategory = btn.getAttribute('data-cat') || 'all';
+                renderIconGrid();
+            });
+        });
+    }
+
+    function renderIconGrid() {
+        if (!iconPickerModalEl) return;
+        const grid = iconPickerModalEl.querySelector('#threeDIconCardsGrid');
+        if (!grid || !window.ICON_LIBRARY) return;
+
+        grid.innerHTML = '';
+        const searchInput = iconPickerModalEl.querySelector('#threeDIconSearchInput');
+        const query = (searchInput ? searchInput.value : '').toLowerCase().trim();
+
+        Object.keys(window.ICON_LIBRARY).forEach(key => {
+            if (activeIconCategory !== 'all' && activeIconCategory !== key) return;
+
+            const cat = window.ICON_LIBRARY[key];
+            if (!cat || !Array.isArray(cat.items)) return;
+
+            cat.items.forEach(item => {
+                const name = (item.name || '').toLowerCase();
+                const id = (item.id || '').toLowerCase();
+                if (query && !name.includes(query) && !id.includes(query)) return;
+
+                const card = document.createElement('div');
+                card.className = 'three-d-icon-card' + (state.selectedIconId === item.id ? ' selected' : '');
+                card.setAttribute('data-id', item.id);
+                card.title = item.name;
+
+                card.innerHTML = `
+                    <div class="three-d-icon-card-svg">${item.svg}</div>
+                    <div class="three-d-icon-card-title">${item.name}</div>
+                `;
+
+                card.addEventListener('click', () => {
+                    state.selectedIconId = item.id;
+                    recreateContentMeshes();
+                    syncControlsUI();
+                    closeIconPicker();
+                    if (window.showToast) window.showToast('✅ ' + item.name + ' ikonu seçildi', 'success');
+                });
+
+                grid.appendChild(card);
+            });
+        });
+    }
+
+    function filterIconGrid(query) {
+        if (!iconPickerModalEl) return;
+        const grid = iconPickerModalEl.querySelector('#threeDIconCardsGrid');
+        if (!grid) return;
+        const q = (query || '').toLowerCase().trim();
+        const cards = grid.querySelectorAll('.three-d-icon-card');
+        cards.forEach(card => {
+            const title = (card.querySelector('.three-d-icon-card-title')?.textContent || '').toLowerCase();
+            const id = (card.getAttribute('data-id') || '').toLowerCase();
+            const matches = !q || title.includes(q) || id.includes(q);
+            card.style.display = matches ? 'flex' : 'none';
+        });
+    }
+
+    function openIconPicker() {
+        ensureIconPickerModal();
+        if (!iconPickerModalEl) return;
+        renderIconGrid();
+        iconPickerModalEl.style.display = 'flex';
+        const searchInput = iconPickerModalEl.querySelector('#threeDIconSearchInput');
+        if (searchInput) {
+            searchInput.value = '';
+            setTimeout(() => searchInput.focus(), 100);
+        }
+    }
+
+    function closeIconPicker() {
+        if (iconPickerModalEl) {
+            iconPickerModalEl.style.display = 'none';
+        }
+    }
+
+    /**
+     * 15. 2D Rozeti 3D'ye Dönüştürme Köprüsü (2D-to-3D Bridge)
+     */
+    function convert2DBadgeTo3D(badgeEl) {
+        const el = badgeEl || (typeof window.selectedCalloutEl !== 'undefined' ? window.selectedCalloutEl : (typeof selectedCalloutEl !== 'undefined' ? selectedCalloutEl : (typeof window.selectedEl !== 'undefined' ? window.selectedEl : null)));
+        if (!el) {
+            if (typeof window.showToast === 'function') {
+                window.showToast('⚠️ Lütfen önce tuvalde dönüştürmek istediğiniz rozet veya ikonu seçin.', 'warning');
+            }
+            return false;
+        }
+
+        const root = el.closest('.callout-wrap, .callout-wrapper, .draggable, .added-icon, .canvas-el') || el;
+        const classList = ((el.className || '') + ' ' + (root.className || '')).toLowerCase();
+        const isStandaloneIcon = classList.includes('added-icon') || classList.includes('is-svg-icon') || classList.includes('svg-icon') || (!classList.includes('callout-wrap') && !classList.includes('callout-item') && !classList.includes('co-neon-block') && (el.querySelector('svg') || root.querySelector('svg')));
+
+        if (isStandaloneIcon) {
+            // 💎 BAĞIMSIZ İKONU 3D'YE DÖNÜŞTÜR
+            const svgNode = el.querySelector('svg') || root.querySelector('svg');
+            const rawSvg = svgNode ? svgNode.outerHTML : (el.innerHTML || root.innerHTML);
+            state.elementType = 'icon_3d';
+            state.customIconSvg = rawSvg;
+            state.selectedIconId = 'custom';
+            state.text = '';
+            state.badgeSubtext = '';
+            state.badgeBgColor = el.dataset.storedBgHex || root.dataset.storedBgHex || '#0f172a';
+            state.frontColor = el.style.color || root.style.color || el.dataset.storedBorderColor || '#38bdf8';
+            state.sideColor = autoGenerateSideColor(state.badgeBgColor);
+            state.depth = 16;
+            state.bevelEnabled = true;
+
+            // Pozisyon aktarımı
+            const posEl = (root.style.left && root.style.top) ? root : el;
+            if (posEl.style.left && posEl.style.top) {
+                const left = parseFloat(posEl.style.left) || 0;
+                const top = parseFloat(posEl.style.top) || 0;
+                const cvs = document.getElementById('mainCanvas') || canvasEl;
+                if (cvs) {
+                    const cw = cvs.width || cvs.clientWidth || 1000;
+                    const ch = cvs.height || cvs.clientHeight || 750;
+                    state.posX = Math.round(left - cw / 2 + (posEl.offsetWidth || 50) / 2);
+                    state.posY = Math.round(ch / 2 - top - (posEl.offsetHeight || 50) / 2);
+                }
+            }
+
+            el.style.display = 'none';
+            el.dataset.convertedTo3D = 'true';
+            if (root !== el) {
+                root.style.display = 'none';
+                root.dataset.convertedTo3D = 'true';
+            }
+
+            openStudio();
+            recreateContentMeshes();
+            syncControlsUI();
+            setSelected(true);
+
+            if (typeof window.showToast === 'function') {
+                window.showToast('✨ İkon başarıyla 3D\'ye dönüştürüldü! Kalınlık ve 6 yön hazır.', 'success');
+            }
+            return true;
+        }
+
+        // Metin ve alt metin çıkarımı
+        let label = el.dataset.coLabel || root.dataset.coLabel || '';
+        if (!label) {
+            const textNodes = (el.querySelectorAll ? el : root).querySelectorAll('text, span, .co-text, p, h1, h2, h3, h4');
+            const texts = [];
+            textNodes.forEach(t => {
+                const s = t.textContent.trim();
+                if (s) texts.push(s);
+            });
+            label = texts.join('\n');
+        }
+        if (!label) label = root.textContent.trim();
+        if (!label) label = 'SATILIK 1.250 m²';
+
+        const parts = label.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+        const mainText = parts[0] || 'SATILIK';
+        const subText = parts.slice(1).join(' ');
+
+        // Renk çıkarımı (SVG veya veri özelliklerinden)
+        let bgColor = el.dataset.coBgColor || root.dataset.coBgColor || '';
+        if (!bgColor) {
+            const stop = (el.querySelector ? el : root).querySelector('stop');
+            if (stop && stop.getAttribute('stop-color')) {
+                bgColor = stop.getAttribute('stop-color');
+            } else {
+                const rect = (el.querySelector ? el : root).querySelector('rect[fill]:not([fill="none"]):not([fill^="url"])');
+                if (rect) bgColor = rect.getAttribute('fill');
+            }
+        }
+        if (!bgColor || bgColor === 'none') bgColor = '#e63946';
+
+        let textColor = el.dataset.coTextColor || root.dataset.coTextColor || '';
+        if (!textColor) {
+            const txtEl = (el.querySelector ? el : root).querySelector('text[fill]');
+            if (txtEl) textColor = txtEl.getAttribute('fill');
+        }
+        if (!textColor || textColor === 'none') textColor = '#ffffff';
+
+        const iconColor = el.dataset.coIconColor || root.dataset.coIconColor || '#38bdf8';
+
+        // Şekil tespiti
+        let detectedType = 'badge_pill';
+        const rectNode = (el.querySelector ? el : root).querySelector('rect');
+        const rxVal = rectNode ? parseFloat(rectNode.getAttribute('rx') || '0') : 999;
+
+        if (classList.includes('shield') || classList.includes('kalkan')) {
+            detectedType = 'badge_shield';
+        } else if (classList.includes('card') || classList.includes('plaket') || classList.includes('rect') || (rectNode && rxVal <= 12)) {
+            detectedType = 'badge_card';
+        } else if (classList.includes('coin') || classList.includes('circle') || classList.includes('madalyon')) {
+            detectedType = 'badge_coin';
+        }
+
+        // İkon tespiti
+        let iconId = el.dataset.iconId || root.dataset.iconId || 'none';
+
+        // 3D motor parametrelerini ata
+        state.elementType = detectedType;
+        state.text = mainText;
+        state.badgeSubtext = subText;
+        state.badgeBgColor = bgColor;
+        state.frontColor = textColor;
+        state.sideColor = autoGenerateSideColor(bgColor);
+        state.selectedIconId = iconId;
+        state.depth = 18;
+        state.bevelEnabled = true;
+
+        // Koordinatları haritala
+        const posEl = (root.style.left && root.style.top) ? root : el;
+        if (posEl.style.left && posEl.style.top) {
+            const left = parseFloat(posEl.style.left) || 0;
+            const top = parseFloat(posEl.style.top) || 0;
+            const cvs = document.getElementById('mainCanvas') || canvasEl;
+            if (cvs) {
+                const cw = cvs.width || cvs.clientWidth || 1000;
+                const ch = cvs.height || cvs.clientHeight || 750;
+                const w = posEl.offsetWidth || 200;
+                const h = posEl.offsetHeight || 100;
+                state.posX = Math.round(left - cw / 2 + w / 2);
+                state.posY = Math.round(ch / 2 - top - h / 2);
+            }
+        }
+
+        // 2D rozeti gizle
+        el.style.display = 'none';
+        el.dataset.convertedTo3D = 'true';
+        if (root !== el) {
+            root.style.display = 'none';
+            root.dataset.convertedTo3D = 'true';
+        }
+        if (typeof window.removeCalloutControls === 'function') {
+            window.removeCalloutControls();
+        }
+
+        // 3D motoru aç ve yeniden çiz
+        openStudio();
+        recreateContentMeshes();
+        syncControlsUI();
+        setSelected(true);
+
+        if (typeof window.showToast === 'function') {
+            window.showToast('✨ Rozet başarıyla 3D\'ye dönüştürüldü! 6 eksende hareket ve kalınlık hazır.', 'success');
+        }
+        return true;
+    }
+
     // 🌟 DIŞA AÇILAN API (Public API)
     window.ThreeDEngine = {
         state: state,
@@ -2958,6 +4001,12 @@
         isLayerActive: () => (canvasEl && canvasEl.style.display !== 'none'),
         getDataToSave: getDataToSave,
         restoreData: restoreData,
+        convert2DBadgeTo3D: convert2DBadgeTo3D,
+        openIconPicker: openIconPicker,
+        closeIconPicker: closeIconPicker,
+        setBadgeBgColor: (c) => { state.badgeBgColor = c; recreateContentMeshes(); syncControlsUI(); },
+        setBadgeSubtext: (s) => { state.badgeSubtext = s; recreateContentMeshes(); syncControlsUI(); },
+        setSelectedIcon: (id) => { state.selectedIconId = id; recreateContentMeshes(); syncControlsUI(); },
 
         // Canlı Parametre Güncelleyiciler
         setElementType: (t) => { state.elementType = t; recreateContentMeshes(); syncControlsUI(); },

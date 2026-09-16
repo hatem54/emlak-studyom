@@ -41,7 +41,10 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,300,0,0" />
     <link rel="icon" type="image/jpeg" href="assets/logo/logo-icon.png">
-    <link rel="stylesheet" href="styles.css?v=20260915-100">
+    <link rel="stylesheet" href="styles.css?v=20260916-108">
+    <link rel="stylesheet" href="css/callouts.css?v=20260916-108">
+    <link rel="stylesheet" href="css/satellite-map.css?v=20260916-108">
+    <link rel="stylesheet" href="css/three-d.css?v=20260916-108">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <!-- ⚡ SABER EFFECT ENGINE - PixiJS + Filters -->
     <script src="https://cdn.jsdelivr.net/npm/pixi.js@7.4.0/dist/pixi.min.js"></script>
@@ -1498,6 +1501,8 @@
             <button class="btn-action" onclick="if(selectedCalloutEl){ const p = selectedCalloutEl.parentElement; if(p) p.appendChild(selectedCalloutEl); if(typeof updateDrawHistory === 'function') updateDrawHistory(); }" style="flex:1; background-color:#3b82f6; color:#fff; padding:6px 0; font-size:11px;">⏫ Öne Al</button>
             <button class="btn-action" onclick="if(selectedCalloutEl){ const p = selectedCalloutEl.parentElement; if(p && p.firstChild) p.insertBefore(selectedCalloutEl, p.firstChild); if(typeof updateDrawHistory === 'function') updateDrawHistory(); }" style="flex:1; background-color:#64748b; color:#fff; padding:6px 0; font-size:11px;">⏬ Arkaya At</button>
         </div>
+        <!-- 3D Dönüştürme Butonu -->
+        <button id="btnConvertCalloutTo3D" type="button" class="btn-action" onclick="if(window.ThreeDEngine) window.ThreeDEngine.convert2DBadgeTo3D(window.selectedCalloutEl || selectedCalloutEl);" style="margin-top:8px; width:100%; background:linear-gradient(135deg, #0284c7 0%, #38bdf8 100%); color:#fff; font-weight:700; box-shadow:0 2px 10px rgba(56, 189, 248, 0.4); border:none; border-radius:6px; padding:7px 10px; cursor:pointer;">✨ Bu Rozeti 3D'ye Dönüştür (Kalınlık & 6 Yön)</button>
         <!-- Sil Butonu -->
         <button id="btnSafeDeleteCallout" class="btn-action btn-red" style="margin-top:8px; width:100%;">🗑️ Rozeti Sil</button>
           <button class="btn-action" onclick="resetCalloutToDefault()" style="margin-top:8px; width:100%; background-color:#3b82f6; color:#fff;">🔄 Varsayılana Dön</button>
@@ -1979,7 +1984,7 @@
 <script src="modules/callouts-library-extra.js"></script>
 
     <script src="ui/icons.js?v=20260819-11"></script>
-    <script src="modules/callout_v2.js?v=20260914-70"></script>
+    <script src="modules/callout_v2.js?v=20260916-108"></script>
     <script src="modules/other-callouts.js?v=20260910-1"></script>
 <script src="modules/draw.js?v=20260914-58"></script>
 <script src="modules/layers.js?v=20260915-89"></script>
@@ -2004,7 +2009,7 @@
 <script src="modules/canvas-zoom.js?v=20260819-4"></script>
 <script src="modules/templates-core.js?v=20260913-02"></script>
 <script src="modules/multi-select.js?v=20260913-05"></script>
-<script src="modules/events.js?v=20260913-02"></script>
+<script src="modules/events.js?v=20260916-108"></script>
 <script src="js/templateManager.js?v=20260904-1"></script>
 <script src="templates_json/core.js?v=20260904-1"></script>
     <script src="templates_json/templates_16_9.js?v=20260904-1"></script>
@@ -2030,7 +2035,7 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="modules/ai-enhancer.js?v=20260910-14"></script>
     <script src="modules/satellite-map.js?v=20260914-86"></script>
-    <script src="modules/three-d-engine.js?v=20260915-100"></script>
+    <script src="modules/three-d-engine.js?v=20260916-108"></script>
 
 <!-- Gizli inputlar: Fotoğraf zoom ve pan ayarlarının arka planda çalışabilmesi için -->
 <div style="display:none;">

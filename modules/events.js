@@ -1,3 +1,208 @@
+
+// ==================== 🌟 HIZLI DÜZENLE & 3D DİYALOĞU (ÇİFT TIKLAMA) ====================
+window.openQuickEdit3DModal = function(targetElement, clientX, clientY) {
+    if (!targetElement) return;
+
+    // Varsa önceki modalı kapat
+    const existing = document.getElementById('quick-edit-3d-modal');
+    if (existing) existing.remove();
+
+    const root = targetElement.closest('.callout-wrap, .callout-item, .co-neon-block, .added-icon, .canvas-el') || targetElement;
+    const classList = (root.className || '').toLowerCase();
+    const isIcon = classList.includes('added-icon') || classList.includes('is-svg-icon') || classList.includes('svg-icon') || (!classList.includes('callout-wrap') && !classList.includes('callout-item') && !classList.includes('co-neon-block') && root.querySelector('svg'));
+    const isCallout = classList.includes('callout-wrap') || classList.includes('callout-item') || classList.includes('co-neon-block');
+
+    let label = isIcon ? 'İkon' : (isCallout ? 'Rozet' : 'Öğe');
+
+    // Metin ve alt metin çıkarımı
+    let mainText = root.dataset.coLabel || '';
+    if (!mainText) {
+        const textNodes = root.querySelectorAll('text, span, .co-text, p, h1, h2, h3, h4');
+        const texts = [];
+        textNodes.forEach(t => {
+            const s = t.textContent.trim();
+            if (s) texts.push(s);
+        });
+        mainText = texts.join('\n');
+    }
+    if (!mainText && !isIcon) {
+        mainText = root.textContent.trim();
+    }
+
+    const parts = (mainText || '').split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+    const primaryStr = parts[0] || '';
+    const subStr = parts.slice(1).join(' ') || '';
+
+    const modal = document.createElement('div');
+    modal.id = 'quick-edit-3d-modal';
+    modal.className = 'quick-edit-3d-card';
+
+    modal.innerHTML = `
+        <div class="q3d-header">
+            <span class="q3d-title">
+                <i class="fas ${isIcon ? 'fa-icons' : 'fa-certificate'}" style="color:#38bdf8;"></i>
+                ${label} Düzenle & 3D
+            </span>
+            <button type="button" class="q3d-close-btn" id="q3dCloseBtn" title="Kapat">✕</button>
+        </div>
+        <div class="q3d-body">
+            ${!isIcon || primaryStr ? `
+            <div class="q3d-input-group">
+                <label class="q3d-lbl">📝 Rozet / Metin Yazısı:</label>
+                <input type="text" class="q3d-text-input" id="q3dTextInput" value="${primaryStr.replace(/"/g, '&quot;')}" placeholder="Metin yazın...">
+            </div>
+            ` : ''}
+            ${subStr ? `
+            <div class="q3d-input-group">
+                <label class="q3d-lbl">🏷️ Alt Başlık (Slogan):</label>
+                <input type="text" class="q3d-text-input" id="q3dSubTextInput" value="${subStr.replace(/"/g, '&quot;')}" placeholder="Alt başlık...">
+            </div>
+            ` : ''}
+
+            <!-- ✨ 3D'YE DÖNÜŞTÜR BUTONU -->
+            <button type="button" class="q3d-convert-btn" id="q3dConvertBtn">
+                <span class="q3d-btn-icon"><i class="fas fa-cube"></i></span>
+                <div class="q3d-btn-texts">
+                    <span class="q3d-btn-main">✨ 3D'ye Dönüştür</span>
+                    <span class="q3d-btn-sub">Fiziksel kalınlık & 6 yön hareketini aç</span>
+                </div>
+            </button>
+
+            <!-- ☀️ 3D GÜNEŞ & IŞIK BUTONU -->
+            <button type="button" class="q3d-sun-btn" id="q3dSunBtn">
+                <i class="fas fa-sun"></i> ☀️ 3D Güneş & Işık Ekle
+            </button>
+
+            <!-- Alt Eylemler -->
+            <div class="q3d-actions-row">
+                <button type="button" class="q3d-act-btn" id="q3dDupBtn"><i class="fas fa-copy"></i> Kopyala</button>
+                <button type="button" class="q3d-act-btn" id="q3dFrontBtn"><i class="fas fa-layer-group"></i> Öne Al</button>
+                <button type="button" class="q3d-act-btn q3d-act-del" id="q3dDelBtn"><i class="fas fa-trash"></i> Sil</button>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    // Konumlandırma
+    const rect = root.getBoundingClientRect();
+    const modalW = 260;
+    const modalH = modal.offsetHeight || 220;
+
+    let posX = (typeof clientX === 'number' && clientX > 0) ? clientX : rect.right + 10;
+    let posY = (typeof clientY === 'number' && clientY > 0) ? clientY - 40 : rect.top;
+
+    if (posX + modalW > window.innerWidth - 10) posX = Math.max(10, rect.left - modalW - 10);
+    if (posX < 10) posX = 10;
+    if (posY + modalH > window.innerHeight - 10) posY = window.innerHeight - modalH - 10;
+    if (posY < 10) posY = 10;
+
+    modal.style.left = posX + 'px';
+    modal.style.top = posY + 'px';
+
+    const closeModal = () => {
+        modal.remove();
+        document.removeEventListener('pointerdown', onDocClick, true);
+        document.removeEventListener('keydown', onKeyDown, true);
+    };
+
+    const onDocClick = (e) => {
+        if (e.target && (e.target.closest('#quick-edit-3d-modal') || modal.contains(e.target))) return;
+        closeModal();
+    };
+
+    const onKeyDown = (e) => {
+        if (e.key === 'Escape') closeModal();
+    };
+
+    setTimeout(() => {
+        document.addEventListener('pointerdown', onDocClick, true);
+        document.addEventListener('keydown', onKeyDown, true);
+    }, 50);
+
+    const closeBtn = modal.querySelector('#q3dCloseBtn');
+    if (closeBtn) closeBtn.addEventListener('click', closeModal);
+
+    // Canlı Metin Güncellemesi
+    const textInp = modal.querySelector('#q3dTextInput');
+    const subInp = modal.querySelector('#q3dSubTextInput');
+
+    function applyTextChange() {
+        const pVal = textInp ? textInp.value : '';
+        const sVal = subInp ? subInp.value : '';
+        const full = sVal ? (pVal + '\n' + sVal) : pVal;
+        root.dataset.coLabel = full;
+
+        const firstText = root.querySelector('text, span, .co-text, p');
+        if (firstText) firstText.textContent = pVal;
+
+        const coLabelField = document.getElementById('coLabelText');
+        if (coLabelField) coLabelField.value = full;
+    }
+
+    if (textInp) textInp.addEventListener('input', applyTextChange);
+    if (subInp) subInp.addEventListener('input', applyTextChange);
+
+    // ✨ 3D'ye Dönüştür
+    const convertBtn = modal.querySelector('#q3dConvertBtn');
+    if (convertBtn) {
+        convertBtn.addEventListener('click', () => {
+            applyTextChange();
+            closeModal();
+            if (window.ThreeDEngine && typeof window.ThreeDEngine.convert2DBadgeTo3D === 'function') {
+                window.ThreeDEngine.convert2DBadgeTo3D(root);
+            }
+        });
+    }
+
+    // ☀️ 3D Güneş & Işık
+    const sunBtn = modal.querySelector('#q3dSunBtn');
+    if (sunBtn) {
+        sunBtn.addEventListener('click', () => {
+            closeModal();
+            if (window.ThreeDEngine) {
+                if (!window.ThreeDEngine.isActive()) window.ThreeDEngine.openStudio();
+                if (typeof window.ThreeDEngine.setGizmoTarget === 'function') {
+                    window.ThreeDEngine.setGizmoTarget('sun');
+                }
+                window.ThreeDEngine.state.sunGizmoVisible = true;
+                window.ThreeDEngine.state.activeTarget = 'sun';
+                if (window.ThreeDEngine.renderDock3DControls) window.ThreeDEngine.renderDock3DControls();
+                if (typeof window.showToast === 'function') {
+                    window.showToast('☀️ 3D Güneş Aktif — Pencere/Tavan ışığını tuvalde ayarlayın', 'info');
+                }
+            }
+        });
+    }
+
+    // Diğer Eylemler
+    const dupBtn = modal.querySelector('#q3dDupBtn');
+    if (dupBtn) {
+        dupBtn.addEventListener('click', () => {
+            closeModal();
+            if (typeof duplicateSelected === 'function') duplicateSelected();
+        });
+    }
+
+    const frontBtn = modal.querySelector('#q3dFrontBtn');
+    if (frontBtn) {
+        frontBtn.addEventListener('click', () => {
+            closeModal();
+            const parent = root.parentElement;
+            if (parent) parent.appendChild(root);
+        });
+    }
+
+    const delBtn = modal.querySelector('#q3dDelBtn');
+    if (delBtn) {
+        delBtn.addEventListener('click', () => {
+            closeModal();
+            if (typeof deleteSelectedCallout === 'function') deleteSelectedCallout();
+            else root.remove();
+        });
+    }
+};
+
 // ==================== EVENTS CORE ====================
 // Global Event Delegates
 
@@ -33,6 +238,19 @@ function openObjectContextMenu(targetElement, isText, clientX, clientY) {
             </span>
             <button class="acm-close-btn" id="acm-close-btn" title="Kapat">✕</button>
         </div>
+    `;
+
+    // 🌟 3D MOTORU İŞLEMLERİ (SAĞ TIK MENÜSÜ EN BAŞINDA)
+    html += `
+        <button class="app-context-item item-3d" id="acm-convert-3d" style="background: linear-gradient(135deg, rgba(2, 132, 199, 0.25) 0%, rgba(56, 189, 248, 0.35) 100%); border: 1px solid rgba(56, 189, 248, 0.45); color: #38bdf8; font-weight: 700;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2.2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+            <span>✨ 3D'ye Dönüştür (Kalınlık & 6 Yön)</span>
+        </button>
+        <button class="app-context-item item-sun" id="acm-add-sun" style="background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.35); color: #f59e0b; font-weight: 600;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2.2"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+            <span>☀️ 3D Güneş & Işık Ekle</span>
+        </button>
+        <div style="height: 1px; background: rgba(255,255,255,0.08); margin: 3px 0;"></div>
     `;
 
     // Metni Düzenle (Eğer metin düzenlenebilir ise)
@@ -237,6 +455,33 @@ function openObjectContextMenu(targetElement, isText, clientX, clientY) {
             btn.addEventListener('click', trigger);
         }
     };
+
+    // 🌟 3D & GÜNEŞ İŞLEMLERİ
+    bindBtn('#acm-convert-3d', () => {
+        if (window.ThreeDEngine && typeof window.ThreeDEngine.convert2DBadgeTo3D === 'function') {
+            const elToConvert = targetElement || window.selectedCalloutEl || window.selectedEl;
+            window.ThreeDEngine.convert2DBadgeTo3D(elToConvert);
+        }
+    });
+
+    bindBtn('#acm-add-sun', () => {
+        if (window.ThreeDEngine) {
+            if (!window.ThreeDEngine.isActive()) {
+                window.ThreeDEngine.openStudio();
+            }
+            if (typeof window.ThreeDEngine.setGizmoTarget === 'function') {
+                window.ThreeDEngine.setGizmoTarget('sun');
+            }
+            window.ThreeDEngine.state.sunGizmoVisible = true;
+            window.ThreeDEngine.state.activeTarget = 'sun';
+            if (window.ThreeDEngine.renderDock3DControls) {
+                window.ThreeDEngine.renderDock3DControls();
+            }
+            if (typeof window.showToast === 'function') {
+                window.showToast('☀️ 3D Güneş & Işık Aktif — Tuvalde sürükleyerek oda ışığını ayarlayın', 'info');
+            }
+        }
+    });
 
     // Event Handlers
     bindBtn('#acm-delete', () => {
@@ -748,40 +993,15 @@ document.addEventListener('touchend', function(e) {
     }
 }, { passive: true, capture: true });
 
-// 3. Çift Tıklama (Double Click) ile Hızlı Metin / İkon Düzenleme ve Sıfırlama (PC)
+// 3. Çift Tıklama (Double Click) ile Hızlı 3D & Düzenleme Modalı
 document.addEventListener('dblclick', function(e) {
-    const icon = e.target.closest('.added-icon, .svg-icon, .icon-wrapper');
-    if (icon) {
+    const target = e.target.closest('.callout-wrap, .callout-item, .co-neon-block, .added-icon, .svg-icon, .icon-wrapper, .canvas-el');
+    if (target) {
         e.stopPropagation();
         e.preventDefault();
-        let defSize = parseFloat(icon.dataset.defaultFont);
-        if (!defSize || isNaN(defSize) || defSize <= 0) {
-            const sf = typeof scaleFactor !== 'undefined' && scaleFactor > 0 ? scaleFactor : 1;
-            defSize = Math.round(60 / sf);
+        if (typeof window.openQuickEdit3DModal === 'function') {
+            window.openQuickEdit3DModal(target, e.clientX, e.clientY);
         }
-        icon.style.fontSize = defSize + 'px';
-        icon.dataset.rotation = '0';
-        const currentScale = icon.dataset.scale || 1;
-        icon.style.transform = `rotate(0deg) scale(${currentScale})`;
-        
-        const fsSlider = document.getElementById('elFontSize') || document.getElementById('fontSize');
-        if (fsSlider) fsSlider.value = defSize;
-        const fsVal = document.getElementById('elFontSizeVal') || document.getElementById('fontSizeVal');
-        if (fsVal) fsVal.textContent = defSize + 'px';
-        
-        const rotSlider = document.getElementById('elRotate');
-        if (rotSlider) rotSlider.value = 0;
-        const rotVal = document.getElementById('elRotateVal');
-        if (rotVal) rotVal.textContent = '0°';
-        
-        if (typeof saveState === 'function') saveState();
-        return;
-    }
-
-    const callout = e.target.closest('.callout-item');
-    if (callout && !callout.classList.contains('callout-wrap')) {
-        e.stopPropagation();
-        openObjectContextMenu(callout, true); // Menüyü açmak daha güvenli (Sil/Düzenle)
     }
 });
 

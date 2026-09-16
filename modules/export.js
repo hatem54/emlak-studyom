@@ -30,9 +30,16 @@ function isExportIgnoredElement(el) {
     if (el.id === 'photo-layer') return true;
     if (el.id === 'saber-layer') return true;
     if (el.id === 'three-d-layer') return true;
+    if (el.id === 'threeDGizmoOverlay' || el.id === 'threeDCornerPinOverlay' || el.id === 'threeDCanvasBadge') return true;
     if (window.isExportingVideo && (el.id === 'draw-layer' || el.id === 'drawCanvas')) return true;
     if (el.id === 'export-loading-overlay') return true;
     if (el.id === 'app-custom-context-menu' || el.id === 'native-context-menu' || el.id === 'native-context-overlay') return true;
+
+    // Şeffaf PNG dışa aktarma modunda fotoğraf ve arka plan overlaylerini yoksay
+    if (window.isExportingTransparent) {
+        if (el.id === 'photo-layer' || (el.classList && el.classList.contains('photo-panel')) || (el.classList && el.classList.contains('cvr-bg-wrap')) || (el.classList && el.classList.contains('cvr-bg-img')) || (el.classList && el.classList.contains('kolaj-cell-img'))) return true;
+        if (el.id === 'shadow-overlay' || el.id === 'highlight-overlay' || el.id === 'vignette-layer' || el.id === 'canva-render-layer') return true;
+    }
 
     // 🚫 Gizli overlay katmanları (html2canvas'ın siyah gölge kutusu basmasını önler)
     if (el.id === 'shadow-overlay' || el.id === 'highlight-overlay' || el.id === 'vignette-layer' || el.id === 'mask-layer' || el.id === 'canva-render-layer') {
@@ -114,6 +121,12 @@ function sanitizeExportClone(clonedDoc) {
             if (clonedPhoto) clonedPhoto.remove();
         }
 
+        if (window.isExportingTransparent) {
+            const clonedPhoto = clonedDoc.getElementById('photo-layer');
+            if (clonedPhoto) clonedPhoto.remove();
+            clonedDoc.querySelectorAll('.photo-panel, .photo-render-canvas, .cvr-bg-wrap, .cvr-bg-img, .kolaj-cell-img, #shadow-overlay, #highlight-overlay, #vignette-layer, #canva-render-layer').forEach(el => el.remove());
+        }
+
         // 1. Dışa aktarma maskesi ve loading pencerelerini klondan derhal temizle
         const globalMask = clonedDoc.getElementById('download-overlay-mask');
         if (globalMask) globalMask.remove();
@@ -123,6 +136,7 @@ function sanitizeExportClone(clonedDoc) {
         // 2. Gizli veya kapalı tüm şablon, overlay ve arayüz kontrol elemanlarını klondan tamamen kaldır
         const hiddenSelectors = [
             '#download-overlay-mask', '#export-loading-overlay',
+            '#threeDGizmoOverlay', '#threeDCornerPinOverlay', '#threeDCanvasBadge',
             '#shadow-overlay', '#highlight-overlay', '#vignette-layer', '#mask-layer', '#maskInteractiveSvg',
             '#canva-render-layer', '#app-custom-context-menu', '#native-context-menu', '#native-context-overlay',
             '#elBadge', '#elPrice', '#elDetails', '#elLogo',
@@ -293,6 +307,35 @@ window.showAppLoading = showAppLoading;
 window.hideAppLoading = hideAppLoading;
 window.showExportLoading = showExportLoading;
 window.hideExportLoading = (delay = 0, force = false) => hideAppLoading(delay, force);
+
+/**
+ * 3D WebGL Katmanını (#three-d-layer) hedef canvas contextine çizer.
+ * ThreeDEngine aktifse yüksek çözünürlüklü native render alır ve gizmolardan arındırır.
+ */
+function draw3DLayerToContext(targetCtx, targetW, targetH) {
+    if (!targetCtx) return;
+    const threeDCanvas = document.getElementById('three-d-layer');
+    if (!threeDCanvas || threeDCanvas.style.display === 'none' || !threeDCanvas.width) return;
+
+    if (window.ThreeDEngine && typeof window.ThreeDEngine.prepareForExport === 'function') {
+        try {
+            const exp = window.ThreeDEngine.prepareForExport(targetW, targetH);
+            if (exp && exp.canvas) {
+                targetCtx.drawImage(exp.canvas, 0, 0, targetW, targetH);
+                exp.restore();
+                return;
+            }
+        } catch (err) {
+            console.warn('[Export] ThreeDEngine.prepareForExport hatası, doğrudan çizime dönülüyor:', err);
+        }
+    }
+
+    try {
+        targetCtx.drawImage(threeDCanvas, 0, 0, targetW, targetH);
+    } catch(e) {
+        console.warn('[Export] 3D katman aktarılırken hata:', e);
+    }
+}
 
 function switchPreviewFormat(){
     const formatName=$('previewFormat').value;
@@ -773,9 +816,13 @@ async function ensureFontsLoaded() {
 }
 
 async function saveImage(){
-    const fileType = document.getElementById('exportFileType') ? document.getElementById('exportFileType').value : 'jpg';
-    if (fileType === 'mp4' || fileType === 'video') {
+    const rawFileType = document.getElementById('exportFileType') ? document.getElementById('exportFileType').value : 'jpg';
+    if (rawFileType === 'mp4' || rawFileType === 'video') {
         return exportAnimatedVideo();
+    }
+    const isTransparent = (rawFileType === 'png_transparent');
+    if (isTransparent) {
+        window.isExportingTransparent = true;
     }
     showExportLoading('Tasarım İndiriliyor...', 'Tasarımınız yüksek çözünürlüklü olarak indirmeye hazırlanıyor...');
     
@@ -1005,7 +1052,7 @@ async function saveImage(){
                 imageTimeout: 0,
                 
                 logging: false,
-                backgroundColor: bgColor && bgColor !== 'transparent' ? bgColor : null,
+                backgroundColor: (!isTransparent && bgColor && bgColor !== 'transparent') ? bgColor : null,
                 ignoreElements: (el) => isExportIgnoredElement(el),
                 onclone: (clonedDoc) => sanitizeExportClone(clonedDoc)
             });
@@ -1016,6 +1063,9 @@ async function saveImage(){
                 const hasSaberActive = !!(window.SaberEngine && typeof window.SaberEngine.getApp === 'function');
                 window.redrawAllToContext(ctx, outputScale, { skipNeonStrokes: hasSaberActive });
             }
+
+            // 3D WebGL Katmanını bas (#three-d-layer)
+            draw3DLayerToContext(ctx, targetW, targetH);
 
             // 3. PixiJS Saber Neon ekle ve motoru eski haline geri getir
             if (window.SaberEngine && typeof window.SaberEngine.getApp === 'function') {
@@ -1071,13 +1121,13 @@ async function saveImage(){
         
         // Fill the background color of the canvas first (so it's exported)
         let customBg = window.getComputedStyle(canvasEl).backgroundColor;
-        if (customBg && customBg !== 'rgba(0, 0, 0, 0)' && customBg !== 'transparent') {
+        if (!isTransparent && customBg && customBg !== 'rgba(0, 0, 0, 0)' && customBg !== 'transparent') {
             ctx.fillStyle = customBg;
             ctx.fillRect(0, 0, targetW, targetH);
         }
         
-        // 1. Fallback fotograf ciz
-        if (masterImgObj && masterImgObj.width > 0) {
+        // 1. Fallback fotograf ciz (şeffaf modda atla)
+        if (!isTransparent && masterImgObj && masterImgObj.width > 0) {
             const panel = document.getElementById('photo-layer');
             if (panel) {
             const w = targetW;
@@ -1134,6 +1184,9 @@ async function saveImage(){
             const hasSaberActive = !!(window.SaberEngine && typeof window.SaberEngine.getApp === 'function');
             window.redrawAllToContext(ctx, outputScale, { skipNeonStrokes: hasSaberActive });
         }
+
+        // 3D WebGL Katmanını bas (#three-d-layer)
+        draw3DLayerToContext(ctx, targetW, targetH);
 
         // 2. ui-layer custom items render using html2canvas
         const overlay = document.createElement('div');
@@ -1241,13 +1294,15 @@ async function saveImage(){
         // INDIRME
         const a = document.createElement('a');
         const fmtSafe = formatName.replace(/[^a-z0-9]/gi, '-').toLowerCase();
-        const fileType = document.getElementById('exportFileType') ? document.getElementById('exportFileType').value : 'jpg';
-        if (fileType === 'jpg') {
+        if (rawFileType === 'jpg') {
             a.download = 'emlak-studiom-' + fmtSafe + '-' + targetW + 'x' + targetH + '.jpg';
             a.href = finalCanvas.toDataURL('image/jpeg', 1.0);
+        } else if (rawFileType === 'png_transparent') {
+            a.download = 'emlak-studiom-' + fmtSafe + '-' + targetW + 'x' + targetH + '-seffaf.png';
+            a.href = finalCanvas.toDataURL('image/png');
         } else {
             a.download = 'emlak-studiom-' + fmtSafe + '-' + targetW + 'x' + targetH + '.png';
-            a.href = finalCanvas.toDataURL('image/png', 1.0);
+            a.href = finalCanvas.toDataURL('image/png');
         }
         document.body.appendChild(a);
         a.click();
@@ -1256,6 +1311,7 @@ async function saveImage(){
         console.error("SaveImage Error:", err);
         alert("Dışa aktarma sırasında bir hata oluştu: " + (err.message || err));
     } finally {
+        window.isExportingTransparent = false;
         if (typeof _wasTplHidden !== 'undefined' && _wasTplHidden && typeof window.toggleTemplateVisibility === 'function') {
             window.toggleTemplateVisibility(true);
         }
@@ -1908,6 +1964,11 @@ async function startBatchExport(){
     const fitMode=exportFitMode?exportFitMode.value:'cover';
     const bgColor=exportBgColor?exportBgColor.value:'#ffffff';
     const scaleVal1 = exportScale?exportScale.value:'1.5';
+    const rawBatchFileType = document.getElementById('exportFileType') ? document.getElementById('exportFileType').value : 'jpg';
+    const isBatchTransparent = (rawBatchFileType === 'png_transparent');
+    if (isBatchTransparent) {
+        window.isExportingTransparent = true;
+    }
     const currentW=parseInt(canvasEl.style.width)||1920;
     const currentH=parseInt(canvasEl.style.height)||1080;
 
@@ -2056,6 +2117,9 @@ async function startBatchExport(){
             const hasSaberActive = !!(window.SaberEngine && typeof window.SaberEngine.getApp === 'function');
             window.redrawAllToContext(ctx, outputScale, { skipNeonStrokes: hasSaberActive });
         }
+
+        // 3D WebGL Katmanını bas (#three-d-layer)
+        draw3DLayerToContext(ctx, targetW, targetH);
             
         if (window.SaberEngine && typeof window.SaberEngine.getApp === 'function') {
                 const saberApp = window.SaberEngine.getApp();
@@ -2073,9 +2137,16 @@ async function startBatchExport(){
                     }
                 }
             }
-        } else if (masterImgObj && masterImgObj.width > 0) {
+        } else {
             // SABLONSUZ MOD
-            const panel = document.getElementById('photo-layer');
+            let customBg = window.getComputedStyle(canvasEl).backgroundColor;
+            if (!isBatchTransparent && customBg && customBg !== 'rgba(0, 0, 0, 0)' && customBg !== 'transparent') {
+                ctx.fillStyle = customBg;
+                ctx.fillRect(0, 0, targetW, targetH);
+            }
+
+            if (!isBatchTransparent && masterImgObj && masterImgObj.width > 0) {
+                const panel = document.getElementById('photo-layer');
             if (panel) {
                 const w = targetW;
                 const h = targetH;
@@ -2126,12 +2197,16 @@ async function startBatchExport(){
                 ctx.filter = 'none'; // Sifirla
                 ctx.restore();
             }
+            } // Close masterImgObj condition
 
             // Çizimleri ve dolguları export canvasına bas (html2canvas öncesi z-index uyumu)
             if (typeof window.redrawAllToContext === 'function') {
                 const hasSaberActive = !!(window.SaberEngine && typeof window.SaberEngine.getApp === 'function');
                 window.redrawAllToContext(ctx, outputScale, { skipNeonStrokes: hasSaberActive });
             }
+
+            // 3D WebGL Katmanını bas (#three-d-layer)
+            draw3DLayerToContext(ctx, targetW, targetH);
 
             // 2. ui-layer custom items render using html2canvas (SABLONSUZ MOD - Batch)
             const overlay = document.createElement('div');
@@ -2233,14 +2308,15 @@ async function startBatchExport(){
         // INDIRME
         const a = document.createElement('a');
         const fmtSafe = formatName.replace(/[^a-z0-9]/gi, '-').toLowerCase();
-        const fileType = document.getElementById('exportFileType') ? document.getElementById('exportFileType').value : 'jpg';
-        const batchName = batchFiles[i].name.replace(/\.[^/.]+$/, ""); // strip original extension
-        if (fileType === 'jpg') {
+        if (rawBatchFileType === 'jpg') {
             a.download = batchName + '-' + fmtSafe + '-' + targetW + 'x' + targetH + '.jpg';
             a.href = finalCanvas.toDataURL('image/jpeg', 1.0);
+        } else if (rawBatchFileType === 'png_transparent') {
+            a.download = batchName + '-' + fmtSafe + '-' + targetW + 'x' + targetH + '-seffaf.png';
+            a.href = finalCanvas.toDataURL('image/png');
         } else {
             a.download = batchName + '-' + fmtSafe + '-' + targetW + 'x' + targetH + '.png';
-            a.href = finalCanvas.toDataURL('image/png', 1.0);
+            a.href = finalCanvas.toDataURL('image/png');
         }
         document.body.appendChild(a);
         a.click();
@@ -2252,6 +2328,7 @@ async function startBatchExport(){
         masterImgObj = null;
     } // for loop end
 
+    window.isExportingTransparent = false;
     drawCanvas.style.zIndex=wz;
     drawCanvas.style.pointerEvents=wp;
     

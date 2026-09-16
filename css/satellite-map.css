@@ -1,0 +1,4115 @@
+﻿/* ============================================================
+   🛰️ SATELLITE MAP & CADASTRE STYLES (Uydu Haritası & Kadastro)
+   Otomatik modüler ayrıştırma: css/satellite-map.css
+   ============================================================ */
+
+/* --- 1. UYDU HARİTASI MODALİ, KONTROLLERİ VE PİNLERİ --- */
+/* ==================== SATELLITE MAP MODAL & CONTROLS ==================== */
+.sat-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(15, 23, 42, 0.82);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    z-index: 100000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    box-sizing: border-box;
+    animation: satFadeIn 0.2s ease-out;
+}
+
+@keyframes satFadeIn {
+    from { opacity: 0; transform: scale(0.98); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+.sat-modal-container {
+    width: auto;
+    min-width: min(96vw, 780px);
+    max-width: 98vw;
+    height: auto;
+    max-height: 96vh;
+    background: #0f172a;
+    border: 1px solid #334155;
+    border-radius: 14px;
+    box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.08);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.sat-modal-header {
+    padding: 14px 20px;
+    background: #0f172a;
+    border-bottom: 1px solid #334155;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.sat-header-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.sat-header-icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 19px;
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+.sat-header-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: #f8fafc;
+    margin: 0;
+    letter-spacing: -0.2px;
+}
+
+.sat-header-sub {
+    font-size: 12px;
+    color: #94a3b8;
+    margin: 2px 0 0 0;
+}
+
+.sat-close-btn {
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #94a3b8;
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    font-size: 16px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.sat-close-btn:hover {
+    background: rgba(239, 68, 68, 0.2);
+    color: #ef4444;
+    border-color: rgba(239, 68, 68, 0.4);
+}
+
+.sat-toolbar-search {
+    padding: 10px 16px;
+    background: #1e293b;
+    border-bottom: 1px solid #334155;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.sat-search-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #0f172a;
+    border: 1px solid #334155;
+    border-radius: 8px;
+    padding: 4px 6px 4px 12px;
+    transition: border-color 0.2s;
+}
+
+.sat-search-group:focus-within {
+    border-color: #38bdf8;
+    box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2);
+}
+
+.sat-search-icon {
+    color: #38bdf8;
+    font-size: 14px;
+}
+
+#satSearchInput {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: #f8fafc;
+    font-size: 13px;
+    padding: 6px 4px;
+    outline: none;
+}
+
+#satSearchInput::placeholder {
+    color: #64748b;
+}
+
+.sat-btn-search {
+    background: linear-gradient(135deg, #0284c7, #0369a1);
+    border: none;
+    color: #ffffff;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 7px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s;
+}
+
+.sat-btn-search:hover {
+    filter: brightness(1.1);
+    transform: translateY(-1px);
+}
+
+.sat-btn-geo {
+    background: rgba(16, 185, 129, 0.15);
+    border: 1px solid rgba(16, 185, 129, 0.4);
+    color: #34d399;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 7px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s;
+}
+
+.sat-btn-geo:hover {
+    background: rgba(16, 185, 129, 0.25);
+    color: #6ee7b7;
+}
+
+.sat-quick-chips {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    overflow: hidden;
+}
+
+.sat-chips-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: #94a3b8;
+    white-space: nowrap;
+}
+
+.sat-chips-scroll {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    padding-bottom: 2px;
+    scrollbar-width: thin;
+}
+
+.sat-chip-btn {
+    background: #0f172a;
+    border: 1px solid #334155;
+    color: #cbd5e1;
+    font-size: 11px;
+    padding: 3px 10px;
+    border-radius: 12px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.15s;
+}
+
+.sat-chip-btn:hover {
+    border-color: #38bdf8;
+    color: #38bdf8;
+    background: rgba(56, 189, 248, 0.08);
+    transform: translateY(-1px);
+}
+
+/* =========================================================================
+   SATELLITE UNIFIED TOOLBAR, FAB & HAMBURGER DRAWER (DARK THEME)
+   ========================================================================= */
+
+.sat-toolbar-unified {
+    padding: 10px 16px;
+    background: #1e293b;
+    border-bottom: 1px solid #334155;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    z-index: 10;
+}
+
+.sat-toolbar-unified .sat-search-group {
+    flex: 1;
+    min-width: 280px;
+}
+
+.sat-toolbar-right-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.sat-btn-kml-action {
+    background: linear-gradient(135deg, rgba(14, 165, 233, 0.18), rgba(2, 132, 199, 0.28));
+    border: 1.5px solid #0284c7;
+    color: #38bdf8;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 7px 14px;
+    border-radius: 7px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 8px rgba(2, 132, 199, 0.2);
+}
+
+.sat-btn-kml-action:hover {
+    background: linear-gradient(135deg, #0284c7, #0369a1);
+    color: #ffffff;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(2, 132, 199, 0.35);
+}
+
+.sat-parcel-badge-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(16, 185, 129, 0.15);
+    border: 1.5px solid rgba(16, 185, 129, 0.4);
+    color: #34d399;
+    font-size: 11.5px;
+    font-weight: 700;
+    padding: 5px 10px;
+    border-radius: 20px;
+    animation: satBadgePop 0.3s ease-out;
+}
+
+@keyframes satBadgePop {
+    from { opacity: 0; transform: scale(0.92); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+.sat-badge-btn {
+    background: transparent;
+    border: none;
+    color: #94a3b8;
+    font-size: 11px;
+    cursor: pointer;
+    padding: 2px 4px;
+    border-radius: 4px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+}
+
+.sat-badge-btn:hover {
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.sat-hamburger-btn {
+    background: #0f172a;
+    border: 1.5px solid #334155;
+    color: #f1f5f9;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 7px 14px;
+    border-radius: 7px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s ease;
+}
+
+.sat-hamburger-btn:hover,
+.sat-hamburger-btn.active {
+    background: #0284c7;
+    border-color: #0284c7;
+    color: #ffffff;
+    box-shadow: 0 2px 8px rgba(2, 132, 199, 0.35);
+}
+
+.sat-quick-chips-bar {
+    padding: 4px 16px;
+    background: #0f172a;
+    border-bottom: 1px solid #1e293b;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    overflow: hidden;
+}
+
+/* HARİTA ÜZERİ HIZLI AKSİYON FAB BUTONLARI (KULLANICI TALEBİYLE ÜST BARA ALINDIĞINDAN EKRANDAN GİZLENDİ) */
+.sat-map-fab-group {
+    display: none !important;
+}
+
+.sat-fab-btn {
+    background: rgba(15, 23, 42, 0.88);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1.5px solid rgba(255, 255, 255, 0.18);
+    color: #f8fafc;
+    font-size: 11.5px;
+    font-weight: 700;
+    padding: 7px 13px;
+    border-radius: 8px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+    transition: all 0.2s ease;
+}
+
+.sat-fab-btn.kml {
+    border-color: rgba(56, 189, 248, 0.5);
+    color: #38bdf8;
+}
+
+.sat-fab-btn.kml:hover {
+    background: #0284c7;
+    border-color: #0284c7;
+    color: #ffffff;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 18px rgba(2, 132, 199, 0.45);
+}
+
+.sat-fab-btn.hamburger:hover,
+.sat-fab-btn.hamburger.active {
+    background: #0284c7;
+    border-color: #0284c7;
+    color: #ffffff;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 18px rgba(2, 132, 199, 0.45);
+}
+
+/* HARİTA ÜZERİ TAŞINABİLİR PARSEL BİLGİ KARTI */
+.sat-map-floating-parcel-info {
+    position: absolute;
+    top: 14px;
+    left: 70px;
+    right: auto;
+    width: max-content !important;
+    min-width: max-content !important;
+    max-width: none !important;
+    white-space: nowrap !important;
+    box-sizing: border-box !important;
+    background: rgba(15, 23, 42, 0.94);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1.5px solid rgba(56, 189, 248, 0.5);
+    border-radius: 10px;
+    padding: 7px 12px;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    z-index: 500;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
+    animation: satFadeDown 0.25s ease-out;
+    cursor: grab;
+    user-select: none;
+    touch-action: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.sat-map-floating-parcel-info:active {
+    cursor: grabbing;
+    border-color: #38bdf8;
+    box-shadow: 0 12px 32px rgba(56, 189, 248, 0.35);
+}
+
+.sat-drag-handle-grip {
+    color: #64748b;
+    font-size: 13px;
+    cursor: grab;
+    display: flex;
+    align-items: center;
+    padding-right: 2px;
+    user-select: none;
+    flex-shrink: 0 !important;
+}
+
+.sat-map-floating-parcel-info:active .sat-drag-handle-grip {
+    cursor: grabbing;
+    color: #38bdf8;
+}
+
+@keyframes satFadeDown {
+    from { opacity: 0; transform: translateY(-8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.sat-float-icon {
+    font-size: 18px;
+    color: #38bdf8;
+    flex-shrink: 0 !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.sat-float-body {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    white-space: nowrap !important;
+    flex-shrink: 0 !important;
+    min-width: max-content !important;
+    gap: 1px;
+}
+
+.sat-float-title {
+    font-size: 12.5px;
+    font-weight: 800;
+    color: #ffffff;
+    white-space: nowrap !important;
+    overflow: visible !important;
+    line-height: 1.25;
+}
+
+.sat-float-sub {
+    font-size: 10.5px;
+    color: #94a3b8;
+    font-weight: 500;
+    white-space: nowrap !important;
+    overflow: visible !important;
+    line-height: 1.2;
+}
+
+.sat-float-actions-group {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0 !important;
+    white-space: nowrap !important;
+    padding-left: 2px;
+    border-left: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.sat-float-btn {
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: #cbd5e1;
+    width: 26px;
+    height: 26px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 11px;
+    transition: all 0.15s;
+    flex-shrink: 0 !important;
+}
+
+.sat-float-btn:hover {
+    background: #0284c7;
+    color: #ffffff;
+    border-color: #0284c7;
+}
+
+.sat-float-btn.remove:hover {
+    background: #ef4444;
+    color: #ffffff;
+    border-color: #ef4444;
+}
+
+.sat-float-btn.sat-float-neon-btn.active {
+    background: transparent !important;
+    border-color: #00CEC9 !important;
+    color: #00CEC9 !important;
+    box-shadow: none !important;
+}
+
+/* Parsel Rozeti Temaları */
+.sat-map-floating-parcel-info.sat-theme-cyan {
+    background: rgba(15, 23, 42, 0.95);
+    border-color: rgba(56, 189, 248, 0.6);
+}
+.sat-map-floating-parcel-info.sat-theme-cyan .sat-float-icon,
+.sat-map-floating-parcel-info.sat-theme-cyan .sat-float-title {
+    color: #38bdf8;
+}
+
+.sat-map-floating-parcel-info.sat-theme-gold {
+    background: linear-gradient(135deg, rgba(28, 24, 14, 0.96), rgba(38, 30, 16, 0.94));
+    border-color: #f59e0b;
+}
+.sat-map-floating-parcel-info.sat-theme-gold .sat-float-icon,
+.sat-map-floating-parcel-info.sat-theme-gold .sat-float-title {
+    color: #fbbf24;
+}
+
+.sat-map-floating-parcel-info.sat-theme-emerald {
+    background: linear-gradient(135deg, rgba(6, 35, 25, 0.96), rgba(12, 50, 36, 0.94));
+    border-color: #10b981;
+}
+.sat-map-floating-parcel-info.sat-theme-emerald .sat-float-icon,
+.sat-map-floating-parcel-info.sat-theme-emerald .sat-float-title {
+    color: #34d399;
+}
+
+.sat-map-floating-parcel-info.sat-theme-dark {
+    background: rgba(24, 24, 27, 0.95);
+    border-color: rgba(255, 255, 255, 0.4);
+}
+.sat-map-floating-parcel-info.sat-theme-dark .sat-float-icon,
+.sat-map-floating-parcel-info.sat-theme-dark .sat-float-title {
+    color: #ffffff;
+}
+
+.sat-float-actions-group {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-left: 6px;
+    border-left: 1px solid rgba(255, 255, 255, 0.15);
+    padding-left: 6px;
+}
+
+.sat-badge-theme-btns {
+    display: flex;
+    gap: 6px;
+    margin-top: 4px;
+}
+.sat-theme-chip {
+    flex: 1;
+    padding: 6px 4px;
+    font-size: 11px;
+    font-weight: 700;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    background: #1e293b;
+    color: #94a3b8;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: center;
+}
+.sat-theme-chip:hover, .sat-theme-chip.active {
+    background: #334155;
+    color: #ffffff;
+    border-color: #38bdf8;
+}
+.sat-theme-chip[data-theme="gold"].active {
+    border-color: #f59e0b;
+    color: #fbbf24;
+}
+.sat-theme-chip[data-theme="emerald"].active {
+    border-color: #10b981;
+    color: #34d399;
+}
+
+/* Parsel Rozeti Köşe Yeniden Boyutlandırma Tutamacı */
+.sat-float-resizer {
+    position: absolute;
+    bottom: -1px;
+    right: -1px;
+    width: 14px;
+    height: 14px;
+    cursor: nwse-resize;
+    background: transparent;
+    border-right: 2.5px solid rgba(255, 255, 255, 0.75);
+    border-bottom: 2.5px solid rgba(255, 255, 255, 0.75);
+    border-bottom-right-radius: 6px;
+    z-index: 10;
+    touch-action: none;
+}
+.sat-float-resizer:hover {
+    border-color: #38bdf8;
+}
+
+/* Parsel Rozeti Renk & Stil Popover */
+.sat-color-popover {
+    position: absolute;
+    z-index: 1000;
+    background: #0f172a;
+    border: 1.5px solid rgba(56, 189, 248, 0.4);
+    box-shadow: 0 16px 36px rgba(0, 0, 0, 0.7), 0 0 20px rgba(56, 189, 248, 0.15);
+    border-radius: 12px;
+    padding: 14px;
+    width: 280px;
+    color: #f8fafc;
+    backdrop-filter: blur(14px);
+    font-size: 12px;
+    user-select: none;
+}
+.sat-popover-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-weight: 700;
+    font-size: 12.5px;
+    margin-bottom: 10px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+.sat-popover-close {
+    background: transparent;
+    border: none;
+    color: #94a3b8;
+    cursor: pointer;
+    font-size: 14px;
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+.sat-popover-close:hover {
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.1);
+}
+.sat-popover-section {
+    margin-bottom: 10px;
+}
+.sat-popover-label {
+    display: block;
+    font-size: 11px;
+    font-weight: 700;
+    color: #94a3b8;
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+.sat-popover-theme-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 5px;
+}
+.sat-color-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+    font-size: 11.5px;
+    color: #cbd5e1;
+}
+.sat-color-row input[type="color"] {
+    -webkit-appearance: none;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 6px;
+    width: 28px;
+    height: 24px;
+    padding: 1px;
+    background: transparent;
+    cursor: pointer;
+}
+
+/* SÜRÜKLE-BIRAK ALANI */
+.sat-drag-drop-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.88);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    z-index: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: auto;
+}
+
+.sat-drag-drop-box {
+    border: 2.5px dashed #38bdf8;
+    background: rgba(2, 132, 199, 0.12);
+    border-radius: 16px;
+    padding: 36px 48px;
+    text-align: center;
+    color: #ffffff;
+}
+
+.sat-drag-drop-box i {
+    font-size: 48px;
+    color: #38bdf8;
+    margin-bottom: 12px;
+}
+
+.sat-drag-drop-box h4 {
+    font-size: 18px;
+    font-weight: 800;
+    margin: 0 0 6px 0;
+}
+
+.sat-drag-drop-box p {
+    font-size: 12.5px;
+    color: #94a3b8;
+    margin: 0;
+}
+
+/* ☰ AÇILIR AYARLAR ÇEKMECESİ (FLYOUT SETTINGS DRAWER) */
+.sat-drawer-panel {
+    position: absolute;
+    top: 0;
+    right: -360px;
+    width: 350px;
+    height: 100%;
+    background: #0f172a;
+    border-left: 1px solid #334155;
+    box-shadow: -8px 0 24px rgba(0, 0, 0, 0.5);
+    z-index: 550;
+    display: flex;
+    flex-direction: column;
+    transition: right 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+    pointer-events: auto;
+    overflow-x: hidden !important;
+    box-sizing: border-box;
+}
+
+.sat-drawer-panel.open {
+    right: 0;
+}
+
+.sat-drawer-header {
+    padding: 14px 16px;
+    background: #1e293b;
+    border-bottom: 1px solid #334155;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+    box-sizing: border-box;
+}
+
+.sat-drawer-title {
+    font-size: 13.5px;
+    font-weight: 800;
+    color: #f8fafc;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.sat-drawer-title i {
+    color: #38bdf8;
+}
+
+.sat-drawer-close {
+    background: transparent;
+    border: none;
+    color: #94a3b8;
+    font-size: 14px;
+    cursor: pointer;
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+}
+
+.sat-drawer-close:hover {
+    background: rgba(239, 68, 68, 0.2);
+    color: #ef4444;
+}
+
+.sat-drawer-content {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden !important;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    scrollbar-width: thin;
+    scrollbar-color: #334155 transparent;
+    box-sizing: border-box;
+}
+
+.sat-drawer-content::-webkit-scrollbar {
+    width: 6px;
+    height: 0px !important;
+}
+
+.sat-drawer-content::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.sat-drawer-content::-webkit-scrollbar-thumb {
+    background: #334155;
+    border-radius: 4px;
+}
+
+.sat-drawer-content::-webkit-scrollbar-thumb:hover {
+    background: #475569;
+}
+
+.sat-drawer-section {
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 10px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    box-sizing: border-box;
+    overflow-x: hidden !important;
+    width: 100%;
+    max-width: 100%;
+}
+
+.sat-section-title {
+    font-size: 12px;
+    font-weight: 800;
+    color: #f1f5f9;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid #334155;
+}
+
+.sat-drawer-quick-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 220px;
+    overflow-y: auto;
+    overflow-x: hidden !important;
+    padding-right: 4px;
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 100%;
+    scrollbar-width: thin;
+    scrollbar-color: #475569 rgba(15, 23, 42, 0.6);
+}
+
+.sat-drawer-quick-grid::-webkit-scrollbar {
+    width: 5px;
+    height: 0px !important;
+}
+
+.sat-drawer-quick-grid::-webkit-scrollbar-track {
+    background: rgba(15, 23, 42, 0.5);
+    border-radius: 4px;
+}
+
+.sat-drawer-quick-grid::-webkit-scrollbar-thumb {
+    background: #475569;
+    border-radius: 4px;
+}
+
+.sat-drawer-quick-grid::-webkit-scrollbar-thumb:hover {
+    background: #64748b;
+}
+
+.sat-drawer-quick-btn {
+    background: #0f172a;
+    border: 1px solid #334155;
+    color: #e2e8f0;
+    font-size: 11.5px;
+    font-weight: 600;
+    padding: 8px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    text-align: left;
+    transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.sat-drawer-quick-btn span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+}
+
+.sat-drawer-quick-btn i {
+    flex-shrink: 0;
+    transition: transform 0.15s ease, color 0.15s ease;
+}
+
+.sat-drawer-quick-btn:hover {
+    background: rgba(56, 189, 248, 0.15);
+    border-color: #38bdf8;
+    color: #ffffff;
+}
+
+.sat-drawer-quick-btn:hover i {
+    transform: scale(1.2) translateX(2px);
+    color: #38bdf8;
+}
+
+.sat-parcel-upload-box {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.sat-btn-upload-big {
+    background: linear-gradient(135deg, #0284c7, #0369a1);
+    border: none;
+    color: #ffffff;
+    font-size: 12.5px;
+    font-weight: 700;
+    padding: 10px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: all 0.2s;
+    box-shadow: 0 2px 8px rgba(2, 132, 199, 0.35);
+}
+
+.sat-btn-upload-big:hover {
+    filter: brightness(1.1);
+    transform: translateY(-1px);
+}
+
+.sat-upload-hint {
+    font-size: 10.5px;
+    color: #94a3b8;
+    text-align: center;
+    margin-top: 2px;
+}
+
+.sat-drawer-parcel-card {
+    background: #0f172a;
+    border: 1px solid rgba(56, 189, 248, 0.3);
+    border-radius: 8px;
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.sat-drawer-parcel-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11.5px;
+    color: #94a3b8;
+}
+
+.sat-drawer-parcel-row b {
+    color: #f8fafc;
+}
+
+.sat-btn-remove-parcel {
+    background: rgba(239, 68, 68, 0.15);
+    border: 1px solid rgba(239, 68, 68, 0.35);
+    color: #f87171;
+    font-size: 11.5px;
+    font-weight: 700;
+    padding: 6px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    margin-top: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: all 0.15s;
+}
+
+.sat-btn-remove-parcel:hover {
+    background: #ef4444;
+    color: #ffffff;
+}
+
+.sat-btn-sync-parser {
+    background: linear-gradient(135deg, #10b981, #059669);
+    border: none;
+    color: #ffffff;
+    font-size: 11.5px;
+    font-weight: 700;
+    padding: 8px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    margin-top: 6px;
+    transition: all 0.2s;
+    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.35);
+}
+
+.sat-btn-sync-parser:hover {
+    filter: brightness(1.1);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.45);
+}
+
+.sat-drawer-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.sat-drawer-label {
+    font-size: 11.5px;
+    font-weight: 700;
+    color: #94a3b8;
+}
+
+.sat-drawer-label-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 11.5px;
+    font-weight: 700;
+    color: #94a3b8;
+}
+
+.sat-fill-mode-btns {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 6px;
+}
+
+.sat-fill-btn {
+    background: #0f172a;
+    border: 1px solid #334155;
+    color: #cbd5e1;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 6px 4px;
+    border-radius: 6px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    transition: all 0.15s;
+}
+
+.sat-fill-btn:hover {
+    border-color: #38bdf8;
+    color: #ffffff;
+}
+
+.sat-fill-btn.active {
+    background: #0284c7;
+    border-color: #0284c7;
+    color: #ffffff;
+    box-shadow: 0 2px 6px rgba(2, 132, 199, 0.35);
+}
+
+.sat-color-palette {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 0;
+}
+
+.sat-color-dot {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: 2px solid rgba(255, 255, 255, 0.4);
+    cursor: pointer;
+    transition: transform 0.15s, border-color 0.15s;
+}
+
+.sat-color-dot:hover {
+    transform: scale(1.18);
+    border-color: #ffffff;
+}
+
+.sat-custom-color-input {
+    width: 28px;
+    height: 28px;
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    background: transparent;
+    padding: 0;
+}
+
+.sat-stroke-color-picks {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.sat-color-dot-sm {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 1.5px solid rgba(255, 255, 255, 0.4);
+    cursor: pointer;
+    transition: transform 0.15s;
+}
+
+.sat-color-dot-sm:hover {
+    transform: scale(1.2);
+    border-color: #ffffff;
+}
+
+.sat-custom-color-input-sm {
+    width: 22px;
+    height: 22px;
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    background: transparent;
+    padding: 0;
+}
+
+.sat-stroke-width-btns {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 6px;
+    margin-top: 4px;
+}
+
+.sat-sw-btn {
+    background: #0f172a;
+    border: 1px solid #334155;
+    color: #cbd5e1;
+    font-size: 10.5px;
+    font-weight: 600;
+    padding: 5px 2px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.sat-sw-btn:hover {
+    border-color: #38bdf8;
+    color: #ffffff;
+}
+
+.sat-sw-btn.active {
+    background: #0284c7;
+    border-color: #0284c7;
+    color: #ffffff;
+}
+
+.sat-checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11.5px;
+    font-weight: 600;
+    color: #cbd5e1;
+    cursor: pointer;
+}
+
+.sat-checkbox-label input[type="checkbox"] {
+    accent-color: #0284c7;
+    width: 15px;
+    height: 15px;
+    cursor: pointer;
+}
+
+.sat-layer-btns-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 6px;
+}
+
+.sat-range-input {
+    width: 100%;
+    accent-color: #0284c7;
+    cursor: pointer;
+}
+
+.sat-badge-sm {
+    background: #0f172a;
+    border: 1px solid #334155;
+    color: #38bdf8;
+    font-size: 11px;
+    font-weight: 800;
+    padding: 2px 7px;
+    border-radius: 4px;
+}
+
+/* LEAFLET HARİTA ÜZERİNDEKİ PARSEL ROZETİ */
+.sat-parcel-div-icon {
+    background: transparent !important;
+    border: none !important;
+}
+
+.sat-parcel-label-bubble {
+    background: rgba(15, 23, 42, 0.94);
+    border: 1.5px solid #38bdf8;
+    border-radius: 8px;
+    padding: 5px 10px;
+    color: #ffffff;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    white-space: nowrap;
+    pointer-events: none;
+}
+
+.sat-parcel-label-top {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.sat-label-ada-parsel {
+    font-size: 11px;
+    font-weight: 800;
+    color: #ffffff;
+}
+
+.sat-label-area {
+    font-size: 10px;
+    font-weight: 700;
+    color: #38bdf8;
+}
+
+.sat-controls-bar {
+    padding: 6px 12px;
+    background: #0f172a;
+    border-bottom: 1px solid #334155;
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px 10px;
+    flex-shrink: 0;
+    max-width: 100%;
+}
+
+.sat-ctrl-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+.sat-ctrl-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: #94a3b8;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.sat-layer-btns {
+    display: flex;
+    gap: 3px;
+    background: #1e293b;
+    padding: 3px;
+    border-radius: 7px;
+    border: 1px solid #334155;
+}
+
+.sat-layer-btn {
+    background: transparent;
+    border: none;
+    color: #94a3b8;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.sat-layer-btn.active {
+    background: #0284c7;
+    color: #ffffff;
+    box-shadow: 0 2px 6px rgba(2, 132, 199, 0.4);
+}
+
+.sat-format-btns {
+    display: flex;
+    gap: 3px;
+    background: #1e293b;
+    padding: 3px;
+    border-radius: 7px;
+    border: 1px solid #334155;
+}
+
+.sat-fmt-btn {
+    background: transparent;
+    border: none;
+    color: #94a3b8;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+
+.sat-fmt-btn:hover {
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.sat-fmt-btn.active {
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: #ffffff;
+    box-shadow: 0 2px 6px rgba(16, 185, 129, 0.4);
+}
+
+.sat-kadraj-guide {
+    position: absolute;
+    transform: none !important;
+    border: 2px dashed rgba(56, 189, 248, 0.85);
+    border-radius: 6px;
+    box-shadow: 0 0 16px rgba(56, 189, 248, 0.25);
+    pointer-events: none;
+    z-index: 450;
+    transition: all 0.2s ease-out;
+}
+
+.sat-kadraj-badge {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    background: rgba(15, 23, 42, 0.85);
+    border: 1px solid rgba(56, 189, 248, 0.5);
+    color: #38bdf8;
+    font-size: 10.5px;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    backdrop-filter: blur(4px);
+    pointer-events: none;
+}
+
+.sat-kadraj-corners span {
+    position: absolute;
+    width: 14px;
+    height: 14px;
+    border-color: #38bdf8;
+    border-style: solid;
+    pointer-events: none;
+}
+.sat-kadraj-corners .c-tl { top: -2px; left: -2px; border-width: 3px 0 0 3px; }
+.sat-kadraj-corners .c-tr { top: -2px; right: -2px; border-width: 3px 3px 0 0; }
+.sat-kadraj-corners .c-bl { bottom: -2px; left: -2px; border-width: 0 0 3px 3px; }
+.sat-kadraj-corners .c-br { bottom: -2px; right: -2px; border-width: 0 3px 3px 0; }
+
+.sat-checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #e2e8f0;
+    cursor: pointer;
+    user-select: none;
+}
+
+.sat-checkbox-label input[type="checkbox"] {
+    cursor: pointer;
+    width: 15px;
+    height: 15px;
+    accent-color: #10b981;
+}
+
+.sat-style-select {
+    background: #1e293b;
+    border: 1px solid #334155;
+    color: #f8fafc;
+    font-size: 11px;
+    padding: 4px 7px;
+    border-radius: 6px;
+    outline: none;
+    cursor: pointer;
+    max-width: 100px;
+}
+
+.sat-res-select {
+    background: #1e293b;
+    border: 1px solid #334155;
+    color: #38bdf8;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 4px 8px;
+    border-radius: 6px;
+    outline: none;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.sat-res-select:hover, .sat-res-select:focus {
+    border-color: #38bdf8;
+    box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2);
+}
+
+.sat-btn-toggle-pin {
+    background: rgba(15, 23, 42, 0.8);
+    border: 1px solid #334155;
+    color: #94a3b8;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 4px 9px;
+    border-radius: 6px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    flex-shrink: 0;
+    white-space: nowrap;
+    transition: all 0.2s;
+}
+
+.sat-btn-toggle-pin:hover {
+    border-color: #ef4444;
+    color: #f87171;
+}
+
+.sat-btn-toggle-pin.active {
+    background: rgba(239, 68, 68, 0.15);
+    border-color: #ef4444;
+    color: #f87171;
+}
+
+.sat-btn-toggle-pin b {
+    font-weight: 700;
+}
+
+.sat-marker-settings {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+    transition: opacity 0.2s ease, filter 0.2s ease;
+}
+
+.sat-marker-text-input {
+    background: #1e293b;
+    border: 1px solid #334155;
+    color: #f8fafc;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 4px 8px;
+    border-radius: 6px;
+    width: 95px;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.sat-marker-text-input:focus {
+    border-color: #38bdf8;
+    box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2);
+}
+
+.sat-btn-toggle-labels {
+    background: rgba(15, 23, 42, 0.8);
+    border: 1px solid #334155;
+    color: #94a3b8;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 4px 9px;
+    border-radius: 6px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    flex-shrink: 0;
+    white-space: nowrap;
+    transition: all 0.2s;
+}
+
+.sat-btn-toggle-labels:hover {
+    border-color: #38bdf8;
+    color: #e2e8f0;
+}
+
+.sat-btn-toggle-labels.active {
+    background: rgba(14, 165, 233, 0.15);
+    border-color: #0284c7;
+    color: #38bdf8;
+}
+
+.sat-btn-toggle-labels b {
+    font-weight: 700;
+}
+
+/* ⚡ Satellite Map Saber Neon Kontrolleri (Dolgusuz / Outline Tasarım) */
+.sat-btn-toggle-neon {
+    background: transparent !important;
+    border: 1px solid #334155;
+    color: #94a3b8;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 4px 9px;
+    border-radius: 6px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    flex-shrink: 0;
+    white-space: nowrap;
+    transition: all 0.2s;
+}
+
+.sat-btn-toggle-neon:hover {
+    border-color: #00CEC9;
+    color: #00CEC9;
+    background: transparent !important;
+}
+
+.sat-btn-toggle-neon.active {
+    background: transparent !important;
+    border-color: #00CEC9;
+    color: #00CEC9;
+    box-shadow: none !important;
+}
+
+.sat-btn-toggle-neon b {
+    font-weight: 700;
+}
+
+/* Çekmece Saber Neon Kartı (Dolgusuz Outline Kart) */
+.sat-drawer-neon-card {
+    background: transparent !important;
+    border: 1px solid rgba(0, 206, 201, 0.25) !important;
+    border-radius: 8px;
+    padding: 10px 12px;
+    transition: all 0.2s ease;
+}
+
+.sat-drawer-neon-card.active {
+    border-color: #00CEC9 !important;
+    box-shadow: none !important;
+}
+
+.sat-pill-toggle-btn {
+    background: transparent !important;
+    border: 1px solid #334155 !important;
+    color: #94a3b8;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 20px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.sat-pill-toggle-btn:hover {
+    border-color: #00CEC9 !important;
+    color: #00CEC9;
+    background: transparent !important;
+}
+
+.sat-pill-toggle-btn.active {
+    background: transparent !important;
+    border-color: #00CEC9 !important;
+    color: #00CEC9 !important;
+    box-shadow: none !important;
+}
+
+.sat-neon-color-picks {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.sat-neon-color-picks .sat-color-dot-sm {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    cursor: pointer;
+    transition: transform 0.15s, border-color 0.15s;
+    outline: none;
+    padding: 0;
+    box-shadow: none !important;
+}
+
+.sat-neon-color-picks .sat-color-dot-sm:hover {
+    transform: scale(1.2);
+}
+
+.sat-neon-color-picks .sat-color-dot-sm.active {
+    border-color: #ffffff;
+    transform: scale(1.25);
+}
+
+.sat-3d-btn-group {
+    display: flex;
+    gap: 4px;
+    background: rgba(30, 41, 59, 0.85);
+    padding: 3px;
+    border-radius: 8px;
+    border: 1px solid rgba(56, 189, 248, 0.4);
+}
+
+.sat-map-stage {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    align-items: stretch;
+    justify-content: stretch;
+    background: #000000;
+    overflow: hidden;
+    padding: 0;
+    position: relative;
+}
+
+.sat-map-wrapper {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    background: #000000;
+    border-radius: 0;
+    box-shadow: none;
+    overflow: hidden;
+}
+
+#satelliteLeafletMap {
+    width: 100%;
+    height: 100%;
+    z-index: 1;
+}
+
+/* Esri HD Uydu Karoları Netlik, Kontrast ve GPU Donanım Optimizasyonu */
+#satelliteLeafletMap .leaflet-tile.sat-tile-esri {
+    filter: contrast(1.08) saturate(1.15) brightness(1.02);
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
+}
+
+/* Şablon Kadraj Format Butonları */
+.sat-format-btns {
+    display: flex;
+    gap: 4px;
+    background: #0f172a;
+    padding: 3px;
+    border-radius: 8px;
+    border: 1px solid #334155;
+}
+
+.sat-fmt-btn {
+    background: transparent;
+    border: none;
+    color: #94a3b8;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+
+.sat-fmt-btn:hover {
+    color: #f8fafc;
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.sat-fmt-btn.active {
+    background: #0284c7;
+    color: #ffffff;
+    box-shadow: 0 1px 4px rgba(2, 132, 199, 0.4);
+}
+
+/* Şablon Kadraj Çerçevesi (Guide Overlay) */
+.sat-kadraj-guide {
+    position: absolute;
+    transform: none !important;
+    pointer-events: none;
+    z-index: 450;
+    border: 2px dashed rgba(56, 189, 248, 0.85);
+    border-radius: 6px;
+    box-shadow: 0 0 16px rgba(56, 189, 248, 0.25);
+    transition: all 0.2s ease-out;
+}
+
+.sat-kadraj-corners span {
+    position: absolute;
+    width: 14px;
+    height: 14px;
+    border-color: #38bdf8;
+    border-style: solid;
+    pointer-events: none;
+}
+
+.sat-kadraj-corners .c-tl { top: -2px; left: -2px; border-width: 3px 0 0 3px; }
+.sat-kadraj-corners .c-tr { top: -2px; right: -2px; border-width: 3px 3px 0 0; }
+.sat-kadraj-corners .c-bl { bottom: -2px; left: -2px; border-width: 0 0 3px 3px; }
+.sat-kadraj-corners .c-br { bottom: -2px; right: -2px; border-width: 0 3px 3px 0; }
+
+.sat-kadraj-badge {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    background: rgba(15, 23, 42, 0.85);
+    border: 1px solid rgba(56, 189, 248, 0.5);
+    color: #38bdf8;
+    font-size: 10.5px;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    backdrop-filter: blur(4px);
+    pointer-events: none;
+}
+
+/* Sabit Merkez Hedefleme Artısı (Reticle) */
+.sat-reticle-overlay {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    z-index: 500;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.sat-reticle-ring {
+    width: 44px;
+    height: 44px;
+    border: 2px dashed rgba(56, 189, 248, 0.85);
+    border-radius: 50%;
+    box-shadow: 0 0 12px rgba(56, 189, 248, 0.5);
+    animation: satReticlePulse 2s infinite ease-in-out;
+}
+
+@keyframes satReticlePulse {
+    0%, 100% { transform: scale(1); opacity: 0.8; }
+    50% { transform: scale(1.1); opacity: 1; }
+}
+
+.sat-reticle-dot {
+    position: absolute;
+    width: 6px;
+    height: 6px;
+    background: #38bdf8;
+    border-radius: 50%;
+    box-shadow: 0 0 8px #38bdf8;
+}
+
+.sat-reticle-crosshair {
+    position: absolute;
+    background: rgba(56, 189, 248, 0.7);
+}
+
+.sat-reticle-crosshair.h {
+    width: 28px;
+    height: 1.5px;
+}
+
+.sat-reticle-crosshair.v {
+    width: 1.5px;
+    height: 28px;
+}
+
+.sat-reticle-tooltip {
+    position: absolute;
+    bottom: -28px;
+    background: rgba(15, 23, 42, 0.9);
+    border: 1px solid rgba(56, 189, 248, 0.5);
+    color: #38bdf8;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 4px;
+    white-space: nowrap;
+    letter-spacing: 0.3px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+}
+
+/* ==================== CANLI İNTERAKTİF PİN OVERLAY (2D & 3D) ==================== */
+.sat-map-pin-overlay {
+    position: absolute;
+    pointer-events: auto;
+    z-index: 50;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    transition: none;
+    cursor: grab;
+    user-select: none;
+    touch-action: none;
+    overflow: visible !important;
+}
+
+.sat-map-pin-overlay:active,
+.sat-map-pin-overlay.is-dragging {
+    cursor: grabbing;
+    z-index: 100;
+}
+
+.sat-map-pin-overlay.pin-mode {
+    transform: translate(-50%, -100%);
+}
+
+.sat-map-pin-overlay.radar-mode {
+    transform: translate(-50%, -50%);
+}
+
+.sat-live-pin-svg {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.6));
+    margin-bottom: 0;
+    position: relative;
+    pointer-events: none;
+    overflow: visible !important;
+}
+
+.sat-live-pin-svg svg {
+    overflow: visible !important;
+}
+
+.sat-pin-ground-shadow {
+    position: absolute;
+    bottom: -3px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 24px;
+    height: 6px;
+    background: rgba(0, 0, 0, 0.45);
+    border-radius: 50%;
+    filter: blur(2px);
+    pointer-events: none;
+}
+
+.sat-live-pin-text {
+    background: rgba(15, 23, 42, 0.92);
+    border: 1.5px solid #ef4444;
+    color: #ffffff;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 20px;
+    margin-bottom: 4px;
+    white-space: nowrap;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
+    letter-spacing: 0.3px;
+    backdrop-filter: blur(4px);
+}
+
+.sat-live-pin-text.gold {
+    border-color: #eab308;
+    color: #fef08a;
+}
+
+.sat-live-badge-card {
+    background: linear-gradient(135deg, #0f172a, #1e293b);
+    border: 2px solid #38bdf8;
+    color: #ffffff;
+    font-size: 12px;
+    font-weight: 800;
+    padding: 5px 14px;
+    border-radius: 8px;
+    margin-bottom: 4px;
+    white-space: nowrap;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.6), 0 0 12px rgba(56, 189, 248, 0.3);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    letter-spacing: 0.4px;
+    backdrop-filter: blur(4px);
+}
+
+.sat-live-badge-card i {
+    color: #38bdf8;
+    font-size: 12px;
+}
+
+/* Radar Canlı Animasyon */
+.sat-live-radar {
+    position: relative;
+    width: 120px;
+    height: 120px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.sat-radar-ring-1 {
+    position: absolute;
+    width: 100px;
+    height: 100px;
+    border: 2px dashed #10b981;
+    border-radius: 50%;
+    animation: satRadarSpin 12s linear infinite;
+    box-shadow: 0 0 16px rgba(16, 185, 129, 0.3);
+}
+
+.sat-radar-ring-2 {
+    position: absolute;
+    width: 50px;
+    height: 50px;
+    border: 2px solid #34d399;
+    border-radius: 50%;
+    animation: satRadarPulse 2s ease-in-out infinite;
+}
+
+.sat-radar-dot {
+    width: 10px;
+    height: 10px;
+    background: #10b981;
+    border: 2px solid #ffffff;
+    border-radius: 50%;
+    box-shadow: 0 0 10px #10b981;
+    z-index: 2;
+}
+
+.sat-radar-cross {
+    position: absolute;
+    background: rgba(16, 185, 129, 0.7);
+}
+
+.sat-radar-cross.h { width: 110px; height: 1.5px; }
+.sat-radar-cross.v { width: 1.5px; height: 110px; }
+
+@keyframes satRadarSpin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+@keyframes satRadarPulse {
+    0%, 100% { transform: scale(1); opacity: 0.8; }
+    50% { transform: scale(1.15); opacity: 1; }
+}
+
+.sat-footer-left {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: nowrap;
+    overflow-x: hidden;
+    overflow-y: hidden;
+    flex-shrink: 1;
+}
+
+.sat-footer-coords {
+    font-size: 11px;
+    color: #94a3b8;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    background: transparent;
+    border: none;
+    padding: 2px 4px;
+    flex-shrink: 0;
+    white-space: nowrap;
+    font-weight: 500;
+}
+.sat-footer-coords i {
+    color: #38bdf8;
+    font-size: 11px;
+}
+.sat-footer-coords b {
+    color: #f8fafc;
+    font-weight: 700;
+}
+
+.sat-footer-address {
+    display: none;
+    align-items: center;
+    gap: 4px;
+    background: rgba(2, 132, 199, 0.15);
+    border: 1px solid rgba(2, 132, 199, 0.45);
+    border-radius: 5px;
+    padding: 2px 6px;
+    font-size: 10px;
+    color: #38bdf8;
+    font-weight: 600;
+    max-width: 140px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex-shrink: 1;
+}
+.sat-footer-address i {
+    color: #38bdf8;
+    font-size: 10px;
+}
+
+.sat-footer-hint {
+    font-size: 10.5px;
+    color: #94a3b8;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background: rgba(15, 23, 42, 0.6);
+    padding: 2px 6px;
+    border-radius: 5px;
+    border: 1px solid #334155;
+}
+
+.sat-footer-ext {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    flex-shrink: 0;
+}
+
+.sat-ext-pill {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid #334155;
+    color: #cbd5e1;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 4px 9px;
+    border-radius: 6px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    transition: all 0.15s;
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
+.sat-ext-pill:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #ffffff;
+    border-color: #64748b;
+}
+
+.sat-ext-pill.earth:hover { border-color: #60a5fa; color: #93c5fd; }
+.sat-ext-pill.tkgm:hover { border-color: #fbbf24; color: #fde68a; }
+.sat-ext-pill.capture {
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(5, 150, 105, 0.15));
+    border-color: rgba(16, 185, 129, 0.5);
+    color: #34d399;
+}
+.sat-ext-pill.capture:hover { border-color: #34d399; color: #6ee7b7; }
+
+.sat-modal-footer {
+    padding: 7px 14px;
+    background: #1e293b;
+    border-top: 1px solid #334155;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: nowrap;
+    gap: 10px;
+    min-height: 44px;
+    box-sizing: border-box;
+    flex-shrink: 0;
+    overflow-x: hidden;
+    overflow-y: hidden;
+}
+
+.sat-footer-info {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 10.5px;
+    color: #94a3b8;
+    max-width: 450px;
+    flex-shrink: 1;
+}
+
+.sat-footer-info i {
+    color: #10b981;
+    font-size: 12px;
+}
+
+.sat-footer-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.sat-btn-cancel {
+    background: transparent;
+    border: 1px solid #475569;
+    color: #cbd5e1;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 5px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+
+.sat-btn-cancel:hover {
+    background: rgba(255, 255, 255, 0.05);
+    color: #ffffff;
+    border-color: #64748b;
+}
+
+.sat-btn-capture {
+    background: linear-gradient(135deg, #10b981, #059669);
+    border: none;
+    color: #ffffff;
+    font-size: 11.5px;
+    font-weight: 700;
+    padding: 6px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.35);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+
+.sat-btn-capture:hover {
+    background: linear-gradient(135deg, #059669, #047857);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.45);
+}
+
+.sat-btn-capture:active {
+    transform: translateY(0);
+}
+
+/* Google Maps JavaScript API Alpha / Geliştirici Uyarısını Gizle */
+body > div[style*="position: fixed"][style*="top: 0"]:not(#satelliteMapModal):not(#initialAppLoader):not(#omniSearchModal):not(#recentToolsModal):not(.omni-modal):not(.modal-overlay),
+body > div[style*="position:fixed"][style*="top:0"]:not(#satelliteMapModal):not(#initialAppLoader):not(#omniSearchModal):not(#recentToolsModal):not(.omni-modal):not(.modal-overlay),
+body > div[style*="position: fixed"][style*="top: 0px"]:not(#satelliteMapModal):not(#initialAppLoader):not(#omniSearchModal):not(#recentToolsModal):not(.omni-modal):not(.modal-overlay),
+body > div[style*="position:fixed"][style*="top:0px"]:not(#satelliteMapModal):not(#initialAppLoader):not(#omniSearchModal):not(#recentToolsModal):not(.omni-modal):not(.modal-overlay) {
+    display: none !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+    height: 0 !important;
+    overflow: hidden !important;
+}
+
+/* Omni Search & Recent Tools Modals */
+.omni-modal {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    background: rgba(0, 0, 0, 0.45) !important;
+    backdrop-filter: blur(3px) !important;
+    -webkit-backdrop-filter: blur(3px) !important;
+    z-index: 100000 !important;
+}
+.omni-modal.active {
+    display: flex !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+    height: 100vh !important;
+    opacity: 1 !important;
+}
+
+
+/* AÇIK TEMA UYUMLULUĞU (LIGHT THEME) - YÜKSEK KONTRAST & NETLİK */
+body[data-theme="light"] .sat-modal-container {
+    background: #ffffff;
+    border-color: #cbd5e1;
+    box-shadow: 0 25px 60px -15px rgba(15, 23, 42, 0.35);
+}
+
+body[data-theme="light"] .sat-modal-header {
+    background: #f8fafc;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+body[data-theme="light"] .sat-header-title {
+    color: #0f172a;
+    font-weight: 800;
+}
+
+body[data-theme="light"] .sat-header-sub {
+    color: #475569;
+    font-weight: 500;
+}
+
+body[data-theme="light"] .sat-close-btn {
+    background: #f1f5f9;
+    border: 1px solid #cbd5e1;
+    color: #475569;
+}
+
+body[data-theme="light"] .sat-close-btn:hover {
+    background: #fee2e2;
+    border-color: #ef4444;
+    color: #dc2626;
+}
+
+body[data-theme="light"] .sat-toolbar-search {
+    background: #ffffff;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+body[data-theme="light"] .sat-search-group {
+    background: #f8fafc;
+    border: 1.5px solid #cbd5e1;
+}
+
+body[data-theme="light"] .sat-search-group:focus-within {
+    border-color: #0284c7;
+    box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.2);
+}
+
+body[data-theme="light"] .sat-search-icon {
+    color: #0284c7;
+}
+
+body[data-theme="light"] #satSearchInput {
+    color: #0f172a;
+    font-weight: 500;
+}
+
+body[data-theme="light"] #satSearchInput::placeholder {
+    color: #64748b;
+}
+
+body[data-theme="light"] .sat-chips-label {
+    color: #0f172a;
+    font-weight: 700;
+}
+
+body[data-theme="light"] .sat-chip-btn {
+    background: #f1f5f9;
+    border: 1px solid #cbd5e1;
+    color: #1e293b;
+    font-weight: 600;
+}
+
+body[data-theme="light"] .sat-chip-btn:hover {
+    background: #e0f2fe;
+    border-color: #0284c7;
+    color: #0284c7;
+}
+
+/* AÇIK TEMA: UNIFIED TOOLBAR & HAMBURGER DRAWER */
+body[data-theme="light"] .sat-toolbar-unified {
+    background: #ffffff;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+body[data-theme="light"] .sat-btn-kml-action {
+    background: #e0f2fe;
+    border: 1.5px solid #0284c7;
+    color: #0284c7;
+    box-shadow: 0 2px 8px rgba(2, 132, 199, 0.15);
+}
+
+body[data-theme="light"] .sat-btn-kml-action:hover {
+    background: #0284c7;
+    color: #ffffff;
+    border-color: #0284c7;
+}
+
+body[data-theme="light"] .sat-parcel-badge-pill {
+    background: #ecfdf5;
+    border: 1.5px solid #10b981;
+    color: #047857;
+}
+
+body[data-theme="light"] .sat-badge-btn {
+    color: #475569;
+}
+
+body[data-theme="light"] .sat-badge-btn:hover {
+    color: #0f172a;
+    background: rgba(0, 0, 0, 0.08);
+}
+
+body[data-theme="light"] .sat-hamburger-btn {
+    background: #f8fafc;
+    border: 1.5px solid #cbd5e1;
+    color: #0f172a;
+}
+
+body[data-theme="light"] .sat-hamburger-btn:hover,
+body[data-theme="light"] .sat-hamburger-btn.active {
+    background: #0284c7;
+    border-color: #0284c7;
+    color: #ffffff;
+}
+
+body[data-theme="light"] .sat-quick-chips-bar {
+    background: #f8fafc;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+body[data-theme="light"] .sat-fab-btn {
+    background: rgba(255, 255, 255, 0.95);
+    border: 1.5px solid #cbd5e1;
+    color: #0f172a;
+    box-shadow: 0 4px 14px rgba(15, 23, 42, 0.15);
+}
+
+body[data-theme="light"] .sat-fab-btn.kml {
+    border-color: #0284c7;
+    color: #0284c7;
+}
+
+body[data-theme="light"] .sat-fab-btn.kml:hover {
+    background: #0284c7;
+    color: #ffffff;
+}
+
+body[data-theme="light"] .sat-fab-btn.hamburger:hover,
+body[data-theme="light"] .sat-fab-btn.hamburger.active {
+    background: #0284c7;
+    border-color: #0284c7;
+    color: #ffffff;
+}
+
+body[data-theme="light"] .sat-map-floating-parcel-info {
+    background: rgba(255, 255, 255, 0.96);
+    border: 1.5px solid #0284c7;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.15);
+}
+
+body[data-theme="light"] .sat-drag-handle-grip {
+    color: #94a3b8;
+}
+
+body[data-theme="light"] .sat-map-floating-parcel-info:active .sat-drag-handle-grip {
+    color: #0284c7;
+}
+
+body[data-theme="light"] .sat-float-title {
+    color: #0f172a;
+}
+
+body[data-theme="light"] .sat-float-sub {
+    color: #475569;
+}
+
+body[data-theme="light"] .sat-float-btn {
+    background: #f1f5f9;
+    border: 1px solid #cbd5e1;
+    color: #334155;
+}
+
+body[data-theme="light"] .sat-float-btn:hover {
+    background: #0284c7;
+    color: #ffffff;
+    border-color: #0284c7;
+}
+
+body[data-theme="light"] .sat-float-btn.remove:hover {
+    background: #ef4444;
+    color: #ffffff;
+    border-color: #ef4444;
+}
+
+body[data-theme="light"] .sat-drawer-panel {
+    background: #ffffff;
+    border-left: 1px solid #cbd5e1;
+    box-shadow: -8px 0 24px rgba(15, 23, 42, 0.18);
+}
+
+body[data-theme="light"] .sat-drawer-header {
+    background: #f8fafc;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+body[data-theme="light"] .sat-drawer-title {
+    color: #0f172a;
+}
+
+body[data-theme="light"] .sat-drawer-close {
+    color: #475569;
+}
+
+body[data-theme="light"] .sat-drawer-close:hover {
+    background: #fee2e2;
+    color: #ef4444;
+}
+
+body[data-theme="light"] .sat-drawer-section {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+}
+
+body[data-theme="light"] .sat-section-title {
+    color: #0f172a;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+body[data-theme="light"] .sat-drawer-parcel-card {
+    background: #ffffff;
+    border: 1.5px solid #cbd5e1;
+}
+
+body[data-theme="light"] .sat-drawer-parcel-row {
+    color: #475569;
+    font-weight: 600;
+}
+
+body[data-theme="light"] .sat-drawer-parcel-row b {
+    color: #0f172a;
+    font-weight: 700;
+}
+
+body[data-theme="light"] .sat-btn-remove-parcel {
+    background: #fee2e2;
+    border: 1px solid #fca5a5;
+    color: #b91c1c;
+}
+
+body[data-theme="light"] .sat-btn-remove-parcel:hover {
+    background: #ef4444;
+    color: #ffffff;
+}
+
+body[data-theme="light"] .sat-drawer-quick-btn {
+    background: #ffffff;
+    border-color: #cbd5e1;
+    color: #1e293b;
+}
+
+body[data-theme="light"] .sat-drawer-quick-btn:hover {
+    background: #e0f2fe;
+    border-color: #0284c7;
+    color: #0369a1;
+}
+
+body[data-theme="light"] .sat-drawer-quick-btn:hover i {
+    color: #0284c7;
+}
+
+body[data-theme="light"] .sat-btn-sync-parser {
+    background: linear-gradient(135deg, #059669, #047857);
+    color: #ffffff;
+}
+
+body[data-theme="light"] .sat-drawer-label,
+body[data-theme="light"] .sat-drawer-label-row {
+    color: #0f172a;
+    font-weight: 700;
+}
+
+body[data-theme="light"] .sat-fill-btn {
+    background: #ffffff;
+    border: 1.5px solid #cbd5e1;
+    color: #1e293b;
+}
+
+body[data-theme="light"] .sat-fill-btn:hover {
+    border-color: #0284c7;
+    color: #0284c7;
+}
+
+body[data-theme="light"] .sat-fill-btn.active {
+    background: #0284c7;
+    color: #ffffff;
+    border-color: #0284c7;
+}
+
+body[data-theme="light"] .sat-sw-btn {
+    background: #ffffff;
+    border: 1.5px solid #cbd5e1;
+    color: #1e293b;
+}
+
+body[data-theme="light"] .sat-sw-btn:hover {
+    border-color: #0284c7;
+    color: #0284c7;
+}
+
+body[data-theme="light"] .sat-sw-btn.active {
+    background: #0284c7;
+    color: #ffffff;
+    border-color: #0284c7;
+}
+
+body[data-theme="light"] .sat-checkbox-label {
+    color: #0f172a;
+}
+
+body[data-theme="light"] .sat-badge-sm {
+    background: #f1f5f9;
+    border: 1px solid #cbd5e1;
+    color: #0284c7;
+}
+
+body[data-theme="light"] .sat-parcel-label-bubble {
+    background: rgba(255, 255, 255, 0.96);
+    border: 1.5px solid #0284c7;
+    color: #0f172a;
+    box-shadow: 0 4px 16px rgba(15, 23, 42, 0.25);
+}
+
+body[data-theme="light"] .sat-parcel-label-bubble .sat-label-ada-parsel {
+    color: #0f172a;
+}
+
+body[data-theme="light"] .sat-parcel-label-bubble .sat-label-area {
+    color: #0284c7;
+}
+
+body[data-theme="light"] .sat-controls-bar {
+    background: #f8fafc;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+body[data-theme="light"] .sat-ctrl-label {
+    color: #0f172a;
+    font-weight: 700;
+}
+
+body[data-theme="light"] .sat-layer-btns {
+    background: #e2e8f0;
+    border: 1px solid #cbd5e1;
+}
+
+body[data-theme="light"] .sat-layer-btn {
+    color: #334155;
+    font-weight: 600;
+}
+
+body[data-theme="light"] .sat-layer-btn:hover:not(.active) {
+    color: #0f172a;
+    background: rgba(255, 255, 255, 0.6);
+}
+
+body[data-theme="light"] .sat-layer-btn.active {
+    background: #0284c7;
+    color: #ffffff;
+    font-weight: 700;
+}
+
+body[data-theme="light"] .sat-btn-toggle-labels {
+    background: #f1f5f9;
+    border: 1.5px solid #cbd5e1;
+    color: #334155;
+    font-weight: 600;
+}
+
+body[data-theme="light"] .sat-btn-toggle-labels:hover {
+    border-color: #0284c7;
+    color: #0284c7;
+    background: #f0f9ff;
+}
+
+body[data-theme="light"] .sat-btn-toggle-labels.active {
+    background: #e0f2fe;
+    border-color: #0284c7;
+    color: #0369a1;
+    font-weight: 700;
+}
+
+body[data-theme="light"] .sat-btn-toggle-labels b {
+    color: #0284c7;
+}
+
+body[data-theme="light"] .sat-format-btns {
+    background: #e2e8f0;
+    border: 1px solid #cbd5e1;
+}
+
+body[data-theme="light"] .sat-fmt-btn {
+    color: #334155;
+    font-weight: 600;
+}
+
+body[data-theme="light"] .sat-fmt-btn:hover:not(.active) {
+    color: #0f172a;
+    background: rgba(255, 255, 255, 0.6);
+}
+
+body[data-theme="light"] .sat-fmt-btn.active {
+    background: #0284c7;
+    color: #ffffff;
+    font-weight: 700;
+}
+
+body[data-theme="light"] .sat-checkbox-label {
+    color: #0f172a;
+    font-weight: 600;
+}
+
+body[data-theme="light"] .sat-style-select {
+    background: #ffffff;
+    border: 1.5px solid #cbd5e1;
+    color: #0f172a;
+    font-weight: 600;
+}
+
+body[data-theme="light"] .sat-res-select {
+    background: #ffffff;
+    border: 1.5px solid #cbd5e1;
+    color: #0284c7;
+    font-weight: 700;
+}
+
+body[data-theme="light"] .sat-marker-text-input {
+    background: #ffffff;
+    border: 1.5px solid #cbd5e1;
+    color: #0f172a;
+    font-weight: 600;
+}
+
+body[data-theme="light"] .sat-btn-toggle-pin {
+    background: #f1f5f9;
+    border: 1.5px solid #cbd5e1;
+    color: #334155;
+    font-weight: 600;
+}
+
+body[data-theme="light"] .sat-btn-toggle-pin:hover {
+    border-color: #ef4444;
+    color: #dc2626;
+    background: #fef2f2;
+}
+
+body[data-theme="light"] .sat-btn-toggle-pin.active {
+    background: #fee2e2;
+    border-color: #ef4444;
+    color: #dc2626;
+}
+
+body[data-theme="light"] .sat-btn-toggle-pin b {
+    color: #dc2626;
+}
+
+body[data-theme="light"] .sat-map-stage {
+    background: #000000;
+    padding: 0;
+}
+
+body[data-theme="light"] .sat-modal-footer {
+    background: #ffffff;
+    border-top: 1px solid #e2e8f0;
+}
+
+body[data-theme="light"] .sat-footer-coords {
+    background: transparent !important;
+    border: none !important;
+    color: #64748b;
+    font-weight: 500;
+    font-size: 11px;
+}
+
+body[data-theme="light"] .sat-footer-coords i {
+    color: #0284c7;
+}
+
+body[data-theme="light"] .sat-footer-coords b {
+    color: #0f172a;
+    font-weight: 700;
+}
+
+body[data-theme="light"] .sat-footer-address {
+    background: #e0f2fe !important;
+    border: 1.5px solid #0284c7 !important;
+    color: #0369a1 !important;
+}
+body[data-theme="light"] .sat-footer-address i {
+    color: #0284c7 !important;
+}
+
+body[data-theme="light"] .sat-ext-pill {
+    background: #f8fafc;
+    border: 1.5px solid #cbd5e1;
+    color: #334155;
+    font-weight: 600;
+}
+
+body[data-theme="light"] .sat-ext-pill:hover {
+    background: #f1f5f9;
+    border-color: #64748b;
+    color: #0f172a;
+}
+
+body[data-theme="light"] .sat-ext-pill.earth:hover {
+    border-color: #0284c7;
+    color: #0284c7;
+    background: #f0f9ff;
+}
+
+body[data-theme="light"] .sat-ext-pill.tkgm:hover {
+    border-color: #d97706;
+    color: #b45309;
+    background: #fffbeb;
+}
+
+body[data-theme="light"] .sat-ext-pill.capture {
+    background: #ecfdf5;
+    border-color: #10b981;
+    color: #047857;
+    font-weight: 700;
+}
+
+body[data-theme="light"] .sat-ext-pill.capture:hover {
+    background: #d1fae5;
+    border-color: #059669;
+    color: #065f46;
+}
+
+body[data-theme="light"] .sat-btn-cancel {
+    background: #f8fafc;
+    border: 1.5px solid #cbd5e1;
+    color: #334155;
+    font-weight: 600;
+}
+
+body[data-theme="light"] .sat-btn-cancel:hover {
+    background: #f1f5f9;
+    color: #0f172a;
+    border-color: #94a3b8;
+}
+
+
+/* --- 2. UYDU HARİTASI ÖLÇÜM, CEPHE & ARSA YÖNETİM SİSTEMİ --- */
+   📏 SATELLITE MAP MEASURE & FRONTAGE SYSTEM (Ölçüm & Cephe Sistemi)
+   Strikt Kural: Butonlar ve çipler kesinlikle dolgusuz (outline) tasarımdır.
+   ========================================================================== */
+
+/* Kontrol Barındaki Ölçüm Butonu (Dolgusuz / Outline Tasarım) */
+.sat-btn-toggle-measure {
+    background: transparent !important;
+    border: 1px solid #334155;
+    color: #94a3b8;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 4px 9px;
+    border-radius: 6px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    flex-shrink: 0;
+    white-space: nowrap;
+    transition: all 0.2s ease;
+}
+
+.sat-btn-toggle-measure:hover {
+    border-color: #f59e0b;
+    color: #f59e0b;
+    background: transparent !important;
+}
+
+.sat-btn-toggle-measure.active {
+    background: transparent !important;
+    border-color: #f59e0b;
+    color: #f59e0b;
+    box-shadow: none !important;
+}
+
+.sat-btn-toggle-measure b {
+    font-weight: 700;
+}
+
+/* Harita İmleci - Ölçüm Modu (Windows Ok İmleci ve Gezinme) */
+#satelliteLeafletMap.measure-mode-cursor,
+#satelliteLeafletMap.measure-mode-cursor .leaflet-container {
+    cursor: default !important;
+}
+
+#satelliteLeafletMap.measure-mode-panning,
+#satelliteLeafletMap.measure-mode-panning .leaflet-container {
+    cursor: grab !important;
+}
+
+#satelliteLeafletMap.measure-mode-panning-active,
+#satelliteLeafletMap.measure-mode-panning-active .leaflet-container {
+    cursor: grabbing !important;
+}
+
+/* 📏 Yüzen Cam Ölçüm Paneli (Floating Glass Panel - Serbest & Sürüklenebilir) */
+.sat-measure-floating-panel {
+    position: absolute;
+    top: 90px;
+    left: 30px;
+    z-index: 100100;
+    width: 320px;
+    max-width: min(94vw, 360px);
+    background: rgba(15, 23, 42, 0.94) !important;
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid rgba(245, 158, 11, 0.5);
+    border-radius: 12px;
+    box-shadow: 0 18px 45px rgba(0, 0, 0, 0.85);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    transition: width 0.2s ease, opacity 0.2s ease;
+    user-select: none;
+    pointer-events: auto;
+}
+
+.sat-measure-floating-panel.is-dragging {
+    transition: none !important;
+    box-shadow: 0 24px 50px rgba(0, 0, 0, 0.95);
+    border-color: #f59e0b;
+}
+
+.sat-measure-floating-panel.collapsed {
+    width: auto !important;
+    min-width: 210px !important;
+    max-width: 300px !important;
+    border-color: rgba(245, 158, 11, 0.7) !important;
+}
+
+.sat-measure-floating-panel.collapsed .sat-measure-panel-body,
+.sat-measure-floating-panel.collapsed .sat-measure-mode-switcher,
+.sat-measure-floating-panel.collapsed .sat-measure-btn-parcel-layer {
+    display: none !important;
+}
+
+.sat-measure-floating-panel.collapsed .sat-measure-panel-header {
+    border-bottom: none !important;
+    padding: 7px 10px !important;
+    gap: 10px !important;
+    cursor: pointer;
+}
+
+.sat-measure-floating-panel.collapsed .sat-measure-header-actions {
+    display: flex !important;
+    align-items: center !important;
+    gap: 5px !important;
+    margin-left: auto !important;
+}
+
+.sat-measure-floating-panel.collapsed .sat-measure-btn-min {
+    color: #f59e0b !important;
+    background: rgba(245, 158, 11, 0.2) !important;
+    border: 1px solid rgba(245, 158, 11, 0.5) !important;
+    border-radius: 5px !important;
+    padding: 3px 8px !important;
+    font-size: 11px !important;
+}
+
+.sat-measure-floating-panel.collapsed .sat-measure-btn-min:hover {
+    background: rgba(245, 158, 11, 0.35) !important;
+    color: #ffffff !important;
+}
+
+/* Panel Üst Başlık (Sürükleme Tutamacı) */
+.sat-measure-panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 9px 12px;
+    background: rgba(0, 0, 0, 0.35);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    cursor: move;
+}
+
+.sat-measure-drag-handle {
+    font-size: 11px;
+    color: rgba(245, 158, 11, 0.7);
+    cursor: move;
+}
+
+.sat-measure-title {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11.5px;
+    font-weight: 700;
+    color: #f59e0b;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    cursor: move;
+}
+
+/* Mod Değiştirici (Nokta Ekleme / Gezinme) - Sadece Çerçeveli (Outline) */
+.sat-measure-mode-switcher {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    background: transparent !important;
+}
+
+.sat-measure-mode-btn {
+    background: transparent !important;
+    border: 1px solid #334155;
+    color: #94a3b8;
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2.5px 6.5px;
+    border-radius: 5px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    transition: all 0.15s ease;
+    outline: none;
+    box-shadow: none !important;
+}
+
+.sat-measure-mode-btn:hover {
+    border-color: #f59e0b;
+    color: #f59e0b;
+    background: transparent !important;
+}
+
+.sat-measure-mode-btn.active {
+    border-color: #f59e0b;
+    color: #f59e0b;
+    background: transparent !important;
+    box-shadow: none !important;
+}
+
+.sat-measure-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.sat-measure-btn-parcel-layer {
+    background: transparent !important;
+    border: 1px solid #334155;
+    color: #94a3b8;
+    cursor: pointer;
+    padding: 3px 6px;
+    font-size: 11px;
+    border-radius: 5px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s ease;
+    box-shadow: none !important;
+}
+
+.sat-measure-btn-parcel-layer:hover {
+    border-color: #38bdf8;
+    color: #38bdf8;
+    background: transparent !important;
+}
+
+.sat-measure-btn-parcel-layer.active {
+    border-color: rgba(245, 158, 11, 0.6);
+    color: #f59e0b;
+    background: transparent !important;
+}
+
+.sat-measure-btn-min,
+.sat-measure-btn-close {
+    background: transparent !important;
+    border: none;
+    color: #94a3b8;
+    cursor: pointer;
+    padding: 3px 6px;
+    font-size: 12px;
+    border-radius: 4px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.15s, transform 0.15s;
+}
+
+.sat-measure-btn-min:hover {
+    color: #38bdf8;
+    background: transparent !important;
+}
+
+.sat-measure-btn-close:hover {
+    color: #ef4444;
+    background: transparent !important;
+}
+
+/* Panel Gövdesi - Dikey Taşmayı Önleyen Serbest Kaydırma */
+.sat-measure-panel-body {
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+    max-height: calc(85vh - 60px);
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(245, 158, 11, 0.45) transparent;
+}
+
+.sat-measure-panel-body::-webkit-scrollbar {
+    width: 5px;
+}
+
+.sat-measure-panel-body::-webkit-scrollbar-thumb {
+    background: rgba(245, 158, 11, 0.45);
+    border-radius: 4px;
+}
+
+.sat-measure-panel-body::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+/* Canlı Mesafe Kutusu */
+.sat-measure-display-box {
+    background: rgba(0, 0, 0, 0.45);
+    border: 1px dashed rgba(245, 158, 11, 0.4);
+    border-radius: 8px;
+    padding: 7px 10px;
+    text-align: center;
+}
+
+.sat-measure-val {
+    font-size: 19px;
+    font-weight: 800;
+    color: #f59e0b;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    letter-spacing: 0.5px;
+    text-shadow: 0 0 10px rgba(245, 158, 11, 0.25);
+}
+
+.sat-measure-sub-stats {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    margin-top: 5px;
+    margin-bottom: 3px;
+    font-size: 11px;
+    color: #38bdf8;
+    background: transparent;
+    padding: 4px 6px;
+    border-radius: 6px;
+    border: 1px solid rgba(56, 189, 248, 0.25);
+    text-align: center;
+}
+
+.sat-measure-sub-stats span {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    line-height: 1.35;
+}
+
+.sat-measure-sub-stats b {
+    color: #f8fafc;
+    font-weight: 700;
+}
+
+.sat-measure-hint {
+    font-size: 10.5px;
+    color: #94a3b8;
+    margin-top: 2px;
+}
+
+/* Satır Düzeni */
+.sat-measure-row {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.sat-measure-sub-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.sat-measure-label {
+    font-size: 10.5px;
+    font-weight: 600;
+    color: #cbd5e1;
+    white-space: nowrap;
+}
+
+/* Etiket Şablon Çipleri (Dolgusuz / Outline) */
+.sat-measure-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.sat-measure-chip {
+    background: transparent !important;
+    border: 1px solid #334155;
+    color: #94a3b8;
+    font-size: 10.5px;
+    font-weight: 600;
+    padding: 3px 7px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+}
+
+.sat-measure-chip:hover {
+    border-color: #f59e0b;
+    color: #f59e0b;
+    background: transparent !important;
+}
+
+.sat-measure-chip.active {
+    border-color: #f59e0b;
+    color: #f59e0b;
+    background: transparent !important;
+    box-shadow: none !important;
+}
+
+/* Kenar Seçici & Filtre Izgarası (Dolgusuz / Outline) */
+.sat-measure-edge-selector-wrap {
+    width: 100%;
+    margin-top: 4px;
+    padding-top: 5px;
+    border-top: 1px dashed rgba(255, 255, 255, 0.1);
+}
+
+.sat-measure-mini-text-btn {
+    background: transparent !important;
+    border: none;
+    color: #38bdf8;
+    font-size: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 0 2px;
+    text-decoration: underline;
+    transition: color 0.15s ease;
+}
+
+.sat-measure-mini-text-btn:hover {
+    color: #7dd3fc;
+}
+
+.sat-measure-edge-chips-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    max-height: 84px;
+    overflow-y: auto;
+    padding-right: 2px;
+}
+
+.sat-measure-edge-chip {
+    background: transparent !important;
+    border: 1px solid #334155;
+    color: #cbd5e1;
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2.5px 6px;
+    border-radius: 4px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+    box-shadow: none !important;
+}
+
+.sat-measure-edge-chip.active {
+    border-color: #f59e0b;
+    color: #f59e0b;
+    background: transparent !important;
+}
+
+.sat-measure-edge-chip.hidden {
+    border-color: #1e293b;
+    color: #64748b;
+    opacity: 0.55;
+    text-decoration: line-through;
+    background: transparent !important;
+}
+
+.sat-measure-edge-chip:hover {
+    border-color: #f59e0b;
+    color: #f59e0b;
+}
+
+.sat-measure-edge-chip .chip-num {
+    font-weight: 700;
+}
+
+.sat-measure-edge-chip .chip-status {
+    font-size: 9px;
+    font-weight: 800;
+}
+
+/* Özel Metin Girişi */
+.sat-measure-text-input {
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid #334155;
+    border-radius: 6px;
+    color: #f1f5f9;
+    font-size: 11px;
+    padding: 5px 8px;
+    width: 100%;
+    box-sizing: border-box;
+    outline: none;
+    transition: border-color 0.15s;
+}
+
+.sat-measure-text-input:focus {
+    border-color: #f59e0b;
+}
+
+/* Stil Butonları (Dolgusuz / Outline) */
+.sat-measure-style-pills {
+    display: flex;
+    gap: 4px;
+    flex: 1;
+}
+
+.sat-measure-style-btn {
+    flex: 1;
+    background: transparent !important;
+    border: 1px solid #334155;
+    color: #94a3b8;
+    font-size: 10px;
+    font-weight: 600;
+    padding: 4px 5px;
+    border-radius: 5px;
+    cursor: pointer;
+    text-align: center;
+    white-space: nowrap;
+    transition: all 0.15s ease;
+}
+
+.sat-measure-style-btn:hover {
+    border-color: #f59e0b;
+    color: #f59e0b;
+    background: transparent !important;
+}
+
+.sat-measure-style-btn.active {
+    border-color: #f59e0b;
+    color: #f59e0b;
+    background: transparent !important;
+    box-shadow: none !important;
+}
+
+/* Renk Noktaları & Genel Renk Seçici */
+.sat-measure-colors {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+}
+
+.sat-measure-color-dot {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    cursor: pointer;
+    transition: transform 0.15s, border-color 0.15s;
+    padding: 0;
+    outline: none;
+    box-shadow: none !important;
+}
+
+.sat-measure-color-dot:hover {
+    transform: scale(1.2);
+}
+
+.sat-measure-color-dot.active {
+    transform: scale(1.25);
+    border-color: #ffffff !important;
+}
+
+.sat-measure-color-custom-btn {
+    position: relative;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: 1px dashed rgba(255, 255, 255, 0.45);
+    background: transparent !important;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: #cbd5e1;
+    font-size: 10px;
+    transition: all 0.2s ease;
+    overflow: hidden;
+    margin-left: 2px;
+    box-shadow: none !important;
+}
+
+.sat-measure-color-custom-btn:hover,
+.sat-measure-color-custom-btn.active {
+    border-color: #f59e0b;
+    color: #f59e0b;
+    border-style: solid;
+    transform: scale(1.2);
+}
+
+.sat-measure-color-custom-btn input[type="color"] {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    cursor: pointer;
+    padding: 0;
+    border: none;
+}
+
+/* Alt Aksiyon Butonları (Dolgusuz / Outline - 3 Düzenli Satır) */
+.sat-measure-actions-bar {
+    display: flex;
+    gap: 5px;
+    margin-top: 3px;
+    width: 100%;
+}
+
+.sat-measure-actions-bar.full-row {
+    margin-top: 4px;
+}
+
+.sat-measure-actions-bar.full-row .sat-measure-act-btn {
+    width: 100%;
+    flex: 1 1 100%;
+    justify-content: center;
+}
+
+.sat-measure-actions-bar.edge-row {
+    margin-top: 3px;
+    gap: 5px;
+}
+
+.sat-measure-actions-bar.edge-row .sat-measure-act-btn {
+    flex: 1 1 50%;
+    min-width: 0;
+    justify-content: center;
+}
+
+.sat-measure-actions-bar.edge-row .sat-measure-act-btn span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.sat-measure-actions-bar.second-row {
+    margin-top: 3px;
+}
+
+.sat-measure-act-btn {
+    flex: 1;
+    background: transparent !important;
+    border: 1px solid #334155;
+    color: #94a3b8;
+    font-size: 10.5px;
+    font-weight: 600;
+    padding: 5px 7px;
+    border-radius: 6px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+    box-shadow: none !important;
+}
+
+.sat-measure-act-btn.snap-all {
+    border-color: rgba(245, 158, 11, 0.45);
+    color: #f59e0b;
+}
+
+.sat-measure-act-btn.snap-all:hover {
+    border-color: #f59e0b;
+    background: transparent !important;
+}
+
+.sat-measure-act-btn.snap {
+    border-color: rgba(56, 189, 248, 0.45);
+    color: #38bdf8;
+}
+
+.sat-measure-act-btn.snap:hover {
+    border-color: #38bdf8;
+    background: transparent !important;
+}
+
+.sat-measure-act-btn.cycle {
+    border-color: rgba(16, 185, 129, 0.45);
+    color: #10b981;
+}
+
+.sat-measure-act-btn.cycle:hover {
+    border-color: #10b981;
+    background: transparent !important;
+}
+
+.sat-measure-act-btn.close-poly {
+    border-color: rgba(168, 85, 247, 0.45);
+    color: #c084fc;
+}
+
+.sat-measure-act-btn.close-poly:hover {
+    border-color: #c084fc;
+    background: transparent !important;
+}
+
+.sat-measure-act-btn.close-poly.active {
+    border-color: #10b981;
+    color: #10b981;
+    background: transparent !important;
+}
+
+.sat-measure-act-btn.undo {
+    border-color: rgba(148, 163, 184, 0.4);
+    color: #94a3b8;
+}
+
+.sat-measure-act-btn.undo:hover {
+    border-color: #cbd5e1;
+    color: #cbd5e1;
+    background: transparent !important;
+}
+
+.sat-measure-act-btn.reset {
+    flex: 0 0 auto;
+    border-color: rgba(239, 68, 68, 0.4);
+    color: #ef4444;
+}
+
+.sat-measure-act-btn.reset:hover {
+    border-color: #ef4444;
+    background: transparent !important;
+}
+
+/* ==========================================================================
+   ➕ Çoklu Çizim Sistemi (Multi-Drawing & Akordiyon Katman Yönetimi)
+   ========================================================================== */
+.sat-measure-top-add {
+    margin-bottom: 7px;
+}
+
+.sat-btn-add-drawing {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(0, 245, 212, 0.2));
+    border: 1px dashed rgba(245, 158, 11, 0.7);
+    border-radius: 8px;
+    color: #fef08a;
+    font-size: 11.5px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+    outline: none;
+}
+
+.sat-btn-add-drawing:hover {
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.35), rgba(0, 245, 212, 0.35));
+    border-color: #f59e0b;
+    color: #ffffff;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 14px rgba(245, 158, 11, 0.3);
+}
+
+.sat-btn-add-drawing i {
+    font-size: 13px;
+    color: #f59e0b;
+    transition: transform 0.2s ease;
+}
+
+.sat-btn-add-drawing:hover i {
+    transform: rotate(90deg);
+}
+
+.sat-measure-drawings-container {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    margin-bottom: 6px;
+}
+
+.sat-drawing-card {
+    background: rgba(15, 23, 42, 0.75);
+    border: 1px solid rgba(148, 163, 184, 0.25);
+    border-radius: 8px;
+    overflow: hidden;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.sat-drawing-card.is-active {
+    border-color: rgba(56, 189, 248, 0.75);
+    box-shadow: 0 0 12px rgba(56, 189, 248, 0.25);
+    background: rgba(15, 23, 42, 0.9);
+}
+
+.sat-drawing-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 7px 10px;
+    background: rgba(30, 41, 59, 0.5);
+    cursor: pointer;
+    transition: background 0.15s ease;
+    user-select: none;
+    gap: 6px;
+}
+
+.sat-drawing-header:hover {
+    background: rgba(51, 65, 85, 0.65);
+}
+
+.sat-drawing-card.is-active .sat-drawing-header {
+    background: rgba(30, 41, 59, 0.85);
+    border-bottom: 1px solid rgba(56, 189, 248, 0.3);
+}
+
+.sat-drawing-header-left {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 11px;
+    font-weight: 700;
+    color: #e2e8f0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+    min-width: 0;
+}
+
+.sat-drawing-dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.sat-drawing-title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.sat-drawing-type-pill {
+    font-size: 9.5px;
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-weight: 600;
+    flex-shrink: 0;
+}
+
+.sat-drawing-type-pill.poly {
+    background: rgba(245, 158, 11, 0.2);
+    color: #fbbf24;
+    border: 1px solid rgba(245, 158, 11, 0.4);
+}
+
+.sat-drawing-type-pill.line {
+    background: rgba(56, 189, 248, 0.2);
+    color: #38bdf8;
+    border: 1px solid rgba(56, 189, 248, 0.4);
+}
+
+.sat-drawing-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    flex-shrink: 0;
+}
+
+.sat-drawing-act-btn {
+    background: transparent;
+    border: none;
+    color: #94a3b8;
+    padding: 3px 5px;
+    font-size: 11px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: color 0.15s, background 0.15s;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.sat-drawing-act-btn:hover {
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.sat-drawing-act-btn.vis.muted {
+    color: #64748b;
+    opacity: 0.6;
+}
+
+.sat-drawing-act-btn.del:hover {
+    color: #ef4444;
+    background: rgba(239, 68, 68, 0.18);
+}
+
+.sat-drawing-body {
+    padding: 9px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+}
+
+
+
+/* Haritadaki Sürüklenebilir Ölçüm Tutamaçları (Köşe Noktaları 1, 2, 3...) */
+.sat-measure-handle-divicon {
+    background: transparent !important;
+    border: none !important;
+}
+
+.sat-measure-handle-pin {
+    position: relative;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: grab;
+}
+
+.sat-measure-handle-pin:active {
+    cursor: grabbing;
+}
+
+.sat-handle-core {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: rgba(15, 23, 42, 0.94);
+    border: 2px solid var(--handle-color, #f59e0b);
+    color: var(--handle-color, #f59e0b);
+    font-size: 11px;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.75);
+    z-index: 2;
+}
+
+.sat-handle-pulse {
+    position: absolute;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 1.5px solid var(--handle-color, #f59e0b);
+    opacity: 0.6;
+    animation: satHandlePulseAnim 2s infinite ease-in-out;
+    pointer-events: none;
+    z-index: 1;
+}
+
+@keyframes satHandlePulseAnim {
+    0% { transform: scale(0.85); opacity: 0.8; }
+    50% { transform: scale(1.35); opacity: 0.15; }
+    100% { transform: scale(0.85); opacity: 0.8; }
+}
+
+/* Harita Üzerindeki Canlı Mesafe Rozeti (Kenarlar İçin - Taşınabilir) */
+.sat-measure-badge-divicon {
+    background: transparent !important;
+    border: none !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+.sat-measure-map-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    background: rgba(15, 23, 42, 0.94);
+    border: 1.5px solid #f59e0b;
+    border-radius: 7px;
+    color: #ffffff;
+    font-size: 11.5px;
+    font-weight: 700;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.7);
+    white-space: nowrap;
+    cursor: grab;
+    user-select: none;
+    transform: none;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.sat-measure-map-badge:active {
+    cursor: grabbing;
+    transform: scale(1.04);
+}
+
+.sat-measure-map-badge .sat-badge-icon {
+    font-size: 10.5px;
+}
+
+.sat-measure-map-badge .sat-badge-text {
+    letter-spacing: 0.3px;
+}
+
+.sat-measure-map-badge .sat-badge-hide-btn {
+    background: transparent !important;
+    border: none;
+    color: rgba(255, 255, 255, 0.45);
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1;
+    padding: 2px 4px;
+    margin-left: 3px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.sat-measure-map-badge .sat-badge-hide-btn:hover {
+    color: #ef4444;
+    background: rgba(239, 68, 68, 0.22) !important;
+    transform: scale(1.15);
+}
+
+.sat-measure-total-badge {
+    padding: 5px 12px;
+    font-weight: 800;
+    border-width: 1.8px;
+    background: rgba(15, 23, 42, 0.96);
+    box-shadow: 0 8px 22px rgba(0, 0, 0, 0.8), 0 0 10px rgba(245, 158, 11, 0.2);
+}
+
+/* Harita Ortasındaki Canlı Toplam Mesafe Rozeti (Taşınabilir, Tutamaçlı) */
+.sat-measure-total-divicon {
+    background: transparent !important;
+    border: none !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    overflow: visible !important;
+    pointer-events: none !important;
+}
+
+.sat-measure-total-wrapper {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: auto;
+    cursor: grab;
+    user-select: none;
+    touch-action: none;
+}
+
+.sat-measure-total-wrapper:active {
+    cursor: grabbing;
+}
+
+.sat-measure-total-wrapper.is-selected .sat-area-select-border {
+    display: block;
+}
+
+.sat-measure-total-wrapper.is-selected .sat-area-handle {
+    display: flex;
+}
+
+/* Harita Ortasındaki Canlı Alan Rozeti (Taşınabilir, Kutulu & Çerçevesiz, Tutamaçlı) */
+.sat-measure-area-badge-divicon {
+    background: transparent !important;
+    border: none !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    overflow: visible !important;
+    pointer-events: none !important;
+}
+
+.sat-measure-area-wrapper {
+    position: relative;
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    pointer-events: auto;
+    cursor: grab;
+    user-select: none;
+    touch-action: none;
+}
+
+.sat-measure-area-wrapper:active {
+    cursor: grabbing;
+}
+
+/* Seçim Çerçevesi (İkon ve Rozet standartlarında kesikli mavi border) */
+.sat-area-select-border {
+    position: absolute;
+    top: -7px;
+    left: -9px;
+    right: -9px;
+    bottom: -7px;
+    border: 2px dashed #00d2ff;
+    border-radius: 12px;
+    pointer-events: none;
+    display: none;
+    box-shadow: 0 0 12px rgba(0, 210, 255, 0.4);
+    z-index: 10010;
+}
+
+.sat-measure-area-wrapper.is-selected .sat-area-select-border {
+    display: block;
+}
+
+/* Tutamaçlar (Döndür, Büyüt, Sil) - Koyu cam & Cyan / Rose renk paleti */
+.sat-area-handle {
+    position: absolute;
+    width: 24px;
+    height: 24px;
+    min-width: 24px;
+    min-height: 24px;
+    background: #1e2238 !important;
+    border-radius: 50% !important;
+    display: none;
+    justify-content: center;
+    align-items: center;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.8), 0 0 8px rgba(0, 210, 255, 0.4) !important;
+    cursor: pointer;
+    z-index: 10050;
+    box-sizing: border-box !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    pointer-events: auto;
+    transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.sat-area-handle:hover {
+    transform: scale(1.15);
+}
+
+.sat-measure-area-wrapper.is-selected .sat-area-handle {
+    display: flex;
+}
+
+/* 🔄 Döndürme Tutamacı (Üst Orta) */
+.sat-area-rotate-handle {
+    top: -26px;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 2px solid #00d2ff !important;
+    cursor: grab;
+}
+
+.sat-area-rotate-handle:hover {
+    transform: translateX(-50%) scale(1.15);
+}
+
+.sat-area-rotate-handle:active {
+    cursor: grabbing;
+    background: #00d2ff !important;
+}
+.sat-area-rotate-handle:active svg {
+    stroke: #0f172a !important;
+}
+
+/* 📐 Büyütme / Boyutlandırma Tutamacı (Sağ Alt) */
+.sat-area-resize-handle {
+    bottom: -7px;
+    right: -9px;
+    transform: translate(50%, 50%);
+    border: 2px solid #00d2ff !important;
+    cursor: nwse-resize;
+}
+
+.sat-area-resize-handle:hover {
+    transform: translate(50%, 50%) scale(1.15);
+}
+
+.sat-area-resize-handle:active {
+    background: #00d2ff !important;
+}
+.sat-area-resize-handle:active svg {
+    stroke: #0f172a !important;
+}
+
+/* 🗑️ Silme Tutamacı (Sol Alt) */
+.sat-area-delete-handle {
+    bottom: -7px;
+    left: -9px;
+    transform: translate(-50%, 50%);
+    border: 2px solid #f43f5e !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.8), 0 0 8px rgba(244, 63, 94, 0.4) !important;
+    cursor: pointer;
+}
+
+.sat-area-delete-handle:hover {
+    transform: translate(-50%, 50%) scale(1.15);
+    background: #f43f5e !important;
+}
+.sat-area-delete-handle:hover svg {
+    stroke: #ffffff !important;
+}
+
+.sat-measure-area-map-badge {
+    background: rgba(15, 23, 42, 0.96);
+    border: 1.8px solid var(--area-color, #f59e0b);
+    border-radius: 9px;
+    padding: 6px 14px;
+    color: #ffffff;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.8);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    cursor: grab;
+    user-select: none;
+    white-space: nowrap;
+    transition: box-shadow 0.15s ease;
+}
+
+.sat-measure-area-map-badge .area-title {
+    font-size: 14px;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: #ffffff;
+}
+
+.sat-measure-area-map-badge .area-sub {
+    font-size: 10.5px;
+    color: var(--area-color, #f59e0b);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin-top: 2px;
+    font-weight: 600;
+}
+
+/* ✨ Çerçevesiz (Arka plansız, şık yüksek kontrastlı gölgeli saf metin) */
+.sat-measure-area-map-badge.frameless {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+}
+
+.sat-measure-area-map-badge.frameless .area-title {
+    color: #ffffff;
+    font-weight: 800;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.95), 0 0 14px rgba(0, 0, 0, 0.92);
+}
+
+.sat-measure-area-map-badge.frameless .area-sub {
+    color: var(--area-color, #f59e0b);
+    font-weight: 700;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.95);
+    margin-top: 3px;
+}
+
+/* 🔤 Tipografi ve Boyutlandırma Kontrolleri */
+.sat-measure-font-controls {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.sat-measure-select {
+    background: rgba(15, 23, 42, 0.95) !important;
+    border: 1px solid #334155;
+    color: #cbd5e1;
+    font-size: 10.5px;
+    font-weight: 600;
+    padding: 3px 6px;
+    border-radius: 5px;
+    outline: none;
+    cursor: pointer;
+    transition: border-color 0.15s ease;
+    max-width: 130px;
+    text-overflow: ellipsis;
+}
+
+.sat-measure-select:focus,
+.sat-measure-select:hover {
+    border-color: #f59e0b;
+}
+
+.sat-measure-select optgroup {
+    background: #0f172a;
+    color: #f59e0b;
+    font-weight: 700;
+    font-size: 11px;
+}
+
+.sat-measure-select option {
+    background: #1e293b;
+    color: #f8fafc;
+    font-weight: 500;
+    font-size: 11px;
+}
+
+.sat-measure-size-btns {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    border: 1px solid #334155;
+    border-radius: 5px;
+    padding: 1px 3px;
+}
+
+.sat-measure-size-btn {
+    background: transparent !important;
+    border: none;
+    color: #94a3b8;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 5px;
+    cursor: pointer;
+    border-radius: 3px;
+    transition: color 0.15s ease;
+    box-shadow: none !important;
+}
+
+.sat-measure-size-btn:hover {
+    color: #f59e0b;
+    background: transparent !important;
+}
+
+.sat-measure-size-val {
+    font-size: 10px;
+    font-weight: 700;
+    color: #f8fafc;
+    min-width: 28px;
+    text-align: center;
+    font-family: monospace;
+}
+
+/* -------------------------------------------------------------
+   3D Harita Modu Uyarlamaları (Ölçüm & Arsa Paneli)
+------------------------------------------------------------- */
+.sat-measure-floating-panel.sat-panel-mode-3d {
+    border-color: rgba(56, 189, 248, 0.6) !important;
+    box-shadow: 0 18px 45px rgba(0, 0, 0, 0.85), 0 0 25px rgba(56, 189, 248, 0.15) !important;
+}
+
+.sat-measure-floating-panel.sat-panel-mode-3d .sat-measure-title {
+    color: #38bdf8 !important;
+}
+
+.sat-measure-floating-panel.sat-panel-mode-3d .sat-measure-drag-handle {
+    color: rgba(56, 189, 248, 0.7) !important;
+}
+
+.sat-measure-floating-panel.sat-panel-mode-3d .sat-2d-only-row {
+    display: none !important;
+}
+
+.sat-measure-floating-panel.sat-panel-mode-3d .sat-measure-mode-switcher {
+    display: none !important;
+}
+
+.sat-measure-floating-panel.sat-panel-mode-3d .sat-measure-btn-parcel-layer {
+    display: none !important;
+}
+

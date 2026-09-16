@@ -1,0 +1,1025 @@
+﻿/* ============================================================
+   🎯 CALLOUTS, ARROWS & NEON STYLES
+   Otomatik modüler ayrıştırma: css/callouts.css
+   ============================================================ */
+
+/* --- 1. 20 OK STİLİ POPOVER MENÜSÜ & KARTLARI --- */
+/* ================= 🎯 20 OK STİLİ POPOVER MENÜSÜ ================= */
+.arrow-picker-popover {
+    position: fixed;
+    background: rgba(15, 23, 42, 0.98);
+    border: 1px solid #334155;
+    border-radius: 12px;
+    box-shadow: 0 16px 36px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 255, 255, 0.08);
+    padding: 12px;
+    z-index: 999999;
+    width: 320px;
+    max-width: 92vw;
+    backdrop-filter: blur(12px);
+    animation: arrowPopoverFadeIn 0.18s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+@keyframes arrowPopoverFadeIn {
+    from { opacity: 0; transform: translateY(-6px) scale(0.97); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.arrow-picker-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: 8px;
+    margin-bottom: 10px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.arrow-picker-title {
+    font-size: 12px;
+    font-weight: 700;
+    color: #38bdf8;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.arrow-picker-close {
+    background: transparent;
+    border: none;
+    color: #94a3b8;
+    font-size: 13px;
+    cursor: pointer;
+    padding: 3px 7px;
+    border-radius: 4px;
+    line-height: 1;
+}
+.arrow-picker-close:hover {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.1);
+}
+.arrow-style-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+    max-height: 280px;
+    overflow-y: auto;
+    padding-right: 2px;
+}
+.arrow-style-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    padding: 7px 4px;
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    color: #94a3b8;
+}
+.arrow-style-card:hover {
+    background: #334155;
+    border-color: #38bdf8;
+    color: #38bdf8;
+    transform: translateY(-1px);
+}
+.arrow-style-card.active {
+    background: rgba(56, 189, 248, 0.18);
+    border-color: #38bdf8;
+    color: #38bdf8;
+    box-shadow: 0 0 10px rgba(56, 189, 248, 0.35);
+}
+.arrow-style-svg {
+    width: 28px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.arrow-style-num {
+    font-size: 9px;
+    font-weight: 700;
+    opacity: 0.75;
+}
+
+
+/* --- 2. GELİŞMİŞ VE OUTLINE CALLOUT ŞEKİLLERİ, NEON ÇİZGİLER & SABER PANELİ --- */
+/* ================= ADVANCED CALLOUT SHAPES ================= */
+.co-tail-b::after {
+    content: ''; position: absolute; top: 100%; left: 20px;
+    border-width: 15px 15px 0 0; border-style: solid;
+    border-color: var(--co-bg, #fff) transparent transparent transparent;
+}
+.co-tail-br::after {
+    content: ''; position: absolute; top: 100%; right: 20px;
+    border-width: 15px 0 0 15px; border-style: solid;
+    border-color: var(--co-bg, #fff) transparent transparent transparent;
+}
+.co-tail-l::after {
+    content: ''; position: absolute; top: 20px; right: 100%;
+    border-width: 0 15px 15px 0; border-style: solid;
+    border-color: transparent var(--co-bg, #fff) transparent transparent;
+}
+.co-pointer-lb::before {
+    content: ''; position: absolute; top: 100%; left: 0;
+    width: 40px; height: 40px; border-left: 2px solid var(--co-bg, #000); border-bottom: 2px solid var(--co-bg, #000);
+}
+.co-pointer-lb::after {
+    content: ''; position: absolute; top: calc(100% + 37px); left: 38px;
+    width: 8px; height: 8px; border-radius: 50%; background: var(--co-bg, #000);
+}
+.co-pointer-tr::before {
+    content: ''; position: absolute; bottom: 100%; right: 0;
+    width: 40px; height: 40px; border-right: 2px solid var(--co-bg, #000); border-top: 2px solid var(--co-bg, #000);
+}
+.co-pointer-tr::after {
+    content: ''; position: absolute; bottom: calc(100% + 37px); right: 38px;
+    width: 8px; height: 8px; border-radius: 50%; background: var(--co-bg, #000);
+}
+.co-comic {
+    clip-path: polygon(0% 15%, 15% 15%, 15% 0%, 85% 0%, 85% 15%, 100% 15%, 100% 85%, 85% 85%, 85% 100%, 15% 100%, 15% 85%, 0% 85%);
+}
+.co-cloud {
+    border-radius: 50px;
+}
+.co-cloud::before {
+    content:''; position:absolute; top:-20px; left:20px; width:40px; height:40px; background:inherit; border-radius:50%; z-index:-1;
+}
+.co-cloud::after {
+    content:''; position:absolute; top:-30px; right:20px; width:60px; height:60px; background:inherit; border-radius:50%; z-index:-1;
+}
+
+/* ================= OUTLINE CALLOUT SHAPES ================= */
+.co-outline-tail-b {
+    position: relative;
+    background: var(--co-bg-color, #ffffff) !important;
+    border: var(--co-border-width, 3px) solid var(--co-border-color, #000000) !important;
+}
+.co-outline-tail-b::after {
+    content: '';
+    position: absolute;
+    bottom: calc(-1 * var(--co-tail-size, 10px));
+    left: var(--co-tail-pos, 20px);
+    width: calc(var(--co-tail-size, 10px) * 2);
+    height: calc(var(--co-tail-size, 10px) * 2);
+    background: inherit;
+    border-bottom: var(--co-border-width, 3px) solid var(--co-border-color, #000000);
+    border-right: var(--co-border-width, 3px) solid var(--co-border-color, #000000);
+    transform: rotate(45deg);
+}
+
+.co-outline-tail-t {
+    position: relative;
+    background: var(--co-bg-color, #ffffff) !important;
+    border: var(--co-border-width, 3px) solid var(--co-border-color, #000000) !important;
+}
+.co-outline-tail-t::after {
+    content: '';
+    position: absolute;
+    top: calc(-1 * var(--co-tail-size, 10px));
+    left: var(--co-tail-pos, 20px);
+    width: calc(var(--co-tail-size, 10px) * 2);
+    height: calc(var(--co-tail-size, 10px) * 2);
+    background: inherit;
+    border-top: var(--co-border-width, 3px) solid var(--co-border-color, #000000);
+    border-left: var(--co-border-width, 3px) solid var(--co-border-color, #000000);
+    transform: rotate(45deg);
+}
+
+.co-outline-tail-l {
+    position: relative;
+    background: var(--co-bg-color, #ffffff) !important;
+    border: var(--co-border-width, 3px) solid var(--co-border-color, #000000) !important;
+}
+.co-outline-tail-l::after {
+    content: '';
+    position: absolute;
+    left: calc(-1 * var(--co-tail-size, 10px));
+    top: var(--co-tail-pos, 20px);
+    width: calc(var(--co-tail-size, 10px) * 2);
+    height: calc(var(--co-tail-size, 10px) * 2);
+    background: inherit;
+    border-bottom: var(--co-border-width, 3px) solid var(--co-border-color, #000000);
+    border-left: var(--co-border-width, 3px) solid var(--co-border-color, #000000);
+    transform: rotate(45deg);
+}
+
+.co-outline-tail-r {
+    position: relative;
+    background: var(--co-bg-color, #ffffff) !important;
+    border: var(--co-border-width, 3px) solid var(--co-border-color, #000000) !important;
+}
+.co-outline-tail-r::after {
+    content: '';
+    position: absolute;
+    right: calc(-1 * var(--co-tail-size, 10px));
+    top: var(--co-tail-pos, 20px);
+    width: calc(var(--co-tail-size, 10px) * 2);
+    height: calc(var(--co-tail-size, 10px) * 2);
+    background: inherit;
+    border-top: var(--co-border-width, 3px) solid var(--co-border-color, #000000);
+    border-right: var(--co-border-width, 3px) solid var(--co-border-color, #000000);
+    transform: rotate(45deg);
+}
+
+/* ================= NEW LINES (1) ================= */
+.co-line-sl-lb { border: none !important; border-bottom: var(--co-bw, 2px) solid var(--co-bc, #000) !important; background: transparent !important; }
+.co-line-sl-lb::after { content: ''; position: absolute; top: 100%; left: 0; width: var(--co-len, 30px); height: var(--co-len, 30px); border-left: var(--co-bw, 2px) solid var(--co-bc, #000); transform: skewX(-45deg); transform-origin: top left; }
+.co-line-sl-lb::before { content: ''; position: absolute; top: calc(100% + var(--co-len, 30px) - 4px); left: calc(-1 * var(--co-len, 30px) - 4px); width: 8px; height: 8px; background: var(--co-dot, #000); border-radius: 50%; box-shadow: 0 0 0 2px #fff; }
+
+.co-line-sl-rb { border: none !important; border-bottom: var(--co-bw, 2px) solid var(--co-bc, #000) !important; background: transparent !important; }
+.co-line-sl-rb::after { content: ''; position: absolute; top: 100%; right: 0; width: var(--co-len, 30px); height: var(--co-len, 30px); border-right: var(--co-bw, 2px) solid var(--co-bc, #000); transform: skewX(45deg); transform-origin: top right; }
+.co-line-sl-rb::before { content: ''; position: absolute; top: calc(100% + var(--co-len, 30px) - 4px); right: calc(-1 * var(--co-len, 30px) - 4px); width: 8px; height: 8px; background: var(--co-dot, #000); border-radius: 50%; box-shadow: 0 0 0 2px #fff; }
+
+.co-line-st-lb { border: none !important; border-bottom: var(--co-bw, 2px) solid var(--co-bc, #000) !important; background: transparent !important; }
+.co-line-st-lb::after { content: ''; position: absolute; top: 100%; left: 10px; width: 0; height: var(--co-len, 30px); border-left: var(--co-bw, 2px) solid var(--co-bc, #000); }
+.co-line-st-lb::before { content: ''; position: absolute; top: calc(100% + var(--co-len, 30px) - 4px); left: 6px; width: 8px; height: 8px; background: var(--co-dot, #000); border-radius: 50%; }
+
+.co-line-st-rb { border: none !important; border-bottom: var(--co-bw, 2px) solid var(--co-bc, #000) !important; background: transparent !important; }
+.co-line-st-rb::after { content: ''; position: absolute; top: 100%; right: 10px; width: 0; height: var(--co-len, 30px); border-right: var(--co-bw, 2px) solid var(--co-bc, #000); }
+.co-line-st-rb::before { content: ''; position: absolute; top: calc(100% + var(--co-len, 30px) - 4px); right: 6px; width: 8px; height: 8px; background: var(--co-dot, #000); border-radius: 50%; }
+
+.co-line-dr-lb { border: none !important; border-bottom: var(--co-bw, 2px) solid var(--co-bc, #000) !important; background: transparent !important; }
+.co-line-dr-lb::after { content: ''; position: absolute; top: 100%; left: 10px; width: 0; height: var(--co-len, 30px); border-left: var(--co-bw, 2px) solid var(--co-bc, #000); }
+.co-line-dr-lb::before { content: ''; position: absolute; top: calc(100% + var(--co-len, 30px)); left: 4px; width: 10px; height: 10px; background: #fff; border: 2px solid var(--co-bc, #000); border-radius: 50%; }
+
+/* ================= NEW SHAPES (2) ================= */
+.co-shape-offset { border: 2px solid var(--co-bc, #000) !important; background: var(--co-bg-color, #fff) !important; box-shadow: 6px 6px 0px var(--co-bg, #facc15) !important; border-radius: 0 !important; }
+.co-shape-offset-tr { border: 2px solid var(--co-bc, #000) !important; background: var(--co-bg-color, #fff) !important; box-shadow: 6px -6px 0px var(--co-bg, #facc15) !important; border-radius: 0 !important; }
+
+.co-shape-box-line { border: 2px solid var(--co-bc, #000) !important; background: var(--co-bg-color, #fff) !important; box-shadow: -6px 6px 0px var(--co-bg, #facc15) !important; border-radius: 0 !important; position:relative; }
+.co-shape-box-line::before { content: ''; position: absolute; top: 100%; right: 20px; width: 20px; height: 20px; border-bottom: 2px solid var(--co-bc, #000); border-right: 2px solid var(--co-bc, #000); transform: skewX(45deg); transform-origin: top right; }
+.co-shape-box-line::after { content: ''; position: absolute; top: calc(100% + 18px); right: -2px; width: 6px; height: 6px; border: 2px solid var(--co-bc, #000); background: #fff; border-radius: 50%; }
+
+.co-shape-double { border: 2px solid var(--co-bc, #000) !important; background: transparent !important; position: relative; }
+.co-shape-double::before { content: ''; position:absolute; top:4px; left:4px; right:-8px; bottom:-8px; background: var(--co-bg, #facc15); z-index:-1; border: 2px solid var(--co-bc, #000); }
+
+.co-shape-cut { background: var(--co-bg, #000) !important; color: #fff !important; clip-path: polygon(10% 0, 100% 0, 90% 100%, 0 100%); border-radius: 0 !important; }
+.co-shape-cut-2 { background: var(--co-bg, #000) !important; color: #fff !important; clip-path: polygon(0 0, 100% 10%, 100% 100%, 0 90%); border-radius: 0 !important; }
+
+.co-shape-minimal-ptr { border: 1px solid var(--co-bc, #000) !important; background: var(--co-bg-color, #fff) !important; border-radius: 4px !important; }
+.co-shape-minimal-ptr::before { content: ''; position: absolute; bottom: 50%; right: 100%; width: 20px; height: 0; border-top: 1px solid var(--co-bc, #000); }
+.co-shape-minimal-ptr::after { content: ''; position: absolute; bottom: calc(50% - 3px); right: calc(100% + 18px); width: 6px; height: 6px; background: var(--co-bc, #000); border-radius: 50%; }
+
+/* ================= CENTER LINE & SHAPES ================= */
+.co-line-st-c { border: none !important; border-bottom: var(--co-bw, 2px) solid var(--co-bc, #000) !important; background: transparent !important; }
+.co-line-st-c::after { content: ''; position: absolute; top: 100%; left: 50%; transform: translateX(-50%); width: 0; height: var(--co-len, 30px); border-left: var(--co-bw, 2px) solid var(--co-bc, #000); }
+.co-line-st-c::before { content: ''; position: absolute; top: calc(100% + var(--co-len, 30px) - 4px); left: 50%; transform: translateX(-50%); width: 8px; height: 8px; background: var(--co-dot, #000); border-radius: var(--co-dot-radius, 50%); clip-path: var(--co-dot-clip, none); box-sizing: border-box; }
+
+.co-line-sl-lb::before, .co-line-sl-rb::before, .co-line-st-lb::before, .co-line-st-rb::before, .co-line-dr-lb::before {
+    border-radius: var(--co-dot-radius, 50%) !important;
+    clip-path: var(--co-dot-clip, none) !important;
+}
+
+/* ================= NEON CALLOUTS ================= */
+.co-neon-wrapper {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    /* Text is forced to white, glow uses variable */
+    text-shadow: 
+        0 0 var(--neon-blur-core, 2px) var(--neon-glow-color, #7dd3fc),
+        0 0 var(--neon-blur-inner, 4px) var(--neon-glow-color, #7dd3fc), 
+        0 0 var(--neon-blur-outer, 12px) var(--neon-glow-color, #7dd3fc),
+        0 0 calc(var(--neon-blur-outer, 12px) * 1.5) var(--neon-glow-color, #7dd3fc) !important;
+    font-family: 'Montserrat', sans-serif !important;
+    background: transparent !important;
+    border: none !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+}
+.co-neon-icon {
+    font-family: 'Font Awesome 5 Free' !important;
+    font-weight: 900 !important;
+    font-size: 56px;
+    margin-bottom: 8px;
+    filter: 
+        drop-shadow(0 0 var(--neon-blur-core, 3px) var(--neon-glow-color, #7dd3fc))
+        drop-shadow(0 0 var(--neon-blur-inner, 8px) var(--neon-glow-color, #7dd3fc));
+}
+.co-neon-text {
+    font-size: 14px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    text-align: center;
+}
+
+/* Neon Butonlar (Paneldeki) */
+.neon-btn {
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 8px;
+    padding: 10px 5px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    color: #fff;
+    text-shadow: 0 0 5px rgba(186, 230, 253, 0.3);
+}
+.neon-btn i.material-symbols-outlined {
+    font-size: 28px;
+    margin-bottom: 5px;
+    font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
+    filter: drop-shadow(0 0 5px rgba(186, 230, 253, 0.5));
+}
+.neon-btn span {
+    font-size: 9px;
+    text-align: center;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+}
+.neon-btn:hover {
+    background: #334155;
+    border-color: #7dd3fc;
+    transform: translateY(-2px);
+}
+
+/* LOGO INTEGRATION */
+.logo img {
+  transition: transform 0.3s ease, 
+              box-shadow 0.3s ease;
+  border-radius: 8px;
+}
+
+.logo:hover img {
+  transform: scale(1.05);
+  box-shadow: 0 0 30px rgba(108, 92, 231, 0.5);
+}
+
+/* Hero büyük logo için glow efekti */
+.hero-logo {
+  filter: drop-shadow(0 0 30px rgba(108, 92, 231, 0.4));
+  animation: subtle-glow 3s ease-in-out infinite;
+}
+
+@keyframes subtle-glow {
+  0%, 100% { 
+    filter: drop-shadow(0 0 20px rgba(108, 92, 231, 0.3)); 
+  }
+  50% { 
+    filter: drop-shadow(0 0 40px rgba(108, 92, 231, 0.5)); 
+  }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .logo img {
+    height: 55px !important;
+  }
+}
+
+/* ================================
+   ⚡ NEON EFEKTLER (SABER) - ACCORDION
+   Çizim Modu butonlarıyla uyumlu & Sabit Sistem Ayarı
+   ================================ */
+
+.saber-accordion {
+    width: 100%;
+    margin: 10px 0;
+    border-radius: 10px;
+    overflow: hidden;
+    background: #1e293b;
+    border: 1.5px solid #334155;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+.saber-accordion:hover {
+    border-color: rgba(0, 206, 201, 0.5);
+}
+
+.saber-accordion-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 12px 14px;
+    background: #0f172a;
+    border: none;
+    color: #f8fafc;
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-align: left;
+}
+
+.saber-accordion-header:hover {
+    background: #1e293b;
+}
+
+.saber-accordion.open .saber-accordion-header {
+    background: #1e293b;
+    border-bottom: 1.5px solid #334155;
+    color: #00CEC9;
+}
+
+.saber-accordion-icon {
+    font-size: 18px;
+    color: #00CEC9;
+}
+
+.saber-accordion-title {
+    flex: 1;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    font-size: 12px;
+    font-weight: 800;
+    color: #f8fafc;
+}
+
+.saber-accordion-badge {
+    background: rgba(0, 206, 201, 0.15);
+    color: #00CEC9;
+    border: 1px solid rgba(0, 206, 201, 0.4);
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+}
+
+.saber-accordion-arrow {
+    font-size: 11px;
+    transition: transform 0.2s ease;
+    opacity: 0.8;
+}
+
+.saber-accordion.open .saber-accordion-arrow {
+    transform: rotate(180deg);
+}
+
+.saber-accordion-content {
+    padding: 14px;
+    background: #141e2e;
+    animation: saberSlideDown 0.2s ease;
+}
+
+@keyframes saberSlideDown {
+    from { opacity: 0; transform: translateY(-6px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Saber Toggle Switch */
+.saber-header {
+    padding: 4px 0 14px;
+    border-bottom: 1.5px solid #334155;
+    margin-bottom: 14px;
+}
+
+.saber-toggle {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+    user-select: none;
+}
+
+.saber-toggle input[type="checkbox"] {
+    display: none;
+}
+
+.saber-toggle-slider {
+    position: relative;
+    width: 48px;
+    height: 26px;
+    background: #334155;
+    border: 1.5px solid #475569;
+    border-radius: 13px;
+    transition: all 0.3s;
+    flex-shrink: 0;
+}
+
+.saber-toggle-slider::before {
+    content: '';
+    position: absolute;
+    top: 2px; left: 2px;
+    width: 19px; height: 19px;
+    background: #ffffff;
+    border-radius: 50%;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+    transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+.saber-toggle input:checked + .saber-toggle-slider {
+    background: linear-gradient(135deg, #6C5CE7, #00CEC9);
+    border-color: #00CEC9;
+    box-shadow: 0 0 16px rgba(0, 206, 201, 0.5);
+}
+
+.saber-toggle input:checked + .saber-toggle-slider::before {
+    transform: translateX(22px);
+    background: #fff;
+    box-shadow: 0 0 8px rgba(255, 255, 255, 0.8);
+}
+
+.saber-toggle-label {
+    color: #f8fafc;
+    font-weight: 700;
+    font-size: 13px;
+    letter-spacing: 0.2px;
+}
+
+/* Bölüm başlıkları */
+.saber-section {
+    margin-bottom: 16px;
+}
+
+.saber-section-title {
+    color: #38bdf8;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+    padding-bottom: 6px;
+    border-bottom: 1.5px solid #334155;
+}
+
+/* Preset ızgarası */
+.saber-preset-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 6px;
+}
+
+.saber-preset-item {
+    aspect-ratio: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: #0f172a;
+    border: 1.5px solid #334155;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    color: #f8fafc;
+    font-size: 18px;
+    padding: 4px;
+    gap: 2px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.saber-preset-item:hover {
+    background: #1e293b;
+    border-color: #64748b;
+    transform: translateY(-2px);
+}
+
+.saber-preset-item.active {
+    background: rgba(0, 206, 201, 0.15) !important;
+    border: 2px solid #00CEC9 !important;
+    box-shadow: 0 0 12px rgba(0, 206, 201, 0.35) !important;
+    color: #00CEC9 !important;
+}
+
+.saber-preset-name {
+    font-size: 8px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
+    color: #94a3b8;
+    text-align: center;
+    line-height: 1.1;
+}
+
+.saber-preset-item.active .saber-preset-name {
+    color: #00CEC9 !important;
+    font-weight: 800;
+}
+
+/* Renk ızgarası */
+.saber-color-grid {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 6px;
+    margin-bottom: 10px;
+}
+
+.saber-color-item {
+    aspect-ratio: 1;
+    border-radius: 50%;
+    cursor: pointer;
+    border: 2px solid #475569;
+    transition: all 0.2s ease;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+}
+
+.saber-color-item:hover {
+    transform: scale(1.15);
+    border-color: #94a3b8;
+}
+
+.saber-color-item.active {
+    border: 2.5px solid #ffffff !important;
+    box-shadow: 0 0 0 2px #00CEC9, 0 0 12px currentColor !important;
+    transform: scale(1.18);
+}
+
+.saber-custom-color {
+    display: flex;
+    gap: 12px;
+    padding: 10px;
+    background: #0f172a;
+    border: 1.5px solid #334155;
+    border-radius: 8px;
+    flex-wrap: wrap;
+}
+
+.saber-custom-color label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #cbd5e1;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    flex: 1;
+    min-width: 130px;
+}
+
+.saber-custom-color input[type="color"] {
+    width: 32px;
+    height: 32px;
+    border: 1.5px solid #334155;
+    border-radius: 6px;
+    cursor: pointer;
+    background: none;
+    padding: 0;
+}
+
+/* Slider satırları */
+.saber-slider-row {
+    display: grid;
+    grid-template-columns: 85px 1fr 42px;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.saber-slider-row label {
+    color: #cbd5e1;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.saber-slider-row input[type="range"] {
+    width: 100%;
+    accent-color: #00CEC9;
+}
+
+.saber-slider-row span {
+    background: #0f172a;
+    border: 1px solid #334155;
+    border-radius: 5px;
+    color: #00CEC9;
+    font-size: 11px;
+    font-weight: 700;
+    text-align: center;
+    font-family: 'Space Grotesk', monospace;
+    padding: 2px 4px;
+    min-width: 38px;
+}
+
+/* ⚡ Neon Toggle Kartı (Köşe Pinleri & Canlı Animasyon) */
+.saber-toggles-card {
+    background: rgba(15, 23, 42, 0.45);
+    border: 1px solid #334155;
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin: 6px 0 12px 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    box-sizing: border-box;
+}
+
+.saber-toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+}
+
+.saber-toggle-label-text {
+    font-size: 12px;
+    font-weight: 600;
+    color: #cbd5e1;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    user-select: none;
+    letter-spacing: 0.15px;
+    cursor: pointer;
+    flex: 1;
+}
+
+.saber-toggle-row .switch-toggle {
+    margin: 0;
+}
+
+/* Butonlar */
+.saber-btn {
+    width: 100%;
+    padding: 10px 12px;
+    border: none;
+    border-radius: 8px;
+    font-family: 'Inter', sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    letter-spacing: 0.4px;
+    text-align: center;
+}
+
+.saber-btn-danger {
+    background: rgba(239, 68, 68, 0.15);
+    border: 1.5px solid rgba(239, 68, 68, 0.4);
+    color: #fca5a5;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.saber-btn-danger:hover {
+    background: rgba(239, 68, 68, 0.25);
+    border-color: #ef4444;
+    color: #ffffff;
+    transform: translateY(-1px);
+}
+
+/* Bilgi kutusu */
+.saber-info {
+    padding: 10px 12px;
+    background: rgba(0, 206, 201, 0.08);
+    border-left: 3px solid #00CEC9;
+    border: 1px solid rgba(0, 206, 201, 0.25);
+    border-radius: 8px;
+    color: #a5f3fc;
+    font-size: 11px;
+    line-height: 1.5;
+}
+
+/* ═══ SABER GEÇMİŞ BUTONLARI ═══ */
+.dh-btn.dh-saber, .dh-btn.dh-saber-add {
+    background: linear-gradient(135deg, #6C5CE7, #00CEC9);
+    color: white;
+    box-shadow: 0 0 8px rgba(108, 92, 231, 0.5);
+}
+.dh-btn.dh-saber:hover, .dh-btn.dh-saber-add:hover {
+    transform: scale(1.15);
+    box-shadow: 0 0 16px rgba(108, 92, 231, 0.8);
+}
+
+/* ═══ DÜZENLEME PANELİ SABER AYARLARI (.sep-*) ═══ */
+.sep-preset-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 6px;
+}
+
+.sep-preset {
+    aspect-ratio: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: #0f172a;
+    border: 1.5px solid #334155;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    color: #f8fafc;
+    font-size: 16px;
+    padding: 4px;
+}
+
+.sep-preset:hover {
+    background: #1e293b;
+    border-color: #64748b;
+}
+
+.sep-preset.active {
+    background: rgba(0, 206, 201, 0.15) !important;
+    border: 2px solid #00CEC9 !important;
+    color: #00CEC9 !important;
+    box-shadow: 0 0 10px rgba(0, 206, 201, 0.3) !important;
+}
+
+.sep-color-grid {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 6px;
+}
+
+.sep-color {
+    aspect-ratio: 1;
+    border-radius: 50%;
+    border: 2px solid #475569;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.sep-color:hover {
+    transform: scale(1.15);
+}
+
+.sep-color.active {
+    border: 2.5px solid #ffffff !important;
+    box-shadow: 0 0 0 2px #00CEC9 !important;
+}
+
+.sep-slider-row {
+    display: grid;
+    grid-template-columns: 85px 1fr 42px;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+
+.sep-slider-row label {
+    color: #cbd5e1;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.sep-slider-row span {
+    background: #0f172a;
+    border: 1px solid #334155;
+    border-radius: 4px;
+    color: #00CEC9;
+    font-size: 11px;
+    font-weight: 700;
+    text-align: center;
+    padding: 2px 4px;
+    min-width: 38px;
+}
+.dh-btn.dh-saber-add {
+    background: rgba(255, 255, 255, 0.08);
+    box-shadow: none;
+}
+.dh-btn.dh-saber-add:hover {
+    background: linear-gradient(135deg, #6C5CE7, #00CEC9);
+    box-shadow: 0 0 12px rgba(108, 92, 231, 0.6);
+}
+
+/* ═══ SABER DÜZENLEME PANELİ ═══ */
+.saber-edit-panel {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 420px;
+    max-width: 90vw;
+    max-height: 80vh;
+    overflow-y: auto;
+    background: linear-gradient(135deg, rgba(20,20,40,0.98), rgba(10,10,26,0.98));
+    border: 2px solid rgba(108, 92, 231, 0.4);
+    border-radius: 16px;
+    padding: 20px;
+    z-index: 99999;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.8), 0 0 40px rgba(108, 92, 231, 0.3);
+    backdrop-filter: blur(20px);
+    animation: sepSlideIn 0.3s ease;
+}
+@keyframes sepSlideIn {
+    from { opacity: 0; transform: translate(-50%, -55%); }
+    to { opacity: 1; transform: translate(-50%, -50%); }
+}
+.sep-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 14px;
+    margin-bottom: 16px;
+    border-bottom: 1px solid rgba(108, 92, 231, 0.2);
+    color: #fff;
+    font-weight: 800;
+    font-size: 14px;
+    letter-spacing: 1px;
+}
+.sep-close {
+    background: rgba(255,255,255,0.1);
+    border: none;
+    color: #fff;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.2s;
+}
+.sep-close:hover {
+    background: #ff4466;
+}
+.sep-section {
+    margin-bottom: 16px;
+}
+.sep-title {
+    color: rgba(0, 206, 201, 0.9);
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+}
+.sep-preset-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 6px;
+}
+.sep-preset {
+    aspect-ratio: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255,255,255,0.04);
+    border: 1.5px solid rgba(255,255,255,0.08);
+    border-radius: 8px;
+    cursor: pointer;
+    color: #fff;
+    font-size: 18px;
+    transition: all 0.2s;
+    padding: 3px;
+}
+.sep-preset:hover {
+    background: rgba(108, 92, 231, 0.2);
+    border-color: rgba(108, 92, 231, 0.5);
+}
+.sep-preset.active {
+    background: linear-gradient(135deg, rgba(108, 92, 231, 0.4), rgba(0, 206, 201, 0.3));
+    border-color: #00CEC9;
+    box-shadow: 0 0 12px rgba(0, 206, 201, 0.4);
+}
+.sep-preset-name {
+    font-size: 7px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
+    opacity: 0.85;
+    text-align: center;
+    line-height: 1.1;
+    margin-top: 2px;
+}
+.sep-color-grid {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 6px;
+}
+.sep-color {
+    aspect-ratio: 1;
+    border-radius: 50%;
+    cursor: pointer;
+    border: 2px solid rgba(255,255,255,0.1);
+    transition: all 0.2s;
+}
+.sep-color:hover {
+    transform: scale(1.2);
+    border-color: #fff;
+}
+.sep-btn {
+    width: 100%;
+    padding: 12px;
+    border: none;
+    border-radius: 10px;
+    color: #fff;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+.sep-btn-danger {
+    background: linear-gradient(135deg, #FF6B6B, #EE5A6F);
+}
+.sep-btn-danger:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(238, 90, 111, 0.5);
+}
+
+/* Saber Edit Panel - Slider satırları */
+.sep-slider-row {
+    display: grid;
+    grid-template-columns: 90px 1fr 40px;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+.sep-slider-row label {
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 12px;
+    font-weight: 600;
+}
+.sep-slider-row input[type="range"] {
+    width: 100%;
+    accent-color: #00CEC9;
+}
+.sep-slider-row span {
+    color: #00CEC9;
+    font-size: 12px;
+    font-weight: 700;
+    text-align: right;
+    font-family: 'Space Grotesk', monospace;
+}
+

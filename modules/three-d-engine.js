@@ -2324,8 +2324,35 @@
     }
 
     /**
+     * 🎯 3D Stüdyo Panelini Varsayılan Olarak Sol Panelin (.panel) Üzerine Hizalar
+     * Böylece tuval ve fotoğraf alanı tamamen açık kalır, kullanıcının görüşünü kapatmaz.
+     */
+    function positionStudioPanelOverLeftPanel(panel) {
+        if (!panel) return;
+        if (panel._hasBeenManuallyDragged) return;
+
+        const leftPanel = document.querySelector('.container > .panel') || document.querySelector('.panel');
+        if (leftPanel) {
+            const rect = leftPanel.getBoundingClientRect();
+            const targetLeft = Math.max(8, Math.round(rect.left));
+            const targetTop = Math.max(65, Math.round(rect.top));
+            panel.style.left = targetLeft + 'px';
+            panel.style.top = targetTop + 'px';
+            panel.style.right = 'auto';
+            panel.style.bottom = 'auto';
+            if (rect.width > 320) {
+                panel.style.width = Math.min(430, Math.round(rect.width)) + 'px';
+            }
+        } else {
+            panel.style.left = '15px';
+            panel.style.top = '75px';
+        }
+    }
+
+    /**
      * 8.2. 3D Öge Seçim Yönetimi
      * Görsel serbestken seçimi düşürür, tuşla/tıklamayla yeniden seçildiğinde fotoğrafı kilitler.
+     * Boşa tıklandığında 3D panel ve tutamaçlar birlikte kapanır; ögeye tıklandığında panel sol panelde açılır.
      */
     function setSelected(selected, options = {}) {
         if (!state.active && selected) return;
@@ -2358,8 +2385,16 @@
                     updateCornerPinVisuals();
                 }
             }
+
+            // 🎯 Panel de sol panel üzerinde açılsın
+            const panel = ensureStudioPanel();
+            if (panel) {
+                positionStudioPanelOverLeftPanel(panel);
+                panel.style.display = 'flex';
+            }
+
             if (!options.silent && window.showToast) {
-                window.showToast('🎯 3D Öge Seçildi — Tutamaçlar & Grid Aktif (Kısayol: 3 | Bırakmak: Boşa Tıkla/ESC)', 'info');
+                window.showToast('🎯 3D Öge Seçildi — Tutamaçlar & Panel Aktif (Kısayol: 3 | Bırakmak: Boşa Tıkla/ESC)', 'info');
             }
         } else {
             // 3D öge seçimi bırakıldı
@@ -2376,8 +2411,15 @@
             if (sunRayLine) sunRayLine.visible = false;
             if (gizmoOverlayEl) gizmoOverlayEl.style.display = 'none';
             if (cornerPinOverlayEl) cornerPinOverlayEl.style.display = 'none';
+
+            // 🎯 Boşa tıklanınca veya seçim bırakılınca panel de kapansın!
+            const panel = document.getElementById('threeDStudioPanel');
+            if (panel) {
+                panel.style.display = 'none';
+            }
+
             if (!options.silent && window.showToast) {
-                window.showToast('🔓 3D Seçimi Bırakıldı — Tutamaçlar & Grid Kapandı (Seçmek İçin Yazıya Tıkla/[3])', 'info');
+                window.showToast('🔓 3D Seçimi Bırakıldı — Panel & Tutamaçlar Kapandı (Seçmek İçin Ögeye Tıkla/[3])', 'info');
             }
         }
 
@@ -2638,6 +2680,44 @@
                     if (state.active && state.selected) {
                         setSelected(false);
                     }
+                }
+            });
+        }
+
+        // 🎯 Tuval dışı boş alana (preview-area veya workArea) tıklandığında seçimi ve paneli kapat
+        const previewArea = document.getElementById('preview-area') || document.getElementById('workArea');
+        if (previewArea && !previewArea._threeDPreviewAreaEventsAttached) {
+            previewArea._threeDPreviewAreaEventsAttached = true;
+            previewArea.addEventListener('pointerdown', (e) => {
+                if (!state.active || !state.selected) return;
+                if (e.button !== 0) return;
+                // Panel, gizmo, dock kontrolleri veya tuval içi tıklamaları koru
+                if (e.target.closest('#threeDStudioPanel, .three-d-panel, #threeDGizmoOverlay, #threeDCornerPinOverlay, #threeDCanvasBadge, #threeDDockControls, .dock-3d-controls, #canvas-container')) {
+                    return;
+                }
+                setSelected(false);
+            });
+        }
+
+        // 🎯 Sol menüde başka bir sekmeye tıklandığında seçimi ve 3D paneli kapat
+        const mainTabs = document.getElementById('mainTabs');
+        if (mainTabs && !mainTabs._threeDTabsEventsAttached) {
+            mainTabs._threeDTabsEventsAttached = true;
+            mainTabs.addEventListener('click', (e) => {
+                const btn = e.target.closest('.tab-btn');
+                if (btn && state.active && state.selected) {
+                    setSelected(false);
+                }
+            });
+        }
+
+        // 🎯 Pencere yeniden boyutlandırıldığında paneli sol panel üzerinde tut
+        if (!window._threeDResizePositionAttached) {
+            window._threeDResizePositionAttached = true;
+            window.addEventListener('resize', () => {
+                const p = document.getElementById('threeDStudioPanel');
+                if (p && !p._hasBeenManuallyDragged && p.style.display !== 'none') {
+                    positionStudioPanelOverLeftPanel(p);
                 }
             });
         }
@@ -3524,6 +3604,7 @@
         `;
 
         document.body.appendChild(panel);
+        positionStudioPanelOverLeftPanel(panel);
         bindPanelEvents(panel);
         makeDraggable(panel, document.getElementById('threeDPanelHeader'));
         return panel;
@@ -4054,6 +4135,7 @@
         handle.addEventListener('pointerdown', (e) => {
             if (e.target.closest('button')) return;
             isDown = true;
+            el._hasBeenManuallyDragged = true;
             startX = e.clientX;
             startY = e.clientY;
             const rect = el.getBoundingClientRect();
@@ -4099,6 +4181,7 @@
         }
 
         const panel = ensureStudioPanel();
+        positionStudioPanelOverLeftPanel(panel);
         panel.style.display = 'flex';
         state.active = true;
         state.hasBaked = false;
@@ -4254,6 +4337,12 @@
         if (gizmoOverlayEl) {
             gizmoOverlayEl.style.display = 'block';
             updateGizmoPositions();
+        }
+
+        const p = document.getElementById('threeDStudioPanel');
+        if (p) {
+            p._hasBeenManuallyDragged = false;
+            positionStudioPanelOverLeftPanel(p);
         }
 
         setSelected(true, { silent: true, autoLockPhoto: false });

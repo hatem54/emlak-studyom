@@ -2239,7 +2239,7 @@
     }
 
     /**
-     * 10. 4K Ultra-HD Tuvale Fırınlama (Hi-Res Bake)
+     * 10. Tuvale Aktar (Hi-Res Bake & Transfer)
      */
     function bakeToCanvas() {
         if (!renderer || !canvasEl) return false;
@@ -2291,10 +2291,29 @@
 
         notifyExternalUpdates();
 
+        // 🌟 2D Kaynak Elemanını ve Çiftleri Kalıcı Olarak Temizle
+        if (state.source2DEl && state.source2DEl.parentNode) {
+            try { state.source2DEl.remove(); } catch(e){}
+            state.source2DEl = null;
+        }
+        document.querySelectorAll('[data-converted-to-3d="true"]').forEach(el => {
+            try { el.remove(); } catch(e){}
+        });
+
+        // 3D Canvas'ı Tuvale Aktarıldığı İçin Gizle
+        if (canvasEl) canvasEl.style.display = 'none';
+
+        // 3D Paneli ve Tutamaçları Kapat
+        closeStudio();
+
+        if (typeof window.renderLayers === 'function') window.renderLayers();
+        if (typeof window.recordHistory === 'function') window.recordHistory('3D Öge Tuvale Aktarıldı');
+        if (typeof window.requestAutoSave === 'function') window.requestAutoSave();
+
         if (window.showToast) {
-            window.showToast('✅ 3D Ögeler 4K Ultra-HD Kalitede Tuvale Fırınlandı!', 3500);
+            window.showToast('✅ 3D Öge Başarıyla Tuvale Aktarıldı!', 3500);
         } else {
-            alert('3D Ögeler 4K Ultra-HD Kalitede Tuvale Fırınlandı!');
+            alert('3D Öge Başarıyla Tuvale Aktarıldı!');
         }
         return true;
     }
@@ -2860,8 +2879,8 @@
 
             <!-- FOOTER AKSİYONLAR -->
             <div class="three-d-footer">
-                <button id="threeDBakeBtn" class="three-d-primary-btn">
-                    <i class="fas fa-magic"></i> 4K Ultra-HD Tuvale Fırınla
+                <button id="threeDBakeBtn" class="three-d-primary-btn" style="background:linear-gradient(135deg, #0284c7 0%, #38bdf8 100%); font-weight:700; display:flex; align-items:center; justify-content:center; gap:8px;">
+                    <i class="fas fa-file-import"></i> 💾 Tuvale Aktar
                 </button>
             </div>
         `;
@@ -3419,10 +3438,22 @@
     /**
      * 15. Modalı Aç / Kapat
      */
-    async function openStudio() {
+    async function openStudio(skipAutoConvert = false) {
+        // Eğer bir 2D rozet veya ikon varsa ve henüz dönüştürülmediyse, otomatik olarak onu 3D'ye dönüştür
+        if (!skipAutoConvert && !state.source2DEl) {
+            const candidate = (typeof window.selectedCalloutEl !== 'undefined' && window.selectedCalloutEl) ||
+                              (typeof selectedCalloutEl !== 'undefined' && selectedCalloutEl) ||
+                              (typeof window.selectedEl !== 'undefined' && window.selectedEl) ||
+                              document.querySelector('#canvas-container .callout-wrap:not([data-converted-to-3d="true"]), #workArea .callout-wrap:not([data-converted-to-3d="true"]), #ui-layer .added-icon:not([data-converted-to-3d="true"])');
+            if (candidate && candidate.style.display !== 'none') {
+                return convert2DBadgeTo3D(candidate);
+            }
+        }
+
         const panel = ensureStudioPanel();
         panel.style.display = 'flex';
         state.active = true;
+        state.hasBaked = false;
 
         if (!state.loaded) {
             const statusEl = panel.querySelector('#threeDLoadingStatus');
@@ -3464,6 +3495,17 @@
         if (gizmoOverlayEl) gizmoOverlayEl.style.display = 'none';
         if (canvasBadgeEl) canvasBadgeEl.style.display = 'none';
         state.cornerPinActive = false;
+
+        // Eğer tuvale aktarılmadan kapatıldıysa ve 2D kaynak öge gizlendiyse, 2D ögeyi geri göster
+        if (!state.hasBaked && state.source2DEl && state.source2DEl.parentNode) {
+            try {
+                state.source2DEl.style.removeProperty('display');
+                state.source2DEl.style.removeProperty('visibility');
+                delete state.source2DEl.dataset.convertedTo3D;
+            } catch(e){}
+            state.source2DEl = null;
+        }
+
         notifyExternalUpdates();
         requestRender();
     }
@@ -3812,6 +3854,10 @@
     function convert2DBadgeTo3D(badgeEl) {
         const el = badgeEl || (typeof window.selectedCalloutEl !== 'undefined' ? window.selectedCalloutEl : (typeof selectedCalloutEl !== 'undefined' ? selectedCalloutEl : (typeof window.selectedEl !== 'undefined' ? window.selectedEl : null)));
         if (!el) {
+            const autoEl = document.querySelector('#canvas-container .callout-wrap:not([data-converted-to-3d="true"]), #workArea .callout-wrap:not([data-converted-to-3d="true"]), #ui-layer .added-icon:not([data-converted-to-3d="true"])');
+            if (autoEl) {
+                return convert2DBadgeTo3D(autoEl);
+            }
             if (typeof window.showToast === 'function') {
                 window.showToast('⚠️ Lütfen önce tuvalde dönüştürmek istediğiniz rozet veya ikonu seçin.', 'warning');
             }
@@ -3851,14 +3897,18 @@
                 }
             }
 
-            el.style.display = 'none';
-            el.dataset.convertedTo3D = 'true';
+            // 2D ikonu gizle
+            root.style.setProperty('display', 'none', 'important');
+            root.style.setProperty('visibility', 'hidden', 'important');
+            root.dataset.convertedTo3D = 'true';
             if (root !== el) {
-                root.style.display = 'none';
-                root.dataset.convertedTo3D = 'true';
+                el.style.setProperty('display', 'none', 'important');
+                el.dataset.convertedTo3D = 'true';
             }
+            state.source2DEl = root;
+            state.hasBaked = false;
 
-            openStudio();
+            openStudio(true);
             recreateContentMeshes();
             syncControlsUI();
             setSelected(true);
@@ -3953,18 +4003,21 @@
         }
 
         // 2D rozeti gizle
-        el.style.display = 'none';
-        el.dataset.convertedTo3D = 'true';
+        root.style.setProperty('display', 'none', 'important');
+        root.style.setProperty('visibility', 'hidden', 'important');
+        root.dataset.convertedTo3D = 'true';
         if (root !== el) {
-            root.style.display = 'none';
-            root.dataset.convertedTo3D = 'true';
+            el.style.setProperty('display', 'none', 'important');
+            el.dataset.convertedTo3D = 'true';
         }
+        state.source2DEl = root;
+        state.hasBaked = false;
         if (typeof window.removeCalloutControls === 'function') {
             window.removeCalloutControls();
         }
 
         // 3D motoru aç ve yeniden çiz
-        openStudio();
+        openStudio(true);
         recreateContentMeshes();
         syncControlsUI();
         setSelected(true);

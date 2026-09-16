@@ -896,8 +896,110 @@ function openMultiSelectContextMenu(clientX, clientY) {
     bindBtn('#acm-multi-delete', () => { if (window.multiSelectDelete) window.multiSelectDelete(); });
 }
 
+// 🌟 Rozetler veya İkonlar kütüphanesindeki bir öğeye sağ tıklandığında açılan 3D Hızlı Seçenek Menüsü
+function openLibraryItem3DContextMenu(libItem, clientX, clientY) {
+    if (!libItem) return;
+
+    const prevLibMenu = document.getElementById('app-lib-context-menu');
+    if (prevLibMenu) prevLibMenu.remove();
+    const prevAcm = document.getElementById('app-custom-context-menu');
+    if (prevAcm) prevAcm.remove();
+
+    const isIcon = libItem.classList.contains('pool-icon-item') || 
+                   (libItem.closest && libItem.closest('#tab-icons')) || 
+                   (libItem.closest && libItem.closest('#otherCalloutsGrid')) ||
+                   libItem.classList.contains('other-callout-card');
+    const typeLabel = isIcon ? 'İkon' : 'Rozet';
+
+    const menu = document.createElement('div');
+    menu.id = 'app-lib-context-menu';
+    menu.className = 'app-context-menu';
+
+    menu.innerHTML = `
+        <div class="app-context-header">
+            <span style="display:flex; align-items:center; gap:5px; pointer-events:none;">
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" style="opacity:0.6;"><circle cx="9" cy="6" r="2"></circle><circle cx="15" cy="6" r="2"></circle><circle cx="9" cy="12" r="2"></circle><circle cx="15" cy="12" r="2"></circle><circle cx="9" cy="18" r="2"></circle><circle cx="15" cy="18" r="2"></circle></svg>
+                ✨ ${typeLabel} 3D Seçenekleri
+            </span>
+            <button class="acm-close-btn" id="lib-acm-close" title="Kapat">✕</button>
+        </div>
+        <button class="app-context-item item-3d" id="lib-convert-3d" style="background: linear-gradient(135deg, rgba(2, 132, 199, 0.25) 0%, rgba(56, 189, 248, 0.35) 100%); border: 1px solid rgba(56, 189, 248, 0.45); color: #38bdf8; font-weight: 700;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2.2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+            <span>✨ 3D'ye Dönüştür (Tuvalde Aç)</span>
+        </button>
+        <button class="app-context-item" id="lib-add-2d" style="color: #cbd5e1;">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+            <span>➕ Normal (2D) Olarak Ekle</span>
+        </button>
+    `;
+
+    document.body.appendChild(menu);
+
+    let posX = clientX || 200;
+    let posY = clientY || 200;
+    if (posX + 230 > window.innerWidth) posX = window.innerWidth - 240;
+    if (posY + 130 > window.innerHeight) posY = window.innerHeight - 140;
+
+    menu.style.position = 'fixed';
+    menu.style.left = Math.max(10, posX) + 'px';
+    menu.style.top = Math.max(10, posY) + 'px';
+    menu.style.zIndex = '999999';
+
+    const closeLibMenu = () => { if (menu.parentNode) menu.remove(); };
+    menu.querySelector('#lib-acm-close').onclick = closeLibMenu;
+
+    menu.querySelector('#lib-convert-3d').onclick = (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        closeLibMenu();
+
+        // 1. Ögeyi normal olarak tuvale eklet
+        libItem.click();
+
+        // 2. Hemen ardından yeni eklenen ögeyi bul ve 3D'ye dönüştür
+        setTimeout(() => {
+            const added = (typeof window.selectedCalloutEl !== 'undefined' && window.selectedCalloutEl) ||
+                          (typeof selectedCalloutEl !== 'undefined' && selectedCalloutEl) ||
+                          (typeof window.selectedEl !== 'undefined' && window.selectedEl) ||
+                          document.querySelector('#canvas-container .callout-wrap:last-child, #workArea .callout-wrap:last-child, #ui-layer .added-icon:last-child, #canvas-container .draggable:last-child');
+            if (added && window.ThreeDEngine && typeof window.ThreeDEngine.convert2DBadgeTo3D === 'function') {
+                window.ThreeDEngine.convert2DBadgeTo3D(added);
+            }
+        }, 40);
+    };
+
+    menu.querySelector('#lib-add-2d').onclick = (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        closeLibMenu();
+        libItem.click();
+    };
+
+    setTimeout(() => {
+        const closeOnOut = (ev) => {
+            if (!menu.contains(ev.target)) {
+                closeLibMenu();
+                document.removeEventListener('pointerdown', closeOnOut);
+            }
+        };
+        document.addEventListener('pointerdown', closeOnOut);
+    }, 50);
+}
+
 // 1. PC: Mouse Sağ Tık (Context Menu)
 document.addEventListener('contextmenu', function(e) {
+    // 🌟 Rozetler veya İkonlar kütüphanesindeki bir öğeye sağ tıklandıysa: 3D Seçenek Menüsü Aç!
+    const libBadgeOrIcon = e.target.closest && e.target.closest(
+        '.callout-svg-btn, #calloutAccordion .accordion-body > div, .other-callout-card, ' +
+        '.pool-icon-item, #lucideSearchResults > div, #iconCategoryList .cat-body > div, #iconPool > div, .cvi-grid-item'
+    );
+    if (libBadgeOrIcon) {
+        e.preventDefault();
+        e.stopPropagation();
+        openLibraryItem3DContextMenu(libBadgeOrIcon, e.clientX, e.clientY);
+        return;
+    }
+
     // Yan paneller, butonlar ve form inputlarında default menüyü koru
     if (e.target.closest && e.target.closest('input, button, select, textarea, .panel, .mobile-panel')) {
         return;

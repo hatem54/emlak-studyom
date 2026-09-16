@@ -1354,6 +1354,10 @@ function selectCalloutEl(el, isUserClick = false) {
     });
     el.style.outline = '1px dashed rgba(255,255,255,0.4)';
     selectedCalloutEl = el;
+    window.selectedCalloutEl = el;
+    window.selectedEl = el;
+    const coDetails = document.querySelector('#tab-callout details');
+    if (coDetails) coDetails.open = true;
     
     // Show controls for neon block
     if (el.classList.contains('co-neon-block')) {

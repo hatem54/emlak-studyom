@@ -1881,7 +1881,7 @@
             arcScreenTangents.yz = { x: (pFwdYZ.x - pMidYZ.x) / tLenYZ, y: (pFwdYZ.y - pMidYZ.y) / tLenYZ };
         }
 
-        function build3DArc(vStartDir, vEndDir, steps = 6) {
+        function build3DArc(vStartDir, vEndDir, steps = 32) {
             const pts = [];
             let midPt = null;
             for (let i = 0; i <= steps; i++) {

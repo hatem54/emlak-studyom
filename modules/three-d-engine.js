@@ -321,6 +321,39 @@
     }
 
     /**
+     * 2.1 Tuval Yeniden Boyutlandırma ve Kamera Adaptasyonu (Görsel Yüklendiğinde / Format Değiştiğinde)
+     */
+    function resize(w, h) {
+        const container = document.getElementById('canvas-container');
+        if (!container) return;
+
+        const newW = w || container.offsetWidth || 1920;
+        const newH = h || container.offsetHeight || 1080;
+
+        if (canvasEl) {
+            canvasEl.width = newW;
+            canvasEl.height = newH;
+            canvasEl.style.width = '100%';
+            canvasEl.style.height = '100%';
+        }
+
+        if (renderer) {
+            renderer.setSize(newW, newH, false);
+        }
+
+        if (camera) {
+            camera.aspect = newW / newH;
+            camera.updateProjectionMatrix();
+        }
+
+        updatePlaneTransform();
+        updateContentTransform();
+        if (gizmoOverlayEl && state.gizmoActive) updateGizmoPositions();
+        if (cornerPinOverlayEl && state.cornerPinActive) updateCornerPinOverlay();
+        requestRender();
+    }
+
+    /**
      * 3. 3D Vektörel Şekil ve İkon Geometrileri (Procedural THREE.Shape)
      */
     function createPillShape(width = 220, height = 70) {
@@ -1478,8 +1511,26 @@
         renderCornerPinDOM();
     }
 
+    function updateCornerPinOverlay() {
+        updateCornerPinHandlesFromScene();
+    }
+    const updateCornerPinVisuals = updateCornerPinOverlay;
+
     function renderCornerPinDOM() {
         if (!cornerPinOverlayEl) return;
+        const container = document.getElementById('canvas-container');
+        const cw = container ? (container.offsetWidth || 1920) : 1920;
+        let sf = (typeof window.scaleFactor === 'number' && window.scaleFactor > 0) ? window.scaleFactor : null;
+        if (!sf) {
+            const previewArea = document.getElementById('preview-area');
+            const availW = previewArea ? (previewArea.offsetWidth - 40) : 1200;
+            sf = cw > 0 ? (availW / cw) : 0.62;
+        }
+        const referenceSf = 0.62;
+        const zoomComp = Math.max(1.0, referenceSf / sf);
+        const effectiveGizmoScale = (state.gizmoScale || 1.0) * zoomComp;
+        cornerPinOverlayEl.style.setProperty('--gizmo-scale', effectiveGizmoScale.toFixed(3));
+
         const nodes = cornerPinOverlayEl.querySelectorAll('.three-d-pin-node');
         const poly = cornerPinOverlayEl.querySelector('#threeDCornerPinPoly');
 
@@ -1514,8 +1565,9 @@
 
             node.addEventListener('pointermove', (e) => {
                 if (!isDown) return;
-                const dx = e.clientX - startClientX;
-                const dy = e.clientY - startClientY;
+                const sf = (typeof window.scaleFactor === 'number' && window.scaleFactor > 0) ? window.scaleFactor : 1.0;
+                const dx = (e.clientX - startClientX) / sf;
+                const dy = (e.clientY - startClientY) / sf;
                 cornerPins[idx].x = Math.round(startPinX + dx);
                 cornerPins[idx].y = Math.round(startPinY + dy);
 
@@ -1589,13 +1641,23 @@
     /**
      * 7.1 🎯 3D EKSEN GİZMO (3D Transform Gimbal with Arcs, Beads & Axis Tips)
      */
-    function showGizmoHud(text, x, y) {
+    function showGizmoHud(text, clientX, clientY) {
         if (!gizmoOverlayEl || state.gizmoShowHud === false) return;
         const hud = gizmoOverlayEl.querySelector('#threeDGizmoHud');
         if (!hud) return;
         hud.textContent = text;
-        hud.style.left = (x + 14) + 'px';
-        hud.style.top = (y - 32) + 'px';
+        const container = document.getElementById('canvas-container');
+        if (container) {
+            const rect = container.getBoundingClientRect();
+            const sf = (typeof window.scaleFactor === 'number' && window.scaleFactor > 0) ? window.scaleFactor : 1.0;
+            const localX = (clientX - rect.left) / sf;
+            const localY = (clientY - rect.top) / sf;
+            hud.style.left = (localX + 16) + 'px';
+            hud.style.top = (localY - 24) + 'px';
+        } else {
+            hud.style.left = (clientX + 14) + 'px';
+            hud.style.top = (clientY - 32) + 'px';
+        }
         hud.style.display = 'block';
     }
 
@@ -1697,6 +1759,7 @@
 
         // 🧠 Akıllı Orantılama: 3D nesnenin/metnin gerçek sınır kutusunu (bounding box) hesapla
         let autoRatio = 1.0;
+        let objRadius = 60;
         if (state.gizmoAutoFit && contentGroup) {
             try {
                 contentGroup.updateMatrixWorld(true);
@@ -1705,19 +1768,35 @@
                     const sz = new THREE.Vector3();
                     bbox.getSize(sz);
                     const maxDim = Math.max(sz.x, sz.y, sz.z);
-                    autoRatio = Math.max(1.0, Math.min(2.5, maxDim / 150));
+                    objRadius = maxDim / 2;
+                    autoRatio = Math.max(1.0, Math.min(3.0, maxDim / 120));
                 }
             } catch (ex) {
                 autoRatio = 1.0;
             }
         }
 
-        const currentScale = state.gizmoScale || 1.0;
+        // 🔍 Çözünürlük ve Zoom Adaptasyonu:
+        // canvas-container'ın scaleFactor ölçeklemesi nedeniyle yüksek çözünürlüklü fotoğraflarda
+        // tutamaçların ekranda minicik kalmasını engeller, ekran boyutunu korur.
+        let sf = (typeof window.scaleFactor === 'number' && window.scaleFactor > 0) ? window.scaleFactor : null;
+        if (!sf) {
+            const previewArea = document.getElementById('preview-area');
+            const availW = previewArea ? (previewArea.offsetWidth - 40) : 1200;
+            sf = cw > 0 ? (availW / cw) : 0.62;
+        }
+        const referenceSf = 0.62; // 1920x1080 tuvalde (~1200px preview alanı) tipik scaleFactor
+        const zoomComp = Math.max(1.0, referenceSf / sf);
+        const effectiveGizmoScale = (state.gizmoScale || 1.0) * zoomComp;
         const currentOpacity = (state.gizmoOpacity !== undefined) ? state.gizmoOpacity : 1.0;
 
-        gizmoOverlayEl.style.setProperty('--gizmo-scale', currentScale);
+        gizmoOverlayEl.style.setProperty('--gizmo-scale', effectiveGizmoScale.toFixed(3));
         gizmoOverlayEl.style.setProperty('--gizmo-opacity', currentOpacity);
         gizmoOverlayEl.classList.toggle('show-labels', !!state.gizmoShowLabels);
+
+        if (cornerPinOverlayEl) {
+            cornerPinOverlayEl.style.setProperty('--gizmo-scale', effectiveGizmoScale.toFixed(3));
+        }
 
         // 3D Dünya koordinatlarını ekrana yansıtıcı yardımcı fonksiyon
         function projectLocalPoint(vec3) {
@@ -1736,8 +1815,10 @@
         const cx = pOrigin.x;
         const cy = pOrigin.y;
 
-        // 📏 Kompakt & Doğal Mesafe
-        const baseLen = (state.gizmoDistance || 75) * (state.gizmoAutoFit ? Math.min(1.25, autoRatio) : 1.0) * Math.max(0.9, Math.min(1.15, Math.sqrt(state.planeScale)));
+        // 📏 Kompakt & Doğal Mesafe: 3D nesneyi rahatça sarmalayacak doğal yarıçap
+        const userDist = state.gizmoDistance || 75;
+        const effectiveDist = userDist * (state.gizmoAutoFit ? autoRatio : 1.0);
+        const baseLen = Math.max(effectiveDist, objRadius * 1.15) * Math.max(0.7, Math.min(2.0, state.planeScale || 1.0));
 
         // Eksen Çizgisi Bitişleri (Ok uçları)
         const pLineX = projectLocalPoint(new THREE.Vector3(baseLen, 0, 0));
@@ -1817,7 +1898,11 @@
         if (arcYEl) arcYEl.setAttribute('d', arcXZ.d);
         if (arcZEl) arcZEl.setAttribute('d', arcXY.d);
 
-        if (originDot) { originDot.setAttribute('cx', cx); originDot.setAttribute('cy', cy); }
+        if (originDot) {
+            originDot.setAttribute('cx', cx);
+            originDot.setAttribute('cy', cy);
+            originDot.setAttribute('r', (3.5 * effectiveGizmoScale).toFixed(1));
+        }
 
         // HTML Tutamaçları ve Noktaları Konumlandır
         const tipXEl = gizmoOverlayEl.querySelector('#threeDGizmoTipX');
@@ -1875,8 +1960,9 @@
             });
             tipX.addEventListener('pointermove', (e) => {
                 if (!isDragging) return;
-                const dx = e.clientX - startClientX;
-                const dy = e.clientY - startClientY;
+                const sf = (typeof window.scaleFactor === 'number' && window.scaleFactor > 0) ? window.scaleFactor : 1.0;
+                const dx = (e.clientX - startClientX) / sf;
+                const dy = (e.clientY - startClientY) / sf;
                 const proj = dx * axisScreenDirs.x.x + dy * axisScreenDirs.x.y;
                 state.posX = Math.round(origPosX + proj * (1 / state.planeScale));
                 updateContentTransform();
@@ -1911,8 +1997,9 @@
             });
             tipY.addEventListener('pointermove', (e) => {
                 if (!isDragging) return;
-                const dx = e.clientX - startClientX;
-                const dy = e.clientY - startClientY;
+                const sf = (typeof window.scaleFactor === 'number' && window.scaleFactor > 0) ? window.scaleFactor : 1.0;
+                const dx = (e.clientX - startClientX) / sf;
+                const dy = (e.clientY - startClientY) / sf;
                 const proj = dx * axisScreenDirs.y.x + dy * axisScreenDirs.y.y;
                 state.posY = Math.round(origPosY + proj * (1 / state.planeScale));
                 updateContentTransform();
@@ -1947,8 +2034,9 @@
             });
             tipZ.addEventListener('pointermove', (e) => {
                 if (!isDragging) return;
-                const dx = e.clientX - startClientX;
-                const dy = e.clientY - startClientY;
+                const sf = (typeof window.scaleFactor === 'number' && window.scaleFactor > 0) ? window.scaleFactor : 1.0;
+                const dx = (e.clientX - startClientX) / sf;
+                const dy = (e.clientY - startClientY) / sf;
                 // 🎯 Ok hangi yöne bakıyorsa fareyi o yöne çekince çalışır
                 const proj = dx * axisScreenDirs.z.x + dy * axisScreenDirs.z.y;
                 state.posZ = Math.round(origPosZ + proj * (1 / state.planeScale));
@@ -2120,8 +2208,9 @@
 
             sunEl.addEventListener('pointermove', (e) => {
                 if (!isDraggingSun) return;
-                const dx = e.clientX - startClientX;
-                const dy = e.clientY - startClientY;
+                const sf = (typeof window.scaleFactor === 'number' && window.scaleFactor > 0) ? window.scaleFactor : 1.0;
+                const dx = (e.clientX - startClientX) / sf;
+                const dy = (e.clientY - startClientY) / sf;
 
                 if (e.shiftKey) {
                     // Shift basılıyken: Derinlik (Z ekseni - Odanın içine/dışına)
@@ -2404,19 +2493,22 @@
                 return;
             }
 
-            const dx = e.clientX - dragStart.x;
-            const dy = e.clientY - dragStart.y;
+            const screenDx = e.clientX - dragStart.x;
+            const screenDy = e.clientY - dragStart.y;
             dragStart.x = e.clientX;
             dragStart.y = e.clientY;
 
             if (dragMode === 'rotate') {
-                state.planeYaw = Math.round((state.planeYaw + dx * 0.5) % 360);
-                state.planePitch = Math.max(-90, Math.min(90, Math.round(state.planePitch - dy * 0.5)));
+                state.planeYaw = Math.round((state.planeYaw + screenDx * 0.5) % 360);
+                state.planePitch = Math.max(-90, Math.min(90, Math.round(state.planePitch - screenDy * 0.5)));
                 updatePlaneTransform();
                 syncControlsUI();
                 showGizmoHud(`🔄 Yatay: ${state.planeYaw}°, Eğim: ${state.planePitch}°`, e.clientX, e.clientY);
             } else {
                 // 🎯 3D Perspektif Eksen İzdüşümleriyle Doğal Taşıma
+                const sf = (typeof window.scaleFactor === 'number' && window.scaleFactor > 0) ? window.scaleFactor : 1.0;
+                const dx = screenDx / sf;
+                const dy = screenDy / sf;
                 const projX = dx * axisScreenDirs.x.x + dy * axisScreenDirs.x.y;
                 const projY = dx * axisScreenDirs.y.x + dy * axisScreenDirs.y.y;
                 state.posX += projX * (1 / state.planeScale);
@@ -4612,6 +4704,7 @@
         closeStudio: closeStudio,
         applyPreset: applyPreset,
         bakeToCanvas: bakeToCanvas,
+        resize: resize,
         toggleVisibility: toggleVisibility,
         resetToDefaults: resetToDefaults,
         centerOnScreen: centerOnScreen,

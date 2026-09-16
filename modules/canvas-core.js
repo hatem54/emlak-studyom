@@ -163,6 +163,9 @@ function resizeCanvas(){
         hScale = 1.15;
     }
     document.documentElement.style.setProperty('--handle-scale', hScale);
+    if (window.ThreeDEngine && typeof window.ThreeDEngine.updateGizmo === 'function') {
+        window.ThreeDEngine.updateGizmo();
+    }
 }
 
 function applyStylePos(el,c){

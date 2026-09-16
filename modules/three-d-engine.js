@@ -2971,6 +2971,20 @@
                 updateDock3DControlsState();
             };
         }
+
+        const centerBtn = dock3D.querySelector('#dock3DCenterBtn');
+        if (centerBtn) {
+            centerBtn.onclick = () => {
+                centerOnScreen();
+            };
+        }
+
+        const resetBtn = dock3D.querySelector('#dock3DResetBtn');
+        if (resetBtn) {
+            resetBtn.onclick = () => {
+                resetToDefaults();
+            };
+        }
     }
 
     /**
@@ -3148,6 +3162,16 @@
                         </button>
                         <button id="threeDCornerPinToggleBtn" class="three-d-corner-pin-btn ${state.cornerPinActive ? 'active' : ''}" style="flex:1;">
                             <i class="fas fa-crosshairs"></i> 4 Köşe Oturtma
+                        </button>
+                    </div>
+
+                    <!-- 🌟 Hızlı Konumlandırma & Sıfırlama Butonları -->
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:6px; margin-bottom:8px;">
+                        <button type="button" id="threeDPanelCenterBtn" class="three-d-action-subbtn" style="display:flex; align-items:center; justify-content:center; gap:6px; padding:7px 10px; background:rgba(14,165,233,0.12); border:1px solid rgba(14,165,233,0.35); border-radius:6px; color:#38bdf8; font-size:12px; font-weight:600; cursor:pointer;" title="3D Ögeyi Tuvalin Tam Ortasına Getir">
+                            <i class="fas fa-crosshairs"></i> Ekrana Ortala
+                        </button>
+                        <button type="button" id="threeDPanelResetBtn" class="three-d-action-subbtn" style="display:flex; align-items:center; justify-content:center; gap:6px; padding:7px 10px; background:rgba(245,158,11,0.12); border:1px solid rgba(245,158,11,0.35); border-radius:6px; color:#fbbf24; font-size:12px; font-weight:600; cursor:pointer;" title="Tüm Açı, Konum ve Kalınlık Düzenlemelerini Varsayılana Sıfırlar">
+                            <i class="fas fa-rotate-left"></i> Varsayılana Döndür
                         </button>
                     </div>
 
@@ -3595,6 +3619,16 @@
             toggleCornerPinMode();
         });
 
+        // 🌟 Ekrana Ortala ve Varsayılana Döndür Butonları
+        const panelCenterBtn = panel.querySelector('#threeDPanelCenterBtn');
+        if (panelCenterBtn) {
+            panelCenterBtn.addEventListener('click', centerOnScreen);
+        }
+        const panelResetBtn = panel.querySelector('#threeDPanelResetBtn');
+        if (panelResetBtn) {
+            panelResetBtn.addEventListener('click', resetToDefaults);
+        }
+
         // Metin ve Kalınlık
         const textInput = panel.querySelector('#threeDTextInput');
         textInput.addEventListener('input', (e) => {
@@ -4002,40 +4036,78 @@
         notifyExternalUpdates();
     }
 
-    function resetToDefaults() {
-        state.elementType = 'text';
-        state.text = 'SATILIK 1.250 m²';
-        state.textSize = 36;
-        state.depth = 16;
-        state.bevelEnabled = true;
-        state.planePitch = -65;
-        state.planeYaw = 15;
-        state.planeRoll = 0;
-        state.planeScale = 1.0;
-        state.planeElevation = 0;
-        state.planeLocalRot = 0;
+    /**
+     * 🎯 3D Ögeyi Tuvalin Tam Ortasına Hizala
+     */
+    function centerOnScreen() {
         state.posX = 0;
         state.posY = 0;
         state.posZ = 0;
-        state.frontColor = '#f59e0b';
-        state.sideColor = '#92400e';
-        state.orientation = 'flat';
-        state.showPlaneGrid = true;
+        state.planeElevation = 0;
+        state.planeLocalRot = 0;
+
+        updatePlaneTransform();
+        updateContentTransform();
+        if (cornerPinOverlayEl && state.cornerPinActive) updateCornerPinOverlay();
+        if (gizmoOverlayEl) updateGizmoPositions();
+        syncControlsUI();
+        requestRender();
+        notifyExternalUpdates();
+
+        if (typeof window.showToast === 'function') {
+            window.showToast('🎯 3D Öge ekranın tam ortasına hizalandı.', 'info');
+        }
+    }
+
+    /**
+     * 🔄 Öge Üzerindeki Düzenlemeleri Sıfırlayıp Varsayılan Açı ve Konuma Döndür
+     */
+    function resetToDefaults() {
+        // 1. Konum, derinlik ve dönüşleri sıfırla (Ekranın tam ortası)
+        state.posX = 0;
+        state.posY = 0;
+        state.posZ = 0;
+        state.planeElevation = 0;
+        state.planeLocalRot = 0;
+        state.planeScale = 1.0;
+
+        // 2. Açıları öge türüne göre en ideal varsayılana getir
+        const isPin = state.elementType === 'pin' || state.elementType === 'combo_pin' || 
+                      (state.elementType === 'element_3d' && state.orientation === 'standing');
+        if (isPin) {
+            state.orientation = 'standing';
+            state.planePitch = -35;
+            state.planeYaw = 15;
+            state.planeRoll = 0;
+        } else if (state.elementType === 'arrow' || state.elementType === 'combo_arrow') {
+            state.orientation = 'flat';
+            state.planePitch = -55;
+            state.planeYaw = 0;
+            state.planeRoll = 0;
+        } else {
+            state.orientation = 'flat';
+            state.planePitch = -60;
+            state.planeYaw = 15;
+            state.planeRoll = 0;
+        }
+
+        // 3. Geometri kalınlık ve pahı sıfırla
+        state.depth = 16;
+        state.bevelEnabled = true;
+        state.bevelThickness = 2;
+        state.bevelSize = 1.5;
+
+        // 4. Işıklandırmayı varsayılana getir
         state.sunPosX = 550;
         state.sunPosY = 250;
         state.sunPosZ = -50;
-        state.lightIntensity = 1.2;
+        state.lightIntensity = 1.3;
         state.shadowOpacity = 0.45;
         state.shadowSoftness = 1.5;
+
+        // 5. Tutamaçları ve modları güncelle
         state.cornerPinActive = false;
         state.gizmoActive = true;
-        state.gizmoScale = 1.0;
-        state.gizmoAutoFit = true;
-        state.gizmoDistance = 75;
-        state.gizmoShowLabels = false;
-        state.gizmoShowHud = true;
-        state.gizmoOpacity = 1.0;
-        state.gizmoSettingsOpen = false;
         state.selected = true;
 
         cornerPins[0] = { x: 0, y: 0 };
@@ -4047,10 +4119,16 @@
 
         setSelected(true, { silent: true, autoLockPhoto: false });
         updatePlaneTransform();
+        updateContentTransform();
         updateLighting();
         recreateContentMeshes();
         syncControlsUI();
+        requestRender();
         notifyExternalUpdates();
+
+        if (typeof window.showToast === 'function') {
+            window.showToast('🔄 3D öge düzenlemeleri varsayılan ayarlara sıfırlandı.', 'info');
+        }
     }
 
     /**
@@ -4375,21 +4453,12 @@
         const svgNode = el.querySelector('svg') || root.querySelector('svg');
         const rawSvg = (meta && meta.rawSvg) || (svgNode ? svgNode.outerHTML : (el.innerHTML || root.innerHTML));
 
-        // 1. Pozisyon ve Boyut Aktarımı
-        const posEl = (root.style.left && root.style.top) ? root : el;
-        if (posEl.style.left && posEl.style.top) {
-            const left = parseFloat(posEl.style.left) || 0;
-            const top = parseFloat(posEl.style.top) || 0;
-            const cvs = document.getElementById('mainCanvas') || canvasEl;
-            if (cvs) {
-                const cw = cvs.width || cvs.clientWidth || 1000;
-                const ch = cvs.height || cvs.clientHeight || 750;
-                const w = posEl.offsetWidth || 100;
-                const h = posEl.offsetHeight || 100;
-                state.posX = Math.round(left - cw / 2 + w / 2);
-                state.posY = Math.round(ch / 2 - top - h / 2);
-            }
-        }
+        // 1. Pozisyon ve Boyut Aktarımı (Kullanıcı İsteği: Varsayılan olarak ekranın tam ortasında açılsın)
+        state.posX = 0;
+        state.posY = 0;
+        state.posZ = 0;
+        state.planeElevation = 0;
+        state.planeLocalRot = 0;
 
         // 2. 2D Elemanı Tuvalden Güvenle Gizle
         root.style.setProperty('display', 'none', 'important');
@@ -4526,6 +4595,7 @@
         bakeToCanvas: bakeToCanvas,
         toggleVisibility: toggleVisibility,
         resetToDefaults: resetToDefaults,
+        centerOnScreen: centerOnScreen,
         setSelected: setSelected,
         toggleSelection: toggleSelection,
         isSelected: () => !!state.selected,

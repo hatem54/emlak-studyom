@@ -1871,6 +1871,13 @@
             <button type="button" class="dock-3d-btn dock-3d-btn-free active" id="dock3DBtnFree" title="3D Eksen Gizmo Tutamaçları Aç/Kapat">
                 🟣 <span>Gizmo</span>
             </button>
+            <div class="dock-3d-sep"></div>
+            <button type="button" class="dock-3d-btn" id="dock3DCenterBtn" onclick="if(window.ThreeDEngine) window.ThreeDEngine.centerOnScreen();" title="3D Ögeyi Ekrana Ortala">
+                🎯 <span>Ortala</span>
+            </button>
+            <button type="button" class="dock-3d-btn" id="dock3DResetBtn" onclick="if(window.ThreeDEngine) window.ThreeDEngine.resetToDefaults();" title="Öge Düzenlemelerini Varsayılana Sıfırla">
+                🔄 <span>Sıfırla</span>
+            </button>
         </div>
 
         <div class="dock-divider" id="dock3DDivider" style="display:none;"></div>
@@ -2068,7 +2075,7 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="modules/ai-enhancer.js?v=20260910-14"></script>
     <script src="modules/satellite-map.js?v=20260914-86"></script>
-    <script src="modules/three-d-engine.js?v=20260916-118"></script>
+    <script src="modules/three-d-engine.js?v=20260916-119"></script>
 
 <!-- Gizli inputlar: Fotoğraf zoom ve pan ayarlarının arka planda çalışabilmesi için -->
 <div style="display:none;">

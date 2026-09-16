@@ -1245,19 +1245,18 @@
             contentGroup.add(badgeMesh);
         }
 
-        const halfDepth = Math.max(1, state.depth) / 2 + (state.bevelEnabled ? state.bevelThickness : 0);
         if (type === 'combo_pin' && iconMesh && textMesh) {
             const iconWidth = 55;
-            textMesh.position.set(iconWidth / 2 + 10, 0, halfDepth);
-            iconMesh.position.set(-100, 0, halfDepth);
+            textMesh.position.set(iconWidth / 2 + 10, 0, 0);
+            iconMesh.position.set(-100, 0, 0);
         } else if (type === 'combo_arrow' && iconMesh && textMesh) {
             iconMesh.rotation.set(0, 0, -Math.PI / 2);
-            iconMesh.position.set(-110, 0, halfDepth);
-            textMesh.position.set(30, 0, halfDepth);
+            iconMesh.position.set(-110, 0, 0);
+            textMesh.position.set(30, 0, 0);
         } else {
-            if (iconMesh) iconMesh.position.set(0, 0, halfDepth);
-            if (textMesh) textMesh.position.set(0, 0, halfDepth);
-            if (badgeMesh) badgeMesh.position.set(0, 0, halfDepth);
+            if (iconMesh) iconMesh.position.set(0, 0, 0);
+            if (textMesh) textMesh.position.set(0, 0, 0);
+            if (badgeMesh) badgeMesh.position.set(0, 0, 0);
         }
 
         updateContentTransform();
@@ -1293,11 +1292,31 @@
 
         const zPos = (state.posZ || 0);
         const elev = (state.planeElevation || 0);
+        const isStanding = (state.orientation === 'standing');
 
-        // 3D Metin ve İkon Grubu (Z ekseni derinlik konumu + zeminden süzülme mesafesi)
-        contentGroup.position.set(state.posX, state.posY, zPos + elev);
+        // 🧠 Bounding box tespiti ile ögenin gerçek yarı yüksekliğini ve yarı kalınlığını hesapla
+        let halfHeight = 85;
+        try {
+            const m = badgeMesh || iconMesh || textMesh;
+            if (m && m.geometry) {
+                if (!m.geometry.boundingBox) m.geometry.computeBoundingBox();
+                const bb = m.geometry.boundingBox;
+                halfHeight = Math.max(20, (bb.max.y - bb.min.y) / 2);
+            }
+        } catch (e) {}
+
+        const halfDepth = Math.max(1, state.depth) / 2 + (state.bevelEnabled ? (state.bevelThickness || 2) : 0);
+
+        // 🌟 Zemine Tam Basma Payı (Ground Alignment):
+        // Dik (standing) modda yerel Y ekseni sahnede dikey Z (yükseklik) eksenine döner.
+        // Geometriler center() ile merkeze alındığından alt yarısı (-halfHeight) gridin altında kalıyordu.
+        // halfHeight kadar yukarı kaldırarak nesnenin alt ucunun (iğne ucu / taban) zemin çizgisine (Z=0) tam basmasını sağlıyoruz.
+        // Yatık (flat) modda ise öge kalınlığının yarısı kadar yukarı kaldırılarak arka yüzeyi zemin çizgisine (Z=0) oturtulur.
+        const groundLift = isStanding ? halfHeight : halfDepth;
+
+        contentGroup.position.set(state.posX, state.posY, zPos + elev + groundLift);
         const localRotRad = THREE.MathUtils.degToRad(state.planeLocalRot);
-        const standX = (state.orientation === 'standing') ? (Math.PI / 2) : 0;
+        const standX = isStanding ? (Math.PI / 2) : 0;
         contentGroup.rotation.set(standX, 0, -localRotRad);
 
         // 🎯 Grid ve gölge düzlemi ögeyle BİRLİKTE hareket eder!

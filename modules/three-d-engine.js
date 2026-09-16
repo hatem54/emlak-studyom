@@ -58,7 +58,9 @@
         badgeBgColor: '#0f172a',      // Rozet taban zemin rengi
         badgeSubtext: '',             // Rozet alt başlık (Slogan)
         selectedIconId: 'ev-14',      // Seçili ikon ID'si (window.ICON_LIBRARY)
-        customIconSvg: null           // Tuvalden aktarılan özel SVG içeriği
+        customIconSvg: null,          // Tuvalden aktarılan özel SVG içeriği
+        sourceSvg: null,              // 🌟 Birebir 3D'ye aktarılan orijinal SVG içeriği
+        sourceItemName: ''            // Orijinal ögenin adı (örn. Klasik Kırmızı)
     };
 
     // 🌟 THREE.JS SAHNE NESNELERİ
@@ -577,6 +579,275 @@
         }
     }
 
+    /**
+     * 🌟 Birebir 3D Öge: SVG Metnini Güncelleme (Gerekirse)
+     */
+    function updateSvgText(svgStr, newText) {
+        if (!svgStr || typeof newText !== 'string') return svgStr;
+        try {
+            const safeSvg = ensureSvgXmlns(svgStr);
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(safeSvg, 'image/svg+xml');
+            const textNodes = doc.querySelectorAll('text');
+            if (textNodes.length > 0) {
+                let targetNode = textNodes[textNodes.length - 1];
+                let maxFs = 0;
+                textNodes.forEach(tn => {
+                    const fs = parseFloat(tn.getAttribute('font-size')) || 0;
+                    if (fs > maxFs) { maxFs = fs; targetNode = tn; }
+                });
+                targetNode.textContent = newText;
+                return new XMLSerializer().serializeToString(doc.documentElement);
+            }
+        } catch(e){}
+        return svgStr;
+    }
+
+    /**
+     * 🌟 Birebir 3D Öge: SVG'den Yüksek Çözünürlüklü Vektör Dokusu Oluşturucu
+     */
+    function createExactSvgTexture(rawSvg, vbW, vbH, onUpdate) {
+        const maxTexDim = 1024;
+        let cw = maxTexDim;
+        let ch = Math.round(maxTexDim * ((vbH || 1) / (vbW || 1)));
+        if ((vbH || 1) > (vbW || 1)) {
+            ch = maxTexDim;
+            cw = Math.round(maxTexDim * ((vbW || 1) / (vbH || 1)));
+        }
+        cw = Math.max(256, Math.min(2048, cw));
+        ch = Math.max(256, Math.min(2048, ch));
+
+        const canvas = document.createElement('canvas');
+        canvas.width = cw;
+        canvas.height = ch;
+        const ctx = canvas.getContext('2d');
+
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.minFilter = THREE.LinearFilter;
+        texture.magFilter = THREE.LinearFilter;
+        if (renderer && renderer.capabilities) {
+            texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
+        }
+
+        let safeSvg = ensureSvgXmlns(rawSvg);
+        if (!safeSvg.includes('width=')) {
+            safeSvg = safeSvg.replace('<svg', `<svg width="${vbW || 200}"`);
+        }
+        if (!safeSvg.includes('height=')) {
+            safeSvg = safeSvg.replace('<svg', `<svg height="${vbH || 200}"`);
+        }
+
+        const blob = new Blob([safeSvg], { type: 'image/svg+xml;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const img = new Image();
+        img.onload = () => {
+            ctx.clearRect(0, 0, cw, ch);
+            ctx.drawImage(img, 0, 0, cw, ch);
+            URL.revokeObjectURL(url);
+            texture.needsUpdate = true;
+            if (typeof onUpdate === 'function') onUpdate();
+        };
+        img.onerror = (e) => {
+            console.warn('[ThreeDEngine] SVG doku rasterize edilemedi:', e);
+            URL.revokeObjectURL(url);
+        };
+        img.src = url;
+
+        return texture;
+    }
+
+    /**
+     * 🌟 Birebir 3D Öge: SVG İçeriğini Analiz Edip Otomatik 3D Kontur Silüeti (THREE.Shape) Çıkarıcı
+     */
+    function createShapeAndBoundsFromSvg(rawSvg) {
+        if (!rawSvg) return null;
+
+        const safeSvg = ensureSvgXmlns(rawSvg);
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(safeSvg, 'image/svg+xml');
+        const svgEl = doc.querySelector('svg');
+        if (!svgEl) return null;
+
+        let vb = svgEl.getAttribute('viewBox');
+        let ox = 0, oy = 0, vbW = 200, vbH = 200;
+        if (vb) {
+            const parts = vb.trim().split(/[\s,]+/).map(parseFloat);
+            if (parts.length === 4 && !isNaN(parts[2]) && !isNaN(parts[3])) {
+                ox = parts[0]; oy = parts[1]; vbW = parts[2]; vbH = parts[3];
+            }
+        } else {
+            vbW = parseFloat(svgEl.getAttribute('width')) || 200;
+            vbH = parseFloat(svgEl.getAttribute('height')) || 200;
+        }
+
+        const maxDim = Math.max(vbW, vbH) || 200;
+        const scaleFactor = 220 / maxDim;
+        const targetW = vbW * scaleFactor;
+        const targetH = vbH * scaleFactor;
+
+        let shape = null;
+
+        // Kontur Önceliği 1: <path> (defs içinde olmayan, ana dış hat)
+        const pathNodes = Array.from(svgEl.querySelectorAll('path')).filter(p => !p.closest('defs'));
+        if (pathNodes.length > 0) {
+            let tempSvg = null;
+            try {
+                tempSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+                tempSvg.setAttribute('viewBox', `${ox} ${oy} ${vbW} ${vbH}`);
+                tempSvg.style.position = 'fixed';
+                tempSvg.style.left = '-9999px';
+                tempSvg.style.top = '-9999px';
+                tempSvg.style.width = '1px';
+                tempSvg.style.height = '1px';
+                tempSvg.style.opacity = '0';
+                tempSvg.style.pointerEvents = 'none';
+                document.body.appendChild(tempSvg);
+
+                let bestPathNode = null;
+                let maxLen = 0;
+                for (const p of pathNodes) {
+                    const cloned = p.cloneNode(true);
+                    tempSvg.appendChild(cloned);
+                    try {
+                        const l = cloned.getTotalLength ? cloned.getTotalLength() : 0;
+                        if (l > maxLen) {
+                            maxLen = l;
+                            bestPathNode = cloned;
+                        }
+                    } catch(e){}
+                }
+
+                if (bestPathNode && maxLen > 25) {
+                    const numSamples = Math.max(64, Math.min(180, Math.round(maxLen / 3)));
+                    shape = new THREE.Shape();
+                    for (let i = 0; i <= numSamples; i++) {
+                        const pt = bestPathNode.getPointAtLength((i / numSamples) * maxLen);
+                        const tx = (pt.x - ox - vbW / 2) * scaleFactor;
+                        const ty = -(pt.y - oy - vbH / 2) * scaleFactor;
+                        if (i === 0) shape.moveTo(tx, ty);
+                        else shape.lineTo(tx, ty);
+                    }
+                    shape.closePath();
+                }
+            } catch(err) {
+                console.warn('[ThreeDEngine] SVG path sampling hatası:', err);
+            } finally {
+                if (tempSvg && tempSvg.parentNode) tempSvg.parentNode.removeChild(tempSvg);
+            }
+        }
+
+        // Kontur Önceliği 2: <polygon> (Ribbon, bayrak, üçgen, elmas vb.)
+        if (!shape) {
+            const polyNodes = Array.from(svgEl.querySelectorAll('polygon')).filter(p => !p.closest('defs'));
+            if (polyNodes.length > 0) {
+                const rawPts = (polyNodes[0].getAttribute('points') || '').trim().split(/[\s,]+/).map(parseFloat).filter(n => !isNaN(n));
+                if (rawPts.length >= 6) {
+                    shape = new THREE.Shape();
+                    for (let i = 0; i < rawPts.length; i += 2) {
+                        const tx = (rawPts[i] - ox - vbW / 2) * scaleFactor;
+                        const ty = -(rawPts[i + 1] - oy - vbH / 2) * scaleFactor;
+                        if (i === 0) shape.moveTo(tx, ty);
+                        else shape.lineTo(tx, ty);
+                    }
+                    shape.closePath();
+                }
+            }
+        }
+
+        // Kontur Önceliği 3: <circle> (Damga, madalyon, yuvarlak etiket)
+        if (!shape) {
+            const circleNodes = Array.from(svgEl.querySelectorAll('circle')).filter(c => !c.closest('defs'));
+            if (circleNodes.length > 0) {
+                let maxR = 0;
+                let bestCircle = circleNodes[0];
+                for (const c of circleNodes) {
+                    const r = parseFloat(c.getAttribute('r')) || 0;
+                    if (r > maxR) { maxR = r; bestCircle = c; }
+                }
+                if (maxR > 10) {
+                    const cx = (parseFloat(bestCircle.getAttribute('cx')) || (vbW / 2));
+                    const cy = (parseFloat(bestCircle.getAttribute('cy')) || (vbH / 2));
+                    const rScaled = maxR * scaleFactor;
+                    const ctx = (cx - ox - vbW / 2) * scaleFactor;
+                    const cty = -(cy - oy - vbH / 2) * scaleFactor;
+                    shape = new THREE.Shape();
+                    shape.absarc(ctx, cty, rScaled, 0, Math.PI * 2, false);
+                }
+            }
+        }
+
+        // Kontur Önceliği 4: <rect> (Kart, plaket, etiket çerçevesi)
+        if (!shape) {
+            const rectNodes = Array.from(svgEl.querySelectorAll('rect')).filter(r => !r.closest('defs'));
+            if (rectNodes.length > 0) {
+                let maxArea = 0;
+                let bestRect = rectNodes[0];
+                for (const r of rectNodes) {
+                    const rw = parseFloat(r.getAttribute('width')) || 0;
+                    const rh = parseFloat(r.getAttribute('height')) || 0;
+                    const area = rw * rh;
+                    if (area > maxArea) { maxArea = area; bestRect = r; }
+                }
+                const rw = (parseFloat(bestRect.getAttribute('width')) || (vbW - 10)) * scaleFactor;
+                const rh = (parseFloat(bestRect.getAttribute('height')) || (vbH - 10)) * scaleFactor;
+                const rxRaw = parseFloat(bestRect.getAttribute('rx') || bestRect.getAttribute('ry') || '12');
+                const rxVal = Math.min(rxRaw * scaleFactor, rw / 2, rh / 2);
+
+                const rxPos = parseFloat(bestRect.getAttribute('x')) || 0;
+                const ryPos = parseFloat(bestRect.getAttribute('y')) || 0;
+                const rectCenterX = rxPos + (parseFloat(bestRect.getAttribute('width')) || vbW) / 2;
+                const rectCenterY = ryPos + (parseFloat(bestRect.getAttribute('height')) || vbH) / 2;
+                const offX = (rectCenterX - ox - vbW / 2) * scaleFactor;
+                const offY = -(rectCenterY - oy - vbH / 2) * scaleFactor;
+
+                const halfW = rw / 2;
+                const halfH = rh / 2;
+                shape = new THREE.Shape();
+                shape.moveTo(offX - halfW + rxVal, offY + halfH);
+                shape.lineTo(offX + halfW - rxVal, offY + halfH);
+                shape.quadraticCurveTo(offX + halfW, offY + halfH, offX + halfW, offY + halfH - rxVal);
+                shape.lineTo(offX + halfW, offY - halfH + rxVal);
+                shape.quadraticCurveTo(offX + halfW, offY - halfH, offX + halfW - rxVal, offY - halfH);
+                shape.lineTo(offX - halfW + rxVal, offY - halfH);
+                shape.quadraticCurveTo(offX - halfW, offY - halfH, offX - halfW, offY - halfH + rxVal);
+                shape.lineTo(offX - halfW, offY + halfH - rxVal);
+                shape.quadraticCurveTo(offX - halfW, offY + halfH, offX - halfW + rxVal, offY + halfH);
+            }
+        }
+
+        // Kontur Önceliği 5: Güvenli Genel Rozet Plakası (Fallback)
+        if (!shape) {
+            const rw = targetW * 0.94;
+            const rh = targetH * 0.94;
+            const rx = Math.min(16, rw / 6, rh / 6);
+            const halfW = rw / 2;
+            const halfH = rh / 2;
+            shape = new THREE.Shape();
+            shape.moveTo(-halfW + rx, halfH);
+            shape.lineTo(halfW - rx, halfH);
+            shape.quadraticCurveTo(halfW, halfH, halfW, halfH - rx);
+            shape.lineTo(halfW, -halfH + rx);
+            shape.quadraticCurveTo(halfW, -halfH, halfW - rx, -halfH);
+            shape.lineTo(-halfW + rx, -halfH);
+            shape.quadraticCurveTo(-halfW, -halfH, -halfW, -halfH + rx);
+            shape.lineTo(-halfW, halfH - rx);
+            shape.quadraticCurveTo(-halfW, halfH, -halfW + rx, halfH);
+        }
+
+        const bounds = {
+            minX: (-vbW / 2) * scaleFactor,
+            maxX: (vbW / 2) * scaleFactor,
+            minY: (-vbH / 2) * scaleFactor,
+            maxY: (vbH / 2) * scaleFactor,
+            width: targetW,
+            height: targetH,
+            vbW,
+            vbH
+        };
+
+        return { shape, bounds };
+    }
+
     function createBadgeTexture(type, text, subtext, iconId, bgColor, textColor, accentColor, onUpdate) {
         let cw = 1024;
         let ch = 512;
@@ -880,6 +1151,47 @@
             textMesh = new THREE.Mesh(textGeo, [frontMat, sideMat]);
             textMesh.castShadow = true;
             contentGroup.add(textMesh);
+        } else if (type === 'element_3d' && state.sourceSvg) {
+            const svgToRender = state.text ? updateSvgText(state.sourceSvg, state.text) : state.sourceSvg;
+            const res = createShapeAndBoundsFromSvg(svgToRender);
+            if (res && res.shape) {
+                const shape = res.shape;
+                const bounds = res.bounds;
+                const uvGen = getNormalizedUVGenerator(bounds.minX, bounds.maxX, bounds.minY, bounds.maxY);
+
+                const badgeExtrudeOpts = {
+                    depth: Math.max(1, state.depth),
+                    bevelEnabled: !!state.bevelEnabled,
+                    bevelThickness: state.bevelThickness,
+                    bevelSize: state.bevelSize,
+                    bevelSegments: 3,
+                    curveSegments: 16,
+                    UVGenerator: uvGen
+                };
+
+                const badgeGeo = new THREE.ExtrudeGeometry(shape, badgeExtrudeOpts);
+                badgeGeo.center();
+
+                const badgeTex = createExactSvgTexture(
+                    svgToRender,
+                    bounds.vbW,
+                    bounds.vbH,
+                    () => requestRender()
+                );
+
+                const badgeFrontMat = new THREE.MeshStandardMaterial({
+                    map: badgeTex,
+                    roughness: state.roughness,
+                    metalness: state.metalness,
+                    transparent: true,
+                    alphaTest: 0.05
+                });
+
+                badgeMesh = new THREE.Mesh(badgeGeo, [badgeFrontMat, sideMat]);
+                badgeMesh.castShadow = true;
+                badgeMesh.receiveShadow = true;
+                contentGroup.add(badgeMesh);
+            }
         } else if (type.startsWith('badge_') || type === 'icon_3d') {
             let shape = null;
             if (type === 'badge_pill') {
@@ -2409,6 +2721,27 @@
             btn.classList.toggle('active', btn.getAttribute('data-type') === state.elementType);
         });
 
+        // 🌟 Birebir 3D Öge UI Senkronizasyonu
+        const exactBtn = panel.querySelector('#threeDElemExactBtn');
+        const exactSection = panel.querySelector('#threeDExactSection');
+        const isExact = state.elementType === 'element_3d' && !!state.sourceSvg;
+
+        if (exactBtn) {
+            exactBtn.style.display = state.sourceSvg ? 'inline-flex' : 'none';
+            exactBtn.classList.toggle('active', isExact);
+            if (state.sourceItemName) {
+                const lbl = panel.querySelector('#threeDElemExactBtnLabel');
+                if (lbl) lbl.textContent = '✨ 3D: ' + state.sourceItemName;
+            }
+        }
+        if (exactSection) {
+            exactSection.style.display = isExact ? 'block' : 'none';
+            if (isExact && state.sourceItemName) {
+                const tit = panel.querySelector('#threeDExactItemTitle');
+                if (tit) tit.textContent = '✨ ' + state.sourceItemName;
+            }
+        }
+
         // 🌟 Rozet & İkon Paneli Senkronizasyonu
         const badgeSection = panel.querySelector('#threeDBadgeSection');
         const textRow = panel.querySelector('#threeDTextRow');
@@ -2417,9 +2750,9 @@
 
         const isBadge = state.elementType && (state.elementType.startsWith('badge_') || state.elementType === 'icon_3d');
         if (badgeSection) badgeSection.style.display = isBadge ? 'block' : 'none';
-        if (textRow) textRow.style.display = isBadge ? 'none' : 'flex';
-        if (sizeRow) sizeRow.style.display = isBadge ? 'none' : 'flex';
-        if (textSecTitle) textSecTitle.textContent = isBadge ? '📐 3D KALINLIK & IŞIK PAHI' : '🔤 METİN & 3D KALINLIK';
+        if (textRow) textRow.style.display = (isBadge || isExact) ? 'none' : 'flex';
+        if (sizeRow) sizeRow.style.display = (isBadge || isExact) ? 'none' : 'flex';
+        if (textSecTitle) textSecTitle.textContent = (isBadge || isExact) ? '📐 3D KALINLIK & IŞIK PAHI' : '🔤 METİN & 3D KALINLIK';
 
         if (isBadge) {
             const bMainText = panel.querySelector('#threeDBadgeMainText');
@@ -2672,9 +3005,15 @@
                 <!-- 1. ÖGE TÜRÜ SEÇİMİ -->
                 <div class="three-d-section">
                     <div class="three-d-section-title">📦 3D ÖGE TÜRÜ</div>
-                    <div class="three-d-elem-subhead">🔤 Metin & Yön</div>
+                    <!-- 🌟 Birebir 3D Öge Butonu -->
+                    <div style="margin-bottom:8px;" id="threeDExactBtnWrap">
+                        <button class="three-d-elem-btn active" data-type="element_3d" id="threeDElemExactBtn" style="width:100%; display:none; background:linear-gradient(135deg, rgba(99,102,241,0.35), rgba(168,85,247,0.35)); border:1.5px solid #818cf8; color:#fff; font-weight:700; padding:9px 12px; justify-content:center; gap:8px; border-radius:8px; box-shadow:0 2px 10px rgba(99,102,241,0.25);" title="Kütüphaneden veya tuvalden seçilen orijinal 2D ögenin birebir 3D hali">
+                            <i class="fas fa-cube" style="color:#a78bfa; font-size:14px;"></i> <span id="threeDElemExactBtnLabel">✨ Birebir 3D Öge</span>
+                        </button>
+                    </div>
+                    <div class="three-d-elem-subhead">🔤 Standart 3D Kalıplar</div>
                     <div class="three-d-elem-grid">
-                        <button class="three-d-elem-btn active" data-type="text"><i class="fas fa-font"></i> Metin</button>
+                        <button class="three-d-elem-btn" data-type="text"><i class="fas fa-font"></i> Metin</button>
                         <button class="three-d-elem-btn" data-type="pin"><i class="fas fa-map-marker-alt"></i> 3D İğne</button>
                         <button class="three-d-elem-btn" data-type="arrow"><i class="fas fa-arrow-up"></i> 3D Yön Oku</button>
                         <button class="three-d-elem-btn" data-type="combo_pin"><i class="fas fa-map-pin"></i> İğne & Metin</button>
@@ -2687,6 +3026,17 @@
                         <button class="three-d-elem-btn" data-type="badge_card" title="Bilgi Kartı / Plaket"><i class="fas fa-id-card"></i> Plaket Kart</button>
                         <button class="three-d-elem-btn" data-type="badge_coin" title="Dairesel Madalyon"><i class="fas fa-coins"></i> Madalyon</button>
                         <button class="three-d-elem-btn" data-type="icon_3d" title="3D Bağımsız İkon"><i class="fas fa-gem"></i> 3D İkon</button>
+                    </div>
+                </div>
+
+                <!-- 🌟 1A. BİREBİR 3D ÖGE BİLGİ KARTI -->
+                <div class="three-d-section" id="threeDExactSection" style="display:none; background:rgba(99,102,241,0.12); border:1px solid rgba(129,140,248,0.35); border-radius:10px; padding:12px; margin-bottom:12px;">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <span style="font-size:20px;">💎</span>
+                        <div style="flex:1;">
+                            <div style="font-size:13px; font-weight:700; color:#e0e7ff;" id="threeDExactItemTitle">Birebir 3D Tasarım</div>
+                            <div style="font-size:11px; color:#94a3b8; line-height:1.4; margin-top:2px;">Orijinal vektör öge kendi şekli ve dokusuyla 3D derinlik ve ışık kazandı.</div>
+                        </div>
                     </div>
                 </div>
 
@@ -4111,19 +4461,36 @@
                         classList.includes('arrow') || classList.includes('yön') || itemName.includes('ok') || itemName.includes('arrow') ||
                         (rawSvg && /M\s*0\s*50|arrow/i.test(rawSvg));
 
-        // 📍 DURUM A: KONUM PİNİ (3D İĞNE)
-        if (isPin) {
-            state.elementType = hasRealText ? 'combo_pin' : 'pin';
-            state.text = hasRealText ? label.split(/\r?\n/)[0] : '';
-            state.badgeSubtext = hasRealText ? label.split(/\r?\n/).slice(1).join(' ') : '';
+        // 🌟 BİREBİR 3D DÖNÜŞTÜRME (Kütüphanedeki / Tuvaldeki Orijinal Vektör Öge)
+        if (rawSvg && rawSvg.includes('<svg')) {
+            state.elementType = 'element_3d';
+            state.sourceSvg = rawSvg;
+            state.sourceItemName = itemName || (isPin ? 'Konum Pini' : (isArrow ? 'Yön Oku' : '3D Öge'));
+            state.text = hasRealText ? (label.split(/\r?\n/)[0] || '') : '';
+            state.badgeSubtext = hasRealText ? (label.split(/\r?\n/).slice(1).join(' ') || '') : '';
             state.frontColor = primaryColor;
             state.sideColor = autoGenerateSideColor(primaryColor);
-            state.orientation = 'standing'; // 3D Harita pini dik dursun
-            state.planePitch = -35;
-            state.planeYaw = 15;
-            state.planeRoll = 0;
             state.depth = 16;
             state.bevelEnabled = true;
+            state.bevelThickness = 2;
+            state.bevelSize = 1.5;
+
+            if (isPin) {
+                state.orientation = 'standing'; // 3D Harita pini harita üstünde dik dursun
+                state.planePitch = -35;
+                state.planeYaw = 15;
+                state.planeRoll = 0;
+            } else if (isArrow) {
+                state.orientation = 'flat';
+                state.planePitch = -55;
+                state.planeYaw = 0;
+                state.planeRoll = 0;
+            } else {
+                state.orientation = 'flat';
+                state.planePitch = -60;
+                state.planeYaw = 15;
+                state.planeRoll = 0;
+            }
 
             openStudio(true);
             recreateContentMeshes();
@@ -4131,100 +4498,21 @@
             setSelected(true);
 
             if (typeof window.showToast === 'function') {
-                window.showToast('📍 3D Konum Pini başarıyla açıldı! Yön, eğim ve kalınlık ayarlanabilir.', 'success');
+                const toastIcon = isPin ? '📍' : (isArrow ? '🏹' : '✨');
+                window.showToast(`${toastIcon} "${state.sourceItemName}" birebir 3D olarak açıldı! Kalınlık, açı ve ışık ayarlanabilir.`, 'success');
             }
             return true;
         }
 
-        // 🏹 DURUM B: YÖN OKU
-        if (isArrow) {
-            state.elementType = hasRealText ? 'combo_arrow' : 'arrow';
-            state.text = hasRealText ? label.split(/\r?\n/)[0] : '';
-            state.badgeSubtext = hasRealText ? label.split(/\r?\n/).slice(1).join(' ') : '';
-            state.frontColor = primaryColor;
-            state.sideColor = autoGenerateSideColor(primaryColor);
-            state.orientation = 'flat';
-            state.depth = 16;
-            state.bevelEnabled = true;
-
-            openStudio(true);
-            recreateContentMeshes();
-            syncControlsUI();
-            setSelected(true);
-
-            if (typeof window.showToast === 'function') {
-                window.showToast('🏹 3D Yön Oku hazır!', 'success');
-            }
-            return true;
-        }
-
-        // 💎 DURUM C: METİNSİZ GRAFİK / BAĞIMSIZ İKON
-        const isIconOnly = !hasRealText && (svgNode || rawSvg || classList.includes('added-icon') || classList.includes('is-svg-icon'));
-        if (isIconOnly) {
-            state.elementType = 'icon_3d';
-            state.customIconSvg = rawSvg;
-            state.selectedIconId = 'custom';
-            state.text = '';
-            state.badgeSubtext = '';
-            state.badgeBgColor = el.dataset.storedBgHex || root.dataset.storedBgHex || '#0f172a';
-            state.frontColor = primaryColor;
-            state.sideColor = autoGenerateSideColor(primaryColor);
-            state.depth = 16;
-            state.bevelEnabled = true;
-
-            openStudio(true);
-            recreateContentMeshes();
-            syncControlsUI();
-            setSelected(true);
-
-            if (typeof window.showToast === 'function') {
-                window.showToast('✨ İkon başarıyla 3D\'ye dönüştürüldü! Kalınlık ve 6 yön hazır.', 'success');
-            }
-            return true;
-        }
-
-        // 🏷️ DURUM D: GERÇEK METİNLİ ROZET (Pill, Shield, Card, Coin)
-        let detectedType = 'badge_pill';
-        const rectNode = (el.querySelector ? el : root).querySelector('rect');
-        const rxVal = rectNode ? parseFloat(rectNode.getAttribute('rx') || '0') : 999;
-
-        if (classList.includes('shield') || classList.includes('kalkan')) {
-            detectedType = 'badge_shield';
-        } else if (classList.includes('card') || classList.includes('plaket') || classList.includes('rect') || (rectNode && rxVal <= 12)) {
-            detectedType = 'badge_card';
-        } else if (classList.includes('coin') || classList.includes('circle') || classList.includes('madalyon')) {
-            detectedType = 'badge_coin';
-        }
-
-        const parts = label.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
-        const mainText = parts[0] || '';
-        const subText = parts.slice(1).join(' ');
-
-        let textColor = el.dataset.coTextColor || root.dataset.coTextColor || '';
-        if (!textColor && svgNode) {
-            const txtEl = svgNode.querySelector('text[fill]');
-            if (txtEl) textColor = txtEl.getAttribute('fill');
-        }
-        if (!textColor || textColor === 'none') textColor = '#ffffff';
-
-        state.elementType = detectedType;
-        state.text = mainText;
-        state.badgeSubtext = subText;
-        state.badgeBgColor = primaryColor;
-        state.frontColor = textColor;
+        // Yedek: SVG bulunamazsa standart metin/rozet modu
+        state.elementType = isPin ? 'pin' : (isArrow ? 'arrow' : 'text');
+        state.text = label || '3D ÖGE';
+        state.frontColor = primaryColor;
         state.sideColor = autoGenerateSideColor(primaryColor);
-        state.selectedIconId = el.dataset.iconId || root.dataset.iconId || 'none';
-        state.depth = 18;
-        state.bevelEnabled = true;
-
         openStudio(true);
         recreateContentMeshes();
         syncControlsUI();
         setSelected(true);
-
-        if (typeof window.showToast === 'function') {
-            window.showToast('✨ Rozet başarıyla 3D\'ye dönüştürüldü! 6 eksende hareket ve kalınlık hazır.', 'success');
-        }
         return true;
     }
 

@@ -16,6 +16,10 @@
                     document.documentElement.removeAttribute('data-theme');
                 } else {
                     document.documentElement.setAttribute('data-theme', 'light');
+                    if (document.body) document.body.setAttribute('data-theme', 'light');
+                    document.addEventListener('DOMContentLoaded', function() {
+                        if (document.body) document.body.setAttribute('data-theme', 'light');
+                    });
                 }
             } catch(e) {
                 document.documentElement.removeAttribute('data-theme');
@@ -41,7 +45,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,300,0,0" />
     <link rel="icon" type="image/jpeg" href="assets/logo/logo-icon.png">
-    <link rel="stylesheet" href="styles.css?v=20260916-108">
+    <link rel="stylesheet" href="styles.css?v=20260916-110">
     <link rel="stylesheet" href="css/callouts.css?v=20260916-108">
     <link rel="stylesheet" href="css/satellite-map.css?v=20260916-108">
     <link rel="stylesheet" href="css/three-d.css?v=20260916-108">

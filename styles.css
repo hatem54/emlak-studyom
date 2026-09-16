@@ -80,21 +80,281 @@ h2 .vb{background:var(--gradient-1);color:#fff;font-size:9px;padding:2px 8px;bor
 .icon-pool{display:grid;grid-template-columns:repeat(6,1fr);gap:4px;background:var(--dark-3);padding:7px;border-radius:7px;margin-bottom:8px;border:1px solid rgba(108,92,231,.2);max-height:300px;overflow-y:auto}
 .pool-icon-item{background:var(--dark-2);border:1px solid rgba(108,92,231,.1);color:var(--primary);font-size:20px;padding:6px;text-align:center;border-radius:5px;cursor:pointer;transition:.2s}
 .pool-icon-item:hover{background:var(--gradient-1);color:#fff;transform:scale(1.05)}
-.btn-action{border:none;padding:7px 10px;font-family:'ClassicAmpersand','Space Grotesk',sans-serif;font-size:10px;font-weight:700;border-radius:5px;cursor:pointer;width:100%;margin-top:4px;transition:.2s}
-.btn-action:hover{transform:translateY(-1px);box-shadow:0 4px 15px rgba(108,92,231,.3)}
-.btn-green{background:var(--gradient-1);color:#fff}
-.btn-red{background:var(--gradient-2);color:#fff}
-.btn-blue{background:var(--gradient-1);color:#fff}
-.btn-yellow{background:var(--gradient-3);color:#fff}
-.btn-purple{background:var(--gradient-1);color:#fff}
-.btn-cyan{background:var(--gradient-1);color:#fff}
-.btn-save{background:var(--gradient-1);color:#fff;border:none;padding:10px;font-family:'ClassicAmpersand','Space Grotesk',sans-serif;font-size:13px;font-weight:700;border-radius:10px;cursor:pointer;width:100%;margin-top:8px;box-shadow:0 8px 30px rgba(108,92,231,0.4);transition:all .3s}
-.btn-save:hover{transform:translateY(-2px);box-shadow:0 12px 40px rgba(108,92,231,0.5)}
-.ai-box{margin-bottom:8px}
-.ai-box textarea{width:100%;min-height:110px;padding:8px;background:var(--dark-3);border:1px solid rgba(108,92,231,.2);color:var(--text);border-radius:5px;resize:vertical;font-size:12px;margin-bottom:6px;font-family:'Inter', sans-serif;}
-.ai-box textarea:focus{border-color:var(--primary);outline:none;box-shadow:0 0 0 2px rgba(108,92,231,.2)}
-.btn-ai{background:var(--gradient-2);color:#fff;border:none;padding:5px;font-family:'ClassicAmpersand','Space Grotesk',sans-serif;font-size:10px;font-weight:700;border-radius:4px;cursor:pointer;width:100%;transition:all .2s}
-.btn-ai:hover{transform:translateY(-1px);box-shadow:0 4px 15px rgba(253,121,168,.4)}
+/* ==========================================================================
+   ✨ UNIFIED BUTTON DESIGN SYSTEM & ELEGANT AMBIENT SHADOW (12 SEKMELİK ORTAK SİSTEM)
+   ========================================================================== */
+.btn-action {
+    border: none;
+    padding: 8px 12px;
+    font-family: 'ClassicAmpersand', 'Space Grotesk', sans-serif;
+    font-size: 11.5px;
+    font-weight: 700;
+    border-radius: 7px;
+    cursor: pointer;
+    width: 100%;
+    margin-top: 4px;
+    transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.18s cubic-bezier(0.16, 1, 0.3, 1), background 0.18s ease, border-color 0.18s ease, color 0.18s ease !important;
+    position: relative;
+    box-sizing: border-box;
+    user-select: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    letter-spacing: 0.3px;
+}
+
+.btn-action:hover {
+    transform: translateY(-1.5px);
+    box-shadow: 0 4px 12px rgba(108, 92, 231, 0.22), 0 1px 3px rgba(0, 0, 0, 0.12);
+}
+
+.btn-action:active {
+    transform: translateY(1px) scale(0.985);
+    filter: brightness(0.92);
+}
+
+/* 🟦 1. Mavi / Primary İşlem Butonları (Yumuşak & Zarif Işıma) */
+.btn-blue,
+.btn-primary,
+.btn-action.btn-blue,
+#openSatelliteMapBtn {
+    background: linear-gradient(135deg, #0284c7 0%, #38bdf8 100%) !important;
+    color: #ffffff !important;
+    box-shadow: 0 2px 6px rgba(2, 132, 199, 0.22);
+}
+.btn-blue:hover,
+.btn-primary:hover,
+.btn-action.btn-blue:hover,
+#openSatelliteMapBtn:hover,
+.pro-upload-container button[onclick*="imageInput"]:hover {
+    background: linear-gradient(135deg, #0369a1 0%, #0ea5e9 100%) !important;
+    color: #ffffff !important;
+    transform: translateY(-1.5px);
+    box-shadow: 0 4px 12px rgba(2, 132, 199, 0.3), 0 1px 3px rgba(0, 0, 0, 0.08) !important;
+}
+
+/* 🟪 2. Mor / Yapay Zeka / Sihirli Araç Butonları (Yumuşak Mor Işıma) */
+.btn-purple,
+.btn-ai,
+.btn-action.btn-purple,
+#searchButtonsContainer button {
+    background: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%) !important;
+    color: #ffffff !important;
+    box-shadow: 0 2px 6px rgba(124, 58, 237, 0.22);
+}
+.btn-purple:hover,
+.btn-ai:hover,
+.btn-action.btn-purple:hover,
+#searchButtonsContainer button:hover {
+    background: linear-gradient(135deg, #6d28d9 0%, #9333ea 100%) !important;
+    color: #ffffff !important;
+    transform: translateY(-1.5px);
+    box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3), 0 1px 3px rgba(0, 0, 0, 0.08) !important;
+}
+
+/* 🟩 3. Yeşil / Başarı / Uydu / Kaydet Butonları (Yumuşak Zümrüt Işıma) */
+.btn-green,
+.btn-action.btn-green {
+    background: linear-gradient(135deg, #059669 0%, #10b981 100%) !important;
+    color: #ffffff !important;
+    box-shadow: 0 2px 6px rgba(16, 185, 129, 0.22);
+}
+.btn-green:hover,
+.btn-action.btn-green:hover {
+    background: linear-gradient(135deg, #047857 0%, #059669 100%) !important;
+    color: #ffffff !important;
+    transform: translateY(-1.5px);
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3), 0 1px 3px rgba(0, 0, 0, 0.08) !important;
+}
+
+/* 🟥 4. Kırmızı / Silme / Temizleme Butonları (Yumuşak Mercan Işıma) */
+.btn-red,
+.btn-action.btn-red,
+#btnSafeDeleteCallout,
+#clearBgBtn,
+#clearLogoBtn {
+    background: linear-gradient(135deg, #e11d48 0%, #f43f5e 100%) !important;
+    color: #ffffff !important;
+    box-shadow: 0 2px 6px rgba(244, 63, 94, 0.22);
+}
+.btn-red:hover,
+.btn-action.btn-red:hover,
+#btnSafeDeleteCallout:hover,
+#clearBgBtn:hover,
+#clearLogoBtn:hover {
+    background: linear-gradient(135deg, #be123c 0%, #e11d48 100%) !important;
+    color: #ffffff !important;
+    transform: translateY(-1.5px);
+    box-shadow: 0 4px 12px rgba(244, 63, 94, 0.3), 0 1px 3px rgba(0, 0, 0, 0.08) !important;
+}
+
+/* 🟨 5. Sarı / Amber / Sıfırlama Butonları (Yumuşak Altın Işıma) */
+.btn-yellow,
+.btn-action.btn-yellow {
+    background: linear-gradient(135deg, #d97706 0%, #f59e0b 100%) !important;
+    color: #ffffff !important;
+    box-shadow: 0 2px 6px rgba(245, 158, 11, 0.22);
+}
+.btn-yellow:hover,
+.btn-action.btn-yellow:hover {
+    background: linear-gradient(135deg, #b45309 0%, #d97706 100%) !important;
+    color: #ffffff !important;
+    transform: translateY(-1.5px);
+    box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3), 0 1px 3px rgba(0, 0, 0, 0.08) !important;
+}
+
+.btn-cyan {
+    background: linear-gradient(135deg, #0891b2 0%, #06b6d4 100%) !important;
+    color: #ffffff !important;
+}
+.btn-cyan:hover {
+    transform: translateY(-1.5px);
+    box-shadow: 0 4px 12px rgba(6, 182, 212, 0.3) !important;
+}
+
+.btn-save {
+    background: linear-gradient(135deg, #0284c7 0%, #38bdf8 100%) !important;
+    color: #fff !important;
+    border: none;
+    padding: 12px 16px;
+    font-family: 'ClassicAmpersand', 'Space Grotesk', sans-serif;
+    font-size: 13.5px;
+    font-weight: 700;
+    border-radius: 9px;
+    cursor: pointer;
+    width: 100%;
+    margin-top: 8px;
+    box-shadow: 0 3px 10px rgba(2, 132, 199, 0.25);
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+.btn-save:hover {
+    transform: translateY(-1.5px);
+    box-shadow: 0 4px 14px rgba(2, 132, 199, 0.35), 0 2px 6px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* 📐 6. Şekiller & Çerçeveli Yazı Sekmesi Butonları (10. Sekme) */
+#tab-shapes .btn-action:not(.btn-red):not(.btn-blue) {
+    background: rgba(30, 41, 59, 0.75) !important;
+    border: 1.5px solid rgba(255, 255, 255, 0.12) !important;
+    color: #f1f5f9 !important;
+    border-radius: 8px !important;
+    transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+#tab-shapes .btn-action:not(.btn-red):not(.btn-blue):hover {
+    background: rgba(56, 189, 248, 0.18) !important;
+    border-color: #38bdf8 !important;
+    color: #38bdf8 !important;
+    transform: translateY(-2px) !important;
+    box-shadow: 0 3px 10px rgba(56, 189, 248, 0.25), 0 1px 3px rgba(0, 0, 0, 0.2) !important;
+}
+html[data-theme="light"] #tab-shapes .btn-action:not(.btn-red):not(.btn-blue),
+body[data-theme="light"] #tab-shapes .btn-action:not(.btn-red):not(.btn-blue) {
+    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%) !important;
+    border: 1px solid #cbd5e1 !important;
+    color: #0f172a !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
+}
+html[data-theme="light"] #tab-shapes .btn-action:not(.btn-red):not(.btn-blue):hover,
+body[data-theme="light"] #tab-shapes .btn-action:not(.btn-red):not(.btn-blue):hover {
+    background: #f0f9ff !important;
+    border-color: #38bdf8 !important;
+    color: #0284c7 !important;
+    box-shadow: 0 3px 8px rgba(2, 132, 199, 0.15) !important;
+    transform: translateY(-1.5px) !important;
+}
+
+/* ⚙️ 7. Ekstra Araçlar Sekmesi Butonları (11. Sekme) */
+#tab-settings .btn-action {
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    border-radius: 8px !important;
+}
+#tab-settings .btn-action:hover {
+    transform: translateY(-1.5px) !important;
+    box-shadow: 0 4px 12px rgba(108, 92, 231, 0.25), 0 1px 3px rgba(0, 0, 0, 0.2) !important;
+    border-color: #a855f7 !important;
+    color: #ffffff !important;
+}
+
+/* ⚙️ Açık Temada Ekstra Araçlar Sekmesi: Yazıların Kaybolmasını Önleyen Kesin Çözüm */
+html[data-theme="light"] #tab-settings .btn-action,
+body[data-theme="light"] #tab-settings .btn-action {
+    color: #0f172a !important;
+    border-color: #cbd5e1 !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
+}
+html[data-theme="light"] #tab-settings .btn-action:hover,
+body[data-theme="light"] #tab-settings .btn-action:hover {
+    color: #0f172a !important;
+    transform: translateY(-1.5px) !important;
+    border-color: #94a3b8 !important;
+    background: #f8fafc !important;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08) !important;
+}
+/* 🧊 3D Düzlem & Metin Butonu Açık Tema */
+html[data-theme="light"] #tab-settings .btn-action[onclick*="ThreeDEngine"],
+body[data-theme="light"] #tab-settings .btn-action[onclick*="ThreeDEngine"] {
+    background: linear-gradient(135deg, rgba(14, 165, 233, 0.12), rgba(99, 102, 241, 0.12)) !important;
+    border: 1.5px solid rgba(14, 165, 233, 0.4) !important;
+    color: #0f172a !important;
+}
+html[data-theme="light"] #tab-settings .btn-action[onclick*="ThreeDEngine"]:hover,
+body[data-theme="light"] #tab-settings .btn-action[onclick*="ThreeDEngine"]:hover {
+    background: linear-gradient(135deg, rgba(14, 165, 233, 0.2), rgba(99, 102, 241, 0.2)) !important;
+    border-color: #0284c7 !important;
+    color: #0284c7 !important;
+    box-shadow: 0 3px 10px rgba(2, 132, 199, 0.18), 0 1px 3px rgba(0, 0, 0, 0.05) !important;
+}
+/* 🪄 PRO Renk Paleti Butonu Açık Tema */
+html[data-theme="light"] #tab-settings .btn-action[onclick*="showTemplateColorModal"],
+body[data-theme="light"] #tab-settings .btn-action[onclick*="showTemplateColorModal"] {
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.12), rgba(168, 85, 247, 0.12)) !important;
+    border: 1.5px solid rgba(168, 85, 247, 0.4) !important;
+    color: #0f172a !important;
+}
+html[data-theme="light"] #tab-settings .btn-action[onclick*="showTemplateColorModal"]:hover,
+body[data-theme="light"] #tab-settings .btn-action[onclick*="showTemplateColorModal"]:hover {
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(168, 85, 247, 0.2)) !important;
+    border-color: #7c3aed !important;
+    color: #6d28d9 !important;
+    box-shadow: 0 3px 10px rgba(124, 58, 237, 0.18), 0 1px 3px rgba(0, 0, 0, 0.05) !important;
+}
+/* 🗑️ Taslakları Temizle Butonu Açık Tema */
+html[data-theme="light"] #tab-settings .btn-action[onclick*="confirmClearDrafts"],
+body[data-theme="light"] #tab-settings .btn-action[onclick*="confirmClearDrafts"] {
+    background: #fff5f5 !important;
+    border: 1.5px solid rgba(239, 68, 68, 0.3) !important;
+    color: #dc2626 !important;
+}
+html[data-theme="light"] #tab-settings .btn-action[onclick*="confirmClearDrafts"]:hover,
+body[data-theme="light"] #tab-settings .btn-action[onclick*="confirmClearDrafts"]:hover {
+    background: #fee2e2 !important;
+    border-color: #ef4444 !important;
+    color: #b91c1c !important;
+    box-shadow: 0 3px 10px rgba(239, 68, 68, 0.18), 0 1px 3px rgba(0, 0, 0, 0.05) !important;
+}
+
+/* 🏷️ 8. Kategori & Akordeon Öğeleri Hover Işıması */
+.cat-item {
+    transition: all 0.18s ease !important;
+}
+.cat-item:hover {
+    background: rgba(56, 189, 248, 0.15) !important;
+    color: #ffffff !important;
+    box-shadow: inset 3px 0 0 #38bdf8, 0 2px 8px rgba(56, 189, 248, 0.15) !important;
+}
+html[data-theme="light"] .cat-item:hover,
+body[data-theme="light"] .cat-item:hover {
+    background: #f0f9ff !important;
+    color: #0369a1 !important;
+    box-shadow: inset 3px 0 0 #0284c7, 0 2px 6px rgba(2, 132, 199, 0.1) !important;
+}
+.template-btn:hover {
+    border-color: #38bdf8 !important;
+    color: #ffffff !important;
+    transform: translateY(-1.5px) !important;
+    box-shadow: 0 3px 10px rgba(56, 189, 248, 0.25) !important;
+}
 .info-text{font-size:10px;color:var(--text-muted);text-align:center;margin-bottom:5px;font-style:italic}
 .preview-area{flex:2;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;min-height:0;padding:6px 10px 10px 10px;}
 .canvas-wrapper { margin: 0 auto !important; position: relative !important; }
@@ -3331,9 +3591,13 @@ body[data-theme="light"] .tab-btn.active {
 }
 
 /* 2. Sol Panel Butonları (Mikro-Gradyan & Hafif Dokunma Hissi) */
+html[data-theme="light"] .btn-action,
 body[data-theme="light"] .btn-action,
+html[data-theme="light"] #searchButtonsContainer .btn-action,
 body[data-theme="light"] #searchButtonsContainer .btn-action,
+html[data-theme="light"] .pro-upload-container .btn-action,
 body[data-theme="light"] .pro-upload-container .btn-action,
+html[data-theme="light"] .btn-ai,
 body[data-theme="light"] .btn-ai {
     background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%) !important;
     border: 1px solid #cbd5e1 !important;
@@ -3342,11 +3606,16 @@ body[data-theme="light"] .btn-ai {
     transition: all 0.2s ease !important;
 }
 
+html[data-theme="light"] .btn-action:hover,
 body[data-theme="light"] .btn-action:hover,
+html[data-theme="light"] #searchButtonsContainer .btn-action:hover,
 body[data-theme="light"] #searchButtonsContainer .btn-action:hover,
+html[data-theme="light"] .pro-upload-container .btn-action:hover,
 body[data-theme="light"] .pro-upload-container .btn-action:hover,
+html[data-theme="light"] .btn-ai:hover,
 body[data-theme="light"] .btn-ai:hover {
     background: #ffffff !important;
+    color: #0f172a !important;
     box-shadow: 0 3px 8px rgba(0, 0, 0, 0.06) !important;
     transform: translateY(-1px) !important;
 }
@@ -3717,16 +3986,27 @@ body[data-theme="light"] .dock-btn:hover {
 }
 
 /* 7. Alt Panellerdeki Tüm Butonlar (Çizim, Preset, Eylem Butonları - Seçenek 2 Yapısı) */
+html[data-theme="light"] .draw-mode-btn,
 body[data-theme="light"] .draw-mode-btn,
+html[data-theme="light"] .preset-btn,
 body[data-theme="light"] .preset-btn,
+html[data-theme="light"] #btnBeforeAfter,
 body[data-theme="light"] #btnBeforeAfter,
+html[data-theme="light"] .btn-action,
 body[data-theme="light"] .btn-action,
+html[data-theme="light"] .btn-green,
 body[data-theme="light"] .btn-green,
+html[data-theme="light"] .btn-red,
 body[data-theme="light"] .btn-red,
+html[data-theme="light"] .btn-blue,
 body[data-theme="light"] .btn-blue,
+html[data-theme="light"] .btn-yellow,
 body[data-theme="light"] .btn-yellow,
+html[data-theme="light"] .btn-purple,
 body[data-theme="light"] .btn-purple,
+html[data-theme="light"] .btn-cyan,
 body[data-theme="light"] .btn-cyan,
+html[data-theme="light"] .btn-save,
 body[data-theme="light"] .btn-save {
     background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%) !important;
     border: 1px solid #cbd5e1 !important;
@@ -3734,16 +4014,27 @@ body[data-theme="light"] .btn-save {
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.9) !important;
 }
 
+html[data-theme="light"] .draw-mode-btn:hover:not(.active),
 body[data-theme="light"] .draw-mode-btn:hover:not(.active),
+html[data-theme="light"] .preset-btn:hover,
 body[data-theme="light"] .preset-btn:hover,
+html[data-theme="light"] #btnBeforeAfter:hover,
 body[data-theme="light"] #btnBeforeAfter:hover,
+html[data-theme="light"] .btn-action:hover,
 body[data-theme="light"] .btn-action:hover,
+html[data-theme="light"] .btn-green:hover,
 body[data-theme="light"] .btn-green:hover,
+html[data-theme="light"] .btn-red:hover,
 body[data-theme="light"] .btn-red:hover,
+html[data-theme="light"] .btn-blue:hover,
 body[data-theme="light"] .btn-blue:hover,
+html[data-theme="light"] .btn-yellow:hover,
 body[data-theme="light"] .btn-yellow:hover,
+html[data-theme="light"] .btn-purple:hover,
 body[data-theme="light"] .btn-purple:hover,
+html[data-theme="light"] .btn-cyan:hover,
 body[data-theme="light"] .btn-cyan:hover,
+html[data-theme="light"] .btn-save:hover,
 body[data-theme="light"] .btn-save:hover {
     background: #f8fafc !important;
     border-color: #94a3b8 !important;

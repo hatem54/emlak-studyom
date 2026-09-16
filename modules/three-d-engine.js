@@ -102,6 +102,11 @@
         y: { x: 0, y: -1 },
         z: { x: 1, y: 0 }
     };
+    let axisPixelsPerUnit = {
+        x: 1.0,
+        y: 1.0,
+        z: 1.0
+    };
     let arcScreenTangents = {
         yz: { x: 0, y: 1 }
     };
@@ -1815,10 +1820,45 @@
         const cx = pOrigin.x;
         const cy = pOrigin.y;
 
-        // 📏 Kompakt & Doğal Mesafe: 3D nesneyi rahatça sarmalayacak doğal yarıçap
-        const userDist = state.gizmoDistance || 75;
-        const effectiveDist = userDist * (state.gizmoAutoFit ? autoRatio : 1.0);
-        const baseLen = Math.max(effectiveDist, objRadius * 1.15) * Math.max(0.7, Math.min(2.0, state.planeScale || 1.0));
+        // 🎯 Eksenlerin 1 yerel birim başına tuvalde ürettiği gerçek 2D piksel vektörleri
+        const pUnitX = projectLocalPoint(new THREE.Vector3(1, 0, 0));
+        const pUnitY = projectLocalPoint(new THREE.Vector3(0, 1, 0));
+        const pUnitZ = projectLocalPoint(new THREE.Vector3(0, 0, 1));
+
+        const dVx = { x: pUnitX.x - cx, y: pUnitX.y - cy };
+        const dVy = { x: pUnitY.x - cx, y: pUnitY.y - cy };
+        const dVz = { x: pUnitZ.x - cx, y: pUnitZ.y - cy };
+
+        const lenX = Math.hypot(dVx.x, dVx.y);
+        const lenY = Math.hypot(dVy.x, dVy.y);
+        const lenZ = Math.hypot(dVz.x, dVz.y);
+
+        // 1 yerel 3D birimi (state.posX/Y/Z) başına düşen tuval pikseli
+        axisPixelsPerUnit.x = lenX > 0.0001 ? lenX : 1.0;
+        axisPixelsPerUnit.y = lenY > 0.0001 ? lenY : 1.0;
+        axisPixelsPerUnit.z = lenZ > 0.0001 ? lenZ : 1.0;
+
+        // Ekrana yansıyan yön birim vektörleri
+        axisScreenDirs.x = { x: dVx.x / axisPixelsPerUnit.x, y: dVx.y / axisPixelsPerUnit.x };
+        axisScreenDirs.y = { x: dVy.x / axisPixelsPerUnit.y, y: dVy.y / axisPixelsPerUnit.y };
+        axisScreenDirs.z = { x: dVz.x / axisPixelsPerUnit.z, y: dVz.y / axisPixelsPerUnit.z };
+
+        // 📏 Akıllı ve Çökmez Kol Uzunluğu (Non-Collapsing Screen-Space Radius):
+        // Kullanıcı ögeyi ne kadar ufaltırsa ufaltsın (örneğin scale %10 olsa bile),
+        // tutamaçların birbirine girmesini ve ögeden önce kaybolmasını engellemek için
+        // tuvalde ASGARİ 85px * effectiveGizmoScale uzunluk garanti edilir.
+        const avgPixelsPerUnit = (axisPixelsPerUnit.x + axisPixelsPerUnit.y + axisPixelsPerUnit.z) / 3;
+        const minCanvasArmPx = 85 * effectiveGizmoScale;
+        const userDistMultiplier = (state.gizmoDistance || 75) / 75;
+
+        // Nesne yarıçapının tuvaldeki gerçek piksel boyutu
+        const objCanvasPx = objRadius * (state.gizmoAutoFit ? autoRatio : 1.0) * avgPixelsPerUnit;
+
+        // Hedef tuval kol uzunluğu (en az minCanvasArmPx, nesne büyükse nesneyi saracak kadar)
+        const targetArmPx = Math.max(minCanvasArmPx, objCanvasPx * 1.25) * userDistMultiplier;
+
+        // Bu pikseli üretecek yerel 3D mesafe (baseLen)
+        const baseLen = targetArmPx / Math.max(0.001, avgPixelsPerUnit);
 
         // Eksen Çizgisi Bitişleri (Ok uçları)
         const pLineX = projectLocalPoint(new THREE.Vector3(baseLen, 0, 0));
@@ -1826,24 +1866,9 @@
         const pLineZ = projectLocalPoint(new THREE.Vector3(0, 0, baseLen));
 
         // Eksen Ucu Butonları (X, Y, Z harfleri - çizginin hemen ucunda)
-        const pTipX = projectLocalPoint(new THREE.Vector3(baseLen * 1.16, 0, 0));
-        const pTipY = projectLocalPoint(new THREE.Vector3(0, baseLen * 1.16, 0));
-        const pTipZ = projectLocalPoint(new THREE.Vector3(0, 0, baseLen * 1.16));
-
-        // 🎯 Eksenlerin 2D Ekrana Yansıyan Yön Vektörleri (Screen-Space Axis Vectors)
-        function calcScreenDir(pTip) {
-            const vx = pTip.x - cx;
-            const vy = pTip.y - cy;
-            const len = Math.hypot(vx, vy);
-            if (len > 0.5) {
-                return { x: vx / len, y: vy / len };
-            }
-            return { x: 1, y: 0 };
-        }
-
-        axisScreenDirs.x = calcScreenDir(pTipX);
-        axisScreenDirs.y = calcScreenDir(pTipY);
-        axisScreenDirs.z = calcScreenDir(pTipZ);
+        const pTipX = projectLocalPoint(new THREE.Vector3(baseLen * 1.15, 0, 0));
+        const pTipY = projectLocalPoint(new THREE.Vector3(0, baseLen * 1.15, 0));
+        const pTipZ = projectLocalPoint(new THREE.Vector3(0, 0, baseLen * 1.15));
 
         // 3D Yaylar (Quadrant Arcs) ve Üzerindeki Renkli Noktalar
         const arcR = baseLen * 0.72;
@@ -1964,7 +1989,7 @@
                 const dx = (e.clientX - startClientX) / sf;
                 const dy = (e.clientY - startClientY) / sf;
                 const proj = dx * axisScreenDirs.x.x + dy * axisScreenDirs.x.y;
-                state.posX = Math.round(origPosX + proj * (1 / state.planeScale));
+                state.posX = Math.round(origPosX + proj / Math.max(0.001, axisPixelsPerUnit.x));
                 updateContentTransform();
                 syncControlsUI();
                 notifyExternalUpdates();
@@ -2001,7 +2026,7 @@
                 const dx = (e.clientX - startClientX) / sf;
                 const dy = (e.clientY - startClientY) / sf;
                 const proj = dx * axisScreenDirs.y.x + dy * axisScreenDirs.y.y;
-                state.posY = Math.round(origPosY + proj * (1 / state.planeScale));
+                state.posY = Math.round(origPosY + proj / Math.max(0.001, axisPixelsPerUnit.y));
                 updateContentTransform();
                 syncControlsUI();
                 notifyExternalUpdates();
@@ -2039,7 +2064,7 @@
                 const dy = (e.clientY - startClientY) / sf;
                 // 🎯 Ok hangi yöne bakıyorsa fareyi o yöne çekince çalışır
                 const proj = dx * axisScreenDirs.z.x + dy * axisScreenDirs.z.y;
-                state.posZ = Math.round(origPosZ + proj * (1 / state.planeScale));
+                state.posZ = Math.round(origPosZ + proj / Math.max(0.001, axisPixelsPerUnit.z));
                 updateContentTransform();
                 syncControlsUI();
                 notifyExternalUpdates();
@@ -2217,8 +2242,11 @@
                     state.sunPosZ = Math.round(startSunZ - dy * 2.0);
                 } else {
                     // Normal sürükleme: X (Sol/Sağ - Pencereye doğru) ve Y (Aşağı/Yukarı)
-                    state.sunPosX = Math.round(startSunX + dx * 1.5);
-                    state.sunPosY = Math.round(startSunY - dy * 1.5);
+                    const container = document.getElementById('canvas-container');
+                    const ch = container ? (container.offsetHeight || 1080) : 1080;
+                    const sunWorldScale = 704 / Math.max(1, ch);
+                    state.sunPosX = Math.round(startSunX + dx * sunWorldScale);
+                    state.sunPosY = Math.round(startSunY - dy * sunWorldScale);
                 }
 
                 updateLighting();
@@ -2511,8 +2539,8 @@
                 const dy = screenDy / sf;
                 const projX = dx * axisScreenDirs.x.x + dy * axisScreenDirs.x.y;
                 const projY = dx * axisScreenDirs.y.x + dy * axisScreenDirs.y.y;
-                state.posX += projX * (1 / state.planeScale);
-                state.posY += projY * (1 / state.planeScale);
+                state.posX += projX / Math.max(0.001, axisPixelsPerUnit.x);
+                state.posY += projY / Math.max(0.001, axisPixelsPerUnit.y);
                 updateContentTransform();
                 syncControlsUI();
                 showGizmoHud(`📍 Konum: X: ${Math.round(state.posX)}, Y: ${Math.round(state.posY)}`, e.clientX, e.clientY);

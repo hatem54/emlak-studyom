@@ -74,7 +74,14 @@ h2 .vb{background:var(--gradient-1);color:#fff;font-size:9px;padding:2px 8px;bor
 .row-2{display:flex;gap:5px}.row-2>*{flex:1}
 .slider-group{margin-bottom:5px}
 .slider-group label{display:flex;justify-content:space-between;font-size:10px;font-family:'ClassicAmpersand','Space Grotesk',sans-serif;color:var(--text-muted);margin-bottom:1px;font-weight:600}
-.slider-group input[type=range]{width:100%;accent-color:var(--primary);cursor:pointer;height:5px}
+.slider-group input[type=range]{width:100%;accent-color:#94a3b8;cursor:pointer;height:5px}
+/* 🎚️ Evrensel Modern Gri Slider Sistemi */
+input[type="range"]{accent-color:#94a3b8}
+input[type="range"]:hover{accent-color:#cbd5e1}
+html[data-theme="light"] input[type="range"],
+body[data-theme="light"] input[type="range"]{accent-color:#475569 !important}
+html[data-theme="light"] input[type="range"]:hover,
+body[data-theme="light"] input[type="range"]:hover{accent-color:#1e293b !important}
 .color-row{display:flex;gap:5px;align-items:center;margin-bottom:5px}
 .color-row label{font-size:10px;font-family:'ClassicAmpersand','Space Grotesk',sans-serif;color:var(--text-muted);flex:1;font-weight:600}
 .color-row input[type=color]{width:34px;height:24px;border:1px solid rgba(108,92,231,.2);border-radius:4px;cursor:pointer;background:0 0;padding:1px}
@@ -3006,7 +3013,7 @@ body.photo-unlocked #draw-layer {
     border-radius: 2px;
     background: #334155;
     outline: none;
-    accent-color: #38bdf8;
+    accent-color: #94a3b8;
     cursor: pointer;
 }
 
@@ -4231,8 +4238,9 @@ body[data-theme="light"] .saber-slider-row span {
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
 }
 
+html[data-theme="light"] .saber-slider-row input[type="range"],
 body[data-theme="light"] .saber-slider-row input[type="range"] {
-    accent-color: #06b6d4 !important;
+    accent-color: #475569 !important;
 }
 
 body[data-theme="light"] .saber-toggles-card {
@@ -6278,7 +6286,7 @@ body[data-theme="light"] .smart-rescan-btn:hover {
 
 .ai-enh-range {
     width: 110px;
-    accent-color: #38bdf8;
+    accent-color: #94a3b8;
     cursor: pointer;
 }
 
@@ -6583,7 +6591,7 @@ body[data-theme="light"] .smart-rescan-btn:hover {
 .sat-ai-range {
     width: 65px;
     height: 4px;
-    accent-color: #38bdf8;
+    accent-color: #94a3b8;
     cursor: pointer;
 }
 
@@ -8172,8 +8180,8 @@ html[data-theme="light"] .other-callout-toast {
     border: 1px solid #334155;
 }
 #aiPhotoEnhanceSlider:not(:disabled) {
-    background: linear-gradient(90deg, #0284c7 0%, #38bdf8 100%);
-    border-color: #38bdf8;
+    background: linear-gradient(90deg, #475569 0%, #94a3b8 100%);
+    border-color: #94a3b8;
 }
 #aiPhotoEnhanceSlider::-webkit-slider-thumb {
     -webkit-appearance: none;
@@ -8181,9 +8189,9 @@ html[data-theme="light"] .other-callout-toast {
     width: 20px;
     height: 20px;
     border-radius: 50%;
-    background: #38bdf8;
-    border: 2.5px solid #ffffff;
-    box-shadow: 0 0 8px rgba(56, 189, 248, 0.6);
+    background: #e2e8f0;
+    border: 2.5px solid #475569;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
     cursor: pointer;
     transition: transform 0.1s ease;
 }
@@ -8335,17 +8343,20 @@ html[data-theme="light"] .photo-ai-toggle-btn.active i {
     color: #ffffff !important;
 }
 
-/* Açık Tema: AI Netleştir Slider - Yüksek Kontrastlı, Net ve Kalın */
+/* Açık Tema: AI Netleştir Slider - Yüksek Kontrastlı, Net ve Şık Gri */
+html[data-theme="light"] #aiPhotoEnhanceSlider,
 body[data-theme="light"] #aiPhotoEnhanceSlider {
     background: #cbd5e1 !important;
     border: 1.5px solid #94a3b8 !important;
     height: 8px !important;
 }
+html[data-theme="light"] #aiPhotoEnhanceSlider:not(:disabled),
 body[data-theme="light"] #aiPhotoEnhanceSlider:not(:disabled) {
-    background: linear-gradient(90deg, #38bdf8 0%, #0284c7 100%) !important;
-    border-color: #0284c7 !important;
-    box-shadow: 0 1px 4px rgba(2, 132, 199, 0.25) !important;
+    background: linear-gradient(90deg, #94a3b8 0%, #475569 100%) !important;
+    border-color: #475569 !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
 }
+html[data-theme="light"] #aiPhotoEnhanceSlider::-webkit-slider-thumb,
 body[data-theme="light"] #aiPhotoEnhanceSlider::-webkit-slider-thumb {
     -webkit-appearance: none;
     appearance: none;
@@ -8353,20 +8364,23 @@ body[data-theme="light"] #aiPhotoEnhanceSlider::-webkit-slider-thumb {
     height: 20px;
     border-radius: 50%;
     background: #ffffff !important;
-    border: 3px solid #0284c7 !important;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3) !important;
+    border: 3px solid #334155 !important;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25) !important;
     cursor: pointer;
     transition: transform 0.1s ease;
 }
+html[data-theme="light"] #aiPhotoEnhanceSlider:not(:disabled)::-webkit-slider-thumb:hover,
 body[data-theme="light"] #aiPhotoEnhanceSlider:not(:disabled)::-webkit-slider-thumb:hover {
     transform: scale(1.15);
-    box-shadow: 0 0 0 5px rgba(2, 132, 199, 0.2) !important;
+    box-shadow: 0 0 0 4px rgba(71, 85, 105, 0.2) !important;
 }
+html[data-theme="light"] #aiPhotoEnhanceSlider:disabled,
 body[data-theme="light"] #aiPhotoEnhanceSlider:disabled {
     background: #e2e8f0 !important;
     border-color: #cbd5e1 !important;
     cursor: not-allowed !important;
 }
+html[data-theme="light"] #aiPhotoEnhanceSlider:disabled::-webkit-slider-thumb,
 body[data-theme="light"] #aiPhotoEnhanceSlider:disabled::-webkit-slider-thumb {
     background: #cbd5e1 !important;
     border: 2px solid #94a3b8 !important;
@@ -8374,7 +8388,7 @@ body[data-theme="light"] #aiPhotoEnhanceSlider:disabled::-webkit-slider-thumb {
     cursor: not-allowed;
 }
 
-/* Açık Tema: Fotoğraf Sekmesindeki Tüm Slider ve Başlıkları Güçlendirme (Asla Silik Kalmaz) */
+/* Açık Tema: Fotoğraf Sekmesindeki Tüm Slider ve Başlıkları Güçlendirme (Asla Silik Kalmaz, Şık Antrasit Gri) */
 body[data-theme="light"] .slider-group label,
 html[data-theme="light"] .slider-group label {
     color: #0f172a !important;
@@ -8401,11 +8415,13 @@ html[data-theme="light"] .slider-group input[type="range"] {
     background: #cbd5e1 !important;
     border-radius: 4px !important;
     border: 1px solid #94a3b8 !important;
-    accent-color: #6c5ce7 !important;
+    accent-color: #475569 !important;
+    cursor: pointer !important;
 }
 body[data-theme="light"] .slider-group input[type="range"]:hover,
 html[data-theme="light"] .slider-group input[type="range"]:hover {
     background: #94a3b8 !important;
+    accent-color: #1e293b !important;
 }
 body[data-theme="light"] .section-title,
 html[data-theme="light"] .section-title {

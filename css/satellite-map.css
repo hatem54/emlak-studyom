@@ -1,4 +1,4 @@
-﻿/* ============================================================
+/* ============================================================
    🛰️ SATELLITE MAP & CADASTRE STYLES (Uydu Haritası & Kadastro)
    Otomatik modüler ayrıştırma: css/satellite-map.css
    ============================================================ */
@@ -1225,7 +1225,7 @@
 
 .sat-range-input {
     width: 100%;
-    accent-color: #0284c7;
+    accent-color: #94a3b8;
     cursor: pointer;
 }
 

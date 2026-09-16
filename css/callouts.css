@@ -1,4 +1,4 @@
-﻿/* ============================================================
+/* ============================================================
    🎯 CALLOUTS, ARROWS & NEON STYLES
    Otomatik modüler ayrıştırma: css/callouts.css
    ============================================================ */
@@ -668,7 +668,7 @@
 
 .saber-slider-row input[type="range"] {
     width: 100%;
-    accent-color: #00CEC9;
+    accent-color: #94a3b8;
 }
 
 .saber-slider-row span {
@@ -1013,7 +1013,7 @@
 }
 .sep-slider-row input[type="range"] {
     width: 100%;
-    accent-color: #00CEC9;
+    accent-color: #94a3b8;
 }
 .sep-slider-row span {
     color: #00CEC9;

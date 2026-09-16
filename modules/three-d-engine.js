@@ -2513,6 +2513,131 @@
         if (hudCheck) hudCheck.checked = state.gizmoShowHud !== false;
 
         updateSelectionUI();
+        updateDock3DControlsState();
+    }
+
+    /**
+     * 🎯 Tuval Altı Hızlı 3D Eksen & Tutamaç Kontrol Çubuğu (Dock 3D Controls)
+     */
+    function updateDock3DControlsState() {
+        const dock3D = document.getElementById('dock3DControls');
+        const divider = document.getElementById('dock3DDivider');
+        if (!dock3D) return;
+
+        if (!state.active) {
+            dock3D.style.display = 'none';
+            if (divider) divider.style.display = 'none';
+            return;
+        }
+
+        dock3D.style.display = 'inline-flex';
+        if (divider) divider.style.display = 'block';
+
+        const targetItemBtn = dock3D.querySelector('#dock3DTargetItemBtn');
+        const targetSunBtn = dock3D.querySelector('#dock3DTargetSunBtn');
+        const btnX = dock3D.querySelector('#dock3DBtnX');
+        const btnY = dock3D.querySelector('#dock3DBtnY');
+        const btnZ = dock3D.querySelector('#dock3DBtnZ');
+        const btnFree = dock3D.querySelector('#dock3DBtnFree');
+
+        if (targetItemBtn) targetItemBtn.classList.toggle('active', !!state.selected);
+        if (targetSunBtn) targetSunBtn.classList.toggle('active', !state.selected || !!state.sunGizmoVisible);
+        if (btnFree) btnFree.classList.toggle('active', !!state.gizmoActive);
+    }
+
+    function initDock3DControls() {
+        const dock3D = document.getElementById('dock3DControls');
+        if (!dock3D || dock3D.dataset.bound === 'true') return;
+        dock3D.dataset.bound = 'true';
+
+        const targetItemBtn = dock3D.querySelector('#dock3DTargetItemBtn');
+        if (targetItemBtn) {
+            targetItemBtn.onclick = () => {
+                setSelected(true);
+                state.sunGizmoVisible = false;
+                updateDock3DControlsState();
+            };
+        }
+
+        const targetSunBtn = dock3D.querySelector('#dock3DTargetSunBtn');
+        if (targetSunBtn) {
+            targetSunBtn.onclick = () => {
+                state.sunGizmoVisible = true;
+                if (gizmoOverlayEl) {
+                    const sunEl = gizmoOverlayEl.querySelector('#threeDGizmoSun');
+                    if (sunEl) {
+                        sunEl.style.transform = 'translate(-50%, -50%) scale(1.4)';
+                        sunEl.style.boxShadow = '0 0 24px rgba(245, 158, 11, 1)';
+                        setTimeout(() => {
+                            if (sunEl) {
+                                sunEl.style.transform = 'translate(-50%, -50%) scale(1)';
+                                sunEl.style.boxShadow = '';
+                            }
+                        }, 400);
+                    }
+                }
+                updateDock3DControlsState();
+            };
+        }
+
+        const btnX = dock3D.querySelector('#dock3DBtnX');
+        if (btnX) {
+            btnX.onclick = () => {
+                state.planePitch = (state.planePitch >= 75) ? -75 : (state.planePitch + 15);
+                updatePlaneTransform();
+                syncControlsUI();
+                requestRender();
+                if (gizmoOverlayEl) {
+                    const dotX = gizmoOverlayEl.querySelector('#threeDGizmoDotX');
+                    if (dotX) {
+                        dotX.style.transform = 'scale(1.4)';
+                        setTimeout(() => { if (dotX) dotX.style.transform = 'scale(1)'; }, 250);
+                    }
+                }
+            };
+        }
+
+        const btnY = dock3D.querySelector('#dock3DBtnY');
+        if (btnY) {
+            btnY.onclick = () => {
+                state.planeYaw = (state.planeYaw >= 165) ? -180 : (state.planeYaw + 15);
+                updatePlaneTransform();
+                syncControlsUI();
+                requestRender();
+                if (gizmoOverlayEl) {
+                    const dotY = gizmoOverlayEl.querySelector('#threeDGizmoDotY');
+                    if (dotY) {
+                        dotY.style.transform = 'scale(1.4)';
+                        setTimeout(() => { if (dotY) dotY.style.transform = 'scale(1)'; }, 250);
+                    }
+                }
+            };
+        }
+
+        const btnZ = dock3D.querySelector('#dock3DBtnZ');
+        if (btnZ) {
+            btnZ.onclick = () => {
+                state.planeRoll = (state.planeRoll >= 165) ? -180 : (state.planeRoll + 15);
+                updatePlaneTransform();
+                syncControlsUI();
+                requestRender();
+                if (gizmoOverlayEl) {
+                    const dotZ = gizmoOverlayEl.querySelector('#threeDGizmoDotZ');
+                    if (dotZ) {
+                        dotZ.style.transform = 'scale(1.4)';
+                        setTimeout(() => { if (dotZ) dotZ.style.transform = 'scale(1)'; }, 250);
+                    }
+                }
+            };
+        }
+
+        const btnFree = dock3D.querySelector('#dock3DBtnFree');
+        if (btnFree) {
+            btnFree.onclick = () => {
+                toggleGizmoMode();
+                updateDock3DControlsState();
+            };
+        }
     }
 
     /**
@@ -2756,17 +2881,17 @@
                     </div>
 
                     <div class="three-d-row" style="margin-top:10px;">
-                        <span class="three-d-label">Eğim (Pitch):</span>
+                        <span class="three-d-label"><span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#ef4444; margin-right:5px; box-shadow:0 0 6px rgba(239,68,68,0.7); vertical-align:middle;"></span>Eğim (X Pitch):</span>
                         <input type="range" id="threeDPitchInput" class="three-d-range" min="-90" max="90" value="${state.planePitch}">
                         <span id="threeDPitchVal" class="three-d-val">${state.planePitch}°</span>
                     </div>
                     <div class="three-d-row">
-                        <span class="three-d-label">Yatay (Yaw):</span>
+                        <span class="three-d-label"><span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#10b981; margin-right:5px; box-shadow:0 0 6px rgba(16,185,129,0.7); vertical-align:middle;"></span>Yatay (Y Yaw):</span>
                         <input type="range" id="threeDYawInput" class="three-d-range" min="-180" max="180" value="${state.planeYaw}">
                         <span id="threeDYawVal" class="three-d-val">${state.planeYaw}°</span>
                     </div>
                     <div class="three-d-row">
-                        <span class="three-d-label">Yatırma (Roll):</span>
+                        <span class="three-d-label"><span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#00d2ff; margin-right:5px; box-shadow:0 0 6px rgba(0,210,255,0.7); vertical-align:middle;"></span>Yatırma (Z Roll):</span>
                         <input type="range" id="threeDRollInput" class="three-d-range" min="-180" max="180" value="${state.planeRoll}">
                         <span id="threeDRollVal" class="three-d-val">${state.planeRoll}°</span>
                     </div>
@@ -3475,6 +3600,8 @@
         setSelected(true, { silent: true, autoLockPhoto: false });
         syncControlsUI();
         initCanvasBadge();
+        initDock3DControls();
+        updateDock3DControlsState();
         if (canvasEl) canvasEl.style.display = 'block';
         if (state.gizmoActive && !state.cornerPinActive) {
             initGizmoOverlay();
@@ -3495,6 +3622,7 @@
         if (gizmoOverlayEl) gizmoOverlayEl.style.display = 'none';
         if (canvasBadgeEl) canvasBadgeEl.style.display = 'none';
         state.cornerPinActive = false;
+        updateDock3DControlsState();
 
         // Eğer tuvale aktarılmadan kapatıldıysa ve 2D kaynak öge gizlendiyse, 2D ögeyi geri göster
         if (!state.hasBaked && state.source2DEl && state.source2DEl.parentNode) {

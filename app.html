@@ -6,14 +6,11 @@
     <script>
         (function() {
             try {
-                var isMobile = (window.innerWidth <= 768) || /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-                if (isMobile) {
-                    document.documentElement.removeAttribute('data-theme');
-                    return;
-                }
                 var t = localStorage.getItem('emlak_app_theme');
+                // Varsayılan Açık Tema (light) - Kullanıcı özellikle 'dark' seçmediyse Açık Tema kalır
                 if (t === 'dark') {
                     document.documentElement.removeAttribute('data-theme');
+                    if (document.body) document.body.removeAttribute('data-theme');
                 } else {
                     document.documentElement.setAttribute('data-theme', 'light');
                     if (document.body) document.body.setAttribute('data-theme', 'light');
@@ -22,7 +19,7 @@
                     });
                 }
             } catch(e) {
-                document.documentElement.removeAttribute('data-theme');
+                document.documentElement.setAttribute('data-theme', 'light');
             }
         })();
     </script>
@@ -45,10 +42,10 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,300,0,0" />
     <link rel="icon" type="image/jpeg" href="assets/logo/logo-icon.png">
-    <link rel="stylesheet" href="styles.css?v=20260916-114">
-    <link rel="stylesheet" href="css/callouts.css?v=20260916-112">
-    <link rel="stylesheet" href="css/satellite-map.css?v=20260916-112">
-    <link rel="stylesheet" href="css/three-d.css?v=20260916-112">
+    <link rel="stylesheet" href="styles.css?v=20260916-116">
+    <link rel="stylesheet" href="css/callouts.css?v=20260916-116">
+    <link rel="stylesheet" href="css/satellite-map.css?v=20260916-116">
+    <link rel="stylesheet" href="css/three-d.css?v=20260916-116">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <!-- ⚡ SABER EFFECT ENGINE - PixiJS + Filters -->
     <script src="https://cdn.jsdelivr.net/npm/pixi.js@7.4.0/dist/pixi.min.js"></script>
@@ -1853,15 +1850,30 @@
 
         <div class="dock-divider"></div>
 
-        <!-- 3. Hızlı Format Butonları -->
-        <div class="dock-format-group" title="Tuval Formatı / En-Boy Oranı">
-            <button type="button" class="dock-pill-btn active" data-format="16:9 Full HD (YouTube/Banner)" onclick="window.quickSetFormat('16:9 Full HD (YouTube/Banner)')">16:9</button>
-            <button type="button" class="dock-pill-btn" data-format="1:1 Instagram Post (Kare)" onclick="window.quickSetFormat('1:1 Instagram Post (Kare)')">1:1</button>
-            <button type="button" class="dock-pill-btn" data-format="4:5 Instagram Portrait" onclick="window.quickSetFormat('4:5 Instagram Portrait')">4:5</button>
-            <button type="button" class="dock-pill-btn" data-format="9:16 Instagram/TikTok Story" onclick="window.quickSetFormat('9:16 Instagram/TikTok Story')">9:16</button>
+        <!-- 3. 3D Tutamaç & Eksen Hızlı Erişim Kontrolleri (3D Modunda Görünür) -->
+        <div class="dock-3d-controls" id="dock3DControls" style="display:none;" title="3D Tutamaçlar & Eksen Hızlı Kontrolü">
+            <button type="button" class="dock-3d-btn dock-3d-target-item active" id="dock3DTargetItemBtn" title="3D Ögeyi Seç ve Tutamaçları Odakla">
+                🎯 <span>3D Öge</span>
+            </button>
+            <button type="button" class="dock-3d-btn dock-3d-target-sun" id="dock3DTargetSunBtn" title="3D Güneş & Işık Tutamacı">
+                ☀️ <span>Güneş</span>
+            </button>
+            <div class="dock-3d-sep"></div>
+            <button type="button" class="dock-3d-btn dock-3d-btn-x" id="dock3DBtnX" title="Kırmızı X Tutamacı (Eğim Açısı)">
+                🔴 <span>X Eğim</span>
+            </button>
+            <button type="button" class="dock-3d-btn dock-3d-btn-y" id="dock3DBtnY" title="Yeşil Y Tutamacı (Yatay Açı)">
+                🟢 <span>Y Yatay</span>
+            </button>
+            <button type="button" class="dock-3d-btn dock-3d-btn-z" id="dock3DBtnZ" title="Mavi Z Tutamacı (Dönüş Açısı)">
+                🔵 <span>Z Dönüş</span>
+            </button>
+            <button type="button" class="dock-3d-btn dock-3d-btn-free active" id="dock3DBtnFree" title="3D Eksen Gizmo Tutamaçları Aç/Kapat">
+                🟣 <span>Gizmo</span>
+            </button>
         </div>
 
-        <div class="dock-divider"></div>
+        <div class="dock-divider" id="dock3DDivider" style="display:none;"></div>
 
         <!-- 4. Hızlı Araçlar: Zoom Sıfırla, Izgara (Grid), Şablonu Gizle/Göster, Şablonu Sıfırla, Geri Al, İleri Al -->
         <div class="dock-tool-group">
@@ -2026,11 +2038,11 @@
 <script src="modules/polygon.js?v=20260914-70"></script>
 <script src="modules/snap.js?v=1785302098411"></script>
 <script src="core.js?v=20260822-3"></script>
-<script src="modules/ui-core.js?v=20260915-92"></script>
+<script src="modules/ui-core.js?v=20260916-116"></script>
 <script src="modules/canvas-zoom.js?v=20260819-4"></script>
 <script src="modules/templates-core.js?v=20260913-02"></script>
 <script src="modules/multi-select.js?v=20260913-05"></script>
-<script src="modules/events.js?v=20260916-114"></script>
+<script src="modules/events.js?v=20260916-116"></script>
 <script src="js/templateManager.js?v=20260904-1"></script>
 <script src="templates_json/core.js?v=20260904-1"></script>
     <script src="templates_json/templates_16_9.js?v=20260904-1"></script>
@@ -2056,7 +2068,7 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="modules/ai-enhancer.js?v=20260910-14"></script>
     <script src="modules/satellite-map.js?v=20260914-86"></script>
-    <script src="modules/three-d-engine.js?v=20260916-115"></script>
+    <script src="modules/three-d-engine.js?v=20260916-116"></script>
 
 <!-- Gizli inputlar: Fotoğraf zoom ve pan ayarlarının arka planda çalışabilmesi için -->
 <div style="display:none;">

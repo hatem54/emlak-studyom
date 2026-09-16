@@ -630,27 +630,29 @@ window.closeBottomSheet = function() {
     }
 };
 
-document.addEventListener('DOMContentLoaded', () => {
+function runInitThemeAndSync() {
     if (typeof window.syncDescToggles === 'function') {
         setTimeout(window.syncDescToggles, 150);
     }
     if (typeof window.initAppTheme === 'function') {
         window.initAppTheme();
     }
-});
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', runInitThemeAndSync);
+} else {
+    runInitThemeAndSync();
+}
+window.addEventListener('load', runInitThemeAndSync);
 
 // ==================== TEMA YÖNETİCİSİ (DARK / LIGHT THEME) ====================
 function isMobileAppView() {
-    return (window.innerWidth <= 768) || (typeof window.isMobileDevice === 'function' && window.isMobileDevice()) || /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    return (typeof window.isMobileDevice === 'function' && window.isMobileDevice()) || /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 }
 
 function initAppTheme() {
     try {
-        if (isMobileAppView()) {
-            document.documentElement.removeAttribute('data-theme');
-            if (document.body) document.body.removeAttribute('data-theme');
-            return;
-        }
         const savedTheme = localStorage.getItem('emlak_app_theme') || 'light';
         applyAppTheme(savedTheme, false);
     } catch(e) {
@@ -659,19 +661,14 @@ function initAppTheme() {
 }
 
 function applyAppTheme(theme, save) {
-    if (isMobileAppView()) {
-        document.documentElement.removeAttribute('data-theme');
-        if (document.body) document.body.removeAttribute('data-theme');
-        return;
-    }
     if (typeof save === 'undefined') save = true;
     const isLight = (theme === 'light');
     if (isLight) {
         document.documentElement.setAttribute('data-theme', 'light');
-        document.body.setAttribute('data-theme', 'light');
+        if (document.body) document.body.setAttribute('data-theme', 'light');
     } else {
         document.documentElement.removeAttribute('data-theme');
-        document.body.removeAttribute('data-theme');
+        if (document.body) document.body.removeAttribute('data-theme');
     }
     
     if (save) {
@@ -696,8 +693,8 @@ function applyAppTheme(theme, save) {
 }
 
 function toggleAppTheme() {
-    if (isMobileAppView()) return;
-    const isLight = (document.body.getAttribute('data-theme') === 'light' || document.documentElement.getAttribute('data-theme') === 'light');
+    const isLight = (document.body && document.body.getAttribute('data-theme') === 'light') || 
+                    (document.documentElement.getAttribute('data-theme') === 'light');
     const nextTheme = isLight ? 'dark' : 'light';
     applyAppTheme(nextTheme, true);
 }

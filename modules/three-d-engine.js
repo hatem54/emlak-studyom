@@ -3849,6 +3849,32 @@
     }
 
     /**
+     * Otomatik 3D Yan Kalınlık / Gölge Rengi Oluşturucu
+     */
+    function autoGenerateSideColor(colorStr) {
+        if (!colorStr) return '#1e293b';
+        try {
+            if (typeof THREE !== 'undefined' && THREE.Color) {
+                const c = new THREE.Color(colorStr);
+                c.multiplyScalar(0.62); // %38 daha koyu zengin 3D yan kalınlık gölgesi
+                return '#' + c.getHexString();
+            }
+        } catch(e){}
+
+        if (typeof colorStr === 'string' && colorStr.startsWith('#')) {
+            let hex = colorStr.replace('#', '');
+            if (hex.length === 3) hex = hex.split('').map(x => x + x).join('');
+            if (hex.length === 6) {
+                const r = Math.max(0, Math.floor(parseInt(hex.substr(0, 2), 16) * 0.62));
+                const g = Math.max(0, Math.floor(parseInt(hex.substr(2, 2), 16) * 0.62));
+                const b = Math.max(0, Math.floor(parseInt(hex.substr(4, 2), 16) * 0.62));
+                return '#' + [r, g, b].map(x => x.toString(16).padStart(2, '0')).join('');
+            }
+        }
+        return '#0f172a';
+    }
+
+    /**
      * 15. 2D Rozeti 3D'ye Dönüştürme Köprüsü (2D-to-3D Bridge)
      */
     function convert2DBadgeTo3D(badgeEl) {

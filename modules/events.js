@@ -953,6 +953,29 @@ function openLibraryItem3DContextMenu(libItem, clientX, clientY) {
         ev.stopPropagation();
         closeLibMenu();
 
+        // Kütüphane öğesi meta verilerini topla (Konum Pini, Ok, İkon veya Rozet tipi)
+        const itemName = (libItem.textContent || '').trim();
+        const headerEl = libItem.closest('.accordion-item')?.querySelector('.accordion-header') || 
+                         libItem.closest('[data-cat]') || 
+                         libItem.closest('.tab-pane');
+        const catTitle = (headerEl ? headerEl.textContent : '').toLowerCase();
+        const svgEl = libItem.querySelector('svg');
+        const rawSvg = svgEl ? svgEl.outerHTML : '';
+
+        const isPin = catTitle.includes('konum') || catTitle.includes('pin') || 
+                      itemName.toLowerCase().includes('pin') || itemName.toLowerCase().includes('konum') ||
+                      (rawSvg && (rawSvg.includes('190') && rawSvg.includes('80')));
+        const isArrow = catTitle.includes('ok') || catTitle.includes('arrow') || 
+                        itemName.toLowerCase().includes('ok') || itemName.toLowerCase().includes('arrow');
+
+        const meta = {
+            itemName: itemName,
+            catTitle: catTitle,
+            isPin: isPin,
+            isArrow: isArrow,
+            rawSvg: rawSvg
+        };
+
         // 1. Ögeyi normal olarak tuvale eklet
         libItem.click();
 
@@ -963,7 +986,7 @@ function openLibraryItem3DContextMenu(libItem, clientX, clientY) {
                           (typeof window.selectedEl !== 'undefined' && window.selectedEl) ||
                           document.querySelector('#canvas-container .callout-wrap:last-child, #workArea .callout-wrap:last-child, #ui-layer .added-icon:last-child, #canvas-container .draggable:last-child');
             if (added && window.ThreeDEngine && typeof window.ThreeDEngine.convert2DBadgeTo3D === 'function') {
-                window.ThreeDEngine.convert2DBadgeTo3D(added);
+                window.ThreeDEngine.convert2DBadgeTo3D(added, meta);
             }
         }, 40);
     };

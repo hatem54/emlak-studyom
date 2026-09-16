@@ -4003,14 +4003,14 @@
     }
 
     /**
-     * 15. 2D Rozeti 3D'ye Dönüştürme Köprüsü (2D-to-3D Bridge)
+     * 15. 2D Rozet / İğne / İkonu 3D'ye Dönüştürme Köprüsü (2D-to-3D Bridge)
      */
-    function convert2DBadgeTo3D(badgeEl) {
+    function convert2DBadgeTo3D(badgeEl, meta = {}) {
         const el = badgeEl || (typeof window.selectedCalloutEl !== 'undefined' ? window.selectedCalloutEl : (typeof selectedCalloutEl !== 'undefined' ? selectedCalloutEl : (typeof window.selectedEl !== 'undefined' ? window.selectedEl : null)));
         if (!el) {
             const autoEl = document.querySelector('#canvas-container .callout-wrap:not([data-converted-to-3d="true"]), #workArea .callout-wrap:not([data-converted-to-3d="true"]), #ui-layer .added-icon:not([data-converted-to-3d="true"])');
             if (autoEl) {
-                return convert2DBadgeTo3D(autoEl);
+                return convert2DBadgeTo3D(autoEl, meta);
             }
             if (typeof window.showToast === 'function') {
                 window.showToast('⚠️ Lütfen önce tuvalde dönüştürmek istediğiniz rozet veya ikonu seçin.', 'warning');
@@ -4020,127 +4020,12 @@
 
         const root = el.closest('.callout-wrap, .callout-wrapper, .draggable, .added-icon, .canvas-el') || el;
         const classList = ((el.className || '') + ' ' + (root.className || '')).toLowerCase();
-        const isStandaloneIcon = classList.includes('added-icon') || classList.includes('is-svg-icon') || classList.includes('svg-icon') || (!classList.includes('callout-wrap') && !classList.includes('callout-item') && !classList.includes('co-neon-block') && (el.querySelector('svg') || root.querySelector('svg')));
 
-        if (isStandaloneIcon) {
-            // 💎 BAĞIMSIZ İKONU 3D'YE DÖNÜŞTÜR
-            const svgNode = el.querySelector('svg') || root.querySelector('svg');
-            const rawSvg = svgNode ? svgNode.outerHTML : (el.innerHTML || root.innerHTML);
-            state.elementType = 'icon_3d';
-            state.customIconSvg = rawSvg;
-            state.selectedIconId = 'custom';
-            state.text = '';
-            state.badgeSubtext = '';
-            state.badgeBgColor = el.dataset.storedBgHex || root.dataset.storedBgHex || '#0f172a';
-            state.frontColor = el.style.color || root.style.color || el.dataset.storedBorderColor || '#38bdf8';
-            state.sideColor = autoGenerateSideColor(state.badgeBgColor);
-            state.depth = 16;
-            state.bevelEnabled = true;
+        // SVG Node ve ham SVG metni
+        const svgNode = el.querySelector('svg') || root.querySelector('svg');
+        const rawSvg = (meta && meta.rawSvg) || (svgNode ? svgNode.outerHTML : (el.innerHTML || root.innerHTML));
 
-            // Pozisyon aktarımı
-            const posEl = (root.style.left && root.style.top) ? root : el;
-            if (posEl.style.left && posEl.style.top) {
-                const left = parseFloat(posEl.style.left) || 0;
-                const top = parseFloat(posEl.style.top) || 0;
-                const cvs = document.getElementById('mainCanvas') || canvasEl;
-                if (cvs) {
-                    const cw = cvs.width || cvs.clientWidth || 1000;
-                    const ch = cvs.height || cvs.clientHeight || 750;
-                    state.posX = Math.round(left - cw / 2 + (posEl.offsetWidth || 50) / 2);
-                    state.posY = Math.round(ch / 2 - top - (posEl.offsetHeight || 50) / 2);
-                }
-            }
-
-            // 2D ikonu gizle
-            root.style.setProperty('display', 'none', 'important');
-            root.style.setProperty('visibility', 'hidden', 'important');
-            root.dataset.convertedTo3D = 'true';
-            if (root !== el) {
-                el.style.setProperty('display', 'none', 'important');
-                el.dataset.convertedTo3D = 'true';
-            }
-            state.source2DEl = root;
-            state.hasBaked = false;
-
-            openStudio(true);
-            recreateContentMeshes();
-            syncControlsUI();
-            setSelected(true);
-
-            if (typeof window.showToast === 'function') {
-                window.showToast('✨ İkon başarıyla 3D\'ye dönüştürüldü! Kalınlık ve 6 yön hazır.', 'success');
-            }
-            return true;
-        }
-
-        // Metin ve alt metin çıkarımı
-        let label = el.dataset.coLabel || root.dataset.coLabel || '';
-        if (!label) {
-            const textNodes = (el.querySelectorAll ? el : root).querySelectorAll('text, span, .co-text, p, h1, h2, h3, h4');
-            const texts = [];
-            textNodes.forEach(t => {
-                const s = t.textContent.trim();
-                if (s) texts.push(s);
-            });
-            label = texts.join('\n');
-        }
-        if (!label) label = root.textContent.trim();
-        if (!label) label = 'SATILIK 1.250 m²';
-
-        const parts = label.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
-        const mainText = parts[0] || 'SATILIK';
-        const subText = parts.slice(1).join(' ');
-
-        // Renk çıkarımı (SVG veya veri özelliklerinden)
-        let bgColor = el.dataset.coBgColor || root.dataset.coBgColor || '';
-        if (!bgColor) {
-            const stop = (el.querySelector ? el : root).querySelector('stop');
-            if (stop && stop.getAttribute('stop-color')) {
-                bgColor = stop.getAttribute('stop-color');
-            } else {
-                const rect = (el.querySelector ? el : root).querySelector('rect[fill]:not([fill="none"]):not([fill^="url"])');
-                if (rect) bgColor = rect.getAttribute('fill');
-            }
-        }
-        if (!bgColor || bgColor === 'none') bgColor = '#e63946';
-
-        let textColor = el.dataset.coTextColor || root.dataset.coTextColor || '';
-        if (!textColor) {
-            const txtEl = (el.querySelector ? el : root).querySelector('text[fill]');
-            if (txtEl) textColor = txtEl.getAttribute('fill');
-        }
-        if (!textColor || textColor === 'none') textColor = '#ffffff';
-
-        const iconColor = el.dataset.coIconColor || root.dataset.coIconColor || '#38bdf8';
-
-        // Şekil tespiti
-        let detectedType = 'badge_pill';
-        const rectNode = (el.querySelector ? el : root).querySelector('rect');
-        const rxVal = rectNode ? parseFloat(rectNode.getAttribute('rx') || '0') : 999;
-
-        if (classList.includes('shield') || classList.includes('kalkan')) {
-            detectedType = 'badge_shield';
-        } else if (classList.includes('card') || classList.includes('plaket') || classList.includes('rect') || (rectNode && rxVal <= 12)) {
-            detectedType = 'badge_card';
-        } else if (classList.includes('coin') || classList.includes('circle') || classList.includes('madalyon')) {
-            detectedType = 'badge_coin';
-        }
-
-        // İkon tespiti
-        let iconId = el.dataset.iconId || root.dataset.iconId || 'none';
-
-        // 3D motor parametrelerini ata
-        state.elementType = detectedType;
-        state.text = mainText;
-        state.badgeSubtext = subText;
-        state.badgeBgColor = bgColor;
-        state.frontColor = textColor;
-        state.sideColor = autoGenerateSideColor(bgColor);
-        state.selectedIconId = iconId;
-        state.depth = 18;
-        state.bevelEnabled = true;
-
-        // Koordinatları haritala
+        // 1. Pozisyon ve Boyut Aktarımı
         const posEl = (root.style.left && root.style.top) ? root : el;
         if (posEl.style.left && posEl.style.top) {
             const left = parseFloat(posEl.style.left) || 0;
@@ -4149,14 +4034,14 @@
             if (cvs) {
                 const cw = cvs.width || cvs.clientWidth || 1000;
                 const ch = cvs.height || cvs.clientHeight || 750;
-                const w = posEl.offsetWidth || 200;
+                const w = posEl.offsetWidth || 100;
                 const h = posEl.offsetHeight || 100;
                 state.posX = Math.round(left - cw / 2 + w / 2);
                 state.posY = Math.round(ch / 2 - top - h / 2);
             }
         }
 
-        // 2D rozeti gizle
+        // 2. 2D Elemanı Tuvalden Güvenle Gizle
         root.style.setProperty('display', 'none', 'important');
         root.style.setProperty('visibility', 'hidden', 'important');
         root.dataset.convertedTo3D = 'true';
@@ -4170,7 +4055,168 @@
             window.removeCalloutControls();
         }
 
-        // 3D motoru aç ve yeniden çiz
+        // 3. Renk Çıkarımı
+        let primaryColor = el.dataset.coBgColor || root.dataset.coBgColor || '';
+        if (!primaryColor && svgNode) {
+            const stop = svgNode.querySelector('stop');
+            if (stop && stop.getAttribute('stop-color')) {
+                primaryColor = stop.getAttribute('stop-color');
+            } else {
+                const fillEl = svgNode.querySelector('[fill]:not([fill="none"]):not([fill^="url"]):not([fill="white"]):not([fill="#fff"]):not([fill="#ffffff"])');
+                if (fillEl) primaryColor = fillEl.getAttribute('fill');
+            }
+        }
+        if (!primaryColor || primaryColor === 'none') {
+            primaryColor = el.style.color || root.style.color || el.dataset.storedBgHex || root.dataset.storedBgHex || '#e63946';
+        }
+
+        // 4. Metin Çıkarımı
+        let label = (meta && meta.text) || el.dataset.coLabel || root.dataset.coLabel || '';
+        let hasRealText = false;
+        if (!label) {
+            const textNodes = (el.querySelectorAll ? el : root).querySelectorAll('text, span, .co-text, p, h1, h2, h3, h4');
+            const texts = [];
+            textNodes.forEach(t => {
+                const s = t.textContent.trim();
+                if (s && s.length > 0) texts.push(s);
+            });
+            if (texts.length > 0) {
+                const joined = texts.join(' ').trim();
+                // Tek haneli rakam (1, 2) veya sembol (📍) ise rozet metni sayma
+                if (texts.length === 1 && joined.length <= 2 && (/^\d+$/.test(joined) || joined === '📍')) {
+                    hasRealText = false;
+                } else {
+                    label = texts.join('\n');
+                    hasRealText = true;
+                }
+            }
+        } else {
+            hasRealText = true;
+        }
+
+        // 5. Tip Tespiti: Pin mi, Ok mu, Bağımsız İkon mu, Rozet mi?
+        const itemName = (meta && meta.itemName ? meta.itemName : (el.dataset.name || root.dataset.name || '')).toLowerCase();
+        const isPin = (meta && meta.isPin) || 
+                      classList.includes('pin') || classList.includes('konum') || classList.includes('marker') ||
+                      itemName.includes('pin') || itemName.includes('konum') ||
+                      (rawSvg && (
+                          (rawSvg.includes('190') && rawSvg.includes('80')) ||
+                          /M\s*80\s*15\s*C/i.test(rawSvg) ||
+                          /M\s*60\s*10\s*C/i.test(rawSvg) ||
+                          /M\s*90\s*15\s*C/i.test(rawSvg) ||
+                          /M\s*60\s*20\s*C/i.test(rawSvg)
+                      ));
+
+        const isArrow = (meta && meta.isArrow) ||
+                        classList.includes('arrow') || classList.includes('yön') || itemName.includes('ok') || itemName.includes('arrow') ||
+                        (rawSvg && /M\s*0\s*50|arrow/i.test(rawSvg));
+
+        // 📍 DURUM A: KONUM PİNİ (3D İĞNE)
+        if (isPin) {
+            state.elementType = hasRealText ? 'combo_pin' : 'pin';
+            state.text = hasRealText ? label.split(/\r?\n/)[0] : '';
+            state.badgeSubtext = hasRealText ? label.split(/\r?\n/).slice(1).join(' ') : '';
+            state.frontColor = primaryColor;
+            state.sideColor = autoGenerateSideColor(primaryColor);
+            state.orientation = 'standing'; // 3D Harita pini dik dursun
+            state.planePitch = -35;
+            state.planeYaw = 15;
+            state.planeRoll = 0;
+            state.depth = 16;
+            state.bevelEnabled = true;
+
+            openStudio(true);
+            recreateContentMeshes();
+            syncControlsUI();
+            setSelected(true);
+
+            if (typeof window.showToast === 'function') {
+                window.showToast('📍 3D Konum Pini başarıyla açıldı! Yön, eğim ve kalınlık ayarlanabilir.', 'success');
+            }
+            return true;
+        }
+
+        // 🏹 DURUM B: YÖN OKU
+        if (isArrow) {
+            state.elementType = hasRealText ? 'combo_arrow' : 'arrow';
+            state.text = hasRealText ? label.split(/\r?\n/)[0] : '';
+            state.badgeSubtext = hasRealText ? label.split(/\r?\n/).slice(1).join(' ') : '';
+            state.frontColor = primaryColor;
+            state.sideColor = autoGenerateSideColor(primaryColor);
+            state.orientation = 'flat';
+            state.depth = 16;
+            state.bevelEnabled = true;
+
+            openStudio(true);
+            recreateContentMeshes();
+            syncControlsUI();
+            setSelected(true);
+
+            if (typeof window.showToast === 'function') {
+                window.showToast('🏹 3D Yön Oku hazır!', 'success');
+            }
+            return true;
+        }
+
+        // 💎 DURUM C: METİNSİZ GRAFİK / BAĞIMSIZ İKON
+        const isIconOnly = !hasRealText && (svgNode || rawSvg || classList.includes('added-icon') || classList.includes('is-svg-icon'));
+        if (isIconOnly) {
+            state.elementType = 'icon_3d';
+            state.customIconSvg = rawSvg;
+            state.selectedIconId = 'custom';
+            state.text = '';
+            state.badgeSubtext = '';
+            state.badgeBgColor = el.dataset.storedBgHex || root.dataset.storedBgHex || '#0f172a';
+            state.frontColor = primaryColor;
+            state.sideColor = autoGenerateSideColor(primaryColor);
+            state.depth = 16;
+            state.bevelEnabled = true;
+
+            openStudio(true);
+            recreateContentMeshes();
+            syncControlsUI();
+            setSelected(true);
+
+            if (typeof window.showToast === 'function') {
+                window.showToast('✨ İkon başarıyla 3D\'ye dönüştürüldü! Kalınlık ve 6 yön hazır.', 'success');
+            }
+            return true;
+        }
+
+        // 🏷️ DURUM D: GERÇEK METİNLİ ROZET (Pill, Shield, Card, Coin)
+        let detectedType = 'badge_pill';
+        const rectNode = (el.querySelector ? el : root).querySelector('rect');
+        const rxVal = rectNode ? parseFloat(rectNode.getAttribute('rx') || '0') : 999;
+
+        if (classList.includes('shield') || classList.includes('kalkan')) {
+            detectedType = 'badge_shield';
+        } else if (classList.includes('card') || classList.includes('plaket') || classList.includes('rect') || (rectNode && rxVal <= 12)) {
+            detectedType = 'badge_card';
+        } else if (classList.includes('coin') || classList.includes('circle') || classList.includes('madalyon')) {
+            detectedType = 'badge_coin';
+        }
+
+        const parts = label.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+        const mainText = parts[0] || '';
+        const subText = parts.slice(1).join(' ');
+
+        let textColor = el.dataset.coTextColor || root.dataset.coTextColor || '';
+        if (!textColor && svgNode) {
+            const txtEl = svgNode.querySelector('text[fill]');
+            if (txtEl) textColor = txtEl.getAttribute('fill');
+        }
+        if (!textColor || textColor === 'none') textColor = '#ffffff';
+
+        state.elementType = detectedType;
+        state.text = mainText;
+        state.badgeSubtext = subText;
+        state.badgeBgColor = primaryColor;
+        state.frontColor = textColor;
+        state.sideColor = autoGenerateSideColor(primaryColor);
+        state.selectedIconId = el.dataset.iconId || root.dataset.iconId || 'none';
+        state.depth = 18;
+        state.bevelEnabled = true;
+
         openStudio(true);
         recreateContentMeshes();
         syncControlsUI();

@@ -66,6 +66,11 @@ h2 .vb{background:var(--gradient-1);color:#fff;font-size:9px;padding:2px 8px;bor
 .input-group label{display:block;margin-bottom:2px;font-family:'ClassicAmpersand','Space Grotesk',sans-serif;font-weight:600;color:var(--text-muted);font-size:10px;text-transform:uppercase;letter-spacing:.4px}
 .input-group input,.input-group select,.input-group textarea{width:100%;padding:6px 9px;background:var(--dark-3);border:1px solid rgba(108,92,231,.2);color:var(--text);font-family:'Inter',sans-serif;border-radius:5px;font-size:12px;transition:all .2s}
 .input-group input:focus,.input-group textarea:focus,.input-group select:focus{border-color:var(--primary);box-shadow:0 0 0 2px rgba(108,92,231,.2);outline:0}
+/* 🤖 Smart Parser (Metni Süz) Alanı */
+.ai-box { display: flex; flex-direction: column; gap: 8px; width: 100%; margin-bottom: 15px; box-sizing: border-box; }
+.ai-box textarea, #aiText { width: 100% !important; min-height: 110px; padding: 10px 12px; background: var(--dark-3); border: 1px solid rgba(108,92,231,.25); color: var(--text); font-family: 'Inter', sans-serif; border-radius: 8px; font-size: 12.5px; line-height: 1.5; resize: vertical; box-sizing: border-box !important; display: block !important; transition: all .2s ease; }
+.ai-box textarea:focus, #aiText:focus { border-color: #a855f7 !important; box-shadow: 0 0 0 3px rgba(168, 85, 247, 0.2) !important; outline: 0 !important; }
+.ai-box .btn-ai, #btnSmartParse { width: 100% !important; padding: 10px 14px !important; font-family: 'ClassicAmpersand', 'Space Grotesk', sans-serif !important; font-size: 13px !important; font-weight: 700 !important; border-radius: 8px !important; cursor: pointer !important; display: flex !important; align-items: center !important; justify-content: center !important; gap: 8px !important; margin-top: 2px !important; margin-bottom: 6px !important; box-sizing: border-box !important; }
 .row-2{display:flex;gap:5px}.row-2>*{flex:1}
 .slider-group{margin-bottom:5px}
 .slider-group label{display:flex;justify-content:space-between;font-size:10px;font-family:'ClassicAmpersand','Space Grotesk',sans-serif;color:var(--text-muted);margin-bottom:1px;font-weight:600}
@@ -3726,22 +3731,38 @@ body[data-theme="light"] .cat-item.active {
 }
 
 /* Inputlar, Selectler, Textarealar */
+html[data-theme="light"] .input-group input,
 body[data-theme="light"] .input-group input,
+html[data-theme="light"] .input-group select,
 body[data-theme="light"] .input-group select,
+html[data-theme="light"] .input-group textarea,
 body[data-theme="light"] .input-group textarea,
+html[data-theme="light"] .ai-box textarea,
 body[data-theme="light"] .ai-box textarea,
+html[data-theme="light"] #aiText,
+body[data-theme="light"] #aiText,
+html[data-theme="light"] .custom-badge-inputs input,
 body[data-theme="light"] .custom-badge-inputs input,
+html[data-theme="light"] .dynamic-field input,
 body[data-theme="light"] .dynamic-field input,
+html[data-theme="light"] .dynamic-field select,
 body[data-theme="light"] .dynamic-field select {
     background: #f8fafc !important;
     border: 1px solid #cbd5e1 !important;
     color: #0f172a !important;
 }
 
+html[data-theme="light"] .input-group input:focus,
 body[data-theme="light"] .input-group input:focus,
+html[data-theme="light"] .input-group select:focus,
 body[data-theme="light"] .input-group select:focus,
+html[data-theme="light"] .input-group textarea:focus,
 body[data-theme="light"] .input-group textarea:focus,
+html[data-theme="light"] .ai-box textarea:focus,
 body[data-theme="light"] .ai-box textarea:focus,
+html[data-theme="light"] #aiText:focus,
+body[data-theme="light"] #aiText:focus,
+html[data-theme="light"] .custom-badge-inputs input:focus,
 body[data-theme="light"] .custom-badge-inputs input:focus {
     background: #ffffff !important;
     border-color: var(--primary) !important;

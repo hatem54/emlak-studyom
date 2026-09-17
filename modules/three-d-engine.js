@@ -71,12 +71,17 @@
     function createDefaultElement(overrides = {}) {
         const id = 'elem_3d_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
         const name = overrides.name || overrides.sourceItemName || ('3D Öge ' + (elements.length + 1));
+        const elemType = overrides.elementType || 'text';
+        let defaultText = '';
+        if (elemType === 'text') {
+            defaultText = '3D METİN';
+        }
         return {
             id: id,
             name: name,
             visible: overrides.visible !== undefined ? !!overrides.visible : true,
-            elementType: overrides.elementType || 'text',
-            text: overrides.text !== undefined ? overrides.text : 'SATILIK 1.250 m²',
+            elementType: elemType,
+            text: overrides.text !== undefined ? overrides.text : defaultText,
             textSize: overrides.textSize || 36,
             depth: overrides.depth !== undefined ? overrides.depth : 16,
             bevelEnabled: overrides.bevelEnabled !== undefined ? !!overrides.bevelEnabled : true,
@@ -104,6 +109,7 @@
             customIconSvg: overrides.customIconSvg || null,
             sourceSvg: overrides.sourceSvg || null,
             sourceItemName: overrides.sourceItemName || name,
+            isAutoDefault: !!overrides.isAutoDefault,
             // Three.js groups & meshes
             planeGroup: null,
             contentGroup: null,
@@ -400,7 +406,7 @@
     /**
      * 2. WebGL Tuvalini ve 3D Sahneyi Başlatma
      */
-    function initScene() {
+    function initScene(options = {}) {
         const container = document.getElementById('canvas-container');
         if (!container) return false;
 
@@ -513,13 +519,13 @@
         // Sahnedeki tüm kayıtlı ögelerin Three.js nesnelerini hazırla
         elements.forEach(el => initElementThreeObjects(el));
 
-        if (elements.length === 0) {
-            const defEl = createDefaultElement();
+        if (elements.length === 0 && options.createDefault !== false) {
+            const defEl = createDefaultElement({ isAutoDefault: true });
             initElementThreeObjects(defEl);
             elements.push(defEl);
             setActiveElement(defEl);
             recreateContentMeshes(defEl);
-        } else {
+        } else if (elements.length > 0) {
             const activeEl = getActiveElement();
             if (activeEl) {
                 setActiveElement(activeEl);
@@ -3350,10 +3356,11 @@
         const textSecTitle = panel.querySelector('#threeDTextSectionTitle');
 
         const isBadge = state.elementType && (state.elementType.startsWith('badge_') || state.elementType === 'icon_3d');
+        const isIconOnly = state.elementType === 'pin' || state.elementType === 'arrow' || state.elementType === 'element_3d';
         if (badgeSection) badgeSection.style.display = isBadge ? 'block' : 'none';
-        if (textRow) textRow.style.display = (isBadge || isExact) ? 'none' : 'flex';
-        if (sizeRow) sizeRow.style.display = (isBadge || isExact) ? 'none' : 'flex';
-        if (textSecTitle) textSecTitle.textContent = (isBadge || isExact) ? '📐 3D KALINLIK & IŞIK PAHI' : '🔤 METİN & 3D KALINLIK';
+        if (textRow) textRow.style.display = (isBadge || isExact || isIconOnly) ? 'none' : 'flex';
+        if (sizeRow) sizeRow.style.display = (isBadge || isExact || isIconOnly) ? 'none' : 'flex';
+        if (textSecTitle) textSecTitle.textContent = (isBadge || isExact || isIconOnly) ? '📐 3D KALINLIK & IŞIK PAHI' : '🔤 METİN & 3D KALINLIK';
 
         if (isBadge) {
             const bMainText = panel.querySelector('#threeDBadgeMainText');
@@ -4616,7 +4623,7 @@
     /**
      * 15. Modalı Aç / Kapat
      */
-    async function openStudio(skipAutoConvert = false) {
+    async function openStudio(skipAutoConvert = false, createDefaultIfEmpty = true) {
         // Eğer bir 2D rozet veya ikon varsa ve henüz dönüştürülmediyse, otomatik olarak onu 3D'ye dönüştür
         if (!skipAutoConvert && !state.source2DEl) {
             const candidate = (typeof window.selectedCalloutEl !== 'undefined' && window.selectedCalloutEl) ||
@@ -4650,7 +4657,7 @@
             }
         }
 
-        initScene();
+        initScene({ createDefault: createDefaultIfEmpty });
         setSelected(true, { silent: true, autoLockPhoto: false });
         syncControlsUI();
         initCanvasBadge();
@@ -5232,10 +5239,21 @@
                         classList.includes('arrow') || classList.includes('yön') || itemName.includes('ok') || itemName.includes('arrow') ||
                         (rawSvg && /M\s*0\s*50|arrow/i.test(rawSvg));
 
+        const isPureIcon = classList.includes('added-icon') || classList.includes('is-svg-icon') || classList.includes('canvas-icon');
+        if (isPureIcon) {
+            hasRealText = false;
+            label = '';
+        }
+
         let elemType = 'text';
-        if (rawSvg && rawSvg.includes('<svg')) elemType = 'element_3d';
+        if (rawSvg && rawSvg.includes('<svg') && !isPin && !isArrow) elemType = 'element_3d';
         else if (isPin) elemType = 'pin';
         else if (isArrow) elemType = 'arrow';
+
+        const isGraphicOnly = (elemType === 'element_3d' || elemType === 'pin' || elemType === 'arrow');
+        const finalMainText = hasRealText ? (label.split(/\r?\n/)[0] || '') : (isGraphicOnly ? '' : (label || ''));
+        const finalSubText = hasRealText ? (label.split(/\r?\n/).slice(1).join(' ') || '') : '';
+        const displayName = itemName || (isPin ? 'Konum Pini' : (isArrow ? 'Yön Oku' : (elemType === 'element_3d' ? '3D İkon' : (finalMainText || '3D Öge'))));
 
         let planePitch = -60, planeYaw = 15, orientation = 'flat';
         if (isPin) {
@@ -5248,13 +5266,19 @@
             planeYaw = 0;
         }
 
+        // Eğer sahnede dokunulmamış boş bir varsayılan metin varsa, onu temizle
+        const autoDefIdx = elements.findIndex(e => e.isAutoDefault);
+        if (autoDefIdx !== -1) {
+            delete3DElement(elements[autoDefIdx].id);
+        }
+
         const newEl = createDefaultElement({
-            name: itemName || (isPin ? 'Konum Pini' : (isArrow ? 'Yön Oku' : '3D Öge')),
-            sourceItemName: itemName || (isPin ? 'Konum Pini' : (isArrow ? 'Yön Oku' : '3D Öge')),
+            name: displayName,
+            sourceItemName: displayName,
             sourceSvg: (elemType === 'element_3d') ? rawSvg : null,
             elementType: elemType,
-            text: hasRealText ? (label.split(/\r?\n/)[0] || '') : (elemType === 'element_3d' ? '' : (label || '3D ÖGE')),
-            badgeSubtext: hasRealText ? (label.split(/\r?\n/).slice(1).join(' ') || '') : '',
+            text: finalMainText,
+            badgeSubtext: finalSubText,
             frontColor: primaryColor,
             sideColor: autoGenerateSideColor(primaryColor),
             depth: 16,
@@ -5272,9 +5296,12 @@
             visible: true
         });
 
-        await openStudio(true);
-        initElementThreeObjects(newEl);
+        // 🌟 Önce yeni ögeyi koleksiyona ekle ki initScene boş zannedip varsayılan metin oluşturmasın!
         elements.push(newEl);
+        activeElementId = newEl.id;
+
+        await openStudio(true, false);
+        initElementThreeObjects(newEl);
         setActiveElement(newEl);
         recreateContentMeshes(newEl);
         syncControlsUI();

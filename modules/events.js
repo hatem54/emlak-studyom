@@ -977,13 +977,17 @@ function openLibraryItem3DContextMenu(libItem, clientX, clientY) {
             catTitle: catTitle,
             isPin: isPin,
             isArrow: isArrow,
-            rawSvg: rawSvg
+            rawSvg: rawSvg,
+            svg: rawSvg
         };
 
-        // 1. Ögeyi normal olarak tuvale eklet
-        libItem.click();
+        if (window.ThreeDEngine && typeof window.ThreeDEngine.add3DElementFromData === 'function') {
+            window.ThreeDEngine.add3DElementFromData(meta);
+            return;
+        }
 
-        // 2. Hemen ardından yeni eklenen ögeyi bul ve 3D'ye dönüştür
+        // Fallback:
+        libItem.click();
         setTimeout(() => {
             const added = (typeof window.selectedCalloutEl !== 'undefined' && window.selectedCalloutEl) ||
                           (typeof selectedCalloutEl !== 'undefined' && selectedCalloutEl) ||
@@ -999,7 +1003,12 @@ function openLibraryItem3DContextMenu(libItem, clientX, clientY) {
         ev.preventDefault();
         ev.stopPropagation();
         closeLibMenu();
-        libItem.click();
+        window._tempForce2D = true;
+        try {
+            libItem.click();
+        } finally {
+            setTimeout(() => { window._tempForce2D = false; }, 100);
+        }
     };
 
     setTimeout(() => {

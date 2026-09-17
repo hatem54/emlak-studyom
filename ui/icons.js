@@ -34,7 +34,11 @@ function buildIconCategoriesUI() {
         Object.keys(window.ICON_LIBRARY).forEach(key => {
             const catData = window.ICON_LIBRARY[key];
             const catTitle = catData.title || key;
-            mergedCategories[catTitle] = catData.items.map(item => item.svg);
+            mergedCategories[catTitle] = catData.items.map(item => ({
+                id: item.id,
+                name: item.name,
+                svg: item.svg
+            }));
         });
     }
 
@@ -159,6 +163,7 @@ function renderIconsToContainer(cat, p) {
         
     } else {
         (window.ICON_CATEGORIES[cat]||[]).forEach(ch=>{
+            let itemObj = ch;
             // Convert lucide name to SVG
             if (typeof ch === 'string' && !ch.trim().startsWith('<svg') && typeof lucide !== 'undefined') {
                 const pascalKey = ch.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join('');
@@ -169,10 +174,13 @@ function renderIconsToContainer(cat, p) {
                     svgNode.setAttribute('stroke-width', '2.2');
                     svgNode.setAttribute('width', '100%');
                     svgNode.setAttribute('height', '100%');
-                    ch = svgNode.outerHTML;
+                    itemObj = {
+                        name: ch,
+                        svg: svgNode.outerHTML
+                    };
                 }
             }
-            appendIconToPool(ch, p);
+            appendIconToPool(itemObj, p);
         });
     }
 }
@@ -186,9 +194,17 @@ function appendIconToPool(ch, p) {
     d.onmouseover = () => { d.style.background = 'var(--gradient-1)'; d.style.color = '#fff'; d.style.transform = 'scale(1.05)'; };
     d.onmouseout = () => { d.style.background = 'var(--dark-2)'; d.style.color = 'var(--text)'; d.style.transform = 'scale(1)'; };
     
-    if (typeof ch === 'string' && ch.trim().startsWith('<svg')) {
+    let svgContent = (ch && typeof ch === 'object' && ch.svg) ? ch.svg : (typeof ch === 'string' ? ch : '');
+    let itemName = (ch && typeof ch === 'object' && ch.name) ? ch.name : '';
+
+    if (itemName) {
+        d.title = itemName;
+        d.dataset.name = itemName;
+    }
+
+    if (typeof svgContent === 'string' && svgContent.trim().startsWith('<svg')) {
         // Adjust the SVG inside to fit its container
-        let modSvg = ch;
+        let modSvg = svgContent;
         if(modSvg.includes('width=')) modSvg = modSvg.replace(/width="[^"]*"/, 'width="100%"');
         else modSvg = modSvg.replace('<svg', '<svg width="100%"');
         if(modSvg.includes('height=')) modSvg = modSvg.replace(/height="[^"]*"/, 'height="100%"');
@@ -196,7 +212,7 @@ function appendIconToPool(ch, p) {
         
         d.innerHTML = modSvg;
     } else {
-        d.textContent=ch;
+        d.textContent = typeof ch === 'string' ? ch : (itemName || '');
     }
     d.onclick=()=>addIcon(ch);
     p.appendChild(d);
@@ -250,16 +266,40 @@ window.filterLucideIcons = function(query) {
         svgNode.setAttribute('stroke-width', '2.2');
         svgNode.setAttribute('width', '100%');
         svgNode.setAttribute('height', '100%');
-        const ch = svgNode.outerHTML;
+        const ch = {
+            name: name,
+            svg: svgNode.outerHTML
+        };
         appendIconToPool(ch, p);
     });
 }
 
 function addIcon(ch){
+    const svgStr = (ch && typeof ch === 'object' && ch.svg) ? ch.svg : (typeof ch === 'string' ? ch : '');
+    const itemName = (ch && typeof ch === 'object' && ch.name) ? ch.name : '';
+
+    // 🌟 3D MODU KONTROLÜ: Eğer 3D stüdyo aktifse veya 3D katmanı açıksa, ikonu doğrudan 3D sahneye ekle!
+    const is3DActive = !window._tempForce2D && window.ThreeDEngine && (
+        (typeof window.ThreeDEngine.isActive === 'function' && window.ThreeDEngine.isActive()) ||
+        (typeof window.ThreeDEngine.isLayerActive === 'function' && window.ThreeDEngine.isLayerActive())
+    );
+
+    if (is3DActive) {
+        if (typeof window.ThreeDEngine.add3DElementFromData === 'function') {
+            window.ThreeDEngine.add3DElementFromData({
+                svg: svgStr,
+                name: itemName || '3D İkon',
+                elementType: 'element_3d'
+            });
+            return;
+        }
+    }
+
     const icon=document.createElement('div');
     icon.className='draggable added-icon canvas-el';
-    if (ch && ch.trim().startsWith('<svg')) { 
-        let modSvg = ch;
+    if (itemName) icon.dataset.name = itemName;
+    if (svgStr && svgStr.trim().startsWith('<svg')) { 
+        let modSvg = svgStr;
         if(modSvg.includes('width=')) modSvg = modSvg.replace(/width="[^"]*"/, 'width="1em"');
         else modSvg = modSvg.replace('<svg', '<svg width="1em"');
         if(modSvg.includes('height=')) modSvg = modSvg.replace(/height="[^"]*"/, 'height="1em"');
@@ -268,9 +308,9 @@ function addIcon(ch){
         icon.innerHTML = modSvg;
         icon.classList.add('is-svg-icon');
     } else { 
-        icon.textContent=ch; 
+        icon.textContent=typeof ch === 'string' ? ch : (itemName || ''); 
     }
-    icon.dataset.label='İkon: ' + (ch.length > 50 ? 'SVG' : ch);
+    icon.dataset.label='İkon: ' + (itemName || (svgStr.length > 50 ? 'SVG' : svgStr));
     let fSize = 60;
     if (window.isMobileDevice && window.isMobileDevice()) {
         const sf = typeof scaleFactor !== 'undefined' && scaleFactor > 0 ? scaleFactor : 1;

@@ -139,6 +139,24 @@ function renderCalloutPanel(){
 }
 
 function addSVGCalloutToCanvas(item) {
+    const is3DActive = !window._tempForce2D && window.ThreeDEngine && (
+        (typeof window.ThreeDEngine.isActive === 'function' && window.ThreeDEngine.isActive()) ||
+        (typeof window.ThreeDEngine.isLayerActive === 'function' && window.ThreeDEngine.isLayerActive())
+    );
+    if (is3DActive && typeof window.ThreeDEngine.add3DElementFromData === 'function') {
+        const svgStr = (item && item.svg) || (typeof item === 'string' ? item : '');
+        const nameStr = (item && item.name) || '3D Rozet';
+        const isPin = !!(item && (item.category === 'pins' || (nameStr && nameStr.toLowerCase().includes('pin'))));
+        const isArrow = !!(item && (item.category === 'arrows' || (nameStr && nameStr.toLowerCase().includes('ok'))));
+        return window.ThreeDEngine.add3DElementFromData({
+            svg: svgStr,
+            name: nameStr,
+            title: nameStr,
+            isPin: isPin,
+            isArrow: isArrow
+        });
+    }
+
     const workArea = document.getElementById('workArea') || document.getElementById('canvas-container') || document.querySelector('.main-preview');
     if(!workArea) { alert('Canvas alanı bulunamadı!'); return; }
     

@@ -5105,6 +5105,11 @@
      * 15. 2D Rozet / İğne / İkonu 3D'ye Dönüştürme Köprüsü (2D-to-3D Bridge)
      */
     async function convert2DBadgeTo3D(badgeEl, meta = {}) {
+        // Eğer doğrudan veri objesi verilmişse doğrudan add3DElementFromData'ya aktar
+        if (badgeEl && typeof badgeEl === 'object' && !badgeEl.nodeType && (badgeEl.svg || badgeEl.rawSvg || badgeEl.name || badgeEl.itemName)) {
+            return add3DElementFromData(Object.assign({}, badgeEl, meta));
+        }
+
         const el = badgeEl || (typeof window.selectedCalloutEl !== 'undefined' ? window.selectedCalloutEl : (typeof selectedCalloutEl !== 'undefined' ? selectedCalloutEl : (typeof window.selectedEl !== 'undefined' ? window.selectedEl : null)));
         if (!el) {
             const autoEl = document.querySelector('#canvas-container .callout-wrap:not([data-converted-to-3d="true"]), #workArea .callout-wrap:not([data-converted-to-3d="true"]), #ui-layer .added-icon:not([data-converted-to-3d="true"])');
@@ -5299,6 +5304,131 @@
         return true;
     }
 
+    /**
+     * 15.1 Doğrudan Veri / Vektörden Yeni 3D Öge Ekleme (Data-driven 3D Addition)
+     * İkon kütüphanesinden veya rozetlerden tıklandığında anında 3D sahneye yeni bir öge ekler.
+     */
+    async function add3DElementFromData(options = {}) {
+        await openStudio(true, false);
+
+        const count = elements.length + 1;
+        const rawSvg = options.svg || options.rawSvg || null;
+        const itemName = options.name || options.title || options.itemName || ('3D Öge ' + count);
+        const isPin = !!options.isPin;
+        const isArrow = !!options.isArrow;
+        let elemType = options.elementType;
+        if (!elemType) {
+            if (rawSvg && rawSvg.includes('<svg') && !isPin && !isArrow) elemType = 'element_3d';
+            else if (isPin) elemType = 'pin';
+            else if (isArrow) elemType = 'arrow';
+            else elemType = 'text';
+        }
+
+        // Renk Çıkarımı
+        let primaryColor = options.frontColor || options.color || '';
+        let bgCol = options.badgeBgColor || options.bgColor || '#0f172a';
+
+        if (!primaryColor && rawSvg) {
+            try {
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = rawSvg;
+                const stop = tempDiv.querySelector('stop');
+                if (stop && stop.getAttribute('stop-color')) {
+                    primaryColor = stop.getAttribute('stop-color');
+                } else {
+                    const fillEl = tempDiv.querySelector('[fill]:not([fill="none"]):not([fill^="url"]):not([fill="white"]):not([fill="#fff"]):not([fill="#ffffff"]):not([fill="currentColor"])');
+                    if (fillEl) primaryColor = fillEl.getAttribute('fill');
+                }
+            } catch(e){}
+        }
+        primaryColor = safeHexColor(primaryColor, '#38bdf8');
+        bgCol = safeHexColor(bgCol, '#0f172a');
+
+        // Metin: Saf ikonlarda text boş olmalıdır (istenmeyen metin yerleşmesini engeller)
+        const isPureIcon = (elemType === 'element_3d');
+        const text = isPureIcon ? '' : (options.text || (elemType === 'text' ? itemName : ''));
+        const subtext = isPureIcon ? '' : (options.subtext || options.badgeSubtext || '');
+
+        // Staggered konumlandırma (yeni ögeler önceki ögelerin tam üzerine binmez)
+        const offsets = [
+            { x: 0, y: 0 },
+            { x: 75, y: -50 },
+            { x: -75, y: 50 },
+            { x: 130, y: 30 },
+            { x: -120, y: -60 },
+            { x: 50, y: 90 },
+            { x: -60, y: -80 }
+        ];
+        const step = elements.length % offsets.length;
+        let initX = (options.posX !== undefined) ? options.posX : (elements.length > 0 ? offsets[step].x : 0);
+        let initY = (options.posY !== undefined) ? options.posY : (elements.length > 0 ? offsets[step].y : 0);
+
+        let orientation = options.orientation || 'flat';
+        let planePitch = options.planePitch !== undefined ? options.planePitch : -60;
+        let planeYaw = options.planeYaw !== undefined ? options.planeYaw : 15;
+        if (isPin) {
+            orientation = 'standing';
+            planePitch = -35;
+            planeYaw = 15;
+        } else if (isArrow) {
+            orientation = 'flat';
+            planePitch = -55;
+            planeYaw = 0;
+        }
+
+        // Eğer sahnede dokunulmamış boş bir varsayılan metin varsa, onu temizle
+        const autoDefIdx = elements.findIndex(e => e.isAutoDefault);
+        if (autoDefIdx !== -1) {
+            delete3DElement(elements[autoDefIdx].id);
+        }
+
+        const newEl = createDefaultElement({
+            name: itemName,
+            sourceItemName: itemName,
+            sourceSvg: (elemType === 'element_3d') ? rawSvg : null,
+            elementType: elemType,
+            text: text,
+            badgeSubtext: subtext,
+            frontColor: primaryColor,
+            badgeBgColor: bgCol,
+            sideColor: autoGenerateSideColor(bgCol || primaryColor),
+            isRound: isPureIcon,
+            depth: 16,
+            bevelEnabled: true,
+            bevelThickness: 2,
+            bevelSize: 1.5,
+            orientation: orientation,
+            planePitch: planePitch,
+            planeYaw: planeYaw,
+            planeRoll: 0,
+            posX: initX,
+            posY: initY,
+            posZ: 0,
+            planeScale: 1.0,
+            visible: true
+        });
+
+        initElementThreeObjects(newEl);
+        elements.push(newEl);
+        setActiveElement(newEl);
+        recreateContentMeshes(newEl);
+        syncControlsUI();
+        updateElementSelectorUI();
+        setSelected(true);
+        updatePlaneTransform();
+        requestRender();
+
+        if (typeof window.renderLayers === 'function') window.renderLayers();
+        if (typeof window.recordHistory === 'function') window.recordHistory('Yeni 3D Öge Eklendi');
+        if (typeof window.requestAutoSave === 'function') window.requestAutoSave();
+
+        if (typeof window.showToast === 'function') {
+            const toastIcon = isPin ? '📍' : (isArrow ? '🏹' : (elemType === 'element_3d' ? '✨' : '🧊'));
+            window.showToast(`${toastIcon} "${itemName}" 3D sahneye eklendi! (Tuvalde toplam ${elements.length} adet 3D öge)`, 'success');
+        }
+        return newEl;
+    }
+
     // 🌟 DIŞA AÇILAN API (Public API)
     window.ThreeDEngine = {
         state: state,
@@ -5337,6 +5467,8 @@
         getDataToSave: getDataToSave,
         restoreData: restoreData,
         convert2DBadgeTo3D: convert2DBadgeTo3D,
+        add3DElementFromData: add3DElementFromData,
+        add3DIcon: (svg, name, opts) => add3DElementFromData(Object.assign({ svg: svg, name: name, elementType: 'element_3d' }, opts)),
         openIconPicker: openIconPicker,
         closeIconPicker: closeIconPicker,
         setBadgeBgColor: (c) => { state.badgeBgColor = c; recreateContentMeshes(); syncControlsUI(); },

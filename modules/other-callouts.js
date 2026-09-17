@@ -867,6 +867,17 @@
         addItemToCanvas(itemId) {
             const item = this.localItems.find(i => i.id === itemId) || this.apiResults.find(i => i.id === itemId);
             if (!item || !item.svg) return;
+            const is3DActive = !window._tempForce2D && window.ThreeDEngine && (
+                (typeof window.ThreeDEngine.isActive === 'function' && window.ThreeDEngine.isActive()) ||
+                (typeof window.ThreeDEngine.isLayerActive === 'function' && window.ThreeDEngine.isLayerActive())
+            );
+            if (is3DActive && typeof window.ThreeDEngine.add3DElementFromData === 'function') {
+                return window.ThreeDEngine.add3DElementFromData({
+                    svg: item.svg,
+                    name: item.title,
+                    title: item.title
+                });
+            }
             this.insertToCanvas(item.svg, item.title);
         }
 
@@ -886,6 +897,18 @@
         }
 
         insertToCanvas(svgMarkup, title) {
+            const is3DActive = !window._tempForce2D && window.ThreeDEngine && (
+                (typeof window.ThreeDEngine.isActive === 'function' && window.ThreeDEngine.isActive()) ||
+                (typeof window.ThreeDEngine.isLayerActive === 'function' && window.ThreeDEngine.isLayerActive())
+            );
+            if (is3DActive && typeof window.ThreeDEngine.add3DElementFromData === 'function') {
+                return window.ThreeDEngine.add3DElementFromData({
+                    svg: svgMarkup,
+                    name: title,
+                    title: title
+                });
+            }
+
             const uiLayer = document.getElementById('ui-layer') || document.getElementById('canvas-container');
             const canvasEl = document.getElementById('canvas-container') || document.getElementById('photo-layer');
             if (!uiLayer) return;

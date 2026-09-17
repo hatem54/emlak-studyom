@@ -1559,9 +1559,13 @@ window.resetEntireWorkspace = function() {
                 const maskLayer = document.getElementById('mask-layer');
                 if (maskLayer) maskLayer.innerHTML = '';
 
-                // 5.1. 3D Ögeyi Tuvalden Temizle
-                if (window.ThreeDEngine && typeof window.ThreeDEngine.delete3DElement === 'function') {
-                    window.ThreeDEngine.delete3DElement();
+                // 5.1. 3D Ögeleri Tuvalden Temizle
+                if (window.ThreeDEngine) {
+                    if (typeof window.ThreeDEngine.clearAll3D === 'function') {
+                        window.ThreeDEngine.clearAll3D();
+                    } else if (typeof window.ThreeDEngine.delete3DElement === 'function') {
+                        window.ThreeDEngine.delete3DElement();
+                    }
                 }
 
                 // 6. Tuvaldeki tüm ek nesneleri temizle

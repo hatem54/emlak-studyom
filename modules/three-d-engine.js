@@ -64,6 +64,216 @@
         sourceItemName: ''            // Orijinal ögenin adı (örn. Klasik Kırmızı)
     };
 
+    // 🌟 ÇOKLU 3D ÖGE KOLEKSİYONU (Unlimited Multi-Element System)
+    const elements = [];
+    let activeElementId = null;
+
+    function createDefaultElement(overrides = {}) {
+        const id = 'elem_3d_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
+        const name = overrides.name || overrides.sourceItemName || ('3D Öge ' + (elements.length + 1));
+        return {
+            id: id,
+            name: name,
+            visible: overrides.visible !== undefined ? !!overrides.visible : true,
+            elementType: overrides.elementType || 'text',
+            text: overrides.text !== undefined ? overrides.text : 'SATILIK 1.250 m²',
+            textSize: overrides.textSize || 36,
+            depth: overrides.depth !== undefined ? overrides.depth : 16,
+            bevelEnabled: overrides.bevelEnabled !== undefined ? !!overrides.bevelEnabled : true,
+            bevelThickness: overrides.bevelThickness !== undefined ? overrides.bevelThickness : 2,
+            bevelSize: overrides.bevelSize !== undefined ? overrides.bevelSize : 1.5,
+            frontColor: overrides.frontColor || '#f59e0b',
+            sideColor: overrides.sideColor || '#92400e',
+            roughness: overrides.roughness !== undefined ? overrides.roughness : 0.35,
+            metalness: overrides.metalness !== undefined ? overrides.metalness : 0.40,
+            orientation: overrides.orientation || 'flat',
+            planePitch: overrides.planePitch !== undefined ? overrides.planePitch : -65,
+            planeYaw: overrides.planeYaw !== undefined ? overrides.planeYaw : 15,
+            planeRoll: overrides.planeRoll !== undefined ? overrides.planeRoll : 0,
+            planeElevation: overrides.planeElevation !== undefined ? overrides.planeElevation : 0,
+            planeLocalRot: overrides.planeLocalRot !== undefined ? overrides.planeLocalRot : 0,
+            planeScale: overrides.planeScale !== undefined ? overrides.planeScale : 1.0,
+            shadowOpacity: overrides.shadowOpacity !== undefined ? overrides.shadowOpacity : 0.45,
+            shadowSoftness: overrides.shadowSoftness !== undefined ? overrides.shadowSoftness : 1.5,
+            posX: overrides.posX !== undefined ? overrides.posX : 0,
+            posY: overrides.posY !== undefined ? overrides.posY : 0,
+            posZ: overrides.posZ !== undefined ? overrides.posZ : 0,
+            badgeBgColor: overrides.badgeBgColor || '#0f172a',
+            badgeSubtext: overrides.badgeSubtext || '',
+            selectedIconId: overrides.selectedIconId || 'ev-14',
+            customIconSvg: overrides.customIconSvg || null,
+            sourceSvg: overrides.sourceSvg || null,
+            sourceItemName: overrides.sourceItemName || name,
+            // Three.js groups & meshes
+            planeGroup: null,
+            contentGroup: null,
+            shadowPlane: null,
+            textMesh: null,
+            iconMesh: null,
+            badgeMesh: null
+        };
+    }
+
+    function getActiveElement() {
+        if (activeElementId) {
+            const found = elements.find(e => e.id === activeElementId);
+            if (found) return found;
+        }
+        if (elements.length > 0) {
+            activeElementId = elements[elements.length - 1].id;
+            return elements[elements.length - 1];
+        }
+        return null;
+    }
+
+    function syncStateFromActiveElement() {
+        const el = getActiveElement();
+        if (!el) return;
+        state.active = elements.length > 0;
+        state.visible = el.visible !== false;
+        state.elementType = el.elementType;
+        state.text = el.text;
+        state.textSize = el.textSize;
+        state.depth = el.depth;
+        state.bevelEnabled = el.bevelEnabled;
+        state.bevelThickness = el.bevelThickness;
+        state.bevelSize = el.bevelSize;
+        state.frontColor = el.frontColor;
+        state.sideColor = el.sideColor;
+        state.roughness = el.roughness;
+        state.metalness = el.metalness;
+        state.orientation = el.orientation;
+        state.planePitch = el.planePitch;
+        state.planeYaw = el.planeYaw;
+        state.planeRoll = el.planeRoll;
+        state.planeElevation = el.planeElevation;
+        state.planeLocalRot = el.planeLocalRot;
+        state.planeScale = el.planeScale;
+        state.shadowOpacity = el.shadowOpacity;
+        state.shadowSoftness = el.shadowSoftness;
+        state.posX = el.posX;
+        state.posY = el.posY;
+        state.posZ = el.posZ;
+        state.badgeBgColor = el.badgeBgColor;
+        state.badgeSubtext = el.badgeSubtext;
+        state.selectedIconId = el.selectedIconId;
+        state.customIconSvg = el.customIconSvg;
+        state.sourceSvg = el.sourceSvg;
+        state.sourceItemName = el.sourceItemName;
+
+        planeGroup = el.planeGroup;
+        contentGroup = el.contentGroup;
+        shadowPlane = el.shadowPlane;
+        textMesh = el.textMesh;
+        iconMesh = el.iconMesh;
+        badgeMesh = el.badgeMesh;
+    }
+
+    function syncActiveElementFromState() {
+        const el = getActiveElement();
+        if (!el) return;
+        el.visible = state.visible !== false;
+        el.elementType = state.elementType;
+        el.text = state.text;
+        el.textSize = state.textSize;
+        el.depth = state.depth;
+        el.bevelEnabled = state.bevelEnabled;
+        el.bevelThickness = state.bevelThickness;
+        el.bevelSize = state.bevelSize;
+        el.frontColor = state.frontColor;
+        el.sideColor = state.sideColor;
+        el.roughness = state.roughness;
+        el.metalness = state.metalness;
+        el.orientation = state.orientation;
+        el.planePitch = state.planePitch;
+        el.planeYaw = state.planeYaw;
+        el.planeRoll = state.planeRoll;
+        el.planeElevation = state.planeElevation;
+        el.planeLocalRot = state.planeLocalRot;
+        el.planeScale = state.planeScale;
+        el.shadowOpacity = state.shadowOpacity;
+        el.shadowSoftness = state.shadowSoftness;
+        el.posX = state.posX;
+        el.posY = state.posY;
+        el.posZ = state.posZ;
+        el.badgeBgColor = state.badgeBgColor;
+        el.badgeSubtext = state.badgeSubtext;
+        el.selectedIconId = state.selectedIconId;
+        el.customIconSvg = state.customIconSvg;
+        el.sourceSvg = state.sourceSvg;
+        el.sourceItemName = state.sourceItemName;
+    }
+
+    function initElementThreeObjects(el) {
+        if (!scene || !window.THREE) return;
+        if (!el.planeGroup) {
+            el.planeGroup = new THREE.Group();
+            scene.add(el.planeGroup);
+
+            // Zemin Gölge Düzlemi
+            const shadowPlaneGeo = new THREE.PlaneGeometry(3200, 3200);
+            const shadowPlaneMat = new THREE.ShadowMaterial({
+                opacity: el.shadowOpacity !== undefined ? el.shadowOpacity : state.shadowOpacity,
+                side: THREE.DoubleSide
+            });
+            el.shadowPlane = new THREE.Mesh(shadowPlaneGeo, shadowPlaneMat);
+            el.shadowPlane.receiveShadow = true;
+            el.shadowPlane.position.z = -0.5;
+            el.planeGroup.add(el.shadowPlane);
+
+            el.contentGroup = new THREE.Group();
+            el.planeGroup.add(el.contentGroup);
+        }
+    }
+
+    function setActiveElement(elementOrId, options = {}) {
+        const target = (typeof elementOrId === 'string')
+            ? elements.find(e => e.id === elementOrId)
+            : elementOrId;
+        
+        if (!target) {
+            activeElementId = null;
+            state.selected = false;
+            if (gridHelper && gridHelper.parent) {
+                gridHelper.parent.remove(gridHelper);
+            }
+            if (gizmoOverlayEl) gizmoOverlayEl.style.display = 'none';
+            if (cornerPinOverlayEl) cornerPinOverlayEl.style.display = 'none';
+            return;
+        }
+
+        activeElementId = target.id;
+        initElementThreeObjects(target);
+
+        // Attach gridHelper to target element's planeGroup
+        if (gridHelper) {
+            if (gridHelper.parent) gridHelper.parent.remove(gridHelper);
+            target.planeGroup.add(gridHelper);
+            gridHelper.position.set(target.posX, target.posY, target.posZ || 0);
+            gridHelper.visible = !!(state.selected && state.showPlaneGrid && target.visible !== false);
+        }
+
+        syncStateFromActiveElement();
+
+        if (options.select !== false) {
+            state.selected = true;
+        }
+
+        updatePlaneTransform(target);
+        updateContentTransform(target);
+        syncControlsUI();
+        updateElementSelectorUI();
+
+        const visBtn = document.getElementById('threeDVisHeaderBtn');
+        if (visBtn) {
+            const isVis = target.visible !== false;
+            visBtn.innerHTML = isVis ? '<i class="fas fa-eye"></i>' : '<i class="fas fa-eye-slash" style="color:#ef4444;"></i>';
+            visBtn.title = isVis ? '3D Ögeyi Gizle (Tuval ve Çıktıdan Gizlenir)' : '3D Ögeyi Göster (Tuval ve Çıktıya Dahil)';
+        }
+
+        requestRender();
+    }
+
     // 🌟 THREE.JS SAHNE NESNELERİ
     let scene = null;
     let camera = null;
@@ -230,96 +440,91 @@
             renderer.setSize(w, h, false);
         }
 
-        // Sahne & Kamera
-        scene = new THREE.Scene();
-        const fov = 45;
-        const aspect = w / h;
-        camera = new THREE.PerspectiveCamera(fov, aspect, 1, 10000);
-        camera.position.set(0, 0, 850);
-        camera.lookAt(0, 0, 0);
+        // Sahne & Kamera (Yalnızca ilk kez oluştur)
+        if (!scene) {
+            scene = new THREE.Scene();
+            const fov = 45;
+            const aspect = w / h;
+            camera = new THREE.PerspectiveCamera(fov, aspect, 1, 10000);
+            camera.position.set(0, 0, 850);
+            camera.lookAt(0, 0, 0);
 
-        // Işıklandırma
-        ambLight = new THREE.AmbientLight(0xffffff, 0.75);
-        scene.add(ambLight);
+            // Işıklandırma
+            ambLight = new THREE.AmbientLight(0xffffff, 0.75);
+            scene.add(ambLight);
 
-        dirLight = new THREE.DirectionalLight(0xffffff, state.lightIntensity);
-        dirLight.position.set(state.sunPosX, state.sunPosY, state.sunPosZ);
-        dirLight.castShadow = true;
-        dirLight.shadow.mapSize.width = 2048;
-        dirLight.shadow.mapSize.height = 2048;
-        dirLight.shadow.camera.near = 10;
-        dirLight.shadow.camera.far = 4500;
-        const d = 900;
-        dirLight.shadow.camera.left = -d;
-        dirLight.shadow.camera.right = d;
-        dirLight.shadow.camera.top = d;
-        dirLight.shadow.camera.bottom = -d;
-        dirLight.shadow.bias = -0.0008;
-        dirLight.shadow.radius = state.shadowSoftness || 1.5;
-        scene.add(dirLight);
-        scene.add(dirLight.target);
+            dirLight = new THREE.DirectionalLight(0xffffff, state.lightIntensity);
+            dirLight.position.set(state.sunPosX, state.sunPosY, state.sunPosZ);
+            dirLight.castShadow = true;
+            dirLight.shadow.mapSize.width = 2048;
+            dirLight.shadow.mapSize.height = 2048;
+            dirLight.shadow.camera.near = 10;
+            dirLight.shadow.camera.far = 4500;
+            const d = 900;
+            dirLight.shadow.camera.left = -d;
+            dirLight.shadow.camera.right = d;
+            dirLight.shadow.camera.top = d;
+            dirLight.shadow.camera.bottom = -d;
+            dirLight.shadow.bias = -0.0008;
+            dirLight.shadow.radius = state.shadowSoftness || 1.5;
+            scene.add(dirLight);
+            scene.add(dirLight.target);
 
-        // ☀️ 3D Güneş Nesnesi (Gerçek 3D Sahne Ögesi)
-        sunGroup = new THREE.Group();
-        sunGroup.position.set(state.sunPosX, state.sunPosY, state.sunPosZ);
-        const sunSphereGeo = new THREE.SphereGeometry(18, 20, 20);
-        const sunSphereMat = new THREE.MeshBasicMaterial({ color: 0xffd000 });
-        const sunSphere = new THREE.Mesh(sunSphereGeo, sunSphereMat);
-        sunSphere.name = 'sunSphere';
-        sunGroup.add(sunSphere);
+            // ☀️ 3D Güneş Nesnesi (Gerçek 3D Sahne Ögesi)
+            sunGroup = new THREE.Group();
+            sunGroup.position.set(state.sunPosX, state.sunPosY, state.sunPosZ);
+            const sunSphereGeo = new THREE.SphereGeometry(18, 20, 20);
+            const sunSphereMat = new THREE.MeshBasicMaterial({ color: 0xffd000 });
+            const sunSphere = new THREE.Mesh(sunSphereGeo, sunSphereMat);
+            sunSphere.name = 'sunSphere';
+            sunGroup.add(sunSphere);
 
-        const sunRingGeo = new THREE.RingGeometry(20, 26, 32);
-        const sunRingMat = new THREE.MeshBasicMaterial({
-            color: 0xffaa00,
-            side: THREE.DoubleSide,
-            transparent: true,
-            opacity: 0.8
-        });
-        const sunRing = new THREE.Mesh(sunRingGeo, sunRingMat);
-        sunGroup.add(sunRing);
-        scene.add(sunGroup);
+            const sunRingGeo = new THREE.RingGeometry(20, 26, 32);
+            const sunRingMat = new THREE.MeshBasicMaterial({
+                color: 0xffaa00,
+                side: THREE.DoubleSide,
+                transparent: true,
+                opacity: 0.8
+            });
+            const sunRing = new THREE.Mesh(sunRingGeo, sunRingMat);
+            sunGroup.add(sunRing);
+            scene.add(sunGroup);
 
-        const rayGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]);
-        const rayMat = new THREE.LineDashedMaterial({
-            color: 0xf59e0b,
-            dashSize: 12,
-            gapSize: 8,
-            transparent: true,
-            opacity: 0.65
-        });
-        sunRayLine = new THREE.Line(rayGeo, rayMat);
-        scene.add(sunRayLine);
+            const rayGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]);
+            const rayMat = new THREE.LineDashedMaterial({
+                color: 0xf59e0b,
+                dashSize: 12,
+                gapSize: 8,
+                transparent: true,
+                opacity: 0.65
+            });
+            sunRayLine = new THREE.Line(rayGeo, rayMat);
+            scene.add(sunRayLine);
 
-        // Ana Düzlem Grubu
-        planeGroup = new THREE.Group();
-        scene.add(planeGroup);
+            // Ortak 3D Izgara (Grid Helper)
+            const gridSubdivisions = 16;
+            const gridTotalSize = 800;
+            gridHelper = new THREE.GridHelper(gridTotalSize, gridSubdivisions, 0x00d2ff, 0x334155);
+            gridHelper.rotation.x = Math.PI / 2; // XY düzlemine yatır
+            gridHelper.position.z = 0;
+            gridHelper.visible = false;
+        }
 
-        // 3D Izgara (Grid Helper)
-        const gridSubdivisions = 16;
-        const gridTotalSize = 800;
-        gridHelper = new THREE.GridHelper(gridTotalSize, gridSubdivisions, 0x00d2ff, 0x334155);
-        gridHelper.rotation.x = Math.PI / 2; // XY düzlemine yatır
-        gridHelper.position.z = 0;
-        planeGroup.add(gridHelper);
+        // Sahnedeki tüm kayıtlı ögelerin Three.js nesnelerini hazırla
+        elements.forEach(el => initElementThreeObjects(el));
 
-        // Zemin Gölge Düzlemi (Şeffaf ShadowMaterial - Çift taraflı ve geniş)
-        const shadowPlaneGeo = new THREE.PlaneGeometry(3200, 3200);
-        const shadowPlaneMat = new THREE.ShadowMaterial({
-            opacity: state.shadowOpacity,
-            side: THREE.DoubleSide
-        });
-        shadowPlane = new THREE.Mesh(shadowPlaneGeo, shadowPlaneMat);
-        shadowPlane.receiveShadow = true;
-        shadowPlane.position.z = -0.5; // Harflerin hemen arkasında tam duvar yüzeyinde
-        planeGroup.add(shadowPlane);
-
-        // Metin ve Öge Taşıyıcı Grup
-        contentGroup = new THREE.Group();
-        planeGroup.add(contentGroup);
-
-        updatePlaneTransform();
-        updateLighting();
-        recreateContentMeshes();
+        if (elements.length === 0) {
+            const defEl = createDefaultElement();
+            initElementThreeObjects(defEl);
+            elements.push(defEl);
+            setActiveElement(defEl);
+            recreateContentMeshes(defEl);
+        } else {
+            const activeEl = getActiveElement();
+            if (activeEl) {
+                setActiveElement(activeEl);
+            }
+        }
 
         // Render döngüsü
         startRenderLoop();
@@ -1105,93 +1310,101 @@
     /**
      * 4. 3D Geometrileri ve Mesh'leri Yeniden Oluşturma
      */
-    function recreateContentMeshes() {
-        if (!contentGroup) return;
+    function recreateContentMeshes(targetEl) {
+        const el = targetEl || getActiveElement();
+        if (!el || !el.contentGroup) return;
 
-        if (textMesh) {
-            contentGroup.remove(textMesh);
-            if (textMesh.geometry) textMesh.geometry.dispose();
-            textMesh = null;
+        // Hedef aktif ögeyse state'ten en güncel değerleri aktar
+        if (el === getActiveElement()) {
+            syncActiveElementFromState();
         }
-        if (iconMesh) {
-            contentGroup.remove(iconMesh);
-            if (iconMesh.geometry) iconMesh.geometry.dispose();
-            iconMesh = null;
+
+        const cGroup = el.contentGroup;
+
+        if (el.textMesh) {
+            cGroup.remove(el.textMesh);
+            if (el.textMesh.geometry) el.textMesh.geometry.dispose();
+            el.textMesh = null;
         }
-        if (badgeMesh) {
-            contentGroup.remove(badgeMesh);
-            if (badgeMesh.geometry) badgeMesh.geometry.dispose();
-            if (badgeMesh.material) {
-                if (Array.isArray(badgeMesh.material)) {
-                    badgeMesh.material.forEach(m => {
+        if (el.iconMesh) {
+            cGroup.remove(el.iconMesh);
+            if (el.iconMesh.geometry) el.iconMesh.geometry.dispose();
+            el.iconMesh = null;
+        }
+        if (el.badgeMesh) {
+            cGroup.remove(el.badgeMesh);
+            if (el.badgeMesh.geometry) el.badgeMesh.geometry.dispose();
+            if (el.badgeMesh.material) {
+                if (Array.isArray(el.badgeMesh.material)) {
+                    el.badgeMesh.material.forEach(m => {
                         if (m && m.map) m.map.dispose();
                         if (m) m.dispose();
                     });
                 } else {
-                    if (badgeMesh.material.map) badgeMesh.material.map.dispose();
-                    badgeMesh.material.dispose();
+                    if (el.badgeMesh.material.map) el.badgeMesh.material.map.dispose();
+                    el.badgeMesh.material.dispose();
                 }
             }
-            badgeMesh = null;
+            el.badgeMesh = null;
         }
 
         const frontMat = new THREE.MeshStandardMaterial({
-            color: new THREE.Color(state.frontColor),
-            roughness: state.roughness,
-            metalness: state.metalness
+            color: new THREE.Color(el.frontColor),
+            roughness: el.roughness,
+            metalness: el.metalness
         });
 
         const sideMat = new THREE.MeshStandardMaterial({
-            color: new THREE.Color(state.sideColor),
-            roughness: Math.min(1.0, state.roughness + 0.15),
-            metalness: Math.max(0.1, state.metalness - 0.1)
+            color: new THREE.Color(el.sideColor),
+            roughness: Math.min(1.0, el.roughness + 0.15),
+            metalness: Math.max(0.1, el.metalness - 0.1)
         });
 
         const extrudeOpts = {
-            depth: Math.max(1, state.depth),
-            bevelEnabled: !!state.bevelEnabled,
-            bevelThickness: state.bevelThickness,
-            bevelSize: state.bevelSize,
+            depth: Math.max(1, el.depth),
+            bevelEnabled: !!el.bevelEnabled,
+            bevelThickness: el.bevelThickness,
+            bevelSize: el.bevelSize,
             bevelSegments: 3,
             curveSegments: 8
         };
 
-        const type = state.elementType;
+        const type = el.elementType;
 
         if (type === 'pin' || type === 'combo_pin') {
             const pinGeo = new THREE.ExtrudeGeometry(createPinShape(), extrudeOpts);
             pinGeo.center();
-            iconMesh = new THREE.Mesh(pinGeo, [frontMat, sideMat]);
-            iconMesh.castShadow = true;
-            contentGroup.add(iconMesh);
+            el.iconMesh = new THREE.Mesh(pinGeo, [frontMat, sideMat]);
+            el.iconMesh.castShadow = true;
+            cGroup.add(el.iconMesh);
         } else if (type === 'arrow' || type === 'combo_arrow') {
             const arrowGeo = new THREE.ExtrudeGeometry(createArrowShape(), extrudeOpts);
             arrowGeo.center();
-            iconMesh = new THREE.Mesh(arrowGeo, [frontMat, sideMat]);
-            iconMesh.castShadow = true;
-            contentGroup.add(iconMesh);
+            el.iconMesh = new THREE.Mesh(arrowGeo, [frontMat, sideMat]);
+            el.iconMesh.castShadow = true;
+            cGroup.add(el.iconMesh);
         }
 
         if ((type === 'text' || type === 'combo_pin' || type === 'combo_arrow') && loadedFont) {
-            const textString = state.text.trim() || 'METİN';
+            const textString = (el.text || '').trim() || 'METİN';
             const textGeo = new THREE.TextGeometry(textString, {
                 font: loadedFont,
-                size: state.textSize,
-                height: Math.max(1, state.depth),
+                size: el.textSize,
+                height: Math.max(1, el.depth),
                 curveSegments: 8,
-                bevelEnabled: !!state.bevelEnabled,
-                bevelThickness: state.bevelThickness,
-                bevelSize: state.bevelSize,
+                bevelEnabled: !!el.bevelEnabled,
+                bevelThickness: el.bevelThickness,
+                bevelSize: el.bevelSize,
                 bevelOffset: 0,
                 bevelSegments: 3
             });
             textGeo.center();
 
-            textMesh = new THREE.Mesh(textGeo, [frontMat, sideMat]);
-            textMesh.castShadow = true;
-            contentGroup.add(textMesh);
-        } else if (type === 'element_3d' && state.sourceSvg) {
-            const svgToRender = state.text ? updateSvgText(state.sourceSvg, state.text) : state.sourceSvg;
+            el.textMesh = new THREE.Mesh(textGeo, [frontMat, sideMat]);
+            el.textMesh.castShadow = true;
+            cGroup.add(el.textMesh);
+        } else if (type === 'element_3d' && el.sourceSvg) {
+            const svgToRender = el.text ? updateSvgText(el.sourceSvg, el.text) : el.sourceSvg;
             const res = createShapeAndBoundsFromSvg(svgToRender);
             if (res && res.shape) {
                 const shape = res.shape;
@@ -1199,10 +1412,10 @@
                 const uvGen = getNormalizedUVGenerator(bounds.minX, bounds.maxX, bounds.minY, bounds.maxY);
 
                 const badgeExtrudeOpts = {
-                    depth: Math.max(1, state.depth),
-                    bevelEnabled: !!state.bevelEnabled,
-                    bevelThickness: state.bevelThickness,
-                    bevelSize: state.bevelSize,
+                    depth: Math.max(1, el.depth),
+                    bevelEnabled: !!el.bevelEnabled,
+                    bevelThickness: el.bevelThickness,
+                    bevelSize: el.bevelSize,
                     bevelSegments: 3,
                     curveSegments: 16,
                     UVGenerator: uvGen
@@ -1220,16 +1433,16 @@
 
                 const badgeFrontMat = new THREE.MeshStandardMaterial({
                     map: badgeTex,
-                    roughness: state.roughness,
-                    metalness: state.metalness,
+                    roughness: el.roughness,
+                    metalness: el.metalness,
                     transparent: true,
                     alphaTest: 0.05
                 });
 
-                badgeMesh = new THREE.Mesh(badgeGeo, [badgeFrontMat, sideMat]);
-                badgeMesh.castShadow = true;
-                badgeMesh.receiveShadow = true;
-                contentGroup.add(badgeMesh);
+                el.badgeMesh = new THREE.Mesh(badgeGeo, [badgeFrontMat, sideMat]);
+                el.badgeMesh.castShadow = true;
+                el.badgeMesh.receiveShadow = true;
+                cGroup.add(el.badgeMesh);
             }
         } else if (type.startsWith('badge_') || type === 'icon_3d') {
             let shape = null;
@@ -1249,10 +1462,10 @@
             const uvGen = getNormalizedUVGenerator(bounds.minX, bounds.maxX, bounds.minY, bounds.maxY);
 
             const badgeExtrudeOpts = {
-                depth: Math.max(1, state.depth),
-                bevelEnabled: !!state.bevelEnabled,
-                bevelThickness: state.bevelThickness,
-                bevelSize: state.bevelSize,
+                depth: Math.max(1, el.depth),
+                bevelEnabled: !!el.bevelEnabled,
+                bevelThickness: el.bevelThickness,
+                bevelSize: el.bevelSize,
                 bevelSegments: 3,
                 curveSegments: 16,
                 UVGenerator: uvGen
@@ -1263,42 +1476,49 @@
 
             const badgeTex = createBadgeTexture(
                 type,
-                state.text,
-                state.badgeSubtext,
-                state.selectedIconId,
-                state.badgeBgColor,
-                state.frontColor,
-                state.frontColor,
+                el.text,
+                el.badgeSubtext,
+                el.selectedIconId,
+                el.badgeBgColor,
+                el.frontColor,
+                el.frontColor,
                 () => requestRender()
             );
 
             const badgeFrontMat = new THREE.MeshStandardMaterial({
                 map: badgeTex,
-                roughness: state.roughness,
-                metalness: state.metalness
+                roughness: el.roughness,
+                metalness: el.metalness
             });
 
-            badgeMesh = new THREE.Mesh(badgeGeo, [badgeFrontMat, sideMat]);
-            badgeMesh.castShadow = true;
-            badgeMesh.receiveShadow = true;
-            contentGroup.add(badgeMesh);
+            el.badgeMesh = new THREE.Mesh(badgeGeo, [badgeFrontMat, sideMat]);
+            el.badgeMesh.castShadow = true;
+            el.badgeMesh.receiveShadow = true;
+            cGroup.add(el.badgeMesh);
         }
 
-        if (type === 'combo_pin' && iconMesh && textMesh) {
+        if (type === 'combo_pin' && el.iconMesh && el.textMesh) {
             const iconWidth = 55;
-            textMesh.position.set(iconWidth / 2 + 10, 0, 0);
-            iconMesh.position.set(-100, 0, 0);
-        } else if (type === 'combo_arrow' && iconMesh && textMesh) {
-            iconMesh.rotation.set(0, 0, -Math.PI / 2);
-            iconMesh.position.set(-110, 0, 0);
-            textMesh.position.set(30, 0, 0);
+            el.textMesh.position.set(iconWidth / 2 + 10, 0, 0);
+            el.iconMesh.position.set(-100, 0, 0);
+        } else if (type === 'combo_arrow' && el.iconMesh && el.textMesh) {
+            el.iconMesh.rotation.set(0, 0, -Math.PI / 2);
+            el.iconMesh.position.set(-110, 0, 0);
+            el.textMesh.position.set(30, 0, 0);
         } else {
-            if (iconMesh) iconMesh.position.set(0, 0, 0);
-            if (textMesh) textMesh.position.set(0, 0, 0);
-            if (badgeMesh) badgeMesh.position.set(0, 0, 0);
+            if (el.iconMesh) el.iconMesh.position.set(0, 0, 0);
+            if (el.textMesh) el.textMesh.position.set(0, 0, 0);
+            if (el.badgeMesh) el.badgeMesh.position.set(0, 0, 0);
         }
 
-        updateContentTransform();
+        // Aktif öge ise modül referanslarını güncelle
+        if (el === getActiveElement()) {
+            textMesh = el.textMesh;
+            iconMesh = el.iconMesh;
+            badgeMesh = el.badgeMesh;
+        }
+
+        updateContentTransform(el);
         notifyExternalUpdates();
         requestRender();
     }
@@ -1306,37 +1526,50 @@
     /**
      * 5. Düzlem ve İçerik Dönüşüm Güncellemeleri
      */
-    function updatePlaneTransform() {
-        if (!planeGroup) return;
+    function updatePlaneTransform(targetEl) {
+        const el = targetEl || getActiveElement();
+        if (!el || !el.planeGroup) return;
 
-        const pitchRad = THREE.MathUtils.degToRad(state.planePitch);
-        const yawRad = THREE.MathUtils.degToRad(state.planeYaw);
-        const rollRad = THREE.MathUtils.degToRad(state.planeRoll);
-
-        planeGroup.rotation.order = 'ZYX';
-        planeGroup.rotation.set(pitchRad, yawRad, rollRad);
-        planeGroup.scale.set(state.planeScale, state.planeScale, state.planeScale);
-
-        if (gridHelper) {
-            gridHelper.visible = !!state.selected && !!state.showPlaneGrid;
+        if (el === getActiveElement()) {
+            syncActiveElementFromState();
         }
-        if (shadowPlane && shadowPlane.material) {
-            shadowPlane.material.opacity = state.shadowOpacity;
+
+        const pitchRad = THREE.MathUtils.degToRad(el.planePitch);
+        const yawRad = THREE.MathUtils.degToRad(el.planeYaw);
+        const rollRad = THREE.MathUtils.degToRad(el.planeRoll);
+
+        el.planeGroup.rotation.order = 'ZYX';
+        el.planeGroup.rotation.set(pitchRad, yawRad, rollRad);
+        el.planeGroup.scale.set(el.planeScale, el.planeScale, el.planeScale);
+
+        if (el.shadowPlane && el.shadowPlane.material) {
+            el.shadowPlane.material.opacity = (el.shadowOpacity !== undefined) ? el.shadowOpacity : state.shadowOpacity;
         }
-        updateGizmoPositions();
+
+        if (el === getActiveElement()) {
+            if (gridHelper) {
+                gridHelper.visible = !!state.selected && !!state.showPlaneGrid && el.visible !== false;
+            }
+            updateGizmoPositions();
+        }
     }
 
-    function updateContentTransform() {
-        if (!contentGroup) return;
+    function updateContentTransform(targetEl) {
+        const el = targetEl || getActiveElement();
+        if (!el || !el.contentGroup) return;
 
-        const zPos = (state.posZ || 0);
-        const elev = (state.planeElevation || 0);
-        const isStanding = (state.orientation === 'standing');
+        if (el === getActiveElement()) {
+            syncActiveElementFromState();
+        }
+
+        const zPos = (el.posZ || 0);
+        const elev = (el.planeElevation || 0);
+        const isStanding = (el.orientation === 'standing');
 
         // 🧠 Bounding box tespiti ile ögenin gerçek yarı yüksekliğini ve yarı kalınlığını hesapla
         let halfHeight = 85;
         try {
-            const m = badgeMesh || iconMesh || textMesh;
+            const m = el.badgeMesh || el.iconMesh || el.textMesh;
             if (m && m.geometry) {
                 if (!m.geometry.boundingBox) m.geometry.computeBoundingBox();
                 const bb = m.geometry.boundingBox;
@@ -1344,32 +1577,26 @@
             }
         } catch (e) {}
 
-        const halfDepth = Math.max(1, state.depth) / 2 + (state.bevelEnabled ? (state.bevelThickness || 2) : 0);
-
-        // 🌟 Zemine Tam Basma Payı (Ground Alignment):
-        // Dik (standing) modda yerel Y ekseni sahnede dikey Z (yükseklik) eksenine döner.
-        // Geometriler center() ile merkeze alındığından alt yarısı (-halfHeight) gridin altında kalıyordu.
-        // halfHeight kadar yukarı kaldırarak nesnenin alt ucunun (iğne ucu / taban) zemin çizgisine (Z=0) tam basmasını sağlıyoruz.
-        // Yatık (flat) modda ise öge kalınlığının yarısı kadar yukarı kaldırılarak arka yüzeyi zemin çizgisine (Z=0) oturtulur.
+        const halfDepth = Math.max(1, el.depth) / 2 + (el.bevelEnabled ? (el.bevelThickness || 2) : 0);
         const groundLift = isStanding ? halfHeight : halfDepth;
 
-        contentGroup.position.set(state.posX, state.posY, zPos + elev + groundLift);
-        const localRotRad = THREE.MathUtils.degToRad(state.planeLocalRot);
+        el.contentGroup.position.set(el.posX, el.posY, zPos + elev + groundLift);
+        const localRotRad = THREE.MathUtils.degToRad(el.planeLocalRot || 0);
         const standX = isStanding ? (Math.PI / 2) : 0;
-        contentGroup.rotation.set(standX, 0, -localRotRad);
+        el.contentGroup.rotation.set(standX, 0, -localRotRad);
 
-        // 🎯 Grid ve gölge düzlemi ögeyle BİRLİKTE hareket eder!
-        // Duvara yaslandığında gride dayanınca kalmaz, grid ögeden asla kopmaz.
-        if (gridHelper) {
-            gridHelper.position.set(state.posX, state.posY, zPos);
-            gridHelper.visible = !!state.selected && !!state.showPlaneGrid;
-        }
-        if (shadowPlane) {
-            shadowPlane.position.set(state.posX, state.posY, zPos - 0.5);
+        if (el.shadowPlane) {
+            el.shadowPlane.position.set(el.posX, el.posY, zPos - 0.5);
         }
 
-        updateLighting();
-        updateGizmoPositions();
+        if (el === getActiveElement()) {
+            if (gridHelper) {
+                gridHelper.position.set(el.posX, el.posY, zPos);
+                gridHelper.visible = !!state.selected && !!state.showPlaneGrid && el.visible !== false;
+            }
+            updateLighting();
+            updateGizmoPositions();
+        }
     }
 
     function updateLighting() {
@@ -2288,11 +2515,11 @@
      * Tuvalde doğrudan 3D yazı/nesne üzerine tıklanıp tıklanmadığını tespit eder.
      */
     function check3DHit(clientX, clientY) {
-        if (!state.active || state.visible === false || !camera || !contentGroup || !canvasEl) return false;
+        if (!state.active || !camera || elements.length === 0 || !canvasEl) return null;
         const container = document.getElementById('canvas-container');
-        if (!container) return false;
+        if (!container) return null;
         const rect = container.getBoundingClientRect();
-        if (clientX < rect.left || clientX > rect.right || clientY < rect.top || clientY > rect.bottom) return false;
+        if (clientX < rect.left || clientX > rect.right || clientY < rect.top || clientY > rect.bottom) return null;
 
         const mouseVec = new THREE.Vector2(
             ((clientX - rect.left) / rect.width) * 2 - 1,
@@ -2301,27 +2528,35 @@
         const raycaster = new THREE.Raycaster();
         raycaster.setFromCamera(mouseVec, camera);
 
-        const targetObjects = [];
-        if (textMesh) targetObjects.push(textMesh);
-        if (iconMesh) targetObjects.push(iconMesh);
-        if (badgeMesh) targetObjects.push(badgeMesh);
-        if (targetObjects.length === 0 && contentGroup) {
-            contentGroup.traverse((child) => {
-                if (child.isMesh && child !== shadowPlane) targetObjects.push(child);
-            });
-        }
-        const intersects = raycaster.intersectObjects(targetObjects, true);
-        if (intersects && intersects.length > 0) return true;
+        // En üstteki (son eklenen) nesneden başlayarak tara
+        for (let i = elements.length - 1; i >= 0; i--) {
+            const el = elements[i];
+            if (el.visible === false || !el.contentGroup) continue;
 
-        // Harfler arası boşluklar için tolerans payı (Bounding box testi)
-        try {
-            const box = new THREE.Box3().setFromObject(contentGroup);
-            if (!box.isEmpty()) {
-                box.expandByScalar(12);
-                if (raycaster.ray.intersectsBox(box)) return true;
+            const targetObjects = [];
+            if (el.textMesh) targetObjects.push(el.textMesh);
+            if (el.iconMesh) targetObjects.push(el.iconMesh);
+            if (el.badgeMesh) targetObjects.push(el.badgeMesh);
+            if (targetObjects.length === 0) {
+                el.contentGroup.traverse((child) => {
+                    if (child.isMesh && child !== el.shadowPlane) targetObjects.push(child);
+                });
             }
-        } catch (ex) {}
-        return false;
+            const intersects = raycaster.intersectObjects(targetObjects, true);
+            if (intersects && intersects.length > 0) {
+                return el;
+            }
+
+            // Harfler arası boşluklar için tolerans payı (Bounding box testi)
+            try {
+                const box = new THREE.Box3().setFromObject(el.contentGroup);
+                if (!box.isEmpty()) {
+                    box.expandByScalar(15);
+                    if (raycaster.ray.intersectsBox(box)) return el;
+                }
+            } catch (ex) {}
+        }
+        return null;
     }
 
     /**
@@ -2530,12 +2765,16 @@
 
         cvs.addEventListener('pointerdown', (e) => {
             if (!state.active || !state.selected || state.cornerPinActive) return;
-            const isHit = check3DHit(e.clientX, e.clientY);
+            const hitEl = check3DHit(e.clientX, e.clientY);
             const isRotateModifier = (e.button === 2 || e.altKey || e.shiftKey);
-            if (!isHit && !isRotateModifier) {
+            if (!hitEl && !isRotateModifier) {
                 // Boş alana tıklandı: 3D seçimini bırak, tutamaçlar ve grid kapansın, görsel serbest kalsın!
                 setSelected(false);
                 return;
+            }
+
+            if (hitEl && hitEl.id !== activeElementId) {
+                setActiveElement(hitEl);
             }
 
             isPointerDown = true;
@@ -2631,9 +2870,11 @@
             container.addEventListener('pointerdown', (e) => {
                 if (!state.active || state.selected) return;
                 if (e.button !== 0) return; // Yalnızca sol tık
-                if (check3DHit(e.clientX, e.clientY)) {
+                const hitEl = check3DHit(e.clientX, e.clientY);
+                if (hitEl) {
                     e.stopPropagation();
                     e.preventDefault();
+                    setActiveElement(hitEl);
                     setSelected(true, { autoLockPhoto: true });
                     // İlk tıklamada bırakmadan hemen taşımaya başla
                     isPointerDown = true;
@@ -2860,9 +3101,12 @@
      * Üstteki gizle butonu aktifse (state.visible === false) çıktıya dahil edilmez.
      */
     function prepareForExport(targetW, targetH) {
-        if (!state.active || state.visible === false || !renderer || !canvasEl || !scene || !camera) {
+        if (!state.active || !renderer || !canvasEl || !scene || !camera || elements.length === 0) {
             return null;
         }
+
+        const hasVisible = elements.some(e => e.visible !== false);
+        if (!hasVisible) return null;
 
         // Yardımcı kılavuzları geçici olarak gizle
         const prevGrid = gridHelper ? gridHelper.visible : false;
@@ -2871,6 +3115,11 @@
         if (gridHelper) gridHelper.visible = false;
         if (sunGroup) sunGroup.visible = false;
         if (sunRayLine) sunRayLine.visible = false;
+
+        // Her ögenin görünürlük durumunu Three.js grubuna uygula
+        elements.forEach(e => {
+            if (e.planeGroup) e.planeGroup.visible = (e.visible !== false);
+        });
 
         const curW = canvasEl.width;
         const curH = canvasEl.height;
@@ -2899,28 +3148,86 @@
     }
 
     /**
-     * 10.2. 3D Ögeyi Tuvalden Silme / Temizleme
+     * 10.2. 3D Ögeyi Tuvalden Silme / Temizleme (Tekil ve Çoklu)
      */
-    function delete3DElement() {
-        state.active = false;
-        state.selected = false;
-        state.visible = true;
-        if (canvasEl) canvasEl.style.display = 'none';
-        if (gridHelper) gridHelper.visible = false;
-        if (sunGroup) sunGroup.visible = false;
-        if (sunRayLine) sunRayLine.visible = false;
-        if (gizmoOverlayEl) gizmoOverlayEl.style.display = 'none';
-        if (cornerPinOverlayEl) cornerPinOverlayEl.style.display = 'none';
-        if (canvasBadgeEl) canvasBadgeEl.style.display = 'none';
-        const panel = document.getElementById('threeDStudioPanel');
-        if (panel) panel.style.display = 'none';
+    function delete3DElement(elementId) {
+        let elToDelete = null;
+        if (elementId) {
+            elToDelete = elements.find(e => e.id === elementId);
+        } else {
+            elToDelete = getActiveElement();
+        }
+        if (!elToDelete) return;
+
+        // Sahneden temizle
+        if (elToDelete.planeGroup && scene) {
+            if (gridHelper && gridHelper.parent === elToDelete.planeGroup) {
+                elToDelete.planeGroup.remove(gridHelper);
+            }
+            scene.remove(elToDelete.planeGroup);
+        }
+
+        const disposeMesh = (m) => {
+            if (!m) return;
+            if (m.geometry) m.geometry.dispose();
+            if (m.material) {
+                if (Array.isArray(m.material)) {
+                    m.material.forEach(mat => {
+                        if (mat && mat.map) mat.map.dispose();
+                        if (mat) mat.dispose();
+                    });
+                } else {
+                    if (m.material.map) m.material.map.dispose();
+                    m.material.dispose();
+                }
+            }
+        };
+        disposeMesh(elToDelete.textMesh);
+        disposeMesh(elToDelete.iconMesh);
+        disposeMesh(elToDelete.badgeMesh);
+        disposeMesh(elToDelete.shadowPlane);
+
+        const idx = elements.indexOf(elToDelete);
+        if (idx !== -1) {
+            elements.splice(idx, 1);
+        }
+
+        if (elements.length > 0) {
+            const nextEl = elements[Math.max(0, idx - 1)] || elements[0];
+            setActiveElement(nextEl);
+            if (window.showToast) {
+                window.showToast(`🗑️ "${elToDelete.name}" silindi. Kalan 3D öge: ${elements.length}`, 'info');
+            }
+        } else {
+            activeElementId = null;
+            state.active = false;
+            state.selected = false;
+            if (canvasEl) canvasEl.style.display = 'none';
+            if (gridHelper) gridHelper.visible = false;
+            if (sunGroup) sunGroup.visible = false;
+            if (sunRayLine) sunRayLine.visible = false;
+            if (gizmoOverlayEl) gizmoOverlayEl.style.display = 'none';
+            if (cornerPinOverlayEl) cornerPinOverlayEl.style.display = 'none';
+            if (canvasBadgeEl) canvasBadgeEl.style.display = 'none';
+            const panel = document.getElementById('threeDStudioPanel');
+            if (panel) panel.style.display = 'none';
+            if (window.showToast) {
+                window.showToast('🗑️ Tüm 3D ögeler tuvalden silindi.', 'info');
+            }
+        }
+
+        updateElementSelectorUI();
         updateDock3DControlsState();
         notifyExternalUpdates();
         if (typeof window.renderLayers === 'function') window.renderLayers();
         if (typeof window.recordHistory === 'function') window.recordHistory('3D Öge Silindi');
         if (typeof window.requestAutoSave === 'function') window.requestAutoSave();
-        if (typeof window.showToast === 'function') {
-            window.showToast('🗑️ 3D Öge tuvalden silindi.', 'info');
+        requestRender();
+    }
+
+    function clearAll3D() {
+        while (elements.length > 0) {
+            delete3DElement(elements[0].id);
         }
     }
 
@@ -3303,6 +3610,21 @@
                     <button id="threeDVisHeaderBtn" title="Görünürlüğü Aç/Kapat" class="three-d-icon-btn"><i class="fas fa-eye"></i></button>
                     <button id="threeDCloseBtn" title="Kapat" class="three-d-icon-btn"><i class="fas fa-times"></i></button>
                 </div>
+            </div>
+
+            <!-- 🌟 ÇOKLU ÖGE SEÇİCİ VE YENİ ÖGE EKLEME ÇUBUĞU -->
+            <div id="threeDMultiElementBar" style="display:flex; align-items:center; gap:8px; padding:8px 12px; background:rgba(15, 23, 42, 0.85); border-bottom:1px solid rgba(255, 255, 255, 0.08);">
+                <div style="flex:1; display:flex; align-items:center; gap:6px; min-width:0;">
+                    <span style="font-size:11px; font-weight:700; color:#94a3b8; text-transform:uppercase; white-space:nowrap;">Öge:</span>
+                    <select id="threeDElementSelector" style="flex:1; min-width:0; background:#1e293b; color:#f8fafc; border:1px solid rgba(56, 189, 248, 0.35); border-radius:6px; padding:4px 8px; font-size:12px; font-weight:600; outline:none; cursor:pointer;">
+                    </select>
+                </div>
+                <button type="button" id="threeDAddNewElementBtn" style="background:linear-gradient(135deg, #0ea5e9, #0284c7); color:#fff; border:none; border-radius:6px; padding:5px 9px; font-size:11px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:4px; box-shadow:0 2px 6px rgba(14,165,233,0.3); white-space:nowrap;" title="Tuvale Yeni Bir 3D Öge Ekle">
+                    <i class="fas fa-plus"></i> Yeni 3D
+                </button>
+                <button type="button" id="threeDDeleteElementBtn" style="background:rgba(239, 68, 68, 0.15); color:#ef4444; border:1px solid rgba(239, 68, 68, 0.35); border-radius:6px; padding:5px 8px; font-size:11px; font-weight:700; cursor:pointer;" title="Seçili 3D Ögeyi Tuvalden Sil">
+                    <i class="fas fa-trash-alt"></i>
+                </button>
             </div>
 
             <div id="threeDLoadingStatus" class="three-d-loading" style="display:none;">
@@ -4192,10 +4514,60 @@
             });
         }
 
+        // Çoklu Öge Çubuğu Dinleyicileri
+        const elemSelector = panel.querySelector('#threeDElementSelector');
+        if (elemSelector) {
+            elemSelector.addEventListener('change', (e) => {
+                setActiveElement(e.target.value);
+            });
+        }
+        const addBtn = panel.querySelector('#threeDAddNewElementBtn');
+        if (addBtn) {
+            addBtn.addEventListener('click', () => {
+                const count = elements.length + 1;
+                const newEl = createDefaultElement({
+                    name: '3D Metin ' + count,
+                    text: '3D ÖGE ' + count,
+                    posX: (elements.length % 5) * 35,
+                    posY: (elements.length % 5) * -35
+                });
+                initElementThreeObjects(newEl);
+                elements.push(newEl);
+                setActiveElement(newEl);
+                recreateContentMeshes(newEl);
+                updateElementSelectorUI();
+                if (typeof window.renderLayers === 'function') window.renderLayers();
+                if (typeof window.recordHistory === 'function') window.recordHistory('Yeni 3D Öge Eklendi');
+                if (window.showToast) window.showToast('✨ Yeni 3D öge tuvale eklendi!', 'success');
+            });
+        }
+        const delBtn = panel.querySelector('#threeDDeleteElementBtn');
+        if (delBtn) {
+            delBtn.addEventListener('click', () => {
+                delete3DElement();
+            });
+        }
+        updateElementSelectorUI();
+
         // Header Actions
         panel.querySelector('#threeDResetBtn').addEventListener('click', resetToDefaults);
         panel.querySelector('#threeDVisHeaderBtn').addEventListener('click', () => toggleVisibility());
         panel.querySelector('#threeDCloseBtn').addEventListener('click', closeStudio);
+    }
+
+    function updateElementSelectorUI() {
+        const sel = document.getElementById('threeDElementSelector');
+        if (!sel) return;
+        sel.innerHTML = '';
+        elements.forEach((el, idx) => {
+            const opt = document.createElement('option');
+            opt.value = el.id;
+            opt.textContent = `${idx + 1}. ${el.sourceItemName || el.name || '3D Öge'}${el.visible === false ? ' (Gizli)' : ''}`;
+            if (el.id === activeElementId) {
+                opt.selected = true;
+            }
+            sel.appendChild(opt);
+        });
     }
 
     /**
@@ -4304,31 +4676,48 @@
         requestRender();
     }
 
-    function toggleVisibility(forceVisible) {
-        if (!canvasEl) return;
-        const newVisible = (forceVisible !== undefined) ? !!forceVisible : (state.visible === false);
-        state.visible = newVisible;
-        canvasEl.style.display = newVisible ? 'block' : 'none';
+    function toggleElementVisibility(elementId, forceVisible) {
+        const targetId = elementId || activeElementId;
+        const target = elements.find(e => e.id === targetId) || getActiveElement();
+        if (!target) return;
+        const newVisible = (forceVisible !== undefined) ? !!forceVisible : (target.visible === false);
+        target.visible = newVisible;
+        if (target.state) target.state.visible = newVisible;
+        if (target.planeGroup) target.planeGroup.visible = newVisible;
 
-        if (cornerPinOverlayEl) cornerPinOverlayEl.style.display = (newVisible && state.cornerPinActive && state.selected) ? 'block' : 'none';
-        if (gizmoOverlayEl) gizmoOverlayEl.style.display = (newVisible && state.gizmoActive && !state.cornerPinActive && state.selected) ? 'block' : 'none';
-        if (canvasBadgeEl) canvasBadgeEl.style.display = (newVisible && state.active && state.selected) ? 'flex' : 'none';
-        if (gridHelper) gridHelper.visible = newVisible && !!state.selected && state.showPlaneGrid;
-        if (sunGroup) sunGroup.visible = newVisible && !!state.selected;
-        if (sunRayLine) sunRayLine.visible = newVisible && !!state.selected;
+        if (target.id === activeElementId) {
+            state.visible = newVisible;
+            if (cornerPinOverlayEl) cornerPinOverlayEl.style.display = (newVisible && state.cornerPinActive && state.selected) ? 'block' : 'none';
+            if (gizmoOverlayEl) gizmoOverlayEl.style.display = (newVisible && state.gizmoActive && !state.cornerPinActive && state.selected) ? 'block' : 'none';
+            if (canvasBadgeEl) canvasBadgeEl.style.display = (newVisible && state.active && state.selected) ? 'flex' : 'none';
+            if (gridHelper) gridHelper.visible = newVisible && !!state.selected && state.showPlaneGrid;
+            if (sunGroup) sunGroup.visible = newVisible && !!state.selected;
+            if (sunRayLine) sunRayLine.visible = newVisible && !!state.selected;
 
-        const btn = document.getElementById('threeDVisHeaderBtn');
-        if (btn) {
-            btn.innerHTML = newVisible ? '<i class="fas fa-eye"></i>' : '<i class="fas fa-eye-slash" style="color:#ef4444;"></i>';
-            btn.title = newVisible ? '3D Ögeyi Gizle (Tuval ve Çıktıdan Gizlenir)' : '3D Ögeyi Göster (Tuval ve Çıktıya Dahil)';
+            const btn = document.getElementById('threeDVisHeaderBtn');
+            if (btn) {
+                btn.innerHTML = newVisible ? '<i class="fas fa-eye"></i>' : '<i class="fas fa-eye-slash" style="color:#ef4444;"></i>';
+                btn.title = newVisible ? '3D Ögeyi Gizle (Tuval ve Çıktıdan Gizlenir)' : '3D Ögeyi Göster (Tuval ve Çıktıya Dahil)';
+            }
+        }
+
+        const anyVisible = elements.some(e => e.visible !== false);
+        if (canvasEl) {
+            canvasEl.style.display = anyVisible ? 'block' : 'none';
         }
 
         if (window.showToast) {
-            window.showToast(newVisible ? '👁️ 3D Öge Görünür (Tuval ve Çıktıya Dahil)' : '🚫 3D Öge Gizlendi (Tuval ve Çıktıda Görünmez)', 'info');
+            const name = target.sourceItemName || target.name || '3D Öge';
+            window.showToast(newVisible ? `👁️ "${name}" Görünür (Tuval ve Çıktıya Dahil)` : `🚫 "${name}" Gizlendi (Tuval ve Çıktıda Görünmez)`, 'info');
         }
 
+        if (typeof window.renderLayers === 'function') window.renderLayers();
         notifyExternalUpdates();
         requestRender();
+    }
+
+    function toggleVisibility(forceVisible) {
+        toggleElementVisibility(activeElementId, forceVisible);
     }
 
     /**
@@ -4734,7 +5123,7 @@
     /**
      * 15. 2D Rozet / İğne / İkonu 3D'ye Dönüştürme Köprüsü (2D-to-3D Bridge)
      */
-    function convert2DBadgeTo3D(badgeEl, meta = {}) {
+    async function convert2DBadgeTo3D(badgeEl, meta = {}) {
         const el = badgeEl || (typeof window.selectedCalloutEl !== 'undefined' ? window.selectedCalloutEl : (typeof selectedCalloutEl !== 'undefined' ? selectedCalloutEl : (typeof window.selectedEl !== 'undefined' ? window.selectedEl : null)));
         if (!el) {
             const autoEl = document.querySelector('#canvas-container .callout-wrap:not([data-converted-to-3d="true"]), #workArea .callout-wrap:not([data-converted-to-3d="true"]), #ui-layer .added-icon:not([data-converted-to-3d="true"])');
@@ -4754,27 +5143,34 @@
         const svgNode = el.querySelector('svg') || root.querySelector('svg');
         const rawSvg = (meta && meta.rawSvg) || (svgNode ? svgNode.outerHTML : (el.innerHTML || root.innerHTML));
 
-        // 1. Pozisyon ve Boyut Aktarımı (Kullanıcı İsteği: Varsayılan olarak ekranın tam ortasında açılsın)
-        state.posX = 0;
-        state.posY = 0;
-        state.posZ = 0;
-        state.planeElevation = 0;
-        state.planeLocalRot = 0;
+        // 1. Pozisyon Tespiti: 2D elemanın tuvaldeki fiziksel merkez koordinatını hesapla
+        const container = document.getElementById('canvas-container');
+        let initX = 0, initY = 0;
+        if (container && root) {
+            const cRect = container.getBoundingClientRect();
+            const rRect = root.getBoundingClientRect();
+            if (rRect.width > 0 && rRect.height > 0 && cRect.width > 0) {
+                const rCenterX = rRect.left + rRect.width / 2;
+                const rCenterY = rRect.top + rRect.height / 2;
+                const cCenterX = cRect.left + cRect.width / 2;
+                const cCenterY = cRect.top + cRect.height / 2;
+                const sf = (typeof window.scaleFactor === 'number' && window.scaleFactor > 0) ? window.scaleFactor : 1.0;
+                initX = Math.round((rCenterX - cCenterX) / sf);
+                initY = Math.round(-(rCenterY - cCenterY) / sf);
+            }
+        }
+        if (initX === 0 && initY === 0 && elements.length > 0) {
+            initX = (elements.length % 5) * 35;
+            initY = (elements.length % 5) * -35;
+        }
 
-        // 2. 2D Elemanı Tuvalden Kalıcı Olarak Temizle (Artık doğrudan 3D olarak tuvalde yaşar, duplicate kalmaz)
+        // 2. 2D Elemanı Tuvalden Kalıcı Olarak Temizle (Artık 3D olarak sahnede yaşar)
         if (root && root.parentNode) {
             root.remove();
-        } else if (root) {
-            root.style.setProperty('display', 'none', 'important');
-            root.style.setProperty('visibility', 'hidden', 'important');
-            root.dataset.convertedTo3D = 'true';
         }
         if (root !== el && el && el.parentNode) {
             el.remove();
         }
-        state.source2DEl = null;
-        state.hasBaked = true;
-        state.visible = true;
         if (typeof window.removeCalloutControls === 'function') {
             window.removeCalloutControls();
         }
@@ -4808,7 +5204,6 @@
             });
             if (texts.length > 0) {
                 const joined = texts.join(' ').trim();
-                // Tek haneli rakam (1, 2) veya sembol (📍) ise rozet metni sayma
                 if (texts.length === 1 && joined.length <= 2 && (/^\d+$/.test(joined) || joined === '📍')) {
                     hasRealText = false;
                 } else {
@@ -4820,7 +5215,7 @@
             hasRealText = true;
         }
 
-        // 5. Tip Tespiti: Pin mi, Ok mu, Bağımsız İkon mu, Rozet mi?
+        // 5. Tip Tespiti
         const itemName = (meta && meta.itemName ? meta.itemName : (el.dataset.name || root.dataset.name || '')).toLowerCase();
         const isPin = (meta && meta.isPin) || 
                       classList.includes('pin') || classList.includes('konum') || classList.includes('marker') ||
@@ -4837,58 +5232,62 @@
                         classList.includes('arrow') || classList.includes('yön') || itemName.includes('ok') || itemName.includes('arrow') ||
                         (rawSvg && /M\s*0\s*50|arrow/i.test(rawSvg));
 
-        // 🌟 BİREBİR 3D DÖNÜŞTÜRME (Kütüphanedeki / Tuvaldeki Orijinal Vektör Öge)
-        if (rawSvg && rawSvg.includes('<svg')) {
-            state.elementType = 'element_3d';
-            state.sourceSvg = rawSvg;
-            state.sourceItemName = itemName || (isPin ? 'Konum Pini' : (isArrow ? 'Yön Oku' : '3D Öge'));
-            state.text = hasRealText ? (label.split(/\r?\n/)[0] || '') : '';
-            state.badgeSubtext = hasRealText ? (label.split(/\r?\n/).slice(1).join(' ') || '') : '';
-            state.frontColor = primaryColor;
-            state.sideColor = autoGenerateSideColor(primaryColor);
-            state.depth = 16;
-            state.bevelEnabled = true;
-            state.bevelThickness = 2;
-            state.bevelSize = 1.5;
+        let elemType = 'text';
+        if (rawSvg && rawSvg.includes('<svg')) elemType = 'element_3d';
+        else if (isPin) elemType = 'pin';
+        else if (isArrow) elemType = 'arrow';
 
-            if (isPin) {
-                state.orientation = 'standing'; // 3D Harita pini harita üstünde dik dursun
-                state.planePitch = -35;
-                state.planeYaw = 15;
-                state.planeRoll = 0;
-            } else if (isArrow) {
-                state.orientation = 'flat';
-                state.planePitch = -55;
-                state.planeYaw = 0;
-                state.planeRoll = 0;
-            } else {
-                state.orientation = 'flat';
-                state.planePitch = -60;
-                state.planeYaw = 15;
-                state.planeRoll = 0;
-            }
-
-            openStudio(true);
-            recreateContentMeshes();
-            syncControlsUI();
-            setSelected(true);
-
-            if (typeof window.showToast === 'function') {
-                const toastIcon = isPin ? '📍' : (isArrow ? '🏹' : '✨');
-                window.showToast(`${toastIcon} "${state.sourceItemName}" birebir 3D olarak açıldı! Kalınlık, açı ve ışık ayarlanabilir.`, 'success');
-            }
-            return true;
+        let planePitch = -60, planeYaw = 15, orientation = 'flat';
+        if (isPin) {
+            orientation = 'standing';
+            planePitch = -35;
+            planeYaw = 15;
+        } else if (isArrow) {
+            orientation = 'flat';
+            planePitch = -55;
+            planeYaw = 0;
         }
 
-        // Yedek: SVG bulunamazsa standart metin/rozet modu
-        state.elementType = isPin ? 'pin' : (isArrow ? 'arrow' : 'text');
-        state.text = label || '3D ÖGE';
-        state.frontColor = primaryColor;
-        state.sideColor = autoGenerateSideColor(primaryColor);
-        openStudio(true);
-        recreateContentMeshes();
+        const newEl = createDefaultElement({
+            name: itemName || (isPin ? 'Konum Pini' : (isArrow ? 'Yön Oku' : '3D Öge')),
+            sourceItemName: itemName || (isPin ? 'Konum Pini' : (isArrow ? 'Yön Oku' : '3D Öge')),
+            sourceSvg: (elemType === 'element_3d') ? rawSvg : null,
+            elementType: elemType,
+            text: hasRealText ? (label.split(/\r?\n/)[0] || '') : (elemType === 'element_3d' ? '' : (label || '3D ÖGE')),
+            badgeSubtext: hasRealText ? (label.split(/\r?\n/).slice(1).join(' ') || '') : '',
+            frontColor: primaryColor,
+            sideColor: autoGenerateSideColor(primaryColor),
+            depth: 16,
+            bevelEnabled: true,
+            bevelThickness: 2,
+            bevelSize: 1.5,
+            orientation: orientation,
+            planePitch: planePitch,
+            planeYaw: planeYaw,
+            planeRoll: 0,
+            posX: initX,
+            posY: initY,
+            posZ: 0,
+            planeScale: 1.0,
+            visible: true
+        });
+
+        await openStudio(true);
+        initElementThreeObjects(newEl);
+        elements.push(newEl);
+        setActiveElement(newEl);
+        recreateContentMeshes(newEl);
         syncControlsUI();
+        updateElementSelectorUI();
         setSelected(true);
+        if (typeof window.renderLayers === 'function') window.renderLayers();
+        if (typeof window.recordHistory === 'function') window.recordHistory('Yeni 3D Öge Eklendi');
+        if (typeof window.requestAutoSave === 'function') window.requestAutoSave();
+
+        if (typeof window.showToast === 'function') {
+            const toastIcon = isPin ? '📍' : (isArrow ? '🏹' : '✨');
+            window.showToast(`${toastIcon} "${newEl.sourceItemName}" 3D olarak eklendi! (Tuvalde toplam ${elements.length} adet 3D öge)`, 'success');
+        }
         return true;
     }
 
@@ -4902,9 +5301,15 @@
         bakeToCanvas: bakeToCanvas,
         prepareForExport: prepareForExport,
         delete3DElement: delete3DElement,
-        clearScene: delete3DElement,
+        clearAll3D: clearAll3D,
+        clearScene: clearAll3D,
+        getElements: () => elements,
+        getActiveElementId: () => activeElementId,
+        getActiveElement: getActiveElement,
+        selectElement: (id) => { setActiveElement(id); setSelected(true); },
         resize: resize,
         toggleVisibility: toggleVisibility,
+        toggleElementVisibility: toggleElementVisibility,
         resetToDefaults: resetToDefaults,
         centerOnScreen: centerOnScreen,
         setSelected: setSelected,

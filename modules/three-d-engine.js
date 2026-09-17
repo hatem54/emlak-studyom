@@ -986,6 +986,7 @@
         let cleanSvg = ensureSvgXmlns(rawSvg);
         cleanSvg = cleanSvg.replace(/(<svg\b[^>]*?)\s+width="[^"]*"/i, '$1');
         cleanSvg = cleanSvg.replace(/(<svg\b[^>]*?)\s+height="[^"]*"/i, '$1');
+        cleanSvg = cleanSvg.replace(/currentColor/g, '#000000');
         cleanSvg = cleanSvg.replace('<svg', `<svg width="${W}" height="${H}"`);
 
         const blob = new Blob([cleanSvg], { type: 'image/svg+xml;charset=utf-8' });
@@ -1091,6 +1092,20 @@
     }
 
     /**
+     * Kontrast Renk Hesaplayıcı (Açık renklere koyu, koyu renklere beyaz)
+     */
+    function getContrastingColor(hex) {
+        try {
+            if (typeof THREE !== 'undefined' && THREE.Color) {
+                const c = new THREE.Color(hex || '#38bdf8');
+                const lum = 0.299 * c.r + 0.587 * c.g + 0.114 * c.b;
+                return lum > 0.65 ? '#0f172a' : '#ffffff';
+            }
+        } catch(e) {}
+        return '#ffffff';
+    }
+
+    /**
      * 🌟 Birebir 3D Öge: SVG'den Yüksek Çözünürlüklü Vektör Dokusu Oluşturucu
      */
     function createExactSvgTexture(rawSvg, vbW, vbH, onUpdate, iconColor, bgColor, isRound = false, isExactSilhouette = false) {
@@ -1109,6 +1124,26 @@
         canvas.height = ch;
         const ctx = canvas.getContext('2d');
 
+        // 🌟 1. Anında Senkron Taban Rengi: Texture oluşturulur oluşturulmaz asla boş/şeffaf delik olmasın!
+        const baseColor = isExactSilhouette
+            ? (iconColor || '#38bdf8')
+            : ((bgColor && bgColor !== 'transparent' && bgColor !== 'none') ? bgColor : (iconColor || '#38bdf8'));
+
+        ctx.save();
+        ctx.fillStyle = baseColor;
+        if (!isExactSilhouette && isRound) {
+            ctx.beginPath();
+            ctx.arc(cw / 2, ch / 2, (cw / 2) - 2, 0, Math.PI * 2);
+            ctx.fill();
+        } else if (!isExactSilhouette) {
+            const r = Math.min(32, cw * 0.12, ch * 0.12);
+            drawRoundRect(ctx, 0, 0, cw, ch, r);
+            ctx.fill();
+        } else {
+            ctx.fillRect(0, 0, cw, ch);
+        }
+        ctx.restore();
+
         const texture = new THREE.CanvasTexture(canvas);
         texture.minFilter = THREE.LinearFilter;
         texture.magFilter = THREE.LinearFilter;
@@ -1116,7 +1151,7 @@
             texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
         }
 
-        // 1. SVG Temizleme ve Çözünürlük Büyütme
+        // 2. SVG Temizleme ve Çözünürlük Büyütme
         let safeSvg = ensureSvgXmlns(rawSvg);
 
         // Var olan '1em', '100%' veya küçük piksel boyutlarını temizle ve yüksek çözünürlüğe ölçekle
@@ -1128,37 +1163,51 @@
         }
         safeSvg = safeSvg.replace('<svg', `<svg width="${cw}" height="${ch}"`);
 
-        // 2. currentColor ve Renk Eşitleme
-        const resolvedColor = iconColor || '#ffffff';
-        safeSvg = safeSvg.replace(/currentColor/g, resolvedColor);
+        // 3. İkon Tipine Göre Akıllı Renk Analizi:
+        // İkon sadece çizgisel/kontur mu (Lucide, stroke="currentColor", fill="none") yoksa zengin renkli mi?
+        const isStrokeOnly = (/stroke\s*=\s*["']currentColor["']/i.test(safeSvg) || /stroke-width/i.test(safeSvg)) &&
+                             (!safeSvg.includes('fill=') || /fill\s*=\s*["']none["']/i.test(safeSvg));
 
-        // Ek stil enjeksiyonu ile eksik stroke/fill olan vektörlerin rengini garanti et
-        const styleTag = `<style>:root, svg { color: ${resolvedColor}; }</style>`;
-        safeSvg = safeSvg.replace(/(<svg[^>]*>)/, `$1${styleTag}`);
+        if (isStrokeOnly) {
+            // Çizgisel ikonlarda zemin baseColor (Ön Yüz Rengi), çizgiler yüksek kontrastlı (beyaz veya koyu) olsun
+            const strokeColor = getContrastingColor(baseColor);
+            safeSvg = safeSvg.replace(/currentColor/g, strokeColor);
+            safeSvg = safeSvg.replace(/stroke="[^"]*"/g, `stroke="${strokeColor}"`);
+            const styleTag = `<style>:root, svg { color: ${strokeColor}; stroke: ${strokeColor}; }</style>`;
+            safeSvg = safeSvg.replace(/(<svg[^>]*>)/, `$1${styleTag}`);
+        } else {
+            // Renkli ikonlarda currentColor varsa ön yüz rengini ver, özel renklerini koru
+            const resolvedColor = iconColor || '#ffffff';
+            safeSvg = safeSvg.replace(/currentColor/g, resolvedColor);
+            const styleTag = `<style>:root, svg { color: ${resolvedColor}; }</style>`;
+            safeSvg = safeSvg.replace(/(<svg[^>]*>)/, `$1${styleTag}`);
+        }
 
         const blob = new Blob([safeSvg], { type: 'image/svg+xml;charset=utf-8' });
         const url = URL.createObjectURL(blob);
         const img = new Image();
+
         img.onload = () => {
+            // 4. Yeniden Çizim ve Vektör Bindirme
             ctx.clearRect(0, 0, cw, ch);
 
-            // 3. Arka Plan Plaketi Doldurma (Yalnızca rozet/madalyon modundaysa çizilir; katı silüette transparan kalır)
-            if (!isExactSilhouette && bgColor && bgColor !== 'transparent' && bgColor !== 'none') {
-                ctx.save();
-                ctx.fillStyle = bgColor;
-                if (isRound) {
-                    ctx.beginPath();
-                    ctx.arc(cw / 2, ch / 2, (cw / 2) - 2, 0, Math.PI * 2);
-                    ctx.fill();
-                } else {
-                    const r = Math.min(32, cw * 0.12, ch * 0.12);
-                    drawRoundRect(ctx, 0, 0, cw, ch, r);
-                    ctx.fill();
-                }
-                ctx.restore();
+            // Zemin Doldurma: Katı silüette veya rozet zemininde içi asla boş/şeffaf kalmaz
+            ctx.save();
+            ctx.fillStyle = baseColor;
+            if (!isExactSilhouette && isRound) {
+                ctx.beginPath();
+                ctx.arc(cw / 2, ch / 2, (cw / 2) - 2, 0, Math.PI * 2);
+                ctx.fill();
+            } else if (!isExactSilhouette) {
+                const r = Math.min(32, cw * 0.12, ch * 0.12);
+                drawRoundRect(ctx, 0, 0, cw, ch, r);
+                ctx.fill();
+            } else {
+                ctx.fillRect(0, 0, cw, ch);
             }
+            ctx.restore();
 
-            // 4. Vektör Çizimi
+            // 5. Vektör Çizimi
             ctx.drawImage(img, 0, 0, cw, ch);
             URL.revokeObjectURL(url);
             texture.needsUpdate = true;
@@ -1679,7 +1728,10 @@
                     map: badgeTex,
                     roughness: el.roughness,
                     metalness: el.metalness,
-                    transparent: true
+                    transparent: !isExactSilhouette && (!el.badgeBgColor || el.badgeBgColor === 'transparent'),
+                    alphaTest: isExactSilhouette ? 0.0 : 0.05,
+                    depthWrite: true,
+                    side: THREE.DoubleSide
                 });
 
                 el.badgeMesh = new THREE.Mesh(badgeGeo, [badgeFrontMat, sideMat]);
@@ -5620,18 +5672,42 @@
             delete3DElement(elements[autoDefIdx].id);
         }
 
+        let cachedSilhouette = null;
+        let isSilhouette = false;
+        let shapeMode = 'auto';
+        if (elemType === 'element_3d' && rawSvg) {
+            try {
+                cachedSilhouette = await extractSvgSilhouetteShape(rawSvg, 220, 220, {
+                    forceSilhouette: false
+                });
+                if (cachedSilhouette && cachedSilhouette.shape) {
+                    isSilhouette = true;
+                    shapeMode = 'silhouette';
+                } else {
+                    shapeMode = isRound ? 'coin' : 'card';
+                }
+            } catch(e) {}
+        }
+
+        const initialSideColor = isSilhouette
+            ? autoGenerateSideColor(primaryColor)
+            : autoGenerateSideColor(bgCol || primaryColor);
+
         const newEl = createDefaultElement({
             name: displayName,
             sourceItemName: displayName,
             sourceSvg: (elemType === 'element_3d') ? rawSvg : null,
             elementType: elemType,
+            shapeMode: shapeMode,
+            cachedSilhouette: cachedSilhouette,
+            isExactSilhouette: isSilhouette,
             text: finalMainText,
             badgeSubtext: finalSubText,
             frontColor: primaryColor,
             badgeBgColor: bgCol,
-            sideColor: autoGenerateSideColor(bgCol || primaryColor),
-            isRound: isRound,
-            depth: 16,
+            sideColor: initialSideColor,
+            isRound: (shapeMode === 'coin'),
+            depth: isSilhouette ? 20 : 16,
             bevelEnabled: true,
             bevelThickness: 2,
             bevelSize: 1.5,

@@ -109,6 +109,9 @@
             customIconSvg: overrides.customIconSvg || null,
             sourceSvg: overrides.sourceSvg || null,
             sourceItemName: overrides.sourceItemName || name,
+            shapeMode: overrides.shapeMode || 'auto',
+            cachedSilhouette: overrides.cachedSilhouette || null,
+            isExactSilhouette: overrides.isExactSilhouette !== undefined ? !!overrides.isExactSilhouette : false,
             isRound: overrides.isRound !== undefined ? !!overrides.isRound : false,
             isAutoDefault: !!overrides.isAutoDefault,
             // Three.js groups & meshes
@@ -167,6 +170,9 @@
         state.customIconSvg = el.customIconSvg;
         state.sourceSvg = el.sourceSvg;
         state.sourceItemName = el.sourceItemName;
+        state.shapeMode = el.shapeMode || 'auto';
+        state.cachedSilhouette = el.cachedSilhouette || null;
+        state.isExactSilhouette = !!el.isExactSilhouette;
 
         planeGroup = el.planeGroup;
         contentGroup = el.contentGroup;
@@ -209,6 +215,9 @@
         el.customIconSvg = state.customIconSvg;
         el.sourceSvg = state.sourceSvg;
         el.sourceItemName = state.sourceItemName;
+        if (state.shapeMode !== undefined) el.shapeMode = state.shapeMode;
+        if (state.cachedSilhouette !== undefined) el.cachedSilhouette = state.cachedSilhouette;
+        if (state.isExactSilhouette !== undefined) el.isExactSilhouette = state.isExactSilhouette;
     }
 
     function initElementThreeObjects(el) {
@@ -855,9 +864,236 @@
     }
 
     /**
+     * 🌟 Birebir 3D Öge: Ramer-Douglas-Peucker (RDP) Poligon Basitleştirici
+     */
+    function douglasPeucker(points, epsilon) {
+        if (!points || points.length <= 2) return points || [];
+        let dmax = 0;
+        let index = 0;
+        const end = points.length - 1;
+
+        for (let i = 1; i < end; i++) {
+            const d = perpendicularDistance(points[i], points[0], points[end]);
+            if (d > dmax) {
+                index = i;
+                dmax = d;
+            }
+        }
+
+        if (dmax > epsilon) {
+            const rec1 = douglasPeucker(points.slice(0, index + 1), epsilon);
+            const rec2 = douglasPeucker(points.slice(index), epsilon);
+            return rec1.slice(0, rec1.length - 1).concat(rec2);
+        } else {
+            return [points[0], points[end]];
+        }
+    }
+
+    function perpendicularDistance(p, p1, p2) {
+        const dx = p2.x - p1.x;
+        const dy = p2.y - p1.y;
+        if (dx === 0 && dy === 0) return Math.hypot(p.x - p1.x, p.y - p1.y);
+        const num = Math.abs(dy * p.x - dx * p.y + p2.x * p1.y - p2.y * p1.x);
+        const den = Math.hypot(dx, dy);
+        return num / den;
+    }
+
+    /**
+     * 🌟 Birebir 3D Öge: Moore-Neighbor 8-Yönlü Dış Sınır İzleyici
+     */
+    function traceMooreNeighborContour(grid, width, height) {
+        const dx = [0, 1, 1, 1, 0, -1, -1, -1];
+        const dy = [-1, -1, 0, 1, 1, 1, 0, -1];
+
+        let sx = -1, sy = -1;
+        for (let y = 0; y < height; y++) {
+            for (let x = 0; x < width; x++) {
+                if (grid[y * width + x]) {
+                    sx = x;
+                    sy = y;
+                    break;
+                }
+            }
+            if (sx !== -1) break;
+        }
+
+        if (sx === -1) return [];
+
+        const contour = [];
+        let cx = sx;
+        let cy = sy;
+        let enterDir = 6;
+
+        contour.push({ x: cx, y: cy });
+
+        const maxSteps = width * height;
+        let steps = 0;
+
+        while (steps++ < maxSteps) {
+            let foundNext = false;
+            let nextX = -1, nextY = -1;
+            let nextDir = -1;
+
+            for (let i = 0; i < 8; i++) {
+                const dir = (enterDir + i) % 8;
+                const nx = cx + dx[dir];
+                const ny = cy + dy[dir];
+
+                if (nx >= 0 && nx < width && ny >= 0 && ny < height && grid[ny * width + nx]) {
+                    nextX = nx;
+                    nextY = ny;
+                    nextDir = dir;
+                    foundNext = true;
+                    break;
+                }
+            }
+
+            if (!foundNext) break;
+
+            enterDir = (nextDir + 5) % 8;
+            cx = nextX;
+            cy = nextY;
+
+            if (cx === sx && cy === sy) break;
+
+            contour.push({ x: cx, y: cy });
+        }
+
+        return contour;
+    }
+
+    const svgSilhouetteCache = new Map();
+
+    /**
+     * 🌟 Birebir 3D Öge: SVG'den Otomatik Katı 3D Silüet (THREE.Shape) Çıkarıcı
+     * Gökdelen, ağaç, bina, ev, araba gibi katı kütleli ikonları algılar ve konturlarından 3D model üretir.
+     * Su damlası, yaprak, wi-fi gibi küçük veya çizgisel ikonlarda ise null döndürerek rozet zeminine bırakır.
+     */
+    async function extractSvgSilhouetteShape(rawSvg, targetW = 220, targetH = 220, options = {}) {
+        if (!rawSvg || typeof window.THREE === 'undefined') return null;
+
+        const cacheKey = rawSvg.length + '_' + rawSvg.slice(0, 120) + '_' + Math.round(targetW) + '_' + Math.round(targetH);
+        if (!options.forceSilhouette && svgSilhouetteCache.has(cacheKey)) {
+            return svgSilhouetteCache.get(cacheKey);
+        }
+
+        const W = 160, H = 160;
+        const canvas = document.createElement('canvas');
+        canvas.width = W;
+        canvas.height = H;
+        const ctx = canvas.getContext('2d');
+
+        let cleanSvg = ensureSvgXmlns(rawSvg);
+        cleanSvg = cleanSvg.replace(/(<svg\b[^>]*?)\s+width="[^"]*"/i, '$1');
+        cleanSvg = cleanSvg.replace(/(<svg\b[^>]*?)\s+height="[^"]*"/i, '$1');
+        cleanSvg = cleanSvg.replace('<svg', `<svg width="${W}" height="${H}"`);
+
+        const blob = new Blob([cleanSvg], { type: 'image/svg+xml;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const img = new Image();
+
+        try {
+            await new Promise((resolve, reject) => {
+                img.onload = resolve;
+                img.onerror = reject;
+                img.src = url;
+            });
+        } catch (e) {
+            URL.revokeObjectURL(url);
+            return null;
+        }
+        URL.revokeObjectURL(url);
+
+        ctx.drawImage(img, 0, 0, W, H);
+        const imgData = ctx.getImageData(0, 0, W, H).data;
+
+        const grid = new Uint8Array(W * H);
+        let solidCount = 0;
+        let minX = W, maxX = 0, minY = H, maxY = 0;
+
+        for (let y = 0; y < H; y++) {
+            for (let x = 0; x < W; x++) {
+                const alpha = imgData[(y * W + x) * 4 + 3];
+                if (alpha > 40) {
+                    grid[y * W + x] = 1;
+                    solidCount++;
+                    if (x < minX) minX = x;
+                    if (x > maxX) maxX = x;
+                    if (y < minY) minY = y;
+                    if (y > maxY) maxY = y;
+                }
+            }
+        }
+
+        const bboxW = (maxX >= minX) ? (maxX - minX + 1) : 0;
+        const bboxH = (maxY >= minY) ? (maxY - minY + 1) : 0;
+        const bboxArea = bboxW * bboxH;
+        const fillDensity = bboxArea > 0 ? (solidCount / bboxArea) : 0;
+
+        // Katı nesne kontrolü (Kullanıcı: yaprak, damla gibi küçük olanlar rozet üzerinde kalsın)
+        if (!options.forceSilhouette) {
+            if (solidCount < 1800) return null; // < %7 tuval doluluğu
+            if (fillDensity < 0.20) return null; // Çok ince veya seyrek çizgiler
+            if (bboxW < 28 || bboxH < 28) return null;
+        } else {
+            if (solidCount < 300) return null;
+        }
+
+        const rawContour = traceMooreNeighborContour(grid, W, H);
+        if (!rawContour || rawContour.length < 16) return null;
+
+        const simplified = douglasPeucker(rawContour, 1.4);
+        if (!simplified || simplified.length < 5) return null;
+
+        const points3D = simplified.map(p => ({
+            x: (p.x / W - 0.5) * targetW,
+            y: -(p.y / H - 0.5) * targetH
+        }));
+
+        // Counter-Clockwise (CCW) yön kontrolü
+        let signedArea = 0;
+        for (let i = 0; i < points3D.length; i++) {
+            const j = (i + 1) % points3D.length;
+            signedArea += points3D[i].x * points3D[j].y - points3D[j].x * points3D[i].y;
+        }
+        if (signedArea < 0) {
+            points3D.reverse();
+        }
+
+        const shape = new THREE.Shape();
+        shape.moveTo(points3D[0].x, points3D[0].y);
+        for (let i = 1; i < points3D.length; i++) {
+            shape.lineTo(points3D[i].x, points3D[i].y);
+        }
+        shape.closePath();
+
+        const result = {
+            shape: shape,
+            bounds: {
+                minX: -targetW / 2,
+                maxX: targetW / 2,
+                minY: -targetH / 2,
+                maxY: targetH / 2,
+                width: targetW,
+                height: targetH,
+                vbW: targetW,
+                vbH: targetH,
+                isCircle: false
+            },
+            isExactSilhouette: true,
+            pointsCount: points3D.length,
+            solidCount: solidCount,
+            fillDensity: fillDensity
+        };
+
+        svgSilhouetteCache.set(cacheKey, result);
+        return result;
+    }
+
+    /**
      * 🌟 Birebir 3D Öge: SVG'den Yüksek Çözünürlüklü Vektör Dokusu Oluşturucu
      */
-    function createExactSvgTexture(rawSvg, vbW, vbH, onUpdate, iconColor, bgColor, isRound = false) {
+    function createExactSvgTexture(rawSvg, vbW, vbH, onUpdate, iconColor, bgColor, isRound = false, isExactSilhouette = false) {
         const maxTexDim = 1024;
         let cw = maxTexDim;
         let ch = Math.round(maxTexDim * ((vbH || 1) / (vbW || 1)));
@@ -906,8 +1142,8 @@
         img.onload = () => {
             ctx.clearRect(0, 0, cw, ch);
 
-            // 3. Arka Plan Plaketi Doldurma (Gerekirse)
-            if (bgColor && bgColor !== 'transparent' && bgColor !== 'none') {
+            // 3. Arka Plan Plaketi Doldurma (Yalnızca rozet/madalyon modundaysa çizilir; katı silüette transparan kalır)
+            if (!isExactSilhouette && bgColor && bgColor !== 'transparent' && bgColor !== 'none') {
                 ctx.save();
                 ctx.fillStyle = bgColor;
                 if (isRound) {
@@ -967,28 +1203,61 @@
         const targetH = vbH * scaleFactor;
 
         let shape = null;
-        let isCircle = !!options.isRound;
+        const shapeMode = options.shapeMode || 'auto';
+        let isCircle = (shapeMode === 'coin') || (!options.shapeMode && !!options.isRound);
+        let isExactSilhouette = false;
 
-        // Kontur Önceliği 1: SVG içinde belirgin bir <circle> arka plan var mı?
-        const circleNodes = Array.from(svgEl.querySelectorAll('circle')).filter(c => !c.closest('defs'));
-        if (circleNodes.length > 0) {
-            let maxR = 0;
-            for (const c of circleNodes) {
-                const r = parseFloat(c.getAttribute('r')) || 0;
-                if (r > maxR) maxR = r;
-            }
-            if (maxR >= Math.min(vbW, vbH) * 0.35) {
-                isCircle = true;
+        // Kontur Önceliği 0: Katı Silüet (Silhouette) Kontrolü
+        if (shapeMode === 'silhouette' || (shapeMode !== 'coin' && shapeMode !== 'card')) {
+            if (options.cachedSilhouette && options.cachedSilhouette.shape) {
+                shape = options.cachedSilhouette.shape;
+                isExactSilhouette = true;
+            } else {
+                const cacheKey = rawSvg.length + '_' + rawSvg.slice(0, 120) + '_' + Math.round(targetW) + '_' + Math.round(targetH);
+                if (svgSilhouetteCache.has(cacheKey)) {
+                    const cached = svgSilhouetteCache.get(cacheKey);
+                    if (cached && cached.shape) {
+                        shape = cached.shape;
+                        isExactSilhouette = true;
+                    }
+                }
             }
         }
 
-        if (isCircle && Math.abs(targetW - targetH) <= Math.max(targetW, targetH) * 0.2) {
-            const radius = (Math.min(targetW, targetH) / 2) * 0.98;
-            shape = createCoinShape(radius);
+        // Eğer kullanıcı silüet modunu seçtiyse ve henüz önbellekte yoksa arka planda çıkar
+        if (!shape && shapeMode === 'silhouette' && options.el) {
+            extractSvgSilhouetteShape(rawSvg, targetW, targetH, { forceSilhouette: true }).then(res => {
+                if (res && res.shape && options.el) {
+                    options.el.cachedSilhouette = res;
+                    options.el.isExactSilhouette = true;
+                    recreateContentMeshes(options.el);
+                    requestRender();
+                }
+            });
+        }
+
+        // Kontur Önceliği 1: SVG içinde belirgin bir <circle> arka plan var mı? (Sadece rozet modunda)
+        if (!shape && shapeMode !== 'silhouette') {
+            const circleNodes = Array.from(svgEl.querySelectorAll('circle')).filter(c => !c.closest('defs'));
+            if (circleNodes.length > 0) {
+                let maxR = 0;
+                for (const c of circleNodes) {
+                    const r = parseFloat(c.getAttribute('r')) || 0;
+                    if (r > maxR) maxR = r;
+                }
+                if (maxR >= Math.min(vbW, vbH) * 0.35) {
+                    isCircle = true;
+                }
+            }
+
+            if (isCircle && Math.abs(targetW - targetH) <= Math.max(targetW, targetH) * 0.2) {
+                const radius = (Math.min(targetW, targetH) / 2) * 0.98;
+                shape = createCoinShape(radius);
+            }
         }
 
         // Kontur Önceliği 2: SVG içinde belirgin bir <rect> arka plan var mı?
-        if (!shape) {
+        if (!shape && shapeMode !== 'silhouette') {
             const rectNodes = Array.from(svgEl.querySelectorAll('rect')).filter(r => !r.closest('defs'));
             if (rectNodes.length > 0) {
                 let bestRect = null;
@@ -1011,7 +1280,7 @@
         }
 
         // Kontur Önceliği 3: SVG içinde belirgin bir <polygon> (bayrak, ribbon) var mı?
-        if (!shape) {
+        if (!shape && shapeMode !== 'silhouette') {
             const polyNodes = Array.from(svgEl.querySelectorAll('polygon')).filter(p => !p.closest('defs'));
             if (polyNodes.length > 0) {
                 const rawPts = (polyNodes[0].getAttribute('points') || '').trim().split(/[\s,]+/).map(parseFloat).filter(n => !isNaN(n));
@@ -1030,7 +1299,7 @@
 
         // Kontur Önceliği 4: Standart Yüksek Kaliteli 3D Rozet / Plaket (İkonlar ve Genel Ögeler İçin)
         if (!shape) {
-            if (Math.abs(targetW - targetH) <= 6 && options.isRound) {
+            if (shapeMode === 'coin' || (Math.abs(targetW - targetH) <= 6 && options.isRound)) {
                 shape = createCoinShape((targetW / 2) * 0.98);
                 isCircle = true;
             } else {
@@ -1051,7 +1320,7 @@
             isCircle
         };
 
-        return { shape, bounds };
+        return { shape, bounds, isExactSilhouette: isExactSilhouette };
     }
 
     function createBadgeTexture(type, text, subtext, iconId, bgColor, textColor, accentColor, onUpdate) {
@@ -1367,11 +1636,19 @@
             cGroup.add(el.textMesh);
         } else if (type === 'element_3d' && el.sourceSvg) {
             const svgToRender = el.text ? updateSvgText(el.sourceSvg, el.text) : el.sourceSvg;
-            const isRound = !!el.isRound;
-            const res = createShapeAndBoundsFromSvg(svgToRender, { isRound: isRound });
+            const shapeMode = el.shapeMode || (el.isExactSilhouette ? 'silhouette' : (el.isRound ? 'coin' : 'card'));
+            const isRound = (shapeMode === 'coin');
+            const res = createShapeAndBoundsFromSvg(svgToRender, {
+                isRound: isRound,
+                shapeMode: shapeMode,
+                cachedSilhouette: el.cachedSilhouette,
+                el: el
+            });
             if (res && res.shape) {
                 const shape = res.shape;
                 const bounds = res.bounds;
+                const isExactSilhouette = !!res.isExactSilhouette;
+                el.isExactSilhouette = isExactSilhouette;
                 const uvGen = getNormalizedUVGenerator(bounds.minX, bounds.maxX, bounds.minY, bounds.maxY);
 
                 const badgeExtrudeOpts = {
@@ -1394,7 +1671,8 @@
                     () => requestRender(),
                     el.frontColor,
                     el.badgeBgColor,
-                    bounds.isCircle
+                    bounds.isCircle,
+                    isExactSilhouette
                 );
 
                 const badgeFrontMat = new THREE.MeshStandardMaterial({
@@ -3305,6 +3583,27 @@
             if (isExact && state.sourceItemName) {
                 const tit = panel.querySelector('#threeDExactItemTitle');
                 if (tit) tit.textContent = '✨ ' + state.sourceItemName;
+
+                const activeMode = state.shapeMode || (state.isExactSilhouette ? 'silhouette' : (state.isRound ? 'coin' : 'card'));
+                panel.querySelectorAll('.three-d-shape-mode-btn').forEach(b => {
+                    b.classList.toggle('active', b.getAttribute('data-mode') === activeMode);
+                });
+                const shapeBadge = panel.querySelector('#threeDExactShapeBadge');
+                if (shapeBadge) {
+                    if (activeMode === 'silhouette') {
+                        shapeBadge.textContent = '💎 3D Katı Silüet';
+                        shapeBadge.style.color = '#38bdf8';
+                        shapeBadge.style.background = 'rgba(56,189,248,0.2)';
+                    } else if (activeMode === 'coin') {
+                        shapeBadge.textContent = '🟡 Dairesel Rozet';
+                        shapeBadge.style.color = '#f59e0b';
+                        shapeBadge.style.background = 'rgba(245,158,11,0.2)';
+                    } else {
+                        shapeBadge.textContent = '💳 Kart Plaket';
+                        shapeBadge.style.color = '#a78bfa';
+                        shapeBadge.style.background = 'rgba(167,139,250,0.2)';
+                    }
+                }
             }
         }
 
@@ -3625,13 +3924,26 @@
                     </div>
                 </div>
 
-                <!-- 🌟 1A. BİREBİR 3D ÖGE BİLGİ KARTI -->
+                <!-- 🌟 1A. BİREBİR 3D ÖGE BİLGİ KARTI & ŞEKİL SEÇİCİ -->
                 <div class="three-d-section" id="threeDExactSection" style="display:none; background:rgba(99,102,241,0.12); border:1px solid rgba(129,140,248,0.35); border-radius:10px; padding:12px; margin-bottom:12px;">
                     <div style="display:flex; align-items:center; gap:8px;">
                         <span style="font-size:20px;">💎</span>
                         <div style="flex:1;">
                             <div style="font-size:13px; font-weight:700; color:#e0e7ff;" id="threeDExactItemTitle">Birebir 3D Tasarım</div>
                             <div style="font-size:11px; color:#94a3b8; line-height:1.4; margin-top:2px;">Orijinal vektör öge kendi şekli ve dokusuyla 3D derinlik ve ışık kazandı.</div>
+                        </div>
+                    </div>
+
+                    <!-- 3D Şekil Formu Seçici (Katı Silüet ↔ Rozet ↔ Kart) -->
+                    <div style="margin-top:10px; padding-top:8px; border-top:1px solid rgba(255,255,255,0.08);">
+                        <div style="font-size:11px; font-weight:700; color:#c7d2fe; margin-bottom:6px; display:flex; align-items:center; justify-content:space-between;">
+                            <span>📐 3D ŞEKİL FORMU</span>
+                            <span id="threeDExactShapeBadge" style="font-size:10px; padding:2px 6px; border-radius:4px; background:rgba(56,189,248,0.2); color:#38bdf8;">3D Katı Silüet</span>
+                        </div>
+                        <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px;">
+                            <button type="button" class="three-d-shape-mode-btn active" id="threeDShapeModeSilhouette" data-mode="silhouette" title="İkonun kendi dış konturlarıyla katı 3D nesne">💎 Katı Silüet</button>
+                            <button type="button" class="three-d-shape-mode-btn" id="threeDShapeModeCoin" data-mode="coin" title="Dairesel rozet madalyon zemininde">🟡 Daire Rozet</button>
+                            <button type="button" class="three-d-shape-mode-btn" id="threeDShapeModeCard" data-mode="card" title="Köşeleri yuvarlatılmış kart plaketi zemininde">💳 Kart Plaket</button>
                         </div>
                     </div>
                 </div>
@@ -3973,6 +4285,50 @@
     }
 
     /**
+     * 🌟 Birebir 3D Öge: Şekil Modunu Değiştirme (Katı Silüet ↔ Yuvarlak Rozet ↔ Kart Plaket)
+     */
+    function setElementShapeMode(mode, targetEl) {
+        const el = targetEl || getActiveElement();
+        if (!el || el.elementType !== 'element_3d') return;
+        el.shapeMode = mode;
+        state.shapeMode = mode;
+
+        if (mode === 'silhouette') {
+            el.isRound = false;
+            state.isRound = false;
+            if (!el.cachedSilhouette && el.sourceSvg) {
+                extractSvgSilhouetteShape(el.sourceSvg, 220, 220, { forceSilhouette: true }).then(res => {
+                    if (res && res.shape) {
+                        el.cachedSilhouette = res;
+                        el.isExactSilhouette = true;
+                        state.isExactSilhouette = true;
+                        recreateContentMeshes(el);
+                        syncControlsUI();
+                        requestRender();
+                    }
+                });
+                return;
+            }
+            el.isExactSilhouette = !!(el.cachedSilhouette && el.cachedSilhouette.shape);
+            state.isExactSilhouette = el.isExactSilhouette;
+        } else if (mode === 'coin') {
+            el.isRound = true;
+            state.isRound = true;
+            el.isExactSilhouette = false;
+            state.isExactSilhouette = false;
+        } else if (mode === 'card') {
+            el.isRound = false;
+            state.isRound = false;
+            el.isExactSilhouette = false;
+            state.isExactSilhouette = false;
+        }
+
+        recreateContentMeshes(el);
+        syncControlsUI();
+        requestRender();
+    }
+
+    /**
      * 13. Panel Kontrol Olay Dinleyicileri
      */
     function bindPanelEvents(panel) {
@@ -3983,6 +4339,14 @@
                 btn.classList.add('active');
                 state.elementType = btn.getAttribute('data-type');
                 recreateContentMeshes();
+            });
+        });
+
+        // 🌟 Birebir 3D Öge Şekil Modu Butonları (Katı Silüet ↔ Yuvarlak Rozet ↔ Kart Plaket)
+        panel.querySelectorAll('.three-d-shape-mode-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const mode = btn.getAttribute('data-mode');
+                setElementShapeMode(mode);
             });
         });
 
@@ -5382,18 +5746,46 @@
             delete3DElement(elements[autoDefIdx].id);
         }
 
+        let cachedSilhouette = null;
+        let isSilhouette = false;
+        let shapeMode = options.shapeMode || 'auto';
+        if (elemType === 'element_3d' && rawSvg) {
+            if (shapeMode !== 'coin' && shapeMode !== 'card') {
+                try {
+                    cachedSilhouette = await extractSvgSilhouetteShape(rawSvg, 220, 220, {
+                        forceSilhouette: shapeMode === 'silhouette'
+                    });
+                    if (cachedSilhouette && cachedSilhouette.shape) {
+                        isSilhouette = true;
+                        shapeMode = 'silhouette';
+                    } else if (shapeMode === 'auto') {
+                        shapeMode = 'coin'; // Küçük veya narin ikonlar rozet üzerinde kalsın
+                    }
+                } catch(e) {
+                    console.warn('[ThreeDEngine] Silüet analizi hatası:', e);
+                }
+            }
+        }
+
+        const initialSideColor = isSilhouette
+            ? autoGenerateSideColor(primaryColor)
+            : autoGenerateSideColor(bgCol || primaryColor);
+
         const newEl = createDefaultElement({
             name: itemName,
             sourceItemName: itemName,
             sourceSvg: (elemType === 'element_3d') ? rawSvg : null,
             elementType: elemType,
+            shapeMode: shapeMode,
+            cachedSilhouette: cachedSilhouette,
+            isExactSilhouette: isSilhouette,
             text: text,
             badgeSubtext: subtext,
             frontColor: primaryColor,
             badgeBgColor: bgCol,
-            sideColor: autoGenerateSideColor(bgCol || primaryColor),
-            isRound: isPureIcon,
-            depth: 16,
+            sideColor: initialSideColor,
+            isRound: (shapeMode === 'coin'),
+            depth: isSilhouette ? 20 : 16,
             bevelEnabled: true,
             bevelThickness: 2,
             bevelSize: 1.5,
@@ -5470,7 +5862,8 @@
         add3DElementFromData: add3DElementFromData,
         add3DIcon: (svg, name, opts) => add3DElementFromData(Object.assign({ svg: svg, name: name, elementType: 'element_3d' }, opts)),
         openIconPicker: openIconPicker,
-        closeIconPicker: closeIconPicker,
+        getActiveElement: getActiveElement,
+        setShapeMode: setElementShapeMode,
         setBadgeBgColor: (c) => { state.badgeBgColor = c; recreateContentMeshes(); syncControlsUI(); },
         setBadgeSubtext: (s) => { state.badgeSubtext = s; recreateContentMeshes(); syncControlsUI(); },
         setSelectedIcon: (id) => { state.selectedIconId = id; recreateContentMeshes(); syncControlsUI(); },

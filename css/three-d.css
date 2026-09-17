@@ -2364,3 +2364,36 @@ body[data-theme="light"] .three-d-badge-kbd {
     color: #ffffff;
     border-color: #ef4444;
 }
+
+/* 🌟 Birebir 3D Öge Şekil Modu Butonları (Katı Silüet ↔ Rozet ↔ Kart) */
+.three-d-shape-mode-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 7px 6px;
+    font-size: 11px;
+    font-weight: 700;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(30, 41, 59, 0.85);
+    color: #94a3b8;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+    user-select: none;
+}
+
+.three-d-shape-mode-btn:hover {
+    color: #ffffff;
+    background: rgba(51, 65, 85, 0.95);
+    border-color: rgba(255, 255, 255, 0.25);
+}
+
+.three-d-shape-mode-btn.active {
+    background: linear-gradient(135deg, #4f46e5, #6366f1);
+    color: #ffffff;
+    border-color: #818cf8;
+    box-shadow: 0 0 10px rgba(99, 102, 241, 0.45);
+}
+

@@ -372,9 +372,68 @@
 
     // Sayfada / Tuvalde 9 Yön ve Ortaya Konumlandırma
     window.multiSelectPositionOnPage = function(pos) {
-        const elements = (window.selectedElements && window.selectedElements.length > 0)
+        let rawElements = (window.selectedElements && window.selectedElements.length > 0)
             ? window.selectedElements.filter(el => el.dataset.locked !== 'true')
             : (window.selectedEl ? [window.selectedEl] : []);
+
+        // 🌟 3D Öge Seçiliyse veya Tuvalde 2D Seçim Yokken 3D Aktifse: 3D Ögeyi Sayfada Konumlandır!
+        if ((!rawElements.length || (window.ThreeDEngine && window.ThreeDEngine.state && window.ThreeDEngine.state.selected)) &&
+            window.ThreeDEngine && typeof window.ThreeDEngine.isActive === 'function' && window.ThreeDEngine.isActive()) {
+            const canvasContainer = document.getElementById('canvas-container') || document.querySelector('.main-canvas') || document.body;
+            const cW = parseFloat(canvasContainer.style.width) || canvasContainer.offsetWidth || 1920;
+            const cH = parseFloat(canvasContainer.style.height) || canvasContainer.offsetHeight || 1080;
+            const offsetDistX = Math.round(cW * 0.28);
+            const offsetDistY = Math.round(cH * 0.28);
+
+            switch(pos) {
+                case 'top-left':
+                    window.ThreeDEngine.state.posX = -offsetDistX;
+                    window.ThreeDEngine.state.posY = -offsetDistY;
+                    break;
+                case 'top-center':
+                    window.ThreeDEngine.state.posX = 0;
+                    window.ThreeDEngine.state.posY = -offsetDistY;
+                    break;
+                case 'top-right':
+                    window.ThreeDEngine.state.posX = offsetDistX;
+                    window.ThreeDEngine.state.posY = -offsetDistY;
+                    break;
+                case 'middle-left':
+                    window.ThreeDEngine.state.posX = -offsetDistX;
+                    window.ThreeDEngine.state.posY = 0;
+                    break;
+                case 'center':
+                case 'horizontal-center':
+                case 'vertical-center':
+                    window.ThreeDEngine.centerOnScreen();
+                    return;
+                case 'middle-right':
+                    window.ThreeDEngine.state.posX = offsetDistX;
+                    window.ThreeDEngine.state.posY = 0;
+                    break;
+                case 'bottom-left':
+                    window.ThreeDEngine.state.posX = -offsetDistX;
+                    window.ThreeDEngine.state.posY = offsetDistY;
+                    break;
+                case 'bottom-center':
+                    window.ThreeDEngine.state.posX = 0;
+                    window.ThreeDEngine.state.posY = offsetDistY;
+                    break;
+                case 'bottom-right':
+                    window.ThreeDEngine.state.posX = offsetDistX;
+                    window.ThreeDEngine.state.posY = offsetDistY;
+                    break;
+            }
+            if (typeof window.ThreeDEngine.updatePlaneTransform === 'function') window.ThreeDEngine.updatePlaneTransform();
+            if (typeof window.ThreeDEngine.updateGizmoPositions === 'function') window.ThreeDEngine.updateGizmoPositions();
+            if (typeof window.ThreeDEngine.syncControlsUI === 'function') window.ThreeDEngine.syncControlsUI();
+            if (typeof window.ThreeDEngine.requestRender === 'function') window.ThreeDEngine.requestRender();
+            if (typeof window.showToast === 'function') window.showToast(`🎯 3D Öge ${pos} konumuna yerleştirildi`, 'info');
+            return;
+        }
+
+        // Her öğenin en üstteki taşınabilir ana kapsayıcısını bul (.callout-wrap, .draggable, .canvas-el, .added-icon)
+        const elements = Array.from(new Set(rawElements.map(el => el.closest('.callout-wrap, .draggable, .canvas-el, .added-icon, [data-layer-uid]') || el)));
 
         if (elements.length === 0) return;
 
@@ -585,7 +644,8 @@
         if (!window.selectedElements || window.selectedElements.length === 0) return;
         
         let newElements = [];
-        window.selectedElements.forEach(el => {
+        const targets = Array.from(new Set(window.selectedElements.map(el => el.closest('.callout-wrap, .draggable, .canvas-el, .added-icon, [data-layer-uid]') || el)));
+        targets.forEach(el => {
             const clone = el.cloneNode(true);
             clone.classList.remove('el-selected');
             clone.style.left = (parseFloat(el.style.left || el.offsetLeft) + 20) + 'px';
@@ -724,7 +784,8 @@
 
     window.multiSelectRotate = function(deltaDeg = 90) {
         if (!window.selectedElements || window.selectedElements.length === 0) return;
-        window.selectedElements.forEach(el => {
+        const targets = Array.from(new Set(window.selectedElements.map(el => el.closest('.callout-wrap, .draggable, .canvas-el, .added-icon, [data-layer-uid]') || el)));
+        targets.forEach(el => {
             const curRot = parseFloat(el.dataset.rotation) || 0;
             let newRot = (curRot + deltaDeg) % 360;
             if (newRot > 180) newRot -= 360;
@@ -734,7 +795,7 @@
             const curScale = el.dataset.scale || 1;
             el.style.transform = `rotate(${newRot}deg) scale(${curScale})`;
         });
-        syncMovedDrawElements(window.selectedElements);
+        syncMovedDrawElements(targets);
         if (typeof redrawAll === 'function') redrawAll();
         if (typeof updateDrawHistory === 'function') updateDrawHistory();
         if (typeof renderLayers === 'function') renderLayers();
@@ -743,7 +804,8 @@
 
     window.multiSelectScale = function(factor = 1.1) {
         if (!window.selectedElements || window.selectedElements.length === 0) return;
-        window.selectedElements.forEach(el => {
+        const targets = Array.from(new Set(window.selectedElements.map(el => el.closest('.callout-wrap, .draggable, .canvas-el, .added-icon, [data-layer-uid]') || el)));
+        targets.forEach(el => {
             const curW = el.offsetWidth || parseFloat(el.style.width) || 100;
             const curH = el.offsetHeight || parseFloat(el.style.height) || 100;
             const newW = Math.max(20, Math.round(curW * factor));
@@ -760,7 +822,7 @@
                 if (el.dataset.baseHeight !== undefined) el.dataset.baseHeight = newH;
             }
         });
-        syncMovedDrawElements(window.selectedElements);
+        syncMovedDrawElements(targets);
         if (typeof redrawAll === 'function') redrawAll();
         if (typeof updateDrawHistory === 'function') updateDrawHistory();
         if (typeof renderLayers === 'function') renderLayers();

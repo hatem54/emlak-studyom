@@ -211,6 +211,10 @@ window.openQuickEdit3DModal = function(targetElement, clientX, clientY) {
 function openObjectContextMenu(targetElement, isText, clientX, clientY) {
     if (!targetElement) return;
 
+    // 🎯 Her zaman tuvaldeki en üst seviye taşınabilir ana kapsayıcıyı hedef al
+    const rootElement = targetElement.closest('.callout-wrap, .draggable, .canvas-el, .added-icon, [data-layer-uid]') || targetElement;
+    targetElement = rootElement;
+
     // Varsa önceki açık menüyü kapat
     const existing = document.getElementById('app-custom-context-menu');
     if (existing) existing.remove();
@@ -1040,7 +1044,7 @@ document.addEventListener('contextmenu', function(e) {
         }
     }
 
-    let callout = e.target.closest('.callout-item, .callout-wrap, .co-neon-block, .canvas-icon, .draggable, .added-icon, .cvi-item, .editable-draw, .canvas-el, .cvi-badge-box, [data-layer-uid]');
+    let callout = e.target.closest('.callout-wrap, .callout-item, .co-neon-block, .canvas-icon, .draggable, .added-icon, .cvi-item, .editable-draw, .canvas-el, .cvi-badge-box, [data-layer-uid]');
     if (!callout && window.selectedEl && (window.selectedEl === e.target || window.selectedEl.contains(e.target))) {
         callout = window.selectedEl;
     }
@@ -1049,6 +1053,9 @@ document.addEventListener('contextmenu', function(e) {
     }
 
     if (callout) {
+        // En üst seviyedeki taşınabilir ana kapsayıcıyı al
+        const topEl = callout.closest('.callout-wrap, .draggable, .canvas-el, .added-icon, [data-layer-uid]') || callout;
+        callout = topEl;
         e.preventDefault();
         if (typeof selectElement === 'function' && (!window.selectedElements || window.selectedElements.length <= 1)) {
             selectElement(callout);
@@ -1144,7 +1151,8 @@ document.addEventListener('pointerdown', function(e) {
         '.text-handle, .text-resize-handle, .text-rotate-handle, .text-delete-handle, .text-lock-handle, ' +
         '.callout-controls, .callout-resizer, .callout-rotator, .callout-lock-btn, .callout-select-border, ' +
         '.draw-handle, .vertex-handle, .cbtn-del, .sidebar, .right-sidebar, .panel, .mobile-panel, ' +
-        '.tab-content, .dynamic-field, .tab-btn, button, input, select, textarea, .swal2-container, .modal, .context-menu, .app-context-menu'
+        '.tab-content, .dynamic-field, .tab-btn, button, input, select, textarea, .swal2-container, .modal, .context-menu, .app-context-menu, ' +
+        '#threeDStudioPanel, .three-d-panel, #threeDGizmoOverlay, #threeDCornerPinOverlay, #threeDCanvasBadge, #threeDDockControls, .dock-3d-controls'
     )) {
         return;
     }

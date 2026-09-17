@@ -3605,6 +3605,12 @@
 
         document.body.appendChild(panel);
         positionStudioPanelOverLeftPanel(panel);
+
+        // 🛡️ Panel içi tıklama ve sürüklemelerin tuvale veya sayfa dışına sızmasını engelle (kapanmayı önler)
+        panel.addEventListener('pointerdown', (e) => e.stopPropagation());
+        panel.addEventListener('mousedown', (e) => e.stopPropagation());
+        panel.addEventListener('click', (e) => e.stopPropagation());
+
         bindPanelEvents(panel);
         makeDraggable(panel, document.getElementById('threeDPanelHeader'));
         return panel;
@@ -4143,6 +4149,7 @@
             initialTop = rect.top;
             handle.setPointerCapture(e.pointerId);
             e.preventDefault();
+            e.stopPropagation();
         });
 
         handle.addEventListener('pointermove', (e) => {
@@ -4153,12 +4160,14 @@
             el.style.top = Math.max(10, Math.min(window.innerHeight - el.offsetHeight - 10, initialTop + dy)) + 'px';
             el.style.right = 'auto';
             el.style.bottom = 'auto';
+            e.stopPropagation();
         });
 
         const onUp = (e) => {
             if (!isDown) return;
             isDown = false;
             try { handle.releasePointerCapture(e.pointerId); } catch(ex){}
+            e.stopPropagation();
         };
 
         handle.addEventListener('pointerup', onUp);

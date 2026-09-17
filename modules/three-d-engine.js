@@ -109,6 +109,7 @@
             customIconSvg: overrides.customIconSvg || null,
             sourceSvg: overrides.sourceSvg || null,
             sourceItemName: overrides.sourceItemName || name,
+            isRound: overrides.isRound !== undefined ? !!overrides.isRound : false,
             isAutoDefault: !!overrides.isAutoDefault,
             // Three.js groups & meshes
             planeGroup: null,
@@ -856,7 +857,7 @@
     /**
      * 🌟 Birebir 3D Öge: SVG'den Yüksek Çözünürlüklü Vektör Dokusu Oluşturucu
      */
-    function createExactSvgTexture(rawSvg, vbW, vbH, onUpdate) {
+    function createExactSvgTexture(rawSvg, vbW, vbH, onUpdate, iconColor, bgColor, isRound = false) {
         const maxTexDim = 1024;
         let cw = maxTexDim;
         let ch = Math.round(maxTexDim * ((vbH || 1) / (vbW || 1)));
@@ -879,19 +880,49 @@
             texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
         }
 
+        // 1. SVG Temizleme ve Çözünürlük Büyütme
         let safeSvg = ensureSvgXmlns(rawSvg);
-        if (!safeSvg.includes('width=')) {
-            safeSvg = safeSvg.replace('<svg', `<svg width="${vbW || 200}"`);
+
+        // Var olan '1em', '100%' veya küçük piksel boyutlarını temizle ve yüksek çözünürlüğe ölçekle
+        safeSvg = safeSvg.replace(/(<svg\b[^>]*?)\s+width="[^"]*"/i, '$1');
+        safeSvg = safeSvg.replace(/(<svg\b[^>]*?)\s+height="[^"]*"/i, '$1');
+
+        if (!safeSvg.includes('viewBox=') && vbW && vbH) {
+            safeSvg = safeSvg.replace('<svg', `<svg viewBox="0 0 ${vbW} ${vbH}"`);
         }
-        if (!safeSvg.includes('height=')) {
-            safeSvg = safeSvg.replace('<svg', `<svg height="${vbH || 200}"`);
-        }
+        safeSvg = safeSvg.replace('<svg', `<svg width="${cw}" height="${ch}"`);
+
+        // 2. currentColor ve Renk Eşitleme
+        const resolvedColor = iconColor || '#ffffff';
+        safeSvg = safeSvg.replace(/currentColor/g, resolvedColor);
+
+        // Ek stil enjeksiyonu ile eksik stroke/fill olan vektörlerin rengini garanti et
+        const styleTag = `<style>:root, svg { color: ${resolvedColor}; }</style>`;
+        safeSvg = safeSvg.replace(/(<svg[^>]*>)/, `$1${styleTag}`);
 
         const blob = new Blob([safeSvg], { type: 'image/svg+xml;charset=utf-8' });
         const url = URL.createObjectURL(blob);
         const img = new Image();
         img.onload = () => {
             ctx.clearRect(0, 0, cw, ch);
+
+            // 3. Arka Plan Plaketi Doldurma (Gerekirse)
+            if (bgColor && bgColor !== 'transparent' && bgColor !== 'none') {
+                ctx.save();
+                ctx.fillStyle = bgColor;
+                if (isRound) {
+                    ctx.beginPath();
+                    ctx.arc(cw / 2, ch / 2, (cw / 2) - 2, 0, Math.PI * 2);
+                    ctx.fill();
+                } else {
+                    const r = Math.min(32, cw * 0.12, ch * 0.12);
+                    drawRoundRect(ctx, 0, 0, cw, ch, r);
+                    ctx.fill();
+                }
+                ctx.restore();
+            }
+
+            // 4. Vektör Çizimi
             ctx.drawImage(img, 0, 0, cw, ch);
             URL.revokeObjectURL(url);
             texture.needsUpdate = true;
@@ -909,7 +940,7 @@
     /**
      * 🌟 Birebir 3D Öge: SVG İçeriğini Analiz Edip Otomatik 3D Kontur Silüeti (THREE.Shape) Çıkarıcı
      */
-    function createShapeAndBoundsFromSvg(rawSvg) {
+    function createShapeAndBoundsFromSvg(rawSvg, options = {}) {
         if (!rawSvg) return null;
 
         const safeSvg = ensureSvgXmlns(rawSvg);
@@ -936,57 +967,50 @@
         const targetH = vbH * scaleFactor;
 
         let shape = null;
+        let isCircle = !!options.isRound;
 
-        // Kontur Önceliği 1: <path> (defs içinde olmayan, ana dış hat)
-        const pathNodes = Array.from(svgEl.querySelectorAll('path')).filter(p => !p.closest('defs'));
-        if (pathNodes.length > 0) {
-            let tempSvg = null;
-            try {
-                tempSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-                tempSvg.setAttribute('viewBox', `${ox} ${oy} ${vbW} ${vbH}`);
-                tempSvg.style.position = 'fixed';
-                tempSvg.style.left = '-9999px';
-                tempSvg.style.top = '-9999px';
-                tempSvg.style.width = '1px';
-                tempSvg.style.height = '1px';
-                tempSvg.style.opacity = '0';
-                tempSvg.style.pointerEvents = 'none';
-                document.body.appendChild(tempSvg);
-
-                let bestPathNode = null;
-                let maxLen = 0;
-                for (const p of pathNodes) {
-                    const cloned = p.cloneNode(true);
-                    tempSvg.appendChild(cloned);
-                    try {
-                        const l = cloned.getTotalLength ? cloned.getTotalLength() : 0;
-                        if (l > maxLen) {
-                            maxLen = l;
-                            bestPathNode = cloned;
-                        }
-                    } catch(e){}
-                }
-
-                if (bestPathNode && maxLen > 25) {
-                    const numSamples = Math.max(64, Math.min(180, Math.round(maxLen / 3)));
-                    shape = new THREE.Shape();
-                    for (let i = 0; i <= numSamples; i++) {
-                        const pt = bestPathNode.getPointAtLength((i / numSamples) * maxLen);
-                        const tx = (pt.x - ox - vbW / 2) * scaleFactor;
-                        const ty = -(pt.y - oy - vbH / 2) * scaleFactor;
-                        if (i === 0) shape.moveTo(tx, ty);
-                        else shape.lineTo(tx, ty);
-                    }
-                    shape.closePath();
-                }
-            } catch(err) {
-                console.warn('[ThreeDEngine] SVG path sampling hatası:', err);
-            } finally {
-                if (tempSvg && tempSvg.parentNode) tempSvg.parentNode.removeChild(tempSvg);
+        // Kontur Önceliği 1: SVG içinde belirgin bir <circle> arka plan var mı?
+        const circleNodes = Array.from(svgEl.querySelectorAll('circle')).filter(c => !c.closest('defs'));
+        if (circleNodes.length > 0) {
+            let maxR = 0;
+            for (const c of circleNodes) {
+                const r = parseFloat(c.getAttribute('r')) || 0;
+                if (r > maxR) maxR = r;
+            }
+            if (maxR >= Math.min(vbW, vbH) * 0.35) {
+                isCircle = true;
             }
         }
 
-        // Kontur Önceliği 2: <polygon> (Ribbon, bayrak, üçgen, elmas vb.)
+        if (isCircle && Math.abs(targetW - targetH) <= Math.max(targetW, targetH) * 0.2) {
+            const radius = (Math.min(targetW, targetH) / 2) * 0.98;
+            shape = createCoinShape(radius);
+        }
+
+        // Kontur Önceliği 2: SVG içinde belirgin bir <rect> arka plan var mı?
+        if (!shape) {
+            const rectNodes = Array.from(svgEl.querySelectorAll('rect')).filter(r => !r.closest('defs'));
+            if (rectNodes.length > 0) {
+                let bestRect = null;
+                let maxArea = 0;
+                for (const r of rectNodes) {
+                    const rw = parseFloat(r.getAttribute('width')) || 0;
+                    const rh = parseFloat(r.getAttribute('height')) || 0;
+                    const area = rw * rh;
+                    if (area > maxArea) {
+                        maxArea = area;
+                        bestRect = r;
+                    }
+                }
+                if (bestRect && maxArea >= (vbW * vbH) * 0.35) {
+                    const rxRaw = parseFloat(bestRect.getAttribute('rx') || bestRect.getAttribute('ry') || '16');
+                    const rxVal = Math.min(rxRaw * scaleFactor, targetW / 4, targetH / 4);
+                    shape = createCardShape(targetW, targetH, Math.max(8, rxVal));
+                }
+            }
+        }
+
+        // Kontur Önceliği 3: SVG içinde belirgin bir <polygon> (bayrak, ribbon) var mı?
         if (!shape) {
             const polyNodes = Array.from(svgEl.querySelectorAll('polygon')).filter(p => !p.closest('defs'));
             if (polyNodes.length > 0) {
@@ -1004,95 +1028,27 @@
             }
         }
 
-        // Kontur Önceliği 3: <circle> (Damga, madalyon, yuvarlak etiket)
+        // Kontur Önceliği 4: Standart Yüksek Kaliteli 3D Rozet / Plaket (İkonlar ve Genel Ögeler İçin)
         if (!shape) {
-            const circleNodes = Array.from(svgEl.querySelectorAll('circle')).filter(c => !c.closest('defs'));
-            if (circleNodes.length > 0) {
-                let maxR = 0;
-                let bestCircle = circleNodes[0];
-                for (const c of circleNodes) {
-                    const r = parseFloat(c.getAttribute('r')) || 0;
-                    if (r > maxR) { maxR = r; bestCircle = c; }
-                }
-                if (maxR > 10) {
-                    const cx = (parseFloat(bestCircle.getAttribute('cx')) || (vbW / 2));
-                    const cy = (parseFloat(bestCircle.getAttribute('cy')) || (vbH / 2));
-                    const rScaled = maxR * scaleFactor;
-                    const ctx = (cx - ox - vbW / 2) * scaleFactor;
-                    const cty = -(cy - oy - vbH / 2) * scaleFactor;
-                    shape = new THREE.Shape();
-                    shape.absarc(ctx, cty, rScaled, 0, Math.PI * 2, false);
-                }
+            if (Math.abs(targetW - targetH) <= 6 && options.isRound) {
+                shape = createCoinShape((targetW / 2) * 0.98);
+                isCircle = true;
+            } else {
+                const rx = Math.min(22, targetW * 0.16, targetH * 0.16);
+                shape = createCardShape(targetW, targetH, Math.max(6, rx));
             }
-        }
-
-        // Kontur Önceliği 4: <rect> (Kart, plaket, etiket çerçevesi)
-        if (!shape) {
-            const rectNodes = Array.from(svgEl.querySelectorAll('rect')).filter(r => !r.closest('defs'));
-            if (rectNodes.length > 0) {
-                let maxArea = 0;
-                let bestRect = rectNodes[0];
-                for (const r of rectNodes) {
-                    const rw = parseFloat(r.getAttribute('width')) || 0;
-                    const rh = parseFloat(r.getAttribute('height')) || 0;
-                    const area = rw * rh;
-                    if (area > maxArea) { maxArea = area; bestRect = r; }
-                }
-                const rw = (parseFloat(bestRect.getAttribute('width')) || (vbW - 10)) * scaleFactor;
-                const rh = (parseFloat(bestRect.getAttribute('height')) || (vbH - 10)) * scaleFactor;
-                const rxRaw = parseFloat(bestRect.getAttribute('rx') || bestRect.getAttribute('ry') || '12');
-                const rxVal = Math.min(rxRaw * scaleFactor, rw / 2, rh / 2);
-
-                const rxPos = parseFloat(bestRect.getAttribute('x')) || 0;
-                const ryPos = parseFloat(bestRect.getAttribute('y')) || 0;
-                const rectCenterX = rxPos + (parseFloat(bestRect.getAttribute('width')) || vbW) / 2;
-                const rectCenterY = ryPos + (parseFloat(bestRect.getAttribute('height')) || vbH) / 2;
-                const offX = (rectCenterX - ox - vbW / 2) * scaleFactor;
-                const offY = -(rectCenterY - oy - vbH / 2) * scaleFactor;
-
-                const halfW = rw / 2;
-                const halfH = rh / 2;
-                shape = new THREE.Shape();
-                shape.moveTo(offX - halfW + rxVal, offY + halfH);
-                shape.lineTo(offX + halfW - rxVal, offY + halfH);
-                shape.quadraticCurveTo(offX + halfW, offY + halfH, offX + halfW, offY + halfH - rxVal);
-                shape.lineTo(offX + halfW, offY - halfH + rxVal);
-                shape.quadraticCurveTo(offX + halfW, offY - halfH, offX + halfW - rxVal, offY - halfH);
-                shape.lineTo(offX - halfW + rxVal, offY - halfH);
-                shape.quadraticCurveTo(offX - halfW, offY - halfH, offX - halfW, offY - halfH + rxVal);
-                shape.lineTo(offX - halfW, offY + halfH - rxVal);
-                shape.quadraticCurveTo(offX - halfW, offY + halfH, offX - halfW + rxVal, offY + halfH);
-            }
-        }
-
-        // Kontur Önceliği 5: Güvenli Genel Rozet Plakası (Fallback)
-        if (!shape) {
-            const rw = targetW * 0.94;
-            const rh = targetH * 0.94;
-            const rx = Math.min(16, rw / 6, rh / 6);
-            const halfW = rw / 2;
-            const halfH = rh / 2;
-            shape = new THREE.Shape();
-            shape.moveTo(-halfW + rx, halfH);
-            shape.lineTo(halfW - rx, halfH);
-            shape.quadraticCurveTo(halfW, halfH, halfW, halfH - rx);
-            shape.lineTo(halfW, -halfH + rx);
-            shape.quadraticCurveTo(halfW, -halfH, halfW - rx, -halfH);
-            shape.lineTo(-halfW + rx, -halfH);
-            shape.quadraticCurveTo(-halfW, -halfH, -halfW, -halfH + rx);
-            shape.lineTo(-halfW, halfH - rx);
-            shape.quadraticCurveTo(-halfW, halfH, -halfW + rx, halfH);
         }
 
         const bounds = {
-            minX: (-vbW / 2) * scaleFactor,
-            maxX: (vbW / 2) * scaleFactor,
-            minY: (-vbH / 2) * scaleFactor,
-            maxY: (vbH / 2) * scaleFactor,
+            minX: -targetW / 2,
+            maxX: targetW / 2,
+            minY: -targetH / 2,
+            maxY: targetH / 2,
             width: targetW,
             height: targetH,
             vbW,
-            vbH
+            vbH,
+            isCircle
         };
 
         return { shape, bounds };
@@ -1411,7 +1367,8 @@
             cGroup.add(el.textMesh);
         } else if (type === 'element_3d' && el.sourceSvg) {
             const svgToRender = el.text ? updateSvgText(el.sourceSvg, el.text) : el.sourceSvg;
-            const res = createShapeAndBoundsFromSvg(svgToRender);
+            const isRound = !!el.isRound;
+            const res = createShapeAndBoundsFromSvg(svgToRender, { isRound: isRound });
             if (res && res.shape) {
                 const shape = res.shape;
                 const bounds = res.bounds;
@@ -1423,7 +1380,7 @@
                     bevelThickness: el.bevelThickness,
                     bevelSize: el.bevelSize,
                     bevelSegments: 3,
-                    curveSegments: 16,
+                    curveSegments: 24,
                     UVGenerator: uvGen
                 };
 
@@ -1434,15 +1391,17 @@
                     svgToRender,
                     bounds.vbW,
                     bounds.vbH,
-                    () => requestRender()
+                    () => requestRender(),
+                    el.frontColor,
+                    el.badgeBgColor,
+                    bounds.isCircle
                 );
 
                 const badgeFrontMat = new THREE.MeshStandardMaterial({
                     map: badgeTex,
                     roughness: el.roughness,
                     metalness: el.metalness,
-                    transparent: true,
-                    alphaTest: 0.05
+                    transparent: true
                 });
 
                 el.badgeMesh = new THREE.Mesh(badgeGeo, [badgeFrontMat, sideMat]);
@@ -5102,10 +5061,25 @@
     }
 
     /**
+     * Güvenli Hex Renk Çözücü (#rrggbb)
+     */
+    function safeHexColor(colorStr, fallback = '#ffffff') {
+        if (!colorStr || colorStr === 'none' || colorStr === 'currentColor' || colorStr === 'inherit' || colorStr === 'transparent') return fallback;
+        try {
+            if (typeof THREE !== 'undefined' && THREE.Color) {
+                const c = new THREE.Color(colorStr);
+                return '#' + c.getHexString();
+            }
+        } catch(e) {}
+        if (typeof colorStr === 'string' && colorStr.startsWith('#')) return colorStr;
+        return fallback;
+    }
+
+    /**
      * Otomatik 3D Yan Kalınlık / Gölge Rengi Oluşturucu
      */
     function autoGenerateSideColor(colorStr) {
-        if (!colorStr) return '#1e293b';
+        if (!colorStr || colorStr === 'none' || colorStr === 'currentColor' || colorStr === 'transparent') return '#1e293b';
         try {
             if (typeof THREE !== 'undefined' && THREE.Color) {
                 const c = new THREE.Color(colorStr);
@@ -5191,13 +5165,17 @@
             if (stop && stop.getAttribute('stop-color')) {
                 primaryColor = stop.getAttribute('stop-color');
             } else {
-                const fillEl = svgNode.querySelector('[fill]:not([fill="none"]):not([fill^="url"]):not([fill="white"]):not([fill="#fff"]):not([fill="#ffffff"])');
+                const fillEl = svgNode.querySelector('[fill]:not([fill="none"]):not([fill^="url"]):not([fill="white"]):not([fill="#fff"]):not([fill="#ffffff"]):not([fill="currentColor"])');
                 if (fillEl) primaryColor = fillEl.getAttribute('fill');
             }
         }
-        if (!primaryColor || primaryColor === 'none') {
-            primaryColor = el.style.color || root.style.color || el.dataset.storedBgHex || root.dataset.storedBgHex || '#e63946';
+        if (!primaryColor || primaryColor === 'none' || primaryColor === 'currentColor' || primaryColor === 'inherit') {
+            primaryColor = el.style.color || root.style.color || el.dataset.storedBorderColor || root.dataset.storedBorderColor || '#38bdf8';
         }
+        primaryColor = safeHexColor(primaryColor, '#38bdf8');
+
+        let bgCol = el.dataset.storedBgHex || root.dataset.storedBgHex || el.dataset.coBgColor || root.dataset.coBgColor || '#0f172a';
+        bgCol = safeHexColor(bgCol, '#0f172a');
 
         // 4. Metin Çıkarımı
         let label = (meta && meta.text) || el.dataset.coLabel || root.dataset.coLabel || '';
@@ -5244,6 +5222,7 @@
             hasRealText = false;
             label = '';
         }
+        const isRound = isPureIcon || classList.includes('added-icon') || root.style.borderRadius === '50%' || el.style.borderRadius === '50%';
 
         let elemType = 'text';
         if (rawSvg && rawSvg.includes('<svg') && !isPin && !isArrow) elemType = 'element_3d';
@@ -5280,7 +5259,9 @@
             text: finalMainText,
             badgeSubtext: finalSubText,
             frontColor: primaryColor,
-            sideColor: autoGenerateSideColor(primaryColor),
+            badgeBgColor: bgCol,
+            sideColor: autoGenerateSideColor(bgCol || primaryColor),
+            isRound: isRound,
             depth: 16,
             bevelEnabled: true,
             bevelThickness: 2,

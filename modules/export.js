@@ -314,6 +314,7 @@ window.hideExportLoading = (delay = 0, force = false) => hideAppLoading(delay, f
  */
 function draw3DLayerToContext(targetCtx, targetW, targetH) {
     if (!targetCtx) return;
+    if (window.ThreeDEngine && window.ThreeDEngine.state && window.ThreeDEngine.state.visible === false) return;
     const threeDCanvas = document.getElementById('three-d-layer');
     if (!threeDCanvas || threeDCanvas.style.display === 'none' || !threeDCanvas.width) return;
 
@@ -1651,14 +1652,7 @@ async function exportAnimatedVideo(options = {}) {
     }
 
     // 3D WebGL Katmanı (#three-d-layer)
-    const threeDCanvas = document.getElementById('three-d-layer');
-    if (threeDCanvas && threeDCanvas.style.display !== 'none' && threeDCanvas.width > 0) {
-        try {
-            baseCtx.drawImage(threeDCanvas, 0, 0, targetW, targetH);
-        } catch(e) {
-            console.warn('[Export] 3D katman aktarılırken hata:', e);
-        }
-    }
+    draw3DLayerToContext(baseCtx, targetW, targetH);
 
     // 4. Şablon, metinler ve rozetler (Sadece varsa html2canvas çalıştır)
     const hasTemplates = !!canvasEl.querySelector('#canva-render-layer > *');

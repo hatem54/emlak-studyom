@@ -13,6 +13,7 @@
     const state = {
         loaded: false,
         active: false,
+        visible: true,          // 👁️ 3D Öge görünürlüğü (üstteki gizle butonu aktifse false olur, tuval ve çıktıdan gizlenir)
         elementType: 'text',   // 'text' | 'pin' | 'arrow' | 'combo_pin' | 'combo_arrow'
         text: 'SATILIK 1.250 m²',
         textSize: 36,
@@ -2287,7 +2288,7 @@
      * Tuvalde doğrudan 3D yazı/nesne üzerine tıklanıp tıklanmadığını tespit eder.
      */
     function check3DHit(clientX, clientY) {
-        if (!camera || !contentGroup || !canvasEl) return false;
+        if (!state.active || state.visible === false || !camera || !contentGroup || !canvasEl) return false;
         const container = document.getElementById('canvas-container');
         if (!container) return false;
         const rect = container.getBoundingClientRect();
@@ -2680,6 +2681,9 @@
                     if (state.active && state.selected) {
                         setSelected(false);
                     }
+                } else if ((e.key === 'Delete' || e.key === 'Backspace') && state.active && state.selected) {
+                    e.preventDefault();
+                    delete3DElement();
                 }
             });
         }
@@ -2847,6 +2851,77 @@
             alert('3D Öge Başarıyla Tuvale Aktarıldı!');
         }
         return true;
+    }
+
+    /**
+     * 10.1. Export & Çıktı Entegrasyonu
+     * İhracat, baskı ve indirme işlemlerinde 3D sahneyi hedef çözünürlükte (Ultra-HD / 4K / 1080p),
+     * grid ve kılavuzlardan arındırılmış saf haliyle hazırlar ve context'e aktarır.
+     * Üstteki gizle butonu aktifse (state.visible === false) çıktıya dahil edilmez.
+     */
+    function prepareForExport(targetW, targetH) {
+        if (!state.active || state.visible === false || !renderer || !canvasEl || !scene || !camera) {
+            return null;
+        }
+
+        // Yardımcı kılavuzları geçici olarak gizle
+        const prevGrid = gridHelper ? gridHelper.visible : false;
+        const prevSun = sunGroup ? sunGroup.visible : false;
+        const prevRay = sunRayLine ? sunRayLine.visible : false;
+        if (gridHelper) gridHelper.visible = false;
+        if (sunGroup) sunGroup.visible = false;
+        if (sunRayLine) sunRayLine.visible = false;
+
+        const curW = canvasEl.width;
+        const curH = canvasEl.height;
+        const curAspect = camera.aspect;
+
+        const outW = targetW || curW;
+        const outH = targetH || curH;
+
+        renderer.setSize(outW, outH, false);
+        camera.aspect = outW / outH;
+        camera.updateProjectionMatrix();
+        renderer.render(scene, camera);
+
+        return {
+            canvas: canvasEl,
+            restore: () => {
+                renderer.setSize(curW, curH, false);
+                camera.aspect = curAspect;
+                camera.updateProjectionMatrix();
+                if (gridHelper) gridHelper.visible = !!(state.selected && prevGrid);
+                if (sunGroup) sunGroup.visible = !!(state.selected && prevSun);
+                if (sunRayLine) sunRayLine.visible = !!(state.selected && prevRay);
+                requestRender();
+            }
+        };
+    }
+
+    /**
+     * 10.2. 3D Ögeyi Tuvalden Silme / Temizleme
+     */
+    function delete3DElement() {
+        state.active = false;
+        state.selected = false;
+        state.visible = true;
+        if (canvasEl) canvasEl.style.display = 'none';
+        if (gridHelper) gridHelper.visible = false;
+        if (sunGroup) sunGroup.visible = false;
+        if (sunRayLine) sunRayLine.visible = false;
+        if (gizmoOverlayEl) gizmoOverlayEl.style.display = 'none';
+        if (cornerPinOverlayEl) cornerPinOverlayEl.style.display = 'none';
+        if (canvasBadgeEl) canvasBadgeEl.style.display = 'none';
+        const panel = document.getElementById('threeDStudioPanel');
+        if (panel) panel.style.display = 'none';
+        updateDock3DControlsState();
+        notifyExternalUpdates();
+        if (typeof window.renderLayers === 'function') window.renderLayers();
+        if (typeof window.recordHistory === 'function') window.recordHistory('3D Öge Silindi');
+        if (typeof window.requestAutoSave === 'function') window.requestAutoSave();
+        if (typeof window.showToast === 'function') {
+            window.showToast('🗑️ 3D Öge tuvalden silindi.', 'info');
+        }
     }
 
     /**
@@ -3594,13 +3669,6 @@
                     💡 <em>İpucu: Tuvaldeki ☀️ Güneş rozetini tutup pencereye doğru sürükleyerek doğal pencere ışığı ve gölgesi elde edebilirsiniz. Shift tuşu veya tekerlek ile oda derinliğini ayarlayabilirsiniz.</em>
                 </div>
             </div>
-
-            <!-- FOOTER AKSİYONLAR -->
-            <div class="three-d-footer">
-                <button id="threeDBakeBtn" class="three-d-primary-btn" style="background:linear-gradient(135deg, #0284c7 0%, #38bdf8 100%); font-weight:700; display:flex; align-items:center; justify-content:center; gap:8px;">
-                    <i class="fas fa-file-import"></i> 💾 Tuvale Aktar
-                </button>
-            </div>
         `;
 
         document.body.appendChild(panel);
@@ -4128,7 +4196,6 @@
         panel.querySelector('#threeDResetBtn').addEventListener('click', resetToDefaults);
         panel.querySelector('#threeDVisHeaderBtn').addEventListener('click', () => toggleVisibility());
         panel.querySelector('#threeDCloseBtn').addEventListener('click', closeStudio);
-        panel.querySelector('#threeDBakeBtn').addEventListener('click', bakeToCanvas);
     }
 
     /**
@@ -4229,42 +4296,39 @@
     function closeStudio() {
         const panel = document.getElementById('threeDStudioPanel');
         if (panel) panel.style.display = 'none';
-        state.active = false;
-        if (gridHelper) gridHelper.visible = false;
-        if (sunGroup) sunGroup.visible = false;
-        if (sunRayLine) sunRayLine.visible = false;
-        if (cornerPinOverlayEl) cornerPinOverlayEl.style.display = 'none';
-        if (gizmoOverlayEl) gizmoOverlayEl.style.display = 'none';
-        if (canvasBadgeEl) canvasBadgeEl.style.display = 'none';
-        state.cornerPinActive = false;
+
+        // 🎯 Seçimi bırak (tutamaçlar ve eksenler gizlenir), 3D öge tuvalde aktif ve görünür kalmaya devam eder!
+        setSelected(false, { silent: true });
         updateDock3DControlsState();
-
-        // Eğer tuvale aktarılmadan kapatıldıysa ve 2D kaynak öge gizlendiyse, 2D ögeyi geri göster
-        if (!state.hasBaked && state.source2DEl && state.source2DEl.parentNode) {
-            try {
-                state.source2DEl.style.removeProperty('display');
-                state.source2DEl.style.removeProperty('visibility');
-                delete state.source2DEl.dataset.convertedTo3D;
-            } catch(e){}
-            state.source2DEl = null;
-        }
-
         notifyExternalUpdates();
         requestRender();
     }
 
     function toggleVisibility(forceVisible) {
         if (!canvasEl) return;
-        const isVisible = (forceVisible !== undefined) ? forceVisible : (canvasEl.style.display !== 'none');
-        canvasEl.style.display = isVisible ? 'none' : 'block';
-        if (cornerPinOverlayEl) cornerPinOverlayEl.style.display = (isVisible && state.cornerPinActive && state.selected) ? 'block' : 'none';
-        if (gizmoOverlayEl) gizmoOverlayEl.style.display = (isVisible && state.gizmoActive && !state.cornerPinActive && state.selected) ? 'block' : 'none';
-        if (canvasBadgeEl) canvasBadgeEl.style.display = (isVisible && state.active) ? 'flex' : 'none';
+        const newVisible = (forceVisible !== undefined) ? !!forceVisible : (state.visible === false);
+        state.visible = newVisible;
+        canvasEl.style.display = newVisible ? 'block' : 'none';
+
+        if (cornerPinOverlayEl) cornerPinOverlayEl.style.display = (newVisible && state.cornerPinActive && state.selected) ? 'block' : 'none';
+        if (gizmoOverlayEl) gizmoOverlayEl.style.display = (newVisible && state.gizmoActive && !state.cornerPinActive && state.selected) ? 'block' : 'none';
+        if (canvasBadgeEl) canvasBadgeEl.style.display = (newVisible && state.active && state.selected) ? 'flex' : 'none';
+        if (gridHelper) gridHelper.visible = newVisible && !!state.selected && state.showPlaneGrid;
+        if (sunGroup) sunGroup.visible = newVisible && !!state.selected;
+        if (sunRayLine) sunRayLine.visible = newVisible && !!state.selected;
+
         const btn = document.getElementById('threeDVisHeaderBtn');
         if (btn) {
-            btn.innerHTML = isVisible ? '<i class="fas fa-eye-slash" style="color:#ef4444;"></i>' : '<i class="fas fa-eye"></i>';
+            btn.innerHTML = newVisible ? '<i class="fas fa-eye"></i>' : '<i class="fas fa-eye-slash" style="color:#ef4444;"></i>';
+            btn.title = newVisible ? '3D Ögeyi Gizle (Tuval ve Çıktıdan Gizlenir)' : '3D Ögeyi Göster (Tuval ve Çıktıya Dahil)';
         }
+
+        if (window.showToast) {
+            window.showToast(newVisible ? '👁️ 3D Öge Görünür (Tuval ve Çıktıya Dahil)' : '🚫 3D Öge Gizlendi (Tuval ve Çıktıda Görünmez)', 'info');
+        }
+
         notifyExternalUpdates();
+        requestRender();
     }
 
     /**
@@ -4697,19 +4761,25 @@
         state.planeElevation = 0;
         state.planeLocalRot = 0;
 
-        // 2. 2D Elemanı Tuvalden Güvenle Gizle
-        root.style.setProperty('display', 'none', 'important');
-        root.style.setProperty('visibility', 'hidden', 'important');
-        root.dataset.convertedTo3D = 'true';
-        if (root !== el) {
-            el.style.setProperty('display', 'none', 'important');
-            el.dataset.convertedTo3D = 'true';
+        // 2. 2D Elemanı Tuvalden Kalıcı Olarak Temizle (Artık doğrudan 3D olarak tuvalde yaşar, duplicate kalmaz)
+        if (root && root.parentNode) {
+            root.remove();
+        } else if (root) {
+            root.style.setProperty('display', 'none', 'important');
+            root.style.setProperty('visibility', 'hidden', 'important');
+            root.dataset.convertedTo3D = 'true';
         }
-        state.source2DEl = root;
-        state.hasBaked = false;
+        if (root !== el && el && el.parentNode) {
+            el.remove();
+        }
+        state.source2DEl = null;
+        state.hasBaked = true;
+        state.visible = true;
         if (typeof window.removeCalloutControls === 'function') {
             window.removeCalloutControls();
         }
+        if (typeof window.selectedCalloutEl !== 'undefined') window.selectedCalloutEl = null;
+        if (typeof window.selectedEl !== 'undefined') window.selectedEl = null;
 
         // 3. Renk Çıkarımı
         let primaryColor = el.dataset.coBgColor || root.dataset.coBgColor || '';
@@ -4830,6 +4900,9 @@
         closeStudio: closeStudio,
         applyPreset: applyPreset,
         bakeToCanvas: bakeToCanvas,
+        prepareForExport: prepareForExport,
+        delete3DElement: delete3DElement,
+        clearScene: delete3DElement,
         resize: resize,
         toggleVisibility: toggleVisibility,
         resetToDefaults: resetToDefaults,

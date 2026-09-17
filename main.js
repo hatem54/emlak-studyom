@@ -1559,6 +1559,11 @@ window.resetEntireWorkspace = function() {
                 const maskLayer = document.getElementById('mask-layer');
                 if (maskLayer) maskLayer.innerHTML = '';
 
+                // 5.1. 3D Ögeyi Tuvalden Temizle
+                if (window.ThreeDEngine && typeof window.ThreeDEngine.delete3DElement === 'function') {
+                    window.ThreeDEngine.delete3DElement();
+                }
+
                 // 6. Tuvaldeki tüm ek nesneleri temizle
                 const container = document.getElementById('canvas-container');
                 if (container) {

@@ -356,8 +356,11 @@ function addIcon(ch){
         icon.style.color='#ffffff';
     }
 
-    const cx = (typeof canvasEl !== 'undefined' && canvasEl) ? canvasEl.offsetWidth / 2 : 540;
-    const cy = (typeof canvasEl !== 'undefined' && canvasEl) ? canvasEl.offsetHeight / 2 : 540;
+    const cContainer = document.getElementById('canvas-container');
+    const cW = (cContainer && parseFloat(cContainer.style.width)) || (cContainer && cContainer.offsetWidth) || (typeof uploadedImgW !== 'undefined' && uploadedImgW > 0 ? uploadedImgW : 1920);
+    const cH = (cContainer && parseFloat(cContainer.style.height)) || (cContainer && cContainer.offsetHeight) || (typeof uploadedImgH !== 'undefined' && uploadedImgH > 0 ? uploadedImgH : 1080);
+    const cx = cW / 2;
+    const cy = cH / 2;
     icon.style.left = (cx - (fSize/2) + (Math.random()*40 - 20)) + 'px';
     icon.style.top = (cy - (fSize/2) + (Math.random()*40 - 20)) + 'px';
     icon.style.fontSize= fSize + 'px';

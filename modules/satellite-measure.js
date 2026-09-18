@@ -17,6 +17,38 @@
         // 📏 ÇOK NOKTALI ARSA ÖLÇÜMÜ, ALAN & CEPHE ANALİZ SİSTEMİ
         // ==========================================
 
+        measureSmartZoomScale: true,  // Harita yakınlaşıp uzaklaştığında rozetlerin arazideki ilk oranını akıllı koruma
+        measureAutoEdgeAngle: true,   // Kenar rozetlerini kenar çizgisi açısıyla otomatik paralel hizalama
+        measureEdgeSelected: false,   // Seçili kenar rozeti var mı
+
+        /**
+         * Harita Zoom Seviyesine Göre Akıllı Rozet Ölçeğini Hesaplar
+         * Haritada daha geniş alana çıkıldığında (zoom out) rozet haritadaki ilk çizilen/ayarlanan
+         * arazideki orantılı boyutunu korur (aşırı büyümez ve komşu parselleri yutmaz).
+         */
+        getEffectiveBadgeScale: function(baseScale, baseZoom) {
+            baseScale = (baseScale !== undefined && !isNaN(baseScale) && baseScale > 0) ? baseScale : 1.0;
+            if (!this.measureSmartZoomScale || !this.map) return baseScale;
+
+            const curZoom = this.map.getZoom();
+            const refZoom = (baseZoom !== undefined && !isNaN(baseZoom)) ? baseZoom : 18;
+            const zoomDelta = curZoom - refZoom;
+
+            // Zoom farkına göre ölçekleme:
+            // zoomDelta < 0 (uzaklaşma): Araziyle tam birebir küçülür (2^zoomDelta)
+            // Böylece rozetler ilk çizildikleri arazideki orantılarını tam korur ve arsadan devasa büyümez.
+            // Alt sınır: 0.12x (yaklaşık 3-4 kademe uzaklaşmaya kadar arazi oranını korur)
+            // zoomDelta > 0 (yakınlaşma): Fazla büyüyüp ekranı tıkamaması için yumuşak artış (maks 1.35x)
+            let zoomFactor = 1.0;
+            if (zoomDelta < 0) {
+                zoomFactor = Math.pow(2, zoomDelta);
+            } else if (zoomDelta > 0) {
+                zoomFactor = Math.min(1.35, Math.pow(1.15, zoomDelta));
+            }
+            const clampedFactor = Math.max(0.12, Math.min(1.5, zoomFactor));
+            return parseFloat((baseScale * clampedFactor).toFixed(2));
+        },
+
         /**
          * Ölçüm Aracını Açar veya Kapatır
          */
@@ -33,6 +65,9 @@
                 this.syncMeasureUI();
                 if (!this.is3DActive) {
                     this.updateMeasureGraphics();
+                }
+                if (typeof this.updateMapModalLayout === 'function') {
+                    this.updateMapModalLayout(true);
                 }
                 return;
             }
@@ -56,6 +91,10 @@
                 if (this.measureActive) {
                     this.restoreMeasurePanelPosition(panel);
                 }
+            }
+
+            if (typeof this.updateMapModalLayout === 'function') {
+                this.updateMapModalLayout(this.measureActive);
             }
 
             this.updateUIModeFor2D3D(this.is3DActive);
@@ -108,6 +147,9 @@
                     }
                     this.updateParcelPolygonStyle();
                 }
+                if (this.map && this.map.dragging) {
+                    this.map.dragging.enable();
+                }
             }
 
             this.saveLastLocation({
@@ -124,6 +166,9 @@
                 panel.style.display = 'none';
             }
             this.measurePanelVisible = false;
+            if (typeof this.updateMapModalLayout === 'function') {
+                this.updateMapModalLayout(false);
+            }
             if (typeof window.showAppToast === 'function') {
                 window.showAppToast('📏 Ölçüm paneli gizlendi. Ölçümler haritada aktif kalır.', 'info');
             }
@@ -202,19 +247,80 @@
                 }
             });
 
-            // 2. Mouse Drag (Sağ Tık Pan veya Ctrl/Space Pan)
+            // 2. Mouse Drag (Sağ Tık Pan veya Ctrl/Space Pan / Gezinme Modu)
             if (mapEl) {
                 mapEl.addEventListener('mousedown', (e) => {
                     if (!this.measureActive) return;
+
+                    // 🎯 Etkileşimli bir harita ögesine (rozet, tutamaç, nokta, pin, kart) tıklandı mı?
+                    const rawTarget = e.target;
+                    const targetEl = (rawTarget && rawTarget.nodeType === 3) ? rawTarget.parentElement : rawTarget;
+                    const itemTarget = (targetEl && targetEl.closest) ? targetEl.closest(`
+                        .sat-measure-area-wrapper,
+                        .sat-measure-total-wrapper,
+                        .sat-measure-edge-wrapper,
+                        .sat-measure-map-badge,
+                        .sat-measure-handle-pin,
+                        .sat-area-handle,
+                        .sat-badge-hide-btn,
+                        .sat-drawing-card,
+                        .sat-measure-floating-panel,
+                        .leaflet-marker-icon,
+                        .leaflet-popup,
+                        .leaflet-control,
+                        #satelliteMapPinOverlay,
+                        #satMapPinOverlay,
+                        .sat-map-pin-overlay
+                    `) : null;
+
+                    if (itemTarget) {
+                        // 🎯 Ögeye tıklandı: Gezinme/harita kaydırması KESİNLİKLE pasif olsun, sadece öge hareket etsin!
+                        this.measureIsNavPanning = false;
+                        this.navDragStart = null;
+                        if (mapEl) mapEl.classList.remove('measure-mode-panning-active');
+                        if (this.map && this.map.dragging) {
+                            this.map.dragging.disable();
+                        }
+
+                        // Eğer tıklanan alan rozeti ise seçimi aktifleştir
+                        const areaWrap = targetEl.closest('.sat-measure-area-wrapper');
+                        if (areaWrap && areaWrap.dataset && areaWrap.dataset.drawingId) {
+                            this.selectMeasureAreaBadge(areaWrap.dataset.drawingId);
+                        }
+                        const totalWrap = targetEl.closest('.sat-measure-total-wrapper');
+                        if (totalWrap && totalWrap.dataset && totalWrap.dataset.drawingId) {
+                            this.selectMeasureTotalBadge(totalWrap.dataset.drawingId);
+                        }
+                        const edgeWrap = targetEl.closest('.sat-measure-edge-wrapper');
+                        if (edgeWrap && edgeWrap.dataset && edgeWrap.dataset.drawingId) {
+                            this.selectMeasureEdgeBadge(edgeWrap.dataset.drawingId, edgeWrap.dataset.edgeIndex);
+                        }
+                        return;
+                    }
+
+                    // 🎯 Boşa tıklandı: Seçimler derhal düşsün ve gezinme aktif olsun!
+                    if (this.measureAreaSelected) {
+                        this.deselectMeasureAreaBadge();
+                    }
+                    if (this.measureTotalBadgeSelected) {
+                        this.deselectMeasureTotalBadge();
+                    }
+                    if (this.measureEdgeSelected) {
+                        this.deselectMeasureEdgeBadge();
+                    }
+
                     const isRightClick = (e.button === 2);
                     const isPanKey = (e.button === 0 && (e.ctrlKey || e.shiftKey || this.isSpacePressed || this.measureInteractionMode === 'pan'));
 
                     if (isRightClick || isPanKey) {
+                        if (this.map && this.map.dragging) {
+                            this.map.dragging.enable();
+                        }
                         this.measureIsNavPanning = true;
                         this.navDragStart = { x: e.clientX, y: e.clientY };
                         mapEl.classList.add('measure-mode-panning-active');
                     }
-                });
+                }, { capture: true });
 
                 window.addEventListener('mousemove', (e) => {
                     if (!this.measureActive || !this.measureIsNavPanning || !this.navDragStart || !this.map) return;
@@ -229,6 +335,10 @@
                         this.measureIsNavPanning = false;
                         this.navDragStart = null;
                         if (mapEl) mapEl.classList.remove('measure-mode-panning-active');
+                    }
+                    // Gezinme modundaysa bir sonraki boşa tıklama için harita dragging'i hazır tut
+                    if (this.measureActive && this.measureInteractionMode === 'pan' && this.map && this.map.dragging) {
+                        this.map.dragging.enable();
                     }
                 });
 
@@ -452,10 +562,9 @@
             const neonToggleBtn = document.getElementById('satMeasureNeonToggleBtn');
             if (neonToggleBtn) {
                 neonToggleBtn.classList.toggle('active', isNeon);
-                const activeNeonColor = this.parcelStrokeColor || '#00CEC9';
-                neonToggleBtn.style.borderColor = isNeon ? activeNeonColor : '#475569';
-                neonToggleBtn.style.color = isNeon ? activeNeonColor : '#94a3b8';
-                neonToggleBtn.style.boxShadow = isNeon ? `0 0 10px ${activeNeonColor}55` : 'none';
+                neonToggleBtn.style.borderColor = '';
+                neonToggleBtn.style.color = '';
+                neonToggleBtn.style.boxShadow = '';
                 neonToggleBtn.innerHTML = `<i class="fas fa-bolt"></i> Neon: <b>${isNeon ? 'Açık' : 'Kapalı'}</b>`;
             }
 
@@ -786,6 +895,7 @@
                     areaM2: this.measureAreaM2 || 0,
                     perimeterMeters: this.measurePerimeterMeters || 0,
                     markers: Array.isArray(this.measureMarkers) ? this.measureMarkers : [],
+                    baseZoom: (this.map ? this.map.getZoom() : 18),
                     lines: Array.isArray(this.measureLines) ? this.measureLines : [],
                     polygonLayer: this.measurePolygonLayer || null,
                     badgeMarkers: Array.isArray(this.measureBadgeMarkers) ? this.measureBadgeMarkers : [],
@@ -884,6 +994,7 @@
                 distanceMeters: 0,
                 areaM2: 0,
                 perimeterMeters: 0,
+                baseZoom: options.baseZoom || (this.map ? this.map.getZoom() : 18),
                 markers: [],
                 lines: [],
                 polygonLayer: null,
@@ -1108,6 +1219,7 @@
             }
             drawing.points = cleanPts;
             drawing.isClosed = true;
+            drawing.baseZoom = (this.map && typeof this.map.getZoom === 'function') ? this.map.getZoom() : 18;
             this.updateMeasureGraphics();
             this.renderDrawingsListUI();
             if (this.map) {
@@ -1345,7 +1457,7 @@
                             ${hasParcel ? `
                             <div class="sat-measure-actions-bar full-row" style="margin-bottom:4px;">
                                 <button type="button" class="sat-measure-act-btn snap-all" onclick="window.snapSatelliteDrawingToParcel('${drawing.id}')" title="Yüklü parselin tüm sınırlarını bu çizime kilitler">
-                                    <i class="fas fa-vector-square"></i> <span>📐 Tüm Parseli Çevrele</span>
+                                    <i class="fas fa-vector-square"></i> <span>Parseli Çevrele</span>
                                 </button>
                             </div>` : ''}
 
@@ -1388,10 +1500,10 @@
                                 </div>
                             </div>
 
-                            <!-- Hızlı Metin Şablonları -->
+                            <!-- Hızlı Metin Şablonları (3x2 Dengeli Izgara) -->
                             <div class="sat-measure-row" style="margin-bottom:4px;">
                                 <label class="sat-measure-label">Etiket Şablonu:</label>
-                                <div class="sat-measure-chips">
+                                <div class="sat-measure-chips-grid-3">
                                     <button type="button" class="sat-measure-chip ${drawing.preset === 'frontage' ? 'active' : ''}" onclick="window.setSatelliteDrawingPreset('${drawing.id}', 'frontage')">Yola Cephe</button>
                                     <button type="button" class="sat-measure-chip ${drawing.preset === 'road_dist' ? 'active' : ''}" onclick="window.setSatelliteDrawingPreset('${drawing.id}', 'road_dist')">Yola Mesafe</button>
                                     <button type="button" class="sat-measure-chip ${drawing.preset === 'front' ? 'active' : ''}" onclick="window.setSatelliteDrawingPreset('${drawing.id}', 'front')">Ön Cephe</button>
@@ -1408,30 +1520,48 @@
 
                             <!-- Arsa Alanı Gösterimi (Eğer 3+ nokta ve kapalıysa) -->
                             ${isClosed && pts.length >= 3 ? `
-                            <div class="sat-measure-row" style="margin-bottom:4px;">
+                            <div class="sat-measure-opt-section">
                                 <div class="sat-measure-sub-row">
-                                    <label class="sat-measure-label">Alan Rozeti:</label>
-                                    <div class="sat-measure-chips">
-                                        <button type="button" class="sat-measure-chip ${drawing.areaDisplayMode === 'frameless' ? 'active' : ''}" onclick="window.setSatelliteDrawingAreaDisplayMode('${drawing.id}', 'frameless')">✨ Çerçevesiz</button>
-                                        <button type="button" class="sat-measure-chip ${drawing.areaDisplayMode === 'box' ? 'active' : ''}" onclick="window.setSatelliteDrawingAreaDisplayMode('${drawing.id}', 'box')">🏷️ Kutulu</button>
+                                    <label class="sat-measure-label" style="font-weight:700;"><i class="fas fa-tag" style="margin-right:4px; opacity:0.8;"></i> Alan Rozeti:</label>
+                                    <div class="sat-measure-style-pills" style="max-width:210px;">
+                                        <button type="button" class="sat-measure-style-btn ${drawing.areaDisplayMode === 'frameless' ? 'active' : ''}" onclick="window.setSatelliteDrawingAreaDisplayMode('${drawing.id}', 'frameless')">✨ Çerçevesiz</button>
+                                        <button type="button" class="sat-measure-style-btn ${drawing.areaDisplayMode === 'box' ? 'active' : ''}" onclick="window.setSatelliteDrawingAreaDisplayMode('${drawing.id}', 'box')">🏷️ Kutulu</button>
                                     </div>
                                 </div>
-                                <div class="sat-measure-chips" style="margin-top: 3px;">
-                                    <button type="button" class="sat-measure-chip ${drawing.areaContentMode === 'm2_only' ? 'active' : ''}" onclick="window.setSatelliteDrawingAreaContentMode('${drawing.id}', 'm2_only')">Sadece m²</button>
-                                    <button type="button" class="sat-measure-chip ${drawing.areaContentMode === 'm2_donum' ? 'active' : ''}" onclick="window.setSatelliteDrawingAreaContentMode('${drawing.id}', 'm2_donum')">m² + Dönüm</button>
-                                    <button type="button" class="sat-measure-chip ${drawing.areaContentMode === 'detailed' ? 'active' : ''}" onclick="window.setSatelliteDrawingAreaContentMode('${drawing.id}', 'detailed')">Detaylı (+Çevre)</button>
+                                <div class="sat-measure-style-pills">
+                                    <button type="button" class="sat-measure-style-btn ${drawing.areaContentMode === 'm2_only' ? 'active' : ''}" onclick="window.setSatelliteDrawingAreaContentMode('${drawing.id}', 'm2_only')">Sadece m²</button>
+                                    <button type="button" class="sat-measure-style-btn ${drawing.areaContentMode === 'm2_donum' ? 'active' : ''}" onclick="window.setSatelliteDrawingAreaContentMode('${drawing.id}', 'm2_donum')">m² + Dönüm</button>
+                                    <button type="button" class="sat-measure-style-btn ${drawing.areaContentMode === 'detailed' ? 'active' : ''}" onclick="window.setSatelliteDrawingAreaContentMode('${drawing.id}', 'detailed')">Detaylı</button>
                                 </div>
                             </div>` : ''}
 
-                            <!-- Gösterim Seçenekleri (Ayrı Kenarlar, Toplam Mesafe, Arsa m², Köşeler) -->
-                            <div class="sat-measure-row">
+                            <!-- Gösterim & Katman Seçenekleri -->
+                            <div class="sat-measure-row" style="gap:5px; margin-top:3px;">
+                                <!-- Mesafe Modu -->
                                 <div class="sat-measure-sub-row">
-                                    <label class="sat-measure-label">Gösterim:</label>
-                                    <div class="sat-measure-chips">
-                                        <button type="button" class="sat-measure-chip ${drawing.distanceMode !== 'total' && drawing.distanceMode !== 'none' && drawing.showEdgeDistances !== false ? 'active' : ''}" onclick="window.setSatelliteDrawingDistanceDisplay('${drawing.id}', 'edges')" title="Her iki köşe arasındaki mesafeleri ayrı ayrı gösterir">📏 Ayrı Kenarlar</button>
-                                        <button type="button" class="sat-measure-chip ${drawing.distanceMode === 'total' ? 'active' : ''}" onclick="window.setSatelliteDrawingDistanceDisplay('${drawing.id}', 'total')" title="Tüm hattın toplam mesafesini tek rozet olarak gösterir">∑ Toplam Mesafe</button>
-                                        <button type="button" class="sat-measure-chip ${drawing.showArea !== false ? 'active' : ''}" onclick="window.toggleSatelliteDrawingAreaBadge('${drawing.id}')">🏷️ Arsa m²</button>
-                                        <button type="button" class="sat-measure-chip ${drawing.showHandles !== false ? 'active' : ''}" onclick="window.toggleSatelliteDrawingHandles('${drawing.id}')">📍 Köşeler</button>
+                                    <label class="sat-measure-label" style="min-width:65px;">Mesafe:</label>
+                                    <div class="sat-measure-style-pills">
+                                        <button type="button" class="sat-measure-style-btn ${drawing.distanceMode !== 'total' && drawing.distanceMode !== 'none' && drawing.showEdgeDistances !== false ? 'active' : ''}" onclick="window.setSatelliteDrawingDistanceDisplay('${drawing.id}', 'edges')" title="Her iki köşe arasındaki mesafeleri ayrı ayrı gösterir">📏 Ayrı Kenarlar</button>
+                                        <button type="button" class="sat-measure-style-btn ${drawing.distanceMode === 'total' ? 'active' : ''}" onclick="window.setSatelliteDrawingDistanceDisplay('${drawing.id}', 'total')" title="Tüm hattın toplam mesafesini tek rozet olarak gösterir">∑ Toplam Mesafe</button>
+                                    </div>
+                                </div>
+
+                                <!-- Görünüm Seçenekleri -->
+                                <div class="sat-measure-sub-row">
+                                    <label class="sat-measure-label" style="min-width:65px;">Görünüm:</label>
+                                    <div class="sat-measure-style-pills">
+                                        ${isClosed && pts.length >= 3 ? `
+                                        <button type="button" class="sat-measure-style-btn ${drawing.showArea !== false ? 'active' : ''}" onclick="window.toggleSatelliteDrawingAreaBadge('${drawing.id}')" title="Arsa alan rozetini haritada göster/gizle">🏷️ Arsa m²</button>` : ''}
+                                        <button type="button" class="sat-measure-style-btn ${drawing.showHandles !== false ? 'active' : ''}" onclick="window.toggleSatelliteDrawingHandles('${drawing.id}')" title="Köşe sürükleme tutamaçlarını haritada göster/gizle">📍 Köşeler</button>
+                                    </div>
+                                </div>
+
+                                <!-- Akıllı Rozet Ayarları -->
+                                <div class="sat-measure-sub-row">
+                                    <label class="sat-measure-label" style="min-width:65px;">Akıllı Ayar:</label>
+                                    <div class="sat-measure-style-pills">
+                                        <button type="button" class="sat-measure-style-btn ${this.measureSmartZoomScale !== false ? 'active' : ''}" onclick="window.toggleSatelliteSmartZoomScale()" title="Uzaklaşınca butonların arsayı kaplamasını engeller, araziye göre orantılı ölçekler">🔍 Akıllı Boyut</button>
+                                        <button type="button" class="sat-measure-style-btn ${this.measureAutoEdgeAngle !== false ? 'active' : ''}" onclick="window.toggleSatelliteAutoEdgeAngle()" title="Kenar metrelerini otomatik olarak çizgiye paralel hizalar">📐 Paralel Açı</button>
                                     </div>
                                 </div>
                             </div>
@@ -1441,6 +1571,12 @@
             });
 
             listEl.innerHTML = html;
+
+            // Üstteki butonların durumunu senkronize et
+            const szBtn = document.getElementById('satSmartZoomToggleBtn');
+            if (szBtn) szBtn.classList.toggle('active', this.measureSmartZoomScale !== false);
+            const aaBtn = document.getElementById('satAutoAngleToggleBtn');
+            if (aaBtn) aaBtn.classList.toggle('active', this.measureAutoEdgeAngle !== false);
         },
 
         /**
@@ -1452,6 +1588,9 @@
             const active = this.getActiveDrawing();
             if (!active.points) active.points = [];
             active.points.push(L.latLng(latlng.lat, latlng.lng));
+            if (!active.baseZoom) {
+                active.baseZoom = (this.map && typeof this.map.getZoom === 'function') ? this.map.getZoom() : 18;
+            }
 
             // 3 veya daha fazla nokta olduğunda ve daha önce kapatılmamışsa alan moduna al
             if (active.points.length >= 3 && active.isClosed === undefined) {
@@ -1473,6 +1612,9 @@
             if (!drawing || !drawing.points || !latlng) return;
             const insertIdx = Math.max(0, Math.min(drawing.points.length, index));
             drawing.points.splice(insertIdx, 0, L.latLng(latlng.lat, latlng.lng));
+            if (!drawing.baseZoom) {
+                drawing.baseZoom = (this.map && typeof this.map.getZoom === 'function') ? this.map.getZoom() : 18;
+            }
             this.updateMeasureGraphics();
             this.renderDrawingsListUI();
             this.saveLastLocation({
@@ -1804,6 +1946,11 @@
                 const isClosed = drawing.isClosed && (pts.length >= 3);
                 const isActive = (drawing.id === this.activeDrawingId);
 
+                // Çizim oluşturulduğundaki veya mevcut harita zoom seviyesini referans olarak sabitle
+                if (pts.length >= 1 && !drawing.baseZoom) {
+                    drawing.baseZoom = (this.map && typeof this.map.getZoom === 'function') ? this.map.getZoom() : 18;
+                }
+
                 drawing.perimeterMeters = pts.length >= 2 ? this.calculatePolygonPerimeter(pts, isClosed) : 0;
                 drawing.areaM2 = isClosed ? this.calculateGeodesicPolygonArea(pts) : 0;
                 drawing.distanceMeters = pts.length === 2 ? pts[0].distanceTo(pts[1]) : drawing.perimeterMeters;
@@ -1819,10 +1966,14 @@
                         const rm = drawing.markers.pop();
                         if (rm && this.map.hasLayer(rm)) this.map.removeLayer(rm);
                     }
+                    const curZoom = (this.map && typeof this.map.getZoom === 'function') ? this.map.getZoom() : 18;
+                    const handleDelta = curZoom - (drawing.baseZoom || 18);
+                    const handleScale = handleDelta < -1 ? Math.max(0.65, Math.pow(2, handleDelta + 1)) : 1.0;
+
                     pts.forEach((p, idx) => {
                         const label = `${idx + 1}`;
                         if (!drawing.markers[idx]) {
-                            drawing.markers[idx] = this.createMeasureHandleMarker(p, label, idx, color, drawing.id);
+                            drawing.markers[idx] = this.createMeasureHandleMarker(p, label, idx, color, drawing.id, handleScale);
                             if (drawing.showHandles !== false) {
                                 drawing.markers[idx].addTo(this.map);
                             }
@@ -1830,7 +1981,7 @@
                             drawing.markers[idx].setLatLng(p);
                             drawing.markers[idx]._pointIndex = idx;
                             drawing.markers[idx]._drawingId = drawing.id;
-                            this.updateMeasureHandleMarkerContent(drawing.markers[idx], label, color);
+                            this.updateMeasureHandleMarkerContent(drawing.markers[idx], label, color, handleScale);
                             if (drawing.showHandles !== false) {
                                 if (!this.map.hasLayer(drawing.markers[idx])) {
                                     drawing.markers[idx].addTo(this.map);
@@ -1908,6 +2059,20 @@
                             }
                         }
 
+                        // Kenar ekran piksel uzunluğu
+                        let edgePxLen = 999;
+                        if (this.map && pA && pB) {
+                            const ptA = this.map.latLngToContainerPoint(pA);
+                            const ptB = this.map.latLngToContainerPoint(pB);
+                            edgePxLen = Math.hypot(ptB.x - ptA.x, ptB.y - ptA.y);
+                        }
+
+                        const customScale = (drawing.badgeScales && (drawing.badgeScales[i] !== undefined || drawing.badgeScales[String(i)] !== undefined))
+                            ? (drawing.badgeScales[i] !== undefined ? drawing.badgeScales[i] : drawing.badgeScales[String(i)])
+                            : 1.0;
+                        const baseZoom = (drawing.badgeBaseZooms && (drawing.badgeBaseZooms[i] !== undefined ? drawing.badgeBaseZooms[i] : drawing.badgeBaseZooms[String(i)])) || drawing.baseZoom || 18;
+                        const effectiveScale = this.getEffectiveBadgeScale(customScale, baseZoom);
+
                         // Segment Rozeti
                         const isEdgeHidden = (drawing.distanceMode === 'total') || (drawing.distanceMode === 'none') || (drawing.showEdgeDistances === false) || !!(drawing.hiddenEdges && drawing.hiddenEdges[i]);
                         if (isEdgeHidden) {
@@ -1926,19 +2091,48 @@
                             const edgeFontSize = this.measureEdgeFontSize || 12;
                             const fontFamily = this.measureFontFamily || 'Montserrat';
 
+                            // 🔄 Çizgi Açısına Otomatik Paralel Hizalama
+                            let autoAngle = 0;
+                            if (pA && pB && this.map) {
+                                const ptA = this.map.latLngToContainerPoint(pA);
+                                const ptB = this.map.latLngToContainerPoint(pB);
+                                autoAngle = Math.round(Math.atan2(ptB.y - ptA.y, ptB.x - ptA.x) * (180 / Math.PI));
+                                if (autoAngle > 90) autoAngle -= 180;
+                                if (autoAngle < -90) autoAngle += 180;
+                            }
+
+                            const customRot = (drawing.badgeRotations && (drawing.badgeRotations[i] !== undefined || drawing.badgeRotations[String(i)] !== undefined))
+                                ? (drawing.badgeRotations[i] !== undefined ? drawing.badgeRotations[i] : drawing.badgeRotations[String(i)])
+                                : null;
+                            const rot = (customRot !== null) ? customRot : (this.measureAutoEdgeAngle !== false ? autoAngle : 0);
+
+                            const isSelected = !!(drawing.selectedEdgeIndex === i && this.activeDrawingId === drawing.id);
+
                             const badgeHtml = `
-                                <div class="sat-measure-map-badge style-${drawing.style || 'cad'}" style="border-color:${color}; font-family:'${fontFamily}', sans-serif; font-size:${edgeFontSize}px;" title="${this.escapeHtml(drawing.title)}: Sürükleyerek taşıyabilirsiniz (Kaldırmak için ✕'e tıklayın)">
-                                    <span class="sat-badge-icon" style="color:${color}; font-size:${Math.round(edgeFontSize * 0.9)}px;"><i class="fas fa-ruler"></i></span>
-                                    <span class="sat-badge-text">${badgeLabel}</span>
-                                    <button type="button" class="sat-badge-hide-btn" onclick="window.toggleSatelliteDrawingSingleEdge('${drawing.id}', ${i}, event)" title="Bu kenar metresini kaldır">✕</button>
+                                <div class="sat-measure-edge-wrapper ${isSelected ? 'is-selected' : ''}" data-drawing-id="${drawing.id}" data-edge-index="${i}" style="transform: rotate(${rot}deg) scale(${effectiveScale}); transform-origin: center center;">
+                                    <div class="sat-measure-map-badge style-${drawing.style || 'cad'}" style="border-color:${color}; font-family:'${fontFamily}', sans-serif; font-size:${edgeFontSize}px;" title="${this.escapeHtml(drawing.title)}: Kenar ${i+1} Mesafesi (Tıklayınca tutamaçlar açılır, sürükleyerek taşıyabilirsiniz)">
+                                        <span class="sat-badge-icon" style="color:${color}; font-size:${Math.round(edgeFontSize * 0.9)}px;"><i class="fas fa-ruler"></i></span>
+                                        <span class="sat-badge-text">${badgeLabel}</span>
+                                        <button type="button" class="sat-badge-hide-btn" onclick="window.toggleSatelliteDrawingSingleEdge('${drawing.id}', ${i}, event)" title="Bu kenar metresini kaldır">✕</button>
+                                    </div>
+                                    <div class="sat-area-select-border"></div>
+                                    <div class="sat-area-handle sat-area-rotate-handle" title="Döndür / Yön Ver">
+                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#00d2ff" stroke-width="2.5" style="pointer-events:none;"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.22-10.27l-5.3 5.3"></path></svg>
+                                    </div>
+                                    <div class="sat-area-handle sat-area-resize-handle" title="Büyüt / Küçült">
+                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#00d2ff" stroke-width="2.5" style="pointer-events:none;"><path d="M21 15v6h-6M3 9V3h6M21 21l-7-7M3 3l7 7"></path></svg>
+                                    </div>
+                                    <div class="sat-area-handle sat-area-delete-handle" title="Gizle">
+                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#f43f5e" stroke-width="2.5" style="pointer-events:none;"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                                    </div>
                                 </div>
                             `;
 
                             const badgeIcon = L.divIcon({
-                                className: 'sat-measure-badge-divicon',
+                                className: 'sat-measure-badge-divicon sat-measure-edge-divicon',
                                 html: badgeHtml,
-                                iconSize: [160, 40],
-                                iconAnchor: [80, 20]
+                                iconSize: [220, 60],
+                                iconAnchor: [110, 30]
                             });
 
                             if (!drawing.badgeMarkers[i]) {
@@ -1960,36 +2154,74 @@
                                     }
                                 };
 
+                                badgeMarker.on('dragstart', () => {
+                                    this.measureIsNavPanning = false;
+                                    this.navDragStart = null;
+                                    if (this.map && this.map.dragging) this.map.dragging.disable();
+                                });
                                 badgeMarker.on('drag', (e) => {
                                     badgeMarker._hasBeenDragged = true;
                                     updateEdgeBadgePos(e.target.getLatLng());
                                 });
                                 badgeMarker.on('dragend', (e) => {
                                     badgeMarker._hasBeenDragged = true;
+                                    this.measureIsNavPanning = false;
+                                    this.navDragStart = null;
+                                    const curZoom = (this.map && typeof this.map.getZoom === 'function') ? this.map.getZoom() : 18;
+                                    const targetD = this.measureDrawings.find(x => x.id === dId);
+                                    if (targetD) {
+                                        targetD.baseZoom = curZoom;
+                                        targetD.badgeBaseZooms = targetD.badgeBaseZooms || {};
+                                        targetD.badgeBaseZooms[edgeIdx] = curZoom;
+                                        targetD.badgeBaseZooms[String(edgeIdx)] = curZoom;
+                                    }
                                     updateEdgeBadgePos(e.target.getLatLng());
+                                    this.updateMeasureGraphics();
                                     this.saveLastLocation({ measureData: this.getMeasureDataToSave() });
+                                    if (this.measureActive && this.measureInteractionMode === 'pan' && this.map && this.map.dragging) {
+                                        this.map.dragging.enable();
+                                    }
                                 });
                                 badgeMarker.on('dblclick', (e) => {
                                     L.DomEvent.stopPropagation(e);
                                     badgeMarker._hasBeenDragged = false;
                                     const targetD = this.measureDrawings.find(x => x.id === dId);
-                                    if (targetD && targetD.badgeCustomPositions) {
-                                        delete targetD.badgeCustomPositions[edgeIdx];
-                                        delete targetD.badgeCustomPositions[String(edgeIdx)];
+                                    if (targetD) {
+                                        if (targetD.badgeCustomPositions) {
+                                            delete targetD.badgeCustomPositions[edgeIdx];
+                                            delete targetD.badgeCustomPositions[String(edgeIdx)];
+                                        }
+                                        if (targetD.badgeRotations) {
+                                            delete targetD.badgeRotations[edgeIdx];
+                                            delete targetD.badgeRotations[String(edgeIdx)];
+                                        }
+                                        if (targetD.badgeScales) {
+                                            delete targetD.badgeScales[edgeIdx];
+                                            delete targetD.badgeScales[String(edgeIdx)];
+                                        }
+                                        if (targetD.badgeBaseZooms) {
+                                            delete targetD.badgeBaseZooms[edgeIdx];
+                                            delete targetD.badgeBaseZooms[String(edgeIdx)];
+                                        }
                                     }
                                     this.updateMeasureGraphics();
+                                    if (typeof window.showAppToast === 'function') {
+                                        window.showAppToast(`🔄 Kenar ${edgeIdx + 1} konumu ve açısı sıfırlandı.`, 'info');
+                                    }
                                 });
                                 badgeMarker.on('click', (e) => {
                                     L.DomEvent.stopPropagation(e);
                                     if (this.activeDrawingId !== dId) {
                                         this.selectDrawing(dId);
                                     }
+                                    this.selectMeasureEdgeBadge(dId, edgeIdx);
                                 });
 
                                 if (customBadgePos) {
                                     badgeMarker._hasBeenDragged = true;
                                 }
                                 drawing.badgeMarkers[i] = badgeMarker;
+                                this.attachMeasureEdgeBadgeListeners(badgeMarker, drawing.id, edgeIdx);
                             } else {
                                 if (!this.map.hasLayer(drawing.badgeMarkers[i])) {
                                     drawing.badgeMarkers[i].addTo(this.map);
@@ -1999,6 +2231,7 @@
                                 }
                                 drawing.badgeMarkers[i].setLatLng(badgePos);
                                 drawing.badgeMarkers[i].setIcon(badgeIcon);
+                                this.attachMeasureEdgeBadgeListeners(drawing.badgeMarkers[i], drawing.id, i);
                             }
                         }
                     }
@@ -2015,10 +2248,12 @@
 
                     const isSelected = !!drawing.totalBadgeSelected;
                     const rot = drawing.totalBadgeRotation || 0;
-                    const scale = drawing.totalBadgeScale || 1.0;
+                    const customScale = drawing.totalBadgeScale || 1.0;
+                    const totalBaseZoom = drawing.totalBadgeBaseZoom || drawing.baseZoom || 18;
+                    const effectiveScale = this.getEffectiveBadgeScale(customScale, totalBaseZoom);
 
                     const totalBadgeHtml = `
-                        <div class="sat-measure-total-wrapper ${isSelected ? 'is-selected' : ''}" data-drawing-id="${drawing.id}" style="transform: rotate(${rot}deg) scale(${scale}); transform-origin: center center;">
+                        <div class="sat-measure-total-wrapper ${isSelected ? 'is-selected' : ''}" data-drawing-id="${drawing.id}" style="transform: rotate(${rot}deg) scale(${effectiveScale}); transform-origin: center center;">
                             <div class="sat-measure-map-badge sat-measure-total-badge style-${drawing.style || 'cad'}" style="border-color:${color}; font-family:'${fontFamily}', sans-serif; font-size:${edgeFontSize}px;" title="${this.escapeHtml(drawing.title)}: Toplam Mesafe (Tıklayınca tutamaçlar açılır, sürükleyerek taşıyabilirsiniz)">
                                 <span class="sat-badge-icon" style="color:${color}; font-size:${Math.round(edgeFontSize * 0.9)}px;"><i class="fas fa-arrows-left-right-to-line"></i></span>
                                 <span class="sat-badge-text">${badgeLabel}</span>
@@ -2051,6 +2286,11 @@
                         }).addTo(this.map);
 
                         const dId = drawing.id;
+                        tMarker.on('dragstart', () => {
+                            this.measureIsNavPanning = false;
+                            this.navDragStart = null;
+                            if (this.map && this.map.dragging) this.map.dragging.disable();
+                        });
                         tMarker.on('drag', (e) => {
                             tMarker._hasBeenDragged = true;
                             const targetD = this.measureDrawings.find(x => x.id === dId);
@@ -2058,9 +2298,20 @@
                         });
                         tMarker.on('dragend', (e) => {
                             tMarker._hasBeenDragged = true;
+                            this.measureIsNavPanning = false;
+                            this.navDragStart = null;
+                            const curZoom = (this.map && typeof this.map.getZoom === 'function') ? this.map.getZoom() : 18;
                             const targetD = this.measureDrawings.find(x => x.id === dId);
-                            if (targetD) targetD.totalBadgeCustomPos = e.target.getLatLng();
+                            if (targetD) {
+                                targetD.baseZoom = curZoom;
+                                targetD.totalBadgeBaseZoom = curZoom;
+                                targetD.totalBadgeCustomPos = e.target.getLatLng();
+                            }
+                            this.updateMeasureGraphics();
                             this.saveLastLocation({ measureData: this.getMeasureDataToSave() });
+                            if (this.measureActive && this.measureInteractionMode === 'pan' && this.map && this.map.dragging) {
+                                this.map.dragging.enable();
+                            }
                         });
                         tMarker.on('dblclick', (e) => {
                             L.DomEvent.stopPropagation(e);
@@ -2154,10 +2405,12 @@
                             const isFrameless = (areaDisplayMode === 'frameless');
                             const isSelected = !!drawing.areaSelected;
                             const rot = drawing.areaRotation || 0;
-                            const scale = drawing.areaScale || 1.0;
+                            const customScale = drawing.areaScale || 1.0;
+                            const areaBaseZoom = drawing.areaBaseZoom || drawing.baseZoom || 18;
+                            const effectiveScale = this.getEffectiveBadgeScale(customScale, areaBaseZoom);
 
                             const areaBadgeHtml = `
-                                <div class="sat-measure-area-wrapper ${isSelected ? 'is-selected' : ''}" data-drawing-id="${drawing.id}" style="transform: rotate(${rot}deg) scale(${scale}); transform-origin: center center;">
+                                <div class="sat-measure-area-wrapper ${isSelected ? 'is-selected' : ''}" data-drawing-id="${drawing.id}" style="transform: rotate(${rot}deg) scale(${effectiveScale}); transform-origin: center center;">
                                     <div class="sat-measure-area-map-badge ${isFrameless ? 'frameless' : ''}" style="${isFrameless ? '' : `border-color:${color};`} font-family:'${fontFamily}', sans-serif;" title="${this.escapeHtml(drawing.title)} Alanı: Tıklayınca tutamaçlar açılır, sürükleyerek taşıyabilirsiniz">
                                         <div class="area-title" style="font-size:${areaFontSize}px;">
                                             ${isFrameless ? '' : `<i class="fas fa-vector-square" style="color:${color};"></i> `}<span>${titleText}</span>
@@ -2192,6 +2445,11 @@
                                 }).addTo(this.map);
 
                                 const dId = drawing.id;
+                                aMarker.on('dragstart', () => {
+                                    this.measureIsNavPanning = false;
+                                    this.navDragStart = null;
+                                    if (this.map && this.map.dragging) this.map.dragging.disable();
+                                });
                                 aMarker.on('drag', (e) => {
                                     aMarker._hasBeenDragged = true;
                                     const targetD = this.measureDrawings.find(x => x.id === dId);
@@ -2199,9 +2457,20 @@
                                 });
                                 aMarker.on('dragend', (e) => {
                                     aMarker._hasBeenDragged = true;
+                                    this.measureIsNavPanning = false;
+                                    this.navDragStart = null;
+                                    const curZoom = (this.map && typeof this.map.getZoom === 'function') ? this.map.getZoom() : 18;
                                     const targetD = this.measureDrawings.find(x => x.id === dId);
-                                    if (targetD) targetD.areaBadgeCustomPos = e.target.getLatLng();
+                                    if (targetD) {
+                                        targetD.baseZoom = curZoom;
+                                        targetD.areaBaseZoom = curZoom;
+                                        targetD.areaBadgeCustomPos = e.target.getLatLng();
+                                    }
+                                    this.updateMeasureGraphics();
                                     this.saveLastLocation({ measureData: this.getMeasureDataToSave() });
+                                    if (this.measureActive && this.measureInteractionMode === 'pan' && this.map && this.map.dragging) {
+                                        this.map.dragging.enable();
+                                    }
                                 });
                                 aMarker.on('dblclick', (e) => {
                                     L.DomEvent.stopPropagation(e);
@@ -2211,6 +2480,7 @@
                                         targetD.areaBadgeCustomPos = null;
                                         targetD.areaRotation = 0;
                                         targetD.areaScale = 1.0;
+                                        targetD.areaBaseZoom = this.map ? this.map.getZoom() : 17;
                                     }
                                     this.updateMeasureGraphics();
                                     if (typeof window.showAppToast === 'function') {
@@ -2331,11 +2601,22 @@
                     e.preventDefault();
                     L.DomEvent.stopPropagation(e);
 
+                    self.measureIsNavPanning = false;
+                    self.navDragStart = null;
+                    if (self.map && self.map.dragging) {
+                        self.map.dragging.disable();
+                    }
+
                     if (aMarker.dragging && typeof aMarker.dragging.disable === 'function') {
                         aMarker.dragging.disable();
                     }
 
                     const targetD = self.measureDrawings.find(x => x.id === dId);
+                    const curZoom = (self.map && typeof self.map.getZoom === 'function') ? self.map.getZoom() : 18;
+                    if (targetD) {
+                        targetD.baseZoom = curZoom;
+                        targetD.areaBaseZoom = curZoom;
+                    }
                     const evt = e.touches ? e.touches[0] : e;
                     const rect = wrapper.getBoundingClientRect();
                     const centerX = rect.left + rect.width / 2;
@@ -2358,7 +2639,9 @@
                         if (targetD) targetD.areaRotation = newRot;
                         self.measureAreaRotation = newRot;
                         const curScale = targetD ? (targetD.areaScale || 1.0) : 1.0;
-                        wrapper.style.transform = `rotate(${newRot}deg) scale(${curScale})`;
+                        const curBaseZoom = targetD ? (targetD.areaBaseZoom || targetD.baseZoom || 18) : 18;
+                        const effScale = self.getEffectiveBadgeScale(curScale, curBaseZoom);
+                        wrapper.style.transform = `rotate(${newRot}deg) scale(${effScale})`;
                     };
 
                     const onUp = () => {
@@ -2371,6 +2654,10 @@
                         if (aMarker.dragging && typeof aMarker.dragging.enable === 'function') {
                             aMarker.dragging.enable();
                         }
+                        if (self.measureActive && self.measureInteractionMode === 'pan' && self.map && self.map.dragging) {
+                            self.map.dragging.enable();
+                        }
+                        self.updateMeasureGraphics();
                         self.saveLastLocation({ measureData: self.getMeasureDataToSave() });
                     };
 
@@ -2381,6 +2668,7 @@
                 };
 
                 rotHandle.addEventListener('pointerdown', onRotDown);
+                rotHandle.addEventListener('mousedown', (e) => { e.stopPropagation(); L.DomEvent.stopPropagation(e); });
                 rotHandle.addEventListener('touchstart', onRotDown, { passive: false });
             }
 
@@ -2391,11 +2679,22 @@
                     e.preventDefault();
                     L.DomEvent.stopPropagation(e);
 
+                    self.measureIsNavPanning = false;
+                    self.navDragStart = null;
+                    if (self.map && self.map.dragging) {
+                        self.map.dragging.disable();
+                    }
+
                     if (aMarker.dragging && typeof aMarker.dragging.disable === 'function') {
                         aMarker.dragging.disable();
                     }
 
                     const targetD = self.measureDrawings.find(x => x.id === dId);
+                    const curZoom = (self.map && typeof self.map.getZoom === 'function') ? self.map.getZoom() : 18;
+                    if (targetD) {
+                        targetD.baseZoom = curZoom;
+                        targetD.areaBaseZoom = curZoom;
+                    }
                     const evt = e.touches ? e.touches[0] : e;
                     const rect = wrapper.getBoundingClientRect();
                     const centerX = rect.left + rect.width / 2;
@@ -2414,7 +2713,8 @@
                         if (targetD) targetD.areaScale = newScale;
                         self.measureAreaScale = newScale;
                         const curRot = targetD ? (targetD.areaRotation || 0) : 0;
-                        wrapper.style.transform = `rotate(${curRot}deg) scale(${newScale})`;
+                        const effScale = self.getEffectiveBadgeScale(newScale, curZoom);
+                        wrapper.style.transform = `rotate(${curRot}deg) scale(${effScale})`;
                     };
 
                     const onUp = () => {
@@ -2426,6 +2726,10 @@
                         if (aMarker.dragging && typeof aMarker.dragging.enable === 'function') {
                             aMarker.dragging.enable();
                         }
+                        if (self.measureActive && self.measureInteractionMode === 'pan' && self.map && self.map.dragging) {
+                            self.map.dragging.enable();
+                        }
+                        self.updateMeasureGraphics();
                         self.saveLastLocation({ measureData: self.getMeasureDataToSave() });
                     };
 
@@ -2436,6 +2740,7 @@
                 };
 
                 resHandle.addEventListener('pointerdown', onResDown);
+                resHandle.addEventListener('mousedown', (e) => { e.stopPropagation(); L.DomEvent.stopPropagation(e); });
                 resHandle.addEventListener('touchstart', onResDown, { passive: false });
             }
 
@@ -2450,6 +2755,7 @@
                 };
 
                 delHandle.addEventListener('pointerdown', (e) => { e.stopPropagation(); L.DomEvent.stopPropagation(e); });
+                delHandle.addEventListener('mousedown', (e) => { e.stopPropagation(); L.DomEvent.stopPropagation(e); });
                 delHandle.addEventListener('touchstart', (e) => { e.stopPropagation(); L.DomEvent.stopPropagation(e); }, { passive: false });
                 delHandle.addEventListener('click', onDelAction);
             }
@@ -2521,11 +2827,22 @@
                     e.preventDefault();
                     L.DomEvent.stopPropagation(e);
 
+                    self.measureIsNavPanning = false;
+                    self.navDragStart = null;
+                    if (self.map && self.map.dragging) {
+                        self.map.dragging.disable();
+                    }
+
                     if (tMarker.dragging && typeof tMarker.dragging.disable === 'function') {
                         tMarker.dragging.disable();
                     }
 
                     const targetD = self.measureDrawings.find(x => x.id === dId);
+                    const curZoom = (self.map && typeof self.map.getZoom === 'function') ? self.map.getZoom() : 18;
+                    if (targetD) {
+                        targetD.baseZoom = curZoom;
+                        targetD.totalBadgeBaseZoom = curZoom;
+                    }
                     const evt = e.touches ? e.touches[0] : e;
                     const rect = wrapper.getBoundingClientRect();
                     const centerX = rect.left + rect.width / 2;
@@ -2547,7 +2864,9 @@
 
                         if (targetD) targetD.totalBadgeRotation = newRot;
                         const curScale = targetD ? (targetD.totalBadgeScale || 1.0) : 1.0;
-                        wrapper.style.transform = `rotate(${newRot}deg) scale(${curScale})`;
+                        const curBaseZoom = targetD ? (targetD.totalBadgeBaseZoom || targetD.baseZoom || 18) : 18;
+                        const effScale = self.getEffectiveBadgeScale(curScale, curBaseZoom);
+                        wrapper.style.transform = `rotate(${newRot}deg) scale(${effScale})`;
                     };
 
                     const onUp = () => {
@@ -2560,6 +2879,10 @@
                         if (tMarker.dragging && typeof tMarker.dragging.enable === 'function') {
                             tMarker.dragging.enable();
                         }
+                        if (self.measureActive && self.measureInteractionMode === 'pan' && self.map && self.map.dragging) {
+                            self.map.dragging.enable();
+                        }
+                        self.updateMeasureGraphics();
                         self.saveLastLocation({ measureData: self.getMeasureDataToSave() });
                     };
 
@@ -2570,6 +2893,7 @@
                 };
 
                 rotHandle.addEventListener('pointerdown', onRotDown);
+                rotHandle.addEventListener('mousedown', (e) => { e.stopPropagation(); L.DomEvent.stopPropagation(e); });
                 rotHandle.addEventListener('touchstart', onRotDown, { passive: false });
             }
 
@@ -2580,11 +2904,22 @@
                     e.preventDefault();
                     L.DomEvent.stopPropagation(e);
 
+                    self.measureIsNavPanning = false;
+                    self.navDragStart = null;
+                    if (self.map && self.map.dragging) {
+                        self.map.dragging.disable();
+                    }
+
                     if (tMarker.dragging && typeof tMarker.dragging.disable === 'function') {
                         tMarker.dragging.disable();
                     }
 
                     const targetD = self.measureDrawings.find(x => x.id === dId);
+                    const curZoom = (self.map && typeof self.map.getZoom === 'function') ? self.map.getZoom() : 18;
+                    if (targetD) {
+                        targetD.baseZoom = curZoom;
+                        targetD.totalBadgeBaseZoom = curZoom;
+                    }
                     const evt = e.touches ? e.touches[0] : e;
                     const rect = wrapper.getBoundingClientRect();
                     const centerX = rect.left + rect.width / 2;
@@ -2602,7 +2937,8 @@
 
                         if (targetD) targetD.totalBadgeScale = newScale;
                         const curRot = targetD ? (targetD.totalBadgeRotation || 0) : 0;
-                        wrapper.style.transform = `rotate(${curRot}deg) scale(${newScale})`;
+                        const effScale = self.getEffectiveBadgeScale(newScale, curZoom);
+                        wrapper.style.transform = `rotate(${curRot}deg) scale(${effScale})`;
                     };
 
                     const onUp = () => {
@@ -2614,6 +2950,10 @@
                         if (tMarker.dragging && typeof tMarker.dragging.enable === 'function') {
                             tMarker.dragging.enable();
                         }
+                        if (self.measureActive && self.measureInteractionMode === 'pan' && self.map && self.map.dragging) {
+                            self.map.dragging.enable();
+                        }
+                        self.updateMeasureGraphics();
                         self.saveLastLocation({ measureData: self.getMeasureDataToSave() });
                     };
 
@@ -2624,6 +2964,7 @@
                 };
 
                 resHandle.addEventListener('pointerdown', onResDown);
+                resHandle.addEventListener('mousedown', (e) => { e.stopPropagation(); L.DomEvent.stopPropagation(e); });
                 resHandle.addEventListener('touchstart', onResDown, { passive: false });
             }
 
@@ -2638,8 +2979,293 @@
                 };
 
                 delHandle.addEventListener('pointerdown', (e) => { e.stopPropagation(); L.DomEvent.stopPropagation(e); });
+                delHandle.addEventListener('mousedown', (e) => { e.stopPropagation(); L.DomEvent.stopPropagation(e); });
                 delHandle.addEventListener('touchstart', (e) => { e.stopPropagation(); L.DomEvent.stopPropagation(e); }, { passive: false });
                 delHandle.addEventListener('click', onDelAction);
+            }
+        },
+
+        /**
+         * Harita Üzerindeki Kenar Mesafe Rozetini Seçer ve Tutamaçları Gösterir
+         */
+        selectMeasureEdgeBadge: function(drawingId, edgeIndex) {
+            const d = drawingId ? this.measureDrawings.find(x => x.id === drawingId) : this.getActiveDrawing();
+            if (d) d.selectedEdgeIndex = edgeIndex;
+            this.measureEdgeSelected = true;
+            document.querySelectorAll('.sat-measure-edge-wrapper').forEach(wrap => {
+                const matchD = (!drawingId || wrap.dataset.drawingId === drawingId);
+                const matchEdge = (edgeIndex === undefined || edgeIndex === null || wrap.dataset.edgeIndex === String(edgeIndex));
+                if (matchD && matchEdge) {
+                    wrap.classList.add('is-selected');
+                } else {
+                    wrap.classList.remove('is-selected');
+                }
+            });
+        },
+
+        /**
+         * Kenar Mesafe Rozeti Seçimini Kaldırır ve Tutamaçları Gizler
+         */
+        deselectMeasureEdgeBadge: function(drawingId) {
+            if (drawingId) {
+                const d = this.measureDrawings.find(x => x.id === drawingId);
+                if (d) d.selectedEdgeIndex = null;
+            } else {
+                if (this.measureDrawings) this.measureDrawings.forEach(d => { d.selectedEdgeIndex = null; });
+            }
+            this.measureEdgeSelected = false;
+            document.querySelectorAll('.sat-measure-edge-wrapper').forEach(wrap => {
+                if (!drawingId || wrap.dataset.drawingId === drawingId) {
+                    wrap.classList.remove('is-selected');
+                }
+            });
+        },
+
+        /**
+         * Kenar Mesafe Rozetinin Döndürme, Büyütme ve Silme/Gizleme Tutamaç Dinleyicilerini Bağlar
+         */
+        attachMeasureEdgeBadgeListeners: function(bMarker, drawingId, edgeIndex) {
+            if (!bMarker) return;
+            const el = (typeof bMarker.getElement === 'function') ? bMarker.getElement() : bMarker._icon;
+            if (!el) {
+                setTimeout(() => this.attachMeasureEdgeBadgeListeners(bMarker, drawingId, edgeIndex), 35);
+                return;
+            }
+            const wrapper = el.querySelector('.sat-measure-edge-wrapper');
+            if (!wrapper || wrapper._handlesBound) return;
+            wrapper._handlesBound = true;
+
+            const self = this;
+            const dId = drawingId || wrapper.dataset.drawingId;
+            const edgeIdx = (edgeIndex !== undefined && edgeIndex !== null) ? edgeIndex : parseInt(wrapper.dataset.edgeIndex, 10);
+            const rotHandle = wrapper.querySelector('.sat-area-rotate-handle');
+            const resHandle = wrapper.querySelector('.sat-area-resize-handle');
+            const delHandle = wrapper.querySelector('.sat-area-delete-handle');
+
+            // 1. Rozete Tıklandığında Seçim
+            wrapper.addEventListener('pointerdown', (e) => {
+                if (e.target.closest('.sat-area-handle') || e.target.closest('.sat-badge-hide-btn')) return;
+                L.DomEvent.stopPropagation(e);
+                self.selectMeasureEdgeBadge(dId, edgeIdx);
+            });
+
+            // 2. 🔄 Döndürme Tutamacı
+            if (rotHandle) {
+                const onRotDown = (e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    L.DomEvent.stopPropagation(e);
+
+                    self.measureIsNavPanning = false;
+                    self.navDragStart = null;
+                    if (self.map && self.map.dragging) {
+                        self.map.dragging.disable();
+                    }
+                    if (bMarker.dragging && typeof bMarker.dragging.disable === 'function') {
+                        bMarker.dragging.disable();
+                    }
+
+                    const targetD = self.measureDrawings.find(x => x.id === dId);
+                    const curZoom = (self.map && typeof self.map.getZoom === 'function') ? self.map.getZoom() : 18;
+                    if (targetD) {
+                        targetD.baseZoom = curZoom;
+                        targetD.badgeBaseZooms = targetD.badgeBaseZooms || {};
+                        targetD.badgeBaseZooms[edgeIdx] = curZoom;
+                        targetD.badgeBaseZooms[String(edgeIdx)] = curZoom;
+                    }
+                    const evt = e.touches ? e.touches[0] : e;
+                    const rect = wrapper.getBoundingClientRect();
+                    const centerX = rect.left + rect.width / 2;
+                    const centerY = rect.top + rect.height / 2;
+                    const startAngle = Math.atan2(evt.clientY - centerY, evt.clientX - centerX) * (180 / Math.PI);
+
+                    let startRot = 0;
+                    if (targetD && targetD.badgeRotations && targetD.badgeRotations[edgeIdx] !== undefined) {
+                        startRot = targetD.badgeRotations[edgeIdx];
+                    } else {
+                        const tr = wrapper.style.transform;
+                        const match = tr.match(/rotate\(([-0-9.]+)deg\)/);
+                        if (match) startRot = parseFloat(match[1]);
+                    }
+
+                    rotHandle.style.cursor = 'grabbing';
+
+                    const onMove = (me) => {
+                        me.preventDefault();
+                        me.stopPropagation();
+                        const mEvt = me.touches ? me.touches[0] : me;
+                        const currentAngle = Math.atan2(mEvt.clientY - centerY, mEvt.clientX - centerX) * (180 / Math.PI);
+                        let diff = currentAngle - startAngle;
+                        let newRot = Math.round((startRot + diff) % 360);
+                        if (newRot > 180) newRot -= 360;
+                        else if (newRot < -180) newRot += 360;
+
+                        if (targetD) {
+                            targetD.badgeRotations = targetD.badgeRotations || {};
+                            targetD.badgeRotations[edgeIdx] = newRot;
+                            targetD.badgeRotations[String(edgeIdx)] = newRot;
+                        }
+                        const curScale = (targetD && targetD.badgeScales && targetD.badgeScales[edgeIdx] !== undefined) ? targetD.badgeScales[edgeIdx] : 1.0;
+                        const curBaseZoom = (targetD && targetD.badgeBaseZooms && targetD.badgeBaseZooms[edgeIdx] !== undefined) ? targetD.badgeBaseZooms[edgeIdx] : (targetD ? (targetD.baseZoom || 18) : 18);
+                        const effScale = self.getEffectiveBadgeScale(curScale, curBaseZoom);
+                        wrapper.style.transform = `rotate(${newRot}deg) scale(${effScale})`;
+                    };
+
+                    const onUp = () => {
+                        rotHandle.style.cursor = 'grab';
+                        window.removeEventListener('pointermove', onMove, { capture: true });
+                        window.removeEventListener('pointerup', onUp, { capture: true });
+                        window.removeEventListener('touchmove', onMove, { capture: true });
+                        window.removeEventListener('touchend', onUp, { capture: true });
+
+                        if (bMarker.dragging && typeof bMarker.dragging.enable === 'function') {
+                            bMarker.dragging.enable();
+                        }
+                        if (self.measureActive && self.measureInteractionMode === 'pan' && self.map && self.map.dragging) {
+                            self.map.dragging.enable();
+                        }
+                        self.updateMeasureGraphics();
+                        self.saveLastLocation({ measureData: self.getMeasureDataToSave() });
+                    };
+
+                    window.addEventListener('pointermove', onMove, { capture: true, passive: false });
+                    window.addEventListener('pointerup', onUp, { capture: true });
+                    window.addEventListener('touchmove', onMove, { capture: true, passive: false });
+                    window.addEventListener('touchend', onUp, { capture: true });
+                };
+
+                rotHandle.addEventListener('pointerdown', onRotDown);
+                rotHandle.addEventListener('mousedown', (e) => { e.stopPropagation(); L.DomEvent.stopPropagation(e); });
+                rotHandle.addEventListener('touchstart', onRotDown, { passive: false });
+            }
+
+            // 3. 📐 Boyutlandırma Tutamacı
+            if (resHandle) {
+                const onResDown = (e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    L.DomEvent.stopPropagation(e);
+
+                    self.measureIsNavPanning = false;
+                    self.navDragStart = null;
+                    if (self.map && self.map.dragging) {
+                        self.map.dragging.disable();
+                    }
+                    if (bMarker.dragging && typeof bMarker.dragging.disable === 'function') {
+                        bMarker.dragging.disable();
+                    }
+
+                    const targetD = self.measureDrawings.find(x => x.id === dId);
+                    const curZoom = (self.map && typeof self.map.getZoom === 'function') ? self.map.getZoom() : 18;
+
+                    if (targetD) {
+                        targetD.baseZoom = curZoom;
+                        targetD.badgeBaseZooms = targetD.badgeBaseZooms || {};
+                        targetD.badgeBaseZooms[edgeIdx] = curZoom;
+                        targetD.badgeBaseZooms[String(edgeIdx)] = curZoom;
+                    }
+
+                    const evt = e.touches ? e.touches[0] : e;
+                    const rect = wrapper.getBoundingClientRect();
+                    const centerX = rect.left + rect.width / 2;
+                    const centerY = rect.top + rect.height / 2;
+                    const startDist = Math.hypot(evt.clientX - centerX, evt.clientY - centerY);
+                    const startScale = (targetD && targetD.badgeScales && targetD.badgeScales[edgeIdx] !== undefined) ? targetD.badgeScales[edgeIdx] : 1.0;
+
+                    const onMove = (me) => {
+                        me.preventDefault();
+                        me.stopPropagation();
+                        const mEvt = me.touches ? me.touches[0] : me;
+                        const curDist = Math.hypot(mEvt.clientX - centerX, mEvt.clientY - centerY);
+                        let ratio = startDist > 0 ? (curDist / startDist) : 1;
+                        let newScale = Math.max(0.4, Math.min(3.0, parseFloat((startScale * ratio).toFixed(2))));
+
+                        if (targetD) {
+                            targetD.badgeScales = targetD.badgeScales || {};
+                            targetD.badgeScales[edgeIdx] = newScale;
+                            targetD.badgeScales[String(edgeIdx)] = newScale;
+                        }
+                        let curRot = 0;
+                        if (targetD && targetD.badgeRotations && targetD.badgeRotations[edgeIdx] !== undefined) {
+                            curRot = targetD.badgeRotations[edgeIdx];
+                        } else {
+                            const tr = wrapper.style.transform;
+                            const match = tr.match(/rotate\(([-0-9.]+)deg\)/);
+                            if (match) curRot = parseFloat(match[1]);
+                        }
+                        const effScale = self.getEffectiveBadgeScale(newScale, curZoom);
+                        wrapper.style.transform = `rotate(${curRot}deg) scale(${effScale})`;
+                    };
+
+                    const onUp = () => {
+                        window.removeEventListener('pointermove', onMove, { capture: true });
+                        window.removeEventListener('pointerup', onUp, { capture: true });
+                        window.removeEventListener('touchmove', onMove, { capture: true });
+                        window.removeEventListener('touchend', onUp, { capture: true });
+
+                        if (bMarker.dragging && typeof bMarker.dragging.enable === 'function') {
+                            bMarker.dragging.enable();
+                        }
+                        if (self.measureActive && self.measureInteractionMode === 'pan' && self.map && self.map.dragging) {
+                            self.map.dragging.enable();
+                        }
+                        self.updateMeasureGraphics();
+                        self.saveLastLocation({ measureData: self.getMeasureDataToSave() });
+                    };
+
+                    window.addEventListener('pointermove', onMove, { capture: true, passive: false });
+                    window.addEventListener('pointerup', onUp, { capture: true });
+                    window.addEventListener('touchmove', onMove, { capture: true, passive: false });
+                    window.addEventListener('touchend', onUp, { capture: true });
+                };
+
+                resHandle.addEventListener('pointerdown', onResDown);
+                resHandle.addEventListener('mousedown', (e) => { e.stopPropagation(); L.DomEvent.stopPropagation(e); });
+                resHandle.addEventListener('touchstart', onResDown, { passive: false });
+            }
+
+            // 4. 🗑️ Silme / Gizleme Tutamacı
+            if (delHandle) {
+                const onDelAction = (e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    L.DomEvent.stopPropagation(e);
+                    self.deselectMeasureEdgeBadge(dId);
+                    if (typeof window.toggleSatelliteDrawingSingleEdge === 'function') {
+                        window.toggleSatelliteDrawingSingleEdge(dId, edgeIdx, e);
+                    }
+                };
+
+                delHandle.addEventListener('pointerdown', (e) => { e.stopPropagation(); L.DomEvent.stopPropagation(e); });
+                delHandle.addEventListener('mousedown', (e) => { e.stopPropagation(); L.DomEvent.stopPropagation(e); });
+                delHandle.addEventListener('touchstart', (e) => { e.stopPropagation(); L.DomEvent.stopPropagation(e); }, { passive: false });
+                delHandle.addEventListener('click', onDelAction);
+            }
+        },
+
+        /**
+         * Akıllı Rozet Yakınlaştırma/Uzaklaştırma Ölçeklemesini Açar/Kapatır
+         */
+        toggleSmartZoomScale: function() {
+            this.measureSmartZoomScale = !this.measureSmartZoomScale;
+            this.updateMeasureGraphics();
+            this.renderDrawingsListUI();
+            this.saveLastLocation({ measureData: this.getMeasureDataToSave() });
+            if (typeof window.showAppToast === 'function') {
+                window.showAppToast(this.measureSmartZoomScale ? '🔍 Akıllı Rozet Ölçekleme Açık' : '🔍 Akıllı Rozet Ölçekleme Kapalı', 'info');
+            }
+        },
+
+        /**
+         * Kenar Metrelerinin Çizgiye Paralel Hizalanmasını Açar/Kapatır
+         */
+        toggleAutoEdgeAngle: function() {
+            this.measureAutoEdgeAngle = !this.measureAutoEdgeAngle;
+            this.updateMeasureGraphics();
+            this.renderDrawingsListUI();
+            this.saveLastLocation({ measureData: this.getMeasureDataToSave() });
+            if (typeof window.showAppToast === 'function') {
+                window.showAppToast(this.measureAutoEdgeAngle ? '📐 Kenar Paralel Açı Açık' : '📐 Kenar Paralel Açı Kapalı', 'info');
             }
         },
 
@@ -2670,6 +3296,12 @@
             marker._pointIndex = pointIndex;
             marker._drawingId = drawingId || (this.getActiveDrawing() ? this.getActiveDrawing().id : null);
 
+            marker.on('dragstart', () => {
+                this.measureIsNavPanning = false;
+                this.navDragStart = null;
+                if (this.map && this.map.dragging) this.map.dragging.disable();
+            });
+
             marker.on('drag', (e) => {
                 const curPos = e.target.getLatLng();
                 const idx = e.target._pointIndex;
@@ -2682,10 +3314,20 @@
             });
 
             marker.on('dragend', () => {
+                this.measureIsNavPanning = false;
+                this.navDragStart = null;
+                const dId = marker._drawingId;
+                const drawing = dId ? this.measureDrawings.find(d => d.id === dId) : this.getActiveDrawing();
+                if (drawing && this.map && typeof this.map.getZoom === 'function') {
+                    drawing.baseZoom = this.map.getZoom();
+                }
                 this.updateMeasureGraphics();
                 this.saveLastLocation({
                     measureData: this.getMeasureDataToSave()
                 });
+                if (this.measureActive && this.measureInteractionMode === 'pan' && this.map && this.map.dragging) {
+                    this.map.dragging.enable();
+                }
             });
 
             marker.on('click', (e) => {
@@ -3059,16 +3701,42 @@
                             badgeY = midY + badgeNormY * offsetDist;
                         }
 
+                        // 🔄 Çizgi Açısına Otomatik Paralel Hizalama veya Özel Açı
+                        let autoAngle = 0;
+                        if (pA && pB) {
+                            autoAngle = Math.round(Math.atan2(pB.y - pA.y, pB.x - pA.x) * (180 / Math.PI));
+                            if (autoAngle > 90) autoAngle -= 180;
+                            if (autoAngle < -90) autoAngle += 180;
+                        }
+                        const customRot = (drawing.badgeRotations && (drawing.badgeRotations[i] !== undefined || drawing.badgeRotations[String(i)] !== undefined))
+                            ? (drawing.badgeRotations[i] !== undefined ? drawing.badgeRotations[i] : drawing.badgeRotations[String(i)])
+                            : null;
+                        const edgeRot = (customRot !== null) ? customRot : (this.measureAutoEdgeAngle !== false ? autoAngle : 0);
+
+                        const customScale = (drawing.badgeScales && (drawing.badgeScales[i] !== undefined || drawing.badgeScales[String(i)] !== undefined))
+                            ? (drawing.badgeScales[i] !== undefined ? drawing.badgeScales[i] : drawing.badgeScales[String(i)])
+                            : 1.0;
+                        const edgeBaseZoom = (drawing.badgeBaseZooms && (drawing.badgeBaseZooms[i] !== undefined ? drawing.badgeBaseZooms[i] : drawing.badgeBaseZooms[String(i)])) || drawing.baseZoom || 18;
+                        const effectiveScale = this.getEffectiveBadgeScale(customScale, edgeBaseZoom);
+
                         drawingBadgeData.edges.push({
                             index: i,
                             label: edgeLabel,
                             x: badgeX,
-                            y: badgeY
+                            y: badgeY,
+                            rotation: edgeRot,
+                            scale: effectiveScale
                         });
 
                         if (bakeBadges) {
                             ctx.save();
                             ctx.translate(badgeX, badgeY);
+                            if (edgeRot) {
+                                ctx.rotate((edgeRot * Math.PI) / 180);
+                            }
+                            if (effectiveScale && effectiveScale !== 1.0) {
+                                ctx.scale(effectiveScale, effectiveScale);
+                            }
 
                             const fontFamily = this.measureFontFamily || 'Montserrat';
                             const edgeFontSize = Math.round((this.measureEdgeFontSize || 12) * baseScale);
@@ -3141,12 +3809,15 @@
                         badgeY = canvasPts[midIdx].y;
                     }
 
+                    const totalBaseZoom = drawing.totalBadgeBaseZoom || drawing.baseZoom || 18;
+                    const effectiveTotalScale = this.getEffectiveBadgeScale(drawing.totalBadgeScale || 1.0, totalBaseZoom);
+
                     drawingBadgeData.totalDistance = {
                         label: totalLabel,
                         x: badgeX,
                         y: badgeY,
                         rotation: drawing.totalBadgeRotation || 0,
-                        scale: drawing.totalBadgeScale || 1.0
+                        scale: effectiveTotalScale
                     };
 
                     if (bakeBadges) {
@@ -3155,8 +3826,8 @@
                         if (drawing.totalBadgeRotation) {
                             ctx.rotate((drawing.totalBadgeRotation * Math.PI) / 180);
                         }
-                        if (drawing.totalBadgeScale && drawing.totalBadgeScale !== 1.0) {
-                            ctx.scale(drawing.totalBadgeScale, drawing.totalBadgeScale);
+                        if (effectiveTotalScale && effectiveTotalScale !== 1.0) {
+                            ctx.scale(effectiveTotalScale, effectiveTotalScale);
                         }
 
                         const fontFamily = this.measureFontFamily || 'Montserrat';
@@ -3249,6 +3920,9 @@
                         subText = `Çevre: ${perimStr} • ${canvasPts.length} Kenar`;
                     }
 
+                    const areaBaseZoom = drawing.areaBaseZoom || drawing.baseZoom || 18;
+                    const effectiveAreaScale = this.getEffectiveBadgeScale(drawing.areaScale || 1.0, areaBaseZoom);
+
                     drawingBadgeData.area = {
                         titleText: titleText,
                         subText: subText,
@@ -3256,7 +3930,7 @@
                         x: cenX,
                         y: cenY,
                         rotation: drawing.areaRotation || 0,
-                        scale: drawing.areaScale || 1.0
+                        scale: effectiveAreaScale
                     };
 
                     if (bakeBadges) {
@@ -3265,8 +3939,8 @@
                         if (drawing.areaRotation) {
                             ctx.rotate((drawing.areaRotation * Math.PI) / 180);
                         }
-                        if (drawing.areaScale && drawing.areaScale !== 1.0) {
-                            ctx.scale(drawing.areaScale, drawing.areaScale);
+                        if (effectiveAreaScale && effectiveAreaScale !== 1.0) {
+                            ctx.scale(effectiveAreaScale, effectiveAreaScale);
                         }
 
                         if (areaDisplayMode === 'frameless') {
@@ -3444,6 +4118,14 @@
 
                             wrap.style.left = posX + 'px';
                             wrap.style.top = posY + 'px';
+
+                            const edgeScale = (edge.scale !== undefined && !isNaN(edge.scale)) ? edge.scale : 1.0;
+                            const rotation = (edge.rotation !== undefined && !isNaN(edge.rotation)) ? edge.rotation : 0;
+
+                            wrap.dataset.rotation = String(rotation);
+                            wrap.dataset.scale = String(edgeScale);
+                            wrap.dataset.userScale = String(edgeScale);
+                            wrap.style.transform = `rotate(${rotation}deg) scale(${edgeScale})`;
                         }
                     });
                 }
@@ -3696,6 +4378,7 @@
                 distanceMeters: d.distanceMeters || 0,
                 areaM2: d.areaM2 || 0,
                 perimeterMeters: d.perimeterMeters || 0,
+                baseZoom: d.baseZoom || (this.map ? this.map.getZoom() : 18),
                 isClosed: !!d.isClosed,
                 style: d.style || 'cad',
                 color: d.color || '#f59e0b',
@@ -3713,12 +4396,17 @@
                         return acc;
                     }, {})
                     : {},
+                badgeRotations: d.badgeRotations ? Object.assign({}, d.badgeRotations) : {},
+                badgeScales: d.badgeScales ? Object.assign({}, d.badgeScales) : {},
+                badgeBaseZooms: d.badgeBaseZooms ? Object.assign({}, d.badgeBaseZooms) : {},
                 totalBadgeCustomPos: d.totalBadgeCustomPos ? { lat: d.totalBadgeCustomPos.lat, lng: d.totalBadgeCustomPos.lng } : null,
                 totalBadgeRotation: d.totalBadgeRotation || 0,
                 totalBadgeScale: d.totalBadgeScale || 1.0,
+                totalBadgeBaseZoom: d.totalBadgeBaseZoom || null,
                 areaBadgeCustomPos: d.areaBadgeCustomPos ? { lat: d.areaBadgeCustomPos.lat, lng: d.areaBadgeCustomPos.lng } : null,
                 areaRotation: d.areaRotation || 0,
                 areaScale: d.areaScale || 1.0,
+                areaBaseZoom: d.areaBaseZoom || null,
                 areaDisplayMode: d.areaDisplayMode || 'frameless',
                 areaContentMode: d.areaContentMode || 'm2_only'
             }));
@@ -3727,12 +4415,15 @@
                 active: !!this.measureActive,
                 panelVisible: (this.measurePanelVisible !== undefined ? !!this.measurePanelVisible : true),
                 activeDrawingId: this.activeDrawingId || (drawings[0] ? drawings[0].id : 'draw_1'),
+                measureSmartZoomScale: (this.measureSmartZoomScale !== undefined ? !!this.measureSmartZoomScale : true),
+                measureAutoEdgeAngle: (this.measureAutoEdgeAngle !== undefined ? !!this.measureAutoEdgeAngle : true),
                 drawings: drawings,
                 // Tekil çizim geriye dönük uyumluluk alanları:
                 points: active && active.points ? active.points.map(p => ({ lat: p.lat, lng: p.lng })) : [],
                 distanceMeters: active ? (active.distanceMeters || 0) : 0,
                 areaM2: active ? (active.areaM2 || 0) : 0,
                 perimeterMeters: active ? (active.perimeterMeters || 0) : 0,
+                baseZoom: active ? (active.baseZoom || (this.map ? this.map.getZoom() : 18)) : 18,
                 isClosed: active ? !!active.isClosed : false,
                 interactionMode: this.measureInteractionMode || 'draw',
                 preset: active ? (active.preset || 'frontage') : 'frontage',
@@ -3749,12 +4440,17 @@
                         return acc;
                     }, {})
                     : {},
+                badgeRotations: active && active.badgeRotations ? Object.assign({}, active.badgeRotations) : {},
+                badgeScales: active && active.badgeScales ? Object.assign({}, active.badgeScales) : {},
+                badgeBaseZooms: active && active.badgeBaseZooms ? Object.assign({}, active.badgeBaseZooms) : {},
                 totalBadgeCustomPos: active && active.totalBadgeCustomPos ? { lat: active.totalBadgeCustomPos.lat, lng: active.totalBadgeCustomPos.lng } : null,
                 totalBadgeRotation: active ? (active.totalBadgeRotation || 0) : 0,
                 totalBadgeScale: active ? (active.totalBadgeScale || 1.0) : 1.0,
+                totalBadgeBaseZoom: active ? (active.totalBadgeBaseZoom || null) : null,
                 areaBadgeCustomPos: active && active.areaBadgeCustomPos ? { lat: active.areaBadgeCustomPos.lat, lng: active.areaBadgeCustomPos.lng } : null,
                 areaRotation: active ? (active.areaRotation || 0) : 0,
                 areaScale: active ? (active.areaScale || 1.0) : 1.0,
+                areaBaseZoom: active ? (active.areaBaseZoom || null) : null,
                 areaDisplayMode: active ? (active.areaDisplayMode || 'frameless') : 'frameless',
                 areaContentMode: active ? (active.areaContentMode || 'm2_only') : 'm2_only',
                 fontFamily: this.measureFontFamily || 'Montserrat',
@@ -3784,6 +4480,8 @@
             if (data.hideDefaultParcel !== undefined) this.measureHideDefaultParcel = data.hideDefaultParcel;
             if (data.panelPos) this.measurePanelPos = data.panelPos;
             if (data.panelVisible !== undefined) this.measurePanelVisible = data.panelVisible;
+            if (data.measureSmartZoomScale !== undefined) this.measureSmartZoomScale = data.measureSmartZoomScale;
+            if (data.measureAutoEdgeAngle !== undefined) this.measureAutoEdgeAngle = data.measureAutoEdgeAngle;
 
             if (data.drawings && Array.isArray(data.drawings) && data.drawings.length > 0) {
                 // Çoklu çizimleri geri yükle
@@ -3825,19 +4523,26 @@
                         showHandles: d.showHandles !== false,
                         hiddenEdges: Object.assign({}, d.hiddenEdges || {}),
                         badgeCustomPositions: badgePos,
+                        badgeRotations: Object.assign({}, d.badgeRotations || {}),
+                        badgeScales: Object.assign({}, d.badgeScales || {}),
+                        badgeBaseZooms: Object.assign({}, d.badgeBaseZooms || {}),
                         totalBadgeCustomPos: totalPos,
                         totalBadgeRotation: d.totalBadgeRotation || 0,
                         totalBadgeScale: d.totalBadgeScale || 1.0,
+                        totalBadgeBaseZoom: d.totalBadgeBaseZoom || null,
                         totalBadgeSelected: false,
                         areaBadgeCustomPos: areaPos,
                         areaRotation: d.areaRotation || 0,
                         areaScale: d.areaScale || 1.0,
+                        areaBaseZoom: d.areaBaseZoom || null,
                         areaSelected: false,
                         areaDisplayMode: d.areaDisplayMode || 'frameless',
                         areaContentMode: d.areaContentMode || 'm2_only',
+                        selectedEdgeIndex: null,
                         distanceMeters: d.distanceMeters || 0,
                         areaM2: d.areaM2 || 0,
                         perimeterMeters: d.perimeterMeters || 0,
+                        baseZoom: (d.baseZoom !== undefined && !isNaN(d.baseZoom)) ? d.baseZoom : (this.map ? this.map.getZoom() : 18),
                         markers: [],
                         lines: [],
                         polygonLayer: null,
@@ -3877,20 +4582,23 @@
                     showHandles: data.showHandles !== false,
                     hiddenEdges: Object.assign({}, data.hiddenEdges || {}),
                     badgeCustomPositions: badgePos,
+                    badgeRotations: Object.assign({}, data.badgeRotations || {}),
+                    badgeScales: Object.assign({}, data.badgeScales || {}),
+                    badgeBaseZooms: Object.assign({}, data.badgeBaseZooms || {}),
                     totalBadgeCustomPos: (data.totalBadgeCustomPos && data.totalBadgeCustomPos.lat !== undefined) ? L.latLng(data.totalBadgeCustomPos.lat, data.totalBadgeCustomPos.lng) : null,
                     totalBadgeRotation: data.totalBadgeRotation || 0,
                     totalBadgeScale: data.totalBadgeScale || 1.0,
+                    totalBadgeBaseZoom: data.totalBadgeBaseZoom || null,
                     totalBadgeSelected: false,
                     areaBadgeCustomPos: (data.areaBadgeCustomPos && data.areaBadgeCustomPos.lat !== undefined) ? L.latLng(data.areaBadgeCustomPos.lat, data.areaBadgeCustomPos.lng) : null,
                     areaRotation: data.areaRotation || 0,
                     areaScale: data.areaScale || 1.0,
+                    areaBaseZoom: data.areaBaseZoom || null,
                     areaSelected: false,
                     areaDisplayMode: data.areaDisplayMode || 'frameless',
                     areaContentMode: data.areaContentMode || 'm2_only',
-                    distanceMeters: data.distanceMeters || 0,
-                    areaM2: data.areaM2 || 0,
-                    perimeterMeters: data.perimeterMeters || 0,
-                    markers: [],
+                    selectedEdgeIndex: null,
+                    baseZoom: (data.baseZoom !== undefined && !isNaN(data.baseZoom)) ? data.baseZoom : (this.map ? this.map.getZoom() : 18),
                     lines: [],
                     polygonLayer: null,
                     badgeMarkers: [],
@@ -4308,7 +5016,7 @@
 
                 if (this.measurePanelPos) {
                     try {
-                        localStorage.setItem('sat_measure_panel_pos', JSON.stringify(this.measurePanelPos));
+                        localStorage.setItem('sat_measure_panel_pos_v4', JSON.stringify(this.measurePanelPos));
                     } catch(e) {}
                 }
                 this.saveLastLocation({ measureData: this.getMeasureDataToSave() });
@@ -4326,7 +5034,7 @@
         },
 
         /**
-         * Ölçüm Panelinin Konumunu Hafızadan Geri Yükler (Serbest Pozisyon)
+         * Ölçüm Panelinin Konumunu Hafızadan Geri Yükler (Varsayılan Olarak Sola Açılır)
          */
         restoreMeasurePanelPosition: function(panel) {
             if (!panel) panel = document.getElementById('satMeasureFloatingPanel');
@@ -4335,7 +5043,7 @@
             let pos = this.measurePanelPos;
             if (!pos) {
                 try {
-                    const saved = localStorage.getItem('sat_measure_panel_pos');
+                    const saved = localStorage.getItem('sat_measure_panel_pos_v4');
                     if (saved) pos = JSON.parse(saved);
                 } catch(e) {}
             }
@@ -4344,7 +5052,7 @@
             const winH = window.innerHeight;
 
             if (pos && typeof pos.left === 'number' && typeof pos.top === 'number') {
-                const pW = panel.offsetWidth || 320;
+                const pW = panel.offsetWidth || 375;
                 const pH = panel.offsetHeight || 400;
                 const left = Math.max(-pW + 60, Math.min(pos.left, winW - 60));
                 const top = Math.max(-pH + 50, Math.min(pos.top, winH - 40));
@@ -4355,22 +5063,11 @@
                 return;
             }
 
-            // Varsayılan serbest pozisyon: Haritanın sol üst köşesine hizala
-            const stage = document.getElementById('satMapStage') || document.querySelector('.sat-modal-container');
-            if (stage) {
-                const sRect = stage.getBoundingClientRect();
-                const defLeft = Math.max(16, Math.round(sRect.left + 16));
-                const defTop = Math.max(16, Math.round(sRect.top + 16));
-                panel.style.left = `${defLeft}px`;
-                panel.style.top = `${defTop}px`;
-                panel.style.bottom = 'auto';
-                panel.style.right = 'auto';
-            } else {
-                panel.style.left = '24px';
-                panel.style.top = '90px';
-                panel.style.bottom = 'auto';
-                panel.style.right = 'auto';
-            }
+            // 🎯 Varsayılan serbest pozisyon: Ekranın SOL tarafında açılsın (Kullanıcı talebi)
+            panel.style.left = '24px';
+            panel.style.top = '80px';
+            panel.style.bottom = 'auto';
+            panel.style.right = 'auto';
         },
 
         /**

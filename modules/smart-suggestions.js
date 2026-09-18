@@ -1092,7 +1092,7 @@ window.renderSmartSuggestionsUI = function() {
         html += `
             <div class="smart-sub-section" style="margin-top: 12px; border-top:1px solid rgba(255,255,255,0.06); padding-top:10px;">
                 <div class="smart-sub-title" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-                    <span class="smart-section-header purple"><i class="fa-solid fa-wand-magic-sparkles"></i> 🎨 Bu İlana Uyumlu Şablon Önerileri</span>
+                    <span class="smart-section-header purple"><i class="fa-solid fa-wand-magic-sparkles"></i> Uyumlu Şablon Önerileri</span>
                     <span class="smart-section-hint">Tıkla & Tuvale Giydir</span>
                 </div>
                 <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(130px, 1fr)); gap:8px;">

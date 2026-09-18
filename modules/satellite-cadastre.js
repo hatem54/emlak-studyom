@@ -419,6 +419,9 @@
                 if (mPanel) {
                     mPanel.style.display = 'flex';
                     this.restoreMeasurePanelPosition(mPanel);
+                    if (typeof this.updateMapModalLayout === 'function') {
+                        this.updateMapModalLayout(true);
+                    }
                 }
             }
 
@@ -1620,9 +1623,18 @@
         },
 
         /**
-         * Yüklü Parsele Odaklanır (Zoom)
+         * Yüklü Parsele / Aktif Çizime Odaklanır (Zoom)
          */
         zoomToCurrentParcel: function() {
+            const activeD = (typeof this.getActiveDrawing === 'function') ? this.getActiveDrawing() : null;
+            if (activeD && activeD.points && activeD.points.length >= 2 && this.map) {
+                const bounds = L.latLngBounds(activeD.points);
+                if (bounds.isValid()) {
+                    const safeMaxZoom = (this.activeLayer === 'esri_sat') ? 16 : 19;
+                    this.map.fitBounds(bounds, { padding: [50, 50], maxZoom: safeMaxZoom, animate: true, duration: 0.8 });
+                    return;
+                }
+            }
             if (this.parcelData && this.parcelData.latLngs && this.parcelData.latLngs.length >= 3) {
                 const bounds = this.getParcelCenterAndBounds();
                 if (bounds && bounds.center) {
@@ -1909,19 +1921,19 @@
             const isNeon = !!this.parcelNeonEnabled;
             const neonColor = this.parcelNeonColor || '#00CEC9';
 
-            // 1. Üst Kontrol Çubuğu Butonu (Dolgusuz outline buton)
+            // 1. Üst Kontrol Çubuğu Butonu (Dolgusuz outline buton - CSS kontrollü)
             const btn = document.getElementById('satToggleNeonBtn');
             const statusText = document.getElementById('satNeonStatusText');
             if (btn) {
                 btn.classList.toggle('active', isNeon);
-                btn.style.borderColor = isNeon ? neonColor : '#334155';
-                btn.style.color = isNeon ? neonColor : '#94a3b8';
-                btn.style.background = 'transparent';
-                btn.style.boxShadow = 'none';
+                btn.style.borderColor = '';
+                btn.style.color = '';
+                btn.style.background = '';
+                btn.style.boxShadow = '';
             }
             if (statusText) {
                 statusText.textContent = isNeon ? 'Açık' : 'Kapalı';
-                statusText.style.color = isNeon ? neonColor : '#64748b';
+                statusText.style.color = '';
             }
 
             // 2. Çekmece Kartı & Butonu (Dolgusuz outline buton)
@@ -1931,18 +1943,17 @@
             const drawerDetails = document.getElementById('satDrawerNeonDetails');
             if (drawerCard) {
                 drawerCard.classList.toggle('active', isNeon);
-                drawerCard.style.borderColor = isNeon ? neonColor : 'rgba(0, 206, 201, 0.25)';
             }
             if (drawerBtn) {
                 drawerBtn.classList.toggle('active', isNeon);
-                drawerBtn.style.borderColor = isNeon ? neonColor : '#334155';
-                drawerBtn.style.color = isNeon ? neonColor : '#94a3b8';
-                drawerBtn.style.background = 'transparent';
-                drawerBtn.style.boxShadow = 'none';
+                drawerBtn.style.borderColor = '';
+                drawerBtn.style.color = '';
+                drawerBtn.style.background = '';
+                drawerBtn.style.boxShadow = '';
             }
             if (drawerText) {
                 drawerText.textContent = isNeon ? 'Açık' : 'Kapalı';
-                drawerText.style.color = isNeon ? neonColor : '#94a3b8';
+                drawerText.style.color = '';
             }
             if (drawerDetails) drawerDetails.style.display = isNeon ? 'block' : 'none';
 

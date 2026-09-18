@@ -531,8 +531,14 @@ window.autoFitPerspective = autoFitPerspective;
 window.resetPerspective = resetPerspective;
 
 function applyPreset(name){
+    if (window.CustomPresetsManager && typeof name === 'string' && name.startsWith('preset_')) {
+        return window.CustomPresetsManager.applyPreset(name);
+    }
     const p = PRESETS[name];
-    if(!p) return;
+    if(!p) {
+        if (window.CustomPresetsManager) return window.CustomPresetsManager.applyPreset(name);
+        return;
+    }
     
     Object.keys(FILTER_DEFAULTS).forEach(id=>{if(document.getElementById(id))document.getElementById(id).value=FILTER_DEFAULTS[id]});
     Object.keys(p).forEach(k=>{if(document.getElementById(k))document.getElementById(k).value=p[k]});

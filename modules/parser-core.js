@@ -1005,7 +1005,7 @@
         const parseBtn = document.querySelector('.btn-ai') || document.getElementById('btnSmartParse');
         if (parseBtn) {
             parseBtn.disabled = true;
-            parseBtn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles fa-spin"></i> 🤖 Yapay Zeka Çözümlüyor...';
+            parseBtn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles fa-spin"></i> Süzülüyor...';
             parseBtn.style.opacity = '0.9';
         }
 
@@ -1121,7 +1121,7 @@ ${rawText}`;
         } finally {
             if (parseBtn) {
                 parseBtn.disabled = false;
-                parseBtn.innerHTML = '🤖 Metni Süz';
+                parseBtn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> Metni Süz';
                 parseBtn.style.opacity = '1';
             }
             if (typeof window.hideAppLoading === 'function') {

@@ -1376,13 +1376,13 @@ window.updateTemplateToggleUI = function(isHidden) {
             tabBtn.style.borderColor = '#ef4444';
             tabBtn.style.color = '#f87171';
             if (tabSlash) tabSlash.style.display = 'block';
-            if (tabText) tabText.textContent = 'Şablonu Göster (Gizli)';
+            if (tabText) tabText.textContent = 'Şablonu Göster';
         } else {
             tabBtn.style.background = 'rgba(56, 189, 248, 0.15)';
             tabBtn.style.borderColor = 'rgba(56, 189, 248, 0.4)';
             tabBtn.style.color = '#38bdf8';
             if (tabSlash) tabSlash.style.display = 'none';
-            if (tabText) tabText.textContent = 'Şablonu Gizle (Geçici)';
+            if (tabText) tabText.textContent = 'Şablonu Gizle';
         }
     }
 };
@@ -2296,14 +2296,8 @@ if (window.visualViewport && window.innerWidth <= 640) {
     window.addEventListener('mouseup', endPress);
     
     const contextMenuHandler = (e) => {
-        let currentTab = null;
-        if (typeof state !== 'undefined' && state.activeTab) {
-            currentTab = state.activeTab;
-        } else {
-            const activeTabBtn = document.querySelector('#mainTabs .tab-btn.active');
-            if (activeTabBtn) currentTab = activeTabBtn.getAttribute('data-tab');
-        }
-        if (!currentTab || currentTab === 'photo' || currentTab === 'bilinmiyor') {
+        // Tuval üzerinde varsayılan tarayıcı menüsünü tamamen engelle (metin girişleri hariç)
+        if (!e.target.closest('input:not([type="button"]):not([type="submit"]):not([type="range"]), textarea, [contenteditable="true"]')) {
             e.preventDefault();
         }
     };

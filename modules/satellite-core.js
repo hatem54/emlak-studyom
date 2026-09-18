@@ -132,6 +132,8 @@
         measureShowEdgeDistances: true, // Kenar cephe metreleri görünürlüğü (varsayılan: açık)
         measureShowArea: true, // Arsa alanı m² rozeti görünürlüğü (varsayılan: açık)
         measureShowHandles: true, // Köşe tutamaçları/numaraları görünürlüğü (varsayılan: açık)
+        measureSmartZoomScale: true, // Harita uzaklaşınca rozetlerin araziye orantılı küçülmesini sağlar
+        measureAutoEdgeAngle: true,  // Kenar metrelerini çizgi açısına otomatik paralel hizalar
         measureHiddenEdges: {}, // { [edgeIdx]: true } tekil olarak gizlenen kenarlar
         measureIsNavPanning: false, // Ctrl/Space/Sağ tık ile gezinme anı
         isSpacePressed: false,
@@ -157,18 +159,26 @@
             const modalHtml = `
             <div id="satelliteMapModal" class="sat-modal-overlay" style="display:none;">
                 <div class="sat-modal-container">
-                    <!-- Üst Başlık ve Kapatma Butonu -->
-                    <div class="sat-modal-header">
+                    <!-- Üst Başlık, Tutamaç ve Kapatma Butonu -->
+                    <div class="sat-modal-header" id="satModalHeader" title="Haritayı taşımak için sürükleyin (Çift tık: Merkeze sıfırla)">
                         <div class="sat-header-left">
+                            <div class="sat-modal-drag-grip" id="satModalDragGrip" title="Haritayı taşımak için sürükleyin (Çift tık: Merkeze sıfırla)">
+                                <i class="fas fa-grip-vertical"></i>
+                            </div>
                             <div class="sat-header-icon"><i class="fas fa-satellite"></i></div>
                             <div>
                                 <h3 class="sat-header-title">Canlı Uydu Haritası & Konum Kadrajı</h3>
                                 <p class="sat-header-sub">Google Earth kalitesinde ultra net uydu görüntüsüyle mülkünüzün konumunu tuvalinize birebir aktarın</p>
                             </div>
                         </div>
-                        <button type="button" class="sat-close-btn" onclick="window.closeSatelliteMapModal()" title="Kapat">
-                            <i class="fas fa-times"></i>
-                        </button>
+                        <div class="sat-header-right-actions">
+                            <button type="button" class="sat-modal-reset-pos-btn" id="satModalResetPosBtn" title="Konumu merkeze sıfırla" style="display:none;" onclick="window.SatelliteMapModule && window.SatelliteMapModule.resetMapModalPosition()">
+                                <i class="fas fa-crosshairs"></i> <span>Ortala</span>
+                            </button>
+                            <button type="button" class="sat-close-btn" onclick="window.closeSatelliteMapModal()" title="Kapat">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
                     </div>
 
                     <!-- Arama, KML Yükle ve Hamburger Ayar Barı -->
@@ -217,13 +227,15 @@
                             </button>
                         </div>
 
-                        <div class="sat-ctrl-group">
-                            <span class="sat-ctrl-label"><i class="fas fa-crop-alt"></i> Format:</span>
-                            <div class="sat-format-btns" id="satFormatBtns">
-                                <button type="button" class="sat-fmt-btn active" data-fmt="16:9" onclick="window.setSatelliteExportFormat('16:9')" title="16:9 Yatay">16:9</button>
-                                <button type="button" class="sat-fmt-btn" data-fmt="1:1" onclick="window.setSatelliteExportFormat('1:1')" title="1:1 Kare">1:1</button>
-                                <button type="button" class="sat-fmt-btn" data-fmt="4:5" onclick="window.setSatelliteExportFormat('4:5')" title="4:5 Portre">4:5</button>
-                                <button type="button" class="sat-fmt-btn" data-fmt="9:16" onclick="window.setSatelliteExportFormat('9:16')" title="9:16 Hikaye">9:16</button>
+                        <div class="sat-ctrl-group sat-format-dropdown-wrap" id="satFormatDropdownWrap">
+                            <button type="button" id="satFormatToggleBtn" class="sat-btn-format-toggle" onclick="window.toggleSatelliteFormatMenu(event)" title="Görsel Formatı Değiştir (Tıklayarak Seçin)">
+                                <i class="fas fa-crop-alt"></i> <span>Format:</span> <b id="satActiveFormatBadge">16:9</b> <i class="fas fa-chevron-down sat-format-chevron" id="satFormatChevron"></i>
+                            </button>
+                            <div class="sat-format-dropdown-menu" id="satFormatDropdownMenu" style="display: none;">
+                                <button type="button" class="sat-fmt-btn active" data-fmt="16:9" onclick="window.setSatelliteExportFormat('16:9')" title="16:9 Yatay (YouTube / Web / İlan)">16:9</button>
+                                <button type="button" class="sat-fmt-btn" data-fmt="1:1" onclick="window.setSatelliteExportFormat('1:1')" title="1:1 Kare (Instagram Gönderi)">1:1</button>
+                                <button type="button" class="sat-fmt-btn" data-fmt="4:5" onclick="window.setSatelliteExportFormat('4:5')" title="4:5 Portre (Instagram Dikey)">4:5</button>
+                                <button type="button" class="sat-fmt-btn" data-fmt="9:16" onclick="window.setSatelliteExportFormat('9:16')" title="9:16 Hikaye / Reels / TikTok">9:16</button>
                             </div>
                         </div>
 
@@ -566,6 +578,14 @@
                             <button type="button" class="sat-btn-add-drawing" onclick="window.addNewSatelliteDrawing()" title="Haritaya bağımsız yeni bir ölçüm çizgisi veya poligon alanı ekleyin">
                                 <i class="fas fa-plus-circle"></i> <span>Yeni Çizim Ekle</span>
                             </button>
+                            <div style="display:flex; gap:6px; margin-top:6px;">
+                                <button type="button" id="satSmartZoomToggleBtn" class="sat-measure-style-btn active" onclick="window.toggleSatelliteSmartZoomScale()" title="Uzaklaşınca butonların arsayı kaplamasını engeller, araziye göre orantılı ölçekler" style="flex:1; justify-content:center; font-size:11px; padding:5px 4px;">
+                                    🔍 Akıllı Boyut
+                                </button>
+                                <button type="button" id="satAutoAngleToggleBtn" class="sat-measure-style-btn active" onclick="window.toggleSatelliteAutoEdgeAngle()" title="Kenar metrelerini otomatik olarak çizgiye paralel hizalar" style="flex:1; justify-content:center; font-size:11px; padding:5px 4px;">
+                                    📐 Paralel Açı
+                                </button>
+                            </div>
                         </div>
 
                         <!-- 📋 Çizimler Akordiyon Listesi (Çizim 1, Çizim 2, ...) (2D Only) -->
@@ -675,7 +695,19 @@
 
             if (typeof this.initDragDropListeners === 'function') this.initDragDropListeners();
             if (typeof this.initMeasurePanelDraggable === 'function') this.initMeasurePanelDraggable();
+            if (typeof this.initModalContainerDraggable === 'function') this.initModalContainerDraggable();
             if (typeof this.populateMeasureFonts === 'function') this.populateMeasureFonts();
+
+            if (!this._hasResizeListener) {
+                this._hasResizeListener = true;
+                window.addEventListener('resize', () => {
+                    const m = document.getElementById('satelliteMapModal');
+                    if (m && m.style.display !== 'none') {
+                        this.updateMapWrapperDimensions();
+                        this.updateMapModalLayout();
+                    }
+                });
+            }
         },
 
         /**
@@ -683,6 +715,10 @@
          */
         initMap: function() {
             if (this.map) {
+                if (this.map.options) {
+                    this.map.options.scrollWheelZoom = 'center';
+                    this.map.options.touchZoom = 'center';
+                }
                 this.map.invalidateSize();
                 return;
             }
@@ -702,7 +738,9 @@
                 zoom: this.currentZoom,
                 maxZoom: 21,
                 zoomControl: true,
-                attributionControl: false
+                attributionControl: false,
+                scrollWheelZoom: 'center',
+                touchZoom: 'center'
             });
 
             // 2. Google Uydu (mt0-mt3) - En Keskin / Google Earth Netliği (CORS *)
@@ -782,6 +820,11 @@
                     if (this.measureTotalBadgeSelected && !e.target.closest('.sat-measure-total-wrapper') && !e.target.closest('.sat-area-handle')) {
                         this.deselectMeasureTotalBadge();
                     }
+                    if (this.measureEdgeSelected && !e.target.closest('.sat-measure-edge-wrapper') && !e.target.closest('.sat-area-handle')) {
+                        if (typeof this.deselectMeasureEdgeBadge === 'function') {
+                            this.deselectMeasureEdgeBadge();
+                        }
+                    }
                 });
             }
 
@@ -817,6 +860,15 @@
 
             this.map.on('zoomend', () => {
                 this.updateMarkerOverlayPosition();
+                if (this.measureActive && typeof this.updateMeasureGraphics === 'function') {
+                    this.updateMeasureGraphics();
+                }
+            });
+
+            this.map.on('zoom', () => {
+                if (this.measureActive && typeof this.updateMeasureGraphics === 'function') {
+                    this.updateMeasureGraphics(true);
+                }
             });
 
             this.map.on('viewreset', () => {
@@ -2080,6 +2132,17 @@
                 }
             });
 
+            // Format rozet metnini güncelle (örn: "16:9")
+            const badge = document.getElementById('satActiveFormatBadge');
+            if (badge) {
+                badge.textContent = this.selectedFormat;
+            }
+
+            // Seçim yapılınca açılır menüyü kapat
+            if (typeof window.toggleSatelliteFormatMenu === 'function') {
+                window.toggleSatelliteFormatMenu(false);
+            }
+
             this.updateMapWrapperDimensions();
 
             const footerText = document.getElementById('satFooterText');
@@ -2167,6 +2230,174 @@
                 this.map.invalidateSize();
                 this.updateMarkerOverlayPosition();
             }
+            this.updateMapModalLayout();
+        },
+
+        /**
+         * Harita Modal Penceresine Serbest Sürükleme ve Tutamaç Yeteneği Kazandırır
+         */
+        initModalContainerDraggable: function() {
+            const modalContainer = document.querySelector('.sat-modal-container');
+            if (!modalContainer || modalContainer._hasDraggable) return;
+            modalContainer._hasDraggable = true;
+
+            const header = modalContainer.querySelector('.sat-modal-header');
+            if (!header) return;
+
+            let isDragging = false;
+            let startX = 0;
+            let startY = 0;
+            let initialLeft = 0;
+            let initialTop = 0;
+
+            const onPointerDown = (e) => {
+                if (e.target.closest('button') || e.target.closest('input') || e.target.closest('select') || e.target.closest('a')) {
+                    return;
+                }
+
+                isDragging = true;
+                startX = e.clientX;
+                startY = e.clientY;
+
+                const rect = modalContainer.getBoundingClientRect();
+                initialLeft = rect.left;
+                initialTop = rect.top;
+
+                modalContainer.style.position = 'absolute';
+                modalContainer.style.margin = '0';
+                modalContainer.style.transform = 'none'; // Serbest koordinata geçildiği için translateX temizlenir
+                modalContainer.style.left = initialLeft + 'px';
+                modalContainer.style.top = initialTop + 'px';
+                modalContainer._hasManualPosition = true;
+
+                const resetBtn = document.getElementById('satModalResetPosBtn');
+                if (resetBtn) resetBtn.style.display = 'inline-flex';
+
+                modalContainer.classList.add('is-dragging');
+                header.style.cursor = 'grabbing';
+
+                window.addEventListener('pointermove', onPointerMove);
+                window.addEventListener('pointerup', onPointerUp);
+                e.preventDefault();
+            };
+
+            const onPointerMove = (e) => {
+                if (!isDragging) return;
+                const dx = e.clientX - startX;
+                const dy = e.clientY - startY;
+
+                let newLeft = initialLeft + dx;
+                let newTop = initialTop + dy;
+
+                const winW = window.innerWidth;
+                const winH = window.innerHeight;
+                const cW = modalContainer.offsetWidth || 800;
+
+                // Ekrandan tamamen kaybolmayı önleyici güvenli sınırlar
+                newLeft = Math.max(10, Math.min(newLeft, winW - cW - 10));
+                newTop = Math.max(10, Math.min(newTop, winH - 60));
+
+                modalContainer.style.left = newLeft + 'px';
+                modalContainer.style.top = newTop + 'px';
+            };
+
+            const onPointerUp = () => {
+                if (!isDragging) return;
+                isDragging = false;
+                modalContainer.classList.remove('is-dragging');
+                header.style.cursor = 'grab';
+                window.removeEventListener('pointermove', onPointerMove);
+                window.removeEventListener('pointerup', onPointerUp);
+
+                if (this.map) {
+                    this.map.invalidateSize();
+                    if (typeof this.updateMarkerOverlayPosition === 'function') {
+                        this.updateMarkerOverlayPosition();
+                    }
+                }
+            };
+
+            header.addEventListener('pointerdown', onPointerDown);
+
+            // Başlığa veya tutamaca çift tıklandığında konumu varsayılana sıfırla
+            header.addEventListener('dblclick', (e) => {
+                if (e.target.closest('button') || e.target.closest('input')) return;
+                this.resetMapModalPosition();
+            });
+        },
+
+        /**
+         * Harita Modal Penceresinin Konumunu Varsayılan Merkeze Sıfırlar
+         */
+        resetMapModalPosition: function() {
+            const modalContainer = document.querySelector('.sat-modal-container');
+            if (!modalContainer) return;
+
+            modalContainer._hasManualPosition = false;
+            modalContainer.style.position = 'relative';
+            modalContainer.style.left = '';
+            modalContainer.style.top = '';
+            modalContainer.style.margin = 'auto';
+
+            const resetBtn = document.getElementById('satModalResetPosBtn');
+            if (resetBtn) resetBtn.style.display = 'none';
+
+            this.updateMapModalLayout();
+
+            if (typeof window.showAppToast === 'function') {
+                window.showAppToast('🧭 Harita penceresi varsayılan konuma hizalandı.', 'info');
+            }
+        },
+
+        /**
+         * Panel Açık / Kapalı Durumuna Göre Harita Modalını Dinamik Olarak Hizalar
+         * - Panel AÇIK: Harita penceresi sola panel sığacak kadar (yaklaşık 415px boşluk bırakacak şekilde) sağa kayar.
+         * - Panel KAPALI: Harita penceresi tam merkeze geri döner.
+         * - Kullanıcı tutamaçla manuel taşıdıysa serbest konumu korunur.
+         */
+        updateMapModalLayout: function(panelState) {
+            const modalContainer = document.querySelector('.sat-modal-container');
+            if (!modalContainer) return;
+
+            // Eğer kullanıcı pencereyi serbestçe taşımışsa otomatik hizalama üzerine yazma
+            if (modalContainer._hasManualPosition) return;
+
+            const panel = document.getElementById('satMeasureFloatingPanel');
+            const isPanelOpen = (panelState !== undefined)
+                ? !!panelState
+                : (panel && panel.style.display !== 'none' && !panel.classList.contains('collapsed'));
+
+            const winW = window.innerWidth;
+            const modalW = modalContainer.offsetWidth || 800;
+
+            // Merkeze hizalandığındaki sol boşluk
+            const naturalLeft = Math.max(0, (winW - modalW) / 2);
+
+            if (isPanelOpen && winW >= 1100) {
+                // Sol panel genişliği (375px) + sol boşluk (24px) + aradaki nefes alma payı (16px) = 415px
+                const requiredPanelSpace = 415;
+                if (naturalLeft < requiredPanelSpace) {
+                    const deficit = requiredPanelSpace - naturalLeft;
+                    // Ekranın sağ kenarından taşmaması için üst sınır
+                    const maxAllowedShift = Math.max(0, winW - modalW - 20 - naturalLeft);
+                    const shiftX = Math.round(Math.min(deficit, maxAllowedShift));
+                    modalContainer.style.transform = `translateX(${shiftX}px)`;
+                } else {
+                    modalContainer.style.transform = 'translateX(0px)';
+                }
+            } else {
+                // Panel kapalıysa veya küçük ekrandaysa tam ortaya merkeze gel
+                modalContainer.style.transform = 'translateX(0px)';
+            }
+
+            setTimeout(() => {
+                if (this.map) {
+                    this.map.invalidateSize();
+                    if (typeof this.updateMarkerOverlayPosition === 'function') {
+                        this.updateMarkerOverlayPosition();
+                    }
+                }
+            }, 360);
         },
 
         /**
@@ -2289,6 +2520,7 @@
             this.restoreMeasurePanelPosition();
             this.updateParcelUI();
             this.updateParcelNeonUI();
+            this.initModalContainerDraggable();
 
             const input = document.getElementById('satSearchInput');
             if (input && targetQuery) {
@@ -2412,6 +2644,17 @@
             const modal = document.getElementById('satelliteMapModal');
             if (modal) {
                 modal.style.display = 'none';
+                const modalContainer = modal.querySelector('.sat-modal-container');
+                if (modalContainer) {
+                    modalContainer._hasManualPosition = false;
+                    modalContainer.style.position = 'relative';
+                    modalContainer.style.left = '';
+                    modalContainer.style.top = '';
+                    modalContainer.style.margin = 'auto';
+                    modalContainer.style.transform = 'translateX(0px)';
+                    const resetBtn = document.getElementById('satModalResetPosBtn');
+                    if (resetBtn) resetBtn.style.display = 'none';
+                }
             }
             document.body.style.overflow = '';
             if (typeof window.hideAppLoading === 'function') {
@@ -4007,6 +4250,10 @@
         SatelliteMapModule.zoomToCurrentParcel();
     };
 
+    window.centerSatelliteOnDrawing = function() {
+        SatelliteMapModule.zoomToCurrentParcel();
+    };
+
     window.setParcelFillMode = function(mode) {
         SatelliteMapModule.setParcelFillMode(mode);
     };
@@ -4271,6 +4518,51 @@
         SatelliteMapModule.toggleDrawingSingleEdge(id, edgeIdx, event);
     };
 
+    window.toggleSatelliteSmartZoomScale = function() {
+        SatelliteMapModule.toggleSmartZoomScale();
+    };
+
+    window.toggleSatelliteAutoEdgeAngle = function() {
+        SatelliteMapModule.toggleAutoEdgeAngle();
+    };
+
+    window.toggleSatelliteFormatMenu = function(showOrEvent) {
+        const menu = document.getElementById('satFormatDropdownMenu');
+        const btn = document.getElementById('satFormatToggleBtn');
+        if (!menu || !btn) return;
+
+        let shouldShow;
+        if (typeof showOrEvent === 'boolean') {
+            shouldShow = showOrEvent;
+        } else {
+            if (showOrEvent && showOrEvent.stopPropagation) {
+                showOrEvent.stopPropagation();
+            }
+            shouldShow = menu.style.display === 'none' || menu.style.display === '';
+        }
+
+        menu.style.display = shouldShow ? 'flex' : 'none';
+        btn.classList.toggle('active', shouldShow);
+        const chevron = document.getElementById('satFormatChevron');
+        if (chevron) {
+            chevron.className = shouldShow ? 'fas fa-chevron-up sat-format-chevron' : 'fas fa-chevron-down sat-format-chevron';
+        }
+    };
+
+    if (typeof document !== 'undefined') {
+        document.addEventListener('click', function(e) {
+            const wrap = document.getElementById('satFormatDropdownWrap');
+            if (wrap && !wrap.contains(e.target)) {
+                if (typeof window.toggleSatelliteFormatMenu === 'function') {
+                    window.toggleSatelliteFormatMenu(false);
+                }
+            }
+        });
+    }
+
+    if (window.SatelliteMapModule && typeof window.SatelliteMapModule === 'object') {
+        Object.assign(SatelliteMapModule, window.SatelliteMapModule);
+    }
     window.SatelliteMapModule = SatelliteMapModule;
 
     // DOM hazır olduğunda modal yapısını kur

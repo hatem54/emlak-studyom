@@ -6,8 +6,13 @@
     <script>
         (function() {
             try {
+                var isMobile = (window.innerWidth <= 768) || /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+                if (isMobile) {
+                    document.documentElement.removeAttribute('data-theme');
+                    return;
+                }
                 var t = localStorage.getItem('emlak_app_theme');
-                // Varsayılan Açık Tema (light) - Kullanıcı özellikle 'dark' seçmediyse Açık Tema kalır
+                // Masaüstü için: Kullanıcı 'dark' seçmediyse varsayılan Açık Tema (light)
                 if (t === 'dark') {
                     document.documentElement.removeAttribute('data-theme');
                     if (document.body) document.body.removeAttribute('data-theme');
@@ -19,7 +24,9 @@
                     });
                 }
             } catch(e) {
-                document.documentElement.setAttribute('data-theme', 'light');
+                if (!isMobile) {
+                    document.documentElement.setAttribute('data-theme', 'light');
+                }
             }
         })();
     </script>
@@ -42,10 +49,10 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,300,0,0" />
     <link rel="icon" type="image/jpeg" href="assets/logo/logo-icon.png">
-    <link rel="stylesheet" href="styles.css?v=20260916-116">
+    <link rel="stylesheet" href="styles.css?v=20260918-4">
     <link rel="stylesheet" href="css/callouts.css?v=20260916-116">
-    <link rel="stylesheet" href="css/satellite-map.css?v=20260916-116">
-    <link rel="stylesheet" href="css/three-d.css?v=20260917-132">
+    <link rel="stylesheet" href="css/satellite-map.css?v=20260918-123">
+    <link rel="stylesheet" href="css/three-d.css?v=20260917-147">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <!-- ⚡ SABER EFFECT ENGINE - PixiJS + Filters -->
     <script src="https://cdn.jsdelivr.net/npm/pixi.js@7.4.0/dist/pixi.min.js"></script>
@@ -138,7 +145,7 @@
         
 <div class="section-title">⚙️ Ekstra Araçlar</div>
         <div style="display:flex; flex-direction:column; gap:8px;">
-            <button class="btn-action" style="text-align:left; background:var(--dark-3); color:var(--text); border:1px solid rgba(108,92,231,0.2); padding:15px; margin-bottom:8px; display:flex; align-items:center; gap:10px; font-size:14px;" onclick="document.getElementById('mainTabs').classList.remove('active'); if(window.ThreeDEngine) window.ThreeDEngine.openStudio();">🧊 3D Düzlem & Metin (PRO)</button>
+            <button class="btn-action pc-only" style="text-align:left; background:var(--dark-3); color:var(--text); border:1px solid rgba(108,92,231,0.2); padding:15px; margin-bottom:8px; display:flex; align-items:center; gap:10px; font-size:14px;" onclick="document.getElementById('mainTabs').classList.remove('active'); if(window.ThreeDEngine) window.ThreeDEngine.openStudio();">🧊 3D Düzlem & Metin</button>
             <button class="btn-action" style="text-align:left; background:var(--dark-3); color:var(--text); border:1px solid rgba(108,92,231,0.2); padding:15px; margin-bottom:8px; display:flex; align-items:center; gap:10px; font-size:14px;" onclick="document.getElementById('mainTabs').classList.remove('active'); if(typeof showTemplateColorModal === 'function') showTemplateColorModal()"><i class="fas fa-wand-magic-sparkles" style="color:#a855f7;"></i> PRO Renk Paleti & Eşleştirici</button>
             <button class="btn-action" style="text-align:left; background:var(--dark-3); color:var(--text); border:1px solid rgba(108,92,231,0.2); padding:15px; margin-bottom:8px; display:flex; align-items:center; gap:10px; font-size:14px;" onclick="document.getElementById('mainTabs').classList.remove('active'); switchTab('font')">🔠 Font</button>
             <button class="btn-action" style="text-align:left; background:var(--dark-3); color:var(--text); border:1px solid rgba(108,92,231,0.2); padding:15px; margin-bottom:8px; display:flex; align-items:center; gap:10px; font-size:14px;" onclick="document.getElementById('mainTabs').classList.remove('active'); switchTab('shapes')">📐 Şekiller</button>
@@ -192,8 +199,9 @@
 
             <!-- Harita / Uydu Görseli Çek (Sadece PC / Tablet) -->
             <div class="sat-map-launch-row pc-only" style="display:flex; align-items:center; gap:6px;">
-                <button type="button" class="btn-action" id="openSatelliteMapBtn" style="flex:1; background:linear-gradient(135deg, #10b981, #059669); border:none; padding:9px 12px; border-radius:8px; color:white; font-weight:600; font-size:12.5px; display:flex; align-items:center; justify-content:center; gap:8px; box-shadow:0 4px 14px rgba(16,185,129,0.25); cursor:pointer; transition:all 0.2s;" onclick="if(window.openSatelliteMapModal) window.openSatelliteMapModal();">
-                    <span id="satMapBtnText">🛰️ Harita & Uydu Görseli Çek</span>
+                <button type="button" class="btn-action" id="openSatelliteMapBtn" style="flex:1; background:rgba(30,41,59,0.7); border:1px solid rgba(255,255,255,0.12); padding:9px 12px; border-radius:8px; color:#e2e8f0; font-weight:500; font-size:12px; display:flex; align-items:center; justify-content:center; gap:8px; cursor:pointer; transition:all 0.2s;" onclick="if(typeof window.openSatelliteMapModal === 'function') window.openSatelliteMapModal();">
+                    <i class="fas fa-satellite" style="color:#0284c7; font-size:13px;"></i>
+                    <span id="satMapBtnText">Harita & Uydu Görseli Çek</span>
                 </button>
             </div>
 
@@ -201,7 +209,7 @@
             <div style="display:flex; align-items:center; gap:6px;">
                 <button type="button" class="btn-action" style="flex:1; background:rgba(30,41,59,0.7); border:1px solid rgba(255,255,255,0.12); padding:9px 12px; border-radius:8px; color:#e2e8f0; font-weight:500; font-size:12px; display:flex; align-items:center; justify-content:center; gap:8px; cursor:pointer; transition:all 0.2s;" onclick="document.getElementById('logoInput').click()">
                     <i class="fas fa-shield-alt" style="color:#38bdf8;"></i>
-                    <span id="logoUploadBtnText">Firma Logosu (Opsiyonel)</span>
+                    <span id="logoUploadBtnText">Firma Logosu</span>
                 </button>
                 <button id="clearLogoBtn" style="background:rgba(239,68,68,0.15); border:1px solid rgba(239,68,68,0.3); color:#ef4444; cursor:pointer; font-size:14px; width:36px; height:36px; border-radius:8px; display:none; align-items:center; justify-content:center; transition:all 0.2s;" title="Logoyu Sil" onclick="if(typeof clearLogoImage==='function') clearLogoImage();">
                     <i class="fas fa-trash-alt"></i>
@@ -360,7 +368,7 @@
             </div>
             <textarea id="aiText" placeholder="Sahibinden, Hepsiemlak veya WhatsApp ilan metnini buraya yapıştırın..." rows="5" style="width:100%; min-height:110px; padding:10px 12px; border-radius:8px; font-size:12.5px; line-height:1.5; resize:vertical; box-sizing:border-box; display:block;"></textarea>
             <button class="btn-action btn-purple btn-ai" id="btnSmartParse" onclick="smartParse()" style="width:100%; padding:10px 14px; font-size:13px; font-weight:700; border-radius:8px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px; margin-bottom:6px;">
-                <i class="fa-solid fa-wand-magic-sparkles"></i> 🤖 Metni Süz
+                <i class="fa-solid fa-wand-magic-sparkles"></i> Metni Süz
             </button>
             
             <!-- ✨ İLANA ÖZEL HAZIR ÖĞELER & VURGU HAVUZU -->
@@ -644,7 +652,7 @@
 
                 <!-- Hazır Eğri Önayarları -->
                 <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:5px; margin-bottom:10px;">
-                    <button type="button" class="curve-preset-btn" onclick="window.PhotoCurvesManager && window.PhotoCurvesManager.applyPreset('linear')">Düz (Lineer)</button>
+                    <button type="button" class="curve-preset-btn" onclick="window.PhotoCurvesManager && window.PhotoCurvesManager.applyPreset('linear')">Lineer</button>
                     <button type="button" class="curve-preset-btn" onclick="window.PhotoCurvesManager && window.PhotoCurvesManager.applyPreset('mediumContrast')">Orta Kontrast</button>
                     <button type="button" class="curve-preset-btn" onclick="window.PhotoCurvesManager && window.PhotoCurvesManager.applyPreset('highContrast')">Güçlü S-Eğri</button>
                     <button type="button" class="curve-preset-btn" onclick="window.PhotoCurvesManager && window.PhotoCurvesManager.applyPreset('liftShadows')">Açık Tavanlar</button>
@@ -925,13 +933,18 @@
                     <button class="preset-btn" onclick="applyPreset('outdoor')">🌳 Dış Mekan</button>
                     <button class="preset-btn" onclick="applyPreset('luxury')">💎 Lüks</button>
                 </div>
+                
+                <button type="button" class="btn-action" onclick="if(window.CustomPresetsManager) window.CustomPresetsManager.promptSaveCurrent()" style="margin-top:10px; margin-bottom:10px; width:100%; display:flex; align-items:center; justify-content:center; gap:8px; background: linear-gradient(135deg, #10b981, #059669); color:#fff; border:none; font-weight:700; padding:10px; border-radius:6px; cursor:pointer; box-shadow:0 2px 8px rgba(16,185,129,0.3);">
+                    <i class="fa-solid fa-floppy-disk"></i> Hazır Ayar Kaydet
+                </button>
+                <div id="userPresetsContainer" style="margin-top:8px;"></div>
             </div>
         </details>
         
         <button id="btnBeforeAfter" class="btn-action" style="margin-bottom:6px; width:100%; background-color:#334155; color:#cbd5e1; border:1px solid #475569; padding:12px; border-radius:6px; cursor:pointer; font-size:14px; font-weight:bold; transition:all 0.2s;" onclick="toggleBeforeAfter()">
-            <i class="fa-solid fa-code-compare"></i> Öncesi / Sonrası Karşılaştır
+            <i class="fa-solid fa-code-compare"></i> Öncesi / Sonrası
         </button>
-        <button class="btn-action btn-yellow" style="width:100%;" onclick="resetFilters()">🔄 Tüm Filtreleri Sıfırla</button>
+        <button class="btn-action btn-yellow" style="width:100%;" onclick="resetFilters()">🔄 Filtreleri Sıfırla</button>
     </div>
 
     <!-- ELEMAN -->
@@ -1297,10 +1310,10 @@
                 <div class="saber-section" style="display:flex; flex-direction:column; gap:8px;">
                     <button type="button" class="saber-btn" onclick="if(window.exportAnimatedVideo) window.exportAnimatedVideo();" style="background: linear-gradient(135deg, #f59e0b, #ec4899); color: white; border: none; font-weight: 700; padding: 11px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 4px 12px rgba(245,158,11,0.3);">
                         <i class="fa-solid fa-video"></i>
-                        <span>Bu Efekti 3 sn Video Olarak İndir</span>
+                        <span>Video İndir</span>
                     </button>
                     <button id="saberClearBtn" class="saber-btn saber-btn-danger">
-                        🗑️ Tüm Neon Çizimlerini Temizle
+                        🗑️ Çizimleri Temizle
                     </button>
                 </div>
             </div>
@@ -1366,7 +1379,7 @@
                 </div>
 
                 <button type="button" class="btn-action" onclick="toggleCurrentDrawNeon()" style="background:rgba(0,206,201,0.15); border:1px solid rgba(0,206,201,0.4); color:#00CEC9; width:100%; padding:8px; font-size:12px; margin-top:10px; border-radius:6px; cursor:pointer;">
-                    <i class="fas fa-bolt"></i> Bu Çizime Neon Efekti Ekle
+                    <i class="fas fa-bolt"></i> Neon Efekti Ekle
                 </button>
             </div>
             
@@ -1428,7 +1441,7 @@
                 </div>
 
                 <button type="button" class="btn-action" onclick="toggleCurrentDrawNeon()" style="background:rgba(239,68,68,0.15); border:1px solid rgba(239,68,68,0.4); color:#fca5a5; width:100%; padding:8px; font-size:12px; margin-top:4px; border-radius:6px; cursor:pointer;">
-                    <i class="fas fa-bolt"></i> Neon Efektini Kaldır (Normal Çizim Yap)
+                    <i class="fas fa-bolt"></i> Neon Efektini Kaldır
                 </button>
             </div>
 
@@ -1447,7 +1460,7 @@
             <i class="fas fa-palette" id="tabTemplatePaletteIcon"></i>
             <span class="palette-red-slash" id="tabPaletteSlash" style="display:none; position:absolute; width:125%; height:2.5px; background:#ef4444; transform:rotate(-45deg); border-radius:2px; box-shadow:0 0 4px rgba(239,68,68,0.8);"></span>
         </span>
-        <span id="tabTemplateEyeText">Şablonu Gizle (Geçici)</span>
+        <span id="tabTemplateEyeText">Şablonu Gizle</span>
     </button>
     <div id="template-accordion-container" class="accordion-container"></div>
 </div>
@@ -1516,7 +1529,9 @@
             <button class="btn-action" onclick="if(selectedCalloutEl){ const p = selectedCalloutEl.parentElement; if(p && p.firstChild) p.insertBefore(selectedCalloutEl, p.firstChild); if(typeof updateDrawHistory === 'function') updateDrawHistory(); }" style="flex:1; background-color:#64748b; color:#fff; padding:6px 0; font-size:11px;">⏬ Arkaya At</button>
         </div>
         <!-- 3D Dönüştürme Butonu -->
-        <button id="btnConvertCalloutTo3D" type="button" class="btn-action" onclick="if(window.ThreeDEngine) window.ThreeDEngine.convert2DBadgeTo3D(window.selectedCalloutEl || selectedCalloutEl);" style="margin-top:8px; width:100%; background:linear-gradient(135deg, #0284c7 0%, #38bdf8 100%); color:#fff; font-weight:700; box-shadow:0 2px 10px rgba(56, 189, 248, 0.4); border:none; border-radius:6px; padding:7px 10px; cursor:pointer;">✨ Bu Rozeti 3D'ye Dönüştür (Kalınlık & 6 Yön)</button>
+        <button id="btnConvertCalloutTo3D" type="button" class="btn-action" onclick="if(window.ThreeDEngine) window.ThreeDEngine.convert2DBadgeTo3D(window.selectedCalloutEl || selectedCalloutEl);" style="margin-top:8px; width:100%; background:linear-gradient(135deg, #0284c7 0%, #38bdf8 100%); color:#fff; font-weight:700; box-shadow:0 2px 10px rgba(56, 189, 248, 0.4); border:none; border-radius:6px; padding:7px 10px; cursor:pointer;">
+            <i class="fas fa-cube"></i> 3D'ye Dönüştür
+        </button>
         <!-- Sil Butonu -->
         <button id="btnSafeDeleteCallout" class="btn-action btn-red" style="margin-top:8px; width:100%;">🗑️ Rozeti Sil</button>
           <button class="btn-action" onclick="resetCalloutToDefault()" style="margin-top:8px; width:100%; background-color:#3b82f6; color:#fff;">🔄 Varsayılana Dön</button>
@@ -1724,15 +1739,38 @@
         <i class="fa-solid fa-chevron-down" style="transition: transform 0.3s; transform: rotate(0deg);"></i>
     </div>
     <div id="batchAccordion" style="display:none; margin-top:5px; margin-bottom:15px;">
-        <p class="info-text" style="margin-bottom:8px;">Çoklu resim yükle, hepsini seçili formatta indir.</p>
-        <div class="input-group"><label>📁 ÇOKLU RESİM</label><input type="file" id="batchInput" accept="image/jpeg, image/png, image/webp" multiple></div>
-        <div class="batch-file-list" id="batchFileList"></div>
-        <button class="btn-action btn-red" onclick="deleteSelected()" style="margin-bottom:6px; width:100%;">🗑️ Sil</button>
-            <div class="row-2" style="margin-top:6px">
-            <button class="btn-action btn-blue" onclick="startBatchExport()">📸 Toplu Çıktı</button>
-            <button class="btn-action btn-red" onclick="clearBatchFiles()">🗑️ Temizle</button>
+        <p class="info-text" style="margin-bottom:8px;">Çoklu resim yükle, hazır ayarlarını seç ve dilediğin formatta toplu indir.</p>
+        <div class="input-group">
+            <label>📁 ÇOKLU RESİM SEÇİN</label>
+            <input type="file" id="batchInput" accept="image/jpeg, image/png, image/webp" multiple>
         </div>
-        <div class="batch-progress" id="batchProgress">
+        <div class="batch-file-list" id="batchFileList" style="display:none;"></div>
+        
+        <div class="input-group" style="margin-top:10px;">
+            <label>🎨 UYGULANACAK HAZIR AYAR</label>
+            <select id="batchPresetSelect" style="width:100%; padding:8px 10px; background:#1e293b; border:1px solid #334155; color:#f8fafc; border-radius:6px; font-size:13px; outline:none; cursor:pointer;">
+                <option value="current">Mevcut Tuval Ayarları</option>
+            </select>
+        </div>
+
+        <div class="input-group" style="margin-top:8px;">
+            <label>🏷️ İLAN / DOSYA ADI ÖN EKİ</label>
+            <input type="text" id="batchPrefixInput" placeholder="Örn: ILAN-102-" style="width:100%; padding:8px 10px; background:#1e293b; border:1px solid #334155; color:#f8fafc; border-radius:6px; font-size:13px; box-sizing:border-box;">
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:6px; margin-top:10px;">
+            <button type="button" class="btn-action btn-blue" onclick="startBatchExport()" style="width:100%; display:flex; align-items:center; justify-content:center; gap:8px; padding:10px; font-weight:bold;">
+                <i class="fa-solid fa-bolt"></i> Tümünü İndir
+            </button>
+            <button type="button" class="btn-action" onclick="startInteractiveBatchExport()" style="width:100%; display:flex; align-items:center; justify-content:center; gap:8px; padding:10px; font-weight:bold; background:linear-gradient(135deg, #6366f1, #8b5cf6); color:#fff; border:none; border-radius:6px; cursor:pointer; box-shadow:0 2px 8px rgba(99,102,241,0.35);">
+                <i class="fa-solid fa-eye"></i> Adım Adım Düzenle
+            </button>
+            <button type="button" class="btn-action btn-red" onclick="clearBatchFiles()" style="width:100%; display:flex; align-items:center; justify-content:center; gap:8px; padding:8px; font-size:12px;">
+                <i class="fa-solid fa-trash-can"></i> Listeyi Temizle
+            </button>
+        </div>
+
+        <div class="batch-progress" id="batchProgress" style="margin-top:10px;">
             <div style="font-size:11px;color:#94a3b8"><span id="batchStatus">...</span> <span id="batchPercent">0%</span></div>
             <div class="bar"><div class="bar-fill" id="batchBar"></div></div>
         </div>
@@ -1746,7 +1784,7 @@
     <!-- CANLI ANİMASYONLU VİDEO İNDİR BUTONU -->
     <button type="button" class="btn-action" onclick="if(window.exportAnimatedVideo) window.exportAnimatedVideo();" style="margin-top:10px; padding: 15px; font-size: 15px; font-weight: 700; background: linear-gradient(135deg, #f59e0b 0%, #ec4899 50%, #8b5cf6 100%); color: #fff; box-shadow: 0 4px 18px rgba(245, 158, 11, 0.4); display: flex; align-items: center; justify-content: center; gap: 10px; border:none; border-radius:8px; cursor:pointer; transition:transform 0.15s, box-shadow 0.15s;">
         <i class="fa-solid fa-video"></i>
-        <span>3 sn Animasyonlu Video İndir</span>
+        <span>Video İndir</span>
     </button>
     
     <!-- PAYLAŞ BÖLÜMÜ -->
@@ -1862,11 +1900,11 @@
             <button type="button" class="dock-3d-btn dock-3d-btn-x" id="dock3DBtnX" title="Kırmızı X Tutamacı (Eğim Açısı)">
                 🔴 <span>X Eğim</span>
             </button>
-            <button type="button" class="dock-3d-btn dock-3d-btn-y" id="dock3DBtnY" title="Yeşil Y Tutamacı (Yatay Açı)">
+            <button type="button" class="dock-3d-btn dock-3d-btn-y" id="dock3DBtnY" title="Yeşil Y Tutamacı (Zeminde Yatay Dönüş Açısı)">
                 🟢 <span>Y Yatay</span>
             </button>
-            <button type="button" class="dock-3d-btn dock-3d-btn-z" id="dock3DBtnZ" title="Mavi Z Tutamacı (Dönüş Açısı)">
-                🔵 <span>Z Dönüş</span>
+            <button type="button" class="dock-3d-btn dock-3d-btn-z" id="dock3DBtnZ" title="Mavi Z Tutamacı (Sağa/Sola Yatırma - Roll Açısı)">
+                🔵 <span>Z Yatır</span>
             </button>
             <button type="button" class="dock-3d-btn dock-3d-btn-free active" id="dock3DBtnFree" title="3D Eksen Gizmo Tutamaçları Aç/Kapat">
                 🟣 <span>Gizmo</span>
@@ -1939,8 +1977,8 @@
             <div class="popover-section">
                 <label class="popover-label">Izgara Tipi</label>
                 <div class="popover-pill-group" id="gridTypeGroup">
-                    <button type="button" class="popover-pill-btn active" data-grid-type="all" onclick="window.setGridType('all')">✨ Hibrit (Tümü)</button>
-                    <button type="button" class="popover-pill-btn" data-grid-type="thirds" onclick="window.setGridType('thirds')">📐 3'te 1 (Thirds)</button>
+                    <button type="button" class="popover-pill-btn active" data-grid-type="all" onclick="window.setGridType('all')">✨ Hibrit</button>
+                    <button type="button" class="popover-pill-btn" data-grid-type="thirds" onclick="window.setGridType('thirds')">📐 3'te 1</button>
                     <button type="button" class="popover-pill-btn" data-grid-type="square" onclick="window.setGridType('square')">▦ Kare Izgara</button>
                     <button type="button" class="popover-pill-btn" data-grid-type="center" onclick="window.setGridType('center')">➕ Merkez Simetri</button>
                     <button type="button" class="popover-pill-btn" data-grid-type="golden" onclick="window.setGridType('golden')">🎯 Altın Oran</button>
@@ -1951,7 +1989,7 @@
             <div class="popover-section">
                 <label class="popover-label">Çizgi Deseni</label>
                 <div class="popover-pill-group" id="gridStyleGroup">
-                    <button type="button" class="popover-pill-btn" data-grid-style="solid" onclick="window.setGridLineStyle('solid')">── Düz (Sürekli)</button>
+                    <button type="button" class="popover-pill-btn" data-grid-style="solid" onclick="window.setGridLineStyle('solid')">── Düz</button>
                     <button type="button" class="popover-pill-btn active" data-grid-style="dashed" onclick="window.setGridLineStyle('dashed')">╌╌ Kesikli</button>
                     <button type="button" class="popover-pill-btn" data-grid-style="dotted" onclick="window.setGridLineStyle('dotted')">┈┈ Noktalı</button>
                 </div>
@@ -2019,21 +2057,22 @@
 <script src="modules/photo-curves.js?v=20260908-1"></script>
 <script src="modules/photo-masks.js?v=20260914-83"></script>
 <script src="modules/photo.js?v=20260914-83"></script>
+<script src="modules/custom-presets.js?v=20260918-1"></script>
 <script src="modules/colors.js?v=20260821-1"></script>
 <script src="modules/callouts-library-core.js"></script>
 <script src="modules/callouts-library-extra.js"></script>
 
-    <script src="ui/icons.js?v=20260917-131"></script>
-    <script src="modules/callout_v2.js?v=20260917-131"></script>
+    <script src="ui/icons.js?v=20260918-1"></script>
+    <script src="modules/callout_v2.js?v=20260918-5"></script>
     <script src="modules/other-callouts.js?v=20260917-131"></script>
 <script src="modules/draw.js?v=20260914-58"></script>
-<script src="modules/layers.js?v=20260917-127"></script>
+<script src="modules/layers.js?v=20260918-2"></script>
 <script src="modules/saber.js?v=20260913-52"></script>
 <script src="ui/saber-ui.js?v=20260913-52"></script>
 
     <script src="ui/fonts.js?v=20260913-02"></script>
-<script src="modules/icon-library.js"></script>
-<script src="ui/element.js?v=20260913-30"></script>
+<script src="modules/icon-library.js?v=20260917-144"></script>
+<script src="ui/element.js?v=20260918-2"></script>
 <script src="modules/export.js?v=20260917-126"></script>
 <script src="js/formConfig.js"></script>
 <script src="modules/parser-core.js?v=20260913-02"></script>
@@ -2049,7 +2088,7 @@
 <script src="modules/canvas-zoom.js?v=20260819-4"></script>
 <script src="modules/templates-core.js?v=20260913-02"></script>
 <script src="modules/multi-select.js?v=20260917-125"></script>
-<script src="modules/events.js?v=20260917-131"></script>
+<script src="modules/events.js?v=20260918-5"></script>
 <script src="js/templateManager.js?v=20260904-1"></script>
 <script src="templates_json/core.js?v=20260904-1"></script>
     <script src="templates_json/templates_16_9.js?v=20260904-1"></script>
@@ -2071,11 +2110,14 @@
     <script src="js/brandManager.js?v=20260822-4"></script><script src="js/autoSave.js?v=20260915-89"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="js/modules/qrManager.js?v=1785302098411"></script>
-    <script src="main.js?v=20260917-127"></script>
+    <script src="main.js?v=20260918-128"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="modules/ai-enhancer.js?v=20260910-14"></script>
-    <script src="modules/satellite-map.js?v=20260914-86"></script>
-    <script src="modules/three-d-engine.js?v=20260917-133"></script>
+    <script src="modules/satellite-core.js?v=20260918-4"></script>
+    <script src="modules/satellite-cadastre.js?v=20260918-4"></script>
+    <script src="modules/satellite-measure.js?v=20260918-6"></script>
+    <script src="modules/satellite-map.js?v=20260918-90"></script>
+    <script src="modules/three-d-engine.js?v=20260918-8"></script>
 
 <!-- Gizli inputlar: Fotoğraf zoom ve pan ayarlarının arka planda çalışabilmesi için -->
 <div style="display:none;">

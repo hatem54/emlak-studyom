@@ -816,7 +816,7 @@ async function ensureFontsLoaded() {
     }
 }
 
-async function saveImage(){
+async function saveImage(customBaseName){
     const rawFileType = document.getElementById('exportFileType') ? document.getElementById('exportFileType').value : 'jpg';
     if (rawFileType === 'mp4' || rawFileType === 'video') {
         return exportAnimatedVideo();
@@ -1295,14 +1295,15 @@ async function saveImage(){
         // INDIRME
         const a = document.createElement('a');
         const fmtSafe = formatName.replace(/[^a-z0-9]/gi, '-').toLowerCase();
+        const basePrefix = (customBaseName && typeof customBaseName === 'string') ? customBaseName : 'emlak-studiom';
         if (rawFileType === 'jpg') {
-            a.download = 'emlak-studiom-' + fmtSafe + '-' + targetW + 'x' + targetH + '.jpg';
+            a.download = basePrefix + '-' + fmtSafe + '-' + targetW + 'x' + targetH + '.jpg';
             a.href = finalCanvas.toDataURL('image/jpeg', 1.0);
         } else if (rawFileType === 'png_transparent') {
-            a.download = 'emlak-studiom-' + fmtSafe + '-' + targetW + 'x' + targetH + '-seffaf.png';
+            a.download = basePrefix + '-' + fmtSafe + '-' + targetW + 'x' + targetH + '-seffaf.png';
             a.href = finalCanvas.toDataURL('image/png');
         } else {
-            a.download = 'emlak-studiom-' + fmtSafe + '-' + targetW + 'x' + targetH + '.png';
+            a.download = basePrefix + '-' + fmtSafe + '-' + targetW + 'x' + targetH + '.png';
             a.href = finalCanvas.toDataURL('image/png');
         }
         document.body.appendChild(a);
@@ -1877,7 +1878,13 @@ async function exportAnimatedVideo(options = {}) {
 
 function renderBatchList(){
     const l=$('batchFileList');
+    if (!l) return;
     l.innerHTML='';
+    if (!batchFiles || !batchFiles.length) {
+        l.style.display = 'none';
+        return;
+    }
+    l.style.display = 'block';
     batchFiles.forEach((f,i)=>{
         const d=document.createElement('div');
         d.className='batch-file-item';
@@ -1888,13 +1895,29 @@ function renderBatchList(){
 
 function clearBatchFiles(){
     batchFiles=[];
-    $('batchInput').value='';
-    renderBatchList();
-    $('batchProgress').style.display='none';
+    const inp = $('batchInput');
+    if (inp) inp.value='';
+    const l = $('batchFileList');
+    if (l) { l.innerHTML=''; l.style.display='none'; }
+    const p = $('batchProgress');
+    if (p) p.style.display='none';
 }
 
-async function startBatchExport(){
-    if(!batchFiles.length){alert('Dosya ekleyin!');return}
+async function startBatchExport(options){
+    if(!batchFiles.length){
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                icon: 'info',
+                title: 'Dosya Ekleyin',
+                text: 'Lütfen önce Toplu Çıktı alanından indirmek istediğiniz fotoğrafları seçin.',
+                background: '#1e293b',
+                color: '#fff'
+            });
+        } else {
+            alert('Dosya ekleyin!');
+        }
+        return;
+    }
 
     // Pro / Demo Yetki ve Kilit Kontrolü
     if (typeof window.validateExportAllowed === 'function') {
@@ -1966,10 +1989,25 @@ async function startBatchExport(){
     const currentW=parseInt(canvasEl.style.width)||1920;
     const currentH=parseInt(canvasEl.style.height)||1080;
 
-    for(let i=0;i<batchFiles.length;i++){
+    const startIndex = (options && typeof options.startIndex === 'number') ? options.startIndex : 0;
+    const selectedPresetId = (options && options.presetId) ? options.presetId : (document.getElementById('batchPresetSelect') ? document.getElementById('batchPresetSelect').value : 'current');
+    const prefixInput = document.getElementById('batchPrefixInput') ? document.getElementById('batchPrefixInput').value.trim() : '';
+
+    if (selectedPresetId && selectedPresetId !== 'current') {
+        if (window.CustomPresetsManager) {
+            window.CustomPresetsManager.applyPreset(selectedPresetId);
+        } else if (typeof applyPreset === 'function') {
+            applyPreset(selectedPresetId);
+        }
+    }
+
+    for(let i = startIndex; i < batchFiles.length; i++){
+        const rawBaseName = batchFiles[i].name.replace(/\.[^/.]+$/, "");
+        const batchName = (prefixInput ? prefixInput : '') + rawBaseName;
+
         batchStatus.textContent=batchFiles[i].name;
-        batchPercent.textContent=Math.round(i/batchFiles.length*100)+'%';
-        batchBar.style.width=Math.round(i/batchFiles.length*100)+'%';
+        batchPercent.textContent=Math.round(((i + 1) / batchFiles.length) * 100)+'%';
+        batchBar.style.width=Math.round(((i + 1) / batchFiles.length) * 100)+'%';
         
         const url=await readFileUrl(batchFiles[i]);
         if(typeof uploadedImgUrl !== 'undefined') uploadedImgUrl=url; 
@@ -2334,6 +2372,17 @@ async function startBatchExport(){
     batchStatus.textContent='Tamamlandı';
     batchPercent.textContent='100%';
     batchBar.style.width='100%';
+
+    if (typeof Swal !== 'undefined') {
+        Swal.fire({
+            icon: 'success',
+            title: 'Toplu İndirme Tamamlandı',
+            text: `${batchFiles.length - startIndex} adet fotoğraf başarıyla işlendi ve indirildi.`,
+            background: '#1e293b',
+            color: '#fff',
+            timer: 2500
+        });
+    }
 }
 
 function readFileUrl(f){
@@ -2343,6 +2392,314 @@ function readFileUrl(f){
         fr.readAsDataURL(f);
     });
 }
+
+// ====================================================================
+// HER FOTOĞRAF İÇİN SOR (İNTERAKTİF ADIM ADIM TOPLU DÜZENLEME & İNDİRME)
+// ====================================================================
+
+window.interactiveBatchState = {
+    active: false,
+    files: [],
+    currentIndex: 0,
+    selectedPresetId: 'current',
+    prefix: '',
+    originalUploadedImgUrl: null
+};
+
+async function startInteractiveBatchExport() {
+    const allFiles = (typeof batchFiles !== 'undefined' && batchFiles && batchFiles.length) ? batchFiles : (window.batchFiles || []);
+    if (!allFiles || !allFiles.length) {
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                icon: 'info',
+                title: 'Fotoğraf Ekleyin',
+                text: 'Lütfen önce Toplu Çıktı alanından düzenlemek istediğiniz fotoğrafları seçin.',
+                background: '#1e293b',
+                color: '#fff'
+            });
+        } else {
+            alert('Lütfen önce dosya ekleyin!');
+        }
+        return;
+    }
+
+    // Pro / Demo Yetki ve Kilit Kontrolü
+    if (typeof window.validateExportAllowed === 'function') {
+        const check = window.validateExportAllowed();
+        if (!check.allowed) {
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    icon: 'warning',
+                    title: check.title || '🔒 Pro Özellik Kullanımı',
+                    html: `<div style="font-size:14px; line-height:1.6; color:#cbd5e1; text-align:left; margin-top:8px;">${check.message}</div>`,
+                    background: '#1e293b',
+                    color: '#fff',
+                    confirmButtonText: 'Tamam, Anladım',
+                    confirmButtonColor: '#6366f1'
+                });
+            } else {
+                alert('🔒 ' + check.message);
+            }
+            return;
+        }
+    }
+
+    const selectedPresetId = document.getElementById('batchPresetSelect') ? document.getElementById('batchPresetSelect').value : 'current';
+    const prefixInput = document.getElementById('batchPrefixInput') ? document.getElementById('batchPrefixInput').value.trim() : '';
+
+    window.interactiveBatchState = {
+        active: true,
+        files: [...allFiles],
+        currentIndex: 0,
+        selectedPresetId: selectedPresetId,
+        prefix: prefixInput,
+        originalUploadedImgUrl: typeof uploadedImgUrl !== 'undefined' ? uploadedImgUrl : null
+    };
+
+    // HUD'ı oluştur veya mevcutsa göster
+    renderInteractiveBatchHud();
+    
+    // 1. Fotoğrafı tuvale yükle
+    await loadInteractiveBatchStep(0);
+}
+
+function renderInteractiveBatchHud() {
+    let hud = document.getElementById('interactiveBatchHud');
+    if (!hud) {
+        hud = document.createElement('div');
+        hud.id = 'interactiveBatchHud';
+        hud.className = 'interactive-batch-hud';
+        hud.style.cssText = `
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 9999999;
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            border: 1px solid rgba(99, 102, 241, 0.45);
+            box-shadow: 0 10px 35px rgba(0, 0, 0, 0.65), 0 0 20px rgba(99, 102, 241, 0.25);
+            border-radius: 12px;
+            padding: 10px 18px;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            color: #fff;
+            max-width: 95vw;
+            box-sizing: border-box;
+        `;
+        document.body.appendChild(hud);
+    }
+    updateInteractiveBatchHudContent();
+}
+
+function updateInteractiveBatchHudContent() {
+    const hud = document.getElementById('interactiveBatchHud');
+    if (!hud) return;
+
+    const state = window.interactiveBatchState;
+    if (!state || !state.files.length) return;
+
+    const currentFile = state.files[state.currentIndex];
+    const total = state.files.length;
+    const currentNum = state.currentIndex + 1;
+    const fileName = currentFile ? currentFile.name : '';
+    const fileSizeKb = currentFile ? (currentFile.size / 1024).toFixed(0) + ' KB' : '';
+
+    hud.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <div style="background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; font-weight: 800; font-size: 13px; padding: 4px 10px; border-radius: 20px; display: flex; align-items: center; gap: 6px; white-space: nowrap;">
+                <i class="fa-solid fa-layer-group"></i> <span>${currentNum} / ${total}</span>
+            </div>
+            <div style="max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                <span style="font-weight: 600; font-size: 13px; color: #f8fafc;" title="${fileName}">${fileName}</span>
+                <span style="font-size: 11px; color: #94a3b8; margin-left: 4px;">(${fileSizeKb})</span>
+            </div>
+        </div>
+        <div style="height: 24px; width: 1px; background: rgba(255,255,255,0.15);"></div>
+        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+            <button type="button" onclick="interactiveBatchNext(true)" style="background: linear-gradient(135deg, #10b981, #059669); color: white; border: none; font-weight: 700; font-size: 13px; padding: 7px 14px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 6px; box-shadow: 0 2px 8px rgba(16,185,129,0.35);">
+                <i class="fa-solid fa-download"></i> İndir ve İlerle
+            </button>
+            <button type="button" onclick="interactiveBatchNext(false)" style="background: #334155; color: #cbd5e1; border: 1px solid #475569; font-weight: 600; font-size: 12px; padding: 7px 11px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 5px;">
+                <i class="fa-solid fa-forward-step"></i> Resmi Atla
+            </button>
+            <button type="button" onclick="interactiveBatchAutoRemaining()" style="background: linear-gradient(135deg, #3b82f6, #6366f1); color: white; border: none; font-weight: 600; font-size: 12px; padding: 7px 12px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 5px;">
+                <i class="fa-solid fa-bolt"></i> Kalanları İndir
+            </button>
+            <button type="button" onclick="cancelInteractiveBatch(true)" style="background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); font-size: 12px; padding: 7px 10px; border-radius: 6px; cursor: pointer;" title="İptal Et">
+                <i class="fa-solid fa-xmark"></i> İptal
+            </button>
+        </div>
+    `;
+}
+
+async function loadInteractiveBatchStep(index) {
+    const state = window.interactiveBatchState;
+    if (!state || !state.active) return;
+
+    if (index >= state.files.length) {
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                icon: 'success',
+                title: '🎉 Tebrikler!',
+                text: 'Toplu düzenleme tamamlandı. Tüm fotoğraflar başarıyla işlendi ve indirildi.',
+                background: '#1e293b',
+                color: '#fff',
+                confirmButtonColor: '#6366f1'
+            });
+        }
+        cancelInteractiveBatch(false);
+        return;
+    }
+
+    state.currentIndex = index;
+    updateInteractiveBatchHudContent();
+
+    const file = state.files[index];
+    const url = await readFileUrl(file);
+    if (typeof uploadedImgUrl !== 'undefined') uploadedImgUrl = url;
+    if (typeof trackImageSize === 'function') trackImageSize(url);
+
+    const pLayer = document.getElementById('photo-layer');
+    if (pLayer) {
+        pLayer.style.backgroundImage = "url('" + url + "')";
+        pLayer.dataset.savedBg = "url('" + url + "')";
+    }
+
+    if (typeof isCanvaMode !== 'undefined' && isCanvaMode && typeof refreshActiveCanvaTemplate === 'function') {
+        refreshActiveCanvaTemplate();
+    } else if (typeof isCanvaMode !== 'undefined' && isCanvaMode) {
+        buildCanvaRender();
+    }
+
+    document.querySelectorAll('.photo-panel, #photo-layer').forEach(p => {
+        if (typeof _preparePhoto === 'function') _preparePhoto(p);
+        if (typeof _applyPhotoTransform === 'function') _applyPhotoTransform(p);
+    });
+
+    // Seçili hazır ayar varsa uygula
+    if (state.selectedPresetId && state.selectedPresetId !== 'current') {
+        if (window.CustomPresetsManager) {
+            window.CustomPresetsManager.applyPreset(state.selectedPresetId);
+        } else if (typeof applyPreset === 'function') {
+            applyPreset(state.selectedPresetId);
+        }
+    }
+
+    // Kısa toast bilgilendirmesi
+    if (typeof Swal !== 'undefined') {
+        Swal.fire({
+            toast: true,
+            position: 'top-end',
+            icon: 'info',
+            title: `Fotoğraf ${index + 1}/${state.files.length} tuvale yüklendi`,
+            text: 'Dilediğiniz ayarlamayı yapıp "İndir & Sıradakine Geç"e basın.',
+            showConfirmButton: false,
+            timer: 1800,
+            background: '#1e293b',
+            color: '#fff'
+        });
+    }
+}
+
+async function interactiveBatchNext(shouldDownload) {
+    const state = window.interactiveBatchState;
+    if (!state || !state.active) return;
+
+    if (shouldDownload) {
+        const file = state.files[state.currentIndex];
+        const rawBaseName = file.name.replace(/\.[^/.]+$/, "");
+        const batchName = (state.prefix ? state.prefix : '') + rawBaseName;
+
+        try {
+            await saveImage(batchName);
+        } catch (err) {
+            console.error('İnteraktif indirme hatası:', err);
+        }
+    }
+
+    // Sıradakine geç
+    await loadInteractiveBatchStep(state.currentIndex + 1);
+}
+
+async function interactiveBatchAutoRemaining() {
+    const state = window.interactiveBatchState;
+    if (!state || !state.active) return;
+
+    const remainingCount = state.files.length - state.currentIndex;
+    if (remainingCount <= 0) return;
+
+    let confirmed = true;
+    if (typeof Swal !== 'undefined') {
+        const res = await Swal.fire({
+            title: 'Kalanları Otomatik İndir?',
+            text: `Kalan ${remainingCount} fotoğraf mevcut ayarlarınızla otomatik indirilsin mi?`,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: 'Evet, Otomatik İndir',
+            cancelButtonText: 'Vazgeç',
+            confirmButtonColor: '#3b82f6',
+            cancelButtonColor: '#64748b',
+            background: '#1e293b',
+            color: '#fff'
+        });
+        confirmed = res.isConfirmed;
+    } else {
+        confirmed = confirm(`Kalan ${remainingCount} fotoğraf otomatik indirilsin mi?`);
+    }
+
+    if (!confirmed) return;
+
+    const startIndex = state.currentIndex;
+    const presetId = state.selectedPresetId;
+
+    // HUD'ı kapat
+    const hud = document.getElementById('interactiveBatchHud');
+    if (hud) hud.remove();
+    state.active = false;
+
+    // Otomatik toplu indirmeyi startIndex'ten başlat
+    startBatchExport({ startIndex, presetId });
+}
+
+function cancelInteractiveBatch(restoreOriginal = true) {
+    const state = window.interactiveBatchState;
+    const hud = document.getElementById('interactiveBatchHud');
+    if (hud) hud.remove();
+
+    if (state) {
+        state.active = false;
+        if (restoreOriginal && state.originalUploadedImgUrl) {
+            if (typeof uploadedImgUrl !== 'undefined') uploadedImgUrl = state.originalUploadedImgUrl;
+            const pLayer = document.getElementById('photo-layer');
+            if (pLayer) {
+                pLayer.style.backgroundImage = "url('" + state.originalUploadedImgUrl + "')";
+                pLayer.dataset.savedBg = "url('" + state.originalUploadedImgUrl + "')";
+                if (typeof _applyPhotoTransform === 'function') _applyPhotoTransform(pLayer);
+            }
+        }
+    }
+
+    if (restoreOriginal && typeof Swal !== 'undefined') {
+        Swal.fire({
+            toast: true,
+            position: 'top-end',
+            icon: 'info',
+            title: 'Toplu düzenleme modu kapatıldı',
+            showConfirmButton: false,
+            timer: 1500,
+            background: '#1e293b',
+            color: '#fff'
+        });
+    }
+}
+
+window.startInteractiveBatchExport = startInteractiveBatchExport;
+window.interactiveBatchNext = interactiveBatchNext;
+window.interactiveBatchAutoRemaining = interactiveBatchAutoRemaining;
+window.cancelInteractiveBatch = cancelInteractiveBatch;
 
 async function shareImage(platform) {
     if(!window.html2canvas) return alert('html2canvas yüklenmedi!');

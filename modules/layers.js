@@ -487,7 +487,11 @@ window.renderLayers = function() {
                         <i class="fas fa-cube" style="color:#0ea5e9; font-size:13px;"></i>
                         <span style="font-size:12px; font-weight:700; color:#38bdf8; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:150px;" title="${label}">${label}</span>
                     </div>
-                    <div style="display:flex; gap:10px; align-items:center;" onclick="event.stopPropagation();">
+                    <div style="display:flex; gap:8px; align-items:center;" onclick="event.stopPropagation();">
+                        <i class="fas fa-arrow-up" style="cursor:pointer; font-size:11px; color:#38bdf8; opacity:0.85;" 
+                           onclick="if(window.ThreeDEngine) { window.ThreeDEngine.bringElementForward('${el.id}'); }" title="1 Katman Öne Al"></i>
+                        <i class="fas fa-arrow-down" style="cursor:pointer; font-size:11px; color:#94a3b8; opacity:0.85;" 
+                           onclick="if(window.ThreeDEngine) { window.ThreeDEngine.sendElementBackward('${el.id}'); }" title="1 Katman Geriye At"></i>
                         <i class="fas ${eyeIcon}" style="cursor:pointer; font-size:12px; color: ${isVis ? 'var(--text-muted)' : '#ef4444'};" 
                            onclick="if(window.ThreeDEngine) { window.ThreeDEngine.toggleElementVisibility('${el.id}'); }" title="Gizle/Göster"></i>
                         <i class="fas fa-trash-alt" style="cursor:pointer; font-size:12px; color: #ef4444; opacity:0.75;" 

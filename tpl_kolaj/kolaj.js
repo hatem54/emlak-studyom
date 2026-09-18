@@ -70,7 +70,7 @@ function _kolajPanelHTML(){
         '<div class="section-title">🎨 Kolaj Şablonları</div>'+
         ''+
         '<div class="template-grid" id="kolajGrid"></div>'+
-        '<button class="btn-action btn-cyan" onclick="_kolajTopluFotoSec()" style="width:100%;margin-top:10px;margin-bottom:15px;display:flex;align-items:center;justify-content:center;gap:6px;font-weight:700;">📸 Toplu Görsel Seç (Tüm Gözlere Dağıt)</button>'+
+        '<button class="btn-action btn-cyan" onclick="_kolajTopluFotoSec()" style="width:100%;margin-top:10px;margin-bottom:15px;display:flex;align-items:center;justify-content:center;gap:6px;font-weight:700;">📸 Toplu Görsel Seç</button>'+
         
         '<div class="section-title">🖼️ Arka Plan</div>'+
         '<div class="row-2">'+

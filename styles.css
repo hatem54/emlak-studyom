@@ -129,8 +129,7 @@ body[data-theme="light"] input[type="range"]:hover{accent-color:#1e293b !importa
 /* 🟦 1. Mavi / Primary İşlem Butonları (Yumuşak & Zarif Işıma) */
 .btn-blue,
 .btn-primary,
-.btn-action.btn-blue,
-#openSatelliteMapBtn {
+.btn-action.btn-blue {
     background: linear-gradient(135deg, #0284c7 0%, #38bdf8 100%) !important;
     color: #ffffff !important;
     box-shadow: 0 2px 6px rgba(2, 132, 199, 0.22);
@@ -138,7 +137,6 @@ body[data-theme="light"] input[type="range"]:hover{accent-color:#1e293b !importa
 .btn-blue:hover,
 .btn-primary:hover,
 .btn-action.btn-blue:hover,
-#openSatelliteMapBtn:hover,
 .pro-upload-container button[onclick*="imageInput"]:hover {
     background: linear-gradient(135deg, #0369a1 0%, #0ea5e9 100%) !important;
     color: #ffffff !important;
@@ -498,6 +496,7 @@ body[data-theme="light"] .cat-item:hover {
 .batch-progress .bar{height:6px;background:#334155;border-radius:3px;overflow:hidden;margin-top:4px}
 .batch-progress .bar-fill{height:100%;background:var(--gradient-1);width:0%;transition:width .3s;border-radius:3px;box-shadow:0 0 10px rgba(108,92,231,0.5)}
 .batch-file-list{max-height:120px;overflow-y:auto;background:#0f172a;border:1px solid #334155;border-radius:5px;padding:5px;margin-top:5px}
+.batch-file-list:empty{display:none!important}
 .batch-file-item{font-size:10px;color:#94a3b8;padding:2px 4px;border-bottom:1px solid #1e293b;display:flex;justify-content:space-between}
 .batch-file-item:last-child{border:none}
 .draw-indicator{display:none;background:linear-gradient(135deg,#f59e0b,#ef4444);color:#fff;text-align:center;padding:5px;border-radius:5px;font-size:11px;font-weight:700;margin-bottom:6px;animation:pulse 1.5s infinite}
@@ -974,6 +973,9 @@ svg, .callout-svg-container svg, .is-svg-icon svg, .draw-svg-item, #drawCanvas {
 }
 
 @media (max-width: 768px) {
+    .logo img {
+        height: 55px !important;
+    }
     .tour-restart-btn {
         top: auto;
         bottom: 20px;
@@ -2442,6 +2444,34 @@ body.floating-panels-active .floating-expand-btn {
 .app-context-item.item-edit:hover {
     background: rgba(16, 185, 129, 0.15);
     color: #34d399;
+}
+
+.app-context-item.item-3d svg {
+    stroke: #38bdf8;
+}
+.app-context-item.item-3d:hover {
+    background: rgba(56, 189, 248, 0.15);
+    color: #38bdf8;
+}
+.app-context-item.item-3d:hover svg {
+    stroke: #38bdf8 !important;
+}
+
+.app-context-item.item-sun svg {
+    stroke: #fbbf24;
+}
+.app-context-item.item-sun:hover {
+    background: rgba(245, 158, 11, 0.15);
+    color: #fbbf24;
+}
+.app-context-item.item-sun:hover svg {
+    stroke: #fbbf24 !important;
+}
+
+.acm-divider {
+    height: 1px;
+    background: rgba(255, 255, 255, 0.08);
+    margin: 3px 0;
 }
 
 .app-context-item svg {
@@ -4789,6 +4819,32 @@ body[data-theme="light"] .app-context-item.item-delete {
 body[data-theme="light"] .app-context-item.item-delete:hover {
     background: #ffe4e6 !important;
     color: #be123c !important;
+}
+
+body[data-theme="light"] .app-context-item.item-3d svg {
+    stroke: #0284c7 !important;
+}
+body[data-theme="light"] .app-context-item.item-3d:hover {
+    background: #e0f2fe !important;
+    color: #0284c7 !important;
+}
+body[data-theme="light"] .app-context-item.item-3d:hover svg {
+    stroke: #0284c7 !important;
+}
+
+body[data-theme="light"] .app-context-item.item-sun svg {
+    stroke: #d97706 !important;
+}
+body[data-theme="light"] .app-context-item.item-sun:hover {
+    background: #fef3c7 !important;
+    color: #b45309 !important;
+}
+body[data-theme="light"] .app-context-item.item-sun:hover svg {
+    stroke: #b45309 !important;
+}
+
+body[data-theme="light"] .acm-divider {
+    background: #e2e8f0 !important;
 }
 
 body[data-theme="light"] .acm-grid-btn {
@@ -8440,6 +8496,45 @@ html[data-theme="light"] .tone-curve-canvas-wrap {
 .amp, .ampersand {
     font-family: 'ClassicAmpersand', 'Inter', 'Segoe UI', Arial, sans-serif !important;
 }
+
+/* 🔍 OmniSearch & Recent Tools Açık Tema Panelleri (Standart Panel Görünümü) */
+body[data-theme="light"] #omniSearchBox,
+body[data-theme="light"] #recentToolsBox {
+    background: #ffffff !important;
+    border: 1px solid #cbd5e1 !important;
+    box-shadow: 0 16px 40px rgba(15, 23, 42, 0.12) !important;
+}
+
+body[data-theme="light"] #omniSearchBox > div:first-child,
+body[data-theme="light"] #recentToolsBox > div:first-child {
+    background: #f8fafc !important;
+    border-bottom: 1px solid #e2e8f0 !important;
+}
+
+body[data-theme="light"] #omniSearchInput {
+    color: #0f172a !important;
+}
+
+body[data-theme="light"] #omniSearchInput::placeholder {
+    color: #94a3b8 !important;
+}
+
+body[data-theme="light"] #recentToolsBox strong {
+    color: #0f172a !important;
+}
+
+body[data-theme="light"] .omni-search-item {
+    background: #f8fafc !important;
+    border: 1px solid #e2e8f0 !important;
+    color: #1e293b !important;
+}
+
+body[data-theme="light"] .omni-search-item:hover {
+    background: #ffffff !important;
+    border-color: #cbd5e1 !important;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05) !important;
+}
+
 
 
 

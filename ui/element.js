@@ -220,6 +220,24 @@ function resetElSettings(){
 }
 
 function addCustomTextBox(){
+    if (window.ThreeDEngine && typeof window.ThreeDEngine.isActive === 'function' && window.ThreeDEngine.isActive()) {
+        if (typeof window.ThreeDEngine.add3DElementFromData === 'function') {
+            window.ThreeDEngine.add3DElementFromData({
+                name: 'Çerçeveli Metin',
+                elementType: 'badge_card',
+                shapeMode: 'card',
+                text: 'ÖZEL METİN VEYA BAŞLIK',
+                badgeBgColor: '#ffffff',
+                frontColor: '#000000',
+                sideColor: '#94a3b8',
+                selectedIconId: 'none',
+                show3DText: false,
+                orientation: 'standing'
+            });
+            if (typeof window.showToast === 'function') window.showToast('3D Çerçeveli Metin eklendi', 'success');
+            return;
+        }
+    }
     const el=document.createElement('div');
     el.className='draggable canvas-el';
     el.textContent='ÖZEL METİN VEYA BAŞLIK';
@@ -232,8 +250,13 @@ function addCustomTextBox(){
     el.dataset.storedBgOpacity='90';
     el.dataset.storedBorderColor='#000000';
     el.dataset.storedBorderWidth='2';
-    el.style.left='10px';
-    el.style.top='50px';
+    const cContainer = document.getElementById('canvas-container');
+    const cW = (cContainer && parseFloat(cContainer.style.width)) || (cContainer && cContainer.offsetWidth) || (typeof uploadedImgW !== 'undefined' && uploadedImgW > 0 ? uploadedImgW : 1920);
+    const cH = (cContainer && parseFloat(cContainer.style.height)) || (cContainer && cContainer.offsetHeight) || (typeof uploadedImgH !== 'undefined' && uploadedImgH > 0 ? uploadedImgH : 1080);
+    const posX = Math.max(20, Math.round((cW - 380) / 2));
+    const posY = Math.max(20, Math.round((cH - 80) / 2) - 40);
+    el.style.left = posX + 'px';
+    el.style.top = posY + 'px';
     el.style.fontSize='36px';
     el.style.padding='20px 30px';
     el.style.borderRadius='12px';
@@ -253,6 +276,21 @@ function addCustomTextBox(){
 }
 
 function addCustomTextOnly(){
+    if (window.ThreeDEngine && typeof window.ThreeDEngine.isActive === 'function' && window.ThreeDEngine.isActive()) {
+        if (typeof window.ThreeDEngine.add3DElementFromData === 'function') {
+            window.ThreeDEngine.add3DElementFromData({
+                name: '3D Metin',
+                elementType: 'text',
+                text: 'SERBEST YAZI',
+                frontColor: '#000000',
+                sideColor: '#94a3b8',
+                show3DText: false,
+                orientation: 'standing'
+            });
+            if (typeof window.showToast === 'function') window.showToast('3D Serbest Yazı eklendi', 'success');
+            return;
+        }
+    }
     const el=document.createElement('div');
     el.className='draggable canvas-el';
     el.textContent='SERBEST YAZI';
@@ -265,8 +303,13 @@ function addCustomTextOnly(){
     el.dataset.storedBgOpacity='0';
     el.dataset.storedBorderColor='#000000';
     el.dataset.storedBorderWidth='0';
-    el.style.left='10px';
-    el.style.top='150px';
+    const cContainer = document.getElementById('canvas-container');
+    const cW = (cContainer && parseFloat(cContainer.style.width)) || (cContainer && cContainer.offsetWidth) || (typeof uploadedImgW !== 'undefined' && uploadedImgW > 0 ? uploadedImgW : 1920);
+    const cH = (cContainer && parseFloat(cContainer.style.height)) || (cContainer && cContainer.offsetHeight) || (typeof uploadedImgH !== 'undefined' && uploadedImgH > 0 ? uploadedImgH : 1080);
+    const posX = Math.max(20, Math.round((cW - 250) / 2));
+    const posY = Math.max(20, Math.round((cH - 60) / 2));
+    el.style.left = posX + 'px';
+    el.style.top = posY + 'px';
     el.style.fontSize='36px';
     el.style.padding='10px';
     el.style.background='transparent';

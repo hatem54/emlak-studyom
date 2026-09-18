@@ -153,7 +153,8 @@ function addSVGCalloutToCanvas(item) {
             name: nameStr,
             title: nameStr,
             isPin: isPin,
-            isArrow: isArrow
+            isArrow: isArrow,
+            isCallout: true
         });
     }
 
@@ -164,8 +165,6 @@ function addSVGCalloutToCanvas(item) {
     wrap.className = 'callout-wrap svg-callout draggable';
     wrap.style.cssText = `
         position: absolute;
-        left: 100px;
-        top: 100px;
         z-index: 500;
         cursor: move;
     `;
@@ -223,6 +222,7 @@ function addSVGCalloutToCanvas(item) {
     
     const cContainer = document.getElementById('canvas-container');
     const cW = (cContainer && parseFloat(cContainer.style.width)) || (typeof uploadedImgW !== 'undefined' && uploadedImgW > 0 ? uploadedImgW : 1920);
+    const cH = (cContainer && parseFloat(cContainer.style.height)) || (typeof uploadedImgH !== 'undefined' && uploadedImgH > 0 ? uploadedImgH : 1080);
     const formatRatio = Math.max(1, cW / 1920);
 
     const targetW = Math.round(defaultW * 1.5 * formatRatio);
@@ -232,8 +232,15 @@ function addSVGCalloutToCanvas(item) {
     el.style.height = targetH + 'px';
     wrap.style.width = targetW + 'px';
     wrap.style.height = targetH + 'px';
-    wrap.style.left = Math.round(100 * formatRatio) + 'px';
-    wrap.style.top = Math.round(100 * formatRatio) + 'px';
+
+    // Tuvalin tam ortasına yerleştir (varsa mevcut rozetlere göre hafif kademelendir)
+    const existingCallouts = document.querySelectorAll('.callout-wrap').length;
+    const staggerOffset = (existingCallouts % 6) * 16;
+    const posX = Math.max(20, Math.round((cW - targetW) / 2) + (existingCallouts > 0 ? staggerOffset : 0));
+    const posY = Math.max(20, Math.round((cH - targetH) / 2) + (existingCallouts > 0 ? staggerOffset : 0));
+
+    wrap.style.left = posX + 'px';
+    wrap.style.top = posY + 'px';
 
     el.innerHTML = svgHtml;
     el.dataset.originalSvg = encodeURIComponent(svgHtml);
@@ -1064,12 +1071,93 @@ function renderNeonCallouts() {
     });
 }
 
+function getNeonIconSvg(iconClass, strokeColor = '#93c5fd') {
+    if (!iconClass) return null;
+    const NEON_MAP = {
+        'fa-home': 'Home',
+        'fa-key': 'Key',
+        'fa-map-marker-alt': 'MapPin',
+        'fa-building': 'Building',
+        'fa-search': 'Search',
+        'fa-file-signature': 'FileSignature',
+        'fa-star': 'Star',
+        'fa-tag': 'Tag',
+        'fa-calendar-check': 'CalendarCheck',
+        'fa-crown': 'Crown',
+        'fa-tree': 'TreePine',
+        'fa-swimming-pool': 'Waves',
+        'fa-parking': 'CircleParking',
+        'fa-shield-alt': 'Shield',
+        'fa-ruler-combined': 'Ruler',
+        'fa-fire': 'Flame',
+        'fa-elevator': 'ChevronsUpDown',
+        'fa-wifi': 'Wifi',
+        'fa-lira-sign': 'Coins',
+        'fa-percent': 'Percent',
+        'fa-handshake': 'Handshake',
+        'fa-video': 'Video',
+        'fa-vr-cardboard': 'Glasses',
+        'fa-phone-alt': 'Phone',
+        'fa-clock': 'Clock'
+    };
+    let lucideName = null;
+    for (const k in NEON_MAP) {
+        if (iconClass.includes(k)) {
+            lucideName = NEON_MAP[k];
+            break;
+        }
+    }
+    if (lucideName && window.lucide && window.lucide.icons && window.lucide.icons[lucideName]) {
+        try {
+            const node = window.lucide.createElement(window.lucide.icons[lucideName]);
+            node.setAttribute('stroke', strokeColor);
+            node.setAttribute('stroke-width', '2.2');
+            node.setAttribute('width', '48');
+            node.setAttribute('height', '48');
+            return node.outerHTML;
+        } catch(e) {}
+    }
+    return null;
+}
+window.getNeonIconSvg = getNeonIconSvg;
+
 function addNeonToCanvas(n) {
+    const is3DActive = !window._tempForce2D && window.ThreeDEngine && (
+        (typeof window.ThreeDEngine.isActive === 'function' && window.ThreeDEngine.isActive()) ||
+        (typeof window.ThreeDEngine.isLayerActive === 'function' && window.ThreeDEngine.isLayerActive())
+    );
+    if (is3DActive && typeof window.ThreeDEngine.add3DElementFromData === 'function') {
+        const lines = (n && n.text ? n.text : '').split('\n');
+        const mainText = lines[0] || 'NEON ROZET';
+        const subText = lines.slice(1).join(' ') || '';
+        const iconClass = n ? n.icon : '';
+        const svgStr = getNeonIconSvg(iconClass, '#93c5fd');
+        return window.ThreeDEngine.add3DElementFromData({
+            name: mainText + (subText ? ' ' + subText : ''),
+            itemName: mainText,
+            text: mainText,
+            subtext: subText,
+            badgeSubtext: subText,
+            elementType: 'element_3d',
+            shapeMode: 'card',
+            sourceSvg: svgStr || null,
+            sourceSvgOriginal: svgStr || null,
+            rawSvg: svgStr || null,
+            svg: svgStr || null,
+            selectedIconId: svgStr || 'ev-1',
+            badgeBgColor: '#0d1b2e',
+            frontColor: '#93c5fd',
+            sideColor: '#1e3a8a',
+            show3DText: true
+        });
+    }
+
     const workArea = document.getElementById('workArea') || document.getElementById('canvas-container') || document.querySelector('.main-preview');
     if (!workArea) { alert('Canvas alanı bulunamadı!'); return; }
 
     const cContainer = document.getElementById('canvas-container');
     const cW = (cContainer && parseFloat(cContainer.style.width)) || (typeof uploadedImgW !== 'undefined' && uploadedImgW > 0 ? uploadedImgW : 1920);
+    const cH = (cContainer && parseFloat(cContainer.style.height)) || (typeof uploadedImgH !== 'undefined' && uploadedImgH > 0 ? uploadedImgH : 1080);
     const formatRatio = Math.max(1, cW / 1920);
 
     const iconColor = '#93c5fd';
@@ -1084,6 +1172,11 @@ function addNeonToCanvas(n) {
     const boxSize = Math.round(180 * formatRatio); // Uniform box size for all icons
     
     const lines = n.text.split('\n');
+
+    const existingNeons = document.querySelectorAll('.co-neon-block').length;
+    const staggerOffset = (existingNeons % 6) * 16;
+    const posX = Math.max(20, Math.round((cW - boxSize) / 2) + (existingNeons > 0 ? staggerOffset : 0));
+    const posY = Math.max(20, Math.round((cH - boxSize) / 2) + (existingNeons > 0 ? staggerOffset : 0));
 
     const el = document.createElement('div');
     el.className = 'callout-item co-neon-block';
@@ -1102,8 +1195,8 @@ function addNeonToCanvas(n) {
 
     el.style.cssText = `
         position: absolute;
-        left: ${Math.round(120 * formatRatio)}px;
-        top: ${Math.round(120 * formatRatio)}px;
+        left: ${posX}px;
+        top: ${posY}px;
         display: flex;
         flex-direction: column;
         align-items: center;

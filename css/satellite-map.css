@@ -17,10 +17,17 @@
     z-index: 100000;
     display: flex;
     align-items: center;
-    justify-content: center;
+    justify-content: center; /* 🎯 Varsayılan olarak harita ekranı tam merkezde açılır */
     padding: 16px;
     box-sizing: border-box;
     animation: satFadeIn 0.2s ease-out;
+}
+
+@media (max-width: 1200px) {
+    .sat-modal-overlay {
+        justify-content: center;
+        padding: 10px;
+    }
 }
 
 @keyframes satFadeIn {
@@ -29,6 +36,7 @@
 }
 
 .sat-modal-container {
+    position: relative;
     width: auto;
     min-width: min(96vw, 780px);
     max-width: 98vw;
@@ -41,15 +49,86 @@
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    margin: auto;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.sat-modal-container button,
+.sat-modal-container input,
+.sat-modal-container select,
+.sat-measure-floating-panel,
+.sat-measure-floating-panel button,
+.sat-measure-floating-panel input,
+.sat-measure-floating-panel select {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+}
+
+.sat-modal-container.is-dragging {
+    transition: none !important;
+    user-select: none;
+    box-shadow: 0 35px 80px -10px rgba(0, 0, 0, 0.9), 0 0 0 2px rgba(16, 185, 129, 0.6);
 }
 
 .sat-modal-header {
-    padding: 14px 20px;
+    padding: 12px 20px;
     background: #0f172a;
     border-bottom: 1px solid #334155;
     display: flex;
     justify-content: space-between;
     align-items: center;
+    cursor: grab;
+    user-select: none;
+}
+
+.sat-modal-header:active {
+    cursor: grabbing;
+}
+
+.sat-modal-drag-grip {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 38px;
+    color: #64748b;
+    font-size: 16px;
+    cursor: grab;
+    border-radius: 6px;
+    transition: all 0.2s;
+    flex-shrink: 0;
+    margin-right: 2px;
+}
+
+.sat-modal-drag-grip:hover {
+    color: #38bdf8;
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.sat-header-right-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.sat-modal-reset-pos-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #94a3b8;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.sat-modal-reset-pos-btn:hover {
+    background: rgba(255, 255, 255, 0.12);
+    color: #f8fafc;
+    border-color: rgba(255, 255, 255, 0.25);
 }
 
 .sat-header-left {
@@ -1279,22 +1358,28 @@
 }
 
 .sat-controls-bar {
-    padding: 6px 12px;
+    padding: 4px 10px;
     background: #0f172a;
     border-bottom: 1px solid #334155;
     display: flex;
     justify-content: flex-start;
     align-items: center;
-    flex-wrap: wrap;
-    gap: 6px 10px;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    gap: 6px;
     flex-shrink: 0;
     max-width: 100%;
+    scrollbar-width: none;
+}
+
+.sat-controls-bar::-webkit-scrollbar {
+    display: none;
 }
 
 .sat-ctrl-group {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 4px;
     flex-shrink: 0;
 }
 
@@ -1333,9 +1418,81 @@
 }
 
 .sat-layer-btn.active {
-    background: #0284c7;
+    background: transparent !important;
+    border: 1.5px solid #38bdf8 !important;
+    color: #38bdf8 !important;
+    box-shadow: none !important;
+    font-weight: 800 !important;
+}
+
+/* =========================================================================
+   FORMAT AÇILIR MENÜSÜ & BUTONU (VARSAYILAN KAPALI / DROPDOWN FORMAT)
+   ========================================================================= */
+.sat-format-dropdown-wrap {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+}
+
+.sat-btn-format-toggle {
+    background: transparent !important;
+    border: 1px solid #334155;
+    color: #94a3b8;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 4px 9px;
+    border-radius: 6px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    white-space: nowrap;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+}
+
+.sat-btn-format-toggle:hover {
+    border-color: #64748b;
     color: #ffffff;
-    box-shadow: 0 2px 6px rgba(2, 132, 199, 0.4);
+    background: rgba(255, 255, 255, 0.08) !important;
+}
+
+.sat-btn-format-toggle.active {
+    background: transparent !important;
+    border: 1.5px solid #38bdf8 !important;
+    color: #38bdf8 !important;
+    font-weight: 800 !important;
+    box-shadow: none !important;
+}
+
+.sat-btn-format-toggle b {
+    color: #f1f5f9;
+}
+
+.sat-btn-format-toggle.active b {
+    color: #38bdf8;
+}
+
+.sat-format-chevron {
+    font-size: 9px;
+    margin-left: 2px;
+    opacity: 0.8;
+    transition: transform 0.2s ease;
+}
+
+.sat-format-dropdown-menu {
+    position: absolute;
+    top: calc(100% + 5px);
+    left: 0;
+    z-index: 1000;
+    display: flex;
+    gap: 4px;
+    padding: 4px;
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 8px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+    white-space: nowrap;
 }
 
 .sat-format-btns {
@@ -1349,7 +1506,7 @@
 
 .sat-fmt-btn {
     background: transparent;
-    border: none;
+    border: 1px solid transparent;
     color: #94a3b8;
     font-size: 11px;
     font-weight: 700;
@@ -1363,12 +1520,15 @@
 .sat-fmt-btn:hover {
     color: #ffffff;
     background: rgba(255, 255, 255, 0.06);
+    border-color: #64748b;
 }
 
 .sat-fmt-btn.active {
-    background: linear-gradient(135deg, #10b981, #059669);
-    color: #ffffff;
-    box-shadow: 0 2px 6px rgba(16, 185, 129, 0.4);
+    background: transparent !important;
+    border: 1.5px solid #38bdf8 !important;
+    color: #38bdf8 !important;
+    box-shadow: none !important;
+    font-weight: 800 !important;
 }
 
 .sat-kadraj-guide {
@@ -1479,14 +1639,16 @@
 }
 
 .sat-btn-toggle-pin:hover {
-    border-color: #ef4444;
-    color: #f87171;
+    border-color: #64748b;
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.08) !important;
 }
 
 .sat-btn-toggle-pin.active {
-    background: rgba(239, 68, 68, 0.15);
-    border-color: #ef4444;
-    color: #f87171;
+    background: transparent !important;
+    border: 1.5px solid #38bdf8 !important;
+    color: #38bdf8 !important;
+    box-shadow: none !important;
 }
 
 .sat-btn-toggle-pin b {
@@ -1570,15 +1732,15 @@
 }
 
 .sat-btn-toggle-neon:hover {
-    border-color: #00CEC9;
-    color: #00CEC9;
-    background: transparent !important;
+    border-color: #64748b;
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.08) !important;
 }
 
 .sat-btn-toggle-neon.active {
     background: transparent !important;
-    border-color: #00CEC9;
-    color: #00CEC9;
+    border: 1.5px solid #38bdf8 !important;
+    color: #38bdf8 !important;
     box-shadow: none !important;
 }
 
@@ -2255,6 +2417,27 @@ body[data-theme="light"] .sat-close-btn:hover {
     color: #dc2626;
 }
 
+body[data-theme="light"] .sat-modal-drag-grip {
+    color: #64748b;
+}
+
+body[data-theme="light"] .sat-modal-drag-grip:hover {
+    color: #0284c7;
+    background: #e2e8f0;
+}
+
+body[data-theme="light"] .sat-modal-reset-pos-btn {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+    color: #475569;
+}
+
+body[data-theme="light"] .sat-modal-reset-pos-btn:hover {
+    background: #e2e8f0;
+    color: #0f172a;
+    border-color: #94a3b8;
+}
+
 body[data-theme="light"] .sat-toolbar-search {
     background: #ffffff;
     border-bottom: 1px solid #e2e8f0;
@@ -2574,69 +2757,135 @@ body[data-theme="light"] .sat-ctrl-label {
 }
 
 body[data-theme="light"] .sat-layer-btns {
-    background: #e2e8f0;
-    border: 1px solid #cbd5e1;
+    background: transparent !important;
+    border: 1px solid #cbd5e1 !important;
+    padding: 2px !important;
 }
 
 body[data-theme="light"] .sat-layer-btn {
-    color: #334155;
-    font-weight: 600;
+    background: transparent !important;
+    border: 1px solid transparent !important;
+    color: #475569 !important;
+    font-weight: 600 !important;
 }
 
 body[data-theme="light"] .sat-layer-btn:hover:not(.active) {
-    color: #0f172a;
-    background: rgba(255, 255, 255, 0.6);
+    color: #0f172a !important;
+    background: #f8fafc !important;
+    border-color: #cbd5e1 !important;
 }
 
 body[data-theme="light"] .sat-layer-btn.active {
-    background: #0284c7;
-    color: #ffffff;
-    font-weight: 700;
+    background: transparent !important;
+    border: 1.5px solid #0f172a !important;
+    color: #0f172a !important;
+    font-weight: 800 !important;
+    box-shadow: none !important;
 }
 
 body[data-theme="light"] .sat-btn-toggle-labels {
-    background: #f1f5f9;
-    border: 1.5px solid #cbd5e1;
-    color: #334155;
-    font-weight: 600;
+    background: transparent !important;
+    border: 1px solid #cbd5e1 !important;
+    color: #475569 !important;
+    font-weight: 600 !important;
 }
 
-body[data-theme="light"] .sat-btn-toggle-labels:hover {
-    border-color: #0284c7;
-    color: #0284c7;
-    background: #f0f9ff;
+body[data-theme="light"] .sat-btn-toggle-labels:hover:not(.active) {
+    border-color: #94a3b8 !important;
+    color: #0f172a !important;
+    background: #f8fafc !important;
 }
 
 body[data-theme="light"] .sat-btn-toggle-labels.active {
-    background: #e0f2fe;
-    border-color: #0284c7;
-    color: #0369a1;
-    font-weight: 700;
+    background: transparent !important;
+    border: 1.5px solid #0f172a !important;
+    color: #0f172a !important;
+    font-weight: 800 !important;
+    box-shadow: none !important;
 }
 
 body[data-theme="light"] .sat-btn-toggle-labels b {
-    color: #0284c7;
+    color: #0f172a !important;
+}
+
+/* Açık Tema: Format Açılır Menüsü & Butonu */
+body[data-theme="light"] .sat-btn-format-toggle {
+    background: transparent !important;
+    border: 1px solid #cbd5e1 !important;
+    color: #475569 !important;
+    font-weight: 600 !important;
+    border-radius: 6px;
+}
+
+body[data-theme="light"] .sat-btn-format-toggle:hover:not(.active) {
+    background: #f8fafc !important;
+    border-color: #94a3b8 !important;
+    color: #0f172a !important;
+}
+
+body[data-theme="light"] .sat-btn-format-toggle.active {
+    background: transparent !important;
+    border: 1.5px solid #0f172a !important;
+    color: #0f172a !important;
+    font-weight: 800 !important;
+    box-shadow: none !important;
+}
+
+body[data-theme="light"] .sat-btn-format-toggle b {
+    color: #0f172a !important;
+}
+
+body[data-theme="light"] .sat-format-dropdown-menu {
+    background: #ffffff !important;
+    border: 1px solid #cbd5e1 !important;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12) !important;
+}
+
+body[data-theme="light"] .sat-format-dropdown-menu .sat-fmt-btn {
+    border: 1px solid transparent !important;
+    color: #475569 !important;
+    font-weight: 600 !important;
+}
+
+body[data-theme="light"] .sat-format-dropdown-menu .sat-fmt-btn:hover:not(.active) {
+    background: #f8fafc !important;
+    border-color: #cbd5e1 !important;
+    color: #0f172a !important;
+}
+
+body[data-theme="light"] .sat-format-dropdown-menu .sat-fmt-btn.active {
+    background: transparent !important;
+    border: 1.5px solid #0f172a !important;
+    color: #0f172a !important;
+    font-weight: 800 !important;
+    box-shadow: none !important;
 }
 
 body[data-theme="light"] .sat-format-btns {
-    background: #e2e8f0;
-    border: 1px solid #cbd5e1;
+    background: transparent !important;
+    border: 1px solid #cbd5e1 !important;
+    padding: 2px !important;
 }
 
 body[data-theme="light"] .sat-fmt-btn {
-    color: #334155;
-    font-weight: 600;
+    background: transparent !important;
+    border: 1px solid transparent !important;
+    color: #475569 !important;
+    font-weight: 600 !important;
 }
 
 body[data-theme="light"] .sat-fmt-btn:hover:not(.active) {
-    color: #0f172a;
-    background: rgba(255, 255, 255, 0.6);
+    color: #0f172a !important;
+    background: #f8fafc !important;
+    border-color: #cbd5e1 !important;
 }
 
 body[data-theme="light"] .sat-fmt-btn.active {
-    background: #0284c7;
-    color: #ffffff;
-    font-weight: 700;
+    background: transparent !important;
+    border: 1.5px solid #0f172a !important;
+    color: #0f172a !important;
+    font-weight: 800 !important;
+    box-shadow: none !important;
 }
 
 body[data-theme="light"] .sat-checkbox-label {
@@ -2654,7 +2903,7 @@ body[data-theme="light"] .sat-style-select {
 body[data-theme="light"] .sat-res-select {
     background: #ffffff;
     border: 1.5px solid #cbd5e1;
-    color: #0284c7;
+    color: #0f172a;
     font-weight: 700;
 }
 
@@ -2665,27 +2914,58 @@ body[data-theme="light"] .sat-marker-text-input {
     font-weight: 600;
 }
 
+/* Pin Butonu - Açık Tema */
 body[data-theme="light"] .sat-btn-toggle-pin {
-    background: #f1f5f9;
-    border: 1.5px solid #cbd5e1;
-    color: #334155;
-    font-weight: 600;
+    background: transparent !important;
+    border: 1px solid #cbd5e1 !important;
+    color: #475569 !important;
+    font-weight: 600 !important;
+    border-radius: 6px;
 }
 
-body[data-theme="light"] .sat-btn-toggle-pin:hover {
-    border-color: #ef4444;
-    color: #dc2626;
-    background: #fef2f2;
+body[data-theme="light"] .sat-btn-toggle-pin:hover:not(.active) {
+    border-color: #94a3b8 !important;
+    color: #0f172a !important;
+    background: #f8fafc !important;
 }
 
 body[data-theme="light"] .sat-btn-toggle-pin.active {
-    background: #fee2e2;
-    border-color: #ef4444;
-    color: #dc2626;
+    background: transparent !important;
+    border: 1.5px solid #0f172a !important;
+    color: #0f172a !important;
+    font-weight: 800 !important;
+    box-shadow: none !important;
 }
 
 body[data-theme="light"] .sat-btn-toggle-pin b {
-    color: #dc2626;
+    color: #0f172a !important;
+}
+
+/* Neon Butonu - Açık Tema */
+body[data-theme="light"] .sat-btn-toggle-neon {
+    background: transparent !important;
+    border: 1px solid #cbd5e1 !important;
+    color: #475569 !important;
+    font-weight: 600 !important;
+    border-radius: 6px;
+}
+
+body[data-theme="light"] .sat-btn-toggle-neon:hover:not(.active) {
+    border-color: #94a3b8 !important;
+    color: #0f172a !important;
+    background: #f8fafc !important;
+}
+
+body[data-theme="light"] .sat-btn-toggle-neon.active {
+    background: transparent !important;
+    border: 1.5px solid #0f172a !important;
+    color: #0f172a !important;
+    font-weight: 800 !important;
+    box-shadow: none !important;
+}
+
+body[data-theme="light"] .sat-btn-toggle-neon b {
+    color: #0f172a !important;
 }
 
 body[data-theme="light"] .sat-map-stage {
@@ -2775,8 +3055,405 @@ body[data-theme="light"] .sat-btn-cancel:hover {
     border-color: #94a3b8;
 }
 
+body[data-theme="light"] .sat-btn-capture {
+    background: #ecfdf5 !important;
+    border: 1.5px solid #10b981 !important;
+    color: #047857 !important;
+    font-weight: 700;
+    box-shadow: 0 1px 3px rgba(16, 185, 129, 0.15) !important;
+}
 
-/* --- 2. UYDU HARİTASI ÖLÇÜM, CEPHE & ARSA YÖNETİM SİSTEMİ --- */
+body[data-theme="light"] .sat-btn-capture:hover {
+    background: #10b981 !important;
+    color: #ffffff !important;
+}
+
+body[data-theme="light"] .sat-btn-search {
+    background: #f0f9ff !important;
+    border: 1.5px solid #0284c7 !important;
+    color: #0284c7 !important;
+    box-shadow: 0 1px 3px rgba(2, 132, 199, 0.12) !important;
+}
+
+body[data-theme="light"] .sat-btn-search:hover {
+    background: #0284c7 !important;
+    color: #ffffff !important;
+}
+
+body[data-theme="light"] .sat-btn-geo {
+    background: #f0fdf4 !important;
+    border: 1.5px solid #10b981 !important;
+    color: #059669 !important;
+}
+
+body[data-theme="light"] .sat-btn-geo:hover {
+    background: #10b981 !important;
+    color: #ffffff !important;
+}
+
+body[data-theme="light"] .sat-modal-footer {
+    background: #ffffff !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    border-top: 1px solid #cbd5e1 !important;
+}
+
+/* 📏 AÇIK TEMA: YÜZEN ÖLÇÜM PANELİ (Katı Dolgusuz & Cam Efektsiz Temiz Standart Panel) */
+body[data-theme="light"] .sat-measure-floating-panel {
+    background: #ffffff !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    border: 1px solid #cbd5e1 !important;
+    box-shadow: 0 16px 40px rgba(15, 23, 42, 0.12) !important;
+    color: #0f172a !important;
+    width: 375px !important;
+    max-width: min(94vw, 400px) !important;
+}
+
+body[data-theme="light"] .sat-measure-floating-panel .sat-measure-panel-header {
+    background: #f8fafc !important;
+    border-bottom: 1px solid #e2e8f0 !important;
+}
+
+body[data-theme="light"] .sat-measure-floating-panel .sat-measure-title {
+    color: #0f172a !important;
+    font-weight: 700 !important;
+}
+
+body[data-theme="light"] .sat-measure-floating-panel #satMeasureHeaderIcon {
+    color: #475569 !important;
+}
+
+body[data-theme="light"] .sat-measure-floating-panel .sat-measure-drag-handle {
+    color: #64748b !important;
+}
+
+body[data-theme="light"] .sat-measure-floating-panel .sat-measure-panel-body {
+    background: #ffffff !important;
+    color: #1e293b !important;
+    scrollbar-color: #94a3b8 #f1f5f9 !important;
+}
+
+/* Üst Mod & Katman Butonları (Nokta / Gezin / Parsel) - DOLGUSUZ / OUTLINE */
+body[data-theme="light"] .sat-measure-mode-btn {
+    background: transparent !important;
+    border: 1px solid #cbd5e1 !important;
+    color: #475569 !important;
+    font-weight: 600 !important;
+    box-shadow: none !important;
+}
+
+body[data-theme="light"] .sat-measure-mode-btn:hover:not(.active) {
+    background: #f8fafc !important;
+    border-color: #94a3b8 !important;
+    color: #0f172a !important;
+}
+
+body[data-theme="light"] .sat-measure-mode-btn.active {
+    background: transparent !important;
+    border: 1.5px solid #0f172a !important;
+    color: #0f172a !important;
+    font-weight: 800 !important;
+    border-radius: 6px !important;
+    box-shadow: none !important;
+}
+
+body[data-theme="light"] .sat-measure-btn-parcel-layer {
+    background: transparent !important;
+    border: 1px solid #cbd5e1 !important;
+    color: #475569 !important;
+    border-radius: 6px !important;
+    box-shadow: none !important;
+}
+
+body[data-theme="light"] .sat-measure-btn-parcel-layer:hover:not(.active) {
+    background: #f8fafc !important;
+    border-color: #94a3b8 !important;
+    color: #0f172a !important;
+}
+
+body[data-theme="light"] .sat-measure-btn-parcel-layer.active {
+    background: transparent !important;
+    border: 1.5px solid #0f172a !important;
+    color: #0f172a !important;
+    font-weight: 800 !important;
+    border-radius: 6px !important;
+    box-shadow: none !important;
+}
+
+body[data-theme="light"] .sat-measure-btn-min,
+body[data-theme="light"] .sat-measure-btn-close {
+    color: #475569 !important;
+}
+
+body[data-theme="light"] .sat-measure-btn-min:hover {
+    color: #0f172a !important;
+    background: #e2e8f0 !important;
+}
+
+body[data-theme="light"] .sat-measure-btn-close:hover {
+    color: #ef4444 !important;
+    background: #fee2e2 !important;
+}
+
+/* ➕ Yeni Çizim Ekle Butonu */
+body[data-theme="light"] .sat-btn-add-drawing {
+    background: #ffffff !important;
+    border: 1px dashed #cbd5e1 !important;
+    color: #1e293b !important;
+    font-weight: 600 !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
+}
+
+body[data-theme="light"] .sat-btn-add-drawing:hover {
+    background: #f8fafc !important;
+    border-color: #94a3b8 !important;
+    color: #0f172a !important;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08) !important;
+    transform: none !important;
+}
+
+body[data-theme="light"] .sat-btn-add-drawing i {
+    color: #475569 !important;
+}
+
+/* 📋 Çizim Kartları (Giriş Sekmesi & 3D Panel Kart Formatında) */
+body[data-theme="light"] .sat-drawing-card {
+    background: #ffffff !important;
+    border: 1px solid #e2e8f0 !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02) !important;
+}
+
+body[data-theme="light"] .sat-drawing-card.is-active {
+    background: #ffffff !important;
+    border-color: #94a3b8 !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06) !important;
+}
+
+body[data-theme="light"] .sat-drawing-header {
+    background: #f8fafc !important;
+    border-bottom: 1px solid #e2e8f0 !important;
+}
+
+body[data-theme="light"] .sat-drawing-card.is-active .sat-drawing-header {
+    background: #f1f5f9 !important;
+    border-bottom: 1px solid #cbd5e1 !important;
+}
+
+body[data-theme="light"] .sat-drawing-title {
+    color: #0f172a !important;
+    font-weight: 700 !important;
+}
+
+body[data-theme="light"] .sat-drawing-type-pill {
+    background: #e2e8f0 !important;
+    border: 1px solid #cbd5e1 !important;
+    color: #334155 !important;
+    font-weight: 600 !important;
+}
+
+body[data-theme="light"] .sat-drawing-act-btn {
+    color: #64748b !important;
+}
+
+body[data-theme="light"] .sat-drawing-act-btn:hover {
+    color: #0f172a !important;
+    background: #e2e8f0 !important;
+}
+
+body[data-theme="light"] .sat-drawing-act-btn.del:hover {
+    color: #ef4444 !important;
+    background: #fee2e2 !important;
+}
+
+/* 📏 Mesafe & Alan Gösterim Kutusu (Koyu dolgu kaldırıldı, temiz konturlu net zemin) */
+body[data-theme="light"] .sat-measure-display-box {
+    background: #f8fafc !important;
+    border: 1px solid #cbd5e1 !important;
+}
+
+body[data-theme="light"] .sat-measure-val {
+    color: #0f172a !important;
+    text-shadow: none !important;
+    font-weight: 800 !important;
+}
+
+body[data-theme="light"] .sat-measure-sub-stats {
+    background: #ffffff !important;
+    border: 1px solid #e2e8f0 !important;
+    color: #334155 !important;
+}
+
+body[data-theme="light"] .sat-measure-sub-stats b {
+    color: #0f172a !important;
+    font-weight: 700 !important;
+}
+
+body[data-theme="light"] .sat-measure-hint {
+    color: #64748b !important;
+    font-weight: 500 !important;
+}
+
+/* Çizim İçi Aksiyon Butonları (Renkli çerçeveler kaldırıldı, standart sade buton) */
+body[data-theme="light"] .sat-measure-act-btn {
+    background: #ffffff !important;
+    border: 1px solid #cbd5e1 !important;
+    color: #334155 !important;
+    font-weight: 600 !important;
+}
+
+body[data-theme="light"] .sat-measure-act-btn:hover {
+    background: #f8fafc !important;
+    border-color: #94a3b8 !important;
+    color: #0f172a !important;
+}
+
+body[data-theme="light"] .sat-measure-act-btn.snap-all,
+body[data-theme="light"] .sat-measure-act-btn.snap,
+body[data-theme="light"] .sat-measure-act-btn.cycle,
+body[data-theme="light"] .sat-measure-act-btn.close-poly,
+body[data-theme="light"] .sat-measure-act-btn.undo {
+    border-color: #cbd5e1 !important;
+    color: #334155 !important;
+}
+
+body[data-theme="light"] .sat-measure-act-btn.close-poly.active {
+    background: transparent !important;
+    border: 1.5px solid #0f172a !important;
+    color: #0f172a !important;
+    font-weight: 800 !important;
+    border-radius: 6px !important;
+    box-shadow: none !important;
+}
+
+body[data-theme="light"] .sat-measure-act-btn.reset {
+    border-color: #fca5a5 !important;
+    color: #b91c1c !important;
+    background: #ffffff !important;
+    border-radius: 6px !important;
+}
+
+body[data-theme="light"] .sat-measure-act-btn.reset:hover {
+    background: #fee2e2 !important;
+    border-color: #ef4444 !important;
+    color: #991b1b !important;
+}
+
+/* Etiket Şablonu, Gösterim ve CAD Butonları - DOLGUSUZ / OUTLINE (100% UYUMLU) */
+body[data-theme="light"] .sat-measure-chip,
+body[data-theme="light"] .sat-measure-style-btn,
+body[data-theme="light"] .sat-measure-edge-chip {
+    background: transparent !important;
+    border: 1px solid #cbd5e1 !important;
+    color: #475569 !important;
+    font-weight: 600 !important;
+    border-radius: 6px !important;
+    box-shadow: none !important;
+}
+
+body[data-theme="light"] .sat-measure-chip:hover:not(.active),
+body[data-theme="light"] .sat-measure-style-btn:hover:not(.active),
+body[data-theme="light"] .sat-measure-edge-chip:hover:not(.active) {
+    background: #f8fafc !important;
+    border-color: #94a3b8 !important;
+    color: #0f172a !important;
+}
+
+body[data-theme="light"] .sat-measure-chip.active,
+body[data-theme="light"] .sat-measure-style-btn.active,
+body[data-theme="light"] .sat-measure-edge-chip.active {
+    background: transparent !important;
+    border: 1.5px solid #0f172a !important;
+    color: #0f172a !important;
+    font-weight: 800 !important;
+    border-radius: 6px !important;
+    box-shadow: none !important;
+}
+
+body[data-theme="light"] .sat-measure-opt-section {
+    background: #f8fafc !important;
+    border-color: #e2e8f0 !important;
+}
+
+/* Metin Girişi */
+body[data-theme="light"] .sat-measure-text-input {
+    background: #ffffff !important;
+    border: 1px solid #cbd5e1 !important;
+    color: #0f172a !important;
+}
+
+body[data-theme="light"] .sat-measure-text-input:focus {
+    border-color: #64748b !important;
+    box-shadow: 0 0 0 2px rgba(100, 116, 139, 0.15) !important;
+}
+
+/* Etiketler, Yazılar ve Başlıklar (YAZILAR NET VE OKUNAKLI) */
+body[data-theme="light"] .sat-measure-label {
+    color: #0f172a !important;
+    font-weight: 700 !important;
+    font-size: 11.5px !important;
+}
+
+body[data-theme="light"] .sat-color-row {
+    color: #1e293b !important;
+}
+
+body[data-theme="light"] .sat-color-row span {
+    color: #1e293b !important;
+    font-weight: 600 !important;
+}
+
+body[data-theme="light"] #satMeasureStrokeWidthText,
+body[data-theme="light"] #satMeasureFillOpacityText {
+    color: #0f172a !important;
+    font-weight: 700 !important;
+}
+
+body[data-theme="light"] #satMeasureNeonToggleBtn {
+    background: #ffffff !important;
+    border: 1px solid #cbd5e1 !important;
+    color: #475569 !important;
+    font-weight: 600 !important;
+    box-shadow: none !important;
+}
+
+body[data-theme="light"] #satMeasureNeonToggleBtn.active {
+    background: #ffffff !important;
+    border: 2px solid #0f172a !important;
+    color: #0f172a !important;
+    font-weight: 800 !important;
+    box-shadow: none !important;
+}
+
+body[data-theme="light"] .sat-measure-color-custom-btn {
+    background: #ffffff !important;
+    border: 1px dashed #cbd5e1 !important;
+    color: #475569 !important;
+}
+
+body[data-theme="light"] .sat-measure-color-custom-btn:hover,
+body[data-theme="light"] .sat-measure-color-custom-btn.active {
+    border-color: #0f172a !important;
+    color: #0f172a !important;
+}
+
+body[data-theme="light"] .sat-measure-color-dot.active {
+    border: 2px solid #0f172a !important;
+    box-shadow: 0 0 0 1px #ffffff !important;
+}
+
+body[data-theme="light"] #satMeasure3dNotice {
+    background: #f1f5f9 !important;
+    border: 1px solid #cbd5e1 !important;
+    color: #1e293b !important;
+}
+
+body[data-theme="light"] #satMeasure3dNotice button {
+    background: #1e293b !important;
+    color: #ffffff !important;
+}
+
+/* ==========================================================================
    📏 SATELLITE MAP MEASURE & FRONTAGE SYSTEM (Ölçüm & Cephe Sistemi)
    Strikt Kural: Butonlar ve çipler kesinlikle dolgusuz (outline) tasarımdır.
    ========================================================================== */
@@ -2800,20 +3477,46 @@ body[data-theme="light"] .sat-btn-cancel:hover {
 }
 
 .sat-btn-toggle-measure:hover {
-    border-color: #f59e0b;
-    color: #f59e0b;
-    background: transparent !important;
+    border-color: #64748b;
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.08) !important;
 }
 
 .sat-btn-toggle-measure.active {
     background: transparent !important;
-    border-color: #f59e0b;
-    color: #f59e0b;
+    border: 1.5px solid #38bdf8 !important;
+    color: #38bdf8 !important;
     box-shadow: none !important;
 }
 
-.sat-btn-toggle-measure b {
-    font-weight: 700;
+.sat-btn-toggle-measure.active b {
+    color: #38bdf8 !important;
+}
+
+body[data-theme="light"] .sat-btn-toggle-measure {
+    background: transparent !important;
+    border: 1px solid #cbd5e1 !important;
+    color: #475569 !important;
+    font-weight: 600 !important;
+    box-shadow: none !important;
+}
+
+body[data-theme="light"] .sat-btn-toggle-measure:hover:not(.active) {
+    background: #f8fafc !important;
+    border-color: #94a3b8 !important;
+    color: #0f172a !important;
+}
+
+body[data-theme="light"] .sat-btn-toggle-measure.active {
+    background: transparent !important;
+    border: 1.5px solid #0f172a !important;
+    color: #0f172a !important;
+    font-weight: 800 !important;
+    box-shadow: none !important;
+}
+
+body[data-theme="light"] .sat-btn-toggle-measure.active b {
+    color: #0f172a !important;
 }
 
 /* Harita İmleci - Ölçüm Modu (Windows Ok İmleci ve Gezinme) */
@@ -2835,17 +3538,17 @@ body[data-theme="light"] .sat-btn-cancel:hover {
 /* 📏 Yüzen Cam Ölçüm Paneli (Floating Glass Panel - Serbest & Sürüklenebilir) */
 .sat-measure-floating-panel {
     position: absolute;
-    top: 90px;
-    left: 30px;
+    top: 80px;
+    left: 24px;
     z-index: 100100;
-    width: 320px;
-    max-width: min(94vw, 360px);
-    background: rgba(15, 23, 42, 0.94) !important;
-    backdrop-filter: blur(14px);
-    -webkit-backdrop-filter: blur(14px);
-    border: 1px solid rgba(245, 158, 11, 0.5);
+    width: 375px;
+    max-width: min(94vw, 400px);
+    background: #0f172a;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    border: 1px solid #334155;
     border-radius: 12px;
-    box-shadow: 0 18px 45px rgba(0, 0, 0, 0.85);
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -2857,14 +3560,14 @@ body[data-theme="light"] .sat-btn-cancel:hover {
 .sat-measure-floating-panel.is-dragging {
     transition: none !important;
     box-shadow: 0 24px 50px rgba(0, 0, 0, 0.95);
-    border-color: #f59e0b;
+    border-color: #64748b;
 }
 
 .sat-measure-floating-panel.collapsed {
     width: auto !important;
     min-width: 210px !important;
     max-width: 300px !important;
-    border-color: rgba(245, 158, 11, 0.7) !important;
+    border-color: #475569 !important;
 }
 
 .sat-measure-floating-panel.collapsed .sat-measure-panel-body,
@@ -2888,16 +3591,16 @@ body[data-theme="light"] .sat-btn-cancel:hover {
 }
 
 .sat-measure-floating-panel.collapsed .sat-measure-btn-min {
-    color: #f59e0b !important;
-    background: rgba(245, 158, 11, 0.2) !important;
-    border: 1px solid rgba(245, 158, 11, 0.5) !important;
+    color: #e2e8f0 !important;
+    background: rgba(255, 255, 255, 0.08) !important;
+    border: 1px solid rgba(255, 255, 255, 0.15) !important;
     border-radius: 5px !important;
     padding: 3px 8px !important;
     font-size: 11px !important;
 }
 
 .sat-measure-floating-panel.collapsed .sat-measure-btn-min:hover {
-    background: rgba(245, 158, 11, 0.35) !important;
+    background: rgba(255, 255, 255, 0.15) !important;
     color: #ffffff !important;
 }
 
@@ -2907,14 +3610,14 @@ body[data-theme="light"] .sat-btn-cancel:hover {
     align-items: center;
     justify-content: space-between;
     padding: 9px 12px;
-    background: rgba(0, 0, 0, 0.35);
+    background: #1e293b;
     border-bottom: 1px solid rgba(255, 255, 255, 0.08);
     cursor: move;
 }
 
 .sat-measure-drag-handle {
     font-size: 11px;
-    color: rgba(245, 158, 11, 0.7);
+    color: #94a3b8;
     cursor: move;
 }
 
@@ -2924,7 +3627,7 @@ body[data-theme="light"] .sat-btn-cancel:hover {
     gap: 6px;
     font-size: 11.5px;
     font-weight: 700;
-    color: #f59e0b;
+    color: #f8fafc;
     text-transform: uppercase;
     letter-spacing: 0.5px;
     cursor: move;
@@ -3146,16 +3849,17 @@ body[data-theme="light"] .sat-btn-cancel:hover {
 }
 
 .sat-measure-chip:hover {
-    border-color: #f59e0b;
-    color: #f59e0b;
-    background: transparent !important;
+    border-color: #64748b;
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.08) !important;
 }
 
 .sat-measure-chip.active {
-    border-color: #f59e0b;
-    color: #f59e0b;
+    border: 1.5px solid #38bdf8 !important;
+    color: #38bdf8 !important;
     background: transparent !important;
     box-shadow: none !important;
+    font-weight: 800 !important;
 }
 
 /* Kenar Seçici & Filtre Izgarası (Dolgusuz / Outline) */
@@ -3254,6 +3958,34 @@ body[data-theme="light"] .sat-btn-cancel:hover {
     border-color: #f59e0b;
 }
 
+/* Şablon Çipleri 3x2 Dengeli Izgara */
+.sat-measure-chips-grid-3 {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 4px;
+}
+
+.sat-measure-chips-grid-3 .sat-measure-chip {
+    text-align: center;
+    justify-content: center;
+    padding: 3.5px 2px;
+    font-size: 10px;
+    width: 100%;
+}
+
+/* Alan Rozeti & Seçenekler Çerçeveli Bölüm */
+.sat-measure-opt-section {
+    margin-top: 5px;
+    margin-bottom: 5px;
+    padding: 7px 8px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 7px;
+    background: rgba(255, 255, 255, 0.02);
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
 /* Stil Butonları (Dolgusuz / Outline) */
 .sat-measure-style-pills {
     display: flex;
@@ -3277,16 +4009,17 @@ body[data-theme="light"] .sat-btn-cancel:hover {
 }
 
 .sat-measure-style-btn:hover {
-    border-color: #f59e0b;
-    color: #f59e0b;
-    background: transparent !important;
+    border-color: #64748b;
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.08) !important;
 }
 
 .sat-measure-style-btn.active {
-    border-color: #f59e0b;
-    color: #f59e0b;
+    border: 1.5px solid #38bdf8 !important;
+    color: #38bdf8 !important;
     background: transparent !important;
     box-shadow: none !important;
+    font-weight: 800 !important;
 }
 
 /* Renk Noktaları & Genel Renk Seçici */
@@ -3294,11 +4027,12 @@ body[data-theme="light"] .sat-btn-cancel:hover {
     display: flex;
     gap: 6px;
     align-items: center;
+    flex-wrap: nowrap;
 }
 
 .sat-measure-color-dot {
-    width: 18px;
-    height: 18px;
+    width: 17px;
+    height: 17px;
     border-radius: 50%;
     border: 2px solid transparent;
     cursor: pointer;
@@ -3306,6 +4040,7 @@ body[data-theme="light"] .sat-btn-cancel:hover {
     padding: 0;
     outline: none;
     box-shadow: none !important;
+    flex-shrink: 0;
 }
 
 .sat-measure-color-dot:hover {
@@ -3334,6 +4069,7 @@ body[data-theme="light"] .sat-btn-cancel:hover {
     overflow: hidden;
     margin-left: 2px;
     box-shadow: none !important;
+    flex-shrink: 0;
 }
 
 .sat-measure-color-custom-btn:hover,
@@ -3414,61 +4150,29 @@ body[data-theme="light"] .sat-btn-cancel:hover {
     box-shadow: none !important;
 }
 
-.sat-measure-act-btn.snap-all {
-    border-color: rgba(245, 158, 11, 0.45);
-    color: #f59e0b;
+.sat-measure-act-btn.snap-all,
+.sat-measure-act-btn.snap,
+.sat-measure-act-btn.cycle,
+.sat-measure-act-btn.close-poly,
+.sat-measure-act-btn.undo {
+    border-color: #334155;
+    color: #cbd5e1;
 }
 
-.sat-measure-act-btn.snap-all:hover {
-    border-color: #f59e0b;
-    background: transparent !important;
-}
-
-.sat-measure-act-btn.snap {
-    border-color: rgba(56, 189, 248, 0.45);
-    color: #38bdf8;
-}
-
-.sat-measure-act-btn.snap:hover {
-    border-color: #38bdf8;
-    background: transparent !important;
-}
-
-.sat-measure-act-btn.cycle {
-    border-color: rgba(16, 185, 129, 0.45);
-    color: #10b981;
-}
-
-.sat-measure-act-btn.cycle:hover {
-    border-color: #10b981;
-    background: transparent !important;
-}
-
-.sat-measure-act-btn.close-poly {
-    border-color: rgba(168, 85, 247, 0.45);
-    color: #c084fc;
-}
-
-.sat-measure-act-btn.close-poly:hover {
-    border-color: #c084fc;
-    background: transparent !important;
+.sat-measure-act-btn.snap-all:hover,
+.sat-measure-act-btn.snap:hover,
+.sat-measure-act-btn.cycle:hover,
+.sat-measure-act-btn.close-poly:hover,
+.sat-measure-act-btn.undo:hover {
+    border-color: #64748b;
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.06) !important;
 }
 
 .sat-measure-act-btn.close-poly.active {
-    border-color: #10b981;
-    color: #10b981;
-    background: transparent !important;
-}
-
-.sat-measure-act-btn.undo {
-    border-color: rgba(148, 163, 184, 0.4);
-    color: #94a3b8;
-}
-
-.sat-measure-act-btn.undo:hover {
-    border-color: #cbd5e1;
-    color: #cbd5e1;
-    background: transparent !important;
+    border-color: #475569;
+    background: #334155 !important;
+    color: #ffffff;
 }
 
 .sat-measure-act-btn.reset {
@@ -3721,6 +4425,8 @@ body[data-theme="light"] .sat-btn-cancel:hover {
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
+    overflow: visible !important;
+    pointer-events: none !important;
 }
 
 .sat-measure-map-badge {
@@ -3794,7 +4500,8 @@ body[data-theme="light"] .sat-btn-cancel:hover {
     pointer-events: none !important;
 }
 
-.sat-measure-total-wrapper {
+.sat-measure-total-wrapper,
+.sat-measure-edge-wrapper {
     position: relative;
     display: inline-flex;
     align-items: center;
@@ -3805,15 +4512,18 @@ body[data-theme="light"] .sat-btn-cancel:hover {
     touch-action: none;
 }
 
-.sat-measure-total-wrapper:active {
+.sat-measure-total-wrapper:active,
+.sat-measure-edge-wrapper:active {
     cursor: grabbing;
 }
 
-.sat-measure-total-wrapper.is-selected .sat-area-select-border {
+.sat-measure-total-wrapper.is-selected .sat-area-select-border,
+.sat-measure-edge-wrapper.is-selected .sat-area-select-border {
     display: block;
 }
 
-.sat-measure-total-wrapper.is-selected .sat-area-handle {
+.sat-measure-total-wrapper.is-selected .sat-area-handle,
+.sat-measure-edge-wrapper.is-selected .sat-area-handle {
     display: flex;
 }
 

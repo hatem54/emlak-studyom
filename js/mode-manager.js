@@ -165,7 +165,7 @@ function updateModeUI() {
     bannerDiv.innerHTML = `
         <span>🟡 Demo Modu ${isGuest ? '(Misafir - Filigranlı)' : ''}</span>
         ${isGuest ? `
-            <button onclick="window.location.href='index.html'" style="background:#10b981; color:white; border:none; padding:3px 10px; border-radius:10px; font-size:11px; font-weight:bold; cursor:pointer;" title="Kayıt olarak ücretsiz Pro özellikleri açın">✨ Ücretsiz Kayıt Ol (Pro Aç)</button>
+            <button onclick="window.location.href='index.html'" style="background:#10b981; color:white; border:none; padding:3px 10px; border-radius:10px; font-size:11px; font-weight:bold; cursor:pointer;" title="Kayıt olarak ücretsiz Pro özellikleri açın">✨ Ücretsiz Kayıt Ol</button>
         ` : `
             <button onclick="if(window.openRedeemCodeModal) window.openRedeemCodeModal()" style="background:#10b981; color:white; border:none; padding:3px 8px; border-radius:10px; font-size:11px; font-weight:bold; cursor:pointer;" title="Aktivasyon / Promosyon Kodu Gir">🔑 Kod Gir</button>
             <span onclick="window.location.href='index.html#pricing'" style="text-decoration:underline; cursor:pointer; opacity:0.9;">Satın Al</span>

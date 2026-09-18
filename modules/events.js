@@ -70,7 +70,7 @@ window.openQuickEdit3DModal = function(targetElement, clientX, clientY) {
 
             <!-- ☀️ 3D GÜNEŞ & IŞIK BUTONU -->
             <button type="button" class="q3d-sun-btn" id="q3dSunBtn">
-                <i class="fas fa-sun"></i> ☀️ 3D Güneş & Işık Ekle
+                <i class="fas fa-sun"></i> Güneş & Işık Ekle
             </button>
 
             <!-- Alt Eylemler -->
@@ -207,7 +207,6 @@ window.openQuickEdit3DModal = function(targetElement, clientX, clientY) {
 // Global Event Delegates
 
 // Yardımcı Fonksiyon: Zarif, Kompakt & Yüzer Obje Sağ Tık Menüsü
-// Yardımcı Fonksiyon: Zarif, Kompakt & Yüzer Obje Sağ Tık Menüsü
 function openObjectContextMenu(targetElement, isText, clientX, clientY) {
     if (!targetElement) return;
 
@@ -246,15 +245,15 @@ function openObjectContextMenu(targetElement, isText, clientX, clientY) {
 
     // 🌟 3D MOTORU İŞLEMLERİ (SAĞ TIK MENÜSÜ EN BAŞINDA)
     html += `
-        <button class="app-context-item item-3d" id="acm-convert-3d" style="background: linear-gradient(135deg, rgba(2, 132, 199, 0.25) 0%, rgba(56, 189, 248, 0.35) 100%); border: 1px solid rgba(56, 189, 248, 0.45); color: #38bdf8; font-weight: 700;">
+        <button class="app-context-item item-3d" id="acm-convert-3d">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2.2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
-            <span>✨ 3D'ye Dönüştür (Kalınlık & 6 Yön)</span>
+            <span>3D'ye Dönüştür (Kalınlık & 6 Yön)</span>
         </button>
-        <button class="app-context-item item-sun" id="acm-add-sun" style="background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.35); color: #f59e0b; font-weight: 600;">
+        <button class="app-context-item item-sun" id="acm-add-sun">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2.2"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
-            <span>☀️ 3D Güneş & Işık Ekle</span>
+            <span>3D Güneş & Işık Ekle</span>
         </button>
-        <div style="height: 1px; background: rgba(255,255,255,0.08); margin: 3px 0;"></div>
+        <div class="acm-divider"></div>
     `;
 
     // Metni Düzenle (Eğer metin düzenlenebilir ise)
@@ -330,7 +329,7 @@ function openObjectContextMenu(targetElement, isText, clientX, clientY) {
 
     // Sil
     html += `
-        <div style="height: 1px; background: rgba(255,255,255,0.06); margin: 2px 0;"></div>
+        <div class="acm-divider"></div>
         <button class="app-context-item item-delete" id="acm-delete">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#f43f5e" stroke-width="2.2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
             <span>Sil</span>
@@ -595,6 +594,7 @@ function openObjectContextMenu(targetElement, isText, clientX, clientY) {
         if (window.multiSelectDuplicate) window.multiSelectDuplicate();
     });
 }
+window.openObjectContextMenu = openObjectContextMenu;
 
 // ==================== ÇOKLU SEÇİM SAĞ TIK & HİZALAMA MENÜSÜ ====================
 function openMultiSelectContextMenu(clientX, clientY) {
@@ -923,17 +923,17 @@ function openLibraryItem3DContextMenu(libItem, clientX, clientY) {
         <div class="app-context-header">
             <span style="display:flex; align-items:center; gap:5px; pointer-events:none;">
                 <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" style="opacity:0.6;"><circle cx="9" cy="6" r="2"></circle><circle cx="15" cy="6" r="2"></circle><circle cx="9" cy="12" r="2"></circle><circle cx="15" cy="12" r="2"></circle><circle cx="9" cy="18" r="2"></circle><circle cx="15" cy="18" r="2"></circle></svg>
-                ✨ ${typeLabel} 3D Seçenekleri
+                ${typeLabel} Seçenekleri
             </span>
             <button class="acm-close-btn" id="lib-acm-close" title="Kapat">✕</button>
         </div>
-        <button class="app-context-item item-3d" id="lib-convert-3d" style="background: linear-gradient(135deg, rgba(2, 132, 199, 0.25) 0%, rgba(56, 189, 248, 0.35) 100%); border: 1px solid rgba(56, 189, 248, 0.45); color: #38bdf8; font-weight: 700;">
+        <button class="app-context-item item-3d" id="lib-convert-3d">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2.2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
-            <span>✨ 3D'ye Dönüştür (Tuvalde Aç)</span>
+            <span>3D'ye Dönüştür (Tuvalde Aç)</span>
         </button>
-        <button class="app-context-item" id="lib-add-2d" style="color: #cbd5e1;">
+        <button class="app-context-item" id="lib-add-2d">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
-            <span>➕ Normal (2D) Olarak Ekle</span>
+            <span>Normal (2D) Olarak Ekle</span>
         </button>
     `;
 
@@ -964,7 +964,15 @@ function openLibraryItem3DContextMenu(libItem, clientX, clientY) {
                          libItem.closest('.tab-pane');
         const catTitle = (headerEl ? headerEl.textContent : '').toLowerCase();
         const svgEl = libItem.querySelector('svg');
-        const rawSvg = svgEl ? svgEl.outerHTML : '';
+        let rawSvg = svgEl ? svgEl.outerHTML : '';
+
+        const iconI = libItem.querySelector('i');
+        const iconClass = iconI ? iconI.className : '';
+        const isNeon = !!(iconClass && (iconClass.includes('fa-') || iconClass.includes('fas')));
+        let neonSvg = null;
+        if (isNeon && typeof window.getNeonIconSvg === 'function') {
+            neonSvg = window.getNeonIconSvg(iconClass, '#93c5fd');
+        }
 
         const isPin = catTitle.includes('konum') || catTitle.includes('pin') || 
                       itemName.toLowerCase().includes('pin') || itemName.toLowerCase().includes('konum') ||
@@ -972,13 +980,26 @@ function openLibraryItem3DContextMenu(libItem, clientX, clientY) {
         const isArrow = catTitle.includes('ok') || catTitle.includes('arrow') || 
                         itemName.toLowerCase().includes('ok') || itemName.toLowerCase().includes('arrow');
 
+        const lines = itemName.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+        const mainText = lines[0] || itemName;
+        const subText = lines.slice(1).join(' ') || '';
+
         const meta = {
             itemName: itemName,
+            name: itemName,
             catTitle: catTitle,
             isPin: isPin,
             isArrow: isArrow,
-            rawSvg: rawSvg,
-            svg: rawSvg
+            rawSvg: rawSvg || neonSvg,
+            svg: rawSvg || neonSvg,
+            elementType: isNeon ? 'badge_card' : undefined,
+            selectedIconId: neonSvg || undefined,
+            text: isNeon ? mainText : undefined,
+            subtext: isNeon ? subText : undefined,
+            badgeSubtext: isNeon ? subText : undefined,
+            badgeBgColor: isNeon ? '#0d1b2e' : undefined,
+            frontColor: isNeon ? '#93c5fd' : undefined,
+            sideColor: isNeon ? '#1e3a8a' : undefined
         };
 
         if (window.ThreeDEngine && typeof window.ThreeDEngine.add3DElementFromData === 'function') {
@@ -1036,6 +1057,25 @@ document.addEventListener('contextmenu', function(e) {
         return;
     }
 
+    // 🌟 3D Stüdyo açıkken tuvalde sağ tık: 3D Menüsünü Aç ve Tarayıcı Menüsünü Kesinlikle Engelle
+    if (window.ThreeDEngine && typeof window.ThreeDEngine.isActive === 'function' && window.ThreeDEngine.isActive()) {
+        if (e.target.closest && e.target.closest('#canvas-container, #workArea, #threeDCanvas, .three-d-canvas, #threeDGizmoOverlay, #threeDCornerPinOverlay, .main-canvas')) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (typeof window.ThreeDEngine.openContextMenu === 'function') {
+                const hitEl = (typeof window.ThreeDEngine.checkHit === 'function') ? window.ThreeDEngine.checkHit(e.clientX, e.clientY) : null;
+                const activeEl = hitEl || (typeof window.ThreeDEngine.getActiveElement === 'function' ? window.ThreeDEngine.getActiveElement() : null);
+                if (activeEl) {
+                    if (typeof window.ThreeDEngine.selectElement === 'function') {
+                        window.ThreeDEngine.selectElement(activeEl.id);
+                    }
+                    window.ThreeDEngine.openContextMenu(activeEl, e.clientX, e.clientY);
+                }
+            }
+            return;
+        }
+    }
+
     // Yan paneller, butonlar ve form inputlarında default menüyü koru
     if (e.target.closest && e.target.closest('input, button, select, textarea, .panel, .mobile-panel')) {
         return;
@@ -1071,6 +1111,9 @@ document.addEventListener('contextmenu', function(e) {
         }
         const isText = callout.classList.contains('callout-item') && !callout.classList.contains('callout-wrap');
         openObjectContextMenu(callout, isText, e.clientX, e.clientY);
+    } else if (e.target.closest('#canvas-container, #workArea, #ui-layer, .main-canvas, #draw-canvas, #canva-render-layer, #photo-layer')) {
+        // Tuval zeminine sağ tıklandığında varsayılan tarayıcı context menüsünü engelle
+        e.preventDefault();
     }
 });
 

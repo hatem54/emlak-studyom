@@ -86,7 +86,7 @@
                             <!-- Netleştirilmiş Görsel Katmanı (Sağ - Kırpılan) -->
                             <div class="ai-enh-layer ai-enh-layer-enhanced" id="aiEnhLayerEnhanced">
                                 <canvas id="aiEnhCanvasEnhanced"></canvas>
-                                <span class="ai-enh-layer-tag enhanced"><i class="fas fa-wand-magic-sparkles"></i> ✨ AI HD Net</span>
+                                <span class="ai-enh-layer-tag enhanced"><i class="fas fa-wand-magic-sparkles"></i> AI HD Net</span>
                             </div>
 
                             <!-- Sürüklenebilir Bölme Çizgisi (Picsart Split Handle) -->

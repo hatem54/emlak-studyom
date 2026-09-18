@@ -384,10 +384,10 @@
 
                 <div class="ai-dialog-tabs">
                     <button type="button" id="btnAiTabChat" class="ai-modal-tab-btn active" onclick="window.switchAiAssistantTab('chat')">
-                        <i class="fa-solid fa-comments"></i> 💬 Akıllı Danışman (AI Soru-Cevap)
+                        <i class="fa-solid fa-comments"></i> Akıllı Danışman
                     </button>
                     <button type="button" id="btnAiTabGuide" class="ai-modal-tab-btn" onclick="window.switchAiAssistantTab('guide')">
-                        <i class="fa-solid fa-compass"></i> 🚀 5 Adımda Hızlı Kullanım Rehberi
+                        <i class="fa-solid fa-compass"></i> Hızlı Rehber
                     </button>
                 </div>
 

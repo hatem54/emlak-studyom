@@ -875,7 +875,8 @@
                 return window.ThreeDEngine.add3DElementFromData({
                     svg: item.svg,
                     name: item.title,
-                    title: item.title
+                    title: item.title,
+                    isCallout: true
                 });
             }
             this.insertToCanvas(item.svg, item.title);
@@ -905,7 +906,8 @@
                 return window.ThreeDEngine.add3DElementFromData({
                     svg: svgMarkup,
                     name: title,
-                    title: title
+                    title: title,
+                    isCallout: true
                 });
             }
 

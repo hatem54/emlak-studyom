@@ -222,8 +222,8 @@
                                 <button type="button" class="sat-layer-btn" id="satBtnGoogle3D" data-layer="google_3d" onclick="window.initGoogle3DEarthMode()" title="3D Küre (API)"><i class="fas fa-cube"></i> 3D Dünya</button>
                                 <button type="button" class="sat-layer-btn" id="satBtnEsriSat" data-layer="esri_sat" onclick="window.setSatelliteLayer('esri_sat')" title="Esri HD Uydu"><i class="fas fa-globe"></i> Esri HD</button>
                             </div>
-                            <button type="button" id="satToggleLabelsBtn" class="sat-btn-toggle-labels active" onclick="window.toggleSatelliteLabels()" title="Cadde / Sokak İsimlerini Aç / Kapat">
-                                <i class="fas fa-tags"></i> <span>Yollar:</span> <b id="satLabelsStatusText">Açık</b>
+                            <button type="button" id="satToggleLabelsBtn" class="sat-btn-toggle-labels active" onclick="window.toggleSatelliteLabels()" title="Cadde, Sokak ve Yer İsimlerini Aç / Kapat">
+                                <i class="fas fa-tags"></i> <span>Bilgiler:</span> <b id="satLabelsStatusText">Açık</b>
                             </button>
                         </div>
 
@@ -522,7 +522,6 @@
                                 İptal
                             </button>
                             <button type="button" id="satCaptureBtn" class="sat-btn-capture" onclick="window.captureSatelliteToCanvas()">
-                                <i class="fas fa-camera-retro"></i>
                                 <span>📸 Şablona Aktar</span>
                             </button>
                         </div>
@@ -2985,7 +2984,7 @@
                                 window.applyProjectImageFromDataUrl(dataUrl, (err) => {
                                     delete window._skipDrawConfirm;
                                     if (captureBtn) {
-                                        captureBtn.innerHTML = '<i class="fas fa-camera-retro"></i> <span>📸 Şablona Aktar</span>';
+                                        captureBtn.innerHTML = '<span>📸 Şablona Aktar</span>';
                                         captureBtn.disabled = false;
                                     }
                                     if (!err) {
@@ -3061,7 +3060,7 @@
 
                 if (!capturedDirectly) {
                     if (captureBtn) {
-                        captureBtn.innerHTML = '<i class="fas fa-camera-retro"></i> <span>📸 Şablona Aktar</span>';
+                        captureBtn.innerHTML = '<span>📸 Şablona Aktar</span>';
                         captureBtn.disabled = false;
                     }
                     if (typeof window.captureScreenOrTabToTemplate === 'function') {
@@ -3078,7 +3077,7 @@
             if (!mapContainer || !this.map) {
                 alert('Harita henüz hazır değil.');
                 if (captureBtn) {
-                    captureBtn.innerHTML = '<i class="fas fa-camera-retro"></i> <span>📸 Şablona Aktar</span>';
+                    captureBtn.innerHTML = '<span>📸 Şablona Aktar</span>';
                     captureBtn.disabled = false;
                 }
                 return;
@@ -3181,7 +3180,7 @@
                     window.applyProjectImageFromDataUrl(dataUrl, (err) => {
                         delete window._skipDrawConfirm;
                         if (captureBtn) {
-                            captureBtn.innerHTML = '<i class="fas fa-camera-retro"></i> <span>📸 Şablona Aktar</span>';
+                            captureBtn.innerHTML = '<span>📸 Şablona Aktar</span>';
                             captureBtn.disabled = false;
                         }
 
@@ -3238,7 +3237,7 @@
             } catch (err) {
                 console.error('Uydu görüntüsü aktarma hatası:', err);
                 if (captureBtn) {
-                    captureBtn.innerHTML = '<i class="fas fa-camera-retro"></i> <span>📸 Şablona Aktar</span>';
+                    captureBtn.innerHTML = '<span>📸 Şablona Aktar</span>';
                     captureBtn.disabled = false;
                 }
                 if (typeof window.hideAppLoading === 'function') {

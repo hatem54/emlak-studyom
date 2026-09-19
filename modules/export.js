@@ -1904,7 +1904,8 @@ function clearBatchFiles(){
 }
 
 async function startBatchExport(options){
-    if(!batchFiles.length){
+    const activeBatchFiles = (options && options.files && options.files.length) ? options.files : ((typeof batchFiles !== 'undefined' && batchFiles && batchFiles.length) ? batchFiles : (window.batchFiles || []));
+    if(!activeBatchFiles || !activeBatchFiles.length){
         if (typeof Swal !== 'undefined') {
             Swal.fire({
                 icon: 'info',
@@ -2001,15 +2002,15 @@ async function startBatchExport(options){
         }
     }
 
-    for(let i = startIndex; i < batchFiles.length; i++){
-        const rawBaseName = batchFiles[i].name.replace(/\.[^/.]+$/, "");
+    for(let i = startIndex; i < activeBatchFiles.length; i++){
+        const rawBaseName = activeBatchFiles[i].name.replace(/\.[^/.]+$/, "");
         const batchName = (prefixInput ? prefixInput : '') + rawBaseName;
 
-        batchStatus.textContent=batchFiles[i].name;
-        batchPercent.textContent=Math.round(((i + 1) / batchFiles.length) * 100)+'%';
-        batchBar.style.width=Math.round(((i + 1) / batchFiles.length) * 100)+'%';
+        batchStatus.textContent=activeBatchFiles[i].name;
+        batchPercent.textContent=Math.round(((i + 1) / activeBatchFiles.length) * 100)+'%';
+        batchBar.style.width=Math.round(((i + 1) / activeBatchFiles.length) * 100)+'%';
         
-        const url=await readFileUrl(batchFiles[i]);
+        const url=await readFileUrl(activeBatchFiles[i]);
         if(typeof uploadedImgUrl !== 'undefined') uploadedImgUrl=url; 
         if(typeof trackImageSize==='function') trackImageSize(url);
         
@@ -2377,7 +2378,7 @@ async function startBatchExport(options){
         Swal.fire({
             icon: 'success',
             title: 'Toplu İndirme Tamamlandı',
-            text: `${batchFiles.length - startIndex} adet fotoğraf başarıyla işlendi ve indirildi.`,
+            text: `${activeBatchFiles.length - startIndex} adet fotoğraf başarıyla işlendi ve indirildi.`,
             background: '#1e293b',
             color: '#fff',
             timer: 2500
@@ -2403,11 +2404,18 @@ window.interactiveBatchState = {
     currentIndex: 0,
     selectedPresetId: 'current',
     prefix: '',
-    originalUploadedImgUrl: null
+    originalUploadedImgUrl: null,
+    isProcessing: false
 };
 
 async function startInteractiveBatchExport() {
-    const allFiles = (typeof batchFiles !== 'undefined' && batchFiles && batchFiles.length) ? batchFiles : (window.batchFiles || []);
+    let allFiles = (typeof batchFiles !== 'undefined' && batchFiles && batchFiles.length) ? batchFiles : (window.batchFiles || []);
+    if ((!allFiles || !allFiles.length) && document.getElementById('batchInput') && document.getElementById('batchInput').files.length > 0) {
+        allFiles = Array.from(document.getElementById('batchInput').files).filter(f => !window.validateImageUpload || window.validateImageUpload(f));
+        if (typeof batchFiles !== 'undefined') batchFiles = allFiles;
+        window.batchFiles = allFiles;
+    }
+
     if (!allFiles || !allFiles.length) {
         if (typeof Swal !== 'undefined') {
             Swal.fire({
@@ -2453,12 +2461,18 @@ async function startInteractiveBatchExport() {
         currentIndex: 0,
         selectedPresetId: selectedPresetId,
         prefix: prefixInput,
-        originalUploadedImgUrl: typeof uploadedImgUrl !== 'undefined' ? uploadedImgUrl : null
+        originalUploadedImgUrl: typeof uploadedImgUrl !== 'undefined' ? uploadedImgUrl : null,
+        isProcessing: false
     };
 
     // HUD'ı oluştur veya mevcutsa göster
     renderInteractiveBatchHud();
     
+    // Fotoğraf sekmesine geç ki kullanıcı tuvali ve filtreleri hemen görsün
+    if (typeof window.switchTab === 'function') {
+        window.switchTab('photo');
+    }
+
     // 1. Fotoğrafı tuvale yükle
     await loadInteractiveBatchStep(0);
 }
@@ -2514,25 +2528,44 @@ function updateInteractiveBatchHudContent() {
             </div>
             <div style="max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                 <span style="font-weight: 600; font-size: 13px; color: #f8fafc;" title="${fileName}">${fileName}</span>
-                <span style="font-size: 11px; color: #94a3b8; margin-left: 4px;">(${fileSizeKb})</span>
+                <span style="font-size: 11px; color: #94a3b8; margin-left: 4px;">• ${fileSizeKb}</span>
             </div>
         </div>
         <div style="height: 24px; width: 1px; background: rgba(255,255,255,0.15);"></div>
         <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-            <button type="button" onclick="interactiveBatchNext(true)" style="background: linear-gradient(135deg, #10b981, #059669); color: white; border: none; font-weight: 700; font-size: 13px; padding: 7px 14px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 6px; box-shadow: 0 2px 8px rgba(16,185,129,0.35);">
+            <button type="button" class="hud-btn-next" onclick="interactiveBatchNext(true)" style="background: linear-gradient(135deg, #10b981, #059669); color: white; border: none; font-weight: 700; font-size: 13px; padding: 7px 14px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 6px; box-shadow: 0 2px 8px rgba(16,185,129,0.35);">
                 <i class="fa-solid fa-download"></i> İndir ve İlerle
             </button>
-            <button type="button" onclick="interactiveBatchNext(false)" style="background: #334155; color: #cbd5e1; border: 1px solid #475569; font-weight: 600; font-size: 12px; padding: 7px 11px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 5px;">
+            <button type="button" class="hud-btn-skip" onclick="interactiveBatchNext(false)" style="background: #334155; color: #cbd5e1; border: 1px solid #475569; font-weight: 600; font-size: 12px; padding: 7px 11px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 5px;">
                 <i class="fa-solid fa-forward-step"></i> Resmi Atla
             </button>
-            <button type="button" onclick="interactiveBatchAutoRemaining()" style="background: linear-gradient(135deg, #3b82f6, #6366f1); color: white; border: none; font-weight: 600; font-size: 12px; padding: 7px 12px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 5px;">
+            <button type="button" class="hud-btn-auto" onclick="interactiveBatchAutoRemaining()" style="background: linear-gradient(135deg, #3b82f6, #6366f1); color: white; border: none; font-weight: 600; font-size: 12px; padding: 7px 12px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 5px;">
                 <i class="fa-solid fa-bolt"></i> Kalanları İndir
             </button>
-            <button type="button" onclick="cancelInteractiveBatch(true)" style="background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); font-size: 12px; padding: 7px 10px; border-radius: 6px; cursor: pointer;" title="İptal Et">
+            <button type="button" class="hud-btn-cancel" onclick="cancelInteractiveBatch(true)" style="background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); font-size: 12px; padding: 7px 10px; border-radius: 6px; cursor: pointer;" title="İptal Et">
                 <i class="fa-solid fa-xmark"></i> İptal
             </button>
         </div>
     `;
+}
+
+function updateInteractiveBatchHudButtons(disabled) {
+    const hud = document.getElementById('interactiveBatchHud');
+    if (!hud) return;
+    const btns = hud.querySelectorAll('button');
+    btns.forEach(b => {
+        b.disabled = disabled;
+        b.style.opacity = disabled ? '0.5' : '1';
+        b.style.pointerEvents = disabled ? 'none' : 'auto';
+    });
+    const nextBtn = hud.querySelector('.hud-btn-next');
+    if (nextBtn) {
+        if (disabled) {
+            nextBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> İndiriliyor...';
+        } else {
+            nextBtn.innerHTML = '<i class="fa-solid fa-download"></i> İndir ve İlerle';
+        }
+    }
 }
 
 async function loadInteractiveBatchStep(index) {
@@ -2543,14 +2576,14 @@ async function loadInteractiveBatchStep(index) {
         if (typeof Swal !== 'undefined') {
             Swal.fire({
                 icon: 'success',
-                title: '🎉 Tebrikler!',
-                text: 'Toplu düzenleme tamamlandı. Tüm fotoğraflar başarıyla işlendi ve indirildi.',
+                title: 'Toplu Düzenleme Tamamlandı',
+                text: `${state.files.length} adet fotoğraf başarıyla işlendi.`,
                 background: '#1e293b',
                 color: '#fff',
                 confirmButtonColor: '#6366f1'
             });
         }
-        cancelInteractiveBatch(false);
+        await cancelInteractiveBatch(false);
         return;
     }
 
@@ -2559,27 +2592,78 @@ async function loadInteractiveBatchStep(index) {
 
     const file = state.files[index];
     const url = await readFileUrl(file);
-    if (typeof uploadedImgUrl !== 'undefined') uploadedImgUrl = url;
-    if (typeof trackImageSize === 'function') trackImageSize(url);
 
-    const pLayer = document.getElementById('photo-layer');
-    if (pLayer) {
-        pLayer.style.backgroundImage = "url('" + url + "')";
-        pLayer.dataset.savedBg = "url('" + url + "')";
+    // 1. Yeni görseli Image nesnesi olarak yükle
+    const img = new Image();
+    await new Promise((resolve) => {
+        img.onload = resolve;
+        img.onerror = resolve;
+        img.src = url;
+    });
+
+    const natW = img.naturalWidth || img.width || 1920;
+    const natH = img.naturalHeight || img.height || 1080;
+
+    // 2. Global değişkenleri ve önbellekleri güncelle
+    uploadedImgUrl = url;
+    window.uploadedImgUrl = url;
+    uploadedImgW = natW;
+    window.uploadedImgW = natW;
+    uploadedImgH = natH;
+    window.uploadedImgH = natH;
+    window._globalNativeImg = img;
+    window._globalNativeImgSrc = url;
+
+    // WebGL ve filtre önbelleklerini temizle
+    window._photoFilterDirty = true;
+
+    // 3. Format ayarı: 'Orijinal Görsel Boyutu' ise tuvali uyarla
+    const activeFormat = document.getElementById('exportFormat') ? document.getElementById('exportFormat').value : '16:9 Full HD';
+    if (activeFormat === 'Orijinal Görsel Boyutu' && typeof autoAdjustFormat === 'function') {
+        autoAdjustFormat(natW, natH);
     }
 
-    if (typeof isCanvaMode !== 'undefined' && isCanvaMode && typeof refreshActiveCanvaTemplate === 'function') {
-        refreshActiveCanvaTemplate();
-    } else if (typeof isCanvaMode !== 'undefined' && isCanvaMode) {
-        buildCanvaRender();
+    // 4. Tuvaldeki tüm fotoğraf katmanlarını ve panellerini güncelle
+    const pLayer = document.getElementById('photo-layer');
+    if (pLayer) {
+        pLayer.dataset.naturalW = natW;
+        pLayer.dataset.naturalH = natH;
     }
 
     document.querySelectorAll('.photo-panel, #photo-layer').forEach(p => {
-        if (typeof _preparePhoto === 'function') _preparePhoto(p);
-        if (typeof _applyPhotoTransform === 'function') _applyPhotoTransform(p);
+        p._nativeImg = img;
+        p._nativeImgSrc = url;
+        p.dataset.savedBg = "url('" + url + "')";
+        delete p._cachedGlCanvas; // Eski fotoğraftan kalan WebGL render önbelleğini sil
+        delete p.dataset.zpScale;
+        delete p.dataset.zpX;
+        delete p.dataset.zpY;
+
+        let inner = p.querySelector('.photo-inner-zoom');
+        if (!inner) {
+            if (typeof _preparePhoto === 'function') _preparePhoto(p);
+            inner = p.querySelector('.photo-inner-zoom');
+        }
+        if (inner) {
+            inner.style.backgroundImage = "url('" + url + "')";
+        }
+        p.style.backgroundImage = 'none';
+
+        if (typeof _applyPhotoTransform === 'function') {
+            _applyPhotoTransform(p);
+        }
     });
 
-    // Seçili hazır ayar varsa uygula
+    // 5. Şablon / Canva modu varsa yeniden render et
+    if (typeof isCanvaMode !== 'undefined' && isCanvaMode) {
+        if (typeof refreshActiveCanvaTemplate === 'function') {
+            refreshActiveCanvaTemplate();
+        } else if (typeof buildCanvaRender === 'function') {
+            buildCanvaRender();
+        }
+    }
+
+    // 6. Hazır ayar varsa (seçili preset) uygula
     if (state.selectedPresetId && state.selectedPresetId !== 'current') {
         if (window.CustomPresetsManager) {
             window.CustomPresetsManager.applyPreset(state.selectedPresetId);
@@ -2588,16 +2672,20 @@ async function loadInteractiveBatchStep(index) {
         }
     }
 
-    // Kısa toast bilgilendirmesi
+    // 7. Tuval ölçülerini ve çizimleri yeniden çiz
+    if (typeof resizeCanvas === 'function') resizeCanvas();
+    if (typeof redrawAll === 'function') redrawAll();
+
+    // 8. Toast bildirimi
     if (typeof Swal !== 'undefined') {
         Swal.fire({
             toast: true,
             position: 'top-end',
             icon: 'info',
-            title: `Fotoğraf ${index + 1}/${state.files.length} tuvale yüklendi`,
-            text: 'Dilediğiniz ayarlamayı yapıp "İndir & Sıradakine Geç"e basın.',
+            title: `Fotoğraf ${index + 1} / ${state.files.length}`,
+            text: file.name,
             showConfirmButton: false,
-            timer: 1800,
+            timer: 1400,
             background: '#1e293b',
             color: '#fff'
         });
@@ -2606,27 +2694,40 @@ async function loadInteractiveBatchStep(index) {
 
 async function interactiveBatchNext(shouldDownload) {
     const state = window.interactiveBatchState;
-    if (!state || !state.active) return;
+    if (!state || !state.active || state.isProcessing) return;
 
-    if (shouldDownload) {
-        const file = state.files[state.currentIndex];
-        const rawBaseName = file.name.replace(/\.[^/.]+$/, "");
-        const batchName = (state.prefix ? state.prefix : '') + rawBaseName;
+    state.isProcessing = true;
+    updateInteractiveBatchHudButtons(true);
 
-        try {
-            await saveImage(batchName);
-        } catch (err) {
-            console.error('İnteraktif indirme hatası:', err);
+    try {
+        if (shouldDownload) {
+            const file = state.files[state.currentIndex];
+            const rawBaseName = file ? file.name.replace(/\.[^/.]+$/, "") : `foto-${state.currentIndex + 1}`;
+            const batchName = (state.prefix ? state.prefix : '') + rawBaseName;
+
+            try {
+                await saveImage(batchName);
+            } catch (err) {
+                console.error('İnteraktif indirme hatası:', err);
+            }
+        }
+
+        // Sıradaki fotoğrafa geç
+        const nextIndex = state.currentIndex + 1;
+        await loadInteractiveBatchStep(nextIndex);
+    } catch(e) {
+        console.error('interactiveBatchNext hatası:', e);
+    } finally {
+        if (window.interactiveBatchState) {
+            window.interactiveBatchState.isProcessing = false;
+            updateInteractiveBatchHudButtons(false);
         }
     }
-
-    // Sıradakine geç
-    await loadInteractiveBatchStep(state.currentIndex + 1);
 }
 
 async function interactiveBatchAutoRemaining() {
     const state = window.interactiveBatchState;
-    if (!state || !state.active) return;
+    if (!state || !state.active || state.isProcessing) return;
 
     const remainingCount = state.files.length - state.currentIndex;
     if (remainingCount <= 0) return;
@@ -2634,11 +2735,11 @@ async function interactiveBatchAutoRemaining() {
     let confirmed = true;
     if (typeof Swal !== 'undefined') {
         const res = await Swal.fire({
-            title: 'Kalanları Otomatik İndir?',
+            title: 'Kalanları İndir',
             text: `Kalan ${remainingCount} fotoğraf mevcut ayarlarınızla otomatik indirilsin mi?`,
             icon: 'question',
             showCancelButton: true,
-            confirmButtonText: 'Evet, Otomatik İndir',
+            confirmButtonText: 'Otomatik İndir',
             cancelButtonText: 'Vazgeç',
             confirmButtonColor: '#3b82f6',
             cancelButtonColor: '#64748b',
@@ -2654,6 +2755,7 @@ async function interactiveBatchAutoRemaining() {
 
     const startIndex = state.currentIndex;
     const presetId = state.selectedPresetId;
+    const files = state.files;
 
     // HUD'ı kapat
     const hud = document.getElementById('interactiveBatchHud');
@@ -2661,23 +2763,79 @@ async function interactiveBatchAutoRemaining() {
     state.active = false;
 
     // Otomatik toplu indirmeyi startIndex'ten başlat
-    startBatchExport({ startIndex, presetId });
+    startBatchExport({ startIndex, presetId, files });
 }
 
-function cancelInteractiveBatch(restoreOriginal = true) {
+async function cancelInteractiveBatch(restoreOriginal = true) {
     const state = window.interactiveBatchState;
     const hud = document.getElementById('interactiveBatchHud');
     if (hud) hud.remove();
 
     if (state) {
         state.active = false;
+        state.isProcessing = false;
         if (restoreOriginal && state.originalUploadedImgUrl) {
-            if (typeof uploadedImgUrl !== 'undefined') uploadedImgUrl = state.originalUploadedImgUrl;
-            const pLayer = document.getElementById('photo-layer');
-            if (pLayer) {
-                pLayer.style.backgroundImage = "url('" + state.originalUploadedImgUrl + "')";
-                pLayer.dataset.savedBg = "url('" + state.originalUploadedImgUrl + "')";
-                if (typeof _applyPhotoTransform === 'function') _applyPhotoTransform(pLayer);
+            const origUrl = state.originalUploadedImgUrl;
+            try {
+                const img = new Image();
+                await new Promise((resolve) => {
+                    img.onload = resolve;
+                    img.onerror = resolve;
+                    img.src = origUrl;
+                });
+
+                const natW = img.naturalWidth || img.width || 1920;
+                const natH = img.naturalHeight || img.height || 1080;
+
+                uploadedImgUrl = origUrl;
+                window.uploadedImgUrl = origUrl;
+                uploadedImgW = natW;
+                window.uploadedImgW = natW;
+                uploadedImgH = natH;
+                window.uploadedImgH = natH;
+                window._globalNativeImg = img;
+                window._globalNativeImgSrc = origUrl;
+
+                window._photoFilterDirty = true;
+
+                const pLayer = document.getElementById('photo-layer');
+                if (pLayer) {
+                    pLayer.dataset.naturalW = natW;
+                    pLayer.dataset.naturalH = natH;
+                }
+
+                document.querySelectorAll('.photo-panel, #photo-layer').forEach(p => {
+                    p._nativeImg = img;
+                    p._nativeImgSrc = origUrl;
+                    p.dataset.savedBg = "url('" + origUrl + "')";
+                    delete p._cachedGlCanvas;
+                    delete p.dataset.zpScale;
+                    delete p.dataset.zpX;
+                    delete p.dataset.zpY;
+
+                    const inner = p.querySelector('.photo-inner-zoom');
+                    if (inner) {
+                        inner.style.backgroundImage = "url('" + origUrl + "')";
+                    }
+                    p.style.backgroundImage = 'none';
+
+                    if (typeof _applyPhotoTransform === 'function') {
+                        _applyPhotoTransform(p);
+                    }
+                });
+
+                if (typeof isCanvaMode !== 'undefined' && isCanvaMode) {
+                    if (typeof refreshActiveCanvaTemplate === 'function') {
+                        refreshActiveCanvaTemplate();
+                    } else if (typeof buildCanvaRender === 'function') {
+                        buildCanvaRender();
+                    }
+                }
+
+                if (typeof resizeCanvas === 'function') resizeCanvas();
+                if (typeof redrawAll === 'function') redrawAll();
+            } catch(e) {
+                console.error('Orijinal görsel geri yüklenirken hata:', e);
             }
         }
     }

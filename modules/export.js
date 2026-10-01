@@ -35,6 +35,12 @@ function isExportIgnoredElement(el) {
     if (el.id === 'export-loading-overlay') return true;
     if (el.id === 'app-custom-context-menu' || el.id === 'native-context-menu' || el.id === 'native-context-overlay') return true;
 
+    // 🚫 Maske interaktif SVG katmanı ve tüm maske tutamaç/kılavuz elemanları (LIGHTROOM MASK GİZLEME)
+    if (el.id === 'maskInteractiveSvg') return true;
+    if (el.closest && el.closest('#maskInteractiveSvg')) return true;
+    if (el.getAttribute && el.getAttribute('data-mask-action')) return true;
+    if (el.hasAttribute && el.hasAttribute('data-mask-action')) return true;
+
     // Şeffaf PNG dışa aktarma modunda fotoğraf ve arka plan overlaylerini yoksay
     if (window.isExportingTransparent) {
         if (el.id === 'photo-layer' || (el.classList && el.classList.contains('photo-panel')) || (el.classList && el.classList.contains('cvr-bg-wrap')) || (el.classList && el.classList.contains('cvr-bg-img')) || (el.classList && el.classList.contains('kolaj-cell-img'))) return true;
@@ -88,7 +94,14 @@ function isExportIgnoredElement(el) {
             el.classList.contains('draw-selection-box') ||
             el.classList.contains('cerceve-handle') ||
             el.classList.contains('kolaj-handle') ||
-            el.classList.contains('kolaj-tutamac')) {
+            el.classList.contains('kolaj-tutamac') ||
+            el.classList.contains('tb-frame-handle') ||
+            el.classList.contains('tb-frame-floating-tools') ||
+            el.classList.contains('tb-floating-btn') ||
+            el.classList.contains('tb-frame-file-input') ||
+            el.classList.contains('tb-ic-close-btn') ||
+            el.classList.contains('tb-pan-indicator') ||
+            el.classList.contains('dock-contextual-bar')) {
             return true;
         }
     }
@@ -101,18 +114,40 @@ function sanitizeExportClone(clonedDoc) {
         // 0. Tuval arka planını ve ölçek dönüşümünü klonda tamamen sıfırla (Beyaz kutu veya kayık ölçeklenmeyi kesinlikle önler)
         const clonedContainer = clonedDoc.getElementById('canvas-container');
         if (clonedContainer) {
+            const origContainer = document.getElementById('canvas-container');
+            const origW = origContainer ? (parseInt(origContainer.style.width) || origContainer.offsetWidth || 1920) : 1920;
+            const origH = origContainer ? (parseInt(origContainer.style.height) || origContainer.offsetHeight || 1080) : 1080;
             clonedContainer.style.setProperty('background-color', 'transparent', 'important');
             clonedContainer.style.backgroundColor = 'transparent';
             clonedContainer.style.background = 'transparent';
             clonedContainer.style.transform = 'none';
             clonedContainer.style.webkitTransform = 'none';
-            clonedContainer.style.position = 'static';
+            clonedContainer.style.position = 'relative';
+            clonedContainer.style.left = '0px';
+            clonedContainer.style.top = '0px';
+            clonedContainer.style.width = origW + 'px';
+            clonedContainer.style.height = origH + 'px';
             clonedContainer.style.margin = '0px';
             clonedContainer.style.padding = '0px';
+            clonedContainer.style.overflow = 'hidden';
+        }
+        const clonedUi = clonedDoc.getElementById('ui-layer');
+        if (clonedUi) {
+            clonedUi.style.position = 'absolute';
+            clonedUi.style.left = '0px';
+            clonedUi.style.top = '0px';
+            clonedUi.style.width = '100%';
+            clonedUi.style.height = '100%';
+            clonedUi.style.pointerEvents = 'none';
         }
         const clonedSaber = clonedDoc.getElementById('saber-layer');
         if (clonedSaber) clonedSaber.remove();
         clonedDoc.querySelectorAll('.editable-draw').forEach(el => el.remove());
+
+        // 🚫 Maske interaktif SVG katmanı ve tüm maske tutamaç/kılavuz elemanlarını klondan koşulsuz ve kesin olarak temizle
+        const clonedMaskSvg = clonedDoc.getElementById('maskInteractiveSvg');
+        if (clonedMaskSvg) clonedMaskSvg.remove();
+        clonedDoc.querySelectorAll('#maskInteractiveSvg, [data-mask-action]').forEach(el => el.remove());
 
         if (window.isExportingVideo) {
             const clonedDraw = clonedDoc.getElementById('draw-layer') || clonedDoc.getElementById('drawCanvas');
@@ -127,6 +162,20 @@ function sanitizeExportClone(clonedDoc) {
             clonedDoc.querySelectorAll('.photo-panel, .photo-render-canvas, .cvr-bg-wrap, .cvr-bg-img, .kolaj-cell-img, #shadow-overlay, #highlight-overlay, #vignette-layer, #canva-render-layer').forEach(el => el.remove());
         }
 
+        // 🚫 Şablon çerçeve tutamaçları, yüzen araçlar, bilgi kartı kapat butonu ve tuval altı dock'u klondan temizle
+        clonedDoc.querySelectorAll('.tb-frame-handle, .tb-frame-floating-tools, .tb-floating-btn, .tb-frame-file-input, .tb-ic-close-btn, .tb-pan-indicator, #canvasBottomDock, .dock-contextual-bar').forEach(el => el.remove());
+        clonedDoc.querySelectorAll('.tb-frame-selected').forEach(el => {
+            el.classList.remove('tb-frame-selected');
+            el.style.outline = 'none';
+            el.style.boxShadow = 'none';
+        });
+        clonedDoc.querySelectorAll('.tb-frame-placeholder').forEach(el => {
+            const parentFrame = el.closest('.tb-frame-item') || el.closest('.tb-image-frame');
+            if (parentFrame && (parentFrame.classList.contains('has-image') || parentFrame.querySelector('.tb-frame-img') || parentFrame.querySelector('.tb-frame-export-canvas'))) {
+                el.remove();
+            }
+        });
+
         // 1. Dışa aktarma maskesi ve loading pencerelerini klondan derhal temizle
         const globalMask = clonedDoc.getElementById('download-overlay-mask');
         if (globalMask) globalMask.remove();
@@ -135,30 +184,32 @@ function sanitizeExportClone(clonedDoc) {
 
         // 2. Gizli veya kapalı tüm şablon, overlay ve arayüz kontrol elemanlarını klondan tamamen kaldır
         const hiddenSelectors = [
-            '#download-overlay-mask', '#export-loading-overlay',
+            '#download-overlay-mask', '#export-loading-overlay', '#canvasBottomDock',
             '#threeDGizmoOverlay', '#threeDCornerPinOverlay', '#threeDCanvasBadge',
             '#shadow-overlay', '#highlight-overlay', '#vignette-layer', '#mask-layer', '#maskInteractiveSvg',
             '#canva-render-layer', '#app-custom-context-menu', '#native-context-menu', '#native-context-overlay',
             '#elBadge', '#elPrice', '#elDetails', '#elLogo',
             '.text-handle', '.text-lock-handle', '.text-resize-handle', '.text-rotate-handle', '.text-delete-handle',
-            '.callout-lock-btn', '.callout-controls', '.callout-resizer', '.callout-rotator', '.callout-select-border',
+            '.callout-lock-btn', '.callout-controls', '.callout-resizer', '.callout-rotator', '.callout-select-border', '.callout-handle-width', '.callout-handle-length',
             '.cbtn-del', '.draw-handle', '.vertex-handle', '.polygon-vertex', '.app-context-menu', '.draw-selection-box',
             '.cerceve-handle', '.kolaj-handle', '.kolaj-tutamac', '#cerceveEditor',
-            '.photo-inner-zoom'
+            '.photo-inner-zoom',
+            '.tb-frame-handle', '.tb-frame-floating-tools', '.tb-floating-btn', '.tb-frame-file-input', '.tb-ic-close-btn', '.tb-pan-indicator', '.tb-swap-badge', '.dock-contextual-bar'
         ];
         
         hiddenSelectors.forEach(sel => {
             clonedDoc.querySelectorAll(sel).forEach(node => {
-                const isControlOrHandle = node.classList && (
+                const isControlOrHandle = (node.id === 'maskInteractiveSvg') || (node.getAttribute && node.getAttribute('data-mask-action')) || (node.classList && (
                     node.classList.contains('text-handle') || node.classList.contains('callout-controls') ||
                     node.classList.contains('callout-resizer') || node.classList.contains('callout-rotator') ||
                     node.classList.contains('callout-select-border') || node.classList.contains('callout-lock-btn') ||
+                    node.classList.contains('callout-handle-width') || node.classList.contains('callout-handle-length') ||
                     node.classList.contains('cbtn-del') || node.classList.contains('draw-handle') ||
                     node.classList.contains('vertex-handle') || node.classList.contains('polygon-vertex') ||
                     node.classList.contains('cerceve-handle') || node.classList.contains('kolaj-handle') ||
                     node.classList.contains('kolaj-tutamac') ||
                     node.classList.contains('photo-inner-zoom')
-                );
+                ));
 
                 // Orijinal DOM'daki gerçek duruma ve klondaki duruma bak
                 let isHidden = false;
@@ -203,32 +254,72 @@ function sanitizeExportClone(clonedDoc) {
             }
         });
 
-        // 3. html2canvas UYUMLULUK TEMİZLİĞİ (Gölge, Çerçeve ve Blur Anormalliklerini Önleme):
-        // a) html2canvas 'backdrop-filter' desteklemez ve şeffaf katmanda leke/siyah kutu basar. Tüm düğümlerden temizle.
-        // b) html2canvas 'inset' gölgeleri ve '0 0 30px' gibi büyük yayılma bulanıklıklarını yanlış hesaplayıp
-        //    kayık leke dikdörtgenleri veya katı beyaz iç çerçeveler basar. Box-shadow'u temiz, tekil bir drop-shadow'a dönüştür.
+        // 3. html2canvas UYUMLULUK TEMİZLİĞİ (Gölge, Çerçeve, Buzlu Cam ve Blur Sanitizasyonu):
+        // a) html2canvas 'backdrop-filter' desteklemez ve doğrudan bırakıldığında leke/siyah kutu basar.
+        //    Buzlu cam (frosted glass) elemanlarında backdrop-filter temizlendiğinde, elemanın opak/yarı saydam
+        //    beyaz zemini fotoğraf üzerinde sisli, süt gibi mat bir leke oluşturur.
+        //    Bunu önlemek için: Buzlu cam elemanları algılanır, sisli mat zemin kristal cam berraklığına
+        //    (zarif gradyan, 1px net cam kenarlığı ve hafif derinlik gölgesi) dönüştürülür.
+        // b) Standart metin ve rozet elemanlarında html2canvas'ın kirli koyu leke/hale basmasını önlemek
+        //    için aşırı yayılmalı gölgeler temizlenir, spread gölgeler ise net kenarlığa (border) çevrilir.
         const allNodes = clonedDoc.querySelectorAll('*');
         allNodes.forEach(node => {
             if (node.style) {
+                const origNode = node.id ? document.getElementById(node.id) : null;
+                const rawBackdrop = (node.style.backdropFilter || node.style.webkitBackdropFilter || '') ||
+                                    (origNode && origNode.style ? (origNode.style.backdropFilter || origNode.style.webkitBackdropFilter || '') : '');
+                const blurVal = parseFloat(node.dataset ? node.dataset.blurVal : 0) || (origNode && origNode.dataset ? parseFloat(origNode.dataset.blurVal) : 0);
+                const hasGlassClass = node.className && typeof node.className === 'string' && (node.className.includes('glass') || node.className.includes('cvr-glass'));
+                const isFrostedGlass = (rawBackdrop && rawBackdrop.includes('blur')) || blurVal > 0 || hasGlassClass;
+
                 if (node.style.backdropFilter) node.style.backdropFilter = 'none';
                 if (node.style.webkitBackdropFilter) node.style.webkitBackdropFilter = 'none';
 
-                // Box-shadow sanitizasyonu (html2canvas şeffaf tuval uyumluluğu)
-                const rawShadow = node.style.boxShadow;
-                if (rawShadow && rawShadow !== 'none' && rawShadow !== '') {
-                    // Spread-border kontrolü: Örn "0 0 0 1px rgba(245,158,11,.3)" gibi gölgeler gerçekte kenarlıktır
-                    const shadowParts = rawShadow.split(/,(?![^(]*\))/).map(s => s.trim());
-                    shadowParts.forEach(part => {
-                        const spreadMatch = part.match(/0(?:px)?\s+0(?:px)?\s+0(?:px)?\s+([\d.]+)px\s+(.+)/);
-                        if (spreadMatch && (!node.style.border || node.style.border === 'none' || node.style.border === '')) {
-                            node.style.border = `${spreadMatch[1]}px solid ${spreadMatch[2]}`;
+                if (isFrostedGlass) {
+                    // Buzlu cam sisli/mat görünümünü engelleme:
+                    const bg = node.style.background || node.style.backgroundColor || (origNode && origNode.style ? (origNode.style.background || origNode.style.backgroundColor) : '') || '';
+                    const rgbaMatch = bg.match(/rgba\s*\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*([\d.]+)\s*\)/i);
+                    if (rgbaMatch) {
+                        const r = parseInt(rgbaMatch[1]), g = parseInt(rgbaMatch[2]), b = parseInt(rgbaMatch[3]);
+                        const a = parseFloat(rgbaMatch[4]);
+                        if (r > 150 && g > 150 && b > 150) {
+                            // Açık tonlu / beyaz buzlu cam: Mat sis lekesini kaldırıp arkadaki fotoğrafı berrak gösteren zarif kristal cam ışıltısı ver
+                            node.style.background = `linear-gradient(135deg, rgba(${r}, ${g}, ${b}, 0.16) 0%, rgba(${r}, ${g}, ${b}, 0.06) 100%)`;
+                            node.style.backgroundColor = 'transparent';
+                        } else if (a > 0.6) {
+                            // Koyu cam: Transparanlığını koru
+                            node.style.background = `rgba(${r}, ${g}, ${b}, 0.82)`;
                         }
-                    });
+                    } else if (bg.includes('255, 255, 255') || bg.includes('255,255,255') || bg === '#ffffff' || bg === 'white') {
+                        node.style.background = 'linear-gradient(135deg, rgba(255, 255, 255, 0.16) 0%, rgba(255, 255, 255, 0.06) 100%)';
+                        node.style.backgroundColor = 'transparent';
+                    }
 
-                    // Standart şablon öğeleri (elBadge, elPrice, elDetails) ve tuval elemanlarında
-                    // html2canvas'ın kirli koyu siyah leke/hale basmasını engellemek için
-                    // gölgeleri tamamen temizle. Öğelerin kendi parlak renkleri ve altın çerçeveleri jilet gibi net kalsın.
-                    node.style.boxShadow = 'none';
+                    // Cam kenarını jilet gibi berraklaştır
+                    if (!node.style.border || node.style.border === 'none' || node.style.border === '') {
+                        node.style.border = '1px solid rgba(255, 255, 255, 0.35)';
+                    }
+
+                    // Buzlu camın mat/düz kalmaması için doğal cam derinliği ver
+                    node.style.boxShadow = '0 8px 24px rgba(0, 0, 0, 0.14)';
+                } else {
+                    // Normal elemanlarda box-shadow sanitizasyonu (html2canvas şeffaf tuval uyumluluğu)
+                    const rawShadow = node.style.boxShadow;
+                    if (rawShadow && rawShadow !== 'none' && rawShadow !== '') {
+                        // Spread-border kontrolü: Örn "0 0 0 1px rgba(245,158,11,.3)" gibi gölgeler gerçekte kenarlıktır
+                        const shadowParts = rawShadow.split(/,(?![^(]*\))/).map(s => s.trim());
+                        shadowParts.forEach(part => {
+                            const spreadMatch = part.match(/0(?:px)?\s+0(?:px)?\s+0(?:px)?\s+([\d.]+)px\s+(.+)/);
+                            if (spreadMatch && (!node.style.border || node.style.border === 'none' || node.style.border === '')) {
+                                node.style.border = `${spreadMatch[1]}px solid ${spreadMatch[2]}`;
+                            }
+                        });
+
+                        // Standart şablon öğeleri (elBadge, elPrice, elDetails) ve tuval elemanlarında
+                        // html2canvas'ın kirli koyu siyah leke/hale basmasını engellemek için
+                        // gölgeleri tamamen temizle. Öğelerin kendi parlak renkleri ve altın çerçeveleri jilet gibi net kalsın.
+                        node.style.boxShadow = 'none';
+                    }
                 }
             }
         });
@@ -355,8 +446,8 @@ function switchPreviewFormat(){
     const newW = format.w;
     const newH = format.h;
 
-    // Şık yükleme ekranı göster
-    if (!window.isInitialLoad) {
+    // Şık yükleme ekranı göster (sessiz modda açma)
+    if (!window.isInitialLoad && !window._suppressFormatLoading) {
         showAppLoading('Format Ayarlanıyor...', 'Tuval ve katmanlar yeni boyuta uyarlanıyor...');
     }
 
@@ -694,7 +785,6 @@ function drawMasterPhotoManually(ctx, el, masterImg, outputScale, canvasRect, ac
         drawH = coverH * s;
         drawX = cx + (unscaledX - cx) * s;
         drawY = cy + (unscaledY - cy) * s;
-        window.lastDrawDebug = { s, pX, pY, sX, sY, coverW, coverH, drawX, drawY, drawW, drawH, w, h, outputScale };
 
     } else {
         let bgSize = el.style.backgroundSize;
@@ -816,10 +906,176 @@ async function ensureFontsLoaded() {
     }
 }
 
-async function saveImage(customBaseName){
-    const rawFileType = document.getElementById('exportFileType') ? document.getElementById('exportFileType').value : 'jpg';
+// ==========================================
+// ŞABLON ÇERÇEVELERİ SVG MASKE VE DEGRADE DIŞA AKTARMA KÖPRÜSÜ
+// ==========================================
+async function prepareTemplateFramesForExport() {
+    const frames = document.querySelectorAll('.tb-frame-item, .tb-image-frame');
+    const cleanups = [];
+    for (const frame of frames) {
+        const img = frame.querySelector('.tb-frame-img');
+        if (!img || !img.complete || !img.naturalWidth) continue;
+
+        const shape = frame.dataset.shape || 'none';
+        const blend = frame.dataset.blendMode || 'none';
+        const hasShape = (shape && shape !== 'none');
+        const hasBlend = (blend && blend !== 'none');
+        const isPolygon = (frame.dataset.isPolygon === 'true');
+        const pitch = parseFloat(frame.dataset.pitch) || 0;
+        const yaw = parseFloat(frame.dataset.yaw) || 0;
+        const is3D = (pitch !== 0 || yaw !== 0);
+
+        if (!hasShape && !hasBlend && !isPolygon && !is3D) continue;
+
+        const frameW = frame.offsetWidth || 300;
+        const frameH = frame.offsetHeight || 300;
+        const supersample = 2;
+
+        const exportCanvas = document.createElement('canvas');
+        exportCanvas.className = 'tb-frame-export-canvas';
+        exportCanvas.width = Math.round(frameW * supersample);
+        exportCanvas.height = Math.round(frameH * supersample);
+        exportCanvas.style.position = 'absolute';
+        exportCanvas.style.left = '0';
+        exportCanvas.style.top = '0';
+        exportCanvas.style.width = '100%';
+        exportCanvas.style.height = '100%';
+        exportCanvas.style.pointerEvents = 'none';
+        exportCanvas.style.zIndex = '2';
+
+        const cCtx = exportCanvas.getContext('2d');
+        if (!cCtx) continue;
+
+        const zoom = parseFloat(frame.dataset.imgZoom) || 1.0;
+        const panX = (parseFloat(frame.dataset.imgPanX) || 0) * supersample;
+        const panY = (parseFloat(frame.dataset.imgPanY) || 0) * supersample;
+
+        const natW = img.naturalWidth || frameW;
+        const natH = img.naturalHeight || frameH;
+        const coverScale = Math.max((frameW * supersample) / natW, (frameH * supersample) / natH) * zoom;
+        const drawW = natW * coverScale;
+        const drawH = natH * coverScale;
+        const drawX = ((frameW * supersample) - drawW) / 2 + panX;
+        const drawY = ((frameH * supersample) - drawH) / 2 + panY;
+
+        cCtx.drawImage(img, drawX, drawY, drawW, drawH);
+
+        // Serbest Çokgen Kırpması
+        if (isPolygon && frame.dataset.polygonPoints) {
+            try {
+                const pts = JSON.parse(frame.dataset.polygonPoints);
+                cCtx.save();
+                cCtx.globalCompositeOperation = 'destination-in';
+                cCtx.beginPath();
+                pts.forEach((pt, idx) => {
+                    const px = (parseFloat(pt.x) / 100) * exportCanvas.width;
+                    const py = (parseFloat(pt.y) / 100) * exportCanvas.height;
+                    if (idx === 0) cCtx.moveTo(px, py);
+                    else cCtx.lineTo(px, py);
+                });
+                cCtx.closePath();
+                cCtx.fillStyle = '#000000';
+                cCtx.fill();
+                cCtx.restore();
+            } catch(e) {}
+        }
+
+        if (hasShape) {
+            const clip = frame.querySelector('.tb-frame-clip') || frame;
+            const comp = window.getComputedStyle(clip);
+            const maskVal = comp.webkitMaskImage || comp.maskImage || '';
+            const urlMatch = maskVal.match(/url\(["']?(data:image\/svg\+xml[^"']+)["']?\)/i);
+            if (urlMatch && urlMatch[1]) {
+                try {
+                    const maskImg = new Image();
+                    await new Promise((resolve) => {
+                        maskImg.onload = resolve;
+                        maskImg.onerror = resolve;
+                        maskImg.src = urlMatch[1];
+                    });
+                    if (maskImg.complete && maskImg.naturalWidth > 0) {
+                        cCtx.globalCompositeOperation = 'destination-in';
+                        cCtx.drawImage(maskImg, 0, 0, exportCanvas.width, exportCanvas.height);
+                        cCtx.globalCompositeOperation = 'source-over';
+                    }
+                } catch(e) {}
+            }
+        }
+
+        if (hasBlend) {
+            cCtx.globalCompositeOperation = 'destination-in';
+            let grad = null;
+            if (blend === 'fade-bottom') {
+                grad = cCtx.createLinearGradient(0, 0, 0, exportCanvas.height);
+                grad.addColorStop(0, 'rgba(0,0,0,1)');
+                grad.addColorStop(0.55, 'rgba(0,0,0,0.85)');
+                grad.addColorStop(1, 'rgba(0,0,0,0)');
+            } else if (blend === 'fade-right') {
+                grad = cCtx.createLinearGradient(0, 0, exportCanvas.width, 0);
+                grad.addColorStop(0, 'rgba(0,0,0,1)');
+                grad.addColorStop(0.55, 'rgba(0,0,0,0.85)');
+                grad.addColorStop(1, 'rgba(0,0,0,0)');
+            } else if (blend === 'fade-left') {
+                grad = cCtx.createLinearGradient(exportCanvas.width, 0, 0, 0);
+                grad.addColorStop(0, 'rgba(0,0,0,1)');
+                grad.addColorStop(0.55, 'rgba(0,0,0,0.85)');
+                grad.addColorStop(1, 'rgba(0,0,0,0)');
+            }
+            if (grad) {
+                cCtx.fillStyle = grad;
+                cCtx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
+            }
+            cCtx.globalCompositeOperation = 'source-over';
+        }
+
+        const clip = frame.querySelector('.tb-frame-clip') || frame;
+        const inner = clip.querySelector('.tb-frame-inner') || clip;
+        inner.appendChild(exportCanvas);
+        const prevDisplay = img.style.display;
+        img.style.display = 'none';
+
+        cleanups.push(() => {
+            exportCanvas.remove();
+            img.style.display = prevDisplay;
+        });
+
+        // 3D Çerçeve Export Fırınlama (Three.js WebGL Offscreen)
+        if (is3D && window.Template3DFrame && typeof window.Template3DFrame.render3DPlaneToCanvas === 'function') {
+            try {
+                const canvas3D = await window.Template3DFrame.render3DPlaneToCanvas(frame, supersample);
+                if (canvas3D) {
+                    canvas3D.className = 'tb-frame-export-3d-canvas';
+                    canvas3D.style.position = 'absolute';
+                    canvas3D.style.left = '50%';
+                    canvas3D.style.top = '50%';
+                    canvas3D.style.transform = 'translate(-50%, -50%)';
+                    canvas3D.style.width = '150%';
+                    canvas3D.style.height = '150%';
+                    canvas3D.style.pointerEvents = 'none';
+                    canvas3D.style.zIndex = '5';
+                    const origTransform = frame.style.transform;
+                    frame.style.transform = 'none';
+                    frame.appendChild(canvas3D);
+                    exportCanvas.style.display = 'none';
+
+                    cleanups.push(() => {
+                        canvas3D.remove();
+                        frame.style.transform = origTransform;
+                        exportCanvas.style.display = '';
+                    });
+                }
+            } catch(e) {}
+        }
+    }
+    return () => cleanups.forEach(fn => fn());
+}
+
+async function saveImage(customBaseName, options = {}){
+    const rawFileType = options.fileType || (document.getElementById('exportFileType') ? document.getElementById('exportFileType').value : 'jpg');
     if (rawFileType === 'mp4' || rawFileType === 'video') {
-        return exportAnimatedVideo();
+        if (typeof window.exportAnimatedVideo === 'function') return window.exportAnimatedVideo(options);
+        console.warn('Video export modülü henüz yüklenmedi.');
+        return;
     }
     const isTransparent = (rawFileType === 'png_transparent');
     if (isTransparent) {
@@ -853,21 +1109,11 @@ async function saveImage(customBaseName){
         }
     }
 
-    // Arayüzün yükleniyor kartını çizmesi için küçük bir nefes payı
-    await new Promise(r => setTimeout(r, 60));
-
+    let cleanupTemplateFrames = null;
     try {
-        console.log('SAVEIMAGE CALISTI');
-        const debugSlots = document.querySelectorAll('[data-photo-slot]');
-        console.log('--- EXPORT DEBUG ---');
-        console.log('Bulunan [data-photo-slot] sayisi:', debugSlots.length);
-        debugSlots.forEach((slot, i) => {
-            console.log(`Slot ${i} inline background-image:`, slot.style.backgroundImage);
-            console.log(`Slot ${i} computed background-image:`, window.getComputedStyle(slot).backgroundImage);
-            const rc = slot.querySelector('.photo-render-canvas');
-            console.log(`Slot ${i} renderCanvas var mi:`, !!rc);
-        });
-        console.log('--------------------');
+        if (typeof prepareTemplateFramesForExport === 'function') {
+            cleanupTemplateFrames = await prepareTemplateFramesForExport();
+        }
 
         document.body.classList.add('is-exporting');
         
@@ -882,7 +1128,7 @@ async function saveImage(customBaseName){
         if(typeof window._cerceveSecimKaldir === 'function') window._cerceveSecimKaldir();
         document.querySelectorAll('.el-selected').forEach(e=>e.classList.remove('el-selected'));
         document.querySelectorAll('.text-handle').forEach(h=>h.remove());
-        document.querySelectorAll('.callout-controls, .callout-resizer, .callout-rotator, .callout-select-border, .callout-lock-btn, .cbtn-del, .draw-handle, .vertex-handle, .cerceve-handle, .kolaj-handle').forEach(c => c.style.display = 'none');
+        document.querySelectorAll('.callout-controls, .callout-resizer, .callout-rotator, .callout-select-border, .callout-lock-btn, .cbtn-del, .callout-handle-width, .callout-handle-length, .draw-handle, .vertex-handle, .cerceve-handle, .kolaj-handle').forEach(c => c.style.display = 'none');
         const existingCtxMenu = document.getElementById('app-custom-context-menu');
         if (existingCtxMenu) existingCtxMenu.remove();
     
@@ -909,12 +1155,14 @@ async function saveImage(customBaseName){
     drawCanvas.style.zIndex='7';
     drawCanvas.style.pointerEvents='none';
     
-    const formatName=exportFormat?exportFormat.value:'16:9 Full HD';
-    const format=EXPORT_FORMATS[formatName]||{w:1920,h:1080};
-    const fitMode=exportFitMode?exportFitMode.value:'cover';
-    const bgColor=exportBgColor?exportBgColor.value:'#ffffff';
+    const isForceOriginal = !!(options && options.forceOriginal);
+    const formatName = isForceOriginal ? 'Orijinal Görsel Boyutu' : (exportFormat ? exportFormat.value : '16:9 Full HD');
+    const isOriginal = isForceOriginal || (formatName === 'Orijinal Görsel Boyutu');
+    const format = EXPORT_FORMATS[formatName] || {w:1920,h:1080};
+    const fitMode = exportFitMode ? exportFitMode.value : 'cover';
+    const bgColor = exportBgColor ? exportBgColor.value : '#ffffff';
     let outputScale = 1.5;
-    const scaleVal1 = exportScale?exportScale.value:'1.5';
+    const scaleVal1 = exportScale ? exportScale.value : '1.5';
 
     let safeMasterImage = (typeof uploadedImgUrl !== 'undefined' ? uploadedImgUrl : null) || (typeof masterImageBase64 !== 'undefined' ? masterImageBase64 : null);
     if (!safeMasterImage) {
@@ -936,16 +1184,40 @@ async function saveImage(customBaseName){
         await new Promise(r => { masterImgObj.onload = r; masterImgObj.onerror = r; masterImgObj.src = safeMasterImage; });
     }
 
-    if (scaleVal1 === 'original' && safeMasterImage) {
-        outputScale = 1; 
+    const currentW = parseInt(canvasEl.style.width) || 1920;
+    const currentH = parseInt(canvasEl.style.height) || 1080;
+    const canvasRatio = currentW / currentH;
+
+    let targetW, targetH;
+
+    if (isOriginal) {
+        const natW = (typeof uploadedImgW !== 'undefined' && uploadedImgW > 0) ? uploadedImgW : (masterImgObj ? (masterImgObj.naturalWidth || masterImgObj.width) : currentW);
+        const natH = (typeof uploadedImgH !== 'undefined' && uploadedImgH > 0) ? uploadedImgH : (masterImgObj ? (masterImgObj.naturalHeight || masterImgObj.height) : currentH);
+        const natRatio = (natW && natH) ? (natW / natH) : canvasRatio;
+
+        if (natW && natH && Math.abs(canvasRatio - natRatio) < 0.05 && natW >= currentW && natH >= currentH) {
+            // Tuval ve fotoğraf aynı orandaysa tam fotoğraf çözünürlüğünde dışa aktar!
+            targetW = Math.round(natW);
+            targetH = Math.round(natH);
+            outputScale = targetW / currentW;
+        } else {
+            // Tuval en-boy oranını %100 koruyarak seçili ölçekte aktar
+            const baseScale = (scaleVal1 === 'original') ? 1 : (parseFloat(scaleVal1) || 1.5);
+            outputScale = Math.max(1, baseScale);
+            targetW = Math.round(currentW * outputScale);
+            targetH = Math.round(currentH * outputScale);
+        }
     } else {
-        outputScale = parseFloat(scaleVal1) || 1.5;
-    }
-    const currentW=parseInt(canvasEl.style.width)||1920;
-    const currentH=parseInt(canvasEl.style.height)||1080;
-    
-    if (scaleVal1 === 'original' && masterImgObj && masterImgObj.width > 0) {
-        outputScale = Math.min(masterImgObj.width / currentW, masterImgObj.height / currentH);
+        if (scaleVal1 === 'original' && safeMasterImage) {
+            outputScale = 1; 
+        } else {
+            outputScale = parseFloat(scaleVal1) || 1.5;
+        }
+        if (scaleVal1 === 'original' && masterImgObj && masterImgObj.width > 0) {
+            outputScale = Math.min(masterImgObj.width / currentW, masterImgObj.height / currentH);
+        }
+        targetW = Math.round(format.w * outputScale);
+        targetH = Math.round(format.h * outputScale);
     }
     
     if (typeof window.isMobileDevice === 'function' && window.isMobileDevice()) {
@@ -956,8 +1228,8 @@ async function saveImage(customBaseName){
         }
     }
 
-    const targetW = Math.round(format.w * outputScale);
-    const targetH = Math.round(format.h * outputScale);
+    const targetWFinal = targetW;
+    const targetHFinal = targetH;
     const finalCanvas = document.createElement('canvas');
     finalCanvas.width = targetW;
     finalCanvas.height = targetH;
@@ -1151,6 +1423,7 @@ async function saveImage(customBaseName){
             } else {
                 const natW = (panel && panel.dataset.naturalW) ? parseFloat(panel.dataset.naturalW) : (window.uploadedImgW || masterImgObj.naturalWidth || masterImgObj.width || 1920);
                 const natH = (panel && panel.dataset.naturalH) ? parseFloat(panel.dataset.naturalH) : (window.uploadedImgH || masterImgObj.naturalHeight || masterImgObj.height || 1080);
+                const fitMode = window.photoFitMode || 'cover';
                 if (fitMode === 'contain') {
                     const ratio = Math.min(w / natW, h / natH);
                     const dw = natW * ratio;
@@ -1313,6 +1586,9 @@ async function saveImage(customBaseName){
         console.error("SaveImage Error:", err);
         alert("Dışa aktarma sırasında bir hata oluştu: " + (err.message || err));
     } finally {
+        if (typeof cleanupTemplateFrames === 'function') {
+            try { cleanupTemplateFrames(); } catch(e){}
+        }
         window.isExportingTransparent = false;
         if (typeof _wasTplHidden !== 'undefined' && _wasTplHidden && typeof window.toggleTemplateVisibility === 'function') {
             window.toggleTemplateVisibility(true);
@@ -1327,595 +1603,85 @@ async function saveImage(customBaseName){
     }
 }
 
-// ══════════════════════════════════════════════
-// 🎬 YÜZEN MİNİ VİDEO BİLDİRİMİ / ARKA PLAN WİDGETI
-// ══════════════════════════════════════════════
-let _videoToastTimeout = null;
-let _videoToastBlobUrl = null; // Bellek sızıntısını önlemek için blob URL referansı
-
-
-function createOrGetVideoToast() {
-    let toast = document.getElementById('emlak-video-export-toast');
-    if (!toast) {
-        toast = document.createElement('div');
-        toast.id = 'emlak-video-export-toast';
-        toast.style.cssText = `
-            position: fixed;
-            bottom: 24px;
-            right: 24px;
-            z-index: 9999999;
-            background: rgba(15, 23, 42, 0.96);
-            border: 1px solid rgba(99, 102, 241, 0.4);
-            box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6), 0 0 24px rgba(99, 102, 241, 0.25);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-            border-radius: 12px;
-            padding: 14px 18px;
-            display: flex;
-            align-items: center;
-            gap: 14px;
-            min-width: 320px;
-            max-width: 420px;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            color: #ffffff;
-            transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-            pointer-events: auto;
-        `;
-        document.body.appendChild(toast);
-    }
-    return toast;
-}
-
-function updateVideoToastProgress(pct, remainingSec) {
-    const toast = createOrGetVideoToast();
-    toast.style.borderColor = 'rgba(99, 102, 241, 0.4)';
-    toast.style.boxShadow = '0 16px 40px rgba(0, 0, 0, 0.6), 0 0 24px rgba(99, 102, 241, 0.25)';
-    toast.innerHTML = `
-        <div style="width: 38px; height: 38px; border-radius: 50%; background: linear-gradient(135deg, #f59e0b, #ec4899); display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 0 12px rgba(245, 158, 11, 0.5);">
-            <i class="fa-solid fa-video" style="color: #fff; font-size: 16px;"></i>
-        </div>
-        <div style="flex: 1; min-width: 0;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-                <span style="font-size: 13px; font-weight: 700; color: #f1f5f9;">Canlı Video Kaydediliyor</span>
-                <span style="font-size: 12px; font-weight: 800; color: #f59e0b;">%${pct}</span>
-            </div>
-            <div style="font-size: 11px; color: #94a3b8; margin-bottom: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                Arka planda işleniyor, çalışmaya devam edebilirsiniz
-            </div>
-            <div style="width: 100%; height: 5px; background: rgba(255,255,255,0.12); border-radius: 99px; overflow: hidden;">
-                <div style="width: ${pct}%; height: 100%; background: linear-gradient(90deg, #f59e0b, #ec4899, #6366f1); border-radius: 99px; transition: width 0.08s linear;"></div>
-            </div>
-        </div>
-        <button type="button" onclick="closeVideoToast()" style="background: none; border: none; color: #64748b; font-size: 18px; cursor: pointer; padding: 0 4px; line-height: 1;" title="Kapat">&times;</button>
-    `;
-    toast.style.display = 'flex';
-}
-
-function finishVideoToastSuccess(filename, sizeMb, url) {
-    _videoToastBlobUrl = url;
-    const toast = createOrGetVideoToast();
-    toast.style.borderColor = 'rgba(16, 185, 129, 0.6)';
-    toast.style.boxShadow = '0 16px 40px rgba(0, 0, 0, 0.6), 0 0 24px rgba(16, 185, 129, 0.35)';
-    toast.innerHTML = `
-        <div style="width: 38px; height: 38px; border-radius: 50%; background: #10b981; display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 0 14px rgba(16, 185, 129, 0.5);">
-            <i class="fa-solid fa-check" style="color: #fff; font-size: 18px;"></i>
-        </div>
-        <div style="flex: 1; min-width: 0;">
-            <div style="font-size: 13px; font-weight: 700; color: #10b981; margin-bottom: 2px;">
-                Video Hazır! (${sizeMb} MB)
-            </div>
-            <div style="font-size: 11px; color: #cbd5e1; margin-bottom: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${filename}">
-                ${filename}
-            </div>
-            <a href="${url}" download="${filename}" id="toastDirectDownloadBtn" style="display: inline-flex; align-items: center; gap: 6px; background: linear-gradient(135deg, #10b981, #059669); color: #fff; font-size: 12px; font-weight: 700; padding: 6px 12px; border-radius: 6px; text-decoration: none; box-shadow: 0 2px 10px rgba(16, 185, 129, 0.4);">
-                <i class="fa-solid fa-download"></i> Hemen İndir
-            </a>
-        </div>
-        <button type="button" onclick="closeVideoToast()" style="background: none; border: none; color: #64748b; font-size: 18px; cursor: pointer; padding: 0 4px; line-height: 1;" title="Kapat">&times;</button>
-    `;
-
-    if (_videoToastTimeout) clearTimeout(_videoToastTimeout);
-    _videoToastTimeout = setTimeout(closeVideoToast, 8000);
-}
-
-function finishVideoToastError(message) {
-    const toast = createOrGetVideoToast();
-    toast.style.borderColor = 'rgba(239, 68, 68, 0.6)';
-    toast.style.boxShadow = '0 16px 40px rgba(0, 0, 0, 0.6), 0 0 24px rgba(239, 68, 68, 0.3)';
-    toast.innerHTML = `
-        <div style="width: 38px; height: 38px; border-radius: 50%; background: #ef4444; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
-            <i class="fa-solid fa-triangle-exclamation" style="color: #fff; font-size: 18px;"></i>
-        </div>
-        <div style="flex: 1; min-width: 0;">
-            <div style="font-size: 13px; font-weight: 700; color: #ef4444; margin-bottom: 2px;">Video Kaydedilemedi</div>
-            <div style="font-size: 11px; color: #cbd5e1;">${message}</div>
-        </div>
-        <button type="button" onclick="closeVideoToast()" style="background: none; border: none; color: #64748b; font-size: 18px; cursor: pointer; padding: 0 4px; line-height: 1;">&times;</button>
-    `;
-    if (_videoToastTimeout) clearTimeout(_videoToastTimeout);
-    _videoToastTimeout = setTimeout(closeVideoToast, 6000);
-}
-
-function closeVideoToast() {
-    const toast = document.getElementById('emlak-video-export-toast');
-    if (toast) {
-        toast.style.opacity = '0';
-        toast.style.transform = 'translateY(12px)';
-        setTimeout(() => { 
-            if (toast.parentNode) toast.parentNode.removeChild(toast); 
-            if (_videoToastBlobUrl) {
-                URL.revokeObjectURL(_videoToastBlobUrl);
-                _videoToastBlobUrl = null;
-            }
-        }, 250);
-    }
-}
-window.closeVideoToast = closeVideoToast;
-
-function getBestSupportedVideoMime() {
-    // Canvas kaydı için saf video codec'leri (mp4a ses codec'i ASLA eklenmez)
-    const candidates = [
-        'video/mp4;codecs=avc1',
-        'video/mp4',
-        'video/webm;codecs=vp9',
-        'video/webm;codecs=vp8',
-        'video/webm'
-    ];
-    const testCanvas = document.createElement('canvas');
-    testCanvas.width = 16; testCanvas.height = 16;
-    const testStream = testCanvas.captureStream ? testCanvas.captureStream(10) : null;
-    if (testStream && typeof MediaRecorder !== 'undefined') {
-        for (const type of candidates) {
-            try {
-                if (MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(type)) {
-                    const testRec = new MediaRecorder(testStream, { mimeType: type });
-                    if (testRec && testRec.state === 'inactive') {
-                        return type;
-                    }
-                }
-            } catch(e) {}
-        }
-    }
-    return 'video/webm';
-}
+window.exportTransparentPNG = function(customBaseName) {
+    return saveImage(customBaseName, { fileType: 'png_transparent' });
+};
 
 // ══════════════════════════════════════════════
-// 🎬 CANLI ANİMASYONLU VİDEO KAYIT MOTORU (ARKA PLANDA ÇALIŞIR)
+// 🎬 CANLI ANİMASYONLU VİDEO MOTORU
+// Bu bölüm bağımsız modül mimarisi gereğince modules/export-video.js dosyasına taşınmıştır.
 // ══════════════════════════════════════════════
-async function exportAnimatedVideo(options = {}) {
-    // 1. Zaten arka planda kayıt varsa uyar
-    if (window.isExportingVideo) {
-        if (typeof Swal !== 'undefined') {
-            Swal.fire({
-                icon: 'info',
-                title: 'Video Zaten Hazırlanıyor',
-                text: 'Şu anda arka planda bir video kaydediliyor. Lütfen bitmesini bekleyin.',
-                background: '#1e293b',
-                color: '#fff',
-                confirmButtonColor: '#6366f1'
-            });
-        }
-        return;
-    }
-
-    // 2. Pro / Demo Yetki ve Kilit Kontrolü
-    if (typeof window.validateExportAllowed === 'function') {
-        const check = window.validateExportAllowed();
-        if (!check.allowed) {
-            hideExportLoading();
-            if (typeof Swal !== 'undefined') {
-                Swal.fire({
-                    icon: 'warning',
-                    title: check.title || '🔒 Pro Özellik Kullanımı',
-                    html: `<div style="font-size:14px; line-height:1.6; color:#cbd5e1; text-align:left; margin-top:8px;">${check.message}</div>`,
-                    background: '#1e293b',
-                    color: '#fff',
-                    confirmButtonText: 'Tamam, Anladım',
-                    confirmButtonColor: '#6366f1'
-                });
-            } else if (typeof showProUpgradeToast === 'function') {
-                showProUpgradeToast(check.message);
-            } else {
-                alert('🔒 ' + check.message);
-            }
-            return;
-        }
-    }
-
-    // 3. Tarayıcı Video Desteği Kontrolü
-    if (typeof MediaRecorder === 'undefined' || !HTMLCanvasElement.prototype.captureStream) {
-        if (typeof Swal !== 'undefined') {
-            Swal.fire({
-                icon: 'error',
-                title: 'Tarayıcı Desteği Gerekli',
-                text: 'Tarayıcınız video kaydetme özelliğini (MediaRecorder) desteklemiyor. Lütfen güncel Chrome, Edge veya Safari kullanın.',
-                background: '#1e293b',
-                color: '#fff'
-            });
-        } else {
-            alert('Tarayıcınız video kaydetmeyi desteklemiyor. Lütfen güncel bir tarayıcı kullanın.');
-        }
-        return;
-    }
-
-    const chosenMime = getBestSupportedVideoMime();
-    const durationSeconds = (options && options.duration) ? options.duration : 3;
-    const durationMs = durationSeconds * 1000;
-
-    // 🚀 Video dışa aktarma bayrağını en baştan aktifleştir (Saber motorunu uyarır ve clonelama temizliğini tetikler)
-    window.isExportingVideo = true;
-
-    // 🚀 Tam ekran engelleyici loader'ı kesinlikle açma, açıksa derhal kapat
-    hideAppLoading(0, true);
-
-    // Sağ altta yüzen mini bildirim kartını başlat
-    updateVideoToastProgress(5, durationSeconds.toFixed(1));
-
-    await ensureFontsLoaded();
-    await new Promise(r => setTimeout(r, 40));
-
-    // Deselect UI
-    if (typeof deselectAll === 'function') deselectAll();
-    if (typeof _cerceveSecimKaldir === 'function') _cerceveSecimKaldir();
-    if (typeof window._cerceveSecimKaldir === 'function') window._cerceveSecimKaldir();
-    document.querySelectorAll('.el-selected').forEach(e => e.classList.remove('el-selected'));
-    document.querySelectorAll('.text-handle').forEach(h => h.remove());
-    document.querySelectorAll('.callout-controls, .callout-resizer, .callout-rotator, .callout-select-border, .callout-lock-btn, .cbtn-del, .draw-handle, .vertex-handle, .cerceve-handle, .kolaj-handle').forEach(c => c.style.display = 'none');
-    const existingCtxMenu = document.getElementById('app-custom-context-menu');
-    if (existingCtxMenu) existingCtxMenu.remove();
-
-    // Prepare photos (varsa)
-    document.querySelectorAll('.photo-panel, #photo-layer').forEach(p => {
-        if (!p.querySelector('.photo-render-canvas') && p.style.backgroundImage && p.style.backgroundImage !== 'none') {
-            if (typeof _preparePhoto === 'function') _preparePhoto(p);
-        }
-        if (typeof _applyPhotoTransform === 'function') _applyPhotoTransform(p);
-    });
-
-    // Calculate dimensions
-    const formatName = exportFormat ? exportFormat.value : '16:9 Full HD';
-    const format = (typeof EXPORT_FORMATS !== 'undefined' && EXPORT_FORMATS[formatName]) || { w: 1920, h: 1080 };
-    const currentW = parseInt(canvasEl.style.width) || 1920;
-    const currentH = parseInt(canvasEl.style.height) || 1080;
-
-    let targetW = Math.round(format.w);
-    let targetH = Math.round(format.h);
-
-    // Video donanım hızlandırma ve yüksek kalite standardı için maksimum 4K UHD (3840x2160) sınırla
-    const MAX_VID_W = 3840;
-    const MAX_VID_H = 2160;
-    if (targetW > MAX_VID_W || targetH > MAX_VID_H) {
-        const fitRatio = Math.min(MAX_VID_W / targetW, MAX_VID_H / targetH);
-        targetW = Math.round(targetW * fitRatio);
-        targetH = Math.round(targetH * fitRatio);
-    }
-    // Video codec'leri (H.264 / VP8 / VP9) için kesinlikle çift sayı (even) olmalıdır
-    if (targetW % 2 !== 0) targetW += 1;
-    if (targetH % 2 !== 0) targetH += 1;
-
-    const saberApp = (window.SaberEngine && typeof window.SaberEngine.getApp === 'function') ? window.SaberEngine.getApp() : null;
-    const saberView = saberApp ? saberApp.view : document.getElementById('saber-layer');
-    if (saberView) saberView.style.visibility = 'hidden';
-
-    // ══════════════════════════════════════════════════
-    // STATİK TABAN CANVAS'INI HIZLI VE KESİNTİSİZ OLUŞTUR
-    // ══════════════════════════════════════════════════
-    const baseCanvas = document.createElement('canvas');
-    baseCanvas.width = targetW;
-    baseCanvas.height = targetH;
-    const baseCtx = baseCanvas.getContext('2d');
-    baseCtx.imageSmoothingEnabled = true;
-    baseCtx.imageSmoothingQuality = 'high';
-
-    // 1. Arka plan rengi
-    let customBg = window.getComputedStyle(canvasEl).backgroundColor;
-    if (customBg && customBg !== 'rgba(0, 0, 0, 0)' && customBg !== 'transparent') {
-        baseCtx.fillStyle = customBg;
-        baseCtx.fillRect(0, 0, targetW, targetH);
-    } else {
-        baseCtx.fillStyle = '#1e293b';
-        baseCtx.fillRect(0, 0, targetW, targetH);
-    }
-
-    // 2. Fotoğraf katmanını doğrudan fiziksel canvas'tan bas (Milisaniyeler sürer, asla asılı kalmaz)
-    const renderCanvas = document.querySelector('.photo-render-canvas');
-    if (renderCanvas && renderCanvas.width > 0) {
-        try {
-            baseCtx.drawImage(renderCanvas, 0, 0, targetW, targetH);
-        } catch(e) {}
-    } else {
-        // Fallback fotoğraf URL'si varsa zaman aşımlı yükle (maksimum 1.5 sn)
-        let safeMasterImage = (typeof uploadedImgUrl !== 'undefined' ? uploadedImgUrl : null) || (typeof masterImageBase64 !== 'undefined' ? masterImageBase64 : null);
-        if (safeMasterImage) {
-            await new Promise(resolve => {
-                const img = new Image();
-                if (!safeMasterImage.startsWith('data:') && !safeMasterImage.startsWith('blob:')) img.crossOrigin = 'anonymous';
-                const timer = setTimeout(resolve, 1500);
-                img.onload = () => { clearTimeout(timer); try { baseCtx.drawImage(img, 0, 0, targetW, targetH); } catch(e){} resolve(); };
-                img.onerror = () => { clearTimeout(timer); resolve(); };
-                img.src = safeMasterImage;
-            });
-        }
-    }
-
-    // 3. Çizim katmanını (draw-layer) doğrudan bas
-    const drawCanvas = document.getElementById('draw-layer') || document.getElementById('drawCanvas');
-    if (drawCanvas && drawCanvas.width > 0) {
-        try {
-            baseCtx.drawImage(drawCanvas, 0, 0, targetW, targetH);
-        } catch(e) {}
-    }
-
-    // Çizimleri ve dolguları video temel tuvaline bas
-    if (typeof window.redrawAllToContext === 'function') {
-        const hasSaberActive = !!(window.SaberEngine && typeof window.SaberEngine.getApp === 'function');
-        window.redrawAllToContext(baseCtx, outputScale, { skipNeonStrokes: hasSaberActive });
-    }
-
-    // 3D WebGL Katmanı (#three-d-layer)
-    draw3DLayerToContext(baseCtx, targetW, targetH);
-
-    // 4. Şablon, metinler ve rozetler (Sadece varsa html2canvas çalıştır)
-    const hasTemplates = !!canvasEl.querySelector('#canva-render-layer > *');
-    const hasBadges = Array.from(canvasEl.querySelectorAll('#ui-layer .canvas-el')).some(el => {
-        return el.style.display !== 'none' && el.style.visibility !== 'hidden' && el.style.opacity !== '0';
-    });
-    const hasCallouts = Array.from(canvasEl.querySelectorAll('.callout-wrap, .co-neon-block, .svg-callout')).some(el => {
-        return el.style.display !== 'none' && el.style.visibility !== 'hidden';
-    });
-    const hasLogo = (() => {
-        const l = canvasEl.querySelector('#elLogo');
-        return !!(l && l.style.display !== 'none' && l.style.visibility !== 'hidden');
-    })();
-    const needsHtml2Canvas = hasTemplates || hasBadges || hasCallouts || hasLogo;
-
-    if (needsHtml2Canvas) {
-        try {
-            const savedBg = canvasEl.style.backgroundColor;
-            canvasEl.style.setProperty('background-color', 'transparent', 'important');
-
-            const h2cPromise = html2canvas(canvasEl, {
-                width: currentW,
-                height: currentH,
-                scale: 1,
-                useCORS: true,
-                allowTaint: false,
-                imageTimeout: 1500,
-                logging: false,
-                backgroundColor: null,
-                ignoreElements: (el) => isExportIgnoredElement(el),
-                onclone: (clonedDoc) => sanitizeExportClone(clonedDoc)
-            });
-            const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('html2canvas-timeout')), 2000));
-            const capturedCanvas = await Promise.race([h2cPromise, timeoutPromise]);
-
-            if (savedBg) {
-                canvasEl.style.setProperty('background-color', savedBg, 'important');
-            } else {
-                canvasEl.style.removeProperty('background-color');
-            }
-
-            if (capturedCanvas) {
-                baseCtx.drawImage(capturedCanvas, 0, 0, targetW, targetH);
-            }
-        } catch(h2cErr) {
-            console.warn("Hızlı sahne yakalama fallback:", h2cErr.message || h2cErr);
-        }
-    }
-
-    // 5. Filigran / Watermark ekle
-    if (typeof window.addWatermark === 'function') {
-        try { await window.addWatermark(baseCanvas); } catch(e) {}
-    }
-
-    // Neon katmanını yeniden görünür yap (Tuval anında eski haline döner)
-    if (saberView) saberView.style.visibility = 'visible';
-
-    // ══════════════════════════════════════════════════
-    // 4. ARKA PLANDA VİDEO KAYIT DÖNGÜSÜ BAŞLATILIYOR
-    // ══════════════════════════════════════════════════
-    // Yüzen progress widget'ını göster
-    updateVideoToastProgress(0, durationSeconds.toFixed(1));
-
-    // Animasyon ticker'ı açık tut
-    const wasTickerStarted = saberApp && saberApp.ticker && saberApp.ticker.started;
-    if (saberApp && saberApp.ticker && !saberApp.ticker.started) {
-        saberApp.ticker.start();
-    }
-
-    // 5. KAYIT CANVAS'I VE MEDIARECORDER KURULUMU
-    const recCanvas = document.createElement('canvas');
-    recCanvas.width = targetW;
-    recCanvas.height = targetH;
-    const recCtx = recCanvas.getContext('2d', { alpha: false });
-    recCtx.imageSmoothingEnabled = true;
-    recCtx.imageSmoothingQuality = 'high';
-
-    // İlk kareyi hemen çiz (CaptureStream'in canlı video track başlatması için)
-    recCtx.drawImage(baseCanvas, 0, 0, targetW, targetH);
-    if (saberApp && saberApp.view && saberApp.stage) {
-        try {
-            saberApp.renderer.render(saberApp.stage);
-            recCtx.drawImage(saberApp.view, 0, 0, targetW, targetH);
-        } catch(e) {}
-    }
-
-    // Yüksek Kalite / Bitrate Hesaplama:
-    // 1080p: ~15 Mbps, 2K: ~24 Mbps, 4K UHD: ~35-40 Mbps
-    const totalPixels = targetW * targetH;
-    const videoBitrate = Math.round(Math.min(40000000, Math.max(14000000, totalPixels * 4.5)));
-
-    const stream = recCanvas.captureStream(30);
-    let recorder;
-    try {
-        recorder = new MediaRecorder(stream, {
-            mimeType: chosenMime,
-            videoBitsPerSecond: videoBitrate
-        });
-    } catch(recInitErr) {
-        console.warn("Seçilen yüksek bitrate ile başlatılamadı, alternatif deneniyor:", recInitErr);
-        try {
-            recorder = new MediaRecorder(stream, {
-                mimeType: chosenMime,
-                videoBitsPerSecond: 12000000 // 12 Mbps
-            });
-        } catch(e2) {
-            recorder = new MediaRecorder(stream);
-        }
-    }
-
-    const chunks = [];
-    recorder.ondataavailable = (e) => {
-        if (e.data && e.data.size > 0) chunks.push(e.data);
-    };
-    recorder.onerror = (e) => {
-        console.error("MediaRecorder hata verdi:", e);
-        finishVideoToastError("Video kaydı sırasında bir hata oluştu.");
-    };
-
-    // 6. ANİMASYON DÖNGÜSÜ VE KAYIT
-    recorder.start(100);
-    const startTs = performance.now();
-    let animId = null;
-    let timerId = null;
-
-    return new Promise((resolve) => {
-        const cleanup = () => {
-            window.isExportingVideo = false;
-            if (animId) cancelAnimationFrame(animId);
-            if (timerId) clearTimeout(timerId);
-            if (saberApp && saberApp.ticker && !wasTickerStarted) {
-                saberApp.ticker.stop();
-            }
-        };
-
-        recorder.onstop = () => {
-            cleanup();
-
-            try {
-                const actualMime = recorder.mimeType || chosenMime;
-                const blob = new Blob(chunks, { type: actualMime });
-                console.log(`🎬 Video kaydı tamamlandı! Boyut: ${(blob.size / 1024).toFixed(1)} KB, MIME: ${actualMime}, Parça: ${chunks.length}`);
-
-                if (!blob || blob.size === 0) {
-                    console.error("Video blob boyutu 0!");
-                    finishVideoToastError("Video verisi oluşturulamadı. Lütfen tekrar deneyin.");
-                    resolve();
-                    return;
-                }
-
-                const isMp4 = actualMime.toLowerCase().includes('mp4');
-                const ext = isMp4 ? 'mp4' : 'webm';
-                const fmtSafe = formatName.replace(/[^a-z0-9]/gi, '-').toLowerCase();
-                const filename = `emlak-studiom-animasyon-${fmtSafe}-${targetW}x${targetH}.${ext}`;
-                const sizeMb = (blob.size / (1024 * 1024)).toFixed(1);
-
-                const url = URL.createObjectURL(blob);
-
-                // 1. Otomatik indirmeyi tetikle
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = filename;
-                a.style.display = 'none';
-                document.body.appendChild(a);
-                a.click();
-                setTimeout(() => {
-                    if (a.parentNode) a.parentNode.removeChild(a);
-                }, 2000);
-
-                // 2. Yüzen widget'ı başarı durumuna geçir (Kullanıcı dilerse 'Hemen İndir' butonuna da basabilir)
-                finishVideoToastSuccess(filename, sizeMb, url);
-            } catch(err) {
-                console.error("Video dosya oluşturma hatası:", err);
-                finishVideoToastError("Video oluşturulurken hata: " + (err.message || err));
-            }
-            resolve();
-        };
-
-        function renderFrame(now) {
-            const elapsed = now - startTs;
-            if (elapsed >= durationMs) {
-                if (recorder.state === 'recording') {
-                    try { recorder.requestData(); } catch(e) {}
-                    recorder.stop();
-                }
-                return;
-            }
-
-            // 1. Statik temel tasarımı çiz
-            recCtx.imageSmoothingEnabled = true;
-            recCtx.imageSmoothingQuality = 'high';
-            recCtx.drawImage(baseCanvas, 0, 0, targetW, targetH);
-
-            // 2. Canlı neon / saber animasyon katmanını çiz
-            if (saberApp && saberApp.view && saberApp.stage) {
-                try {
-                    saberApp.renderer.render(saberApp.stage);
-                    recCtx.drawImage(saberApp.view, 0, 0, targetW, targetH);
-                } catch(e) {}
-            }
-
-            // 3. Yüzen toast ilerleme durumunu güncelle
-            const pct = Math.min(99, Math.round((elapsed / durationMs) * 100));
-            const remainingSec = Math.max(0, ((durationMs - elapsed) / 1000)).toFixed(1);
-            updateVideoToastProgress(pct, remainingSec);
-
-            // 4. Sonraki kare (arka planda sekme gizliyse setTimeout fallback ile devam eder)
-            if (document.hidden) {
-                timerId = setTimeout(() => renderFrame(performance.now()), 33);
-            } else {
-                animId = requestAnimationFrame(renderFrame);
-            }
-        }
-
-        if (document.hidden) {
-            timerId = setTimeout(() => renderFrame(performance.now()), 33);
-        } else {
-            animId = requestAnimationFrame(renderFrame);
-        }
-    });
-}
 
 function renderBatchList(){
     const l=$('batchFileList');
     if (!l) return;
     l.innerHTML='';
-    if (!batchFiles || !batchFiles.length) {
+
+    // Eğer PhotoStagingArchive havuzunda görseller varsa öncelikli olarak onları listele
+    let files = [];
+    if (window.PhotoStagingArchive && window.PhotoStagingArchive.items && window.PhotoStagingArchive.items.length > 0) {
+        files = window.PhotoStagingArchive.items.map((it, i) => ({
+            name: (it.title || ('foto_' + (i + 1))) + '.png',
+            size: it.dataUrl ? Math.round(it.dataUrl.length * 0.75) : 102400,
+            thumbUrl: it.thumbUrl || it.dataUrl
+        }));
+    } else if (typeof batchFiles !== 'undefined' && batchFiles && batchFiles.length) {
+        files = batchFiles;
+    }
+
+    if (!files || !files.length) {
         l.style.display = 'none';
         return;
     }
     l.style.display = 'block';
-    batchFiles.forEach((f,i)=>{
+    files.forEach((f,i)=>{
         const d=document.createElement('div');
         d.className='batch-file-item';
-        d.innerHTML='<span>'+(i+1)+'. '+f.name+'</span><span>'+(f.size/1024).toFixed(0)+'KB</span>';
+        const thumbHtml = f.thumbUrl ? `<img src="${f.thumbUrl}" style="width:24px; height:24px; object-fit:cover; border-radius:4px; margin-right:8px; vertical-align:middle; border:1px solid #cbd5e1;">` : '';
+        d.innerHTML='<span style="display:flex; align-items:center; min-width:0; overflow:hidden; text-overflow:ellipsis;">'+thumbHtml+(i+1)+'. '+f.name+'</span><span style="flex-shrink:0; font-size:10px; color:#94a3b8;">'+(f.size/1024).toFixed(0)+'KB</span>';
         l.appendChild(d);
     });
 }
 
 function clearBatchFiles(){
-    batchFiles=[];
-    const inp = $('batchInput');
-    if (inp) inp.value='';
-    const l = $('batchFileList');
-    if (l) { l.innerHTML=''; l.style.display='none'; }
-    const p = $('batchProgress');
-    if (p) p.style.display='none';
+    if (window.PhotoStagingArchive && window.PhotoStagingArchive.items && window.PhotoStagingArchive.items.length > 0) {
+        window.PhotoStagingArchive.clearAllPool();
+    } else {
+        batchFiles=[];
+        const inp = $('batchInput');
+        if (inp) inp.value='';
+        const l = $('batchFileList');
+        if (l) { l.innerHTML=''; l.style.display='none'; }
+        const p = $('batchProgress');
+        if (p) p.style.display='none';
+    }
 }
 
 async function startBatchExport(options){
-    const activeBatchFiles = (options && options.files && options.files.length) ? options.files : ((typeof batchFiles !== 'undefined' && batchFiles && batchFiles.length) ? batchFiles : (window.batchFiles || []));
+    let activeBatchFiles = (options && options.files && options.files.length) ? options.files : null;
+    if (!activeBatchFiles || !activeBatchFiles.length) {
+        if (typeof batchFiles !== 'undefined' && batchFiles && batchFiles.length) {
+            activeBatchFiles = batchFiles;
+        } else if (window.PhotoStagingArchive && window.PhotoStagingArchive.items && window.PhotoStagingArchive.items.length > 0) {
+            activeBatchFiles = window.PhotoStagingArchive.items.map((it, i) => ({
+                name: (it.title || ('foto_' + (i + 1))) + '.png',
+                dataUrl: it.dataUrl
+            }));
+        } else {
+            activeBatchFiles = window.batchFiles || [];
+        }
+    }
     if(!activeBatchFiles || !activeBatchFiles.length){
         if (typeof Swal !== 'undefined') {
             Swal.fire({
                 icon: 'info',
-                title: 'Dosya Ekleyin',
-                text: 'Lütfen önce Toplu Çıktı alanından indirmek istediğiniz fotoğrafları seçin.',
+                title: 'Fotoğraf Bulunamadı',
+                text: 'Lütfen önce Görseller veya Giriş sekmesinden indirmek istediğiniz fotoğrafları ekleyin.',
                 background: '#1e293b',
                 color: '#fff'
             });
         } else {
-            alert('Dosya ekleyin!');
+            alert('Lütfen önce fotoğraf ekleyin!');
         }
         return;
     }
@@ -1945,17 +1711,6 @@ async function startBatchExport(options){
 
     await ensureFontsLoaded();
 
-      console.log('--- STARTBATCHEXPORT ÇALIŞTI ---');
-      const debugSlots = document.querySelectorAll('[data-photo-slot]');
-      console.log('Bulunan [data-photo-slot] sayisi:', debugSlots.length);
-      debugSlots.forEach((slot, i) => {
-          console.log(`Slot ${i} HTML İçi:`, slot.innerHTML);
-          console.log(`Slot ${i} inline background-image:`, slot.style.backgroundImage);
-          console.log(`Slot ${i} computed background-image:`, window.getComputedStyle(slot).backgroundImage);
-          const rc = slot.querySelector('.photo-render-canvas');
-          console.log(`Slot ${i} .photo-render-canvas var mi:`, !!rc);
-      });
-      console.log('--------------------');
 
     var _wasTplHiddenBatch = window.isTemplateHidden;
     if (_wasTplHiddenBatch && typeof window.toggleTemplateVisibility === 'function') {
@@ -1969,7 +1724,7 @@ async function startBatchExport(options){
     if(typeof deselectAll === 'function') deselectAll();
     document.querySelectorAll('.el-selected').forEach(e=>e.classList.remove('el-selected'));
     document.querySelectorAll('.text-handle').forEach(h=>h.remove());
-    document.querySelectorAll('.callout-controls, .callout-resizer, .callout-rotator, .callout-select-border, .callout-lock-btn, .cbtn-del, .draw-handle, .vertex-handle').forEach(c => c.style.display = 'none');
+    document.querySelectorAll('.callout-controls, .callout-resizer, .callout-rotator, .callout-select-border, .callout-lock-btn, .cbtn-del, .callout-handle-width, .callout-handle-length, .draw-handle, .vertex-handle').forEach(c => c.style.display = 'none');
     const existingBatchCtx = document.getElementById('app-custom-context-menu');
     if (existingBatchCtx) existingBatchCtx.remove();
     
@@ -1994,15 +1749,16 @@ async function startBatchExport(options){
     const selectedPresetId = (options && options.presetId) ? options.presetId : (document.getElementById('batchPresetSelect') ? document.getElementById('batchPresetSelect').value : 'current');
     const prefixInput = document.getElementById('batchPrefixInput') ? document.getElementById('batchPrefixInput').value.trim() : '';
 
-    if (selectedPresetId && selectedPresetId !== 'current') {
-        if (window.CustomPresetsManager) {
-            window.CustomPresetsManager.applyPreset(selectedPresetId);
-        } else if (typeof applyPreset === 'function') {
-            applyPreset(selectedPresetId);
+    try {
+        if (selectedPresetId && selectedPresetId !== 'current') {
+            if (window.CustomPresetsManager) {
+                window.CustomPresetsManager.applyPreset(selectedPresetId);
+            } else if (typeof applyPreset === 'function') {
+                applyPreset(selectedPresetId);
+            }
         }
-    }
 
-    for(let i = startIndex; i < activeBatchFiles.length; i++){
+        for(let i = startIndex; i < activeBatchFiles.length; i++){
         const rawBaseName = activeBatchFiles[i].name.replace(/\.[^/.]+$/, "");
         const batchName = (prefixInput ? prefixInput : '') + rawBaseName;
 
@@ -2360,15 +2116,17 @@ async function startBatchExport(options){
         ctx = null;
         masterImgObj = null;
     } // for loop end
-
-    window.isExportingTransparent = false;
-    drawCanvas.style.zIndex=wz;
-    drawCanvas.style.pointerEvents=wp;
-    
-    document.body.classList.remove('is-exporting');
-    if (typeof _wasTplHiddenBatch !== 'undefined' && _wasTplHiddenBatch && typeof window.toggleTemplateVisibility === 'function') {
-        window.toggleTemplateVisibility(true);
+    } finally {
+        window.isExportingTransparent = false;
+        drawCanvas.style.zIndex = wz;
+        drawCanvas.style.pointerEvents = wp;
+        
+        document.body.classList.remove('is-exporting');
+        if (typeof _wasTplHiddenBatch !== 'undefined' && _wasTplHiddenBatch && typeof window.toggleTemplateVisibility === 'function') {
+            window.toggleTemplateVisibility(true);
+        }
     }
+
     batchProgress.style.display='none';
     batchStatus.textContent='Tamamlandı';
     batchPercent.textContent='100%';
@@ -2387,6 +2145,8 @@ async function startBatchExport(options){
 }
 
 function readFileUrl(f){
+    if (typeof f === 'string') return Promise.resolve(f);
+    if (f && f.dataUrl) return Promise.resolve(f.dataUrl);
     return new Promise(r=>{
         const fr=new FileReader();
         fr.onload=e=>r(e.target.result);
@@ -2410,7 +2170,12 @@ window.interactiveBatchState = {
 
 async function startInteractiveBatchExport() {
     let allFiles = (typeof batchFiles !== 'undefined' && batchFiles && batchFiles.length) ? batchFiles : (window.batchFiles || []);
-    if ((!allFiles || !allFiles.length) && document.getElementById('batchInput') && document.getElementById('batchInput').files.length > 0) {
+    if ((!allFiles || !allFiles.length) && window.PhotoStagingArchive && window.PhotoStagingArchive.items && window.PhotoStagingArchive.items.length > 0) {
+        allFiles = window.PhotoStagingArchive.items.map((it, idx) => ({
+            name: (it.title || ('foto_' + (idx + 1))) + '.png',
+            dataUrl: it.dataUrl
+        }));
+    } else if ((!allFiles || !allFiles.length) && document.getElementById('batchInput') && document.getElementById('batchInput').files.length > 0) {
         allFiles = Array.from(document.getElementById('batchInput').files).filter(f => !window.validateImageUpload || window.validateImageUpload(f));
         if (typeof batchFiles !== 'undefined') batchFiles = allFiles;
         window.batchFiles = allFiles;
@@ -2421,7 +2186,7 @@ async function startInteractiveBatchExport() {
             Swal.fire({
                 icon: 'info',
                 title: 'Fotoğraf Ekleyin',
-                text: 'Lütfen önce Toplu Çıktı alanından düzenlemek istediğiniz fotoğrafları seçin.',
+                text: 'Lütfen önce Görseller veya Giriş sekmesinden düzenlemek istediğiniz fotoğrafları ekleyin.',
                 background: '#1e293b',
                 color: '#fff'
             });
@@ -2937,21 +2702,48 @@ async function getBase64FromCSSUrl(cssUrl) {
     return '';
 }
 
+function _sanitizeExportImportHtml(html) {
+    if (!html) return '';
+    return html.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+               .replace(/\bon\w+\s*=/gi, 'data-blocked=');
+}
+
 async function saveProject() {
     try {
         const state = {
             version: 1,
             currentMode, activeLayout, isCanvaMode, activeCanvaId,
-            uploadedImgW, uploadedImgH,
-            drawMode, drawPaths, extraFieldCounter, extraFieldsData,
+            uploadedImgW: typeof uploadedImgW !== 'undefined' ? uploadedImgW : 1920,
+            uploadedImgH: typeof uploadedImgH !== 'undefined' ? uploadedImgH : 1080,
+            drawMode,
+            drawPaths: (typeof drawPaths !== 'undefined' && Array.isArray(drawPaths)) ? drawPaths.map(p => {
+                const clone = Object.assign({}, p);
+                delete clone.el;
+                delete clone.saberRef;
+                return clone;
+            }) : [],
+            extraFieldCounter, extraFieldsData,
             inputs: {},
-            customElements: []
+            customElements: [],
+            customItems: []
         };
 
         // Resimleri Base64'e çevir ki kalıcı olsun
-        state.uploadedImgUrl = await getBase64FromBlobUrl(uploadedImgUrl);
+        const activeUploadedImgUrl = typeof uploadedImgUrl !== 'undefined' ? uploadedImgUrl : window.uploadedImgUrl;
+        if (activeUploadedImgUrl) {
+            if (activeUploadedImgUrl.startsWith('blob:') && typeof getBase64FromBlobUrl === 'function') {
+                state.uploadedImgUrl = await getBase64FromBlobUrl(activeUploadedImgUrl);
+            } else {
+                state.uploadedImgUrl = activeUploadedImgUrl;
+            }
+        }
 
-        state.logoImgUrl = logoUrl;
+        const elLogo = document.getElementById('elLogo') || document.getElementById('logo_overlay');
+        const logoUrlRaw = elLogo ? (elLogo.src || (elLogo.querySelector('img') ? elLogo.querySelector('img').src : '') || (elLogo.style.backgroundImage !== 'none' ? elLogo.style.backgroundImage : '')) : '';
+        if (typeof getBase64FromCSSUrl === 'function' && logoUrlRaw) {
+            state.logoImgUrl = await getBase64FromCSSUrl(logoUrlRaw);
+        }
+
         state.customSlotImages = window.customSlotImages || {};
         if (window.activeCustomTemplateData) {
             state.customTemplate = window.activeCustomTemplateData;
@@ -2964,9 +2756,190 @@ async function saveProject() {
             }
         });
 
-        // Tüm özel elemanları (ikonlar ve yazılar) kaydet
-        document.querySelectorAll('#photo-layer .draggable').forEach(el => {
-            if(['badge', 'price', 'details', 'logo_overlay'].includes(el.id)) return;
+        // 🌟 Şablon Öğelerinin Tam Durumu (Konum, Metin, HTML, Stil ve Görünürlük)
+        const curBadge = document.getElementById('elBadge');
+        const curPrice = document.getElementById('elPrice');
+        const curDetails = document.getElementById('elDetails');
+        const curInfoLine = document.getElementById('infoLineText');
+
+        state.templateElements = {
+            badge: curBadge ? {
+                text: curBadge.innerText,
+                html: curBadge.innerHTML,
+                style: curBadge.getAttribute('style'),
+                className: curBadge.className,
+                dataset: Object.assign({}, curBadge.dataset),
+                visible: (curBadge.style.visibility !== 'hidden' && curBadge.style.display !== 'none')
+            } : null,
+            price: curPrice ? {
+                text: curPrice.innerText,
+                html: curPrice.innerHTML,
+                style: curPrice.getAttribute('style'),
+                className: curPrice.className,
+                dataset: Object.assign({}, curPrice.dataset),
+                visible: (curPrice.style.visibility !== 'hidden' && curPrice.style.display !== 'none')
+            } : null,
+            details: curDetails ? {
+                html: curDetails.innerHTML,
+                style: curDetails.getAttribute('style'),
+                className: curDetails.className,
+                dataset: Object.assign({}, curDetails.dataset),
+                visible: (curDetails.style.visibility !== 'hidden' && curDetails.style.display !== 'none')
+            } : null,
+            infoLineHtml: curInfoLine ? curInfoLine.innerHTML : null,
+            logo: elLogo ? {
+                style: elLogo.getAttribute('style'),
+                visible: (elLogo.style.display !== 'none' && elLogo.style.visibility !== 'hidden')
+            } : null
+        };
+
+        // 🌟 Özel Tasarım Elemanlarını Saf Veri Olarak Kaydet (İkonlar, Yazılar, Callout'lar, Şekiller)
+        const customItems = [];
+        const canvasW = (typeof canvasEl !== 'undefined' && canvasEl && parseInt(canvasEl.style.width)) ? parseInt(canvasEl.style.width) : 1920;
+        const canvasH = (typeof canvasEl !== 'undefined' && canvasEl && parseInt(canvasEl.style.height)) ? parseInt(canvasEl.style.height) : 1080;
+        state.canvasW = canvasW;
+        state.canvasH = canvasH;
+
+        // A. İkonlar
+        document.querySelectorAll('#ui-layer .added-icon, #photo-layer .added-icon, #canvas-container .added-icon, #ui-layer .is-svg-icon').forEach(icon => {
+            if (icon.closest('.callout-wrap') || icon.closest('.co-neon-block')) return;
+            if (icon.classList.contains('editable-draw')) return;
+            const isSvg = icon.classList.contains('is-svg-icon') || !!icon.querySelector('svg');
+            const clone = icon.cloneNode(true);
+            clone.querySelectorAll('.text-handle').forEach(h => h.remove());
+            const char = isSvg ? clone.innerHTML : (clone.textContent || '');
+            const left = parseFloat(icon.style.left) || 0;
+            const top = parseFloat(icon.style.top) || 0;
+            customItems.push({
+                kind: 'icon',
+                char: char,
+                isSvg: isSvg,
+                left: left,
+                top: top,
+                xPercent: canvasW > 0 ? (left / canvasW) : 0,
+                yPercent: canvasH > 0 ? (top / canvasH) : 0,
+                fontSize: parseFloat(icon.style.fontSize) || 60,
+                background: icon.style.background || icon.style.backgroundColor || 'rgba(15,23,42,0.6)',
+                color: icon.style.color || '#ffffff',
+                borderRadius: icon.style.borderRadius || '50%',
+                padding: icon.style.padding || '0.28em',
+                label: icon.dataset.label || '',
+                dataset: Object.assign({}, icon.dataset)
+            });
+        });
+
+        // B. Metinler, Rozetler & Çerçeveli Kartlar
+        document.querySelectorAll('#ui-layer .canvas-el.draggable, #photo-layer .canvas-el.draggable, #canvas-container .canvas-el.draggable').forEach(el => {
+            if (['elBadge', 'elPrice', 'elDetails', 'elLogo', 'badge', 'price', 'details', 'logo_overlay'].includes(el.id)) return;
+            if (el.classList.contains('added-icon') || el.classList.contains('is-svg-icon')) return;
+            if (el.closest('.callout-wrap') || el.closest('.co-neon-block') || el.closest('.callout-wrapper')) return;
+            if (el.classList.contains('normal-el') || el.classList.contains('canva-generated') || el.classList.contains('canva-panel')) return;
+            if (el.classList.contains('editable-draw')) return;
+            
+            const isBadge = el.dataset.label && (el.dataset.label.startsWith('Rozet:') || el.dataset.label.includes('Çerçeveli'));
+            const isBox = (el.dataset.label === 'Özel Kutu');
+            const text = el.innerText || el.textContent || '';
+            const left = parseFloat(el.style.left) || 0;
+            const top = parseFloat(el.style.top) || 0;
+
+            customItems.push({
+                kind: 'text',
+                text: text,
+                isBox: isBox,
+                isBadge: isBadge,
+                label: el.dataset.label || (isBox ? 'Özel Kutu' : 'Serbest Yazı'),
+                left: left,
+                top: top,
+                xPercent: canvasW > 0 ? (left / canvasW) : 0,
+                yPercent: canvasH > 0 ? (top / canvasH) : 0,
+                fontSize: parseFloat(el.style.fontSize) || 36,
+                width: el.style.width || '',
+                minWidth: el.style.minWidth || '',
+                maxWidth: el.style.maxWidth || '',
+                minHeight: el.style.minHeight || '',
+                height: el.style.height || '',
+                color: el.style.color || '#ffffff',
+                background: el.style.background || el.style.backgroundColor || (isBox ? 'rgba(255,255,255,0.9)' : 'transparent'),
+                border: el.style.border || (isBox ? '2px solid #000000' : 'none'),
+                borderRadius: el.style.borderRadius || (isBox ? '12px' : '0px'),
+                padding: el.style.padding || (isBox ? '20px 30px' : '10px'),
+                boxShadow: el.style.boxShadow || 'none',
+                textShadow: el.style.textShadow || 'none',
+                backdropFilter: el.style.backdropFilter || el.style.webkitBackdropFilter || '',
+                webkitBackdropFilter: el.style.webkitBackdropFilter || '',
+                fontFamily: el.style.fontFamily || '',
+                fontWeight: el.style.fontWeight || '',
+                textAlign: el.style.textAlign || '',
+                whiteSpace: el.style.whiteSpace || '',
+                lineHeight: el.style.lineHeight || '',
+                letterSpacing: el.style.letterSpacing || '',
+                rotation: parseFloat(el.dataset.rotation) || 0,
+                dataset: Object.assign({}, el.dataset)
+            });
+        });
+
+        // C. Callout'lar (SVG ve Neon)
+        document.querySelectorAll('#canvas-container .callout-wrap, #workArea .callout-wrap, #canvas-container .co-neon-block').forEach(wrap => {
+            const left = parseFloat(wrap.style.left) || 0;
+            const top = parseFloat(wrap.style.top) || 0;
+            const width = parseFloat(wrap.style.width) || (wrap.offsetWidth || 240);
+            const height = parseFloat(wrap.style.height) || (wrap.offsetHeight || 120);
+            const scale = parseFloat(wrap.dataset.scale) || 1.0;
+            const userScale = parseFloat(wrap.dataset.userScale) || scale;
+            const rotation = parseFloat(wrap.dataset.rotation) || 0;
+            const isNeon = wrap.classList.contains('co-neon-block');
+            
+            customItems.push({
+                kind: 'callout',
+                isNeon: isNeon,
+                html: wrap.innerHTML,
+                left: left,
+                top: top,
+                xPercent: canvasW > 0 ? (left / canvasW) : 0,
+                yPercent: canvasH > 0 ? (top / canvasH) : 0,
+                width: width,
+                height: height,
+                scale: scale,
+                userScale: userScale,
+                rotation: rotation,
+                dataset: Object.assign({}, wrap.dataset)
+            });
+        });
+
+        // D. Şekiller (Shapes)
+        document.querySelectorAll('#canvas-container .shape-el, #workArea .shape-el').forEach(wrap => {
+            const left = parseFloat(wrap.style.left) || 0;
+            const top = parseFloat(wrap.style.top) || 0;
+            const width = parseFloat(wrap.style.width) || wrap.offsetWidth;
+            const height = parseFloat(wrap.style.height) || wrap.offsetHeight;
+            const scale = parseFloat(wrap.dataset.scale) || 1.0;
+            const userScale = parseFloat(wrap.dataset.userScale) || scale;
+            const rotation = parseFloat(wrap.dataset.rotation) || 0;
+            
+            const clone = wrap.cloneNode(true);
+            clone.querySelectorAll('.text-handle, .callout-resizer, .callout-rotator, .callout-controls, .callout-lock-btn, .callout-select-border, .callout-handle-width, .callout-handle-length').forEach(h => h.remove());
+            
+            customItems.push({
+                kind: 'shape',
+                html: clone.innerHTML,
+                left: left,
+                top: top,
+                xPercent: canvasW > 0 ? (left / canvasW) : 0,
+                yPercent: canvasH > 0 ? (top / canvasH) : 0,
+                width: width,
+                height: height,
+                scale: scale,
+                userScale: userScale,
+                rotation: rotation,
+                dataset: Object.assign({}, wrap.dataset)
+            });
+        });
+
+        state.customItems = customItems;
+
+        // Geriye dönük uyumluluk için customElements'i de doldur
+        document.querySelectorAll('#photo-layer .draggable, #ui-layer .draggable').forEach(el => {
+            if(['badge', 'price', 'details', 'logo_overlay', 'elBadge', 'elPrice', 'elDetails', 'elLogo'].includes(el.id)) return;
             state.customElements.push({
                 id: el.id,
                 className: el.className,
@@ -2975,6 +2948,22 @@ async function saveProject() {
                 dataset: Object.assign({}, el.dataset)
             });
         });
+
+        // 🌟 3D Düzlem & Metin Katmanı Verileri
+        if (window.ThreeDEngine && typeof window.ThreeDEngine.getDataToSave === 'function') {
+            state.threeDData = window.ThreeDEngine.getDataToSave();
+        }
+
+        // Ekstra Arayüz & Görünüm Ayarları
+        state.currentFont = typeof currentFont !== 'undefined' ? currentFont : (window.currentFont || localStorage.getItem('emlakstudiom_currentFont') || '');
+        state.lastAppliedPalette = window.lastAppliedPalette ? Object.assign({}, window.lastAppliedPalette) : null;
+        const formatSelect = document.getElementById('previewFormat');
+        state.previewFormat = formatSelect ? formatSelect.value : '16:9 Full HD (YouTube/Banner)';
+        state.lastParsedData = window.lastParsedData || null;
+        state.smartBadges = window.smartBadges || [];
+        state.smartMatchedCallouts = window.smartMatchedCallouts || [];
+        state.photoCurves = (window.PhotoCurvesManager && typeof window.PhotoCurvesManager.getState === 'function') ? window.PhotoCurvesManager.getState() : null;
+        state.photoMasks = (window.PhotoMasksManager && typeof window.PhotoMasksManager.getState === 'function') ? window.PhotoMasksManager.getState() : null;
 
         // JSON olarak indir
         const jsonString = JSON.stringify(state);
@@ -3011,7 +3000,12 @@ window.loadProjectFromFile = function(file) {
             if(isCanvaMode && !activeCanvaId) isCanvaMode = false;
             uploadedImgW = state.uploadedImgW || 1920;
             uploadedImgH = state.uploadedImgH || 1080;
-            drawPaths = state.drawPaths || [];
+            drawPaths = (state.drawPaths || []).map(p => {
+                p.el = null;
+                p.saberRef = null;
+                return p;
+            });
+            window.drawPaths = drawPaths;
             extraFieldCounter = state.extraFieldCounter || 0;
             
             // extraFieldsData is a const, we must mutate its properties
@@ -3019,12 +3013,17 @@ window.loadProjectFromFile = function(file) {
             extraFieldsData.konut = newExtra.konut || [];
             extraFieldsData.arazi = newExtra.arazi || [];
 
-            document.querySelectorAll('#photo-layer .draggable').forEach(el => {
-                if(['badge', 'price', 'details', 'logo_overlay'].includes(el.id)) return;
+            // Eski tuval elemanlarını temizle
+            document.querySelectorAll('#photo-layer .draggable, #ui-layer .draggable, #canvas-container .draggable, #canvas-container .editable-draw, #photo-layer .editable-draw, #ui-layer .editable-draw, #canvas-container .callout-wrap, #canvas-container .shape-el, #canvas-container .co-neon-block').forEach(el => {
+                if(['badge', 'price', 'details', 'logo_overlay', 'elBadge', 'elPrice', 'elDetails', 'elLogo'].includes(el.id)) return;
                 el.remove();
             });
             allIcons = [];
 
+            // 1. Önce modu değiştir ki mod değişiminin varsayılan metinleri sonraki input atamasıyla doğru şekilde ezilsin
+            if(typeof switchMode === 'function') switchMode(currentMode);
+
+            // 2. Şimdi kullanıcının kaydettiği gerçek input değerlerini yükle
             if(state.inputs) {
                 Object.keys(state.inputs).forEach(id => {
                     const el = document.getElementById(id);
@@ -3043,7 +3042,7 @@ window.loadProjectFromFile = function(file) {
                         const row = document.createElement('div');
                         row.className = 'extra-field-row';
                         row.id = 'row_'+id;
-                        row.innerHTML = '<input type="text" id="lbl_'+id+'" placeholder="Başlık"><input type="text" id="val_'+id+'" placeholder="Değer"><button class="remove-field" onclick="removeExtraField(\''+id+'\',\''+mode+'\')">🗑️</button>';
+                        row.innerHTML = '<input type="text" id="lbl_'+id+'" placeholder="Başlık"><input type="text" id="val_'+id+'" placeholder="Değer"><button type="button" class="remove-field" onclick="removeExtraField(\''+id+'\',\''+mode+'\')" title="Bilgiyi Sil"><i class="fa-solid fa-xmark"></i></button>';
                         c.appendChild(row);
                         document.getElementById('lbl_'+id).addEventListener('input', renderData);
                         document.getElementById('val_'+id).addEventListener('input', renderData);
@@ -3054,32 +3053,6 @@ window.loadProjectFromFile = function(file) {
                 }
             });
 
-            if(state.customElements) {
-                state.customElements.forEach(data => {
-                    const el = document.createElement('div');
-                    if(data.id) el.id = data.id;
-                    el.className = data.className;
-                    el.innerHTML = data.innerHTML;
-                    if(data.style) el.setAttribute('style', data.style);
-                    if(data.dataset) {
-                        Object.keys(data.dataset).forEach(k => el.dataset[k] = data.dataset[k]);
-                    }
-
-                    // Eski serileştirilmiş tutamaçları temizle ki canlı olay dinleyicileri sıfırdan bağlansın
-                    el.querySelectorAll('.text-handle, .cbtn-del, .callout-resizer, .callout-rotator, .callout-lock-btn').forEach(h => h.remove());
-
-                    const pl = document.getElementById('photo-layer');
-                    if (pl) pl.appendChild(el);
-                    makeDraggable(el);
-                    if(el.classList.contains('icon-el') || el.classList.contains('icon-wrap')) {
-                        allIcons.push(el);
-                    }
-                    if(typeof window.addTextHandles === 'function') {
-                        window.addTextHandles(el);
-                    }
-                });
-            }
-
             if (state.uploadedImgUrl) {
                 uploadedImgUrl = state.uploadedImgUrl;
                 const pl = document.getElementById('photo-layer');
@@ -3087,7 +3060,8 @@ window.loadProjectFromFile = function(file) {
                 if(typeof trackImageSize === 'function') trackImageSize(uploadedImgUrl);
             }
 
-            if(state.logoImgUrl && typeof elLogo !== 'undefined' && elLogo) {
+            const elLogo = document.getElementById('elLogo') || document.getElementById('logo_overlay');
+            if(state.logoImgUrl && elLogo) {
                 const img = elLogo.querySelector('img');
                 if (img) {
                     img.src = state.logoImgUrl;
@@ -3097,8 +3071,6 @@ window.loadProjectFromFile = function(file) {
                 elLogo.style.display = 'block';
                 elLogo.style.visibility = 'visible';
             }
-
-            if(typeof switchMode === 'function') switchMode(currentMode);
             
             if (state.customSlotImages) {
                 window.customSlotImages = state.customSlotImages;
@@ -3106,6 +3078,7 @@ window.loadProjectFromFile = function(file) {
                 window.customSlotImages = {};
             }
 
+            // Şablon yerleşimi
             if (state.customTemplate || state.isCustomTemplate) {
                 const tpl = state.customTemplate || state;
                 window.activeCustomTemplateData = tpl;
@@ -3132,13 +3105,277 @@ window.loadProjectFromFile = function(file) {
                     if(typeof setTemplate === 'function') setTemplate(activeLayout);
                 } else {
                     if(typeof clearAllTemplates === 'function') clearAllTemplates();
-                    if(typeof elBadge !== 'undefined' && elBadge) elBadge.style.visibility='hidden';
-                    if(typeof elPrice !== 'undefined' && elPrice) elPrice.style.visibility='hidden';
-                    if(typeof elDetails !== 'undefined' && elDetails) elDetails.style.visibility='hidden';
+                    const b = document.getElementById('elBadge');
+                    const p = document.getElementById('elPrice');
+                    const d = document.getElementById('elDetails');
+                    if(b) b.style.visibility='hidden';
+                    if(p) p.style.visibility='hidden';
+                    if(d) d.style.visibility='hidden';
                 }
             }
 
+            // Temel verileri bas
             if(typeof renderData === 'function') renderData();
+
+            // 🌟 KRİTİK: Kullanıcının kaydettiği şablon öğelerinin son halini (Özel konum, stiller ve metin) geri yükle!
+            if (state.templateElements) {
+                const te = state.templateElements;
+                const curBadge = document.getElementById('elBadge');
+                const curPrice = document.getElementById('elPrice');
+                const curDetails = document.getElementById('elDetails');
+                const curInfoLine = document.getElementById('infoLineText');
+                const curLogo = document.getElementById('elLogo') || document.getElementById('logo_overlay');
+
+                if (te.badge && curBadge) {
+                    if (te.badge.style) curBadge.setAttribute('style', te.badge.style);
+                    if (te.badge.html) curBadge.innerHTML = te.badge.html;
+                    else if (te.badge.text) curBadge.innerText = te.badge.text;
+                    curBadge.style.visibility = (te.badge.visible !== false) ? 'visible' : 'hidden';
+                    curBadge.style.display = (te.badge.visible !== false) ? 'block' : 'none';
+                    if (typeof bindDrag === 'function') bindDrag(curBadge);
+                }
+                if (te.price && curPrice) {
+                    if (te.price.style) curPrice.setAttribute('style', te.price.style);
+                    if (te.price.html) curPrice.innerHTML = te.price.html;
+                    else if (te.price.text) curPrice.innerText = te.price.text;
+                    curPrice.style.visibility = (te.price.visible !== false) ? 'visible' : 'hidden';
+                    curPrice.style.display = (te.price.visible !== false) ? 'block' : 'none';
+                    if (typeof bindDrag === 'function') bindDrag(curPrice);
+                }
+                if (te.details && curDetails) {
+                    if (te.details.style) curDetails.setAttribute('style', te.details.style);
+                    if (te.details.html) curDetails.innerHTML = te.details.html;
+                    curDetails.style.visibility = (te.details.visible !== false) ? 'visible' : 'hidden';
+                    curDetails.style.display = (te.details.visible !== false) ? 'block' : 'none';
+                    if (typeof bindDrag === 'function') bindDrag(curDetails);
+                }
+                if (te.infoLineHtml && curInfoLine) {
+                    curInfoLine.innerHTML = te.infoLineHtml;
+                    curInfoLine.style.visibility = 'visible';
+                    curInfoLine.style.display = 'block';
+                }
+                if (te.logo && curLogo) {
+                    if (te.logo.style) curLogo.setAttribute('style', te.logo.style);
+                    curLogo.style.display = (te.logo.visible !== false) ? 'block' : 'none';
+                    curLogo.style.visibility = (te.logo.visible !== false) ? 'visible' : 'hidden';
+                    if (typeof bindDrag === 'function') bindDrag(curLogo);
+                }
+            }
+
+            // 🌟 Özel Tasarım Elemanlarını Geri Yükle (İkonlar, Yazılar, Callout'lar, Şekiller)
+            const targetCanvasW = (typeof canvasEl !== 'undefined' && canvasEl && parseInt(canvasEl.style.width)) ? parseInt(canvasEl.style.width) : 1920;
+            const targetCanvasH = (typeof canvasEl !== 'undefined' && canvasEl && parseInt(canvasEl.style.height)) ? parseInt(canvasEl.style.height) : 1080;
+            const uiLayer = document.getElementById('ui-layer') || document.getElementById('canvas-container');
+
+            if (state.customItems && Array.isArray(state.customItems) && state.customItems.length > 0) {
+                state.customItems.forEach(item => {
+                    if (!item || !item.kind) return;
+                    
+                    if (item.kind === 'icon') {
+                        const icon = document.createElement('div');
+                        icon.className = 'draggable added-icon canvas-el' + (item.isSvg ? ' is-svg-icon' : '');
+                        if (item.isSvg) {
+                            icon.innerHTML = item.char;
+                        } else {
+                            icon.textContent = item.char;
+                        }
+                        icon.dataset.label = item.label || ('İkon: ' + (item.isSvg ? 'SVG' : item.char));
+                        if (item.dataset) {
+                            Object.keys(item.dataset).forEach(k => { icon.dataset[k] = item.dataset[k]; });
+                        }
+                        const posX = typeof item.left !== 'undefined' ? item.left : Math.round(item.xPercent * targetCanvasW);
+                        const posY = typeof item.top !== 'undefined' ? item.top : Math.round(item.yPercent * targetCanvasH);
+                        icon.style.position = 'absolute';
+                        icon.style.left = posX + 'px';
+                        icon.style.top = posY + 'px';
+                        icon.style.fontSize = (item.fontSize || 60) + 'px';
+                        icon.style.padding = item.padding || '0.28em';
+                        icon.style.borderRadius = item.borderRadius || '50%';
+                        icon.style.background = item.background || 'rgba(15,23,42,0.6)';
+                        icon.style.color = item.color || '#ffffff';
+                        icon.style.zIndex = '9999';
+                        icon.style.display = 'flex';
+                        icon.style.alignItems = 'center';
+                        icon.style.justifyContent = 'center';
+                        icon.style.visibility = 'visible';
+                        
+                        if (uiLayer) uiLayer.appendChild(icon);
+                        if (typeof bindDrag === 'function') bindDrag(icon);
+                        if (typeof allIcons !== 'undefined' && !allIcons.includes(icon)) {
+                            allIcons.push(icon);
+                        }
+                    } else if (item.kind === 'text') {
+                        const el = document.createElement('div');
+                        const isBox = !!item.isBox;
+                        const isBadge = !!item.isBadge;
+                        el.className = 'draggable canvas-el' + (isBadge ? ' sh-badge' : (isBox ? ' sh-box custom-text-box' : ''));
+                        el.innerText = item.text || '';
+                        el.dataset.label = item.label || (isBox ? 'Özel Kutu' : 'Serbest Yazı');
+                        if (isBox) el.dataset.isCustomBox = 'true';
+                        if (item.dataset) {
+                            Object.keys(item.dataset).forEach(k => { el.dataset[k] = item.dataset[k]; });
+                        }
+                        const posX = typeof item.left !== 'undefined' ? item.left : Math.round(item.xPercent * targetCanvasW);
+                        const posY = typeof item.top !== 'undefined' ? item.top : Math.round(item.yPercent * targetCanvasH);
+                        el.style.position = 'absolute';
+                        el.style.left = posX + 'px';
+                        el.style.top = posY + 'px';
+                        el.style.fontSize = (item.fontSize || 36) + 'px';
+                        if (item.width) el.style.width = item.width;
+                        if (item.minWidth) el.style.minWidth = item.minWidth;
+                        if (item.maxWidth) el.style.maxWidth = item.maxWidth;
+                        if (item.minHeight) el.style.minHeight = item.minHeight;
+                        if (item.height) el.style.height = item.height;
+                        el.style.color = item.color || '#ffffff';
+                        el.style.background = item.background || (isBox ? 'rgba(255,255,255,0.9)' : 'transparent');
+                        el.style.border = item.border || (isBox ? '2px solid #000000' : 'none');
+                        el.style.borderRadius = item.borderRadius || (isBox ? '12px' : '0px');
+                        el.style.padding = item.padding || (isBox ? '20px 30px' : '10px');
+                        if (item.boxShadow) el.style.boxShadow = item.boxShadow;
+                        if (item.textShadow) el.style.textShadow = item.textShadow;
+                        if (item.backdropFilter) el.style.backdropFilter = item.backdropFilter;
+                        if (item.webkitBackdropFilter) el.style.webkitBackdropFilter = item.webkitBackdropFilter;
+                        if (item.fontFamily) el.style.fontFamily = item.fontFamily;
+                        if (item.fontWeight) el.style.fontWeight = item.fontWeight;
+                        if (item.textAlign) el.style.textAlign = item.textAlign;
+                        if (item.whiteSpace) el.style.whiteSpace = item.whiteSpace;
+                        if (item.lineHeight) el.style.lineHeight = item.lineHeight;
+                        if (item.letterSpacing) el.style.letterSpacing = item.letterSpacing;
+                        el.style.zIndex = '9999';
+                        el.style.display = 'block';
+                        el.style.boxSizing = 'border-box';
+                        el.style.overflow = 'visible';
+                        el.style.visibility = 'visible';
+                        
+                        if (uiLayer) uiLayer.appendChild(el);
+                        if (typeof bindDrag === 'function') bindDrag(el);
+                        if (typeof enableInlineEdit === 'function') enableInlineEdit(el);
+                        if (typeof window.addTextHandles === 'function') window.addTextHandles(el);
+                    } else if (item.kind === 'callout' || item.kind === 'shape') {
+                        const workArea = document.getElementById('canvas-container') || document.getElementById('workArea');
+                        if (workArea && item.html) {
+                            const wrap = document.createElement('div');
+                            if (item.kind === 'shape') {
+                                wrap.className = 'canvas-el draggable shape-el';
+                            } else {
+                                wrap.className = item.isNeon ? 'co-neon-block draggable' : 'callout-wrap svg-callout draggable';
+                            }
+                            wrap.innerHTML = _sanitizeExportImportHtml(item.html);
+                            if (item.kind === 'shape') {
+                                wrap.querySelectorAll('.text-handle, .callout-resizer, .callout-rotator, .callout-controls, .callout-lock-btn, .callout-select-border, .callout-handle-width, .callout-handle-length').forEach(h => h.remove());
+                            }
+                            const posX = typeof item.left !== 'undefined' ? item.left : Math.round(item.xPercent * targetCanvasW);
+                            const posY = typeof item.top !== 'undefined' ? item.top : Math.round(item.yPercent * targetCanvasH);
+                            wrap.style.position = 'absolute';
+                            wrap.style.left = posX + 'px';
+                            wrap.style.top = posY + 'px';
+                            wrap.style.width = (item.width || 240) + 'px';
+                            wrap.style.height = (item.height || 120) + 'px';
+                            wrap.style.transform = `rotate(${item.rotation || 0}deg) scale(${item.scale || 1.0})`;
+                            wrap.style.zIndex = '500';
+                            wrap.style.cursor = 'move';
+                            wrap.style.display = 'block';
+                            wrap.style.visibility = 'visible';
+
+                            wrap.dataset.origCanvasW = targetCanvasW;
+                            wrap.dataset.origCanvasH = targetCanvasH;
+                            wrap.dataset.userScale = item.userScale || item.scale || 1.0;
+                            wrap.dataset.scale = item.scale || 1.0;
+                            wrap.dataset.rotation = item.rotation || 0;
+                            if (item.dataset) {
+                                Object.keys(item.dataset).forEach(k => { wrap.dataset[k] = item.dataset[k]; });
+                                if (item.kind === 'shape') {
+                                    const bgRgba = (typeof window.hexToRgba === 'function') ? window.hexToRgba(wrap.dataset.bgColor, wrap.dataset.bgOpacity || '100') : wrap.dataset.bgColor;
+                                    const bcRgba = (typeof window.hexToRgba === 'function') ? window.hexToRgba(wrap.dataset.borderColor, wrap.dataset.borderOpacity || '100') : wrap.dataset.borderColor;
+                                    wrap.style.setProperty('--shape-bg', bgRgba);
+                                    wrap.style.setProperty('--shape-border', bcRgba);
+                                    wrap.style.setProperty('--shape-border-width', (wrap.dataset.borderWidth || '0') + 'px');
+                                    wrap.style.opacity = (wrap.dataset.opacity || '100') / 100;
+                                }
+                            }
+
+                            workArea.appendChild(wrap);
+                            if (!item.isNeon && typeof window.rebindSVGCallout === 'function') {
+                                window.rebindSVGCallout(wrap);
+                            } else if (item.isNeon && typeof window.rebindNeonCallout === 'function') {
+                                window.rebindNeonCallout(wrap);
+                            }
+                        }
+                    }
+                });
+            } else if (state.customElements && Array.isArray(state.customElements)) {
+                // Eski şablon dosyaları için geriye dönük uyumluluk
+                state.customElements.forEach(data => {
+                    const el = document.createElement('div');
+                    if(data.id) el.id = data.id;
+                    el.className = data.className;
+                    el.innerHTML = data.innerHTML;
+                    if(data.style) el.setAttribute('style', data.style);
+                    if(data.dataset) {
+                        Object.keys(data.dataset).forEach(k => el.dataset[k] = data.dataset[k]);
+                    }
+                    el.querySelectorAll('.text-handle, .cbtn-del, .callout-resizer, .callout-rotator, .callout-lock-btn').forEach(h => h.remove());
+
+                    const targetParent = document.getElementById('ui-layer') || document.getElementById('photo-layer');
+                    if (targetParent) targetParent.appendChild(el);
+                    if (typeof bindDrag === 'function') bindDrag(el);
+                    else makeDraggable(el);
+                    if(el.classList.contains('icon-el') || el.classList.contains('icon-wrap')) {
+                        allIcons.push(el);
+                    }
+                    if(typeof window.addTextHandles === 'function') {
+                        window.addTextHandles(el);
+                    }
+                });
+            }
+
+            // Çizim yollarının SVG DOM elemanlarını yeniden oluştur
+            if (drawPaths && drawPaths.length > 0) {
+                document.querySelectorAll('#canvas-container .editable-draw, #ui-layer .editable-draw').forEach(el => el.remove());
+                drawPaths.forEach((p, idx) => {
+                    const createFn = (typeof createSVGFromPath === 'function') ? createSVGFromPath : window.createSVGFromPath;
+                    if (typeof createFn === 'function') {
+                        const el = createFn(p);
+                        if (el) {
+                            p.el = el;
+                            el.dataset.pathIndex = idx;
+                            if (p.elId) el.id = p.elId;
+                            if (typeof allIcons !== 'undefined' && !allIcons.includes(el)) {
+                                allIcons.push(el);
+                            }
+                        }
+                    }
+                });
+            }
+
+            // 🌟 3D Düzlem & Metin Katmanını Geri Yükle
+            if (state.threeDData && window.ThreeDEngine && typeof window.ThreeDEngine.restoreData === 'function') {
+                await window.ThreeDEngine.restoreData(state.threeDData);
+            }
+
+            // Renk paleti ve font ayarları
+            if (state.lastAppliedPalette && typeof applyTemplateTheme === 'function' && state.lastAppliedPalette.bg) {
+                window.lastAppliedPalette = state.lastAppliedPalette;
+                applyTemplateTheme(
+                    state.lastAppliedPalette.bg,
+                    state.lastAppliedPalette.accent,
+                    state.lastAppliedPalette.titleText || state.lastAppliedPalette.accent || '#ffffff',
+                    state.lastAppliedPalette.text,
+                    state.lastAppliedPalette.applyBg !== false,
+                    state.lastAppliedPalette.glow,
+                    state.lastAppliedPalette.name
+                );
+            }
+
+            const fontToRestore = state.currentFont || '';
+            if (fontToRestore) {
+                if (typeof currentFont !== 'undefined') currentFont = fontToRestore;
+                window.currentFont = fontToRestore;
+                const sel = document.getElementById('fontQuickSelect');
+                if (sel) sel.value = fontToRestore;
+                if (typeof applyFontSettings === 'function') applyFontSettings();
+            }
+
             if(typeof resizeCanvas === 'function') resizeCanvas();
             if(typeof redrawAll === 'function') redrawAll();
             if(typeof updateDrawHistory === 'function') updateDrawHistory();
@@ -3149,12 +3386,12 @@ window.loadProjectFromFile = function(file) {
             setTimeout(() => { if(typeof resizeCanvas === 'function') resizeCanvas(); }, 150);
             setTimeout(() => { if(typeof resizeCanvas === 'function') resizeCanvas(); }, 400);
 
-            // Bekleme ekranını tüm yerleşimler kesin olarak tamamlandıktan sonra (1200ms) pürüzsüz kapat:
+            // Bekleme ekranını tüm yerleşimler kesin olarak tamamlandıktan sonra pürüzsüz kapat:
             setTimeout(() => {
                 if (typeof window.hideAppLoading === 'function') {
                     window.hideAppLoading(250);
                 }
-            }, 1200);
+            }, 800);
         } catch(e) {
             if (typeof window.hideAppLoading === 'function') window.hideAppLoading();
             console.error("Load error:", e);
@@ -3177,10 +3414,12 @@ function loadProject() {
 }
 
 window.saveImage = saveImage;
-window.exportAnimatedVideo = exportAnimatedVideo;
+window.isExportIgnoredElement = isExportIgnoredElement;
+window.sanitizeExportClone = sanitizeExportClone;
+window.ensureFontsLoaded = ensureFontsLoaded;
 window.downloadOriginalFromDock = function() {
     if (typeof saveImage === 'function') {
-        saveImage();
+        saveImage(null, { forceOriginal: true });
     }
 };
 

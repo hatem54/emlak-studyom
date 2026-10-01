@@ -1,0 +1,175 @@
+/* ==========================================================================
+   🪄 EMLAK STÜDYOM - SİHİRLİ SİLGİ & AKILLI NESNE KALDIRICI STILLERI
+   Referans: UI_DESIGN_SYSTEM.md & AGENTS.md
+   ========================================================================== */
+
+/* Sihirli Silgi Eylem Bölümü */
+.magic-eraser-section {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid #e2e8f0;
+}
+
+body[data-theme="dark"] .magic-eraser-section {
+    border-top-color: #334155;
+}
+
+/* Motor Seçim Butonları */
+.eraser-engine-group {
+    display: flex;
+    gap: 3px;
+}
+
+.eraser-engine-btn {
+    padding: 3px 6px;
+    font-size: 11px;
+    font-weight: 600;
+    border-radius: 5px;
+    background: #f1f5f9;
+    color: #475569;
+    border: 1px solid #cbd5e1;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    user-select: none;
+    white-space: nowrap;
+}
+
+.eraser-engine-btn:hover {
+    background: #e2e8f0;
+    color: #1e293b;
+}
+
+.eraser-engine-btn.active {
+    background: #e0e7ff;
+    color: #4338ca;
+    border-color: #818cf8;
+    box-shadow: 0 1px 2px rgba(99, 102, 241, 0.15);
+}
+
+body[data-theme="dark"] .eraser-engine-btn {
+    background: #1e293b;
+    color: #94a3b8;
+    border-color: #334155;
+}
+
+body[data-theme="dark"] .eraser-engine-btn:hover {
+    background: #334155;
+    color: #f8fafc;
+}
+
+body[data-theme="dark"] .eraser-engine-btn.active {
+    background: rgba(99, 102, 241, 0.2);
+    color: #c7d2fe;
+    border-color: #818cf8;
+}
+
+/* Model İndirme İlerleme Çubuğu */
+.eraser-progress-wrapper {
+    margin-bottom: 10px;
+    padding: 8px 10px;
+    border-radius: 6px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+}
+
+body[data-theme="dark"] .eraser-progress-wrapper {
+    background: #1e293b;
+    border-color: #334155;
+}
+
+.eraser-progress-header {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    font-weight: 500;
+    color: #64748b;
+    margin-bottom: 5px;
+}
+
+body[data-theme="dark"] .eraser-progress-header {
+    color: #94a3b8;
+}
+
+.eraser-progress-track {
+    width: 100%;
+    height: 6px;
+    background: #e2e8f0;
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+body[data-theme="dark"] .eraser-progress-track {
+    background: #334155;
+}
+
+.eraser-progress-fill {
+    width: 0%;
+    height: 100%;
+    background: linear-gradient(90deg, #8b5cf6, #3b82f6);
+    border-radius: 3px;
+    transition: width 0.2s ease;
+}
+
+/* Silgi Eylem Butonu */
+.btn-eraser-execute {
+    width: 100%;
+    margin-bottom: 6px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    transition: all 0.2s ease;
+}
+
+.btn-eraser-execute:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* Buton Üzerinde Hareketli Yükleme Bildirimi (Shimmer Progress) */
+.btn-eraser-execute.loading {
+    position: relative;
+    overflow: hidden;
+    cursor: wait !important;
+    opacity: 1 !important;
+    background: linear-gradient(90deg, #f1f5f9 0%, #e0e7ff 50%, #f1f5f9 100%) !important;
+    background-size: 200% 100% !important;
+    animation: eraserBtnShimmer 1.2s infinite linear !important;
+    border-color: #818cf8 !important;
+    color: #4338ca !important;
+    box-shadow: 0 0 0 2px rgba(129, 140, 248, 0.2);
+}
+
+body[data-theme="dark"] .btn-eraser-execute.loading {
+    background: linear-gradient(90deg, #1e293b 0%, #312e81 50%, #1e293b 100%) !important;
+    background-size: 200% 100% !important;
+    border-color: #6366f1 !important;
+    color: #c7d2fe !important;
+    box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.25);
+}
+
+@keyframes eraserBtnShimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+/* Spinner */
+.eraser-spinner {
+    display: inline-block;
+    width: 13px;
+    height: 13px;
+    border: 2px solid rgba(67, 56, 202, 0.25);
+    border-radius: 50%;
+    border-top-color: #4338ca;
+    animation: eraserSpin 0.7s linear infinite;
+}
+
+body[data-theme="dark"] .eraser-spinner {
+    border-color: rgba(199, 210, 254, 0.25);
+    border-top-color: #c7d2fe;
+}
+
+@keyframes eraserSpin {
+    to { transform: rotate(360deg); }
+}

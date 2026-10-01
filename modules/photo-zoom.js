@@ -11,6 +11,15 @@ console.log('🎬 Zoom modülü v4 başlıyor...');
 // ========== YARDIMCI: Zoom yapılabilir eleman bul ==========
 function _getZoomTarget(target) {
     if (!target) return null;
+    var pl = document.getElementById('photo-layer') || document.querySelector('.photo-panel');
+    
+    // Space tuşuna basılıyken tuval alanı üzerindeki herhangi bir tıklama (SVG, ikon, metin, çizim vb.) doğrudan fotoğrafı pan yapsın
+    if (window.spaceBarPressed) {
+        if (target === pl || (target.closest && target.closest('#canvas-container, .preview-area, .canvas-wrapper, #maskInteractiveSvg, #draw-layer, #photo-layer, .photo-panel'))) {
+            return pl;
+        }
+    }
+
     if (target.closest && target.closest('.editable-draw, .draggable, .canvas-el, .cvi-item, .added-icon, .callout-wrap, .svg-callout, .co-neon-block, .vertex-handle, .text-handle, .text-rotate-handle, .text-resize-handle, .callout-controls, .callout-resizer, .callout-rotator, .arrow-heads-group, .color-picker, .ui-panel, button, input, select, textarea')) {
         return null;
     }
@@ -21,14 +30,16 @@ function _getZoomTarget(target) {
     var photoLayer = el.closest && el.closest('#photo-layer');
     if (photoLayer) return photoLayer;
     if (el.id === 'canvas-container' || (el.classList && el.classList.contains('canvas-wrapper')) || (el.closest && el.closest('#canvas-container'))) {
-        var pl = document.getElementById('photo-layer');
         if (pl) return pl;
     }
     return null;
 }
 window._getZoomTarget = _getZoomTarget;
 
-function _isPhotoLocked() {
+function _isPhotoLocked(ignoreSpace = false) {
+    // Space pan aktifken araç kilitlerini (çizim modu, maske kılavuzları vb.) geçersiz kıl
+    if (!ignoreSpace && window.spaceBarPressed) return false;
+
     if (window.AppState && window.AppState.photo && window.AppState.photo.isLocked) return true;
     if (window.isPhotoLocked === true) return true;
     const lockToggle = document.getElementById('photoLockToggle');
@@ -36,41 +47,120 @@ function _isPhotoLocked() {
     const lockBtn = document.getElementById('lockPhotoBtn');
     if (lockBtn && lockBtn.classList.contains('active')) return true;
     if (typeof drawMode !== 'undefined' && drawMode !== null && drawMode !== 'off') return true;
+    if (typeof polyMarqueeBox !== 'undefined' && polyMarqueeBox) return true;
+    if (document.querySelector('.poly-marquee-box')) return true;
+    if (window.PhotoMasksManager && window.PhotoMasksManager.isGuidesVisible) return true;
     return false;
 }
 
-// ========== TEKERLEK - ZOOM ==========
+// ========== SPACE TUŞU & İMLEÇ YÖNETİMİ ==========
+window.spaceBarPressed = false;
+
+function updateSpacePanCursor(active, dragging = false) {
+    if (active) {
+        document.body.classList.add('space-pan-active');
+        if (dragging) {
+            document.body.classList.add('space-pan-dragging');
+        } else {
+            document.body.classList.remove('space-pan-dragging');
+        }
+    } else {
+        document.body.classList.remove('space-pan-active', 'space-pan-dragging');
+    }
+}
+window.updateSpacePanCursor = updateSpacePanCursor;
+
+window.addEventListener('keydown', e => { 
+    if (e.code === 'Space') { 
+        const ae = document.activeElement;
+        if (ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.isContentEditable)) {
+            return; 
+        }
+        e.preventDefault(); 
+        if (!window.spaceBarPressed) {
+            window.spaceBarPressed = true;
+            updateSpacePanCursor(true, false);
+            if (window.CloneStamp && window.CloneStamp.isActive) window.CloneStamp.renderSvg();
+            if (window.PhotoMasksManager && window.PhotoMasksManager.isGuidesVisible) window.PhotoMasksManager.renderSvg();
+        }
+    } 
+}, { capture: true });
+
+window.addEventListener('keyup', e => { 
+    if (e.code === 'Space') {
+        window.spaceBarPressed = false;
+        updateSpacePanCursor(false, false);
+        if (window.CloneStamp && window.CloneStamp.isActive) window.CloneStamp.renderSvg();
+        if (window.PhotoMasksManager && window.PhotoMasksManager.isGuidesVisible) window.PhotoMasksManager.renderSvg();
+    } 
+}, { capture: true });
+
+window.addEventListener('blur', () => {
+    if (window.spaceBarPressed) {
+        window.spaceBarPressed = false;
+        updateSpacePanCursor(false, false);
+    }
+});
+
+// ========== TEKERLEK - ZOOM (Ctrl veya Space ile veya Boşta) ==========
 document.addEventListener('wheel', function(e){
-    if(_isPhotoLocked()) return;
+    const isZoomOverride = e.ctrlKey || window.spaceBarPressed;
+    if (!isZoomOverride && _isPhotoLocked()) return;
+
     var el = _getZoomTarget(e.target);
+    if (!el && isZoomOverride) {
+        el = document.getElementById('photo-layer') || document.querySelector('.photo-panel');
+    }
     if(!el) return;
     
     e.preventDefault();
+    e.stopPropagation();
     _preparePhoto(el);
     
     var s = parseFloat(el.dataset.zpScale) || 1;
-    s = e.deltaY < 0 ? s + 0.1 : s - 0.1;
+    var step = (s > 2) ? 0.2 : 0.1;
+    s = e.deltaY < 0 ? s + step : s - step;
     if(s < 0.3) s = 0.3;
-    if(s > 5) s = 5;
+    if(s > 8.0) s = 8.0;
     
     el.dataset.zpScale = s;
     _applyPhotoTransform(el);
-}, { passive: false });
 
-// ========== SÜRÜKLEME ==========
+    if (window.CloneStamp && window.CloneStamp.isActive) window.CloneStamp.renderSvg();
+    if (window.PhotoMasksManager && window.PhotoMasksManager.isGuidesVisible) window.PhotoMasksManager.renderSvg();
+}, { passive: false, capture: true });
+
+// ========== SÜRÜKLEME (PAN) ==========
 var _dragEl = null, _dsx, _dsy, _dix, _diy;
 
-window.spaceBarPressed = false;
-window.addEventListener('keydown', e => { 
-    if (e.code === 'Space') { 
-        window.spaceBarPressed = true; 
-        if(document.activeElement && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') e.preventDefault(); 
-    } 
-});
-window.addEventListener('keyup', e => { 
-    if (e.code === 'Space') window.spaceBarPressed = false; 
-});
+function startPhotoPan(el, e) {
+    _preparePhoto(el);
+    window._isPhotoDragging = true;
+    _dragEl = el;
+    _dsx = e.clientX;
+    _dsy = e.clientY;
+    _dix = parseFloat(el.dataset.zpX) || 0;
+    _diy = parseFloat(el.dataset.zpY) || 0;
+    
+    updateSpacePanCursor(true, true);
+    document.addEventListener('mousemove', _onPhotoPointerMove);
+    document.addEventListener('mouseup', _onPhotoPointerUp);
+}
 
+// 1. Capture Phase: Space + Sol Tık ile Anında Pan (Araçların çizim yapmasını engeller)
+document.addEventListener('mousedown', function(e){
+    if (window.spaceBarPressed && e.button === 0) {
+        var el = _getZoomTarget(e.target);
+        if (el) {
+            e.preventDefault();
+            e.stopPropagation();
+            startPhotoPan(el, e);
+            return;
+        }
+    }
+}, { capture: true });
+
+// 2. Normal Phase: Standart Sol Tık Pan (Araçlar aktif değilken)
 document.addEventListener('mousedown', function(e){
     if(_isPhotoLocked()) return;
     var el = _getZoomTarget(e.target);
@@ -82,31 +172,23 @@ document.addEventListener('mousedown', function(e){
     if(e.button === 0 && !window.spaceBarPressed && !canPanWithLeftClick) return;
     if(e.button !== 0 && e.button !== 1) return;
     
-    // Eger fotograf yoksa (bos canvas) pan yapma, birak baska seyler (marquee vb) calissin
     const hasPhoto = el && ((el.style.backgroundImage && el.style.backgroundImage !== 'none') || el.querySelector('.photo-inner-zoom') || el.tagName.toLowerCase() === 'img');
     if (!hasPhoto) return;
     
-    _preparePhoto(el);
-    
-    window._isPhotoDragging = true;
-    _dragEl = el;
-    _dsx = e.clientX;
-    _dsy = e.clientY;
-    _dix = parseFloat(el.dataset.zpX) || 0;
-    _diy = parseFloat(el.dataset.zpY) || 0;
-    
-    el.style.cursor = 'grabbing';
     e.preventDefault();
+    startPhotoPan(el, e);
 });
 
 var _photoMoveRAF = null;
 var _lastMoveEvt = null;
 
-document.addEventListener('mousemove', function(e){
-    if(_isPhotoLocked() || !_dragEl) {
-        if(_dragEl) _dragEl = null;
-        window._isPhotoDragging = false;
-        window._cachedPhotoPanelMetrics = null;
+function _onPhotoPointerMove(e) {
+    if (!_dragEl) {
+        _onPhotoPointerUp();
+        return;
+    }
+    if (!window.spaceBarPressed && _isPhotoLocked(true)) {
+        _onPhotoPointerUp();
         return;
     }
     
@@ -115,9 +197,8 @@ document.addEventListener('mousemove', function(e){
     
     _photoMoveRAF = requestAnimationFrame(function(){
         _photoMoveRAF = null;
-        if (!_dragEl || _isPhotoLocked() || !_lastMoveEvt) {
-            window._isPhotoDragging = false;
-            window._cachedPhotoPanelMetrics = null;
+        if (!_dragEl || (!window.spaceBarPressed && _isPhotoLocked(true)) || !_lastMoveEvt) {
+            _onPhotoPointerUp();
             return;
         }
         
@@ -128,30 +209,47 @@ document.addEventListener('mousemove', function(e){
         var x = _dix + (_lastMoveEvt.clientX - _dsx) / (sf * s);
         var y = _diy + (_lastMoveEvt.clientY - _dsy) / (sf * s);
         
-        // Sınırlandırma (Clamp) eklenerek fotoğrafın sonsuza kayması engellenir
-        x = Math.max(-3000, Math.min(3000, x));
-        y = Math.max(-3000, Math.min(3000, y));
+        x = Math.max(-5000, Math.min(5000, x));
+        y = Math.max(-5000, Math.min(5000, y));
 
         _dragEl.dataset.zpX = x;
         _dragEl.dataset.zpY = y;
         _applyPhotoTransform(_dragEl);
-    });
-});
 
-document.addEventListener('mouseup', function(){
+        if (window.CloneStamp && window.CloneStamp.isActive) {
+            window.CloneStamp.renderSvg();
+        }
+        if (window.PhotoMasksManager && window.PhotoMasksManager.isGuidesVisible) {
+            window.PhotoMasksManager.renderSvg();
+        }
+    });
+}
+
+function _onPhotoPointerUp() {
+    document.removeEventListener('mousemove', _onPhotoPointerMove);
+    document.removeEventListener('mouseup', _onPhotoPointerUp);
+
     if (_photoMoveRAF) {
         cancelAnimationFrame(_photoMoveRAF);
         _photoMoveRAF = null;
     }
     window._isPhotoDragging = false;
     window._cachedPhotoPanelMetrics = null;
+    updateSpacePanCursor(window.spaceBarPressed, false);
+
     if(_dragEl) {
-        _dragEl.style.cursor = 'grab';
         var elToBake = _dragEl;
         _dragEl = null;
         _applyPhotoTransform(elToBake);
+
+        if (window.CloneStamp && window.CloneStamp.isActive) {
+            window.CloneStamp.renderSvg();
+        }
+        if (window.PhotoMasksManager && window.PhotoMasksManager.isGuidesVisible) {
+            window.PhotoMasksManager.renderSvg();
+        }
     }
-});
+}
 
 // ========== TOUCH: PINCH TO ZOOM & PAN ==========
 var _initialPinchDist = null;

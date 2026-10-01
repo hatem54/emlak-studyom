@@ -27,6 +27,128 @@ function renderCalloutPanel(){
     acc.style.border = '1px solid rgba(255,255,255,0.1)';
     acc.style.padding = '5px';
     
+    // 🌟 1. 3D EMLAK & ÇİT ÖGELERİ (Diğer Akordiyonlarla Birebir Aynı Yapıda ve Yan Yana)
+    const estateHeader = document.createElement('div');
+    estateHeader.className = 'accordion-header';
+    estateHeader.style.cssText = 'padding:10px; cursor:pointer; border-radius:5px; margin-bottom:5px; font-weight:bold; display:flex; justify-content:space-between; align-items:center; transition:background 0.2s;';
+    estateHeader.innerHTML = `
+        <span style="display:flex; align-items:center; gap:6px;">
+            <i class="fa-solid fa-cube" style="color:#0284c7;"></i>
+            <span>3D Emlak & Çit Ögeleri</span>
+        </span>
+        <span class="icon-toggle">▼</span>
+    `;
+
+    const estateBody = document.createElement('div');
+    estateBody.className = 'accordion-body';
+    estateBody.id = 'estate3DShowcaseSection';
+    estateBody.style.cssText = 'display:none; padding:10px; border-radius:5px; margin-bottom:10px;';
+    estateBody.innerHTML = `
+        <p style="font-size:10.5px; color:#64748b; margin-bottom:8px; line-height:1.4;">
+            Tıkladığınız öge doğrudan 3D sahneye ayakta yerleşir; yükseklik, açı ve boyutunu anında ayarlayabilirsiniz.
+        </p>
+
+        <!-- Kategori Filtre Hapları -->
+        <div class="estate-3d-cat-tabs" id="estate3DCatTabs" style="display:flex; gap:4px; overflow-x:auto; padding-bottom:4px; margin-bottom:8px;">
+        </div>
+
+        <!-- Hızlı Arama Kutusu -->
+        <div style="position:relative; margin-bottom:8px;">
+            <input type="text" id="estate3DSearchInput" placeholder="Model ara: çit, bungalov, tabela, havuz..." style="width:100%; padding:5px 8px 5px 26px; font-size:11px; border:1px solid #cbd5e1; border-radius:6px; background:#ffffff; color:#0f172a; box-sizing:border-box;">
+            <i class="fa-solid fa-magnifying-glass" style="position:absolute; left:8px; top:8px; font-size:11px; color:#94a3b8; pointer-events:none;"></i>
+        </div>
+
+        <!-- 3D Ögeler Grid Listesi -->
+        <div class="estate-3d-grid" id="estate3DGrid" style="display:grid; grid-template-columns:repeat(2, 1fr); gap:6px; max-height:260px; overflow-y:auto; padding-right:2px;">
+        </div>
+
+        <!-- Dışarıdan 3D GLB/GLTF Yükleme Butonu -->
+        <div style="margin-top:8px; padding-top:8px; border-top:1px dashed #cbd5e1; display:flex; gap:6px;">
+            <button type="button" class="btn-action" onclick="document.getElementById('estate3DGltfInput').click();" style="flex:1; padding:5px; font-size:11px; font-weight:600; justify-content:center; gap:6px;" title="Bilgisayarınızdan .glb veya .gltf 3D modeli yükleyin">
+                <i class="fa-solid fa-file-arrow-up"></i> 3D Model Yükle
+            </button>
+            <input type="file" id="estate3DGltfInput" accept=".glb,.gltf" style="display:none;" onchange="if(window.ThreeDEngine && window.ThreeDEngine.loadGLBFile) window.ThreeDEngine.loadGLBFile(this.files[0]); this.value='';">
+        </div>
+    `;
+
+    estateHeader.onclick = () => {
+        const isOpen = estateBody.style.display === 'block';
+        document.querySelectorAll('#calloutAccordion .accordion-body').forEach(b => b.style.display = 'none');
+        document.querySelectorAll('#calloutAccordion .accordion-header .icon-toggle').forEach(i => i.textContent = '▼');
+        if (!isOpen) {
+            estateBody.style.display = 'block';
+            estateHeader.querySelector('.icon-toggle').textContent = '▲';
+            if (window.Estate3DLibrary && typeof window.Estate3DLibrary.initShowcase === 'function') {
+                window.Estate3DLibrary.initShowcase();
+            }
+        }
+    };
+
+    acc.appendChild(estateHeader);
+    acc.appendChild(estateBody);
+
+    if (window.Estate3DLibrary && typeof window.Estate3DLibrary.initShowcase === 'function') {
+        window.Estate3DLibrary.initShowcase();
+    }
+
+    // 🌟 2. ÖGELER & VEKTÖRLER (3D Emlak & Çit Ögeleri Altında Birebir Aynı Akordiyon Yapısında)
+    const otherHeader = document.createElement('div');
+    otherHeader.className = 'accordion-header';
+    otherHeader.style.cssText = 'padding:10px; cursor:pointer; border-radius:5px; margin-bottom:5px; font-weight:bold; display:flex; justify-content:space-between; align-items:center; transition:background 0.2s;';
+    otherHeader.innerHTML = `
+        <span style="display:flex; align-items:center; gap:6px;">
+            <i class="fa-solid fa-shapes" style="color:#0284c7;"></i>
+            <span>Ögeler & Vektörler</span>
+        </span>
+        <span class="icon-toggle">▼</span>
+    `;
+
+    const otherBody = document.createElement('div');
+    otherBody.className = 'accordion-body';
+    otherBody.id = 'otherCalloutsSection';
+    otherBody.style.cssText = 'display:none; padding:10px; border-radius:5px; margin-bottom:10px;';
+    otherBody.innerHTML = `
+        <p style="font-size:10.5px; color:#64748b; margin-bottom:8px; line-height:1.4;">
+            Zengin renkli emlak, peyzaj ve mimari illüstrasyonlar. Tıklayarak tuvale ekleyin.
+        </p>
+
+        <!-- Kategori Filtre Hapları -->
+        <div id="otherCalloutsPills" class="other-callouts-pills" style="display:flex; gap:4px; overflow-x:auto; padding-bottom:4px; margin-bottom:8px;">
+        </div>
+
+        <!-- Hızlı Arama Kutusu -->
+        <div class="other-callout-search-wrap" style="position:relative; margin-bottom:8px;">
+            <input type="text" id="otherCalloutsSearch" class="other-callout-search-input" placeholder="Öge veya vektör ara: ev, ağaç, havuz, araba..." autocomplete="off" style="width:100%; padding:5px 8px 5px 26px; font-size:11px; border:1px solid #cbd5e1; border-radius:6px; background:#ffffff; color:#0f172a; box-sizing:border-box;">
+            <i class="fa-solid fa-magnifying-glass" style="position:absolute; left:8px; top:8px; font-size:11px; color:#94a3b8; pointer-events:none;"></i>
+            <button type="button" id="otherCalloutsClearSearch" class="other-callout-search-clear" title="Temizle" style="position:absolute; right:8px; top:6px; background:none; border:none; color:#94a3b8; cursor:pointer; font-size:14px; line-height:1;">&times;</button>
+        </div>
+        <div id="otherCalloutsStatus" class="other-callouts-status" style="display:none; font-size:11px; color:#0284c7; margin-bottom:6px;"></div>
+
+        <!-- Kartlar Grid -->
+        <div id="otherCalloutsGrid" class="other-callouts-grid" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(85px, 1fr)); gap:6px; max-height:260px; overflow-y:auto; padding-right:2px;">
+        </div>
+    `;
+
+    otherHeader.onclick = () => {
+        const isOpen = otherBody.style.display === 'block';
+        document.querySelectorAll('#calloutAccordion .accordion-body').forEach(b => b.style.display = 'none');
+        document.querySelectorAll('#calloutAccordion .accordion-header .icon-toggle').forEach(i => i.textContent = '▼');
+        if (!isOpen) {
+            otherBody.style.display = 'block';
+            otherHeader.querySelector('.icon-toggle').textContent = '▲';
+            if (window.OtherCalloutsManager && typeof window.OtherCalloutsManager.init === 'function') {
+                window.OtherCalloutsManager.init();
+            }
+        }
+    };
+
+    acc.appendChild(otherHeader);
+    acc.appendChild(otherBody);
+
+    if (window.OtherCalloutsManager && typeof window.OtherCalloutsManager.init === 'function') {
+        window.OtherCalloutsManager.init();
+    }
+
     if(typeof NEON_CALLOUTS !== 'undefined') {
         const header = document.createElement('div');
         header.className = 'accordion-header';
@@ -139,25 +261,6 @@ function renderCalloutPanel(){
 }
 
 function addSVGCalloutToCanvas(item) {
-    const is3DActive = !window._tempForce2D && window.ThreeDEngine && (
-        (typeof window.ThreeDEngine.isActive === 'function' && window.ThreeDEngine.isActive()) ||
-        (typeof window.ThreeDEngine.isLayerActive === 'function' && window.ThreeDEngine.isLayerActive())
-    );
-    if (is3DActive && typeof window.ThreeDEngine.add3DElementFromData === 'function') {
-        const svgStr = (item && item.svg) || (typeof item === 'string' ? item : '');
-        const nameStr = (item && item.name) || '3D Rozet';
-        const isPin = !!(item && (item.category === 'pins' || (nameStr && nameStr.toLowerCase().includes('pin'))));
-        const isArrow = !!(item && (item.category === 'arrows' || (nameStr && nameStr.toLowerCase().includes('ok'))));
-        return window.ThreeDEngine.add3DElementFromData({
-            svg: svgStr,
-            name: nameStr,
-            title: nameStr,
-            isPin: isPin,
-            isArrow: isArrow,
-            isCallout: true
-        });
-    }
-
     const workArea = document.getElementById('workArea') || document.getElementById('canvas-container') || document.querySelector('.main-preview');
     if(!workArea) { alert('Canvas alanı bulunamadı!'); return; }
     
@@ -174,6 +277,8 @@ function addSVGCalloutToCanvas(item) {
     el.style.cssText = `
         transform-origin: top left;
         user-select: none;
+        width: 100%;
+        height: 100%;
     `;
     let svgHtml = item.svg;
     const uniqueSuffix = '_' + Math.random().toString(36).substr(2, 6);
@@ -218,6 +323,10 @@ function addSVGCalloutToCanvas(item) {
         svgHtml = svgHtml.replace(/<svg\b([^>]*)>/i, `<svg shape-rendering="geometricPrecision" text-rendering="geometricPrecision" $1>`);
     }
     
+    if (!svgHtml.includes('preserveAspectRatio=')) {
+        svgHtml = svgHtml.replace(/<svg\b([^>]*)>/i, `<svg preserveAspectRatio="none" $1>`);
+    }
+    
     svgHtml = svgHtml.replace(/width="[^"]*"/, 'width="100%"').replace(/height="[^"]*"/, 'height="100%"');
     
     const cContainer = document.getElementById('canvas-container');
@@ -228,10 +337,12 @@ function addSVGCalloutToCanvas(item) {
     const targetW = Math.round(defaultW * 1.5 * formatRatio);
     const targetH = Math.round(defaultH * 1.5 * formatRatio);
 
-    el.style.width = targetW + 'px';
-    el.style.height = targetH + 'px';
+    el.style.width = '100%';
+    el.style.height = '100%';
     wrap.style.width = targetW + 'px';
     wrap.style.height = targetH + 'px';
+    wrap.dataset.customW = targetW;
+    wrap.dataset.customH = targetH;
 
     // Tuvalin tam ortasına yerleştir (varsa mevcut rozetlere göre hafif kademelendir)
     const existingCallouts = document.querySelectorAll('.callout-wrap').length;
@@ -285,6 +396,18 @@ function addSVGCalloutToCanvas(item) {
     const unlockSvg = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="display:block; pointer-events:none; flex-shrink:0;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 9.9-1"></path></svg>';
     lockBtn.innerHTML = (wrap.dataset.locked === 'true' || el.dataset.locked === 'true') ? lockSvg : unlockSvg;
 
+    const handleWidth = document.createElement('div');
+    handleWidth.className = 'callout-handle-width';
+    handleWidth.title = 'Genişlik';
+    handleWidth.style.cssText = 'position:absolute; right:-8px; top:50%; transform:translateY(-50%); cursor:ew-resize; z-index:100; display:none;';
+    handleWidth.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="display:block; pointer-events:none; flex-shrink:0;"><path d="M21 12H3M7 8l-4 4 4 4M17 8l4 4-4 4"></path></svg>';
+
+    const handleLength = document.createElement('div');
+    handleLength.className = 'callout-handle-length';
+    handleLength.title = 'Uzunluk';
+    handleLength.style.cssText = 'position:absolute; bottom:-8px; left:50%; transform:translateX(-50%); cursor:ns-resize; z-index:100; display:none;';
+    handleLength.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="display:block; pointer-events:none; flex-shrink:0;"><path d="M12 3v18M8 7l4-4 4 4M8 17l4 4 4-4"></path></svg>';
+
     let lastLockToggle = 0;
     const lockAction = function(e) {
         e.stopPropagation();
@@ -314,6 +437,8 @@ function addSVGCalloutToCanvas(item) {
     wrap.appendChild(resizer);
     wrap.appendChild(rotator);
     wrap.appendChild(lockBtn);
+    wrap.appendChild(handleWidth);
+    wrap.appendChild(handleLength);
     
     // Touch Proxy (Mobil için mousedown simülasyonu)
     function localTouchProxy(event) {
@@ -359,6 +484,8 @@ function addSVGCalloutToCanvas(item) {
         resizer.style.transform = '';
         lockBtn.style.transform = '';
         rotator.style.transform = 'translateX(-50%)';
+        handleWidth.style.transform = 'translateY(-50%)';
+        handleLength.style.transform = 'translateX(-50%)';
     }
     
     function selectCallout(){
@@ -368,17 +495,21 @@ function addSVGCalloutToCanvas(item) {
         document.querySelectorAll('.callout-rotator').forEach(function(c){ c.style.display = 'none'; });
         document.querySelectorAll('.callout-lock-btn').forEach(function(c){ c.style.display = 'none'; });
         document.querySelectorAll('.callout-select-border').forEach(function(c){ c.style.display = 'none'; });
+        document.querySelectorAll('.callout-handle-width').forEach(function(c){ c.style.display = 'none'; });
+        document.querySelectorAll('.callout-handle-length').forEach(function(c){ c.style.display = 'none'; });
         controls.style.display = 'flex';
         resizer.style.display = 'flex';
         rotator.style.display = 'flex';
         lockBtn.style.display = 'flex';
         selectBorder.style.display = 'block';
+        handleWidth.style.display = 'flex';
+        handleLength.style.display = 'flex';
         if (typeof selectCalloutEl === 'function') selectCalloutEl(el, true);
     }
     
     function selectWrap(e){
         if(isLocked()) return;
-        if(!e.target.closest('.callout-controls') && !e.target.closest('.callout-resizer') && !e.target.closest('.callout-rotator') && !e.target.closest('.callout-lock-btn')){
+        if(!e.target.closest('.callout-controls') && !e.target.closest('.callout-resizer') && !e.target.closest('.callout-rotator') && !e.target.closest('.callout-lock-btn') && !e.target.closest('.callout-handle-width') && !e.target.closest('.callout-handle-length')){
             selectCallout();
         }
     }
@@ -392,6 +523,8 @@ function addSVGCalloutToCanvas(item) {
             resizer.style.display = 'none';
             if(typeof rotator !== 'undefined') rotator.style.display = 'none';
             selectBorder.style.display = 'none';
+            handleWidth.style.display = 'none';
+            handleLength.style.display = 'none';
             lockBtn.style.display = 'flex';
         }
     }
@@ -458,6 +591,8 @@ function addSVGCalloutToCanvas(item) {
           if(e.target.closest('.callout-controls')) return;
           if(e.target.closest('.callout-resizer')) return;
           if(e.target.closest('.callout-rotator')) return;
+          if(e.target.closest('.callout-handle-width')) return;
+          if(e.target.closest('.callout-handle-length')) return;
           
           if (e.altKey && e.target !== wrap && e.target !== el && e.target.tagName !== 'svg' && !e.target.classList.contains('callout-svg-container')) {
               isInnerDragging = true;
@@ -563,6 +698,121 @@ function addSVGCalloutToCanvas(item) {
         document.removeEventListener('mouseup', rotUp);
         document.removeEventListener('touchend', rotUp);
     }
+
+    // GENİŞLİK TUTAMACI (Sağ orta tutamaç ile genişlik ayarı)
+    let isWidthDragging = false, wsx = 0, wsy = 0, startW = 0, startRotW = 0;
+    function widthDown(e) {
+        if (isLocked()) return;
+        e.stopPropagation();
+        e.preventDefault();
+        isWidthDragging = true;
+        wsx = e.touches ? e.touches[0].clientX : e.clientX;
+        wsy = e.touches ? e.touches[0].clientY : e.clientY;
+        startW = wrap.offsetWidth || parseFloat(wrap.style.width) || 150;
+        startRotW = parseFloat(wrap.dataset.rotation) || 0;
+        document.addEventListener('mousemove', widthMove);
+        document.addEventListener('touchmove', widthMove, {passive: false});
+        document.addEventListener('mouseup', widthUp);
+        document.addEventListener('touchend', widthUp);
+    }
+    function widthMove(e) {
+        if (!isWidthDragging) return;
+        if (e.cancelable) e.preventDefault();
+        const cx = e.touches ? e.touches[0].clientX : e.clientX;
+        const cy = e.touches ? e.touches[0].clientY : e.clientY;
+        const sf = typeof window.getGlobalScale === 'function' ? window.getGlobalScale() : ((typeof scaleFactor !== 'undefined' ? scaleFactor : 1) * (window.pinchScale || 1));
+        const curScale = parseFloat(wrap.dataset.scale) || 1;
+        const dx = (cx - wsx) / (sf * curScale);
+        const dy = (cy - wsy) / (sf * curScale);
+        const rad = (startRotW * Math.PI) / 180;
+        const localDx = dx * Math.cos(rad) + dy * Math.sin(rad);
+        const newW = Math.max(30, Math.round(startW + localDx));
+        wrap.style.width = newW + 'px';
+        const innerItem = wrap.querySelector('.callout-item');
+        if (innerItem) {
+            innerItem.style.width = '100%';
+            innerItem.style.height = '100%';
+        }
+        wrap.dataset.customW = newW;
+        const svg = wrap.querySelector('svg');
+        if (svg) svg.setAttribute('preserveAspectRatio', 'none');
+        
+        const coW = document.getElementById('coWidth');
+        const coWV = document.getElementById('coWidthVal');
+        if (coW) coW.value = newW;
+        if (coWV) coWV.textContent = newW + 'px';
+    }
+    function widthUp() {
+        if (isWidthDragging) {
+            isWidthDragging = false;
+            if (typeof window.recordHistory === 'function') window.recordHistory('Genişlik Ayarlandı');
+            if (typeof updateDrawHistory === 'function') updateDrawHistory();
+            if (typeof requestAutoSave === 'function') requestAutoSave();
+        }
+        document.removeEventListener('mousemove', widthMove);
+        document.removeEventListener('touchmove', widthMove);
+        document.removeEventListener('mouseup', widthUp);
+        document.removeEventListener('touchend', widthUp);
+    }
+    handleWidth.onmousedown = widthDown;
+    handleWidth.ontouchstart = widthDown;
+
+    // UZUNLUK TUTAMACI (Alt orta tutamaç ile uzunluk/yükseklik ayarı)
+    let isLengthDragging = false, lsx = 0, lsy = 0, startH = 0, startRotH = 0;
+    function lengthDown(e) {
+        if (isLocked()) return;
+        e.stopPropagation();
+        e.preventDefault();
+        isLengthDragging = true;
+        lsx = e.touches ? e.touches[0].clientX : e.clientX;
+        lsy = e.touches ? e.touches[0].clientY : e.clientY;
+        startH = wrap.offsetHeight || parseFloat(wrap.style.height) || 150;
+        startRotH = parseFloat(wrap.dataset.rotation) || 0;
+        document.addEventListener('mousemove', lengthMove);
+        document.addEventListener('touchmove', lengthMove, {passive: false});
+        document.addEventListener('mouseup', lengthUp);
+        document.addEventListener('touchend', lengthUp);
+    }
+    function lengthMove(e) {
+        if (!isLengthDragging) return;
+        if (e.cancelable) e.preventDefault();
+        const cx = e.touches ? e.touches[0].clientX : e.clientX;
+        const cy = e.touches ? e.touches[0].clientY : e.clientY;
+        const sf = typeof window.getGlobalScale === 'function' ? window.getGlobalScale() : ((typeof scaleFactor !== 'undefined' ? scaleFactor : 1) * (window.pinchScale || 1));
+        const curScale = parseFloat(wrap.dataset.scale) || 1;
+        const dx = (cx - lsx) / (sf * curScale);
+        const dy = (cy - lsy) / (sf * curScale);
+        const rad = (startRotH * Math.PI) / 180;
+        const localDy = -dx * Math.sin(rad) + dy * Math.cos(rad);
+        const newH = Math.max(30, Math.round(startH + localDy));
+        wrap.style.height = newH + 'px';
+        const innerItem = wrap.querySelector('.callout-item');
+        if (innerItem) {
+            innerItem.style.width = '100%';
+            innerItem.style.height = '100%';
+        }
+        wrap.dataset.customH = newH;
+        const svg = wrap.querySelector('svg');
+        if (svg) svg.setAttribute('preserveAspectRatio', 'none');
+        
+        const coH = document.getElementById('coHeight');
+        const coHV = document.getElementById('coHeightVal');
+        if (coH) coH.value = newH;
+        if (coHV) coHV.textContent = newH + 'px';
+    }
+    function lengthUp() {
+        if (isLengthDragging) {
+            isLengthDragging = false;
+            if (typeof window.recordHistory === 'function') window.recordHistory('Uzunluk Ayarlandı');
+            if (typeof updateDrawHistory === 'function') updateDrawHistory();
+        }
+        document.removeEventListener('mousemove', lengthMove);
+        document.removeEventListener('touchmove', lengthMove);
+        document.removeEventListener('mouseup', lengthUp);
+        document.removeEventListener('touchend', lengthUp);
+    }
+    handleLength.addEventListener('mousedown', lengthDown);
+    handleLength.addEventListener('touchstart', lengthDown, {passive: false});
     
     // Doğrudan workArea'ya ekle (canvas-container).
     // ui-layer (z-index:50) içine eklersek şablon elemanları (z-index:100+) arkasında kalır.
@@ -864,12 +1114,41 @@ window.updateParcelBadgeFont = function(targetBadgeOrAll, fontOpts = {}) {
 
 window.rebindSVGCallout = function(wrap) {
     if (!wrap) return;
+    delete wrap.dataset.dragBound;
+    delete wrap.dataset.bound;
     const el = wrap.querySelector('.callout-item') || wrap;
+    if (el) {
+        el.style.width = '100%';
+        el.style.height = '100%';
+    }
+    const svg = wrap.querySelector('svg');
+    if (svg) {
+        svg.setAttribute('preserveAspectRatio', 'none');
+    }
     const controls = wrap.querySelector('.callout-controls.cbtn-del');
     const resizer = wrap.querySelector('.callout-resizer');
     const rotator = wrap.querySelector('.callout-rotator');
     const lockBtn = wrap.querySelector('.callout-lock-btn');
     const selectBorder = wrap.querySelector('.callout-select-border');
+    let handleWidth = wrap.querySelector('.callout-handle-width');
+    let handleLength = wrap.querySelector('.callout-handle-length');
+
+    if (!handleWidth) {
+        handleWidth = document.createElement('div');
+        handleWidth.className = 'callout-handle-width';
+        handleWidth.title = 'Genişlik';
+        handleWidth.style.cssText = 'position:absolute; right:-8px; top:50%; transform:translateY(-50%); cursor:ew-resize; z-index:100; display:none;';
+        handleWidth.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="display:block; pointer-events:none; flex-shrink:0;"><path d="M21 12H3M7 8l-4 4 4 4M17 8l4 4-4 4"></path></svg>';
+        wrap.appendChild(handleWidth);
+    }
+    if (!handleLength) {
+        handleLength = document.createElement('div');
+        handleLength.className = 'callout-handle-length';
+        handleLength.title = 'Uzunluk';
+        handleLength.style.cssText = 'position:absolute; bottom:-8px; left:50%; transform:translateX(-50%); cursor:ns-resize; z-index:100; display:none;';
+        handleLength.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="display:block; pointer-events:none; flex-shrink:0;"><path d="M12 3v18M8 7l4-4 4 4M8 17l4 4 4-4"></path></svg>';
+        wrap.appendChild(handleLength);
+    }
 
     function isLocked() {
         return wrap.dataset.locked === 'true' || el.dataset.locked === 'true' || (typeof drawMode !== 'undefined' && drawMode !== null && drawMode !== 'off');
@@ -886,6 +1165,8 @@ window.rebindSVGCallout = function(wrap) {
         wrap.dataset.userScale = formatRatio > 0 ? (scale / formatRatio) : scale;
         const rot = wrap.dataset.rotation || 0;
         wrap.style.transform = `rotate(${rot}deg) scale(${scale})`;
+        if (handleWidth) handleWidth.style.transform = 'translateY(-50%)';
+        if (handleLength) handleLength.style.transform = 'translateX(-50%)';
     }
 
     function selectCallout() {
@@ -895,14 +1176,26 @@ window.rebindSVGCallout = function(wrap) {
         document.querySelectorAll('.callout-rotator').forEach(c => c.style.display = 'none');
         document.querySelectorAll('.callout-lock-btn').forEach(c => c.style.display = 'none');
         document.querySelectorAll('.callout-select-border').forEach(c => c.style.display = 'none');
+        document.querySelectorAll('.callout-handle-width').forEach(c => c.style.display = 'none');
+        document.querySelectorAll('.callout-handle-length').forEach(c => c.style.display = 'none');
         if (controls) controls.style.display = 'flex';
         if (resizer) resizer.style.display = 'flex';
         if (rotator) rotator.style.display = 'flex';
         if (lockBtn) lockBtn.style.display = 'flex';
         if (selectBorder) selectBorder.style.display = 'block';
+        if (handleWidth) handleWidth.style.display = 'flex';
+        if (handleLength) handleLength.style.display = 'flex';
         if (typeof selectCalloutEl === 'function') selectCalloutEl(el, true);
     }
 
+    function selectWrap(e) {
+        if (isLocked()) return;
+        if (!e.target.closest('.callout-controls') && !e.target.closest('.callout-resizer') && !e.target.closest('.callout-rotator') && !e.target.closest('.callout-lock-btn') && !e.target.closest('.callout-handle-width') && !e.target.closest('.callout-handle-length')) {
+            selectCallout();
+        }
+    }
+    wrap.onmousedown = selectWrap;
+    wrap.ontouchstart = selectWrap;
     wrap.onclick = function(e) {
         if (isLocked()) return;
         selectCallout();
@@ -1014,7 +1307,389 @@ window.rebindSVGCallout = function(wrap) {
         rotator.ontouchstart = rotDown;
     }
 
+    if (handleWidth) {
+        let isWidthDragging = false, wsx = 0, wsy = 0, startW = 0, startRotW = 0;
+        function widthDown(e) {
+            if (isLocked()) return;
+            e.stopPropagation();
+            e.preventDefault();
+            isWidthDragging = true;
+            wsx = e.touches ? e.touches[0].clientX : e.clientX;
+            wsy = e.touches ? e.touches[0].clientY : e.clientY;
+            startW = wrap.offsetWidth || parseFloat(wrap.style.width) || 150;
+            startRotW = parseFloat(wrap.dataset.rotation) || 0;
+            document.addEventListener('mousemove', widthMove);
+            document.addEventListener('touchmove', widthMove, {passive: false});
+            document.addEventListener('mouseup', widthUp);
+            document.addEventListener('touchend', widthUp);
+        }
+        function widthMove(e) {
+            if (!isWidthDragging) return;
+            if (e.cancelable) e.preventDefault();
+            const cx = e.touches ? e.touches[0].clientX : e.clientX;
+            const cy = e.touches ? e.touches[0].clientY : e.clientY;
+            const sf = typeof window.getGlobalScale === 'function' ? window.getGlobalScale() : ((typeof scaleFactor !== 'undefined' ? scaleFactor : 1) * (window.pinchScale || 1));
+            const curScale = parseFloat(wrap.dataset.scale) || 1;
+            const dx = (cx - wsx) / (sf * curScale);
+            const dy = (cy - wsy) / (sf * curScale);
+            const rad = (startRotW * Math.PI) / 180;
+            const localDx = dx * Math.cos(rad) + dy * Math.sin(rad);
+            const newW = Math.max(30, Math.round(startW + localDx));
+            wrap.style.width = newW + 'px';
+            const innerItem = wrap.querySelector('.callout-item');
+            if (innerItem) {
+                innerItem.style.width = '100%';
+                innerItem.style.height = '100%';
+            }
+            wrap.dataset.customW = newW;
+            const svg = wrap.querySelector('svg');
+            if (svg) svg.setAttribute('preserveAspectRatio', 'none');
+            
+            const coW = document.getElementById('coWidth');
+            const coWV = document.getElementById('coWidthVal');
+            if (coW) coW.value = newW;
+            if (coWV) coWV.textContent = newW + 'px';
+        }
+        function widthUp() {
+            if (isWidthDragging) {
+                isWidthDragging = false;
+                if (typeof window.recordHistory === 'function') window.recordHistory('Genişlik Ayarlandı');
+                if (typeof updateDrawHistory === 'function') updateDrawHistory();
+                if (typeof requestAutoSave === 'function') requestAutoSave();
+            }
+            document.removeEventListener('mousemove', widthMove);
+            document.removeEventListener('touchmove', widthMove);
+            document.removeEventListener('mouseup', widthUp);
+            document.removeEventListener('touchend', widthUp);
+        }
+        handleWidth.onmousedown = widthDown;
+        handleWidth.ontouchstart = widthDown;
+    }
+
+    if (handleLength) {
+        let isLengthDragging = false, lsx = 0, lsy = 0, startH = 0, startRotH = 0;
+        function lengthDown(e) {
+            if (isLocked()) return;
+            e.stopPropagation();
+            e.preventDefault();
+            isLengthDragging = true;
+            lsx = e.touches ? e.touches[0].clientX : e.clientX;
+            lsy = e.touches ? e.touches[0].clientY : e.clientY;
+            startH = wrap.offsetHeight || parseFloat(wrap.style.height) || 150;
+            startRotH = parseFloat(wrap.dataset.rotation) || 0;
+            document.addEventListener('mousemove', lengthMove);
+            document.addEventListener('touchmove', lengthMove, {passive: false});
+            document.addEventListener('mouseup', lengthUp);
+            document.addEventListener('touchend', lengthUp);
+        }
+        function lengthMove(e) {
+            if (!isLengthDragging) return;
+            if (e.cancelable) e.preventDefault();
+            const cx = e.touches ? e.touches[0].clientX : e.clientX;
+            const cy = e.touches ? e.touches[0].clientY : e.clientY;
+            const sf = typeof window.getGlobalScale === 'function' ? window.getGlobalScale() : ((typeof scaleFactor !== 'undefined' ? scaleFactor : 1) * (window.pinchScale || 1));
+            const curScale = parseFloat(wrap.dataset.scale) || 1;
+            const dx = (cx - lsx) / (sf * curScale);
+            const dy = (cy - lsy) / (sf * curScale);
+            const rad = (startRotH * Math.PI) / 180;
+            const localDy = -dx * Math.sin(rad) + dy * Math.cos(rad);
+            const newH = Math.max(30, Math.round(startH + localDy));
+            wrap.style.height = newH + 'px';
+            const innerItem = wrap.querySelector('.callout-item');
+            if (innerItem) {
+                innerItem.style.width = '100%';
+                innerItem.style.height = '100%';
+            }
+            wrap.dataset.customH = newH;
+            const svg = wrap.querySelector('svg');
+            if (svg) svg.setAttribute('preserveAspectRatio', 'none');
+            
+            const coH = document.getElementById('coHeight');
+            const coHV = document.getElementById('coHeightVal');
+            if (coH) coH.value = newH;
+            if (coHV) coHV.textContent = newH + 'px';
+        }
+        function lengthUp() {
+            if (isLengthDragging) {
+                isLengthDragging = false;
+                if (typeof window.recordHistory === 'function') window.recordHistory('Uzunluk Ayarlandı');
+                if (typeof updateDrawHistory === 'function') updateDrawHistory();
+                if (typeof requestAutoSave === 'function') requestAutoSave();
+            }
+            document.removeEventListener('mousemove', lengthMove);
+            document.removeEventListener('touchmove', lengthMove);
+            document.removeEventListener('mouseup', lengthUp);
+            document.removeEventListener('touchend', lengthUp);
+        }
+        handleLength.onmousedown = lengthDown;
+        handleLength.ontouchstart = lengthDown;
+    }
+
     if (typeof makeDraggable === 'function') makeDraggable(wrap);
+};
+
+window.rebindNeonCallout = function(el) {
+    if (!el) return;
+    delete el.dataset.dragBound;
+    delete el.dataset.bound;
+    const controls = el.querySelector('.callout-controls.cbtn-del');
+    const resizer = el.querySelector('.callout-resizer');
+    const rotator = el.querySelector('.callout-rotator');
+    const lockBtn = el.querySelector('.callout-lock-btn');
+    const selectBorder = el.querySelector('.callout-select-border');
+    let handleWidth = el.querySelector('.callout-handle-width');
+    let handleLength = el.querySelector('.callout-handle-length');
+
+    if (!handleWidth) {
+        handleWidth = document.createElement('div');
+        handleWidth.className = 'callout-handle-width';
+        handleWidth.title = 'Genişlik';
+        handleWidth.style.cssText = 'position:absolute; right:-8px; top:50%; transform:translateY(-50%); cursor:ew-resize; z-index:100; display:none;';
+        handleWidth.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="display:block; pointer-events:none; flex-shrink:0;"><path d="M21 12H3M7 8l-4 4 4 4M17 8l4 4-4 4"></path></svg>';
+        el.appendChild(handleWidth);
+    }
+    if (!handleLength) {
+        handleLength = document.createElement('div');
+        handleLength.className = 'callout-handle-length';
+        handleLength.title = 'Uzunluk';
+        handleLength.style.cssText = 'position:absolute; bottom:-8px; left:50%; transform:translateX(-50%); cursor:ns-resize; z-index:100; display:none;';
+        handleLength.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="display:block; pointer-events:none; flex-shrink:0;"><path d="M12 3v18M8 7l4-4 4 4M8 17l4 4 4-4"></path></svg>';
+        el.appendChild(handleLength);
+    }
+
+    function isLocked() {
+        return el.dataset.locked === 'true' || (typeof drawMode !== 'undefined' && drawMode !== null && drawMode !== 'off');
+    }
+
+    function applyScale(scale) {
+        el.dataset.scale = scale;
+        const rot = el.dataset.rotation || 0;
+        el.style.transform = `rotate(${rot}deg) scale(${scale})`;
+        if (handleWidth) handleWidth.style.transform = 'translateY(-50%)';
+        if (handleLength) handleLength.style.transform = 'translateX(-50%)';
+    }
+
+    if (controls) {
+        controls.onclick = function(e) {
+            e.stopPropagation();
+            el.remove();
+            if (typeof deleteSelectedCallout === 'function') deleteSelectedCallout();
+            else if (window.selectedCalloutEl === el && typeof closeCalloutPanel === 'function') closeCalloutPanel();
+            if (typeof window.recordHistory === 'function') window.recordHistory('Neon Callout silindi');
+            if (typeof window.renderLayers === 'function') window.renderLayers();
+        };
+    }
+
+    if (lockBtn) {
+        lockBtn.onclick = function(e) {
+            e.stopPropagation();
+            const isCurrentlyLocked = el.dataset.locked === 'true';
+            el.dataset.locked = isCurrentlyLocked ? 'false' : 'true';
+            const iconSvg = lockBtn.querySelector('svg');
+            if (iconSvg) {
+                iconSvg.innerHTML = el.dataset.locked === 'true'
+                    ? '<rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path>'
+                    : '<rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 9.9-1"></path>';
+            }
+        };
+    }
+
+    if (resizer) {
+        let isResizing = false, rsx = 0, rsy = 0, startScale = 1;
+        function rsDown(e) {
+            e.stopPropagation();
+            e.preventDefault();
+            isResizing = true;
+            rsx = e.touches ? e.touches[0].clientX : e.clientX;
+            rsy = e.touches ? e.touches[0].clientY : e.clientY;
+            startScale = parseFloat(el.dataset.scale) || 1;
+            document.addEventListener('mousemove', rsMove);
+            document.addEventListener('touchmove', rsMove, {passive: false});
+            document.addEventListener('mouseup', rsUp);
+            document.addEventListener('touchend', rsUp);
+        }
+        function rsMove(e) {
+            if(!isResizing) return;
+            if(e.cancelable) e.preventDefault();
+            const cx = e.touches ? e.touches[0].clientX : e.clientX;
+            const cy = e.touches ? e.touches[0].clientY : e.clientY;
+            const sf = typeof window.getGlobalScale === 'function' ? window.getGlobalScale() : ((typeof scaleFactor !== 'undefined' ? scaleFactor : 1) * (window.pinchScale || 1));
+            const dx = (cx - rsx) / sf;
+            const dy = (cy - rsy) / sf;
+            const delta = (dx + dy) / 2;
+            const newScale = Math.max(0.3, Math.min(4, startScale + (delta / 200)));
+            applyScale(newScale);
+        }
+        function rsUp() {
+            isResizing = false;
+            document.removeEventListener('mousemove', rsMove);
+            document.removeEventListener('touchmove', rsMove);
+            document.removeEventListener('mouseup', rsUp);
+            document.removeEventListener('touchend', rsUp);
+        }
+        resizer.onmousedown = rsDown;
+        resizer.ontouchstart = rsDown;
+    }
+
+    if (rotator) {
+        let isRotating = false;
+        function rotDown(e) {
+            e.stopPropagation();
+            e.preventDefault();
+            isRotating = true;
+            rotator.style.cursor = 'grabbing';
+            document.addEventListener('mousemove', rotMove);
+            document.addEventListener('touchmove', rotMove, {passive: false});
+            document.addEventListener('mouseup', rotUp);
+            document.addEventListener('touchend', rotUp);
+        }
+        function rotMove(e) {
+            if(!isRotating) return;
+            if(e.cancelable) e.preventDefault();
+            const rect = el.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+            const cx = e.touches ? e.touches[0].clientX : e.clientX;
+            const cy = e.touches ? e.touches[0].clientY : e.clientY;
+            const dx = cx - centerX;
+            const dy = cy - centerY;
+            let angle = Math.atan2(dy, dx) * (180 / Math.PI);
+            angle += 90;
+            el.dataset.rotation = angle;
+            const scale = parseFloat(el.dataset.scale) || 1;
+            el.style.transform = `rotate(${angle}deg) scale(${scale})`;
+        }
+        function rotUp() {
+            if(isRotating) {
+                isRotating = false;
+                rotator.style.cursor = 'grab';
+            }
+            document.removeEventListener('mousemove', rotMove);
+            document.removeEventListener('touchmove', rotMove);
+            document.removeEventListener('mouseup', rotUp);
+            document.removeEventListener('touchend', rotUp);
+        }
+        rotator.onmousedown = rotDown;
+        rotator.ontouchstart = rotDown;
+    }
+
+    if (handleWidth) {
+        let isWidthDragging = false, wsx = 0, wsy = 0, startW = 0, startRotW = 0;
+        function widthDown(e) {
+            if (isLocked()) return;
+            e.stopPropagation();
+            e.preventDefault();
+            isWidthDragging = true;
+            wsx = e.touches ? e.touches[0].clientX : e.clientX;
+            wsy = e.touches ? e.touches[0].clientY : e.clientY;
+            startW = el.offsetWidth || parseFloat(el.style.width) || 150;
+            startRotW = parseFloat(el.dataset.rotation) || 0;
+            document.addEventListener('mousemove', widthMove);
+            document.addEventListener('touchmove', widthMove, {passive: false});
+            document.addEventListener('mouseup', widthUp);
+            document.addEventListener('touchend', widthUp);
+        }
+        function widthMove(e) {
+            if (!isWidthDragging) return;
+            if (e.cancelable) e.preventDefault();
+            const cx = e.touches ? e.touches[0].clientX : e.clientX;
+            const cy = e.touches ? e.touches[0].clientY : e.clientY;
+            const sf = typeof window.getGlobalScale === 'function' ? window.getGlobalScale() : ((typeof scaleFactor !== 'undefined' ? scaleFactor : 1) * (window.pinchScale || 1));
+            const curScale = parseFloat(el.dataset.scale) || 1;
+            const dx = (cx - wsx) / (sf * curScale);
+            const dy = (cy - wsy) / (sf * curScale);
+            const rad = (startRotW * Math.PI) / 180;
+            const localDx = dx * Math.cos(rad) + dy * Math.sin(rad);
+            const newW = Math.max(50, Math.round(startW + localDx));
+            el.style.width = newW + 'px';
+            el.dataset.customW = newW;
+            
+            const coW = document.getElementById('coWidth');
+            const coWV = document.getElementById('coWidthVal');
+            if (coW) coW.value = newW;
+            if (coWV) coWV.textContent = newW + 'px';
+        }
+        function widthUp() {
+            if (isWidthDragging) {
+                isWidthDragging = false;
+                if (typeof window.recordHistory === 'function') window.recordHistory('Genişlik Ayarlandı');
+                if (typeof updateDrawHistory === 'function') updateDrawHistory();
+                if (typeof requestAutoSave === 'function') requestAutoSave();
+            }
+            document.removeEventListener('mousemove', widthMove);
+            document.removeEventListener('touchmove', widthMove);
+            document.removeEventListener('mouseup', widthUp);
+            document.removeEventListener('touchend', widthUp);
+        }
+        handleWidth.onmousedown = widthDown;
+        handleWidth.ontouchstart = widthDown;
+    }
+
+    if (handleLength) {
+        let isLengthDragging = false, lsx = 0, lsy = 0, startH = 0, startRotH = 0;
+        function lengthDown(e) {
+            if (isLocked()) return;
+            e.stopPropagation();
+            e.preventDefault();
+            isLengthDragging = true;
+            lsx = e.touches ? e.touches[0].clientX : e.clientX;
+            lsy = e.touches ? e.touches[0].clientY : e.clientY;
+            startH = el.offsetHeight || parseFloat(el.style.height) || 150;
+            startRotH = parseFloat(el.dataset.rotation) || 0;
+            document.addEventListener('mousemove', lengthMove);
+            document.addEventListener('touchmove', lengthMove, {passive: false});
+            document.addEventListener('mouseup', lengthUp);
+            document.addEventListener('touchend', lengthUp);
+        }
+        function lengthMove(e) {
+            if (!isLengthDragging) return;
+            if (e.cancelable) e.preventDefault();
+            const cx = e.touches ? e.touches[0].clientX : e.clientX;
+            const cy = e.touches ? e.touches[0].clientY : e.clientY;
+            const sf = typeof window.getGlobalScale === 'function' ? window.getGlobalScale() : ((typeof scaleFactor !== 'undefined' ? scaleFactor : 1) * (window.pinchScale || 1));
+            const curScale = parseFloat(el.dataset.scale) || 1;
+            const dx = (cx - lsx) / (sf * curScale);
+            const dy = (cy - lsy) / (sf * curScale);
+            const rad = (startRotH * Math.PI) / 180;
+            const localDy = -dx * Math.sin(rad) + dy * Math.cos(rad);
+            const newH = Math.max(50, Math.round(startH + localDy));
+            el.style.height = newH + 'px';
+            el.dataset.customH = newH;
+            
+            const coH = document.getElementById('coHeight');
+            const coHV = document.getElementById('coHeightVal');
+            if (coH) coH.value = newH;
+            if (coHV) coHV.textContent = newH + 'px';
+        }
+        function lengthUp() {
+            if (isLengthDragging) {
+                isLengthDragging = false;
+                if (typeof window.recordHistory === 'function') window.recordHistory('Uzunluk Ayarlandı');
+                if (typeof updateDrawHistory === 'function') updateDrawHistory();
+                if (typeof requestAutoSave === 'function') requestAutoSave();
+            }
+            document.removeEventListener('mousemove', lengthMove);
+            document.removeEventListener('touchmove', lengthMove);
+            document.removeEventListener('mouseup', lengthUp);
+            document.removeEventListener('touchend', lengthUp);
+        }
+        handleLength.onmousedown = lengthDown;
+        handleLength.ontouchstart = lengthDown;
+    }
+
+    function selectNeon(e) {
+        if (isLocked()) return;
+        if (!e.target.closest('.callout-controls') && !e.target.closest('.callout-resizer') && !e.target.closest('.callout-rotator') && !e.target.closest('.callout-lock-btn') && !e.target.closest('.callout-handle-width') && !e.target.closest('.callout-handle-length')) {
+            if (typeof selectElement === 'function') selectElement(el);
+            else if (typeof selectCalloutEl === 'function') selectCalloutEl(el, true);
+        }
+    }
+    el.onmousedown = selectNeon;
+    el.ontouchstart = selectNeon;
+
+    if (typeof makeDraggable === 'function') makeDraggable(el);
+    if (typeof enableInlineEdit === 'function') enableInlineEdit(el);
+    if (typeof allIcons !== 'undefined' && !allIcons.includes(el)) allIcons.push(el);
 };
 
 function renderNeonCallouts() {
@@ -1122,36 +1797,6 @@ function getNeonIconSvg(iconClass, strokeColor = '#93c5fd') {
 window.getNeonIconSvg = getNeonIconSvg;
 
 function addNeonToCanvas(n) {
-    const is3DActive = !window._tempForce2D && window.ThreeDEngine && (
-        (typeof window.ThreeDEngine.isActive === 'function' && window.ThreeDEngine.isActive()) ||
-        (typeof window.ThreeDEngine.isLayerActive === 'function' && window.ThreeDEngine.isLayerActive())
-    );
-    if (is3DActive && typeof window.ThreeDEngine.add3DElementFromData === 'function') {
-        const lines = (n && n.text ? n.text : '').split('\n');
-        const mainText = lines[0] || 'NEON ROZET';
-        const subText = lines.slice(1).join(' ') || '';
-        const iconClass = n ? n.icon : '';
-        const svgStr = getNeonIconSvg(iconClass, '#93c5fd');
-        return window.ThreeDEngine.add3DElementFromData({
-            name: mainText + (subText ? ' ' + subText : ''),
-            itemName: mainText,
-            text: mainText,
-            subtext: subText,
-            badgeSubtext: subText,
-            elementType: 'element_3d',
-            shapeMode: 'card',
-            sourceSvg: svgStr || null,
-            sourceSvgOriginal: svgStr || null,
-            rawSvg: svgStr || null,
-            svg: svgStr || null,
-            selectedIconId: svgStr || 'ev-1',
-            badgeBgColor: '#0d1b2e',
-            frontColor: '#93c5fd',
-            sideColor: '#1e3a8a',
-            show3DText: true
-        });
-    }
-
     const workArea = document.getElementById('workArea') || document.getElementById('canvas-container') || document.querySelector('.main-preview');
     if (!workArea) { alert('Canvas alanı bulunamadı!'); return; }
 
@@ -1293,11 +1938,25 @@ function addNeonToCanvas(n) {
     lockBtn.addEventListener('click', lockAction);
     lockBtn.addEventListener('touchend', lockAction);
 
+    const handleWidth = document.createElement('div');
+    handleWidth.className = 'callout-handle-width';
+    handleWidth.title = 'Genişlik';
+    handleWidth.style.cssText = 'position:absolute; right:-8px; top:50%; transform:translateY(-50%); cursor:ew-resize; z-index:100; display:none;';
+    handleWidth.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="display:block; pointer-events:none; flex-shrink:0;"><path d="M21 12H3M7 8l-4 4 4 4M17 8l4 4-4 4"></path></svg>';
+
+    const handleLength = document.createElement('div');
+    handleLength.className = 'callout-handle-length';
+    handleLength.title = 'Uzunluk';
+    handleLength.style.cssText = 'position:absolute; bottom:-8px; left:50%; transform:translateX(-50%); cursor:ns-resize; z-index:100; display:none;';
+    handleLength.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="display:block; pointer-events:none; flex-shrink:0;"><path d="M12 3v18M8 7l4-4 4 4M8 17l4 4 4-4"></path></svg>';
+
     el.appendChild(selectBorder);
     el.appendChild(controls);
     el.appendChild(resizer);
     el.appendChild(rotator);
     el.appendChild(lockBtn);
+    el.appendChild(handleWidth);
+    el.appendChild(handleLength);
     
     el.dataset.scale = 1;
     el.dataset.rotation = 0;
@@ -1310,6 +1969,8 @@ function addNeonToCanvas(n) {
         resizer.style.transform = '';
         lockBtn.style.transform = '';
         rotator.style.transform = 'translateX(-50%)';
+        if (handleWidth) handleWidth.style.transform = 'translateY(-50%)';
+        if (handleLength) handleLength.style.transform = 'translateX(-50%)';
     }
     
     controls.onclick = (e) => {
@@ -1403,9 +2064,109 @@ function addNeonToCanvas(n) {
         document.removeEventListener('touchend', rotUp);
     }
 
+    // GENİŞLİK TUTAMACI (Neon genişlik ayarı)
+    let isWidthDragging = false, wsx = 0, wsy = 0, startW = 0, startRotW = 0;
+    function widthDown(e) {
+        if (isLocked()) return;
+        e.stopPropagation();
+        e.preventDefault();
+        isWidthDragging = true;
+        wsx = e.touches ? e.touches[0].clientX : e.clientX;
+        wsy = e.touches ? e.touches[0].clientY : e.clientY;
+        startW = el.offsetWidth || parseFloat(el.style.width) || 150;
+        startRotW = parseFloat(el.dataset.rotation) || 0;
+        document.addEventListener('mousemove', widthMove);
+        document.addEventListener('touchmove', widthMove, {passive: false});
+        document.addEventListener('mouseup', widthUp);
+        document.addEventListener('touchend', widthUp);
+    }
+    function widthMove(e) {
+        if (!isWidthDragging) return;
+        if (e.cancelable) e.preventDefault();
+        const cx = e.touches ? e.touches[0].clientX : e.clientX;
+        const cy = e.touches ? e.touches[0].clientY : e.clientY;
+        const sf = typeof window.getGlobalScale === 'function' ? window.getGlobalScale() : ((typeof scaleFactor !== 'undefined' ? scaleFactor : 1) * (window.pinchScale || 1));
+        const curScale = parseFloat(el.dataset.scale) || 1;
+        const dx = (cx - wsx) / (sf * curScale);
+        const dy = (cy - wsy) / (sf * curScale);
+        const rad = (startRotW * Math.PI) / 180;
+        const localDx = dx * Math.cos(rad) + dy * Math.sin(rad);
+        const newW = Math.max(50, Math.round(startW + localDx));
+        el.style.width = newW + 'px';
+        el.dataset.customW = newW;
+        
+        const coW = document.getElementById('coWidth');
+        const coWV = document.getElementById('coWidthVal');
+        if (coW) coW.value = newW;
+        if (coWV) coWV.textContent = newW + 'px';
+    }
+    function widthUp() {
+        if (isWidthDragging) {
+            isWidthDragging = false;
+            if (typeof window.recordHistory === 'function') window.recordHistory('Genişlik Ayarlandı');
+            if (typeof updateDrawHistory === 'function') updateDrawHistory();
+        }
+        document.removeEventListener('mousemove', widthMove);
+        document.removeEventListener('touchmove', widthMove);
+        document.removeEventListener('mouseup', widthUp);
+        document.removeEventListener('touchend', widthUp);
+    }
+    handleWidth.addEventListener('mousedown', widthDown);
+    handleWidth.addEventListener('touchstart', widthDown, {passive: false});
+
+    // UZUNLUK TUTAMACI (Neon uzunluk/yükseklik ayarı)
+    let isLengthDragging = false, lsx = 0, lsy = 0, startH = 0, startRotH = 0;
+    function lengthDown(e) {
+        if (isLocked()) return;
+        e.stopPropagation();
+        e.preventDefault();
+        isLengthDragging = true;
+        lsx = e.touches ? e.touches[0].clientX : e.clientX;
+        lsy = e.touches ? e.touches[0].clientY : e.clientY;
+        startH = el.offsetHeight || parseFloat(el.style.height) || 150;
+        startRotH = parseFloat(el.dataset.rotation) || 0;
+        document.addEventListener('mousemove', lengthMove);
+        document.addEventListener('touchmove', lengthMove, {passive: false});
+        document.addEventListener('mouseup', lengthUp);
+        document.addEventListener('touchend', lengthUp);
+    }
+    function lengthMove(e) {
+        if (!isLengthDragging) return;
+        if (e.cancelable) e.preventDefault();
+        const cx = e.touches ? e.touches[0].clientX : e.clientX;
+        const cy = e.touches ? e.touches[0].clientY : e.clientY;
+        const sf = typeof window.getGlobalScale === 'function' ? window.getGlobalScale() : ((typeof scaleFactor !== 'undefined' ? scaleFactor : 1) * (window.pinchScale || 1));
+        const curScale = parseFloat(el.dataset.scale) || 1;
+        const dx = (cx - lsx) / (sf * curScale);
+        const dy = (cy - lsy) / (sf * curScale);
+        const rad = (startRotH * Math.PI) / 180;
+        const localDy = -dx * Math.sin(rad) + dy * Math.cos(rad);
+        const newH = Math.max(50, Math.round(startH + localDy));
+        el.style.height = newH + 'px';
+        el.dataset.customH = newH;
+        
+        const coH = document.getElementById('coHeight');
+        const coHV = document.getElementById('coHeightVal');
+        if (coH) coH.value = newH;
+        if (coHV) coHV.textContent = newH + 'px';
+    }
+    function lengthUp() {
+        if (isLengthDragging) {
+            isLengthDragging = false;
+            if (typeof window.recordHistory === 'function') window.recordHistory('Uzunluk Ayarlandı');
+            if (typeof updateDrawHistory === 'function') updateDrawHistory();
+        }
+        document.removeEventListener('mousemove', lengthMove);
+        document.removeEventListener('touchmove', lengthMove);
+        document.removeEventListener('mouseup', lengthUp);
+        document.removeEventListener('touchend', lengthUp);
+    }
+    handleLength.addEventListener('mousedown', lengthDown);
+    handleLength.addEventListener('touchstart', lengthDown, {passive: false});
+
     function selectNeon(e) {
         if (isLocked()) return;
-        if (!e.target.closest('.callout-controls') && !e.target.closest('.callout-resizer') && !e.target.closest('.callout-rotator') && !e.target.closest('.callout-lock-btn')) {
+        if (!e.target.closest('.callout-controls') && !e.target.closest('.callout-resizer') && !e.target.closest('.callout-rotator') && !e.target.closest('.callout-lock-btn') && !e.target.closest('.callout-handle-width') && !e.target.closest('.callout-handle-length')) {
             if (typeof selectElement === 'function') selectElement(el);
             else selectCalloutEl(el, true);
         }
@@ -1420,6 +2181,8 @@ function addNeonToCanvas(n) {
             resizer.style.display = 'none';
             rotator.style.display = 'none';
             selectBorder.style.display = 'none';
+            handleWidth.style.display = 'none';
+            handleLength.style.display = 'none';
             el.style.outline = 'none';
             lockBtn.style.display = 'flex';
         }
@@ -1484,6 +2247,12 @@ function selectCalloutEl(el, isUserClick = false) {
         if (brd) brd.style.display = 'block';
     }
 
+    const wrapEl = el.closest('.callout-wrap') || el;
+    const hw = wrapEl.querySelector('.callout-handle-width');
+    const hl = wrapEl.querySelector('.callout-handle-length');
+    if (hw && wrapEl.dataset.locked !== 'true') hw.style.display = 'flex';
+    if (hl && wrapEl.dataset.locked !== 'true') hl.style.display = 'flex';
+
     const panel = document.getElementById('calloutSettingsPanel');
     if (!panel) return;
 
@@ -1513,6 +2282,28 @@ function selectCalloutEl(el, isUserClick = false) {
     const tc = document.getElementById('coTextColor');
     const bc = document.getElementById('coBgColor');
     
+    // Genişlik ve Uzunluk (Width & Height) slider değerlerini yükle
+    const wrap = el.closest('.callout-wrap') || el;
+    const curW = Math.round(parseFloat(wrap.style.width) || wrap.offsetWidth || 150);
+    const curH = Math.round(parseFloat(wrap.style.height) || wrap.offsetHeight || 150);
+    const coWSlider = document.getElementById('coWidth');
+    const coWVal = document.getElementById('coWidthVal');
+    const coHSlider = document.getElementById('coHeight');
+    const coHVal = document.getElementById('coHeightVal');
+
+    if (coWSlider && coWVal) {
+        coWSlider.value = curW;
+        coWVal.textContent = curW + 'px';
+        const wCont = document.getElementById('coWidthContainer') || coWSlider.parentElement;
+        if (wCont) wCont.style.display = 'flex';
+    }
+    if (coHSlider && coHVal) {
+        coHSlider.value = curH;
+        coHVal.textContent = curH + 'px';
+        const hCont = document.getElementById('coHeightContainer') || coHSlider.parentElement;
+        if (hCont) hCont.style.display = 'flex';
+    }
+    
     if (isNeon) {
         if (ic) ic.value = d.coIconColor || '#93c5fd';
         if (tc) tc.value = d.coTextColor || '#ffffff';
@@ -1526,15 +2317,15 @@ function selectCalloutEl(el, isUserClick = false) {
         const pd = document.getElementById('coPadding');
         const lt = document.getElementById('coLabelText');
 
-        if (bop) { bop.value = d.coBgOpacity || 0; document.getElementById('coBgOpacityVal').textContent = bop.value + '%'; }
-        if (is) { is.value = d.coIconSize || 64; document.getElementById('coIconSizeVal').textContent = is.value + 'px'; }
-        if (ts) { ts.value = d.coTextSize || 14; document.getElementById('coTextSizeVal').textContent = ts.value + 'px'; }
-        if (gw) { gw.value = d.coGlow || 80; document.getElementById('coGlowVal').textContent = gw.value + '%'; }
-        if (rd) { rd.value = d.coRadius || 12; document.getElementById('coRadiusVal').textContent = rd.value + 'px'; }
-        if (pd) { pd.value = d.coPadding || 10; document.getElementById('coPaddingVal').textContent = pd.value + 'px'; }
-        if (lt) lt.value = (d.coLabel || '').replace(/\\n/g, ' ');
+        if (bop) { bop.parentElement.style.display = 'flex'; bop.value = d.coBgOpacity || 0; document.getElementById('coBgOpacityVal').textContent = bop.value + '%'; }
+        if (is) { is.parentElement.style.display = 'flex'; is.value = d.coIconSize || 64; document.getElementById('coIconSizeVal').textContent = is.value + 'px'; }
+        if (ts) { ts.parentElement.style.display = 'flex'; ts.value = d.coTextSize || 14; document.getElementById('coTextSizeVal').textContent = ts.value + 'px'; }
+        if (gw) { gw.parentElement.style.display = 'flex'; gw.value = d.coGlow || 80; document.getElementById('coGlowVal').textContent = gw.value + '%'; }
+        if (rd) { rd.parentElement.style.display = 'flex'; rd.value = d.coRadius || 12; document.getElementById('coRadiusVal').textContent = rd.value + 'px'; }
+        if (pd) { pd.parentElement.style.display = 'flex'; pd.value = d.coPadding || 10; document.getElementById('coPaddingVal').textContent = pd.value + 'px'; }
+        if (lt) { lt.parentElement.style.display = 'block'; lt.value = (d.coLabel || '').replace(/\\n/g, ' '); }
     } else {
-        // Hide neon-specific sliders for standard SVG callouts
+        // Neon'a özel kontrolleri SVG callout'ta gizle
         const bop = document.getElementById('coBgOpacity');
         const is = document.getElementById('coIconSize');
         const ts = document.getElementById('coTextSize');
@@ -1549,15 +2340,18 @@ function selectCalloutEl(el, isUserClick = false) {
         if (gw) gw.parentElement.style.display = 'none';
         if (rd) rd.parentElement.style.display = 'none';
         if (pd) pd.parentElement.style.display = 'none';
-        if (lt) lt.parentElement.style.display = 'none';
         
-        // Try to read SVG colors
+        // SVG renklerini ve metnini oku
         const svg = el.querySelector('svg');
         if (svg) {
-            // Text color (first text)
-            const textEl = svg.querySelector('text, tspan');
-            if (textEl && tc) {
-                const fill = textEl.getAttribute('fill') || textEl.style.fill;
+            // Metin içeriği ve rengi (Tüm SVG metin ve alt başlıklarını oku)
+            const textNodes = Array.from(svg.querySelectorAll('text, tspan')).filter(t => t.textContent && t.textContent.trim().length > 0);
+            if (lt) {
+                lt.parentElement.style.display = 'block';
+                lt.value = textNodes.map(t => t.textContent.trim()).join('\n');
+            }
+            if (tc && textNodes.length > 0) {
+                const fill = textNodes[0].getAttribute('fill') || textNodes[0].style.fill;
                 if (fill && fill.startsWith('#')) tc.value = fill.substring(0,7);
             }
             // BG color (first rect/circle/polygon)
@@ -1572,6 +2366,8 @@ function selectCalloutEl(el, isUserClick = false) {
                 const stroke = borderEl.getAttribute('stroke') || borderEl.style.stroke;
                 if (stroke && stroke.startsWith('#')) ic.value = stroke.substring(0,7);
             }
+        } else if (lt) {
+            lt.parentElement.style.display = 'none';
         }
     }
   } catch(err) {
@@ -1652,12 +2448,39 @@ function renderCalloutFromDataset(el) {
 }
 
 function applyCalloutSettings() {
-    if (!selectedCalloutEl) return;
-    const el = selectedCalloutEl;
+    const el = (typeof selectedCalloutEl !== 'undefined' && selectedCalloutEl) ? selectedCalloutEl : (window.selectedEl || null);
+    if (!el) return;
+    const wrap = el.closest('.callout-wrap') || (el.classList.contains('callout-wrap') ? el : null);
 
     const iconColor = document.getElementById('coIconColor')?.value || '#93c5fd';
     const textColor = document.getElementById('coTextColor')?.value || '#ffffff';
     const bgColor = document.getElementById('coBgColor')?.value || '#0d1b2e';
+
+    // Genişlik ve Uzunluk Güncellemesi
+    const coW = parseInt(document.getElementById('coWidth')?.value);
+    const coH = parseInt(document.getElementById('coHeight')?.value);
+    if (!isNaN(coW) && coW > 0 && !isNaN(coH) && coH > 0) {
+        if (wrap) {
+            wrap.style.width = coW + 'px';
+            wrap.style.height = coH + 'px';
+            wrap.dataset.customW = coW;
+            wrap.dataset.customH = coH;
+            const innerItem = wrap.querySelector('.callout-item');
+            if (innerItem) {
+                innerItem.style.width = '100%';
+                innerItem.style.height = '100%';
+            }
+            const svg = wrap.querySelector('svg');
+            if (svg) {
+                svg.setAttribute('preserveAspectRatio', 'none');
+            }
+        } else if (el.classList.contains('co-neon-block')) {
+            el.style.width = coW + 'px';
+            el.style.height = coH + 'px';
+            el.dataset.customW = coW;
+            el.dataset.customH = coH;
+        }
+    }
 
     if (el.classList.contains('co-neon-block')) {
         const bgOpacity = parseInt(document.getElementById('coBgOpacity')?.value || 0);
@@ -1683,6 +2506,29 @@ function applyCalloutSettings() {
     } else {
         const svg = el.querySelector('svg');
         if (svg) {
+            const labelRaw = document.getElementById('coLabelText')?.value;
+            if (labelRaw !== undefined && labelRaw !== null) {
+                const textNodes = Array.from(svg.querySelectorAll('text, tspan'));
+                const trimmed = labelRaw.trim();
+                if (trimmed === '') {
+                    // Metin tamamen silindiğinde boş rozet/balon bırakabilmek için tüm SVG metin içeriklerini temizle
+                    textNodes.forEach(tn => { tn.textContent = ''; });
+                } else {
+                    const lines = labelRaw.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+                    if (lines.length === 1 && textNodes.length > 1) {
+                        // Tek satır girildiyse ana metne ata, üst başlığı temizle
+                        textNodes.forEach((tn, idx) => {
+                            tn.textContent = (idx === textNodes.length - 1) ? lines[0] : '';
+                        });
+                    } else {
+                        // Çok satır girildiyse sırasıyla metin etiketlerine dağıt
+                        textNodes.forEach((tn, idx) => {
+                            tn.textContent = idx < lines.length ? lines[idx] : '';
+                        });
+                    }
+                }
+            }
+
             svg.querySelectorAll('text, tspan').forEach(t => {
                 if (t.getAttribute('fill') && t.getAttribute('fill') !== 'none') t.setAttribute('fill', textColor);
             });
@@ -1696,9 +2542,29 @@ function applyCalloutSettings() {
             });
         }
     }
+    if (typeof requestAutoSave === 'function') requestAutoSave();
 }
 
 function resetCalloutSetting(type) {
+    if (type === 'width') {
+        const wSlider = document.getElementById('coWidth');
+        const wVal = document.getElementById('coWidthVal');
+        const wrap = selectedCalloutEl ? (selectedCalloutEl.closest('.callout-wrap') || selectedCalloutEl) : null;
+        const defW = wrap && wrap.dataset.origW ? parseInt(wrap.dataset.origW) : 150;
+        if (wSlider && wVal) { wSlider.value = defW; wVal.textContent = defW + 'px'; }
+        applyCalloutSettings();
+        return;
+    }
+    if (type === 'height') {
+        const hSlider = document.getElementById('coHeight');
+        const hVal = document.getElementById('coHeightVal');
+        const wrap = selectedCalloutEl ? (selectedCalloutEl.closest('.callout-wrap') || selectedCalloutEl) : null;
+        const defH = wrap && wrap.dataset.origH ? parseInt(wrap.dataset.origH) : 150;
+        if (hSlider && hVal) { hSlider.value = defH; hVal.textContent = defH + 'px'; }
+        applyCalloutSettings();
+        return;
+    }
+
     const defaults = {
         'iconColor': '#93c5fd',
         'textColor': '#ffffff',
@@ -1852,8 +2718,12 @@ function initCalloutSliderResetListeners() {
 }
 
 if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initCalloutSliderResetListeners);
+    document.addEventListener('DOMContentLoaded', () => {
+        initCalloutSliderResetListeners();
+        if (typeof renderCalloutPanel === 'function') renderCalloutPanel();
+    });
 } else {
     initCalloutSliderResetListeners();
+    if (typeof renderCalloutPanel === 'function') renderCalloutPanel();
 }
 

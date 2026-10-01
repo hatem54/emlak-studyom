@@ -11,6 +11,133 @@
 (function(window) {
     'use strict';
 
+    // 0. Görselden OCR (Gemini Vision) ile Metin Çıkarma
+    window.handleOcrImageUpload = async function(input) {
+        if (!input.files || !input.files[0]) return;
+        const file = input.files[0];
+        input.value = ''; // Reset input
+        
+        const reader = new FileReader();
+        reader.onload = async function(e) {
+            const btn = document.getElementById('btnSmartParse');
+            const originalBtnHtml = btn ? btn.innerHTML : 'Metni Süz';
+            if (btn) btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Görsel Okunuyor...';
+
+            try {
+                // 1. Tesseract.js kütüphanesini dinamik yükle (Eğer yoksa)
+                if (typeof Tesseract === 'undefined') {
+                    if (btn) btn.innerHTML = '<i class="fa-solid fa-cloud-arrow-down fa-spin"></i> Motor Yükleniyor...';
+                    await new Promise((resolve, reject) => {
+                        const script = document.createElement('script');
+                        script.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
+                        script.onload = resolve;
+                        script.onerror = reject;
+                        document.head.appendChild(script);
+                    });
+                }
+
+                if (btn) btn.innerHTML = '<i class="fa-solid fa-brain fa-spin"></i> Metin Çözümleniyor...';
+
+                // 2. Tarayıcıda (Offline/Yerel) OCR İşlemi
+                const result = await Tesseract.recognize(
+                    e.target.result,
+                    'tur',
+                    {
+                        logger: m => {
+                            if (m.status === 'recognizing text' && btn) {
+                                btn.innerHTML = `<i class="fa-solid fa-cog fa-spin"></i> Okunuyor %${Math.round(m.progress * 100)}`;
+                            }
+                        }
+                    }
+                );
+
+                let extractedText = result.data.text;
+
+                // --- AKILLI FİLTRELEME (Blacklist Yöntemi) ---
+                if (extractedText) {
+                    const lines = extractedText.split('\n');
+                    
+                    // Kesinlikle atılacak çöp kelimeler (öznitelik, mahalle no, pafta, zemin vb.)
+                    const excludedKeywords = [
+                        'öznitelik', 'bina/bb', 'mahalle no', 'zemin tip', 'pafta', 'mevkii', 'favori', 'paylaş', 
+                        'mesaj', 'ara', 'yazdır', 'ilan no', 'ilan tarihi', 'hesap açma', 'güvenlik', 'şikayet', 
+                        'detaylı bilgi', 'büyük fotoğraf', 'fotoğraf', 'video', 'giriş yap', 'üye ol', '11:16', '5g', 'lte'
+                    ];
+                    
+                    const filteredLines = lines.filter(line => {
+                        const lower = line.toLocaleLowerCase('tr-TR').trim();
+                        
+                        // Çok kısa (1-2 harfli) anlamsız satırları at (il hariç)
+                        if (lower.length < 2) return false;
+                        if (lower.length === 2 && lower !== 'il') return false;
+                        
+                        // İçinde istenmeyen kelimeler geçiyorsa DİREKT AT
+                        if (excludedKeywords.some(bad => lower.includes(bad))) return false;
+                        
+                        // Kalan tüm satırları tut (Sakarya, Adapazarı gibi değerlerin silinmemesi için)
+                        return true;
+                    });
+                    
+                    // Temizlenmiş metin
+                    extractedText = filteredLines.join('\n').trim();
+                }
+
+                if (extractedText && extractedText.length > 0) {
+                    const aiTextEl = document.getElementById('aiText');
+                    if (aiTextEl) {
+                        aiTextEl.value = (aiTextEl.value ? aiTextEl.value + '\n\n' : '') + extractedText;
+                        if (typeof window.smartParse === 'function') {
+                            window.smartParse();
+                        }
+                    }
+                    
+                    // Başarılı uyarısını popup yerine butonda göster
+                    if (btn) {
+                        btn.innerHTML = '<i class="fa-solid fa-check"></i> Başarılı';
+                        setTimeout(() => {
+                            if (btn.innerHTML.includes('Başarılı')) {
+                                btn.innerHTML = originalBtnHtml;
+                            }
+                        }, 2500);
+                    }
+                } else {
+                    throw new Error("Görselden anlamlı bir emlak verisi çıkarılamadı.");
+                }
+            } catch (err) {
+                console.error("Yerel OCR Hatası:", err);
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire('Hata', 'Görsel okunurken yerel bir hata oluştu: ' + err.message, 'error');
+                }
+                if (btn) btn.innerHTML = originalBtnHtml;
+            }
+        };
+        reader.readAsDataURL(file);
+    };
+
+    // CTRL+V ile Görsel Yapıştırma Desteği
+    document.addEventListener('DOMContentLoaded', () => {
+        const aiTextEl = document.getElementById('aiText');
+        if (aiTextEl) {
+            aiTextEl.addEventListener('paste', function(e) {
+                const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+                for (let index in items) {
+                    const item = items[index];
+                    if (item.kind === 'file' && item.type.startsWith('image/')) {
+                        e.preventDefault(); // Metin kutusuna normal yapıştırmayı durdur
+                        const blob = item.getAsFile();
+                        const dt = new DataTransfer();
+                        dt.items.add(blob);
+                        const input = document.getElementById('ocrImageInput');
+                        if (input) {
+                            input.files = dt.files;
+                            window.handleOcrImageUpload(input);
+                        }
+                    }
+                }
+            });
+        }
+    });
+
     // 1. Türkçe Yazıyla Yazılmış Sayıları Rakamlara Çevirici
     const TURKISH_NUMS = {
         'sıfır': 0, 'bir': 1, 'iki': 2, 'üç': 3, 'dört': 4, 'beş': 5,
@@ -332,7 +459,7 @@
     function parseSizes(text, tableMap) {
         let brut = tableMap['m² (brüt)'] || tableMap['brüt m²'] || tableMap['brüt alan'] || tableMap['m²'];
         let net = tableMap['m² (net)'] || tableMap['net m²'] || tableMap['net alan'];
-        let arsa = tableMap['arsa alanı'] || tableMap['arsa m²'] || tableMap['toplam alan'] || tableMap['alan'] || tableMap['yüzölçümü'] || tableMap['yuzolcumu'];
+        let arsa = tableMap['arsa alanı'] || tableMap['arsa m²'] || tableMap['toplam alan'] || tableMap['alan'] || tableMap['yüzölçümü'] || tableMap['yuzolcumu'] || tableMap['tapu alanı'];
 
         let brutVal = '', netVal = '', arsaVal = '';
 
@@ -586,7 +713,19 @@
             return cleanLoc.split('\n')[0].trim().replace(/\bMh\.?$/i, 'Mah.').replace(/\bMahallesi$/i, 'Mah.');
         }
 
-        // Markdown linklerini ve Sahibinden başlık kalıntılarını temizle
+        // Yeni Eklenti: "İl Sakarya", "İlçe Adapazarı" gibi alt alta yazılan formatları yakala
+        let ilMatch = text.match(/^[\s\*]*(?:il|şehir)\s*[:\-]?\s*([a-zA-ZçğıöşüÇĞİÖŞÜ]+)/im);
+        let ilceMatch = text.match(/^[\s\*]*ilçe\s*[:\-]?\s*([a-zA-ZçğıöşüÇĞİÖŞÜ]+(?:\s+[a-zA-ZçğıöşüÇĞİÖŞÜ]+)?)/im);
+        let mahMatch = text.match(/^[\s\*]*(?:mahalle(?:\/köy)?|köy)\s*[:\-]?\s*([a-zA-ZçğıöşüÇĞİÖŞÜ]+(?:\s+[a-zA-ZçğıöşüÇĞİÖŞÜ]+)?)/im);
+
+        if (ilMatch || ilceMatch) {
+            let locParts = [];
+            if (ilceMatch && ilceMatch[1]) locParts.push(ilceMatch[1].trim());
+            if (ilMatch && ilMatch[1]) locParts.push(ilMatch[1].trim());
+            if (mahMatch && mahMatch[1]) locParts.unshift(mahMatch[1].trim() + ' Mah.');
+            if (locParts.length > 0) return locParts.join(' / ');
+        }
+
         let cleanText = text
             .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
             .replace(/kredi\s*teklifleri/gi, '')
@@ -617,7 +756,7 @@
                 let matchedDistrict = m[1] ? m[1].trim() : '';
                 let matchedVillage = m[2] ? m[2].trim() : '';
                 
-                const stopWords = /^(satılık|kiralık|daire|arsa|tarla|villa|fiyat|bedel|ada|parsel|m2|metrekare|dönüm|lüks|acil|yatırımlık|müstakil|proje|konut|kredi|teklifleri)$/i;
+                const stopWords = /^(satılık|kiralık|daire|arsa|tarla|villa|fiyat|bedel|ada|parsel|m2|metrekare|dönüm|lüks|acil|yatırımlık|müstakil|proje|konut|kredi|teklifleri|duble|yol|yola|merkez|merkeze)$/i;
                 if (stopWords.test(matchedDistrict) || /^\d/.test(matchedDistrict)) matchedDistrict = '';
                 if (stopWords.test(matchedVillage) || /^\d/.test(matchedVillage)) matchedVillage = '';
 
@@ -760,7 +899,11 @@
         const finalPrice = (ai && ai.price && String(ai.price).trim() !== '' && String(ai.price).toLowerCase() !== 'null') ? ai.price : local.price;
         const finalSize = (ai && ai.size && String(ai.size).trim() !== '' && String(ai.size).toLowerCase() !== 'null') ? ai.size : (sizes.brut || sizes.net || sizes.arsa || '');
         const finalRooms = (ai && ai.rooms && String(ai.rooms).trim() !== '' && String(ai.rooms).toLowerCase() !== 'null' && String(ai.rooms).toLowerCase() !== 'yok') ? ai.rooms : local.rooms;
-        const finalLocation = (ai && ai.location && String(ai.location).trim() !== '' && String(ai.location).toLowerCase() !== 'null') ? ai.location : local.location;
+        let finalLocation = (ai && ai.location && String(ai.location).trim() !== '' && String(ai.location).toLowerCase() !== 'null') ? ai.location : local.location;
+        // Eğer yerel ayrıştırıcı İl/İlçe formatını yakaladıysa (slash içeriyorsa) ama AI yanlış veya eksik (slashsız) bulduysa yereli kullan
+        if (local.location && local.location.includes('/') && finalLocation && !finalLocation.includes('/')) {
+            finalLocation = local.location;
+        }
         const finalAda = (ai && ai.ada && String(ai.ada).trim() !== '' && String(ai.ada).toLowerCase() !== 'null' && String(ai.ada) !== '0') ? String(ai.ada) : (land.ada || '');
         const finalParsel = (ai && ai.parsel && String(ai.parsel).trim() !== '' && String(ai.parsel).toLowerCase() !== 'null' && String(ai.parsel) !== '0') ? String(ai.parsel) : (land.parsel || '');
         const finalImar = (ai && ai.imar && String(ai.imar).trim() !== '' && String(ai.imar).toLowerCase() !== 'null' && String(ai.imar).toLowerCase() !== 'yok') ? ai.imar : (land.imar || '');
@@ -844,13 +987,125 @@
         directMap['c_araziSize'] = finalSize;
         directMap['canvaAdaParsel'] = adaParselText;
 
-        allFormFields.forEach(id => {
+                allFormFields.forEach(id => {
             const el = document.getElementById(id);
             if (el) {
                 const val = directMap[id];
-                el.value = (val !== undefined && val !== null) ? val : '';
+                // Yalnızca yeni değer boş değilse güncelle (eskiyi silme - akıllı birleştirme)
+                if (val !== undefined && val !== null && String(val).trim() !== '') {
+                    el.value = val;
+                }
             }
         });
+
+        // 3.1. BOŞTA KALAN / EŞLEŞMEYEN ALANLARA YAPAY ZEKA ÖZELLİKLERİNİ AKTAR (ÖNEM SIRASINA GÖRE)
+        try {
+            const rawTextLow = rawText.toLowerCase();
+            const allExtractedHl = [];
+            
+            if (ai && ai.regional_highlights && Array.isArray(ai.regional_highlights)) {
+                allExtractedHl.push(...ai.regional_highlights);
+            }
+            if (ai && ai.highlights && Array.isArray(ai.highlights)) {
+                allExtractedHl.push(...ai.highlights);
+            }
+            if (allExtractedHl.length === 0 && ai && ai.description) {
+                let matches = (typeof ai.description === "string") ? ai.description.match(/^(?:📍|✓|\*|\-|\•)\s*(.+)$/gm) : null;
+                if (matches) {
+                    matches.forEach(m => allExtractedHl.push(m.replace(/^(?:📍|✓|\*|\-|\•)\s*/, '').trim()));
+                }
+            }
+            if (allExtractedHl.length === 0 && extras && extras.highlights) {
+                allExtractedHl.push(...extras.highlights);
+            }
+
+            // Temizleme ve Filtreleme (M2, Ada, Parsel, Fiyat gibi alanları vurgulardan çıkar)
+            const cleanAiHighlights = [];
+            allExtractedHl.forEach(h => {
+                if (!h || typeof h !== 'string') return;
+                const str = h.replace(/^[\p{Emoji_Presentation}\p{Extended_Pictographic}\s]+/gu, '').trim();
+                if (str.length < 3) return;
+                const low = str.toLowerCase();
+                if (low.includes('ada') && low.includes('parsel')) return;
+                if (low.includes('fiyat') || low.includes('tl')) return;
+                if (low.match(/^tapu\s*alan/i) || low.match(/^\d+[\.,]?\d*\s*m2?$/i)) return;
+                if (!cleanAiHighlights.some(x => x.toLowerCase() === low)) {
+                    cleanAiHighlights.push(str);
+                }
+            });
+
+            // Metin içinde su ve yol kavramlarını doğru tespit et (kuşuçusu gibi kelimelerin içindeki su'yu eleyerek)
+            const hasWaterInText = /(?:^|[^\p{L}])(?:su|suyu|artezyen|kuyu|kuyusu|sulama|şebeke\s*suyu|kaynak\s*suyu)(?:[^\p{L}]|$)/iu.test(rawText);
+            const hasRoadInText = /(?:cephe|yol|asfalt|kadastro|otoban)/i.test(rawText);
+
+            let cepheVal = '';
+            if (hasRoadInText) {
+                if (rawTextLow.includes('ana yola')) cepheVal = 'Ana Yola Cepheli';
+                else if (rawTextLow.includes('duble yola')) cepheVal = 'Duble Yola Cepheli';
+                else if (rawTextLow.includes('kadastro')) cepheVal = 'Kadastro Yoluna Cepheli';
+                else if (rawTextLow.includes('asfalt')) cepheVal = 'Asfalt Yola Cepheli';
+                else if (rawTextLow.includes('otoban')) cepheVal = 'Otobana Yakın';
+            }
+
+            let hlCursor = 0;
+
+            // f_cephe alanını güncelle
+            const cepheEl = document.getElementById('f_cephe');
+            if (cepheEl) {
+                if (cepheVal) {
+                    cepheEl.value = cepheVal;
+                } else if (cleanAiHighlights[hlCursor]) {
+                    cepheEl.value = cleanAiHighlights[hlCursor];
+                    if (cepheEl.previousElementSibling && cepheEl.previousElementSibling.tagName === 'LABEL') {
+                        cepheEl.previousElementSibling.innerText = 'Özellik';
+                    }
+                    hlCursor++;
+                }
+            }
+
+            // f_su alanını güncelle (Metinde su yoksa f_su yerine sıradaki en önemli özelliği bas)
+            const suEl = document.getElementById('f_su');
+            if (suEl) {
+                if (hasWaterInText) {
+                    // Metinde su var, varsayılan veya parsed değer kalır
+                } else {
+                    // Metinde su YOK! Sıradaki en önemli AI vurgusunu koy
+                    const remainingHl = cleanAiHighlights.filter((h, idx) => idx >= hlCursor && (!cepheVal || h.toLowerCase() !== cepheVal.toLowerCase()));
+                    if (remainingHl[0]) {
+                        suEl.value = remainingHl[0];
+                        if (suEl.previousElementSibling && suEl.previousElementSibling.tagName === 'LABEL') {
+                            suEl.previousElementSibling.innerText = 'Özellik';
+                        }
+                        hlCursor++;
+                    } else {
+                        suEl.value = '';
+                    }
+                }
+            }
+
+            // Diğer standart form alanlarında da (imar vb.) metinde karşılığı olmayan yerlere sıradaki vurguları koy
+            if (window.propertyForms && window.propertyForms[detectedType]) {
+                const config = window.propertyForms[detectedType];
+                config.fields.forEach(f => {
+                    if (['priceInput', 'f_m2', 'f_ada', 'f_parsel', 'f_brut', 'f_net', 'f_oda', 'f_su', 'f_cephe'].includes(f.id)) return;
+                    const el = document.getElementById(f.id);
+                    if (!el) return;
+                    
+                    if (directMap[f.id] === undefined) {
+                        const remaining = cleanAiHighlights.filter((h, idx) => idx >= hlCursor);
+                        if (remaining[0]) {
+                            el.value = remaining[0];
+                            if (el.previousElementSibling && el.previousElementSibling.tagName === 'LABEL') {
+                                el.previousElementSibling.innerText = 'Özellik';
+                            }
+                            hlCursor++;
+                        }
+                    }
+                });
+            }
+        } catch(hlErr) {
+            console.warn('AI highlights aktarım uyarısı:', hlErr);
+        }
 
         // Toggles
         const toggleMap = {
@@ -867,36 +1122,22 @@
         };
         Object.keys(toggleMap).forEach(chkId => {
             const chk = document.getElementById(chkId);
-            if (chk && toggleMap[chkId] !== undefined) {
-                chk.checked = Boolean(toggleMap[chkId]);
+            // Sadece yeni gelen veri "true" ise aktifleştir, "false" ise mevcut durumu bozma
+            if (chk && Boolean(toggleMap[chkId]) === true) {
+                chk.checked = true;
             }
         });
 
-        // 4. Vurgular & Açıklamalar
-        if (ai && ai.regional_highlights && Array.isArray(ai.regional_highlights)) {
-            window.smartRegionalHighlights = ai.regional_highlights;
-        }
+        
+        
+        
 
+        
         let cleanDesc = (ai && ai.description) ? ai.description : '';
-        if (cleanDesc.includes("Let's evaluate") || cleanDesc.includes("Schema") || cleanDesc.includes("anahtarları içeren") || cleanDesc.startsWith('{')) {
+        if (cleanDesc && (cleanDesc.includes("Let's evaluate") || cleanDesc.includes("Schema") || cleanDesc.includes("anahtarları içeren") || cleanDesc.startsWith('{'))) {
             const pTitle = finalTitle || 'Fırsat Portföy';
             const pLoc = finalLocation || 'Merkezi Lokasyon';
-            cleanDesc = `✨ ${pTitle}\n\n📍 LOKASYON & BÖLGE AVANTAJLARI:\n• ${pLoc} bölgesinde yüksek prim potansiyeline sahip lokasyonda\n• Ana yollara ve ulaşım akslarına yakın\n\n🏡 ÖNE ÇIKAN ÖZELLİKLER:\n• Toplam Alan: ${finalSize}\n• Fiyat: ${finalPrice}\n• Tapu / Mülkiyet: ${finalTapu || 'Sorunsuz Müstakil Tapu'}\n\n📞 Detaylı bilgi, sunum ve yer gösterimi için lütfen arayınız.`;
-        }
-        if (cleanDesc) window.smartAiDescription = cleanDesc;
-
-        if (ai && (ai.social_post || ai.socialPost)) {
-            window.smartAiSocialPost = ai.social_post || ai.socialPost;
-        }
-        if (ai && (ai.reelsHook || ai.reels_hook)) {
-            window.smartReelsHook = ai.reelsHook || ai.reels_hook;
-        }
-        if (ai && (ai.voiceover || ai.voice_over || ai.voiceoverScript)) {
-            let vo = ai.voiceover || ai.voice_over || ai.voiceoverScript;
-            if (window.VoiceStudio && typeof window.VoiceStudio.convertNumbersToWords === 'function') {
-                vo = window.VoiceStudio.convertNumbersToWords(vo);
-            }
-            window.smartVoiceoverScript = vo;
+            cleanDesc = `🌟 ${pTitle}\n\n📍 LOKASYON & BÖLGE AVANTAJLARI:\n✔️ ${pLoc} bölgesinde yüksek prim potansiyeline sahip lokasyonda\n✔️ Ana yollara ve ulaşım akslarına yakın\n\n💎 ÖNE ÇIKAN ÖZELLİKLER:\n✔️ Toplam Alan: ${finalSize}\n✔️ Fiyat: ${finalPrice}\n✔️ Tapu / Mülkiyet: ${finalTapu || 'Sorunsuz Müstakil Tapu'}\n\n📞 Detaylı bilgi, sunum ve yer gösterimi için lütfen arayınız.`;
         }
 
         const descLines = [];
@@ -955,6 +1196,85 @@
             window.syncKolajFromForm();
         }
 
+        // 5.1. Arşiv Vitrin Şablonları (tpl_kalip) Bilgilerini Doldur & Senkronize Et
+        try {
+            const kTitleEl = document.getElementById('canvaKTitle');
+            const kSubEl = document.getElementById('canvaKSub');
+            const kPriceEl = document.getElementById('canvaKPrice');
+            const kBadgeEl = document.getElementById('canvaKBadge');
+            const kContactEl = document.getElementById('canvaKContact');
+            const kFeatsEl = document.getElementById('canvaKFeats');
+
+            if (kTitleEl) {
+                if (finalTitle) {
+                    kTitleEl.value = '🔥 ' + finalTitle.toUpperCase();
+                } else if (finalRooms || finalSize) {
+                    kTitleEl.value = `🔥 ${finalRooms || ''} ${finalSize || ''} ULTRA LÜKS DAİRE`.trim().toUpperCase();
+                }
+            }
+
+            if (kSubEl && finalLocation) {
+                kSubEl.value = finalLocation + ' • ' + (detectedType === 'arsa' ? 'Yatırımlık Fırsat' : 'Elit Yaşam Alanı');
+            }
+
+            if (kPriceEl && finalPrice) {
+                kPriceEl.value = finalPrice;
+            }
+
+            if (kBadgeEl) {
+                if (adaParselText) {
+                    kBadgeEl.value = '★★★ ' + adaParselText + ' ★★★';
+                } else if (finalTapu) {
+                    kBadgeEl.value = '★★★ ' + finalTapu.toUpperCase() + ' ★★★';
+                } else {
+                    kBadgeEl.value = '★★★ İSKANLI • HEMEN TAŞINMAYA HAZIR ★★★';
+                }
+            }
+
+            if (kContactEl) {
+                let tel = '';
+                const telInputs = ['contactInput', 'canvaContact', 'phoneInput', 'canvaCContact', 'canvaLContact'];
+                for (let j = 0; j < telInputs.length; j++) {
+                    const te = document.getElementById(telInputs[j]);
+                    if (te && te.value && /\d{7,}/.test(te.value)) {
+                        tel = te.value.trim();
+                        break;
+                    }
+                }
+                if (tel) kContactEl.value = 'EMLAK STÜDYOM | ' + tel;
+            }
+
+            if (kFeatsEl) {
+                const kFeatLines = [];
+                if (finalRooms && finalSize) kFeatLines.push(`${finalRooms} Plan & ${finalSize} Geniş Kullanım`);
+                else if (finalSize) kFeatLines.push(`Toplam Alan: ${finalSize}`);
+                if (floor) kFeatLines.push(`Bulunduğu Kat: ${floor}`);
+                if (heating) kFeatLines.push(`Isıtma Sistemi: ${heating}`);
+                if (finalImar) kFeatLines.push(`İmar Durumu: ${finalImar}`);
+                if (finalTapu) kFeatLines.push(`Tapu Durumu: ${finalTapu}`);
+                if (extras && extras.cephe) kFeatLines.push(extras.cephe);
+                if (extras && extras.highlights && extras.highlights.length > 0) {
+                    extras.highlights.slice(0, 3).forEach(h => kFeatLines.push(h));
+                }
+                if (kFeatLines.length < 3) {
+                    kFeatLines.push('Merkezi Konum & Ulaşım Akslarına Yakın');
+                    kFeatLines.push('Yüksek Prim Potansiyeli & Hemen Teslim');
+                }
+                kFeatsEl.value = kFeatLines.slice(0, 5).join('\n');
+            }
+
+            // Eğer şu an bir Kalıp vitrin şablonu açıksa (canvaK1..canvaK10) otomatik yeniden render et
+            if (typeof activeCanvaId !== 'undefined' && activeCanvaId && activeCanvaId.startsWith('canvaK')) {
+                if (typeof renderKTemplate === 'function') {
+                    renderKTemplate(activeCanvaId);
+                } else if (typeof window.renderKTemplate === 'function') {
+                    window.renderKTemplate(activeCanvaId);
+                }
+            }
+        } catch(kalipErr) {
+            console.warn("Kalıp şablonu senkronizasyon uyarısı:", kalipErr);
+        }
+
         if (typeof activeLayout !== 'undefined' && activeLayout && activeLayout !== 'empty' && activeLayout !== 'none' && (!window.isCanvaMode)) {
             if (typeof elBadge !== 'undefined' && elBadge && elBadge.style.display !== 'none') elBadge.style.visibility = 'visible';
             if (typeof elPrice !== 'undefined' && elPrice && elPrice.style.display !== 'none') elPrice.style.visibility = 'visible';
@@ -969,6 +1289,87 @@
         if (typeof window.generateSmartSuggestions === 'function') {
             window.generateSmartSuggestions(baseParsedPayload, rawText);
         }
+
+        // --- AI SONUÇLARINI OVERWRITE ET (AI VERİSİ VARSA) ---
+        try {
+            let allAiHighlights = [];
+            if (ai && ai.regional_highlights && Array.isArray(ai.regional_highlights)) allAiHighlights.push(...ai.regional_highlights);
+            if (ai && ai.highlights && Array.isArray(ai.highlights)) allAiHighlights.push(...ai.highlights);
+            
+            if (allAiHighlights.length === 0 && ai && ai.description) {
+                let matches = (typeof ai.description === "string") ? ai.description.match(/^(?:✔️|✅|\*|\-|\•)\s*(.+)$/gm) : null;
+                if (matches) {
+                    matches.forEach(m => {
+                        let text = m.replace(/^(?:✔️|✅|\*|\-|\•)\s*/, '').trim();
+                        if (text && text.length > 5 && text.length < 50 && !text.includes('Fiyat') && !text.includes('Alan')) {
+                            allAiHighlights.push(text);
+                        }
+                    });
+                }
+            }
+            
+            // AI ÇALIŞMADIYSA VEYA BULAMADIYSA (Yani Cloudflare API yorulmuşsa), YEREL VURGULARI KULLAN!
+            if (allAiHighlights.length === 0 && typeof local !== 'undefined' && local && local.extras && local.extras.highlights) {
+                allAiHighlights.push(...local.extras.highlights.map(h => h.replace(/^[^a-zA-Z0-9ÇĞİÖŞÜçğıöşü]+/, '').trim()));
+                
+                // Extra Text Extraction for Fallback
+                const lines = rawText.split(/\n|;|\./);
+                for(let l of lines) {
+                    l = l.trim();
+                    if(l.length > 10 && l.length < 45 && !l.includes('Fiyat') && !l.includes('Alan')) {
+                        if(l.includes('ağacı') || l.includes('mesafe') || l.includes('cephe')) {
+                           allAiHighlights.push(l);
+                        }
+                    }
+                }
+            }
+            
+            if (allAiHighlights.length > 0) {
+                allAiHighlights = [...new Set(allAiHighlights)];
+                if (ai) ai.regional_highlights = allAiHighlights;
+
+                if (!window.smartRegionalHighlights) window.smartRegionalHighlights = [];
+                if (!window.smartMatchedCallouts) window.smartMatchedCallouts = [];
+                if (!window.smartBadges) window.smartBadges = [];
+                
+                allAiHighlights.forEach(h => {
+                    if (h && typeof h === "string") { 
+                        if (!window.smartRegionalHighlights.includes(h)) {
+                            window.smartRegionalHighlights.push(h);
+                        }
+                        const cleanH = h.replace(/^[\p{Emoji_Presentation}\p{Extended_Pictographic}\s]+/gu, '');
+                        window.smartBadges.push({ text: '✨ ' + cleanH, category: 'highlight', style: 'purple' });
+                        
+                        if (typeof window.createFittedSvgBadge === 'function') {
+                            window.smartMatchedCallouts.push({
+                                name: '✨ ' + cleanH,
+                                category: 'ozellik',
+                                svg: window.createFittedSvgBadge('ozellik', cleanH.toUpperCase().substring(0, 30))
+                            });
+                        }
+                    }
+                });
+            }
+        } catch (e) {
+            console.error("AI Highlights Error:", e);
+        }
+
+        if (cleanDesc) window.smartAiDescription = cleanDesc;
+
+        if (ai && (ai.social_post || ai.socialPost)) {
+            window.smartAiSocialPost = ai.social_post || ai.socialPost;
+        }
+        if (ai && (ai.reelsHook || ai.reels_hook)) {
+            window.smartReelsHook = ai.reelsHook || ai.reels_hook;
+        }
+        if (ai && (ai.voiceover || ai.voice_over || ai.voiceoverScript)) {
+            let vo = ai.voiceover || ai.voice_over || ai.voiceoverScript;
+            if (window.VoiceStudio && typeof window.VoiceStudio.convertNumbersToWords === 'function') {
+                vo = window.VoiceStudio.convertNumbersToWords(vo);
+            }
+            window.smartVoiceoverScript = vo;
+        }
+
         if (typeof window.renderSmartSuggestionsUI === 'function') {
             window.renderSmartSuggestionsUI();
         }
@@ -1026,7 +1427,7 @@
             if (isOnline && rawText.length > 15) {
                 try {
                     const controller = new AbortController();
-                    const timeoutId = setTimeout(() => controller.abort(), 3500);
+                    const timeoutId = setTimeout(() => controller.abort(), 20000);
 
                     const directApiKey = (typeof window.getGeminiApiKey === 'function') ? window.getGeminiApiKey() : '';
                     const workerUrl = 'https://small-lab-3110.emlakstudyomtr.workers.dev';
@@ -1052,7 +1453,7 @@
 
 İlan Metni:
 ${rawText}`;
-                            const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${directApiKey}`;
+                            const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key=${directApiKey}`;
                             const gRes = await fetch(geminiUrl, {
                                 method: 'POST',
                                 signal: controller.signal,
@@ -1081,7 +1482,10 @@ ${rawText}`;
                             const wRes = await fetch(workerUrl, {
                                 method: 'POST',
                                 signal: controller.signal,
-                                headers: { 'Content-Type': 'application/json' },
+                                headers: { 
+                                    'Content-Type': 'application/json',
+                                    'X-Emlak-Client': 'emlak-studiom-v7'
+                                },
                                 body: JSON.stringify({ action: 'parse', text: rawText })
                             });
                             clearTimeout(timeoutId);

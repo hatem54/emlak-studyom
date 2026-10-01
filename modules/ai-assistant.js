@@ -10,8 +10,9 @@
 
     const AI_WORKER_URL = 'https://small-lab-3110.emlakstudyomtr.workers.dev';
     
-    // Gömülü Gemini API Anahtarı (İsteğe bağlı doğrudan buraya yazılabilir)
-    const BUILTIN_GEMINI_API_KEY = '';
+    // Gömülü anahtar güvenlik gereği kod içinde tutulmaz; istekler Cloudflare Worker proxy üzerinden yürütülür.
+    // Kullanıcı dilerse ayarlardan kendi şahsi Gemini API anahtarını tanımlayabilir.
+    const BUILTIN_GEMINI_API_KEY = "";
 
     // ==================== GEMINI API KEY YÖNETİMİ ====================
     window.getGeminiApiKey = function() {
@@ -32,7 +33,7 @@
         if (!apiKey) return { success: false, message: 'API Anahtarı girilmedi.' };
 
         try {
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key=${apiKey}`;
             const res = await fetch(url, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -55,7 +56,7 @@
 
     // ==================== KOTA & GÜVENLİK KORUMASI (BOT & HARİCİ KULLANIMI ENGELLEME) ====================
     window.checkAiQuota = function() {
-        const isPro = (window.SubscriptionManager && typeof window.SubscriptionManager.isPro === 'function' && window.SubscriptionManager.isPro()) || localStorage.getItem('isAdmin') === 'true' || localStorage.getItem('es_is_pro') === 'true';
+        const isPro = (window.APP_MODE === 'pro') || (window.IS_ADMIN === true) || (window.SubscriptionManager && typeof window.SubscriptionManager.isPro === 'function' && window.SubscriptionManager.isPro());
         if (isPro) return { allowed: true, remaining: 'Sınırsız (Admin/Pro)', isPro: true };
 
         const today = new Date().toISOString().slice(0, 10);
@@ -70,7 +71,7 @@
     };
 
     window.consumeAiChatQuota = function() {
-        const isPro = (window.SubscriptionManager && typeof window.SubscriptionManager.isPro === 'function' && window.SubscriptionManager.isPro()) || localStorage.getItem('isAdmin') === 'true' || localStorage.getItem('es_is_pro') === 'true';
+        const isPro = (window.APP_MODE === 'pro') || (window.IS_ADMIN === true) || (window.SubscriptionManager && typeof window.SubscriptionManager.isPro === 'function' && window.SubscriptionManager.isPro());
         if (isPro) return true;
 
         const today = new Date().toISOString().slice(0, 10);
@@ -103,7 +104,7 @@
 
         if (apiKey) {
             try {
-                const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+                const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key=${apiKey}`;
                 const res = await fetch(url, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -124,7 +125,10 @@
         try {
             const res = await fetch(AI_WORKER_URL, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'X-Emlak-Client': 'emlak-studiom-v7'
+                },
                 body: JSON.stringify({ prompt: fullPrompt, text: userPrompt, action: 'chat' })
             });
             const data = await res.json();

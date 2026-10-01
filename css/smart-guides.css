@@ -1,0 +1,75 @@
+/**
+ * EMLAK STÜDYOM - AKILLI HİZALAMA ÇİZGİLERİ (SMART GUIDES)
+ * css/smart-guides.css
+ */
+
+#smart-guides-layer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 99999;
+    overflow: visible;
+}
+
+.smart-guide-line {
+    position: absolute;
+    pointer-events: none;
+    z-index: 99999;
+    will-change: opacity, transform;
+}
+
+.smart-guide-line.v-line {
+    width: 1.5px;
+    height: 100%;
+    top: 0;
+    background: #ec4899;
+    box-shadow: 0 0 6px rgba(236, 72, 153, 0.7);
+}
+
+.smart-guide-line.h-line {
+    height: 1.5px;
+    width: 100%;
+    left: 0;
+    background: #ec4899;
+    box-shadow: 0 0 6px rgba(236, 72, 153, 0.7);
+}
+
+/* Merkez Çizgileri için Özel Vurgu (Canvas Center Cyan) */
+.smart-guide-line.center-line {
+    background: #06b6d4;
+    box-shadow: 0 0 6px rgba(6, 182, 212, 0.8);
+}
+
+.smart-guide-badge {
+    position: absolute;
+    pointer-events: none;
+    background: #ec4899;
+    color: #ffffff;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 1;
+    padding: 2.5px 5px;
+    border-radius: 4px;
+    white-space: nowrap;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+    transform: translate(-50%, -50%);
+    z-index: 100000;
+}
+
+.smart-guide-badge.center-badge {
+    background: #06b6d4;
+}
+
+/* Katmanlar Ağacı (Layers) Sürükle-Bırak Göstergeleri */
+.layer-item.drop-indicator-top {
+    border-top: 2px solid #0ea5e9 !important;
+    box-shadow: 0 -3px 8px rgba(14, 165, 233, 0.4);
+}
+.layer-item.drop-indicator-bottom {
+    border-bottom: 2px solid #0ea5e9 !important;
+    box-shadow: 0 3px 8px rgba(14, 165, 233, 0.4);
+}

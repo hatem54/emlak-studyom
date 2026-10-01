@@ -21,6 +21,14 @@ function loadFontPreferences() {
     try {
         favFonts = JSON.parse(localStorage.getItem('emlakstudiom_fav_fonts')) || [];
         recentFonts = JSON.parse(localStorage.getItem('emlakstudiom_recent_fonts')) || [];
+        const sf = localStorage.getItem('emlakstudiom_currentFont');
+        if (sf && !sf.includes('Playfair')) {
+            currentFont = sf;
+        } else {
+            currentFont = "'Archivo Black',sans-serif";
+            try { localStorage.setItem('emlakstudiom_currentFont', currentFont); } catch(e){}
+        }
+        if (typeof window !== 'undefined') window.currentFont = currentFont;
     } catch(e) {
         favFonts = [];
         recentFonts = [];
@@ -146,6 +154,9 @@ function buildFontUI(){
         
         grouped[cat].forEach(f => renderFontItem(f, grid));
     });
+    if (sel && typeof currentFont !== 'undefined' && currentFont) {
+        sel.value = currentFont;
+    }
 }
 
 function buildElFontSelect(){

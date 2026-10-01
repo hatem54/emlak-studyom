@@ -7,12 +7,48 @@ let CURRENT_USER = null;
 const DEMO_TEMPLATES = ['tpl_klasik', 'tpl_minimal', 'tpl_dinamik'];
 
 async function checkUserMode() {
+  const urlParams = new URLSearchParams(window.location.search);
+  const isExplicitDemo = urlParams.get('mode') === 'demo';
+
+  const isLocalDev = (typeof window !== 'undefined' && (
+      window.location.hostname === 'localhost' ||
+      window.location.hostname === '127.0.0.1' ||
+      window.location.protocol === 'file:'
+  ));
+
+  // 1. KULLANICI AÇIKÇA "ÜCRETSİZ DENE" DEDİYSE -> ZORLA DEMO MODU (FİLİGRANLI)
+  if (isExplicitDemo) {
+      APP_MODE = 'demo';
+      window.IS_ADMIN = false;
+      CURRENT_USER = null;
+      window.IS_GUEST_DEMO = true;
+      console.log('🟡 Kullanıcı tercihi: Ücretsiz Demo Modu devrede (Filigranlı çıktı)');
+      updateModeUI();
+      applyModeRestrictions();
+      return 'demo';
+  }
+
+  // 2. "BENİ HATIRLA" KONTROLÜ
+  // Kullanıcı "Beni Hatırla" demediyse, bu sekmede aktif giriş yoksa ve OAuth token dönmüyorsa oturumu sıfırla:
+  const isRemember = localStorage.getItem('emlak_remember_me') === 'true';
+  const isTabActive = sessionStorage.getItem('emlak_tab_session') === 'active';
+  const hasAuthHash = window.location.hash && (window.location.hash.includes('access_token') || window.location.hash.includes('id_token'));
+
+  if (!isRemember && !isTabActive && !hasAuthHash && !isLocalDev) {
+      if (window.supabaseClient && window.supabaseClient.auth) {
+          try {
+              await window.supabaseClient.auth.signOut();
+          } catch(e) {}
+      }
+  }
+
   try {
     const { data: { session }, error } = await window.supabaseClient.auth.getSession();
     if (error) throw error;
     
     if (session && session.user) {
       CURRENT_USER = session.user;
+      sessionStorage.setItem('emlak_tab_session', 'active');
       
       // Profil & Abonelik Bilgilerini Çek
       try {
@@ -44,7 +80,7 @@ async function checkUserMode() {
           window.supabaseClient.from('profiles').update({ last_seen_at: new Date().toISOString() }).eq('id', session.user.id).then().catch();
 
           // 🛡️ Admin Kontrolü
-          if ((profile && profile.role === 'admin') || localStorage.getItem('emlak_admin_access') === 'true') {
+          if ((profile && profile.role === 'admin') || (isLocalDev && localStorage.getItem('emlak_admin_access') === 'true')) {
               window.IS_ADMIN = true;
               APP_MODE = 'pro';
               const adminBtn = document.getElementById('adminNavBtn');
@@ -54,49 +90,55 @@ async function checkUserMode() {
                   adminBtn.style.gap = '6px';
               }
           } else {
-              // ⏳ Abonelik / Süre Kontrolü
               window.IS_ADMIN = false;
-              if (profile && profile.subscription_expires_at) {
+              // 🚀 LANSMAN SÜRECİ KURALI:
+              // Sisteme kayıt olmuş HER KULLANICI (E-posta veya Google ile) tam Pro avantajlarına sahiptir!
+              // (Sadece admin tarafından özel olarak demo yapılmışsa demo kalır)
+              if (profile && profile.subscription_plan === 'demo') {
+                  APP_MODE = 'demo';
+                  window.PRO_DAYS_LEFT = 0;
+                  console.log('🟡 Yönetici tarafından Demo moda ayarlanmış kullanıcı');
+              } else if (profile && profile.subscription_expires_at) {
                   const now = new Date();
                   const expiresAt = new Date(profile.subscription_expires_at);
                   const diffMs = expiresAt - now;
                   const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-
                   if (diffDays > 0) {
                       APP_MODE = 'pro';
                       window.PRO_DAYS_LEFT = diffDays;
                       console.log(`✅ Pro abonelik aktif (${diffDays} gün kaldı)`);
                   } else {
-                      // Süresi dolmuşsa KESİNLİKLE demo moda geçir
                       APP_MODE = 'demo';
                       window.PRO_DAYS_LEFT = 0;
                       console.log('🟡 Abonelik süresi dolmuş, Demo moda geçildi');
                   }
-              } else if (profile && profile.subscription_plan === 'demo') {
-                  // Admin tarafından özel olarak Demo yapılmış (kapatılmış)
-                  APP_MODE = 'demo';
-                  window.PRO_DAYS_LEFT = 0;
-              } else if (profile && (profile.subscription_plan === 'pro' || profile.role === 'pro')) {
-                  APP_MODE = 'pro';
-                  window.PRO_DAYS_LEFT = null; // Süresiz Pro
               } else {
-                  // E-posta ile kayıt olmuş kullanıcı (Demo / Lansman sürecinde otomatik Pro)
+                  // Lansman Sürecinde Kayıtlı Kullanıcı -> Sınırsız Pro (Filigransız çıktı)
                   APP_MODE = 'pro';
                   window.PRO_DAYS_LEFT = null;
-                  console.log('✨ Lansman Promosyonu: Kayıtlı kullanıcıya Pro erişim aktif');
+                  console.log('✨ Lansman Promosyonu: Kayıtlı kullanıcıya tam Pro erişim aktif');
               }
           }
       } catch (e) {
-          console.warn('Abonelik profili sorgu uyarısı:', e);
-          APP_MODE = 'demo';
+          // Profil henüz oluşmamış olsa bile (örn: Google ile ilk kez giriş yapan)
+          // Kayıtlı kullanıcı olduğu için Lansman Pro'su ver!
+          console.warn('Abonelik profili sorgu uyarısı, lansman Pro moduna geçiliyor:', e);
+          APP_MODE = 'pro';
+          window.IS_ADMIN = false;
+          window.PRO_DAYS_LEFT = null;
       }
     } else {
       CURRENT_USER = null;
-      if (localStorage.getItem('emlak_admin_access') === 'true') {
+      const isLocalDevGuest = (typeof window !== 'undefined' && (
+          window.location.hostname === 'localhost' ||
+          window.location.hostname === '127.0.0.1' ||
+          window.location.protocol === 'file:'
+      ));
+      if (isLocalDevGuest && localStorage.getItem('emlak_admin_access') === 'true') {
           APP_MODE = 'pro';
           window.IS_ADMIN = true;
       } else {
-          APP_MODE = 'demo'; // Giriş yapılmamışsa varsayılan Demo (Misafir)
+          APP_MODE = 'demo'; // Giriş yapılmamışsa varsayılan Demo (Misafir - Filigranlı)
           window.IS_ADMIN = false;
           const adminBtn = document.getElementById('adminNavBtn');
           if (adminBtn) adminBtn.style.display = 'none';
@@ -122,11 +164,6 @@ async function checkUserMode() {
   }
   
   // TEST MODU OVERRIDE (SADECE YEREL GELİŞTİRME ORTAMINDA AKTİF)
-  const isLocalDev = (typeof window !== 'undefined' && (
-      window.location.hostname === 'localhost' ||
-      window.location.hostname === '127.0.0.1' ||
-      window.location.protocol === 'file:'
-  ));
   if (isLocalDev && localStorage.getItem('isDeveloper') === 'true') {
       const forcedMode = localStorage.getItem('userMode');
       if (forcedMode === 'demo' || forcedMode === 'pro') {
@@ -564,7 +601,19 @@ window.handleLogout = handleLogout;
 window.showProUpgradeToast = showProUpgradeToast;
 
 document.addEventListener('DOMContentLoaded', () => {
-  setTimeout(checkUserMode, 300);
+  setTimeout(checkUserMode, 150);
+
+  // 🔑 GOOGLE OAUTH & SUPABASE CANLI OTURUM DİNLEYİCİSİ
+  // Google'dan #access_token ile dönüldüğünde veya oturum değiştiğinde anında karşıla:
+  if (window.supabaseClient && window.supabaseClient.auth) {
+    window.supabaseClient.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
+        checkUserMode();
+      } else if (event === 'SIGNED_OUT') {
+        checkUserMode();
+      }
+    });
+  }
 });
 
 console.log('✅ Mode Manager yüklendi');

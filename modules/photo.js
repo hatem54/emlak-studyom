@@ -63,6 +63,10 @@ function enablePhotoDrag(el){
         startY=c.clientY;
         startPX=parseFloat($('photoXCtrl').value);
         startPY=parseFloat($('photoYCtrl').value);
+        document.addEventListener('mousemove',move);
+        document.addEventListener('touchmove',move,{passive:false});
+        document.addEventListener('mouseup',up);
+        document.addEventListener('touchend',up);
     }
     function move(e){
         if(!dragging)return;
@@ -81,6 +85,10 @@ function enablePhotoDrag(el){
         if(!dragging)return;
         dragging=false;
         el.classList.remove('grabbing');
+        document.removeEventListener('mousemove',move);
+        document.removeEventListener('touchmove',move);
+        document.removeEventListener('mouseup',up);
+        document.removeEventListener('touchend',up);
     }
     el.addEventListener('mousedown',down);
     el.addEventListener('touchstart',down,{passive:false});
@@ -90,10 +98,6 @@ function enablePhotoDrag(el){
         e.preventDefault();
         resetPhotoPos();
     });
-    document.addEventListener('mousemove',move);
-    document.addEventListener('touchmove',move,{passive:false});
-    document.addEventListener('mouseup',up);
-    document.addEventListener('touchend',up);
 }
 
 function applyPhotoPos(){
@@ -124,23 +128,15 @@ function applyPhotoPos(){
         imgH = parseFloat(photoLayer.dataset.naturalH) || imgH;
     }
     
-    let coverScale = Math.max(pW / imgW, pH / imgH);
-    if (zoom !== 100) {
-        coverScale = (pW * (zoom / 100)) / imgW;
-    }
+    const isContain = (window.photoFitMode === 'contain');
+    const baseScale = isContain ? Math.min(pW / imgW, pH / imgH) : Math.max(pW / imgW, pH / imgH);
+    let coverScale = (zoom !== 100) ? (baseScale * (zoom / 100)) : baseScale;
     
     let renderedW = imgW * coverScale;
     let renderedH = imgH * coverScale;
     
-    let offsetX = pW / 2 - renderedW / 2;
-    let offsetY = pH / 2 - renderedH / 2;
-    
-    if (renderedW > pW) {
-        offsetX = (pW - renderedW) * (x / 100);
-    }
-    if (renderedH > pH) {
-        offsetY = (pH - renderedH) * (y / 100);
-    }
+    let offsetX = (pW - renderedW) * (x / 100);
+    let offsetY = (pH - renderedH) * (y / 100);
     
     const sizeStr = renderedW + 'px ' + renderedH + 'px';
     const posStr = offsetX + 'px ' + offsetY + 'px';
@@ -163,7 +159,7 @@ function applyPhotoPos(){
         if (p.closest('#canva-render-layer') || (typeof isCanvaMode !== 'undefined' && isCanvaMode)) {
             const x = document.getElementById('photoXCtrl') ? document.getElementById('photoXCtrl').value : 50;
             const y = document.getElementById('photoYCtrl') ? document.getElementById('photoYCtrl').value : 50;
-            p.style.backgroundSize = 'cover';
+            p.style.backgroundSize = isContain ? 'contain' : 'cover';
             p.style.backgroundPosition = x + '% ' + y + '%';
             p.style.backgroundRepeat = 'no-repeat';
             p.style.backgroundColor = 'transparent';
@@ -186,9 +182,20 @@ function resetPhotoPos(){
         if (typeof _applyPhotoTransform === 'function') _applyPhotoTransform(pl);
     }
 
-    $('photoZoomCtrl').value=100;
-    $('photoXCtrl').value=50;
-    $('photoYCtrl').value=50;
+    if (document.getElementById('photoZoomCtrl')) document.getElementById('photoZoomCtrl').value = 100;
+    if (document.getElementById('photoXCtrl')) document.getElementById('photoXCtrl').value = 50;
+    if (document.getElementById('photoYCtrl')) document.getElementById('photoYCtrl').value = 50;
+
+    // Sığdır modunu cover olarak sıfırla ve dock butonunu güncelle
+    window.photoFitMode = 'cover';
+    const fitBtn = document.getElementById('dockFitCanvasBtn');
+    if (fitBtn) {
+        fitBtn.classList.remove('active');
+        const icon = fitBtn.querySelector('i');
+        if (icon) icon.className = 'fas fa-expand-arrows-alt';
+        fitBtn.title = 'Görseli Tuvale Sığdır';
+    }
+
     applyPhotoPos();
     
     // Fotoğrafı tekrar kilitle
@@ -199,11 +206,31 @@ function resetPhotoPos(){
     }
     if (typeof redrawAll === 'function') redrawAll();
 }
+window.resetPhotoPos = resetPhotoPos;
 
 window.getWebGLPhotoOptions = function() {
+    if (window.PhotoLayerManager) window.PhotoLayerManager.saveActiveState();
+    
     const getVal = (id, def = 0) => {
-        const el = document.getElementById(id);
-        return el ? parseFloat(el.value) : def;
+        if (!window.PhotoLayerManager) {
+            const el = document.getElementById(id);
+            return el ? parseFloat(el.value) : def;
+        }
+        
+        let total = 0;
+        window.PhotoLayerManager.layers.forEach(l => {
+            const val = l.state[id] !== undefined ? parseFloat(l.state[id]) : (document.getElementById(id) ? parseFloat(document.getElementById(id).value) : def);
+            if (id === 'exposure' || id === 'contrast' || id === 'saturate') {
+                total += (val - 100);
+            } else {
+                total += val;
+            }
+        });
+        
+        if (id === 'exposure' || id === 'contrast' || id === 'saturate') {
+            return 100 + total;
+        }
+        return total;
     };
 
     // 1. Temel Işık (Pozlama, Kontrast, HDR Highlights & Shadows, Whites, Blacks)
@@ -229,9 +256,9 @@ window.getWebGLPhotoOptions = function() {
 
     // 3. Detay & Efektler
     const sharpness = getVal('sharpnessCtrl', 0) / 100.0;
-    const isAiEnhanceEnabled = !!window._photoAiEnabled;
-    const aiSlider = document.getElementById('aiPhotoEnhanceSlider');
-    const aiSharpen = isAiEnhanceEnabled ? ((aiSlider ? parseFloat(aiSlider.value) : 35) / 100.0) : 0.0;
+    const aiSharpenRaw = getVal('aiPhotoEnhanceSlider', 0);
+    const aiSharpen = aiSharpenRaw / 100.0;
+    const isAiEnhanceEnabled = aiSharpen > 0;
     const clarity = getVal('clarityCtrl', 0) / 100.0;
     const dehaze = getVal('dehazeCtrl', 0) / 100.0;
     const sepia = getVal('sepia', 0) / 100.0;
@@ -269,9 +296,10 @@ window.getWebGLPhotoOptions = function() {
     const pmm = window.PhotoMasksManager;
     const radialMask = pmm ? pmm.radial : {};
     const linearMask = pmm ? pmm.linear : {};
-    const radialMasks = pmm && typeof pmm.getActiveRadialMasks === 'function' ? pmm.getActiveRadialMasks() : (radialMask.active ? [radialMask] : []);
-    const linearMasks = pmm && typeof pmm.getActiveLinearMasks === 'function' ? pmm.getActiveLinearMasks() : (linearMask.active ? [linearMask] : []);
-    const aiMasks = pmm && typeof pmm.getActiveAiMasks === 'function' ? pmm.getActiveAiMasks() : [];
+    let radialMasks = pmm && typeof pmm.getActiveRadialMasks === 'function' ? pmm.getActiveRadialMasks() : (radialMask.active ? [radialMask] : []);
+    let linearMasks = pmm && typeof pmm.getActiveLinearMasks === 'function' ? pmm.getActiveLinearMasks() : (linearMask.active ? [linearMask] : []);
+    let aiMasks = pmm && typeof pmm.getActiveAiMasks === 'function' ? pmm.getActiveAiMasks() : [];
+
     const aiMaskCanvas = pmm && typeof pmm.getCompositeAiCanvas === 'function' ? pmm.getCompositeAiCanvas() : null;
     const aiMaskBuffer = pmm && typeof pmm.getCompositeAiBuffer === 'function' ? pmm.getCompositeAiBuffer() : null;
 
@@ -373,6 +401,10 @@ function applyPhotoFilters(){
     if($('sharpnessVal')) $('sharpnessVal').textContent=sharp;
     if($('clarityVal')) $('clarityVal').textContent=clarity;
     if($('dehazeVal')) $('dehazeVal').textContent=dehaze;
+    const aiEnh = $('aiPhotoEnhanceSlider') ? +$('aiPhotoEnhanceSlider').value : 0;
+    if($('aiPhotoEnhanceLevelVal')) $('aiPhotoEnhanceLevelVal').textContent = aiEnh + '%';
+    if($('aiPhotoEnhanceVal')) $('aiPhotoEnhanceVal').textContent = aiEnh + '%';
+
     
     const v=$('vignette').value;
     if(typeof vignetteLayer !== 'undefined' && vignetteLayer) vignetteLayer.style.opacity=v/100;
@@ -429,7 +461,10 @@ function resetFilters(){
         }
     }
 
-    // AI Netleştirmeyi Kapat
+    // AI Netleştirmeyi Sıfırla
+    if ($('aiPhotoEnhanceSlider')) $('aiPhotoEnhanceSlider').value = 0;
+    if ($('aiPhotoEnhanceLevelVal')) $('aiPhotoEnhanceLevelVal').textContent = '0%';
+    window._photoAiEnabled = false;
     if (typeof window.togglePhotoAiEnhance === 'function' && window._photoAiEnabled) {
         window.togglePhotoAiEnhance(false);
     }
@@ -735,14 +770,25 @@ function _drawToNativeCanvas(el, inner, canvas, scale, panX, panY, sliderX, slid
     
     let imgRatio = natW / natH;
     let boxRatio = canvas.width / canvas.height;
+    const isContain = (window.photoFitMode === 'contain');
     
     let drawW, drawH;
-    if (imgRatio > boxRatio) {
-        drawH = canvas.height;
-        drawW = Math.round(natW * (canvas.height / natH));
+    if (isContain) {
+        if (imgRatio > boxRatio) {
+            drawW = canvas.width;
+            drawH = Math.round(canvas.width / imgRatio);
+        } else {
+            drawH = canvas.height;
+            drawW = Math.round(canvas.height * imgRatio);
+        }
     } else {
-        drawW = canvas.width;
-        drawH = Math.round(natH * (canvas.width / natW));
+        if (imgRatio > boxRatio) {
+            drawH = canvas.height;
+            drawW = Math.round(natW * (canvas.height / natH));
+        } else {
+            drawW = canvas.width;
+            drawH = Math.round(natH * (canvas.width / natW));
+        }
     }
     
     let baseX = Math.round((canvas.width - drawW) * (sliderX / 100));
@@ -846,4 +892,143 @@ document.addEventListener('DOMContentLoaded', () => {
         }).observe(layer, { childList: true, subtree: true });
     }
 });
+
+
+
+// end of file
+window.PhotoLayerManager = {
+    layers: [
+        { id: 1, name: 'Katman 1', state: {} }
+    ],
+    activeIndex: 0,
+    nextId: 2,
+    
+    saveActiveState: function() {
+        if (!this.layers[this.activeIndex]) return;
+        const state = this.layers[this.activeIndex].state;
+        
+        const getV = (id) => document.getElementById(id) ? parseFloat(document.getElementById(id).value) : undefined;
+        
+        state.exposure = getV('exposure');
+        state.contrast = getV('contrast');
+        state.saturate = getV('saturate');
+        state.highlightsCtrl = getV('highlightsCtrl');
+        state.shadowsCtrl = getV('shadowsCtrl');
+        state.whitesCtrl = getV('whitesCtrl');
+        state.blacksCtrl = getV('blacksCtrl');
+        state.tempCtrl = getV('tempCtrl');
+        state.tintCtrl = getV('tintCtrl');
+        state.vibranceCtrl = getV('vibranceCtrl');
+        state.sharpnessCtrl = getV('sharpnessCtrl');
+        state.clarityCtrl = getV('clarityCtrl');
+        state.dehazeCtrl = getV('dehazeCtrl');
+        state.aiPhotoEnhanceSlider = getV('aiPhotoEnhanceSlider');
+        
+        if (window.PhotoMasksManager && typeof window.PhotoMasksManager.getState === 'function') {
+            state.masks = window.PhotoMasksManager.getState();
+        }
+    },
+    
+    loadActiveState: function() {
+        if (!this.layers[this.activeIndex]) return;
+        const state = this.layers[this.activeIndex].state;
+        
+        const setVal = (id, val, suffix = '') => {
+            const el = document.getElementById(id);
+            if (el && val !== undefined) {
+                el.value = val;
+                const valEl = document.getElementById(id + 'Val');
+                if (valEl) valEl.textContent = val + suffix;
+            }
+        };
+        
+        setVal('exposure', state.exposure !== undefined ? state.exposure : 100, '%');
+        setVal('contrast', state.contrast !== undefined ? state.contrast : 100, '%');
+        setVal('saturate', state.saturate !== undefined ? state.saturate : 100, '%');
+        setVal('highlightsCtrl', state.highlightsCtrl !== undefined ? state.highlightsCtrl : 0);
+        setVal('shadowsCtrl', state.shadowsCtrl !== undefined ? state.shadowsCtrl : 0);
+        setVal('whitesCtrl', state.whitesCtrl !== undefined ? state.whitesCtrl : 0);
+        setVal('blacksCtrl', state.blacksCtrl !== undefined ? state.blacksCtrl : 0);
+        setVal('tempCtrl', state.tempCtrl !== undefined ? state.tempCtrl : 0);
+        setVal('tintCtrl', state.tintCtrl !== undefined ? state.tintCtrl : 0);
+        setVal('vibranceCtrl', state.vibranceCtrl !== undefined ? state.vibranceCtrl : 0);
+        setVal('sharpnessCtrl', state.sharpnessCtrl !== undefined ? state.sharpnessCtrl : 0);
+        setVal('clarityCtrl', state.clarityCtrl !== undefined ? state.clarityCtrl : 0);
+        setVal('dehazeCtrl', state.dehazeCtrl !== undefined ? state.dehazeCtrl : 0);
+        setVal('aiPhotoEnhanceSlider', state.aiPhotoEnhanceSlider !== undefined ? state.aiPhotoEnhanceSlider : 0);
+        
+        if (document.getElementById('aiPhotoEnhanceLevelVal')) {
+            const aiVal = state.aiPhotoEnhanceSlider !== undefined ? state.aiPhotoEnhanceSlider : 0;
+            document.getElementById('aiPhotoEnhanceLevelVal').textContent = aiVal;
+            window._photoAiEnabled = aiVal > 0;
+        }
+        
+        if (window.PhotoMasksManager && typeof window.PhotoMasksManager.setState === 'function') {
+            if (state.masks) {
+                window.PhotoMasksManager.setState(state.masks);
+            }
+        }
+        
+        this.renderUI();
+        if (typeof applyPhotoFilters === 'function') applyPhotoFilters();
+    },
+    
+    addLayer: function() {
+        this.saveActiveState();
+        this.layers.push({
+            id: this.nextId++,
+            name: 'Katman ' + this.nextId,
+            state: {}
+        });
+        this.activeIndex = this.layers.length - 1;
+        this.loadActiveState();
+    },
+    
+    selectLayer: function(index) {
+        if (this.activeIndex === index) return;
+        this.saveActiveState();
+        this.activeIndex = index;
+        this.loadActiveState();
+    },
+    
+    deleteLayer: function(index) {
+        if (this.layers.length <= 1) return;
+        if (this.activeIndex === index) {
+            this.activeIndex = Math.max(0, index - 1);
+        } else if (this.activeIndex > index) {
+            this.activeIndex--;
+        }
+        this.layers.splice(index, 1);
+        this.loadActiveState();
+    },
+    
+    renderUI: function() {
+        const container = document.getElementById('photoLayerTabsContainer');
+        if (!container) return;
+        
+        let html = '';
+        this.layers.forEach((l, i) => {
+            const isActive = i === this.activeIndex;
+            const htmlClose = (this.layers.length > 1 && isActive) ? '<i class="fa-solid fa-times tab-close" onclick="event.stopPropagation(); window.PhotoLayerManager.deleteLayer(' + i + ')" title="Katmanı Sil"></i>' : '';
+            html += '<div class="photo-layer-tab' + (isActive ? ' active' : '') + '" onclick="window.PhotoLayerManager.selectLayer(' + i + ')">' +
+                    '<span>' + l.name + '</span>' +
+                    htmlClose +
+                    '</div>';
+        });
+        container.innerHTML = html;
+    }
+};
+
+if (typeof document !== 'undefined') {
+    const initPhotoLayers = () => {
+        if (window.PhotoLayerManager) {
+            window.PhotoLayerManager.renderUI();
+        }
+    };
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initPhotoLayers);
+    } else {
+        setTimeout(initPhotoLayers, 50);
+    }
+}
 

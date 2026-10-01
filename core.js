@@ -159,7 +159,9 @@ function getBgMetrics(panelW, panelH, imgW, imgH, zoom, posX, posY) {
 
 
 
-let currentFont=FONTS[16].family;
+const _savedFont = (typeof localStorage !== 'undefined') ? localStorage.getItem('emlakstudiom_currentFont') : null;
+let currentFont = (_savedFont && !_savedFont.includes('Playfair')) ? _savedFont : "'Archivo Black',sans-serif";
+if (typeof window !== 'undefined') window.currentFont = currentFont;
 let batchFiles=[];
 
 let canvasEl,photoLayer,vignetteLayer,uiLayer,shadowOverlay,highlightOverlay,maskLayer,canvaRenderLayer;
@@ -448,21 +450,68 @@ document.addEventListener('input', function(e) {
 });
 
 function duplicateSelected(){
-    if(!selectedEl)return;
-    const n = selectedEl.cloneNode(true);
-    n.removeAttribute('id');
-    const left = parseInt(selectedEl.style.left) || 0;
-    const top = parseInt(selectedEl.style.top) || 0;
-    n.style.left = (left + 20) + 'px';
-    n.style.top = (top + 20) + 'px';
-    selectedEl.parentNode.appendChild(n);
-    if (typeof makeDraggable === 'function' && (n.classList.contains('draggable') || n.classList.contains('canvas-el'))) {
-        makeDraggable(n);
+    // 1. 🌟 3D Öge Seçiliyse: 3D ögeyi çoğalt
+    if (window.ThreeDEngine && typeof window.ThreeDEngine.isSelected === 'function' && window.ThreeDEngine.isSelected()) {
+        if (typeof window.ThreeDEngine.duplicateElement === 'function') {
+            window.ThreeDEngine.duplicateElement();
+            return;
+        }
     }
-    if (typeof selectElement === 'function') {
-        setTimeout(() => selectElement(n), 50);
+    // 2. 2D Öge Seçiliyse: 2D ögeyi çoğalt
+    const target = window.selectedEl || (window.selectedElements && window.selectedElements[0]) || (typeof selectedEl !== 'undefined' ? selectedEl : null) || document.querySelector('.el-selected');
+    if (!target) return;
+    const rootEl = target.closest('.callout-wrap, .draggable, .canvas-el, .added-icon, [data-layer-uid]') || target;
+    window.selectedElements = [rootEl];
+    if (typeof window.multiSelectDuplicate === 'function') {
+        window.multiSelectDuplicate();
     }
 }
+window.duplicateSelected = duplicateSelected;
+
+function deleteSelected(){
+    // 1. 🌟 3D Öge Seçiliyse: 3D ögeyi sil
+    if (window.ThreeDEngine && typeof window.ThreeDEngine.isSelected === 'function' && window.ThreeDEngine.isSelected()) {
+        if (typeof window.ThreeDEngine.deleteElement === 'function') {
+            window.ThreeDEngine.deleteElement();
+            if (window.DockContextManager && typeof window.DockContextManager.onElementDeselected === 'function') {
+                window.DockContextManager.onElementDeselected();
+            }
+            return;
+        } else if (typeof window.ThreeDEngine.delete3DElement === 'function') {
+            window.ThreeDEngine.delete3DElement();
+            if (window.DockContextManager && typeof window.DockContextManager.onElementDeselected === 'function') {
+                window.DockContextManager.onElementDeselected();
+            }
+            return;
+        }
+    }
+
+    // 2. 2D Callout / Rozet Seçiliyse
+    if (typeof window.selectedCalloutEl !== 'undefined' && window.selectedCalloutEl) {
+        if (typeof window.deleteSelectedCallout === 'function') {
+            window.deleteSelectedCallout();
+            return;
+        }
+    }
+
+    // 3. 2D İkon / Standart Eleman (ui/icons.js)
+    if (typeof window._iconsDeleteSelected === 'function') {
+        window._iconsDeleteSelected();
+        return;
+    } else if (typeof window.deleteSelectedIcon === 'function') {
+        window.deleteSelectedIcon();
+        return;
+    }
+
+    // 4. Genel 2D Seçili Öge (.el-selected / selectedEl)
+    const sel = window.selectedEl || (window.selectedElements && window.selectedElements[0]) || document.querySelector('.el-selected');
+    if (sel && typeof sel.remove === 'function') {
+        sel.remove();
+        if (typeof window.deselectAll === 'function') window.deselectAll();
+        if (typeof window.recordHistory === 'function') window.recordHistory('Öge Silindi');
+    }
+}
+window.deleteSelected = deleteSelected;
 
 // State and Undo logic moved to modules/state.js
 

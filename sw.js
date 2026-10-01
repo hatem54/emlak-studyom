@@ -1,4 +1,4 @@
-const CACHE_NAME = 'emlak-studiom-v207-20260915-102';
+const CACHE_NAME = 'emlak-studiom-v207-20260925-113';
 const CORE_ASSETS = [
   './core/utils.js',
   './app.html',
@@ -16,10 +16,16 @@ const CORE_ASSETS = [
   './modules/colors.js',
   './modules/photo-curves.js',
   './modules/photo-masks.js',
+  './modules/magic-eraser.js',
+  './css/magic-eraser.css',
+  './css/photo-masks.css',
   './modules/voiceover-studio.js',
   './modules/satellite-core.js',
   './modules/satellite-cadastre.js',
   './modules/satellite-measure.js',
+  './modules/drone-rig.js',
+  './modules/photo-staging.js',
+  './css/photo-staging.css',
   './modules/three-d-engine.js',
   './modules/layers.js',
   './modules/ai-enhancer.js',

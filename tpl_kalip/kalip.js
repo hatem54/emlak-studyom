@@ -12,7 +12,7 @@ function _kalipInit(){
     
     container.innerHTML = `
         <div class="edit-hint" style="display:none;">💡 Yazıya/panele ÇİFT TIKLA | Sürükle Bırak | Sağ Tık (Ayarlar)</div>
-        <div class="section-title" style="margin-top:0">🖼️ Afiş ve Vitrin Metin Düzenleyici</div>
+        <div class="section-title" style="margin-top:0"><i class="fa-solid fa-image" style="color:#0284c7; margin-right:6px;"></i>Afiş ve Vitrin Metin Düzenleyici</div>
         <div class="input-group">
             <label>Ana Başlık (Title)</label>
             <input type="text" id="canvaKTitle" value="🔥 4+1 ULTRA LÜKS REZİDANS DAİRE">
@@ -80,6 +80,12 @@ function buildKCards(){
                 document.querySelectorAll('.canva-tpl-card').forEach(x => x.classList.remove('active'));
                 card.classList.add('active');
                 activeCanvaId = c.id;
+                if (window.CanvasEmptyState && typeof window.CanvasEmptyState.dismiss === 'function') {
+                    window.CanvasEmptyState.dismiss();
+                } else {
+                    const es = document.getElementById('canvasEmptyState');
+                    if (es) { es.classList.add('is-hidden'); es.style.display = 'none'; }
+                }
                 renderKTemplate(c.id);
             };
             grid.appendChild(card);
@@ -89,6 +95,12 @@ function buildKCards(){
 
 function renderKTemplate(id){
     if(!id) return;
+    if (window.CanvasEmptyState && typeof window.CanvasEmptyState.dismiss === 'function') {
+        window.CanvasEmptyState.dismiss();
+    } else {
+        const es = document.getElementById('canvasEmptyState');
+        if (es) { es.classList.add('is-hidden'); es.style.display = 'none'; }
+    }
     if(typeof _kolajTemizle === 'function') _kolajTemizle();
     document.querySelectorAll('.normal-el').forEach(el => el.style.display = 'none');
     document.querySelectorAll('.canva-generated, .canva-panel').forEach(e => e.remove());
@@ -782,11 +794,38 @@ function renderKTemplate(id){
     if (typeof enableInlineEdit === 'function') {
         canvaRenderLayer.querySelectorAll('.editable-text').forEach(el => enableInlineEdit(el));
     }
+
+    // Her bir fotoğraf paneli için bağımsız görsel yükleme (Çift tıkla görsel değiştir)
+    canvaRenderLayer.querySelectorAll('.photo-panel').forEach(panel => {
+        panel.style.cursor = 'pointer';
+        panel.title = 'Fotoğraf seçmek için çift tıklayın';
+        panel.addEventListener('dblclick', (e) => {
+            e.stopPropagation();
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'image/*';
+            input.onchange = (ev) => {
+                const file = ev.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (re) => {
+                    panel.style.backgroundImage = `url("${re.target.result}")`;
+                    panel.style.backgroundSize = 'cover';
+                    panel.style.backgroundPosition = 'center';
+                    if (typeof window.requestAutoSave === 'function') window.requestAutoSave();
+                };
+                reader.readAsDataURL(file);
+            };
+            input.click();
+        });
+    });
     
     requestAnimationFrame(() => {
         if(typeof redrawAll === 'function') redrawAll();
     });
 }
+
+window.renderKTemplate = renderKTemplate;
 
 // Sayfa yüklendiğinde otomatik başlat
 setTimeout(_kalipInit, 300);

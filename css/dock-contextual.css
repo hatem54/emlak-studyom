@@ -1,0 +1,247 @@
+/* ==========================================================================
+   ⚡ DOCK CONTEXTUAL SHORTCUTS (Dinamik Tuval Altı Kısayolları)
+   css/dock-contextual.css
+   ========================================================================== */
+
+/* 1. Tuval Altı Dock Kapsayıcısı: İki Katmanlı & Sıfır Tuval Kayması Garantisi */
+#canvasBottomDock,
+.canvas-bottom-dock {
+    display: flex !important;
+    position: relative !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+    justify-content: safe center !important;
+    gap: 2.5px !important;
+    white-space: nowrap !important;
+    max-width: calc(100% - 16px) !important;
+    width: fit-content !important;
+    box-sizing: border-box !important;
+    scrollbar-width: none !important; /* Firefox */
+    -ms-overflow-style: none !important; /* IE/Edge */
+    padding: 2.5px 6px !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+    transition: all 0.15s ease !important;
+    z-index: 100 !important;
+}
+
+#canvasBottomDock::-webkit-scrollbar,
+.canvas-bottom-dock::-webkit-scrollbar {
+    display: none !important; /* Chrome / Safari */
+    width: 0 !important;
+    height: 0 !important;
+}
+
+/* Ayırıcı Çizgiler */
+#canvasBottomDock .dock-divider,
+.canvas-bottom-dock .dock-divider {
+    width: 1px !important;
+    height: 14px !important;
+    margin: 0 1px !important;
+    opacity: 0.5 !important;
+    flex-shrink: 0 !important;
+}
+
+/* 2. Standart / Sabit Dock Butonları (Rahat & Okunabilir Boyut) */
+#canvasBottomDock .dock-btn,
+.canvas-bottom-dock .dock-btn {
+    flex-shrink: 0 !important;
+    white-space: nowrap !important;
+    font-family: 'ClassicAmpersand', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+    font-size: 10px !important;
+    font-weight: 600 !important;
+    height: 24px !important;
+    padding: 2px 5px !important;
+    gap: 3px !important;
+    border-radius: 5px !important;
+}
+
+/* 3. Dinamik Kontekst Slotu & Grupları */
+.dock-contextual-slot {
+    display: inline-flex;
+    align-items: center;
+    gap: 2.5px;
+    flex-shrink: 0;
+}
+
+.dock-context-group {
+    display: none;
+    align-items: center;
+    gap: 2.5px;
+    flex-shrink: 0;
+    animation: dockContextFadeIn 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.dock-context-group.active {
+    display: inline-flex !important;
+}
+
+/* Eski Statik 2D Çubuğunu Gizle (Artık dockGroup_element dinamik olarak üstleniyor) */
+#dock2DControls,
+#dock2DDivider {
+    display: none !important;
+}
+
+@keyframes dockContextFadeIn {
+    from {
+        opacity: 0;
+        transform: scale(0.97);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+/* 4. Dinamik Değişken Kısayol Butonları (Maksimum Kompaktlık & Standart Belirteçler) */
+.dock-contextual-slot .dock-btn {
+    flex-shrink: 0 !important;
+    white-space: nowrap !important;
+    font-family: 'ClassicAmpersand', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+    font-size: 9.5px !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.1px !important;
+    height: 24px !important;
+    padding: 2px 4.5px !important;
+    gap: 2.5px !important;
+    border-radius: 5px !important;
+}
+
+/* İkon Standartları */
+#canvasBottomDock .dock-btn .dock-icon,
+#canvasBottomDock .dock-btn i,
+.canvas-bottom-dock .dock-btn .dock-icon,
+.canvas-bottom-dock .dock-btn i {
+    font-size: 10.5px !important;
+    color: #475569 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    line-height: 1 !important;
+}
+
+#canvasBottomDock .dock-icon-btn,
+.canvas-bottom-dock .dock-icon-btn {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    min-width: 22px !important;
+    width: 22px !important;
+    height: 22px !important;
+    padding: 0 !important;
+    font-size: 10.5px !important;
+    border-radius: 5px !important;
+    flex-shrink: 0 !important;
+}
+
+#canvasBottomDock .dock-icon-btn i,
+.canvas-bottom-dock .dock-icon-btn i {
+    font-size: 10.5px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    line-height: 1 !important;
+}
+
+body[data-theme="light"] #canvasBottomDock .dock-icon-btn:not(.active) i {
+    color: #64748b !important;
+}
+
+body[data-theme="light"] #canvasBottomDock .dock-icon-btn:hover:not(.active) i {
+    color: #0f172a !important;
+}
+
+body[data-theme="light"] #canvasBottomDock .dock-icon-btn.active i {
+    color: #0f172a !important;
+}
+
+/* Açık Tema Standart Renk & Zeminleri (Var olan butonlarla %100 Birebir) */
+body[data-theme="light"] .dock-contextual-slot .dock-btn {
+    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%) !important;
+    border: 1px solid #cbd5e1 !important;
+    color: #0f172a !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+}
+
+body[data-theme="light"] .dock-contextual-slot .dock-btn:hover {
+    background: #f8fafc !important;
+    border-color: #94a3b8 !important;
+    color: #0f172a !important;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.06) !important;
+}
+
+body[data-theme="light"] .dock-contextual-slot .dock-btn:hover i {
+    color: #0f172a !important;
+}
+
+/* Aktif / Vurgulu Durum (Görüntü Sabit lock-active stiliyle birebir aynı) */
+body[data-theme="light"] .dock-contextual-slot .dock-btn.active,
+body[data-theme="light"] .dock-contextual-slot .dock-btn.btn-accent,
+body[data-theme="light"] .dock-contextual-slot .dock-btn.lock-active {
+    background: linear-gradient(180deg, #f1f5f9 0%, #e2e8f0 100%) !important;
+    color: #0f172a !important;
+    border: 1px solid #94a3b8 !important;
+    font-weight: 700 !important;
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.08) !important;
+}
+
+body[data-theme="light"] .dock-contextual-slot .dock-btn.active i,
+body[data-theme="light"] .dock-contextual-slot .dock-btn.btn-accent i {
+    color: #0284c7 !important;
+}
+
+/* Kapat / İptal / Silme Butonları (Hafif Kırmızımsı Ton) */
+body[data-theme="light"] .dock-contextual-slot .dock-btn.btn-red {
+    background: linear-gradient(180deg, #fff5f5 0%, #fee2e2 100%) !important;
+    border: 1px solid #fca5a5 !important;
+    color: #b91c1c !important;
+}
+
+body[data-theme="light"] .dock-contextual-slot .dock-btn.btn-red i {
+    color: #dc2626 !important;
+}
+
+body[data-theme="light"] .dock-contextual-slot .dock-btn.btn-red:hover {
+    background: #fecaca !important;
+    border-color: #ef4444 !important;
+    color: #991b1b !important;
+}
+
+/* 5. Sabit Hızlı İkon Butonları (Zoom, Grid, Şablon, Undo, Redo) */
+#canvasBottomDock .dock-tool-group {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 1.5px !important;
+    flex-shrink: 0 !important;
+}
+
+/* 6. Responsive Güvenlik & Dar Ekran Desteği (Asla Taşmama ve Sığma Garantisi) */
+@media (max-width: 1366px) {
+    #canvasBottomDock,
+    .canvas-bottom-dock {
+        gap: 2px !important;
+        padding: 2px 4px !important;
+    }
+    #canvasBottomDock .dock-btn,
+    .canvas-bottom-dock .dock-btn {
+        font-size: 9.5px !important;
+        padding: 1.5px 4px !important;
+        gap: 2px !important;
+        height: 23px !important;
+    }
+    .dock-contextual-slot .dock-btn {
+        font-size: 9px !important;
+        padding: 1.5px 3.5px !important;
+        gap: 2px !important;
+        height: 23px !important;
+    }
+    #canvasBottomDock .dock-icon-btn,
+    .canvas-bottom-dock .dock-icon-btn {
+        min-width: 20px !important;
+        width: 20px !important;
+        height: 20px !important;
+        font-size: 10px !important;
+    }
+}

@@ -38,6 +38,15 @@ window.SaberEngine = (function() {
                 coreColor: 0xFFFFFF, glowColor: 0x00AAFF 
             }
         },
+        'full-neon': {
+            name: 'Full Neon',
+            icon: '💧',
+            settings: { 
+                glowSize: 35, intensity: 3.2, flickerAmount: 0.02, 
+                pulseSpeed: 0, distortionAmount: 0,
+                coreColor: 'match', glowColor: 0x00D2FF 
+            }
+        },
         'electric': {
             name: 'Electric',
             icon: '⚡',
@@ -149,7 +158,8 @@ window.SaberEngine = (function() {
             antialias: true,
             resolution: 1,
             autoDensity: true,
-            preserveDrawingBuffer: true
+            preserveDrawingBuffer: true,
+            autoStart: false // 🌟 GPU ve pil tasarrufu: Otomatik 60 FPS döngüsünü engelle
         });
         
         app.view.style.position = 'absolute';
@@ -170,10 +180,17 @@ window.SaberEngine = (function() {
         app.textContainer = textContainer;
         app.textObjects = {};
         
-        // Animasyon ticker
+        // Animasyon ticker (Yalnızca canlı animasyon aktifken çalışır, statik modda kesinlikle uyur)
         app.ticker.add(animate);
+        const isAnimActive = (typeof window !== 'undefined' && window.isExportingVideo) || ((typeof window.isSaberAnimationActive === 'function')
+            ? window.isSaberAnimationActive()
+            : (typeof document !== 'undefined' && document.body && document.body.classList.contains('saber-animation-active')));
+        if (!isAnimActive) {
+            if (app.ticker && app.ticker.started) app.ticker.stop();
+        } else {
+            if (app.ticker && !app.ticker.started) app.ticker.start();
+        }
         
-        console.log('⚡ SaberEngine başlatıldı');
         return app;
     }
     
@@ -279,54 +296,37 @@ window.SaberEngine = (function() {
         }
         
         // Glow filtreleri (Zemin Işığı + Ana Neon Parlaması)
+        const safeGlowSize = Math.min(50, opts.glowSize || 30);
         const glowFilter = new PIXI.filters.GlowFilter({
-            distance: opts.glowSize,
+            distance: safeGlowSize,
             outerStrength: opts.intensity,
             innerStrength: 1,
             color: opts.glowColor,
-            quality: 0.25
+            quality: 0.16 // 🌟 Gözle ayırt edilemez parlaklık, GPU shader döngüsü 2.5 kat daha hafif
         });
         
         const filters = [glowFilter];
         let spillFilter = null;
         const spillRatio = parseFloat(opts.groundSpill !== undefined ? opts.groundSpill : 0.4);
-        if (spillRatio > 0.05) {
+        if (spillRatio >= 0.15) {
             spillFilter = new PIXI.filters.GlowFilter({
-                distance: Math.round(opts.glowSize * (1.3 + spillRatio * 1.2)),
+                distance: Math.min(70, Math.round(safeGlowSize * (1.2 + spillRatio * 0.8))),
                 outerStrength: opts.intensity * spillRatio * 0.75,
                 innerStrength: 0,
                 color: opts.glowColor,
-                quality: 0.15
+                quality: 0.10 // 🌟 Ultra hafif zemin ışığı
             });
             filters.unshift(spillFilter);
         }
         
         line.filters = filters;
         
-        // Partikül container (sadece fire/sparks için filtre bağla)
+        // Partikül container (Partiküller PIXI.BLEND_MODES.ADD ile zaten parlak ışık gibi harmanlanır; ek tam ekran filtre kaldırıldı)
         const particleContainer = new PIXI.Container();
         const presetName = options.preset || 'fully-lit';
-        if (presetName === 'fire' || presetName === 'sparks') {
-            particleContainer.filters = [new PIXI.filters.GlowFilter({
-                distance: opts.glowSize * 0.6,
-                outerStrength: opts.intensity * 0.8,
-                innerStrength: 1,
-                color: opts.glowColor,
-                quality: 0.3
-            })];
-        }
         
-        // Lightning dalları için ayrı container (sadece lightning için filtre bağla)
+        // Lightning dalları için ayrı container
         const branchContainer = new PIXI.Container();
-        if (presetName === 'lightning') {
-            branchContainer.filters = [new PIXI.filters.GlowFilter({
-                distance: opts.glowSize * 0.5,
-                outerStrength: opts.intensity,
-                innerStrength: 1,
-                color: opts.glowColor,
-                quality: 0.3
-            })];
-        }
         
         let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
         if (points && points.length > 0) {
@@ -410,6 +410,12 @@ window.SaberEngine = (function() {
                     saber._wasDistorted = false;
                 }
             });
+            if (app && app.renderer && app.stage) {
+                try { app.renderer.render(app.stage); } catch(e) {}
+            }
+            if (app && app.ticker && app.ticker.started) {
+                app.ticker.stop();
+            }
             return;
         }
         
@@ -571,73 +577,63 @@ window.SaberEngine = (function() {
     // 🔥 FIRE - Gerçek alev dilleri
     // ═══════════════════════════════════════
     function animateFire(saber) {
-        // Ana çizgide yoğun titreme
-        const flicker = 0.7 + Math.random() * 0.6;
-        saber.filter.outerStrength = saber.baseIntensity * flicker;
+        // Ana çizgide kontrollü alev titremesi
+        const flicker = 0.85 + Math.random() * 0.3;
+        if (saber.filter) saber.filter.outerStrength = saber.baseIntensity * flicker;
         
-        // ÇOK yeni partikül üret (yoğun alev için)
+        // Partikül sınırlandırması: Maksimum 20 partikül (sıfır GPU/CPU darboğazı)
         const points = saber.points;
-        const spawnCount = 1; // Her frame'de 1 partikül
-        
-        for (let s = 0; s < spawnCount; s++) {
-            if (saber.particles.length >= 80) break;
-            
+        if (((points && points.length > 0) || saber.pixiText) && saber.particles.length < 20 && Math.random() < 0.6) {
             const basePoint = getRandomPoint(saber);
-            if (!basePoint) continue;
-            
-            const particle = new PIXI.Graphics();
-            
-            // Alev şekli - uzun oval (baloncuk değil)
-            const size = 3 + Math.random() * 5;
-            const isCore = Math.random() < 0.4;
-            const colors = isCore 
-                ? [0xFFFFCC, 0xFFEE00, 0xFFDD00] // İç kısım: sarı-beyaz
-                : [0xFF6600, 0xFF3300, 0xFF8800, 0xCC2200]; // Dış: turuncu-kırmızı
-            const color = colors[Math.floor(Math.random() * colors.length)];
-            
-            // OVAL çiz (baloncuk değil, alev dili)
-            particle.beginFill(color, 0.85);
-            particle.drawEllipse(0, 0, size * 0.6, size * 1.3);
-            particle.endFill();
-            
-            particle.x = basePoint.x + (Math.random() - 0.5) * 15;
-            particle.y = basePoint.y + (Math.random() - 0.5) * 5;
-            particle.blendMode = PIXI.BLEND_MODES.ADD; // Işık gibi karışsın
-            
-            saber.particleContainer.addChild(particle);
-            saber.particles.push({
-                sprite: particle,
-                vx: (Math.random() - 0.5) * 0.8,
-                vy: -2 - Math.random() * 3, // Hızlı yükseliş
-                life: 1.0,
-                decay: 0.025 + Math.random() * 0.02,
-                initialSize: size,
-                wobble: Math.random() * Math.PI * 2
-            });
+            if (basePoint) {
+                const particle = new PIXI.Graphics();
+                const size = 3 + Math.random() * 4;
+                const isCore = Math.random() < 0.4;
+                const colors = isCore 
+                    ? [0xFFFFCC, 0xFFEE00] 
+                    : [0xFF6600, 0xFF3300, 0xFF8800];
+                const color = colors[Math.floor(Math.random() * colors.length)];
+                
+                particle.beginFill(color, 0.85);
+                particle.drawEllipse(0, 0, size * 0.5, size * 1.1);
+                particle.endFill();
+                
+                particle.x = basePoint.x + (Math.random() - 0.5) * 10;
+                particle.y = basePoint.y + (Math.random() - 0.5) * 4;
+                particle.blendMode = PIXI.BLEND_MODES.ADD;
+                
+                saber.particleContainer.addChild(particle);
+                saber.particles.push({
+                    sprite: particle,
+                    vx: (Math.random() - 0.5) * 0.6,
+                    vy: -1.5 - Math.random() * 2.5,
+                    life: 1.0,
+                    decay: 0.045 + Math.random() * 0.03,
+                    wobble: Math.random() * Math.PI * 2
+                });
+            }
         }
         
         // Alev partiküllerini hareket ettir
         for (let i = saber.particles.length - 1; i >= 0; i--) {
             const p = saber.particles[i];
-            p.wobble += 0.15;
-            p.sprite.x += p.vx + Math.sin(p.wobble) * 0.4; // Salınım
+            p.wobble += 0.12;
+            p.sprite.x += p.vx + Math.sin(p.wobble) * 0.3;
             p.sprite.y += p.vy;
-            p.vy -= 0.08; // Sıcak hava ivmesi (yukarı)
+            p.vy -= 0.05;
             p.life -= p.decay;
-            p.sprite.alpha = p.life * 0.9;
+            p.sprite.alpha = Math.max(0, p.life * 0.85);
             
-            // Yükseldikçe küçül ve inceli (alev dili gibi)
-            const scale = p.life;
+            const scale = Math.max(0.1, p.life);
             p.sprite.scale.x = scale;
-            p.sprite.scale.y = scale * 1.3;
+            p.sprite.scale.y = scale * 1.2;
             
-            // Renk soğuma (kırmızıya dön)
-            if (p.life < 0.4) {
+            if (p.life < 0.35) {
                 p.sprite.tint = 0x882200;
             }
             
             if (p.life <= 0) {
-                saber.particleContainer.removeChild(p.sprite);
+                if (p.sprite.parent) p.sprite.parent.removeChild(p.sprite);
                 p.sprite.destroy();
                 saber.particles.splice(i, 1);
             }
@@ -840,6 +836,9 @@ window.SaberEngine = (function() {
     // ═══════════════════════════════════════
     function animateVortex(saber) {
         const t = saber.time;
+        if (saber.pixiText && saber.filter) {
+            saber.filter.outerStrength = saber.baseIntensity * (1 + Math.sin(t * 3.5) * 0.28);
+        }
         if (saber.graphics && saber.points) {
             const line = saber.graphics;
             const points = saber.points;
@@ -1222,7 +1221,10 @@ window.SaberEngine = (function() {
     }
 
     function addTextSaber(id, el, opts) {
-
+        if (!app) {
+            const c = document.getElementById('canvas-container');
+            if (c) init(c);
+        }
         if (!app || !app.textContainer) return;
         
         removeTextSaber(id); // Clear existing
@@ -1245,7 +1247,7 @@ window.SaberEngine = (function() {
         const sf = (typeof window.getGlobalScale === 'function' ? window.getGlobalScale() : 1);
         
         // Basic style extraction
-        const fontSize = parseFloat(computed.fontSize);
+        const fontSize = parseFloat(computed.fontSize) || 48;
         let fontFamily = computed.fontFamily;
         if (fontFamily) fontFamily = fontFamily.replace(/['"]/g, '');
         const fontWeight = computed.fontWeight;
@@ -1257,13 +1259,19 @@ window.SaberEngine = (function() {
         if (presetObj.settings.rainbow) finalOpts.rainbow = true;
         
         let fillPixiColor = '#FFFFFF';
-        if (finalOpts.coreColor) {
+        if (finalOpts.preset === 'full-neon' || finalOpts.coreColor === 'match') {
+            if (typeof finalOpts.glowColor === 'number') {
+                fillPixiColor = '#' + finalOpts.glowColor.toString(16).padStart(6, '0');
+            } else {
+                fillPixiColor = finalOpts.glowColor || '#00D2FF';
+            }
+        } else if (finalOpts.coreColor) {
             if (typeof finalOpts.coreColor === 'number') {
                 fillPixiColor = '#' + finalOpts.coreColor.toString(16).padStart(6, '0');
             } else {
                 fillPixiColor = finalOpts.coreColor;
             }
-        } else if (computed.color) {
+        } else if (computed.color && computed.color !== 'transparent' && computed.color !== 'rgba(0, 0, 0, 0)') {
             fillPixiColor = computed.color;
         }
         
@@ -1300,7 +1308,12 @@ window.SaberEngine = (function() {
 
         // Add Glow Filter
         const glowColorNum = typeof opts.glowColor === 'number' ? opts.glowColor : hexToPixiColor(opts.glowColor || '#00aaff');
-        const coreColorNum = typeof opts.coreColor === 'number' ? opts.coreColor : hexToPixiColor(opts.coreColor || '#ffffff');
+        let coreColorNum;
+        if (opts.preset === 'full-neon' || opts.coreColor === 'match') {
+            coreColorNum = glowColorNum;
+        } else {
+            coreColorNum = typeof opts.coreColor === 'number' ? opts.coreColor : hexToPixiColor(opts.coreColor || '#ffffff');
+        }
         opts.glowColor = glowColorNum;
         opts.coreColor = coreColorNum;
         
@@ -1319,7 +1332,6 @@ window.SaberEngine = (function() {
         
         pixiText.filters = [glowFilter];
         
-        
         const particleContainer = new PIXI.Container();
         const branchContainer = new PIXI.Container();
         
@@ -1337,7 +1349,15 @@ window.SaberEngine = (function() {
         app.textObjects[id] = obj;
         sabers.push(obj);
 
-
+        // Canlı animasyon kontrolü: Kullanıcı animasyonu açmadıkça (window.isNeonTextAnimActive === true)
+        // metin saberi için ticker çalıştırılmaz, statik tek kare render alınır.
+        const isAnimatedPreset = ['fire', 'vortex', 'electric', 'sparks', 'lightning', 'energize', 'rainbow'].includes(opts.preset) || (opts.pulseSpeed > 0) || (opts.flickerAmount > 0) || opts.rainbow;
+        const shouldAnimate = isAnimatedPreset && (window.isNeonTextAnimActive === true);
+        if (shouldAnimate && app.ticker && !app.ticker.started) {
+            app.ticker.start();
+        } else if (!shouldAnimate && app.renderer && app.stage) {
+            try { app.renderer.render(app.stage); } catch(e) {}
+        }
     }
 
     function removeTextSaber(id) {
@@ -1377,7 +1397,6 @@ window.SaberEngine = (function() {
                 app.view.style.width = '100%';
                 app.view.style.height = '100%';
                 app.renderer.resize(currentW, currentH);
-                console.log('Saber canvas format degisimine uyduruldu (LOGICAL):', currentW, 'x', currentH);
             }
         }
         const cRect = (typeof canvasEl !== 'undefined' ? canvasEl : document.getElementById('canvas-container')) ? (typeof canvasEl !== 'undefined' ? canvasEl : document.getElementById('canvas-container')).getBoundingClientRect() : null;
@@ -1400,6 +1419,10 @@ window.SaberEngine = (function() {
                 
             }
         }
+
+        if (app.renderer && app.stage && (!app.ticker || !app.ticker.started)) {
+            try { app.renderer.render(app.stage); } catch(e) {}
+        }
     }
 
     // ═══════════════════════════════════════
@@ -1411,13 +1434,13 @@ window.SaberEngine = (function() {
         if (!saber) return;
         const opts = Object.assign(saber.options || {}, newOptions);
         
-        // 1. Kalite yönetimi: Kaydırma anında GPU yükünü düşür (0.1 / 0.08), bırakınca tam kalite (0.25 / 0.15)
-        const targetGlowQuality = isSliding ? 0.1 : 0.25;
-        const targetSpillQuality = isSliding ? 0.08 : 0.15;
+        // 1. Kalite yönetimi: Kaydırma anında GPU yükünü düşür (0.08 / 0.06), bırakınca dengeli kalite (0.16 / 0.10)
+        const targetGlowQuality = isSliding ? 0.08 : 0.16;
+        const targetSpillQuality = isSliding ? 0.06 : 0.10;
         
         if (saber.filter) {
             if (saber.filter.quality !== targetGlowQuality) saber.filter.quality = targetGlowQuality;
-            if (opts.glowSize !== undefined) saber.filter.distance = opts.glowSize;
+            if (opts.glowSize !== undefined) saber.filter.distance = Math.min(50, opts.glowSize);
             if (opts.intensity !== undefined) {
                 saber.baseIntensity = opts.intensity;
                 saber.filter.outerStrength = opts.intensity;
@@ -1427,7 +1450,7 @@ window.SaberEngine = (function() {
         
         if (saber.spillFilter) {
             if (saber.spillFilter.quality !== targetSpillQuality) saber.spillFilter.quality = targetSpillQuality;
-            if (opts.glowSize !== undefined) saber.spillFilter.distance = opts.glowSize * 2.5;
+            if (opts.glowSize !== undefined) saber.spillFilter.distance = Math.min(70, Math.round(opts.glowSize * 1.5));
             if (opts.intensity !== undefined || opts.groundSpill !== undefined) {
                 const sp = parseFloat(opts.groundSpill !== undefined ? opts.groundSpill : 0.4);
                 saber.spillFilter.outerStrength = (saber.baseIntensity || 2.5) * sp * 0.75;
@@ -1470,9 +1493,13 @@ window.SaberEngine = (function() {
             }
         }
         
-        // Tuvali tek kare render et
+        // Tuvali tek kare render et ve animasyon kapalıysa ticker'ı kesinlikle durdur
         if (app && app.renderer && app.stage) {
             try { app.renderer.render(app.stage); } catch(e) {}
+        }
+        const isAnim = (typeof window.isSaberAnimationActive === 'function') ? window.isSaberAnimationActive() : false;
+        if (!isAnim && app && app.ticker && app.ticker.started) {
+            app.ticker.stop();
         }
     }
 
@@ -1669,6 +1696,9 @@ window.applySaberToPath = function(pathIndex, saberOptions) {
     if (app && app.renderer && app.stage) {
         try { app.renderer.render(app.stage); } catch(e) {}
     }
+    if (!isAnimActive && app && app.ticker && app.ticker.started) {
+        app.ticker.stop();
+    }
     return saberObj;
 };
 
@@ -1697,7 +1727,6 @@ window.addSaberToPath = function(pathIndex) {
     }
     applySaberToPath(pathIndex, options);
     if (typeof updateDrawHistory === 'function') updateDrawHistory();
-    console.log('⚡ Saber path #' + pathIndex + ' e eklendi');
 };
 
 // PATH'İN SABER'INI KALDIR
@@ -1722,11 +1751,9 @@ window.removeSaberFromPath = function(pathIndex) {
     delete path.hasSaber;
     delete path.saberOptions;
     if (typeof updateDrawHistory === 'function') updateDrawHistory();
-    console.log('🚫 Saber kaldırıldı');
 };
 
 
 
 
 
-console.log('⚡ Saber modülü yüklendi');

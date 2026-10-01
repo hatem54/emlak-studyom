@@ -1,0 +1,1108 @@
+/* ==========================================================================
+   EMLAK STÜDYOM - SOL PANEL GÖRSEL HAVUZU (PHOTO STAGING PANEL) STILLERI
+   css/photo-staging.css (PRO v7.1)
+   ========================================================================== */
+
+/* Eski tuval altı çekmecesini tamamen devre dışı bırak */
+.photo-staging-drawer {
+    display: none !important;
+}
+
+/* Sol Panel Kapsayıcısı */
+#tab-staging {
+    display: none;
+    flex-direction: column;
+    gap: 10px;
+    padding: 2px 0 16px 0;
+    user-select: none;
+}
+
+#tab-staging.show {
+    display: flex;
+}
+
+/* Ana Sekme Butonu Rozeti */
+.tab-badge-pill {
+    display: inline-block;
+    padding: 1px 5px;
+    font-size: 9.5px;
+    font-weight: 700;
+    background: #0284c7;
+    color: #ffffff;
+    border-radius: 10px;
+    line-height: 1.2;
+    margin-left: 4px;
+    vertical-align: middle;
+}
+
+body[data-theme="dark"] .tab-badge-pill {
+    background: #38bdf8;
+    color: #0f172a;
+}
+
+/* Başlık ve Sayaç */
+.staging-panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 2px;
+}
+
+.staging-panel-counter {
+    font-size: 11px;
+    font-weight: 700;
+    color: #0284c7;
+    background: rgba(2, 132, 199, 0.1);
+    padding: 2px 7px;
+    border-radius: 6px;
+    font-family: 'Space Grotesk', 'Inter', sans-serif;
+}
+
+body[data-theme="dark"] .staging-panel-counter {
+    background: rgba(56, 189, 248, 0.15);
+    color: #38bdf8;
+}
+
+/* Fotoğraf Yükleme / Sürükle-Bırak Alanı (Dropzone) */
+.staging-upload-dropzone {
+    border: 1.5px dashed #cbd5e1;
+    border-radius: 8px;
+    padding: 10px 8px;
+    background: rgba(248, 250, 252, 0.8);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-align: center;
+}
+
+.staging-upload-dropzone:hover,
+.staging-upload-dropzone.is-dragover {
+    border-color: #0284c7;
+    background: rgba(2, 132, 199, 0.06);
+}
+
+body[data-theme="dark"] .staging-upload-dropzone {
+    border-color: rgba(148, 163, 184, 0.3);
+    background: rgba(30, 41, 59, 0.5);
+}
+
+body[data-theme="dark"] .staging-upload-dropzone:hover,
+body[data-theme="dark"] .staging-upload-dropzone.is-dragover {
+    border-color: #38bdf8;
+    background: rgba(56, 189, 248, 0.1);
+}
+
+.staging-dropzone-content {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+}
+
+.staging-drop-icon {
+    font-size: 20px;
+    color: #0284c7;
+    flex-shrink: 0;
+}
+
+body[data-theme="dark"] .staging-drop-icon {
+    color: #38bdf8;
+}
+
+.staging-drop-texts {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    text-align: left;
+}
+
+.staging-drop-main {
+    font-size: 11.5px;
+    font-weight: 700;
+    color: #1e293b;
+    font-family: 'Space Grotesk', 'Inter', sans-serif;
+}
+
+body[data-theme="dark"] .staging-drop-main {
+    color: #f1f5f9;
+}
+
+.staging-drop-sub {
+    font-size: 10px;
+    color: #64748b;
+}
+
+body[data-theme="dark"] .staging-drop-sub {
+    color: #94a3b8;
+}
+
+/* Toplu İşlem Araç Çubuğu (Batch Toolbar) */
+.staging-batch-toolbar {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 6px 0;
+    border-top: 1px solid rgba(203, 213, 225, 0.5);
+    border-bottom: 1px solid rgba(203, 213, 225, 0.5);
+}
+
+body[data-theme="dark"] .staging-batch-toolbar {
+    border-top-color: rgba(51, 65, 85, 0.6);
+    border-bottom-color: rgba(51, 65, 85, 0.6);
+}
+
+.staging-select-all-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 11px;
+    font-weight: 600;
+    color: #475569;
+    padding: 2px 2px;
+}
+
+body[data-theme="dark"] .staging-select-all-row {
+    color: #cbd5e1;
+}
+
+.staging-select-all-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+}
+
+.staging-select-all-label input[type="checkbox"] {
+    cursor: pointer;
+    accent-color: #0284c7;
+}
+
+.staging-selected-count {
+    font-size: 10.5px;
+    font-weight: 700;
+    color: #0284c7;
+}
+
+body[data-theme="dark"] .staging-selected-count {
+    color: #38bdf8;
+}
+
+.staging-batch-actions-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 6px;
+}
+
+.staging-batch-btn {
+    height: 30px !important;
+    padding: 0 6px !important;
+    font-size: 11px !important;
+    font-weight: 700 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 5px !important;
+    border-radius: 6px !important;
+}
+
+/* Filtreleme Sekmeleri (Filter Pills) */
+.staging-filter-pills {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    overflow-x: auto;
+    padding: 2px 1px 4px 1px;
+    margin-bottom: 2px;
+    scrollbar-width: none;
+}
+
+.staging-filter-pills::-webkit-scrollbar {
+    display: none;
+}
+
+.staging-pill {
+    padding: 3px 8px;
+    font-size: 10.5px;
+    font-weight: 600;
+    border-radius: 12px;
+    border: 1px solid #cbd5e1;
+    background: #ffffff;
+    color: #475569;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.15s ease;
+    font-family: 'Space Grotesk', 'Inter', sans-serif;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.staging-pill:hover {
+    border-color: #0284c7;
+    color: #0284c7;
+}
+
+.staging-pill.is-active {
+    background: #0284c7;
+    color: #ffffff;
+    border-color: #0284c7;
+    font-weight: 700;
+}
+
+body[data-theme="dark"] .staging-pill {
+    background: rgba(30, 41, 59, 0.7);
+    border-color: rgba(71, 85, 105, 0.6);
+    color: #94a3b8;
+}
+
+body[data-theme="dark"] .staging-pill:hover {
+    border-color: #38bdf8;
+    color: #38bdf8;
+}
+
+body[data-theme="dark"] .staging-pill.is-active {
+    background: #38bdf8;
+    color: #0f172a;
+    border-color: #38bdf8;
+}
+
+/* Açılır Araç Panelleri (Watermark & Format Trays) */
+.staging-sub-tray {
+    display: none;
+    flex-direction: column;
+    gap: 8px;
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid #cbd5e1;
+    background: rgba(248, 250, 252, 0.95);
+    margin: 4px 0;
+    animation: stagingTraySlide 0.2s ease;
+}
+
+.staging-sub-tray.is-open {
+    display: flex;
+}
+
+@keyframes stagingTraySlide {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+body[data-theme="dark"] .staging-sub-tray {
+    background: rgba(30, 41, 59, 0.75);
+    border-color: rgba(51, 65, 85, 0.8);
+}
+
+.staging-tray-title {
+    font-size: 11px;
+    font-weight: 700;
+    color: #0284c7;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+body[data-theme="dark"] .staging-tray-title {
+    color: #38bdf8;
+}
+
+.staging-tray-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.staging-tray-select {
+    flex: 1;
+    height: 30px;
+    border-radius: 6px;
+    border: 1px solid #cbd5e1;
+    background: #ffffff;
+    font-size: 11px;
+    padding: 0 8px;
+    color: #1e293b;
+    outline: none;
+}
+
+body[data-theme="dark"] .staging-tray-select {
+    background: rgba(15, 23, 42, 0.7);
+    border-color: rgba(71, 85, 105, 0.7);
+    color: #f1f5f9;
+}
+
+.staging-logo-preview-box {
+    width: 36px;
+    height: 36px;
+    border-radius: 6px;
+    border: 1px solid #cbd5e1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    background: #ffffff;
+    flex-shrink: 0;
+}
+
+.staging-logo-preview-img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+}
+
+/* Öncesi / Sonrası Karşılaştırma Modalı */
+.staging-compare-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 10000;
+    background: rgba(15, 23, 42, 0.85);
+    backdrop-filter: blur(8px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.staging-compare-dialog {
+    width: 90vw;
+    max-width: 900px;
+    height: 80vh;
+    max-height: 650px;
+    background: #ffffff;
+    border-radius: 12px;
+    border: 1px solid #cbd5e1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-shadow: 0 20px 45px rgba(0, 0, 0, 0.4);
+}
+
+body[data-theme="dark"] .staging-compare-dialog {
+    background: #0f172a;
+    border-color: #334155;
+}
+
+.staging-compare-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    border-bottom: 1px solid #cbd5e1;
+}
+
+body[data-theme="dark"] .staging-compare-header {
+    border-color: #334155;
+}
+
+.staging-compare-viewport {
+    position: relative;
+    flex: 1;
+    background: #020617;
+    overflow: hidden;
+    user-select: none;
+    touch-action: none;
+}
+
+.staging-compare-img {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    pointer-events: none;
+}
+
+/* Ön Katman Kapsayıcısı: Her zaman viewport ile aynı tam boyuttadır; 
+   içindeki resim asla büzüşmez veya ölçeklenmez. Yalnızca clip-path ile sağdan kırpılır */
+.staging-compare-clip-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    pointer-events: none;
+    z-index: 2;
+    clip-path: inset(0 50% 0 0);
+    -webkit-clip-path: inset(0 50% 0 0);
+}
+
+.staging-compare-clip-container .staging-compare-img {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+/* Dikey Ayırıcı Çizgi */
+.staging-compare-divider-line {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: #38bdf8;
+    box-shadow: 0 0 10px rgba(56, 189, 248, 0.8), 0 0 4px rgba(2, 132, 199, 0.9);
+    z-index: 10;
+    pointer-events: none;
+    transform: translateX(-50%);
+}
+
+.staging-compare-handle {
+    position: absolute;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 34px;
+    height: 34px;
+    background: #ffffff;
+    border: 2px solid #0284c7;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #0284c7;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+    z-index: 12;
+    pointer-events: none;
+    font-size: 13px;
+    transition: transform 0.1s ease;
+}
+
+.staging-compare-slider-input {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    cursor: ew-resize;
+    z-index: 20;
+    margin: 0;
+    padding: 0;
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+.staging-compare-slider-input::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 50px;
+    height: 1200px;
+    cursor: ew-resize;
+}
+
+.staging-compare-slider-input::-moz-range-thumb {
+    width: 50px;
+    height: 1200px;
+    cursor: ew-resize;
+}
+
+.staging-compare-badge {
+    position: absolute;
+    bottom: 16px;
+    padding: 5px 12px;
+    font-size: 11px;
+    font-weight: 700;
+    border-radius: 6px;
+    background: rgba(15, 23, 42, 0.82);
+    color: #ffffff;
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    z-index: 15;
+    pointer-events: none;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.staging-badge-left {
+    left: 16px;
+}
+
+.staging-badge-right {
+    right: 16px;
+}
+
+.staging-compare-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 16px;
+    border-top: 1px solid #cbd5e1;
+}
+
+body[data-theme="dark"] .staging-compare-footer {
+    border-color: #334155;
+}
+
+/* Görsel Kartları Izgarası (Grid) */
+.staging-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    margin-top: 2px;
+}
+
+.staging-card {
+    position: relative;
+    border: 1.5px solid #cbd5e1;
+    border-radius: 8px;
+    background: #ffffff;
+    overflow: hidden;
+    cursor: pointer;
+    transition: all 0.18s ease;
+    display: flex;
+    flex-direction: column;
+}
+
+body[data-theme="dark"] .staging-card {
+    background: rgba(30, 41, 59, 0.7);
+    border-color: rgba(51, 65, 85, 0.8);
+}
+
+.staging-card:hover {
+    border-color: #38bdf8;
+    transform: translateY(-1.5px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+body[data-theme="dark"] .staging-card:hover {
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+    border-color: #38bdf8;
+}
+
+.staging-card.is-active {
+    border-color: #0284c7;
+    box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.35);
+}
+
+body[data-theme="dark"] .staging-card.is-active {
+    border-color: #38bdf8;
+    box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.35);
+}
+
+.staging-card.is-selected {
+    background: rgba(2, 132, 199, 0.05);
+}
+
+/* Kart Görsel Alanı */
+.staging-card-thumb-wrap {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16 / 10;
+    background: #0f172a;
+    overflow: hidden;
+}
+
+.staging-card-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.25s ease;
+    display: block;
+}
+
+.staging-card:hover .staging-card-img {
+    transform: scale(1.05);
+}
+
+/* Seçim Onay Kutusu */
+.staging-card-check {
+    position: absolute;
+    top: 5px;
+    left: 5px;
+    z-index: 5;
+    cursor: pointer;
+    background: rgba(15, 23, 42, 0.75);
+    border-radius: 4px;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(4px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.staging-card-check input[type="checkbox"] {
+    cursor: pointer;
+    accent-color: #0284c7;
+    margin: 0;
+}
+
+/* Tuvalde Aktif Rozeti */
+.staging-active-pill {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    z-index: 5;
+    background: #10b981;
+    color: #ffffff;
+    font-size: 8.5px;
+    font-weight: 700;
+    padding: 1.5px 5px;
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+}
+
+/* Kart Üzeri Hızlı Eylemler (Hover) */
+.staging-card-hover-actions {
+    position: absolute;
+    bottom: 5px;
+    right: 5px;
+    z-index: 5;
+    display: flex;
+    gap: 4px;
+    opacity: 0;
+    transition: opacity 0.18s ease;
+}
+
+.staging-card:hover .staging-card-hover-actions {
+    opacity: 1;
+}
+
+.staging-hover-btn {
+    width: 22px;
+    height: 22px;
+    border-radius: 4px;
+    background: rgba(15, 23, 42, 0.85);
+    color: #f8fafc;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 9.5px;
+    cursor: pointer;
+    backdrop-filter: blur(4px);
+    transition: all 0.15s ease;
+}
+
+.staging-hover-btn:hover {
+    background: #0284c7;
+    border-color: #38bdf8;
+    color: #ffffff;
+}
+
+.staging-hover-delete:hover {
+    background: #ef4444 !important;
+    border-color: #f87171 !important;
+}
+
+/* Kart Alt Bilgileri */
+.staging-card-meta {
+    padding: 5px 6px 6px 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5px;
+}
+
+.staging-card-title-row {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.staging-card-idx {
+    font-size: 9px;
+    font-weight: 700;
+    color: #0284c7;
+    background: rgba(2, 132, 199, 0.1);
+    padding: 1px 3.5px;
+    border-radius: 3px;
+    flex-shrink: 0;
+}
+
+body[data-theme="dark"] .staging-card-idx {
+    color: #38bdf8;
+    background: rgba(56, 189, 248, 0.15);
+}
+
+.staging-card-title {
+    font-size: 10.5px;
+    font-weight: 700;
+    color: #1e293b;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+    font-family: 'Space Grotesk', 'Inter', sans-serif;
+}
+
+body[data-theme="dark"] .staging-card-title {
+    color: #f1f5f9;
+}
+
+.staging-card-tag {
+    font-size: 9px;
+    color: #64748b;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+body[data-theme="dark"] .staging-card-tag {
+    color: #94a3b8;
+}
+
+/* Boş Durum (Empty State) */
+.staging-empty-state {
+    padding: 26px 14px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border: 1.5px dashed #cbd5e1;
+    border-radius: 8px;
+    margin-top: 6px;
+}
+
+body[data-theme="dark"] .staging-empty-state {
+    border-color: rgba(148, 163, 184, 0.25);
+}
+
+.staging-empty-icon-wrap {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: rgba(2, 132, 199, 0.1);
+    color: #0284c7;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+}
+
+body[data-theme="dark"] .staging-empty-icon-wrap {
+    background: rgba(56, 189, 248, 0.15);
+    color: #38bdf8;
+}
+
+.staging-empty-title {
+    font-size: 12.5px;
+    font-weight: 700;
+    color: #1e293b;
+    font-family: 'Space Grotesk', 'Inter', sans-serif;
+}
+
+body[data-theme="dark"] .staging-empty-title {
+    color: #f8fafc;
+}
+
+.staging-empty-desc {
+    font-size: 10.5px;
+    color: #64748b;
+    line-height: 1.4;
+    margin: 0;
+}
+
+body[data-theme="dark"] .staging-empty-desc {
+    color: #94a3b8;
+}
+
+.staging-empty-actions {
+    display: flex;
+    gap: 6px;
+    margin-top: 4px;
+    width: 100%;
+}
+
+.staging-empty-actions .btn-action {
+    flex: 1;
+    height: 30px !important;
+    padding: 0 6px !important;
+    font-size: 11px !important;
+}
+
+/* 🪟 Canlı Tuval Üzerinde Öncesi / Sonrası Karşılaştırma Katmanı (Aynı Ekranda) */
+.canvas-compare-slider-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 10000;
+    overflow: hidden;
+    user-select: none;
+    pointer-events: auto;
+}
+
+.canvas-compare-clip-wrap {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    pointer-events: none;
+    clip-path: inset(0 50% 0 0);
+    -webkit-clip-path: inset(0 50% 0 0);
+    z-index: 2;
+}
+
+.canvas-compare-img {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: 50% 50%;
+    pointer-events: none;
+}
+
+.canvas-compare-divider-line {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    background: #38bdf8;
+    box-shadow: 0 0 16px rgba(56, 189, 248, 0.9), 0 0 4px rgba(2, 132, 199, 1);
+    z-index: 10;
+    pointer-events: none;
+    transform: translateX(-50%);
+}
+
+.canvas-compare-handle {
+    position: absolute;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 64px;
+    height: 64px;
+    background: #ffffff;
+    border: 3px solid #0284c7;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #0284c7;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+    z-index: 12;
+    pointer-events: none;
+    font-size: 24px;
+}
+
+.canvas-compare-badge {
+    position: absolute;
+    bottom: 30px;
+    padding: 8px 24px;
+    font-size: 20px;
+    font-weight: 700;
+    border-radius: 12px;
+    background: rgba(15, 23, 42, 0.85);
+    color: #ffffff;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    z-index: 15;
+    pointer-events: none;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+}
+
+.canvas-compare-badge-left {
+    left: 30px;
+}
+
+.canvas-compare-badge-right {
+    right: 30px;
+}
+
+.canvas-compare-topbar {
+    position: absolute;
+    top: 24px;
+    left: 24px;
+    right: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    z-index: 25;
+    pointer-events: auto;
+}
+
+.canvas-compare-top-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 20px;
+    border-radius: 30px;
+    background: rgba(15, 23, 42, 0.88);
+    color: #38bdf8;
+    font-size: 20px;
+    font-weight: 700;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(56, 189, 248, 0.4);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+}
+
+.canvas-compare-top-badge span {
+    color: #f8fafc;
+}
+
+.canvas-compare-close-btn {
+    height: 44px;
+    padding: 0 20px;
+    font-size: 18px;
+    font-weight: 700;
+    border-radius: 22px;
+    background: #ffffff;
+    color: #0f172a;
+    border: 1px solid #cbd5e1;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+
+.canvas-compare-close-btn:hover {
+    background: #f1f5f9;
+    color: #ef4444;
+}
+
+.canvas-compare-slider-input {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    cursor: ew-resize;
+    z-index: 20;
+    margin: 0;
+    padding: 0;
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+.canvas-compare-slider-input::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 80px;
+    height: 2500px;
+    cursor: ew-resize;
+}
+
+.canvas-compare-slider-input::-moz-range-thumb {
+    width: 80px;
+    height: 2500px;
+    cursor: ew-resize;
+}
+
+/* 🖼️ Giriş Sekmesi: Aktif Kapak Görseli ve Havuz Kartı */
+.data-pool-card {
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    padding: 8px 10px;
+    background: #f8fafc;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    box-sizing: border-box;
+    transition: all 0.2s ease;
+}
+
+body[data-theme="dark"] .data-pool-card {
+    border-color: #334155;
+    background: #1e293b;
+}
+
+.data-pool-card-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+}
+
+.data-pool-card-thumb {
+    width: 42px;
+    height: 42px;
+    object-fit: cover;
+    border-radius: 6px;
+    border: 1px solid #cbd5e1;
+    flex-shrink: 0;
+}
+
+body[data-theme="dark"] .data-pool-card-thumb {
+    border-color: #475569;
+}
+
+.data-pool-card-info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.data-pool-card-title-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+}
+
+.data-pool-card-title {
+    font-size: 11.5px;
+    font-weight: 700;
+    color: #0f172a;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+body[data-theme="dark"] .data-pool-card-title {
+    color: #f8fafc;
+}
+
+.data-pool-card-badge {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 6px;
+    background: #e0f2fe;
+    color: #0284c7;
+    border-radius: 12px;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+body[data-theme="dark"] .data-pool-card-badge {
+    background: rgba(2, 132, 199, 0.2);
+    color: #38bdf8;
+}
+
+.data-pool-card-sub {
+    font-size: 10px;
+    color: #64748b;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+body[data-theme="dark"] .data-pool-card-sub {
+    color: #94a3b8;
+}
+
+.data-pool-card-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.data-pool-card-actions .btn-action {
+    height: 28px !important;
+    font-size: 11px !important;
+    padding: 0 6px !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+}
+

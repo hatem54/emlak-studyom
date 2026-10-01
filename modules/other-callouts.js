@@ -570,7 +570,8 @@
 
         bindEvents() {
             const input = document.getElementById('otherCalloutsSearch');
-            if (input) {
+            if (input && !input._boundEvents) {
+                input._boundEvents = true;
                 input.addEventListener('input', (e) => {
                     clearTimeout(this.debounceTimer);
                     this.debounceTimer = setTimeout(() => {
@@ -581,7 +582,8 @@
             }
 
             const clearBtn = document.getElementById('otherCalloutsClearSearch');
-            if (clearBtn && input) {
+            if (clearBtn && input && !clearBtn._boundEvents) {
+                clearBtn._boundEvents = true;
                 clearBtn.addEventListener('click', () => {
                     input.value = '';
                     this.searchQuery = '';
@@ -833,7 +835,7 @@
             // 1. Yerel Orijinal Vektör & Öge İllüstrasyonları
             if (filteredLocal.length > 0) {
                 filteredLocal.forEach(item => {
-                    html += '<div class="other-callout-card" onclick="window.OtherCalloutsManager && window.OtherCalloutsManager.addItemToCanvas(\'' + item.id + '\')" title="' + item.title + ' (Tuvale Ekle)">' +
+                    html += '<div class="other-callout-card" onclick="window.OtherCalloutsManager && window.OtherCalloutsManager.addItemToCanvas(\'' + item.id + '\')" title="' + item.title + '">' +
                         '<div class="other-callout-preview">' + item.svg + '</div>' +
                         '<span class="other-callout-label">' + item.title + '</span>' +
                         '</div>';
@@ -843,7 +845,7 @@
             // 2. Canlı Küresel Vektör Arama Sonuçları (Saf Inline SVG - Asla Kırılmaz, Hepsi Farklı)
             if (this.apiResults && this.apiResults.length > 0) {
                 this.apiResults.forEach(item => {
-                    html += '<div class="other-callout-card" onclick="window.OtherCalloutsManager && window.OtherCalloutsManager.addItemToCanvas(\'' + item.id + '\')" title="' + item.title + ' (Tuvale Ekle)">' +
+                    html += '<div class="other-callout-card" onclick="window.OtherCalloutsManager && window.OtherCalloutsManager.addItemToCanvas(\'' + item.id + '\')" title="' + item.title + '">' +
                         '<div class="other-callout-preview">' + item.svg + '</div>' +
                         '<span class="other-callout-label">' + item.title + '</span>' +
                         '</div>';
@@ -867,18 +869,20 @@
         addItemToCanvas(itemId) {
             const item = this.localItems.find(i => i.id === itemId) || this.apiResults.find(i => i.id === itemId);
             if (!item || !item.svg) return;
-            const is3DActive = !window._tempForce2D && window.ThreeDEngine && (
-                (typeof window.ThreeDEngine.isActive === 'function' && window.ThreeDEngine.isActive()) ||
-                (typeof window.ThreeDEngine.isLayerActive === 'function' && window.ThreeDEngine.isLayerActive())
-            );
-            if (is3DActive && typeof window.ThreeDEngine.add3DElementFromData === 'function') {
-                return window.ThreeDEngine.add3DElementFromData({
-                    svg: item.svg,
+
+            // Eğer 3D Stüdyo açıksa doğrudan 3D sahneye ayakta ekle
+            if (window.ThreeDEngine && window.ThreeDEngine.isOpen && typeof window.ThreeDEngine.add3DElementFromData === 'function') {
+                window.ThreeDEngine.add3DElementFromData({
                     name: item.title,
-                    title: item.title,
-                    isCallout: true
+                    svg: item.svg,
+                    elementType: 'element_3d',
+                    shapeMode: 'silhouette',
+                    orientation: 'standing',
+                    isBaseAligned: true
                 });
+                return;
             }
+
             this.insertToCanvas(item.svg, item.title);
         }
 
@@ -898,18 +902,6 @@
         }
 
         insertToCanvas(svgMarkup, title) {
-            const is3DActive = !window._tempForce2D && window.ThreeDEngine && (
-                (typeof window.ThreeDEngine.isActive === 'function' && window.ThreeDEngine.isActive()) ||
-                (typeof window.ThreeDEngine.isLayerActive === 'function' && window.ThreeDEngine.isLayerActive())
-            );
-            if (is3DActive && typeof window.ThreeDEngine.add3DElementFromData === 'function') {
-                return window.ThreeDEngine.add3DElementFromData({
-                    svg: svgMarkup,
-                    name: title,
-                    title: title,
-                    isCallout: true
-                });
-            }
 
             const uiLayer = document.getElementById('ui-layer') || document.getElementById('canvas-container');
             const canvasEl = document.getElementById('canvas-container') || document.getElementById('photo-layer');
@@ -919,6 +911,7 @@
             el.className = 'draggable added-icon canvas-el is-svg-icon other-callout-item';
             el.innerHTML = svgMarkup;
             el.dataset.label = 'Öge: ' + title;
+            el.dataset.originalSvg = svgMarkup;
 
             const cw = canvasEl ? (parseInt(canvasEl.style.width) || canvasEl.offsetWidth || 1080) : 1080;
             const ch = canvasEl ? (parseInt(canvasEl.style.height) || canvasEl.offsetHeight || 1080) : 1080;

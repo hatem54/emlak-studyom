@@ -52,7 +52,7 @@
 
     // Global açılış fonksiyonu hazır değilse güvenli vekil fonksiyon (proxy)
     if (!window.openSatelliteMapModal) {
-        window.openSatelliteMapModal = async function() {
+        window.openSatelliteMapModal = async function(prefer3D = false) {
             if (window.innerWidth <= 768) {
                 if (typeof window.showAppToast === 'function') {
                     window.showAppToast('🛰️ Uydu haritası özelliği masaüstü cihazlar için optimize edilmiştir.', 'info');
@@ -67,7 +67,7 @@
                 window.hideAppLoading();
             }
             if (ok && window.SatelliteMapModule && typeof window.SatelliteMapModule.openModal === 'function') {
-                window.SatelliteMapModule.openModal();
+                window.SatelliteMapModule.openModal(prefer3D);
             } else if (typeof window.showAppToast === 'function') {
                 window.showAppToast('Uydu haritası başlatılamadı. Lütfen sayfayı yenileyin.', 'error');
             }

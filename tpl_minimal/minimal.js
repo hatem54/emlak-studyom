@@ -11,7 +11,7 @@ function _minimalInit(){
     }
     
     container.innerHTML = `
-        <div class="section-title" style="margin-top:0">&#10024; H&#305;zl&#305; Metin D&#252;zenleyici</div>
+        <div class="section-title" style="margin-top:0"><i class="fa-solid fa-wand-magic-sparkles" style="color:#0284c7; margin-right:6px;"></i>Hızlı Metin Düzenleyici</div>
         
         <div class="input-group">
             <label>Ana Ba&#351;l&#305;k (Title)</label>

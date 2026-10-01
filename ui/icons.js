@@ -278,23 +278,6 @@ function addIcon(ch){
     const svgStr = (ch && typeof ch === 'object' && ch.svg) ? ch.svg : (typeof ch === 'string' ? ch : '');
     const itemName = (ch && typeof ch === 'object' && ch.name) ? ch.name : '';
 
-    // 🌟 3D MODU KONTROLÜ: Eğer 3D stüdyo aktifse veya 3D katmanı açıksa, ikonu doğrudan 3D sahneye ekle!
-    const is3DActive = !window._tempForce2D && window.ThreeDEngine && (
-        (typeof window.ThreeDEngine.isActive === 'function' && window.ThreeDEngine.isActive()) ||
-        (typeof window.ThreeDEngine.isLayerActive === 'function' && window.ThreeDEngine.isLayerActive())
-    );
-
-    if (is3DActive) {
-        if (typeof window.ThreeDEngine.add3DElementFromData === 'function') {
-            window.ThreeDEngine.add3DElementFromData({
-                svg: svgStr,
-                name: itemName || '3D İkon',
-                elementType: 'element_3d'
-            });
-            return;
-        }
-    }
-
     const icon=document.createElement('div');
     icon.className='draggable added-icon canvas-el';
     if (itemName) icon.dataset.name = itemName;
@@ -378,7 +361,7 @@ function addIcon(ch){
     if (typeof requestAutoSave === 'function') requestAutoSave();
 }
 
-window.deleteSelected = function(){
+window._iconsDeleteSelected = function(){
     if(!selectedEl)return;
     const ai=allIcons.indexOf(selectedEl);
     const ci=typeof canvaOverlays !== 'undefined' ? canvaOverlays.indexOf(selectedEl) : -1;
@@ -399,7 +382,17 @@ window.deleteSelected = function(){
         if (typeof requestAutoSave === 'function') requestAutoSave();
     }
     deselectAll();
-}
+};
+
+window.deleteSelected = function(){
+    if (window.ThreeDEngine && typeof window.ThreeDEngine.isActive === 'function' && window.ThreeDEngine.isActive()) {
+        if (typeof window.ThreeDEngine.delete3DElement === 'function') {
+            window.ThreeDEngine.delete3DElement();
+            return;
+        }
+    }
+    window._iconsDeleteSelected();
+};
 
 window.deleteAllIcons = function(){
     allIcons.forEach(i=>i.remove());

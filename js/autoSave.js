@@ -15,8 +15,14 @@ window.requestAutoSave = function() {
     if (window.isRestoringState) return;
     if (window.autoSaveTimeout) clearTimeout(window.autoSaveTimeout);
     window.autoSaveTimeout = setTimeout(() => {
-        if(typeof performAutoSave === 'function') performAutoSave();
-    }, 1000);
+        if(typeof performAutoSave === 'function') {
+            if (typeof window.requestIdleCallback === 'function') {
+                window.requestIdleCallback(() => performAutoSave(), { timeout: 2000 });
+            } else {
+                setTimeout(performAutoSave, 0);
+            }
+        }
+    }, 1200);
 };
 
 function sanitizeRestoredHtml(html) {
@@ -51,8 +57,9 @@ function initAutoSaveDB() {
 
 function sanitizeStateForDB(state) {
     if (!state) return state;
+    if (state._isSanitized) return state;
     try {
-        return JSON.parse(JSON.stringify(state, (key, value) => {
+        const cleaned = JSON.parse(JSON.stringify(state, (key, value) => {
             if (key === 'saberRef' || key === 'el' || key === 'graphics' || key === 'particleContainer' || key === 'branchContainer' || key === '_dragEl') {
                 return undefined;
             }
@@ -61,6 +68,8 @@ function sanitizeStateForDB(state) {
             }
             return value;
         }));
+        cleaned._isSanitized = true;
+        return cleaned;
     } catch(e) {
         return state;
     }
@@ -270,7 +279,42 @@ async function performAutoSave() {
         state.smartBadges = window.smartBadges || [];
         state.smartMatchedCallouts = window.smartMatchedCallouts || [];
         state.photoCurves = (window.PhotoCurvesManager && typeof window.PhotoCurvesManager.getState === 'function') ? window.PhotoCurvesManager.getState() : null;
-        state.photoMasks = (window.PhotoMasksManager && typeof window.PhotoMasksManager.getState === 'function') ? window.PhotoMasksManager.getState() : null;
+        // 🌟 Şablon Öğelerinin Tam Durumu (Konum, Metin, HTML, Stil ve Görünürlük)
+        const curBadge = document.getElementById('elBadge');
+        const curPrice = document.getElementById('elPrice');
+        const curDetails = document.getElementById('elDetails');
+        const curInfoLine = document.getElementById('infoLineText');
+
+        state.templateElements = {
+            badge: curBadge ? {
+                text: curBadge.innerText,
+                html: curBadge.innerHTML,
+                style: curBadge.getAttribute('style'),
+                className: curBadge.className,
+                dataset: Object.assign({}, curBadge.dataset),
+                visible: (curBadge.style.visibility !== 'hidden' && curBadge.style.display !== 'none')
+            } : null,
+            price: curPrice ? {
+                text: curPrice.innerText,
+                html: curPrice.innerHTML,
+                style: curPrice.getAttribute('style'),
+                className: curPrice.className,
+                dataset: Object.assign({}, curPrice.dataset),
+                visible: (curPrice.style.visibility !== 'hidden' && curPrice.style.display !== 'none')
+            } : null,
+            details: curDetails ? {
+                html: curDetails.innerHTML,
+                style: curDetails.getAttribute('style'),
+                className: curDetails.className,
+                dataset: Object.assign({}, curDetails.dataset),
+                visible: (curDetails.style.visibility !== 'hidden' && curDetails.style.display !== 'none')
+            } : null,
+            infoLineHtml: curInfoLine ? curInfoLine.innerHTML : null,
+            logo: elLogo ? {
+                style: elLogo.getAttribute('style'),
+                visible: (elLogo.style.display !== 'none' && elLogo.style.visibility !== 'hidden')
+            } : null
+        };
 
         // 6. Özel Tasarım Elemanlarını Saf Veri Olarak Kaydet (DOM klonlama yerine!)
         const customItems = [];
@@ -484,6 +528,8 @@ async function applyRestoredState(state) {
             }
             if (EXPORT_FORMATS[savedFormat]) {
                 formatEl.value = savedFormat;
+                const exportFormatEl = document.getElementById('exportFormat');
+                if (exportFormatEl) exportFormatEl.value = savedFormat;
                 const format = EXPORT_FORMATS[savedFormat];
                 if (typeof canvasEl !== 'undefined' && canvasEl) {
                     canvasEl.style.width = format.w + 'px';
@@ -909,6 +955,52 @@ async function applyRestoredState(state) {
         }
         if(typeof applyPhotoFilters === 'function') applyPhotoFilters();
         if(typeof renderData === 'function') renderData();
+
+        // 🌟 KRİTİK: Kullanıcının son kaydettiği şablon öğelerinin konum, stil ve metinlerini uygula
+        if (state.templateElements) {
+            const te = state.templateElements;
+            const curBadge = document.getElementById('elBadge');
+            const curPrice = document.getElementById('elPrice');
+            const curDetails = document.getElementById('elDetails');
+            const curInfoLine = document.getElementById('infoLineText');
+            const curLogo = document.getElementById('elLogo');
+
+            if (te.badge && curBadge) {
+                if (te.badge.style) curBadge.setAttribute('style', te.badge.style);
+                if (te.badge.html) curBadge.innerHTML = te.badge.html;
+                else if (te.badge.text) curBadge.innerText = te.badge.text;
+                curBadge.style.visibility = (te.badge.visible !== false) ? 'visible' : 'hidden';
+                curBadge.style.display = (te.badge.visible !== false) ? 'block' : 'none';
+                if (typeof bindDrag === 'function') bindDrag(curBadge);
+            }
+            if (te.price && curPrice) {
+                if (te.price.style) curPrice.setAttribute('style', te.price.style);
+                if (te.price.html) curPrice.innerHTML = te.price.html;
+                else if (te.price.text) curPrice.innerText = te.price.text;
+                curPrice.style.visibility = (te.price.visible !== false) ? 'visible' : 'hidden';
+                curPrice.style.display = (te.price.visible !== false) ? 'block' : 'none';
+                if (typeof bindDrag === 'function') bindDrag(curPrice);
+            }
+            if (te.details && curDetails) {
+                if (te.details.style) curDetails.setAttribute('style', te.details.style);
+                if (te.details.html) curDetails.innerHTML = te.details.html;
+                curDetails.style.visibility = (te.details.visible !== false) ? 'visible' : 'hidden';
+                curDetails.style.display = (te.details.visible !== false) ? 'block' : 'none';
+                if (typeof bindDrag === 'function') bindDrag(curDetails);
+            }
+            if (te.infoLineHtml && curInfoLine) {
+                curInfoLine.innerHTML = te.infoLineHtml;
+                curInfoLine.style.visibility = 'visible';
+                curInfoLine.style.display = 'block';
+            }
+            if (te.logo && curLogo) {
+                if (te.logo.style) curLogo.setAttribute('style', te.logo.style);
+                curLogo.style.display = (te.logo.visible !== false) ? 'block' : 'none';
+                curLogo.style.visibility = (te.logo.visible !== false) ? 'visible' : 'hidden';
+                if (typeof bindDrag === 'function') bindDrag(curLogo);
+            }
+        }
+
         if(typeof applyPhotoPos === 'function') applyPhotoPos();
         if(typeof resizeCanvas === 'function') resizeCanvas();
         if(typeof redrawAll === 'function') redrawAll();

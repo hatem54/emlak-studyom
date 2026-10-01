@@ -1,0 +1,969 @@
+/* ========================================================
+   EMLAK STÜDYOM - ŞABLON OLUŞTURUCU (TEMPLATE BUILDER)
+   css/template-builder.css
+   ======================================================== */
+
+/* Format Seçici Kartları */
+.tb-ratio-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+    margin-bottom: 12px;
+}
+
+.tb-ratio-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 4px;
+    border-radius: 8px;
+    border: 1px solid rgba(226, 232, 240, 0.8);
+    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    user-select: none;
+    text-align: center;
+}
+
+body[data-theme="dark"] .tb-ratio-btn {
+    background: rgba(30, 41, 59, 0.7);
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+.tb-ratio-btn:hover {
+    border-color: #0284c7;
+    transform: translateY(-1px);
+    box-shadow: 0 3px 8px rgba(2, 132, 199, 0.15);
+}
+
+.tb-ratio-btn.active {
+    border-color: #0284c7;
+    background: rgba(2, 132, 199, 0.08);
+    box-shadow: 0 0 0 1px #0284c7;
+}
+
+.tb-ratio-icon {
+    font-size: 15px;
+    color: #0284c7;
+    margin-bottom: 4px;
+}
+
+.tb-ratio-title {
+    font-size: 10.5px;
+    font-weight: 700;
+    color: var(--text, #0f172a);
+    line-height: 1.2;
+}
+
+.tb-ratio-sub {
+    font-size: 9px;
+    color: var(--text-muted, #64748b);
+    margin-top: 2px;
+}
+
+/* Arka Plan Renk / Gradyan Çipleri */
+.tb-bg-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 12px;
+}
+
+.tb-bg-chip {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    border: 1px solid rgba(0, 0, 0, 0.15);
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s;
+    position: relative;
+}
+
+body[data-theme="dark"] .tb-bg-chip {
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.tb-bg-chip:hover {
+    transform: scale(1.12);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+    z-index: 2;
+}
+
+.tb-bg-chip.active {
+    box-shadow: 0 0 0 2px #0284c7;
+}
+
+/* Eylem Butonları Grid */
+.tb-action-grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    margin-bottom: 8px;
+}
+
+.tb-action-grid-3 {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+    margin-bottom: 8px;
+}
+
+.tb-action-grid-4 {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+    margin-bottom: 8px;
+}
+
+/* Çerçeve Geçiş / Degrade Preset Butonları */
+.tb-blend-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+    margin-bottom: 10px;
+}
+
+.tb-blend-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 7px 4px;
+    border-radius: 7px;
+    border: 1px solid rgba(226, 232, 240, 0.8);
+    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    user-select: none;
+    text-align: center;
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--text, #0f172a);
+    gap: 3px;
+}
+
+body[data-theme="dark"] .tb-blend-btn {
+    background: rgba(30, 41, 59, 0.7);
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+.tb-blend-btn:hover {
+    border-color: #0284c7;
+    background: rgba(2, 132, 199, 0.05);
+}
+
+.tb-blend-btn.active {
+    border-color: #0284c7;
+    background: rgba(2, 132, 199, 0.12);
+    box-shadow: 0 0 0 1px #0284c7;
+}
+
+/* Hazır Düzen (Pre-built Layouts) Kartları */
+.tb-layout-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+    max-height: 480px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    padding-right: 2px;
+    margin-bottom: 12px;
+}
+
+.tb-layout-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 8px 4px;
+    border-radius: 8px;
+    border: 1px solid rgba(226, 232, 240, 0.8);
+    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    user-select: none;
+}
+
+body[data-theme="dark"] .tb-layout-card {
+    background: rgba(30, 41, 59, 0.7);
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+.tb-layout-card:hover {
+    border-color: #0284c7;
+    transform: translateY(-1px);
+    box-shadow: 0 3px 8px rgba(2, 132, 199, 0.12);
+}
+
+.tb-layout-preview {
+    width: 44px;
+    height: 32px;
+    background: rgba(226, 232, 240, 0.6);
+    border-radius: 4px;
+    margin-bottom: 6px;
+    display: grid;
+    gap: 2px;
+    padding: 2px;
+    box-sizing: border-box;
+}
+
+body[data-theme="dark"] .tb-layout-preview {
+    background: rgba(15, 23, 42, 0.6);
+}
+
+.tb-layout-preview-box {
+    background: #0284c7;
+    opacity: 0.75;
+    border-radius: 2px;
+}
+
+.tb-layout-name {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--text, #0f172a);
+    text-align: center;
+    line-height: 1.2;
+}
+
+/* ========================================================
+   TUVAL ÜZERİNDEKİ GÖRSEL ÇERÇEVELERİ (CANVAS IMAGE FRAMES)
+   ======================================================== */
+.tb-image-frame,
+#ui-layer .tb-image-frame {
+    position: absolute;
+    box-sizing: border-box;
+    display: block;
+    overflow: visible !important; /* TUTAMAÇLARIN KESİLMESİNİ ENGELLER */
+    cursor: move;
+    user-select: none;
+    z-index: 40 !important;
+    touch-action: none;
+    transition: box-shadow 0.15s ease;
+}
+
+.tb-image-frame.selected,
+#ui-layer .tb-image-frame.selected,
+.tb-image-frame.el-selected,
+#ui-layer .tb-image-frame.el-selected {
+    outline: 2px solid #0284c7 !important;
+    outline-offset: 3px;
+    z-index: 50 !important; /* SEÇİLİYKEN BİLE YAZILARIN (300) ALTINDA KALIR */
+}
+
+/* İç Kırpma Konteyneri: Fotoğraf ve maskeler burada kesilir, tutamaçlar dışarıda kalır! */
+.tb-frame-clip {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    overflow: hidden !important;
+    border-radius: inherit;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent !important;
+    border: none !important;
+}
+
+/* Çerçeve İç Gövdesi (Degrade & İçerik Taşıyıcı) */
+.tb-frame-inner {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    overflow: hidden !important;
+    border-radius: inherit;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(248, 250, 252, 0.85);
+    border: 2px dashed rgba(2, 132, 199, 0.6);
+}
+
+body[data-theme="dark"] .tb-frame-inner {
+    background: rgba(30, 41, 59, 0.75);
+    border-color: rgba(56, 189, 248, 0.6);
+}
+
+.tb-image-frame.has-image .tb-frame-inner {
+    border: none !important;
+    background: transparent !important;
+}
+
+/* 🌟 PÜRÜZSÜZ GEÇİŞ / DEGRADE EFEKTLERİ (SMOOTH GRADIENT BLEND) */
+.tb-frame-inner.fade-bottom,
+.tb-frame-clip.fade-bottom {
+    -webkit-mask-image: linear-gradient(to bottom, rgba(0,0,0,1) 45%, rgba(0,0,0,0) 100%) !important;
+    mask-image: linear-gradient(to bottom, rgba(0,0,0,1) 45%, rgba(0,0,0,0) 100%) !important;
+    -webkit-mask-size: 100% 100% !important;
+    mask-size: 100% 100% !important;
+    -webkit-mask-repeat: no-repeat !important;
+    mask-repeat: no-repeat !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+
+.tb-frame-inner.fade-right,
+.tb-frame-clip.fade-right {
+    -webkit-mask-image: linear-gradient(to right, rgba(0,0,0,1) 45%, rgba(0,0,0,0) 100%) !important;
+    mask-image: linear-gradient(to right, rgba(0,0,0,1) 45%, rgba(0,0,0,0) 100%) !important;
+    -webkit-mask-size: 100% 100% !important;
+    mask-size: 100% 100% !important;
+    -webkit-mask-repeat: no-repeat !important;
+    mask-repeat: no-repeat !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+
+.tb-frame-inner.fade-left,
+.tb-frame-clip.fade-left {
+    -webkit-mask-image: linear-gradient(to left, rgba(0,0,0,1) 45%, rgba(0,0,0,0) 100%) !important;
+    mask-image: linear-gradient(to left, rgba(0,0,0,1) 45%, rgba(0,0,0,0) 100%) !important;
+    -webkit-mask-size: 100% 100% !important;
+    mask-size: 100% 100% !important;
+    -webkit-mask-repeat: no-repeat !important;
+    mask-repeat: no-repeat !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+
+/* Çerçeve İçi Fotoğraf */
+.tb-frame-img {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    pointer-events: none;
+    transition: transform 0.05s linear;
+}
+
+/* Çerçeve İçi Fotoğraf Odak / Pan Modu */
+.tb-frame-item.tb-pan-mode,
+.tb-image-frame.tb-pan-mode {
+    cursor: grab !important;
+    outline: 2px dashed #0284c7 !important;
+    outline-offset: 2px;
+}
+
+.tb-frame-item.tb-pan-mode:active,
+.tb-image-frame.tb-pan-mode:active {
+    cursor: grabbing !important;
+}
+
+.tb-image-frame.tb-pan-mode .tb-frame-img {
+    transition: none !important;
+}
+
+.tb-pan-indicator {
+    position: absolute;
+    top: -24px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #0284c7;
+    color: #ffffff;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 12px;
+    white-space: nowrap;
+    pointer-events: none;
+    z-index: 100;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+}
+
+/* Çerçeve Boş Durum (Empty Placeholder) */
+.tb-frame-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    width: 100%;
+    height: 100%;
+    padding: 12px;
+    box-sizing: border-box;
+    pointer-events: auto;
+    text-align: center;
+}
+
+.tb-frame-placeholder i {
+    font-size: 26px;
+    color: #0284c7;
+    opacity: 0.8;
+}
+
+.tb-frame-placeholder span {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text, #1e293b);
+}
+
+.tb-frame-placeholder small {
+    font-size: 9.5px;
+    color: var(--text-muted, #64748b);
+}
+
+.tb-frame-placeholder.drag-hover {
+    background: rgba(2, 132, 199, 0.15);
+    border-color: #0284c7;
+}
+
+/* Çerçeve Yeniden Boyutlandırma Tutamaçları (Resize Handles) */
+.tb-frame-handle {
+    position: absolute;
+    width: 14px;
+    height: 14px;
+    background: #ffffff;
+    border: 2px solid #0284c7;
+    border-radius: 50%;
+    z-index: 120;
+    display: none;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.35);
+    box-sizing: border-box;
+}
+
+.tb-image-frame.selected .tb-frame-handle,
+.tb-image-frame.el-selected .tb-frame-handle {
+    display: block;
+}
+
+.tb-frame-handle.tl { top: -7px; left: -7px; cursor: nwse-resize; }
+.tb-frame-handle.tr { top: -7px; right: -7px; cursor: nesw-resize; }
+.tb-frame-handle.bl { bottom: -7px; left: -7px; cursor: nesw-resize; }
+.tb-frame-handle.br { bottom: -7px; right: -7px; cursor: nwse-resize; }
+
+/* Çerçeve Hızlı Aksiyon Rozeti */
+.tb-frame-floating-tools {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    display: none;
+    gap: 4px;
+    z-index: 125;
+    pointer-events: auto;
+}
+
+.tb-image-frame.selected .tb-frame-floating-tools,
+.tb-image-frame.el-selected .tb-frame-floating-tools {
+    display: flex;
+}
+
+.tb-floating-btn {
+    width: 26px;
+    height: 26px;
+    border-radius: 6px;
+    background: rgba(15, 23, 42, 0.85);
+    color: #ffffff;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    transition: background 0.15s;
+}
+
+.tb-floating-btn:hover {
+    background: #0284c7;
+}
+
+/* Kayıtlı Şablonlar Listesi */
+.tb-saved-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 8px;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.tb-saved-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 10px;
+    border-radius: 8px;
+    border: 1px solid rgba(226, 232, 240, 0.8);
+    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+    font-size: 11.5px;
+    font-weight: 600;
+}
+
+body[data-theme="dark"] .tb-saved-item {
+    background: rgba(30, 41, 59, 0.7);
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+.tb-saved-item-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+/* Açılır Hazır Arka Plan Paleti (68 Presets) */
+.tb-bg-palette-wrapper {
+    margin-bottom: 12px;
+    border: 1px solid rgba(226, 232, 240, 0.8);
+    border-radius: 8px;
+    padding: 8px;
+    background: rgba(248, 250, 252, 0.6);
+    transition: all 0.2s ease;
+}
+
+body[data-theme="dark"] .tb-bg-palette-wrapper {
+    background: rgba(15, 23, 42, 0.4);
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+.tb-bg-cat-tabs {
+    display: flex;
+    gap: 4px;
+    overflow-x: auto;
+    padding-bottom: 6px;
+    margin-bottom: 8px;
+    scrollbar-width: thin;
+}
+
+.tb-bg-cat-btn {
+    padding: 3px 8px;
+    font-size: 10px;
+    font-weight: 600;
+    border-radius: 5px;
+    border: 1px solid rgba(226, 232, 240, 0.8);
+    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+    color: var(--text, #0f172a);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.15s ease;
+}
+
+body[data-theme="dark"] .tb-bg-cat-btn {
+    background: rgba(30, 41, 59, 0.7);
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+.tb-bg-cat-btn:hover {
+    border-color: #ec4899;
+    color: #ec4899;
+}
+
+.tb-bg-cat-btn.active {
+    border-color: #ec4899;
+    background: #ec4899;
+    color: #ffffff;
+}
+
+.tb-bg-palette-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 5px;
+    max-height: 145px;
+    overflow-y: auto;
+    padding: 2px;
+    scrollbar-width: thin;
+}
+
+.tb-palette-chip {
+    width: 100%;
+    aspect-ratio: 1;
+    border-radius: 6px;
+    border: 1px solid rgba(0, 0, 0, 0.15);
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s;
+    position: relative;
+    box-sizing: border-box;
+}
+
+body[data-theme="dark"] .tb-palette-chip {
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.tb-palette-chip:hover {
+    transform: scale(1.15);
+    box-shadow: 0 3px 8px rgba(0,0,0,0.3);
+    z-index: 5;
+}
+
+.tb-palette-chip.active {
+    outline: 2px solid #0284c7;
+    outline-offset: 1px;
+}
+
+/* 100+ Hazır Düzen Arama & Kategori Sekmeleri */
+.tb-layout-search-box {
+    position: relative;
+    margin-bottom: 8px;
+}
+
+.tb-layout-search-input {
+    width: 100%;
+    height: 30px;
+    padding: 0 28px 0 28px;
+    border-radius: 6px;
+    border: 1px solid rgba(226, 232, 240, 0.8);
+    background: var(--dark-3, #ffffff);
+    color: var(--text, #0f172a);
+    font-size: 11px;
+    box-sizing: border-box;
+}
+
+.tb-layout-search-box i {
+    position: absolute;
+    left: 9px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 11px;
+    color: var(--text-muted, #64748b);
+}
+
+.tb-layout-cat-tabs {
+    display: flex;
+    gap: 4px;
+    overflow-x: auto;
+    padding-bottom: 6px;
+    margin-bottom: 8px;
+    scrollbar-width: thin;
+}
+
+.tb-layout-cat-btn {
+    padding: 3px 8px;
+    font-size: 10px;
+    font-weight: 600;
+    border-radius: 5px;
+    border: 1px solid rgba(226, 232, 240, 0.8);
+    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+    color: var(--text, #0f172a);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.15s ease;
+}
+
+body[data-theme="dark"] .tb-layout-cat-btn {
+    background: rgba(30, 41, 59, 0.7);
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+.tb-layout-cat-btn:hover {
+    border-color: #f59e0b;
+    color: #f59e0b;
+}
+
+.tb-layout-cat-btn.active {
+    border-color: #f59e0b;
+    background: #f59e0b;
+    color: #ffffff;
+}
+
+/* Düzen Kartları & Mini Önizleme */
+.tb-layout-preview-wrapper {
+    position: relative;
+    width: 60px;
+    height: 34px;
+    background: #0f172a;
+    border: 1px solid rgba(203, 213, 225, 0.5);
+    border-radius: 4px;
+    margin-bottom: 6px;
+    overflow: hidden;
+    box-shadow: inset 0 0 4px rgba(0,0,0,0.2);
+}
+
+body[data-theme="dark"] .tb-layout-preview-wrapper {
+    border-color: rgba(255, 255, 255, 0.15);
+}
+
+.tb-layout-mini-frame {
+    position: absolute;
+    background: rgba(56, 189, 248, 0.45);
+    border: 1px solid #38bdf8;
+    border-radius: 1.5px;
+    box-sizing: border-box;
+}
+
+.tb-layout-mini-text {
+    position: absolute;
+    background: #f59e0b;
+    border-radius: 1px;
+    height: 2px;
+    opacity: 0.9;
+}
+
+.tb-theme-select {
+    height: 30px;
+    padding: 0 8px;
+    font-size: 11px;
+    font-weight: 600;
+    border-radius: 6px;
+    border: 1px solid rgba(226, 232, 240, 0.8);
+    background: var(--dark-3, #ffffff);
+    color: var(--text, #0f172a);
+    cursor: pointer;
+    box-sizing: border-box;
+    outline: none;
+}
+
+body[data-theme="dark"] .tb-theme-select {
+    background: rgba(30, 41, 59, 0.7);
+    border-color: rgba(255, 255, 255, 0.15);
+    color: #f1f5f9;
+}
+
+/* ========================================================
+   GÖRSEL TAKAS & YER DEĞİŞTİRME STİLLERİ (IMAGE SWAP)
+   ======================================================== */
+.tb-image-frame.tb-can-swap {
+    outline: 2px dashed rgba(2, 132, 199, 0.5) !important;
+    outline-offset: 3px;
+}
+
+.tb-image-frame.tb-swap-target-hover {
+    outline: 3px solid #0284c7 !important;
+    outline-offset: 4px;
+    box-shadow: 0 0 24px rgba(2, 132, 199, 0.55) !important;
+    transform: scale(1.025);
+    z-index: 60 !important;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.tb-swap-badge {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(15, 23, 42, 0.92);
+    color: #38bdf8;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 6px 14px;
+    border-radius: 20px;
+    border: 1px solid rgba(56, 189, 248, 0.5);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+    pointer-events: none;
+    z-index: 150;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+    animation: tbPulse 0.9s infinite alternate ease-in-out;
+}
+
+@keyframes tbPulse {
+    0% { transform: translate(-50%, -50%) scale(0.96); }
+    100% { transform: translate(-50%, -50%) scale(1.04); }
+}
+
+.tb-image-frame.tb-swap-pop {
+    animation: tbSwapPop 0.35s ease-out;
+}
+
+@keyframes tbSwapPop {
+    0% { transform: scale(0.95); }
+    50% { transform: scale(1.03); }
+    100% { transform: scale(1); }
+}
+
+/* ========================================================
+   ŞABLON YAZILARI & ROZETLERİ (DAİMA GÖRSELLERİN ÜZERİNDE)
+   ======================================================== */
+.tb-layout-text,
+#ui-layer .tb-layout-text,
+#ui-layer .draggable.tb-layout-text,
+.draggable.canvas-el.tb-layout-text {
+    z-index: 300 !important;
+    pointer-events: auto !important;
+    cursor: move;
+    user-select: none;
+}
+
+.tb-layout-text.el-selected,
+#ui-layer .tb-layout-text.el-selected {
+    z-index: 1000 !important;
+}
+
+/* ========================================================
+   3D DÜZLEM ÇERÇEVE & İNTERAKTİF TUTAMAÇ STİLLERİ
+   ======================================================== */
+.tb-image-frame {
+    transform-origin: center center;
+    will-change: transform;
+}
+
+.tb-floating-btn.tb-btn-3d {
+    background: #6366f1 !important;
+    color: #ffffff !important;
+}
+
+.tb-floating-btn.tb-btn-3d:hover {
+    background: #4f46e5 !important;
+    transform: scale(1.15);
+}
+
+/* ========================================================
+   SERBEST ÇOKGEN ÇERÇEVE ÇİZİM KATMANI & HUD
+   ======================================================== */
+.preview-area {
+    position: relative;
+}
+
+.tb-polygon-draw-overlay {
+    user-select: none;
+    touch-action: none;
+    cursor: default !important;
+}
+
+.tb-polygon-hud {
+    position: absolute;
+    top: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(15, 23, 42, 0.88);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: #ffffff;
+    font-size: 11.5px;
+    font-weight: 600;
+    padding: 6px 14px;
+    border-radius: 24px;
+    display: flex;
+    align-items: center;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+    z-index: 99999;
+    pointer-events: auto;
+    white-space: nowrap;
+    animation: tbHudFadeIn 0.25s ease-out;
+}
+
+@keyframes tbHudFadeIn {
+    from { opacity: 0; transform: translate(-50%, -10px); }
+    to { opacity: 1; transform: translate(-50%, 0); }
+}
+
+.tb-polygon-hud .btn-action {
+    background: rgba(239, 68, 68, 0.25) !important;
+    border-color: rgba(239, 68, 68, 0.45) !important;
+    color: #fca5a5 !important;
+}
+
+.tb-polygon-hud .btn-action:hover {
+    background: rgba(239, 68, 68, 0.4) !important;
+    color: #ffffff !important;
+}
+
+/* ========================================================
+   3D DÜZLEM VE PERSPEKTİF GİZMO (AFTER EFFECTS 3D GIZMO)
+   ======================================================== */
+.tb-3d-gizmo.three-d-gizmo-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 100410;
+    user-select: none;
+}
+
+.three-d-gizmo-close-btn {
+    position: absolute;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: rgba(15, 23, 42, 0.88);
+    border: 1.5px solid rgba(255, 255, 255, 0.35);
+    color: #cbd5e1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    cursor: pointer;
+    pointer-events: auto;
+    z-index: 100425;
+    transition: all 0.15s ease;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+    transform: translate(-50%, -50%);
+}
+
+.three-d-gizmo-close-btn:hover {
+    background: #dc2626;
+    color: #ffffff;
+    border-color: #ef4444;
+    transform: translate(-50%, -50%) scale(1.15);
+}
+
+.three-d-gizmo-origin-dot.interactive-origin {
+    pointer-events: auto !important;
+    cursor: move !important;
+    transition: r 0.12s ease, fill 0.12s ease;
+}
+
+.three-d-gizmo-origin-dot.interactive-origin:hover {
+    fill: #38bdf8 !important;
+}
+
+#tbBtn3DGizmo.active {
+    background: #e0e7ff !important;
+    color: #4338ca !important;
+    border-color: #818cf8 !important;
+}
+
+/* ========================================================
+   ŞABLON OLUŞTURUCU AKORDİYON DÜZENLERİ (ACCORDION)
+   ======================================================== */
+.tb-accordion {
+    margin-bottom: 12px;
+    border: 1px solid rgba(226, 232, 240, 0.85);
+    border-radius: 10px;
+    background: rgba(248, 250, 252, 0.6);
+    overflow: hidden;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.tb-accordion[open] {
+    border-color: #cbd5e1;
+    background: rgba(255, 255, 255, 0.9);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.tb-accordion-summary {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-primary, #1e293b);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 10px 12px;
+    cursor: pointer;
+    list-style: none;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(241, 245, 249, 0.7);
+    user-select: none;
+    transition: background 0.15s ease;
+}
+
+.tb-accordion-summary:hover {
+    background: rgba(226, 232, 240, 0.8);
+}
+
+.tb-accordion-summary::-webkit-details-marker {
+    display: none;
+}
+
+.tb-accordion-arrow {
+    font-size: 11px;
+    color: #64748b;
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.tb-accordion[open] .tb-accordion-arrow {
+    transform: rotate(180deg);
+}
+
+.tb-accordion-content {
+    padding: 10px 8px;
+}
+

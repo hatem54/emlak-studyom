@@ -1,0 +1,276 @@
+/**
+ * Emlak Stüdyom - 3D Emlak Malzeme & Doku Kütüphanesi Stilleri
+ * css/three-d-textures.css
+ * UI Tasarım Standartları & AGENTS.md uyumlu
+ */
+
+.three-d-tex-section {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.three-d-tex-title {
+    font-size: 11.5px;
+    font-weight: 700;
+    color: #475569;
+    letter-spacing: 0.4px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    cursor: pointer;
+    user-select: none;
+}
+
+.three-d-tex-title-left {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+#threeDTexSectionChevron {
+    font-size: 10px;
+    transition: transform 0.2s ease;
+    color: #94a3b8;
+}
+
+.three-d-tex-badge {
+    font-size: 9.5px;
+    font-weight: 700;
+    background: rgba(2, 132, 199, 0.1);
+    color: #0284c7;
+    padding: 2px 6px;
+    border-radius: 4px;
+    border: 1px solid rgba(2, 132, 199, 0.2);
+}
+
+/* 🎯 Çok Parçalı Hedef Parça Seçici */
+.three-d-tex-slot-row {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 8px;
+}
+
+.three-d-tex-slot-btn {
+    flex: 1;
+    padding: 5px 2px;
+    font-size: 10px;
+    font-weight: 600;
+    font-family: 'ClassicAmpersand', 'Space Grotesk', sans-serif;
+    color: #475569;
+    background: #f8fafc;
+    border: 1px solid #cbd5e1;
+    border-radius: 5px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    transition: all 0.15s ease;
+}
+
+.three-d-tex-slot-btn:hover {
+    background: #f1f5f9;
+    border-color: #94a3b8;
+    color: #0f172a;
+}
+
+.three-d-tex-slot-btn.active {
+    background: #0284c7;
+    border-color: #0284c7;
+    color: #ffffff;
+    font-weight: 700;
+    box-shadow: 0 1px 3px rgba(2, 132, 199, 0.3);
+}
+
+/* 🏷️ Kategori Hapları (Chips) */
+.three-d-tex-cat-scroll {
+    display: flex;
+    gap: 4px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    margin-bottom: 8px;
+    scrollbar-width: thin;
+}
+
+.three-d-tex-cat-scroll::-webkit-scrollbar {
+    height: 4px;
+}
+
+.three-d-tex-cat-scroll::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+}
+
+.three-d-tex-cat-chip {
+    padding: 3px 8px;
+    font-size: 10px;
+    font-weight: 600;
+    font-family: 'ClassicAmpersand', 'Inter', sans-serif;
+    color: #64748b;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.15s ease;
+}
+
+.three-d-tex-cat-chip:hover {
+    border-color: #94a3b8;
+    color: #0f172a;
+}
+
+.three-d-tex-cat-chip.active {
+    background: #0f172a;
+    border-color: #0f172a;
+    color: #ffffff;
+    font-weight: 700;
+}
+
+/* 🖼️ Görsel Doku Kartları Izgarası */
+.three-d-tex-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+    max-height: 185px;
+    overflow-y: auto;
+    padding-right: 2px;
+    margin-bottom: 8px;
+}
+
+.three-d-tex-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 4px;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    transition: all 0.15s ease;
+    user-select: none;
+    font-family: inherit;
+    box-sizing: border-box;
+    width: 100%;
+    outline: none;
+}
+
+.three-d-tex-card:hover {
+    border-color: #0284c7;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+}
+
+.three-d-tex-card.active {
+    border-color: #0284c7;
+    background: rgba(2, 132, 199, 0.05);
+    box-shadow: 0 0 0 1.5px #0284c7;
+}
+
+.three-d-tex-thumb {
+    width: 100%;
+    height: 38px;
+    border-radius: 4px;
+    background-size: cover;
+    background-position: center;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.three-d-tex-name {
+    font-size: 9.5px;
+    font-weight: 600;
+    color: #334155;
+    text-align: center;
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    width: 100%;
+}
+
+/* ⚙️ Doku İnce Ayarları Akordeonu */
+.three-d-tex-acc-toggle {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 5px 8px;
+    font-size: 10.5px;
+    font-weight: 600;
+    color: #475569;
+    background: #f8fafc;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    margin-bottom: 6px;
+}
+
+.three-d-tex-acc-toggle:hover {
+    background: #f1f5f9;
+    color: #0f172a;
+}
+
+.three-d-tex-acc-box {
+    padding: 8px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    margin-bottom: 8px;
+}
+
+.three-d-tex-slider-row {
+    margin-bottom: 6px;
+}
+
+.three-d-tex-slider-header {
+    display: flex;
+    justify-content: space-between;
+    font-size: 10px;
+    color: #475569;
+    font-weight: 600;
+    margin-bottom: 2px;
+}
+
+.three-d-tex-slider-val {
+    color: #0284c7;
+    font-weight: 700;
+}
+
+.three-d-tex-actions-row {
+    display: flex;
+    gap: 6px;
+    margin-top: 6px;
+}
+
+.three-d-tex-action-btn {
+    flex: 1;
+    padding: 4px 8px;
+    font-size: 10px;
+    font-weight: 600;
+    color: #64748b;
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    transition: all 0.15s ease;
+}
+
+.three-d-tex-action-btn:hover {
+    background: #f1f5f9;
+    color: #0f172a;
+    border-color: #94a3b8;
+}
+
+.three-d-tex-action-btn.btn-remove:hover {
+    background: #fef2f2;
+    color: #dc2626;
+    border-color: #fca5a5;
+}

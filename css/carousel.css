@@ -1,0 +1,291 @@
+/**
+ * ========================================================
+ * EMLAK STÜDYOM - ÇOKLU SAYFA / ALBÜM (CAROUSEL) YÖNETİCİSİ
+ * css/carousel.css
+ * ========================================================
+ */
+
+/* 1. Tuval Altı Kompakt Film Şeridi */
+#carouselFilmstripBar,
+.carousel-filmstrip-bar {
+    position: fixed;
+    bottom: 58px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: auto;
+    min-width: 0;
+    max-width: calc(100vw - 340px);
+    height: 48px;
+    background: rgba(255, 255, 255, 0.96);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid #cbd5e1;
+    border-radius: 10px;
+    z-index: 1200;
+    display: none;
+    align-items: center;
+    padding: 4px 8px;
+    gap: 6px;
+    box-shadow: 0 6px 24px rgba(15, 23, 42, 0.12);
+    user-select: none;
+}
+
+[data-theme="dark"] #carouselFilmstripBar,
+body:not([data-theme="light"]) #carouselFilmstripBar {
+    background: rgba(15, 23, 42, 0.94);
+    border-color: rgba(51, 65, 85, 0.85);
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.45);
+}
+
+/* Sayfa Kartları Listesi */
+.carousel-slides-strip {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    overflow-x: auto;
+    padding: 2px;
+    max-width: 520px;
+}
+
+.carousel-slides-strip::-webkit-scrollbar {
+    height: 3px;
+}
+
+.carousel-slides-strip::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 3px;
+}
+
+/* Tekil Sayfa Kartı */
+.carousel-slide-card {
+    flex-shrink: 0;
+    width: 60px;
+    height: 38px;
+    border-radius: 6px;
+    border: 1.5px solid #cbd5e1;
+    background: #ffffff;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    padding: 2px;
+    transition: all 0.15s ease;
+}
+
+.carousel-slide-card:hover {
+    border-color: #0284c7;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 10px rgba(2, 132, 199, 0.15);
+}
+
+.carousel-slide-card.active {
+    border-color: #0284c7;
+    box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.25);
+    background: #f0f9ff;
+}
+
+.carousel-slide-thumb {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    pointer-events: none;
+    background: #f1f5f9;
+}
+
+.carousel-slide-badge {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    background: rgba(15, 23, 42, 0.82);
+    color: #ffffff;
+    font-size: 8px;
+    font-weight: 700;
+    padding: 1px 3.5px;
+    border-radius: 3px;
+    z-index: 2;
+    line-height: 1;
+}
+
+.carousel-slide-title {
+    position: relative;
+    z-index: 2;
+    font-size: 8px;
+    font-weight: 700;
+    color: #ffffff;
+    background: rgba(15, 23, 42, 0.85);
+    padding: 1px 3px;
+    border-radius: 3px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-align: center;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    transition: background 0.15s ease;
+}
+
+.carousel-slide-title:hover {
+    background: #0284c7;
+}
+
+/* Sayfa Üzeri Hover Araçları (Taşı, Çoğalt, Sil) */
+.carousel-slide-tools {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    display: none;
+    gap: 2px;
+    z-index: 3;
+}
+
+.carousel-slide-card:hover .carousel-slide-tools {
+    display: flex;
+}
+
+.carousel-slide-btn {
+    width: 14px;
+    height: 14px;
+    border-radius: 3px;
+    border: none;
+    background: rgba(15, 23, 42, 0.88);
+    color: #ffffff;
+    font-size: 7.5px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.12s ease;
+}
+
+.carousel-slide-btn:hover {
+    background: #0284c7;
+}
+
+.carousel-slide-btn.btn-del:hover {
+    background: #dc2626;
+}
+
+/* Şerit İçi Sayfa Ekle Butonu */
+.carousel-bar-add-btn {
+    height: 36px !important;
+    padding: 0 8px !important;
+    font-size: 10.5px !important;
+    font-weight: 600 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 4px !important;
+    border-radius: 6px !important;
+    flex-shrink: 0 !important;
+    white-space: nowrap !important;
+}
+
+/* Şerit Kapatma Butonu */
+.carousel-bar-close-btn {
+    width: 26px;
+    height: 26px;
+    border-radius: 6px;
+    border: 1px solid #cbd5e1;
+    background: #f8fafc;
+    color: #475569;
+    font-size: 13px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-left: 4px;
+    z-index: 10;
+    transition: all 0.15s ease;
+}
+
+.carousel-bar-close-btn:hover {
+    background: #fee2e2;
+    color: #ef4444;
+    border-color: #fca5a5;
+    transform: scale(1.05);
+}
+
+[data-theme="dark"] .carousel-bar-close-btn,
+body:not([data-theme="light"]) .carousel-bar-close-btn {
+    background: rgba(30, 41, 59, 0.85);
+    border-color: rgba(71, 85, 105, 0.6);
+    color: #94a3b8;
+}
+
+[data-theme="dark"] .carousel-bar-close-btn:hover,
+body:not([data-theme="light"]) .carousel-bar-close-btn:hover {
+    background: rgba(239, 68, 68, 0.2);
+    color: #f87171;
+    border-color: rgba(239, 68, 68, 0.4);
+    transform: scale(1.05);
+}
+
+/* ========================================================
+   2. Tuval Üzeri Sol Üst Sayfa Rozeti & Hızlı Geçiş
+   ======================================================== */
+.canvas-carousel-badge {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    z-index: 99;
+    display: none;
+    align-items: center;
+    gap: 4px;
+    background: rgba(15, 23, 42, 0.88);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    color: #f8fafc;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 18px;
+    padding: 3px 6px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.28);
+    user-select: none;
+    font-family: 'ClassicAmpersand', 'Inter', sans-serif;
+    pointer-events: auto;
+}
+
+.cc-badge-text {
+    font-size: 10.5px;
+    font-weight: 600;
+    padding: 1.5px 5px;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: background 0.15s ease, color 0.15s ease;
+    white-space: nowrap;
+    max-width: 170px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.cc-badge-text:hover {
+    background: rgba(255, 255, 255, 0.15);
+    color: #38bdf8;
+}
+
+.cc-badge-arrow {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(255, 255, 255, 0.1);
+    color: #f8fafc;
+    font-size: 9px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s ease;
+}
+
+.cc-badge-arrow:hover {
+    background: #0284c7;
+    color: #ffffff;
+}

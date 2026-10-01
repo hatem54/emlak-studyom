@@ -105,16 +105,17 @@ window.pinchPanY = 0;
                 pInitialPanX = window.pinchPanX;
                 pInitialPanY = window.pinchPanY;
                 previewArea.style.cursor = 'grabbing';
+                window.addEventListener('mousemove', onDesktopPanMove);
+                window.addEventListener('mouseup', onDesktopPanUp);
                 e.preventDefault();
                 e.stopPropagation();
             }
         });
 
-        window.addEventListener('mousemove', function(e) {
+        function onDesktopPanMove(e) {
             if (!isPanningDesktop) return;
             if (hasUploadedPhoto()) {
-                isPanningDesktop = false;
-                previewArea.style.cursor = '';
+                onDesktopPanUp();
                 return;
             }
             e.preventDefault();
@@ -123,14 +124,16 @@ window.pinchPanY = 0;
             window.pinchPanX = pInitialPanX + dx;
             window.pinchPanY = pInitialPanY + dy;
             applyTransform();
-        });
+        }
 
-        window.addEventListener('mouseup', function(e) {
+        function onDesktopPanUp() {
             if (isPanningDesktop) {
                 isPanningDesktop = false;
                 previewArea.style.cursor = '';
+                window.removeEventListener('mousemove', onDesktopPanMove);
+                window.removeEventListener('mouseup', onDesktopPanUp);
             }
-        });
+        }
 
         // Çift tık ile tuvali sıfırla (görsel yokken)
         previewArea.addEventListener('dblclick', function(e) {

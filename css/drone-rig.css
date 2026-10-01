@@ -1,0 +1,154 @@
+/* ==========================================================================
+   EMLAK STÜDYOM - AKILLI DRONE AÇI GEZGİNİ & ALT KOKPİT STİLLERİ
+   css/drone-rig.css
+   ========================================================================== */
+
+/* 1. Drone Açı Gezgini Dock (Merkez Kontrol Barı) */
+.sat-drone-nav-dock {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: rgba(15, 23, 42, 0.7);
+    border: 1px solid rgba(56, 189, 248, 0.25);
+    border-radius: 8px;
+    padding: 3px 6px;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}
+
+body[data-theme="light"] .sat-drone-nav-dock {
+    background: #f1f5f9;
+    border: 1px solid #cbd5e1;
+}
+
+/* Önceki / Sonraki Butonları */
+.sat-nav-dock-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    height: 26px;
+    padding: 0 9px;
+    font-family: 'Space Grotesk', 'Inter', sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    color: #e2e8f0;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+}
+
+body[data-theme="light"] .sat-nav-dock-btn {
+    color: #0f172a;
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.sat-nav-dock-btn:hover {
+    background: rgba(56, 189, 248, 0.2);
+    border-color: #38bdf8;
+    color: #ffffff;
+}
+
+body[data-theme="light"] .sat-nav-dock-btn:hover {
+    background: #e2e8f0;
+    border-color: #94a3b8;
+    color: #0f172a;
+}
+
+.sat-nav-dock-btn i {
+    font-size: 10px;
+    color: #38bdf8;
+}
+
+body[data-theme="light"] .sat-nav-dock-btn i {
+    color: #0284c7;
+}
+
+/* Açı Ekranı (Sayaç + Başlık + Durum) */
+.sat-nav-dock-display {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 8px;
+    min-width: 135px;
+    justify-content: center;
+}
+
+.sat-nav-dock-count {
+    font-family: 'Space Grotesk', monospace;
+    font-size: 10px;
+    font-weight: 700;
+    color: #38bdf8;
+    background: rgba(56, 189, 248, 0.12);
+    padding: 2px 5px;
+    border-radius: 4px;
+    border: 1px solid rgba(56, 189, 248, 0.25);
+    white-space: nowrap;
+}
+
+body[data-theme="light"] .sat-nav-dock-count {
+    color: #0284c7;
+    background: rgba(2, 132, 199, 0.08);
+    border: 1px solid rgba(2, 132, 199, 0.2);
+}
+
+.sat-nav-dock-title {
+    font-family: 'Space Grotesk', 'Inter', sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    color: #f8fafc;
+    white-space: nowrap;
+}
+
+body[data-theme="light"] .sat-nav-dock-title {
+    color: #0f172a;
+}
+
+.sat-nav-dock-status {
+    font-family: 'Inter', sans-serif;
+    font-size: 9.5px;
+    font-weight: 700;
+    color: #10b981;
+    background: rgba(16, 185, 129, 0.15);
+    border: 1px solid rgba(16, 185, 129, 0.35);
+    border-radius: 4px;
+    padding: 1.5px 5px;
+    white-space: nowrap;
+}
+
+/* 3D Kamera Bilgisi Rozeti */
+.sat-footer-cam-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-family: 'Space Grotesk', monospace;
+    font-size: 10.5px;
+    font-weight: 600;
+    color: #94a3b8;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+    padding: 3px 7px;
+}
+
+body[data-theme="light"] .sat-footer-cam-badge {
+    color: #475569;
+    background: #f1f5f9;
+    border: 1px solid #cbd5e1;
+}
+
+/* 2D'ye Dön Butonu */
+.sat-btn-back-2d {
+    color: #38bdf8 !important;
+    border-color: rgba(56, 189, 248, 0.35) !important;
+}
+
+body[data-theme="light"] .sat-btn-back-2d {
+    color: #0284c7 !important;
+    border-color: #cbd5e1 !important;
+}

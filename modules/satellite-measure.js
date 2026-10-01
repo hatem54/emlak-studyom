@@ -436,6 +436,8 @@
 
             // 3D'de desteklenmeyen üst butonlar
             const labelsBtn = document.getElementById('satToggleLabelsBtn');
+            const labelsWrap = document.getElementById('satLabelsDropdownWrap');
+            const labelGroup = document.getElementById('satLabelCtrlGroup');
             const markerBtn = document.getElementById('satToggleMarkerBtn');
             const markerSettings = document.getElementById('satMarkerSettingsWrapper');
             const pinOverlay = document.getElementById('satMapPinOverlay');
@@ -456,8 +458,7 @@
                     el.style.display = 'none';
                 });
 
-                // 3D'de desteklenmeyen araçları gizle
-                if (labelsBtn) labelsBtn.style.display = 'none';
+                // 3D'de desteklenmeyen araçları gizle (Harita bilgi/etiket buton grubu 3D modunda da aktiftir)
                 if (markerBtn) markerBtn.style.display = 'none';
                 if (markerSettings) markerSettings.style.display = 'none';
                 if (pinOverlay) pinOverlay.style.display = 'none';
@@ -484,6 +485,8 @@
                 });
 
                 // Üst butonları geri göster
+                if (labelGroup) labelGroup.style.display = '';
+                if (labelsWrap) labelsWrap.style.display = '';
                 if (labelsBtn) labelsBtn.style.display = '';
                 if (markerBtn) markerBtn.style.display = '';
                 if (this.markerEnabled) {
@@ -499,11 +502,11 @@
          * Tüm Harita Arayüzündeki (Panel, Çekmece, Rozet Popover) Renk Seçicileri Senkronize Eder
          */
         syncAllColorPickersUI: function() {
-            const strokeColorLower = (this.parcelStrokeColor || '#ffffff').toLowerCase();
-            const neonColorLower = (this.parcelNeonColor || '#00CEC9').toLowerCase();
-            const fillColorLower = (this.parcelFillColor || '#f59e0b').toLowerCase();
+            const strokeColorLower = (this.parcelStrokeColor || '#ef4444').toLowerCase();
+            const neonColorLower = (this.parcelNeonColor || '#ef4444').toLowerCase();
+            const fillColorLower = (this.parcelFillColor || '#ef4444').toLowerCase();
             const cadColorLower = (this.measureColor || '#f59e0b').toLowerCase();
-            const fillMode = this.parcelFillMode || 'white';
+            const fillMode = this.parcelFillMode || 'color';
             const isNeon = !!this.parcelNeonEnabled;
 
             // =====================================
@@ -542,7 +545,7 @@
             }
 
             // Çizgi Kalınlığı Slider ve Değerleri
-            const strokeWidthVal = this.parcelStrokeWidth || 3;
+            const strokeWidthVal = this.parcelStrokeWidth || 3.5;
             const mStrokeText = document.getElementById('satMeasureStrokeWidthText');
             if (mStrokeText) mStrokeText.textContent = `${strokeWidthVal}px`;
             const mStrokeSlider = document.getElementById('satMeasureStrokeWidthSlider');
@@ -675,7 +678,7 @@
             });
 
             // Dolgu Saydamlığı (Slider & Text)
-            const opPct = Math.round((this.parcelFillOpacity !== undefined ? this.parcelFillOpacity : 0.40) * 100);
+            const opPct = Math.round((this.parcelFillOpacity !== undefined ? this.parcelFillOpacity : 0.22) * 100);
             const mOpText = document.getElementById('satMeasureFillOpacityText');
             if (mOpText) mOpText.textContent = `%${opPct}`;
             const mOpSlider = document.getElementById('satMeasureFillOpacitySlider');

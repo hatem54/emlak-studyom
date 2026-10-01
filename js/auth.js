@@ -129,10 +129,13 @@ async function handleRegister(event) {
     const client = window.supabaseClient || (typeof initSupabase === 'function' ? initSupabase() : null);
     if (!client) throw new Error('Veritabanı bağlantısı kurulamadı. Lütfen sayfayı yenileyin.');
 
+    const redirectUrl = window.location.origin + window.location.pathname.replace(/index\.html$/, '') + 'app.html?mode=pro';
+
     const { data, error } = await client.auth.signUp({
       email: email,
       password: password,
       options: {
+        emailRedirectTo: redirectUrl,
         data: { 
           full_name: fullName,
           subscription_plan: 'pro'
@@ -202,6 +205,7 @@ async function handleLogin(event) {
       localStorage.removeItem('emlak_remember_me');
       localStorage.removeItem('emlak_remember_email');
     }
+    sessionStorage.setItem('emlak_tab_session', 'active');
     
     showToast('✅ Giriş başarılı! Yönlendiriliyorsunuz...', 'success');
     setTimeout(() => {
@@ -244,6 +248,13 @@ async function handleSocialLogin(provider) {
   try {
     showToast(`${providerName} ile bağlantı kuruluyor...`, 'info');
     
+    // Sosyal girişte beni hatırla durumunu ve aktif sekme oturumunu işle
+    const rememberCheckbox = document.getElementById('rememberMe');
+    if (rememberCheckbox && rememberCheckbox.checked) {
+      localStorage.setItem('emlak_remember_me', 'true');
+    }
+    sessionStorage.setItem('emlak_tab_session', 'active');
+
     const redirectUrl = window.location.origin + window.location.pathname.replace(/index\.html$/, '') + 'app.html?mode=pro';
 
     const { data, error } = await client.auth.signInWithOAuth({

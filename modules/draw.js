@@ -112,38 +112,17 @@ function applyPathFill(ctx, p, isNeon) {
 }
 
 function drawSinglePath(p, options = {}){
+    if (!p) return;
 
-    if(p.hidden) {
-        if (p.el) {
-            p.el.style.display = 'none';
-        }
-        if (p.saberRef) {
-            if (window.SaberEngine && typeof window.SaberEngine.setSaberVisibility === 'function') {
-                window.SaberEngine.setSaberVisibility(p.saberRef, false);
-            } else {
-                if (p.saberRef.graphics) p.saberRef.graphics.visible = false;
-                if (p.saberRef.particleContainer) p.saberRef.particleContainer.visible = false;
-                if (p.saberRef.branchContainer) p.saberRef.branchContainer.visible = false;
-            }
-        }
-        return;
+    // 1. Sanitize p.el and p.saberRef (handles plain objects created by JSON deserialization)
+    if (p.el && (!p.el.nodeType || !p.el.style)) {
+        p.el = null;
+    }
+    if (p.saberRef && !p.saberRef.graphics && !p.saberRef.view) {
+        p.saberRef = null;
     }
 
-    // Gizli değilse görünür yap
-    if (p.el && p.el.style.display === 'none') {
-        p.el.style.display = '';
-    }
-    if (p.saberRef) {
-        if (window.SaberEngine && typeof window.SaberEngine.setSaberVisibility === 'function') {
-            window.SaberEngine.setSaberVisibility(p.saberRef, true);
-        } else {
-            if (p.saberRef.graphics) p.saberRef.graphics.visible = true;
-            if (p.saberRef.particleContainer) p.saberRef.particleContainer.visible = true;
-            if (p.saberRef.branchContainer) p.saberRef.branchContainer.visible = true;
-        }
-    }
-
-    // ⚡ SELF-HEALING: Ensure p.el is connected to the DOM SVG element
+    // 2. ⚡ SELF-HEALING: Ensure p.el is connected to the DOM SVG element
     if (!p.el && p.id) {
         p.el = document.querySelector(`.editable-draw[data-path-id="${p.id}"]`);
     }
@@ -162,6 +141,37 @@ function drawSinglePath(p, options = {}){
         if (container) {
             container.appendChild(p.el);
             if (typeof bindDrag === 'function') bindDrag(p.el);
+        }
+    }
+
+    // 3. Visibility handling
+    if(p.hidden) {
+        if (p.el && p.el.style) {
+            p.el.style.display = 'none';
+        }
+        if (p.saberRef) {
+            if (window.SaberEngine && typeof window.SaberEngine.setSaberVisibility === 'function') {
+                window.SaberEngine.setSaberVisibility(p.saberRef, false);
+            } else {
+                if (p.saberRef.graphics) p.saberRef.graphics.visible = false;
+                if (p.saberRef.particleContainer) p.saberRef.particleContainer.visible = false;
+                if (p.saberRef.branchContainer) p.saberRef.branchContainer.visible = false;
+            }
+        }
+        return;
+    }
+
+    // Gizli değilse görünür yap
+    if (p.el && p.el.style && p.el.style.display === 'none') {
+        p.el.style.display = '';
+    }
+    if (p.saberRef) {
+        if (window.SaberEngine && typeof window.SaberEngine.setSaberVisibility === 'function') {
+            window.SaberEngine.setSaberVisibility(p.saberRef, true);
+        } else {
+            if (p.saberRef.graphics) p.saberRef.graphics.visible = true;
+            if (p.saberRef.particleContainer) p.saberRef.particleContainer.visible = true;
+            if (p.saberRef.branchContainer) p.saberRef.branchContainer.visible = true;
         }
     }
 
@@ -621,6 +631,7 @@ function canvasXY(e) {
 let lastGlobalDStartTime = 0;
 function dStart(e){
     if(drawMode==='off')return;
+    if(window.spaceBarPressed)return; // Space pan sırasında çizim başlatma!
     if (e.button !== undefined && e.button !== 0) return; // Sağ tık çizim başlatmasın, contextmenu açılmasına izin versin!
     
     // Pointer events: PC'de mouse tıklaması zaten mousedown ile işlenir.
@@ -1630,11 +1641,15 @@ function redrawAll(options = {}){
 
     const currPhotoState = (options && options.currPhotoState) ? options.currPhotoState : (typeof window.getCurrentPhotoState === 'function' ? window.getCurrentPhotoState() : null);
 
+    const existingErr = document.getElementById('draw-error-banner');
+    if (existingErr) existingErr.remove();
+
     try {
         drawPaths.forEach(p=>drawSinglePath(p, { currPhotoState }));
     } catch(e) {
         console.error("RedrawAll error:", e);
         const errDiv = document.createElement("div");
+        errDiv.id = "draw-error-banner";
         errDiv.style.position = "fixed";
         errDiv.style.top = "10px";
         errDiv.style.left = "10px";
@@ -2238,71 +2253,36 @@ function updateSinglePathSvg(p) {
     let filterId = 'neon-bloom-' + pathId;
 
     if (isNeon) {
-        const dev1 = (glowSize * 0.85).toFixed(1);  // Geniş Zemin Yayılımı
-        const dev2 = (glowSize * 0.35).toFixed(1);  // Dış Neon Halesi
-        const dev3 = (glowSize * 0.12).toFixed(1);  // İç Plazma Koronası
-
-        const filterEl = document.createElementNS('http://www.w3.org/2000/svg', 'filter');
-        filterEl.setAttribute('id', filterId);
-        filterEl.setAttribute('x', '-100%');
-        filterEl.setAttribute('y', '-100%');
-        filterEl.setAttribute('width', '300%');
-        filterEl.setAttribute('height', '300%');
-
-        const b1 = document.createElementNS('http://www.w3.org/2000/svg', 'feGaussianBlur');
-        b1.setAttribute('in', 'SourceGraphic');
-        b1.setAttribute('stdDeviation', dev1);
-        b1.setAttribute('result', 'blurSpill');
-        filterEl.appendChild(b1);
-
-        const b2 = document.createElementNS('http://www.w3.org/2000/svg', 'feGaussianBlur');
-        b2.setAttribute('in', 'SourceGraphic');
-        b2.setAttribute('stdDeviation', dev2);
-        b2.setAttribute('result', 'blurAura');
-        filterEl.appendChild(b2);
-
-        const b3 = document.createElementNS('http://www.w3.org/2000/svg', 'feGaussianBlur');
-        b3.setAttribute('in', 'SourceGraphic');
-        b3.setAttribute('stdDeviation', dev3);
-        b3.setAttribute('result', 'blurCorona');
-        filterEl.appendChild(b3);
-
-        const merge = document.createElementNS('http://www.w3.org/2000/svg', 'feMerge');
-        ['blurSpill', 'blurAura', 'blurCorona', 'SourceGraphic'].forEach(r => {
-            const node = document.createElementNS('http://www.w3.org/2000/svg', 'feMergeNode');
-            node.setAttribute('in', r);
-            merge.appendChild(node);
-        });
-        defs.appendChild(filterEl);
-
-        const fillFilterId = 'neon-fill-bloom-' + pathId;
-        const fillFilter = document.createElementNS('http://www.w3.org/2000/svg', 'filter');
-        fillFilter.setAttribute('id', fillFilterId);
-        fillFilter.setAttribute('x', '-50%');
-        fillFilter.setAttribute('y', '-50%');
-        fillFilter.setAttribute('width', '200%');
-        fillFilter.setAttribute('height', '200%');
-        
-        const fb1 = document.createElementNS('http://www.w3.org/2000/svg', 'feGaussianBlur');
-        fb1.setAttribute('in', 'SourceGraphic');
-        fb1.setAttribute('stdDeviation', '14');
-        fb1.setAttribute('result', 'softGlow');
-        fillFilter.appendChild(fb1);
-        
-        const fb2 = document.createElementNS('http://www.w3.org/2000/svg', 'feGaussianBlur');
-        fb2.setAttribute('in', 'SourceGraphic');
-        fb2.setAttribute('stdDeviation', '4');
-        fb2.setAttribute('result', 'innerGlow');
-        fillFilter.appendChild(fb2);
-        
-        const fMerge = document.createElementNS('http://www.w3.org/2000/svg', 'feMerge');
-        ['softGlow', 'innerGlow', 'SourceGraphic'].forEach(r => {
-            const mNode = document.createElementNS('http://www.w3.org/2000/svg', 'feMergeNode');
-            mNode.setAttribute('in', r);
-            fMerge.appendChild(mNode);
-        });
-        fillFilter.appendChild(fMerge);
-        defs.appendChild(fillFilter);
+        if (p.fillOpacity > 0) {
+            const fillFilterId = 'neon-fill-bloom-' + pathId;
+            const fillFilter = document.createElementNS('http://www.w3.org/2000/svg', 'filter');
+            fillFilter.setAttribute('id', fillFilterId);
+            fillFilter.setAttribute('x', '-30%');
+            fillFilter.setAttribute('y', '-30%');
+            fillFilter.setAttribute('width', '160%');
+            fillFilter.setAttribute('height', '160%');
+            
+            const fb1 = document.createElementNS('http://www.w3.org/2000/svg', 'feGaussianBlur');
+            fb1.setAttribute('in', 'SourceGraphic');
+            fb1.setAttribute('stdDeviation', '10');
+            fb1.setAttribute('result', 'softGlow');
+            fillFilter.appendChild(fb1);
+            
+            const fb2 = document.createElementNS('http://www.w3.org/2000/svg', 'feGaussianBlur');
+            fb2.setAttribute('in', 'SourceGraphic');
+            fb2.setAttribute('stdDeviation', '3');
+            fb2.setAttribute('result', 'innerGlow');
+            fillFilter.appendChild(fb2);
+            
+            const fMerge = document.createElementNS('http://www.w3.org/2000/svg', 'feMerge');
+            ['softGlow', 'innerGlow', 'SourceGraphic'].forEach(r => {
+                const mNode = document.createElementNS('http://www.w3.org/2000/svg', 'feMergeNode');
+                mNode.setAttribute('in', r);
+                fMerge.appendChild(mNode);
+            });
+            fillFilter.appendChild(fMerge);
+            defs.appendChild(fillFilter);
+        }
     } else if (p.glow > 0) {
         const std = (p.glow / 2).toFixed(1);
         const filterEl = document.createElementNS('http://www.w3.org/2000/svg', 'filter');
@@ -2507,32 +2487,19 @@ function createSVGFromPath(p) {
     let filterAttr = '';
 
     if (isNeon) {
-        const dev1 = (glowSize * 0.85).toFixed(1);  // Geniş Zemin Yayılımı
-        const dev2 = (glowSize * 0.35).toFixed(1);  // Dış Neon Halesi
-        const dev3 = (glowSize * 0.12).toFixed(1);  // İç Plazma Koronası
-        svgDefs = `<defs>
-            <filter id="${filterId}" x="-100%" y="-100%" width="300%" height="300%">
-                <feGaussianBlur in="SourceGraphic" stdDeviation="${dev1}" result="blurSpill" />
-                <feGaussianBlur in="SourceGraphic" stdDeviation="${dev2}" result="blurAura" />
-                <feGaussianBlur in="SourceGraphic" stdDeviation="${dev3}" result="blurCorona" />
-                <feMerge>
-                    <feMergeNode in="blurSpill" />
-                    <feMergeNode in="blurAura" />
-                    <feMergeNode in="blurCorona" />
-                    <feMergeNode in="SourceGraphic" />
-                </feMerge>
-            </filter>
-            <filter id="${fillFilterId}" x="-50%" y="-50%" width="200%" height="200%">
-                <feGaussianBlur in="SourceGraphic" stdDeviation="14" result="softGlow" />
-                <feGaussianBlur in="SourceGraphic" stdDeviation="4" result="innerGlow" />
-                <feMerge>
-                    <feMergeNode in="softGlow" />
-                    <feMergeNode in="innerGlow" />
-                    <feMergeNode in="SourceGraphic" />
-                </feMerge>
-            </filter>
-        </defs>`;
-        filterAttr = `filter="url(#${filterId})"`;
+        if (p.fillOpacity > 0) {
+            svgDefs = `<defs>
+                <filter id="${fillFilterId}" x="-30%" y="-30%" width="160%" height="160%">
+                    <feGaussianBlur in="SourceGraphic" stdDeviation="10" result="softGlow" />
+                    <feGaussianBlur in="SourceGraphic" stdDeviation="3" result="innerGlow" />
+                    <feMerge>
+                        <feMergeNode in="softGlow" />
+                        <feMergeNode in="innerGlow" />
+                        <feMergeNode in="SourceGraphic" />
+                    </feMerge>
+                </filter>
+            </defs>`;
+        }
     } else if (p.glow > 0) {
         const std = (p.glow / 2).toFixed(1);
         svgDefs = `<defs><filter id="${filterId}"><feGaussianBlur stdDeviation="${std}" result="coloredBlur"/><feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>`;

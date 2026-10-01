@@ -664,6 +664,50 @@ Object.assign(window.CALLOUT_LIBRARY, {
         "title": "➡️ Ok ve Yönlendirme",
         "items": [
             {
+                "name": "Düz Kırmızı Yön Oku",
+                "svg": "<svg width=\"100\" height=\"260\" viewBox=\"0 0 100 260\" preserveAspectRatio=\"none\"><defs><filter id=\"arrSh1\" x=\"-20%\" y=\"-20%\" width=\"140%\" height=\"140%\"><feDropShadow dx=\"0\" dy=\"4\" stdDeviation=\"4\" flood-color=\"#000000\" flood-opacity=\"0.55\"/></filter></defs><path d=\"M32 0 L68 0 L68 180 L96 180 L50 256 L4 180 L32 180 Z\" fill=\"#ef4444\" stroke=\"#ffffff\" stroke-width=\"3\" stroke-linejoin=\"round\" filter=\"url(#arrSh1)\"/></svg>"
+            },
+            {
+                "name": "Çift Şeritli Düz Ok",
+                "svg": "<svg width=\"110\" height=\"280\" viewBox=\"0 0 110 280\" preserveAspectRatio=\"none\"><defs><filter id=\"arrSh2\" x=\"-20%\" y=\"-20%\" width=\"140%\" height=\"140%\"><feDropShadow dx=\"0\" dy=\"5\" stdDeviation=\"5\" flood-color=\"#000000\" flood-opacity=\"0.55\"/></filter></defs><g filter=\"url(#arrSh2)\"><rect x=\"26\" y=\"0\" width=\"16\" height=\"195\" rx=\"4\" fill=\"#ef4444\" stroke=\"#ffffff\" stroke-width=\"2\"/><rect x=\"68\" y=\"0\" width=\"16\" height=\"195\" rx=\"4\" fill=\"#ef4444\" stroke=\"#ffffff\" stroke-width=\"2\"/><polygon points=\"55,276 2,190 32,190 32,185 78,185 78,190 108,190\" fill=\"#ef4444\" stroke=\"#ffffff\" stroke-width=\"3\" stroke-linejoin=\"round\"/></g></svg>"
+            },
+            {
+                "name": "3D Eğimli Yön Oku",
+                "svg": "<svg width=\"120\" height=\"280\" viewBox=\"0 0 120 280\" preserveAspectRatio=\"none\"><defs><filter id=\"arrSh3\" x=\"-20%\" y=\"-20%\" width=\"140%\" height=\"140%\"><feDropShadow dx=\"0\" dy=\"6\" stdDeviation=\"6\" flood-color=\"#000000\" flood-opacity=\"0.6\"/></filter></defs><g filter=\"url(#arrSh3)\"><path d=\"M38 0 L60 0 L60 195 L60 274 L6 195 L38 195 Z\" fill=\"#38bdf8\" stroke=\"#ffffff\" stroke-width=\"1.5\" stroke-linejoin=\"round\"/><path d=\"M60 0 L82 0 L82 195 L114 195 L60 274 L60 195 Z\" fill=\"#0284c7\" stroke=\"#ffffff\" stroke-width=\"1.5\" stroke-linejoin=\"round\"/></g></svg>"
+            },
+            {
+                "name": "Hedef Pinli Düz Ok",
+                "svg": "<svg width=\"120\" height=\"290\" viewBox=\"0 0 120 290\" preserveAspectRatio=\"none\"><defs><filter id=\"arrSh4\" x=\"-20%\" y=\"-20%\" width=\"140%\" height=\"140%\"><feDropShadow dx=\"0\" dy=\"4\" stdDeviation=\"5\" flood-color=\"#000000\" flood-opacity=\"0.55\"/></filter></defs><g filter=\"url(#arrSh4)\"><circle cx=\"60\" cy=\"40\" r=\"36\" fill=\"#0f172a\" stroke=\"#f59e0b\" stroke-width=\"4\"/><circle cx=\"60\" cy=\"40\" r=\"22\" fill=\"#f59e0b\"/><circle cx=\"60\" cy=\"40\" r=\"8\" fill=\"#ffffff\"/><path d=\"M48 76 L72 76 L72 205 L98 205 L60 286 L22 205 L48 205 Z\" fill=\"#f59e0b\" stroke=\"#ffffff\" stroke-width=\"2.5\" stroke-linejoin=\"round\"/></g></svg>"
+            },
+            {
+                "name": "Neon Turkuaz Yön Oku",
+                "svg": "<svg width=\"100\" height=\"260\" viewBox=\"0 0 100 260\" preserveAspectRatio=\"none\"><defs><filter id=\"neonArrGlow\" x=\"-30%\" y=\"-30%\" width=\"160%\" height=\"160%\"><feGaussianBlur stdDeviation=\"4\" result=\"b\"/><feMerge><feMergeNode in=\"b\"/><feMergeNode in=\"b\"/><feMergeNode in=\"SourceGraphic\"/></feMerge></filter></defs><path d=\"M35 10 L65 10 L65 180 L92 180 L50 250 L8 180 L35 180 Z\" fill=\"#06b6d4\" stroke=\"#e0f2fe\" stroke-width=\"3\" stroke-linejoin=\"round\" filter=\"url(#neonArrGlow)\"/></svg>"
+            },
+            {
+                "name": "Zarif Altın Yön Oku",
+                "svg": "<svg width=\"100\" height=\"260\" viewBox=\"0 0 100 260\" preserveAspectRatio=\"none\"><defs><linearGradient id=\"goldArrG\" x1=\"0%\" y1=\"0%\" x2=\"100%\" y2=\"100%\"><stop offset=\"0%\" stop-color=\"#fef08a\"/><stop offset=\"40%\" stop-color=\"#eab308\"/><stop offset=\"100%\" stop-color=\"#854d0e\"/></linearGradient><filter id=\"goldArrSh\" x=\"-20%\" y=\"-20%\" width=\"140%\" height=\"140%\"><feDropShadow dx=\"0\" dy=\"4\" stdDeviation=\"5\" flood-color=\"#000000\" flood-opacity=\"0.6\"/></filter></defs><path d=\"M35 0 L65 0 L65 180 L94 180 L50 255 L6 180 L35 180 Z\" fill=\"url(#goldArrG)\" stroke=\"#ffffff\" stroke-width=\"2.5\" stroke-linejoin=\"round\" filter=\"url(#goldArrSh)\"/></svg>"
+            },
+            {
+                "name": "Kadastro Kesik Çizgili Ok",
+                "svg": "<svg width=\"100\" height=\"260\" viewBox=\"0 0 100 260\" preserveAspectRatio=\"none\"><defs><filter id=\"kadArrSh\" x=\"-20%\" y=\"-20%\" width=\"140%\" height=\"140%\"><feDropShadow dx=\"0\" dy=\"4\" stdDeviation=\"4\" flood-color=\"#000000\" flood-opacity=\"0.55\"/></filter></defs><g filter=\"url(#kadArrSh)\"><line x1=\"50\" y1=\"5\" x2=\"50\" y2=\"175\" stroke=\"#facc15\" stroke-width=\"16\" stroke-dasharray=\"16 10\" stroke-linecap=\"round\"/><polygon points=\"50,255 10,175 90,175\" fill=\"#facc15\" stroke=\"#000000\" stroke-width=\"3\" stroke-linejoin=\"round\"/></g></svg>"
+            },
+            {
+                "name": "Kademeli V-Ok",
+                "svg": "<svg width=\"100\" height=\"260\" viewBox=\"0 0 100 260\" preserveAspectRatio=\"none\"><defs><filter id=\"chevArrSh\" x=\"-20%\" y=\"-20%\" width=\"140%\" height=\"140%\"><feDropShadow dx=\"0\" dy=\"4\" stdDeviation=\"4\" flood-color=\"#000000\" flood-opacity=\"0.55\"/></filter></defs><g filter=\"url(#chevArrSh)\"><polygon points=\"50,65 15,20 30,10 50,38 70,10 85,20\" fill=\"#10b981\" stroke=\"#ffffff\" stroke-width=\"2\"/><polygon points=\"50,125 15,80 30,70 50,98 70,70 85,80\" fill=\"#10b981\" stroke=\"#ffffff\" stroke-width=\"2\"/><polygon points=\"50,185 15,140 30,130 50,158 70,130 85,140\" fill=\"#10b981\" stroke=\"#ffffff\" stroke-width=\"2\"/><polygon points=\"50,255 10,185 90,185\" fill=\"#10b981\" stroke=\"#ffffff\" stroke-width=\"2.5\" stroke-linejoin=\"round\"/></g></svg>"
+            },
+            {
+                "name": "Metinli Düz Yön Oku",
+                "svg": "<svg width=\"160\" height=\"280\" viewBox=\"0 0 160 280\" preserveAspectRatio=\"none\"><defs><filter id=\"lblArrSh\" x=\"-20%\" y=\"-20%\" width=\"140%\" height=\"140%\"><feDropShadow dx=\"0\" dy=\"4\" stdDeviation=\"5\" flood-color=\"#000000\" flood-opacity=\"0.55\"/></filter></defs><g filter=\"url(#lblArrSh)\"><rect x=\"5\" y=\"5\" width=\"150\" height=\"52\" rx=\"8\" fill=\"#e11d48\" stroke=\"#ffffff\" stroke-width=\"2.5\"/><text x=\"80\" y=\"38\" text-anchor=\"middle\" fill=\"#ffffff\" font-family=\"'Montserrat', sans-serif\" font-size=\"20\" font-weight=\"800\" letter-spacing=\"1.5\">PARSEL</text><path d=\"M66 57 L94 57 L94 195 L124 195 L80 270 L36 195 L66 195 Z\" fill=\"#e11d48\" stroke=\"#ffffff\" stroke-width=\"2.5\" stroke-linejoin=\"round\"/></g></svg>"
+            },
+            {
+                "name": "Çift Yönlü Cephe Oku",
+                "svg": "<svg width=\"340\" height=\"90\" viewBox=\"0 0 340 90\" preserveAspectRatio=\"none\"><defs><filter id=\"dimArrSh\" x=\"-20%\" y=\"-20%\" width=\"140%\" height=\"140%\"><feDropShadow dx=\"0\" dy=\"3\" stdDeviation=\"4\" flood-color=\"#000000\" flood-opacity=\"0.5\"/></filter></defs><g filter=\"url(#dimArrSh)\"><path d=\"M5 45 L55 18 L55 35 L285 35 L285 18 L335 45 L285 72 L285 55 L55 55 L55 72 Z\" fill=\"#6366f1\" stroke=\"#ffffff\" stroke-width=\"2.5\" stroke-linejoin=\"round\"/><rect x=\"110\" y=\"22\" width=\"120\" height=\"46\" rx=\"6\" fill=\"#0f172a\" stroke=\"#6366f1\" stroke-width=\"2\"/><text x=\"170\" y=\"51\" text-anchor=\"middle\" fill=\"#ffffff\" font-family=\"'Montserrat', sans-serif\" font-size=\"15\" font-weight=\"800\">25 METRE</text></g></svg>"
+            },
+            {
+                "name": "Beyaz Kırmızı Kontur Oku",
+                "svg": "<svg width=\"100\" height=\"260\" viewBox=\"0 0 100 260\" preserveAspectRatio=\"none\"><defs><filter id=\"hcArrSh\" x=\"-20%\" y=\"-20%\" width=\"140%\" height=\"140%\"><feDropShadow dx=\"0\" dy=\"4\" stdDeviation=\"5\" flood-color=\"#000000\" flood-opacity=\"0.6\"/></filter></defs><path d=\"M30 5 L70 5 L70 175 L98 175 L50 255 L2 175 L30 175 Z\" fill=\"#ffffff\" stroke=\"#dc2626\" stroke-width=\"6\" stroke-linejoin=\"round\" filter=\"url(#hcArrSh)\"/></svg>"
+            },
+            {
                 "name": "Kırmızı Ok + Etiket",
                 "svg": "<svg width=\"300\" height=\"120\" viewBox=\"0 0 300 120\"><path d=\"M10 60 L60 30 L60 45 L190 45 L190 75 L60 75 L60 90 Z\" fill=\"#e63946\"/><rect x=\"190\" y=\"30\" width=\"100\" height=\"60\" rx=\"6\" fill=\"#0a0e27\" stroke=\"#e63946\" stroke-width=\"2\"/><text x=\"240\" y=\"55\" text-anchor=\"middle\" fill=\"#e63946\" font-size=\"9\" letter-spacing=\"2\">BURADA</text><text x=\"240\" y=\"75\" text-anchor=\"middle\" fill=\"white\" font-size=\"14\" font-weight=\"700\">GİRİŞ</text></svg>"
             },

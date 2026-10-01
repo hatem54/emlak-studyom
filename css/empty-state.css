@@ -1,0 +1,280 @@
+/* ==========================================================================
+   TUVAL BAŞLANGIÇ KARTLARI (CANVAS ZERO / EMPTY STATE)
+   Emlak Stüdyom v7.0 - Tasarım Sistemi Uyumlu
+   ========================================================================== */
+
+.canvas-empty-state {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    z-index: 60;
+    pointer-events: none;
+    background: radial-gradient(circle at center, rgba(15, 23, 42, 0.45) 0%, rgba(10, 15, 29, 0.8) 100%);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    opacity: 1;
+    visibility: visible;
+    transition: opacity 0.28s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.28s ease;
+    user-select: none;
+}
+
+/* Fotoğraf veya şablon aktif olduğunda tamamen gizle */
+.canvas-empty-state.is-hidden {
+    opacity: 0 !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+    display: none !important;
+}
+
+/* Sürükle - Bırak anında aktif görsel vurgusu */
+.canvas-empty-state.drag-over {
+    background: radial-gradient(circle at center, rgba(14, 165, 233, 0.2) 0%, rgba(15, 23, 42, 0.85) 100%) !important;
+    outline: 2px dashed #00cec9;
+    outline-offset: -8px;
+}
+
+.canvas-empty-state.drag-over .empty-state-badge {
+    border-color: #00cec9;
+    color: #00cec9;
+    transform: scale(1.05);
+}
+
+/* Üst Rozet & Başlık Alanı */
+.empty-state-header {
+    text-align: center;
+    margin-bottom: 22px;
+    max-width: 580px;
+    pointer-events: auto;
+}
+
+.empty-state-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 4px 12px;
+    border-radius: 20px;
+    background: rgba(56, 189, 248, 0.12);
+    border: 1px solid rgba(56, 189, 248, 0.3);
+    color: #38bdf8;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+    transition: all 0.2s ease;
+}
+
+.empty-state-title {
+    font-family: 'Space Grotesk', 'Inter', sans-serif;
+    font-size: 20px;
+    font-weight: 700;
+    color: #f8fafc;
+    letter-spacing: -0.3px;
+    margin: 0 0 6px 0;
+    line-height: 1.3;
+}
+
+.empty-state-sub {
+    font-size: 12.5px;
+    color: #94a3b8;
+    margin: 0;
+    line-height: 1.45;
+}
+
+/* 3 Başlangıç Kartı Izgarası */
+.empty-state-cards {
+    display: flex;
+    align-items: stretch;
+    justify-content: center;
+    gap: 16px;
+    max-width: 660px;
+    width: 100%;
+    pointer-events: auto;
+}
+
+/* Tekil Kart Yapısı (Zarif Outline / Glassmorphism) */
+.empty-card {
+    flex: 1;
+    min-width: 160px;
+    max-width: 210px;
+    background: rgba(30, 41, 59, 0.55);
+    border: 1.5px dashed rgba(148, 163, 184, 0.35);
+    border-radius: 12px;
+    padding: 20px 14px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+    outline: none;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+}
+
+.empty-card:hover {
+    background: rgba(30, 41, 59, 0.85);
+    border-color: #38bdf8;
+    border-style: solid;
+    transform: translateY(-4px);
+    box-shadow: 0 10px 25px rgba(56, 189, 248, 0.2);
+}
+
+.empty-card:active {
+    transform: translateY(-1px);
+}
+
+/* Kart İkon Çemberi */
+.empty-card-icon {
+    width: 46px;
+    height: 46px;
+    border-radius: 10px;
+    background: rgba(56, 189, 248, 0.12);
+    border: 1px solid rgba(56, 189, 248, 0.25);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 12px;
+    color: #38bdf8;
+    font-size: 18px;
+    transition: all 0.2s ease;
+}
+
+.empty-card-icon i {
+    font-size: 20px;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.empty-card:hover .empty-card-icon {
+    background: #0284c7;
+    border-color: #38bdf8;
+    color: #ffffff;
+    transform: scale(1.08);
+}
+
+/* Kart Başlık ve Açıklaması */
+.empty-card-title {
+    font-family: 'Space Grotesk', 'Inter', sans-serif;
+    font-size: 13.5px;
+    font-weight: 700;
+    color: #f1f5f9;
+    margin-bottom: 6px;
+    letter-spacing: -0.2px;
+}
+
+.empty-card-desc {
+    font-size: 11px;
+    color: #94a3b8;
+    line-height: 1.4;
+}
+
+/* Sürükle Bırak Hatırlatıcısı */
+.empty-state-footer {
+    margin-top: 18px;
+    font-size: 11px;
+    color: #64748b;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    pointer-events: auto;
+}
+
+.empty-state-footer i {
+    font-size: 10px;
+    color: #38bdf8;
+}
+
+/* ==========================================================================
+   AÇIK TEMA (LIGHT THEME) UYUMLULUĞU
+   ========================================================================== */
+body[data-theme="light"] .canvas-empty-state {
+    background: radial-gradient(circle at center, rgba(248, 250, 252, 0.7) 0%, rgba(226, 232, 240, 0.88) 100%);
+}
+
+body[data-theme="light"] .empty-state-badge {
+    background: rgba(2, 132, 199, 0.08);
+    border-color: rgba(2, 132, 199, 0.25);
+    color: #0284c7;
+}
+
+body[data-theme="light"] .empty-state-title {
+    color: #0f172a;
+}
+
+body[data-theme="light"] .empty-state-sub {
+    color: #475569;
+}
+
+body[data-theme="light"] .empty-card {
+    background: rgba(255, 255, 255, 0.9);
+    border-color: #cbd5e1;
+    box-shadow: 0 4px 16px rgba(15, 23, 42, 0.06);
+}
+
+body[data-theme="light"] .empty-card:hover {
+    background: #ffffff;
+    border-color: #0284c7;
+    box-shadow: 0 10px 25px rgba(2, 132, 199, 0.15);
+}
+
+body[data-theme="light"] .empty-card-icon {
+    background: rgba(2, 132, 199, 0.08);
+    border-color: rgba(2, 132, 199, 0.2);
+    color: #0284c7;
+}
+
+body[data-theme="light"] .empty-card-title {
+    color: #0f172a;
+}
+
+body[data-theme="light"] .empty-card-desc {
+    color: #64748b;
+}
+
+body[data-theme="light"] .empty-state-footer {
+    color: #64748b;
+}
+
+body[data-theme="light"] .empty-state-footer i {
+    color: #0284c7;
+}
+
+/* ==========================================================================
+   RESPONSIVE (MOBİL & DİKEY TUVAL UYUMLULUĞU)
+   ========================================================================== */
+@media (max-width: 600px) {
+    .empty-state-cards {
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+    }
+    .empty-card {
+        max-width: 260px;
+        width: 100%;
+        padding: 14px 16px;
+        flex-direction: row;
+        text-align: left;
+        gap: 12px;
+    }
+    .empty-card-icon {
+        width: 38px;
+        height: 38px;
+        font-size: 15px;
+        margin-bottom: 0;
+        flex-shrink: 0;
+    }
+    .empty-state-title {
+        font-size: 16px;
+    }
+    .empty-state-sub {
+        font-size: 11px;
+    }
+}

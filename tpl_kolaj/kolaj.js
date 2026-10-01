@@ -64,36 +64,36 @@ function _kolajInit(){
 function _kolajPanelHTML(){
     return ''+
         '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;">'+
-            '<button class="btn-action btn-blue" onclick="_kolajGeriAl()">↩️ Geri Al</button>'+
-            '<button class="btn-action btn-purple" onclick="_kolajSifirla()">🔄 Sıfırla</button>'+
+            '<button class="btn-action btn-blue" onclick="_kolajGeriAl()"><i class="fa-solid fa-rotate-left"></i> Geri Al</button>'+
+            '<button class="btn-action btn-purple" onclick="_kolajSifirla()"><i class="fa-solid fa-arrows-rotate"></i> Sıfırla</button>'+
         '</div>'+
-        '<div class="section-title">🎨 Kolaj Şablonları</div>'+
+        '<div class="section-title"><i class="fa-solid fa-shapes" style="color:#0284c7; margin-right:6px;"></i>Kolaj Şablonları</div>'+
         ''+
         '<div class="template-grid" id="kolajGrid"></div>'+
-        '<button class="btn-action btn-cyan" onclick="_kolajTopluFotoSec()" style="width:100%;margin-top:10px;margin-bottom:15px;display:flex;align-items:center;justify-content:center;gap:6px;font-weight:700;">📸 Toplu Görsel Seç</button>'+
+        '<button class="btn-action btn-cyan" onclick="_kolajTopluFotoSec()" style="width:100%;margin-top:10px;margin-bottom:15px;display:flex;align-items:center;justify-content:center;gap:6px;font-weight:700;"><i class="fa-solid fa-images"></i> Toplu Görsel Seç</button>'+
         
-        '<div class="section-title">🖼️ Arka Plan</div>'+
+        '<div class="section-title"><i class="fa-solid fa-image" style="color:#0284c7; margin-right:6px;"></i>Arka Plan</div>'+
         '<div class="row-2">'+
             '<div class="input-group"><label>Renk 1</label><input type="color" id="kolajBgRenk1" value="#0d1b3d" style="width:100%;height:40px;"></div>'+
             '<div class="input-group"><label>Renk 2</label><input type="color" id="kolajBgRenk2" value="#1a2f5c" style="width:100%;height:40px;"></div>'+
         '</div>'+
-        '<button class="btn-action btn-purple" onclick="_kolajBgUygula()" style="width:100%;margin-bottom:15px;">🎨 Arka Planı Uygula</button>'+
+        '<button class="btn-action btn-purple" onclick="_kolajBgUygula()" style="width:100%;margin-bottom:15px;"><i class="fa-solid fa-palette"></i> Arka Planı Uygula</button>'+
         
-        '<div class="section-title">📝 Kolaj Bilgileri</div>'+
+        '<div class="section-title"><i class="fa-solid fa-clipboard-list" style="color:#0284c7; margin-right:6px;"></i>KOLAJ BİLGİLERİ</div>'+
         '<div class="input-group"><label>Başlık</label><input type="text" id="kolajBaslik" value="SATILIK LÜKS DAİRE"></div>'+
         '<div class="input-group"><label>Alt Başlık</label><input type="text" id="kolajAltBaslik" value="MERKEZİ KONUM"></div>'+
-        '<div class="input-group"><label>💰 Fiyat</label><input type="text" id="kolajFiyat" value="6.750.000 TL"></div>'+
+        '<div class="input-group"><label><i class="fa-solid fa-coins" style="color:#0284c7; margin-right:4px;"></i>Fiyat</label><input type="text" id="kolajFiyat" value="6.750.000 TL"></div>'+
         '<div class="row-2">'+
             '<div class="input-group"><label>Özellik 1</label><input type="text" id="kolajOzellik1" value="4+1"></div>'+
             '<div class="input-group"><label>Özellik 2</label><input type="text" id="kolajOzellik2" value="180 m²"></div>'+
         '</div>'+
         '<div class="input-group"><label>Özellik 3</label><input type="text" id="kolajOzellik3" value="Doğalgaz"></div>'+
-        '<div class="input-group"><label>📞 Telefon</label><input type="text" id="kolajTelefon" value="0532 000 00 00"></div>'+
+        '<div class="input-group"><label><i class="fa-solid fa-phone" style="color:#0284c7; margin-right:4px;"></i>Telefon</label><input type="text" id="kolajTelefon" value="0532 000 00 00"></div>'+
         '<div class="input-group"><label>Açıklama</label><input type="text" id="kolajAciklama" value="Merkezi konumda profesyonel yaşam alanı"></div>'+
         
         // Seçili çerçeve editörü (dinamik doldurulacak)
-        '<div id="cerceveEditor" style="display:none;margin-top:20px;padding:12px;background:#1e293b;border:2px solid #0ff;border-radius:8px;">'+
-            '<div class="section-title" style="color:#0ff;">🎯 Seçili Çerçeve</div>'+
+        '<div id="cerceveEditor" style="display:none;margin-top:15px;padding-top:10px;border-top:1px solid #e2e8f0;">'+
+            '<div class="section-title"><i class="fa-solid fa-border-all" style="color:#0284c7; margin-right:6px;"></i>Seçili Çerçeve</div>'+
             '<div id="cerceveEditorIcerik"></div>'+
         '</div>';
 }
@@ -321,6 +321,8 @@ function _kolajTemizle(){
         }
     });
 }
+window._kolajTemizle = _kolajTemizle;
+window.kolajTemizle = _kolajTemizle;
 
 function _kolajWrapper(bg1, bg2){
     _kolajTemizle();
@@ -1107,28 +1109,41 @@ function _cerceveEditoruAc(cerceve){
     var borderRadius = parseInt(cs.borderRadius) || 0;
     var rotate = _getRotate(cerceve);
     
+    var curW = Math.round(cerceve.offsetWidth);
+    var curH = Math.round(cerceve.offsetHeight);
+    var curFs = parseInt(cs.fontSize) || 24;
+    var isYazi = (cerceve.dataset.tip === 'yazi');
+
     icerik.innerHTML = 
         '<div class="row-2">'+
+            '<div class="input-group"><label>Genişlik: <span id="ceWidthLbl">'+curW+'</span>px</label><input type="range" id="ceWidth" min="30" max="2000" value="'+curW+'"></div>'+
+            '<div class="input-group"><label>Yükseklik: <span id="ceHeightLbl">'+curH+'</span>px</label><input type="range" id="ceHeight" min="30" max="2000" value="'+curH+'"></div>'+
+        '</div>'+
+        (isYazi ? 
+            '<div class="input-group"><label>Yazı Boyutu: <span id="ceFsLbl">'+curFs+'</span>px</label><input type="range" id="ceFs" min="10" max="150" value="'+curFs+'"></div>'+
+            '<div class="input-group"><label>Metin İçeriği</label><textarea id="ceText" rows="2" style="width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:6px;font-family:inherit;font-size:13px;box-sizing:border-box;">'+cerceve.innerText.trim()+'</textarea></div>'
+            : '')+
+        '<div class="row-2">'+
             '<div class="input-group"><label>Arka Plan</label><input type="color" id="ceBg" value="'+bgColor+'" style="width:100%;height:36px;"></div>'+
-            '<div class="input-group"><label>Border Renk</label><input type="color" id="ceBorderColor" value="'+borderColor+'" style="width:100%;height:36px;"></div>'+
+            '<div class="input-group"><label>Kenarlık Rengi</label><input type="color" id="ceBorderColor" value="'+borderColor+'" style="width:100%;height:36px;"></div>'+
         '</div>'+
         '<div class="row-2">'+
-            '<div class="input-group"><label>Border Kalınlık: <span id="ceBwLbl">'+borderWidth+'</span>px</label><input type="range" id="ceBw" min="0" max="20" value="'+borderWidth+'"></div>'+
+            '<div class="input-group"><label>Kenarlık: <span id="ceBwLbl">'+borderWidth+'</span>px</label><input type="range" id="ceBw" min="0" max="20" value="'+borderWidth+'"></div>'+
             '<div class="input-group"><label>Yuvarlaklık: <span id="ceBrLbl">'+borderRadius+'</span>px</label><input type="range" id="ceBr" min="0" max="200" value="'+borderRadius+'"></div>'+
         '</div>'+
-        '<div class="input-group"><label>Border Stili</label>'+
-            '<select id="ceBs" style="width:100%;padding:8px;background:#0f172a;color:#fff;border:1px solid #334155;border-radius:6px;">'+
-                '<option value="solid">Solid (Düz)</option>'+
-                '<option value="dashed">Dashed (Kesikli)</option>'+
-                '<option value="dotted">Dotted (Noktalı)</option>'+
-                '<option value="double">Double (Çift)</option>'+
+        '<div class="input-group"><label>Kenarlık Stili</label>'+
+            '<select id="ceBs" style="width:100%;padding:8px;background:#fff;color:#0f172a;border:1px solid #cbd5e1;border-radius:6px;">'+
+                '<option value="solid">Düz</option>'+
+                '<option value="dashed">Kesikli</option>'+
+                '<option value="dotted">Noktalı</option>'+
+                '<option value="double">Çift</option>'+
                 '<option value="none">Yok</option>'+
             '</select></div>'+
         '<div class="input-group"><label>Döndür: <span id="ceRotLbl">'+rotate+'</span>°</label><input type="range" id="ceRot" min="-180" max="180" value="'+rotate+'"></div>'+
         '<div class="row-2">'+
             '<div class="input-group"><label>Yazı Rengi</label><input type="color" id="ceColor" value="'+(_rgbToHex(cs.color)||'#ffffff')+'" style="width:100%;height:36px;"></div>'+
             '<div class="input-group"><label>Gölge</label>'+
-                '<select id="ceShadow" style="width:100%;padding:8px;background:#0f172a;color:#fff;border:1px solid #334155;border-radius:6px;">'+
+                '<select id="ceShadow" style="width:100%;padding:8px;background:#fff;color:#0f172a;border:1px solid #cbd5e1;border-radius:6px;">'+
                     '<option value="none">Yok</option>'+
                     '<option value="0 4px 12px rgba(0,0,0,0.3)">Hafif</option>'+
                     '<option value="0 10px 30px rgba(0,0,0,0.5)">Orta</option>'+
@@ -1138,14 +1153,42 @@ function _cerceveEditoruAc(cerceve){
                     '<option value="0 0 30px gold">Altın</option>'+
                 '</select></div>'+
         '</div>'+
-        (cerceve.dataset.tip === 'foto' ? '<button class="btn-action btn-cyan" style="width:100%;margin-top:10px;margin-bottom:6px;font-weight:700;" onclick="_kolajFotoSec(_seciliCerceve)">🖼️ Fotoğrafı Değiştir / Yükle</button>' : '')+
-        '<button class="btn-action" style="background:#ef4444;color:#fff;width:100%;margin-top:8px;" onclick="_cerceveSil()">🗑️ Bu Çerçeveyi Sil</button>';
+        (cerceve.dataset.tip === 'foto' ? '<button class="btn-action" style="width:100%;margin-top:10px;margin-bottom:6px;font-weight:700;" onclick="_kolajFotoSec(_seciliCerceve)">Görsel Seç</button>' : '')+
+        '<button class="btn-action" style="background:#fee2e2;color:#ef4444;border-color:#fca5a5;width:100%;margin-top:8px;" onclick="_cerceveSil()">Çerçeveyi Sil</button>';
     
     // Bind
     _bindCerceveEditor(cerceve);
 }
 
 function _bindCerceveEditor(cerceve){
+    var wEl = document.getElementById('ceWidth');
+    if(wEl) wEl.oninput = function(){
+        cerceve.style.width = this.value + 'px';
+        document.getElementById('ceWidthLbl').textContent = this.value;
+        _kolajDurumKaydet();
+    };
+    var hEl = document.getElementById('ceHeight');
+    if(hEl) hEl.oninput = function(){
+        cerceve.style.height = this.value + 'px';
+        document.getElementById('ceHeightLbl').textContent = this.value;
+        _kolajDurumKaydet();
+    };
+    var fsEl = document.getElementById('ceFs');
+    if(fsEl) fsEl.oninput = function(){
+        cerceve.style.fontSize = this.value + 'px';
+        cerceve.querySelectorAll('*').forEach(function(c){
+            if(!c.classList.contains('kolaj-tutamac')) c.style.fontSize = fsEl.value + 'px';
+        });
+        document.getElementById('ceFsLbl').textContent = this.value;
+        _kolajDurumKaydet();
+    };
+    var txtEl = document.getElementById('ceText');
+    if(txtEl) txtEl.oninput = function(){
+        var targetText = cerceve.querySelector('[data-bilgi]') || cerceve.firstElementChild || cerceve;
+        targetText.textContent = this.value;
+        _kolajDurumKaydet();
+    };
+
     document.getElementById('ceBg').oninput = function(){ cerceve.style.background = this.value; _kolajDurumKaydet(); };
     document.getElementById('ceBorderColor').oninput = function(){ cerceve.style.borderColor = this.value; _kolajDurumKaydet(); };
     document.getElementById('ceBw').oninput = function(){ 
@@ -1195,17 +1238,35 @@ function _setRotate(el, deg){
     el.style.transform = (t + ' rotate('+deg+'deg)').trim();
 }
 
-// ==================== ÇERÇEVE TAŞIMA (Alt+Sürükle Gövde) ====================
+// ==================== ÇERÇEVE SEÇİMİ VE TAŞIMA ====================
 var _cerDrag = null, _cerSX, _cerSY, _cerIL, _cerIT;
 
 document.addEventListener('mousedown', function(e){
-    if(!e.altKey || e.button !== 0) return;
+    if(e.button !== 0) return;
     if(e.target.classList && e.target.classList.contains('kolaj-tutamac')) return;
+    
+    var wrap = document.getElementById('kolaj-wrapper');
+    if (!wrap) return;
+
     var el = e.target.closest('.kolaj-cerceve');
-    if(!el) return;
+    if(!el) {
+        if(wrap.contains(e.target) && !e.target.closest('#cerceveEditor')) {
+            _cerceveSecimKaldir();
+        }
+        return;
+    }
+    
+    // Çerçeveyi anında seç (tutamaçlar ve sol panel editörü açılsın)
+    _cerceveSec(el);
+
+    // Eğer dolu bir fotoğraf slotuysa ve Alt tuşuna basılmamışsa, fotoğraf pan/zoom motoru çalışsın
+    if(el.dataset.tip === 'foto' && el.dataset.kzReady === '1' && !e.altKey) {
+        return;
+    }
+
+    // Yazı kutusu, boş slot veya Alt basılı foto ise çerçeveyi taşı
     e.preventDefault(); e.stopPropagation();
     _cerDrag = el;
-    _cerceveSec(el);
     _cerSX = e.clientX; _cerSY = e.clientY;
     _cerIL = el.offsetLeft;
     _cerIT = el.offsetTop;

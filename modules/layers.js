@@ -114,6 +114,9 @@ window.layerToggleVisibility = function(uid, isDrawPath = false, pathIndex = 0) 
         el.dataset.hiddenLayer = 'true';
         el.dataset.oldDisplay = el.style.display;
         el.style.display = 'none';
+        if (el.classList.contains('tb-image-frame') && window.TemplateBuilder && window.TemplateBuilder.selectedFrame === el) {
+            window.TemplateBuilder.deselectFrame();
+        }
     }
     window.renderLayers();
 };
@@ -215,6 +218,14 @@ window.layerToggleLock = function(uid, isDrawPath = false, pathIndex = 0) {
         // Deselect if locked
         if (typeof window.deselectAll === 'function') window.deselectAll();
         if (typeof closeCalloutPanel === 'function') closeCalloutPanel();
+        if (el.classList.contains('tb-image-frame') && window.TemplateBuilder && typeof window.TemplateBuilder.deselectFrame === 'function') {
+            window.TemplateBuilder.deselectFrame();
+        }
+    }
+    if (typeof window.syncDockElementLock === 'function') {
+        window.syncDockElementLock(el);
+    } else if (window.DockContextManager && typeof window.DockContextManager.syncStateValues === 'function') {
+        window.DockContextManager.syncStateValues('element', el);
     }
     window.renderLayers();
 };
@@ -243,6 +254,14 @@ window.layerSelect = function(uid, event, isDoubleClick = false) {
     
     if (el.dataset.locked === 'true') return; // Do not select if locked
     if (el.dataset.hiddenLayer === 'true') return; // Do not select if hidden
+
+    if (el.classList.contains('tb-image-frame')) {
+        if (window.TemplateBuilder && typeof window.TemplateBuilder.selectFrame === 'function') {
+            window.TemplateBuilder.selectFrame(el);
+        }
+        window.renderLayers();
+        return;
+    }
     
     if (typeof window.selectElement === 'function') {
         const noTabSwitch = !Boolean(isDoubleClick);
@@ -292,7 +311,19 @@ window.renderLayers = function() {
 
     const generateItemHtml = (el) => {
         let name = el.dataset.label || 'Nesne';
-        if (!el.dataset.label) {
+        if (el.classList.contains('tb-image-frame')) {
+            const isCirc = el.dataset.isCircle === 'true';
+            const isPoly = el.dataset.isPolygon === 'true';
+            const shape = el.dataset.shape;
+            const has3D = (parseFloat(el.dataset.pitch) || 0) !== 0 || (parseFloat(el.dataset.yaw) || 0) !== 0 || (parseFloat(el.dataset.elevation) || 0) !== 0;
+
+            if (isCirc) name = 'Tam Daire Çerçeve';
+            else if (isPoly) name = 'Serbest Çokgen Çerçeve';
+            else if (shape && shape !== 'none') name = 'Şekilli Çerçeve';
+            else name = el.dataset.label || 'Görsel Çerçevesi';
+
+            if (has3D) name += ' (3D)';
+        } else if (!el.dataset.label) {
             if (el.id === 'elBadge') name = 'Durum Rozeti';
             else if (el.id === 'elPrice') name = 'Fiyat Etiketi';
             else if (el.id === 'elDetails') name = 'Bilgi Paneli';
@@ -303,12 +334,18 @@ window.renderLayers = function() {
         }
 
         let iconClass = 'fa-layer-group';
-        if (name.toLowerCase().includes('yazi') || name.toLowerCase().includes('metin') || name.toLowerCase().includes('fiyat') || name.toLowerCase().includes('bilgi')) iconClass = 'fa-font';
+        if (el.classList.contains('tb-image-frame')) {
+            const isCirc = el.dataset.isCircle === 'true';
+            const isPoly = el.dataset.isPolygon === 'true';
+            const has3D = (parseFloat(el.dataset.pitch) || 0) !== 0 || (parseFloat(el.dataset.yaw) || 0) !== 0 || (parseFloat(el.dataset.elevation) || 0) !== 0;
+            iconClass = has3D ? 'fa-cube' : (isCirc ? 'fa-circle' : (isPoly ? 'fa-draw-polygon' : 'fa-image'));
+        } else if (name.toLowerCase().includes('yazi') || name.toLowerCase().includes('metin') || name.toLowerCase().includes('fiyat') || name.toLowerCase().includes('bilgi')) iconClass = 'fa-font';
         else if (name.toLowerCase().includes('rozet')) iconClass = 'fa-tag';
         else if (name.toLowerCase().includes('callout')) iconClass = 'fa-comment-dots';
         else if (name.toLowerCase().includes('ikon') || name.toLowerCase().includes('logo')) iconClass = 'fa-image';
 
-        const isSelected = window.selectedElements && window.selectedElements.includes(el);
+        const isFrameSelected = (window.TemplateBuilder && window.TemplateBuilder.selectedFrame === el);
+        const isSelected = isFrameSelected || (window.selectedElements && window.selectedElements.includes(el)) || (window.selectedEl === el);
         const bg = isSelected ? 'rgba(56,189,248, 0.2)' : 'var(--dark-3)';
         const border = isSelected ? '1px solid #38bdf8' : '1px solid rgba(108,92,231,0.2)';
 
@@ -326,6 +363,7 @@ window.renderLayers = function() {
              draggable="true" 
              ondragstart="window.layerDragStart(event, '${uid}')"
              ondragover="window.layerDragOver(event)"
+             ondragleave="window.layerDragLeave(event)"
              ondrop="window.layerDrop(event, '${uid}')"
              style="display:flex; justify-content:space-between; align-items:center; background:${bg}; border:${border}; padding:10px 12px; border-radius:6px; cursor:grab; transition:all 0.2s; margin-bottom: 5px;" 
              onclick="window.layerSelect('${uid}', event, false)" >
@@ -540,8 +578,77 @@ window.renderLayers = function() {
 };
 
 
+window._layerDraggedUid = null;
+
 window.layerDragStart = function(e, uid) {
+    window._layerDraggedUid = uid;
     e.dataTransfer.setData('text/plain', uid);
+    e.dataTransfer.effectAllowed = 'move';
+};
+
+window.layerDragOver = function(e) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    const item = e.target.closest('.layer-item');
+    if (!item) return;
+
+    const rect = item.getBoundingClientRect();
+    const isAbove = (e.clientY - rect.top) < (rect.height / 2);
+    item.classList.toggle('drop-indicator-top', isAbove);
+    item.classList.toggle('drop-indicator-bottom', !isAbove);
+};
+
+window.layerDragLeave = function(e) {
+    const item = e.target.closest('.layer-item');
+    if (item) {
+        item.classList.remove('drop-indicator-top', 'drop-indicator-bottom');
+    }
+};
+
+window.layerDrop = function(e, targetUid) {
+    e.preventDefault();
+    const sourceUid = e.dataTransfer.getData('text/plain') || window._layerDraggedUid;
+    window._layerDraggedUid = null;
+
+    document.querySelectorAll('.layer-item').forEach(item => {
+        item.classList.remove('drop-indicator-top', 'drop-indicator-bottom');
+    });
+
+    if (!sourceUid || sourceUid === targetUid) return;
+
+    const sourceEl = document.querySelector(`[data-layer-uid="${sourceUid}"]`);
+    const targetEl = document.querySelector(`[data-layer-uid="${targetUid}"]`);
+    if (!sourceEl || !targetEl || !sourceEl.parentNode || sourceEl.parentNode !== targetEl.parentNode) return;
+
+    const targetItem = e.target.closest('.layer-item');
+    const targetRect = targetItem ? targetItem.getBoundingClientRect() : null;
+    const isAbove = targetRect ? ((e.clientY - targetRect.top) < (targetRect.height / 2)) : false;
+
+    const parent = sourceEl.parentNode;
+    // Katman listesinde en üstteki eleman tuvalde en önde (en yüksek z-index / en son DOM kardeşi) olmalıdır
+    if (isAbove) {
+        // Hedefin üzerine bırakıldı -> tuvalde hedefin önüne yerleşmeli
+        if (targetEl.nextSibling) {
+            parent.insertBefore(sourceEl, targetEl.nextSibling);
+        } else {
+            parent.appendChild(sourceEl);
+        }
+    } else {
+        // Hedefin altına bırakıldı -> tuvalde hedefin arkasına yerleşmeli
+        parent.insertBefore(sourceEl, targetEl);
+    }
+
+    // Kardeş elemanların z-index değerlerini sıralı ve temiz şekilde yeniden ata
+    const siblings = Array.from(parent.children).filter(c => c.classList.contains('canvas-el') || c.classList.contains('draggable'));
+    siblings.forEach((c, idx) => {
+        c.style.zIndex = String(10 + idx * 5);
+    });
+
+    if (typeof window.recordHistory === 'function') {
+        window.recordHistory('Katman Sırası Değiştirildi');
+    }
+
+    window.renderLayers();
 };
 
 (function initLayersPanel() {
@@ -564,24 +671,27 @@ window.layerDragStart = function(e, uid) {
                 }
             };
         } else {
-            let lastTab = '';
-            setInterval(() => {
-                const activeBtn = document.querySelector('#mainTabs .tab-btn.active');
-                if (activeBtn) {
-                    const currentTab = activeBtn.dataset.tab;
-                    if (currentTab === 'layers' && lastTab !== 'layers') {
-                        window.renderLayers();
+            const tabsEl = document.getElementById('mainTabs');
+            if (tabsEl) {
+                tabsEl.addEventListener('click', (e) => {
+                    const btn = e.target.closest('.tab-btn');
+                    if (btn && btn.dataset.tab === 'layers') {
+                        setTimeout(() => { if (typeof window.renderLayers === 'function') window.renderLayers(); }, 30);
                     }
-                    lastTab = currentTab;
-                }
-            }, 500);
+                });
+            }
         }
         
+        let _layersDebounceTimer = null;
         document.addEventListener('mouseup', (e) => {
             if (e && e.target && e.target.closest && e.target.closest('#layersListContainer')) return;
             const activeBtn = document.querySelector('#mainTabs .tab-btn.active');
             if (activeBtn && activeBtn.dataset.tab === 'layers') {
-                setTimeout(window.renderLayers, 50);
+                if (_layersDebounceTimer) clearTimeout(_layersDebounceTimer);
+                _layersDebounceTimer = setTimeout(() => {
+                    _layersDebounceTimer = null;
+                    if (typeof window.renderLayers === 'function') window.renderLayers();
+                }, 100);
             }
         });
     } catch (e) {

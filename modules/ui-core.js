@@ -32,6 +32,11 @@ function initCoreRefs(){
 }
 
 function switchTab(name){
+    // Element sekmesi bağımsız buton olmaktan çıkarılıp Yazı & Font ile birleştirildi
+    if (name === 'element') {
+        name = 'font';
+    }
+
     const isMobile = window.innerWidth <= 768;
     const btn = document.querySelector('#mainTabs .tab-btn[data-tab="'+name+'"]');
     const isAlreadyActive = btn && btn.classList.contains('active');
@@ -63,7 +68,19 @@ function switchTab(name){
     
     document.querySelectorAll('.panel>.dynamic-field').forEach(f=>f.classList.remove('show'));
     const targetPanel = document.getElementById('tab-'+name);
-    if(targetPanel) targetPanel.classList.add('show');
+    if(targetPanel) {
+        targetPanel.classList.add('show');
+        if (name === 'font') {
+            const elSet = document.getElementById('elSettings');
+            if (elSet && elSet.style.display !== 'none' && elSet.scrollIntoView) {
+                elSet.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+        }
+    }
+    
+    document.querySelectorAll('.photo-tab-only').forEach(el => {
+        el.style.display = (name === 'photo') ? '' : 'none';
+    });
     
     // Show overlay on mobile when a tab opens
     if (isMobile) {
@@ -74,6 +91,18 @@ function switchTab(name){
     if(name!=='draw' && typeof drawMode !== 'undefined' && drawMode!=='off') setDrawMode('off');
     if(name!=='draw' && typeof applyDrawEdit==='function') applyDrawEdit();
     if(name==='callout' && typeof renderCalloutPanel==='function') renderCalloutPanel();
+    if(name==='photo' && window.PhotoLayerManager && typeof window.PhotoLayerManager.renderUI === 'function') {
+        window.PhotoLayerManager.renderUI();
+    }
+    if(name==='create-template' && window.TemplateBuilder && typeof window.TemplateBuilder.onTabActivated === 'function') {
+        window.TemplateBuilder.onTabActivated();
+    }
+    if(name==='staging' && window.PhotoStagingArchive && typeof window.PhotoStagingArchive.renderPanel === 'function') {
+        window.PhotoStagingArchive.renderPanel();
+    }
+    if((name==='data' || name==='batch' || name==='staging') && window.PhotoStagingArchive && typeof window.PhotoStagingArchive.syncExternalTabs === 'function') {
+        window.PhotoStagingArchive.syncExternalTabs();
+    }
 
     if(document.getElementById('kolaj-wrapper')){
         const photoLayer = document.getElementById('photo-layer');
@@ -105,7 +134,7 @@ window.switchPropertyType = function(type) {
     if(!container) return;
     
     let html = `<input type="hidden" id="statusInput" value="${config.badge}">`;
-    html += `<div class="section-title">✨ ${config.badge} BİLGİLERİ</div>`;
+    html += `<div class="section-title"><i class="fa-solid fa-list-check" style="color:#0284c7; margin-right:6px;"></i>${config.badge} BİLGİLERİ</div>`;
     
     for(let i=0; i<config.fields.length; i+=2) {
         let f1 = config.fields[i];
@@ -181,7 +210,7 @@ const EXTRA_FIELD_ICONS = [
     { icon: 'fa-couch', name: 'Eşyalı / Mobilya', emoji: '🛋️' },
     { icon: 'fa-tree', name: 'Bahçe / Peyzaj', emoji: '🌳' },
     { icon: 'fa-file-contract', name: 'Tapu / İskan / Ruhsat', emoji: '📜' },
-    { icon: 'fa-drafting-compass', name: 'İmar / Parsel / Emsal', emoji: '📐' },
+    { icon: 'fa-drafting-compass', name: 'İmar / Parsel / Emsal', emoji: '📏' },
     { icon: 'fa-credit-card', name: 'Kredi / İpotek', emoji: '💳' },
     { icon: 'fa-coins', name: 'Aidat / Kira / Fiyat', emoji: '💰' },
     { icon: 'fa-subway', name: 'Metro / Ulaşım', emoji: '🚇' },
@@ -245,7 +274,7 @@ window.openExtraIconPicker = function(fieldId) {
             <span style="font-weight:700; color:#f8fafc; font-size:14px; display:flex; align-items:center; gap:8px;">
                 <span>✨ İkon Seç & Değiştir</span>
             </span>
-            <button type="button" onclick="document.getElementById('extraIconPickerModal').remove()" style="background:none; border:none; color:#94a3b8; font-size:18px; cursor:pointer; padding:4px 8px;">✕</button>
+            <button type="button" onclick="document.getElementById('extraIconPickerModal').remove()" style="background:none; border:none; color:#94a3b8; font-size:18px; cursor:pointer; padding:4px 8px;"><i class="fa-solid fa-xmark"></i></button>
         </div>
         <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:8px; max-height:320px; overflow-y:auto; padding:4px;">
             ${EXTRA_FIELD_ICONS.map(item => `
@@ -415,7 +444,7 @@ function renderData(){
                 const val = inputEl ? inputEl.value : '';
                 const currentLabel = (inputEl && inputEl.previousElementSibling && inputEl.previousElementSibling.tagName === 'LABEL') ? inputEl.previousElementSibling.innerText : f.label;
                 if (val && val.toLowerCase() !== 'yok') {
-                    if (currentLabel !== f.label) {
+                    if (val.startsWith("✨") || val.startsWith("✓")) { canvaLines.push(val); } else if (currentLabel !== f.label) {
                         let cleanLabel = currentLabel.replace(' Sayısı', '').replace(' Durumu', '').replace(' Alanı', '').replace(' Türü', '').replace(' Ölçüsü', '').replace(' Bedeli', '');
                         canvaLines.push(cleanLabel + ': ' + val);
                     } else if (f.canvasFormat) {
@@ -569,15 +598,14 @@ function addExtraField(mode){
     const row = document.createElement('div');
     row.className = 'extra-field-row';
     row.id = 'row_' + id;
-    row.style.cssText = 'display:flex; gap:6px; align-items:center; margin-bottom:6px; background:#1e293b; padding:6px; border-radius:6px; border:1px solid #334155;';
     
     row.innerHTML = `
-        <button type="button" class="extra-icon-btn" id="icn_${id}" data-icon="fa-check-circle" onclick="window.openExtraIconPicker('${id}')" title="İkon Seç / Değiştir" style="background:#0f172a; border:1px solid #334155; border-radius:6px; color:#38bdf8; width:34px; height:34px; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:14px; flex-shrink:0;">
+        <button type="button" class="extra-icon-btn" id="icn_${id}" data-icon="fa-check-circle" onclick="window.openExtraIconPicker('${id}')" title="İkon Seç / Değiştir">
             <i class="fas fa-check-circle"></i>
         </button>
-        <input type="text" id="lbl_${id}" class="extra-lbl-input" placeholder="Başlık (örn: Havuz)" style="flex:1; min-width:0; padding:6px 8px; background:#0f172a; border:1px solid #334155; color:#fff; border-radius:4px; font-size:12px;">
-        <input type="text" id="val_${id}" class="extra-val-input" placeholder="Değer (örn: Açık Yüzme)" style="flex:1; min-width:0; padding:6px 8px; background:#0f172a; border:1px solid #334155; color:#fff; border-radius:4px; font-size:12px;">
-        <button type="button" class="remove-field" onclick="removeExtraField('${id}','${mode}')" title="Bilgiyi Sil" style="background:#ef4444; color:#fff; border:none; border-radius:4px; width:28px; height:28px; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:12px; font-weight:700; flex-shrink:0;">✕</button>
+        <input type="text" id="lbl_${id}" class="extra-lbl-input" placeholder="Başlık (Örn: Havuz)">
+        <input type="text" id="val_${id}" class="extra-val-input" placeholder="Değer (Örn: Açık Yüzme)">
+        <button type="button" class="remove-field" onclick="removeExtraField('${id}','${mode}')" title="Bilgiyi Sil"><i class="fa-solid fa-xmark"></i></button>
     `;
     
     c.appendChild(row);

@@ -1,0 +1,78 @@
+/* ================================================================
+   ⚡ EMLAK STÜDYOM - NEON & TYPOGRAPHY EFFECTS STYLES
+   ================================================================ */
+
+.neon-presets-grid,
+.typo-presets-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 4px;
+    margin-bottom: 6px;
+}
+
+.neon-presets-grid .btn-action,
+.typo-presets-grid .btn-action {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    height: 28px;
+    padding: 2px 4px;
+    font-size: 11px;
+    font-weight: 600;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: all 0.15s ease;
+}
+
+.neon-presets-grid .btn-action.active,
+.typo-presets-grid .btn-action.active {
+    background: linear-gradient(180deg, #0ea5e9 0%, #0284c7 100%) !important;
+    color: #ffffff !important;
+    border-color: #38bdf8 !important;
+    box-shadow: 0 0 10px rgba(14, 165, 233, 0.35) !important;
+}
+
+.neon-presets-grid .btn-action.active i,
+.typo-presets-grid .btn-action.active i {
+    color: #ffffff !important;
+}
+
+#neonTextAnimBtn.active {
+    background: linear-gradient(180deg, #10b981 0%, #059669 100%) !important;
+    color: #ffffff !important;
+    border-color: #34d399 !important;
+    box-shadow: 0 0 10px rgba(16, 185, 129, 0.35) !important;
+}
+
+#neonTextAnimBtn.active i {
+    color: #ffffff !important;
+}
+
+/* Tipografi Efekt Sınıfları */
+.canvas-el.typo-gold {
+    color: #fffbeb !important;
+    text-shadow: 0 0 12px rgba(251,191,36,0.95), 0 2px 5px rgba(180,83,9,0.9), 0 0 26px rgba(245,158,11,0.6) !important;
+}
+
+.canvas-el.typo-chrome {
+    color: #f8fafc !important;
+    text-shadow: 0 1px 0 #cbd5e1, 0 2px 0 #94a3b8, 0 3px 0 #64748b, 0 5px 12px rgba(0,0,0,0.85) !important;
+}
+
+.canvas-el.typo-sticker {
+    color: #fef08a !important;
+    text-shadow: -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000, 2px 2px 0 #000, 0 5px 12px rgba(0,0,0,0.85) !important;
+}
+
+.canvas-el.typo-cyberpunk {
+    color: #ff2a85 !important;
+    text-shadow: 0 0 8px #ff2a85, 0 0 16px #ff2a85, 0 0 28px #00f0ff, 0 0 42px #00f0ff !important;
+}
+
+.canvas-el.typo-shadow3d {
+    color: #ffffff !important;
+    text-shadow: 1px 1px 0 #0f172a, 2px 2px 0 #0f172a, 3px 3px 0 #0f172a, 4px 4px 0 #0f172a, 5px 5px 0 #0f172a, 6px 6px 14px rgba(0,0,0,0.75) !important;
+}

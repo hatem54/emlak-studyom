@@ -32,6 +32,7 @@ window.openQuickEdit3DModal = function(targetElement, clientX, clientY) {
     const parts = (mainText || '').split(/\r?\n/).map(s => s.trim()).filter(Boolean);
     const primaryStr = parts[0] || '';
     const subStr = parts.slice(1).join(' ') || '';
+    const hasMultipleTexts = (root.querySelectorAll('text, span, .co-text, p, h1, h2, h3, h4').length > 1) || Boolean(subStr);
 
     const modal = document.createElement('div');
     modal.id = 'quick-edit-3d-modal';
@@ -48,22 +49,22 @@ window.openQuickEdit3DModal = function(targetElement, clientX, clientY) {
         <div class="q3d-body">
             ${!isIcon || primaryStr ? `
             <div class="q3d-input-group">
-                <label class="q3d-lbl">📝 Rozet / Metin Yazısı:</label>
+                <label class="q3d-lbl"><i class="fa-solid fa-pen" style="color:#38bdf8; margin-right:4px;"></i>Rozet / Metin Yazısı:</label>
                 <input type="text" class="q3d-text-input" id="q3dTextInput" value="${primaryStr.replace(/"/g, '&quot;')}" placeholder="Metin yazın...">
             </div>
             ` : ''}
-            ${subStr ? `
+            ${hasMultipleTexts ? `
             <div class="q3d-input-group">
-                <label class="q3d-lbl">🏷️ Alt Başlık (Slogan):</label>
+                <label class="q3d-lbl"><i class="fa-solid fa-tag" style="color:#38bdf8; margin-right:4px;"></i>Alt Başlık:</label>
                 <input type="text" class="q3d-text-input" id="q3dSubTextInput" value="${subStr.replace(/"/g, '&quot;')}" placeholder="Alt başlık...">
             </div>
             ` : ''}
 
-            <!-- ✨ 3D'YE DÖNÜŞTÜR BUTONU -->
+            <!-- 3D'YE DÖNÜŞTÜR BUTONU -->
             <button type="button" class="q3d-convert-btn" id="q3dConvertBtn">
                 <span class="q3d-btn-icon"><i class="fas fa-cube"></i></span>
                 <div class="q3d-btn-texts">
-                    <span class="q3d-btn-main">✨ 3D'ye Dönüştür</span>
+                    <span class="q3d-btn-main">3D'ye Dönüştür</span>
                     <span class="q3d-btn-sub">Fiziksel kalınlık & 6 yön hareketini aç</span>
                 </div>
             </button>
@@ -133,8 +134,13 @@ window.openQuickEdit3DModal = function(targetElement, clientX, clientY) {
         const full = sVal ? (pVal + '\n' + sVal) : pVal;
         root.dataset.coLabel = full;
 
-        const firstText = root.querySelector('text, span, .co-text, p');
-        if (firstText) firstText.textContent = pVal;
+        const textNodes = root.querySelectorAll('text, span, .co-text, p');
+        if (textNodes.length > 0) {
+            textNodes[0].textContent = pVal;
+            if (textNodes.length > 1) {
+                textNodes[1].textContent = sVal;
+            }
+        }
 
         const coLabelField = document.getElementById('coLabelText');
         if (coLabelField) coLabelField.value = full;
@@ -211,7 +217,7 @@ function openObjectContextMenu(targetElement, isText, clientX, clientY) {
     if (!targetElement) return;
 
     // 🎯 Her zaman tuvaldeki en üst seviye taşınabilir ana kapsayıcıyı hedef al
-    const rootElement = targetElement.closest('.callout-wrap, .draggable, .canvas-el, .added-icon, [data-layer-uid]') || targetElement;
+    const rootElement = targetElement.closest('.callout-wrap, .draggable, .canvas-el, .added-icon, [data-layer-uid], .editable-draw, .canva-el, .cvi-item, [data-path-id], [data-path-index]') || targetElement;
     targetElement = rootElement;
 
     // Varsa önceki açık menüyü kapat
@@ -223,10 +229,12 @@ function openObjectContextMenu(targetElement, isText, clientX, clientY) {
     
     // Label belirle
     let label = targetElement.dataset.label || 'Öğe';
+    const isShape = targetElement.classList.contains('shape-el') || !!(targetElement.dataset && targetElement.dataset.shapeType);
     if (targetElement.classList.contains('added-icon')) label = 'İkon';
     else if (isCallout) label = 'Callout';
+    else if (isShape) label = 'Şekil';
     else if (targetElement.classList.contains('canvas-el')) label = 'Metin';
-    else if (targetElement.classList.contains('editable-draw')) label = 'Çizim';
+    else if (targetElement.classList.contains('editable-draw') || targetElement.classList.contains('canva-el') || targetElement.classList.contains('cvi-item') || (targetElement.dataset && targetElement.dataset.pathId)) label = 'Çizim';
 
     const menu = document.createElement('div');
     menu.id = 'app-custom-context-menu';
@@ -247,21 +255,59 @@ function openObjectContextMenu(targetElement, isText, clientX, clientY) {
     html += `
         <button class="app-context-item item-3d" id="acm-convert-3d">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2.2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
-            <span>3D'ye Dönüştür (Kalınlık & 6 Yön)</span>
+            <span>3D'ye Dönüştür</span>
+        </button>
+        <button class="app-context-item item-fence-3d" id="acm-convert-fence-3d">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2.2"><path d="M4 4v16M8 4v16M12 4v16M16 4v16M20 4v16M2 8h20M2 16h20"/></svg>
+            <span>3D Çit & Duvar Yap</span>
         </button>
         <button class="app-context-item item-sun" id="acm-add-sun">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2.2"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
-            <span>3D Güneş & Işık Ekle</span>
+            <span>3D Güneş & Işık</span>
         </button>
         <div class="acm-divider"></div>
     `;
 
+    // 📐 Şekil Ayarları Düzenleme
+    if (isShape) {
+        html += `
+            <button class="app-context-item item-edit" id="acm-shape-settings">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2.2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                <span>Şekil Ayarları</span>
+            </button>
+        `;
+    }
+
+    // 🏷️ Rozet / Callout Ayarları Düzenleme
+    if (isCallout) {
+        html += `
+            <button class="app-context-item item-edit" id="acm-callout-settings">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2.2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                <span>Rozet Ayarları</span>
+            </button>
+        `;
+    }
+
     // Metni Düzenle (Eğer metin düzenlenebilir ise)
-    if (isText || targetElement.classList.contains('canvas-el') || targetElement.querySelector('.callout-text, .co-neon-text')) {
+    if (!isShape && (isText || targetElement.classList.contains('canvas-el') || targetElement.querySelector('.callout-text, .co-neon-text, text, tspan'))) {
         html += `
             <button class="app-context-item item-edit" id="acm-edit">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
                 <span>Metni Düzenle</span>
+            </button>
+        `;
+    }
+
+    // Metin için Neon Efekti Ekle / Kapat (3D modunda veya 3D nesnelerde ASLA görünmez)
+    const is3DActive = (window.ThreeDEngine && typeof window.ThreeDEngine.isActive === 'function' && window.ThreeDEngine.isActive()) || targetElement.classList.contains('three-d-layer') || !!targetElement.closest('#threeDContainer');
+    const is2DText = !is3DActive && !isShape && (isText || targetElement.classList.contains('canvas-el') || targetElement.querySelector('.callout-text, .co-neon-text, text, tspan'));
+
+    if (is2DText) {
+        const isNeonOn = targetElement.dataset.saberActive === 'true';
+        html += `
+            <button class="app-context-item item-neon" id="acm-toggle-neon">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#00f0ff" stroke-width="2.2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+                <span>${isNeonOn ? 'Neon Efektini Kapat' : 'Neon Efekti Ekle'}</span>
             </button>
         `;
     }
@@ -303,15 +349,15 @@ function openObjectContextMenu(targetElement, isText, clientX, clientY) {
     html += `
         <button class="app-context-item" id="acm-single-rot-cw">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
-            <span>Döndür (90° Sağa)</span>
+            <span>Döndür</span>
         </button>
         <button class="app-context-item" id="acm-single-scale-up">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
-            <span>Büyüt (+15%)</span>
+            <span>Büyüt</span>
         </button>
         <button class="app-context-item" id="acm-single-scale-down">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2"><polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="14" y1="10" x2="21" y2="3"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
-            <span>Küçült (-15%)</span>
+            <span>Küçült</span>
         </button>
         <button class="app-context-item item-front" id="acm-front">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#00d2ff" stroke-width="2.2"><polyline points="17 11 12 6 7 11"></polyline><polyline points="17 18 12 13 7 18"></polyline></svg>
@@ -365,10 +411,15 @@ function openObjectContextMenu(targetElement, isText, clientX, clientY) {
     menu.style.left = posX + 'px';
     menu.style.top = posY + 'px';
 
+    let onMouseMove = null;
+    let onMouseUp = null;
+
     const closeMenu = () => {
         if (menu.parentElement) menu.remove();
         document.removeEventListener('pointerdown', onDocClick, true);
         document.removeEventListener('keydown', onKeyDown, true);
+        if (onMouseMove) document.removeEventListener('mousemove', onMouseMove);
+        if (onMouseUp) document.removeEventListener('mouseup', onMouseUp);
     };
 
     let didDrag = false;
@@ -392,20 +443,7 @@ function openObjectContextMenu(targetElement, isText, clientX, clientY) {
         let isDragging = false;
         let dragStartX = 0, dragStartY = 0, startLeft = 0, startTop = 0;
 
-        header.addEventListener('mousedown', (e) => {
-            if (e.target.closest('#acm-close-btn')) return;
-            isDragging = true;
-            didDrag = false;
-            dragStartX = e.clientX;
-            dragStartY = e.clientY;
-            startLeft = menu.offsetLeft;
-            startTop = menu.offsetTop;
-            header.style.cursor = 'grabbing';
-            e.preventDefault();
-            e.stopPropagation();
-        });
-
-        const onMouseMove = (e) => {
+        onMouseMove = (e) => {
             if (!isDragging) return;
             const dx = e.clientX - dragStartX;
             const dy = e.clientY - dragStartY;
@@ -418,16 +456,30 @@ function openObjectContextMenu(targetElement, isText, clientX, clientY) {
             menu.style.top = ny + 'px';
         };
 
-        const onMouseUp = () => {
+        onMouseUp = () => {
             if (isDragging) {
                 isDragging = false;
                 header.style.cursor = 'grab';
                 setTimeout(() => { didDrag = false; }, 100);
+                document.removeEventListener('mousemove', onMouseMove);
+                document.removeEventListener('mouseup', onMouseUp);
             }
         };
 
-        document.addEventListener('mousemove', onMouseMove);
-        document.addEventListener('mouseup', onMouseUp);
+        header.addEventListener('mousedown', (e) => {
+            if (e.target.closest('#acm-close-btn')) return;
+            isDragging = true;
+            didDrag = false;
+            dragStartX = e.clientX;
+            dragStartY = e.clientY;
+            startLeft = menu.offsetLeft;
+            startTop = menu.offsetTop;
+            header.style.cursor = 'grabbing';
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('mouseup', onMouseUp);
+            e.preventDefault();
+            e.stopPropagation();
+        });
     }
 
     const closeBtn = menu.querySelector('#acm-close-btn');
@@ -464,6 +516,13 @@ function openObjectContextMenu(targetElement, isText, clientX, clientY) {
         if (window.ThreeDEngine && typeof window.ThreeDEngine.convert2DBadgeTo3D === 'function') {
             const elToConvert = targetElement || window.selectedCalloutEl || window.selectedEl;
             window.ThreeDEngine.convert2DBadgeTo3D(elToConvert);
+        }
+    });
+
+    bindBtn('#acm-convert-fence-3d', () => {
+        if (window.ThreeDEngine && typeof window.ThreeDEngine.convertLineTo3DFence === 'function') {
+            const elToConvert = targetElement || window.selectedCalloutEl || window.selectedEl;
+            window.ThreeDEngine.convertLineTo3DFence(elToConvert, 'fence_panel_green');
         }
     });
 
@@ -561,14 +620,49 @@ function openObjectContextMenu(targetElement, isText, clientX, clientY) {
         if (window.multiSelectScale) window.multiSelectScale(0.85);
     });
 
+    bindBtn('#acm-shape-settings', () => {
+        if (typeof switchTab === 'function') switchTab('shapes');
+        if (typeof window.loadShapeSettings === 'function') {
+            window.loadShapeSettings(targetElement);
+        }
+    });
+
+    bindBtn('#acm-callout-settings', () => {
+        const innerEl = targetElement.classList.contains('callout-wrap') 
+            ? (targetElement.querySelector('.callout-item') || targetElement) 
+            : targetElement;
+        if (typeof selectCalloutEl === 'function') selectCalloutEl(innerEl, true);
+        if (typeof switchTab === 'function') switchTab('callout');
+        const panel = document.getElementById('calloutSettingsPanel');
+        if (panel) {
+            panel.style.display = 'block';
+            if (panel.tagName && panel.tagName.toLowerCase() === 'details') panel.open = true;
+            panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+    });
+
     bindBtn('#acm-edit', () => {
-        const textEl = targetElement.querySelector('.callout-text, .co-neon-text, span, div') || targetElement;
+        const textEl = targetElement.querySelector('.callout-text, .co-neon-text, text, tspan, span, div') || targetElement;
         const curVal = textEl.innerText || textEl.textContent || '';
         const newT = prompt('Metni düzenleyin:', curVal);
         if (newT !== null && newT !== undefined) {
-            if (textEl !== targetElement) textEl.innerText = newT;
-            else targetElement.innerText = newT;
+            if (textEl.tagName && ['text', 'tspan'].includes(textEl.tagName.toLowerCase())) {
+                textEl.textContent = newT;
+            } else if (textEl !== targetElement) {
+                textEl.innerText = newT;
+            } else {
+                targetElement.innerText = newT;
+            }
             if (typeof updateDrawHistory === 'function') updateDrawHistory();
+            if (window.SaberEngine && typeof window.SaberEngine.updateTextSaberPositions === 'function') {
+                window.SaberEngine.updateTextSaberPositions();
+            }
+        }
+    });
+
+    bindBtn('#acm-toggle-neon', () => {
+        if (typeof window.toggleTextNeon === 'function') {
+            window.toggleTextNeon(targetElement);
         }
     });
 
@@ -713,7 +807,7 @@ function openMultiSelectContextMenu(clientX, clientY) {
         </button>
         <button class="app-context-item" id="acm-multi-convert-polygon">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2"><polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5 12 2"></polygon></svg>
-            <span>🔷 Çokgene Çevir (Birleştir)</span>
+            <span>Çokgene Çevir</span>
         </button>
         <button class="app-context-item item-front" id="acm-multi-front">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#00d2ff" stroke-width="2"><polyline points="17 11 12 6 7 11"/><polyline points="17 18 12 13 7 18"/></svg>
@@ -725,15 +819,15 @@ function openMultiSelectContextMenu(clientX, clientY) {
         </button>
         <button class="app-context-item" id="acm-multi-rot-cw">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
-            <span>Toplu Döndür (90° Sağa)</span>
+            <span>Toplu Döndür</span>
         </button>
         <button class="app-context-item" id="acm-multi-scale-up">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
-            <span>Toplu Büyüt (+15%)</span>
+            <span>Toplu Büyüt</span>
         </button>
         <button class="app-context-item" id="acm-multi-scale-down">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2"><polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="14" y1="10" x2="21" y2="3"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
-            <span>Toplu Küçült (-15%)</span>
+            <span>Toplu Küçült</span>
         </button>
         <button class="app-context-item item-lock" id="acm-multi-lock">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
@@ -766,10 +860,15 @@ function openMultiSelectContextMenu(clientX, clientY) {
     menu.style.left = posX + 'px';
     menu.style.top = posY + 'px';
 
+    let onMouseMove = null;
+    let onMouseUp = null;
+
     const closeMenu = () => {
         if (menu.parentElement) menu.remove();
         document.removeEventListener('pointerdown', onDocClick, true);
         document.removeEventListener('keydown', onKeyDown, true);
+        if (onMouseMove) document.removeEventListener('mousemove', onMouseMove);
+        if (onMouseUp) document.removeEventListener('mouseup', onMouseUp);
     };
 
     let didDrag = false;
@@ -793,20 +892,7 @@ function openMultiSelectContextMenu(clientX, clientY) {
         let isDragging = false;
         let dragStartX = 0, dragStartY = 0, startLeft = 0, startTop = 0;
 
-        header.addEventListener('mousedown', (e) => {
-            if (e.target.closest('#acm-close-btn')) return;
-            isDragging = true;
-            didDrag = false;
-            dragStartX = e.clientX;
-            dragStartY = e.clientY;
-            startLeft = menu.offsetLeft;
-            startTop = menu.offsetTop;
-            header.style.cursor = 'grabbing';
-            e.preventDefault();
-            e.stopPropagation();
-        });
-
-        const onMouseMove = (e) => {
+        onMouseMove = (e) => {
             if (!isDragging) return;
             const dx = e.clientX - dragStartX;
             const dy = e.clientY - dragStartY;
@@ -819,16 +905,30 @@ function openMultiSelectContextMenu(clientX, clientY) {
             menu.style.top = ny + 'px';
         };
 
-        const onMouseUp = () => {
+        onMouseUp = () => {
             if (isDragging) {
                 isDragging = false;
                 header.style.cursor = 'grab';
                 setTimeout(() => { didDrag = false; }, 100);
+                document.removeEventListener('mousemove', onMouseMove);
+                document.removeEventListener('mouseup', onMouseUp);
             }
         };
 
-        document.addEventListener('mousemove', onMouseMove);
-        document.addEventListener('mouseup', onMouseUp);
+        header.addEventListener('mousedown', (e) => {
+            if (e.target.closest('#acm-close-btn')) return;
+            isDragging = true;
+            didDrag = false;
+            dragStartX = e.clientX;
+            dragStartY = e.clientY;
+            startLeft = menu.offsetLeft;
+            startTop = menu.offsetTop;
+            header.style.cursor = 'grabbing';
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('mouseup', onMouseUp);
+            e.preventDefault();
+            e.stopPropagation();
+        });
     }
 
     const closeBtn = menu.querySelector('#acm-close-btn');
@@ -929,11 +1029,11 @@ function openLibraryItem3DContextMenu(libItem, clientX, clientY) {
         </div>
         <button class="app-context-item item-3d" id="lib-convert-3d">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2.2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
-            <span>3D'ye Dönüştür (Tuvalde Aç)</span>
+            <span>3D'ye Dönüştür</span>
         </button>
         <button class="app-context-item" id="lib-add-2d">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
-            <span>Normal (2D) Olarak Ekle</span>
+            <span>2D Olarak Ekle</span>
         </button>
     `;
 
@@ -1057,33 +1157,24 @@ document.addEventListener('contextmenu', function(e) {
         return;
     }
 
-    // 🌟 3D Stüdyo açıkken tuvalde sağ tık: 3D Menüsünü Aç ve Tarayıcı Menüsünü Kesinlikle Engelle
-    if (window.ThreeDEngine && typeof window.ThreeDEngine.isActive === 'function' && window.ThreeDEngine.isActive()) {
-        if (e.target.closest && e.target.closest('#canvas-container, #workArea, #threeDCanvas, .three-d-canvas, #threeDGizmoOverlay, #threeDCornerPinOverlay, .main-canvas')) {
-            e.preventDefault();
-            e.stopPropagation();
-            if (typeof window.ThreeDEngine.openContextMenu === 'function') {
-                const hitEl = (typeof window.ThreeDEngine.checkHit === 'function') ? window.ThreeDEngine.checkHit(e.clientX, e.clientY) : null;
-                const activeEl = hitEl || (typeof window.ThreeDEngine.getActiveElement === 'function' ? window.ThreeDEngine.getActiveElement() : null);
-                if (activeEl) {
-                    if (typeof window.ThreeDEngine.selectElement === 'function') {
-                        window.ThreeDEngine.selectElement(activeEl.id);
-                    }
-                    window.ThreeDEngine.openContextMenu(activeEl, e.clientX, e.clientY);
-                }
-            }
-            return;
-        }
-    }
-
     // Yan paneller, butonlar ve form inputlarında default menüyü koru
     if (e.target.closest && e.target.closest('input, button, select, textarea, .panel, .mobile-panel')) {
         return;
     }
 
+    // 🎯 1. ÖNCELİK: Tuval üzerindeki 2D Öğeler (Callout, İkon, Metin, Çizim vb.)
+    // Doğrudan tuvaldeki bir 2D öğeye veya tutamaçlarına sağ tıklandıysa, 2D sağ tık menüsünü aç!
+    let callout = e.target.closest && e.target.closest('.callout-wrap, .callout-item, .co-neon-block, .canvas-icon, .draggable, .added-icon, .cvi-item, .editable-draw, .canvas-el, .cvi-badge-box, [data-layer-uid]');
+    if (!callout && window.selectedEl && (window.selectedEl === e.target || window.selectedEl.contains(e.target))) {
+        callout = window.selectedEl;
+    }
+    if (!callout && window.selectedElements && window.selectedElements.length === 1 && (window.selectedElements[0] === e.target || window.selectedElements[0].contains(e.target))) {
+        callout = window.selectedElements[0];
+    }
+
     // Çoklu seçim varken sağ tıklandıysa
     if (window.selectedElements && window.selectedElements.length > 1) {
-        const clickedEl = e.target.closest('.callout-item, .callout-wrap, .co-neon-block, .canvas-icon, .draggable, .added-icon, .cvi-item, .editable-draw, .canvas-el, .cvi-badge-box, [data-layer-uid]');
+        const clickedEl = callout || (e.target.closest && e.target.closest('.callout-item, .callout-wrap, .co-neon-block, .canvas-icon, .draggable, .added-icon, .cvi-item, .editable-draw, .canvas-el, .cvi-badge-box, [data-layer-uid]'));
         const isOneOfSelected = (clickedEl && window.selectedElements.some(sel => sel === clickedEl || sel.contains(clickedEl) || clickedEl.contains(sel))) ||
                                 window.selectedElements.some(sel => sel.contains(e.target));
         if (isOneOfSelected || e.target.closest('#canvas-container, .main-canvas, #ui-layer, #draw-canvas, #canva-render-layer, #photo-layer')) {
@@ -1093,17 +1184,9 @@ document.addEventListener('contextmenu', function(e) {
         }
     }
 
-    let callout = e.target.closest('.callout-wrap, .callout-item, .co-neon-block, .canvas-icon, .draggable, .added-icon, .cvi-item, .editable-draw, .canvas-el, .cvi-badge-box, [data-layer-uid]');
-    if (!callout && window.selectedEl && (window.selectedEl === e.target || window.selectedEl.contains(e.target))) {
-        callout = window.selectedEl;
-    }
-    if (!callout && window.selectedElements && window.selectedElements.length === 1 && (window.selectedElements[0] === e.target || window.selectedElements[0].contains(e.target))) {
-        callout = window.selectedElements[0];
-    }
-
     if (callout) {
         // En üst seviyedeki taşınabilir ana kapsayıcıyı al
-        const topEl = callout.closest('.callout-wrap, .draggable, .canvas-el, .added-icon, [data-layer-uid]') || callout;
+        const topEl = callout.closest('.callout-wrap, .draggable, .canvas-el, .added-icon, [data-layer-uid], .editable-draw, .canva-el, .cvi-item, [data-path-id], [data-path-index]') || callout;
         callout = topEl;
         e.preventDefault();
         if (typeof selectElement === 'function' && (!window.selectedElements || window.selectedElements.length <= 1)) {
@@ -1111,7 +1194,40 @@ document.addEventListener('contextmenu', function(e) {
         }
         const isText = callout.classList.contains('callout-item') && !callout.classList.contains('callout-wrap');
         openObjectContextMenu(callout, isText, e.clientX, e.clientY);
-    } else if (e.target.closest('#canvas-container, #workArea, #ui-layer, .main-canvas, #draw-canvas, #canva-render-layer, #photo-layer')) {
+        return;
+    }
+
+    // 🎯 2. ÖNCELİK: 3D Stüdyo açıkken ve doğrudan bir 3D öğeye veya gizmo tutamacına tıklandıysa 3D Menüsünü Aç
+    if (window.ThreeDEngine && typeof window.ThreeDEngine.isActive === 'function' && window.ThreeDEngine.isActive()) {
+        // Çoklu 3D seçim varken sağ tıklandıysa
+        if (window.ThreeDGrouping && typeof window.ThreeDGrouping.getSelected3DElements === 'function' && window.ThreeDGrouping.getSelected3DElements().length > 1) {
+            e.preventDefault();
+            e.stopPropagation();
+            window.ThreeDGrouping.openMulti3DContextMenu(e.clientX, e.clientY);
+            return;
+        }
+
+        const hitEl = (typeof window.ThreeDEngine.checkHit === 'function') ? window.ThreeDEngine.checkHit(e.clientX, e.clientY) : null;
+        const isGizmo = e.target.closest && e.target.closest('.three-d-gizmo-tip, .three-d-gizmo-dot, .three-d-gizmo-sun, .three-d-gizmo-hit-line, .three-d-gizmo-arc');
+        if (hitEl || isGizmo) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (typeof window.ThreeDEngine.openContextMenu === 'function') {
+                const activeEl = hitEl || (typeof window.ThreeDEngine.getActiveElement === 'function' ? window.ThreeDEngine.getActiveElement() : null);
+                if (activeEl) {
+                    if (typeof window.ThreeDEngine.setActiveElement === 'function') {
+                        window.ThreeDEngine.setActiveElement(activeEl.id);
+                    } else if (typeof window.ThreeDEngine.selectElement === 'function') {
+                        window.ThreeDEngine.selectElement(activeEl.id);
+                    }
+                    window.ThreeDEngine.openContextMenu(activeEl, e.clientX, e.clientY);
+                }
+            }
+            return;
+        }
+    }
+
+    if (e.target.closest('#canvas-container, #workArea, #ui-layer, .main-canvas, #draw-canvas, #canva-render-layer, #photo-layer, #three-d-layer')) {
         // Tuval zeminine sağ tıklandığında varsayılan tarayıcı context menüsünü engelle
         e.preventDefault();
     }
@@ -1177,14 +1293,46 @@ document.addEventListener('touchend', function(e) {
     }
 }, { passive: true, capture: true });
 
-// 3. Çift Tıklama (Double Click) ile Hızlı 3D & Düzenleme Modalı
+// 3. Çift Tıklama (Double Click) ile Element Sekmesi & Hızlı Düzenleme
 document.addEventListener('dblclick', function(e) {
-    const target = e.target.closest('.callout-wrap, .callout-item, .co-neon-block, .added-icon, .svg-icon, .icon-wrapper, .canvas-el');
+    const target = e.target.closest('.callout-wrap, .callout-item, .co-neon-block, .added-icon, .svg-icon, .icon-wrapper, .canvas-el, .draggable, .editable-text, .kolaj-cerceve');
     if (target) {
+        // Eğer öge açıkça 3D canvas içindeyse veya 3D nesne ise 3D modalı aç
+        if (target.dataset.threeD === 'true' || target.closest('#threeDCanvas')) {
+            if (typeof window.openQuickEdit3DModal === 'function') {
+                e.stopPropagation();
+                e.preventDefault();
+                window.openQuickEdit3DModal(target, e.clientX, e.clientY);
+                return;
+            }
+        }
+
+        // 2D öğeler: Seç ve Element sekmesini aç
         e.stopPropagation();
-        e.preventDefault();
-        if (typeof window.openQuickEdit3DModal === 'function') {
-            window.openQuickEdit3DModal(target, e.clientX, e.clientY);
+        if (typeof selectElement === 'function') {
+            selectElement(target);
+        }
+        if (typeof switchTab === 'function') {
+            switchTab('element');
+        }
+
+        // Metin öğesi ise çift tıklamayla hemen inline düzenleme başlat
+        const textTarget = (target.classList.contains('canvas-el') || target.classList.contains('editable-text') || target.hasAttribute('contenteditable'))
+            ? target
+            : target.querySelector('.editable-text, [data-bilgi], span, p');
+        if (textTarget) {
+            if (typeof enableInlineEdit === 'function') {
+                enableInlineEdit(textTarget);
+            }
+            textTarget.contentEditable = 'true';
+            textTarget.focus();
+            try {
+                const range = document.createRange();
+                range.selectNodeContents(textTarget);
+                const sel = window.getSelection();
+                sel.removeAllRanges();
+                sel.addRange(range);
+            } catch(re){}
         }
     }
 });
@@ -1202,14 +1350,27 @@ document.addEventListener('pointerdown', function(e) {
         '.draggable, .canvas-el, .callout-wrap, .callout-item, .co-neon-block, .editable-draw, ' +
         '.text-handle, .text-resize-handle, .text-rotate-handle, .text-delete-handle, .text-lock-handle, ' +
         '.callout-controls, .callout-resizer, .callout-rotator, .callout-lock-btn, .callout-select-border, ' +
+        '.tb-image-frame, .tb-frame-handle, .tb-frame-floating-tools, .tb-floating-btn, .tb-frame-clip, .tb-frame-inner, .tb-frame-img, ' +
         '.draw-handle, .vertex-handle, .cbtn-del, .sidebar, .right-sidebar, .panel, .mobile-panel, ' +
         '.tab-content, .dynamic-field, .tab-btn, button, input, select, textarea, .swal2-container, .modal, .context-menu, .app-context-menu, ' +
-        '#threeDStudioPanel, .three-d-panel, #threeDGizmoOverlay, #threeDCornerPinOverlay, #threeDCanvasBadge, #threeDDockControls, .dock-3d-controls'
-    )) {
+        '#threeDStudioPanel, .three-d-panel, .three-d-gizmo-tip, .three-d-gizmo-dot, .three-d-gizmo-sun, .three-d-gizmo-hit-line, .three-d-gizmo-arc, #threeDCornerPinOverlay, #threeDCanvasBadge, #threeDDockControls, .dock-3d-controls, ' +
+        '.tb-3d-gizmo, .three-d-gizmo-overlay, .three-d-gizmo-svg, .three-d-gizmo-axis-x, .three-d-gizmo-axis-y, .three-d-gizmo-axis-z, .three-d-gizmo-origin-dot, .three-d-gizmo-hud, .three-d-gizmo-close-btn, #tbFrameSettingsSection'
+    ) || (window.Template3DFrame && window.Template3DFrame.isInteracting)) {
         return;
     }
+
+    // 🎯 Eğer 3D bir nesneye tıklandıysa seçimi boşaltma (ThreeDEngine kendi tık olayında seçecektir)
+    if (window.ThreeDEngine && typeof window.ThreeDEngine.isActive === 'function' && window.ThreeDEngine.isActive()) {
+        if (typeof window.ThreeDEngine.checkHit === 'function' && window.ThreeDEngine.checkHit(e.clientX, e.clientY)) {
+            return;
+        }
+    }
+
     // Boşa tıklandığında seçimi ve tutamaçları temizle ("boşa tıklayınca gitmeli")
     if (typeof deselectAll === 'function') deselectAll();
+    if (window.ThreeDGrouping && typeof window.ThreeDGrouping.clearSelection === 'function') {
+        window.ThreeDGrouping.clearSelection();
+    }
     if (typeof closeCalloutPanel === 'function') closeCalloutPanel();
 });
 
@@ -1309,6 +1470,15 @@ document.addEventListener('DOMContentLoaded', () => {
             const touch = e.touches ? e.touches[0] : e;
             startResizeX = touch.clientX;
             startResizeY = touch.clientY;
+
+            // Dinleyicileri SADECE boyutlandırma anında dinamik bağla
+            document.addEventListener('mousemove', doResize, {passive: false});
+            document.addEventListener('touchmove', doResize, {passive: false});
+            document.addEventListener('pointermove', doResize, {passive: false});
+            document.addEventListener('mouseup', stopResize);
+            document.addEventListener('touchend', stopResize);
+            document.addEventListener('pointerup', stopResize);
+            document.addEventListener('pointercancel', stopResize);
         };
 
         const doResize = (e) => {
@@ -1336,20 +1506,20 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!isResizing) return;
             isResizing = false;
             panel.classList.remove('dragging');
+
+            // Boyutlandırma bittiğinde dinleyicileri bellekten tamamen tahliye et
+            document.removeEventListener('mousemove', doResize);
+            document.removeEventListener('touchmove', doResize);
+            document.removeEventListener('pointermove', doResize);
+            document.removeEventListener('mouseup', stopResize);
+            document.removeEventListener('touchend', stopResize);
+            document.removeEventListener('pointerup', stopResize);
+            document.removeEventListener('pointercancel', stopResize);
         };
 
         expandBtn.addEventListener('mousedown', startResize, {passive: false});
         expandBtn.addEventListener('touchstart', startResize, {passive: false});
         expandBtn.addEventListener('pointerdown', startResize, {passive: false});
-        
-        document.addEventListener('mousemove', doResize, {passive: false});
-        document.addEventListener('touchmove', doResize, {passive: false});
-        document.addEventListener('pointermove', doResize, {passive: false});
-        
-        document.addEventListener('mouseup', stopResize);
-        document.addEventListener('touchend', stopResize);
-        document.addEventListener('pointerup', stopResize);
-        document.addEventListener('pointercancel', stopResize);
         
         panel.appendChild(expandBtn);
         

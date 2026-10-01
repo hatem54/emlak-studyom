@@ -106,7 +106,7 @@ function getActivePhotoPanel() {
 
 function _getZoomTarget(target){
     if (!target) return null;
-    if (target.closest && target.closest('.editable-draw, .draggable, .canvas-el, .cvi-item, .added-icon, .callout-wrap, .svg-callout, .co-neon-block, .vertex-handle, .text-handle, .text-rotate-handle, .text-resize-handle, .callout-controls, .callout-resizer, .callout-rotator, .arrow-heads-group, .color-picker, .ui-panel, button, input, select, textarea')) {
+    if (target.closest && target.closest('.editable-draw, .draggable, .canvas-el, .cvi-item, .added-icon, .callout-wrap, .svg-callout, .co-neon-block, .vertex-handle, .text-handle, .text-rotate-handle, .text-resize-handle, .callout-controls, .callout-resizer, .callout-rotator, .callout-handle-width, .callout-handle-length, .arrow-heads-group, .color-picker, .ui-panel, button, input, select, textarea')) {
         return null;
     }
     var el = target;
@@ -158,7 +158,10 @@ function bindDrag(el){
                 return;
             }
           if(el.contentEditable==='true')return;
-        if (e.target.closest('.vertex-handle, .text-rotate-handle, .text-resize-handle, .callout-controls, .callout-resizer, .callout-rotator')) {
+        if (el.classList.contains('tb-image-frame') && (el.classList.contains('tb-pan-mode') || e.altKey)) {
+            return;
+        }
+        if (e.target.closest('.vertex-handle, .text-rotate-handle, .text-resize-handle, .callout-controls, .callout-resizer, .callout-rotator, .callout-handle-width, .callout-handle-length, .tb-frame-handle, .tb-frame-floating-tools, .tb-floating-btn')) {
             if (!window.selectedElements || window.selectedElements.length <= 1) {
                 return;
             }
@@ -196,6 +199,12 @@ function bindDrag(el){
             dragging = true;
             el.classList.add('dragging');
         }
+
+        document.addEventListener('mousemove', move);
+        document.addEventListener('touchmove', move, {passive:false});
+        document.addEventListener('mouseup', up);
+        document.addEventListener('touchend', up);
+        document.addEventListener('touchcancel', up);
         
         sx=c.clientX;
         sy=c.clientY;
@@ -397,9 +406,18 @@ function bindDrag(el){
                 el.dataset.baseLeft = newL;
                 el.dataset.baseTop = newT;
             }
-            const rot = el.dataset.rotation || 0;
-            const scale = el.dataset.scale || 1;
-            el.style.transform = `rotate(${rot}deg) scale(${scale})`;
+            if (el.classList.contains('tb-image-frame')) {
+                if (window.Template3DFrame && typeof window.Template3DFrame.applyTransform === 'function') {
+                    window.Template3DFrame.applyTransform(el);
+                    if (typeof window.Template3DFrame.updateGizmoPosition === 'function') {
+                        window.Template3DFrame.updateGizmoPosition(el);
+                    }
+                }
+            } else {
+                const rot = el.dataset.rotation || 0;
+                const scale = el.dataset.scale || 1;
+                el.style.transform = `rotate(${rot}deg) scale(${scale})`;
+            }
             
             const selectedOtherTargets = (window.selectedElements && window.selectedElements.length > 1 && window.selectedElements.includes(el))
                 ? window.selectedElements
@@ -469,6 +487,9 @@ function bindDrag(el){
                     }
                 });
                 
+                if (window.SaberEngine && typeof window.SaberEngine.updateTextSaberPositions === 'function') {
+                    window.SaberEngine.updateTextSaberPositions();
+                }
                 const sApp = typeof window.SaberEngine.getApp === 'function' ? window.SaberEngine.getApp() : null;
                 if (sApp && sApp.renderer && sApp.stage && (!sApp.ticker || !sApp.ticker.started)) {
                     try { sApp.renderer.render(sApp.stage); } catch(e) {}
@@ -497,6 +518,14 @@ function bindDrag(el){
                 }
                 el.style.left = newL + 'px';
                 el.style.top = newT + 'px';
+                if (el.classList.contains('tb-image-frame')) {
+                    if (window.Template3DFrame && typeof window.Template3DFrame.applyTransform === 'function') {
+                        window.Template3DFrame.applyTransform(el);
+                        if (typeof window.Template3DFrame.updateGizmoPosition === 'function') {
+                            window.Template3DFrame.updateGizmoPosition(el);
+                        }
+                    }
+                }
                 if (el.classList.contains('editable-draw')) {
                     el.dataset.baseLeft = newL;
                     el.dataset.baseTop = newT;
@@ -523,6 +552,9 @@ function bindDrag(el){
         dragging=false;
         resizing=false;
         el.classList.remove('dragging');
+        if (window.SaberEngine && typeof window.SaberEngine.updateTextSaberPositions === 'function') {
+            window.SaberEngine.updateTextSaberPositions();
+        }
         const clickDuration=Date.now()-downTime;
         if(!moved && drawMode==='off' && typeof selectElement === 'function') {
             if (!multiSelectKey && (!window.selectedElements || window.selectedElements.length <= 1)) {
@@ -653,14 +685,15 @@ function bindDrag(el){
                 delete selEl._cachedDragH;
                 delete selEl._dragPObj;
             });
+
+            document.removeEventListener('mousemove', move);
+            document.removeEventListener('touchmove', move);
+            document.removeEventListener('mouseup', up);
+            document.removeEventListener('touchend', up);
+            document.removeEventListener('touchcancel', up);
     }
-    el.addEventListener('mousedown',down);
-    el.addEventListener('touchstart',down,{passive:false});
-    document.addEventListener('mousemove',move);
-    document.addEventListener('touchmove',move,{passive:false});
-    document.addEventListener('mouseup',up);
-    document.addEventListener('touchend',up);
-document.addEventListener('touchcancel',up);
+    el.addEventListener('mousedown', down);
+    el.addEventListener('touchstart', down, {passive:false});
 }
 
 window.selectedElements = window.selectedElements || [];
@@ -669,8 +702,24 @@ function selectElement(el, isMulti = false, noTabSwitch = false){
     if (el.classList && !el.classList.contains('editable-draw') && el.closest && el.closest('.editable-draw')) {
         el = el.closest('.editable-draw');
     }
+    /* dedicated handling for template image frames */
+    if (el && el.classList && el.classList.contains('tb-image-frame')) {
+        deselectAll(el);
+        window.selectedElements = [el];
+        selectedEl = el;
+        window.selectedEl = el;
+        el.classList.add('selected', 'el-selected');
+        if (!noTabSwitch && typeof switchTab === 'function') switchTab('create-template');
+        if (window.TemplateBuilder && typeof window.TemplateBuilder.selectFrame === 'function') {
+            window.TemplateBuilder.selectFrame(el);
+        }
+        if (document.getElementById('noSelMsg')) document.getElementById('noSelMsg').style.display = 'none';
+        if (document.getElementById('elSettings')) document.getElementById('elSettings').style.display = 'none';
+        if (typeof window.updateDockContextUI === 'function') window.updateDockContextUI(el);
+        return;
+    }
     /* removed lock check to allow unlocking */
-    if(el && (el.classList.contains('co-neon-block') || el.classList.contains('callout-wrap') || el.classList.contains('svg-callout') || el.classList.contains('callout-item'))) {
+    if(el && !isMulti && (el.classList.contains('co-neon-block') || el.classList.contains('callout-wrap') || el.classList.contains('svg-callout') || el.classList.contains('callout-item'))) {
         if(typeof selectCalloutEl === 'function') selectCalloutEl(el);
     }
     
@@ -728,11 +777,15 @@ function selectElement(el, isMulti = false, noTabSwitch = false){
                 const rot = selEl.querySelector('.callout-rotator');
                 const lk = selEl.querySelector('.callout-lock-btn');
                 const brd = selEl.querySelector('.callout-select-border');
+                const hw = selEl.querySelector('.callout-handle-width');
+                const hl = selEl.querySelector('.callout-handle-length');
                 if(ctl && !selEl.classList.contains('shape-el')) ctl.style.display = 'flex';
                 if(res && !selEl.classList.contains('shape-el')) res.style.display = 'flex';
                 if(rot && !selEl.classList.contains('shape-el')) rot.style.display = 'flex';
                 if(lk && !selEl.classList.contains('shape-el')) lk.style.display = 'flex';
                 if(brd) brd.style.display = 'block';
+                if(hw && !selEl.classList.contains('shape-el')) hw.style.display = 'flex';
+                if(hl && !selEl.classList.contains('shape-el')) hl.style.display = 'flex';
             }
         });
     }
@@ -784,32 +837,58 @@ function selectElement(el, isMulti = false, noTabSwitch = false){
         if(document.getElementById('elLabel')) document.getElementById('elLabel').textContent=el.dataset.label||'Eleman';
         if(typeof loadElSettings === 'function') loadElSettings(el);
         if(typeof loadElFont === 'function') loadElFont(el);
-        if(!noTabSwitch && typeof switchTab === 'function' && !el.classList.contains('shape-el') && !el.classList.contains('co-neon-block') && !el.classList.contains('callout-wrap') && !el.classList.contains('svg-callout') && !el.classList.contains('callout-item')) switchTab('element');
-        if (el.classList.contains('canvas-el') && typeof window.addTextHandles === 'function') window.addTextHandles(el); if(el.classList.contains('shape-el')) { el.querySelectorAll('.callout-controls, .callout-resizer, .callout-rotator, .callout-lock-btn, .callout-select-border').forEach(c => c.remove()); }
+        if(!noTabSwitch && typeof switchTab === 'function' && !el.classList.contains('shape-el') && !el.classList.contains('co-neon-block') && !el.classList.contains('callout-wrap') && !el.classList.contains('svg-callout') && !el.classList.contains('callout-item') && !el.classList.contains('tb-image-frame')) switchTab('element');
+        if (el.classList.contains('canvas-el') && !el.classList.contains('tb-image-frame') && typeof window.addTextHandles === 'function') window.addTextHandles(el); if(el.classList.contains('shape-el')) { el.querySelectorAll('.callout-controls, .callout-resizer, .callout-rotator, .callout-lock-btn, .callout-select-border').forEach(c => c.remove()); } if(el.classList.contains('tb-image-frame') && window.TemplateBuilder) { window.TemplateBuilder.selectFrame(el); }
     }
+    if (window.ThreeDEngine && typeof window.ThreeDEngine.setSelected === 'function') { window.ThreeDEngine.setSelected(false, { silent: true, autoUnlockPhoto: false }); }
+    if (typeof window.updateDockContextUI === 'function') window.updateDockContextUI(el);
 }
 
-function deselectAll(){
-    document.querySelectorAll('.el-selected').forEach(e=>e.classList.remove('el-selected'));
+window.updateDockContextUI = function(el) {
+    if (window.DockContextManager) {
+        if (el) {
+            window.DockContextManager.onElementSelected(el);
+        } else {
+            window.DockContextManager.onElementDeselected();
+        }
+    }
+};
+
+function deselectAll(preserveEl){
+    document.querySelectorAll('.el-selected, .multi-selected').forEach(e => {
+        if (!preserveEl || e !== preserveEl) {
+            e.classList.remove('el-selected', 'multi-selected');
+        }
+    });
     document.querySelectorAll('.text-handle:not(.text-lock-handle)').forEach(h=>h.remove());
-    document.querySelectorAll('.callout-controls, .callout-resizer, .callout-rotator, .callout-select-border').forEach(c => c.style.display = 'none');
+    document.querySelectorAll('.callout-controls, .callout-resizer, .callout-rotator, .callout-select-border, .callout-handle-width, .callout-handle-length').forEach(c => c.style.display = 'none');
     document.querySelectorAll('.callout-lock-btn').forEach(c => c.style.display = 'flex');
     document.querySelectorAll('.co-neon-block, .shape-el').forEach(n => n.style.outline = 'none');
-    selectedEl=null;
-    window.selectedEl=null;
-    window.selectedElements = [];
-    if(document.getElementById('noSelMsg')) document.getElementById('noSelMsg').style.display='block';
-    if(document.getElementById('elSettings')) document.getElementById('elSettings').style.display='none';
-    if(document.getElementById('shapeSettingsPanel')) document.getElementById('shapeSettingsPanel').style.display='none';
-    if(document.getElementById('calloutSettingsPanel')) document.getElementById('calloutSettingsPanel').style.display='none';
-    if(typeof hideVertexHandles === 'function') hideVertexHandles();
-    if(typeof window.updateMultiSelectUI === 'function') window.updateMultiSelectUI();
-    if(typeof saveDrawEdit === 'function' && typeof editingDrawIndex !== 'undefined' && editingDrawIndex >= 0) {
-        saveDrawEdit();
-    }
-    // ⚡ 3D Öge seçimi hook'u
-    if (window.ThreeDEngine && typeof window.ThreeDEngine.setSelected === 'function') {
-        window.ThreeDEngine.setSelected(false, { silent: true, autoUnlockPhoto: false });
+    if (!preserveEl) {
+        selectedEl=null;
+        window.selectedEl=null;
+        window.selectedElements = [];
+        if(window.TemplateBuilder && !(window.Template3DFrame && window.Template3DFrame.isInteracting)) window.TemplateBuilder.deselectFrame();
+        if(document.getElementById('noSelMsg')) document.getElementById('noSelMsg').style.display='block';
+        if(document.getElementById('elSettings')) document.getElementById('elSettings').style.display='none';
+        if(document.getElementById('shapeSettingsPanel')) document.getElementById('shapeSettingsPanel').style.display='none';
+        if(document.getElementById('calloutSettingsPanel')) document.getElementById('calloutSettingsPanel').style.display='none';
+        if(typeof hideVertexHandles === 'function') hideVertexHandles();
+        if(typeof window.updateMultiSelectUI === 'function') window.updateMultiSelectUI();
+        if(typeof saveDrawEdit === 'function' && typeof editingDrawIndex !== 'undefined' && editingDrawIndex >= 0) {
+            saveDrawEdit();
+        }
+        // ⚡ 3D Öge seçimi hook'u
+        if (window.ThreeDEngine && typeof window.ThreeDEngine.setSelected === 'function') {
+            window.ThreeDEngine.setSelected(false, { silent: true, autoUnlockPhoto: false });
+        }
+        // 🌟 Çoklu 3D seçim çerçeveleri hook'u
+        if (window.ThreeDGrouping && typeof window.ThreeDGrouping.clearSelection === 'function') {
+            window.ThreeDGrouping.clearSelection();
+        }
+        if (typeof window.updateDockContextUI === 'function') window.updateDockContextUI(null);
+    } else if (preserveEl && !preserveEl.classList.contains('tb-image-frame')) {
+        if(window.TemplateBuilder) window.TemplateBuilder.deselectFrame();
     }
 }
 
@@ -860,13 +939,19 @@ window.ungroupSelected = function() {
 window.updateGroupUI = function() {
     if (typeof checkConvertPolygonButton === "function") checkConvertPolygonButton();
 
-    const isLocked = window.selectedElements && window.selectedElements.length > 0 && window.selectedElements[0].dataset.locked === 'true';
+    const isLocked = window.selectedElements && window.selectedElements.length > 0 && (window.selectedElements[0].dataset.locked === 'true' || window.selectedElements[0].classList.contains('locked-el'));
     const lockText = isLocked ? '🔓 Kilidi Aç' : '🔒 Kilitle';
     const lockBtns = ['btnLock', 'coBtnLock', 'lpBtnLock', 'drawBtnLock'];
     lockBtns.forEach(id => {
         const b = document.getElementById(id);
         if(b) b.innerHTML = lockText;
     });
+
+    if (window.selectedElements && window.selectedElements.length > 0) {
+        if (window.DockContextManager && typeof window.DockContextManager.syncStateValues === 'function') {
+            window.DockContextManager.syncStateValues('element', window.selectedElements[0]);
+        }
+    }
     const btnGroup = document.getElementById('btnGroup');
     const btnUngroup = document.getElementById('btnUngroup');
     const lpBtnGroup = document.getElementById('lpBtnGroup');
@@ -965,16 +1050,110 @@ window.updateGroupUI = function() {
 };
 
 window.toggleLockSelected = function() {
-    if(!window.selectedElements || window.selectedElements.length === 0) return;
-    const isLocked = window.selectedElements[0].dataset.locked === 'true';
-    const newState = isLocked ? 'false' : 'true';
-    window.selectedElements.forEach(el => {
-        el.dataset.locked = newState;
+    // 🌟 1. 3D Öge Seçiliyse: 3D ögeyi kilitle / kilidini aç
+    if (window.ThreeDEngine && typeof window.ThreeDEngine.isSelected === 'function' && window.ThreeDEngine.isSelected()) {
+        const el3d = window.ThreeDEngine.getActiveElement ? window.ThreeDEngine.getActiveElement() : null;
+        if (el3d) {
+            el3d.locked = !el3d.locked;
+            if (window.DockContextManager && typeof window.DockContextManager.syncStateValues === 'function') {
+                window.DockContextManager.syncStateValues('element', el3d);
+            }
+            if (typeof window.recordHistory === 'function') window.recordHistory(el3d.locked ? '3D Öge Kilitlendi' : '3D Öge Kilidi Açıldı');
+            return;
+        }
+    }
+
+    // 🌟 2. 2D Ögeler:
+    let targets = (window.selectedElements && window.selectedElements.length > 0)
+        ? window.selectedElements
+        : (window.selectedEl ? [window.selectedEl] : (typeof selectedEl !== 'undefined' && selectedEl ? [selectedEl] : []));
+    if (targets.length === 0 && window.DockContextManager && window.DockContextManager.selectedElement) {
+        targets = [window.DockContextManager.selectedElement];
+    }
+    if (targets.length === 0) {
+        const fallbackEl = document.querySelector('.el-selected');
+        if (fallbackEl) targets = [fallbackEl];
+    }
+    if (targets.length === 0) return;
+
+    const isLocked = targets[0].dataset.locked === 'true' || targets[0].classList.contains('locked-el');
+    const newState = !isLocked;
+    const newStateStr = newState ? 'true' : 'false';
+
+    targets.forEach(el => {
+        el.dataset.locked = newStateStr;
+        el.classList.toggle('locked-el', newState);
+
+        const inner = el.querySelector('.callout-item, .callout-svg-container, .co-neon-block');
+        if (inner) {
+            inner.dataset.locked = newStateStr;
+        }
+
+        // Text lock handle sync
+        const textLock = el.querySelector('.text-lock-handle');
+        if (textLock) {
+            textLock.title = newState ? 'Kilidi Aç' : 'Kilitle';
+            textLock.classList.toggle('is-locked', newState);
+            const lockSvg = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="display:block; pointer-events:none;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>';
+            const unlockSvg = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="display:block; pointer-events:none;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 9.9-1"></path></svg>';
+            textLock.innerHTML = newState ? lockSvg : unlockSvg;
+        }
+
+        // Callout lock handle sync
+        const calloutLock = el.querySelector('.callout-lock-btn');
+        if (calloutLock) {
+            calloutLock.title = newState ? 'Kilidi Aç' : 'Kilitle';
+            calloutLock.classList.toggle('is-locked', newState);
+            const coLockSvg = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="display:block; pointer-events:none;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>';
+            const coUnlockSvg = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="display:block; pointer-events:none;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 9.9-1"></path></svg>';
+            calloutLock.innerHTML = newState ? coLockSvg : coUnlockSvg;
+        }
+
+        // Visual handles visibility
+        if (newState) {
+            el.querySelectorAll('.callout-controls, .callout-resizer, .callout-rotator, .callout-select-border, .callout-handle-width, .callout-handle-length, .text-resize-handle, .text-delete-handle, .text-rotate-handle, .vertex-handle').forEach(c => c.style.display = 'none');
+        } else {
+            el.querySelectorAll('.callout-controls, .callout-resizer, .callout-rotator, .callout-select-border, .callout-handle-width, .callout-handle-length, .text-resize-handle, .text-delete-handle, .text-rotate-handle, .vertex-handle').forEach(c => c.style.display = '');
+        }
     });
+
+    // ⚡ Direct Dock UI updates
+    const dockElLockIcon = document.getElementById('dockElLockIcon');
+    const dockElLockLabel = document.getElementById('dockElLockLabel');
+    if (dockElLockIcon) {
+        dockElLockIcon.className = newState ? 'fa-solid fa-lock' : 'fa-solid fa-lock-open';
+    }
+    if (dockElLockLabel) {
+        dockElLockLabel.textContent = newState ? 'Kilitli' : 'Serbest';
+    }
+    const dockElLockBtn = dockElLockIcon ? dockElLockIcon.closest('.dock-btn') : null;
+    if (dockElLockBtn) {
+        dockElLockBtn.classList.toggle('lock-active', newState);
+        dockElLockBtn.title = newState ? 'Kilidi Aç' : 'Kilitle';
+    }
+
+    const dock2DLockIcon = document.getElementById('dock2DLockIcon');
+    const dock2DLockLabel = document.getElementById('dock2DLockLabel');
+    if (dock2DLockIcon) dock2DLockIcon.textContent = newState ? '🔒' : '🔓';
+    if (dock2DLockLabel) dock2DLockLabel.textContent = newState ? 'Kilitli' : 'Serbest';
+    const dock2DLockBtn = document.getElementById('dock2DLockBtn');
+    if (dock2DLockBtn) {
+        dock2DLockBtn.classList.toggle('lock-active', newState);
+        dock2DLockBtn.title = newState ? 'Kilidi Aç' : 'Kilitle';
+    }
+
+    if (window.DockContextManager && typeof window.DockContextManager.syncStateValues === 'function') {
+        window.DockContextManager.syncStateValues('element', targets[0]);
+    }
+
     // Do NOT deselect, so user can see it's selected and unlocked!
-    updateGroupUI();
-    if(typeof renderLayers === 'function') renderLayers();
-    if(window.LayerPanelV2 && window.LayerPanelV2.refresh) window.LayerPanelV2.refresh();
+    if (typeof updateGroupUI === 'function') updateGroupUI();
+    if (typeof renderLayers === 'function') renderLayers();
+    if (window.LayerPanelV2 && window.LayerPanelV2.refresh) window.LayerPanelV2.refresh();
+    if (typeof saveState === 'function') saveState();
+    if (typeof window.recordHistory === 'function') {
+        window.recordHistory(newState ? 'Öge Kilitlendi' : 'Öge Kilidi Açıldı');
+    }
 };
 
 

@@ -160,7 +160,6 @@
         isAdmin: function() {
             try {
                 if (window.IS_ADMIN === true) return true;
-                if (localStorage.getItem('emlak_admin_access') === 'true') return true;
                 if (window.currentUser && window.currentUser.role === 'admin') return true;
                 if (window.supabaseUser && window.supabaseUser.role === 'admin') return true;
             } catch (e) {
@@ -214,19 +213,16 @@
          * Google Cloud TTS API için geçerli anahtarı tespit eder
          */
         getGoogleApiKey: function() {
-            const customKey = localStorage.getItem(STORAGE_KEY_CUSTOM_TTS_KEY);
-            if (customKey && customKey.trim()) return customKey.trim();
-
-            if (typeof window.GOOGLE_MAPS_3D_KEY === 'string' && window.GOOGLE_MAPS_3D_KEY.trim()) {
-                return window.GOOGLE_MAPS_3D_KEY.trim();
-            }
-
             if (typeof window.getGeminiApiKey === 'function') {
                 const gKey = window.getGeminiApiKey();
                 if (gKey && gKey.trim()) return gKey.trim();
             }
-
-            return 'AIzaSyB29TnBvpT2vmEiY9US_Op0S5mdJejOb_g';
+            const customKey = localStorage.getItem(STORAGE_KEY_CUSTOM_TTS_KEY);
+            if (customKey && customKey.trim()) return customKey.trim();
+            if (typeof window.GOOGLE_MAPS_3D_KEY === 'string' && window.GOOGLE_MAPS_3D_KEY.trim()) {
+                return window.GOOGLE_MAPS_3D_KEY.trim();
+            }
+            return '';
         },
 
         /**
@@ -347,7 +343,7 @@
         generateVoiceover: async function() {
             if (this.isSynthesizing) return;
 
-            const area = document.getElementById('smartGeneratedDescArea');
+            const area = document.getElementById('aiText');
             let text = area ? area.value.trim() : (window.smartVoiceoverScript || '');
             if (!text) {
                 alert('Lütfen seslendirilecek reklam metnini yazın veya yapıştırın.');
@@ -631,7 +627,7 @@
 
             if (typeof window.generateSmartVoiceoverScript === 'function') {
                 const newText = window.generateSmartVoiceoverScript(freshData, true);
-                const area = document.getElementById('smartGeneratedDescArea');
+                const area = document.getElementById('aiText');
                 if (area) {
                     area.value = newText;
                     window.smartVoiceoverScript = newText;
@@ -652,7 +648,7 @@
         refineVoiceoverWithAI: async function(instruction) {
             if (this.isRefining) return;
 
-            const area = document.getElementById('smartGeneratedDescArea');
+            const area = document.getElementById('aiText');
             let currentText = area ? area.value.trim() : (window.smartVoiceoverScript || '');
             if (!currentText) {
                 alert('Düzenlenecek bir seslendirme metni bulunamadı. Lütfen önce "Metni Süz" veya "Yeniden Tara" butonunu kullanın.');
@@ -692,7 +688,7 @@ Aşağıdaki Türkçe emlak reklam seslendirme metnini şu yönergeye göre YEN�
 Mevcut Metin:
 ${currentText}`;
 
-                    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+                    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key=${apiKey}`;
                     const res = await fetch(url, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },

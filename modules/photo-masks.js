@@ -36,6 +36,14 @@
             this.containerEl = null;
             this._compositeAiCanvas = null;
 
+            // Fırça, Kement & Çokgen Çizim Durumu
+            this.brushSubTool = 'brush'; // 'brush', 'lasso', 'polygon'
+            this.lassoPoints = [];
+            this.isDrawingLasso = false;
+            this.polygonPoints = [];
+            this._hudTimer = null;
+            this._shortcutsBound = false;
+
             // Geriye dönük uyumluluk yedekleri
             this._fallbackRadial = {
                 active: false, cx: 0.5, cy: 0.5, rx: 0.25, ry: 0.20, angle: 0,
@@ -71,6 +79,9 @@
         init() {
             this.svgEl = document.getElementById('maskInteractiveSvg');
             this.containerEl = document.getElementById('canvas-container');
+            if (this.svgEl && this.svgEl.style.display === 'none') {
+                this.svgEl.style.display = '';
+            }
             this.bindCanvasEvents();
             this.bindAccordionEvents();
             this.updatePanelsVisibility();
@@ -119,7 +130,7 @@
                 const newMask = {
                     id: 'rad_' + Date.now(),
                     type: 'radial',
-                    name: 'Radyal Maske ' + count,
+                    name: 'Radyal ' + count,
                     active: true,
                     showOverlay: true,
                     settings: {
@@ -136,7 +147,9 @@
                         highlights: 0,
                         shadows: 0,
                         saturate: 1.0,
-                        amount: 1.0
+                        amount: 1.0,
+                        sharpness: 0,
+                        dehaze: 0
                     }
                 };
                 this.masks.push(newMask);
@@ -146,7 +159,7 @@
                 const newMask = {
                     id: 'lin_' + Date.now(),
                     type: 'linear',
-                    name: 'Doğrusal Gradyan ' + count,
+                    name: 'Doğrusal ' + count,
                     active: true,
                     showOverlay: true,
                     settings: {
@@ -162,7 +175,49 @@
                         highlights: 0,
                         shadows: 0,
                         saturate: 1.0,
-                        amount: 1.0
+                        amount: 1.0,
+                        sharpness: 0,
+                        dehaze: 0
+                    }
+                };
+                this.masks.push(newMask);
+                this.selectMask(newMask.id);
+            } else if (type === 'brush') {
+                const cContainer = document.getElementById('canvas-container');
+                const width = cContainer ? (parseInt(cContainer.style.width) || cContainer.offsetWidth || 1920) : 1920;
+                const height = cContainer ? (parseInt(cContainer.style.height) || cContainer.offsetHeight || 1080) : 1080;
+
+                const canvas = document.createElement('canvas');
+                canvas.width = width;
+                canvas.height = height;
+
+                const rawCanvas = document.createElement('canvas');
+                rawCanvas.width = width;
+                rawCanvas.height = height;
+
+                const count = this.masks.filter(m => m.type === 'brush').length + 1;
+                const newMask = {
+                    id: 'brush_' + Date.now(),
+                    type: 'brush',
+                    name: 'Fırça ' + count,
+                    active: true,
+                    showOverlay: true,
+                    aiMaskCanvas: canvas,
+                    rawMaskCanvas: rawCanvas,
+                    brushMode: 'paint',
+                    brushSubTool: 'brush',
+                    brushSize: 40,
+                    brushFeather: 0,
+                    settings: {
+                        exposure: 0,
+                        temp: 0,
+                        highlights: 0,
+                        shadows: 0,
+                        saturate: 1.0,
+                        amount: 1.0,
+                        sharpness: 0,
+                        dehaze: 0,
+                        invert: false
                     }
                 };
                 this.masks.push(newMask);
@@ -181,10 +236,19 @@
             const mask = this.masks.find(m => m.id === id);
             if (!mask) return;
 
+            // Klonlama aracı aktifse kapat
+            if (window.CloneStamp && window.CloneStamp.isActive) {
+                window.CloneStamp.deactivate();
+            }
+
             this.isGuidesVisible = true;
             this.showOverlay = true;
             mask.active = true;
             mask.showPin = true;
+            if (!this.svgEl) this.svgEl = document.getElementById('maskInteractiveSvg');
+            if (this.svgEl && this.svgEl.style.display === 'none') {
+                this.svgEl.style.display = '';
+            }
 
             // ÖNEMLİ KURAL: Bir maske seçilince diğer tüm maskelerin kılavuz dolgusu (showOverlay) kapatılır.
             // Sadece seçilen maskenin kılavuz dolgusu açık kalır (önceki maske ayarları fotoğrafta korunur).
@@ -201,6 +265,9 @@
             } else if (mask.type === 'linear') {
                 this.activeTool = 'linear';
                 this.activeMaskType = 'linear';
+            } else if (mask.type === 'brush') {
+                this.activeTool = 'brush';
+                this.activeMaskType = 'brush';
             } else if (mask.type.startsWith('ai_')) {
                 this.activeTool = 'ai';
                 this.activeMaskType = mask.type;
@@ -264,22 +331,67 @@
         }
 
         clickMaskButton(type) {
+            // 1. KLONLAMA DAMGASI (CLONE STAMP)
+            if (type === 'clone') {
+                if (window.CloneStamp && window.CloneStamp.isActive) {
+                    // Zaten aktifse kapat (Toggle)
+                    window.CloneStamp.deactivate();
+                    this.updateToolButtons();
+                    return;
+                }
+                // Diğer tüm maske rehberlerini ve panellerini kapat
+                this.panelsCollapsed = true;
+                this.hideGuides();
+                this.updatePanelsVisibility();
+                if (window.CloneStamp) {
+                    window.CloneStamp.activate();
+                }
+                this.updateToolButtons();
+                return;
+            }
+
+            // 2. DİĞER TÜM ARAÇLARA TIKLANDIĞINDA KLONLAMA DAMGASINI DERHAL VE KESİNLİKLE KAPAT
+            if (window.CloneStamp && window.CloneStamp.isActive) {
+                window.CloneStamp.deactivate();
+            }
+
+            // 3. SİLGİ (MAGIC ERASER)
+            if (type === 'eraser') {
+                const bCont = document.getElementById('brushMaskControls');
+                if (bCont && bCont.style.display === 'block' && this.activeTool === 'eraser' && this.isGuidesVisible) {
+                    this.panelsCollapsed = true;
+                    this.hideGuides();
+                    this.updatePanelsVisibility();
+                    this.updateToolButtons();
+                    return;
+                }
+                if (window.MagicEraser && typeof window.MagicEraser.activateEraserMode === 'function') {
+                    window.MagicEraser.activateEraserMode();
+                    this.updateToolButtons();
+                    return;
+                }
+            }
+
+            // 4. RADYAL, DOĞRUSAL, FIRÇA SEÇENEKLERİ
             const rCont = document.getElementById('radialMaskControls');
             const lCont = document.getElementById('linearMaskControls');
+            const bCont = document.getElementById('brushMaskControls');
             
-            // Panel şu an açık mı?
-            const isCurrentlyOpen = (type === 'radial' && rCont && rCont.style.display === 'block') ||
-                                    (type === 'linear' && lCont && lCont.style.display === 'block');
+            // Panel ve rehber şu an açık mı?
+            const isCurrentlyOpen = (type === 'radial' && rCont && rCont.style.display === 'block' && this.isGuidesVisible) ||
+                                    (type === 'linear' && lCont && lCont.style.display === 'block' && this.isGuidesVisible) ||
+                                    (type === 'brush' && bCont && bCont.style.display === 'block' && this.activeTool === 'brush' && this.isGuidesVisible);
 
             if (isCurrentlyOpen) {
                 // Zaten açıksa kapat ve ekrandaki işaretçiyi gizle
                 this.panelsCollapsed = true;
                 this.hideGuides();
                 this.updatePanelsVisibility();
+                this.updateToolButtons();
                 return;
             }
 
-            // Kapalıysa AÇ ve ekrandaki işaretçiyi mutlaka görünür yap
+            // Kapalıysa AÇ ve ekrandaki işaretçiyi görünür yap
             this.panelsCollapsed = false;
 
             let mask = this.masks.find(m => m.type === type);
@@ -297,6 +409,9 @@
                 mask.active = true;
                 mask.showOverlay = true;
                 mask.showPin = true;
+                if (type === 'brush') {
+                    mask.brushMode = 'paint';
+                }
             }
 
             this.isGuidesVisible = true;
@@ -306,6 +421,7 @@
             this.syncFromSelected();
             this.renderLayersList();
             this.renderSvg();
+            this.updateToolButtons();
             this.notifyChange();
         }
 
@@ -356,6 +472,10 @@
             this.isGuidesVisible = true;
             mask.active = true;
             mask.showPin = true;
+            if (!this.svgEl) this.svgEl = document.getElementById('maskInteractiveSvg');
+            if (this.svgEl && this.svgEl.style.display === 'none') {
+                this.svgEl.style.display = '';
+            }
             this.activeTool = mask.type.startsWith('ai_') ? 'ai' : mask.type;
             this.updateToolButtons();
             this.updateSvgPointerEvents();
@@ -367,8 +487,24 @@
             const rCont = document.getElementById('radialMaskControls');
             const lCont = document.getElementById('linearMaskControls');
             const aCont = document.getElementById('aiMaskControls');
+            const bCont = document.getElementById('brushMaskControls');
+            const cCont = document.getElementById('cloneStampControls');
+            const eraserSec = document.getElementById('magicEraserSection');
+            const colorAdj = document.getElementById('brushColorAdjustments');
             const btnRad = document.getElementById('btnMaskRadial');
             const btnLin = document.getElementById('btnMaskLinear');
+
+            const isCloneActive = !!(window.CloneStamp && window.CloneStamp.isActive);
+            if (isCloneActive) {
+                if (rCont) rCont.style.display = 'none';
+                if (lCont) lCont.style.display = 'none';
+                if (aCont) aCont.style.display = 'none';
+                if (bCont) bCont.style.display = 'none';
+                if (cCont) cCont.style.display = 'block';
+                return;
+            } else {
+                if (cCont) cCont.style.display = 'none';
+            }
 
             const mask = this.getSelectedMask();
             const type = mask ? mask.type : null;
@@ -377,6 +513,13 @@
             if (rCont) rCont.style.display = (type === 'radial' && !collapsed) ? 'block' : 'none';
             if (lCont) lCont.style.display = (type === 'linear' && !collapsed) ? 'block' : 'none';
             if (aCont) aCont.style.display = (type && type.startsWith('ai_') && !collapsed) ? 'block' : 'none';
+            if (bCont) bCont.style.display = (type === 'brush' && !collapsed) ? 'block' : 'none';
+
+            if (type === 'brush' && !collapsed) {
+                const isEraser = (this.activeTool === 'eraser');
+                if (eraserSec) eraserSec.style.display = isEraser ? 'block' : 'none';
+                if (colorAdj) colorAdj.style.display = isEraser ? 'none' : 'block';
+            }
 
             if (btnRad) btnRad.classList.toggle('active', type === 'radial' && !collapsed);
             if (btnLin) btnLin.classList.toggle('active', type === 'linear' && !collapsed);
@@ -385,6 +528,9 @@
         updateToolButtons() {
             const radBtn = document.getElementById('maskToolRadialBtn');
             const linBtn = document.getElementById('maskToolLinearBtn');
+            const brushBtn = document.getElementById('maskToolBrushBtn');
+            const eraserBtn = document.getElementById('maskToolEraserBtn');
+            const cloneBtn = document.getElementById('maskToolCloneBtn');
             const skyBtn = document.getElementById('maskToolSkyBtn');
             const groundBtn = document.getElementById('maskToolGroundBtn');
             const subjectBtn = document.getElementById('maskToolSubjectBtn');
@@ -392,10 +538,28 @@
             const statusBox = document.getElementById('maskActiveStatusBox');
             const statusText = document.getElementById('maskActiveStatusText');
 
+            const isCloneActive = !!(window.CloneStamp && window.CloneStamp.isActive);
+            if (cloneBtn) cloneBtn.classList.toggle('active', isCloneActive);
+
+            if (isCloneActive) {
+                if (radBtn) radBtn.classList.remove('active');
+                if (linBtn) linBtn.classList.remove('active');
+                if (brushBtn) brushBtn.classList.remove('active');
+                if (eraserBtn) eraserBtn.classList.remove('active');
+                if (skyBtn) skyBtn.classList.remove('active');
+                if (groundBtn) groundBtn.classList.remove('active');
+                if (subjectBtn) subjectBtn.classList.remove('active');
+                if (personBtn) personBtn.classList.remove('active');
+                if (statusBox) statusBox.style.display = 'none';
+                return;
+            }
+
             const mask = this.getSelectedMask();
 
             if (radBtn) radBtn.classList.toggle('active', !!(this.isGuidesVisible && mask && mask.type === 'radial'));
             if (linBtn) linBtn.classList.toggle('active', !!(this.isGuidesVisible && mask && mask.type === 'linear'));
+            if (brushBtn) brushBtn.classList.toggle('active', !!(this.isGuidesVisible && mask && mask.type === 'brush' && this.activeTool !== 'eraser'));
+            if (eraserBtn) eraserBtn.classList.toggle('active', !!(this.isGuidesVisible && mask && mask.type === 'brush' && this.activeTool === 'eraser'));
             if (skyBtn) skyBtn.classList.toggle('active', !!(this.isGuidesVisible && mask && (mask.type === 'ai_sky' || mask.aiType === 'sky')));
             if (groundBtn) groundBtn.classList.toggle('active', !!(this.isGuidesVisible && mask && (mask.type === 'ai_ground' || mask.aiType === 'ground')));
             if (subjectBtn) subjectBtn.classList.toggle('active', !!(this.isGuidesVisible && mask && (mask.type === 'ai_subject' || mask.aiType === 'subject')));
@@ -408,6 +572,12 @@
                         statusText.innerHTML = `<b>${mask.name} Seçili:</b> Tuvalde elipsin herhangi bir yerinden tutarak taşıyın, sarı çubukla döndürün.`;
                     } else if (mask.type === 'linear') {
                         statusText.innerHTML = `<b>${mask.name} Seçili:</b> Tuvalde gradyan bandından tutarak taşıyın, uç noktalarla açısını ayarlayın.`;
+                    } else if (mask.type === 'brush') {
+                        if (this.activeTool === 'eraser') {
+                            statusText.innerHTML = `<b>Sihirli Silgi:</b> Silmek istediğiniz nesneyi fırça, kement veya çokgenle boyayın, ardından Nesneyi Kaldır butonuna tıklayın.`;
+                        } else {
+                            statusText.innerHTML = `<b>${mask.name} Seçili:</b> Tuval üzerinde fareyle boyayarak maske çizin veya silgiyle düzeltin.`;
+                        }
                     } else {
                         statusText.innerHTML = `<b>${mask.name} Seçili:</b> Akıllı AI maskesi aktif. Kırmızı kılavuz ile seçilen alanı görün, kaydırıcılarla ışık/renk ayarlarını yapın.`;
                     }
@@ -420,8 +590,16 @@
         updateSvgPointerEvents() {
             if (!this.svgEl) this.svgEl = document.getElementById('maskInteractiveSvg');
             if (!this.svgEl) return;
-            this.svgEl.style.pointerEvents = this.isGuidesVisible ? 'auto' : 'none';
-            this.svgEl.style.cursor = 'default';
+            const mask = this.getSelectedMask();
+            const isCloneActive = !!(window.CloneStamp && window.CloneStamp.isActive);
+            this.svgEl.style.pointerEvents = (this.isGuidesVisible || isCloneActive) ? 'auto' : 'none';
+            if (isCloneActive) {
+                this.svgEl.style.cursor = 'none';
+            } else if (this.isGuidesVisible && mask && mask.type === 'brush') {
+                this.svgEl.style.cursor = 'none';
+            } else {
+                this.svgEl.style.cursor = 'default';
+            }
         }
 
         // ====================================================================
@@ -609,6 +787,8 @@
                 setVal('mask_rad_hl', Math.round(s.highlights * 100));
                 setVal('mask_rad_sh', Math.round(s.shadows * 100));
                 setVal('mask_rad_sat', Math.round(s.saturate * 100), '%');
+                setVal('mask_rad_sharp', Math.round((s.sharpness || 0) * 100));
+                setVal('mask_rad_dehaze', Math.round((s.dehaze || 0) * 100));
 
                 const inv = document.getElementById('mask_rad_invert');
                 if (inv) inv.checked = !!s.invert;
@@ -631,6 +811,8 @@
                 setVal('mask_lin_hl', Math.round(s.highlights * 100));
                 setVal('mask_lin_sh', Math.round(s.shadows * 100));
                 setVal('mask_lin_sat', Math.round(s.saturate * 100), '%');
+                setVal('mask_lin_sharp', Math.round((s.sharpness || 0) * 100));
+                setVal('mask_lin_dehaze', Math.round((s.dehaze || 0) * 100));
 
                 const inv = document.getElementById('mask_lin_invert');
                 if (inv) inv.checked = !!s.invert;
@@ -647,6 +829,7 @@
                 setVal('mask_ai_hl', Math.round(s.highlights * 100));
                 setVal('mask_ai_sh', Math.round(s.shadows * 100));
                 setVal('mask_ai_sat', Math.round(s.saturate * 100), '%');
+                setVal('mask_ai_dehaze', Math.round((s.dehaze || 0) * 100));
 
                 const inv = document.getElementById('mask_ai_invert');
                 if (inv) inv.checked = !!s.invert;
@@ -654,7 +837,328 @@
                 if (over) over.checked = !!mask.showOverlay;
                 const title = document.getElementById('aiMaskTitle');
                 if (title) title.textContent = mask.name;
+            } else if (mask.type === 'brush') {
+                setVal('mask_brush_amount', Math.round((s.amount !== undefined ? s.amount : 1.0) * 100), '%');
+                setVal('mask_brush_exp', Math.round(s.exposure * 100));
+                setVal('mask_brush_temp', Math.round(s.temp * 100));
+                setVal('mask_brush_hl', Math.round(s.highlights * 100));
+                setVal('mask_brush_sh', Math.round(s.shadows * 100));
+                setVal('mask_brush_sat', Math.round((s.saturate !== undefined ? s.saturate : 1.0) * 100), '%');
+                setVal('mask_brush_sharp', Math.round((s.sharpness || 0) * 100));
+                setVal('mask_brush_dehaze', Math.round((s.dehaze || 0) * 100));
+
+                const inv = document.getElementById('mask_brush_invert');
+                if (inv) inv.checked = !!s.invert;
+                const over = document.getElementById('mask_brush_overlay');
+                if (over) over.checked = (mask.showOverlay !== false);
+
+                const sizeEl = document.getElementById('mask_brush_size');
+                if (sizeEl) sizeEl.value = mask.brushSize || 40;
+                const sizeVal = document.getElementById('mask_brush_sizeVal');
+                if (sizeVal) sizeVal.textContent = (mask.brushSize || 40) + 'px';
+
+                const featherEl = document.getElementById('mask_brush_feather');
+                if (featherEl) featherEl.value = Math.round((mask.brushFeather !== undefined ? mask.brushFeather : 0) * 100);
+                const featherVal = document.getElementById('mask_brush_featherVal');
+                if (featherVal) featherVal.textContent = Math.round((mask.brushFeather !== undefined ? mask.brushFeather : 0) * 100) + '%';
+
+                this.updateBrushModeButtons();
             }
+        }
+
+        setBrushSubTool(tool) {
+            this.brushSubTool = tool || 'brush';
+            const mask = this.getSelectedMask();
+            if (mask) mask.brushSubTool = this.brushSubTool;
+            this.lassoPoints = [];
+            this.polygonPoints = [];
+            this.updateBrushModeButtons();
+            this.renderSvg();
+        }
+
+        setBrushMode(mode) {
+            const mask = this.getSelectedMask();
+            if (mask) {
+                mask.brushMode = mode;
+                this.updateBrushModeButtons();
+                this.renderSvg();
+            }
+        }
+
+        updateBrushModeButtons() {
+            const mask = this.getSelectedMask();
+            const mode = (mask && mask.brushMode) ? mask.brushMode : 'paint';
+            const subTool = (mask && mask.brushSubTool) ? mask.brushSubTool : (this.brushSubTool || 'brush');
+
+            // Boya vs Silgi Butonları
+            const pBtn = document.getElementById('brushModePaintBtn');
+            const eBtn = document.getElementById('brushModeEraseBtn');
+            if (pBtn) pBtn.classList.toggle('active', mode === 'paint');
+            if (eBtn) eBtn.classList.toggle('active', mode === 'erase');
+
+            // Fırça, Kement, Çokgen Alt Araç Butonları
+            const bBtn = document.getElementById('brushToolBrushBtn');
+            const lBtn = document.getElementById('brushToolLassoBtn');
+            const polyBtn = document.getElementById('brushToolPolyBtn');
+            if (bBtn) bBtn.classList.toggle('active', subTool === 'brush');
+            if (lBtn) lBtn.classList.toggle('active', subTool === 'lasso');
+            if (polyBtn) polyBtn.classList.toggle('active', subTool === 'polygon');
+        }
+
+        adjustBrushParam(param, delta) {
+            const mask = this.getSelectedMask();
+            if (!mask || mask.type !== 'brush') return;
+
+            if (param === 'size') {
+                const cur = mask.brushSize || 40;
+                const next = Math.max(5, Math.min(180, cur + delta));
+                mask.brushSize = next;
+                const slider = document.getElementById('mask_brush_size');
+                if (slider) slider.value = next;
+                const valEl = document.getElementById('mask_brush_sizeVal');
+                if (valEl) valEl.textContent = next + 'px';
+            } else if (param === 'feather') {
+                const cur = mask.brushFeather !== undefined ? mask.brushFeather : 0;
+                const next = Math.max(0, Math.min(1, Math.round((cur + delta) * 100) / 100));
+                mask.brushFeather = next;
+                const slider = document.getElementById('mask_brush_feather');
+                if (slider) slider.value = Math.round(next * 100);
+                const valEl = document.getElementById('mask_brush_featherVal');
+                if (valEl) valEl.textContent = Math.round(next * 100) + '%';
+                this.notifyChange();
+            }
+            this.renderSvg();
+        }
+
+        showCanvasHud(text) {
+            // Sessiz Çalışma Prensibi: Kullanıcıyı rahatsız eden rutin tuval bildirimleri kapalıdır.
+            return;
+        }
+
+        ensureMaskCanvases(mask) {
+            if (!mask) return;
+            const cContainer = document.getElementById('canvas-container');
+            const cW = cContainer ? (parseInt(cContainer.style.width) || cContainer.offsetWidth || 1920) : 1920;
+            const cH = cContainer ? (parseInt(cContainer.style.height) || cContainer.offsetHeight || 1080) : 1080;
+
+            if (!mask.aiMaskCanvas || mask.aiMaskCanvas.width !== cW || mask.aiMaskCanvas.height !== cH) {
+                const canvas = document.createElement('canvas');
+                canvas.width = cW;
+                canvas.height = cH;
+                if (mask.aiMaskCanvas) {
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(mask.aiMaskCanvas, 0, 0, cW, cH);
+                }
+                mask.aiMaskCanvas = canvas;
+            }
+            if (!mask.rawMaskCanvas || mask.rawMaskCanvas.width !== cW || mask.rawMaskCanvas.height !== cH) {
+                const raw = document.createElement('canvas');
+                raw.width = cW;
+                raw.height = cH;
+                if (mask.rawMaskCanvas) {
+                    const rCtx = raw.getContext('2d');
+                    rCtx.drawImage(mask.rawMaskCanvas, 0, 0, cW, cH);
+                }
+                mask.rawMaskCanvas = raw;
+            }
+        }
+
+        /**
+         * rawMaskCanvas üzerindeki çizimi seçili feather (yumuşaklık) oranına göre
+         * aiMaskCanvas'a %100 keskin kenardan tam yumuşak gradyana kadar işler
+         */
+        applyFeatherToMask(mask) {
+            if (!mask) return;
+            this.ensureMaskCanvases(mask);
+            const raw = mask.rawMaskCanvas;
+            const canvas = mask.aiMaskCanvas;
+            if (!raw || !canvas) return;
+
+            const ctx = canvas.getContext('2d');
+            const cw = canvas.width;
+            const ch = canvas.height;
+
+            ctx.clearRect(0, 0, cw, ch);
+
+            const feather = (mask.brushFeather !== undefined ? mask.brushFeather : 0.5);
+
+            if (feather <= 0.01) {
+                // %100 Keskin Kenarlar (Zero Blur / Hard Cut)
+                ctx.filter = 'none';
+                ctx.drawImage(raw, 0, 0);
+            } else {
+                // Yumuşak Geçiş (Soft Gradient Transition)
+                // feather = 0.01 -> 1px blur, feather = 1.00 -> 45px blur
+                const scale = cw / 1000;
+                const blurPx = Math.max(1, Math.round(feather * 45 * scale));
+                ctx.filter = 'blur(' + blurPx + 'px)';
+                ctx.drawImage(raw, 0, 0);
+                ctx.filter = 'none';
+            }
+        }
+
+        updateBrushParam(param, val) {
+            const mask = this.getSelectedMask();
+            if (!mask) return;
+            if (param === 'size') {
+                mask.brushSize = val;
+            } else if (param === 'feather') {
+                mask.brushFeather = val;
+                this.notifyChange();
+            }
+            this.renderSvg();
+        }
+
+        toggleBrushOverlay(checked) {
+            const mask = this.getSelectedMask();
+            if (!mask) return;
+            mask.showOverlay = !!checked;
+            this.notifyChange();
+        }
+
+        clearCurrentBrushMask() {
+            const mask = this.getSelectedMask();
+            if (!mask) return;
+            if (mask.rawMaskCanvas) {
+                const rCtx = mask.rawMaskCanvas.getContext('2d');
+                rCtx.clearRect(0, 0, mask.rawMaskCanvas.width, mask.rawMaskCanvas.height);
+            }
+            if (mask.aiMaskCanvas) {
+                const ctx = mask.aiMaskCanvas.getContext('2d');
+                ctx.clearRect(0, 0, mask.aiMaskCanvas.width, mask.aiMaskCanvas.height);
+            }
+            this.notifyChange();
+            this.renderSvg();
+            this.showCanvasHud('Çizimler Temizlendi');
+        }
+
+        drawBrushStroke(x0, y0, x1, y1) {
+            const mask = this.getSelectedMask();
+            if (!mask) return;
+            this.ensureMaskCanvases(mask);
+
+            const raw = mask.rawMaskCanvas;
+            const ctx = raw.getContext('2d');
+            const cw = raw.width;
+            const ch = raw.height;
+
+            if (!this.containerEl) this.containerEl = document.getElementById('canvas-container');
+            const rect = this.containerEl ? this.containerEl.getBoundingClientRect() : null;
+            const rw = (rect && rect.width > 0) ? rect.width : 800;
+
+            const brushSize = mask.brushSize || 40;
+            const r = Math.max(2, (brushSize / rw) * cw);
+            const feather = (mask.brushFeather !== undefined ? mask.brushFeather : 0);
+
+            const p0x = x0 * cw;
+            const p0y = y0 * ch;
+            const p1x = x1 * cw;
+            const p1y = y1 * ch;
+
+            const mode = mask.brushMode || 'paint';
+
+            // Çizgi ve nokta darbelerini hem rawMaskCanvas'a hem aiMaskCanvas'a anında uygula (0.01 ms)
+            const targets = [ctx];
+            if (mask.aiMaskCanvas && mask.aiMaskCanvas !== raw) {
+                targets.push(mask.aiMaskCanvas.getContext('2d'));
+            }
+
+            const blurPx = feather > 0.02 ? Math.max(1, Math.round(r * feather * 0.8)) : 0;
+            const coreR = blurPx > 0 ? Math.max(1, r * (1 - feather * 0.4)) : r;
+            const drawColor = mode === 'erase' ? 'rgba(0, 0, 0, 1)' : 'rgba(255, 0, 0, 1)';
+
+            targets.forEach(tCtx => {
+                tCtx.save();
+                if (mode === 'erase') {
+                    tCtx.globalCompositeOperation = 'destination-out';
+                } else {
+                    tCtx.globalCompositeOperation = 'source-over';
+                }
+
+                if (blurPx > 0) {
+                    tCtx.shadowBlur = blurPx;
+                    tCtx.shadowColor = drawColor;
+                } else {
+                    tCtx.shadowBlur = 0;
+                }
+
+                tCtx.fillStyle = drawColor;
+                tCtx.strokeStyle = drawColor;
+                tCtx.lineWidth = coreR * 2;
+                tCtx.lineCap = 'round';
+                tCtx.lineJoin = 'round';
+
+                tCtx.beginPath();
+                tCtx.moveTo(p0x, p0y);
+                tCtx.lineTo(p1x, p1y);
+                tCtx.stroke();
+
+                tCtx.beginPath();
+                tCtx.arc(p1x, p1y, coreR, 0, Math.PI * 2);
+                tCtx.fill();
+
+                tCtx.restore();
+            });
+        }
+
+        /**
+         * Kement (Lasso) veya Çokgen (Polygon) kapalı alanını maskeye boyar veya siler
+         */
+        fillPolygonMask(points, mode, feather) {
+            const mask = this.getSelectedMask();
+            if (!mask || !points || points.length < 3) return;
+            this.ensureMaskCanvases(mask);
+
+            const raw = mask.rawMaskCanvas;
+            const ctx = raw.getContext('2d');
+            const cw = raw.width;
+            const ch = raw.height;
+
+            const opMode = mode || mask.brushMode || 'paint';
+
+            ctx.save();
+            if (opMode === 'erase') {
+                ctx.globalCompositeOperation = 'destination-out';
+            } else {
+                ctx.globalCompositeOperation = 'source-over';
+            }
+
+            ctx.fillStyle = opMode === 'erase' ? 'rgba(0, 0, 0, 1)' : 'rgba(255, 0, 0, 1)';
+            ctx.beginPath();
+            ctx.moveTo(points[0].x * cw, points[0].y * ch);
+            for (let i = 1; i < points.length; i++) {
+                ctx.lineTo(points[i].x * cw, points[i].y * ch);
+            }
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.restore();
+
+            // Feather oranına göre yumuşat veya keskin tut
+            if (mask.brushFeather && mask.brushFeather > 0.02) {
+                this.applyFeatherToMask(mask);
+            } else {
+                if (mask.aiMaskCanvas && mask.aiMaskCanvas !== raw) {
+                    const actx = mask.aiMaskCanvas.getContext('2d');
+                    actx.clearRect(0, 0, cw, ch);
+                    actx.drawImage(raw, 0, 0);
+                }
+            }
+            this.notifyChange();
+            this.renderSvg();
+        }
+
+        /**
+         * Çokgen Çizimini Tamamlar, Maskeye Doldurur ve Fırça Moduna Temiz Geçiş Yapar
+         */
+        completePolygonDrawing() {
+            if (this.polygonPoints && this.polygonPoints.length >= 3) {
+                this.fillPolygonMask(this.polygonPoints);
+            }
+            this.polygonPoints = [];
+            this._justClosedPolygon = Date.now();
+            this.setBrushSubTool('brush', true);
+            this.renderSvg();
         }
 
         // ====================================================================
@@ -674,6 +1178,7 @@
                 const isSelected = (mask.id === this.selectedMaskId);
                 let icon = '⭕';
                 if (mask.type === 'linear') icon = '➖';
+                else if (mask.type === 'brush') icon = '🖌️';
                 else if (mask.type === 'ai_sky') icon = '☁️';
                 else if (mask.type === 'ai_ground') icon = '🏞️';
                 else if (mask.type === 'ai_subject') icon = '🎯';
@@ -687,10 +1192,10 @@
                             ${isSelected ? '<span class="mask-layer-badge">Seçili</span>' : ''}
                         </div>
                         <div class="mask-layer-actions" onclick="event.stopPropagation();">
-                            <button type="button" class="mask-action-eye-btn ${mask.active ? 'active' : ''}" onclick="window.PhotoMasksManager && window.PhotoMasksManager.toggleMask('${mask.id}')" title="${mask.active ? 'Maske Etkisini Kapat' : 'Maske Etkisini Aç'}">
+                            <button type="button" class="mask-action-eye-btn ${mask.active ? 'active' : ''}" onclick="window.PhotoMasksManager && window.PhotoMasksManager.toggleMask('${mask.id}')" title="${mask.active ? 'Kapat' : 'Aç'}">
                                 <i class="fa-solid ${mask.active ? 'fa-eye' : 'fa-eye-slash'}"></i>
                             </button>
-                            <button type="button" class="mask-action-del-btn" onclick="window.PhotoMasksManager && window.PhotoMasksManager.deleteMask('${mask.id}')" title="Maskeyi Sil">
+                            <button type="button" class="mask-action-del-btn" onclick="window.PhotoMasksManager && window.PhotoMasksManager.deleteMask('${mask.id}')" title="Sil">
                                 <i class="fa-solid fa-trash-can"></i>
                             </button>
                         </div>
@@ -705,12 +1210,19 @@
         // AKILLI AI SEGMENTASYON MOTORU (Sky, Ground, Subject, Person)
         // ====================================================================
         createAiMask(aiType) {
-            const sourceImg = (window.WebGLPhotoEngine && window.WebGLPhotoEngine.currentImage) ||
-                              window._globalNativeImg ||
-                              (document.getElementById('photo-layer') && document.getElementById('photo-layer')._nativeImg);
+            if (window.CloneStamp && window.CloneStamp.isActive) {
+                window.CloneStamp.deactivate();
+            }
+
+            const sourceImg = window._globalNativeImg ||
+                              (document.getElementById('photo-layer') && document.getElementById('photo-layer')._nativeImg) ||
+                              (window.WebGLPhotoEngine && window.WebGLPhotoEngine.currentImage);
+            if (sourceImg && window.WebGLPhotoEngine && window.WebGLPhotoEngine.currentImage !== sourceImg) {
+                window.WebGLPhotoEngine.currentImage = sourceImg;
+            }
 
             if (!sourceImg || (!sourceImg.naturalWidth && !sourceImg.width)) {
-                alert('Akıllı AI maskesi oluşturmak için lütfen önce bir fotoğraf yükleyin.');
+                alert('Akıllı AI seçimi oluşturmak için lütfen önce bir fotoğraf yükleyin.');
                 return;
             }
 
@@ -723,20 +1235,20 @@
             }
 
             let canvas = null;
-            let name = 'AI Maskesi';
+            let name = 'AI Seçimi';
 
             if (aiType === 'sky') {
                 canvas = this.detectSkyMask(sourceImg);
-                name = 'Gökyüzü Maskesi';
+                name = 'Gökyüzü';
             } else if (aiType === 'ground') {
                 canvas = this.detectGroundMask(sourceImg);
-                name = 'Zemin / Bahçe Maskesi';
+                name = 'Zemin / Bahçe';
             } else if (aiType === 'subject') {
                 canvas = this.detectSubjectMask(sourceImg);
-                name = 'Ana Öge / Mülk Maskesi';
+                name = 'Ana Öge';
             } else if (aiType === 'person') {
                 canvas = this.detectPersonMask(sourceImg);
-                name = 'Kişi / Portre Maskesi';
+                name = 'Kişi';
             }
 
             if (!canvas) return;
@@ -770,9 +1282,12 @@
         redetectCurrentAiMask() {
             const mask = this.getSelectedMask();
             if (!mask || !mask.type.startsWith('ai_')) return;
-            const sourceImg = (window.WebGLPhotoEngine && window.WebGLPhotoEngine.currentImage) ||
-                              window._globalNativeImg ||
-                              (document.getElementById('photo-layer') && document.getElementById('photo-layer')._nativeImg);
+            const sourceImg = window._globalNativeImg ||
+                              (document.getElementById('photo-layer') && document.getElementById('photo-layer')._nativeImg) ||
+                              (window.WebGLPhotoEngine && window.WebGLPhotoEngine.currentImage);
+            if (sourceImg && window.WebGLPhotoEngine && window.WebGLPhotoEngine.currentImage !== sourceImg) {
+                window.WebGLPhotoEngine.currentImage = sourceImg;
+            }
             if (!sourceImg) return;
 
             if (mask.aiType === 'sky') mask.aiMaskCanvas = this.detectSkyMask(sourceImg);
@@ -1162,7 +1677,7 @@
         }
 
         getActiveAiMasks() {
-            return this.masks.filter(m => m.active && m.type.startsWith('ai_')).map(m => ({
+            return this.masks.filter(m => m.active && (m.type.startsWith('ai_') || m.type === 'brush')).map(m => ({
                 ...m.settings,
                 active: true,
                 type: m.type,
@@ -1172,7 +1687,7 @@
         }
 
         getCompositeAiBuffer() {
-            const activeAi = this.masks.filter(m => m.active && m.type.startsWith('ai_') && m.aiMaskCanvas);
+            const activeAi = this.masks.filter(m => m.active && (m.type.startsWith('ai_') || m.type === 'brush') && m.aiMaskCanvas);
             if (activeAi.length === 0) return null;
             const first = activeAi[0].aiMaskCanvas;
             const w = first.width;
@@ -1191,8 +1706,15 @@
         }
 
         getCompositeAiCanvas() {
-            const activeAi = this.masks.filter(m => m.active && m.type.startsWith('ai_') && m.aiMaskCanvas);
+            const activeAi = this.masks.filter(m => m.active && (m.type.startsWith('ai_') || m.type === 'brush') && m.aiMaskCanvas);
             if (activeAi.length === 0) return null;
+
+            // ⚡ FAST-PATH OPTİMİZASYONU:
+            // Tuvalde tek bir fırça/silgi maskesi varken 4 milyon piksellik döngüyü tamamen atla!
+            // aiMaskCanvas zaten kırmızı renkle (R=255) boyandığı için WebGL shader'ı doğrudan R kanalını okur.
+            if (activeAi.length === 1 && activeAi[0].type === 'brush') {
+                return activeAi[0].aiMaskCanvas;
+            }
 
             const first = activeAi[0].aiMaskCanvas;
             const w = first.width;
@@ -1259,22 +1781,130 @@
             this.onPointerUp = (e) => this.handlePointerUp(e);
 
             this.svgEl.addEventListener('mousedown', this.onPointerDown);
-            window.addEventListener('mousemove', this.onPointerMove);
-            window.addEventListener('mouseup', this.onPointerUp);
-
             this.svgEl.addEventListener('touchstart', this.onPointerDown, { passive: false });
-            window.addEventListener('touchmove', this.onPointerMove, { passive: false });
-            window.addEventListener('touchend', this.onPointerUp);
+
+            // Fırça hover takibi (tuval üzerinde gezinirken fırça dairesi çizimi)
+            this.svgEl.addEventListener('mousemove', (e) => {
+                const mask = this.getSelectedMask();
+                if (this.isGuidesVisible && mask && mask.type === 'brush') {
+                    this.lastHoverPos = this.getNormalizedCoords(e);
+                    if (!this.isPaintingBrush) {
+                        this.renderSvg();
+                    }
+                }
+            });
+            this.svgEl.addEventListener('mouseleave', () => {
+                const mask = this.getSelectedMask();
+                if (this.isGuidesVisible && mask && mask.type === 'brush' && !this.isPaintingBrush && !this.isDrawingLasso) {
+                    this.lastHoverPos = null;
+                    this.renderSvg();
+                }
+            });
+
+            // Çift tıklama: Çokgen çizimini anında kapatır ve fırça moduna döner
+            this.svgEl.addEventListener('dblclick', (e) => {
+                const mask = this.getSelectedMask();
+                if (this.isGuidesVisible && mask && mask.type === 'brush') {
+                    const subTool = mask.brushSubTool || this.brushSubTool || 'brush';
+                    if (subTool === 'polygon' && this.polygonPoints.length >= 3) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        this.completePolygonDrawing();
+                    }
+                }
+            });
+
+            // Fare Tekerleği ile Tuvalde Fırça Boyutu Ayarlama (Alt tuşuna gerek kalmadan)
+            this.svgEl.addEventListener('wheel', (e) => {
+                const mask = this.getSelectedMask();
+                if (this.isGuidesVisible && mask && mask.type === 'brush') {
+                    if (e.ctrlKey) return; // Ctrl + tekerlek genel sayfa/tuval zoom'u için serbest bırakılır
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const delta = e.deltaY < 0 ? 5 : -5;
+                    this.adjustBrushParam('size', delta);
+                }
+            }, { passive: false });
+
+            // Tuval Kısayolları ([, ], Shift+[, Shift+], Enter, Escape)
+            if (!this._shortcutsBound) {
+                this._shortcutsBound = true;
+                window.addEventListener('keydown', (e) => {
+                    if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable)) {
+                        return;
+                    }
+                    const mask = this.getSelectedMask();
+                    if (!this.isGuidesVisible || !mask || mask.type !== 'brush') {
+                        return;
+                    }
+                    const subTool = mask.brushSubTool || this.brushSubTool || 'brush';
+
+                    if (e.key === '[' || e.key === 'bracketleft') {
+                        e.preventDefault();
+                        if (e.shiftKey) {
+                            this.adjustBrushParam('feather', -0.10);
+                        } else {
+                            this.adjustBrushParam('size', -5);
+                        }
+                    } else if (e.key === ']' || e.key === 'bracketright') {
+                        e.preventDefault();
+                        if (e.shiftKey) {
+                            this.adjustBrushParam('feather', 0.10);
+                        } else {
+                            this.adjustBrushParam('size', 5);
+                        }
+                    } else if (e.key === 'Enter') {
+                        if (subTool === 'polygon' && this.polygonPoints.length >= 3) {
+                            e.preventDefault();
+                            this.completePolygonDrawing();
+                        } else if (this.activeTool === 'eraser' && window.MagicEraser && !window.MagicEraser.isProcessing) {
+                            e.preventDefault();
+                            window.MagicEraser.executeErasure();
+                        }
+                    } else if (e.key === 'Escape') {
+                        if (this.polygonPoints.length > 0 || this.lassoPoints.length > 0) {
+                            e.preventDefault();
+                            this.polygonPoints = [];
+                            this.lassoPoints = [];
+                            this.renderSvg();
+                        }
+                    }
+                });
+            }
         }
 
         handlePointerDown(e) {
             if (!e) return;
             if (e.button !== undefined && e.button !== 0) return;
+            if (window.spaceBarPressed) return; // Space basılıyken pan yapılır, maske çizilmez!
+
+            // Klonlama damgası aktifse tüm tuval tıklamasını klonlama motoruna yönlendir
+            if (window.CloneStamp && window.CloneStamp.isActive) {
+                window.CloneStamp.handlePointerDown(e);
+                return;
+            }
+
+            // Çokgen az önce kapatıldıysa ardışık tıklamaları yut (yeni nokta koymasını engelle)
+            if (this._justClosedPolygon && (Date.now() - this._justClosedPolygon < 400)) {
+                if (e.stopPropagation) e.stopPropagation();
+                if (e.preventDefault) e.preventDefault();
+                return;
+            }
+
             const target = e.target;
             const handle = target && target.closest ? target.closest('[data-mask-action]') : null;
             const pos = this.getNormalizedCoords(e);
             this.dragStart = { x: pos.x, y: pos.y };
 
+            // Dinamik event listener hijyeni: Yalnızca mousedown/touchstart anında global dinleyicileri bağla
+            window.addEventListener('mousemove', this.onPointerMove);
+            window.addEventListener('mouseup', this.onPointerUp);
+            window.addEventListener('touchmove', this.onPointerMove, { passive: false });
+            window.addEventListener('touchend', this.onPointerUp);
+
+            const selMask = this.getSelectedMask();
+
+            // 1. Kılavuz tutamaç etkileşimi (Radial / Linear pin, rotate, cardinals)
             if (handle) {
                 if (e.stopPropagation) e.stopPropagation();
                 if (e.preventDefault) e.preventDefault();
@@ -1282,16 +1912,65 @@
                 const action = handle.getAttribute('data-mask-action');
                 this.dragMode = action;
 
-                const mask = this.getSelectedMask();
-                this.initialState = mask ? JSON.parse(JSON.stringify(mask.settings)) : null;
+                this.initialState = selMask ? JSON.parse(JSON.stringify(selMask.settings)) : null;
                 this.renderSvg();
                 return;
+            }
+
+            // 2. Fırça / Kement / Çokgen Maskesi Etkileşimi
+            if (this.activeTool === 'brush' || (selMask && selMask.type === 'brush')) {
+                if (e.stopPropagation) e.stopPropagation();
+                if (e.preventDefault) e.preventDefault();
+                const subTool = (selMask && selMask.brushSubTool) ? selMask.brushSubTool : (this.brushSubTool || 'brush');
+
+                if (subTool === 'brush') {
+                    this.isPaintingBrush = true;
+                    this.lastBrushPt = { x: pos.x, y: pos.y };
+                    this.lastHoverPos = { x: pos.x, y: pos.y };
+                    this.drawBrushStroke(pos.x, pos.y, pos.x, pos.y);
+                    this.notifyChange();
+                    this.renderSvg();
+                    return;
+                } else if (subTool === 'lasso') {
+                    this.isDrawingLasso = true;
+                    this.lassoPoints = [{ x: pos.x, y: pos.y }];
+                    this.lastHoverPos = { x: pos.x, y: pos.y };
+                    this.renderSvg();
+                    return;
+                } else if (subTool === 'polygon') {
+                    this.lastHoverPos = { x: pos.x, y: pos.y };
+                    const now = Date.now();
+                    const lastClick = this._lastPolyClickTime || 0;
+                    this._lastPolyClickTime = now;
+
+                    // Hızlı çift tıklama ile çokgeni anında kapat
+                    if (now - lastClick < 350 && this.polygonPoints.length >= 3) {
+                        this.completePolygonDrawing();
+                        return;
+                    }
+
+                    // Eğer en az 3 nokta varsa ve ilk noktaya yakın tıklandıysa çokgeni kapat
+                    if (this.polygonPoints.length >= 3) {
+                        const pt0 = this.polygonPoints[0];
+                        if (!this.containerEl) this.containerEl = document.getElementById('canvas-container');
+                        const rect = this.containerEl ? this.containerEl.getBoundingClientRect() : null;
+                        const rw = (rect && rect.width > 0) ? rect.width : 800;
+                        const rh = (rect && rect.height > 0) ? rect.height : 600;
+                        const distPx = Math.hypot((pos.x - pt0.x) * rw, (pos.y - pt0.y) * rh);
+                        if (distPx < 30) {
+                            this.completePolygonDrawing();
+                            return;
+                        }
+                    }
+                    this.polygonPoints.push({ x: pos.x, y: pos.y });
+                    this.renderSvg();
+                    return;
+                }
             }
 
             // BOŞ TUVAL ALANINA TIKLANDI:
             // Eğer bir maske zaten seçili ve aktifse, VE kullanıcı açıkça yeni maske çiz demiyorsa,
             // MEVCUT MASKEYİ ASLA BOZMA VEYA SIFIRLAMA!
-            const selMask = this.getSelectedMask();
             if (selMask && selMask.active && !this.isCreatingNew) {
                 return;
             }
@@ -1308,7 +1987,7 @@
                 const newMask = {
                     id: 'rad_' + Date.now(),
                     type: 'radial',
-                    name: 'Radyal Maske ' + count,
+                    name: 'Radyal ' + count,
                     active: true,
                     showOverlay: false,
                     settings: {
@@ -1325,7 +2004,9 @@
                         highlights: 0,
                         shadows: 0,
                         saturate: 1.0,
-                        amount: 1.0
+                        amount: 1.0,
+                        sharpness: 0,
+                        dehaze: 0
                     }
                 };
                 this.masks.push(newMask);
@@ -1343,7 +2024,7 @@
                 const newMask = {
                     id: 'lin_' + Date.now(),
                     type: 'linear',
-                    name: 'Doğrusal Gradyan ' + count,
+                    name: 'Doğrusal ' + count,
                     active: true,
                     showOverlay: false,
                     settings: {
@@ -1359,7 +2040,9 @@
                         highlights: 0,
                         shadows: 0,
                         saturate: 1.0,
-                        amount: 1.0
+                        amount: 1.0,
+                        sharpness: 0,
+                        dehaze: 0
                     }
                 };
                 this.masks.push(newMask);
@@ -1371,9 +2054,45 @@
         }
 
         handlePointerMove(e) {
-            if (!this.isDragging || !e) return;
-            if (e.preventDefault) e.preventDefault();
+            if (!e) return;
             const pos = this.getNormalizedCoords(e);
+            this.lastHoverPos = pos;
+
+            if (this.isPaintingBrush) {
+                if (e.preventDefault) e.preventDefault();
+                const p0 = this.lastBrushPt || pos;
+                this.drawBrushStroke(p0.x, p0.y, pos.x, pos.y);
+                this.lastBrushPt = { x: pos.x, y: pos.y };
+
+                // 120 FPS akıcılık: GPU önizlemesini requestAnimationFrame ile sınırla (donmayı %100 önler)
+                if (!this._brushRafPending) {
+                    this._brushRafPending = true;
+                    requestAnimationFrame(() => {
+                        this._brushRafPending = false;
+                        this.notifyChange();
+                        this.renderSvg();
+                    });
+                }
+                return;
+            }
+
+            if (this.isDrawingLasso) {
+                if (e.preventDefault) e.preventDefault();
+                this.lassoPoints.push({ x: pos.x, y: pos.y });
+                this.renderSvg();
+                return;
+            }
+
+            const selMask = this.getSelectedMask();
+            if (this.isGuidesVisible && selMask && selMask.type === 'brush') {
+                const subTool = (selMask && selMask.brushSubTool) ? selMask.brushSubTool : (this.brushSubTool || 'brush');
+                if (subTool === 'polygon' && this.polygonPoints.length > 0) {
+                    this.renderSvg();
+                }
+            }
+
+            if (!this.isDragging) return;
+            if (e.preventDefault) e.preventDefault();
             const dx = pos.x - this.dragStart.x;
             const dy = pos.y - this.dragStart.y;
 
@@ -1445,6 +2164,30 @@
         }
 
         handlePointerUp() {
+            // Dinamik event listener hijyeni: Mouseup/touchend anında global dinleyicileri tamamen temizle
+            window.removeEventListener('mousemove', this.onPointerMove);
+            window.removeEventListener('mouseup', this.onPointerUp);
+            window.removeEventListener('touchmove', this.onPointerMove);
+            window.removeEventListener('touchend', this.onPointerUp);
+
+            if (this.isPaintingBrush) {
+                this.isPaintingBrush = false;
+                this.lastBrushPt = null;
+                this.notifyChange();
+                this.renderSvg();
+                return;
+            }
+
+            if (this.isDrawingLasso) {
+                this.isDrawingLasso = false;
+                if (this.lassoPoints.length >= 3) {
+                    this.fillPolygonMask(this.lassoPoints);
+                }
+                this.lassoPoints = [];
+                this.renderSvg();
+                return;
+            }
+
             if (!this.isDragging) return;
             this.isDragging = false;
             this.dragMode = null;
@@ -1477,6 +2220,14 @@
         renderSvg() {
             if (!this.svgEl) this.svgEl = document.getElementById('maskInteractiveSvg');
             if (!this.svgEl) return;
+            if (this.svgEl.style.display === 'none') {
+                this.svgEl.style.display = '';
+            }
+
+            if (window.CloneStamp && window.CloneStamp.isActive) {
+                window.CloneStamp.renderSvg();
+                return;
+            }
 
             if (!this.isGuidesVisible) {
                 this.svgEl.innerHTML = '';
@@ -1653,6 +2404,117 @@
                 `;
             }
 
+            // 3. FIRÇA, KEMENT & ÇOKGEN MASKE SVG İŞARETÇİSİ
+            else if (mask.type === 'brush') {
+                if (!this.containerEl) this.containerEl = document.getElementById('canvas-container');
+                const rect = this.containerEl ? this.containerEl.getBoundingClientRect() : null;
+                const rw = (rect && rect.width > 0) ? rect.width : 800;
+                const rh = (rect && rect.height > 0) ? rect.height : 600;
+                const hover = this.lastHoverPos;
+                const mode = mask.brushMode || 'paint';
+                const subTool = mask.brushSubTool || this.brushSubTool || 'brush';
+                const mainColor = mode === 'erase' ? '#ef4444' : (subTool === 'lasso' ? '#a855f7' : (subTool === 'polygon' ? '#0284c7' : '#10b981'));
+
+                // A. KEMENT (LASSO) ÇİZİM ÇİZGİSİ
+                if (this.isDrawingLasso && this.lassoPoints.length > 1) {
+                    let d = 'M ' + (this.lassoPoints[0].x * 1000) + ' ' + (this.lassoPoints[0].y * 1000);
+                    for (let i = 1; i < this.lassoPoints.length; i++) {
+                        d += ' L ' + (this.lassoPoints[i].x * 1000) + ' ' + (this.lassoPoints[i].y * 1000);
+                    }
+                    const fillCol = mode === 'erase' ? 'rgba(239, 68, 68, 0.12)' : 'rgba(168, 85, 247, 0.12)';
+                    html += '<g pointer-events="none">';
+                    html += '<path d="' + d + ' Z" fill="' + fillCol + '" stroke="' + mainColor + '" stroke-width="2.2" stroke-dasharray="5,4" vector-effect="non-scaling-stroke" />';
+                    html += '</g>';
+                }
+
+                // B. ÇOKGEN (POLYGON) KÖŞELERİ VE LASTİK İP (RUBBERBAND)
+                if (subTool === 'polygon' && this.polygonPoints.length > 0) {
+                    let polyPath = 'M ' + (this.polygonPoints[0].x * 1000) + ' ' + (this.polygonPoints[0].y * 1000);
+                    for (let i = 1; i < this.polygonPoints.length; i++) {
+                        polyPath += ' L ' + (this.polygonPoints[i].x * 1000) + ' ' + (this.polygonPoints[i].y * 1000);
+                    }
+                    if (hover) {
+                        polyPath += ' L ' + (hover.x * 1000) + ' ' + (hover.y * 1000);
+                    }
+                    const fillCol = mode === 'erase' ? 'rgba(239, 68, 68, 0.08)' : 'rgba(2, 132, 199, 0.08)';
+                    html += '<g pointer-events="none">';
+                    html += '<path d="' + polyPath + '" fill="' + fillCol + '" stroke="' + mainColor + '" stroke-width="2" stroke-dasharray="5,3" vector-effect="non-scaling-stroke" />';
+
+                    // Köşe Noktalarını Çiz
+                    for (let i = 0; i < this.polygonPoints.length; i++) {
+                        const pt = this.polygonPoints[i];
+                        const px = pt.x * 1000;
+                        const py = pt.y * 1000;
+                        const isFirst = (i === 0);
+
+                        let isClosingHover = false;
+                        if (isFirst && hover && this.polygonPoints.length >= 3) {
+                            const distPx = Math.hypot((hover.x - pt.x) * rw, (hover.y - pt.y) * rh);
+                            if (distPx < 22) isClosingHover = true;
+                        }
+
+                        if (isClosingHover) {
+                            html += '<circle cx="' + px + '" cy="' + py + '" r="8" fill="#f59e0b" stroke="#ffffff" stroke-width="2" />';
+                            html += '<text x="' + (px + 12) + '" y="' + (py + 4) + '" fill="#f59e0b" font-size="11" font-weight="bold" font-family="sans-serif">Kapat</text>';
+                        } else if (isFirst) {
+                            html += '<circle cx="' + px + '" cy="' + py + '" r="6" fill="#10b981" stroke="#ffffff" stroke-width="2" />';
+                        } else {
+                            html += '<circle cx="' + px + '" cy="' + py + '" r="4.5" fill="#ffffff" stroke="#1e293b" stroke-width="1.8" />';
+                        }
+                    }
+                    html += '</g>';
+                }
+
+                // C. HOVER İŞARETÇİSİ (FIRÇA ÇEMBERLERİ VEYA HEDEF ROZETİ)
+                if (hover) {
+                    const cx = hover.x * 1000;
+                    const cy = hover.y * 1000;
+
+                    if (subTool === 'brush') {
+                        const brushSize = mask.brushSize || 40;
+                        const rx = (brushSize / rw) * 1000;
+                        const ry = (brushSize / rh) * 1000;
+                        const feather = (mask.brushFeather !== undefined ? mask.brushFeather : 0);
+                        const innerRx = Math.max(0, rx * (1 - feather));
+                        const innerRy = Math.max(0, ry * (1 - feather));
+                        const fillAlpha = mode === 'erase' ? 'rgba(239, 68, 68, 0.03)' : 'rgba(16, 185, 129, 0.03)';
+
+                        html += '<g pointer-events="none">';
+                        html += '<ellipse cx="' + cx + '" cy="' + cy + '" rx="' + rx + '" ry="' + ry + '" fill="' + fillAlpha + '" stroke="rgba(0, 0, 0, 0.55)" stroke-width="1.8" vector-effect="non-scaling-stroke" />';
+                        html += '<ellipse cx="' + cx + '" cy="' + cy + '" rx="' + rx + '" ry="' + ry + '" fill="none" stroke="' + mainColor + '" stroke-width="1.0" vector-effect="non-scaling-stroke" />';
+
+                        if (innerRx > 2 && innerRy > 2) {
+                            html += '<ellipse cx="' + cx + '" cy="' + cy + '" rx="' + innerRx + '" ry="' + innerRy + '" fill="none" stroke="rgba(0, 0, 0, 0.4)" stroke-width="1.5" stroke-dasharray="2,2" vector-effect="non-scaling-stroke" />';
+                            html += '<ellipse cx="' + cx + '" cy="' + cy + '" rx="' + innerRx + '" ry="' + innerRy + '" fill="none" stroke="#ffffff" stroke-width="0.9" stroke-dasharray="2,2" vector-effect="non-scaling-stroke" />';
+                        }
+
+                        // Photoshop Tarzı Hassas Mikro Artı (+) (Merkezi açık, 1px yüksek kontrast)
+                        html += '<line x1="' + (cx - 5) + '" y1="' + cy + '" x2="' + (cx - 1.5) + '" y2="' + cy + '" stroke="rgba(0,0,0,0.75)" stroke-width="2.2" stroke-linecap="round" vector-effect="non-scaling-stroke" />';
+                        html += '<line x1="' + (cx - 5) + '" y1="' + cy + '" x2="' + (cx - 1.5) + '" y2="' + cy + '" stroke="#ffffff" stroke-width="1.1" stroke-linecap="round" vector-effect="non-scaling-stroke" />';
+                        html += '<line x1="' + (cx + 1.5) + '" y1="' + cy + '" x2="' + (cx + 5) + '" y2="' + cy + '" stroke="rgba(0,0,0,0.75)" stroke-width="2.2" stroke-linecap="round" vector-effect="non-scaling-stroke" />';
+                        html += '<line x1="' + (cx + 1.5) + '" y1="' + cy + '" x2="' + (cx + 5) + '" y2="' + cy + '" stroke="#ffffff" stroke-width="1.1" stroke-linecap="round" vector-effect="non-scaling-stroke" />';
+                        html += '<line x1="' + cx + '" y1="' + (cy - 5) + '" x2="' + cx + '" y2="' + (cy - 1.5) + '" stroke="rgba(0,0,0,0.75)" stroke-width="2.2" stroke-linecap="round" vector-effect="non-scaling-stroke" />';
+                        html += '<line x1="' + cx + '" y1="' + (cy - 5) + '" x2="' + cx + '" y2="' + (cy - 1.5) + '" stroke="#ffffff" stroke-width="1.1" stroke-linecap="round" vector-effect="non-scaling-stroke" />';
+                        html += '<line x1="' + cx + '" y1="' + (cy + 1.5) + '" x2="' + cx + '" y2="' + (cy + 5) + '" stroke="rgba(0,0,0,0.75)" stroke-width="2.2" stroke-linecap="round" vector-effect="non-scaling-stroke" />';
+                        html += '<line x1="' + cx + '" y1="' + (cy + 1.5) + '" x2="' + cx + '" y2="' + (cy + 5) + '" stroke="#ffffff" stroke-width="1.1" stroke-linecap="round" vector-effect="non-scaling-stroke" />';
+                        html += '</g>';
+                    } else if (subTool === 'lasso' || subTool === 'polygon') {
+                        // WINDOWS OKU (ARROW) İŞARETÇİSİ
+                        // Uç noktası tam olarak (cx, cy) koordinatını gösterir
+                        const arrowCol = subTool === 'lasso' ? '#a855f7' : '#0284c7';
+
+                        html += '<g pointer-events="none">';
+                        // Windows Oku Gölgesi
+                        html += '<path d="M ' + (cx + 1) + ' ' + (cy + 1) + ' L ' + (cx + 1) + ' ' + (cy + 18) + ' L ' + (cx + 5.2) + ' ' + (cy + 14.2) + ' L ' + (cx + 8.5) + ' ' + (cy + 21) + ' L ' + (cx + 10.8) + ' ' + (cy + 20) + ' L ' + (cx + 7.6) + ' ' + (cy + 13.2) + ' L ' + (cx + 13) + ' ' + (cy + 13.2) + ' Z" fill="rgba(0, 0, 0, 0.45)" />';
+                        // Windows Oku Gövdesi (Beyaz Dolgu + Koyu Lacivert Çerçeve)
+                        html += '<path d="M ' + cx + ' ' + cy + ' L ' + cx + ' ' + (cy + 17) + ' L ' + (cx + 4.2) + ' ' + (cy + 13.2) + ' L ' + (cx + 7.5) + ' ' + (cy + 20) + ' L ' + (cx + 9.8) + ' ' + (cy + 19) + ' L ' + (cx + 6.6) + ' ' + (cy + 12.2) + ' L ' + (cx + 12) + ' ' + (cy + 12.2) + ' Z" fill="#ffffff" stroke="#0f172a" stroke-width="1.3" stroke-linejoin="round" />';
+                        // Okun tam ucundaki hassas odak noktası
+                        html += '<circle cx="' + cx + '" cy="' + cy + '" r="1.8" fill="' + (mode === 'erase' ? '#ef4444' : arrowCol) + '" stroke="#ffffff" stroke-width="0.8" />';
+                        html += '</g>';
+                    }
+                }
+            }
+
             this.svgEl.innerHTML = html;
         }
 
@@ -1704,6 +2566,15 @@
 
             if (state.showOverlay !== undefined) this.showOverlay = !!state.showOverlay;
 
+            const activeMask = this.getSelectedMask();
+            if (activeMask && activeMask.active) {
+                this.isGuidesVisible = true;
+                if (!this.svgEl) this.svgEl = document.getElementById('maskInteractiveSvg');
+                if (this.svgEl && this.svgEl.style.display === 'none') {
+                    this.svgEl.style.display = '';
+                }
+            }
+
             this.updatePanelsVisibility();
             this.syncFromSelected();
             this.renderLayersList();
@@ -1727,4 +2598,21 @@
             setTimeout(autoInit, 50);
         }
     }
+
+    window.openMaskSettingsFromDock = function() {
+        if (typeof window.switchTab === 'function') {
+            window.switchTab('photo');
+        }
+        const maskAccordion = document.getElementById('photoMasksAccordion');
+        if (maskAccordion && !maskAccordion.hasAttribute('open')) {
+            maskAccordion.setAttribute('open', '');
+        }
+        const globalAccordion = document.getElementById('photoGlobalSettingsAccordion');
+        if (globalAccordion && globalAccordion.hasAttribute('open')) {
+            globalAccordion.removeAttribute('open');
+        }
+        if (maskAccordion) {
+            maskAccordion.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    };
 })(window);

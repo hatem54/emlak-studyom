@@ -35,6 +35,7 @@
                 }
 
                 let allPoints = [];
+                let detectedAlt = 0;
                 for (let i = 0; i < coordEls.length; i++) {
                     const rawCoords = coordEls[i].textContent || '';
                     const tokens = rawCoords.trim().split(/\s+/);
@@ -44,6 +45,10 @@
                         if (parts.length >= 2) {
                             const lng = parseFloat(parts[0]);
                             const lat = parseFloat(parts[1]);
+                            const alt = (parts.length >= 3) ? parseFloat(parts[2]) : NaN;
+                            if (!isNaN(alt) && alt > 0 && detectedAlt === 0) {
+                                detectedAlt = Math.round(alt);
+                            }
                             if (!isNaN(lat) && !isNaN(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
                                 ring.push([lat, lng]);
                             }
@@ -52,6 +57,10 @@
                     if (ring.length >= 3 && ring.length > allPoints.length) {
                         allPoints = ring;
                     }
+                }
+
+                if (detectedAlt > 0) {
+                    this.parcelElevation = detectedAlt;
                 }
 
                 if (allPoints.length < 3) {
@@ -244,12 +253,53 @@
             const isKmz = name.endsWith('.kmz');
 
             if (isKmz) {
-                if (typeof window.showAppToast === 'function') {
-                    window.showAppToast('ℹ️ KMZ sıkıştırılmış arşivdir. Lütfen KMZ içindeki .kml dosyasını veya TKGM Parsel Sorgu KML çıktısını yükleyiniz.', 'info');
+                if (typeof JSZip !== 'undefined') {
+                    if (typeof window.showAppToast === 'function') {
+                        window.showAppToast('📦 KMZ arşivi taranıyor ve KML çıkarılıyor...', 'info', 2500);
+                    }
+                    JSZip.loadAsync(file).then(zip => {
+                        const kmlKey = Object.keys(zip.files).find(k => k.toLowerCase().endsWith('.kml') && !k.startsWith('__MACOSX'));
+                        if (!kmlKey) {
+                            throw new Error('KMZ arşivi içinde .kml dosyası bulunamadı.');
+                        }
+                        return zip.files[kmlKey].async('string');
+                    }).then(kmlText => {
+                        const parsed = this.parseKmlText(kmlText);
+                        if (!parsed || !parsed.latLngs || parsed.latLngs.length < 3) {
+                            throw new Error('KMZ içindeki KML dosyasında geçerli koordinat bulunamadı.');
+                        }
+                        this.parcelData = parsed;
+                        const kmzBounds = this.getParcelCenterAndBounds();
+                        if (kmzBounds && kmzBounds.center) {
+                            this.currentLat = kmzBounds.center.lat;
+                            this.currentLng = kmzBounds.center.lng;
+                            if (typeof this.getGroundElevation === 'function') {
+                                this.getGroundElevation(this.currentLat, this.currentLng).then(el => {
+                                    this.parcelElevation = el;
+                                }).catch(() => {});
+                            }
+                        }
+                        if (typeof this.initGoogle3DEarthMode === 'function' && !this.is3DActive) {
+                            this.initGoogle3DEarthMode();
+                        }
+                        this.loadParcelPolygon(parsed);
+                        if (typeof window.showAppToast === 'function') {
+                            window.showAppToast('✅ KMZ arşivi başarıyla açıldı ve arsa sınırları haritaya yüklendi!', 'success', 3500);
+                        }
+                    }).catch(err => {
+                        console.error('KMZ açma hatası:', err);
+                        if (typeof window.showAppToast === 'function') {
+                            window.showAppToast('❌ KMZ açılamadı: ' + (err.message || 'Geçersiz dosya'), 'error');
+                        } else {
+                            alert('KMZ açılamadı: ' + err.message);
+                        }
+                    });
+                    return;
                 } else {
-                    alert('KMZ sıkıştırılmış arşivdir. Lütfen içindeki .kml dosyasını yükleyiniz.');
+                    if (typeof window.showAppToast === 'function') {
+                        window.showAppToast('ℹ️ KMZ arşivini açmak için JSZip kütüphanesi yükleniyor...', 'info');
+                    }
                 }
-                return;
             }
 
             if (!isKml && !isGeoJson) {
@@ -276,6 +326,21 @@
                         throw new Error('Dosyada geçerli arsa koordinatları bulunamadı.');
                     }
 
+                    this.parcelData = parsed;
+                    const kmlBounds = this.getParcelCenterAndBounds();
+                    if (kmlBounds && kmlBounds.center) {
+                        this.currentLat = kmlBounds.center.lat;
+                        this.currentLng = kmlBounds.center.lng;
+                        if (typeof this.getGroundElevation === 'function') {
+                            this.getGroundElevation(this.currentLat, this.currentLng).then(el => {
+                                this.parcelElevation = el;
+                            }).catch(() => {});
+                        }
+                    }
+
+                    if (typeof this.initGoogle3DEarthMode === 'function' && !this.is3DActive) {
+                        this.initGoogle3DEarthMode();
+                    }
                     this.loadParcelPolygon(parsed);
                 } catch(err) {
                     console.error('Parsel dosyası işleme hatası:', err);
@@ -315,13 +380,13 @@
                 this.parcelLabelMarker = null;
             }
 
-            const fillColor = this.parcelFillMode === 'nofill' ? 'transparent' : (this.parcelFillMode === 'white' ? '#ffffff' : (this.parcelFillColor || '#ffffff'));
-            const fillOpacity = this.parcelFillMode === 'nofill' ? 0 : (this.parcelFillOpacity !== undefined ? this.parcelFillOpacity : 0.40);
+            const fillColor = this.parcelFillMode === 'nofill' ? 'transparent' : (this.parcelFillMode === 'white' ? '#ffffff' : (this.parcelFillColor || '#ef4444'));
+            const fillOpacity = this.parcelFillMode === 'nofill' ? 0 : (this.parcelFillOpacity !== undefined ? this.parcelFillOpacity : 0.22);
 
             // Leaflet Polygon
             this.parcelPolygon = L.polygon(parcelInfo.latLngs, {
-                color: this.parcelStrokeColor || '#ffffff',
-                weight: this.parcelStrokeWidth || 3,
+                color: this.parcelStrokeColor || '#ef4444',
+                weight: this.parcelStrokeWidth || 3.5,
                 opacity: 0.95,
                 fillColor: fillColor,
                 fillOpacity: fillOpacity,
@@ -331,6 +396,7 @@
 
             // KML yüklendiğinde Saber Neon'u otomatik aktif et ve hem 2D hem 3D stilini anında uygula
             this.parcelNeonEnabled = true;
+            this.parcelNeonColor = this.parcelStrokeColor || '#ef4444';
             this.updateParcelPolygonStyle();
             this.updateParcelNeonUI();
 
@@ -351,29 +417,74 @@
 
             // Sınırları al ve haritayı arsanın üzerine uçur
             const bounds = this.parcelPolygon.getBounds();
-            if (bounds.isValid()) {
-                const center = bounds.getCenter();
+            if (bounds && bounds.isValid()) {
+                const dims = this.getParcelDimensionsAndRanges();
+                const center = (dims && dims.center) ? dims.center : bounds.getCenter();
                 this.currentLat = center.lat;
                 this.currentLng = center.lng;
+
+                const initRange = dims ? dims.rangeDetail : 450;
+                const initTilt = 65;
+                const initHeading = 0;
+                const camTarget = (typeof this.getPerspectiveCameraTarget === 'function')
+                    ? this.getPerspectiveCameraTarget(center, initHeading, initTilt, initRange)
+                    : center;
+                const elev = (typeof camTarget.altitude === 'number') ? camTarget.altitude : (this.parcelElevation || 0);
+
+                // Rakımı arka planda teyit et ve gerekirse kamera hedefini ince ayarla
+                if (typeof this.getGroundElevation === 'function') {
+                    this.getGroundElevation(center.lat, center.lng).then(exactElev => {
+                        this.parcelElevation = exactElev;
+                        if (this.is3DActive && this.map3dElement) {
+                            try {
+                                this.map3dElement.center = { lat: camTarget.lat, lng: camTarget.lng, altitude: exactElev };
+                                this.map3dElement.setAttribute('center', `${camTarget.lat},${camTarget.lng},${exactElev}`);
+                            } catch(e) {}
+                        }
+                    }).catch(() => {});
+                }
 
                 // 3D Harita Modu Aktifse 3D Kamerayı Parsele Uçur ve 3D Poligonu Çiz
                 if (this.is3DActive && this.map3dElement) {
                     try {
-                        this.map3dElement.setAttribute('center', `${center.lat},${center.lng},0`);
-                        this.map3dElement.setAttribute('range', '650');
-                        this.map3dElement.setAttribute('tilt', '45');
+                        if (typeof this.map3dElement.stopCameraAnimation === 'function') {
+                            try { this.map3dElement.stopCameraAnimation(); } catch(e) {}
+                        }
+                        try {
+                            this.map3dElement.range = parseFloat(initRange);
+                            this.map3dElement.tilt = initTilt;
+                            this.map3dElement.heading = initHeading;
+                            this.map3dElement.roll = 0;
+                            this.map3dElement.center = { lat: camTarget.lat, lng: camTarget.lng, altitude: elev };
+                        } catch(e) {}
+
+                        this.map3dElement.setAttribute('center', `${camTarget.lat},${camTarget.lng},${elev}`);
+                        this.map3dElement.setAttribute('range', initRange.toString());
+                        this.map3dElement.setAttribute('tilt', initTilt.toString());
+                        this.map3dElement.setAttribute('heading', initHeading.toString());
+
                         this.mount3DParcelPolygon(this.map3dElement);
                     } catch(e) {
                         console.warn("3D harita parsele odaklanma:", e);
                     }
-                } else {
+                } else if (this.map) {
                     const safeMaxZoom = (this.activeLayer === 'esri_sat') ? 16 : 19;
+                    this.map.invalidateSize();
                     this.map.fitBounds(bounds, {
-                        padding: [45, 45],
+                        padding: [50, 50],
                         maxZoom: safeMaxZoom,
-                        animate: true,
-                        duration: 1.2
+                        animate: false
                     });
+                    // Pencere/kadraj yerleşimi oturduktan sonra tam ortalanmayı garantiye al
+                    setTimeout(() => {
+                        if (this.map && this.parcelPolygon) {
+                            this.map.invalidateSize();
+                            const b = this.parcelPolygon.getBounds();
+                            if (b && b.isValid()) {
+                                this.map.fitBounds(b, { padding: [50, 50], maxZoom: safeMaxZoom, animate: false });
+                            }
+                        }
+                    }, 200);
                 }
 
                 // Canlı konum pinini de arsanın merkezine yerleştir
@@ -603,20 +714,162 @@
          * Yüklü Arsa Koordinatlarının Merkez ve Sınırlarını Döndürür
          */
         getParcelCenterAndBounds: function() {
-            if (!this.parcelData || !this.parcelData.latLngs || this.parcelData.latLngs.length === 0) return null;
+            if (!this.parcelData || !this.parcelData.latLngs || this.parcelData.latLngs.length === 0) {
+                return {
+                    center: { lat: this.currentLat, lng: this.currentLng },
+                    bounds: { minLat: this.currentLat - 0.001, maxLat: this.currentLat + 0.001, minLng: this.currentLng - 0.001, maxLng: this.currentLng + 0.001 }
+                };
+            }
+
             let minLat = 90, maxLat = -90, minLng = 180, maxLng = -180;
-            this.parcelData.latLngs.forEach(pt => {
-                const lat = Number(pt[0]);
-                const lng = Number(pt[1]);
-                if (lat < minLat) minLat = lat;
-                if (lat > maxLat) maxLat = lat;
-                if (lng < minLng) minLng = lng;
-                if (lng > maxLng) maxLng = lng;
-            });
+            let sumLat = 0, sumLng = 0;
+            let validCount = 0;
+            const pts = this.parcelData.latLngs;
+            for (let i = 0; i < pts.length; i++) {
+                const pt = pts[i];
+                if (!pt) continue;
+                const lat = Number(Array.isArray(pt) ? pt[0] : (pt.lat !== undefined ? pt.lat : (pt.latitude !== undefined ? pt.latitude : NaN)));
+                const lng = Number(Array.isArray(pt) ? pt[1] : (pt.lng !== undefined ? pt.lng : (pt.longitude !== undefined ? pt.longitude : (pt.lon !== undefined ? pt.lon : NaN))));
+                if (!isNaN(lat) && !isNaN(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
+                    sumLat += lat;
+                    sumLng += lng;
+                    if (lat < minLat) minLat = lat;
+                    if (lat > maxLat) maxLat = lat;
+                    if (lng < minLng) minLng = lng;
+                    if (lng > maxLng) maxLng = lng;
+                    validCount++;
+                }
+            }
+
+            if (validCount === 0 || minLat > maxLat) {
+                return {
+                    center: { lat: this.currentLat, lng: this.currentLng },
+                    bounds: { minLat: this.currentLat - 0.001, maxLat: this.currentLat + 0.001, minLng: this.currentLng - 0.001, maxLng: this.currentLng + 0.001 }
+                };
+            }
+
+            const bboxCenter = { lat: (minLat + maxLat) / 2, lng: (minLng + maxLng) / 2 };
+            const centroid = { lat: sumLat / validCount, lng: sumLng / validCount };
+            // Geometrik ağırlık merkezi ile sınırlayıcı kutu merkezinin dengeli ortalaması:
+            const trueCenter = {
+                lat: Number((bboxCenter.lat * 0.5 + centroid.lat * 0.5).toFixed(7)),
+                lng: Number((bboxCenter.lng * 0.5 + centroid.lng * 0.5).toFixed(7))
+            };
+
             return {
-                center: { lat: (minLat + maxLat) / 2, lng: (minLng + maxLng) / 2 },
+                center: trueCenter,
                 bounds: { minLat, maxLat, minLng, maxLng }
             };
+        },
+
+        /**
+         * Arsa Boyutlarını (Metre) ve 3D Drone Kamera İrtifa/Mesafe Değerlerini Hesaplar
+         */
+        getParcelDimensionsAndRanges: function() {
+            const cb = this.getParcelCenterAndBounds();
+            if (!cb) return null;
+            const { center, bounds } = cb;
+            const { minLat, maxLat, minLng, maxLng } = bounds;
+
+            // Enlem ve boylam mesafelerini metreye çevir (WGS84 yaklaşımı)
+            const latRad = (center.lat * Math.PI) / 180;
+            const metersPerLat = 111320;
+            const metersPerLng = 111320 * Math.cos(latRad);
+
+            const widthMeters = Math.max(30, Math.abs(maxLng - minLng) * metersPerLng);
+            const heightMeters = Math.max(30, Math.abs(maxLat - minLat) * metersPerLat);
+            const diagonalMeters = Math.round(Math.sqrt(widthMeters * widthMeters + heightMeters * heightMeters));
+
+            // Profesyonel gerçekçi drone kamera mesafeleri (Google 3D Earth perspektifine tam uyumlu)
+            // Kadraj arsayı ne çok uzaktan ne de burnunun dibinden çeker; arsa tam ortada, net ve ferah görünür:
+            const rangeDetail = Math.max(450, Math.min(1200, Math.round(Math.max(diagonalMeters * 3.5, 450))));
+            const rangeWide = Math.max(1000, Math.min(2400, Math.round(Math.max(diagonalMeters * 7.5, 1000))));
+            const rangeNadirClose = Math.max(380, Math.min(900, Math.round(Math.max(diagonalMeters * 3.0, 420))));
+            const rangeNadirFar = Math.max(750, Math.min(1800, Math.round(Math.max(diagonalMeters * 6.0, 850))));
+
+            return {
+                center,
+                bounds,
+                widthMeters: Math.round(widthMeters),
+                heightMeters: Math.round(heightMeters),
+                diagonalMeters,
+                elevation: this.parcelElevation || (center.altitude || 0),
+                rangeDetail,
+                rangeWide,
+                rangeNadirClose,
+                rangeNadirFar,
+                rangeNadir: rangeNadirClose // Geriye dönük uyumluluk
+            };
+        },
+
+        /**
+         * 3D Kameranın Arsayı Ekranın Tam Merkezine Kilitleyen Kamera Hedefini Döndürür
+         * Zemin rakımını (altitude) korur; böylece eğimli (tilt) açılarda kamera yeraltına değil
+         * doğrudan yeryüzü zeminine nişan alır ve parsel daima ekranın tam merkezinde kalır.
+         */
+        getPerspectiveCameraTarget: function(center, heading = 0, tilt = 65, range = 450) {
+            if (!center || typeof center.lat !== 'number' || typeof center.lng !== 'number') {
+                return center;
+            }
+            const alt = (typeof center.altitude === 'number') ? center.altitude : (this.parcelElevation || 0);
+            return {
+                lat: Number(Number(center.lat).toFixed(7)),
+                lng: Number(Number(center.lng).toFixed(7)),
+                altitude: Math.round(alt)
+            };
+        },
+
+        /**
+         * Arsa / Koordinatın Gerçek Arazi Rakımını (Metre) Döndürür
+         * Google Maps 3D kameranın deniz seviyesine (0m) değil, gerçek yeryüzü zeminine
+         * nişan almasını sağlayarak eğimli açılarda (tilt) arsanın kadraj dışına veya tepeye kaymasını kesin olarak engeller.
+         */
+        getGroundElevation: async function(lat, lng) {
+            if (typeof lat !== 'number' || typeof lng !== 'number') return 0;
+            const cacheKey = `${lat.toFixed(4)},${lng.toFixed(4)}`;
+            this._elevationCache = this._elevationCache || {};
+            if (this._elevationCache[cacheKey] !== undefined) {
+                return this._elevationCache[cacheKey];
+            }
+
+            // 1. Google Maps ElevationService (Maps API ile doğrudan uyumlu)
+            if (window.google && window.google.maps) {
+                try {
+                    let ElevClass = window.google.maps.ElevationService;
+                    if (!ElevClass && typeof window.google.maps.importLibrary === 'function') {
+                        const lib = await window.google.maps.importLibrary("elevation");
+                        ElevClass = lib ? lib.ElevationService : null;
+                    }
+                    if (ElevClass) {
+                        const elevator = new ElevClass();
+                        const res = await elevator.getElevationForLocations({
+                            locations: [{ lat, lng }]
+                        });
+                        if (res && res.results && res.results[0] && typeof res.results[0].elevation === 'number') {
+                            const val = Math.round(res.results[0].elevation);
+                            this._elevationCache[cacheKey] = val;
+                            this.parcelElevation = val;
+                            return val;
+                        }
+                    }
+                } catch(e) {}
+            }
+
+            // 2. Yüksek Hızlı Küresel DEM Servisi (Open-Meteo Elevation API - Kota ve anahtar gerektirmez)
+            try {
+                const resp = await fetch(`https://api.open-meteo.com/v1/elevation?latitude=${lat.toFixed(5)}&longitude=${lng.toFixed(5)}`);
+                if (resp.ok) {
+                    const data = await resp.json();
+                    if (data && data.elevation && typeof data.elevation[0] === 'number') {
+                        const val = Math.round(data.elevation[0]);
+                        this._elevationCache[cacheKey] = val;
+                        this.parcelElevation = val;
+                        return val;
+                    }
+                }
+            } catch(e) {}
+
+            return this.parcelElevation || 0;
         },
 
         /**
@@ -668,10 +921,10 @@
                 const coords = [];
                 for (let i = 0; i < rawPts.length; i++) {
                     const pt = rawPts[i];
-                    const lat = Number(Array.isArray(pt) ? pt[0] : (pt.lat !== undefined ? pt.lat : pt[0]));
-                    const lng = Number(Array.isArray(pt) ? pt[1] : (pt.lng !== undefined ? pt.lng : pt[1]));
+                    const lat = Number(Array.isArray(pt) ? pt[0] : (pt.lat !== undefined ? pt.lat : (pt.latitude !== undefined ? pt.latitude : pt[0])));
+                    const lng = Number(Array.isArray(pt) ? pt[1] : (pt.lng !== undefined ? pt.lng : (pt.longitude !== undefined ? pt.longitude : (pt.lon !== undefined ? pt.lon : pt[1]))));
                     if (!isNaN(lat) && !isNaN(lng)) {
-                        coords.push({ lat, lng, altitude: 0 });
+                        coords.push({ lat, lng });
                     }
                 }
                 if (coords.length < 3) return;
@@ -692,20 +945,20 @@
                 const isClosed = Math.abs(firstPt.lat - lastPt.lat) < 1e-7 && Math.abs(firstPt.lng - lastPt.lng) < 1e-7;
                 const closedCoords = orientedCoords.slice();
                 if (!isClosed) {
-                    closedCoords.push({ lat: firstPt.lat, lng: firstPt.lng, altitude: 0 });
+                    closedCoords.push({ lat: firstPt.lat, lng: firstPt.lng });
                 }
 
                 // Dolgu ve Kenarlık Renkleri (Google 3D Maps katı #RRGGBBAA hex standardı)
                 const isNeon3d = !!this.parcelNeonEnabled;
-                const neonColor = this.parcelNeonColor || this.parcelStrokeColor || '#00CEC9';
-                const strokeColor = this.parcelStrokeColor || '#ffffff';
-                const opacity = (this.parcelFillOpacity !== undefined ? this.parcelFillOpacity : 0.40);
+                const neonColor = this.parcelNeonColor || this.parcelStrokeColor || '#ef4444';
+                const strokeColor = this.parcelStrokeColor || '#ef4444';
+                const opacity = (this.parcelFillOpacity !== undefined ? this.parcelFillOpacity : 0.22);
 
-                let fillHex8 = '#ffffff66';
+                let fillHex8 = '#ef444438';
                 if (this.parcelFillMode === 'nofill') {
                     fillHex8 = '#ffffff00'; // Tam saydam dolgusuz
                 } else if (this.parcelFillMode === 'color') {
-                    fillHex8 = this.colorToHex8(this.parcelFillColor || '#f59e0b', opacity);
+                    fillHex8 = this.colorToHex8(this.parcelFillColor || '#ef4444', opacity);
                 } else if (this.parcelFillMode === 'neon') {
                     fillHex8 = this.colorToHex8(neonColor, opacity);
                 } else {
@@ -713,7 +966,7 @@
                     fillHex8 = this.colorToHex8('#ffffff', opacity);
                 }
 
-                const strokeW = Math.max(1, this.parcelStrokeWidth || 3);
+                const strokeW = Math.max(1, this.parcelStrokeWidth || 3.5);
                 // Neon aktifken poligonun kendi konturunu tamamen saydam yapıyoruz ki çok katmanlı Saber aurası temiz ışısın
                 const polyStrokeHex8 = isNeon3d ? '#ffffff00' : this.colorToHex8(strokeColor, 1.0);
                 const polyStrokeW = isNeon3d ? 0 : strokeW;
@@ -756,14 +1009,20 @@
                 poly3d.setAttribute('stroke-width', '0');
                 poly3d.setAttribute('draws-occluded-segments', '');
 
+                // Polygon için: Tekrarlanan son noktası olmayan temiz tepe noktaları dizisi
+                // (Google Maps 3D Polygon3DElement outerCoordinates otomatik kapanır; tekrarlı nokta WebGL earcut üçgenlemesini bozabilir)
+                const polygonVertices = isClosed ? orientedCoords.slice(0, -1) : orientedCoords.slice();
+                const polyCoords = polygonVertices.map(p => ({ lat: p.lat, lng: p.lng, altitude: 0 }));
+                const lineCoords = closedCoords.map(p => ({ lat: p.lat, lng: p.lng, altitude: 0 }));
+
                 poly3d.altitudeMode = altModeObj;
                 poly3d.fillColor = fillHex8;
                 poly3d.strokeColor = '#ffffff00';
                 poly3d.strokeWidth = 0;
                 poly3d.extruded = false;
-                poly3d.path = closedCoords;
-                poly3d.outerCoordinates = closedCoords;
-                poly3d.coordinates = closedCoords;
+                poly3d.path = polyCoords;
+                poly3d.outerCoordinates = polyCoords;
+                poly3d.coordinates = polyCoords;
 
                 // =========================================================
                 // 2. Canlı 3D Vektörel Sınır & Neon Hatları (<gmp-polyline-3d>)
@@ -777,7 +1036,7 @@
                 // Hedef Çizgi Katmanları Listesi: [{ color, width }]
                 // Pürüzsüz mikro-gradyan mimarisi: Çizgiler ayrışmaz, ortada garip beyaz çizgi veya zayıf soluk şeritler oluşturmaz.
                 const desiredLines = [];
-                const activeColor = strokeColor || '#f59e0b';
+                const activeColor = strokeColor || '#ef4444';
 
                 if (isNeon3d) {
                     // ⚡ 3D Saber Neon Motoru (Pürüzsüz Mikro-Gradyan Işıma)
@@ -842,8 +1101,8 @@
                     line.strokeColor = cfg.color;
                     line.strokeWidth = cfg.width;
                     line.drawsOccludedSegments = true;
-                    line.path = closedCoords;
-                    line.coordinates = closedCoords;
+                    line.path = lineCoords;
+                    line.coordinates = lineCoords;
                 }
 
                 // Fazla kalan polylineler varsa (örneğin Neon modundan Klasik 1 çizgiye dönüldüğünde)
@@ -969,9 +1228,9 @@
                         }
 
                         const isNeon = !!this.parcelNeonEnabled;
-                        const neonColor = this.parcelNeonColor || this.parcelStrokeColor || '#00CEC9';
-                        const strokeColor = this.parcelStrokeColor || '#ffffff';
-                        const strokeWidth = this.parcelStrokeWidth || 3;
+                        const neonColor = this.parcelNeonColor || this.parcelStrokeColor || '#ef4444';
+                        const strokeColor = this.parcelStrokeColor || '#ef4444';
+                        const strokeWidth = this.parcelStrokeWidth || 3.5;
 
                         let fillColor = 'transparent';
                         let fillOpacity = 0;
@@ -979,11 +1238,11 @@
                             fillColor = 'transparent';
                             fillOpacity = 0;
                         } else if (this.parcelFillMode === 'color') {
-                            fillColor = this.parcelFillColor || '#f59e0b';
-                            fillOpacity = this.parcelFillOpacity !== undefined ? this.parcelFillOpacity : 0.40;
+                            fillColor = this.parcelFillColor || '#ef4444';
+                            fillOpacity = this.parcelFillOpacity !== undefined ? this.parcelFillOpacity : 0.22;
                         } else if (this.parcelFillMode === 'neon') {
                             fillColor = neonColor;
-                            fillOpacity = this.parcelFillOpacity !== undefined ? this.parcelFillOpacity : 0.35;
+                            fillOpacity = this.parcelFillOpacity !== undefined ? this.parcelFillOpacity : 0.22;
                         } else {
                             // 'white' modu: Saf beyaz yarı saydam dolgu (neon aktif olsa bile zemin beyaz kalır)
                             fillColor = '#ffffff';
@@ -1256,6 +1515,11 @@
             if (typeof this.updateParcelSnapButtons === 'function') {
                 this.updateParcelSnapButtons();
             }
+
+            // 11. Akıllı Alt Bar Durum Senkronizasyonu
+            if (typeof this.updateSmartFooterUI === 'function') {
+                this.updateSmartFooterUI();
+            }
         },
 
         /**
@@ -1413,13 +1677,13 @@
                 <div class="sat-popover-section" style="border-bottom:1px solid rgba(255,255,255,0.08); padding-bottom:10px; margin-bottom:10px;">
                     <label class="sat-popover-label">🎨 Arsa Zemin Dolgusu</label>
                     <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:5px; margin-bottom:8px;">
-                        <button type="button" class="sat-fill-btn ${(this.parcelFillMode || 'white') === 'white' ? 'active' : ''}" onclick="window.setParcelFillMode('white'); window.openParcelColorPicker();" title="Beyaz yarı saydam arsa dolgusu">⚪ Beyaz</button>
-                        <button type="button" class="sat-fill-btn ${this.parcelFillMode === 'color' ? 'active' : ''}" onclick="window.setParcelFillMode('color'); window.openParcelColorPicker();" title="Seçili renkte arsa dolgusu">🎨 Renkli</button>
+                        <button type="button" class="sat-fill-btn ${(this.parcelFillMode || 'color') === 'white' ? 'active' : ''}" onclick="window.setParcelFillMode('white'); window.openParcelColorPicker();" title="Beyaz yarı saydam arsa dolgusu">⚪ Beyaz</button>
+                        <button type="button" class="sat-fill-btn ${(this.parcelFillMode || 'color') === 'color' ? 'active' : ''}" onclick="window.setParcelFillMode('color'); window.openParcelColorPicker();" title="Seçili renkte arsa dolgusu">🎨 Renkli</button>
                         <button type="button" class="sat-fill-btn ${this.parcelFillMode === 'nofill' ? 'active' : ''}" onclick="window.setParcelFillMode('nofill'); window.openParcelColorPicker();" title="Şeffaf arsa dolgusu (sadece sınır çizgisi)">🚫 Şeffaf</button>
                     </div>
                     <div class="sat-color-row" style="margin-bottom:0;">
-                        <span>Dolgu Saydamlığı (<span id="satPopoverOpVal">%${Math.round((this.parcelFillOpacity !== undefined ? this.parcelFillOpacity : 0.40) * 100)}</span>)</span>
-                        <input type="range" min="5" max="95" step="5" value="${Math.round((this.parcelFillOpacity !== undefined ? this.parcelFillOpacity : 0.40) * 100)}" oninput="window.setParcelOpacity(this.value)" style="width:110px;">
+                        <span>Dolgu Saydamlığı (<span id="satPopoverOpVal">%${Math.round((this.parcelFillOpacity !== undefined ? this.parcelFillOpacity : 0.22) * 100)}</span>)</span>
+                        <input type="range" min="5" max="95" step="1" value="${Math.round((this.parcelFillOpacity !== undefined ? this.parcelFillOpacity : 0.22) * 100)}" oninput="window.setParcelOpacity(this.value)" style="width:110px;">
                     </div>
                 </div>
 
@@ -1639,9 +1903,44 @@
                 const bounds = this.getParcelCenterAndBounds();
                 if (bounds && bounds.center) {
                     if (this.is3DActive && this.map3dElement) {
-                        this.map3dElement.setAttribute('center', `${bounds.center.lat},${bounds.center.lng},0`);
-                        this.map3dElement.setAttribute('range', '650');
-                        this.map3dElement.setAttribute('tilt', '45');
+                        const dims = this.getParcelDimensionsAndRanges();
+                        const r = dims ? dims.rangeDetail : 450;
+                        const tilt = 65;
+                        const heading = 0;
+                        const targetCenter = (dims && dims.center) ? dims.center : bounds.center;
+                        const camTarget = (typeof this.getPerspectiveCameraTarget === 'function')
+                            ? this.getPerspectiveCameraTarget(targetCenter, heading, tilt, r)
+                            : targetCenter;
+                        const elev = (typeof camTarget.altitude === 'number') ? camTarget.altitude : (this.parcelElevation || 0);
+
+                        if (typeof this.map3dElement.stopCameraAnimation === 'function') {
+                            try { this.map3dElement.stopCameraAnimation(); } catch(e) {}
+                        }
+                        try {
+                            this.map3dElement.range = parseFloat(r);
+                            this.map3dElement.tilt = tilt;
+                            this.map3dElement.heading = heading;
+                            this.map3dElement.roll = 0;
+                            this.map3dElement.center = { lat: camTarget.lat, lng: camTarget.lng, altitude: elev };
+                        } catch(e) {}
+
+                        this.map3dElement.setAttribute('center', `${camTarget.lat},${camTarget.lng},${elev}`);
+                        this.map3dElement.setAttribute('range', r.toString());
+                        this.map3dElement.setAttribute('tilt', tilt.toString());
+                        this.map3dElement.setAttribute('heading', heading.toString());
+
+                        if (typeof this.getGroundElevation === 'function') {
+                            this.getGroundElevation(targetCenter.lat, targetCenter.lng).then(exactElev => {
+                                this.parcelElevation = exactElev;
+                                if (this.is3DActive && this.map3dElement) {
+                                    try {
+                                        this.map3dElement.center = { lat: camTarget.lat, lng: camTarget.lng, altitude: exactElev };
+                                        this.map3dElement.setAttribute('center', `${camTarget.lat},${camTarget.lng},${exactElev}`);
+                                    } catch(e) {}
+                                }
+                            }).catch(() => {});
+                        }
+
                         this.mount3DParcelPolygon(this.map3dElement);
                         return;
                     }
@@ -1651,7 +1950,8 @@
                 const bounds = this.parcelPolygon.getBounds();
                 if (bounds.isValid()) {
                     const safeMaxZoom = (this.activeLayer === 'esri_sat') ? 16 : 19;
-                    this.map.fitBounds(bounds, { padding: [45, 45], maxZoom: safeMaxZoom, animate: true, duration: 1.0 });
+                    this.map.invalidateSize();
+                    this.map.fitBounds(bounds, { padding: [50, 50], maxZoom: safeMaxZoom, animate: true, duration: 0.8 });
                 }
             }
         },
@@ -1750,22 +2050,22 @@
                 // 2. Dolgu
                 if (this.parcelFillMode !== 'nofill') {
                     const isNeon = !!this.parcelNeonEnabled;
-                    const neonColor = this.parcelNeonColor || '#00CEC9';
-                    let fillColor = '#ffffff';
+                    const neonColor = this.parcelNeonColor || '#ef4444';
+                    let fillColor = '#ef4444';
                     if (this.parcelFillMode === 'color') {
-                        fillColor = this.parcelFillColor || neonColor || '#f59e0b';
+                        fillColor = this.parcelFillColor || neonColor || '#ef4444';
                     } else if (this.parcelFillMode === 'neon') {
                         fillColor = neonColor;
                     }
-                    ctx.fillStyle = this.hexToRgba(fillColor, this.parcelFillOpacity !== undefined ? this.parcelFillOpacity : 0.40);
+                    ctx.fillStyle = this.hexToRgba(fillColor, this.parcelFillOpacity !== undefined ? this.parcelFillOpacity : 0.22);
                     ctx.fill();
                 }
 
                 // 3. Kenar Çizgisi (Vektörel net ve kaliteli)
                 const isNeon = !!this.parcelNeonEnabled;
-                const neonColor = this.parcelNeonColor || this.parcelStrokeColor || '#00CEC9';
-                const strokeColor = this.parcelStrokeColor || '#ffffff';
-                const baseWidth = this.parcelStrokeWidth || 3;
+                const neonColor = this.parcelNeonColor || this.parcelStrokeColor || '#ef4444';
+                const strokeColor = this.parcelStrokeColor || '#ef4444';
+                const baseWidth = this.parcelStrokeWidth || 3.5;
                 const strokeW = Math.max(1.8, baseWidth * scale * 0.75);
                 ctx.lineWidth = strokeW;
                 ctx.strokeStyle = strokeColor;
@@ -1998,9 +2298,9 @@
             if (typeof drawPaths === 'undefined') return;
 
             const isNeon = !!this.parcelNeonEnabled;
-            const neonColor = this.parcelNeonColor || '#00CEC9';
-            const strokeColor = this.parcelStrokeColor || '#ffffff';
-            const strokeWidth = Math.max(1, parseFloat(this.parcelStrokeWidth) || 3);
+            const neonColor = this.parcelNeonColor || '#ef4444';
+            const strokeColor = this.parcelStrokeColor || '#ef4444';
+            const strokeWidth = Math.max(1, parseFloat(this.parcelStrokeWidth) || 3.5);
             
             let fillColor = 'transparent';
             let fillOpacity = 0;
@@ -2008,11 +2308,11 @@
                 fillColor = 'transparent';
                 fillOpacity = 0;
             } else if (this.parcelFillMode === 'color') {
-                fillColor = this.parcelFillColor || '#f59e0b';
-                fillOpacity = this.parcelFillOpacity !== undefined ? this.parcelFillOpacity : 0.40;
+                fillColor = this.parcelFillColor || '#ef4444';
+                fillOpacity = this.parcelFillOpacity !== undefined ? this.parcelFillOpacity : 0.22;
             } else if (this.parcelFillMode === 'neon') {
                 fillColor = neonColor;
-                fillOpacity = this.parcelFillOpacity !== undefined ? this.parcelFillOpacity : 0.35;
+                fillOpacity = this.parcelFillOpacity !== undefined ? this.parcelFillOpacity : 0.22;
             } else {
                 // 'white' modu: Saf beyaz yarı saydam dolgu (neon açık olsa bile beyaz kalır)
                 fillColor = '#ffffff';

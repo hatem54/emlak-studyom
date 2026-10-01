@@ -44,17 +44,14 @@ function showTemplateColorModal() {
         }
     };
     
-    // Extract from DOM elements
-    document.querySelectorAll('#kolaj-wrapper *, #canvas-container *').forEach(el => {
-        // Ignore UI control elements
+    // Extract from targeted DOM elements (instant, avoids querying whole canvas subtree)
+    document.querySelectorAll('.callout-wrap, .callout-item, .co-neon-block, .canvas-el, .cvi-item, .canva-el, .added-icon, .svg-icon, .dynamic-box, .kolaj-cerceve, .editable-text, .editable-draw').forEach(el => {
         if(el.classList.contains('callout-select-border') || 
            el.classList.contains('callout-controls') || 
            el.classList.contains('callout-resizer') || 
            el.classList.contains('callout-rotator') || 
            el.classList.contains('text-handle') || 
-           el.classList.contains('text-lock-handle') || 
-           el.classList.contains('resize-handle') || 
-           el.classList.contains('rot-handle')) return;
+           el.classList.contains('kolaj-tutamac')) return;
 
         if(el.style && el.style.color) addColor(el.style.color);
         if(el.style && el.style.backgroundColor) addColor(el.style.backgroundColor);
@@ -62,12 +59,13 @@ function showTemplateColorModal() {
         if(el.getAttribute('fill')) addColor(el.getAttribute('fill'));
         if(el.getAttribute('stroke')) addColor(el.getAttribute('stroke'));
         
-        // Also check computed styles for specific elements only to avoid grabbing defaults
         if(el.classList.contains('callout-bg') || el.classList.contains('callout-text') || el.classList.contains('saber-text')) {
-            const style = window.getComputedStyle(el);
-            if(style.color) addColor(style.color);
-            if(style.backgroundColor) addColor(style.backgroundColor);
-            if(style.fill) addColor(style.fill);
+            try {
+                const style = window.getComputedStyle(el);
+                if(style.color) addColor(style.color);
+                if(style.backgroundColor) addColor(style.backgroundColor);
+                if(style.fill) addColor(style.fill);
+            } catch(e){}
         }
     });
     
@@ -114,10 +112,16 @@ function showTemplateColorModal() {
         return true;
     });
 
-    // Now filter out nested duplicates (e.g. an svg-icon inside a callout-wrapper or callout-wrap)
-    const topLevelElements = uniqueElements.filter(el => {
-        return !uniqueElements.some(parentEl => parentEl !== el && parentEl.contains(el));
+    // Fast O(N) deduplication of nested children using a parent Set
+    const parentSet = new Set();
+    uniqueElements.forEach(el => {
+        let p = el.parentElement;
+        while(p && p !== document.body) {
+            parentSet.add(p);
+            p = p.parentElement;
+        }
     });
+    const topLevelElements = uniqueElements.filter(el => !parentSet.has(el));
     
     topLevelElements.forEach((el, index) => {
         if(!el.id) el.id = 'tc_target_' + index + '_' + Date.now();
@@ -389,7 +393,16 @@ function showTemplateColorModal() {
     }
 
     // 4. Logic & Events
-    const closePanel = () => panel.remove();
+    let syncInterval = null;
+    let onMouseMove = null;
+    let onMouseUp = null;
+
+    const closePanel = () => {
+        if (syncInterval) clearInterval(syncInterval);
+        if (onMouseMove) document.removeEventListener('mousemove', onMouseMove);
+        if (onMouseUp) document.removeEventListener('mouseup', onMouseUp);
+        panel.remove();
+    };
     document.getElementById('tcCloseBtn').addEventListener('click', closePanel);
     
     // Toggle Background input
@@ -615,6 +628,23 @@ function showTemplateColorModal() {
     if (!isMobile && header) {
         let isDragging = false, startX, startY, initialLeft, initialTop;
 
+        onMouseMove = (e) => {
+            if(!isDragging) return;
+            const dx = e.clientX - startX;
+            const dy = e.clientY - startY;
+            panel.style.left = (initialLeft + dx) + 'px';
+            panel.style.top = (initialTop + dy) + 'px';
+        };
+
+        onMouseUp = () => {
+            if (isDragging) {
+                isDragging = false;
+                document.body.style.userSelect = '';
+                document.removeEventListener('mousemove', onMouseMove);
+                document.removeEventListener('mouseup', onMouseUp);
+            }
+        };
+
         header.addEventListener('mousedown', (e) => {
             if(e.target.id === 'tcCloseBtn' || e.target.closest('#tcCloseBtn')) return;
             isDragging = true;
@@ -623,24 +653,13 @@ function showTemplateColorModal() {
             initialLeft = panel.offsetLeft;
             initialTop = panel.offsetTop;
             document.body.style.userSelect = 'none';
-        });
-
-        document.addEventListener('mousemove', (e) => {
-            if(!isDragging) return;
-            const dx = e.clientX - startX;
-            const dy = e.clientY - startY;
-            panel.style.left = (initialLeft + dx) + 'px';
-            panel.style.top = (initialTop + dy) + 'px';
-        });
-
-        document.addEventListener('mouseup', () => {
-            isDragging = false;
-            document.body.style.userSelect = '';
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('mouseup', onMouseUp);
         });
     }
     
     // Highlight currently selected element in the list
-    const syncInterval = setInterval(() => {
+    syncInterval = setInterval(() => {
         if(!document.getElementById('proColorMatcherPanel')) {
             clearInterval(syncInterval);
             return;

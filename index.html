@@ -2,7 +2,9 @@
 <html lang="tr" data-theme="light">
 <head>
     <meta charset="UTF-8">
-    <link rel="icon" type="image/jpeg" href="assets/logo/logo-icon.png">
+    <link rel="apple-touch-icon" href="assets/logo/icon-192.png?v=2026">
+    <link rel="icon" type="image/png" href="assets/logo/favicon.png?v=2026">
+    <link rel="shortcut icon" href="assets/logo/favicon.ico?v=2026">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>EmlakStüdyom - Emlak Fotoğraf Düzenleme</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -53,8 +55,7 @@
     <nav class="navbar" id="navbar">
         <a href="index.html" class="logo">
           <img src="assets/logo/logo.png" 
-               alt="EmlakStüdyom" 
-               style="border-radius: 10px;">
+               alt="EmlakStüdyom">
         </a>
         <ul class="nav-links">
             <li><a href="#features">Özellikler</a></li>
@@ -100,9 +101,9 @@
     <section class="hero" style="min-height: 85vh; padding-top: 160px;">
         <div class="hero-content" style="align-items: center;">
             <div class="hero-left">
-                <div class="hero-badge" style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.2); color: #10b981;">
+                <div class="hero-badge" style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.25); color: #10b981;">
                     <span class="dot" style="background: #10b981;"></span>
-                    🎉 Beta Sürümü - Ücretsiz
+                    Beta Sürümü &bull; Ücretsiz Erişim
                 </div>
                 <h1 style="font-size: clamp(40px, 5vw, 68px); line-height: 1.1; margin-bottom: 24px;">
                     Emlak Fotoğraflarınızı<br>
@@ -112,17 +113,19 @@
                 <p class="hero-desc" style="font-size: 18px; color: #94a3b8; max-width: 90%; margin-bottom: 40px; line-height: 1.6;">
                     Fotoğraf düzenleme, yazı ekleme, şablon uygulama ve çıktı alma süreçlerinin tamamını tek bir yerden yönetin. Kayıt olmadan hemen deneyebilirsiniz.
                 </p>
-                                <div class="hero-actions">
+                <div class="hero-actions">
                     <button class="btn-hero btn-hero-primary" onclick="openModal('register')">
-                        <i class="fas fa-rocket"></i> Ücretsiz Başla
+                        <span>Ücretsiz Başla</span>
+                        <i class="fas fa-arrow-right"></i>
                     </button>
                     <button class="btn-hero btn-hero-secondary" onclick="goToDemo()">
-                        <i class="fas fa-play"></i> Demo İzle
+                        <i class="fas fa-play"></i>
+                        <span>Demoyu İncele</span>
                     </button>
                 </div>
                 <div style="font-size: 13px; color: #94a3b8; margin-top: 24px; display: flex; align-items: center; gap: 8px;">
-                    <span style="color: #f59e0b; font-size: 14px;">⭐⭐⭐⭐⭐</span> 
-                    <span>100+ emlakçı zaten kullanıyor</span>
+                    <span style="color: #f59e0b; font-size: 13px; letter-spacing: 2px;"><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i></span> 
+                    <span style="font-weight: 500;">500+ gayrimenkul danışmanı aktif kullanıyor</span>
                 </div>
             </div>
                         <div class="hero-visual">
@@ -265,21 +268,21 @@
                 </div>
             </div>
 
-            <!-- Kart 3: Akıllı İlan Metni Süzme 2.0 -->
+            <!-- Kart 3: Akıllı AI Danışmanı ve İlan Süzücü -->
             <div class="feature-card">
                 <div class="feature-card-top">
                     <div class="feature-card-header">
                         <div class="feature-icon purple"><i class="fas fa-wand-magic-sparkles"></i></div>
-                        <span class="feature-tag-badge purple"><i class="fas fa-bolt"></i> AI SÜZÜCÜ 2.0</span>
+                        <span class="feature-tag-badge purple"><i class="fas fa-bolt"></i> AI ASİSTAN &amp; SÜZÜCÜ</span>
                     </div>
                     <div class="feature-card-content">
-                        <h3>Akıllı İlan Metni Süzme</h3>
-                        <p>Sahibinden, Hepsiemlak, Emlakjet veya WhatsApp ilan metnini yapıştırın; Fiyat, m², Oda, Kat, İmar dahil 30+ veriyi saniyeler içinde şablona ve formlara aktarın.</p>
+                        <h3>Akıllı AI Danışmanı <span class="amp">&amp;</span> İlan Süzücü</h3>
+                        <p>Sahibinden veya WhatsApp ilan metnini yapıştırıp 30+ veriyi saniyeler içinde şablona dökün. Google Gemini AI danışmanıyla ilan metni, alıcı profili ve portföy stratejisi üretin.</p>
                     </div>
                 </div>
                 <div class="feature-card-visual-block">
                     <div class="feature-card-img-wrap">
-                        <img src="assets/features/feature-ai-parser.jpg" alt="Akıllı İlan Metni Süzme" loading="lazy" class="feature-card-img">
+                        <img src="assets/features/feature-ai-parser.jpg" alt="Akıllı AI Danışmanı ve İlan Süzücü" loading="lazy" class="feature-card-img">
                         <div class="feature-card-img-overlay"></div>
                     </div>
                     <div class="feature-visual feature-visual-parser">
@@ -287,12 +290,12 @@
                             <i class="fas fa-paste"></i>
                             <span>"Satılık 3+1 Daire 145m² 4.850.000 TL..."</span>
                         </div>
-                        <div class="fv-parser-arrow"><i class="fas fa-arrow-down"></i> Tek Tıkla 30+ Veri Ayrıştırıldı</div>
+                        <div class="fv-parser-arrow"><i class="fas fa-arrow-down"></i> AI Asistan &amp; 30+ Veri Ayrıştırıldı</div>
                         <div class="fv-chips-row">
                             <span class="fv-chip fv-chip-price">₺ 4.850.000</span>
-                            <span class="fv-chip">📐 145 m²</span>
-                            <span class="fv-chip">🛏️ 3+1</span>
-                            <span class="fv-chip">🏢 3. Kat</span>
+                            <span class="fv-chip"><i class="fas fa-ruler-combined"></i> 145 m²</span>
+                            <span class="fv-chip"><i class="fas fa-bed"></i> 3+1</span>
+                            <span class="fv-chip"><i class="fas fa-robot"></i> Gemini AI</span>
                         </div>
                     </div>
                 </div>
@@ -368,21 +371,21 @@
                 </div>
             </div>
 
-            <!-- Kart 6: Mimari Perspektif ve WebGL Stüdyo -->
+            <!-- Kart 6: Mimari Perspektif ve Sihirli Silgi -->
             <div class="feature-card">
                 <div class="feature-card-top">
                     <div class="feature-card-header">
                         <div class="feature-icon cyan"><i class="fas fa-camera-rotate"></i></div>
-                        <span class="feature-tag-badge cyan"><i class="fas fa-cube"></i> 3D HOMOGRAFİ</span>
+                        <span class="feature-tag-badge cyan"><i class="fas fa-wand-magic-sparkles"></i> SİHİRLİ SİLGİ &amp; 3D</span>
                     </div>
                     <div class="feature-card-content">
-                        <h3>Mimari Perspektif <span class="amp">&amp;</span> WebGL Stüdyo</h3>
-                        <p>Eğimli bina ve oda fotoğraflarını 32x32 mesh grid ile dikleştirin. Tek tıkla "Perspektifi Otomatik Sığdır", AI Gökyüzü / Zemin maskeleme ve 8-kanal HSL renk laboratuvarı.</p>
+                        <h3>Mimari Perspektif <span class="amp">&amp;</span> Sihirli Silgi</h3>
+                        <p>Eğimli oda ve bina çekimlerini 32x32 mesh homografi ile dikleştirin. Sihirli Silgi ile fotoğraftaki istenmeyen nesne, tabela, araba ve kişileri yapay zekayla tek hamlede temizleyin.</p>
                     </div>
                 </div>
                 <div class="feature-card-visual-block">
                     <div class="feature-card-img-wrap">
-                        <img src="assets/features/feature-perspective.jpg" alt="Mimari Perspektif ve WebGL Stüdyo" loading="lazy" class="feature-card-img">
+                        <img src="assets/features/feature-perspective.jpg" alt="Mimari Perspektif ve Sihirli Silgi" loading="lazy" class="feature-card-img">
                         <div class="feature-card-img-overlay"></div>
                     </div>
                     <div class="feature-visual feature-visual-perspective">
@@ -391,8 +394,8 @@
                             <span class="fv-autofit-btn"><i class="fas fa-expand-alt"></i> Otomatik Sığdır</span>
                         </div>
                         <div class="fv-persp-tools">
-                            <span class="fv-tool-pill"><i class="fas fa-arrows-up-down"></i> Dikey Eğim</span>
-                            <span class="fv-tool-pill"><i class="fas fa-brush"></i> Yerel Maske</span>
+                            <span class="fv-tool-pill"><i class="fas fa-wand-magic-sparkles"></i> Sihirli Silgi</span>
+                            <span class="fv-tool-pill"><i class="fas fa-cube"></i> Homografi</span>
                             <span class="fv-tool-pill"><i class="fas fa-sliders"></i> 8-Kanal HSL</span>
                         </div>
                     </div>
@@ -431,32 +434,32 @@
                 </div>
             </div>
 
-            <!-- Kart 8: 80+ Şablon ve Ultra HD 4K -->
+            <!-- Kart 8: Karusel Albüm ve 80+ Şablon -->
             <div class="feature-card">
                 <div class="feature-card-top">
                     <div class="feature-card-header">
                         <div class="feature-icon rose"><i class="fas fa-layer-group"></i></div>
-                        <span class="feature-tag-badge rose"><i class="fas fa-palette"></i> 80+ ŞABLON</span>
+                        <span class="feature-tag-badge rose"><i class="fas fa-palette"></i> KARUSEL &amp; 80+ ŞABLON</span>
                     </div>
                     <div class="feature-card-content">
-                        <h3>80+ Şablon <span class="amp">&amp;</span> Ultra HD (4K)</h3>
-                        <p>Klasik, Dinamik, Minimal ve Lüks stiller. Instagram Gönderi (1:1), Hikaye/Reels (9:16), Facebook (16:9), Portföy ve A4 Afiş formatlarında anında filigransız 4K çıktı.</p>
+                        <h3>Karusel Albüm <span class="amp">&amp;</span> 80+ Şablon</h3>
+                        <p>Instagram için çoklu sayfa kaydırmalı karusel albümleri hazırlayın. Kapak, oda, plan ve iletişim sayfalarını 80'den fazla lüks şablonla donatıp tek tıkla toplu ZIP veya 4K Ultra HD indirin.</p>
                     </div>
                 </div>
                 <div class="feature-card-visual-block">
                     <div class="feature-card-img-wrap">
-                        <img src="assets/features/feature-templates-4k.jpg" alt="80+ Emlak Şablonu ve Çoklu Format" loading="lazy" class="feature-card-img">
+                        <img src="assets/features/feature-templates-4k.jpg" alt="Karusel Albüm ve 80+ Emlak Şablonu" loading="lazy" class="feature-card-img">
                         <div class="feature-card-img-overlay"></div>
                     </div>
                     <div class="feature-visual feature-visual-formats">
                         <div class="fv-format-grid">
-                            <span class="fv-fmt active">1:1 Kare</span>
-                            <span class="fv-fmt">9:16 Dikey</span>
-                            <span class="fv-fmt">16:9 Yatay</span>
+                            <span class="fv-fmt active">Karusel</span>
+                            <span class="fv-fmt">1:1 Kare</span>
+                            <span class="fv-fmt">9:16 Reels</span>
                             <span class="fv-fmt">A4 Afiş</span>
                         </div>
                         <div class="fv-format-footer">
-                            <span><i class="fas fa-check-double"></i> 80+ Şablon Kataloğu</span>
+                            <span><i class="fas fa-images"></i> Karusel Albüm &amp; 80+ Şablon</span>
                             <span class="fv-quality-pill"><i class="fas fa-sparkles"></i> 4K Ultra HD</span>
                         </div>
                     </div>
@@ -508,41 +511,48 @@
                 <div class="ba-slider-container" id="baSlider" style="user-select: none; -webkit-user-select: none;">
                                                             <div class="ba-image ba-before">
                         <span class="label" style="position: absolute; top: 20px; left: 20px; background: white; color: black; padding: 6px 14px; border-radius: 8px; font-weight: bold; font-size: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); z-index: 10;">ÖNCE</span>
-                        <div style="position: absolute; top:0; left:0; width:100%; height:100%; background: url('assets/horizontal_interior.jpg') center/cover !important;"></div>
+                        <div style="position: absolute; top:0; left:0; width:100%; height:100%; background: url('assets/bodrum_luxury_villa.jpg') center/cover !important;"></div>
                     </div>
                     <div class="ba-image ba-after" id="baAfter">
                         <span class="label" style="position: absolute; top: 20px; right: 20px; background: white; color: black; padding: 6px 14px; border-radius: 8px; font-weight: bold; font-size: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); z-index: 10;">SONRA</span>
                         
-                        <div style="position: absolute; top:0; left:0; width:100%; height:100%; background: url('assets/horizontal_interior.jpg') center/cover !important;">
+                        <div style="position: absolute; top:0; left:0; width:100%; height:100%; background: url('assets/bodrum_luxury_villa.jpg') center/cover !important;">
                             
+                            <!-- Üst Yetkili Rozeti -->
+                            <div style="position: absolute; top: 20px; right: 95px; background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); color: #ffffff; padding: 6px 14px; border-radius: 8px; font-weight: 700; font-size: 11px; border: 1px solid rgba(0, 206, 201, 0.35); z-index: 10; display: flex; align-items: center; gap: 6px;">
+                                <i class="fas fa-certificate" style="color:#00CEC9;"></i> TEK YETKİLİ PORTFÖY
+                            </div>
+
                             <!-- Sidebar Template Overlay -->
                             <div class="demo-sidebar-template">
-                                <div class="demo-badge">KİRALIK</div>
-                                <div class="demo-price">₺45.000<span class="demo-price-sub">/ay</span></div>
-                                <div class="demo-location"><i class="fas fa-map-marker-alt" style="color: #00CEC9;"></i> Miami, Florida</div>
+                                <div class="demo-badge">SATILIK LÜKS VİLLA</div>
+                                <div class="demo-price">₺65.000.000</div>
+                                <div class="demo-location"><i class="fas fa-map-marker-alt" style="color: #00CEC9;"></i> Bodrum, Yalıkavak Marina</div>
                                 
                                 <div class="demo-features-list">
                                     <div class="demo-feature-item">
-                                        <div class="demo-feature-icon"><i class="fas fa-bed"></i></div>
-                                        <span class="demo-feature-text">3 Yatak Odası</span>
+                                        <div class="demo-feature-icon"><i class="fas fa-gem" style="color: #00CEC9;"></i></div>
+                                        <span class="demo-feature-text">6+2 Özel Mimari Villa</span>
                                     </div>
                                     <div class="demo-feature-item">
-                                        <div class="demo-feature-icon"><i class="fas fa-bath"></i></div>
-                                        <span class="demo-feature-text">2 Banyo</span>
+                                        <div class="demo-feature-icon"><i class="fas fa-ruler-combined" style="color: #00CEC9;"></i></div>
+                                        <span class="demo-feature-text">650 m² Müstakil Parsel</span>
                                     </div>
                                     <div class="demo-feature-item">
-                                        <div class="demo-feature-icon"><i class="fas fa-swimming-pool"></i></div>
-                                        <span class="demo-feature-text">Deniz Manzaralı</span>
+                                        <div class="demo-feature-icon"><i class="fas fa-water" style="color: #00CEC9;"></i></div>
+                                        <span class="demo-feature-text">Sonsuzluk Havuzu ve İskele</span>
                                     </div>
                                 </div>
                             </div>
                             
                             <!-- Floating Agent Card -->
                             <div class="demo-agent-card">
-                                <div class="demo-agent-avatar"><i class="fas fa-user-tie"></i></div>
+                                <div class="demo-agent-avatar" style="background: none; display: flex; align-items: center; justify-content: center; overflow: hidden;">
+                                    <img src="assets/logo/kurumsal_logo_paketi/emlak_studyom_icon_only.png" alt="Logo" style="width: 28px; height: auto;">
+                                </div>
                                 <div class="demo-agent-info">
                                     <div class="demo-agent-name">Emlak Stüdyom</div>
-                                    <div class="demo-agent-title">Kurumsal Danışman</div>
+                                    <div class="demo-agent-title">Lüks Konut Danışmanlığı</div>
                                 </div>
                                 <div class="demo-agent-action"><i class="fab fa-whatsapp"></i></div>
                             </div>
@@ -734,124 +744,74 @@
             <p class="section-desc" style="max-width: 600px; margin: 0 auto;">Beta döneminde tüm özellikler ücretsiz! Kayıt olan herkes şimdilik Pro'yu kullanabilir.</p>
         </div>
         
-        <div class="pricing-grid" style="align-items: center; margin-top: 40px;">
+        <div class="pricing-grid" style="margin-top: 36px;">
             <!-- KART 1: ÜCRETSİZ -->
-            <div class="pricing-card" style="border-top: 4px solid #f59e0b;">
-                <div style="color: #f59e0b; font-weight: bold; font-size: 14px; margin-bottom: 8px;">🟡 Hemen Dene</div>
-                <div class="pricing-plan-name">ÜCRETSİZ</div>
-                <div class="pricing-plan-desc">Kayıt gerekmez</div>
-                <div class="pricing-amount">
-                    <span class="pricing-price" style="font-size: 42px;">0 TL</span>
+            <div class="pricing-card" style="border-top: 3px solid #f59e0b;">
+                <div>
+                    <div style="color: #f59e0b; font-weight: 700; font-size: 11.5px; letter-spacing: 0.8px; text-transform: uppercase; margin-bottom: 6px;"><i class="fas fa-bolt" style="margin-right: 4px;"></i> Başlangıç</div>
+                    <div class="pricing-plan-name">ÜCRETSİZ</div>
+                    <div class="pricing-plan-desc">Kayıt olmadan stüdyoyu keşfedin</div>
+                    <div class="pricing-amount">
+                        <span class="pricing-price">0 TL</span>
+                    </div>
+                    <ul class="pricing-features">
+                        <li><i class="fas fa-check" style="color:#10b981;"></i> 3 temel afiş şablonu</li>
+                        <li><i class="fas fa-check" style="color:#10b981;"></i> Fotoğraf düzenleme ve rozetler</li>
+                        <li><i class="fas fa-check" style="color:#10b981;"></i> Harita arama ve konum işaretleme</li>
+                        <li><i class="fas fa-check" style="color:#10b981;"></i> Sınırsız tasarım oluşturma</li>
+                        <li><i class="fas fa-droplet" style="color:#3b82f6;"></i> Standart çıktı ve marka filigranı</li>
+                        <li class="disabled"><i class="fas fa-xmark"></i> 3B Uydu ve TKGM kilitli</li>
+                    </ul>
                 </div>
-                <ul class="pricing-features">
-                    <li><i class="fas fa-check" style="color:#10b981;"></i> 3 temel şablon (Klasik, Dinamik, Minimal)</li>
-                    <li><i class="fas fa-check" style="color:#10b981;"></i> Callout ve ikon kütüphanesi</li>
-                    <li><i class="fas fa-check" style="color:#10b981;"></i> Temel düzenleme araçları</li>
-                    <li><i class="fas fa-check" style="color:#10b981;"></i> Sınırsız kullanım</li>
-                    <li><i class="fas fa-droplet" style="color:#3b82f6;"></i> Watermark var</li>
-                    <li><i class="fas fa-arrow-trend-down" style="color:#f59e0b;"></i> Max 720p export</li>
-                    <li class="disabled"><i class="fas fa-xmark"></i> Neon efektleri kilitli</li>
-                </ul>
-                <button class="btn-pricing outline" style="border-color:#f59e0b; color:#f59e0b;" onclick="goToDemo()" onmouseover="this.style.background='#f59e0b'; this.style.color='#fff';" onmouseout="this.style.background='transparent'; this.style.color='#f59e0b';">🚀 Hemen Dene</button>
+                <button class="btn-pricing outline" style="border-color: rgba(245, 158, 11, 0.4); color: #f59e0b;" onclick="goToDemo()"><span>Demoyu Başlat</span> <i class="fas fa-arrow-right" style="font-size: 11px; margin-left: 6px;"></i></button>
             </div>
             
             <!-- KART 2: PRO BETA -->
             <div class="pricing-card featured">
-                <div class="popular-badge" style="background: linear-gradient(135deg, #3b82f6, #8b5cf6);">⭐ EN POPÜLER</div>
-                <div style="color: #8b5cf6; font-weight: 800; font-size: 16px; margin-bottom: 8px;">🎉 BETA - ŞİMDİ ÜCRETSİZ</div>
-                <div class="pricing-plan-name">PRO</div>
-                <div class="pricing-plan-desc">Beta döneminde kayıt ol, tüm özellikleri ücretsiz kullan</div>
-                <div class="pricing-amount" style="margin: 15px 0;">
-                    <span class="pricing-price" style="font-size: 42px; background: linear-gradient(135deg, #3b82f6, #8b5cf6); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">ÜCRETSİZ</span>
+                <div class="popular-badge"><i class="fas fa-crown" style="font-size: 10px; margin-right: 4px;"></i> EN POPÜLER</div>
+                <div>
+                    <div style="color: #00CEC9; font-weight: 800; font-size: 11.5px; letter-spacing: 0.8px; text-transform: uppercase; margin-bottom: 6px;"><i class="fas fa-sparkles" style="margin-right: 4px;"></i> BETA DÖNEMİ ÖZEL</div>
+                    <div class="pricing-plan-name">PRO</div>
+                    <div class="pricing-plan-desc">Beta sürecinde kayıt olanlara tamamen ücretsiz</div>
+                    <div class="pricing-amount">
+                        <span class="pricing-price" style="background: linear-gradient(135deg, #00CEC9, #38bdf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">ÜCRETSİZ</span>
+                    </div>
+                    <ul class="pricing-features">
+                        <li><i class="fas fa-check" style="color:#00CEC9;"></i> <strong>3B Canlı Uydu</strong> ve Google 3D Tiles</li>
+                        <li><i class="fas fa-check" style="color:#00CEC9;"></i> <strong>TKGM Resmi Parsel</strong> ve KML sorgu</li>
+                        <li><i class="fas fa-check" style="color:#00CEC9;"></i> <strong>Canlı AI Danışmanı</strong> ve Metin Süzücü</li>
+                        <li><i class="fas fa-check" style="color:#00CEC9;"></i> <strong>Karusel Albüm</strong> ve 80+ Şablon</li>
+                        <li><i class="fas fa-check" style="color:#00CEC9;"></i> <strong>Sihirli Silgi</strong> ve Mimari Perspektif</li>
+                        <li><i class="fas fa-check" style="color:#00CEC9;"></i> <strong>4K Ultra HD İndirme</strong> ve Filigransız</li>
+                    </ul>
                 </div>
-                <ul class="pricing-features">
-                    <li><i class="fas fa-check" style="color:#10b981;"></i> <strong>3B Haritalar <span class="amp">&amp;</span> Canlı Uydu</strong> (Google 3D Tiles <span class="amp">&amp;</span> Esri HD)</li>
-                    <li><i class="fas fa-check" style="color:#10b981;"></i> <strong>TKGM Kadastro Parsel <span class="amp">&amp;</span> KML/KMZ</strong> (Resmi rozetler)</li>
-                    <li><i class="fas fa-check" style="color:#10b981;"></i> <strong>Akıllı İlan Metni Süzme 2.0</strong> (Sahibinden <span class="amp">&amp;</span> WhatsApp)</li>
-                    <li><i class="fas fa-check" style="color:#10b981;"></i> <strong>AI Nöral Seslendirme Stüdyosu</strong> (.MP3 ses indirme)</li>
-                    <li><i class="fas fa-check" style="color:#10b981;"></i> <strong>Mimari Perspektif <span class="amp">&amp;</span> WebGL Stüdyo</strong> (3D eğim <span class="amp">&amp;</span> sığdır)</li>
-                    <li><i class="fas fa-check" style="color:#10b981;"></i> <strong>Kolay Çokgen Çizim <span class="amp">&amp;</span> 20 Yön Oku</strong> (Manyetik Snap)</li>
-                    <li><i class="fas fa-check" style="color:#10b981;"></i> <strong>Tüm 80+ Şablon <span class="amp">&amp;</span> Neon Işık Efektleri</strong></li>
-                    <li><i class="fas fa-check" style="color:#10b981;"></i> <strong>Ultra HD (4K) İndirme <span class="amp">&amp;</span> Watermark YOK</strong></li>
-                    <li><i class="fas fa-check" style="color:#10b981;"></i> <strong>Tüm Formatlar (1:1, 9:16 Reels, 16:9, A4)</strong></li>
-                    <li><i class="fas fa-check" style="color:#10b981;"></i> <strong>Sınırsız Kullanım <span class="amp">&amp;</span> Öncelikli Destek</strong></li>
-                </ul>
-                <button class="btn-pricing filled" style="background: linear-gradient(135deg, #3b82f6, #8b5cf6); border:none;" onclick="openModal('register')">✨ Ücretsiz Kayıt Ol</button>
+                <button class="btn-pricing btn-pricing-pro" onclick="openModal('register')"><span>Pro İle Başla</span> <i class="fas fa-arrow-right" style="font-size: 11px; margin-left: 6px;"></i></button>
             </div>
             
             <!-- KART 3: PREMIUM -->
-            <div class="pricing-card" style="border-top: 4px solid #ec4899; opacity: 0.9;">
-                <div style="color: #ec4899; font-weight: bold; font-size: 14px; margin-bottom: 8px;">🔜 Yakında</div>
-                <div class="pricing-plan-name">PREMIUM</div>
-                <div class="pricing-plan-desc">Profesyonel emlakçılar için</div>
-                <div class="pricing-amount">
-                    <span class="pricing-price" style="font-size: 24px; color: #94a3b8;">Yakında Açıklanacak</span>
+            <div class="pricing-card" style="border-top: 3px solid #64748b; opacity: 0.9;">
+                <div>
+                    <div style="color: #94a3b8; font-weight: 700; font-size: 11.5px; letter-spacing: 0.8px; text-transform: uppercase; margin-bottom: 6px;"><i class="fas fa-clock" style="margin-right: 4px;"></i> Çok Yakında</div>
+                    <div class="pricing-plan-name">PREMIUM</div>
+                    <div class="pricing-plan-desc">Büyük gayrimenkul ofisleri ve ekipler için</div>
+                    <div class="pricing-amount">
+                        <span class="pricing-price" style="font-size: 24px; color: #94a3b8;">Yakında</span>
+                    </div>
+                    <ul class="pricing-features">
+                        <li><i class="fas fa-check" style="color:#10b981;"></i> Pro planın tüm özellikleri</li>
+                        <li><i class="fas fa-check" style="color:#10b981;"></i> Otomatik toplu ilan işleme</li>
+                        <li><i class="fas fa-check" style="color:#10b981;"></i> AI çoklu görsel netleştirme</li>
+                        <li><i class="fas fa-check" style="color:#10b981;"></i> 5 kullanıcılı emlak ofis hesabı</li>
+                        <li><i class="fas fa-check" style="color:#10b981;"></i> Detaylı portföy analizleri</li>
+                        <li><i class="fas fa-check" style="color:#10b981;"></i> Öncelikli WhatsApp destek hattı</li>
+                    </ul>
                 </div>
-                <ul class="pricing-features">
-                    <li><i class="fas fa-check" style="color:#10b981;"></i> Pro'nun tüm özellikleri</li>
-                    <li><i class="fas fa-robot" style="color:#ec4899;"></i> AI destekli düzenleme</li>
-                    <li><i class="fas fa-layer-group" style="color:#ec4899;"></i> Toplu işlem (Batch processing)</li>
-                    <li><i class="fas fa-video" style="color:#ec4899;"></i> Video export</li>
-                    <li><i class="fas fa-users" style="color:#ec4899;"></i> Ekip hesabı (5 kullanıcı)</li>
-                    <li><i class="fas fa-chart-line" style="color:#ec4899;"></i> Detaylı istatistikler</li>
-                    <li><i class="fas fa-bolt" style="color:#ec4899;"></i> Öncelikli destek (WhatsApp)</li>
-                </ul>
-                <button class="btn-pricing outline" style="border-color:#ec4899; color:#ec4899; cursor: not-allowed; opacity: 0.7;" disabled>📧 Haber Ver</button>
+                <button class="btn-pricing outline" style="border-color: rgba(255,255,255,0.15); color: #94a3b8; cursor: not-allowed;" disabled><i class="fas fa-bell" style="margin-right: 6px;"></i> Bekleme Listesi</button>
             </div>
         </div>
         
         <div class="pricing-beta-notice">
             <p>💡 <strong>Bilgi:</strong> Beta dönemi 3-6 ay sürecek. Bu süre içinde kayıtlı tüm kullanıcılar Pro özelliklerini ücretsiz kullanır. İleride ücretlendirme başladığında mevcut kullanıcılara özel indirim uygulanacak.</p>
-        </div>
-    </section>
-
-    <!-- Testimonials -->
-    <section class="section" id="testimonials">
-        <div class="section-header">
-            <div class="section-label"><i class="fas fa-heart"></i> Yorumlar</div>
-            <h2 class="section-title">Kullanıcılarımız Ne Diyor?</h2>
-            <p class="section-desc">Binlerce emlak profesyonelinin tercihi</p>
-        </div>
-        <div class="testimonials-grid">
-            <div class="testimonial-card">
-                <div class="testimonial-stars">
-                    <i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i>
-                </div>
-                <p class="testimonial-text">"İlanlarımın görüntülenme oranı %40 arttı. Gökyüzü değiştirme özelliği tek başına abonelik ücretini karşılıyor."</p>
-                <div class="testimonial-author">
-                    <div class="testimonial-avatar">AK</div>
-                    <div>
-                        <div class="testimonial-name">Ahmet Kaya</div>
-                        <div class="testimonial-role">Emlak Danışmanı, İstanbul</div>
-                    </div>
-                </div>
-            </div>
-            <div class="testimonial-card">
-                <div class="testimonial-stars">
-                    <i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i>
-                </div>
-                <p class="testimonial-text">"Sanal mobilya özelliği harika! Boş daireleri mobilyalı göstermek satış süresini yarıya indirdi."</p>
-                <div class="testimonial-author">
-                    <div class="testimonial-avatar">SY</div>
-                    <div>
-                        <div class="testimonial-name">Selin Yılmaz</div>
-                        <div class="testimonial-role">Gayrimenkul Ofis Sahibi, Ankara</div>
-                    </div>
-                </div>
-            </div>
-            <div class="testimonial-card">
-                <div class="testimonial-stars">
-                    <i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i><i class="fas fa-star"></i>
-                </div>
-                <p class="testimonial-text">"Profesyonel fotoğrafçıya ödediğimin 1/10'una aynı kalitede sonuçlar alıyorum. Kesinlikle tavsiye ederim."</p>
-                <div class="testimonial-author">
-                    <div class="testimonial-avatar">MÖ</div>
-                    <div>
-                        <div class="testimonial-name">Mehmet Özdemir</div>
-                        <div class="testimonial-role">Emlak Yatırımcısı, İzmir</div>
-                    </div>
-                </div>
-            </div>
         </div>
     </section>
 
@@ -932,10 +892,12 @@
             <p>7 gün ücretsiz deneyin. Kredi kartı gerekmez.</p>
             <div class="cta-buttons">
                 <button class="btn-hero btn-hero-primary" onclick="openModal('register')">
-                    <i class="fas fa-rocket"></i> Ücretsiz Dene
+                    <span>Ücretsiz Başla</span>
+                    <i class="fas fa-arrow-right"></i>
                 </button>
                 <button class="btn-hero btn-hero-secondary" onclick="goToDemo()">
-                    <i class="fas fa-calendar"></i> Demo Talep Et
+                    <i class="fas fa-play"></i>
+                    <span>Demoyu İncele</span>
                 </button>
             </div>
         </div>
@@ -948,8 +910,7 @@
                 <a href="index.html" class="logo">
                   <img src="assets/logo/logo.png" 
                        alt="EmlakStüdyom" 
-                       height="80"
-                       style="border-radius: 6px;">
+                       height="80">
                 </a>
                 <p>Emlak Tasarım Stüdyosu, profesyoneller için yapay zeka destekli fotoğraf ve şablon oluşturma platformudur. İlanlarınızı saniyeler içinde stüdyo kalitesine taşıyın.</p>
                 <div class="footer-social">
@@ -1295,7 +1256,7 @@
             });
         }, observerOptions);
 
-        document.querySelectorAll('.feature-card, .step-card, .pricing-card, .testimonial-card, .faq-item').forEach(el => {
+        document.querySelectorAll('.feature-card, .step-card, .pricing-card, .faq-item').forEach(el => {
             el.style.opacity = '0';
             if (el.classList.contains('featured')) {
                 el.style.transform = 'scale(1.05) translateY(30px)';

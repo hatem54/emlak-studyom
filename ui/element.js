@@ -39,11 +39,20 @@ function loadElSettings(el){
     $('elHeightVal').textContent=hasH?parseInt(el.style.height)+'px':'Otomatik';
     $('elTextColor').value=rgbToHex(cs.color);
     
-    // Eğer elemanın özel bir arkaplanı tanımlanmamışsa (şablon yazısı vb.), şeffaf (0) kabul et.
-    $('elBgColor').value=el.dataset.storedBgHex||'#000000';
-    const bgOp=el.dataset.storedBgOpacity !== undefined ? el.dataset.storedBgOpacity : 0;
-    $('elBgOpacity').value=bgOp;
-    $('elBgOpacityVal').textContent=bgOp+'%';
+    // Eğer elemanın özel bir arkaplanı tanımlanmamışsa, hesaplanan renge bak
+    let curBgHex = el.dataset.storedBgHex;
+    let curBgOp = el.dataset.storedBgOpacity;
+    if (!curBgHex && cs.backgroundColor && cs.backgroundColor !== 'transparent' && cs.backgroundColor !== 'rgba(0, 0, 0, 0)') {
+        const rgbMatch = cs.backgroundColor.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/);
+        if (rgbMatch) {
+            curBgHex = rgbToHex(cs.backgroundColor);
+            curBgOp = rgbMatch[4] !== undefined ? Math.round(parseFloat(rgbMatch[4]) * 100) : 100;
+        }
+    }
+    $('elBgColor').value = curBgHex || '#000000';
+    const bgOp = curBgOp !== undefined ? curBgOp : 0;
+    $('elBgOpacity').value = bgOp;
+    $('elBgOpacityVal').textContent = bgOp + '%';
     $('elOpacity').value=Math.round((parseFloat(cs.opacity)||1)*100);
     $('elOpacityVal').textContent=Math.round((parseFloat(cs.opacity)||1)*100)+'%';
     $('elRotate').value=parseInt(el.dataset.rotation)||0;
@@ -105,11 +114,15 @@ function applyElSettings(){
             el.style.pointerEvents = '';
         }
 
-        const rgb=hexToRgb(bc);
         if (!el.classList.contains('editable-draw')) {
-            el.style.background='rgba('+rgb.r+','+rgb.g+','+rgb.b+','+(bo/100)+')';
-            el.dataset.storedBgHex=bc;
-            el.dataset.storedBgOpacity=bo;
+            // SADECE kullanıcı arkaplan rengini veya saydamlığını değiştirdiyse arkaplanı güncelle!
+            // Bu sayede yazı boyutu değiştirildiğinde standart şablon pencerelerinin renkleri ve gradyanları bozulmaz.
+            if (window._activeElSettingProp === 'bg' || el.dataset.storedBgModified === 'true') {
+                const rgb=hexToRgb(bc);
+                el.style.background='rgba('+rgb.r+','+rgb.g+','+rgb.b+','+(bo/100)+')';
+                el.dataset.storedBgHex=bc;
+                el.dataset.storedBgOpacity=bo;
+            }
         }
         el.dataset.rotation=rot;
         const currentScale = el.dataset.scale || 1; 
@@ -151,8 +164,22 @@ function applyElSettings(){
         el.dataset.storedTextStrokeColor=tsc;
         el.dataset.storedTextStrokeWidth=tsw;
         el.style.webkitTextStroke=+tsw>0?tsw+'px '+tsc:'';
-        if(+w>0){ el.style.width=w+'px'; }
-        if(+h>0){ el.style.height=h+'px'; }
+        if (!el.classList.contains('editable-draw')) {
+            if (+w > 0) {
+                if (window.getComputedStyle(el).display === 'inline') el.style.display = 'inline-block';
+                el.style.width = w + 'px';
+                el.style.maxWidth = 'none';
+            } else if (w === '0') {
+                el.style.width = 'auto';
+            }
+            if (+h > 0) {
+                if (window.getComputedStyle(el).display === 'inline') el.style.display = 'inline-block';
+                el.style.height = h + 'px';
+                el.style.maxHeight = 'none';
+            } else if (h === '0') {
+                el.style.height = 'auto';
+            }
+        }
         
         if(el.dataset.saberActive === 'true' && typeof applyTextSaberOpts === 'function') { setTimeout(applyTextSaberOpts, 10); }
     });
@@ -171,13 +198,28 @@ function applyElSettings(){
     if($('elTextStrokeWidthVal')) $('elTextStrokeWidthVal').textContent=tsw+'px';
 }
 
+let _applyElSettingsRaf = null;
 function bindElSettings(){
     const ids=['elFontSize','elPadding','elWidth','elHeight','elTextColor','elBgColor','elBgOpacity','elOpacity','elRotate','elRadius','elShadow','elBlur','elBorderColor','elBorderWidth','elTextStrokeColor','elTextStrokeWidth'];
     ids.forEach(id=>{
-        $(id).addEventListener('input',function(){
-            if(window._loadingElSettings)return;
-            if(selectedEl && selectedEl.dataset.editingText)return;
-            applyElSettings();
+        const inputEl = $(id);
+        if(!inputEl) return;
+        inputEl.addEventListener('input', function(){
+            if(window._loadingElSettings) return;
+            if(selectedEl && selectedEl.dataset.editingText) return;
+
+            if (id === 'elBgColor' || id === 'elBgOpacity') {
+                window._activeElSettingProp = 'bg';
+                if(selectedEl) selectedEl.dataset.storedBgModified = 'true';
+            } else {
+                window._activeElSettingProp = null;
+            }
+
+            if (_applyElSettingsRaf) cancelAnimationFrame(_applyElSettingsRaf);
+            _applyElSettingsRaf = requestAnimationFrame(() => {
+                _applyElSettingsRaf = null;
+                applyElSettings();
+            });
         });
     });
 }
@@ -219,30 +261,21 @@ function resetElSettings(){
     }
 }
 
+function hasImageOnCanvas() {
+    if (typeof uploadedImgUrl !== 'undefined' && uploadedImgUrl && uploadedImgUrl !== '') return true;
+    if (typeof window.uploadedImgUrl !== 'undefined' && window.uploadedImgUrl) return true;
+    const pl = document.getElementById('photo-layer');
+    if (pl && pl.style.backgroundImage && pl.style.backgroundImage !== 'none' && pl.style.backgroundImage !== '') return true;
+    const panel = document.querySelector('.photo-panel');
+    if (panel && ((panel.style.backgroundImage && panel.style.backgroundImage !== 'none') || panel.querySelector('img'))) return true;
+    return false;
+}
+
 function addCustomTextBox(){
-    if (window.ThreeDEngine && typeof window.ThreeDEngine.isActive === 'function' && window.ThreeDEngine.isActive()) {
-        if (typeof window.ThreeDEngine.add3DElementFromData === 'function') {
-            window.ThreeDEngine.add3DElementFromData({
-                name: 'Çerçeveli Metin',
-                elementType: 'badge_card',
-                shapeMode: 'card',
-                text: 'ÖZEL METİN VEYA BAŞLIK',
-                badgeBgColor: '#ffffff',
-                frontColor: '#000000',
-                sideColor: '#94a3b8',
-                selectedIconId: 'none',
-                show3DText: false,
-                orientation: 'standing'
-            });
-            if (typeof window.showToast === 'function') window.showToast('3D Çerçeveli Metin eklendi', 'success');
-            return;
-        }
-    }
     const el=document.createElement('div');
-    el.className='draggable canvas-el';
+    el.className='draggable canvas-el custom-text-box';
     el.textContent='ÖZEL METİN VEYA BAŞLIK';
     el.dataset.label='Özel Kutu';
-    el.dataset.defaultFont='36';
     el.dataset.rotation='0';
     el.dataset.shadowVal='10';
     el.dataset.blurVal='0';
@@ -250,52 +283,65 @@ function addCustomTextBox(){
     el.dataset.storedBgOpacity='90';
     el.dataset.storedBorderColor='#000000';
     el.dataset.storedBorderWidth='2';
+    
     const cContainer = document.getElementById('canvas-container');
     const cW = (cContainer && parseFloat(cContainer.style.width)) || (cContainer && cContainer.offsetWidth) || (typeof uploadedImgW !== 'undefined' && uploadedImgW > 0 ? uploadedImgW : 1920);
     const cH = (cContainer && parseFloat(cContainer.style.height)) || (cContainer && cContainer.offsetHeight) || (typeof uploadedImgH !== 'undefined' && uploadedImgH > 0 ? uploadedImgH : 1080);
-    const posX = Math.max(20, Math.round((cW - 380) / 2));
-    const posY = Math.max(20, Math.round((cH - 80) / 2) - 40);
+    
+    const hasImg = hasImageOnCanvas();
+    const baseFontSize = hasImg ? Math.max(56, Math.min(110, Math.round(cW * 0.035))) : Math.max(36, Math.min(80, Math.round(cW * 0.025)));
+    
+    el.dataset.defaultFont = baseFontSize.toString();
+    el.style.fontSize = baseFontSize + 'px';
+    el.style.padding = '20px 30px';
+    el.style.borderRadius = '12px';
+    el.style.background = 'rgba(255,255,255,0.9)';
+    el.style.color = '#000000';
+    el.style.border = '2px solid #000000';
+    el.style.boxShadow = '0 10px 20px rgba(0,0,0,0.5)';
+    el.style.zIndex = '9999';
+    
+    const fontToUse = (typeof currentFont !== 'undefined' && currentFont) ? currentFont : "'Archivo Black',sans-serif";
+    el.style.fontFamily = fontToUse;
+
+    const estW = Math.min(cW - 60, Math.round(baseFontSize * 11));
+    const estH = Math.round(baseFontSize * 2.2);
+    const posX = Math.max(20, Math.round((cW - estW) / 2));
+    const posY = Math.max(20, Math.round((cH - estH) / 2) - 40);
     el.style.left = posX + 'px';
     el.style.top = posY + 'px';
-    el.style.fontSize='36px';
-    el.style.padding='20px 30px';
-    el.style.borderRadius='12px';
-    el.style.background='rgba(255,255,255,0.9)';
-    el.style.color='#000000';
-    el.style.border='2px solid #000000';
-    el.style.boxShadow='0 10px 20px rgba(0,0,0,0.5)';
-    el.style.zIndex='9999';
-    el.style.fontFamily=currentFont;
+
     uiLayer.appendChild(el);
+    if(window.CanvasEmptyState && typeof window.CanvasEmptyState.dismiss === 'function') {
+        window.CanvasEmptyState.dismiss();
+    } else {
+        const es = document.getElementById('canvasEmptyState');
+        if (es) { es.classList.add('is-hidden'); es.style.display = 'none'; }
+    }
+    const cContBox = document.getElementById('canvas-container');
+    if (cContBox) cContBox.style.backgroundColor = '#ffffff';
+    const pLayBox = document.getElementById('photo-layer');
+    if (pLayBox && (!pLayBox.style.backgroundImage || pLayBox.style.backgroundImage === 'none')) {
+        pLayBox.style.backgroundColor = '#ffffff';
+    }
     if(typeof window.renderLayers === 'function') window.renderLayers();
     bindDrag(el);
     enableInlineEdit(el);
     if(typeof isCanvaMode!=='undefined' && isCanvaMode)canvaOverlays.push(el);
     if(typeof window.recordHistory === 'function') window.recordHistory('Çerçeveli Metin eklendi');
     if(typeof window.requestAutoSave === 'function') window.requestAutoSave();
+    if(typeof selectElement === 'function') {
+        selectElement(el);
+    } else if(typeof window.selectElement === 'function') {
+        window.selectElement(el);
+    }
 }
 
 function addCustomTextOnly(){
-    if (window.ThreeDEngine && typeof window.ThreeDEngine.isActive === 'function' && window.ThreeDEngine.isActive()) {
-        if (typeof window.ThreeDEngine.add3DElementFromData === 'function') {
-            window.ThreeDEngine.add3DElementFromData({
-                name: '3D Metin',
-                elementType: 'text',
-                text: 'SERBEST YAZI',
-                frontColor: '#000000',
-                sideColor: '#94a3b8',
-                show3DText: false,
-                orientation: 'standing'
-            });
-            if (typeof window.showToast === 'function') window.showToast('3D Serbest Yazı eklendi', 'success');
-            return;
-        }
-    }
     const el=document.createElement('div');
     el.className='draggable canvas-el';
     el.textContent='SERBEST YAZI';
     el.dataset.label='Serbest Yazı';
-    el.dataset.defaultFont='36';
     el.dataset.rotation='0';
     el.dataset.shadowVal='0';
     el.dataset.blurVal='0';
@@ -303,33 +349,72 @@ function addCustomTextOnly(){
     el.dataset.storedBgOpacity='0';
     el.dataset.storedBorderColor='#000000';
     el.dataset.storedBorderWidth='0';
+    
     const cContainer = document.getElementById('canvas-container');
     const cW = (cContainer && parseFloat(cContainer.style.width)) || (cContainer && cContainer.offsetWidth) || (typeof uploadedImgW !== 'undefined' && uploadedImgW > 0 ? uploadedImgW : 1920);
     const cH = (cContainer && parseFloat(cContainer.style.height)) || (cContainer && cContainer.offsetHeight) || (typeof uploadedImgH !== 'undefined' && uploadedImgH > 0 ? uploadedImgH : 1080);
-    const posX = Math.max(20, Math.round((cW - 250) / 2));
-    const posY = Math.max(20, Math.round((cH - 60) / 2));
-    el.style.left = posX + 'px';
-    el.style.top = posY + 'px';
-    el.style.fontSize='36px';
-    el.style.padding='10px';
-    el.style.background='transparent';
+    
+    const hasImg = hasImageOnCanvas();
+    
+    // Görsel varken tuval çözünürlüğüne uygun büyük ve belirgin varsayılan boyut (72px - 140px arası)
+    let baseFontSize;
+    if (hasImg) {
+        baseFontSize = Math.max(72, Math.min(140, Math.round(cW * 0.042)));
+    } else {
+        baseFontSize = Math.max(48, Math.min(90, Math.round(cW * 0.03)));
+    }
+    
+    el.dataset.defaultFont = baseFontSize.toString();
+    el.style.fontSize = baseFontSize + 'px';
+    el.style.padding = '10px 16px';
+    el.style.background = 'transparent';
+
     const isMob = (typeof window.isMobileDevice === 'function' && window.isMobileDevice()) || window.innerWidth <= 768;
     const isLight = !isMob && (document.documentElement.getAttribute('data-theme') === 'light' || 
                     document.body.getAttribute('data-theme') === 'light' || 
                     localStorage.getItem('emlak_app_theme') !== 'dark');
-    const defaultColor = isLight ? '#000000' : '#ffffff';
+    
+    const defaultColor = hasImg ? '#ffffff' : (isLight ? '#000000' : '#ffffff');
     el.style.color = defaultColor;
-    el.style.border='none';
-    el.style.textShadow = 'none';
-    el.style.zIndex='9999';
-    el.style.fontFamily=currentFont;
+    el.style.border = 'none';
+    el.style.textShadow = hasImg ? '0 2px 14px rgba(0,0,0,0.85), 0 0 3px rgba(0,0,0,0.9)' : 'none';
+    el.style.zIndex = '9999';
+    
+    const fontToUse = (typeof currentFont !== 'undefined' && currentFont) ? currentFont : "'Archivo Black',sans-serif";
+    el.style.fontFamily = fontToUse;
+
+    // Metin genişliğini font büyüklüğüne göre hesaplayıp tuvalin ortasına konumlandır
+    const estW = Math.round(baseFontSize * 7.5);
+    const estH = Math.round(baseFontSize * 1.3);
+    const posX = Math.max(20, Math.round((cW - estW) / 2));
+    const posY = Math.max(20, Math.round((cH - estH) / 2));
+    el.style.left = posX + 'px';
+    el.style.top = posY + 'px';
+
     uiLayer.appendChild(el);
+    if(window.CanvasEmptyState && typeof window.CanvasEmptyState.dismiss === 'function') {
+        window.CanvasEmptyState.dismiss();
+    } else {
+        const es = document.getElementById('canvasEmptyState');
+        if (es) { es.classList.add('is-hidden'); es.style.display = 'none'; }
+    }
+    const cCont = document.getElementById('canvas-container');
+    if (cCont) cCont.style.backgroundColor = '#ffffff';
+    const pLay = document.getElementById('photo-layer');
+    if (pLay && (!pLay.style.backgroundImage || pLay.style.backgroundImage === 'none')) {
+        pLay.style.backgroundColor = '#ffffff';
+    }
     if(typeof window.renderLayers === 'function') window.renderLayers();
     bindDrag(el);
     enableInlineEdit(el);
     if(typeof isCanvaMode!=='undefined' && isCanvaMode)canvaOverlays.push(el);
     if(typeof window.recordHistory === 'function') window.recordHistory('Serbest Yazı eklendi');
     if(typeof window.requestAutoSave === 'function') window.requestAutoSave();
+    if(typeof selectElement === 'function') {
+        selectElement(el);
+    } else if(typeof window.selectElement === 'function') {
+        window.selectElement(el);
+    }
 }
 
 function initGlobalTooltip() {

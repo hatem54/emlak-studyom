@@ -499,7 +499,15 @@ function setOriginalView(show) {
         if (btn) {
             btn.style.backgroundColor = '#f59e0b';
             btn.style.color = '#fff';
-            btn.innerHTML = '<i class="fa-solid fa-eye"></i> Orijinal Haline Bakıyorsunuz (Tıkla Dön)';
+            btn.innerHTML = '<i class="fa-solid fa-eye"></i> Orijinal';
+        }
+        
+        const dockBtn = document.getElementById('dockBeforeAfterBtn');
+        if (dockBtn) {
+            dockBtn.style.backgroundColor = '#f59e0b';
+            dockBtn.style.color = '#fff';
+            dockBtn.classList.add('active');
+            dockBtn.innerHTML = '<span class="dock-icon"><i class="fa-solid fa-eye"></i></span><span class="dock-label">Orijinal</span>';
         }
 
         if (typeof requestPhotoRepaint === 'function') requestPhotoRepaint();
@@ -507,7 +515,15 @@ function setOriginalView(show) {
         if (btn) {
             btn.style.backgroundColor = '#334155';
             btn.style.color = '#cbd5e1';
-            btn.innerHTML = '<i class="fa-solid fa-code-compare"></i> Öncesi / Sonrası Karşılaştır';
+            btn.innerHTML = '<i class="fa-solid fa-code-compare"></i> Öncesi / Sonrası';
+        }
+
+        const dockBtn = document.getElementById('dockBeforeAfterBtn');
+        if (dockBtn) {
+            dockBtn.style.backgroundColor = '';
+            dockBtn.style.color = '';
+            dockBtn.classList.remove('active');
+            dockBtn.innerHTML = '<span class="dock-icon"><i class="fa-solid fa-code-compare"></i></span><span class="dock-label">Karşılaştır</span>';
         }
         
         ['draw-layer', 'mask-layer', 'canva-render-layer', 'ui-layer', 'shadow-overlay', 'highlight-overlay'].forEach(id => {
@@ -531,6 +547,13 @@ function setOriginalView(show) {
 }
 
 function toggleBeforeAfter(forceState) {
+    if (window.PhotoStagingArchive && typeof window.PhotoStagingArchive.toggleCanvasCompare === 'function') {
+        const hasOverlay = document.getElementById('canvasCompareSliderOverlay');
+        const hasItem = (window.PhotoStagingArchive.items && window.PhotoStagingArchive.items.length > 0) || window._aiOriginalImgDataUrl;
+        if (hasOverlay && hasItem) {
+            return window.PhotoStagingArchive.toggleCanvasCompare();
+        }
+    }
     setOriginalView(forceState);
 }
 

@@ -1,0 +1,837 @@
+/* ==========================================================================
+   🎭 EMLAK STÜDYOM - FOTOĞRAF AYARLARI, TON EĞRİSİ & MASKE STILLERI
+   Referans: UI_DESIGN_SYSTEM.md | Kaynak: styles.css
+   ========================================================================== */
+
+/* ==========================================================================
+   FOTOĞRAF AYARLARI, TON EĞRİSİ, 8-HSL & MASKE STILLERI
+   ========================================================================== */
+
+.mask-section-card {
+    background: rgba(15, 23, 42, 0.6);
+    border: 1px solid #334155;
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin-bottom: 10px;
+}
+.mask-section-card .mask-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+}
+.mask-card-btn {
+    width: 100%;
+    background: transparent;
+    border: none;
+    padding: 3px 0;
+    font-size: 13.5px;
+    font-weight: 700;
+    color: #e2e8f0;
+    cursor: pointer;
+    text-align: left;
+    display: block;
+    outline: none;
+    transition: all 0.15s ease;
+    user-select: none;
+}
+.mask-card-btn:hover {
+    color: #38bdf8;
+}
+.mask-card-btn.active {
+    color: #38bdf8;
+}
+body[data-theme="light"] .mask-card-btn {
+    color: #0f172a !important;
+}
+body[data-theme="light"] .mask-card-btn:hover {
+    color: #0284c7 !important;
+}
+body[data-theme="light"] .mask-card-btn.active {
+    color: #0284c7 !important;
+}
+
+.hsl-color-dot {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+}
+.hsl-color-dot:hover {
+    transform: scale(1.15);
+}
+.hsl-color-dot.active {
+    border-color: #ffffff !important;
+    transform: scale(1.2);
+}
+
+/* EmlakStüdyom PRO: Ton Eğrisi & Yerel Maske Stillleri */
+.curve-channel-btn {
+    flex: 1;
+    padding: 7px 4px;
+    font-size: 11.5px;
+    font-weight: 600;
+    border-radius: 6px;
+    background: #1e293b;
+    color: #94a3b8;
+    border: 1px solid #334155;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+}
+.curve-channel-btn:hover {
+    background: #334155;
+    color: #f8fafc;
+}
+.curve-channel-btn.active {
+    background: #0284c7;
+    color: #ffffff;
+    border-color: #38bdf8;
+    box-shadow: 0 0 10px rgba(56, 189, 248, 0.35);
+}
+.curve-channel-btn[data-channel="r"].active {
+    background: #dc2626;
+    border-color: #ef4444;
+    box-shadow: 0 0 10px rgba(239, 68, 68, 0.35);
+}
+.curve-channel-btn[data-channel="g"].active {
+    background: #16a34a;
+    border-color: #22c55e;
+    box-shadow: 0 0 10px rgba(34, 197, 94, 0.35);
+}
+.curve-channel-btn[data-channel="b"].active {
+    background: #2563eb;
+    border-color: #3b82f6;
+    box-shadow: 0 0 10px rgba(59, 130, 246, 0.35);
+}
+
+.curve-preset-btn {
+    padding: 6px 4px;
+    font-size: 10.5px;
+    background: #1e293b;
+    color: #cbd5e1;
+    border: 1px solid #334155;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    text-align: center;
+}
+.curve-preset-btn:hover {
+    background: #334155;
+    color: #38bdf8;
+    border-color: #475569;
+}
+
+/* Yerel Maskeleme Araç Çubuğu Butonları */
+.mask-tool-btn {
+    padding: 8px 6px;
+    font-size: 11.5px;
+    font-weight: 600;
+    border-radius: 6px;
+    background: #1e293b;
+    color: #e2e8f0;
+    border: 1px solid #334155;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+.mask-tool-btn:hover {
+    background: #334155;
+    border-color: #475569;
+}
+.mask-tool-btn.active {
+    background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+    color: #ffffff;
+    border-color: #38bdf8;
+    box-shadow: 0 0 12px rgba(56, 189, 248, 0.4);
+}
+#maskToolLinearBtn.active {
+    background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
+    border-color: #c084fc;
+    box-shadow: 0 0 12px rgba(192, 132, 252, 0.4);
+}
+#maskOverlayBtn.active {
+    background: #dc2626;
+    border-color: #f87171;
+    box-shadow: 0 0 12px rgba(239, 68, 68, 0.4);
+}
+
+/* SVG İnteraktif Maske Tutamaçları */
+#maskInteractiveSvg circle[data-mask-action] {
+    transition: r 0.15s ease, stroke-width 0.15s ease;
+}
+#maskInteractiveSvg circle[data-mask-action]:hover {
+    r: 10.5px;
+    stroke-width: 3.5px;
+}
+#maskInteractiveSvg g[data-mask-action]:hover circle:first-child {
+    fill: rgba(56, 189, 248, 0.45);
+}
+
+/* ====================================================================
+   TON EĞRİSİ VE MASKE BUTONLARI (AÇIK TEMA: İÇİ DOLGUSUZ / OUTLINE)
+   ==================================================================== */
+[data-theme="light"] .curve-channel-btn {
+    background: #ffffff !important;
+    color: #334155 !important;
+    border: 1.5px solid #cbd5e1 !important;
+    box-shadow: none !important;
+}
+[data-theme="light"] .curve-channel-btn:hover {
+    background: #f8fafc !important;
+    border-color: #94a3b8 !important;
+    color: #0f172a !important;
+}
+/* Açık tema için içi dolgusuz (outline) aktif butonlar - yazılar asla kaybolmaz */
+[data-theme="light"] .curve-channel-btn.active {
+    background: #f0f9ff !important;
+    color: #0284c7 !important;
+    border: 2px solid #0284c7 !important;
+    box-shadow: none !important;
+}
+[data-theme="light"] .curve-channel-btn[data-channel="r"].active {
+    background: #fef2f2 !important;
+    color: #dc2626 !important;
+    border: 2px solid #dc2626 !important;
+    box-shadow: none !important;
+}
+[data-theme="light"] .curve-channel-btn[data-channel="g"].active {
+    background: #f0fdf4 !important;
+    color: #16a34a !important;
+    border: 2px solid #16a34a !important;
+    box-shadow: none !important;
+}
+[data-theme="light"] .curve-channel-btn[data-channel="b"].active {
+    background: #eff6ff !important;
+    color: #2563eb !important;
+    border: 2px solid #2563eb !important;
+    box-shadow: none !important;
+}
+
+[data-theme="light"] .curve-preset-btn {
+    background: #ffffff !important;
+    color: #334155 !important;
+    border: 1px solid #cbd5e1 !important;
+    box-shadow: none !important;
+}
+[data-theme="light"] .curve-preset-btn:hover {
+    background: #f1f5f9 !important;
+    border-color: #94a3b8 !important;
+    color: #0f172a !important;
+}
+
+.curve-action-btn {
+    flex: 1;
+    padding: 8px;
+    font-size: 11.5px;
+    font-weight: 600;
+    background: #1e293b;
+    color: #cbd5e1;
+    border: 1px solid #334155;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+.curve-action-btn:hover {
+    background: #334155;
+    color: #ffffff;
+    border-color: #475569;
+}
+[data-theme="light"] .curve-action-btn {
+    background: #ffffff !important;
+    color: #334155 !important;
+    border: 1px solid #cbd5e1 !important;
+    box-shadow: none !important;
+}
+[data-theme="light"] .curve-action-btn:hover {
+    background: #f1f5f9 !important;
+    border-color: #94a3b8 !important;
+    color: #0f172a !important;
+}
+
+.curve-hud-pill {
+    font-family: monospace;
+    font-size: 11px;
+    color: #94a3b8;
+    background: #1e293b;
+    border: 1px solid #334155;
+    padding: 2px 7px;
+    border-radius: 4px;
+    font-weight: 600;
+}
+[data-theme="light"] .curve-hud-pill {
+    background: #ffffff !important;
+    color: #0284c7 !important;
+    border: 1px solid #cbd5e1 !important;
+}
+
+[data-theme="light"] .curve-tip-text {
+    color: #64748b !important;
+}
+
+/* ====================================================================
+   GLOBAL DETAILS / SUMMARY ACCORDION STANDARDIZATION
+   Native ok işaretini (▶) ve çift ikon karmaşasını kaldırır
+   ==================================================================== */
+details summary {
+    list-style: none !important;
+}
+details summary::-webkit-details-marker {
+    display: none !important;
+}
+details summary::marker {
+    display: none !important;
+}
+
+#photoMasksAccordion summary {
+    list-style: none !important;
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    padding: 12px !important;
+    cursor: pointer !important;
+    font-weight: 700 !important;
+    user-select: none !important;
+}
+#photoMasksAccordion summary::-webkit-details-marker {
+    display: none !important;
+}
+#photoMasksAccordion summary::marker {
+    display: none !important;
+}
+
+/* ====================================================================
+   YEREL MASKELEME TASARIM SİSTEMİ (STANDART & AÇIK TEMA KONTROLLERİ)
+   ==================================================================== */
+
+/* 1. Maske Araç Çubuğu Butonları */
+.mask-tool-btn {
+    padding: 8px 6px;
+    font-size: 11.5px;
+    font-weight: 600;
+    border-radius: 6px;
+    background: #1e293b;
+    color: #e2e8f0;
+    border: 1px solid #334155;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+.mask-tool-btn:hover {
+    background: #334155;
+    border-color: #475569;
+}
+.mask-tool-btn.active {
+    background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+    color: #ffffff;
+    border-color: #38bdf8;
+    box-shadow: 0 0 12px rgba(56, 189, 248, 0.4);
+}
+
+/* 2. Aktif Durum ve Bildirim Kutusu */
+.mask-status-box {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 10px;
+    background: rgba(56, 189, 248, 0.12);
+    border: 1px solid #0284c7;
+    border-radius: 6px;
+    margin-bottom: 10px;
+    font-size: 11.5px;
+    color: #e0f2fe;
+}
+.mask-close-btn {
+    margin-left: 8px;
+    padding: 5px 12px;
+    background: #0284c7;
+    color: #ffffff;
+    border: none;
+    border-radius: 4px;
+    font-weight: bold;
+    font-size: 11px;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: all 0.15s ease;
+}
+.mask-close-btn:hover {
+    background: #0369a1;
+}
+
+/* 3. Maske Katmanları ve Geçmiş Kutusu */
+.mask-layers-container {
+    margin-bottom: 12px;
+    background: #0b1329;
+    border: 1px solid #1e293b;
+    border-radius: 6px;
+    padding: 8px 10px;
+}
+.mask-layers-title {
+    font-size: 11.5px;
+    font-weight: bold;
+    color: #cbd5e1;
+}
+.mask-layers-subtitle {
+    font-size: 10px;
+    color: #94a3b8;
+}
+#maskLayersList {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    max-height: 160px;
+    overflow-y: auto;
+    padding-right: 2px;
+}
+.mask-layers-empty {
+    font-size: 11px;
+    color: #94a3b8;
+    text-align: center;
+    padding: 8px 0;
+}
+
+/* 4. Katman Satırları */
+.mask-layer-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 10px;
+    background: #1e293b;
+    border: 1.5px solid #334155;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+.mask-layer-row:hover {
+    background: #334155;
+}
+.mask-layer-row.selected {
+    background: rgba(2, 132, 199, 0.18);
+    border-color: #0284c7;
+}
+.mask-layer-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+    min-width: 0;
+}
+.mask-layer-icon {
+    font-size: 13px;
+}
+.mask-layer-title {
+    font-size: 12px;
+    font-weight: normal;
+    color: #e2e8f0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.mask-layer-row.selected .mask-layer-title {
+    color: #38bdf8;
+    font-weight: bold;
+}
+.mask-layer-badge {
+    font-size: 9.5px;
+    padding: 1px 5px;
+    background: #0284c7;
+    color: #ffffff;
+    border-radius: 3px;
+    font-weight: bold;
+}
+.mask-layer-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.mask-action-eye-btn {
+    background: transparent;
+    border: none;
+    color: #64748b;
+    cursor: pointer;
+    padding: 3px 5px;
+    font-size: 12px;
+    transition: color 0.15s ease;
+}
+.mask-action-eye-btn.active {
+    color: #38bdf8;
+}
+.mask-action-eye-btn:hover {
+    color: #bae6fd;
+}
+.mask-action-del-btn {
+    background: transparent;
+    border: none;
+    color: #ef4444;
+    cursor: pointer;
+    padding: 3px 5px;
+    font-size: 12px;
+    transition: color 0.15s ease;
+}
+.mask-action-del-btn:hover {
+    color: #f87171;
+}
+
+/* 5. Kılavuz Aç/Kapa Barları */
+.mask-toggle-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+    padding: 6px 10px;
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 6px;
+}
+.mask-toggle-bar span {
+    font-size: 11.5px;
+    color: #cbd5e1;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+/* 6. Düzenleme Kartları & Checkbox */
+.mask-checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11.5px;
+    color: #cbd5e1;
+    cursor: pointer;
+}
+.btn-mask-delete {
+    background: #dc2626;
+    color: #ffffff;
+    border: none;
+    border-radius: 4px;
+    padding: 3px 8px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+.btn-mask-delete:hover {
+    background: #b91c1c;
+}
+
+/* ====================================================================
+   AÇIK / GÜNDÜZ TEMASI KONTROLLERİ (İÇİ DOLGUSUZ, YÜKSEK KONTRASTLI VE SABİT)
+   ==================================================================== */
+body[data-theme="light"] #photoMasksAccordion {
+    background: #ffffff !important;
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 8px !important;
+}
+body[data-theme="light"] #photoMasksAccordion summary {
+    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%) !important;
+    color: #0f172a !important;
+    border-left: 3.5px solid #f59e0b !important;
+    font-weight: 700 !important;
+}
+body[data-theme="light"] .mask-content-body {
+    border-top: 1px solid #e2e8f0 !important;
+    background: #ffffff !important;
+}
+
+/* Açık Tema Butonlar: Arka plan beyaz, net kenarlık, koyu okunaklı yazı */
+body[data-theme="light"] .mask-tool-btn,
+[data-theme="light"] .mask-tool-btn {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    border: 1.5px solid #cbd5e1 !important;
+    font-weight: 600 !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03) !important;
+}
+body[data-theme="light"] .mask-tool-btn:hover,
+[data-theme="light"] .mask-tool-btn:hover {
+    background: #f8fafc !important;
+    border-color: #0284c7 !important;
+    color: #0284c7 !important;
+}
+body[data-theme="light"] .mask-tool-btn.active,
+[data-theme="light"] .mask-tool-btn.active {
+    background: #f0f9ff !important;
+    color: #0284c7 !important;
+    border: 2px solid #0284c7 !important;
+    font-weight: 700 !important;
+    box-shadow: none !important;
+}
+
+/* Açık Tema Bildirim Kutusu */
+body[data-theme="light"] .mask-status-box {
+    background: #f0f9ff !important;
+    border: 1.5px solid #bae6fd !important;
+    color: #0369a1 !important;
+}
+body[data-theme="light"] #maskActiveStatusText {
+    color: #0c4a6e !important;
+    font-weight: 600 !important;
+}
+body[data-theme="light"] .mask-close-btn {
+    background: #ffffff !important;
+    color: #0284c7 !important;
+    border: 1.5px solid #0284c7 !important;
+    font-weight: 700 !important;
+    box-shadow: 0 1px 2px rgba(2, 132, 199, 0.08) !important;
+}
+body[data-theme="light"] .mask-close-btn:hover {
+    background: #e0f2fe !important;
+    color: #0369a1 !important;
+}
+
+/* Açık Tema Katmanlar Kutusu */
+body[data-theme="light"] .mask-layers-container {
+    background: #ffffff !important;
+    border: 1.5px solid #cbd5e1 !important;
+    border-radius: 8px !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03) !important;
+}
+body[data-theme="light"] .mask-layers-title {
+    color: #0f172a !important;
+    font-weight: 700 !important;
+}
+body[data-theme="light"] .mask-layers-subtitle {
+    color: #64748b !important;
+}
+body[data-theme="light"] .mask-layers-empty {
+    color: #64748b !important;
+}
+
+/* Açık Tema Katman Satırları: Net koyu yazı */
+body[data-theme="light"] .mask-layer-row {
+    background: #ffffff !important;
+    border: 1.5px solid #e2e8f0 !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02) !important;
+}
+body[data-theme="light"] .mask-layer-row:hover {
+    background: #f8fafc !important;
+    border-color: #cbd5e1 !important;
+}
+body[data-theme="light"] .mask-layer-row.selected {
+    background: #f0f9ff !important;
+    border: 1.5px solid #0284c7 !important;
+}
+body[data-theme="light"] .mask-layer-title {
+    color: #0f172a !important;
+    font-weight: 600 !important;
+}
+body[data-theme="light"] .mask-layer-row.selected .mask-layer-title {
+    color: #0284c7 !important;
+    font-weight: 700 !important;
+}
+body[data-theme="light"] .mask-layer-badge {
+    background: #e0f2fe !important;
+    color: #0284c7 !important;
+    border: 1px solid #bae6fd !important;
+    font-weight: 700 !important;
+}
+body[data-theme="light"] .mask-action-eye-btn {
+    color: #94a3b8 !important;
+}
+body[data-theme="light"] .mask-action-eye-btn.active {
+    color: #0284c7 !important;
+}
+body[data-theme="light"] .mask-action-eye-btn:hover {
+    color: #0369a1 !important;
+}
+body[data-theme="light"] .mask-action-del-btn {
+    color: #dc2626 !important;
+}
+body[data-theme="light"] .mask-action-del-btn:hover {
+    color: #991b1b !important;
+}
+
+/* Açık Tema Kılavuz Toggle Barları */
+body[data-theme="light"] .mask-toggle-bar {
+    background: #ffffff !important;
+    border: 1.5px solid #e2e8f0 !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02) !important;
+}
+body[data-theme="light"] .mask-toggle-bar span {
+    color: #0f172a !important;
+    font-weight: 600 !important;
+}
+
+/* Açık Tema Düzenleme Kartları */
+body[data-theme="light"] .mask-section-card {
+    background: #ffffff !important;
+    border: 1.5px solid #e2e8f0 !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02) !important;
+}
+body[data-theme="light"] .mask-header span {
+    color: #0f172a !important;
+    font-weight: 700 !important;
+}
+body[data-theme="light"] .mask-section-card label,
+body[data-theme="light"] .mask-section-card label span,
+body[data-theme="light"] .mask-checkbox-label {
+    color: #1e293b !important;
+    font-weight: 600 !important;
+}
+body[data-theme="light"] .btn-mask-delete {
+    background: #ffffff !important;
+    color: #dc2626 !important;
+    border: 1.5px solid #dc2626 !important;
+    font-weight: 600 !important;
+    box-shadow: 0 1px 2px rgba(220, 38, 38, 0.08) !important;
+}
+body[data-theme="light"] .btn-mask-delete:hover {
+    background: #fef2f2 !important;
+    color: #991b1b !important;
+}
+
+/* Base Accordions for Dark Mode */
+.hsl-accordion {
+    margin-bottom: 12px;
+    margin-top: 10px;
+    background: #0f172a;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid #1e293b;
+    transition: all 0.2s ease;
+}
+.hsl-accordion summary {
+    padding: 12px;
+    cursor: pointer;
+    color: #e2e8f0;
+    font-weight: bold;
+    list-style: none;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.02);
+}
+.hsl-accordion > div {
+    padding: 12px;
+    border-top: 1px solid #1e293b;
+}
+.hsl-dots-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    background: #0f172a;
+    padding: 8px 10px;
+    border-radius: 30px;
+    border: 1px solid #334155;
+}
+.tone-curve-canvas-wrap {
+    position: relative;
+    width: 100%;
+    border-radius: 6px;
+    overflow: hidden;
+    border: 1px solid #334155;
+    background: #0b1120;
+}
+
+
+
+body[data-theme="light"] .hsl-dots-bar,
+html[data-theme="light"] .hsl-dots-bar {
+    background: #f8fafc !important;
+    border: 1px solid #cbd5e1 !important;
+}
+body[data-theme="light"] .tone-curve-canvas-wrap,
+html[data-theme="light"] .tone-curve-canvas-wrap {
+    background: #ffffff !important;
+    border-color: #cbd5e1 !important;
+}
+
+/* ====================================================================
+   🖌️ FIRÇA & KALEM MASKE DÜZENLEME STİLLERİ
+   ==================================================================== */
+.brush-mode-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 7px 10px;
+    border-radius: 6px;
+    font-size: 11.5px;
+    font-weight: 700;
+    cursor: pointer;
+    background: #1e293b;
+    color: #cbd5e1;
+    border: 1px solid #334155;
+    transition: all 0.18s ease;
+    user-select: none;
+}
+.brush-mode-btn:hover {
+    background: #334155;
+    color: #ffffff;
+    border-color: #475569;
+}
+.brush-mode-btn.active {
+    background: #0f2942;
+    color: #38bdf8;
+    border-color: #0284c7;
+    box-shadow: 0 0 8px rgba(56, 189, 248, 0.25);
+}
+body[data-theme="light"] .brush-mode-btn {
+    background: #ffffff !important;
+    border: 1px solid #cbd5e1 !important;
+    color: #0f172a !important;
+}
+body[data-theme="light"] .brush-mode-btn:hover {
+    background: #f8fafc !important;
+    border-color: #94a3b8 !important;
+}
+body[data-theme="light"] .brush-mode-btn.active {
+    background: #e0f2fe !important;
+    color: #0284c7 !important;
+    border-color: #0284c7 !important;
+}
+
+/* ====================================================================
+   CANVAS MASK HUD BADGE STİLLERİ
+   ==================================================================== */
+.canvas-mask-hud {
+    position: absolute;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(8px);
+    z-index: 1000;
+    pointer-events: none;
+    background: rgba(15, 23, 42, 0.88);
+    color: #f8fafc;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    padding: 6px 16px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.4);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: opacity 0.22s ease, transform 0.22s ease;
+    opacity: 0;
+    user-select: none;
+}
+.canvas-mask-hud.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+body[data-theme="light"] .canvas-mask-hud,
+html[data-theme="light"] .canvas-mask-hud {
+    background: rgba(255, 255, 255, 0.94) !important;
+    color: #0f172a !important;
+    border: 1px solid rgba(0, 0, 0, 0.14) !important;
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.12) !important;
+}

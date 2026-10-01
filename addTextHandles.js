@@ -54,7 +54,7 @@ window.addTextHandles = function(el) {
                 const rotSlider = document.getElementById('elRotate');
                 if (rotSlider) rotSlider.value = newRotation;
                 const rotVal = document.getElementById('elRotateVal');
-                if (rotVal) rotVal.textContent = newRotation + 'Â°';
+                if (rotVal) rotVal.textContent = newRotation + '°';
             }
         };
         
@@ -251,6 +251,11 @@ window.addTextHandles = function(el) {
             lock.title = nowLocked ? 'Kilidi Aç' : 'Kilitle';
             lock.classList.toggle('is-locked', nowLocked);
             if(typeof saveState === 'function') saveState();
+            if (typeof window.syncDockElementLock === 'function') {
+                window.syncDockElementLock(el);
+            } else if (window.DockContextManager && typeof window.DockContextManager.syncStateValues === 'function') {
+                window.DockContextManager.syncStateValues('element', el);
+            }
         };
         
         const stopDown = function(e) { e.preventDefault(); e.stopPropagation(); };

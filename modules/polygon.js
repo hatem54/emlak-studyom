@@ -154,35 +154,38 @@ window.startMobileMarquee = function(x, y) {
     polyMarqueeBox.style.width = '0px';
     polyMarqueeBox.style.height = '0px';
     document.body.appendChild(polyMarqueeBox);
+    document.addEventListener('mousemove', handleMarqueeMove);
+    document.addEventListener('touchmove', handleMarqueeMove, {passive: true});
+    document.addEventListener('mouseup', handleMarqueeEnd);
+    document.addEventListener('touchend', handleMarqueeEnd);
 };
 
 document.addEventListener('mousedown', e => {
     if (e.button !== 0) return; // Sağ tık seçim kutusu başlatmasın
     if(typeof drawMode !== 'undefined' && drawMode !== 'off') return;
     if(!e.target || !e.target.closest) return;
-    const cTarget = e.target.closest('.canvas-el, .added-icon, .draggable, .cvi-item, .co-neon-block, .vertex-handle, .text-handle, .callout-controls, .callout-resizer, .callout-rotator, .lp-item, .panel, .lp-header, .editable-draw, .callout-wrap, .callout-item, .svg-callout, .sat-measure-callout, .parcel-badge-callout');
+    const cTarget = e.target.closest('.canvas-el, .added-icon, .draggable, .cvi-item, .co-neon-block, .vertex-handle, .text-handle, .callout-controls, .callout-resizer, .callout-rotator, .lp-item, .panel, .lp-header, .editable-draw, .callout-wrap, .callout-item, .svg-callout, .sat-measure-callout, .parcel-badge-callout, .tb-image-frame, .tb-frame-handle, .tb-frame-floating-tools, .tb-floating-btn, .tb-frame-clip, .tb-frame-inner, .tb-frame-img');
     
     if (e.target.closest('.panel, .lp-header, button, input, select, textarea, .modal-overlay, .app-context-menu')) return;
     
-    const isBackground = e.target.id === 'photo-layer' || e.target.id === 'drawCanvas' || e.target.id === 'canva-render-layer' || e.target.id === 'canvas-container' || e.target.id === 'ui-layer' || e.target.classList.contains('photo-wrap') || e.target.classList.contains('workspace') || e.target.classList.contains('main-preview') || e.target.closest('#canvas-container, .main-canvas');
+    const isBackground = e.target.id === 'photo-layer' || 
+                         e.target.id === 'drawCanvas' || 
+                         e.target.id === 'canva-render-layer' || 
+                         e.target.id === 'canvas-container' || 
+                         e.target.id === 'ui-layer' || 
+                         e.target.id === 'three-d-layer' ||
+                         e.target.classList.contains('three-d-canvas') ||
+                         e.target.classList.contains('photo-wrap') || 
+                         e.target.classList.contains('workspace') || 
+                         e.target.classList.contains('main-preview') || 
+                         e.target.closest('#canvas-container, .main-canvas');
     
-    const photoEl = document.getElementById('photo-layer');
-    const hasPhoto = (typeof uploadedImgUrl !== 'undefined' && uploadedImgUrl && uploadedImgUrl.length > 20) ||
-                     (window.uploadedImgUrl && window.uploadedImgUrl.length > 20) ||
-                     (window.masterImageBase64 && window.masterImageBase64.length > 20) ||
-                     (photoEl && ((photoEl.style.backgroundImage && photoEl.style.backgroundImage !== 'none') || photoEl.querySelector('.photo-inner-zoom')));
-                     
-    const isLocked = window.isPhotoLocked === true || 
-                     (document.getElementById('photoLockToggle') && document.getElementById('photoLockToggle').checked) ||
-                     (document.getElementById('dockLockBtn') && document.getElementById('dockLockBtn').classList.contains('lock-active'));
-                     
-    const isModifier = e.ctrlKey || e.shiftKey || e.altKey || e.metaKey;
-    
-    if(!cTarget && isBackground) {
-        // Fotoğraf serbestken (isLocked = false) görseli kaydırmaya izin ver, mavi seçim kutusu açma
-        if (isModifier || isLocked || !hasPhoto) {
-            window.startMobileMarquee(e.clientX, e.clientY);
-        }
+    const is3DObjectHit = (window.ThreeDEngine && typeof window.ThreeDEngine.isActive === 'function' && window.ThreeDEngine.isActive() && typeof window.ThreeDEngine.checkHit === 'function')
+        ? window.ThreeDEngine.checkHit(e.clientX, e.clientY)
+        : null;
+
+    if(!cTarget && !is3DObjectHit && isBackground) {
+        window.startMobileMarquee(e.clientX, e.clientY);
     }
 });
 
@@ -206,22 +209,28 @@ const handleMarqueeMove = function(e) {
     }
 };
 
-document.addEventListener('mousemove', handleMarqueeMove);
-document.addEventListener('touchmove', handleMarqueeMove, {passive: true});
-
 const handleMarqueeEnd = function(e) {
-    document.querySelectorAll('.poly-marquee-box').forEach(el => el.remove());
+    document.removeEventListener('mousemove', handleMarqueeMove);
+    document.removeEventListener('touchmove', handleMarqueeMove);
+    document.removeEventListener('mouseup', handleMarqueeEnd);
+    document.removeEventListener('touchend', handleMarqueeEnd);
+    
+    let mRect = null;
     if(polyMarqueeBox) {
-        const mRect = polyMarqueeBox.getBoundingClientRect();
+        mRect = polyMarqueeBox.getBoundingClientRect();
         try { polyMarqueeBox.remove(); } catch(err) {}
         polyMarqueeBox = null;
-        
-        if (mRect.width > 5 && mRect.height > 5) {
+    }
+    document.querySelectorAll('.poly-marquee-box').forEach(el => el.remove());
+    
+    if (mRect && mRect.width > 5 && mRect.height > 5) {
             const multiSelectKey = e.ctrlKey || e.shiftKey;
             if (!multiSelectKey && typeof deselectAll === 'function') {
                 deselectAll();
             }
-            const rawElements = Array.from(document.querySelectorAll('.cvi-item, .co-neon-block, .draggable, .added-icon, .canvas-el, .editable-draw, .callout-wrap'));
+            const rawElements = Array.from(document.querySelectorAll(
+                '.cvi-item, .co-neon-block, .draggable, .added-icon, .canvas-el, .editable-draw, .callout-wrap, .callout-wrapper, .svg-callout, .parcel-badge-callout, .sat-measure-callout'
+            ));
             // Sadece en üst seviye elemanları seç (iç içe seçimi ve çift sayımı önle)
             const elements = rawElements.filter(el => {
                 return !rawElements.some(parent => parent !== el && parent.contains(el));
@@ -259,8 +268,80 @@ const handleMarqueeEnd = function(e) {
                     setTimeout(() => window.LayerPanelV2.highlightActiveLayer(), 80);
                 }
             }
+
+            // 🌟 3D Ögeleri Seçim Kutusuyla Tespit Et
+            const hit3DElements = [];
+            if (window.ThreeDEngine && typeof window.ThreeDEngine.isActive === 'function' && window.ThreeDEngine.isActive()) {
+                const boundsList = (typeof window.ThreeDEngine.getElementsScreenBounds === 'function')
+                    ? window.ThreeDEngine.getElementsScreenBounds()
+                    : [];
+
+                boundsList.forEach(item => {
+                    if (!item.el || item.el.visible === false || item.el.locked) return;
+                    const r = item.rect;
+                    if (r && r.left < mRect.right && r.right > mRect.left &&
+                        r.top < mRect.bottom && r.bottom > mRect.top) {
+                        hit3DElements.push(item.el);
+                    }
+                });
+            }
+
+            if (hit3DElements.length > 0) {
+                if (!multiSelectKey && typeof deselectAll === 'function') {
+                    deselectAll();
+                }
+                if (hit3DElements.length === 1) {
+                    const single = hit3DElements[0];
+                    if (single.groupId && window.ThreeDEngine && typeof window.ThreeDEngine.getElements === 'function') {
+                        const groupMembers = window.ThreeDEngine.getElements().filter(e => e.groupId === single.groupId);
+                        if (groupMembers.length > 1 && window.ThreeDGrouping && typeof window.ThreeDGrouping.setSelected3DElements === 'function') {
+                            window.ThreeDGrouping.setSelected3DElements(groupMembers);
+                            if (window.ThreeDEngine && typeof window.ThreeDEngine.setActiveElement === 'function') {
+                                window.ThreeDEngine.setActiveElement(single, { select: true });
+                            }
+                            return;
+                        }
+                    }
+                    if (window.ThreeDEngine && typeof window.ThreeDEngine.setActiveElement === 'function') {
+                        window.ThreeDEngine.setActiveElement(single, { select: true });
+                    }
+                    if (window.ThreeDGrouping && typeof window.ThreeDGrouping.clearSelection === 'function') {
+                        window.ThreeDGrouping.clearSelection();
+                    }
+                } else {
+                    if (window.ThreeDGrouping && typeof window.ThreeDGrouping.setSelected3DElements === 'function') {
+                        window.ThreeDGrouping.setSelected3DElements(hit3DElements);
+                    }
+                }
+            } else if (!selectedAny) {
+                if (window.ThreeDGrouping && typeof window.ThreeDGrouping.clearSelection === 'function') {
+                    window.ThreeDGrouping.clearSelection();
+                }
+            }
+        } else {
+            // Tıklama boş alana yapıldıysa (çerçeve açmadan tek tık):
+            const isClickOnObject = (e.target && e.target.closest && e.target.closest(
+                '.canvas-el, .added-icon, .draggable, .cvi-item, .co-neon-block, .vertex-handle, .text-handle, ' +
+                '.callout-controls, .callout-resizer, .callout-rotator, .lp-item, .panel, .lp-header, .editable-draw, ' +
+                '.callout-wrap, .callout-item, .svg-callout, .sat-measure-callout, .parcel-badge-callout, ' +
+                '.tb-image-frame, .tb-frame-handle, .tb-frame-floating-tools, .tb-floating-btn, .tb-frame-clip, .tb-frame-inner, .tb-frame-img, ' +
+                '.three-d-gizmo-tip, .three-d-gizmo-dot, .three-d-gizmo-sun, button, input, select, textarea, .modal, .context-menu, .app-context-menu, ' +
+                '.tb-3d-gizmo, .three-d-gizmo-overlay, .three-d-gizmo-svg, .three-d-gizmo-arc, .three-d-gizmo-hit-line, .three-d-gizmo-axis-x, .three-d-gizmo-axis-y, .three-d-gizmo-axis-z, .three-d-gizmo-origin-dot, .three-d-gizmo-hud, .three-d-gizmo-close-btn, #tbFrameSettingsSection'
+            )) || (window.Template3DFrame && window.Template3DFrame.isInteracting);
+            const is3DObjectHit = (window.ThreeDEngine && typeof window.ThreeDEngine.isActive === 'function' && window.ThreeDEngine.isActive() && typeof window.ThreeDEngine.checkHit === 'function')
+                ? window.ThreeDEngine.checkHit(e.clientX, e.clientY)
+                : null;
+
+            if (!isClickOnObject && !is3DObjectHit && !e.ctrlKey && !e.shiftKey) {
+                if (typeof deselectAll === 'function') deselectAll();
+                if (window.ThreeDGrouping && typeof window.ThreeDGrouping.clearSelection === 'function') {
+                    window.ThreeDGrouping.clearSelection();
+                }
+                if (window.ThreeDEngine && typeof window.ThreeDEngine.setSelected === 'function') {
+                    window.ThreeDEngine.setSelected(false, { silent: true, autoUnlockPhoto: false });
+                }
+            }
         }
-    }
 };
 
 window.addEventListener('mouseup', handleMarqueeEnd, true);
@@ -274,5 +355,9 @@ window.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
         document.querySelectorAll('.poly-marquee-box').forEach(el => el.remove());
         if (polyMarqueeBox) { try { polyMarqueeBox.remove(); } catch(e) {} polyMarqueeBox = null; }
+        if (typeof deselectAll === 'function') deselectAll();
+        if (window.ThreeDGrouping && typeof window.ThreeDGrouping.clearSelection === 'function') {
+            window.ThreeDGrouping.clearSelection();
+        }
     }
 }, true);

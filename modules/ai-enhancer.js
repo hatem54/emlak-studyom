@@ -39,7 +39,7 @@
                         <div class="ai-enh-header-left">
                             <div class="ai-enh-header-icon"><i class="fas fa-wand-magic-sparkles"></i></div>
                             <div>
-                                <h3 class="ai-enh-title">✨ AI HD Görsel & Uydu Netleştirici</h3>
+                                <h3 class="ai-enh-title">AI HD Görsel & Uydu Netleştirici</h3>
                                 <p class="ai-enh-subtitle">Yapay zeka tabanlı akıllı flu giderme, çatı/yol keskinleştirme ve süper çözünürlük</p>
                             </div>
                         </div>
@@ -57,13 +57,13 @@
                             <span class="ai-enh-label"><i class="fas fa-sliders"></i> Mod:</span>
                             <div class="ai-enh-preset-btns">
                                 <button type="button" class="ai-enh-preset-btn" data-mode="natural" onclick="window.setAiEnhanceMode('natural')">
-                                    ⚡ Doğal HD
+                                    <i class="fa-solid fa-bolt"></i> Doğal HD
                                 </button>
                                 <button type="button" class="ai-enh-preset-btn active" data-mode="picsart_hd" onclick="window.setAiEnhanceMode('picsart_hd')">
-                                    🌟 Akıllı Süper HD (Önerilen)
+                                    <i class="fa-solid fa-wand-magic-sparkles"></i> Akıllı Süper HD
                                 </button>
                                 <button type="button" class="ai-enh-preset-btn" data-mode="ultra_crystal" onclick="window.setAiEnhanceMode('ultra_crystal')">
-                                    💎 Ultra 4K Kristal
+                                    <i class="fa-solid fa-gem"></i> Ultra 4K Kristal
                                 </button>
                             </div>
                         </div>
@@ -80,7 +80,7 @@
                             <!-- Orijinal Görsel Katmanı (Sol) -->
                             <div class="ai-enh-layer ai-enh-layer-original" id="aiEnhLayerOriginal">
                                 <img id="aiEnhImgOriginal" alt="Orijinal">
-                                <span class="ai-enh-layer-tag original"><i class="fas fa-eye-slash"></i> Orijinal (Ham)</span>
+                                <span class="ai-enh-layer-tag original"><i class="fas fa-eye-slash"></i> Orijinal</span>
                             </div>
 
                             <!-- Netleştirilmiş Görsel Katmanı (Sağ - Kırpılan) -->
@@ -120,7 +120,7 @@
                                 <i class="fas fa-download"></i> <span>HD İndir</span>
                             </button>
                             <button type="button" class="ai-enh-btn-apply" onclick="window.applyAiEnhancedToCanvas()" title="Netleştirilmiş görseli tuvalinize aktarın">
-                                <i class="fas fa-check-circle"></i> <span>🎨 Tuvale Uygula</span>
+                                <i class="fas fa-check-circle"></i> <span>Tuvale Uygula</span>
                             </button>
                         </div>
                     </div>
@@ -716,36 +716,25 @@
     };
 
     window.setPhotoAiIntensity = function(val) {
-        const num = parseInt(val, 10) || 35;
+        const num = parseInt(val, 10) || 0;
         const levelVal = document.getElementById('aiPhotoEnhanceLevelVal');
-        const isEnabled = !!window._photoAiEnabled;
 
         if (levelVal) {
-            if (isEnabled) {
-                let tag = 'Doğal';
-                if (num <= 20) tag = 'Hafif';
-                else if (num <= 40) tag = 'Doğal';
-                else if (num <= 65) tag = 'Dengeli';
-                else tag = 'Kristal Net';
-                levelVal.textContent = `%${num} (${tag})`;
-                levelVal.classList.add('active');
-            } else {
-                levelVal.textContent = `%${num} (Kapalı)`;
-                levelVal.classList.remove('active');
-            }
+            levelVal.textContent = `%${num}`;
+            levelVal.classList.toggle('active', num > 0);
             levelVal.style.color = '';
             levelVal.style.background = '';
         }
 
-        // Sadece AÇIKSA görseli anında yeniden çiz (Kapalıyken slider iş yapmaz)
-        if (isEnabled) {
-            if (typeof applyPhotoFilters === 'function') {
-                applyPhotoFilters();
-            } else if (typeof requestPhotoRepaint === 'function') {
-                requestPhotoRepaint();
-            }
+        window._photoAiEnabled = num > 0;
+
+        if (typeof applyPhotoFilters === 'function') {
+            applyPhotoFilters();
+        } else if (typeof requestPhotoRepaint === 'function') {
+            requestPhotoRepaint();
         }
     };
+
 
     window.updateAiPhotoEnhanceLabel = window.setPhotoAiIntensity;
 

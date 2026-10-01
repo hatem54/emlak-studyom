@@ -119,7 +119,7 @@ function _elitInit(){
         
         <div class="canva-tpl-grid" id="canvaTplGrid"></div>
         <div id="canvaSettings" class="settings-box">
-            <div class="section-title" style="margin-top:0">&#10024; H&#305;zl&#305; Metin D&#252;zenleyici</div>
+            <div class="section-title" style="margin-top:0"><i class="fa-solid fa-wand-magic-sparkles" style="color:#0284c7; margin-right:6px;"></i>Hızlı Metin Düzenleyici</div>
             <div class="input-group"><label>Ana Ba&#351;l&#305;k</label><input type="text" id="canvaTitle" value="SATILIK M&#220;STAK&#304;L EV"></div>
             <div class="input-group"><label>Fiyat</label><input type="text" id="canvaPrice" value="6.750.000 TL"></div>
             <div class="input-group"><label>&#214;zellikler</label><textarea id="canvaFeatures" rows="4" style="width:100%;padding:6px;background:#0f172a;border:1px solid #334155;color:#fff;border-radius:5px;font-size:11px;resize:vertical">• 4+1 Geniş Salon

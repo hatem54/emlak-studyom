@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 900" width="1000" height="900">
+  <defs>
+    <linearGradient id="esGrad" x1="10%" y1="10%" x2="90%" y2="100%">
+      <stop offset="0%" stop-color="#2d6e9f" />
+      <stop offset="45%" stop-color="#1b496f" />
+      <stop offset="100%" stop-color="#102d4a" />
+    </linearGradient>
+  </defs>
+
+  <!-- 4 Pixel Squares -->
+  <!-- Upper Right (smallest) -->
+  <rect x="760" y="140" width="46" height="46" rx="4" fill="url(#esGrad)" />
+  <!-- Upper Left (small) -->
+  <rect x="680" y="190" width="48" height="48" rx="4" fill="url(#esGrad)" />
+  <!-- Lower Right (medium) -->
+  <rect x="755" y="235" width="70" height="70" rx="5" fill="url(#esGrad)" />
+  <!-- Lower Left (medium-large) -->
+  <rect x="660" y="295" width="76" height="76" rx="5" fill="url(#esGrad)" />
+
+  <!-- Roof Path -->
+  <!-- Peak at (500, 180) -->
+  <path d="
+    M 500 180
+    L 180 415
+    L 180 500
+    L 300 410
+    L 500 265
+    L 650 375
+    L 650 425
+    L 710 425
+    L 820 500
+    L 820 415
+    Z
+  " fill="url(#esGrad)" />
+
+  <!-- Letter E -->
+  <path d="
+    M 250 460
+    L 510 460
+    C 545 460 565 475 565 510
+    L 400 510
+    L 400 620
+    L 490 620
+    L 490 680
+    L 400 680
+    L 400 780
+    L 510 780
+    C 565 780 565 815 510 840
+    L 250 840
+    Z
+  " fill="url(#esGrad)" />
+
+  <!-- Letter S -->
+  <!-- S shape nested next to E -->
+  <path d="
+    M 620 460
+    C 740 460 760 520 760 570
+    C 760 660 620 660 620 740
+    C 620 770 645 785 680 785
+    C 715 785 745 770 755 750
+    L 760 820
+    C 740 835 695 845 660 845
+    C 580 845 540 800 540 730
+    C 540 640 680 630 680 560
+    C 680 535 660 515 625 515
+    C 590 515 565 530 550 555
+    L 540 495
+    C 565 470 595 460 620 460
+    Z
+  " fill="url(#esGrad)" />
+</svg>

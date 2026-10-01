@@ -1,0 +1,165 @@
+/* ==========================================================================
+   🎯 EMLAK STÜDYOM - DOKU KLONLAMA DAMGASI (CLONE STAMP) STILLERI
+   Referans: UI_DESIGN_SYSTEM.md & AGENTS.md
+   ========================================================================== */
+
+/* Klonlama Damgası Panel Bölümü */
+.clone-stamp-section {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid #e2e8f0;
+}
+
+body[data-theme="dark"] .clone-stamp-section {
+    border-top-color: #334155;
+}
+
+/* Mod Seçim Düğmeleri Grubu */
+.clone-mode-group {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 6px;
+    margin-bottom: 10px;
+}
+
+.clone-mode-btn {
+    padding: 6px 4px;
+    font-size: 11px;
+    font-weight: 600;
+    border-radius: 6px;
+    background: #f8fafc;
+    color: #475569;
+    border: 1px solid #cbd5e1;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    user-select: none;
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+}
+
+.clone-mode-btn:hover {
+    background: #f1f5f9;
+    color: #1e293b;
+    border-color: #94a3b8;
+}
+
+.clone-mode-btn.active {
+    background: #eff6ff;
+    color: #1d4ed8;
+    border-color: #3b82f6;
+    box-shadow: 0 1px 3px rgba(59, 130, 246, 0.2);
+}
+
+body[data-theme="dark"] .clone-mode-btn {
+    background: #1e293b;
+    color: #94a3b8;
+    border-color: #334155;
+}
+
+body[data-theme="dark"] .clone-mode-btn:hover {
+    background: #334155;
+    color: #f8fafc;
+}
+
+body[data-theme="dark"] .clone-mode-btn.active {
+    background: rgba(59, 130, 246, 0.2);
+    color: #93c5fd;
+    border-color: #3b82f6;
+}
+
+/* Kaynak Belirleme Çubuğu */
+.clone-source-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 10px;
+    padding: 6px 8px;
+    border-radius: 6px;
+    background: #f1f5f9;
+    border: 1px dashed #94a3b8;
+}
+
+body[data-theme="dark"] .clone-source-row {
+    background: #1e293b;
+    border-color: #475569;
+}
+
+.clone-source-row.setting-source {
+    border-color: #10b981;
+    background: #ecfdf5;
+    animation: clonePulseGreen 1.5s infinite;
+}
+
+body[data-theme="dark"] .clone-source-row.setting-source {
+    background: rgba(16, 185, 129, 0.15);
+    border-color: #10b981;
+}
+
+@keyframes clonePulseGreen {
+    0%, 100% { border-color: #10b981; box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
+    50% { border-color: #059669; box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.2); }
+}
+
+.clone-source-status {
+    font-size: 11px;
+    font-weight: 500;
+    color: #475569;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+}
+
+body[data-theme="dark"] .clone-source-status {
+    color: #cbd5e1;
+}
+
+/* Kaynak SVG Tutamaç Stilleri */
+.clone-source-marker {
+    cursor: grab;
+    pointer-events: all;
+    transition: filter 0.2s;
+}
+
+.clone-source-marker:hover {
+    filter: drop-shadow(0 0 6px #10b981);
+}
+
+.clone-source-marker:active {
+    cursor: grabbing;
+}
+
+/* Klonlama Tuval İmleci */
+.canvas-clone-cursor {
+    cursor: crosshair !important;
+}
+
+/* ==========================================================================
+   🖐️ SPACE BAR PAN (Photoshop / Figma Stili Tuval & Görsel Gezinmesi)
+   ========================================================================== */
+body.space-pan-active,
+body.space-pan-active #canvas-container,
+body.space-pan-active #canvas-container *,
+body.space-pan-active #maskInteractiveSvg,
+body.space-pan-active #photo-layer,
+body.space-pan-active .photo-panel,
+body.space-pan-active .canvas-wrapper,
+body.space-pan-active .preview-area {
+    cursor: grab !important;
+}
+
+body.space-pan-dragging,
+body.space-pan-dragging #canvas-container,
+body.space-pan-dragging #canvas-container *,
+body.space-pan-dragging #maskInteractiveSvg,
+body.space-pan-dragging #photo-layer,
+body.space-pan-dragging .photo-panel,
+body.space-pan-dragging .canvas-wrapper,
+body.space-pan-dragging .preview-area {
+    cursor: grabbing !important;
+}
+

@@ -43,7 +43,7 @@
                 <h3 style="margin:0; font-size:14px; color:var(--primary);"><i class="fas fa-layer-group"></i> Toplu İşlemler (<span id="multi-select-count">0</span>)</h3>
             </div>
             
-            <div class="section-title" style="margin-top:5px; margin-bottom:5px;">↕️ Boşluklu Sırala (Anti-Overlap)</div>
+            <div class="section-title" style="margin-top:5px; margin-bottom:5px;"><i class="fa-solid fa-arrows-up-down" style="color:#0284c7; margin-right:6px;"></i>Boşluklu Sırala</div>
             
             <div style="display:flex; align-items:center; justify-content:space-between; background:rgba(0,0,0,0.25); padding:5px 8px; border-radius:6px; margin-bottom:6px; border:1px solid rgba(255,255,255,0.08);">
                 <span style="font-size:11px; color:#cbd5e1; font-weight:600;"><i class="fas fa-arrows-alt-v" style="color:var(--primary); margin-right:4px;"></i> Boşluk:</span>
@@ -66,7 +66,7 @@
                 <button class="tab-btn" style="padding:6px 6px; flex:1; font-size:11px; background:rgba(99, 102, 241, 0.2); border-color:#6366f1; color:#fff;" onclick="multiSelectStack('horizontal')" title="Yan Yana Boşlukla Diz"><i class="fas fa-columns"></i> Yan Yana Diz</button>
             </div>
 
-            <div class="section-title" style="margin-top:5px; margin-bottom:5px;">↔️ Birbirine Göre Hizala</div>
+            <div class="section-title" style="margin-top:5px; margin-bottom:5px;"><i class="fa-solid fa-arrows-left-right" style="color:#0284c7; margin-right:6px;"></i>Birbirine Göre Hizala</div>
             <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:4px; margin-bottom:10px;">
                 <button class="tab-btn" style="padding:5px 4px; font-size:11px;" onclick="multiSelectAlign('left')" title="Sola Hizala"><i class="fas fa-align-left"></i> Sola</button>
                 <button class="tab-btn" style="padding:5px 4px; font-size:11px;" onclick="multiSelectAlign('center')" title="Yatay Ortala"><i class="fas fa-align-center"></i> Ortala</button>
@@ -76,7 +76,7 @@
                 <button class="tab-btn" style="padding:5px 4px; font-size:11px;" onclick="multiSelectAlign('bottom')" title="Alta Hizala"><i class="fas fa-arrow-down"></i> Alta</button>
             </div>
 
-            <div class="section-title" style="margin-top:5px; margin-bottom:5px;">🎯 Sayfada 9 Yön Konumlandırma</div>
+            <div class="section-title" style="margin-top:5px; margin-bottom:5px;"><i class="fa-solid fa-crosshairs" style="color:#0284c7; margin-right:6px;"></i>Sayfada 9 Yön Konumlandırma</div>
             <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:4px; margin-bottom:10px;">
                 <button class="tab-btn" style="padding:5px 4px; font-size:10px;" onclick="multiSelectPositionOnPage('top-left')" title="Sol Üst"><i class="fas fa-arrow-up-left"></i> Sol Üst</button>
                 <button class="tab-btn" style="padding:5px 4px; font-size:10px;" onclick="multiSelectPositionOnPage('top-center')" title="Üst Orta"><i class="fas fa-arrow-up"></i> Üst Orta</button>
@@ -89,7 +89,7 @@
                 <button class="tab-btn" style="padding:5px 4px; font-size:10px;" onclick="multiSelectPositionOnPage('bottom-right')" title="Sağ Alt"><i class="fas fa-arrow-down-right"></i> Sağ Alt</button>
             </div>
 
-            <div class="section-title" style="margin-top:5px; margin-bottom:5px;">📏 Sayfada Ortala & Boşluk Eşitle</div>
+            <div class="section-title" style="margin-top:5px; margin-bottom:5px;"><i class="fa-solid fa-ruler-combined" style="color:#0284c7; margin-right:6px;"></i>Sayfada Ortala & Boşluk Eşitle</div>
             <div style="display:flex; gap:4px; margin-bottom:6px; flex-wrap:wrap;">
                 <button class="tab-btn" style="padding:4px 8px; flex:1; font-size:11px;" onclick="multiSelectCenterOnPage('horizontal')" title="Sayfada Yatay Ortala"><i class="fas fa-arrows-alt-h"></i> Sayfa Yatay</button>
                 <button class="tab-btn" style="padding:4px 8px; flex:1; font-size:11px;" onclick="multiSelectCenterOnPage('vertical')" title="Sayfada Dikey Ortala"><i class="fas fa-arrows-alt-v"></i> Sayfa Dikey</button>
@@ -99,7 +99,7 @@
                 <button class="tab-btn" style="padding:4px 8px; flex:1; font-size:11px;" onclick="multiSelectDistribute('horizontal')" title="Yatay Eşit Aralık"><i class="fas fa-grip-lines-vertical"></i> Yatay Eşitle</button>
             </div>
 
-            <div class="section-title" style="margin-top:5px; margin-bottom:5px;">Grup & Katman İşlemleri</div>
+            <div class="section-title" style="margin-top:5px; margin-bottom:5px;"><i class="fa-solid fa-layer-group" style="color:#0284c7; margin-right:6px;"></i>Grup & Katman İşlemleri</div>
             <div style="display:flex; gap:4px; margin-bottom:12px; flex-wrap:wrap;">
                 <button class="tab-btn" id="msBtnGroup" style="padding:4px 8px; flex:1;" onclick="if(window.groupSelected) window.groupSelected();" title="Grup Yap"><i class="fas fa-object-group"></i></button>
                 <button class="tab-btn" id="msBtnUngroup" style="padding:4px 8px; flex:1;" onclick="if(window.ungroupSelected) window.ungroupSelected();" title="Grubu Boz"><i class="fas fa-object-ungroup"></i></button>
@@ -109,7 +109,7 @@
                 <button class="tab-btn" style="padding:4px 8px; flex:1; background:#ef4444; color:white;" onclick="multiSelectDelete()" title="Toplu Sil"><i class="fas fa-trash"></i></button>
             </div>
 
-            <div class="section-title" style="margin-top:5px; margin-bottom:5px;">Toplu Renk</div>
+            <div class="section-title" style="margin-top:5px; margin-bottom:5px;"><i class="fa-solid fa-palette" style="color:#0284c7; margin-right:6px;"></i>Toplu Renk</div>
             <div class="color-row" style="margin-bottom:0;">
                 <label>Ortak Renk</label>
                 <input type="color" id="multi-color-picker" value="#ffffff" oninput="multiSelectChangeColor(this.value)">
@@ -379,56 +379,16 @@
         // 🌟 3D Öge Seçiliyse veya Tuvalde 2D Seçim Yokken 3D Aktifse: 3D Ögeyi Sayfada Konumlandır!
         if ((!rawElements.length || (window.ThreeDEngine && window.ThreeDEngine.state && window.ThreeDEngine.state.selected)) &&
             window.ThreeDEngine && typeof window.ThreeDEngine.isActive === 'function' && window.ThreeDEngine.isActive()) {
-            const canvasContainer = document.getElementById('canvas-container') || document.querySelector('.main-canvas') || document.body;
-            const cW = parseFloat(canvasContainer.style.width) || canvasContainer.offsetWidth || 1920;
-            const cH = parseFloat(canvasContainer.style.height) || canvasContainer.offsetHeight || 1080;
-            const offsetDistX = Math.round(cW * 0.28);
-            const offsetDistY = Math.round(cH * 0.28);
-
-            switch(pos) {
-                case 'top-left':
-                    window.ThreeDEngine.state.posX = -offsetDistX;
-                    window.ThreeDEngine.state.posY = -offsetDistY;
-                    break;
-                case 'top-center':
-                    window.ThreeDEngine.state.posX = 0;
-                    window.ThreeDEngine.state.posY = -offsetDistY;
-                    break;
-                case 'top-right':
-                    window.ThreeDEngine.state.posX = offsetDistX;
-                    window.ThreeDEngine.state.posY = -offsetDistY;
-                    break;
-                case 'middle-left':
-                    window.ThreeDEngine.state.posX = -offsetDistX;
-                    window.ThreeDEngine.state.posY = 0;
-                    break;
-                case 'center':
-                case 'horizontal-center':
-                case 'vertical-center':
+            if (pos === 'center' || pos === 'horizontal-center' || pos === 'vertical-center') {
+                if (typeof window.ThreeDEngine.centerOnScreen === 'function') {
                     window.ThreeDEngine.centerOnScreen();
                     return;
-                case 'middle-right':
-                    window.ThreeDEngine.state.posX = offsetDistX;
-                    window.ThreeDEngine.state.posY = 0;
-                    break;
-                case 'bottom-left':
-                    window.ThreeDEngine.state.posX = -offsetDistX;
-                    window.ThreeDEngine.state.posY = offsetDistY;
-                    break;
-                case 'bottom-center':
-                    window.ThreeDEngine.state.posX = 0;
-                    window.ThreeDEngine.state.posY = offsetDistY;
-                    break;
-                case 'bottom-right':
-                    window.ThreeDEngine.state.posX = offsetDistX;
-                    window.ThreeDEngine.state.posY = offsetDistY;
-                    break;
+                }
             }
-            if (typeof window.ThreeDEngine.updatePlaneTransform === 'function') window.ThreeDEngine.updatePlaneTransform();
-            if (typeof window.ThreeDEngine.updateGizmoPositions === 'function') window.ThreeDEngine.updateGizmoPositions();
-            if (typeof window.ThreeDEngine.syncControlsUI === 'function') window.ThreeDEngine.syncControlsUI();
-            if (typeof window.ThreeDEngine.requestRender === 'function') window.ThreeDEngine.requestRender();
-            if (typeof window.showToast === 'function') window.showToast(`🎯 3D Öge ${pos} konumuna yerleştirildi`, 'info');
+            if (typeof window.ThreeDEngine.alignElement === 'function') {
+                window.ThreeDEngine.alignElement(null, pos);
+                return;
+            }
             return;
         }
 
@@ -641,10 +601,18 @@
     };
 
     window.multiSelectDuplicate = function() {
-        if (!window.selectedElements || window.selectedElements.length === 0) return;
+        if (!window.selectedElements || window.selectedElements.length === 0) {
+            if (window.selectedEl && window.selectedEl.parentNode) window.selectedElements = [window.selectedEl];
+            else return;
+        }
         
         let newElements = [];
-        const targets = Array.from(new Set(window.selectedElements.map(el => el.closest('.callout-wrap, .draggable, .canvas-el, .added-icon, [data-layer-uid]') || el)));
+        const targets = Array.from(new Set(window.selectedElements
+            .filter(el => el && el.parentNode)
+            .map(el => el.closest('.callout-wrap, .draggable, .canvas-el, .added-icon, [data-layer-uid]') || el)
+            .filter(el => el && el.parentNode)
+        ));
+        if (targets.length === 0) return;
         targets.forEach(el => {
             const clone = el.cloneNode(true);
             clone.classList.remove('el-selected');
@@ -652,11 +620,61 @@
             clone.style.top = (parseFloat(el.style.top || el.offsetTop) + 20) + 'px';
             
             if (clone.id) clone.id = 'clone_' + Math.random().toString(36).substr(2, 9);
+            if (clone.dataset.layerUid) clone.dataset.layerUid = 'layer_' + Math.random().toString(36).substr(2, 9);
             
-            el.parentNode.appendChild(clone);
+            // Drag ve bound bayraklarını temizle ki bindDrag engellenmesin
+            delete clone.dataset.dragBound;
+            delete clone.dataset.bound;
+            clone.querySelectorAll('[data-drag-bound]').forEach(c => {
+                delete c.dataset.dragBound;
+                delete c.dataset.bound;
+            });
+
+            // SVG içindeki ID'leri (filtreler, gradyanlar) çakışmayı önlemek için benzersiz yap
+            const svgEl = clone.querySelector('svg') || (clone.tagName && clone.tagName.toLowerCase() === 'svg' ? clone : null);
+            if (svgEl) {
+                const uniqueSuffix = '_' + Math.random().toString(36).substr(2, 6);
+                let svgHtml = svgEl.outerHTML;
+                const idMatches = svgHtml.match(/id="([^"]+)"/g);
+                if (idMatches) {
+                    idMatches.forEach(match => {
+                        const m = match.match(/id="([^"]+)"/);
+                        if (m && m[1]) {
+                            const originalId = m[1];
+                            const newId = originalId + uniqueSuffix;
+                            svgHtml = svgHtml.replace(new RegExp(`id="${originalId}"`, 'g'), `id="${newId}"`);
+                            svgHtml = svgHtml.replace(new RegExp(`url\\(#${originalId}\\)`, 'g'), `url(#${newId})`);
+                        }
+                    });
+                    const tempWrap = document.createElement('div');
+                    tempWrap.innerHTML = svgHtml;
+                    if (tempWrap.firstElementChild) {
+                        svgEl.parentNode.replaceChild(tempWrap.firstElementChild, svgEl);
+                    }
+                }
+            }
+            
+            if (el.parentNode) {
+                el.parentNode.appendChild(clone);
+            }
+
+            // Callout (SVG veya Neon) yeniden bağlama
+            if (clone.classList.contains('callout-wrap') || clone.classList.contains('svg-callout') || clone.querySelector('.callout-item')) {
+                if (typeof window.rebindSVGCallout === 'function') {
+                    window.rebindSVGCallout(clone);
+                }
+            } else if (clone.classList.contains('co-neon-block')) {
+                if (typeof window.rebindNeonCallout === 'function') {
+                    window.rebindNeonCallout(clone);
+                }
+            }
             
             if (typeof makeDraggable === 'function') {
                 makeDraggable(clone);
+            }
+            if (typeof enableInlineEdit === 'function') {
+                enableInlineEdit(clone);
+                clone.querySelectorAll('.editable-text, [data-editable], span').forEach(t => enableInlineEdit(t));
             }
             
             clone.querySelectorAll('.text-handle').forEach(h => h.remove());
@@ -675,15 +693,28 @@
         
         if (typeof deselectAll === 'function') deselectAll();
         
-        newElements.forEach(el => {
-            if(!window.selectedElements.includes(el)) {
-                window.selectedElements.push(el);
-                el.classList.add('el-selected');
+        if (newElements.length === 1) {
+            if (typeof selectElement === 'function') {
+                selectElement(newElements[0]);
+            } else {
+                window.selectedElements = [newElements[0]];
+                newElements[0].classList.add('el-selected');
             }
-        });
+        } else if (newElements.length > 1) {
+            window.selectedElements = [];
+            newElements.forEach(el => {
+                if (typeof selectElement === 'function') {
+                    selectElement(el, true);
+                } else {
+                    window.selectedElements.push(el);
+                    el.classList.add('el-selected');
+                }
+            });
+        }
         
         if (typeof updateMultiSelectUI === 'function') updateMultiSelectUI();
         if (typeof window.renderLayers === 'function') window.renderLayers();
+        if (typeof window.recordHistory === 'function') window.recordHistory('Öğe Çoğaltıldı');
     };
 
     window.multiSelectDelete = function() {
@@ -816,6 +847,31 @@
             if (el.classList.contains('editable-text') || el.classList.contains('canvas-el')) {
                 const curFs = parseFloat(window.getComputedStyle(el).fontSize) || 16;
                 el.style.fontSize = Math.max(8, Math.round(curFs * factor)) + 'px';
+            }
+            if (el.classList.contains('callout-wrap') || el.classList.contains('svg-callout') || el.classList.contains('co-neon-block')) {
+                const item = el.querySelector('.callout-item, .callout-svg-container');
+                if (item) {
+                    item.style.width = '100%';
+                    item.style.height = '100%';
+                }
+                const svg = el.querySelector('svg');
+                if (svg) {
+                    svg.setAttribute('preserveAspectRatio', 'none');
+                }
+                el.dataset.customW = newW;
+                el.dataset.customH = newH;
+                const coW = document.getElementById('coWidth');
+                const coH = document.getElementById('coHeight');
+                const coWV = document.getElementById('coWidthVal');
+                const coHV = document.getElementById('coHeightVal');
+                if (coW && (window.selectedCalloutEl === item || window.selectedCalloutEl === el || window.selectedEl === el)) {
+                    coW.value = newW;
+                    if (coWV) coWV.textContent = newW + 'px';
+                }
+                if (coH && (window.selectedCalloutEl === item || window.selectedCalloutEl === el || window.selectedEl === el)) {
+                    coH.value = newH;
+                    if (coHV) coHV.textContent = newH + 'px';
+                }
             }
             if (el.classList.contains('editable-draw')) {
                 if (el.dataset.baseWidth !== undefined) el.dataset.baseWidth = newW;

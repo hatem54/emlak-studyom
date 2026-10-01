@@ -75,7 +75,7 @@ function resizeCanvas(){
 
         canvasW = isLand ? 1920 : 1080;
         canvasH = isLand ? 1080 : 1350;
-    } else if (hasImage && window.isMobileDevice()) {
+    } else if (hasImage && window.isMobileDevice() && !window.userHasManuallyChangedFormat) {
         // [MOBİL] Canvas oranı yüklenen görselin orijinal oranını korur
         canvasW = uploadedImgW;
         canvasH = uploadedImgH;
@@ -112,7 +112,14 @@ function resizeCanvas(){
     let availableW = 1000;
     let availableH = 600;
 
-    if (isMob) {
+    const isFullscreen = document.body.classList.contains('canvas-fullscreen-mode');
+
+    if (isFullscreen) {
+        const dockEl = document.getElementById('canvasBottomDock');
+        const dH = dockEl ? (dockEl.offsetHeight || 34) + 26 : 60;
+        availableW = Math.max(200, window.innerWidth - 20);
+        availableH = Math.max(200, window.innerHeight - dH);
+    } else if (isMob) {
         availableW = isLand ? window.innerWidth - 40 : window.innerWidth;
         availableH = isLand ? window.innerHeight - 40 : (window.innerHeight - 135);
     } else {
@@ -381,14 +388,14 @@ window.updateDockLockUI = function(isLocked) {
 
     if (isLocked) {
         dockBtn.className = 'dock-btn lock-active';
-        if (dockIcon) dockIcon.innerText = '📌';
-        if (dockText) dockText.innerText = 'Görüntü Sabit';
-        dockBtn.title = 'Görüntü sabitlendi (Tıklayarak serbest bırakın)';
+        if (dockIcon) dockIcon.innerHTML = '<i class="fa-solid fa-thumbtack"></i>';
+        if (dockText) dockText.innerText = 'Sabit';
+        dockBtn.title = 'Görüntü sabitlendi. Tıklayarak serbest bırakın';
     } else {
         dockBtn.className = 'dock-btn lock-unlocked';
-        if (dockIcon) dockIcon.innerText = '🔓';
-        if (dockText) dockText.innerText = 'Görüntü Serbest';
-        dockBtn.title = 'Görüntü serbest (Fotoğrafı sürükleyip ölçekleyebilirsiniz)';
+        if (dockIcon) dockIcon.innerHTML = '<i class="fa-solid fa-lock-open"></i>';
+        if (dockText) dockText.innerText = 'Serbest';
+        dockBtn.title = 'Görüntü serbest. Fotoğrafı sürükleyip ölçekleyebilirsiniz';
     }
 };
 
@@ -420,19 +427,152 @@ window.quickSetFormat = function(formatKey) {
     });
 };
 
-window.resetCanvasZoomAndPan = function() {
-    if (typeof window.resetCanvasZoom === 'function') {
-        window.resetCanvasZoom();
+let _isNativeFullscreen = false;
+
+window.fitImageToCanvas = function(targetMode) {
+    window._suppressFormatLoading = true;
+    try {
+        // 1. Tuval yakınlaştırma ve kaydırma sıfırla
+        if (typeof window.resetCanvasZoom === 'function') {
+            window.resetCanvasZoom();
+        }
+
+        // 2. Modu belirle (contain <-> cover toggle)
+        if (typeof targetMode === 'string') {
+            window.photoFitMode = targetMode;
+        } else {
+            window.photoFitMode = (window.photoFitMode === 'contain') ? 'cover' : 'contain';
+        }
+        const isContain = (window.photoFitMode === 'contain');
+
+        // 3. Fotoğraf pozisyon ve yakınlaştırma değerlerini sıfırla
+        const xCtrl = document.getElementById('photoXCtrl');
+        const yCtrl = document.getElementById('photoYCtrl');
+        const zoomCtrl = document.getElementById('photoZoomCtrl');
+        if (xCtrl) xCtrl.value = 50;
+        if (yCtrl) yCtrl.value = 50;
+        if (zoomCtrl) zoomCtrl.value = 100;
+
+        document.querySelectorAll('.photo-panel, #photo-layer').forEach(p => {
+            p.dataset.zpX = 0;
+            p.dataset.zpY = 0;
+            p.dataset.zpScale = 1;
+        });
+
+        // 4. Tuval altı dock butonunun ikon, durum ve tooltip bilgisini güncelle
+        const btn = document.getElementById('dockFitCanvasBtn');
+        if (btn) {
+            btn.classList.toggle('active', isContain);
+            const icon = btn.querySelector('i');
+            if (icon) {
+                icon.className = isContain ? 'fas fa-compress-arrows-alt' : 'fas fa-expand-arrows-alt';
+            }
+            btn.title = isContain ? 'Görseli Tuvale Doldur' : 'Görseli Tuvale Sığdır';
+        }
+
+        // 5. Tuval boyutlarını ve fotoğraf ölçeğini uygula
+        if (typeof applyPhotoPos === 'function') applyPhotoPos();
+        document.querySelectorAll('.photo-panel, #photo-layer').forEach(p => {
+            if (typeof _applyPhotoTransform === 'function') _applyPhotoTransform(p);
+        });
+        if (typeof resizeCanvas === 'function') resizeCanvas();
+        if (typeof redrawAll === 'function') redrawAll();
+
+        // 6. 3D motoru varsa sahnede render güncelle
+        if (window.ThreeDEngine && typeof window.ThreeDEngine.requestRender === 'function') {
+            window.ThreeDEngine.requestRender();
+        }
+    } finally {
+        setTimeout(() => {
+            window._suppressFormatLoading = false;
+            if (typeof hideAppLoading === 'function') hideAppLoading();
+        }, 50);
     }
-    const xCtrl = document.getElementById('photoXCtrl');
-    const yCtrl = document.getElementById('photoYCtrl');
-    const zoomCtrl = document.getElementById('photoZoomCtrl');
-    if (xCtrl) xCtrl.value = 50;
-    if (yCtrl) yCtrl.value = 50;
-    if (zoomCtrl) zoomCtrl.value = 100;
-    if (typeof applyPhotoPos === 'function') applyPhotoPos();
-    if (typeof redrawAll === 'function') redrawAll();
 };
+window.resetCanvasZoomAndPan = window.fitImageToCanvas;
+
+window.toggleCanvasFullscreen = function(forceState) {
+    const shouldBeFull = (typeof forceState === 'boolean')
+        ? forceState
+        : !document.body.classList.contains('canvas-fullscreen-mode');
+
+    if (shouldBeFull) {
+        document.body.classList.add('canvas-fullscreen-mode');
+    } else {
+        document.body.classList.remove('canvas-fullscreen-mode');
+    }
+    const isFull = document.body.classList.contains('canvas-fullscreen-mode');
+
+    const btn = document.getElementById('dockFullscreenBtn');
+    const icon = btn ? btn.querySelector('i') : null;
+
+    if (isFull) {
+        if (btn) {
+            btn.classList.add('active');
+            btn.title = 'Normal Görünüm';
+        }
+        if (icon) {
+            icon.className = 'fas fa-compress';
+        }
+        try {
+            if (document.documentElement.requestFullscreen && !document.fullscreenElement) {
+                document.documentElement.requestFullscreen()
+                    .then(() => { _isNativeFullscreen = true; })
+                    .catch(() => { _isNativeFullscreen = false; });
+            }
+        } catch(e) {
+            _isNativeFullscreen = false;
+        }
+    } else {
+        if (btn) {
+            btn.classList.remove('active');
+            btn.title = 'Tam Ekran';
+        }
+        if (icon) {
+            icon.className = 'fas fa-expand';
+        }
+        try {
+            if (document.fullscreenElement && document.exitFullscreen) {
+                document.exitFullscreen().catch(() => {});
+            }
+        } catch(e) {}
+        _isNativeFullscreen = false;
+    }
+
+    // Tuval ölçeğini derhal ve 50ms sonra tam ekran alanına göre yeniden hesapla
+    const syncCanvasSize = () => {
+        if (typeof resizeCanvas === 'function') resizeCanvas();
+        if (typeof applyPhotoPos === 'function') applyPhotoPos();
+        if (typeof redrawAll === 'function') redrawAll();
+        if (window.ThreeDEngine && typeof window.ThreeDEngine.resize === 'function') {
+            const pa = document.querySelector('.preview-area');
+            if (pa) window.ThreeDEngine.resize(pa.clientWidth, pa.clientHeight);
+            window.ThreeDEngine.requestRender();
+        }
+    };
+
+    syncCanvasSize();
+    setTimeout(syncCanvasSize, 50);
+};
+
+// Escape tuşu ile normale dön
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && document.body.classList.contains('canvas-fullscreen-mode')) {
+        window.toggleCanvasFullscreen(false);
+    }
+});
+
+// Sadece gerçekten tarayıcı native fullscreen'den çıkıldığında kapat
+document.addEventListener('fullscreenchange', () => {
+    if (!document.fullscreenElement && _isNativeFullscreen) {
+        _isNativeFullscreen = false;
+        if (document.body.classList.contains('canvas-fullscreen-mode')) {
+            window.toggleCanvasFullscreen(false);
+        }
+    } else if (document.fullscreenElement) {
+        _isNativeFullscreen = true;
+    }
+});
 
 window.rotateBackgroundPhoto = function(direction = 90) {
     let currentUrl = (typeof uploadedImgUrl !== 'undefined' && uploadedImgUrl) ? uploadedImgUrl : '';

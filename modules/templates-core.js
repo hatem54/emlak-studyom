@@ -86,6 +86,14 @@ window.showGlobalLoadingOverlay = function(durationMs, text, subtext) {
 
 function setTemplate(k){
     try {
+        if (k && k !== 'empty') {
+            if (window.CanvasEmptyState && typeof window.CanvasEmptyState.dismiss === 'function') {
+                window.CanvasEmptyState.dismiss();
+            } else {
+                const es = document.getElementById('canvasEmptyState');
+                if (es) { es.classList.add('is-hidden'); es.style.display = 'none'; }
+            }
+        }
         if(typeof setOriginalView === 'function') setOriginalView(false);
         if(window.AppState && typeof window.AppState.resetOnTemplateChange === 'function') {
             window.AppState.resetOnTemplateChange(k);
@@ -150,6 +158,12 @@ function setTemplate(k){
 }
 // ========== UNIFIED TEMPLATE ENGINE ==========
 window.renderCanvaTemplate = function(htmlString) {
+    if (window.CanvasEmptyState && typeof window.CanvasEmptyState.dismiss === 'function') {
+        window.CanvasEmptyState.dismiss();
+    } else {
+        const es = document.getElementById('canvasEmptyState');
+        if (es) { es.classList.add('is-hidden'); es.style.display = 'none'; }
+    }
     if(window.AppState && typeof window.AppState.resetOnTemplateChange === 'function') {
         window.AppState.resetOnTemplateChange('canva');
     }

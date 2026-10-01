@@ -1,0 +1,394 @@
+/* ========================================================
+   EMLAK STÜDYOM - AKILLI BİLGİ KARTI STİLLERİ (16 LÜKS TEMA)
+   css/template-info-card.css
+   ======================================================== */
+
+.tb-info-card {
+    position: absolute;
+    box-sizing: border-box;
+    z-index: 160;
+    border-radius: 12px;
+    cursor: move;
+    user-select: none;
+    transition: all 0.2s ease;
+    display: flex;
+}
+
+/* Yatay Mod (Alt ve Üst Konumlandırma) */
+.tb-info-card.horizontal {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 28px;
+    gap: 20px;
+}
+
+/* Dikey Mod (Sol ve Sağ Konumlandırma) */
+.tb-info-card.vertical {
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 20px 18px;
+    gap: 16px;
+}
+
+/* ========================================================
+   16 HAZIR LÜKS GAYRİMENKUL TEMASI
+   ======================================================== */
+
+/* 1. Koyu Lüks */
+.tb-info-card.tb-ic-theme-luxury-dark {
+    background: rgba(15, 23, 42, 0.94);
+    border: 1.5px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(8px);
+    color: #ffffff;
+}
+
+/* 2. Safir Mavi */
+.tb-info-card.tb-ic-theme-sapphire {
+    background: linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(30, 58, 138, 0.92));
+    border: 1.5px solid rgba(56, 189, 248, 0.45);
+    box-shadow: 0 12px 36px rgba(2, 132, 199, 0.25);
+    backdrop-filter: blur(8px);
+    color: #ffffff;
+}
+
+/* 3. Aydınlık Temiz */
+.tb-info-card.tb-ic-theme-clean-light {
+    background: rgba(255, 255, 255, 0.96);
+    border: 1.5px solid #cbd5e1;
+    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.15);
+    color: #0f172a;
+}
+.tb-info-card.tb-ic-theme-clean-light .tb-ic-title { color: #0f172a; text-shadow: none; }
+.tb-info-card.tb-ic-theme-clean-light .tb-ic-sub { color: #0284c7; }
+.tb-info-card.tb-ic-theme-clean-light .tb-ic-spec-pill { background: #f1f5f9; border-color: #e2e8f0; color: #1e293b; }
+.tb-info-card.tb-ic-theme-clean-light .tb-ic-price { background: #0284c7; color: #ffffff; border-color: #0284c7; }
+.tb-info-card.tb-ic-theme-clean-light .tb-ic-agent { color: #475569; }
+
+/* 4. Zümrüt Prestij */
+.tb-info-card.tb-ic-theme-emerald {
+    background: linear-gradient(135deg, rgba(4, 47, 46, 0.96), rgba(15, 118, 110, 0.92));
+    border: 1.5px solid rgba(234, 179, 8, 0.45);
+    box-shadow: 0 12px 36px rgba(4, 47, 46, 0.3);
+    backdrop-filter: blur(8px);
+    color: #ffffff;
+}
+.tb-info-card.tb-ic-theme-emerald .tb-ic-sub { color: #facc15; }
+.tb-info-card.tb-ic-theme-emerald .tb-ic-price { background: #facc15; color: #0f172a; border-color: #eab308; }
+
+/* 5. Altın Mermer */
+.tb-info-card.tb-ic-theme-gold-amber {
+    background: linear-gradient(135deg, rgba(17, 24, 39, 0.96), rgba(31, 41, 55, 0.92));
+    border: 1.5px solid rgba(217, 119, 6, 0.6);
+    box-shadow: 0 12px 36px rgba(217, 119, 6, 0.2);
+    backdrop-filter: blur(8px);
+    color: #ffffff;
+}
+.tb-info-card.tb-ic-theme-gold-amber .tb-ic-sub { color: #fbbf24; }
+.tb-info-card.tb-ic-theme-gold-amber .tb-ic-price { background: #f59e0b; color: #000000; border-color: #d97706; }
+
+/* 6. Yakut Bordo */
+.tb-info-card.tb-ic-theme-ruby-crimson {
+    background: linear-gradient(135deg, rgba(76, 5, 25, 0.96), rgba(136, 19, 55, 0.92));
+    border: 1.5px solid rgba(244, 63, 94, 0.45);
+    box-shadow: 0 12px 36px rgba(76, 5, 25, 0.35);
+    backdrop-filter: blur(8px);
+    color: #ffffff;
+}
+.tb-info-card.tb-ic-theme-ruby-crimson .tb-ic-sub { color: #fda4af; }
+.tb-info-card.tb-ic-theme-ruby-crimson .tb-ic-price { background: #ffffff; color: #881337; border-color: #f43f5e; }
+
+/* 7. Platin Metalik */
+.tb-info-card.tb-ic-theme-platinum {
+    background: linear-gradient(135deg, rgba(30, 41, 59, 0.96), rgba(51, 65, 85, 0.92));
+    border: 1.5px solid rgba(148, 163, 184, 0.5);
+    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.35);
+    backdrop-filter: blur(8px);
+    color: #ffffff;
+}
+.tb-info-card.tb-ic-theme-platinum .tb-ic-sub { color: #cbd5e1; }
+.tb-info-card.tb-ic-theme-platinum .tb-ic-price { background: #ffffff; color: #0f172a; border-color: #94a3b8; }
+
+/* 8. Keten Vizon */
+.tb-info-card.tb-ic-theme-warm-linen {
+    background: rgba(250, 246, 240, 0.96);
+    border: 1.5px solid #d6cebf;
+    box-shadow: 0 12px 36px rgba(41, 37, 36, 0.12);
+    color: #292524;
+}
+.tb-info-card.tb-ic-theme-warm-linen .tb-ic-title { color: #292524; text-shadow: none; }
+.tb-info-card.tb-ic-theme-warm-linen .tb-ic-sub { color: #78716c; }
+.tb-info-card.tb-ic-theme-warm-linen .tb-ic-spec-pill { background: #ede6dd; border-color: #d6cebf; color: #44403c; }
+.tb-info-card.tb-ic-theme-warm-linen .tb-ic-price { background: #44403c; color: #ffffff; border-color: #292524; }
+.tb-info-card.tb-ic-theme-warm-linen .tb-ic-agent { color: #57534e; }
+
+/* 9. Gece Mat Siyah */
+.tb-info-card.tb-ic-theme-midnight-pure {
+    background: #000000;
+    border: 1.5px solid rgba(255, 255, 255, 0.3);
+    box-shadow: 0 14px 40px rgba(0, 0, 0, 0.7);
+    color: #ffffff;
+}
+.tb-info-card.tb-ic-theme-midnight-pure .tb-ic-sub { color: #e2e8f0; }
+.tb-info-card.tb-ic-theme-midnight-pure .tb-ic-price { background: #ffffff; color: #000000; border-color: #ffffff; }
+
+/* 10. Terakota Akdeniz */
+.tb-info-card.tb-ic-theme-terracotta {
+    background: linear-gradient(135deg, rgba(124, 45, 18, 0.96), rgba(154, 52, 18, 0.92));
+    border: 1.5px solid rgba(253, 186, 116, 0.5);
+    box-shadow: 0 12px 36px rgba(124, 45, 18, 0.3);
+    backdrop-filter: blur(8px);
+    color: #ffffff;
+}
+.tb-info-card.tb-ic-theme-terracotta .tb-ic-sub { color: #fed7aa; }
+.tb-info-card.tb-ic-theme-terracotta .tb-ic-price { background: #ffedd5; color: #7c2d12; border-color: #fdba74; }
+
+/* 11. Siber Neon */
+.tb-info-card.tb-ic-theme-cyber-neon {
+    background: linear-gradient(135deg, rgba(2, 6, 23, 0.97), rgba(15, 23, 42, 0.94));
+    border: 1.5px solid #06b6d4;
+    box-shadow: 0 12px 36px rgba(6, 182, 212, 0.25);
+    backdrop-filter: blur(8px);
+    color: #ffffff;
+}
+.tb-info-card.tb-ic-theme-cyber-neon .tb-ic-sub { color: #22d3ee; }
+.tb-info-card.tb-ic-theme-cyber-neon .tb-ic-price { background: #06b6d4; color: #020617; border-color: #22d3ee; }
+
+/* 12. Orman Doğa */
+.tb-info-card.tb-ic-theme-forest-nature {
+    background: linear-gradient(135deg, rgba(20, 83, 45, 0.96), rgba(22, 101, 52, 0.92));
+    border: 1.5px solid rgba(134, 239, 172, 0.45);
+    box-shadow: 0 12px 36px rgba(20, 83, 45, 0.3);
+    backdrop-filter: blur(8px);
+    color: #ffffff;
+}
+.tb-info-card.tb-ic-theme-forest-nature .tb-ic-sub { color: #bbf7d0; }
+.tb-info-card.tb-ic-theme-forest-nature .tb-ic-price { background: #dcfce7; color: #14532d; border-color: #86efac; }
+
+/* 13. Pastel Şampanya */
+.tb-info-card.tb-ic-theme-rose-champagne {
+    background: linear-gradient(135deg, rgba(76, 29, 61, 0.96), rgba(112, 38, 82, 0.92));
+    border: 1.5px solid rgba(249, 168, 212, 0.45);
+    box-shadow: 0 12px 36px rgba(76, 29, 61, 0.3);
+    backdrop-filter: blur(8px);
+    color: #ffffff;
+}
+.tb-info-card.tb-ic-theme-rose-champagne .tb-ic-sub { color: #fbcfe8; }
+.tb-info-card.tb-ic-theme-rose-champagne .tb-ic-price { background: #fdf2f8; color: #702652; border-color: #f9a8d4; }
+
+/* 14. Kraliyet Bordosu */
+.tb-info-card.tb-ic-theme-royal-burgundy {
+    background: linear-gradient(135deg, rgba(59, 7, 100, 0.96), rgba(88, 28, 135, 0.92));
+    border: 1.5px solid rgba(234, 179, 8, 0.5);
+    box-shadow: 0 12px 36px rgba(59, 7, 100, 0.35);
+    backdrop-filter: blur(8px);
+    color: #ffffff;
+}
+.tb-info-card.tb-ic-theme-royal-burgundy .tb-ic-sub { color: #fde047; }
+.tb-info-card.tb-ic-theme-royal-burgundy .tb-ic-price { background: #fef08a; color: #3b0764; border-color: #eab308; }
+
+/* 15. Okyanus Turkuaz */
+.tb-info-card.tb-ic-theme-ocean-turquoise {
+    background: linear-gradient(135deg, rgba(8, 51, 68, 0.96), rgba(21, 94, 117, 0.92));
+    border: 1.5px solid rgba(56, 189, 248, 0.45);
+    box-shadow: 0 12px 36px rgba(8, 51, 68, 0.3);
+    backdrop-filter: blur(8px);
+    color: #ffffff;
+}
+.tb-info-card.tb-ic-theme-ocean-turquoise .tb-ic-sub { color: #67e8f9; }
+.tb-info-card.tb-ic-theme-ocean-turquoise .tb-ic-price { background: #cffafe; color: #083344; border-color: #38bdf8; }
+
+/* 16. Monokrom Minimal */
+.tb-info-card.tb-ic-theme-minimal-mono {
+    background: #ffffff;
+    border: 2px solid #000000;
+    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.2);
+    color: #000000;
+}
+.tb-info-card.tb-ic-theme-minimal-mono .tb-ic-title { color: #000000; text-shadow: none; }
+.tb-info-card.tb-ic-theme-minimal-mono .tb-ic-sub { color: #525252; }
+.tb-info-card.tb-ic-theme-minimal-mono .tb-ic-spec-pill { background: #f4f4f5; border-color: #000000; color: #000000; }
+.tb-info-card.tb-ic-theme-minimal-mono .tb-ic-price { background: #000000; color: #ffffff; border-color: #000000; }
+.tb-info-card.tb-ic-theme-minimal-mono .tb-ic-agent { color: #525252; }
+
+/* ========================================================
+   ÖZEL AÇIK RENK KONTRAST DESTEĞİ
+   ======================================================== */
+.tb-info-card.tb-ic-light-mode {
+    color: #0f172a !important;
+    border-color: #cbd5e1 !important;
+}
+.tb-info-card.tb-ic-light-mode .tb-ic-title {
+    color: #0f172a !important;
+    text-shadow: none !important;
+}
+.tb-info-card.tb-ic-light-mode .tb-ic-sub {
+    color: #0284c7 !important;
+}
+.tb-info-card.tb-ic-light-mode .tb-ic-spec-pill {
+    background: #f1f5f9 !important;
+    border-color: #e2e8f0 !important;
+    color: #1e293b !important;
+}
+.tb-info-card.tb-ic-light-mode .tb-ic-price {
+    background: #0284c7 !important;
+    color: #ffffff !important;
+    border-color: #0284c7 !important;
+}
+.tb-info-card.tb-ic-light-mode .tb-ic-agent {
+    color: #475569 !important;
+}
+
+/* ========================================================
+   İÇ ELEMANLAR
+   ======================================================== */
+.tb-ic-left-col {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex: 1.2;
+    min-width: 0;
+}
+
+.tb-ic-title {
+    font-family: 'Archivo Black', 'Space Grotesk', sans-serif;
+    font-size: clamp(16px, 1.8vw, 26px);
+    font-weight: 900;
+    line-height: 1.15;
+    letter-spacing: -0.5px;
+    cursor: text;
+    text-shadow: 0 2px 8px rgba(0,0,0,0.4);
+    outline: none;
+    word-break: break-word;
+}
+
+.tb-info-card.vertical .tb-ic-title {
+    font-size: clamp(14px, 1.4vw, 20px);
+}
+
+.tb-ic-sub {
+    font-size: clamp(10px, 1vw, 14px);
+    font-weight: 600;
+    color: #38bdf8;
+    line-height: 1.25;
+    cursor: text;
+    outline: none;
+    word-break: break-word;
+}
+
+.tb-ic-center-col {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+    flex: 1.3;
+}
+
+.tb-info-card.vertical .tb-ic-center-col {
+    gap: 5px;
+}
+
+.tb-ic-spec-pill {
+    padding: clamp(3px, 0.4vw, 6px) clamp(6px, 0.8vw, 12px);
+    border-radius: 6px;
+    font-size: clamp(10px, 0.9vw, 13px);
+    font-weight: 700;
+    background: rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: inherit;
+    white-space: nowrap;
+    cursor: text;
+    outline: none;
+}
+
+.tb-ic-right-col {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+.tb-info-card.vertical .tb-ic-right-col {
+    align-items: flex-start;
+}
+
+.tb-ic-price {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: clamp(16px, 1.8vw, 26px);
+    font-weight: 900;
+    padding: clamp(4px, 0.5vw, 6px) clamp(10px, 1.2vw, 18px);
+    border-radius: 30px;
+    background: #ffffff;
+    color: #0f172a;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.25);
+    border: 2px solid #0284c7;
+    white-space: nowrap;
+    cursor: text;
+    outline: none;
+}
+
+.tb-info-card.vertical .tb-ic-price {
+    font-size: clamp(14px, 1.4vw, 20px);
+    padding: 4px 14px;
+}
+
+.tb-ic-agent {
+    font-size: clamp(9px, 0.85vw, 13px);
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.9);
+    cursor: text;
+    outline: none;
+    word-break: break-word;
+}
+
+.tb-ic-close-btn {
+    position: absolute;
+    top: -9px;
+    right: -9px;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: #dc2626;
+    color: #ffffff;
+    border: 2px solid #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    z-index: 10;
+    transition: transform 0.15s;
+}
+
+.tb-ic-close-btn:hover {
+    transform: scale(1.15);
+}
+
+/* Yan Panel Kart Renk Çipleri */
+.tb-card-bg-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin-bottom: 8px;
+}
+
+.tb-card-bg-chip {
+    width: 22px;
+    height: 22px;
+    border-radius: 5px;
+    border: 1px solid rgba(0, 0, 0, 0.15);
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s;
+}
+
+body[data-theme="dark"] .tb-card-bg-chip {
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.tb-card-bg-chip:hover {
+    transform: scale(1.15);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+}

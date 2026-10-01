@@ -56,14 +56,21 @@
             return;
         }
 
+        if (window.CanvasEmptyState && typeof window.CanvasEmptyState.dismiss === 'function') {
+            window.CanvasEmptyState.dismiss();
+        } else {
+            const es = document.getElementById('canvasEmptyState');
+            if (es) { es.classList.add('is-hidden'); es.style.display = 'none'; }
+        }
+
         console.log('👑 PRO JSON Şablonu Yükleniyor:', tpl.name, tpl.format);
 
         // 1. Tuval Formatını Şablona Uyarla
         const formatMap = {
             '16:9': '16:9 Full HD (YouTube/Banner)',
-            '1:1': '1:1 Kare (Instagram/Sahibinden)',
-            '4:5': '4:5 Portre (Instagram Gönderi)',
-            '9:16': '9:16 Dikey (Story/Reels/TikTok)'
+            '1:1': '1:1 Instagram Post (Kare)',
+            '4:5': '4:5 Instagram Portrait',
+            '9:16': '9:16 Instagram/TikTok Story'
         };
 
         const targetFormatName = formatMap[tpl.format] || '16:9 Full HD (YouTube/Banner)';

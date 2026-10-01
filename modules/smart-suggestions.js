@@ -1149,169 +1149,82 @@ window.renderSmartSuggestionsUI = function() {
         `;
     }
 
-    // Bölüm 3: 📝 AKILLI İLAN AÇIKLAMASI, REELS & SESLENDİRME METNİ
-    let activeTab = window.activeAiDescTab || 'sahibinden';
-    if (window.innerWidth <= 768 && activeTab === 'voiceover') {
-        activeTab = 'sahibinden';
-        window.activeAiDescTab = 'sahibinden';
-    }
-    let descText = window.smartAiDescription || '';
-    if (activeTab === 'social') descText = window.smartAiSocialPost || '';
-    else if (activeTab === 'reels') descText = window.smartReelsHook || '';
-    else if (activeTab === 'voiceover') descText = window.smartVoiceoverScript || '';
-
-    html += `
-        <div class="smart-sub-section" style="margin-top: 14px; border-top:1px solid rgba(255,255,255,0.08); padding-top:10px;">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-                <span class="smart-section-header purple">
-                    <i class="fa-solid fa-feather-pointed" style="color:#a855f7;"></i> Akıllı İlan & Reels
-                </span>
-                <div style="display:flex; gap:3px;">
-                    <button type="button" onclick="window.switchAiDescTab('sahibinden')" class="smart-outline-tab-btn ${activeTab === 'sahibinden' ? 'active' : ''}" style="background:${activeTab === 'sahibinden' ? 'rgba(168,85,247,0.2)' : 'transparent'}; border:1px solid ${activeTab === 'sahibinden' ? '#a855f7' : 'rgba(255,255,255,0.15)'}; color:${activeTab === 'sahibinden' ? '#e9d5ff' : '#94a3b8'}; font-size:9.5px; font-weight:700; padding:2px 6px; border-radius:4px; cursor:pointer;">Sahibinden</button>
-                    <button type="button" onclick="window.switchAiDescTab('social')" class="smart-outline-tab-btn ${activeTab === 'social' ? 'active' : ''}" style="background:${activeTab === 'social' ? 'rgba(56,189,248,0.2)' : 'transparent'}; border:1px solid ${activeTab === 'social' ? '#38bdf8' : 'rgba(255,255,255,0.15)'}; color:${activeTab === 'social' ? '#bae6fd' : '#94a3b8'}; font-size:9.5px; font-weight:700; padding:2px 6px; border-radius:4px; cursor:pointer;">Instagram</button>
-                    <button type="button" onclick="window.switchAiDescTab('reels')" class="smart-outline-tab-btn ${activeTab === 'reels' ? 'active' : ''}" style="background:${activeTab === 'reels' ? 'rgba(234,179,8,0.2)' : 'transparent'}; border:1px solid ${activeTab === 'reels' ? '#eab308' : 'rgba(255,255,255,0.15)'}; color:${activeTab === 'reels' ? '#fef08a' : '#94a3b8'}; font-size:9.5px; font-weight:700; padding:2px 6px; border-radius:4px; cursor:pointer;">🎬 Reels</button>
-                    <button type="button" onclick="window.switchAiDescTab('voiceover')" class="smart-outline-tab-btn smart-voiceover-tab pc-only ${activeTab === 'voiceover' ? 'active' : ''}" style="background:${activeTab === 'voiceover' ? 'rgba(16,185,129,0.2)' : 'transparent'}; border:1px solid ${activeTab === 'voiceover' ? '#10b981' : 'rgba(255,255,255,0.15)'}; color:${activeTab === 'voiceover' ? '#a7f3d0' : '#94a3b8'}; font-size:9.5px; font-weight:700; padding:2px 6px; border-radius:4px; cursor:pointer;">🎙️ Seslendirme</button>
-                </div>
-            </div>
-
-            <textarea id="smartGeneratedDescArea" class="smart-desc-area" rows="4" style="width:100%; height:95px; resize:vertical; line-height:1.5; font-size:11.5px; border-radius:8px; padding:8px 10px; box-sizing:border-box;">${descText}</textarea>
-
-            <div style="display:flex; gap:6px; margin-top:6px;">
-                <button type="button" onclick="window.copySmartDescription()" class="smart-outline-action-btn smart-copy-btn" title="Metni Panoya Kopyalar">
-                    <i class="fa-solid fa-copy"></i> Metni Kopyala
-                </button>
-                <button type="button" onclick="window.applySmartDescToForm()" class="smart-outline-action-btn smart-apply-btn" title="İlan Açıklamasına Aktarır">
-                    <i class="fa-solid fa-file-pen"></i> Açıklamaya Aktar
-                </button>
-                <button type="button" onclick="if(window.VoiceStudio) window.VoiceStudio.rescanFormAndRegenerate()" class="smart-outline-action-btn smart-rescan-btn pc-only" title="Formdaki güncel fiyat, m² ve detayları yeniden tarar">
-                    <i class="fa-solid fa-arrows-rotate"></i> Yeniden Tara
-                </button>
-            </div>
-
-            <!-- 🎙️ SESLENDİRME STÜDYOSU PANELİ (AI VOICEOVER & MP3 ENGINE - Sadece PC) -->
-            <div id="smartVoiceoverStudioPanel" class="voice-studio-panel pc-only" style="display:${activeTab === 'voiceover' ? 'block' : 'none'};">
-                <div class="voice-studio-header">
-                    <span class="voice-studio-title">
-                        <i class="fa-solid fa-headphones"></i> Emlak Reklam Seslendirme Motoru
-                    </span>
-                    <div id="voiceQuotaDisplay" class="voice-studio-quota">
-                        ${(window.VoiceStudio && typeof window.VoiceStudio.isAdmin === 'function' && window.VoiceStudio.isAdmin()) ? `🛡️ Admin (Nöral) • Kalan Kota: <strong class="voice-quota-val">${window.VoiceStudio.getQuotaStatus().remaining}/${window.VoiceStudio.getQuotaStatus().total}</strong>` : `<span class="voice-quota-free">⚡ Hızlı & Ücretsiz Seslendirme</span>`}
-                    </div>
-                </div>
-
-                <!-- 🪄 AI İLE DÜZENLE / KOMUT VER ÇUBUĞU -->
-                <div class="voice-studio-ai-box">
-                    <div style="display:flex; flex-wrap:wrap; gap:4px; margin-bottom:6px;">
-                        <button type="button" onclick="if(window.VoiceStudio) window.VoiceStudio.refineVoiceoverWithAI('Daha kısa, öz ve 20 saniyelik vurucu bir reklam spotu olarak yaz')" class="voice-studio-quick-btn kisa">⚡ Daha Kısa</button>
-                        <button type="button" onclick="if(window.VoiceStudio) window.VoiceStudio.refineVoiceoverWithAI('Daha heyecanlı, dinamik ve aciliyet hissi veren bir satış spotu olarak yaz')" class="voice-studio-quick-btn vurgu">📢 Daha Vurgulu</button>
-                        <button type="button" onclick="if(window.VoiceStudio) window.VoiceStudio.refineVoiceoverWithAI('Lüks, prestijli, seçkin ve elit yaşam vurgulu bir reklam filmi dış sesi olarak yaz')" class="voice-studio-quick-btn luks">💎 Lüks & Prestij</button>
-                        <button type="button" onclick="if(window.VoiceStudio) window.VoiceStudio.refineVoiceoverWithAI('Yüksek prim getirisi, geleceğe yatırım ve kazanç potansiyelini öne çıkararak yaz')" class="voice-studio-quick-btn yatirim">🌾 Yatırım Odaklı</button>
-                    </div>
-                    <div style="display:flex; gap:4px;">
-                        <input type="text" id="voiceCustomPromptInput" class="voice-studio-input" placeholder="Özel komut (örn: 'Deniz manzarasını öne çıkar', 'Daha samimi dille yaz')..." onkeydown="if(event.key==='Enter'&&window.VoiceStudio) window.VoiceStudio.refineVoiceoverWithAI(this.value)">
-                        <button type="button" onclick="if(window.VoiceStudio) window.VoiceStudio.refineVoiceoverWithAI()" class="voice-studio-btn-refine" title="AI ile Yeniden Üret">
-                            <i class="fa-solid fa-wand-magic-sparkles"></i> Düzenle
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Ses ve Hız Seçimi -->
-                <div style="display:flex; gap:6px; align-items:center; width:100%; box-sizing:border-box; margin-bottom:8px;">
-                    <select id="voiceEngineSelect" class="voice-studio-select" style="flex:1; min-width:0;" title="Ses Motoru Seçimi">
-                        ${(window.VoiceStudio && typeof window.VoiceStudio.isAdmin === 'function' && window.VoiceStudio.isAdmin()) ? `
-                            <option value="charon_neural" selected>🌟 Charon Neural (HD Erkek - Karizmatik) [Admin]</option>
-                            <option value="zephyr_neural">🌟 Zephyr Neural (HD Kadın - Prestijli) [Admin]</option>
-                            <option value="wavenet_male">📻 WaveNet Klasik (Erkek - Spiker) [Admin]</option>
-                            <option value="wavenet_female">📻 WaveNet Kadın (Spiker) [Admin]</option>
-                            <option value="ahmet_neural">🔊 Ahmet (Erkek - Doğal)</option>
-                            <option value="emel_neural">🔊 Emel (Kadın - Kurumsal)</option>
-                            <option value="free_tts">🌐 Standart TTS (Hızlı)</option>
-                        ` : `
-                            <option value="ahmet_neural" selected>🔊 Ahmet (Erkek - Doğal Reklam)</option>
-                            <option value="emel_neural">🔊 Emel (Kadın - Kurumsal & Akıcı)</option>
-                            <option value="free_tts">🌐 Standart Hızlı Seslendirme</option>
-                        `}
-                    </select>
-                    
-                    <select id="voiceSpeedSelect" class="voice-studio-select" style="width:104px; flex-shrink:0; padding-left:4px; padding-right:2px;" title="Seslendirme Hızı">
-                        <option value="0.95">0.95x (Sakin)</option>
-                        <option value="1.0">1.0x (Doğal)</option>
-                        <option value="1.05" selected>1.05x (Dinamik)</option>
-                        <option value="1.15">1.15x (Hızlı)</option>
-                    </select>
-                </div>
-
-                <!-- Aksiyon Butonları (Seslendir & Dinle / Durdur / MP3 İndir) -->
-                <div style="display:flex; gap:6px;">
-                    <button type="button" id="btnVoiceoverPlay" onclick="if(window.VoiceStudio) window.VoiceStudio.generateVoiceover()" class="voice-studio-btn-play">
-                        <i class="fa-solid fa-play"></i> Seslendir ve Dinle
-                    </button>
-                    <button type="button" id="btnVoiceoverStop" onclick="if(window.VoiceStudio) window.VoiceStudio.stopPlayback()" class="voice-studio-btn-stop">
-                        <i class="fa-solid fa-stop"></i>
-                    </button>
-                    <button type="button" id="btnVoiceoverDownload" onclick="if(window.VoiceStudio) window.VoiceStudio.downloadMP3()" disabled class="voice-studio-btn-download" title="Önce seslendirmeniz gerekir">
-                        <i class="fa-solid fa-download"></i> MP3 İndir
-                    </button>
-                </div>
-
-                <!-- Durum Bildirimi ve Oynatıcı -->
-                <div id="voiceStudioStatus" class="voice-studio-status"></div>
-                <audio id="voiceoverAudioPlayer" controls style="width:100%; height:32px; margin-top:6px; display:none; outline:none; border-radius:6px;"></audio>
-            </div>
-        </div>
-    `;
-
-    // Bölüm 4: 🏷️ DİĞER VURGU ROZETLERİ (Pill Şeklinde)
-    if (window.smartBadges && window.smartBadges.length > 0) {
-        html += `
-            <div class="smart-sub-section" style="margin-top: 12px; border-top:1px solid rgba(255,255,255,0.06); padding-top:10px;">
-                <div class="smart-sub-title" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-                    <span class="smart-section-header neutral">🏷️ Metin Vurgu Rozetleri</span>
-                    <span class="smart-section-hint">Hızlı Seçim</span>
-                </div>
-                <div class="smart-badges-grid">
-        `;
-
-        window.smartBadges.forEach((b, idx) => {
-            html += `
-                <div class="smart-badge-pill ${b.style || 'modern'}" onclick="window.addSmartBadgeToCanvas(${idx})" title="Tuvale Çerçeveli Rozet Olarak Ekle">
-                    <span class="badge-text">${b.text}</span>
-                    <button type="button" class="badge-del-btn" onclick="event.stopPropagation(); window.removeSmartBadge(${idx});" title="Listeden Kaldır">✕</button>
-                </div>
-            `;
-        });
-
-        html += `
-                </div>
-            </div>
-        `;
-    }
-
-    // Bölüm 5: 🎯 İLGİLİ İKONLAR
-    if (window.smartMatchedIcons && window.smartMatchedIcons.length > 0) {
-        html += `
-            <div class="smart-sub-section" style="margin-top: 10px;">
-                <div class="smart-sub-title" style="font-size:11px; font-weight:700; color:#cbd5e1; margin-bottom:6px;">
-                    <span>🎯 İlgili İkonlar</span>
-                </div>
-                <div class="smart-icons-row">
-        `;
-
-        window.smartMatchedIcons.forEach(iconChar => {
-            html += `
-                <button type="button" class="smart-icon-btn" onclick="if(window.addIcon) window.addIcon('${iconChar}')" title="${iconChar} İkonunu Ekle">
-                    ${iconChar}
-                </button>
-            `;
-        });
-
-        html += `
-                </div>
-            </div>
-        `;
-    }
-
+    // Bölüm 3 ve sonrası artık app.html içerisinde.
     body.innerHTML = html;
+};
+
+window.rawAiText = "";
+window.switchAiMainTab = function(tabName) {
+    const aiText = document.getElementById("aiText");
+    const tabs = ["raw", "sahibinden", "social", "reels", "voiceover"];
+    const actionRow = document.getElementById("aiActionButtonsRow");
+    const copyRow = document.getElementById("aiCopyButtonsRow");
+    const voicePanel = document.getElementById("mainVoiceStudioPanel");
+    
+    if (aiText && window.activeAiMainTab === "raw") {
+        window.rawAiText = aiText.value;
+    }
+    window.activeAiMainTab = tabName;
+    
+    tabs.forEach(t => {
+        const btn = document.getElementById("tab_" + t);
+        if (btn) {
+            if (t === tabName) {
+                btn.style.background = "rgba(99,102,241,0.15)";
+                btn.style.borderColor = "#6366f1";
+                btn.style.color = "#6366f1";
+                btn.classList.add("active");
+            } else {
+                btn.style.background = "transparent";
+                btn.style.borderColor = "rgba(148,163,184,0.3)";
+                btn.style.color = "#94a3b8";
+                btn.classList.remove("active");
+            }
+        }
+    });
+    
+    if (tabName === "raw") {
+        if (aiText) aiText.value = window.rawAiText || "";
+        if (actionRow) actionRow.style.display = "flex";
+        if (copyRow) copyRow.style.display = "none";
+        if (voicePanel) voicePanel.style.display = "none";
+    } else {
+        if (actionRow) actionRow.style.display = "none";
+        if (copyRow) copyRow.style.display = "flex";
+        if (voicePanel) voicePanel.style.display = (tabName === "voiceover") ? "block" : "none";
+        
+        if (aiText) {
+            if (tabName === "sahibinden") aiText.value = window.smartAiDescription || "";
+            else if (tabName === "social") aiText.value = window.smartAiSocialPost || "";
+            else if (tabName === "reels") aiText.value = window.smartReelsHook || "";
+            else if (tabName === "voiceover") aiText.value = window.smartVoiceoverScript || "";
+        }
+    }
+};
+
+window.copyAiMainText = function() {
+    const aiText = document.getElementById("aiText");
+    if (aiText && aiText.value) {
+        navigator.clipboard.writeText(aiText.value).then(() => {
+            if (typeof window.showAppToast === "function") {
+                window.showAppToast("Metin başarıyla kopyalandı!", "success");
+            }
+        });
+    }
+};
+
+window.applyAiMainToDesc = function() {
+    const aiText = document.getElementById("aiText");
+    const descInput = document.getElementById("descInput");
+    if (aiText && aiText.value && descInput) {
+        descInput.value = aiText.value;
+        if (typeof window.onDescInputChanged === "function") {
+            window.onDescInputChanged();
+        }
+        if (typeof window.showAppToast === "function") {
+            window.showAppToast("Metin açıklama kutusuna aktarıldı!", "success");
+        }
+    }
 };
 
 // ==================== 3. ETKİLEŞİM & AKSIYON FONKSİYONLARI ====================

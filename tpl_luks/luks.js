@@ -13,8 +13,8 @@ function _luksInit(){
     container.innerHTML = `
         <div class="edit-hint" style="display:none;">💡 Yazıya/panele ÇİFT TIKLA | Sürükle Bırak | Sağ Tık (Ayarlar)</div>
         <div class="template-grid" id="luksTemplateGrid" style="margin-top:10px;"></div>
-        <div class="section-title">💎 Lüks Tasarımlar (Aşırı Detaylı)</div>
-        <div class="section-title" style="margin-top:0">&#10024; H&#305;zl&#305; Metin D&#252;zenleyici</div>
+        <div class="section-title"><i class="fa-solid fa-gem" style="color:#0284c7; margin-right:6px;"></i>Lüks Tasarımlar</div>
+        <div class="section-title" style="margin-top:0"><i class="fa-solid fa-wand-magic-sparkles" style="color:#0284c7; margin-right:6px;"></i>Hızlı Metin Düzenleyici</div>
         
         <div class="input-group">
             <label>Ana Ba&#351;l&#305;k (Title)</label>

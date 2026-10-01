@@ -221,6 +221,10 @@ let _neonAnimRAF = null;
 let _neonAnimTime = 0;
 
 function runNeonSvgAnimationLoop() {
+    if (!window.isSaberAnimationActive()) {
+        stopNeonSvgAnimationLoop();
+        return;
+    }
     _neonAnimTime += 0.05;
     
     const neonDrawings = document.querySelectorAll('.editable-draw');
@@ -314,11 +318,29 @@ function stopNeonSvgAnimationLoop() {
 // 4. ANİMASYON DURUMUNU UYGULA
 // ══════════════════════════════════════════════
 window.isSaberAnimationActive = function() {
+    if (typeof window !== 'undefined' && window.isExportingVideo) return true;
+
+    // 1. Çizim katmanında aktif neon var mı ve animasyon toggle'ı açık mı?
     const bottomAnim = document.getElementById('saberEnergyNodesAnim');
-    if (bottomAnim && bottomAnim.checked) return true;
-    const toggles = document.querySelectorAll('.saber-anim-toggle input[type="checkbox"], input[id$="Anim"]');
-    if (toggles.length === 0) return false;
-    return Array.from(toggles).some(cb => cb.checked);
+    const hasActiveDrawSaber = typeof drawPaths !== 'undefined' && drawPaths.some(p => p && (p.hasSaber || p.saber));
+    if (hasActiveDrawSaber && bottomAnim && bottomAnim.checked) return true;
+
+    // 2. Yazı katmanında aktif neon ve animasyon açık mı?
+    const textAnim = document.getElementById('elTextSaberAnim');
+    const textToggle = document.getElementById('elTextSaber');
+    if (textToggle && textToggle.checked && textAnim && textAnim.checked) return true;
+
+    // 3. Canlı animasyonlu neon metin veya saber presetleri aktif mi? (Alev, Dönme, Elektrik, Kıvılcım, Gökkuşağı vb.)
+    // Kullanıcı animasyon butonunu (window.isNeonTextAnimActive) açmadıkça metin için ticker tetiklenmez.
+    if (window.isNeonTextAnimActive === true && window.SaberEngine && typeof window.SaberEngine.getSabers === 'function') {
+        const sabers = window.SaberEngine.getSabers();
+        const hasAnimatedSaber = sabers.some(s => s && s.visible !== false && (
+            (s.pixiText && (s.presetName !== 'fully-lit' && s.presetName !== 'full-neon' || (s.options && s.options.pulseSpeed > 0) || (s.options && s.options.flickerAmount > 0) || (s.options && s.options.rainbow)))
+        ));
+        if (hasAnimatedSaber) return true;
+    }
+
+    return false;
 };
 
 function applySaberAnimation(id, enabled) {
@@ -352,10 +374,13 @@ function applySaberAnimation(id, enabled) {
             document.body.classList.add('saber-animation-active');
             console.log('▶️ Canlı After Effects Saber Animasyonu AKTİF');
         } else {
-            // 1. Pixi ticker'ı durdur
+            // 1. Pixi ticker'ı durdur ve tek kare çiz
             if (window.SaberEngine && typeof window.SaberEngine.getApp === 'function') {
                 const app = window.SaberEngine.getApp();
                 if (app && app.ticker && app.ticker.started) app.ticker.stop();
+                if (app && app.renderer && app.stage) {
+                    try { app.renderer.render(app.stage); } catch(e) {}
+                }
             }
             if (window.PIXI && window.PIXI.Ticker && window.PIXI.Ticker.shared && window.PIXI.Ticker.shared.started) {
                 window.PIXI.Ticker.shared.stop();

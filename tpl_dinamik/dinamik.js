@@ -9,7 +9,7 @@ function _dinamikInit(){
         return;
     }
     container.innerHTML = `
-        <div class="section-title" style="margin-top:0">&#10024; H&#305;zl&#305; Metin D&#252;zenleyici</div>
+        <div class="section-title" style="margin-top:0"><i class="fa-solid fa-wand-magic-sparkles" style="color:#0284c7; margin-right:6px;"></i>Hızlı Metin Düzenleyici</div>
         <div class="input-group"><label>Ana Ba&#351;l&#305;k (Title)</label><input type="text" id="canvaDTitle" value="SATILIK M&#220;STAK&#304;L EV"></div>
         <div class="input-group"><label>Fiyat</label><input type="text" id="canvaDPrice" value="12.500.000 TL"></div>
         <div class="input-group"><label>&#304;leti&#351;im</label><input type="text" id="canvaDContact" value="EMLAK STUDYOM | 0532 000 0000"></div>

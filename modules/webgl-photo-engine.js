@@ -185,6 +185,8 @@
                 uniform vec4 u_radial_adjust[MAX_RADIAL]; // x: exp, y: temp, z: highlights, w: shadows
                 uniform float u_radial_sat[MAX_RADIAL];
                 uniform float u_radial_amount[MAX_RADIAL];
+                uniform float u_radial_sharp[MAX_RADIAL];
+                uniform float u_radial_dehaze[MAX_RADIAL];
                 uniform int u_radial_overlay[MAX_RADIAL];
 
                 #define MAX_LINEAR 4
@@ -198,6 +200,8 @@
                 uniform vec4 u_linear_adjust[MAX_LINEAR]; // x: exp, y: temp, z: highlights, w: shadows
                 uniform float u_linear_sat[MAX_LINEAR];
                 uniform float u_linear_amount[MAX_LINEAR];
+                uniform float u_linear_sharp[MAX_LINEAR];
+                uniform float u_linear_dehaze[MAX_LINEAR];
                 uniform int u_linear_overlay[MAX_LINEAR];
 
                 #define MAX_AI 4
@@ -206,6 +210,8 @@
                 uniform vec4 u_ai_adjust[MAX_AI];
                 uniform float u_ai_sat[MAX_AI];
                 uniform float u_ai_amount[MAX_AI];
+                uniform float u_ai_sharp[MAX_AI];
+                uniform float u_ai_dehaze[MAX_AI];
                 uniform int u_ai_invert[MAX_AI];
                 uniform int u_ai_overlay[MAX_AI];
                 uniform sampler2D u_ai_mask_texture; // R: Sky, G: Ground, B: Subject, A: Person
@@ -296,7 +302,12 @@
                     if (abs(shadows) > 0.001) {
                         if (shadows > 0.0) {
                             float sExp = 1.0 / (1.0 + shadows * 1.35 * pow(1.0 - lum, 2.0));
-                            newLum = pow(newLum, sExp);
+                            float lifted = pow(newLum, sExp);
+                            
+                            // [SİS/FOG FİX]: En koyu siyahların griye dönüp görüntüyü sisli yapmasını engeller
+                            // 0.0 - 0.15 arasındaki siyahları orijinal yerlerine doğru çapalar (anchor)
+                            float blackAnchor = smoothstep(0.0, 0.15, lum);
+                            newLum = mix(newLum, lifted, blackAnchor);
                         } else {
                             float sExp = 1.0 + (-shadows) * 0.9 * pow(1.0 - lum, 2.0);
                             newLum = pow(newLum, sExp);
@@ -311,7 +322,12 @@
                         if (highlights < 0.0) {
                             float hComp = -highlights;
                             float hExp = 1.0 / (1.0 + hComp * 1.35 * hWeight);
-                            newLum = 1.0 - pow(invY, hExp);
+                            float recovered = 1.0 - pow(invY, hExp);
+                            
+                            // [SİS/FOG FİX]: Saf beyazların matlaşıp griye dönmesini (sis) engeller
+                            // 0.85 - 1.0 arasındaki parlakları çapalayarak netliği korur
+                            float whiteAnchor = 1.0 - smoothstep(0.85, 1.0, lum);
+                            newLum = mix(newLum, recovered, whiteAnchor);
                         } else {
                             float hBoost = highlights;
                             float hExp = 1.0 + hBoost * 1.35 * hWeight;
@@ -351,10 +367,17 @@
                     // 4. Renk Koruma (Luminance Scaling): RGB oranlarını birebir korur
                     vec3 result = color * (newLum / max(lum, 0.0001));
 
-                    // Gölgeler çok açıldığında renk solgunluğunu önleme (Canlı Gölgeler)
+                    // [SİS/FOG FİX]: Gölgeler ve Parlaklar çok zorlandığında renklerin grileşmesini önleme
+                    float hdrSatBoost = 1.0;
                     if (shadows > 0.0) {
-                        float satBoost = 1.0 + shadows * 0.22 * pow(1.0 - lum, 1.5);
-                        result = mix(vec3(newLum), result, satBoost);
+                        hdrSatBoost += shadows * 0.28 * pow(1.0 - lum, 1.5);
+                    }
+                    if (highlights < 0.0) {
+                        hdrSatBoost += (-highlights) * 0.22 * pow(lum, 1.5);
+                    }
+                    
+                    if (hdrSatBoost > 1.0) {
+                        result = mix(vec3(newLum), result, hdrSatBoost);
                     }
 
                     return clamp(result, 0.0, 1.0);
@@ -370,23 +393,24 @@
                     vec3 rgb = texColor.rgb;
                     
                     // ====================================================
-                    // 0. AKILLI AI NETLEŞTİRME & KESKİNLİK (DSP Edge Sharpening)
+                    // 0. AKILLI AI NETLEŞTİRME, KESKİNLİK & MASKE KESKİNLİĞİ İÇİN DOKU FARKI (DSP Edge Sharpening)
                     // ====================================================
-                    if (u_ai_sharpen > 0.001 || u_sharpness > 0.001) {
-                        vec2 t = u_texel_size;
-                        vec3 cUp    = texture2D(u_image, v_texCoord + vec2(0.0, -t.y)).rgb;
-                        vec3 cDown  = texture2D(u_image, v_texCoord + vec2(0.0,  t.y)).rgb;
-                        vec3 cLeft  = texture2D(u_image, v_texCoord + vec2(-t.x, 0.0)).rgb;
-                        vec3 cRight = texture2D(u_image, v_texCoord + vec2( t.x, 0.0)).rgb;
-                        
-                        vec3 cUL = texture2D(u_image, v_texCoord + vec2(-t.x, -t.y)).rgb;
-                        vec3 cUR = texture2D(u_image, v_texCoord + vec2( t.x, -t.y)).rgb;
-                        vec3 cDL = texture2D(u_image, v_texCoord + vec2(-t.x,  t.y)).rgb;
-                        vec3 cDR = texture2D(u_image, v_texCoord + vec2( t.x,  t.y)).rgb;
+                    vec2 t = u_texel_size;
+                    vec3 cUp    = texture2D(u_image, v_texCoord + vec2(0.0, -t.y)).rgb;
+                    vec3 cDown  = texture2D(u_image, v_texCoord + vec2(0.0,  t.y)).rgb;
+                    vec3 cLeft  = texture2D(u_image, v_texCoord + vec2(-t.x, 0.0)).rgb;
+                    vec3 cRight = texture2D(u_image, v_texCoord + vec2( t.x, 0.0)).rgb;
+                    
+                    vec3 cUL = texture2D(u_image, v_texCoord + vec2(-t.x, -t.y)).rgb;
+                    vec3 cUR = texture2D(u_image, v_texCoord + vec2( t.x, -t.y)).rgb;
+                    vec3 cDL = texture2D(u_image, v_texCoord + vec2(-t.x,  t.y)).rgb;
+                    vec3 cDR = texture2D(u_image, v_texCoord + vec2( t.x,  t.y)).rgb;
 
-                        // 8-Komşu Ağırlıklı Yumuşak Doku (Gauss / Box Blur Yaklaşımı)
-                        vec3 blurColor = (cUp + cDown + cLeft + cRight) * 0.15 + (cUL + cUR + cDL + cDR) * 0.10;
-                        
+                    // 8-Komşu Ağırlıklı Yumuşak Doku (Gauss / Box Blur Yaklaşımı)
+                    vec3 blurColor = (cUp + cDown + cLeft + cRight) * 0.15 + (cUL + cUR + cDL + cDR) * 0.10;
+                    vec3 sharpDiff = texColor.rgb - blurColor;
+
+                    if (u_ai_sharpen > 0.001 || u_sharpness > 0.001) {
                         // A. Akıllı AI Netleştirme (Coring Eşikleme & Halo Koruma)
                         if (u_ai_sharpen > 0.001) {
                             float yCenter = dot(rgb, vec3(0.2126, 0.7152, 0.0722));
@@ -413,16 +437,37 @@
                         
                         // B. Klasik Keskinlik (Manual Sharpening)
                         if (u_sharpness > 0.001) {
-                            vec3 sharpDiff = rgb - blurColor;
                             rgb = clamp(rgb + sharpDiff * (u_sharpness * 1.5), 0.0, 1.0);
                         }
                     }
                     
                     // ====================================================
-                    // 1. POZLAMA (Exposure 2^EV) & BEYAZ DENGESİ (Kelvin)
+                    // 1. POZLAMA (Exposure) & BEYAZ DENGESİ (Kelvin)
+                    // Lightroom/PS tarzı: gamma uzayından linear'a geç,
+                    // EV çarpanı uygula, filmic soft-clip ile highlights
+                    // koru, sonra gamma encode geri al.
                     // ====================================================
                     if (abs(u_exposure) > 0.001) {
-                        rgb *= pow(2.0, u_exposure);
+                        // sRGB Gamma Decode → Linear Light (Lightroom'un yaptığı)
+                        vec3 linRgb = pow(max(rgb, vec3(0.0)), vec3(2.2));
+                        
+                        // Linear uzayda EV çarpanı (Lightroom'un exposure motoru)
+                        float evScale = pow(2.0, u_exposure);
+                        linRgb *= evScale;
+                        
+                        // Filmic Soft-Clip: Highlights yanmasını önler (Reinhard shoulder)
+                        // Pozitif pozlamada devreye girer, negatifde gerekmez
+                        if (u_exposure > 0.0) {
+                            // Her kanalı bağımsız yumuşak sıkıştır
+                            // f(x) = x / (1.0 + x * shoulder) — Reinhard varyantı
+                            // Shoulder 1.0'ı geçerse maksimum beyaz değeri 1'in altına düşüp grileşmeye (yanık) neden olur.
+                            // Bu yüzden shoulder değerini maksimum 0.5'te sınırlandırıyoruz (max beyaz = 2.0 olacak ve yanmaya izin verecek).
+                            float shoulder = clamp(u_exposure * 0.25, 0.0, 0.5);
+                            linRgb = linRgb / (1.0 + linRgb * shoulder);
+                        }
+                        
+                        // sRGB Gamma Encode → Geri Dön
+                        rgb = pow(max(linRgb, vec3(0.0)), vec3(1.0 / 2.2));
                     }
                     
                     // Gerçek Optik Renk Sıcaklığı (Kelvin Matrisi)
@@ -608,6 +653,15 @@
                                     rHsl.y = clamp(rHsl.y * mix(1.0, u_radial_sat[i], rMask), 0.0, 1.0);
                                     rgb = hsl2rgb(rHsl);
                                 }
+                                if (abs(u_radial_dehaze[i]) > 0.001) {
+                                    float lum = dot(rgb, vec3(0.2126, 0.7152, 0.0722));
+                                    float dWeight = 1.0 - lum;
+                                    rgb += (rgb - vec3(0.5)) * (u_radial_dehaze[i] * 0.35 * rMask) * dWeight;
+                                    rgb = clamp(rgb, 0.0, 1.0);
+                                }
+                                if (abs(u_radial_sharp[i]) > 0.001) {
+                                    rgb = clamp(rgb + sharpDiff * (u_radial_sharp[i] * 1.5 * rMask), 0.0, 1.0);
+                                }
                                 if (u_radial_overlay[i] == 1 && rMask > 0.01) {
                                     vec3 rubyRed = vec3(0.95, 0.15, 0.25);
                                     rgb = mix(rgb, rubyRed, clamp(rMask * 0.45, 0.0, 0.7));
@@ -653,6 +707,15 @@
                                         lHsl.y = clamp(lHsl.y * mix(1.0, u_linear_sat[j], lMask), 0.0, 1.0);
                                         rgb = hsl2rgb(lHsl);
                                     }
+                                    if (abs(u_linear_dehaze[j]) > 0.001) {
+                                        float lum = dot(rgb, vec3(0.2126, 0.7152, 0.0722));
+                                        float dWeight = 1.0 - lum;
+                                        rgb += (rgb - vec3(0.5)) * (u_linear_dehaze[j] * 0.35 * lMask) * dWeight;
+                                        rgb = clamp(rgb, 0.0, 1.0);
+                                    }
+                                    if (abs(u_linear_sharp[j]) > 0.001) {
+                                        rgb = clamp(rgb + sharpDiff * (u_linear_sharp[j] * 1.5 * lMask), 0.0, 1.0);
+                                    }
                                     if (u_linear_overlay[j] == 1 && lMask > 0.01) {
                                         vec3 rubyRed = vec3(0.95, 0.15, 0.25);
                                         rgb = mix(rgb, rubyRed, clamp(lMask * 0.45, 0.0, 0.7));
@@ -683,6 +746,15 @@
                                         vec3 aHsl = rgb2hsl(clamp(rgb, 0.0, 1.0));
                                         aHsl.y = clamp(aHsl.y * mix(1.0, u_ai_sat[k], aMask), 0.0, 1.0);
                                         rgb = hsl2rgb(aHsl);
+                                    }
+                                    if (abs(u_ai_dehaze[k]) > 0.001) {
+                                        float lum = dot(rgb, vec3(0.2126, 0.7152, 0.0722));
+                                        float dWeight = 1.0 - lum;
+                                        rgb += (rgb - vec3(0.5)) * (u_ai_dehaze[k] * 0.35 * aMask) * dWeight;
+                                        rgb = clamp(rgb, 0.0, 1.0);
+                                    }
+                                    if (abs(u_ai_sharp[k]) > 0.001) {
+                                        rgb = clamp(rgb + sharpDiff * (u_ai_sharp[k] * 1.5 * aMask), 0.0, 1.0);
                                     }
                                     if (u_ai_overlay[k] == 1 && aMask > 0.01) {
                                         vec3 rubyRed = vec3(0.95, 0.15, 0.25);
@@ -979,6 +1051,8 @@
                 gl.uniform4f(gl.getUniformLocation(this.program, 'u_radial_adjust[' + i + ']'), rad.exposure || 0, rad.temp || 0, rad.highlights || 0, rad.shadows || 0);
                 gl.uniform1f(gl.getUniformLocation(this.program, 'u_radial_sat[' + i + ']'), rad.saturate !== undefined ? rad.saturate : 1.0);
                 gl.uniform1f(gl.getUniformLocation(this.program, 'u_radial_amount[' + i + ']'), rad.amount !== undefined ? rad.amount : 1.0);
+                gl.uniform1f(gl.getUniformLocation(this.program, 'u_radial_sharp[' + i + ']'), rad.sharpness !== undefined ? rad.sharpness : 0.0);
+                gl.uniform1f(gl.getUniformLocation(this.program, 'u_radial_dehaze[' + i + ']'), rad.dehaze !== undefined ? rad.dehaze : 0.0);
                 const showRadOver = !!(rad.showOverlay && options.showMaskOverlay);
                 gl.uniform1i(gl.getUniformLocation(this.program, 'u_radial_overlay[' + i + ']'), showRadOver ? 1 : 0);
             }
@@ -1002,6 +1076,8 @@
                 gl.uniform4f(gl.getUniformLocation(this.program, 'u_linear_adjust[' + j + ']'), lin.exposure || 0, lin.temp || 0, lin.highlights || 0, lin.shadows || 0);
                 gl.uniform1f(gl.getUniformLocation(this.program, 'u_linear_sat[' + j + ']'), lin.saturate !== undefined ? lin.saturate : 1.0);
                 gl.uniform1f(gl.getUniformLocation(this.program, 'u_linear_amount[' + j + ']'), lin.amount !== undefined ? lin.amount : 1.0);
+                gl.uniform1f(gl.getUniformLocation(this.program, 'u_linear_sharp[' + j + ']'), lin.sharpness !== undefined ? lin.sharpness : 0.0);
+                gl.uniform1f(gl.getUniformLocation(this.program, 'u_linear_dehaze[' + j + ']'), lin.dehaze !== undefined ? lin.dehaze : 0.0);
                 const showLinOver = !!(lin.showOverlay && options.showMaskOverlay);
                 gl.uniform1i(gl.getUniformLocation(this.program, 'u_linear_overlay[' + j + ']'), showLinOver ? 1 : 0);
             }
@@ -1033,6 +1109,8 @@
                 gl.uniform4f(gl.getUniformLocation(this.program, 'u_ai_adjust[' + k + ']'), ai.exposure || 0, ai.temp || 0, ai.highlights || 0, ai.shadows || 0);
                 gl.uniform1f(gl.getUniformLocation(this.program, 'u_ai_sat[' + k + ']'), ai.saturate !== undefined ? ai.saturate : 1.0);
                 gl.uniform1f(gl.getUniformLocation(this.program, 'u_ai_amount[' + k + ']'), ai.amount !== undefined ? ai.amount : 1.0);
+                gl.uniform1f(gl.getUniformLocation(this.program, 'u_ai_sharp[' + k + ']'), ai.sharpness !== undefined ? ai.sharpness : 0.0);
+                gl.uniform1f(gl.getUniformLocation(this.program, 'u_ai_dehaze[' + k + ']'), ai.dehaze !== undefined ? ai.dehaze : 0.0);
                 gl.uniform1i(gl.getUniformLocation(this.program, 'u_ai_invert[' + k + ']'), ai.invert ? 1 : 0);
                 const showAiOver = !!(ai.showOverlay && options.showMaskOverlay);
                 gl.uniform1i(gl.getUniformLocation(this.program, 'u_ai_overlay[' + k + ']'), showAiOver ? 1 : 0);

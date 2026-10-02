@@ -260,6 +260,12 @@
                 if (pickBtn) pickBtn.classList.toggle('btn-accent', isPicking);
                 if (drawBtn) drawBtn.classList.toggle('btn-accent', !isPicking);
             }
+
+            // 3. Akıllı Hizalama Buton Senkronizasyonu
+            document.querySelectorAll('.dock-snap-btn').forEach(btn => {
+                btn.classList.toggle('lock-active', !!window.isSmartGuidesEnabled);
+                btn.title = window.isSmartGuidesEnabled ? 'Akıllı Manyetik Hizalamayı Kapat' : 'Akıllı Manyetik Hizalamayı Aç';
+            });
         },
 
         /**

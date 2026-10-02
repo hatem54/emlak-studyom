@@ -22,22 +22,14 @@ function enablePhotoDrag(el){
     let lastTap = 0;
 
     function resetPhotoPos() {
-        const xCtrl = document.getElementById('photoXCtrl');
-        const yCtrl = document.getElementById('photoYCtrl');
-        const zoomCtrl = document.getElementById('photoZoomCtrl');
-        if (xCtrl) xCtrl.value = 50;
-        if (yCtrl) yCtrl.value = 50;
-        if (zoomCtrl) zoomCtrl.value = 100;
-        if (typeof applyPhotoPos === 'function') applyPhotoPos();
-        
-        // Fotoğraf v4+ Zoom/Pan transform reset desteği
-        if (el) {
-            el.dataset.zpScale = 1;
-            el.dataset.zpX = 0;
-            el.dataset.zpY = 0;
-            if (typeof _applyPhotoTransform === 'function') _applyPhotoTransform(el);
+        if (typeof window.resetPhotoPos === "function") {
+            window.resetPhotoPos();
+            return;
         }
-        if (typeof redrawAll === 'function') redrawAll();
+        if (typeof window.fitImageToCanvas === "function") {
+            window.fitImageToCanvas(window.photoFitMode || "cover");
+            return;
+        }
     }
 
     function down(e){
@@ -96,7 +88,11 @@ function enablePhotoDrag(el){
         if(e.target.closest('.canvas-el')||e.target.closest('.draggable'))return;
         if(typeof drawMode !== 'undefined' && drawMode!=='off')return;
         e.preventDefault();
-        resetPhotoPos();
+        if (typeof window.resetPhotoPos === 'function') {
+            window.resetPhotoPos();
+        } else if (typeof window.fitImageToCanvas === 'function') {
+            window.fitImageToCanvas(window.photoFitMode || 'cover');
+        }
     });
 }
 
@@ -174,37 +170,51 @@ function applyPhotoPos(){
 }
 
 function resetPhotoPos(){
-    const pl = document.getElementById('photo-layer');
-    if (pl) {
-        pl.dataset.zpX = 0;
-        pl.dataset.zpY = 0;
-        pl.dataset.zpScale = 1;
-        if (typeof _applyPhotoTransform === 'function') _applyPhotoTransform(pl);
+    window._isPhotoDragging = false;
+    if (typeof _dragEl !== "undefined") _dragEl = null;
+    document.querySelectorAll(".grabbing").forEach(el => el.classList.remove("grabbing"));
+
+    if (typeof window.fitImageToCanvas === "function") {
+        const mode = window.photoFitMode || "cover";
+        window.fitImageToCanvas(mode);
+        return;
     }
 
-    if (document.getElementById('photoZoomCtrl')) document.getElementById('photoZoomCtrl').value = 100;
-    if (document.getElementById('photoXCtrl')) document.getElementById('photoXCtrl').value = 50;
-    if (document.getElementById('photoYCtrl')) document.getElementById('photoYCtrl').value = 50;
+    if (typeof window.resetCanvasZoom === "function") {
+        window.resetCanvasZoom();
+    }
 
-    // Sığdır modunu cover olarak sıfırla ve dock butonunu güncelle
-    window.photoFitMode = 'cover';
-    const fitBtn = document.getElementById('dockFitCanvasBtn');
+    const mode = window.photoFitMode || "cover";
+    window.photoFitMode = mode;
+    const isContain = (mode === "contain");
+
+    const zCtrl = document.getElementById("photoZoomCtrl");
+    const xCtrl = document.getElementById("photoXCtrl");
+    const yCtrl = document.getElementById("photoYCtrl");
+    if (zCtrl) { zCtrl.value = 100; const valEl = document.getElementById("photoZoomVal"); if (valEl) valEl.textContent = "100%"; }
+    if (xCtrl) { xCtrl.value = 50; const valEl = document.getElementById("photoXVal"); if (valEl) valEl.textContent = "50%"; }
+    if (yCtrl) { yCtrl.value = 50; const valEl = document.getElementById("photoYVal"); if (valEl) valEl.textContent = "50%"; }
+
+    document.querySelectorAll(".photo-panel, #photo-layer").forEach(p => {
+        p.dataset.zpX = 0;
+        p.dataset.zpY = 0;
+        p.dataset.zpScale = 1;
+    });
+
+    const fitBtn = document.getElementById("dockFitCanvasBtn");
     if (fitBtn) {
-        fitBtn.classList.remove('active');
-        const icon = fitBtn.querySelector('i');
-        if (icon) icon.className = 'fas fa-expand-arrows-alt';
-        fitBtn.title = 'Görseli Tuvale Sığdır';
+        fitBtn.classList.toggle("active", isContain);
+        const icon = fitBtn.querySelector("i");
+        if (icon) icon.className = isContain ? "fas fa-compress-arrows-alt" : "fas fa-expand-arrows-alt";
+        fitBtn.title = isContain ? "Görseli Tuvale Doldur" : "Görseli Tuvale Sığdır";
     }
 
-    applyPhotoPos();
-    
-    // Fotoğrafı tekrar kilitle
-    const lockToggle = document.getElementById('photoLockToggle');
-    if (lockToggle) {
-        lockToggle.checked = true;
-        window.isPhotoLocked = true;
-    }
-    if (typeof redrawAll === 'function') redrawAll();
+    if (typeof applyPhotoPos === "function") applyPhotoPos();
+    document.querySelectorAll(".photo-panel, #photo-layer").forEach(p => {
+        if (typeof _applyPhotoTransform === "function") _applyPhotoTransform(p);
+    });
+    if (typeof resizeCanvas === "function") resizeCanvas();
+    if (typeof redrawAll === "function") redrawAll();
 }
 window.resetPhotoPos = resetPhotoPos;
 
@@ -597,7 +607,7 @@ function _preparePhoto(el){
     if (!renderCanvas) {
         renderCanvas = document.createElement('canvas');
         renderCanvas.className = 'photo-render-canvas';
-        renderCanvas.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0;';
+        renderCanvas.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:1;';
         el.appendChild(renderCanvas);
     }
     
@@ -645,7 +655,8 @@ function _applyPhotoTransform(el){
     var sY = document.getElementById('photoYCtrl') ? document.getElementById('photoYCtrl').value : 50;
     
     inner.style.backgroundPosition = 'calc(' + sX + '% + ' + x + 'px) calc(' + sY + '% + ' + y + 'px)';
-    inner.style.transform = 'scale(' + s + ')';
+    inner.style.transform = 'translate(' + x + 'px, ' + y + 'px) scale(' + s + ')';
+    inner.style.transformOrigin = 'center center';
     
     if (canvas) {
         _drawToNativeCanvas(el, inner, canvas, s, x, y, sX, sY);

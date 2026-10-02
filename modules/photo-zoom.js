@@ -20,6 +20,15 @@ function _getZoomTarget(target) {
         }
     }
 
+    // Fotoğraf kilidi serbest bırakıldığında ("Serbest" modu) tuvaldeki tıklamalar doğrudan fotoğrafı pan yapsın (etkileşimli kontrol elemanları hariç)
+    if (!window.isPhotoLocked || document.body.classList.contains('photo-unlocked')) {
+        if (!target.closest || !target.closest('.editable-draw, .draggable, .canvas-el, .cvi-item, .added-icon, .callout-wrap, .svg-callout, .co-neon-block, .vertex-handle, .text-handle, .text-rotate-handle, .text-resize-handle, .callout-controls, .callout-resizer, .callout-rotator, .arrow-heads-group, .color-picker, .ui-panel, button, input, select, textarea')) {
+            if (target === pl || (target.closest && target.closest('#canvas-container, .preview-area, .canvas-wrapper, #maskInteractiveSvg, #draw-layer, #photo-layer, .photo-panel'))) {
+                return pl;
+            }
+        }
+    }
+
     if (target.closest && target.closest('.editable-draw, .draggable, .canvas-el, .cvi-item, .added-icon, .callout-wrap, .svg-callout, .co-neon-block, .vertex-handle, .text-handle, .text-rotate-handle, .text-resize-handle, .callout-controls, .callout-resizer, .callout-rotator, .arrow-heads-group, .color-picker, .ui-panel, button, input, select, textarea')) {
         return null;
     }
@@ -40,12 +49,17 @@ function _isPhotoLocked(ignoreSpace = false) {
     // Space pan aktifken araç kilitlerini (çizim modu, maske kılavuzları vb.) geçersiz kıl
     if (!ignoreSpace && window.spaceBarPressed) return false;
 
+    // "Serbest" modunda kilit doğrudan açık (false) kabul edilir
+    if (window.isPhotoLocked === false || document.body.classList.contains('photo-unlocked')) return false;
+
     if (window.AppState && window.AppState.photo && window.AppState.photo.isLocked) return true;
     if (window.isPhotoLocked === true) return true;
     const lockToggle = document.getElementById('photoLockToggle');
     if (lockToggle && lockToggle.checked) return true;
     const lockBtn = document.getElementById('lockPhotoBtn');
     if (lockBtn && lockBtn.classList.contains('active')) return true;
+    const dockBtn = document.getElementById('dockLockBtn');
+    if (dockBtn && dockBtn.classList.contains('lock-active')) return true;
     if (typeof drawMode !== 'undefined' && drawMode !== null && drawMode !== 'off') return true;
     if (typeof polyMarqueeBox !== 'undefined' && polyMarqueeBox) return true;
     if (document.querySelector('.poly-marquee-box')) return true;
@@ -130,19 +144,52 @@ document.addEventListener('wheel', function(e){
     if (window.PhotoMasksManager && window.PhotoMasksManager.isGuidesVisible) window.PhotoMasksManager.renderSvg();
 }, { passive: false, capture: true });
 
-// ========== SÜRÜKLEME (PAN) ==========
+// ========== SÜRÜKLEME (PAN) & ÇİFT TIK SIFIRLAMA ==========
 var _dragEl = null, _dsx, _dsy, _dix, _diy;
+var _panMoved = false;
+var _lastMouseDownTime = 0;
+var _lastMouseDownX = 0;
+var _lastMouseDownY = 0;
+var _lastCanvasClickTime = 0;
+var _lastCanvasClickX = 0;
+var _lastCanvasClickY = 0;
+var _lastTouchStartTime = 0;
+var _lastTouchStartX = 0;
+var _lastTouchStartY = 0;
+var _lastTouchEndTime = 0;
+var _lastTouchEndX = 0;
+var _lastTouchEndY = 0;
+
+function _triggerPhotoReset() {
+    _lastMouseDownTime = 0;
+    _lastCanvasClickTime = 0;
+    _lastTouchStartTime = 0;
+    _lastTouchEndTime = 0;
+    _dragEl = null;
+    _panMoved = false;
+    window._isPhotoDragging = false;
+    if (_photoMoveRAF) {
+        cancelAnimationFrame(_photoMoveRAF);
+        _photoMoveRAF = null;
+    }
+    document.querySelectorAll('.grabbing').forEach(function(el) { el.classList.remove('grabbing'); });
+
+    if (typeof window.resetPhotoPos === 'function') {
+        window.resetPhotoPos();
+    } else if (typeof window.fitImageToCanvas === 'function') {
+        window.fitImageToCanvas(window.photoFitMode || 'cover');
+    }
+}
 
 function startPhotoPan(el, e) {
     _preparePhoto(el);
-    window._isPhotoDragging = true;
+    _panMoved = false;
     _dragEl = el;
     _dsx = e.clientX;
     _dsy = e.clientY;
     _dix = parseFloat(el.dataset.zpX) || 0;
     _diy = parseFloat(el.dataset.zpY) || 0;
     
-    updateSpacePanCursor(true, true);
     document.addEventListener('mousemove', _onPhotoPointerMove);
     document.addEventListener('mouseup', _onPhotoPointerUp);
 }
@@ -172,8 +219,33 @@ document.addEventListener('mousedown', function(e){
     if(e.button === 0 && !window.spaceBarPressed && !canPanWithLeftClick) return;
     if(e.button !== 0 && e.button !== 1) return;
     
-    const hasPhoto = el && ((el.style.backgroundImage && el.style.backgroundImage !== 'none') || el.querySelector('.photo-inner-zoom') || el.tagName.toLowerCase() === 'img');
+    const hasPhoto = el && (
+        (el.style.backgroundImage && el.style.backgroundImage !== 'none') || 
+        el.querySelector('.photo-inner-zoom') || 
+        el.querySelector('.photo-render-canvas') ||
+        (el._nativeImg && el._nativeImgSrc) ||
+        el.dataset.savedBg ||
+        (typeof uploadedImgUrl !== 'undefined' && uploadedImgUrl) ||
+        el.tagName.toLowerCase() === 'img'
+    );
     if (!hasPhoto) return;
+    
+    // 🎯 HIZLI ÇİFT TIKLAMA YAKALAYICI (2. Tıklama Anında Sıfırla)
+    if (e.button === 0) {
+        var now = Date.now();
+        var timeSinceDown = now - _lastMouseDownTime;
+        var distSinceDown = Math.hypot(e.clientX - _lastMouseDownX, e.clientY - _lastMouseDownY);
+        
+        if (timeSinceDown > 40 && timeSinceDown < 550 && distSinceDown < 40) {
+            e.preventDefault();
+            e.stopPropagation();
+            _triggerPhotoReset();
+            return;
+        }
+        _lastMouseDownTime = now;
+        _lastMouseDownX = e.clientX;
+        _lastMouseDownY = e.clientY;
+    }
     
     e.preventDefault();
     startPhotoPan(el, e);
@@ -184,15 +256,26 @@ var _lastMoveEvt = null;
 
 function _onPhotoPointerMove(e) {
     if (!_dragEl) {
-        _onPhotoPointerUp();
+        _onPhotoPointerUp(e);
         return;
     }
     if (!window.spaceBarPressed && _isPhotoLocked(true)) {
-        _onPhotoPointerUp();
+        _onPhotoPointerUp(e);
         return;
     }
     
     _lastMoveEvt = { clientX: e.clientX, clientY: e.clientY };
+
+    // Sürükleme eşiği (Micro-drag engelleyici): 8 pikselden az titreşimlerde sürükleme başlatma
+    if (!_panMoved) {
+        var dist = Math.hypot(e.clientX - _dsx, e.clientY - _dsy);
+        if (dist < 8) return;
+        _panMoved = true;
+        window._isPhotoDragging = true;
+        if (_dragEl && _dragEl.classList) _dragEl.classList.add('grabbing');
+        updateSpacePanCursor(true, true);
+    }
+    
     if (_photoMoveRAF) return;
     
     _photoMoveRAF = requestAnimationFrame(function(){
@@ -202,8 +285,7 @@ function _onPhotoPointerMove(e) {
             return;
         }
         
-        window._isPhotoDragging = true;
-        var sf = typeof scaleFactor !== 'undefined' ? scaleFactor : 1;
+        var sf = (typeof window.scaleFactor !== 'undefined' && window.scaleFactor > 0) ? window.scaleFactor : ((typeof scaleFactor !== 'undefined' && scaleFactor > 0) ? scaleFactor : 1);
         if (sf <= 0) sf = 1;
         var s = parseFloat(_dragEl.dataset.zpScale) || 1;
         var x = _dix + (_lastMoveEvt.clientX - _dsx) / (sf * s);
@@ -225,7 +307,7 @@ function _onPhotoPointerMove(e) {
     });
 }
 
-function _onPhotoPointerUp() {
+function _onPhotoPointerUp(e) {
     document.removeEventListener('mousemove', _onPhotoPointerMove);
     document.removeEventListener('mouseup', _onPhotoPointerUp);
 
@@ -237,17 +319,38 @@ function _onPhotoPointerUp() {
     window._cachedPhotoPanelMetrics = null;
     updateSpacePanCursor(window.spaceBarPressed, false);
 
-    if(_dragEl) {
-        var elToBake = _dragEl;
-        _dragEl = null;
-        _applyPhotoTransform(elToBake);
+    var elToBake = _dragEl;
+    var wasMoved = _panMoved;
+    _dragEl = null;
+    _panMoved = false;
 
+    if (elToBake && elToBake.classList) elToBake.classList.remove('grabbing');
+    var pl = document.getElementById('photo-layer');
+    if (pl && pl.classList) pl.classList.remove('grabbing');
+
+    if (wasMoved && elToBake) {
+        _applyPhotoTransform(elToBake);
         if (window.CloneStamp && window.CloneStamp.isActive) {
             window.CloneStamp.renderSvg();
         }
         if (window.PhotoMasksManager && window.PhotoMasksManager.isGuidesVisible) {
             window.PhotoMasksManager.renderSvg();
         }
+    } else if (!wasMoved && e) {
+        // Sabit tıklama (Micro-drag olmadı) -> Çift Tıklama Takibi (Mouseup Yedek)
+        var cx = (typeof e.clientX !== 'undefined') ? e.clientX : 0;
+        var cy = (typeof e.clientY !== 'undefined') ? e.clientY : 0;
+        var now = Date.now();
+        var timeDiff = now - _lastCanvasClickTime;
+        var distDiff = Math.hypot(cx - _lastCanvasClickX, cy - _lastCanvasClickY);
+
+        if (timeDiff > 40 && timeDiff < 550 && distDiff < 40) {
+            _triggerPhotoReset();
+            return;
+        }
+        _lastCanvasClickTime = now;
+        _lastCanvasClickX = cx;
+        _lastCanvasClickY = cy;
     }
 }
 
@@ -271,9 +374,22 @@ document.addEventListener('touchstart', function(e){
         const canPanWithLeftClick = (typeof drawMode === 'undefined' || drawMode === 'off' || drawMode === null);
         if(!canPanWithLeftClick) return;
         
+        // 🎯 Dokunmatik Çift Tıklama (Double-Tap) Yakalayıcı
+        var now = Date.now();
+        var timeDiff = now - _lastTouchStartTime;
+        var distDiff = Math.hypot(e.touches[0].clientX - _lastTouchStartX, e.touches[0].clientY - _lastTouchStartY);
+        if (timeDiff > 50 && timeDiff < 500 && distDiff < 50) {
+            if (e.cancelable) e.preventDefault();
+            _triggerPhotoReset();
+            return;
+        }
+        _lastTouchStartTime = now;
+        _lastTouchStartX = e.touches[0].clientX;
+        _lastTouchStartY = e.touches[0].clientY;
+
         _preparePhoto(el);
-        window._isPhotoDragging = true;
         _dragEl = el;
+        _panMoved = false;
         _dsx = e.touches[0].clientX;
         _dsy = e.touches[0].clientY;
         _dix = parseFloat(el.dataset.zpX) || 0;
@@ -285,6 +401,7 @@ document.addEventListener('touchmove', function(e){
     if(_isPhotoLocked()) {
         _initialPinchDist = null;
         _dragEl = null;
+        _panMoved = false;
         window._isPhotoDragging = false;
         window._cachedPhotoPanelMetrics = null;
         return;
@@ -305,17 +422,24 @@ document.addEventListener('touchmove', function(e){
         el.dataset.zpScale = s;
         _applyPhotoTransform(el);
     } else if(e.touches.length === 1 && _dragEl) {
-        e.preventDefault();
+        if (!_panMoved) {
+            var dist = Math.hypot(e.touches[0].clientX - _dsx, e.touches[0].clientY - _dsy);
+            if (dist < 8) return;
+            _panMoved = true;
+            window._isPhotoDragging = true;
+            if (_dragEl && _dragEl.classList) _dragEl.classList.add('grabbing');
+        }
+        if (e.cancelable) e.preventDefault();
         window._isPhotoDragging = true;
-        var sf = typeof scaleFactor !== 'undefined' ? scaleFactor : 1;
+        var sf = (typeof window.scaleFactor !== 'undefined' && window.scaleFactor > 0) ? window.scaleFactor : ((typeof scaleFactor !== 'undefined' && scaleFactor > 0) ? scaleFactor : 1);
         if (sf <= 0) sf = 1;
         var s = parseFloat(_dragEl.dataset.zpScale) || 1;
         var x = _dix + (e.touches[0].clientX - _dsx) / (sf * s);
         var y = _diy + (e.touches[0].clientY - _dsy) / (sf * s);
         
         // Sınırlandırma (Clamp) eklenerek fotoğrafın sonsuza kayması engellenir
-        x = Math.max(-3000, Math.min(3000, x));
-        y = Math.max(-3000, Math.min(3000, y));
+        x = Math.max(-5000, Math.min(5000, x));
+        y = Math.max(-5000, Math.min(5000, y));
 
         _dragEl.dataset.zpX = x;
         _dragEl.dataset.zpY = y;
@@ -331,10 +455,29 @@ document.addEventListener('touchend', function(e){
     if(e.touches.length === 0) {
         window._isPhotoDragging = false;
         window._cachedPhotoPanelMetrics = null;
-        if(_dragEl) {
-            var elToBake = _dragEl;
-            _dragEl = null;
+        var elToBake = _dragEl;
+        var wasMoved = _panMoved;
+        _dragEl = null;
+        _panMoved = false;
+
+        if (elToBake && elToBake.classList) elToBake.classList.remove('grabbing');
+        var pl = document.getElementById('photo-layer');
+        if (pl && pl.classList) pl.classList.remove('grabbing');
+
+        if (wasMoved && elToBake) {
             _applyPhotoTransform(elToBake);
+        } else if (!wasMoved && e.changedTouches && e.changedTouches[0]) {
+            var ct = e.changedTouches[0];
+            var now = Date.now();
+            var timeDiff = now - _lastTouchEndTime;
+            var distDiff = Math.hypot(ct.clientX - _lastTouchEndX, ct.clientY - _lastTouchEndY);
+            if (timeDiff > 50 && timeDiff < 500 && distDiff < 50) {
+                _triggerPhotoReset();
+                return;
+            }
+            _lastTouchEndTime = now;
+            _lastTouchEndX = ct.clientX;
+            _lastTouchEndY = ct.clientY;
         }
     }
 });
@@ -376,30 +519,61 @@ document.addEventListener('dblclick', function(e){
     }
 
     // Çizim modundaysa fotoğrafı sıfırlama (Çift tık çizimi bitirir, fotoğrafı değil)
-    if (typeof drawMode !== 'undefined' && drawMode !== 'off') return;
+    if (typeof drawMode !== 'undefined' && drawMode !== 'off' && drawMode !== null) return;
 
-    // Orijinal Zoom Sıfırlama Mantığı
-    var el = _getZoomTarget(e.target);
-    if(!el) {
-        if(e.target.id === 'ui-layer' || e.target.id === 'canvas-container' || e.target.id === 'draw-layer') {
-            el = document.getElementById('photo-layer');
-        }
+    // Etkileşimli kontrol elemanları üzerinde çift tıklandıysa fotoğrafı sıfırlama
+    if (e.target.closest && e.target.closest('.canvas-el, .cvi-item, .added-icon, .vertex-handle, .text-handle, .callout-resizer, .callout-rotator, .callout-controls, .draggable, .editable-draw, .editable-text, .tb-frame-handle, .tb-floating-btn, button, input, select, textarea, .panel, .modal-overlay, .app-context-menu')) {
+        return;
     }
-    if(!el) return;
-    
-    el.dataset.zpScale = 1;
-    el.dataset.zpX = 0;
-    el.dataset.zpY = 0;
-    
-    const zCtrl = document.getElementById('photoZoomCtrl');
-    const xCtrl = document.getElementById('photoXCtrl');
-    const yCtrl = document.getElementById('photoYCtrl');
-    if(zCtrl) { zCtrl.value = 100; zCtrl.dispatchEvent(new Event('input')); }
-    if(xCtrl) { xCtrl.value = 50; xCtrl.dispatchEvent(new Event('input')); }
-    if(yCtrl) { yCtrl.value = 50; yCtrl.dispatchEvent(new Event('input')); }
-    
-    _applyPhotoTransform(el);
-    console.log('Sıfırlandı');
+
+    // Tuval veya görsel alanı üzerinde çift tıklandıysa varsayılana dön
+    const isCanvasClick = (e.target.closest && e.target.closest('#canvas-container, .main-preview, .preview-area, .canvas-wrapper, .workspace, #photo-layer, .photo-panel')) ||
+                          e.target.id === 'canvas-container' ||
+                          e.target.id === 'photo-layer' ||
+                          e.target.id === 'draw-layer' ||
+                          (e.target.classList && e.target.classList.contains('photo-render-canvas'));
+    if (!isCanvasClick) return;
+
+    e.preventDefault();
+    if (_photoMoveRAF) {
+        cancelAnimationFrame(_photoMoveRAF);
+        _photoMoveRAF = null;
+    }
+    _dragEl = null;
+    window._isPhotoDragging = false;
+    document.querySelectorAll('.grabbing').forEach(el => el.classList.remove('grabbing'));
+
+    if (typeof window.resetPhotoPos === 'function') {
+        window.resetPhotoPos();
+    } else if (typeof window.fitImageToCanvas === 'function') {
+        window.fitImageToCanvas(window.photoFitMode || 'cover');
+    } else {
+        if (typeof resizeCanvas === 'function') resizeCanvas();
+        const pl = document.getElementById('photo-layer') || document.querySelector('.photo-panel');
+        if (pl) {
+            pl.dataset.zpScale = 1;
+            pl.dataset.zpX = 0;
+            pl.dataset.zpY = 0;
+            if (typeof _applyPhotoTransform === 'function') _applyPhotoTransform(pl);
+        }
+        document.querySelectorAll('.photo-panel').forEach(p => {
+            p.dataset.zpScale = 1;
+            p.dataset.zpX = 0;
+            p.dataset.zpY = 0;
+            if (typeof _applyPhotoTransform === 'function') _applyPhotoTransform(p);
+        });
+        const zCtrl = document.getElementById('photoZoomCtrl');
+        const xCtrl = document.getElementById('photoXCtrl');
+        const yCtrl = document.getElementById('photoYCtrl');
+        if (zCtrl) { zCtrl.value = 100; const valEl = document.getElementById('photoZoomVal'); if (valEl) valEl.textContent = '100%'; }
+        if (xCtrl) { xCtrl.value = 50; const valEl = document.getElementById('photoXVal'); if (valEl) valEl.textContent = '50%'; }
+        if (yCtrl) { yCtrl.value = 50; const valEl = document.getElementById('photoYVal'); if (valEl) valEl.textContent = '50%'; }
+        if (typeof applyPhotoPos === 'function') applyPhotoPos();
+        if (typeof redrawAll === 'function') redrawAll();
+    }
+    if (typeof window.resetCanvasZoom === 'function' && window.pinchScale && window.pinchScale !== 1) {
+        window.resetCanvasZoom();
+    }
 });
 
 console.log('🎬 Zoom v6 (photo-panel + photo-layer) yüklendi');

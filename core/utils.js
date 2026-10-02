@@ -118,10 +118,26 @@ function enableInlineEdit(el) {
         });
         return;
     }
+
+    if (el.dataset.inlineEditEnabled) return;
+    el.dataset.inlineEditEnabled = '1';
+
     const startEditing = function(e) {
         if (e && e.stopPropagation) e.stopPropagation();
         if (el.isContentEditable) return;
         
+        // ⚡ Çift tıklamada sol paneldeki düzenleme ekranını aç ve font sekmesine geç
+        if (typeof selectElement === 'function') {
+            selectElement(el, false, false, true);
+        } else if (typeof window.selectElement === 'function') {
+            window.selectElement(el, false, false, true);
+        }
+        const elSettings = document.getElementById('elSettings');
+        if (elSettings) elSettings.style.display = 'block';
+        if (typeof loadElSettings === 'function') loadElSettings(el);
+        if (typeof loadElFont === 'function') loadElFont(el);
+        if (typeof switchTab === 'function') switchTab('font');
+
         // Remove text handles so they don't get deleted by text selection/typing
         el.querySelectorAll('.text-handle').forEach(h => h.remove());
         
@@ -140,6 +156,12 @@ function enableInlineEdit(el) {
         sel.removeAllRanges();
         sel.addRange(range);
 
+        const handleInput = function() {
+            if (window.SaberEngine && typeof window.SaberEngine.updateTextSaberPositions === 'function') {
+                window.SaberEngine.updateTextSaberPositions();
+            }
+        };
+
         const finishEdit = function() {
             el.contentEditable = 'false';
             el.style.cursor = '';
@@ -153,9 +175,14 @@ function enableInlineEdit(el) {
             if (el.classList.contains('el-selected') && typeof window.addTextHandles === 'function') {
                 window.addTextHandles(el);
             }
+
+            if (window.SaberEngine && typeof window.SaberEngine.updateTextSaberPositions === 'function') {
+                window.SaberEngine.updateTextSaberPositions();
+            }
             
             el.removeEventListener('blur', finishEdit);
             el.removeEventListener('keydown', handleKey);
+            el.removeEventListener('input', handleInput);
         };
 
         const handleKey = function(ev) {
@@ -167,6 +194,7 @@ function enableInlineEdit(el) {
             }
         };
 
+        el.addEventListener('input', handleInput);
         el.addEventListener('blur', finishEdit);
         el.addEventListener('keydown', handleKey);
     };

@@ -43,8 +43,20 @@
         el.style.background = 'transparent';
         el.style.border = 'none';
         el.style.color = 'transparent'; // PixiJS Saber parlayan çekirdek ve haleyi render eder
-        el.dataset.storedTextColor = '#ffffff';
-        el.style.zIndex = '9999';
+        const existingLayers = Array.from(document.querySelectorAll('#canvas-container .canvas-el, #canvas-container .draggable, #three-d-layer, #saber-layer'));
+        let maxZ = 50;
+        existingLayers.forEach(l => {
+            const z = parseInt(l.style.zIndex || (window.getComputedStyle ? window.getComputedStyle(l).zIndex : 0), 10) || 0;
+            if (z > maxZ && z < 9000) maxZ = z;
+        });
+        const newZ = maxZ + 5;
+        el.dataset.layerZIndex = String(newZ);
+        el.style.setProperty('z-index', String(newZ), 'important');
+        const saberLayer = document.getElementById('saber-layer');
+        if (saberLayer) {
+            saberLayer.dataset.layerZIndex = String(newZ);
+            saberLayer.style.setProperty('z-index', String(newZ), 'important');
+        }
         el.style.fontFamily = "'Archivo Black', sans-serif";
         el.style.fontWeight = '900';
         el.style.letterSpacing = '1px';
@@ -90,14 +102,12 @@
         }
 
         if (typeof selectElement === 'function') {
-            selectElement(el);
+            selectElement(el, false, true, false);
         } else if (typeof window.selectElement === 'function') {
-            window.selectElement(el);
+            window.selectElement(el, false, true, false);
         }
-
-        if (typeof switchTab === 'function') {
-            switchTab('font');
-        }
+        const elSettings = document.getElementById('elSettings');
+        if (elSettings) elSettings.style.display = 'none';
 
         // UI Preset Butonunu Güncelle
         selectNeonPreset(preset, el, false);

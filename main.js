@@ -442,7 +442,7 @@ function applyFinalProjectImage(img, finalDataUrl, finalW, finalH) {
             const inner = p.querySelector('.photo-inner-zoom');
             if (inner) {
                 inner.style.backgroundImage = `url('${finalDataUrl}')`;
-                inner.style.opacity = '1';
+                inner.style.opacity = '0';
                 p.style.backgroundImage = 'none';
             } else {
                 p.style.backgroundImage = `url('${finalDataUrl}')`;

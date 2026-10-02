@@ -16,14 +16,14 @@ window.SaberEngine = (function() {
         preset: 'fully-lit',
         coreColor: 0xFFFFFF,      // İç renk (beyaz)
         glowColor: 0x00CEC9,      // Dış parlama (turkuaz/mavi)
-        coreSize: 0,               // İç kalınlık (0 = saf pürüzsüz neon, merkez çizgisi yok)
+        coreSize: 4,               // İç akkor çekirdek (parlak neon cam tüp kalbi)
         glowSize: 32,              // Dış parlama boyutu
         intensity: 2.8,            // Parlama şiddeti
         groundSpill: 0.4,          // Zemin ışığı yayılımı
-        energyNodes: true,         // Işıklı köşe pinleri
+        energyNodes: false,        // Işıklı köşe pinleri (yalnızca basit poligonlarda)
         flickerAmount: 0.02,       // Titreme
         pulseSpeed: 0,             // Nabız hızı (0=kapalı)
-        distortionAmount: 0,       // Bozulma
+        distortionAmount: 0,       // Bozulma (geometrik çizimlerde bozulma kapalı)
         segments: 50               // Çizgi segmentleri
     };
     
@@ -35,7 +35,8 @@ window.SaberEngine = (function() {
             settings: { 
                 glowSize: 30, intensity: 2.5, flickerAmount: 0.02, 
                 pulseSpeed: 0, distortionAmount: 0,
-                coreColor: 0xFFFFFF, glowColor: 0x00AAFF 
+                coreColor: 0xFFFFFF, glowColor: 0x00AAFF,
+                coreSize: 4
             }
         },
         'full-neon': {
@@ -44,43 +45,48 @@ window.SaberEngine = (function() {
             settings: { 
                 glowSize: 35, intensity: 3.2, flickerAmount: 0.02, 
                 pulseSpeed: 0, distortionAmount: 0,
-                coreColor: 'match', glowColor: 0x00D2FF 
+                coreColor: 0xFFFFFF, glowColor: 0x00D2FF,
+                coreSize: 4
             }
         },
         'electric': {
             name: 'Electric',
             icon: '⚡',
             settings: { 
-                glowSize: 25, intensity: 3, flickerAmount: 0.15, 
-                pulseSpeed: 0, distortionAmount: 8,
-                coreColor: 0xEEFFFF, glowColor: 0x4488FF 
+                glowSize: 28, intensity: 3, flickerAmount: 0.08, 
+                pulseSpeed: 0, distortionAmount: 0,
+                coreColor: 0xEEFFFF, glowColor: 0x4488FF,
+                coreSize: 4
             }
         },
         'fire': {
             name: 'Fire',
             icon: '🔥',
             settings: { 
-                glowSize: 40, intensity: 3.5, flickerAmount: 0.2, 
-                pulseSpeed: 2, distortionAmount: 5,
-                coreColor: 0xFFEE88, glowColor: 0xFF4400 
+                glowSize: 38, intensity: 3.2, flickerAmount: 0.08, 
+                pulseSpeed: 1, distortionAmount: 0,
+                coreColor: 0xFFFFCC, glowColor: 0xFF4400,
+                coreSize: 4
             }
         },
         'sparks': {
             name: 'Sparks',
             icon: '💫',
             settings: { 
-                glowSize: 20, intensity: 4, flickerAmount: 0.3, 
-                pulseSpeed: 0, distortionAmount: 3,
-                coreColor: 0xFFFFCC, glowColor: 0xFFAA00 
+                glowSize: 22, intensity: 3.5, flickerAmount: 0.1, 
+                pulseSpeed: 0, distortionAmount: 0,
+                coreColor: 0xFFFFCC, glowColor: 0xFFAA00,
+                coreSize: 3
             }
         },
         'energize': {
             name: 'Energize',
             icon: '🎯',
             settings: { 
-                glowSize: 35, intensity: 3, flickerAmount: 0.08, 
-                pulseSpeed: 3, distortionAmount: 4,
-                coreColor: 0xFFFFFF, glowColor: 0x00FF44 
+                glowSize: 35, intensity: 3, flickerAmount: 0.05, 
+                pulseSpeed: 1.5, distortionAmount: 0,
+                coreColor: 0xFFFFFF, glowColor: 0x00FF44,
+                coreSize: 4
             }
         },
         'sine': {
@@ -88,8 +94,9 @@ window.SaberEngine = (function() {
             icon: '🌊',
             settings: { 
                 glowSize: 28, intensity: 2.8, flickerAmount: 0.03, 
-                pulseSpeed: 1.5, distortionAmount: 6,
-                coreColor: 0xFFFFFF, glowColor: 0x00CEC9 
+                pulseSpeed: 1.5, distortionAmount: 0,
+                coreColor: 0xFFFFFF, glowColor: 0x00CEC9,
+                coreSize: 4
             }
         },
         'vortex': {
@@ -97,35 +104,39 @@ window.SaberEngine = (function() {
             icon: '🌪️',
             settings: { 
                 glowSize: 32, intensity: 3.2, flickerAmount: 0.05, 
-                pulseSpeed: 4, distortionAmount: 10,
-                coreColor: 0xFFEEFF, glowColor: 0xAA00FF 
+                pulseSpeed: 2, distortionAmount: 0,
+                coreColor: 0xFFEEFF, glowColor: 0xAA00FF,
+                coreSize: 4
             }
         },
         'liquid': {
             name: 'Liquid',
             icon: '💧',
             settings: { 
-                glowSize: 45, intensity: 2, flickerAmount: 0.01, 
-                pulseSpeed: 1, distortionAmount: 3,
-                coreColor: 0xEEFFFF, glowColor: 0x00AAFF 
+                glowSize: 40, intensity: 2.5, flickerAmount: 0.01, 
+                pulseSpeed: 1, distortionAmount: 0,
+                coreColor: 0xEEFFFF, glowColor: 0x00AAFF,
+                coreSize: 4
             }
         },
         'lightning': {
             name: 'Lightning',
             icon: '⚡',
             settings: { 
-                glowSize: 22, intensity: 4.5, flickerAmount: 0.4, 
-                pulseSpeed: 0, distortionAmount: 15,
-                coreColor: 0xFFFFFF, glowColor: 0xBB88FF 
+                glowSize: 25, intensity: 3.8, flickerAmount: 0.15, 
+                pulseSpeed: 0, distortionAmount: 0,
+                coreColor: 0xFFFFFF, glowColor: 0xBB88FF,
+                coreSize: 3
             }
         },
         'rainbow': {
             name: 'Rainbow',
             icon: '🌈',
             settings: { 
-                glowSize: 35, intensity: 3, flickerAmount: 0.05, 
+                glowSize: 35, intensity: 3, flickerAmount: 0.03, 
                 pulseSpeed: 0, distortionAmount: 0, rainbow: true,
-                coreColor: 0xFFFFFF, glowColor: 0xFF0088 
+                coreColor: 0xFFFFFF, glowColor: 0xFF0088,
+                coreSize: 4
             }
         }
     };
@@ -279,19 +290,18 @@ window.SaberEngine = (function() {
         }
         
         // 3. Işıklı Köşe Pinleri (Energy Nodes)
-        // Daire veya serbest çizgide nokta nokta görünmemesi için sadece köşe içeren geometrilerde çizilir
+        // Yalnızca basit geometrik poligonlarda (3-8 köşe) ve energyNodes aktifse çizilir
         const isCurvedOrFree = opts.pathType === 'circle' || opts.pathType === 'free' || opts.shapeType === 'circle' || opts.shapeType === 'free' || opts.isCircle || opts.isFree;
-        if (opts.energyNodes !== false && !isCurvedOrFree && points.length > 2 && (points.length <= 16 || opts.pathType === 'polygon' || opts.pathType === 'rect')) {
+        const isSimplePoly = (opts.pathType === 'polygon' || opts.pathType === 'rect') && points.length >= 3 && points.length <= 8;
+        if (opts.energyNodes === true && !isCurvedOrFree && isSimplePoly) {
             const pinRadius = Math.max(3, coreSizeVal + 2);
             for (let i = 0; i < points.length; i++) {
-                line.beginFill(opts.glowColor, 0.9);
+                line.beginFill(opts.glowColor, 0.85);
                 line.drawCircle(points[i].x, points[i].y, pinRadius);
                 line.endFill();
-                if (coreSizeVal > 0) {
-                    line.beginFill(opts.coreColor || opts.glowColor, 0.7);
-                    line.drawCircle(points[i].x, points[i].y, Math.max(1.5, pinRadius * 0.55));
-                    line.endFill();
-                }
+                line.beginFill(opts.coreColor || 0xFFFFFF, 0.95);
+                line.drawCircle(points[i].x, points[i].y, Math.max(1.5, pinRadius * 0.5));
+                line.endFill();
             }
         }
         
@@ -565,10 +575,16 @@ window.SaberEngine = (function() {
         } else if (saber.points && saber.points.length === 1) {
             return saber.points[0];
         } else if (saber.pixiText) {
-            const p = saber.pixiText.style.padding || 0;
+            const w = Math.max(1, (saber.pixiText.width || 100) * 0.7);
+            const h = Math.max(1, (saber.pixiText.height || 40) * 0.7);
+            const localX = (Math.random() - 0.5) * w;
+            const localY = (Math.random() - 0.5) * h;
+            const rot = saber.pixiText.rotation || 0;
+            const cos = Math.cos(rot);
+            const sin = Math.sin(rot);
             return {
-                x: saber.pixiText.x + p + Math.random() * (Math.max(1, saber.pixiText.width - 2*p)),
-                y: saber.pixiText.y + p + Math.random() * (Math.max(1, saber.pixiText.height - 2*p))
+                x: saber.pixiText.x + localX * cos - localY * sin,
+                y: saber.pixiText.y + localX * sin + localY * cos
             };
         }
         return {x: 0, y: 0};
@@ -1005,7 +1021,8 @@ window.SaberEngine = (function() {
         const line = saber.graphics;
         const points = saber.points;
         const opts = saber.options || {};
-        const amount = (forcedAmount !== undefined) ? forcedAmount : (opts.distortionAmount || 8);
+        const isFreehand = opts.pathType === 'free' || opts.shapeType === 'free' || opts.isFree;
+        const amount = isFreehand ? ((forcedAmount !== undefined) ? forcedAmount : (opts.distortionAmount || 0)) : 0;
         
         const coreSizeVal = (opts.coreSize !== undefined && opts.coreSize !== null) ? Number(opts.coreSize) : 0;
         const tubeThickness = Math.max(2, coreSizeVal + 3);
@@ -1191,33 +1208,40 @@ window.SaberEngine = (function() {
     }
 
 
-    // TEXT NODE BOUNDING BOX
-    function getActualTextRect(el) {
+    // TEXT NODE CENTER AND BOUNDING BOX
+    function getTextCenterAndMetrics(el) {
         if (!el) return null;
-        
-        // Emlak Studio wraps text in .editable-text spans.
-        // We should get the bounding box of that span to avoid padding offsets!
-        const editableSpan = el.querySelector('.editable-text');
-        if (editableSpan) {
-            return editableSpan.getBoundingClientRect();
-        }
-
-        if (el.childNodes.length > 0) {
-            const range = document.createRange();
-            let textNode = null;
-            // find the first non-empty text node
-            for (let i = 0; i < el.childNodes.length; i++) {
-                if (el.childNodes[i].nodeType === 3 && el.childNodes[i].textContent.trim() !== '') {
-                    textNode = el.childNodes[i];
-                    break;
+        let tRect = null;
+        try {
+            // Neon metin veya tuval metin öğelerinde doğrudan elemanın kendi transform merkezini kullan
+            if (el.classList.contains('neon-text-el') || el.dataset?.saberActive === 'true' || el.classList.contains('canvas-el')) {
+                tRect = el.getBoundingClientRect();
+            } else {
+                const editableSpan = el.querySelector('.editable-text');
+                if (editableSpan) {
+                    tRect = editableSpan.getBoundingClientRect();
+                } else if (el.childNodes.length > 0) {
+                    for (let i = 0; i < el.childNodes.length; i++) {
+                        if (el.childNodes[i].nodeType === 3 && el.childNodes[i].textContent.trim() !== '') {
+                            const range = document.createRange();
+                            range.selectNode(el.childNodes[i]);
+                            tRect = range.getBoundingClientRect();
+                            break;
+                        }
+                    }
                 }
             }
-            if (textNode) {
-                range.selectNode(textNode);
-                return range.getBoundingClientRect();
-            }
+        } catch(e) {}
+
+        if (!tRect || tRect.width === 0 || tRect.height === 0) {
+            tRect = el.getBoundingClientRect();
         }
-        return el.getBoundingClientRect();
+
+        return {
+            centerX: tRect.left + tRect.width / 2,
+            centerY: tRect.top + tRect.height / 2,
+            rect: tRect
+        };
     }
 
     function addTextSaber(id, el, opts) {
@@ -1297,14 +1321,23 @@ window.SaberEngine = (function() {
         });
 
         const pixiText = new PIXI.Text(textContent, textStyle);
+        pixiText.anchor.set(0.5, 0.5);
         
-        // Calculate position
-        const cRect = (typeof canvasEl !== 'undefined' ? canvasEl : document.getElementById('canvas-container')).getBoundingClientRect();
-        const tRect = getActualTextRect(el) || el.getBoundingClientRect();
+        // Calculate position based on center
+        const container = document.getElementById('canvas-container');
+        const cRect = (typeof canvasEl !== 'undefined' ? canvasEl : container) ? (typeof canvasEl !== 'undefined' ? canvasEl : container).getBoundingClientRect() : null;
+        const logicalW = container ? (container.offsetWidth || 1920) : 1920;
+        const scaleFactor = cRect ? (cRect.width / logicalW) : sf;
+        const metrics = getTextCenterAndMetrics(el);
         
-        const p = textStyle.padding || 0;
-        pixiText.x = (tRect.left - cRect.left) / sf;
-        pixiText.y = (tRect.top - cRect.top) / sf;
+        if (metrics && cRect) {
+            pixiText.x = (metrics.centerX - cRect.left) / scaleFactor;
+            pixiText.y = (metrics.centerY - cRect.top) / scaleFactor;
+        }
+        const rotDeg = parseFloat(el.dataset?.rotation) || 0;
+        pixiText.rotation = (rotDeg * Math.PI) / 180;
+        const elScale = parseFloat(el.dataset?.scale) || 1;
+        pixiText.scale.set(elScale, elScale);
 
         // Add Glow Filter
         const glowColorNum = typeof opts.glowColor === 'number' ? opts.glowColor : hexToPixiColor(opts.glowColor || '#00aaff');
@@ -1384,6 +1417,37 @@ window.SaberEngine = (function() {
 
     }
 
+    function setTextSaberVisibility(id, isVisible = true) {
+        if (!app || !app.textObjects) return;
+        let obj = app.textObjects[id];
+        if (!obj && typeof id === 'object' && id !== null) {
+            for (const k in app.textObjects) {
+                if (app.textObjects[k] && app.textObjects[k].el === id) {
+                    obj = app.textObjects[k];
+                    break;
+                }
+            }
+        }
+        if (!obj && typeof id === 'string') {
+            for (const k in app.textObjects) {
+                const item = app.textObjects[k];
+                if (item && item.el && (item.el.id === id || item.el.dataset?.layerUid === id || (item.el.dataset && item.el.dataset.saberElId === id))) {
+                    obj = item;
+                    break;
+                }
+            }
+        }
+        if (!obj) return;
+        const v = !!isVisible;
+        obj.visible = v;
+        if (obj.pixiText) obj.pixiText.visible = v;
+        if (obj.particleContainer) obj.particleContainer.visible = v;
+        if (obj.branchContainer) obj.branchContainer.visible = v;
+        if (app.renderer && app.stage) {
+            try { app.renderer.render(app.stage); } catch(e) {}
+        }
+    }
+
     function updateTextSaberPositions() {
         if (!app || !app.textContainer) return;
         if (!app.textObjects || Object.keys(app.textObjects).length === 0) return;
@@ -1406,17 +1470,61 @@ window.SaberEngine = (function() {
 
         for (const id in app.textObjects) {
             const obj = app.textObjects[id];
-            const tRect = getActualTextRect(obj.el) || obj.el.getBoundingClientRect();
-            const p = obj.pixiText.style.padding || 0;
-            
-            obj.pixiText.x = (tRect.left - cRect.left) / sf;
-            obj.pixiText.y = (tRect.top - cRect.top) / sf;
-            
+            if (!obj || !obj.el || !obj.pixiText) continue;
+
+            const isElHidden = (obj.visible === false) ||
+                               (obj.el.dataset && obj.el.dataset.hiddenLayer === 'true') ||
+                               obj.el.style.display === 'none' ||
+                               obj.el.style.visibility === 'hidden' ||
+                               (obj.el.closest && (obj.el.closest('[data-hidden-layer="true"]') || obj.el.closest('.is-hidden')));
+
+            if (isElHidden) {
+                obj.pixiText.visible = false;
+                if (obj.particleContainer) obj.particleContainer.visible = false;
+                if (obj.branchContainer) obj.branchContainer.visible = false;
+                continue;
+            }
+
+            obj.pixiText.visible = true;
+            if (obj.particleContainer) obj.particleContainer.visible = true;
+            if (obj.branchContainer) obj.branchContainer.visible = true;
+
+            if (obj.pixiText.anchor.x !== 0.5 || obj.pixiText.anchor.y !== 0.5) {
+                obj.pixiText.anchor.set(0.5, 0.5);
+            }
+
+            const metrics = getTextCenterAndMetrics(obj.el);
+            if (metrics) {
+                obj.pixiText.x = (metrics.centerX - cRect.left) / sf;
+                obj.pixiText.y = (metrics.centerY - cRect.top) / sf;
+            }
+
+            const rotDeg = parseFloat(obj.el.dataset?.rotation) || 0;
+            obj.pixiText.rotation = (rotDeg * Math.PI) / 180;
+
+            const scale = parseFloat(obj.el.dataset?.scale) || 1;
+            obj.pixiText.scale.set(scale, scale);
+
             // Re-sync text content in case of inline edit
-            const textContent = obj.el.innerText || obj.el.textContent;
+            const textContent = obj.el.innerText || obj.el.textContent || '';
             if (obj.pixiText.text !== textContent) {
                 obj.pixiText.text = textContent;
-                
+            }
+
+            // Sync font size and styles if changed
+            const cs = window.getComputedStyle(obj.el);
+            const currentFontSize = parseFloat(cs.fontSize) || 48;
+            if (obj.pixiText.style.fontSize !== currentFontSize) {
+                obj.pixiText.style.fontSize = currentFontSize;
+            }
+            if (cs.fontFamily) {
+                const cleanFont = cs.fontFamily.replace(/['"]/g, '');
+                if (obj.pixiText.style.fontFamily !== cleanFont) {
+                    obj.pixiText.style.fontFamily = cleanFont;
+                }
+            }
+            if (cs.fontWeight && obj.pixiText.style.fontWeight !== cs.fontWeight) {
+                obj.pixiText.style.fontWeight = cs.fontWeight;
             }
         }
 
@@ -1477,18 +1585,18 @@ window.SaberEngine = (function() {
             }
             
             // Energy nodes (Işıklı Köşe Pinleri)
+            // Yalnızca basit geometrik poligonlarda (3-8 köşe) ve energyNodes aktifse çizilir
             const isCurvedOrFree = opts.pathType === 'circle' || opts.pathType === 'free' || opts.shapeType === 'circle' || opts.shapeType === 'free' || opts.isCircle || opts.isFree;
-            if (opts.energyNodes !== false && !isCurvedOrFree && points.length > 2 && (points.length <= 16 || opts.pathType === 'polygon' || opts.pathType === 'rect')) {
+            const isSimplePoly = (opts.pathType === 'polygon' || opts.pathType === 'rect') && points.length >= 3 && points.length <= 8;
+            if (opts.energyNodes === true && !isCurvedOrFree && isSimplePoly) {
                 const pinRadius = Math.max(3, coreSizeVal + 2);
                 for (let i = 0; i < points.length; i++) {
-                    line.beginFill(opts.glowColor, 0.9);
+                    line.beginFill(opts.glowColor, 0.85);
                     line.drawCircle(points[i].x, points[i].y, pinRadius);
                     line.endFill();
-                    if (coreSizeVal > 0) {
-                        line.beginFill(opts.coreColor || opts.glowColor, 0.7);
-                        line.drawCircle(points[i].x, points[i].y, Math.max(1.5, pinRadius * 0.55));
-                        line.endFill();
-                    }
+                    line.beginFill(opts.coreColor || 0xFFFFFF, 0.95);
+                    line.drawCircle(points[i].x, points[i].y, Math.max(1.5, pinRadius * 0.5));
+                    line.endFill();
                 }
             }
         }
@@ -1518,7 +1626,8 @@ window.SaberEngine = (function() {
         getApp: () => app,
         getSabers: () => sabers,
         setSaberTransform: setSaberTransform,
-        setSaberVisibility: setSaberVisibility
+        setSaberVisibility: setSaberVisibility,
+        setTextSaberVisibility: setTextSaberVisibility
     };
 })();
 
@@ -1550,12 +1659,16 @@ window.applySaberToPath = function(pathIndex, saberOptions) {
     // Path tipine göre noktalar
     let points = [];
     if (path.type === 'free' || path.type === 'polygon') {
-        points = path.points ? path.points.slice() : [];
-        if (path.type === 'polygon' && points.length > 2) {
-            const first = points[0];
-            const last = points[points.length - 1];
-            if (Math.hypot(first.x - last.x, first.y - last.y) > 2) {
-                points.push({ x: first.x, y: first.y });
+        if (path.type === 'polygon' && window.BezierCurves && typeof window.BezierCurves.samplePathWithCurves === 'function' && path.points) {
+            points = window.BezierCurves.samplePathWithCurves(path.points, true);
+        } else {
+            points = path.points ? path.points.slice() : [];
+            if (path.type === 'polygon' && points.length > 2) {
+                const first = points[0];
+                const last = points[points.length - 1];
+                if (Math.hypot(first.x - last.x, first.y - last.y) > 2) {
+                    points.push({ x: first.x, y: first.y });
+                }
             }
         }
     } else if (path.type === 'line') {
@@ -1631,7 +1744,10 @@ window.applySaberToPath = function(pathIndex, saberOptions) {
     const effectiveOptions = Object.assign({}, saberOptions);
     effectiveOptions.pathType = path.type;
     effectiveOptions.dashStyle = path.dashStyle || 'solid';
-    if (path.type === 'circle' || path.type === 'free') {
+    if (path.type !== 'free') {
+        effectiveOptions.distortionAmount = 0;
+    }
+    if (path.type === 'circle' || path.type === 'free' || (path.points && path.points.length > 8)) {
         effectiveOptions.energyNodes = false;
     }
     const saberObj = SaberEngine.drawSaberLine(points, effectiveOptions);

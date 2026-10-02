@@ -74,7 +74,6 @@ function isExportIgnoredElement(el) {
 
     if (el.classList) {
         if (el.classList.contains('editable-draw')) return true;
-        if (el.classList.contains('el-selected')) return true;
         if (el.classList.contains('photo-inner-zoom')) return true;
         if (el.classList.contains('text-handle') ||
             el.classList.contains('text-lock-handle') ||
@@ -164,10 +163,15 @@ function sanitizeExportClone(clonedDoc) {
 
         // 🚫 Şablon çerçeve tutamaçları, yüzen araçlar, bilgi kartı kapat butonu ve tuval altı dock'u klondan temizle
         clonedDoc.querySelectorAll('.tb-frame-handle, .tb-frame-floating-tools, .tb-floating-btn, .tb-frame-file-input, .tb-ic-close-btn, .tb-pan-indicator, #canvasBottomDock, .dock-contextual-bar').forEach(el => el.remove());
-        clonedDoc.querySelectorAll('.tb-frame-selected').forEach(el => {
-            el.classList.remove('tb-frame-selected');
-            el.style.outline = 'none';
-            el.style.boxShadow = 'none';
+        clonedDoc.querySelectorAll('.tb-frame-selected, .el-selected, .selected').forEach(el => {
+            el.classList.remove('tb-frame-selected', 'el-selected', 'selected');
+            if (el.style) {
+                el.style.outline = 'none';
+                const sh = el.dataset?.shadowVal;
+                if (!sh || +sh === 0) {
+                    el.style.boxShadow = 'none';
+                }
+            }
         });
         clonedDoc.querySelectorAll('.tb-frame-placeholder').forEach(el => {
             const parentFrame = el.closest('.tb-frame-item') || el.closest('.tb-image-frame');
@@ -426,6 +430,299 @@ function draw3DLayerToContext(targetCtx, targetW, targetH) {
         targetCtx.drawImage(threeDCanvas, 0, 0, targetW, targetH);
     } catch(e) {
         console.warn('[Export] 3D katman aktarılırken hata:', e);
+    }
+}
+
+/**
+ * PixiJS Saber Katmanını (#saber-layer) hedef canvas contextine çizer.
+ * SaberEngine aktifse yüksek çözünürlüklü native render alır.
+ */
+function drawSaberLayerToContext(targetCtx, targetW, targetH, outputScale, currentW, currentH) {
+    if (!targetCtx) return;
+    if (window.SaberEngine && typeof window.SaberEngine.getApp === 'function') {
+        const saberApp = window.SaberEngine.getApp();
+        if (saberApp && saberApp.view) {
+            if (saberApp.renderer && saberApp.stage) {
+                try {
+                    saberApp.renderer.resize(targetW, targetH);
+                    saberApp.stage.scale.set(outputScale || 1);
+                    saberApp.renderer.render(saberApp.stage);
+                    targetCtx.save();
+                    targetCtx.drawImage(saberApp.view, 0, 0, targetW, targetH);
+                    targetCtx.restore();
+                    saberApp.renderer.resize(currentW || targetW, currentH || targetH);
+                    saberApp.stage.scale.set(1);
+                    saberApp.renderer.render(saberApp.stage);
+                    saberApp.view.style.width = '100%';
+                    saberApp.view.style.height = '100%';
+                } catch (e) {
+                    console.warn('[Export] Saber render hatası:', e);
+                }
+            } else {
+                try {
+                    targetCtx.drawImage(saberApp.view, 0, 0, targetW, targetH);
+                } catch (e) {}
+            }
+        }
+    }
+}
+
+/**
+ * 3D (#three-d-layer) ve Saber (#saber-layer) katmanlarını aralarındaki gerçek z-index derinlik sırasına göre basar.
+ */
+function draw3DAndSaberToContext(targetCtx, targetW, targetH, outputScale, currentW, currentH) {
+    const cvs3D = document.getElementById('three-d-layer') || (window.ThreeDEngine && window.ThreeDEngine.getCanvas ? window.ThreeDEngine.getCanvas() : null);
+    const cvsSaber = document.getElementById('saber-layer');
+
+    const getZ = (el, fallback) => {
+        if (!el) return fallback;
+        const raw = el.dataset?.layerZIndex || el.style?.getPropertyValue?.('z-index') || el.style?.zIndex;
+        const parsed = parseInt(raw, 10);
+        return (!isNaN(parsed) && parsed < 900) ? parsed : fallback;
+    };
+
+    const z3D = getZ(cvs3D, 54);
+    const zSaber = getZ(cvsSaber, 55);
+
+    if (z3D > zSaber) {
+        drawSaberLayerToContext(targetCtx, targetW, targetH, outputScale, currentW, currentH);
+        draw3DLayerToContext(targetCtx, targetW, targetH);
+    } else {
+        draw3DLayerToContext(targetCtx, targetW, targetH);
+        drawSaberLayerToContext(targetCtx, targetW, targetH, outputScale, currentW, currentH);
+    }
+}
+
+/**
+ * Tuvaldeki 2D DOM ögelerini (html2canvas), 3D WebGL katmanını ve PixiJS Saber katmanını
+ * Katmanlar panelindeki ve ekrandaki gerçek z-index derinlik sırasına göre hedef context'e çizer.
+ */
+async function compositeContentLayersInZOrder({
+    targetCtx,
+    canvasEl,
+    targetW,
+    targetH,
+    outputScale,
+    currentW,
+    currentH,
+    supersamplingScale,
+    isTransparent = false,
+    bgColor = null,
+    isTemplateMode = false
+}) {
+    const cvs3D = document.getElementById('three-d-layer') || (window.ThreeDEngine && window.ThreeDEngine.getCanvas ? window.ThreeDEngine.getCanvas() : null);
+    const cvsSaber = document.getElementById('saber-layer');
+
+    const getZ = (el, fallback) => {
+        if (!el) return fallback;
+        const raw = el.dataset?.layerZIndex || el.style?.getPropertyValue?.('z-index') || el.style?.zIndex;
+        const parsed = parseInt(raw, 10);
+        if (!isNaN(parsed)) {
+            if (parsed >= 900) return 60;
+            return parsed;
+        }
+        return fallback;
+    };
+
+    const has3D = !!(cvs3D && cvs3D.style.display !== 'none' && (!window.ThreeDEngine || (window.ThreeDEngine.state && window.ThreeDEngine.state.visible !== false)));
+    const hasSaber = !!(cvsSaber && cvsSaber.style.display !== 'none' && window.SaberEngine && typeof window.SaberEngine.getApp === 'function');
+
+    const z3D = has3D ? getZ(cvs3D, 35) : -999;
+    const zSaber = hasSaber ? getZ(cvsSaber, 30) : -999;
+
+    const draw3D = () => {
+        if (has3D) draw3DLayerToContext(targetCtx, targetW, targetH);
+    };
+
+    const drawSaber = () => {
+        if (hasSaber) drawSaberLayerToContext(targetCtx, targetW, targetH, outputScale, currentW, currentH);
+    };
+
+    // 2D DOM elemanlarını topla (Görünür olanlar)
+    const raw2DEls = Array.from(canvasEl.querySelectorAll('.canvas-el, .draggable, .callout-wrap, .tb-image-frame, [data-layer-uid]'))
+        .filter(el => {
+            if (el.id === 'photo-layer' || el.id === 'saber-layer' || el.id === 'three-d-layer') return false;
+            if (isExportIgnoredElement(el)) return false;
+            if (el.dataset?.hiddenLayer === 'true') return false;
+            if (el.style.display === 'none' || el.style.visibility === 'hidden') return false;
+            if (el.classList.contains('normal-el') || el.id === 'elBadge' || el.id === 'elPrice' || el.id === 'elDetails' || el.id === 'elTitle') {
+                if (!el.querySelector('img') && !el.querySelector('svg') && el.innerText.trim() === '') return false;
+            }
+            return true;
+        });
+
+    const hasTemplateFrame = isTemplateMode || !!canvasEl.querySelector('.cvr-base, .kolaj-wrapper, .photo-panel');
+
+    // Görsel DOM içeriği olan 2D elemanlar (neon metinler PixiJS tarafından çizilir)
+    const visual2DEls = raw2DEls.filter(el => !el.classList.contains('neon-text-el') && el.dataset?.saberActive !== 'true');
+
+    // html2canvas render yardımcı fonksiyonu
+    const renderHtml2CanvasPass = async (filterFn = null) => {
+        return await html2canvas(canvasEl, {
+            width: currentW,
+            height: currentH,
+            scale: supersamplingScale,
+            useCORS: true,
+            allowTaint: false,
+            imageTimeout: 0,
+            logging: false,
+            backgroundColor: (!isTransparent && bgColor && bgColor !== 'transparent' && hasTemplateFrame) ? bgColor : null,
+            ignoreElements: (el) => {
+                if (isExportIgnoredElement(el)) return true;
+                if (filterFn) return filterFn(el);
+                return false;
+            },
+            onclone: (clonedDoc) => sanitizeExportClone(clonedDoc)
+        });
+    };
+
+    // Eğer 3D de Saber da yoksa: Doğrudan tek geçiş html2canvas çiz
+    if (!has3D && !hasSaber) {
+        const h2c = await renderHtml2CanvasPass();
+        targetCtx.drawImage(h2c, 0, 0, targetW, targetH);
+        return;
+    }
+
+    // Harici katmanları hazırla ve z-index değerine göre artan sırada (alttan üste) sırala
+    const externalLayers = [];
+    if (hasSaber) externalLayers.push({ type: 'saber', zIndex: zSaber, draw: drawSaber });
+    if (has3D) externalLayers.push({ type: 'threeD', zIndex: z3D, draw: draw3D });
+    externalLayers.sort((a, b) => a.zIndex - b.zIndex);
+
+    // Eğer hiç 2D eleman yoksa: Sadece harici katmanları sırayla çiz
+    if (visual2DEls.length === 0 && !hasTemplateFrame) {
+        externalLayers.forEach(l => l.draw());
+        return;
+    }
+
+    // 2D elemanların z-index değerleri
+    const z2DValues = visual2DEls.map(el => getZ(el, 20));
+    const min2DZ = z2DValues.length > 0 ? Math.min(...z2DValues) : 20;
+    const max2DZ = z2DValues.length > 0 ? Math.max(...z2DValues) : 20;
+
+    const minExtZ = externalLayers[0].zIndex;
+    const maxExtZ = externalLayers[externalLayers.length - 1].zIndex;
+
+    // DURUM 1: Tüm 2D elemanlar harici katmanların ÜZERİNDE (Örn: Özel Kutu z=40 > 3D z=35 > Saber z=30)
+    if (min2DZ >= maxExtZ && !hasTemplateFrame) {
+        externalLayers.forEach(l => l.draw());
+        const h2c = await renderHtml2CanvasPass();
+        targetCtx.drawImage(h2c, 0, 0, targetW, targetH);
+        return;
+    }
+
+    // DURUM 2: Tüm 2D elemanlar harici katmanların ALTINDA (Örn: Özel Kutu z=20 < 3D z=35 < Saber z=40)
+    if (max2DZ <= minExtZ) {
+        const h2c = await renderHtml2CanvasPass();
+        targetCtx.drawImage(h2c, 0, 0, targetW, targetH);
+        externalLayers.forEach(l => l.draw());
+        return;
+    }
+
+    // DURUM 3: 2D elemanlar iki harici katmanın ARASINDA (Örn: Saber z=30 < Özel Kutu z=35 < 3D z=40)
+    if (externalLayers.length === 2 && min2DZ >= minExtZ && max2DZ <= maxExtZ && !hasTemplateFrame) {
+        externalLayers[0].draw();
+        const h2c = await renderHtml2CanvasPass();
+        targetCtx.drawImage(h2c, 0, 0, targetW, targetH);
+        externalLayers[1].draw();
+        return;
+    }
+
+    // DURUM 4: Elemanlar harici katmanlarla sandviç / iç içe (Bazı 2D ögeler altta, bazıları aralarda veya üstte)
+    if (externalLayers.length === 1) {
+        const splitZ = externalLayers[0].zIndex;
+        
+        // Alt katman 2D elemanlar (splitZ altındakiler)
+        const h2cBottom = await renderHtml2CanvasPass((el) => {
+            if (el.id === 'canvas-container' || el.id === 'ui-layer' || el.id === 'workArea' || el.classList?.contains('main-canvas')) return false;
+            const contentEl = (el.classList?.contains('canvas-el') || el.classList?.contains('draggable') || el.classList?.contains('callout-wrap') || el.classList?.contains('tb-image-frame') || el.hasAttribute?.('data-layer-uid'))
+                ? el
+                : el.closest?.('.canvas-el, .draggable, .callout-wrap, .tb-image-frame, [data-layer-uid]');
+            if (contentEl) {
+                const z = getZ(contentEl, 20);
+                if (z >= splitZ) return true;
+            }
+            return false;
+        });
+        targetCtx.drawImage(h2cBottom, 0, 0, targetW, targetH);
+
+        // Harici katmanı çiz
+        externalLayers[0].draw();
+
+        // Üst katman 2D elemanlar (splitZ ve üstündekiler)
+        const h2cTop = await renderHtml2CanvasPass((el) => {
+            if (el.id === 'canvas-container' || el.id === 'ui-layer' || el.id === 'workArea' || el.classList?.contains('main-canvas')) return false;
+            const contentEl = (el.classList?.contains('canvas-el') || el.classList?.contains('draggable') || el.classList?.contains('callout-wrap') || el.classList?.contains('tb-image-frame') || el.hasAttribute?.('data-layer-uid'))
+                ? el
+                : el.closest?.('.canvas-el, .draggable, .callout-wrap, .tb-image-frame, [data-layer-uid]');
+            if (contentEl) {
+                const z = getZ(contentEl, 20);
+                if (z < splitZ) return true;
+            }
+            return false;
+        });
+        targetCtx.drawImage(h2cTop, 0, 0, targetW, targetH);
+    } else {
+        // İki harici katman var (Örn: Saber ve 3D)
+        const z0 = externalLayers[0].zIndex;
+        const z1 = externalLayers[1].zIndex;
+
+        // 1. z0 altındaki 2D elemanlar
+        const h2cBottom = await renderHtml2CanvasPass((el) => {
+            if (el.id === 'canvas-container' || el.id === 'ui-layer' || el.id === 'workArea' || el.classList?.contains('main-canvas')) return false;
+            const contentEl = (el.classList?.contains('canvas-el') || el.classList?.contains('draggable') || el.classList?.contains('callout-wrap') || el.classList?.contains('tb-image-frame') || el.hasAttribute?.('data-layer-uid'))
+                ? el
+                : el.closest?.('.canvas-el, .draggable, .callout-wrap, .tb-image-frame, [data-layer-uid]');
+            if (contentEl) {
+                const z = getZ(contentEl, 20);
+                if (z >= z0) return true;
+            }
+            return false;
+        });
+        targetCtx.drawImage(h2cBottom, 0, 0, targetW, targetH);
+
+        // 2. İlk harici katman
+        externalLayers[0].draw();
+
+        // 3. z0 ile z1 arasındaki 2D elemanlar (varsa)
+        const hasBetween = visual2DEls.some(el => {
+            const z = getZ(el, 20);
+            return z >= z0 && z < z1;
+        });
+        if (hasBetween) {
+            const h2cMid = await renderHtml2CanvasPass((el) => {
+                if (el.id === 'canvas-container' || el.id === 'ui-layer' || el.id === 'workArea' || el.classList?.contains('main-canvas')) return false;
+                const contentEl = (el.classList?.contains('canvas-el') || el.classList?.contains('draggable') || el.classList?.contains('callout-wrap') || el.classList?.contains('tb-image-frame') || el.hasAttribute?.('data-layer-uid'))
+                    ? el
+                    : el.closest?.('.canvas-el, .draggable, .callout-wrap, .tb-image-frame, [data-layer-uid]');
+                if (contentEl) {
+                    const z = getZ(contentEl, 20);
+                    if (z < z0 || z >= z1) return true;
+                }
+                return false;
+            });
+            targetCtx.drawImage(h2cMid, 0, 0, targetW, targetH);
+        }
+
+        // 4. İkinci harici katman
+        externalLayers[1].draw();
+
+        // 5. z1 ve üstündeki 2D elemanlar (varsa)
+        const hasTop = visual2DEls.some(el => getZ(el, 20) >= z1);
+        if (hasTop) {
+            const h2cTop = await renderHtml2CanvasPass((el) => {
+                if (el.id === 'canvas-container' || el.id === 'ui-layer' || el.id === 'workArea' || el.classList?.contains('main-canvas')) return false;
+                const contentEl = (el.classList?.contains('canvas-el') || el.classList?.contains('draggable') || el.classList?.contains('callout-wrap') || el.classList?.contains('tb-image-frame') || el.hasAttribute?.('data-layer-uid'))
+                    ? el
+                    : el.closest?.('.canvas-el, .draggable, .callout-wrap, .tb-image-frame, [data-layer-uid]');
+                if (contentEl) {
+                    const z = getZ(contentEl, 20);
+                    if (z < z1) return true;
+                }
+                return false;
+            });
+            targetCtx.drawImage(h2cTop, 0, 0, targetW, targetH);
+        }
     }
 }
 
@@ -1337,30 +1634,8 @@ async function saveImage(customBaseName, options = {}){
                 window.redrawAllToContext(ctx, outputScale, { skipNeonStrokes: hasSaberActive });
             }
 
-            // 3D WebGL Katmanını bas (#three-d-layer)
-            draw3DLayerToContext(ctx, targetW, targetH);
-
-            // 3. PixiJS Saber Neon ekle ve motoru eski haline geri getir
-            if (window.SaberEngine && typeof window.SaberEngine.getApp === 'function') {
-                const saberApp = window.SaberEngine.getApp();
-                if (saberApp && saberApp.view) {
-                    if (saberApp.renderer && saberApp.stage) {
-                        saberApp.renderer.resize(targetW, targetH);
-                        saberApp.stage.scale.set(outputScale);
-                        saberApp.renderer.render(saberApp.stage);
-                        ctx.save();
-                        ctx.drawImage(saberApp.view, 0, 0, targetW, targetH);
-                        ctx.restore();
-                        saberApp.renderer.resize(currentW, currentH);
-                        saberApp.stage.scale.set(1);
-                        saberApp.renderer.render(saberApp.stage);
-                        saberApp.view.style.width = '100%';
-                        saberApp.view.style.height = '100%';
-                    } else {
-                        ctx.drawImage(saberApp.view, 0, 0, targetW, targetH);
-                    }
-                }
-            }
+            // 3D WebGL Katmanını ve PixiJS Saber katmanını gerçek z-index derinlik sırasına göre bas
+            draw3DAndSaberToContext(ctx, targetW, targetH, outputScale, currentW, currentH);
             
             // Filtreleri eski haline döndür
             window.isExportingNow = false;
@@ -1459,10 +1734,7 @@ async function saveImage(customBaseName, options = {}){
             window.redrawAllToContext(ctx, outputScale, { skipNeonStrokes: hasSaberActive });
         }
 
-        // 3D WebGL Katmanını bas (#three-d-layer)
-        draw3DLayerToContext(ctx, targetW, targetH);
-
-        // 2. ui-layer custom items render using html2canvas
+        // 2. İçerik Katmanlarını (2D DOM, 3D WebGL ve PixiJS Saber) gerçek z-index derinlik sırasına göre bas
         const overlay = document.createElement('div');
         overlay.id = 'download-overlay-mask';
         overlay.style.position = 'fixed';
@@ -1502,22 +1774,22 @@ async function saveImage(customBaseName, options = {}){
             if (currentH * supersamplingScale > MAX_DIM) supersamplingScale = MAX_DIM / currentH;
             if ((currentW * currentH * supersamplingScale * supersamplingScale) > 16000000) supersamplingScale = Math.sqrt(16000000 / (currentW * currentH));
             supersamplingScale = Math.floor(supersamplingScale * 10) / 10;
-            const finalHtml2Canvas = await html2canvas(canvasEl, {
-                width: currentW,
-                height: currentH,
-                scale: supersamplingScale,
-                useCORS: true,
-                allowTaint: false,
-                imageTimeout: 0,
-                
-                logging: false,
-                backgroundColor: null,
-                ignoreElements: (el) => isExportIgnoredElement(el),
-                onclone: (clonedDoc) => sanitizeExportClone(clonedDoc)
+
+            await compositeContentLayersInZOrder({
+                targetCtx: ctx,
+                canvasEl,
+                targetW,
+                targetH,
+                outputScale,
+                currentW,
+                currentH,
+                supersamplingScale,
+                isTransparent: !!isTransparent,
+                bgColor: null,
+                isTemplateMode: false
             });
-            ctx.drawImage(finalHtml2Canvas, 0, 0, targetW, targetH);
         } catch (e) {
-            console.error("Non-template HTML2Canvas Error:", e);
+            console.error("Non-template Composite Render Error:", e);
         }
 
         canvasEl.style.position = oldPosition;
@@ -1531,30 +1803,8 @@ async function saveImage(customBaseName, options = {}){
         document.body.removeChild(overlay);
         resizeCanvas();
 
-        
         // --- UI RESTORE ---
         document.querySelectorAll('.photo-panel, #photo-layer').forEach(p => { if (typeof _applyPhotoTransform === 'function') _applyPhotoTransform(p); });
-
-        
-        // 3. PixiJS ekle
-        if (window.SaberEngine && typeof window.SaberEngine.getApp === 'function') {
-            const saberApp = window.SaberEngine.getApp();
-            if (saberApp && saberApp.view) {
-                if (saberApp.renderer && saberApp.stage) {
-                    saberApp.renderer.resize(targetW, targetH);
-                    saberApp.stage.scale.set(outputScale);
-                    saberApp.renderer.render(saberApp.stage);
-                    ctx.drawImage(saberApp.view, 0, 0, targetW, targetH);
-                    saberApp.renderer.resize(currentW, currentH);
-                    saberApp.stage.scale.set(1);
-                    saberApp.renderer.render(saberApp.stage);
-                    saberApp.view.style.width = '100%';
-                    saberApp.view.style.height = '100%';
-                } else {
-                    ctx.drawImage(saberApp.view, 0, 0, targetW, targetH);
-                }
-            }
-        }
     }
 
         drawCanvas.style.zIndex=wz;
@@ -1907,25 +2157,8 @@ async function startBatchExport(options){
             window.redrawAllToContext(ctx, outputScale, { skipNeonStrokes: hasSaberActive });
         }
 
-        // 3D WebGL Katmanını bas (#three-d-layer)
-        draw3DLayerToContext(ctx, targetW, targetH);
-            
-        if (window.SaberEngine && typeof window.SaberEngine.getApp === 'function') {
-                const saberApp = window.SaberEngine.getApp();
-                if (saberApp && saberApp.view) {
-                    if (saberApp.renderer && saberApp.stage) {
-                        saberApp.renderer.resize(targetW, targetH);
-                        saberApp.stage.scale.set(outputScale);
-                        saberApp.renderer.render(saberApp.stage);
-                        ctx.drawImage(saberApp.view, 0, 0, targetW, targetH);
-                        saberApp.renderer.resize(currentW, currentH);
-                        saberApp.stage.scale.set(1);
-                        saberApp.renderer.render(saberApp.stage);
-                    } else {
-                        ctx.drawImage(saberApp.view, 0, 0, targetW, targetH);
-                    }
-                }
-            }
+        // 3D WebGL Katmanını ve PixiJS Saber katmanını gerçek z-index derinlik sırasına göre bas
+        draw3DAndSaberToContext(ctx, targetW, targetH, outputScale, currentW, currentH);
         } else {
             // SABLONSUZ MOD
             let customBg = window.getComputedStyle(canvasEl).backgroundColor;
@@ -1994,10 +2227,7 @@ async function startBatchExport(options){
                 window.redrawAllToContext(ctx, outputScale, { skipNeonStrokes: hasSaberActive });
             }
 
-            // 3D WebGL Katmanını bas (#three-d-layer)
-            draw3DLayerToContext(ctx, targetW, targetH);
-
-            // 2. ui-layer custom items render using html2canvas (SABLONSUZ MOD - Batch)
+            // 2. İçerik Katmanlarını (2D DOM, 3D WebGL ve PixiJS Saber) gerçek z-index derinlik sırasına göre bas
             const overlay = document.createElement('div');
             overlay.style.position = 'fixed';
             overlay.style.top = '0';
@@ -2038,21 +2268,22 @@ async function startBatchExport(options){
                 if (currentH * supersamplingScale > MAX_DIM) supersamplingScale = MAX_DIM / currentH;
                 if ((currentW * currentH * supersamplingScale * supersamplingScale) > 16000000) supersamplingScale = Math.sqrt(16000000 / (currentW * currentH));
                 supersamplingScale = Math.floor(supersamplingScale * 10) / 10;
-                const finalHtml2Canvas = await html2canvas(canvasEl, {
-                    width: currentW,
-                    height: currentH,
-                    scale: supersamplingScale,
-                    useCORS: true,
-                    allowTaint: false,
-                    imageTimeout: 0,
-                    logging: false,
-                    backgroundColor: null,
-                    ignoreElements: (el) => isExportIgnoredElement(el),
-                    onclone: (clonedDoc) => sanitizeExportClone(clonedDoc)
+
+                await compositeContentLayersInZOrder({
+                    targetCtx: ctx,
+                    canvasEl,
+                    targetW,
+                    targetH,
+                    outputScale,
+                    currentW,
+                    currentH,
+                    supersamplingScale,
+                    isTransparent: !!isBatchTransparent,
+                    bgColor: null,
+                    isTemplateMode: false
                 });
-                ctx.drawImage(finalHtml2Canvas, 0, 0, targetW, targetH);
             } catch (e) {
-                console.error("Non-template HTML2Canvas Error:", e);
+                console.error("Non-template Batch Composite Render Error:", e);
             }
 
             canvasEl.style.position = oldPosition;
@@ -2066,27 +2297,8 @@ async function startBatchExport(options){
             document.body.removeChild(overlay);
             resizeCanvas();
 
-            
             // --- UI RESTORE ---
-        document.querySelectorAll('.photo-panel, #photo-layer').forEach(p => { if (typeof _applyPhotoTransform === 'function') _applyPhotoTransform(p); });
-
-            
-            if (window.SaberEngine && typeof window.SaberEngine.getApp === 'function') {
-                const saberApp = window.SaberEngine.getApp();
-                if (saberApp && saberApp.view) {
-                    if (saberApp.renderer && saberApp.stage) {
-                        saberApp.renderer.resize(targetW, targetH);
-                        saberApp.stage.scale.set(outputScale);
-                        saberApp.renderer.render(saberApp.stage);
-                        ctx.drawImage(saberApp.view, 0, 0, targetW, targetH);
-                        saberApp.renderer.resize(currentW, currentH);
-                        saberApp.stage.scale.set(1);
-                        saberApp.renderer.render(saberApp.stage);
-                    } else {
-                        ctx.drawImage(saberApp.view, 0, 0, targetW, targetH);
-                    }
-                }
-            }
+            document.querySelectorAll('.photo-panel, #photo-layer').forEach(p => { if (typeof _applyPhotoTransform === 'function') _applyPhotoTransform(p); });
         }
 
         // DEMO FILIGRAN / WATERMARK

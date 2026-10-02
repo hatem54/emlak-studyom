@@ -69,6 +69,7 @@
     <link rel="stylesheet" href="css/carousel.css?v=20260930-1">
     <link rel="stylesheet" href="css/photo-staging.css?v=20260930-1">
     <link rel="stylesheet" href="css/drone-rig.css?v=20261001-1">
+    <link rel="stylesheet" href="css/bezier-curves.css?v=20261002-1">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <!-- ⚡ SABER EFFECT ENGINE - PixiJS + Filters -->
     <script src="https://cdn.jsdelivr.net/npm/pixi.js@7.4.0/dist/pixi.min.js"></script>
@@ -1335,7 +1336,7 @@
             <button type="button" class="btn-action" onclick="addNeonText()" title="Tuvale parlak neon efektli metin ekleyin">
                 <i class="fa-solid fa-bolt" style="color:#00f0ff;"></i> Neon Yazı Ekle
             </button>
-            <button type="button" class="btn-action pc-only" onclick="if(window.ThreeDEngine) window.ThreeDEngine.openStudio();" title="Görsel üzerine 3D perspektifli yazı ve zemin ekleyin">
+            <button type="button" class="btn-action pc-only" onclick="if(window.ThreeDEngine) { if(typeof window.ThreeDEngine.add3DText === 'function') window.ThreeDEngine.add3DText(); else window.ThreeDEngine.openStudio(); }" title="Görsel üzerine 3D perspektifli yazı ekleyin">
                 <i class="fa-solid fa-cube" style="color:#6366f1;"></i> 3D Metin
             </button>
         </div>
@@ -1477,7 +1478,7 @@
         </div>
         <div class="draw-indicator" id="drawIndicator">✏️ ÇİZİM AKTİF — Tuval üzerinde çizin</div>
         <div id="polyInfo" style="display:none;background:#1e293b;border:1px solid #f59e0b;border-radius:5px;padding:6px;margin-bottom:6px;font-size:10px;color:#fbbf24">
-            🔷 <b>Çokgen / Kare:</b> Tıklayarak köşe ekle. <b>Çift tıkla</b> veya butona bas.<br>
+            🔷 <b>Çokgen & Kavis:</b> Tıkla: Düz Köşe | Sürükle: Kavisli Eğri. <b>Çift tıkla</b> veya butona bas.<br>
             <button class="btn-action btn-yellow" style="margin-top:4px;padding:5px" onclick="closePolygon()"><i class="fa-solid fa-check"></i> Çokgeni Kapat</button>
         </div>
         <div id="arrowSettingsContainer" style="display:none; background:#1e293b; border:1px solid #3b82f6; border-radius:6px; padding:10px; margin-bottom:10px;">
@@ -1532,15 +1533,15 @@
         <div class="color-row"><label>Dolgu Rengi</label><input type="color" id="fillColor" value="#ef4444"></div>
         <div class="slider-group"><label><span>Dolgu Opaklık</span><span id="fillOpacityVal">0%</span></label><input type="range" id="fillOpacity" min="0" max="100" value="0"></div>
 
-        <!-- 🧲 AKILLI HİZALAMA (SNAP) -->
-        <div class="snap-toggle-container" style="margin-top: 14px; margin-bottom: 14px; padding: 10px; background: #1e293b; border-radius: 6px; display: flex; align-items: center; justify-content: space-between; border: 1px solid #334155;">
-            <div style="display:flex; align-items:center; gap:8px;">
-                <span style="font-size: 16px;">🧲</span>
-                <span style="color: #e2e8f0; font-size: 14px; font-weight: 500;">Akıllı Hizalama</span>
-            </div>
-            <label class="saber-toggle" style="margin:0; min-width: 40px;">
-                <input type="checkbox" id="drawSnapToggle">
-                <span class="saber-toggle-slider"></span>
+        <!-- AKILLI HİZALAMA (SNAP) -->
+        <div class="snap-toggle-row">
+            <label for="drawSnapToggle" class="snap-toggle-label">
+                <i class="fa-solid fa-magnet" style="color:#0284c7; font-size:13px; width:16px;"></i>
+                <span>Akıllı Hizalama</span>
+            </label>
+            <label class="switch-toggle" title="Akıllı Manyetik Hizalamayı Aç/Kapat">
+                <input type="checkbox" id="drawSnapToggle" onchange="window.toggleSmartGuides(this.checked)">
+                <span class="toggle-slider"></span>
             </label>
         </div>
 
@@ -1583,8 +1584,8 @@
                     
                     <div class="saber-slider-row">
                         <label>Akkor Çekirdek</label>
-                        <input type="range" id="saberCoreSize" min="0" max="30" value="0">
-                        <span id="saberCoreSizeVal">0</span>
+                        <input type="range" id="saberCoreSize" min="0" max="30" value="4">
+                        <span id="saberCoreSizeVal">4</span>
                     </div>
                     
                     <div class="saber-slider-row">
@@ -1613,7 +1614,7 @@
                                 <span>Işıklı Köşe Pinleri</span>
                             </label>
                             <label class="switch-toggle" title="Işıklı Köşe Pinlerini Aç/Kapat">
-                                <input type="checkbox" id="saberEnergyNodes" checked>
+                                <input type="checkbox" id="saberEnergyNodes">
                                 <span class="toggle-slider"></span>
                             </label>
                         </div>
@@ -1647,7 +1648,10 @@
                         <i class="fa-solid fa-video"></i>
                         <span>Video İndir</span>
                     </button>
-                    <button id="saberClearBtn" class="saber-btn saber-btn-danger">
+                    <button id="saberApplyAllBtn" type="button" class="saber-btn saber-btn-primary" title="Mevcut neon ayarlarını sahnedeki tüm çizimlere uygula">
+                        <i class="fa-solid fa-layer-group"></i> Tümüne Uygula
+                    </button>
+                    <button id="saberClearBtn" class="saber-btn saber-btn-danger" title="Tüm çizimlerdeki neon efektlerini temizle">
                         <i class="fa-solid fa-trash-can"></i> Çizimleri Temizle
                     </button>
                 </div>
@@ -1802,6 +1806,18 @@
 
     <!-- ŞABLON OLUŞTURUCU (TEMPLATE BUILDER) -->
     <div id="tab-create-template" class="dynamic-field">
+        <!-- AKILLI HİZALAMA (SNAP) -->
+        <div class="snap-toggle-row">
+            <label for="tbSnapToggle" class="snap-toggle-label">
+                <i class="fa-solid fa-magnet" style="color:#0284c7; font-size:13px; width:16px;"></i>
+                <span>Akıllı Hizalama</span>
+            </label>
+            <label class="switch-toggle" title="Akıllı Manyetik Hizalamayı Aç/Kapat">
+                <input type="checkbox" id="tbSnapToggle" onchange="window.toggleSmartGuides(this.checked)">
+                <span class="toggle-slider"></span>
+            </label>
+        </div>
+
         <!-- 1. TUVAL FORMATI & EN-BOY ORANI -->
         <div class="section-title"><i class="fa-solid fa-crop-simple" style="color:#8b5cf6; margin-right:6px;"></i>Tuval Boyutu</div>
         <div class="tb-ratio-grid">
@@ -2868,6 +2884,10 @@
                     <span class="dock-icon"><i class="fa-solid fa-slash"></i></span>
                     <span class="dock-label">Çizgi</span>
                 </button>
+                <button type="button" class="dock-btn dock-snap-btn" onclick="window.toggleSmartGuides()" title="Akıllı Manyetik Hizalamayı Aç veya Kapat">
+                    <span class="dock-icon"><i class="fa-solid fa-magnet"></i></span>
+                    <span class="dock-label">Hizalama</span>
+                </button>
                 <button type="button" class="dock-btn" onclick="if(typeof clearAllDrawings==='function')clearAllDrawings();" title="Tüm Çizimleri Temizle">
                     <span class="dock-icon"><i class="fa-solid fa-trash-can"></i></span>
                     <span class="dock-label">Temizle</span>
@@ -2879,6 +2899,10 @@
                 <button type="button" class="dock-btn btn-accent" onclick="if(typeof finishPolygon==='function')finishPolygon();" title="Çokgeni Kapat ve Şekli Tamamla">
                     <span class="dock-icon"><i class="fa-solid fa-check"></i></span>
                     <span class="dock-label">Tamamla</span>
+                </button>
+                <button type="button" class="dock-btn dock-snap-btn" onclick="window.toggleSmartGuides()" title="Akıllı Manyetik Hizalamayı Aç veya Kapat">
+                    <span class="dock-icon"><i class="fa-solid fa-magnet"></i></span>
+                    <span class="dock-label">Hizalama</span>
                 </button>
                 <button type="button" class="dock-btn" onclick="if(typeof undoPolygonPoint==='function')undoPolygonPoint();" title="Son Noktayı Geri Al">
                     <span class="dock-icon"><i class="fa-solid fa-arrow-rotate-left"></i></span>
@@ -2943,6 +2967,10 @@
                 <button type="button" class="dock-btn" onclick="if(typeof duplicateSelected==='function')duplicateSelected();" title="Seçili Ögeyi Çoğalt">
                     <span class="dock-icon"><i class="fa-solid fa-clone"></i></span>
                     <span class="dock-label">Çoğalt</span>
+                </button>
+                <button type="button" class="dock-btn dock-snap-btn" onclick="window.toggleSmartGuides()" title="Akıllı Manyetik Hizalamayı Aç veya Kapat">
+                    <span class="dock-icon"><i class="fa-solid fa-magnet"></i></span>
+                    <span class="dock-label">Hizalama</span>
                 </button>
                 <button type="button" class="dock-btn" onclick="if(typeof window.toggleLockSelected==='function')window.toggleLockSelected();" title="Ögeyi Kilitle veya Kilidi Aç">
                     <span class="dock-icon"><i class="fa-solid fa-lock-open" id="dockElLockIcon"></i></span>
@@ -3015,6 +3043,10 @@
                 <button type="button" class="dock-btn" onclick="TemplateBuilder.createImageFrame()" title="Yeni Görsel Çerçevesi Ekle">
                     <span class="dock-icon"><i class="fa-solid fa-image"></i></span>
                     <span class="dock-label">Çerçeve</span>
+                </button>
+                <button type="button" class="dock-btn dock-snap-btn" onclick="window.toggleSmartGuides()" title="Akıllı Manyetik Hizalamayı Aç veya Kapat">
+                    <span class="dock-icon"><i class="fa-solid fa-magnet"></i></span>
+                    <span class="dock-label">Hizalama</span>
                 </button>
                 <button type="button" class="dock-btn" onclick="TemplateBuilder.uploadMultiplePhotos()" title="Tüm Çerçevelere Sırayla Fotoğraf Yükle">
                     <span class="dock-icon"><i class="fa-solid fa-images"></i></span>
@@ -3280,6 +3312,7 @@
     <script src="ui/icons.js?v=20260925-1"></script>
     <script src="modules/callout_v2.js?v=20260918-5"></script>
     <script src="modules/other-callouts.js?v=20260917-131"></script>
+<script src="modules/bezier-curves.js?v=20261002-1"></script>
 <script src="modules/draw.js?v=20260914-58"></script>
 <script src="modules/layers.js?v=20260918-2"></script>
 <script src="modules/saber.js?v=20260913-52"></script>

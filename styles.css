@@ -350,7 +350,7 @@ body[data-theme="light"] .cat-item:hover {
 #vignette-layer{position:absolute;width:100%;height:100%;top:0;left:0;z-index:4;pointer-events:none;opacity:0;background:radial-gradient(ellipse at center, transparent 35%, rgba(0,0,0,1) 95%)}
 #mask-layer{position:absolute;width:100%;height:100%;top:0;left:0;z-index:5;pointer-events:none;background-size:cover;background-repeat:no-repeat;background-position:center}
 #canva-render-layer{position:absolute;width:100%;height:100%;top:0;left:0;pointer-events:auto;display:none}
-#ui-layer{position:absolute;width:100%;height:100%;top:0;left:0;z-index:50}
+#ui-layer{position:absolute;width:100%;height:100%;top:0;left:0;z-index:auto;}
 #draw-layer{position:absolute;top:0;left:0;width:1920px;height:1080px;z-index:5;pointer-events:none}
 /* Logo her zaman en üstte - hiçbir katman logoyu örtmemelidir */
 #elLogo{position:absolute;z-index:9999 !important;pointer-events:auto !important;cursor:move !important;}
@@ -634,29 +634,28 @@ svg, .callout-svg-container svg, .is-svg-icon svg, .draw-svg-item, #drawCanvas {
     z-index:5 !important;
 }
 
-/* Yazı/metin/kutu elemanları en üstte kalsın */
+/* Yazı/metin/kutu elemanları varsayılan taban z-index */
 #ui-layer .canvas-el,
 .canva-generated, .canvas-el { 
-    z-index: 20 !important; 
+    z-index: 20; 
     min-width: min-content;
     min-height: min-content;
     word-break: break-word;
 }
 #ui-layer .draggable{
-    z-index:20 !important;
+    z-index: 20;
 }
 
-/* Seçili eleman en önde (düzenleme sırasında) */
+/* Seçili eleman: z-index Katmanlar panelindeki derinlik hiyerarşisine sadık kalır */
 #ui-layer .el-selected,
 #canva-render-layer .el-selected,
 .cvr-base .el-selected,
 .el-selected {
-    z-index: 1000 !important;
+    /* z-index Katmanlar motoru tarafından dinamik yönetilir */
 }
 
-/* WebGL Saber Layer z-index - Glow her zaman çizimlerin üzerinde kalsın */
+/* WebGL Saber Layer z-index - Katmanlar motoru tarafından dinamik atanır */
 #saber-layer {
-    z-index: 1005 !important;
     pointer-events: none !important;
 }
 
@@ -665,13 +664,20 @@ svg, .callout-svg-container svg, .is-svg-icon svg, .draw-svg-item, #drawCanvas {
 .editable-draw.neon-active > svg polygon,
 .editable-draw.neon-active > svg rect,
 .editable-draw.neon-active > svg ellipse,
-.editable-draw.neon-active > svg circle:not(.poly-vertex-dot),
+.editable-draw.neon-active > svg circle,
 .editable-draw.neon-active > svg line,
 .editable-draw.neon-active > svg polyline,
 .editable-draw.neon-active > svg g,
 .editable-draw.neon-active > svg marker * {
     stroke: transparent !important;
     stroke-opacity: 0 !important;
+}
+
+.editable-draw.neon-active > svg circle,
+.editable-draw.neon-active > svg .poly-vertex-dot {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
 }
 
 /* Tutamaç butonları (rotate, resize, delete) ikonları neon aktifken kesinlikle görünür ve renkli olmalı */
@@ -711,7 +717,7 @@ svg, .callout-svg-container svg, .is-svg-icon svg, .draw-svg-item, #drawCanvas {
 }
 .editable-draw.el-selected,
 .editable-draw.neon-active.el-selected {
-    z-index: 1010 !important;
+    /* z-index Katmanlar tarafından yönetilir */
 }
 
 /* Callout Panel */
@@ -2659,6 +2665,19 @@ body.photo-unlocked #draw-layer {
     pointer-events: none !important;
 }
 
+body.photo-unlocked #photo-layer,
+body.photo-unlocked #canvas-container {
+    cursor: grab !important;
+}
+
+body.photo-unlocked #photo-layer.grabbing,
+body.photo-unlocked #canvas-container.grabbing,
+body.photo-unlocked.space-pan-dragging #photo-layer,
+body.photo-unlocked.space-pan-dragging #canvas-container,
+body.photo-unlocked.space-pan-dragging {
+    cursor: grabbing !important;
+}
+
 /* ============================================================
    ⚡ CANVAS BOTTOM DOCK (HIZLI ERİŞİM & SABİTLEME ÇUBUĞU)
 ============================================================ */
@@ -4438,6 +4457,19 @@ body[data-theme="light"] .switch-toggle .toggle-slider {
 body[data-theme="light"] .switch-toggle input:checked + .toggle-slider {
     background: linear-gradient(135deg, #0284c7, #38bdf8);
     border-color: #0284c7;
+}
+
+body[data-theme="light"] .saber-btn-primary {
+    background: #f0f9ff !important;
+    border: 1.5px solid #bae6fd !important;
+    color: #0284c7 !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+}
+
+body[data-theme="light"] .saber-btn-primary:hover {
+    background: #e0f2fe !important;
+    border-color: #7dd3fc !important;
+    color: #0369a1 !important;
 }
 
 body[data-theme="light"] .saber-btn-danger {

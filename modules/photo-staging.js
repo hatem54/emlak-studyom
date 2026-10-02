@@ -1068,7 +1068,8 @@
             const divider = document.getElementById('canvasCompareDivider');
             const handle = document.getElementById('canvasCompareHandle');
             const range = document.getElementById('canvasCompareRange');
-            const pct = Math.max(0, Math.min(100, parseFloat(val) || 50));
+            const parsed = parseFloat(val);
+            const pct = Math.max(0, Math.min(100, Number.isFinite(parsed) ? parsed : 50));
 
             if (clip) {
                 clip.style.clipPath = `inset(0 ${100 - pct}% 0 0)`;
@@ -1076,7 +1077,7 @@
             }
             if (divider) divider.style.left = pct + '%';
             if (handle) handle.style.left = pct + '%';
-            if (range && Math.abs(range.value - pct) > 0.5) range.value = pct;
+            if (range && Math.abs(parseFloat(range.value) - pct) > 0.5) range.value = pct;
         },
 
         initCanvasCompareDragListeners: function() {

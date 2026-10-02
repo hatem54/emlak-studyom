@@ -10,17 +10,20 @@ window.addTextHandles = function(el) {
         let isRotating = false;
         let startAngle = 0;
         let startRotation = 0;
+        let startCenterX = 0;
+        let startCenterY = 0;
+        let rotMoveRAF = null;
         
         const rotDown = function(e) {
             e.preventDefault();
             e.stopPropagation();
             isRotating = true;
             const rect = el.getBoundingClientRect();
-            const centerX = rect.left + rect.width / 2;
-            const centerY = rect.top + rect.height / 2;
+            startCenterX = rect.left + rect.width / 2;
+            startCenterY = rect.top + rect.height / 2;
             const cx = e.touches ? e.touches[0].clientX : e.clientX;
             const cy = e.touches ? e.touches[0].clientY : e.clientY;
-            startAngle = Math.atan2(cy - centerY, cx - centerX) * (180 / Math.PI);
+            startAngle = Math.atan2(cy - startCenterY, cx - startCenterX) * (180 / Math.PI);
             startRotation = parseFloat(el.dataset.rotation) || 0;
             
             document.addEventListener('mousemove', rotMove);
@@ -34,39 +37,59 @@ window.addTextHandles = function(el) {
             if(!isRotating) return;
             if(!document.body.contains(rot)) { rotUp(); return; }
             e.preventDefault();
-            const rect = el.getBoundingClientRect();
-            const centerX = rect.left + rect.width / 2;
-            const centerY = rect.top + rect.height / 2;
             const cx = e.touches ? e.touches[0].clientX : e.clientX;
             const cy = e.touches ? e.touches[0].clientY : e.clientY;
-            const currentAngle = Math.atan2(cy - centerY, cx - centerX) * (180 / Math.PI);
             
-            let newRotation = startRotation + (currentAngle - startAngle);
-            newRotation = newRotation % 360;
-            if (newRotation > 180) newRotation -= 360;
-            else if (newRotation < -180) newRotation += 360;
-            newRotation = Math.round(newRotation);
-            
-            el.dataset.rotation = newRotation;
-            const currentScale = el.dataset.scale || 1; el.style.transform = `rotate(${newRotation}deg) scale(${currentScale})`;;
-            
-            if (typeof selectedEl !== 'undefined' && selectedEl === el) {
-                const rotSlider = document.getElementById('elRotate');
-                if (rotSlider) rotSlider.value = newRotation;
-                const rotVal = document.getElementById('elRotateVal');
-                if (rotVal) rotVal.textContent = newRotation + '°';
-            }
+            if (rotMoveRAF) return;
+            rotMoveRAF = requestAnimationFrame(() => {
+                rotMoveRAF = null;
+                if (!isRotating) return;
+
+                const currentAngle = Math.atan2(cy - startCenterY, cx - startCenterX) * (180 / Math.PI);
+                let newRotation = startRotation + (currentAngle - startAngle);
+                newRotation = newRotation % 360;
+                if (newRotation > 180) newRotation -= 360;
+                else if (newRotation < -180) newRotation += 360;
+                newRotation = Math.round(newRotation);
+                
+                el.dataset.rotation = newRotation;
+                const currentScale = el.dataset.scale || 1;
+                el.style.transform = `rotate(${newRotation}deg) scale(${currentScale})`;
+                
+                if (typeof selectedEl !== 'undefined' && selectedEl === el) {
+                    const rotSlider = document.getElementById('elRotate');
+                    if (rotSlider) rotSlider.value = newRotation;
+                    const rotVal = document.getElementById('elRotateVal');
+                    if (rotVal) rotVal.textContent = newRotation + '°';
+                }
+
+                // ⚡ SABER NEON ANLIK DÖNDÜRME SENKRONİZASYONU (Sıfır Gecikme)
+                if (window.SaberEngine && typeof window.SaberEngine.updateTextSaberPositions === 'function') {
+                    window.SaberEngine.updateTextSaberPositions();
+                }
+            });
         };
         
         window._rotUp = function() { rotUp(); };
         const rotUp = function() {
+            if (rotMoveRAF) {
+                cancelAnimationFrame(rotMoveRAF);
+                rotMoveRAF = null;
+            }
+            if (!isRotating) return;
             isRotating = false;
             document.removeEventListener('mousemove', rotMove);
             document.removeEventListener('touchmove', rotMove);
             document.removeEventListener('mouseup', rotUp);
             document.removeEventListener('touchend', rotUp);
             document.removeEventListener('touchcancel', rotUp);
+
+            // ⚡ Saber Neon son kare güncellemesi
+            if (window.SaberEngine && typeof window.SaberEngine.updateTextSaberPositions === 'function') {
+                window.SaberEngine.updateTextSaberPositions();
+            }
             if(typeof saveState === 'function') saveState();
+            if(typeof window.recordHistory === 'function') window.recordHistory('Metin Döndürüldü');
         };
         
         const stopEvent = function(e) { e.stopPropagation(); if (e.type === 'click') e.preventDefault(); };
@@ -125,6 +148,7 @@ window.addTextHandles = function(el) {
         
         let isResizing = false;
         let startX = 0, startY = 0, startW = 0, startH = 0, startFontSize = 0;
+        let resMoveRAF = null;
         
         const resDown = function(e) {
             e.preventDefault();
@@ -149,60 +173,78 @@ window.addTextHandles = function(el) {
             if(!document.body.contains(res)) { resUp(); return; }
             e.preventDefault();
             const c = e.touches ? e.touches[0] : e;
-            const sf = typeof window.getGlobalScale === 'function' ? window.getGlobalScale() : 1;
-            const rawDx = (c.clientX - startX) / sf;
-            const rawDy = (c.clientY - startY) / sf;
-            
-            const rotDeg = parseFloat(el.dataset.rotation) || 0;
-            let dx = rawDx;
-            let dy = rawDy;
-            if (rotDeg !== 0) {
-                const rotRad = rotDeg * Math.PI / 180;
-                const cos = Math.cos(rotRad);
-                const sin = Math.sin(rotRad);
-                dx = rawDx * cos + rawDy * sin;
-                dy = -rawDx * sin + rawDy * cos;
-            }
-            
-            const ratio = Math.max(0.1, (startW + dx) / Math.max(1, startW));
-            
-            if (el.dataset.label === 'Özel Kutu' || el.classList.contains('shape-el')) {
-                const isProportional = el.dataset.shapeType === 'circle' || el.dataset.shapeType === 'square';
-                if (isProportional) {
-                    el.style.width = Math.max(30, startW + dx) + 'px';
-                    el.style.height = el.style.width;
-                } else {
-                    el.style.width = Math.max(30, startW + dx) + 'px';
-                    el.style.height = Math.max(10, startH + dy) + 'px';
+            const clientX = c.clientX;
+            const clientY = c.clientY;
+
+            if (resMoveRAF) return;
+            resMoveRAF = requestAnimationFrame(() => {
+                resMoveRAF = null;
+                if (!isResizing) return;
+
+                const sf = typeof window.getGlobalScale === 'function' ? window.getGlobalScale() : 1;
+                const rawDx = (clientX - startX) / sf;
+                const rawDy = (clientY - startY) / sf;
+                
+                const rotDeg = parseFloat(el.dataset.rotation) || 0;
+                let dx = rawDx;
+                let dy = rawDy;
+                if (rotDeg !== 0) {
+                    const rotRad = rotDeg * Math.PI / 180;
+                    const cos = Math.cos(rotRad);
+                    const sin = Math.sin(rotRad);
+                    dx = rawDx * cos + rawDy * sin;
+                    dy = -rawDx * sin + rawDy * cos;
                 }
-            } else if (el.id === 'elLogo' || el.classList.contains('sh-logo') || el.querySelector('img') || el.tagName === 'IMG') {
-                const newW = Math.max(30, Math.round(startW * ratio));
-                el.style.width = newW + 'px';
-                el.style.height = 'auto';
-            } else {
-                const newFontSize = Math.max(8, Math.round(startFontSize * ratio));
-                el.style.fontSize = newFontSize + 'px';
-                if (el.style.width && el.style.width !== 'auto') {
-                    el.style.width = Math.max(40, Math.round(startW * ratio)) + 'px';
-                    if (el.style.minHeight && el.style.minHeight !== 'auto') {
-                        el.style.minHeight = Math.max(20, Math.round(startH * ratio)) + 'px';
+                
+                const ratio = Math.max(0.1, (startW + dx) / Math.max(1, startW));
+                
+                if (el.dataset.label === 'Özel Kutu' || el.classList.contains('shape-el')) {
+                    const isProportional = el.dataset.shapeType === 'circle' || el.dataset.shapeType === 'square';
+                    if (isProportional) {
+                        el.style.width = Math.max(30, startW + dx) + 'px';
+                        el.style.height = el.style.width;
+                    } else {
+                        el.style.width = Math.max(30, startW + dx) + 'px';
+                        el.style.height = Math.max(10, startH + dy) + 'px';
+                    }
+                } else if (el.id === 'elLogo' || el.classList.contains('sh-logo') || el.querySelector('img') || el.tagName === 'IMG') {
+                    const newW = Math.max(30, Math.round(startW * ratio));
+                    el.style.width = newW + 'px';
+                    el.style.height = 'auto';
+                } else {
+                    const newFontSize = Math.max(8, Math.round(startFontSize * ratio));
+                    el.style.fontSize = newFontSize + 'px';
+                    if (el.style.width && el.style.width !== 'auto') {
+                        el.style.width = Math.max(40, Math.round(startW * ratio)) + 'px';
+                        if (el.style.minHeight && el.style.minHeight !== 'auto') {
+                            el.style.minHeight = Math.max(20, Math.round(startH * ratio)) + 'px';
+                        }
                     }
                 }
-            }
-            
-            // Update font slider if panel is active
-            if (typeof selectedEl !== 'undefined' && selectedEl === el) {
-                const fsSlider = document.getElementById('elFontSize') || document.getElementById('fontSize');
-                if (fsSlider && !el.querySelector('img') && el.id !== 'elLogo') {
-                    const newFontSize = parseFloat(el.style.fontSize) || 16;
-                    fsSlider.value = newFontSize;
-                    const fsVal = document.getElementById('elFontSizeVal') || document.getElementById('fontSizeVal');
-                    if (fsVal) fsVal.textContent = newFontSize + 'px';
+                
+                // Update font slider if panel is active
+                if (typeof selectedEl !== 'undefined' && selectedEl === el) {
+                    const fsSlider = document.getElementById('elFontSize') || document.getElementById('fontSize');
+                    if (fsSlider && !el.querySelector('img') && el.id !== 'elLogo') {
+                        const newFontSize = parseFloat(el.style.fontSize) || 16;
+                        fsSlider.value = newFontSize;
+                        const fsVal = document.getElementById('elFontSizeVal') || document.getElementById('fontSizeVal');
+                        if (fsVal) fsVal.textContent = newFontSize + 'px';
+                    }
                 }
-            }
+
+                // ⚡ SABER NEON ANLIK BOYUTLANDIRMA SENKRONİZASYONU (Sıfır Gecikme)
+                if (window.SaberEngine && typeof window.SaberEngine.updateTextSaberPositions === 'function') {
+                    window.SaberEngine.updateTextSaberPositions();
+                }
+            });
         };
         
         const resUp = function() {
+            if (resMoveRAF) {
+                cancelAnimationFrame(resMoveRAF);
+                resMoveRAF = null;
+            }
             if(!isResizing) return;
             isResizing = false;
             document.removeEventListener('mousemove', resMove);
@@ -210,7 +252,13 @@ window.addTextHandles = function(el) {
             document.removeEventListener('mouseup', resUp);
             document.removeEventListener('touchend', resUp);
             document.removeEventListener('touchcancel', resUp);
+
+            // ⚡ Saber Neon son kare güncellemesi
+            if (window.SaberEngine && typeof window.SaberEngine.updateTextSaberPositions === 'function') {
+                window.SaberEngine.updateTextSaberPositions();
+            }
             if(typeof saveState === 'function') saveState();
+            if(typeof window.recordHistory === 'function') window.recordHistory('Metin Boyutlandırıldı');
         };
         
         const stopClick = function(e) { e.stopPropagation(); if (e.type === 'click') e.preventDefault(); };

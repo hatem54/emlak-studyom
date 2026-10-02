@@ -182,6 +182,9 @@ function applyElSettings(){
         }
         
         if(el.dataset.saberActive === 'true' && typeof applyTextSaberOpts === 'function') { setTimeout(applyTextSaberOpts, 10); }
+        if(window.SaberEngine && typeof window.SaberEngine.updateTextSaberPositions === 'function') {
+            window.SaberEngine.updateTextSaberPositions();
+        }
     });
 
     if($('elWidthVal')) $('elWidthVal').textContent = +w>0 ? w+'px' : 'Otomatik';
@@ -271,6 +274,21 @@ function hasImageOnCanvas() {
     return false;
 }
 
+function getNextCanvasElementZIndex() {
+    const existingLayers = Array.from(document.querySelectorAll('#canvas-container .canvas-el, #canvas-container .draggable, #three-d-layer, #saber-layer, [data-layer-uid]'));
+    let maxZ = 50;
+    existingLayers.forEach(l => {
+        const rawZ = l.dataset?.layerZIndex || l.style?.zIndex;
+        let z = parseInt(rawZ, 10);
+        if (isNaN(z) || z >= 9000) {
+            z = parseInt(window.getComputedStyle ? window.getComputedStyle(l).zIndex : 0, 10) || 0;
+        }
+        if (z > maxZ && z < 9000) maxZ = z;
+    });
+    return maxZ + 5;
+}
+window.getNextCanvasElementZIndex = getNextCanvasElementZIndex;
+
 function addCustomTextBox(){
     const el=document.createElement('div');
     el.className='draggable canvas-el custom-text-box';
@@ -299,7 +317,9 @@ function addCustomTextBox(){
     el.style.color = '#000000';
     el.style.border = '2px solid #000000';
     el.style.boxShadow = '0 10px 20px rgba(0,0,0,0.5)';
-    el.style.zIndex = '9999';
+    const newZ = getNextCanvasElementZIndex();
+    el.dataset.layerZIndex = String(newZ);
+    el.style.setProperty('z-index', String(newZ), 'important');
     
     const fontToUse = (typeof currentFont !== 'undefined' && currentFont) ? currentFont : "'Archivo Black',sans-serif";
     el.style.fontFamily = fontToUse;
@@ -331,10 +351,12 @@ function addCustomTextBox(){
     if(typeof window.recordHistory === 'function') window.recordHistory('Çerçeveli Metin eklendi');
     if(typeof window.requestAutoSave === 'function') window.requestAutoSave();
     if(typeof selectElement === 'function') {
-        selectElement(el);
+        selectElement(el, false, true, false);
     } else if(typeof window.selectElement === 'function') {
-        window.selectElement(el);
+        window.selectElement(el, false, true, false);
     }
+    const elSettings = document.getElementById('elSettings');
+    if (elSettings) elSettings.style.display = 'none';
 }
 
 function addCustomTextOnly(){
@@ -378,7 +400,9 @@ function addCustomTextOnly(){
     el.style.color = defaultColor;
     el.style.border = 'none';
     el.style.textShadow = hasImg ? '0 2px 14px rgba(0,0,0,0.85), 0 0 3px rgba(0,0,0,0.9)' : 'none';
-    el.style.zIndex = '9999';
+    const newZ = getNextCanvasElementZIndex();
+    el.dataset.layerZIndex = String(newZ);
+    el.style.setProperty('z-index', String(newZ), 'important');
     
     const fontToUse = (typeof currentFont !== 'undefined' && currentFont) ? currentFont : "'Archivo Black',sans-serif";
     el.style.fontFamily = fontToUse;
@@ -411,10 +435,12 @@ function addCustomTextOnly(){
     if(typeof window.recordHistory === 'function') window.recordHistory('Serbest Yazı eklendi');
     if(typeof window.requestAutoSave === 'function') window.requestAutoSave();
     if(typeof selectElement === 'function') {
-        selectElement(el);
+        selectElement(el, false, true, false);
     } else if(typeof window.selectElement === 'function') {
-        window.selectElement(el);
+        window.selectElement(el, false, true, false);
     }
+    const elSettings = document.getElementById('elSettings');
+    if (elSettings) elSettings.style.display = 'none';
 }
 
 function initGlobalTooltip() {

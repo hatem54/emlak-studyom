@@ -5863,8 +5863,8 @@
             if (gizmoOverlayEl) gizmoOverlayEl.style.display = 'none';
             if (cornerPinOverlayEl) cornerPinOverlayEl.style.display = 'none';
 
-            // 🎯 Sadece açıkça stüdyo kapatılması istenmişse paneli kapat (closeStudio çağrısı veya options.closeStudio)
-            if (options && options.closeStudio) {
+            // 🎯 3D öge seçimi bırakıldığında paneli otomatik kapat (boşa veya başka bir ögeye tıklandığında)
+            if (!options || !options.keepPanel) {
                 const panel = document.getElementById('threeDStudioPanel');
                 if (panel) {
                     panel.style.display = 'none';
@@ -6002,7 +6002,7 @@
                 const elementsAtPoint = document.elementsFromPoint(e.clientX, e.clientY);
                 const has2DEl = elementsAtPoint && elementsAtPoint.some(node => {
                     if (node === cvs || node.closest('#three-d-layer, #threeDCanvas')) return false;
-                    const c = node.closest && node.closest('.callout-wrap, .callout-item, .co-neon-block, .added-icon, .svg-icon, .icon-wrapper, .cvi-item, .editable-draw, .cvi-badge-box');
+                    const c = node.closest && node.closest('.callout-wrap, .callout-item, .co-neon-block, .neon-text-el, .canvas-icon, .draggable, .added-icon, .svg-icon, .icon-wrapper, .cvi-item, .editable-draw, .canvas-el, .cvi-badge-box, .tb-image-frame, [data-layer-uid]');
                     if (!c) return false;
                     const style = window.getComputedStyle(c);
                     return style && style.display !== 'none' && style.visibility !== 'hidden';
@@ -6239,7 +6239,7 @@
                 }
 
                 // 2D öğeye tıklandıysa: Eğer 3D seçiliyse seçimi bırak ki 2D öge seçilebilsin!
-                const is2DTarget = e.target && e.target.closest && e.target.closest('.callout-wrap, .callout-item, .co-neon-block, .added-icon, .svg-icon, .icon-wrapper, .cvi-item, .editable-draw, .cvi-badge-box');
+                const is2DTarget = e.target && e.target.closest && e.target.closest('.callout-wrap, .callout-item, .co-neon-block, .neon-text-el, .canvas-icon, .draggable, .added-icon, .svg-icon, .icon-wrapper, .cvi-item, .editable-draw, .canvas-el, .cvi-badge-box, .tb-image-frame, [data-layer-uid]');
                 if (is2DTarget) {
                     if (state.selected) {
                         setSelected(false, { silent: true });
@@ -11312,17 +11312,6 @@
      * 15. Modalı Aç / Kapat
      */
     async function openStudio(skipAutoConvert = false, createDefaultIfEmpty = true) {
-        // Eğer bir 2D rozet veya ikon varsa ve henüz dönüştürülmediyse, otomatik olarak onu 3D'ye dönüştür
-        if (!skipAutoConvert && !state.source2DEl) {
-            const candidate = (typeof window.selectedCalloutEl !== 'undefined' && window.selectedCalloutEl) ||
-                              (typeof selectedCalloutEl !== 'undefined' && selectedCalloutEl) ||
-                              (typeof window.selectedEl !== 'undefined' && window.selectedEl) ||
-                              document.querySelector('#canvas-container .callout-wrap:not([data-converted-to-3d="true"]), #workArea .callout-wrap:not([data-converted-to-3d="true"]), #ui-layer .added-icon:not([data-converted-to-3d="true"])');
-            if (candidate && candidate.style.display !== 'none') {
-                return convert2DBadgeTo3D(candidate);
-            }
-        }
-
         const panel = ensureStudioPanel();
         panel.style.display = 'flex';
         positionStudioPanelOverLeftPanel(panel);
@@ -12470,6 +12459,22 @@
     }
 
     /**
+     * 15.0 Tuvale Yeni 3D Metin Ekleme
+     */
+    async function add3DText(text = '3D METİN', options = {}) {
+        const count = elements.length + 1;
+        const textVal = text || ('3D METİN ' + count);
+        const nameVal = options.name || ('3D Metin ' + count);
+        return await add3DElementFromData(Object.assign({
+            elementType: 'text',
+            name: nameVal,
+            text: textVal,
+            textSize: 36,
+            depth: 16
+        }, options));
+    }
+
+    /**
      * 15.1 Doğrudan Veri / Vektörden Yeni 3D Öge Ekleme (Data-driven 3D Addition)
      * İkon kütüphanesinden veya rozetlerden tıklandığında anında 3D sahneye yeni bir öge ekler.
      */
@@ -13409,6 +13414,7 @@
         getDataToSave: getDataToSave,
         restoreData: restoreData,
         convert2DBadgeTo3D: convert2DBadgeTo3D,
+        add3DText: add3DText,
         add3DElementFromData: add3DElementFromData,
         add3DEstateElement: add3DEstateElement,
         setElementEstateStyle: setElementEstateStyle,

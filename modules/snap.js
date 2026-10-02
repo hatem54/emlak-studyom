@@ -1,7 +1,6 @@
 // ==================== SNAP GUIDES ====================
 window.getSnapGuides = function(px, py, excludeEl, isDrawingMode) {
-    const snapToggle = document.getElementById('drawSnapToggle');
-    if (!snapToggle || !snapToggle.checked) return { x: px, y: py, guides: [] };
+    if (!window.isSmartGuidesEnabled) return { x: px, y: py, guides: [] };
     
     const pointSnapThreshold = 40 / (typeof window.getGlobalScale === 'function' ? window.getGlobalScale() : 1);
     const lineSnapThreshold = 10 / (typeof window.getGlobalScale === 'function' ? window.getGlobalScale() : 1);
@@ -239,3 +238,4 @@ window.drawSnapGuides = function(guides) {
 window.clearSnapGuides = function() {
     document.querySelectorAll('.snap-guide-line, .snap-guide-point').forEach(e => e.remove());
 };
+window._legacyGetSnapGuides = window.getSnapGuides;

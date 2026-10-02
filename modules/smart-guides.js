@@ -300,9 +300,75 @@
 
     window.SmartGuides = SmartGuides;
 
+    // Merkezi Akıllı Hizalama Durumu (Varsayılan: Kapalı)
+    try {
+        const saved = localStorage.getItem('es_smart_guides_enabled');
+        window.isSmartGuidesEnabled = saved === '1';
+    } catch(e) {
+        window.isSmartGuidesEnabled = false;
+    }
+    SmartGuides.enabled = window.isSmartGuidesEnabled;
+
+    window.toggleSmartGuides = function(forcedState) {
+        if (typeof forcedState === 'boolean') {
+            window.isSmartGuidesEnabled = forcedState;
+        } else {
+            window.isSmartGuidesEnabled = !window.isSmartGuidesEnabled;
+        }
+
+        SmartGuides.enabled = window.isSmartGuidesEnabled;
+
+        if (!window.isSmartGuidesEnabled) {
+            SmartGuides.clear();
+            if (typeof window.clearSnapGuides === 'function') window.clearSnapGuides();
+        }
+
+        // Tüm switchleri senkronize et
+        document.querySelectorAll('#drawSnapToggle, #tbSnapToggle').forEach(el => {
+            el.checked = window.isSmartGuidesEnabled;
+        });
+
+        // Tüm dock butonlarını senkronize et
+        document.querySelectorAll('.dock-snap-btn').forEach(btn => {
+            btn.classList.toggle('lock-active', window.isSmartGuidesEnabled);
+            btn.title = window.isSmartGuidesEnabled ? 'Akıllı Manyetik Hizalamayı Kapat' : 'Akıllı Manyetik Hizalamayı Aç';
+        });
+
+        try {
+            localStorage.setItem('es_smart_guides_enabled', window.isSmartGuidesEnabled ? '1' : '0');
+        } catch(e) {}
+
+        console.log('🧲 Akıllı Hizalama:', window.isSmartGuidesEnabled ? 'AÇIK' : 'KAPALI');
+        return window.isSmartGuidesEnabled;
+    };
+
+    // DOM yüklendiğinde butonları ve switchleri senkronize et
+    function syncAllSnapControls() {
+        document.querySelectorAll('#drawSnapToggle, #tbSnapToggle').forEach(el => {
+            el.checked = !!window.isSmartGuidesEnabled;
+        });
+        document.querySelectorAll('.dock-snap-btn').forEach(btn => {
+            btn.classList.toggle('lock-active', !!window.isSmartGuidesEnabled);
+            btn.title = window.isSmartGuidesEnabled ? 'Akıllı Manyetik Hizalamayı Kapat' : 'Akıllı Manyetik Hizalamayı Aç';
+        });
+    }
+    if (document.readyState !== 'loading') {
+        syncAllSnapControls();
+    } else {
+        document.addEventListener('DOMContentLoaded', syncAllSnapControls);
+    }
+
     // Legacy hooks entegrasyonu (core/drag.js ve diğer modüller için)
     window.getSnapGuides = function(px, py, excludeEl, isDrawingMode) {
-        if (!SmartGuides.enabled) return { x: px, y: py, guides: [] };
+        if (!window.isSmartGuidesEnabled) return { x: px, y: py, guides: [] };
+
+        // Çizim modundaysa (çokgen, çizgi vb.) vektör köşe/kenar yakalamasını kullan
+        if (isDrawingMode) {
+            if (typeof window._legacyGetSnapGuides === 'function') {
+                return window._legacyGetSnapGuides(px, py, excludeEl, true);
+            }
+            return { x: px, y: py, guides: [] };
+        }
 
         const curW = excludeEl ? (excludeEl._cachedDragW || excludeEl.offsetWidth || 100) : 100;
         const curH = excludeEl ? (excludeEl._cachedDragH || excludeEl.offsetHeight || 100) : 100;
@@ -319,6 +385,7 @@
 
     window.clearSnapGuides = function() {
         SmartGuides.clear();
+        document.querySelectorAll('.snap-guide-line, .snap-guide-point').forEach(e => e.remove());
     };
 
 })(window);

@@ -12,11 +12,11 @@
         colorPreset: 'turkuaz',
         coreColor: 0xFFFFFF,
         glowColor: 0x00CEC9,
-        coreSize: 0,
+        coreSize: 4,
         glowSize: 30,
         intensity: 2.5,
         groundSpill: 0.4,
-        energyNodes: true,
+        energyNodes: false,
         flickerAmount: 0.05,
         pulseSpeed: 0
     };
@@ -27,6 +27,7 @@
     function setup() {
         setupAccordion();
         setupToggle();
+        setupApplyAllButton();
         buildPresets();
         buildColors();
         setupSliders();
@@ -53,7 +54,6 @@
             content.style.display = isOpen ? 'none' : 'block';
             accordion.classList.toggle('open', !isOpen);
             if (!isOpen) {
-                if (typeof deselectAll === 'function') deselectAll();
                 if (typeof setDrawMode === 'function') setDrawMode('off');
             }
         });
@@ -80,11 +80,23 @@
             window.saberState.active = e.target.checked;
             console.log(e.target.checked ? '⚡ NEON EFEKTLERİ AKTİF' : '🚫 NEON EFEKTLERİ KAPALI');
             
-            // Neon açıldığında veya değiştiğinde tuvaldeki seçim ve tutamaçları temizle ("neon açınca bu kaybolmalı")
-            if (typeof deselectAll === 'function') deselectAll();
-            if (typeof setDrawMode === 'function') setDrawMode('off');
+            if (typeof setDrawMode === 'function') setDrawMode('off', true);
             
-            previewSaber();
+            previewSaber(false, false, false);
+        });
+    }
+
+    // ═══ TÜM ÇİZİMLERE UYGULA BUTONU ═══
+    function setupApplyAllButton() {
+        const btn = document.getElementById('saberApplyAllBtn');
+        if (!btn) return;
+        
+        btn.addEventListener('click', () => {
+            if (typeof drawPaths === 'undefined' || drawPaths.length === 0) return;
+            
+            activateSaberIfInactive();
+            previewSaber(false, false, true); // forceAll = true
+            console.log('⚡ Neon ayarları tüm sahnedeki çizimlere uygulandı');
         });
     }
     
@@ -437,11 +449,16 @@
                 const cEl = document.getElementById('saberCustomCore');
                 if (cEl) cEl.value = cHex;
             }
+        } else if (!isNeon) {
+            const grid = document.getElementById('saberPresetGrid');
+            if (grid) grid.querySelectorAll('.saber-preset-item').forEach(el => el.classList.remove('active'));
+            const colorGrid = document.getElementById('saberColorGrid');
+            if (colorGrid) colorGrid.querySelectorAll('.saber-color-item').forEach(el => el.classList.remove('active'));
         }
     };
     
     // ═══ CANLI GÜNCELLEME (SEÇİLİ VEYA MEVCUT ÇİZİMLER İÇİN) ═══
-    function previewSaber(inPlace = false, isSliding = false) {
+    function previewSaber(inPlace = false, isSliding = false, forceAll = false) {
         let targetEls = [];
         if (window.selectedElements && window.selectedElements.length > 0) {
             targetEls = [...window.selectedElements];
@@ -451,46 +468,60 @@
         
         let targetPaths = [];
         if (typeof drawPaths !== 'undefined' && drawPaths.length > 0) {
-            targetEls.forEach(rawEl => {
-                if (!rawEl) return;
-                const el = (rawEl.classList && rawEl.classList.contains('editable-draw')) 
-                    ? rawEl 
-                    : (rawEl.closest ? rawEl.closest('.editable-draw') : null);
-                if (el) {
-                    const found = drawPaths.find(p => p.el === el || (p.el && (p.el === el || p.el.contains(el) || el.contains(p.el))));
-                    if (found && !targetPaths.includes(found)) {
-                        targetPaths.push(found);
-                    }
-                }
-            });
-            
-            // Eğer editingDrawIndex aktifse, onu da ekle
-            if (targetPaths.length === 0 && typeof editingDrawIndex !== 'undefined' && editingDrawIndex >= 0 && drawPaths[editingDrawIndex]) {
-                targetPaths.push(drawPaths[editingDrawIndex]);
-            }
-            
-            // Eğer hiçbir çizim seçili değilse, tuvaldeki TÜM çizimleri neon moduna al
-            if (targetPaths.length === 0 && typeof drawPaths !== 'undefined') {
+            if (forceAll) {
+                // "Tümüne Uygula" tıklandığında sahnede bulunan tüm çizimleri hedefe al
                 targetPaths = [...drawPaths];
-            }
-
-            // Neon modu aktifken, tuvaldeki zaten neonlu olan diğer tüm çizimleri de güncel ayarlarla senkron tut
-            if (window.saberState.active && typeof drawPaths !== 'undefined') {
-                drawPaths.forEach(p => {
-                    if ((p.hasSaber || p.saber) && !targetPaths.includes(p)) {
-                        targetPaths.push(p);
+            } else {
+                targetEls.forEach(rawEl => {
+                    if (!rawEl) return;
+                    const el = (rawEl.classList && rawEl.classList.contains('editable-draw')) 
+                        ? rawEl 
+                        : (rawEl.closest ? rawEl.closest('.editable-draw') : null);
+                    if (el) {
+                        const found = drawPaths.find(p => p.el === el || (p.el && (p.el === el || p.el.contains(el) || el.contains(p.el))));
+                        if (found && !targetPaths.includes(found)) {
+                            targetPaths.push(found);
+                        }
                     }
                 });
+                
+                // Eğer editingDrawIndex aktifse ve henüz eklenmediyse ekle
+                if (typeof editingDrawIndex !== 'undefined' && editingDrawIndex >= 0 && drawPaths[editingDrawIndex]) {
+                    const editP = drawPaths[editingDrawIndex];
+                    if (!targetPaths.includes(editP)) {
+                        targetPaths.push(editP);
+                    }
+                }
             }
         }
         
-        // Hedeflenen tüm çizimlere neon ayarlarını uygula
+        // Eğer hiçbir çizim seçili değilse ve forceAll açık değilse:
+        // Kullanıcı tuvalde bir çizim varken neon açtıysa veya preset seçtiyse en uygun çizimi akıllıca hedefle:
+        if (targetPaths.length === 0 && !forceAll && typeof drawPaths !== 'undefined' && drawPaths.length > 0) {
+            if (typeof window.lastActiveDrawPath !== 'undefined' && window.lastActiveDrawPath && drawPaths.includes(window.lastActiveDrawPath)) {
+                targetPaths = [window.lastActiveDrawPath];
+            } else if (typeof editingDrawIndex !== 'undefined' && editingDrawIndex >= 0 && drawPaths[editingDrawIndex]) {
+                targetPaths = [drawPaths[editingDrawIndex]];
+            } else if (drawPaths.length === 1) {
+                targetPaths = [drawPaths[0]];
+            } else {
+                targetPaths = [drawPaths[drawPaths.length - 1]];
+            }
+        }
+        
+        // Eğer sahnede hiç çizim yoksa ve forceAll açık değilse:
+        // Sadece window.saberState sonraki çizim veya toplu uygulama için hazır beklesin.
+        if (targetPaths.length === 0 && !forceAll) {
+            return;
+        }
+        
+        // Hedeflenen çizimlere neon ayarlarını uygula
         targetPaths.forEach(p => {
             p.hasSaber = !!window.saberState.active;
             p.saber = !!window.saberState.active;
-            p.saberOptions = JSON.parse(JSON.stringify(window.saberState));
             
             if (window.saberState.active) {
+                p.saberOptions = JSON.parse(JSON.stringify(window.saberState));
                 let glowHex = '#00CEC9';
                 if (window.saberState.glowColor) {
                     glowHex = typeof window.saberState.glowColor === 'number'
@@ -507,6 +538,8 @@
                     const deFill = document.getElementById('deFillColor');
                     if (deFill && (!p.fillColor || p.fillColor === glowHex)) deFill.value = glowHex;
                 }
+            } else {
+                p.saberOptions = null;
             }
             
             if (inPlace && p.saberRef && window.SaberEngine && window.SaberEngine.updateSaberParameters) {
@@ -534,6 +567,9 @@
         
         if (typeof updateDrawHistory === 'function') {
             updateDrawHistory();
+        }
+        if (!isSliding && typeof redrawAll === 'function') {
+            redrawAll();
         }
         
         const isAnimActive = (typeof window.isSaberAnimationActive === 'function')
@@ -564,6 +600,10 @@
     }
     
     window.previewSaber = previewSaber;
+    window.applySaberToAll = function() {
+        activateSaberIfInactive();
+        previewSaber(false, false, true);
+    };
     
 })();
 

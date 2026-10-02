@@ -399,18 +399,32 @@ window.updateDockLockUI = function(isLocked) {
     }
 };
 
+window.updatePhotoLockState = function(isLocked) {
+    window.isPhotoLocked = !!isLocked;
+    document.body.classList.toggle('photo-unlocked', !isLocked);
+
+    const lockToggle = document.getElementById('photoLockToggle');
+    if (lockToggle) lockToggle.checked = !!isLocked;
+
+    const lockBtn = document.getElementById('lockPhotoBtn');
+    if (lockBtn) lockBtn.classList.toggle('active', !!isLocked);
+
+    if (window.AppState && window.AppState.photo) {
+        window.AppState.photo.isLocked = !!isLocked;
+    }
+
+    if (!isLocked) {
+        if (typeof setDrawMode === 'function') setDrawMode('off');
+        else if (typeof window.setDrawMode === 'function') window.setDrawMode('off');
+        document.querySelectorAll('.poly-marquee-box').forEach(el => el.remove());
+    }
+
+    window.updateDockLockUI(!!isLocked);
+};
+
 window.togglePhotoLockFromDock = function() {
     const newState = !window.isPhotoLocked;
-    if (typeof window.updatePhotoLockState === 'function') {
-        window.updatePhotoLockState(newState);
-    } else {
-        window.isPhotoLocked = newState;
-        if (!newState) {
-            if (typeof setDrawMode === 'function') setDrawMode('off');
-            else if (typeof window.setDrawMode === 'function') window.setDrawMode('off');
-        }
-    }
-    window.updateDockLockUI(newState);
+    window.updatePhotoLockState(newState);
 };
 
 window.quickSetFormat = function(formatKey) {
@@ -449,14 +463,19 @@ window.fitImageToCanvas = function(targetMode) {
         const xCtrl = document.getElementById('photoXCtrl');
         const yCtrl = document.getElementById('photoYCtrl');
         const zoomCtrl = document.getElementById('photoZoomCtrl');
-        if (xCtrl) xCtrl.value = 50;
-        if (yCtrl) yCtrl.value = 50;
-        if (zoomCtrl) zoomCtrl.value = 100;
+        if (xCtrl) { xCtrl.value = 50; const el = document.getElementById('photoXVal'); if (el) el.textContent = '50%'; }
+        if (yCtrl) { yCtrl.value = 50; const el = document.getElementById('photoYVal'); if (el) el.textContent = '50%'; }
+        if (zoomCtrl) { zoomCtrl.value = 100; const el = document.getElementById('photoZoomVal'); if (el) el.textContent = '100%'; }
 
         document.querySelectorAll('.photo-panel, #photo-layer').forEach(p => {
             p.dataset.zpX = 0;
             p.dataset.zpY = 0;
             p.dataset.zpScale = 1;
+            const inner = p.querySelector('.photo-inner-zoom');
+            if (inner) {
+                inner.style.transform = 'translate(0px, 0px) scale(1)';
+                inner.style.backgroundPosition = 'center center';
+            }
         });
 
         // 4. Tuval altı dock butonunun ikon, durum ve tooltip bilgisini güncelle
@@ -471,11 +490,11 @@ window.fitImageToCanvas = function(targetMode) {
         }
 
         // 5. Tuval boyutlarını ve fotoğraf ölçeğini uygula
+        if (typeof resizeCanvas === 'function') resizeCanvas();
         if (typeof applyPhotoPos === 'function') applyPhotoPos();
         document.querySelectorAll('.photo-panel, #photo-layer').forEach(p => {
             if (typeof _applyPhotoTransform === 'function') _applyPhotoTransform(p);
         });
-        if (typeof resizeCanvas === 'function') resizeCanvas();
         if (typeof redrawAll === 'function') redrawAll();
 
         // 6. 3D motoru varsa sahnede render güncelle

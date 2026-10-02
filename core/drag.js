@@ -382,6 +382,9 @@ function bindDrag(el){
                     }
                 });
             }
+            if (window.SaberEngine && typeof window.SaberEngine.updateTextSaberPositions === 'function') {
+                window.SaberEngine.updateTextSaberPositions();
+            }
         } else {
             const deltaX = (c.clientX - sx) / window.getGlobalScale();
             const deltaY = (c.clientY - sy) / window.getGlobalScale();
@@ -697,8 +700,12 @@ function bindDrag(el){
 }
 
 window.selectedElements = window.selectedElements || [];
-function selectElement(el, isMulti = false, noTabSwitch = false){
+function selectElement(el, isMulti = false, noTabSwitch = false, openSettings = 'auto'){
     if (!el) return;
+    // ⚡ 2D bir öge seçildiğinde 3D seçimini ve panelini hemen kapat
+    if (window.ThreeDEngine && typeof window.ThreeDEngine.setSelected === 'function') {
+        window.ThreeDEngine.setSelected(false, { silent: true, autoUnlockPhoto: false });
+    }
     if (el.classList && !el.classList.contains('editable-draw') && el.closest && el.closest('.editable-draw')) {
         el = el.closest('.editable-draw');
     }
@@ -832,12 +839,16 @@ function selectElement(el, isMulti = false, noTabSwitch = false){
         if (typeof updateDrawHistory === 'function') updateDrawHistory();
         if (typeof renderLayers === 'function') renderLayers();
     } else {
+        const elSettings = document.getElementById('elSettings');
+        const isSettingsOpen = elSettings && (elSettings.style.display === 'block');
+        const shouldShowSettings = (openSettings === true) || (openSettings === 'auto' && isSettingsOpen);
+
         if(document.getElementById('noSelMsg')) document.getElementById('noSelMsg').style.display='none';
-        if(document.getElementById('elSettings')) document.getElementById('elSettings').style.display='block';
+        if(elSettings) elSettings.style.display = shouldShowSettings ? 'block' : 'none';
         if(document.getElementById('elLabel')) document.getElementById('elLabel').textContent=el.dataset.label||'Eleman';
-        if(typeof loadElSettings === 'function') loadElSettings(el);
-        if(typeof loadElFont === 'function') loadElFont(el);
-        if(!noTabSwitch && typeof switchTab === 'function' && !el.classList.contains('shape-el') && !el.classList.contains('co-neon-block') && !el.classList.contains('callout-wrap') && !el.classList.contains('svg-callout') && !el.classList.contains('callout-item') && !el.classList.contains('tb-image-frame')) switchTab('element');
+        if(shouldShowSettings && typeof loadElSettings === 'function') loadElSettings(el);
+        if(shouldShowSettings && typeof loadElFont === 'function') loadElFont(el);
+        if(shouldShowSettings && !noTabSwitch && typeof switchTab === 'function' && !el.classList.contains('shape-el') && !el.classList.contains('co-neon-block') && !el.classList.contains('callout-wrap') && !el.classList.contains('svg-callout') && !el.classList.contains('callout-item') && !el.classList.contains('tb-image-frame')) switchTab('font');
         if (el.classList.contains('canvas-el') && !el.classList.contains('tb-image-frame') && typeof window.addTextHandles === 'function') window.addTextHandles(el); if(el.classList.contains('shape-el')) { el.querySelectorAll('.callout-controls, .callout-resizer, .callout-rotator, .callout-lock-btn, .callout-select-border').forEach(c => c.remove()); } if(el.classList.contains('tb-image-frame') && window.TemplateBuilder) { window.TemplateBuilder.selectFrame(el); }
     }
     if (window.ThreeDEngine && typeof window.ThreeDEngine.setSelected === 'function') { window.ThreeDEngine.setSelected(false, { silent: true, autoUnlockPhoto: false }); }

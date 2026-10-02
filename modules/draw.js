@@ -12,14 +12,14 @@
  */
 
 function applyGlowAndStroke(ctx, p) {
-    const isNeon = !!(p.saber || p.hasSaber || (window.saberState && window.saberState.active));
+    const isNeon = !!(p && (p.saber || p.hasSaber));
     if (isNeon) {
         ctx.save();
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
         
         const origW = p.width || 4;
-        const sOpts = p.saberOptions || (window.saberState && window.saberState.active ? window.saberState : {}) || {};
+        const sOpts = p.saberOptions || {};
         const coreW = Math.max(1.5, Math.min(sOpts.coreSize || (origW * 0.6) || 3, 8));
         const glowSize = Math.max(12, sOpts.glowSize || 28);
         const op = p.opacity || 1;
@@ -325,8 +325,11 @@ function drawSinglePath(p, options = {}){
         }
     }
 
-    const isNeon = !!(p.hasSaber || p.saber || (window.saberState && window.saberState.active && p.hasSaber !== false));
-    const skipNeonStrokes = !!(options && options.skipNeonStrokes);
+    const isNeon = !!(p.hasSaber || p.saber);
+    const hasWebGl = isNeon && window.SaberEngine && (p.saberRef || !options.isExporting);
+    // Neon çizgileri WebGL Saber motoru tarafından canlı olarak çizilir.
+    // 2D tuvalde (drawCanvas) sadece dolgu (fill) çizilmeli; 2D kontur ve köşe noktaları çizilmemelidir.
+    const shouldDraw2DStroke = !isNeon || (!hasWebGl && !options.skipNeonStrokes);
 
     drawCtx.globalAlpha = p.opacity;
     drawCtx.strokeStyle = p.color;
@@ -347,7 +350,7 @@ function drawSinglePath(p, options = {}){
                 drawCtx.closePath();
                 applyPathFill(drawCtx, p, isNeon);
             }
-            if(!skipNeonStrokes || !isNeon){
+            if(shouldDraw2DStroke){
                 applyGlowAndStroke(drawCtx, p);
             }
         }
@@ -371,14 +374,14 @@ function drawSinglePath(p, options = {}){
                 }
                 drawCtx.moveTo(lx1, ly1);
                 drawCtx.lineTo(lx2, ly2);
-                if(!skipNeonStrokes || !isNeon){
+                if(shouldDraw2DStroke){
                     applyGlowAndStroke(drawCtx, p);
                     arrowHead(drawCtx, p.x1, p.y1, p.x2, p.y2, p.width, p.color, p.opacity, p.arrowStyle, p.arrowDir);
                 }
             } else {
                 drawCtx.moveTo(p.x1, p.y1);
                 drawCtx.lineTo(p.x2, p.y2);
-                if(!skipNeonStrokes || !isNeon){
+                if(shouldDraw2DStroke){
                     applyGlowAndStroke(drawCtx, p);
                 }
             }
@@ -391,7 +394,7 @@ function drawSinglePath(p, options = {}){
             const rh = Math.abs(p.y2 - p.y1);
             drawCtx.rect(rx, ry, rw, rh);
             applyPathFill(drawCtx, p, isNeon);
-            if(!skipNeonStrokes || !isNeon){
+            if(shouldDraw2DStroke){
                 applyGlowAndStroke(drawCtx, p);
             }
         }
@@ -403,7 +406,7 @@ function drawSinglePath(p, options = {}){
             const ry2 = Math.max(Math.abs(p.y2 - p.y1) / 2, 1);
             drawCtx.ellipse(cx, cy, rx2, ry2, 0, 0, Math.PI*2);
             applyPathFill(drawCtx, p, isNeon);
-            if(!skipNeonStrokes || !isNeon){
+            if(shouldDraw2DStroke){
                 applyGlowAndStroke(drawCtx, p);
             }
         }
@@ -417,51 +420,20 @@ function drawSinglePath(p, options = {}){
                 drawCtx.closePath();
                 applyPathFill(drawCtx, p, isNeon);
             }
-            if(!skipNeonStrokes || !isNeon){
+            if(shouldDraw2DStroke){
                 applyGlowAndStroke(drawCtx, p);
             }
             
-            const isNeonForPts = isNeon;
-            const sOptsForPts = p.saberOptions || (window.saberState && window.saberState.active ? window.saberState : {}) || {};
-            const showNodesForPts = isNeonForPts ? (sOptsForPts.energyNodes !== false) : p.showVertices;
-            if(showNodesForPts && (!skipNeonStrokes || !isNeon)){
+            if(shouldDraw2DStroke && p.showVertices){
                 drawCtx.save();
-                if (isNeonForPts) {
-                    drawCtx.globalCompositeOperation = 'screen';
-                    let glowColor = '#00CEC9';
-                    if (sOptsForPts.glowColor) {
-                        glowColor = typeof sOptsForPts.glowColor === 'number' ? '#' + sOptsForPts.glowColor.toString(16).padStart(6, '0') : sOptsForPts.glowColor;
-                    } else if (p.color) {
-                        glowColor = p.color;
-                    }
-                    const pinR = Math.max(3.5, Math.round(p.width * 0.75));
-                    p.points.forEach(pt => {
-                        // Dış halo
-                        drawCtx.beginPath();
-                        drawCtx.shadowColor = glowColor;
-                        drawCtx.shadowBlur = 12;
-                        drawCtx.strokeStyle = glowColor;
-                        drawCtx.lineWidth = 2;
-                        drawCtx.arc(pt.x, pt.y, pinR * 2.2, 0, Math.PI * 2);
-                        drawCtx.stroke();
-                        // İç akkor çekirdek
-                        drawCtx.beginPath();
-                        drawCtx.shadowColor = '#FFFFFF';
-                        drawCtx.shadowBlur = 4;
-                        drawCtx.fillStyle = '#FFFFFF';
-                        drawCtx.arc(pt.x, pt.y, pinR, 0, Math.PI * 2);
-                        drawCtx.fill();
-                    });
-                } else {
-                    drawCtx.globalAlpha = 1;
-                    drawCtx.fillStyle = p.color;
-                    drawCtx.setLineDash([]);
-                    p.points.forEach(pt => {
-                        drawCtx.beginPath();
-                        drawCtx.arc(pt.x, pt.y, p.width + 2, 0, Math.PI*2);
-                        drawCtx.fill();
-                    });
-                }
+                drawCtx.globalAlpha = 1;
+                drawCtx.fillStyle = p.color;
+                drawCtx.setLineDash([]);
+                p.points.forEach(pt => {
+                    drawCtx.beginPath();
+                    drawCtx.arc(pt.x, pt.y, p.width + 2, 0, Math.PI*2);
+                    drawCtx.fill();
+                });
                 drawCtx.restore();
             }
         }
@@ -471,7 +443,7 @@ function drawSinglePath(p, options = {}){
 }
 
 function updateTempPolygonSaber() {
-    if (!window.saberState || !window.saberState.active || !window.SaberEngine) return;
+    if (!window.tempDrawingHasNeon || !window.saberState || !window.saberState.active || !window.SaberEngine) return;
     removeTempPolygonSaber();
     if (polygonPoints.length < 2) return;
     try {
@@ -496,7 +468,8 @@ function removeTempPolygonSaber() {
         window.tempPolygonSaberRef = null;
     }
 }
-function setDrawMode(mode){
+function setDrawMode(mode, preserveSelection = false){
+    window.tempDrawingHasNeon = false;
     if (mode !== 'off') {
         // Çizim aracı seçildiğinde fotoğraf serbestse otomatik olarak sabitle
         if (window.isPhotoLocked === false) {
@@ -514,10 +487,12 @@ function setDrawMode(mode){
             const children = el.querySelectorAll('*');
             children.forEach(child => child.style.pointerEvents = '');
         });
-        if (typeof deselectAll === 'function') deselectAll();
-        if (typeof window.deselectAll === 'function') window.deselectAll();
-        if (typeof hideVertexHandles === 'function') hideVertexHandles();
-        if (typeof window.hideVertexHandles === 'function') window.hideVertexHandles();
+        if (!preserveSelection) {
+            if (typeof deselectAll === 'function') deselectAll();
+            if (typeof window.deselectAll === 'function') window.deselectAll();
+            if (typeof hideVertexHandles === 'function') hideVertexHandles();
+            if (typeof window.hideVertexHandles === 'function') window.hideVertexHandles();
+        }
         if (typeof saveDrawEdit === 'function' && typeof editingDrawIndex !== 'undefined' && editingDrawIndex >= 0) {
             saveDrawEdit();
         } else if (typeof window.saveDrawEdit === 'function' && typeof editingDrawIndex !== 'undefined' && editingDrawIndex >= 0) {
@@ -585,12 +560,12 @@ function getDS(){
     const baseW = +$('drawWidth').value || 6;
     const scaleRatio = getDrawScaleRatio();
     const effWidth = Math.max(1, Math.round(baseW * scaleRatio));
-    const isNeonActive = !!(window.saberState && window.saberState.active);
+    const isNeonActive = !!window.tempDrawingHasNeon;
     
     let drawCol = $('drawColor') ? $('drawColor').value : '#ef4444';
-    if (isNeonActive && window.saberState) {
+    if (isNeonActive && window.saberState && window.saberState.glowColor) {
         const gc = window.saberState.glowColor;
-        if (gc) drawCol = typeof gc === 'number' ? '#' + gc.toString(16).padStart(6, '0') : gc;
+        drawCol = typeof gc === 'number' ? '#' + gc.toString(16).padStart(6, '0') : gc;
     }
 
     return{
@@ -606,7 +581,7 @@ function getDS(){
         arrowDir:$('arrowDirSelect')?$('arrowDirSelect').value:'outward',
         saber: isNeonActive,
         hasSaber: isNeonActive,
-        saberOptions: isNeonActive ? JSON.parse(JSON.stringify(window.saberState)) : null
+        saberOptions: isNeonActive && window.saberState ? JSON.parse(JSON.stringify(window.saberState)) : null
     };
 }
 
@@ -629,6 +604,11 @@ function canvasXY(e) {
 }
 
 let lastGlobalDStartTime = 0;
+let polyActivePoint = null;
+let isPolyMouseDown = false;
+let polyDragStartX = 0;
+let polyDragStartY = 0;
+
 function dStart(e){
     if(drawMode==='off')return;
     if(window.spaceBarPressed)return; // Space pan sırasında çizim başlatma!
@@ -658,7 +638,7 @@ function dStart(e){
     if(drawMode==='polygon'){
         const now=Date.now();
         
-        // AkÃ„Â±llÃ„Â± hizalama ile baÃ…Å¸langÃ„Â±ÃƒÂ§ noktasÃ„Â±na tÃ„Â±klandÃ„Â±Ã„Å¸Ã„Â±nda (veya ÃƒÂ§ok yakÃ„Â±nsa) direkt kapat
+        // Akıllı hizalama ile başlangıç noktasına tıklandığında (veya çok yakınsa) direkt kapat
         if (polygonPoints.length >= 3) {
             let firstPt = polygonPoints[0];
             let dist = Math.sqrt(Math.pow(p.x - firstPt.x, 2) + Math.pow(p.y - firstPt.y, 2));
@@ -672,7 +652,12 @@ function dStart(e){
         
         if(now-lastClickTime<350&&polygonPoints.length>=3){closePolygon();lastClickTime=0;return}
         lastClickTime=now;
-        polygonPoints.push(p);
+        const newPt = { x: p.x, y: p.y };
+        polygonPoints.push(newPt);
+        polyActivePoint = newPt;
+        isPolyMouseDown = true;
+        polyDragStartX = p.x;
+        polyDragStartY = p.y;
         polygonBuilding=true;
         updateTempPolygonSaber();
         redrawAll();
@@ -706,11 +691,23 @@ function dMove(e){
         if(window.drawSnapGuides) window.drawSnapGuides(snap.guides);
     }
     
-    // SADECE mobilde çokgen çiziminde parmak takibi (preview line)
+    // Çokgen çiziminde: tıkla-sürükle ile kavis tanjantı veya imleç takibi
     if(drawMode==='polygon'){
         if(polygonBuilding && polygonPoints.length > 0){
+            if (isPolyMouseDown && polyActivePoint) {
+                const dx = p.x - polyDragStartX;
+                const dy = p.y - polyDragStartY;
+                if (Math.hypot(dx, dy) > 4) {
+                    polyActivePoint.cpOut = { x: polyDragStartX + dx, y: polyDragStartY + dy };
+                    polyActivePoint.cpIn = { x: polyDragStartX - dx, y: polyDragStartY - dy };
+                    polyActivePoint.curve = true;
+                    redrawAll();
+                    drawTempPolygon(null, true);
+                    return;
+                }
+            }
             redrawAll();
-            drawTempPolygon(p);
+            drawTempPolygon(p, false);
         }
         return;
     }
@@ -805,7 +802,14 @@ function dEnd(e){
     // pointerup'ta mouse tipi geliyorsa mouseup zaten ele alıyor, atla
     if (e && e.type === 'pointerup' && e.pointerType === 'mouse') return;
     if(window.clearSnapGuides) window.clearSnapGuides();
-    if(drawMode==='off'||drawMode==='polygon')return;
+    if(drawMode==='polygon'){
+        isPolyMouseDown = false;
+        polyActivePoint = null;
+        redrawAll();
+        drawTempPolygon();
+        return;
+    }
+    if(drawMode==='off')return;
     if(!isDrawing)return;
     isDrawing=false;
     const s=getDS();
@@ -839,10 +843,10 @@ function dEnd(e){
     }
 
     if (pObj) {
-        const isNeonNow = !!(window.saberState && window.saberState.active);
+        const isNeonNow = !!(pObj.hasSaber || pObj.saber);
         let activeNeonColor = pObj.color;
-        if (isNeonNow && window.saberState && window.saberState.glowColor) {
-            const gc = window.saberState.glowColor;
+        if (isNeonNow && pObj.saberOptions && pObj.saberOptions.glowColor) {
+            const gc = pObj.saberOptions.glowColor;
             activeNeonColor = typeof gc === 'number' ? '#' + gc.toString(16).padStart(6, '0') : gc;
         }
         if (isNeonNow) {
@@ -850,11 +854,9 @@ function dEnd(e){
             if (!pObj.fillColor || pObj.fillColor === '#ef4444' || pObj.fillColor === '#e74c3c') {
                 pObj.fillColor = activeNeonColor;
             }
-            pObj.hasSaber = true;
-            pObj.saber = true;
-            pObj.saberOptions = JSON.parse(JSON.stringify(window.saberState));
         }
 
+        let newPathObj = null;
         const el = createSVGFromPath(pObj);
         if (el) {
             const container = typeof getActiveV4Element === 'function' ? getActiveV4Element() : (document.getElementById('photo-layer') || document.getElementById('canvas-container'));
@@ -872,12 +874,12 @@ function dEnd(e){
                 const hasEl = drawPaths.some(p => p.el === el);
                 if (!hasEl) {
                     drawRedoPaths = [];
-                    const newPathObj = Object.assign({}, pObj, {
+                    newPathObj = Object.assign({}, pObj, {
                         id: pObj.id || ('draw-path-' + Date.now() + '-' + Math.floor(Math.random()*10000)),
                         color: isNeonNow ? activeNeonColor : pObj.color,
                         hasSaber: isNeonNow,
                         saber: isNeonNow,
-                        saberOptions: isNeonNow ? JSON.parse(JSON.stringify(window.saberState)) : null,
+                        saberOptions: isNeonNow ? pObj.saberOptions : null,
                         photoRef: photoRef,
                         el: el
                     });
@@ -891,6 +893,9 @@ function dEnd(e){
                     if (typeof updateDrawHistory === 'function') updateDrawHistory();
                 }
             }
+            if (newPathObj) {
+                window.lastActiveDrawPath = newPathObj;
+            }
             if (typeof window.selectElement === 'function') {
                 window.selectElement(el, false, true);
             }
@@ -899,16 +904,24 @@ function dEnd(e){
 
     currentPath=[];
 
-    // ─── ⚡ SABER HOOK (redrawAll'dan ÖNCE çalıştır ki transform ve referanslar hemen bağlansın!) ───
-    if (window.saberState && window.saberState.active && window.applySaberToPath) {
-        window.applySaberToPath(drawPaths.length - 1, JSON.parse(JSON.stringify(window.saberState)));
+    // ─── ⚡ SABER HOOK (yalnızca çizimin kendisi neonluysa bağla!) ───
+    if (typeof drawPaths !== 'undefined' && drawPaths.length > 0) {
+        const lastP = drawPaths[drawPaths.length - 1];
+        if (lastP && lastP.hasSaber && window.applySaberToPath) {
+            window.applySaberToPath(drawPaths.length - 1, lastP.saberOptions || window.saberState);
+        }
     }
 
     redrawAll();
     updateDrawHistory();
 }
 
-function drawTempPolygon(cursor){
+function drawTempPolygon(cursor, isDraggingTangent){
+    if (window.BezierCurves && typeof window.BezierCurves.drawTempPolygonCurve === 'function') {
+        const s = getDS();
+        window.BezierCurves.drawTempPolygonCurve(drawCtx, polygonPoints, cursor, s, isDraggingTangent, polyActivePoint);
+        return;
+    }
     const s=getDS();
     drawCtx.save();
     drawCtx.globalAlpha=s.opacity;
@@ -954,10 +967,10 @@ function closePolygon(){
     const py = parseFloat(document.getElementById('photoYCtrl') ? document.getElementById('photoYCtrl').value : 50);
     const panel = getActivePhotoPanel();
     
-    const isNeonNow = !!(window.saberState && window.saberState.active);
+    const isNeonNow = !!(s && (s.hasSaber || s.saber));
     let activeNeonColor = s.color;
-    if (isNeonNow && window.saberState && window.saberState.glowColor) {
-        const gc = window.saberState.glowColor;
+    if (isNeonNow && s.saberOptions && s.saberOptions.glowColor) {
+        const gc = s.saberOptions.glowColor;
         activeNeonColor = typeof gc === 'number' ? '#' + gc.toString(16).padStart(6, '0') : gc;
     }
 
@@ -969,7 +982,7 @@ function closePolygon(){
         photoRef: typeof window.getCurrentPhotoState === 'function' ? window.getCurrentPhotoState() : null,
         hasSaber: isNeonNow,
         saber: isNeonNow,
-        saberOptions: isNeonNow ? JSON.parse(JSON.stringify(window.saberState)) : null
+        saberOptions: isNeonNow ? s.saberOptions : null
     }, s);
     if (isNeonNow) {
         pObj.color = activeNeonColor;
@@ -978,6 +991,7 @@ function closePolygon(){
         }
     }
     
+    let newPathObj = null;
     const el = createSVGFromPath(pObj);
     if (el) {
         const container = typeof getActiveV4Element === 'function' ? getActiveV4Element() : (document.getElementById('photo-layer') || document.getElementById('canvas-container'));
@@ -994,12 +1008,12 @@ function closePolygon(){
         if (typeof drawPaths !== 'undefined') {
             const hasEl = drawPaths.some(p => p.el === el);
             if (!hasEl) {
-                const newPathObj = Object.assign({}, pObj, {
+                newPathObj = Object.assign({}, pObj, {
                     id: pObj.id || ('draw-path-' + Date.now() + '-' + Math.floor(Math.random()*10000)),
                     color: isNeonNow ? activeNeonColor : pObj.color,
                     hasSaber: isNeonNow,
                     saber: isNeonNow,
-                    saberOptions: isNeonNow ? JSON.parse(JSON.stringify(window.saberState)) : null,
+                    saberOptions: isNeonNow ? s.saberOptions : null,
                     photoRef: typeof window.getCurrentPhotoState === 'function' ? window.getCurrentPhotoState() : null,
                     el: el
                 });
@@ -1013,20 +1027,29 @@ function closePolygon(){
                 if (typeof updateDrawHistory === 'function') updateDrawHistory();
             }
         }
+        if (newPathObj) {
+            window.lastActiveDrawPath = newPathObj;
+        }
         if (typeof window.selectElement === 'function') {
             window.selectElement(el, false, true);
         }
     }
 
-    // ─── ⚡ SABER HOOK ───
-    if (window.saberState && window.saberState.active && window.applySaberToPath) {
-        window.applySaberToPath(drawPaths.length - 1, JSON.parse(JSON.stringify(window.saberState)));
+    // ─── ⚡ SABER HOOK (yalnızca çizimin kendisi neonluysa bağla!) ───
+    if (typeof drawPaths !== 'undefined' && drawPaths.length > 0) {
+        const lastP = drawPaths[drawPaths.length - 1];
+        if (lastP && lastP.hasSaber && window.applySaberToPath) {
+            window.applySaberToPath(drawPaths.length - 1, lastP.saberOptions || window.saberState);
+        }
     }
     
     polygonPoints=[];
     polygonBuilding=false;
     redrawAll();
     updateDrawHistory();
+    if (typeof setDrawMode === 'function') {
+        setDrawMode('off', true);
+    }
 }
 
 // ==================== 🏹 20 PROFESYONEL OK STİLİ TANIMI ====================
@@ -1897,6 +1920,9 @@ function startDrawEdit(i, showPanel = true, isMulti = false){
     }
     
     if($('deColor')) $('deColor').value=activePathColor;
+    if (typeof window.syncSaberUIWithDrawing === 'function') {
+        window.syncSaberUIWithDrawing(p);
+    }
     if($('deWidth')) {
         const scaleRatio = getDrawScaleRatio();
         const rawW = p.rawWidth || Math.max(1, Math.round(p.width / scaleRatio)) || p.width;
@@ -2198,7 +2224,7 @@ window.liveUpdateDrawEdit = function(){
 // ════════════════════════════════════════════════════════════════
 function updateSinglePathSvg(p) {
     if (!p || !p.el) return;
-    const isNeon = !!(p.hasSaber || p.saber || (window.saberState && window.saberState.active && p.hasSaber !== false));
+    const isNeon = !!(p.hasSaber || p.saber);
     if (isNeon) {
         p.el.classList.add('neon-active');
     } else {
@@ -2227,7 +2253,7 @@ function updateSinglePathSvg(p) {
     const effectiveSvgWidth = Math.max(1, p.width / internalScale);
     const dotRadius = Math.max(2.5, Math.round((p.width * 0.75) / internalScale));
 
-    const sOpts = p.saberOptions || (window.saberState && window.saberState.active ? window.saberState : {}) || {};
+    const sOpts = p.saberOptions || {};
     let glowColor = '#00CEC9';
     if (sOpts.glowColor) {
         glowColor = typeof sOpts.glowColor === 'number' ? '#' + sOpts.glowColor.toString(16).padStart(6, '0') : sOpts.glowColor;
@@ -2395,7 +2421,7 @@ function updateSinglePathSvg(p) {
         // Enerji Pinleri / Köşe Noktaları temizle (SaberEngine WebGL üzerinden çizer)
         svg.querySelectorAll('.neon-node-halo, .neon-node-core').forEach(n => n.remove());
 
-        const circles = svg.querySelectorAll('.poly-vertex-dot');
+        const circles = svg.querySelectorAll('.poly-vertex-dot, circle');
         circles.forEach(c => {
             c.setAttribute('fill', p.color);
             c.setAttribute('r', dotRadius);
@@ -2452,8 +2478,8 @@ function createSVGFromPath(p) {
     if(minX === maxX) { maxX += 1; }
     if(minY === maxY) { maxY += 1; }
 
-    const isNeon = !!(p.hasSaber || p.saber || (window.saberState && window.saberState.active));
-    const sOpts = p.saberOptions || (window.saberState && window.saberState.active ? window.saberState : {}) || {};
+    const isNeon = !!(p.hasSaber || p.saber);
+    const sOpts = p.saberOptions || {};
 
     let glowColor = '#00CEC9';
     if (sOpts.glowColor) {
@@ -2525,8 +2551,13 @@ function createSVGFromPath(p) {
         for(let i=1; i<pts.length; i++) d += ` L ${pts[i].x - minX} ${pts[i].y - minY}`;
         body = `<path class="main-line" d="${d}" ${styleStr} />`;
     } else if(p.type === 'polygon') {
-        let ptStr = pts.map(pt => `${(pt.x - minX).toFixed(1)},${(pt.y - minY).toFixed(1)}`).join(' ');
-        body = `<polygon class="main-polygon" points="${ptStr}" ${styleStr} />`;
+        if (window.BezierCurves && typeof window.BezierCurves.pointsToSvgPath === 'function') {
+            const pathD = window.BezierCurves.pointsToSvgPath(pts, true, minX, minY);
+            body = `<path class="main-polygon" d="${pathD}" ${styleStr} />`;
+        } else {
+            let ptStr = pts.map(pt => `${(pt.x - minX).toFixed(1)},${(pt.y - minY).toFixed(1)}`).join(' ');
+            body = `<polygon class="main-polygon" points="${ptStr}" ${styleStr} />`;
+        }
     } else if(p.type === 'rect') {
         const rX = Math.min(p.x1, p.x2) - minX;
         const rY = Math.min(p.y1, p.y2) - minY;
@@ -2575,6 +2606,15 @@ function createSVGFromPath(p) {
     p.el = icon;
     icon.dataset.label = 'Çizim: ' + p.type;
     icon.dataset.drawType = p.type;
+    if (p.type === 'polygon' && pts) {
+        icon.dataset.polygonPoints = JSON.stringify(pts.map(pt => {
+            const np = { x: pt.x - minX, y: pt.y - minY };
+            if (pt.cpIn) np.cpIn = { x: pt.cpIn.x - minX, y: pt.cpIn.y - minY };
+            if (pt.cpOut) np.cpOut = { x: pt.cpOut.x - minX, y: pt.cpOut.y - minY };
+            if (pt.curve) np.curve = true;
+            return np;
+        }));
+    }
     icon.dataset.drawColor = strokeColor;
     icon.dataset.drawWidth = p.width;
     icon.dataset.drawRawWidth = p.rawWidth || (p.width ? Math.max(1, Math.round(p.width / getDrawScaleRatio())) : 6);
@@ -2637,7 +2677,7 @@ window.loadDrawSettings = function(el) {
         window.syncSaberUIWithDrawing(p);
     }
     
-    const isNeon = !!(p && (p.hasSaber || p.saber)) || drawEl.classList.contains('neon-active') || !!(window.saberState && window.saberState.active);
+    const isNeon = !!(p && (p.hasSaber || p.saber)) || drawEl.classList.contains('neon-active');
 
     // COLOR: Neon aktifse kırmızı veya stroke ile ezme
     let shapeColor = null;
@@ -2715,7 +2755,7 @@ window.updateSelectedDraw = function() {
             }
         }
 
-        const isNeon = !!(p && (p.hasSaber || p.saber)) || el.classList.contains('neon-active') || !!(window.saberState && window.saberState.active);
+        const isNeon = !!(p && (p.hasSaber || p.saber)) || el.classList.contains('neon-active');
 
         if (p) {
             if (rawW !== null && !isNaN(rawW)) {
@@ -2783,7 +2823,7 @@ window.showVertexHandles = function(el) {
     const svg = el.querySelector('svg');
     if (!svg) return;
     const isArrow = (el.dataset.drawType === 'arrow') || (el.dataset.label && el.dataset.label.includes('arrow')) || !!svg.querySelector('.arrow-shaft');
-    const polygon = isArrow ? null : svg.querySelector('polygon.main-polygon, polygon');
+    const polygon = isArrow ? null : svg.querySelector('polygon.main-polygon, polygon, path.main-polygon');
     const lineEl = svg.querySelector('line.arrow-shaft, line.main-line, line');
     
     let baseW = parseFloat(el.dataset.baseWidth) || el.offsetWidth;
@@ -2810,15 +2850,18 @@ window.showVertexHandles = function(el) {
             {x: parseFloat(lineEl.getAttribute('x2')), y: parseFloat(lineEl.getAttribute('y2'))}
         ];
     } else if (polygon) {
-        const ptsStr = polygon.getAttribute('points');
-        if (ptsStr) {
-            points = ptsStr.trim().split(/\s+/).map(p => {
-                const [x,y] = p.split(',').map(Number);
-                return {x,y};
-            });
-            el.dataset.polygonPoints = JSON.stringify(points);
-        } else if (el.dataset.polygonPoints) {
+        if (el.dataset.polygonPoints) {
             try { points = JSON.parse(el.dataset.polygonPoints); } catch(e) {}
+        }
+        if ((!points || points.length === 0) && polygon.tagName.toLowerCase() === 'polygon') {
+            const ptsStr = polygon.getAttribute('points');
+            if (ptsStr) {
+                points = ptsStr.trim().split(/\s+/).map(p => {
+                    const [x,y] = p.split(',').map(Number);
+                    return {x,y};
+                });
+                el.dataset.polygonPoints = JSON.stringify(points);
+            }
         }
     } else if (lineEl) {
         points = [
@@ -2845,19 +2888,31 @@ window.showVertexHandles = function(el) {
         const baseL = parseFloat(el.dataset.baseLeft !== undefined ? el.dataset.baseLeft : el.style.left) || 0;
         const baseT = parseFloat(el.dataset.baseTop !== undefined ? el.dataset.baseTop : el.style.top) || 0;
         
-        // Canvas üzerindeki mutlak koordinatlar
-        const absPts = pts.map(p => ({ x: baseL + p.x, y: baseT + p.y }));
+        // Canvas üzerindeki mutlak koordinatlar (kavis kontrol noktaları dahil!)
+        const absPts = pts.map(p => {
+            const np = { x: baseL + p.x, y: baseT + p.y };
+            if (p.cpIn) np.cpIn = { x: baseL + p.cpIn.x, y: baseT + p.cpIn.y };
+            if (p.cpOut) np.cpOut = { x: baseL + p.cpOut.x, y: baseT + p.cpOut.y };
+            if (p.curve) np.curve = true;
+            return np;
+        });
         if (absPts.length === 0) return;
         
-        const minX = Math.min(...absPts.map(p => p.x));
-        const maxX = Math.max(...absPts.map(p => p.x));
-        const minY = Math.min(...absPts.map(p => p.y));
-        const maxY = Math.max(...absPts.map(p => p.y));
-        
-        const newW = Math.max(20, Math.round(maxX - minX));
-        const newH = Math.max(20, Math.round(maxY - minY));
-        const newL = Math.round(minX);
-        const newT = Math.round(minY);
+        let minX, maxX, minY, maxY, newW, newH, newL, newT;
+        if (!isArrowOrLine && window.BezierCurves && typeof window.BezierCurves.computePathBounds === 'function') {
+            const b = window.BezierCurves.computePathBounds(absPts, true);
+            minX = b.minX; maxX = b.maxX; minY = b.minY; maxY = b.maxY;
+            newW = b.width; newH = b.height; newL = minX; newT = minY;
+        } else {
+            minX = Math.min(...absPts.map(p => p.x));
+            maxX = Math.max(...absPts.map(p => p.x));
+            minY = Math.min(...absPts.map(p => p.y));
+            maxY = Math.max(...absPts.map(p => p.y));
+            newW = Math.max(20, Math.round(maxX - minX));
+            newH = Math.max(20, Math.round(maxY - minY));
+            newL = Math.round(minX);
+            newT = Math.round(minY);
+        }
         
         // 1. Element sınırlarını güncelle (Mavi seçim alanı .el-selected el'in box-shadow'udur, anında yeni şekli sarar!)
         el.style.left = newL + 'px';
@@ -2874,10 +2929,26 @@ window.showVertexHandles = function(el) {
         svgEl.setAttribute('viewBox', `0 0 ${newW} ${newH}`);
         
         // 3. Noktaları yeni lokal koordinat sistemine kaydır
-        const localPts = absPts.map(p => ({
-            x: Math.round((p.x - newL) * 10) / 10,
-            y: Math.round((p.y - newT) * 10) / 10
-        }));
+        const localPts = absPts.map(p => {
+            const np = {
+                x: Math.round((p.x - newL) * 10) / 10,
+                y: Math.round((p.y - newT) * 10) / 10
+            };
+            if (p.cpIn) {
+                np.cpIn = {
+                    x: Math.round((p.cpIn.x - newL) * 10) / 10,
+                    y: Math.round((p.cpIn.y - newT) * 10) / 10
+                };
+            }
+            if (p.cpOut) {
+                np.cpOut = {
+                    x: Math.round((p.cpOut.x - newL) * 10) / 10,
+                    y: Math.round((p.cpOut.y - newT) * 10) / 10
+                };
+            }
+            if (p.curve) np.curve = true;
+            return np;
+        });
         
         if (isArrowOrLine) {
             const lEl = svgEl.querySelector('line.arrow-shaft, line.main-line, line');
@@ -2892,10 +2963,30 @@ window.showVertexHandles = function(el) {
                 lEl.dataset.rawY2 = localPts[1].y;
             }
         } else {
-            const newPtsStr = localPts.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
-            svgEl.querySelectorAll('polygon').forEach(poly => {
-                poly.setAttribute('points', newPtsStr);
-            });
+            if (window.BezierCurves && typeof window.BezierCurves.pointsToSvgPath === 'function') {
+                const pathD = window.BezierCurves.pointsToSvgPath(localPts, true);
+                let pPath = svgEl.querySelector('path.main-polygon');
+                if (pPath) {
+                    pPath.setAttribute('d', pathD);
+                } else {
+                    const oldPoly = svgEl.querySelector('polygon.main-polygon, polygon');
+                    if (oldPoly) {
+                        const newPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                        newPath.setAttribute('class', 'main-polygon');
+                        newPath.setAttribute('d', pathD);
+                        ['stroke', 'stroke-width', 'stroke-opacity', 'stroke-linecap', 'stroke-linejoin', 'fill', 'fill-opacity', 'filter', 'style', 'stroke-dasharray'].forEach(attr => {
+                            const val = oldPoly.getAttribute(attr);
+                            if (val) newPath.setAttribute(attr, val);
+                        });
+                        oldPoly.parentNode.replaceChild(newPath, oldPoly);
+                    }
+                }
+            } else {
+                const newPtsStr = localPts.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
+                svgEl.querySelectorAll('polygon').forEach(poly => {
+                    poly.setAttribute('points', newPtsStr);
+                });
+            }
             el.dataset.polygonPoints = JSON.stringify(localPts);
         }
         
@@ -2957,6 +3048,10 @@ window.showVertexHandles = function(el) {
         visual.style.transition = 'transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease';
         handle.appendChild(visual);
 
+        if (pt.curve || pt.cpIn || pt.cpOut) {
+            handle.classList.add('is-curved');
+        }
+
         handle.addEventListener('mouseenter', () => {
             if (!handle.classList.contains('active-drag')) {
                 visual.style.transform = 'translate(-50%, -50%) scale(1.25)';
@@ -2967,7 +3062,7 @@ window.showVertexHandles = function(el) {
         handle.addEventListener('mouseleave', () => {
             if (!handle.classList.contains('active-drag')) {
                 visual.style.transform = 'translate(-50%, -50%)';
-                visual.style.borderColor = '#2563eb';
+                visual.style.borderColor = (pt.curve || pt.cpIn || pt.cpOut) ? '#06b6d4' : '#2563eb';
                 visual.style.boxShadow = '0 0 0 2px rgba(255,255,255,0.9), 0 2px 8px rgba(0,0,0,0.5), 0 0 10px rgba(37,99,235,0.6)';
             }
         });
@@ -2979,6 +3074,10 @@ window.showVertexHandles = function(el) {
             const startY = evt.clientY;
             const startPtX = pt.x;
             const startPtY = pt.y;
+            const startCpInX = pt.cpIn ? pt.cpIn.x : null;
+            const startCpInY = pt.cpIn ? pt.cpIn.y : null;
+            const startCpOutX = pt.cpOut ? pt.cpOut.x : null;
+            const startCpOutY = pt.cpOut ? pt.cpOut.y : null;
             
             handle.classList.add('active-drag');
             handle.style.cursor = 'grabbing';
@@ -3019,6 +3118,14 @@ window.showVertexHandles = function(el) {
                     
                     pt.x = newX;
                     pt.y = newY;
+                    if (startCpInX !== null) {
+                        pt.cpIn.x = startCpInX + localDx;
+                        pt.cpIn.y = startCpInY + localDy;
+                    }
+                    if (startCpOutX !== null) {
+                        pt.cpOut.x = startCpOutX + localDx;
+                        pt.cpOut.y = startCpOutY + localDy;
+                    }
                     
                     handle.style.left = (newX / baseW * 100) + '%';
                     handle.style.top = (newY / baseH * 100) + '%';
@@ -3035,7 +3142,7 @@ window.showVertexHandles = function(el) {
                 handle.classList.remove('active-drag');
                 handle.style.cursor = 'grab';
                 visual.style.transform = 'translate(-50%, -50%)';
-                visual.style.borderColor = '#2563eb';
+                visual.style.borderColor = (pt.curve || pt.cpIn || pt.cpOut) ? '#06b6d4' : '#2563eb';
                 visual.style.boxShadow = '0 0 0 2px rgba(255,255,255,0.9), 0 2px 8px rgba(0,0,0,0.5), 0 0 10px rgba(37,99,235,0.6)';
                 
                 if (typeof updateDrawHistory === 'function') updateDrawHistory();
@@ -3053,6 +3160,30 @@ window.showVertexHandles = function(el) {
         
         handle.addEventListener('mousedown', handleDown);
         handle.addEventListener('touchstart', handleDown, {passive: false});
+
+        // Çift tık ile köşe tipini değiştir (Keskin köşe <-> Kavisli köşe)
+        handle.addEventListener('dblclick', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (pt.cpIn || pt.cpOut) {
+                delete pt.cpIn;
+                delete pt.cpOut;
+                delete pt.curve;
+            } else if (polygon && points.length > 2) {
+                const prevPt = points[(i - 1 + points.length) % points.length];
+                const nextPt = points[(i + 1) % points.length];
+                const tanX = (nextPt.x - prevPt.x) * 0.25;
+                const tanY = (nextPt.y - prevPt.y) * 0.25;
+                pt.cpOut = { x: pt.x + tanX, y: pt.y + tanY };
+                pt.cpIn = { x: pt.x - tanX, y: pt.y - tanY };
+                pt.curve = true;
+            }
+            if (typeof updatePolygonGeometry === 'function') updatePolygonGeometry();
+            recalcElementBoundsAfterVertexMove(el, points, false);
+            if (typeof updateDrawHistory === 'function') updateDrawHistory();
+            if (typeof window.recordHistory === 'function') window.recordHistory('Köşe Kavis Tipi Değiştirildi');
+        });
+
         return handle;
     }
     
@@ -3145,53 +3276,189 @@ window.showVertexHandles = function(el) {
         container.appendChild(h1);
         container.appendChild(h2);
     } else if (polygon && points.length > 0) {
-        points.forEach((pt, i) => {
-            const handle = createHandle(pt, i, (nx, ny) => {
-                points[i] = {x: nx, y: ny};
+        const updatePolygonGeometry = () => {
+            if (window.BezierCurves && typeof window.BezierCurves.pointsToSvgPath === 'function') {
+                const pathD = window.BezierCurves.pointsToSvgPath(points, true);
+                let polyPath = svg.querySelector('path.main-polygon');
+                if (polyPath) {
+                    polyPath.setAttribute('d', pathD);
+                } else {
+                    const oldPoly = svg.querySelector('polygon.main-polygon, polygon');
+                    if (oldPoly) {
+                        const newPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                        newPath.setAttribute('class', 'main-polygon');
+                        newPath.setAttribute('d', pathD);
+                        ['stroke', 'stroke-width', 'stroke-opacity', 'stroke-linecap', 'stroke-linejoin', 'fill', 'fill-opacity', 'filter', 'style', 'stroke-dasharray'].forEach(attr => {
+                            const val = oldPoly.getAttribute(attr);
+                            if (val) newPath.setAttribute(attr, val);
+                        });
+                        oldPoly.parentNode.replaceChild(newPath, oldPoly);
+                    }
+                }
+            } else {
                 const newPtsStr = points.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
-                
-                // 1. SVG içindeki TÜM polygonları güncelle (hem neon glow hem neon-hot-core beyaz çizim!)
                 svg.querySelectorAll('polygon').forEach(poly => {
                     poly.setAttribute('points', newPtsStr);
                 });
-                el.dataset.polygonPoints = JSON.stringify(points);
-                
-                // 2. Enerji pinleri ve köşe dairelerini birebir senkronize et
-                try {
-                    const halos = svg.querySelectorAll('.neon-node-halo');
-                    if (halos[i]) {
-                        halos[i].setAttribute('cx', nx.toFixed(1));
-                        halos[i].setAttribute('cy', ny.toFixed(1));
-                    }
-                    const cores = svg.querySelectorAll('.neon-node-core');
-                    if (cores[i]) {
-                        cores[i].setAttribute('cx', nx.toFixed(1));
-                        cores[i].setAttribute('cy', ny.toFixed(1));
-                    }
-                    const polyDots = svg.querySelectorAll('.poly-vertex-dot');
-                    if (polyDots[i]) {
-                        polyDots[i].setAttribute('cx', nx.toFixed(1));
-                        polyDots[i].setAttribute('cy', ny.toFixed(1));
-                    }
-                } catch(e) {}
+            }
+            el.dataset.polygonPoints = JSON.stringify(points);
 
-                // 3. drawPaths içindeki pObj koordinatlarını ve saber efektini güncelle
-                try {
-                    let pIdx = parseInt(el.dataset.pathIndex);
-                    let pObj = (typeof drawPaths !== 'undefined' && drawPaths[pIdx]) ? drawPaths[pIdx] : (typeof drawPaths !== 'undefined' ? drawPaths.find(dp => dp.el === el) : null);
-                    if (pObj) {
-                        const baseL = parseFloat(el.dataset.baseLeft !== undefined ? el.dataset.baseLeft : el.style.left) || 0;
-                        const baseT = parseFloat(el.dataset.baseTop !== undefined ? el.dataset.baseTop : el.style.top) || 0;
-                        pObj.type = 'polygon';
-                        pObj.points = points.map(p => ({ x: baseL + p.x, y: baseT + p.y }));
-                        if (pObj.hasSaber && window.applySaberToPath) {
-                            applySaberToPath(pIdx, pObj.saberOptions);
-                        }
+            try {
+                points.forEach((pt, idx) => {
+                    const halos = svg.querySelectorAll('.neon-node-halo');
+                    if (halos[idx]) { halos[idx].setAttribute('cx', pt.x.toFixed(1)); halos[idx].setAttribute('cy', pt.y.toFixed(1)); }
+                    const cores = svg.querySelectorAll('.neon-node-core');
+                    if (cores[idx]) { cores[idx].setAttribute('cx', pt.x.toFixed(1)); cores[idx].setAttribute('cy', pt.y.toFixed(1)); }
+                    const polyDots = svg.querySelectorAll('.poly-vertex-dot');
+                    if (polyDots[idx]) { polyDots[idx].setAttribute('cx', pt.x.toFixed(1)); polyDots[idx].setAttribute('cy', pt.y.toFixed(1)); }
+                });
+            } catch(e) {}
+
+            try {
+                let pIdx = parseInt(el.dataset.pathIndex);
+                let pObj = (typeof drawPaths !== 'undefined' && drawPaths[pIdx]) ? drawPaths[pIdx] : (typeof drawPaths !== 'undefined' ? drawPaths.find(dp => dp.el === el) : null);
+                if (pObj) {
+                    const baseL = parseFloat(el.dataset.baseLeft !== undefined ? el.dataset.baseLeft : el.style.left) || 0;
+                    const baseT = parseFloat(el.dataset.baseTop !== undefined ? el.dataset.baseTop : el.style.top) || 0;
+                    pObj.type = 'polygon';
+                    pObj.points = points.map(p => {
+                        const np = { x: baseL + p.x, y: baseT + p.y };
+                        if (p.cpIn) np.cpIn = { x: baseL + p.cpIn.x, y: baseT + p.cpIn.y };
+                        if (p.cpOut) np.cpOut = { x: baseL + p.cpOut.x, y: baseT + p.cpOut.y };
+                        if (p.curve) np.curve = true;
+                        return np;
+                    });
+                    if (pObj.hasSaber && window.applySaberToPath) {
+                        applySaberToPath(pIdx, pObj.saberOptions);
                     }
-                } catch(e) {}
+                }
+            } catch(e) {}
+        };
+
+        // 1. Köşe tutamaçları
+        points.forEach((pt, i) => {
+            const handle = createHandle(pt, i, () => {
+                updatePolygonGeometry();
             });
             container.appendChild(handle);
         });
+
+        // 2. İki nokta arası kavis tutamaçları (Midpoint Curve Handles)
+        for (let i = 0; i < points.length; i++) {
+            const nextIdx = (i + 1) % points.length;
+            const pA = points[i];
+            const pB = points[nextIdx];
+
+            let midPt = window.BezierCurves
+                ? window.BezierCurves.getSegmentMidpoint(pA, pB)
+                : { x: (pA.x + pB.x) / 2, y: (pA.y + pB.y) / 2 };
+
+            const midHandle = document.createElement('div');
+            midHandle.className = 'midpoint-handle';
+            midHandle.style.left = (midPt.x / baseW * 100) + '%';
+            midHandle.style.top = (midPt.y / baseH * 100) + '%';
+            midHandle.title = 'Kavislendir (Sürükle) | Çift tık: Düzleştir';
+
+            const midVisual = document.createElement('div');
+            midVisual.className = 'midpoint-handle-visual';
+            midHandle.appendChild(midVisual);
+
+            // Çift tık ile kenarı anında düzleştir
+            midHandle.addEventListener('dblclick', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                delete pA.cpOut;
+                delete pB.cpIn;
+                if (!pA.cpIn) delete pA.curve;
+                if (!pB.cpOut) delete pB.curve;
+                updatePolygonGeometry();
+                recalcElementBoundsAfterVertexMove(el, points, false);
+                if (typeof updateDrawHistory === 'function') updateDrawHistory();
+                if (typeof window.recordHistory === 'function') window.recordHistory('Kenar Düzleştirildi');
+            });
+
+            function midHandleDown(e) {
+                if (e.type === 'mousedown' || e.type === 'touchstart') { e.preventDefault(); e.stopPropagation(); }
+                const evt = e.touches ? e.touches[0] : e;
+                const startX = evt.clientX;
+                const startY = evt.clientY;
+                const startMidX = midPt.x;
+                const startMidY = midPt.y;
+
+                midHandle.classList.add('active-drag');
+                midHandle.style.cursor = 'grabbing';
+
+                const globalScale = typeof window.getGlobalScale === 'function' ? window.getGlobalScale() : 1;
+                const curScaleX = (el.offsetWidth / baseW) * globalScale;
+                const curScaleY = (el.offsetHeight / baseH) * globalScale;
+
+                let moveRAF = null;
+                function onMidMove(me) {
+                    if (me.touches && me.touches.length > 1) return;
+                    const meEvt = me.touches ? me.touches[0] : me;
+                    const cX = meEvt.clientX;
+                    const cY = meEvt.clientY;
+
+                    if (moveRAF) return;
+                    moveRAF = requestAnimationFrame(() => {
+                        moveRAF = null;
+                        const rawDx = (cX - startX) / (curScaleX || 1);
+                        const rawDy = (cY - startY) / (curScaleY || 1);
+
+                        let localDx = rawDx;
+                        let localDy = rawDy;
+                        const rotDeg = parseFloat(el.dataset.rotation) || 0;
+                        if (rotDeg !== 0) {
+                            const rotRad = rotDeg * Math.PI / 180;
+                            const cos = Math.cos(rotRad);
+                            const sin = Math.sin(rotRad);
+                            localDx = rawDx * cos + rawDy * sin;
+                            localDy = -rawDx * sin + rawDy * cos;
+                        }
+
+                        const newMidX = startMidX + localDx;
+                        const newMidY = startMidY + localDy;
+
+                        if (window.BezierCurves) {
+                            const solved = window.BezierCurves.computeCurveFromMidpoint(pA, pB, { x: newMidX, y: newMidY });
+                            pA.cpOut = solved.cp1;
+                            pB.cpIn = solved.cp2;
+                            pA.curve = true;
+                            pB.curve = true;
+                        }
+
+                        midHandle.style.left = (newMidX / baseW * 100) + '%';
+                        midHandle.style.top = (newMidY / baseH * 100) + '%';
+
+                        updatePolygonGeometry();
+                    });
+                }
+
+                function onMidUp() {
+                    document.removeEventListener('mousemove', onMidMove);
+                    document.removeEventListener('mouseup', onMidUp);
+                    document.removeEventListener('touchmove', onMidMove);
+                    document.removeEventListener('touchend', onMidUp);
+
+                    midHandle.classList.remove('active-drag');
+                    midHandle.style.cursor = 'crosshair';
+
+                    if (typeof updateDrawHistory === 'function') updateDrawHistory();
+                    if (typeof window.recordHistory === 'function') window.recordHistory('Kavis Düzenlendi');
+
+                    recalcElementBoundsAfterVertexMove(el, points, false);
+                }
+
+                document.addEventListener('mousemove', onMidMove);
+                document.addEventListener('mouseup', onMidUp);
+                document.addEventListener('touchmove', onMidMove, {passive: false});
+                document.addEventListener('touchend', onMidUp);
+            }
+
+            midHandle.addEventListener('mousedown', midHandleDown);
+            midHandle.addEventListener('touchstart', midHandleDown, {passive: false});
+            container.appendChild(midHandle);
+        }
     }
     
     const rotHandle = document.createElement('div');
@@ -3299,6 +3566,10 @@ window.showVertexHandles = function(el) {
                     }
                 });
                 
+                if (window.SaberEngine && typeof window.SaberEngine.updateTextSaberPositions === 'function') {
+                    window.SaberEngine.updateTextSaberPositions();
+                }
+
                 const sApp = (window.SaberEngine && typeof window.SaberEngine.getApp === 'function') ? window.SaberEngine.getApp() : null;
                 if (sApp && sApp.renderer && sApp.stage && (!sApp.ticker || !sApp.ticker.started)) {
                     try { sApp.renderer.render(sApp.stage); } catch(e) {}
@@ -3329,6 +3600,10 @@ window.showVertexHandles = function(el) {
                 pObj.rotation = curRot;
             }
             
+            if (window.SaberEngine && typeof window.SaberEngine.updateTextSaberPositions === 'function') {
+                window.SaberEngine.updateTextSaberPositions();
+            }
+
             if (typeof updateDrawHistory === 'function') updateDrawHistory();
             if (typeof window.recordHistory === 'function') window.recordHistory('Çizim Döndürüldü');
         }

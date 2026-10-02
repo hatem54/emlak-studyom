@@ -1,0 +1,112 @@
+/* ==========================================================================
+   BÉZIER & CURVATURE CONTROLS (css/bezier-curves.css)
+   After Effects / Pen Tool kavis ve Bézier tutamaç stilleri
+   ========================================================================== */
+
+/* Kenar orta noktası kavis tutamacı (Midpoint Curve Handle) */
+.editable-draw .midpoint-handle {
+    position: absolute;
+    width: 24px;
+    height: 24px;
+    transform: translate(-50%, -50%);
+    background: transparent;
+    cursor: crosshair;
+    pointer-events: auto !important;
+    z-index: 10015 !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    touch-action: none;
+    user-select: none;
+}
+
+.editable-draw .midpoint-handle-visual {
+    width: 12px;
+    height: 12px;
+    background: #ffffff;
+    border: 2px solid #06b6d4;
+    border-radius: 50%;
+    box-shadow: 0 0 0 1.5px rgba(255, 255, 255, 0.9), 0 2px 6px rgba(0, 0, 0, 0.35);
+    pointer-events: none;
+    transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.editable-draw .midpoint-handle:hover .midpoint-handle-visual {
+    transform: scale(1.35);
+    border-color: #00e5ff;
+    box-shadow: 0 0 0 2px #ffffff, 0 0 10px #00e5ff;
+}
+
+.editable-draw .midpoint-handle.active-drag .midpoint-handle-visual {
+    transform: scale(1.5);
+    background: #06b6d4;
+    border-color: #ffffff;
+    box-shadow: 0 0 0 2px #06b6d4, 0 0 14px #00e5ff;
+}
+
+/* Kavisli köşe tutamacı görsel vurgusu */
+.editable-draw .vertex-handle.is-curved .vertex-handle-visual {
+    border-color: #06b6d4;
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.95), 0 2px 8px rgba(0, 0, 0, 0.4), 0 0 10px rgba(6, 182, 212, 0.7);
+}
+
+/* Tanjant kontrol kolları (Tangent Control Handles) */
+.editable-draw .tangent-handle {
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    transform: translate(-50%, -50%);
+    background: transparent;
+    cursor: grab;
+    pointer-events: auto !important;
+    z-index: 10018 !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    touch-action: none;
+    user-select: none;
+}
+
+.editable-draw .tangent-handle-visual {
+    width: 10px;
+    height: 10px;
+    background: #ffffff;
+    border: 2px solid #00e5ff;
+    border-radius: 50%;
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.4), 0 0 6px rgba(0, 229, 255, 0.6);
+    pointer-events: none;
+    transition: transform 0.15s ease, background-color 0.15s ease;
+}
+
+.editable-draw .tangent-handle:hover .tangent-handle-visual {
+    transform: scale(1.3);
+    background: #00e5ff;
+}
+
+.editable-draw .tangent-handle.active-drag .tangent-handle-visual {
+    transform: scale(1.4);
+    background: #00e5ff;
+    border-color: #ffffff;
+    box-shadow: 0 0 0 2px #00e5ff, 0 0 12px #00e5ff;
+}
+
+/* Tanjant kol çizgisi */
+.editable-draw .tangent-arm-line {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 10012;
+}
+
+/* Dışa aktarma ve yazdırma anında tüm tutamaçları gizle */
+.is-exporting .midpoint-handle,
+.is-exporting .tangent-handle,
+.is-exporting .tangent-arm-line,
+.is-exporting .vertex-handle {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+}

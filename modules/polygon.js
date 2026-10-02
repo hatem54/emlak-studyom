@@ -96,8 +96,8 @@ function createPolygonFromSelectedLines() {
         glow: firstLineObj.glow || 0,
         fillColor: 'transparent',
         fillOpacity: 0,
-        hasSaber: firstLineObj.hasSaber || ((window.saberState && window.saberState.active) ? true : false),
-        saberOptions: firstLineObj.saberOptions || ((window.saberState && window.saberState.active) ? JSON.parse(JSON.stringify(window.saberState)) : null)
+        hasSaber: !!firstLineObj.hasSaber,
+        saberOptions: firstLineObj.hasSaber && firstLineObj.saberOptions ? JSON.parse(JSON.stringify(firstLineObj.saberOptions)) : null
     };
     
     if (typeof getActivePhotoPanel === 'function' && window.getCurrentPhotoState) {
@@ -131,6 +131,10 @@ let polyMarqueeStartY = 0;
 
 window.startMobileMarquee = function(x, y) {
     if(typeof drawMode !== 'undefined' && drawMode !== 'off') return;
+    // Kaydırma / Pan modunda veya fotoğraf serbest modundayken mavi seçim kutusu kesinlikle açılmasın
+    if (window.spaceBarPressed || window._isPhotoDragging || window.isPhotoLocked === false || document.body.classList.contains('photo-unlocked') || document.querySelector('.tb-image-frame.tb-pan-mode')) {
+        return;
+    }
     
     // Önceki açık kalan veya yetim seçim kutularını kesin olarak temizle
     document.querySelectorAll('.poly-marquee-box').forEach(el => el.remove());
@@ -163,6 +167,12 @@ window.startMobileMarquee = function(x, y) {
 document.addEventListener('mousedown', e => {
     if (e.button !== 0) return; // Sağ tık seçim kutusu başlatmasın
     if(typeof drawMode !== 'undefined' && drawMode !== 'off') return;
+    
+    // Kaydırma (Pan), Space-pan, Görsel Sürükleme veya Serbest modda mavi seçim kutusunu engelle
+    if (window.spaceBarPressed || window._isPhotoDragging || window.isPhotoLocked === false || document.body.classList.contains('photo-unlocked') || e.altKey || document.querySelector('.tb-image-frame.tb-pan-mode')) {
+        return;
+    }
+
     if(!e.target || !e.target.closest) return;
     const cTarget = e.target.closest('.canvas-el, .added-icon, .draggable, .cvi-item, .co-neon-block, .vertex-handle, .text-handle, .callout-controls, .callout-resizer, .callout-rotator, .lp-item, .panel, .lp-header, .editable-draw, .callout-wrap, .callout-item, .svg-callout, .sat-measure-callout, .parcel-badge-callout, .tb-image-frame, .tb-frame-handle, .tb-frame-floating-tools, .tb-floating-btn, .tb-frame-clip, .tb-frame-inner, .tb-frame-img');
     
@@ -190,6 +200,14 @@ document.addEventListener('mousedown', e => {
 });
 
 const handleMarqueeMove = function(e) {
+    if (window.spaceBarPressed || window._isPhotoDragging || window.isPhotoLocked === false || document.body.classList.contains('photo-unlocked')) {
+        if (polyMarqueeBox) {
+            try { polyMarqueeBox.remove(); } catch(err) {}
+            polyMarqueeBox = null;
+        }
+        document.querySelectorAll('.poly-marquee-box').forEach(el => el.remove());
+        return;
+    }
     if(polyMarqueeBox) {
         let currentX = e.clientX;
         let currentY = e.clientY;

@@ -1307,13 +1307,23 @@ document.addEventListener('dblclick', function(e) {
             }
         }
 
-        // 2D öğeler: Seç ve Element sekmesini aç
+        // 2D öğeler: Seç ve ilgili düzenleme sekmesini aç
         e.stopPropagation();
         if (typeof selectElement === 'function') {
-            selectElement(target);
+            selectElement(target, false, false, true);
+        } else if (typeof window.selectElement === 'function') {
+            window.selectElement(target, false, false, true);
         }
         if (typeof switchTab === 'function') {
-            switchTab('element');
+            if (target.classList.contains('shape-el')) {
+                switchTab('shapes');
+            } else if (target.classList.contains('editable-draw')) {
+                switchTab('draw');
+            } else if (target.classList.contains('tb-image-frame')) {
+                switchTab('create-template');
+            } else {
+                switchTab('font');
+            }
         }
 
         // Metin öğesi ise çift tıklamayla hemen inline düzenleme başlat

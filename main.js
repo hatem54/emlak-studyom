@@ -375,6 +375,9 @@ function applyFinalProjectImage(img, finalDataUrl, finalW, finalH) {
             const emptyStateEl = document.getElementById('canvasEmptyState');
             if (emptyStateEl) emptyStateEl.classList.add('is-hidden');
         }
+        const oldW = (typeof uploadedImgW !== 'undefined' && uploadedImgW > 0) ? uploadedImgW : (parseInt(canvasEl && canvasEl.style.width) || 1920);
+        const oldH = (typeof uploadedImgH !== 'undefined' && uploadedImgH > 0) ? uploadedImgH : (parseInt(canvasEl && canvasEl.style.height) || 1080);
+
         uploadedImgUrl = finalDataUrl;
         window.uploadedImgUrl = finalDataUrl;
         if (!window._isApplyingAiEnhance) {
@@ -429,6 +432,55 @@ function applyFinalProjectImage(img, finalDataUrl, finalW, finalH) {
         // 3. Tuval ölçeğini hesapla
         if (typeof resizeCanvas === 'function') resizeCanvas();
 
+        // Görsel yüklenmeden önce tuvalde yapılmış çizimleri koru ve yeni çözünürlüğe orantıla
+        if (!window.isRestoringState && typeof drawPaths !== 'undefined' && drawPaths.length > 0) {
+            const hasDimensionChange = oldW > 0 && oldH > 0 && (oldW !== uploadedImgW || oldH !== uploadedImgH);
+            const sX = hasDimensionChange ? (uploadedImgW / oldW) : 1;
+            const sY = hasDimensionChange ? (uploadedImgH / oldH) : 1;
+            const scaleRatio = typeof getDrawScaleRatio === 'function' ? getDrawScaleRatio() : (uploadedImgW / 1920);
+
+            drawPaths.forEach(p => {
+                if (hasDimensionChange) {
+                    if (p.points && Array.isArray(p.points)) {
+                        p.points.forEach(pt => {
+                            pt.x *= sX;
+                            pt.y *= sY;
+                            if (pt.cpIn) { pt.cpIn.x *= sX; pt.cpIn.y *= sY; }
+                            if (pt.cpOut) { pt.cpOut.x *= sX; pt.cpOut.y *= sY; }
+                        });
+                    }
+                    if (typeof p.x1 !== 'undefined') {
+                        p.x1 *= sX; p.y1 *= sY; p.x2 *= sX; p.y2 *= sY;
+                    }
+                    p.rawWidth = p.rawWidth || 4;
+                    p.width = Math.max(1, Math.round(p.rawWidth * scaleRatio));
+                }
+                p.photoRef = { v4: false, z: 100, px: 50, py: 50, panelW: uploadedImgW, panelH: uploadedImgH, panelL: 0, panelT: 0 };
+
+                if (typeof createSVGFromPath === 'function') {
+                    if (p.el && p.el.parentNode) {
+                        const oldEl = p.el;
+                        const newEl = createSVGFromPath(p);
+                        if (newEl) {
+                            oldEl.parentNode.replaceChild(newEl, oldEl);
+                            p.el = newEl;
+                            if (typeof selectedEl !== 'undefined' && selectedEl === oldEl) selectedEl = newEl;
+                            if (window.selectedEl === oldEl) window.selectedEl = newEl;
+                        }
+                    } else if (!p.el) {
+                        p.el = createSVGFromPath(p);
+                    }
+                }
+
+                if (p.hasSaber && typeof window.applySaberToPath === 'function') {
+                    const pIdx = drawPaths.indexOf(p);
+                    if (pIdx >= 0) {
+                        p.saberRef = window.applySaberToPath(pIdx, p.saberOptions || window.saberState);
+                    }
+                }
+            });
+        }
+
         // 4. Fotoğraf katmanını güncelle ve render et
         document.querySelectorAll('.photo-panel, #photo-layer').forEach(p => {
             p.style.display = 'block';
@@ -480,6 +532,7 @@ function applyFinalProjectImage(img, finalDataUrl, finalW, finalH) {
         
         if (typeof updateDrawHistory === 'function') updateDrawHistory();
         if (typeof requestAutoSave === 'function') requestAutoSave();
+        if (typeof window.renderLayers === 'function') window.renderLayers();
 
         // 5. İlk görsel durumunu Geçmiş Yığınına (Undo/Redo) kaydet
         if (window.undoStack && window.undoStack.length <= 1 && (!window.undoStack[0] || !window.undoStack[0].photoImgUrl)) {
@@ -689,43 +742,7 @@ function bindInputs(){
             }
         };
 
-        // Eğer çizim varsa kullanıcıyı uyar
-        if (typeof drawPaths !== 'undefined' && drawPaths.length > 0 && typeof uploadedImgUrl !== 'undefined' && uploadedImgUrl) {
-            const modal = document.createElement('div');
-            modal.id = 'photo-change-warning-modal';
-            modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(15,23,42,0.9);z-index:9999999;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(5px);';
-            modal.innerHTML = `
-                <div style="background:#1e293b;padding:30px;border-radius:12px;width:420px;max-width:90%;box-shadow:0 10px 25px rgba(0,0,0,0.5);text-align:center;color:white;font-family:'Inter',sans-serif;">
-                    <h3 style="margin-top:0;color:#f87171;font-size:1.3rem;">⚠️ Çizimler Bulunuyor</h3>
-                    <p style="font-size:1rem;line-height:1.5;margin-bottom:25px;color:#cbd5e1;">Bu tasarımda fotoğraf üzerine eklenmiş çizimler bulunuyor. Fotoğraf değişirse bu işaretler yeni görselle uyumunu kaybedebilir.</p>
-                    <div style="display:flex;justify-content:center;gap:15px;">
-                        <button id="photo-change-cancel" style="background:#475569;color:white;border:none;padding:10px 20px;border-radius:8px;cursor:pointer;font-weight:bold;">Vazgeç</button>
-                        <button id="photo-change-confirm" style="background:#ef4444;color:white;border:none;padding:10px 20px;border-radius:8px;cursor:pointer;font-weight:bold;">Değiştir ve Çizimleri Sil</button>
-                    </div>
-                </div>
-            `;
-            document.body.appendChild(modal);
-
-            document.getElementById('photo-change-cancel').onclick = () => {
-                modal.remove();
-                if ($('imageInput')) $('imageInput').value = ''; 
-            };
-
-            document.getElementById('photo-change-confirm').onclick = () => {
-                modal.remove();
-                if (typeof window.clearAllDrawings === 'function') {
-                    window.clearAllDrawings();
-                } else if (typeof clearAllDrawings === 'function') {
-                    clearAllDrawings();
-                } else {
-                    drawPaths.length = 0;
-                    document.querySelectorAll('.editable-draw, .draw-svg-item').forEach(el => el.remove());
-                }
-                processPhotoChange();
-            };
-        } else {
-            processPhotoChange();
-        }
+        processPhotoChange();
     };
 
     if($('imageInput')){
@@ -864,38 +881,7 @@ function bindInputs(){
             img.src = dataUrl;
         };
 
-        const hasManualDrawings = (typeof drawPaths !== 'undefined' && Array.isArray(drawPaths))
-            ? drawPaths.some(p => !p.isParcel)
-            : false;
-
-        const shouldConfirm = !window._skipDrawConfirm && hasManualDrawings && (typeof uploadedImgUrl !== 'undefined' && uploadedImgUrl);
-
-        if (shouldConfirm) {
-            if (confirm("Yeni bir görsel yüklendiğinde mevcut çizimler temizlenecektir. Devam etmek istiyor musunuz?")) {
-                if (typeof window.clearAllDrawings === 'function') {
-                    window.clearAllDrawings();
-                } else if (typeof clearAllDrawings === 'function') {
-                    clearAllDrawings();
-                } else {
-                    drawPaths.length = 0;
-                    document.querySelectorAll('.editable-draw, .draw-svg-item').forEach(el => el.remove());
-                }
-                proceed();
-            } else {
-                if (typeof window.hideAppLoading === 'function') window.hideAppLoading();
-            }
-        } else {
-            // Harita / Parsel aktarımlarında ve parsel çizimlerinde uyarısız, temiz ve kesintisiz geçiş
-            if (typeof window.clearAllDrawings === 'function') {
-                window.clearAllDrawings();
-            } else if (typeof clearAllDrawings === 'function') {
-                clearAllDrawings();
-            } else if (typeof drawPaths !== 'undefined') {
-                drawPaths.length = 0;
-                document.querySelectorAll('.editable-draw, .draw-svg-item').forEach(el => el.remove());
-            }
-            proceed();
-        }
+        proceed();
     };
 
     // 📋 Panodan Görsel / Ekran Alıntısı Yapıştırma (Ctrl + V) Desteği
@@ -1337,8 +1323,8 @@ setTimeout(function(){
         
 
         // Close all tabs by default on mobile
-
-        if(window.isMobileDevice()) {
+        const isMobDev = (typeof window.isMobileDevice === 'function') ? window.isMobileDevice() : (window.innerWidth <= 768);
+        if(isMobDev) {
 
             // Remove tooltips on mobile
 
@@ -1828,6 +1814,37 @@ window.resetEntireWorkspace = function() {
         }, 80);
     };
 
+    // Tuvalde kullanıcıya ait herhangi bir aktif içerik / öge / çizim / fotoğraf var mı kontrol et
+    const pLayer = document.getElementById('photo-layer');
+    const hasPhoto = !!((typeof uploadedImgUrl !== 'undefined' && uploadedImgUrl) || 
+                        (typeof masterImageBase64 !== 'undefined' && masterImageBase64) ||
+                        (pLayer && pLayer.style.backgroundImage && pLayer.style.backgroundImage !== 'none' && pLayer.style.backgroundImage !== ''));
+    const hasDrawings = typeof drawPaths !== 'undefined' && drawPaths && drawPaths.length > 0;
+    const hasItems = document.querySelectorAll(
+        '#canvas-container .editable-item, #canvas-container .callout-wrap, #canvas-container .custom-shape, ' +
+        '#canvas-container .editable-draw, #canvas-container .svg-callout-el, #canvas-container [data-element-type]'
+    ).length > 0;
+    const canvaLayer = document.getElementById('canva-render-layer');
+    const hasCanva = !!(canvaLayer && canvaLayer.children && canvaLayer.children.length > 0 && canvaLayer.style.display !== 'none');
+
+    const hasAnyContent = hasPhoto || hasDrawings || hasItems || hasCanva;
+
+    // 🌟 Durum 1: Açılış ekranındayken veya tuvalde hiçbir öge yokken tıklandıysa:
+    // Doğrudan başlangıç kartlarını kaldır, tuvali tamamen boş ve tertemiz beyaz tuval yap
+    if (!hasAnyContent) {
+        if (window.CanvasEmptyState && typeof window.CanvasEmptyState.dismiss === 'function') {
+            window.CanvasEmptyState.dismiss();
+        } else {
+            const emptyStateEl = document.getElementById('canvasEmptyState');
+            if (emptyStateEl) {
+                emptyStateEl.classList.add('is-hidden');
+                emptyStateEl.style.display = 'none';
+            }
+        }
+        return;
+    }
+
+    // 🌟 Durum 2: Tuvalde öge / çizim / fotoğraf varsa onay iste ve temizle
     if (typeof Swal !== 'undefined') {
         Swal.fire({
             title: 'Tuvali Temizle?',

@@ -750,6 +750,15 @@
     transform: translateY(-1px);
 }
 
+.saber-btn-primary.active,
+body[data-theme="light"] .saber-btn-primary.active,
+body[data-theme="dark"] .saber-btn-primary.active {
+    background: #0284c7 !important;
+    border-color: #38bdf8 !important;
+    color: #ffffff !important;
+    box-shadow: 0 0 12px rgba(2, 132, 199, 0.45) !important;
+}
+
 .saber-btn-danger {
     background: rgba(239, 68, 68, 0.15);
     border: 1.5px solid rgba(239, 68, 68, 0.4);

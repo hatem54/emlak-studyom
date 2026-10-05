@@ -480,6 +480,15 @@ function setDrawMode(mode, preserveSelection = false){
                 if (typeof window.updateDockLockUI === 'function') window.updateDockLockUI(true);
             }
         }
+        // Başlangıç ekranı kartları açıksa hemen kaldır (çizim alanını boşalt)
+        if (window.CanvasEmptyState && typeof window.CanvasEmptyState.dismiss === 'function') {
+            window.CanvasEmptyState.dismiss();
+        }
+    }
+    if (typeof saveDrawEdit === 'function' && typeof editingDrawIndex !== 'undefined' && editingDrawIndex >= 0) {
+        saveDrawEdit();
+    } else if (typeof window.saveDrawEdit === 'function' && typeof editingDrawIndex !== 'undefined' && editingDrawIndex >= 0) {
+        window.saveDrawEdit();
     }
     if (mode === 'off') {
         document.querySelectorAll('.editable-draw').forEach(el => {
@@ -492,11 +501,6 @@ function setDrawMode(mode, preserveSelection = false){
             if (typeof window.deselectAll === 'function') window.deselectAll();
             if (typeof hideVertexHandles === 'function') hideVertexHandles();
             if (typeof window.hideVertexHandles === 'function') window.hideVertexHandles();
-        }
-        if (typeof saveDrawEdit === 'function' && typeof editingDrawIndex !== 'undefined' && editingDrawIndex >= 0) {
-            saveDrawEdit();
-        } else if (typeof window.saveDrawEdit === 'function' && typeof editingDrawIndex !== 'undefined' && editingDrawIndex >= 0) {
-            window.saveDrawEdit();
         }
     } else {
         document.querySelectorAll('.editable-draw').forEach(el => {
@@ -560,7 +564,7 @@ function getDS(){
     const baseW = +$('drawWidth').value || 6;
     const scaleRatio = getDrawScaleRatio();
     const effWidth = Math.max(1, Math.round(baseW * scaleRatio));
-    const isNeonActive = !!window.tempDrawingHasNeon;
+    const isNeonActive = !!window.tempDrawingHasNeon || !!(window.saberApplyToAll && window.saberState && window.saberState.active);
     
     let drawCol = $('drawColor') ? $('drawColor').value : '#ef4444';
     if (isNeonActive && window.saberState && window.saberState.glowColor) {
@@ -843,11 +847,14 @@ function dEnd(e){
     }
 
     if (pObj) {
-        const isNeonNow = !!(pObj.hasSaber || pObj.saber);
+        const isNeonNow = !!(pObj.hasSaber || pObj.saber) || !!(window.saberApplyToAll && window.saberState && window.saberState.active);
         let activeNeonColor = pObj.color;
-        if (isNeonNow && pObj.saberOptions && pObj.saberOptions.glowColor) {
-            const gc = pObj.saberOptions.glowColor;
-            activeNeonColor = typeof gc === 'number' ? '#' + gc.toString(16).padStart(6, '0') : gc;
+        if (isNeonNow && (pObj.saberOptions || window.saberState)) {
+            const sOpts = pObj.saberOptions || window.saberState;
+            if (sOpts && sOpts.glowColor) {
+                const gc = sOpts.glowColor;
+                activeNeonColor = typeof gc === 'number' ? '#' + gc.toString(16).padStart(6, '0') : gc;
+            }
         }
         if (isNeonNow) {
             pObj.color = activeNeonColor;
@@ -879,7 +886,7 @@ function dEnd(e){
                         color: isNeonNow ? activeNeonColor : pObj.color,
                         hasSaber: isNeonNow,
                         saber: isNeonNow,
-                        saberOptions: isNeonNow ? pObj.saberOptions : null,
+                        saberOptions: isNeonNow ? (pObj.saberOptions || JSON.parse(JSON.stringify(window.saberState))) : null,
                         photoRef: photoRef,
                         el: el
                     });
@@ -967,11 +974,14 @@ function closePolygon(){
     const py = parseFloat(document.getElementById('photoYCtrl') ? document.getElementById('photoYCtrl').value : 50);
     const panel = getActivePhotoPanel();
     
-    const isNeonNow = !!(s && (s.hasSaber || s.saber));
+    const isNeonNow = !!(s && (s.hasSaber || s.saber)) || !!(window.saberApplyToAll && window.saberState && window.saberState.active);
     let activeNeonColor = s.color;
-    if (isNeonNow && s.saberOptions && s.saberOptions.glowColor) {
-        const gc = s.saberOptions.glowColor;
-        activeNeonColor = typeof gc === 'number' ? '#' + gc.toString(16).padStart(6, '0') : gc;
+    if (isNeonNow && (s.saberOptions || window.saberState)) {
+        const sOpts = s.saberOptions || window.saberState;
+        if (sOpts && sOpts.glowColor) {
+            const gc = sOpts.glowColor;
+            activeNeonColor = typeof gc === 'number' ? '#' + gc.toString(16).padStart(6, '0') : gc;
+        }
     }
 
     const pObj = Object.assign({
@@ -982,7 +992,7 @@ function closePolygon(){
         photoRef: typeof window.getCurrentPhotoState === 'function' ? window.getCurrentPhotoState() : null,
         hasSaber: isNeonNow,
         saber: isNeonNow,
-        saberOptions: isNeonNow ? s.saberOptions : null
+        saberOptions: isNeonNow ? (s.saberOptions || JSON.parse(JSON.stringify(window.saberState))) : null
     }, s);
     if (isNeonNow) {
         pObj.color = activeNeonColor;
@@ -1013,7 +1023,7 @@ function closePolygon(){
                     color: isNeonNow ? activeNeonColor : pObj.color,
                     hasSaber: isNeonNow,
                     saber: isNeonNow,
-                    saberOptions: isNeonNow ? s.saberOptions : null,
+                    saberOptions: isNeonNow ? (s.saberOptions || JSON.parse(JSON.stringify(window.saberState))) : null,
                     photoRef: typeof window.getCurrentPhotoState === 'function' ? window.getCurrentPhotoState() : null,
                     el: el
                 });
@@ -1799,32 +1809,97 @@ function clearAllDrawings(){
 window.clearAllDrawings = clearAllDrawings;
 
 function updateDrawHistory(){
-    const h=$('drawHistory');
+    const h = $('drawHistory');
     if (h) {
+        // Düzenleme paneli DOM ağacını koru (innerHTML sıfırlanmadan önce tab-draw'a taşı)
+        const editPanel = $('drawEditPanel');
+        const tabDraw = $('tab-draw');
+        if (editPanel && tabDraw && editPanel.parentElement !== tabDraw) {
+            editPanel.style.display = 'none';
+            tabDraw.appendChild(editPanel);
+        }
+
         if(!drawPaths.length){
-            h.innerHTML='<div style="text-align:center;color:#475569;font-size:10px;padding:8px">Henüz çizim yok</div>';
+            h.innerHTML = '<div style="text-align:center;color:#475569;font-size:10px;padding:8px">Henüz çizim yok</div>';
+            if (editPanel) editPanel.style.display = 'none';
         } else {
-            h.innerHTML='';
-            const names={free:'<i class="fas fa-pencil-alt"></i> Serbest',line:'<i class="fas fa-grip-lines"></i> Çizgi',arrow:'<i class="fas fa-arrow-right"></i> Ok',rect:'<i class="far fa-square"></i> Kare',circle:'<i class="far fa-circle"></i> Daire',polygon:'<i class="fas fa-draw-polygon"></i> Çokgen'};
-            drawPaths.forEach((p,i)=>{
-                const item=document.createElement('div');
-                item.className='draw-history-item' + (i === editingDrawIndex ? ' active' : '');
-                item.onclick = function(e) {
-                    if (e.target.closest('.dh-del, .dh-saber, .dh-saber-add, .dh-edit')) return;
-                    startDrawEdit(i, false);
+            h.innerHTML = '';
+            const typeLabels = {
+                free: 'Serbest',
+                line: 'Çizgi',
+                arrow: 'Ok',
+                rect: 'Kare',
+                circle: 'Daire',
+                polygon: 'Çokgen'
+            };
+            drawPaths.forEach((p, i) => {
+                const isOpen = (i === editingDrawIndex);
+                const typeName = typeLabels[p.type] || 'Çizim';
+                
+                const item = document.createElement('div');
+                item.className = 'dh-acc-item' + (isOpen ? ' open' : '');
+                item.dataset.index = i;
+                
+                // Başlık Satırı (Sadece metin, solda ikon yok)
+                const header = document.createElement('div');
+                header.className = 'dh-acc-header';
+                
+                const title = document.createElement('span');
+                title.className = 'dh-acc-title';
+                title.textContent = `${typeName} ${i + 1}`;
+                
+                const actions = document.createElement('div');
+                actions.className = 'dh-acc-actions';
+                
+                const delBtn = document.createElement('button');
+                delBtn.type = 'button';
+                delBtn.className = 'dh-acc-btn dh-acc-del';
+                delBtn.title = 'Sil';
+                delBtn.innerHTML = '<i class="fa-solid fa-trash-can"></i>';
+                delBtn.onclick = function(e) {
+                    e.stopPropagation();
+                    deleteDrawItem(i);
                 };
-                const saberBtn = p.hasSaber ? '' : `<button class="dh-btn dh-saber-add" onclick="addSaberToPath(${i})" title="Neon Ekle"><i class="fas fa-bolt"></i></button>`;
-                let activeColor = p.color;
-                if (p.hasSaber || p.saber) {
-                    const sOpts = p.saberOptions || (window.saberState && window.saberState.active ? window.saberState : null);
-                    if (sOpts && sOpts.glowColor) {
-                        activeColor = typeof sOpts.glowColor === 'number' 
-                            ? '#' + sOpts.glowColor.toString(16).padStart(6, '0') 
-                            : sOpts.glowColor;
+                
+                const arrowBtn = document.createElement('button');
+                arrowBtn.type = 'button';
+                arrowBtn.className = 'dh-acc-btn dh-acc-arrow';
+                arrowBtn.title = isOpen ? 'Kapat' : 'Düzenle';
+                arrowBtn.innerHTML = `<i class="fa-solid ${isOpen ? 'fa-chevron-up' : 'fa-chevron-down'}"></i>`;
+                
+                actions.appendChild(delBtn);
+                actions.appendChild(arrowBtn);
+                
+                header.appendChild(title);
+                header.appendChild(actions);
+                
+                // Başlığa tıklandığında akordiyonu aç/kapat (Exclusive: diğeri açıksa kapanır)
+                header.onclick = function(e) {
+                    if (e.target.closest('.dh-acc-del')) return;
+                    if (editingDrawIndex === i) {
+                        if (typeof window.saveDrawEdit === 'function') {
+                            window.saveDrawEdit();
+                        }
+                    } else {
+                        if (editingDrawIndex >= 0 && typeof window.saveDrawEdit === 'function') {
+                            window.saveDrawEdit();
+                        }
+                        startDrawEdit(i, true);
                     }
-                }
-                item.innerHTML='<span><span class="dh-color" style="background:'+activeColor+'"></span>'+(names[p.type]||p.type)+' #'+(i+1)+(p.fillOpacity>0?' <i class="fas fa-fill-drip" style="font-size:10px; margin-left:4px;"></i>':'')+'</span><span>'+saberBtn+'<button class="dh-btn dh-edit" onclick="startDrawEdit('+i+', true)" title="Düzenle"><i class="fas fa-pen"></i></button><button class="dh-btn dh-del" onclick="deleteDrawItem('+i+')" title="Sil"><i class="fas fa-trash"></i></button></span>';
+                };
+                
+                const body = document.createElement('div');
+                body.className = 'dh-acc-body';
+                body.style.display = isOpen ? 'block' : 'none';
+                
+                item.appendChild(header);
+                item.appendChild(body);
                 h.appendChild(item);
+                
+                if (isOpen && editPanel) {
+                    body.appendChild(editPanel);
+                    editPanel.style.display = 'block';
+                }
             });
         }
     }
@@ -1848,7 +1923,7 @@ function deleteDrawItem(i){
                     if (s.branchContainer && s.branchContainer.parent) s.branchContainer.parent.removeChild(s.branchContainer);
                     sabers.splice(saberIdx, 1);
                 }
-            } catch(e) { console.warn('Saber temizleme hatasÄ±:', e); }
+            } catch(e) { console.warn('Saber temizleme hatası:', e); }
         }
         if (path.el) {
             path.el.remove();
@@ -1858,10 +1933,24 @@ function deleteDrawItem(i){
             }
         }
     }
-    drawPaths.splice(i,1);
+    drawPaths.splice(i, 1);
+    if (editingDrawIndex === i) {
+        editingDrawIndex = -1;
+        originalDrawState = null;
+    } else if (editingDrawIndex > i) {
+        editingDrawIndex--;
+    }
+    const editPanel = $('drawEditPanel');
+    const tabDraw = $('tab-draw');
+    if (editPanel && tabDraw && editPanel.parentElement !== tabDraw) {
+        tabDraw.appendChild(editPanel);
+    }
+    if (editingDrawIndex === -1 && editPanel) {
+        editPanel.style.display = 'none';
+    }
     redrawAll();
     updateDrawHistory();
-    cancelDrawEdit();
+    if (typeof deselectAll === 'function') deselectAll();
 }
 
 let originalDrawState = null;
@@ -1945,6 +2034,7 @@ function startDrawEdit(i, showPanel = true, isMulti = false){
         if (p.type === 'arrow') {
             if ($('deArrowDir')) $('deArrowDir').value = p.arrowDir || 'outward';
             if ($('deArrowStyle')) $('deArrowStyle').value = p.arrowStyle || 1;
+            window.currentSelectedArrowStyle = p.arrowStyle || 1;
         }
     }
     
@@ -2004,15 +2094,16 @@ function startDrawEdit(i, showPanel = true, isMulti = false){
             $('deSaberGroundSpillVal').textContent = spill + '%';
         }
         if ($('deSaberEnergyNodes')) {
-            $('deSaberEnergyNodes').checked = currentOpts.energyNodes !== false;
+            $('deSaberEnergyNodes').checked = currentOpts.energyNodes === true;
         }
     }
     
     if($('drawEditPanel')) {
         $('drawEditPanel').style.display = showPanel ? 'block' : 'none';
     }
-    const names={free:'<i class="fas fa-pencil-alt"></i> Serbest',line:'<i class="fas fa-grip-lines"></i> Çizgi',arrow:'<i class="fas fa-arrow-right"></i> Ok',rect:'<i class="far fa-square"></i> Kare',circle:'<i class="far fa-circle"></i> Daire',polygon:'<i class="fas fa-draw-polygon"></i> Çokgen'};
-    if($('drawEditLabel')) $('drawEditLabel').innerHTML='#'+(i+1)+' '+(names[p.type]||'');
+    const typeLabels = { free: 'Serbest', line: 'Çizgi', arrow: 'Ok', rect: 'Kare', circle: 'Daire', polygon: 'Çokgen' };
+    const typeName = typeLabels[p.type] || 'Çizim';
+    if($('drawEditLabel')) $('drawEditLabel').textContent = `${typeName} #${i + 1}`;
     if(typeof updateDrawHistory === 'function') updateDrawHistory();
     if(typeof renderLayers === 'function') renderLayers();
 }
@@ -2048,7 +2139,12 @@ window.cancelDrawEdit = function(){
     }
     editingDrawIndex=-1;
     originalDrawState=null;
-    if($('drawEditPanel'))$('drawEditPanel').style.display='none';
+    const editPanel = $('drawEditPanel');
+    const tabDraw = $('tab-draw');
+    if (editPanel && tabDraw && editPanel.parentElement !== tabDraw) {
+        tabDraw.appendChild(editPanel);
+    }
+    if(editPanel) editPanel.style.display='none';
     if(typeof updateDrawHistory === 'function') updateDrawHistory();
     if(typeof renderLayers === 'function') renderLayers();
 };
@@ -2066,7 +2162,12 @@ window.saveDrawEdit = function(){
     }
     editingDrawIndex=-1;
     originalDrawState=null;
-    if($('drawEditPanel'))$('drawEditPanel').style.display='none';
+    const editPanel = $('drawEditPanel');
+    const tabDraw = $('tab-draw');
+    if (editPanel && tabDraw && editPanel.parentElement !== tabDraw) {
+        tabDraw.appendChild(editPanel);
+    }
+    if(editPanel) editPanel.style.display='none';
     redrawAll();
     updateDrawHistory();
     if(typeof renderLayers === 'function') renderLayers();
@@ -2080,18 +2181,39 @@ window.applyDrawEdit = function(){
 };
 
 window.toggleCurrentDrawNeon = function() {
-    if (typeof editingDrawIndex === 'undefined' || editingDrawIndex < 0 || typeof drawPaths === 'undefined' || !drawPaths[editingDrawIndex]) return;
+    if (typeof editingDrawIndex === 'undefined' || editingDrawIndex < 0 || typeof drawPaths === 'undefined' || !drawPaths[editingDrawIndex]) {
+        if (window.selectedEl && typeof drawPaths !== 'undefined') {
+            const idx = drawPaths.findIndex(p => p.el === window.selectedEl || (p.el && window.selectedEl && (p.el.contains(window.selectedEl) || window.selectedEl.contains(p.el))));
+            if (idx > -1) editingDrawIndex = idx;
+        }
+        if ((typeof editingDrawIndex === 'undefined' || editingDrawIndex < 0) && typeof drawPaths !== 'undefined' && drawPaths.length > 0) {
+            editingDrawIndex = drawPaths.length - 1;
+        }
+    }
+    if (typeof editingDrawIndex === 'undefined' || editingDrawIndex < 0 || !drawPaths[editingDrawIndex]) return;
     const p = drawPaths[editingDrawIndex];
     if (p.hasSaber || p.saber) {
-        if (window.removeSaberFromPath) window.removeSaberFromPath(editingDrawIndex);
+        if (window.removeSaberFromPath) {
+            window.removeSaberFromPath(editingDrawIndex);
+        }
         p.hasSaber = false;
         p.saber = false;
+        delete p.saberOptions;
+        delete p.saberRef;
     } else {
-        if (window.addSaberToPath) window.addSaberToPath(editingDrawIndex);
+        if (window.addSaberToPath) {
+            window.addSaberToPath(editingDrawIndex);
+        }
         p.hasSaber = true;
         p.saber = true;
     }
     startDrawEdit(editingDrawIndex, true);
+    if (p.el && typeof updateSinglePathSvg === 'function') {
+        updateSinglePathSvg(p);
+    }
+    if (typeof redrawAll === 'function') {
+        redrawAll();
+    }
     if (typeof updateDrawHistory === 'function') updateDrawHistory();
 };
 
@@ -2179,7 +2301,7 @@ window.liveUpdateDrawEdit = function(){
             flickerAmount: parseInt($('deSaberFlicker') ? $('deSaberFlicker').value : 5) / 100,
             pulseSpeed: parseFloat($('deSaberPulse') ? $('deSaberPulse').value : 0),
             groundSpill: parseInt($('deSaberGroundSpill') ? $('deSaberGroundSpill').value : 40) / 100,
-            energyNodes: $('deSaberEnergyNodes') ? $('deSaberEnergyNodes').checked : true,
+            energyNodes: $('deSaberEnergyNodes') ? $('deSaberEnergyNodes').checked : false,
             dashStyle: p.dashStyle || 'solid'
         };
         
@@ -2266,7 +2388,7 @@ function updateSinglePathSvg(p) {
     }
     const glowSize = Math.max(12, sOpts.glowSize || 28);
     const coreSize = Math.max(1.5, Math.min(sOpts.coreSize || Math.round(effectiveSvgWidth * 0.6) || 3, 30));
-    const showEnergyNodes = (sOpts.energyNodes !== false) && (p.type === 'polygon' || p.type === 'rect' || p.type === 'line' || p.showVertices);
+    const showEnergyNodes = (sOpts.energyNodes === true) && (p.type === 'polygon' || p.type === 'rect' || p.type === 'line' || p.showVertices);
 
     let defs = svg.querySelector('defs');
     if (!defs) {
@@ -2495,7 +2617,7 @@ function createSVGFromPath(p) {
 
     const glowSize = Math.max(12, sOpts.glowSize || 28);
     const coreSize = (sOpts.coreSize !== undefined && sOpts.coreSize !== null) ? Number(sOpts.coreSize) : 0;
-    const showEnergyNodes = (sOpts.energyNodes !== false) && (p.type === 'polygon' || p.type === 'rect' || p.type === 'line' || p.showVertices);
+    const showEnergyNodes = (sOpts.energyNodes === true) && (p.type === 'polygon' || p.type === 'rect' || p.type === 'line' || p.showVertices);
 
     // Elemanın seçim alanı (blue bounding box) tam şekil üzerine otursun; SVG overflow:visible olduğundan taşan efektler kırpılmaz
     const padding = 0;
@@ -2845,9 +2967,13 @@ window.showVertexHandles = function(el) {
     
     let points = [];
     if (isArrow && lineEl) {
+        const rx1 = parseFloat(lineEl.dataset.rawX1 !== undefined ? lineEl.dataset.rawX1 : lineEl.getAttribute('x1')) || 0;
+        const ry1 = parseFloat(lineEl.dataset.rawY1 !== undefined ? lineEl.dataset.rawY1 : lineEl.getAttribute('y1')) || 0;
+        const rx2 = parseFloat(lineEl.dataset.rawX2 !== undefined ? lineEl.dataset.rawX2 : lineEl.getAttribute('x2')) || 0;
+        const ry2 = parseFloat(lineEl.dataset.rawY2 !== undefined ? lineEl.dataset.rawY2 : lineEl.getAttribute('y2')) || 0;
         points = [
-            {x: parseFloat(lineEl.getAttribute('x1')), y: parseFloat(lineEl.getAttribute('y1'))},
-            {x: parseFloat(lineEl.getAttribute('x2')), y: parseFloat(lineEl.getAttribute('y2'))}
+            { x: rx1, y: ry1 },
+            { x: rx2, y: ry2 }
         ];
     } else if (polygon) {
         if (el.dataset.polygonPoints) {
@@ -3192,16 +3318,21 @@ window.showVertexHandles = function(el) {
             const nx1 = points[0].x, ny1 = points[0].y;
             const nx2 = points[1].x, ny2 = points[1].y;
             
+            let pIdx = parseInt(el.dataset.pathIndex);
+            let pObj = (typeof drawPaths !== 'undefined' && drawPaths[pIdx]) ? drawPaths[pIdx] : (typeof drawPaths !== 'undefined' ? drawPaths.find(dp => dp.el === el) : null);
+            if (pObj && (isNaN(pIdx) || pIdx < 0 || pIdx >= drawPaths.length)) {
+                pIdx = drawPaths.indexOf(pObj);
+            }
+            const isNeon = !!(pObj && (pObj.hasSaber || pObj.saber));
+            
             if (isArrow) {
-                let pIdx = parseInt(el.dataset.pathIndex);
-                let pObj = (typeof drawPaths !== 'undefined' && drawPaths[pIdx]) ? drawPaths[pIdx] : (typeof drawPaths !== 'undefined' ? drawPaths.find(dp => dp.el === el) : null);
-                
                 const pWidth = pObj ? pObj.width : (parseFloat(el.dataset.drawWidth) || 6);
                 const pColor = pObj ? pObj.color : (el.dataset.drawColor || lineEl.getAttribute('stroke') || '#ef4444');
                 const s = pObj ? (pObj.arrowStyle || 1) : (parseInt(el.dataset.arrowStyle) || 1);
                 const dir = pObj ? (pObj.arrowDir || 'outward') : (el.dataset.arrowDir || 'outward');
-                const filterAttr = (pObj && pObj.hasSaber) ? `filter="url(#saber-glow-${pIdx})"` : '';
-                const fillStr = `fill="${pColor}"`;
+                const filterAttr = isNeon ? `filter="url(#saber-glow-${pIdx})"` : '';
+                const strokeColor = isNeon ? 'transparent' : pColor;
+                const fillStr = `fill="${isNeon ? 'transparent' : pColor}"`;
                 
                 const a = Math.atan2(ny2 - ny1, nx2 - nx1);
                 const baseH = Math.max(pWidth * 4.5, 14);
@@ -3224,11 +3355,14 @@ window.showVertexHandles = function(el) {
                 lineEl.dataset.rawY1 = ny1;
                 lineEl.dataset.rawX2 = nx2;
                 lineEl.dataset.rawY2 = ny2;
+                if (isNeon) {
+                    lineEl.setAttribute('stroke', 'transparent');
+                }
                 
                 const oldHeads = svg.querySelectorAll('.arrow-heads-group, polygon:not(.main-polygon), polyline, circle, rect');
                 oldHeads.forEach(h => h.remove());
                 
-                const headsHtml = window.renderSvgArrowHeadsGroup(nx1, ny1, nx2, ny2, a, pWidth, pColor, fillStr, filterAttr, s, dir);
+                const headsHtml = window.renderSvgArrowHeadsGroup(nx1, ny1, nx2, ny2, a, pWidth, strokeColor, fillStr, filterAttr, s, dir);
                 
                 const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
                 g.className.baseVal = 'arrow-heads-group';
@@ -3239,28 +3373,35 @@ window.showVertexHandles = function(el) {
                 lineEl.setAttribute('y1', ny1);
                 lineEl.setAttribute('x2', nx2);
                 lineEl.setAttribute('y2', ny2);
+                if (isNeon) {
+                    lineEl.setAttribute('stroke', 'transparent');
+                }
                 
                 const coreLine = svg.querySelector('.arrow-shaft-core, .neon-hot-core');
                 if (coreLine) {
-                    coreLine.setAttribute('x1', nx1);
-                    coreLine.setAttribute('y1', ny1);
-                    coreLine.setAttribute('x2', nx2);
-                    coreLine.setAttribute('y2', ny2);
+                    if (isNeon) {
+                        coreLine.remove();
+                    } else {
+                        coreLine.setAttribute('x1', nx1);
+                        coreLine.setAttribute('y1', ny1);
+                        coreLine.setAttribute('x2', nx2);
+                        coreLine.setAttribute('y2', ny2);
+                    }
                 }
             }
                 
-                if (pObj) {
-                    const baseL = parseFloat(el.dataset.baseLeft !== undefined ? el.dataset.baseLeft : el.style.left) || 0;
-                    const baseT = parseFloat(el.dataset.baseTop !== undefined ? el.dataset.baseTop : el.style.top) || 0;
-                    pObj.x1 = baseL + nx1;
-                    pObj.y1 = baseT + ny1;
-                    pObj.x2 = baseL + nx2;
-                    pObj.y2 = baseT + ny2;
-                    
-                    if (pObj.hasSaber && window.applySaberToPath) {
-                        applySaberToPath(pIdx, pObj.saberOptions);
-                    }
+            if (pObj) {
+                const baseL = parseFloat(el.dataset.baseLeft !== undefined ? el.dataset.baseLeft : el.style.left) || 0;
+                const baseT = parseFloat(el.dataset.baseTop !== undefined ? el.dataset.baseTop : el.style.top) || 0;
+                pObj.x1 = baseL + nx1;
+                pObj.y1 = baseT + ny1;
+                pObj.x2 = baseL + nx2;
+                pObj.y2 = baseT + ny2;
+                
+                if (isNeon && window.applySaberToPath && pIdx >= 0) {
+                    window.applySaberToPath(pIdx, pObj.saberOptions || window.saberState);
                 }
+            }
         };
 
         const h1 = createHandle(points[0], 0, (nx, ny) => {
@@ -3765,12 +3906,30 @@ window.showVertexHandles = function(el) {
             const pIdx = (typeof drawPaths !== 'undefined') ? drawPaths.findIndex(p => p.el === el) : -1;
             if (pIdx > -1) {
                 const pObj = drawPaths[pIdx];
-                pObj.x1 = baseL;
-                pObj.y1 = baseT;
-                pObj.x2 = baseL + curW;
-                pObj.y2 = baseT + curH;
-                
-                if (pObj.type === 'rect') {
+                if (pObj.type === 'arrow' || pObj.type === 'line') {
+                    const shaft = svgEl ? svgEl.querySelector('line.arrow-shaft, line') : null;
+                    const oldRawX1 = shaft && shaft.dataset.rawX1 !== undefined ? parseFloat(shaft.dataset.rawX1) : (shaft ? parseFloat(shaft.getAttribute('x1')) : (pObj.x1 - baseL));
+                    const oldRawY1 = shaft && shaft.dataset.rawY1 !== undefined ? parseFloat(shaft.dataset.rawY1) : (shaft ? parseFloat(shaft.getAttribute('y1')) : (pObj.y1 - baseT));
+                    const oldRawX2 = shaft && shaft.dataset.rawX2 !== undefined ? parseFloat(shaft.dataset.rawX2) : (shaft ? parseFloat(shaft.getAttribute('x2')) : (pObj.x2 - baseL));
+                    const oldRawY2 = shaft && shaft.dataset.rawY2 !== undefined ? parseFloat(shaft.dataset.rawY2) : (shaft ? parseFloat(shaft.getAttribute('y2')) : (pObj.y2 - baseT));
+                    
+                    const newRawX1 = Math.round(oldRawX1 * scaleX * 10) / 10;
+                    const newRawY1 = Math.round(oldRawY1 * scaleY * 10) / 10;
+                    const newRawX2 = Math.round(oldRawX2 * scaleX * 10) / 10;
+                    const newRawY2 = Math.round(oldRawY2 * scaleY * 10) / 10;
+                    
+                    pObj.x1 = baseL + newRawX1;
+                    pObj.y1 = baseT + newRawY1;
+                    pObj.x2 = baseL + newRawX2;
+                    pObj.y2 = baseT + newRawY2;
+                    
+                    if (shaft) {
+                        shaft.dataset.rawX1 = newRawX1;
+                        shaft.dataset.rawY1 = newRawY1;
+                        shaft.dataset.rawX2 = newRawX2;
+                        shaft.dataset.rawY2 = newRawY2;
+                    }
+                } else if (pObj.type === 'rect') {
                     const rPts = [
                         {x: 0, y: 0},
                         {x: curW, y: 0},

@@ -1378,6 +1378,9 @@ document.addEventListener('pointerdown', function(e) {
 
     // Boşa tıklandığında seçimi ve tutamaçları temizle ("boşa tıklayınca gitmeli")
     if (typeof deselectAll === 'function') deselectAll();
+    if (typeof window.saveDrawEdit === 'function' && typeof editingDrawIndex !== 'undefined' && editingDrawIndex >= 0) {
+        window.saveDrawEdit();
+    }
     if (window.ThreeDGrouping && typeof window.ThreeDGrouping.clearSelection === 'function') {
         window.ThreeDGrouping.clearSelection();
     }
@@ -1543,7 +1546,8 @@ document.addEventListener('DOMContentLoaded', () => {
         let startPanelX = 0, startPanelY = 0;
 
         panel.addEventListener('touchstart', (e) => {
-            if((!window.isMobileDevice())) return; // Only on mobile
+            const isMob = (typeof window.isMobileDevice === 'function') ? window.isMobileDevice() : (window.innerWidth <= 768);
+            if(!isMob) return; // Only on mobile
             
             const isFloating = document.body.classList.contains('floating-panels-active');
             const tgt = e.target;

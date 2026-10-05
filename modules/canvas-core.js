@@ -59,8 +59,11 @@ function resizeCanvas(){
     
     const formatSelect = document.getElementById('previewFormat');
     let hasImage = typeof uploadedImgUrl !== 'undefined' && uploadedImgUrl && typeof uploadedImgW !== 'undefined' && uploadedImgW > 0;
+    const isMobile = (typeof window.isMobileDevice === 'function') 
+        ? window.isMobileDevice() 
+        : ((window.innerWidth <= 768) || /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent));
 
-    if (!hasImage && window.isMobileDevice() && !window.userHasManuallyChangedFormat) {
+    if (!hasImage && isMobile && !window.userHasManuallyChangedFormat) {
         const isLand = window.innerWidth > window.innerHeight;
         
         // Cihaz yönüne göre varsayılan formatı otomatik seç (Dikey için daha geniş 4:5 Instagram Portrait)
@@ -75,7 +78,7 @@ function resizeCanvas(){
 
         canvasW = isLand ? 1920 : 1080;
         canvasH = isLand ? 1080 : 1350;
-    } else if (hasImage && window.isMobileDevice() && !window.userHasManuallyChangedFormat) {
+    } else if (hasImage && isMobile && !window.userHasManuallyChangedFormat) {
         // [MOBİL] Canvas oranı yüklenen görselin orijinal oranını korur
         canvasW = uploadedImgW;
         canvasH = uploadedImgH;

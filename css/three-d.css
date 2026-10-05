@@ -1040,6 +1040,22 @@ body[data-theme="light"] .dock-3d-btn-free.active {
     pointer-events: none;
 }
 
+.three-d-gizmo-center-move {
+    fill: rgba(14, 165, 233, 0.14);
+    stroke: #0284c7;
+    stroke-width: calc(1.5px * var(--gizmo-scale, 1.0));
+    filter: drop-shadow(0 0 3px rgba(2, 132, 199, 0.45));
+    cursor: move !important;
+    pointer-events: all;
+    transition: fill 0.15s ease, stroke 0.15s ease, stroke-width 0.15s ease;
+}
+
+.three-d-gizmo-center-move:hover {
+    fill: rgba(14, 165, 233, 0.35);
+    stroke: #0ea5e9;
+    stroke-width: calc(2.2px * var(--gizmo-scale, 1.0));
+}
+
 /* 3D Quadrant Arcs (Döndürme Yayları) */
 .three-d-gizmo-arc {
     fill: none;
@@ -1267,10 +1283,13 @@ body[data-theme="light"] .dock-3d-btn-free.active {
     animation: none;
 }
 
-/* Tüm 3D Gizmo Alanı İçin Standart Windows Oku (El/Grab Yerine) */
+/* Tüm 3D Gizmo Alanı İçin Standart Windows Oku (Merkez taşıma halkası hariç) */
 .three-d-gizmo-overlay,
-.three-d-gizmo-overlay * {
+.three-d-gizmo-overlay *:not(.three-d-gizmo-center-move) {
     cursor: default !important;
+}
+.three-d-gizmo-center-move {
+    cursor: move !important;
 }
 
 @keyframes sunPulse {

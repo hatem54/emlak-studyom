@@ -115,10 +115,15 @@ function sanitizeExportClone(clonedDoc) {
         if (clonedContainer) {
             const origContainer = document.getElementById('canvas-container');
             const origW = origContainer ? (parseInt(origContainer.style.width) || origContainer.offsetWidth || 1920) : 1920;
-            const origH = origContainer ? (parseInt(origContainer.style.height) || origContainer.offsetHeight || 1080) : 1080;
-            clonedContainer.style.setProperty('background-color', 'transparent', 'important');
-            clonedContainer.style.backgroundColor = 'transparent';
-            clonedContainer.style.background = 'transparent';
+            const origBgImg = origContainer ? (origContainer.style.backgroundImage || '') : '';
+            if (origBgImg && origBgImg !== 'none' && origBgImg.includes('gradient')) {
+                clonedContainer.style.setProperty('background-image', origBgImg, 'important');
+                clonedContainer.style.setProperty('background-color', 'transparent', 'important');
+            } else {
+                clonedContainer.style.setProperty('background-color', 'transparent', 'important');
+                clonedContainer.style.backgroundColor = 'transparent';
+                clonedContainer.style.background = 'transparent';
+            }
             clonedContainer.style.transform = 'none';
             clonedContainer.style.webkitTransform = 'none';
             clonedContainer.style.position = 'relative';
@@ -129,6 +134,11 @@ function sanitizeExportClone(clonedDoc) {
             clonedContainer.style.margin = '0px';
             clonedContainer.style.padding = '0px';
             clonedContainer.style.overflow = 'hidden';
+
+            const clonedPhotoLayer = clonedDoc.getElementById('photo-layer');
+            if (clonedPhotoLayer && (!window.uploadedImgUrl || clonedPhotoLayer.style.backgroundImage === 'none')) {
+                clonedPhotoLayer.style.setProperty('background-color', 'transparent', 'important');
+            }
         }
         const clonedUi = clonedDoc.getElementById('ui-layer');
         if (clonedUi) {

@@ -56,7 +56,7 @@
         posY: 0,               // Düzlem üzerinde Y konumu
         posZ: 0,               // Düzlem üzerinde Z derinlik konumu (Grid ile birlikte hareket eder)
         cornerPinActive: false,// 4 Köşe Tutamaç modu aktif mi?
-        gizmoActive: true,     // After Effects tarzı 3D Eksen Gizmo modu aktif mi?
+        gizmoActive: true,     // 🌟 Varsayılan 3D Gizmo Aktif (Öge seçilince/eklenince gizmo gelir, serbest taşıma için alttan kapatılabilir)
         gizmoScale: 1.0,       // Tutamaç boyutu ölçeği (0.6 - 2.0) -> Varsayılan %100 (zarif, estetik ve kompakt)
         gizmoAutoFit: true,    // Nesne ve metin boyutuna göre akıllı orantılama
         gizmoDistance: 75,     // Eksen açılma mesafesi (40px - 200px) -> Varsayılan 75px (ögeye yakın ve dengeli)
@@ -383,6 +383,20 @@
         return box;
     }
 
+    function getElementEstimatedDimensions(el) {
+        if (!el) return { w: 200, h: 80 };
+        try {
+            const lBox = getElementLocalBoundingBox(el);
+            if (lBox && !lBox.isEmpty()) {
+                const scale = (el.planeScale || 1.0);
+                const w = Math.max(40, (lBox.max.x - lBox.min.x) * scale);
+                const h = Math.max(30, (lBox.max.y - lBox.min.y) * scale);
+                return { w: Math.round(w), h: Math.round(h) };
+            }
+        } catch(e){}
+        return { w: 200, h: 80 };
+    }
+
     function getGlobalShadowPlane() {
         if (!scene || !window.THREE) return null;
         if (!globalShadowPlane) {
@@ -519,6 +533,7 @@
     let loadedFont = null;
     let isDragging = false;
     let dragStart = { x: 0, y: 0 };
+    let rawDragPos = { x: 0, y: 0 };
     let dragMode = 'move';     // 'move' | 'rotate'
 
     // 🎯 4 KÖŞE TUTAMAÇ VERİLERİ (Corner Pin Coordinates)
@@ -4698,6 +4713,8 @@
                 <line id="threeDGizmoSunLine" class="three-d-gizmo-sun-line" x1="0" y1="0" x2="0" y2="0"></line>
                 <!-- Merkez Pivot Referans Noktası (Kaba buton yerine estetik pivot) -->
                 <circle id="threeDGizmoOriginDot" class="three-d-gizmo-origin-dot" cx="0" cy="0" r="3.5"></circle>
+                <!-- Merkez Serbest Taşıma Tutamacı (Gizmo açıkken bile merkezden tutup serbest taşıma sağlar) -->
+                <circle id="threeDGizmoCenterMove" class="three-d-gizmo-center-move" cx="0" cy="0" r="16" title="Serbest Taşı"></circle>
             </svg>
             <!-- Eksen Ucu Tutamaçları (Kaydırma / Eksen Boyunca Taşıma) -->
             <div id="threeDGizmoTipX" class="three-d-gizmo-tip three-d-gizmo-tip-x" title="X Ekseni: Sol / Sağ">X</div>
@@ -4715,6 +4732,12 @@
         container.appendChild(overlay);
         gizmoOverlayEl = overlay;
         attachGizmoEvents(overlay);
+        overlay.addEventListener('dblclick', (e) => {
+            if (e.button !== 0) return;
+            showStudioPanel();
+            e.stopPropagation();
+            e.preventDefault();
+        });
         overlay.addEventListener('contextmenu', (e) => {
             if (!state.active) return;
             if (e.target.closest && e.target.closest('.callout-wrap, .callout-item, .co-neon-block, .canvas-icon, .draggable, .added-icon, .cvi-item, .editable-draw, .canvas-el, .cvi-badge-box, [data-layer-uid]')) {
@@ -4772,6 +4795,13 @@
             btn.classList.toggle('active', state.gizmoActive);
             btn.innerHTML = '<i class="fas fa-arrows-spin"></i> 3D Eksen Gizmo';
         }
+
+        // Alt Dock butonlarını senkronize et
+        const btnFree = document.getElementById('dock3DBtnFree');
+        const btnGizmo = document.getElementById('dock3DBtnGizmo');
+        if (btnFree) btnFree.classList.toggle('active', !state.gizmoActive);
+        if (btnGizmo) btnGizmo.classList.toggle('active', !!state.gizmoActive);
+
         notifyExternalUpdates();
     }
 
@@ -5056,6 +5086,13 @@
             originDot.setAttribute('r', (3.5 * effectiveGizmoScale).toFixed(1));
         }
 
+        const centerMove = gizmoOverlayEl.querySelector('#threeDGizmoCenterMove');
+        if (centerMove) {
+            centerMove.setAttribute('cx', cx);
+            centerMove.setAttribute('cy', cy);
+            centerMove.setAttribute('r', (16 * effectiveGizmoScale).toFixed(1));
+        }
+
         // HTML Tutamaçları ve Noktaları Konumlandır
         const tipXEl = gizmoOverlayEl.querySelector('#threeDGizmoTipX');
         const tipYEl = gizmoOverlayEl.querySelector('#threeDGizmoTipY');
@@ -5096,6 +5133,95 @@
     }
 
     function attachGizmoEvents(overlay) {
+        // 0. Merkez Serbest Taşıma Tutamacı (Gizmo açıkken bile merkezden tutup 2D serbest taşıma sağlar)
+        const centerMove = overlay.querySelector('#threeDGizmoCenterMove');
+        if (centerMove) {
+            let isDragging = false;
+            let lastClientX = 0, lastClientY = 0;
+            let rawPosX = 0, rawPosY = 0;
+            const startCenterDrag = (e) => {
+                isDragging = true;
+                lastClientX = e.clientX;
+                lastClientY = e.clientY;
+                rawPosX = (state.posX || 0);
+                rawPosY = (state.posY || 0);
+                try { centerMove.setPointerCapture(e.pointerId); } catch(ex){}
+                e.stopPropagation();
+                e.preventDefault();
+            };
+            centerMove.addEventListener('pointerdown', startCenterDrag);
+
+            const onCenterMove = (e) => {
+                if (!isDragging) return;
+                const sf = (typeof window.getGlobalScale === 'function') ? window.getGlobalScale() : ((typeof window.scaleFactor === 'number' && window.scaleFactor > 0) ? window.scaleFactor : 1.0);
+                const screenDx = e.clientX - lastClientX;
+                const screenDy = e.clientY - lastClientY;
+                lastClientX = e.clientX;
+                lastClientY = e.clientY;
+
+                const dx = screenDx / sf;
+                const dy = screenDy / sf;
+                const projX = dx * axisScreenDirs.x.x + dy * axisScreenDirs.x.y;
+                const projY = dx * axisScreenDirs.y.x + dy * axisScreenDirs.y.y;
+                const deltaPosX = projX / Math.max(0.001, axisPixelsPerUnit.x);
+                const deltaPosY = projY / Math.max(0.001, axisPixelsPerUnit.y);
+                rawPosX += deltaPosX;
+                rawPosY += deltaPosY;
+
+                // 🧲 Akıllı Manyetik Hizalama (Smart Guides)
+                if (window.isSmartGuidesEnabled && window.SmartGuides && typeof window.SmartGuides.snap === 'function') {
+                    const { w: cw, h: ch } = window.SmartGuides.getCanvasDimensions();
+                    const dims = getElementEstimatedDimensions(getActiveElement());
+                    const curW = dims.w;
+                    const curH = dims.h;
+                    const unSnappedLeft = (cw / 2 + rawPosX) - curW / 2;
+                    const unSnappedTop = (ch / 2 - rawPosY) - curH / 2;
+                    const snapped = window.SmartGuides.snap({ is3D: true, activeElementId }, unSnappedLeft, unSnappedTop, curW, curH);
+                    state.posX = Math.round((snapped.left + curW / 2) - cw / 2);
+                    state.posY = Math.round(-((snapped.top + curH / 2) - ch / 2));
+                } else {
+                    state.posX = Math.round(rawPosX);
+                    state.posY = Math.round(rawPosY);
+                    if (window.SmartGuides) window.SmartGuides.clear();
+                }
+
+                updateContentTransform();
+                updateGizmoPositions();
+                if (window.ThreeDGrouping && typeof window.ThreeDGrouping.propagateDragDelta === 'function') {
+                    window.ThreeDGrouping.propagateDragDelta(getActiveElement(), deltaPosX, deltaPosY);
+                } else if (window.ThreeDGrouping && typeof window.ThreeDGrouping.updateSelectionVisuals === 'function') {
+                    window.ThreeDGrouping.updateSelectionVisuals();
+                }
+                notifyExternalUpdates(false);
+                requestRender();
+                showGizmoHud(`📍 Konum: X: ${Math.round(state.posX)}, Y: ${Math.round(state.posY)}`, e.clientX, e.clientY);
+            };
+
+            const onCenterUp = (e) => {
+                if (!isDragging) return;
+                isDragging = false;
+                try { centerMove.releasePointerCapture(e.pointerId); } catch(ex){}
+                if (window.SmartGuides && typeof window.SmartGuides.clear === 'function') {
+                    window.SmartGuides.clear();
+                }
+                hideGizmoHud();
+                syncControlsUI();
+                notifyExternalUpdates(true);
+                if (window.ThreeDGrouping && typeof window.ThreeDGrouping.updateSelectionVisuals === 'function') {
+                    window.ThreeDGrouping.updateSelectionVisuals();
+                }
+                if (typeof window.recordHistory === 'function') {
+                    window.recordHistory('3D Öge Taşındı');
+                }
+            };
+
+            centerMove.addEventListener('pointermove', onCenterMove);
+            centerMove.addEventListener('pointerup', onCenterUp);
+            centerMove.addEventListener('pointercancel', onCenterUp);
+            window.addEventListener('pointermove', onCenterMove);
+            window.addEventListener('pointerup', onCenterUp);
+        }
+
         // 1. Tip X & Ok Ucu / Çizgisi (X Ekseni Kaydırma - Ok Yönünde İzdüşüm)
         const tipX = overlay.querySelector('#threeDGizmoTipX');
         const lineX = overlay.querySelector('#threeDGizmoLineX');
@@ -5837,10 +5963,15 @@
                 }
             }
 
-            // 🎯 Panel de sol panel üzerinde açılsın
-            const panel = ensureStudioPanel();
-            if (panel) {
-                panel.style.display = 'flex';
+            // 🎯 Panel sadece kullanıcı açıkça çift tıkladığında veya panel zaten açıkken güncellensin
+            const panel = document.getElementById('threeDStudioPanel');
+            if (options && options.openPanel === true) {
+                const p = ensureStudioPanel();
+                if (p) {
+                    p.style.display = 'flex';
+                    positionStudioPanelOverLeftPanel(p);
+                }
+            } else if (panel && panel.style.display === 'flex') {
                 positionStudioPanelOverLeftPanel(panel);
             }
 
@@ -5928,6 +6059,11 @@
             e.preventDefault();
             toggleSelection();
         });
+        badge.addEventListener('dblclick', (e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            showStudioPanel();
+        });
         container.appendChild(badge);
         canvasBadgeEl = badge;
         updateSelectionUI();
@@ -5988,6 +6124,9 @@
      */
     function attachCanvasEvents(cvs) {
         let isPointerDown = false;
+        let lastCvsDownTime = 0;
+        let lastCvsDownX = 0;
+        let lastCvsDownY = 0;
 
         cvs.addEventListener('pointerdown', (e) => {
             if (!state.active || state.cornerPinActive) return;
@@ -5995,6 +6134,40 @@
             // 🎯 Sağ tık (e.button === 2) contextmenu olayını tetiklesin, pointer yakalama veya preventDefault yapma!
             if (e.button === 2) {
                 return;
+            }
+
+            // 🎯 Tuval veya 3D öge üzerine Çift Tıklama Yakalayıcı (3D metne çift tıklandığında paneli açar)
+            if (e.button === 0) {
+                const now = Date.now();
+                const timeDiff = now - lastCvsDownTime;
+                const distDiff = Math.hypot(e.clientX - lastCvsDownX, e.clientY - lastCvsDownY);
+                if (timeDiff > 40 && timeDiff < 450 && distDiff < 30) {
+                    const hit3DEl = check3DHit(e.clientX, e.clientY);
+                    if (hit3DEl) {
+                        setActiveElement(hit3DEl);
+                        state.gizmoActive = true;
+                        setSelected(true, { silent: true, openPanel: true });
+                        showStudioPanel();
+                        lastCvsDownTime = 0;
+                        isPointerDown = false;
+                        e.stopPropagation();
+                        e.preventDefault();
+                        return;
+                    }
+                    const isCanvasZoomed = typeof window.pinchScale !== 'undefined' && 
+                        (window.pinchScale !== 1 || window.pinchPanX !== 0 || window.pinchPanY !== 0);
+                    if (isCanvasZoomed && typeof window.resetCanvasZoom === 'function') {
+                        lastCvsDownTime = 0;
+                        isPointerDown = false;
+                        window.resetCanvasZoom(true);
+                        e.stopPropagation();
+                        e.preventDefault();
+                        return;
+                    }
+                }
+                lastCvsDownTime = now;
+                lastCvsDownX = e.clientX;
+                lastCvsDownY = e.clientY;
             }
 
             // 🎯 3D üzeri 2D öge tıklama koruması: Sadece gerçekten görünür bir 2D öğe varsa engelle
@@ -6012,6 +6185,7 @@
                 }
             } catch(ex){}
 
+            if (window.spaceBarPressed || (e.type === 'pointerdown' && e.button === 1)) return; // Space veya orta tık tuval pan'e aittir
             const hitEl = check3DHit(e.clientX, e.clientY);
             const isRotateModifier = (e.altKey || e.shiftKey);
             if (!hitEl && !isRotateModifier) {
@@ -6038,6 +6212,10 @@
                 if (targetEl.id !== activeElementId) {
                     setActiveElement(targetEl);
                 }
+                // 🌟 Ögeye tıklandığında Gizmo'yu aktif yap ve seçimi tazele
+                state.gizmoActive = true;
+                setSelected(true, { silent: true });
+                updateDock3DControlsState();
             }
 
             if (hitEl && hitEl.locked && !isRotateModifier) {
@@ -6050,6 +6228,8 @@
             isPointerDown = true;
             dragStart.x = e.clientX;
             dragStart.y = e.clientY;
+            rawDragPos.x = (state.posX || 0);
+            rawDragPos.y = (state.posY || 0);
             dragMode = isRotateModifier ? 'rotate' : 'move';
             cvs.style.cursor = (dragMode === 'move') ? 'default' : 'crosshair';
             cvs.setPointerCapture(e.pointerId);
@@ -6088,15 +6268,33 @@
                 }
             } else {
                 // 🎯 3D Perspektif Eksen İzdüşümleriyle Doğal Taşıma
-                const sf = (typeof window.scaleFactor === 'number' && window.scaleFactor > 0) ? window.scaleFactor : 1.0;
+                const sf = (typeof window.getGlobalScale === 'function') ? window.getGlobalScale() : ((typeof window.scaleFactor === 'number' && window.scaleFactor > 0) ? window.scaleFactor : 1.0);
                 const dx = screenDx / sf;
                 const dy = screenDy / sf;
                 const projX = dx * axisScreenDirs.x.x + dy * axisScreenDirs.x.y;
                 const projY = dx * axisScreenDirs.y.x + dy * axisScreenDirs.y.y;
                 const deltaPosX = projX / Math.max(0.001, axisPixelsPerUnit.x);
                 const deltaPosY = projY / Math.max(0.001, axisPixelsPerUnit.y);
-                state.posX += deltaPosX;
-                state.posY += deltaPosY;
+                rawDragPos.x += deltaPosX;
+                rawDragPos.y += deltaPosY;
+
+                // 🧲 Akıllı Manyetik Hizalama (Smart Guides)
+                if (window.isSmartGuidesEnabled && window.SmartGuides && typeof window.SmartGuides.snap === 'function') {
+                    const { w: cw, h: ch } = window.SmartGuides.getCanvasDimensions();
+                    const dims = getElementEstimatedDimensions(getActiveElement());
+                    const curW = dims.w;
+                    const curH = dims.h;
+                    const unSnappedLeft = (cw / 2 + rawDragPos.x) - curW / 2;
+                    const unSnappedTop = (ch / 2 - rawDragPos.y) - curH / 2;
+                    const snapped = window.SmartGuides.snap({ is3D: true, activeElementId }, unSnappedLeft, unSnappedTop, curW, curH);
+                    state.posX = Math.round((snapped.left + curW / 2) - cw / 2);
+                    state.posY = Math.round(-((snapped.top + curH / 2) - ch / 2));
+                } else {
+                    state.posX = Math.round(rawDragPos.x);
+                    state.posY = Math.round(rawDragPos.y);
+                    if (window.SmartGuides) window.SmartGuides.clear();
+                }
+
                 updateContentTransform();
                 showGizmoHud(`📍 Konum: X: ${Math.round(state.posX)}, Y: ${Math.round(state.posY)}`, e.clientX, e.clientY);
 
@@ -6114,6 +6312,9 @@
         const onPointerUp = (e) => {
             if (!isPointerDown) return;
             isPointerDown = false;
+            if (window.SmartGuides && typeof window.SmartGuides.clear === 'function') {
+                window.SmartGuides.clear();
+            }
             hideGizmoHud();
             try { cvs.releasePointerCapture(e.pointerId); } catch(ex){}
             cvs.style.cursor = 'default';
@@ -6175,6 +6376,19 @@
             notifyExternalUpdates();
             requestRender();
         }, { passive: false });
+
+        cvs.addEventListener('dblclick', (e) => {
+            if (e.button !== 0) return;
+            const hitEl = check3DHit(e.clientX, e.clientY);
+            if (hitEl) {
+                setActiveElement(hitEl);
+                state.gizmoActive = true;
+                setSelected(true, { silent: true, openPanel: true });
+                showStudioPanel();
+                e.stopPropagation();
+                e.preventDefault();
+            }
+        });
 
         // 🎯 Tuval Konteyneri Dinleyicileri (Seçim kapalıyken tıklamayla doğrudan seçme & Hover cursor)
         const container = document.getElementById('canvas-container');
@@ -6286,6 +6500,20 @@
                     if (typeof deselectAll === 'function') deselectAll();
                 }
             }, true);
+
+            // 🎯 Tuval konteynerinde 3D ögeye çift tıklandığında paneli aç
+            container.addEventListener('dblclick', (e) => {
+                if (e.button !== 0) return;
+                const hitEl = check3DHit(e.clientX, e.clientY);
+                if (hitEl) {
+                    setActiveElement(hitEl);
+                    state.gizmoActive = true;
+                    setSelected(true, { silent: true, openPanel: true });
+                    showStudioPanel();
+                    e.stopPropagation();
+                    e.preventDefault();
+                }
+            });
 
             // Hover imleci (Üzerine gelindiğinde standart Windows oku)
             let lastCheckTime = 0;
@@ -8448,6 +8676,19 @@
     }
 
     function updateDock3DControlsState() {
+        if (window.DockContextManager) {
+            if (state.active && state.selected) {
+                window.DockContextManager.on3DElementSelected(getActiveElement());
+            } else if (!state.selected) {
+                window.DockContextManager.onElementDeselected();
+            }
+        }
+
+        const btnFree = document.getElementById('dock3DBtnFree');
+        const btnGizmo = document.getElementById('dock3DBtnGizmo');
+        if (btnFree) btnFree.classList.toggle('active', !state.gizmoActive);
+        if (btnGizmo) btnGizmo.classList.toggle('active', !!state.gizmoActive);
+
         const dock3D = document.getElementById('dock3DControls');
         const divider = document.getElementById('dock3DDivider');
         if (!dock3D) return;
@@ -8480,11 +8721,9 @@
 
         const targetItemBtn = dock3D.querySelector('#dock3DTargetItemBtn');
         const targetSunBtn = dock3D.querySelector('#dock3DTargetSunBtn');
-        const btnFree = dock3D.querySelector('#dock3DBtnFree');
 
         if (targetItemBtn) targetItemBtn.classList.toggle('active', !isSun && !!state.selected);
         if (targetSunBtn) targetSunBtn.classList.toggle('active', isSun);
-        if (btnFree) btnFree.classList.toggle('active', !!state.gizmoActive);
 
         const btnX = dock3D.querySelector('#dock3DBtnX');
         const btnY = dock3D.querySelector('#dock3DBtnY');
@@ -8516,6 +8755,24 @@
     }
 
     function initDock3DControls() {
+        const btnFree = document.getElementById('dock3DBtnFree');
+        if (btnFree && btnFree.dataset.bound !== 'true') {
+            btnFree.dataset.bound = 'true';
+            btnFree.onclick = () => {
+                toggleGizmoMode(false);
+                updateDock3DControlsState();
+            };
+        }
+
+        const btnGizmo = document.getElementById('dock3DBtnGizmo');
+        if (btnGizmo && btnGizmo.dataset.bound !== 'true') {
+            btnGizmo.dataset.bound = 'true';
+            btnGizmo.onclick = () => {
+                toggleGizmoMode(true);
+                updateDock3DControlsState();
+            };
+        }
+
         const dock3D = document.getElementById('dock3DControls');
         if (!dock3D || dock3D.dataset.bound === 'true') return;
         dock3D.dataset.bound = 'true';
@@ -8630,13 +8887,6 @@
             });
         }
 
-        const btnFree = dock3D.querySelector('#dock3DBtnFree');
-        if (btnFree) {
-            btnFree.onclick = () => {
-                toggleGizmoMode();
-                updateDock3DControlsState();
-            };
-        }
 
         const centerBtn = dock3D.querySelector('#dock3DCenterBtn');
         if (centerBtn) {
@@ -11311,10 +11561,14 @@
     /**
      * 15. Modalı Aç / Kapat
      */
-    async function openStudio(skipAutoConvert = false, createDefaultIfEmpty = true) {
+    async function openStudio(skipAutoConvert = false, createDefaultIfEmpty = true, showPanel = true) {
         const panel = ensureStudioPanel();
-        panel.style.display = 'flex';
-        positionStudioPanelOverLeftPanel(panel);
+        if (showPanel) {
+            panel.style.display = 'flex';
+            positionStudioPanelOverLeftPanel(panel);
+        } else {
+            panel.style.display = 'none';
+        }
         state.active = true;
         state.hasBaked = false;
         if (typeof window.selectedCalloutEl !== 'undefined') window.selectedCalloutEl = null;
@@ -11323,22 +11577,22 @@
 
         if (!state.loaded) {
             const statusEl = panel.querySelector('#threeDLoadingStatus');
-            if (statusEl) statusEl.style.display = 'block';
+            if (statusEl && showPanel) statusEl.style.display = 'block';
 
             try {
                 await loadThreeLibraries((msg) => {
-                    if (statusEl) statusEl.textContent = msg;
+                    if (statusEl && showPanel) statusEl.textContent = msg;
                 });
                 if (statusEl) statusEl.style.display = 'none';
             } catch (err) {
-                if (statusEl) statusEl.textContent = 'Hata: ' + err.message;
+                if (statusEl && showPanel) statusEl.textContent = 'Hata: ' + err.message;
                 console.error(err);
                 return;
             }
         }
 
         initScene({ createDefault: createDefaultIfEmpty });
-        setSelected(true, { silent: true, autoLockPhoto: false });
+        setSelected(true, { silent: true, autoLockPhoto: false, openPanel: showPanel });
         syncControlsUI();
         initCanvasBadge();
         initDock3DControls();
@@ -11350,6 +11604,16 @@
             updateGizmoPositions();
         }
         notifyExternalUpdates();
+    }
+
+    function showStudioPanel() {
+        const panel = ensureStudioPanel();
+        if (panel) {
+            panel.style.display = 'flex';
+            positionStudioPanelOverLeftPanel(panel);
+            syncControlsUI();
+            notifyExternalUpdates();
+        }
     }
 
     function closeStudio() {
@@ -11469,16 +11733,15 @@
         state.shadowOpacity = 0.20;
         state.shadowSoftness = 2.5;
 
-        // 5. Tutamaçları ve modları güncelle
+        // 5. Tutamaçları ve modları güncelle (Varsayılan: Serbest Taşıma)
         state.cornerPinActive = false;
-        state.gizmoActive = true;
+        state.gizmoActive = false;
         state.selected = true;
 
         cornerPins[0] = { x: 0, y: 0 };
         if (cornerPinOverlayEl) cornerPinOverlayEl.style.display = 'none';
         if (gizmoOverlayEl) {
-            gizmoOverlayEl.style.display = 'block';
-            updateGizmoPositions();
+            gizmoOverlayEl.style.display = 'none';
         }
 
         const p = document.getElementById('threeDStudioPanel');
@@ -11730,7 +11993,7 @@
 
         const shouldBeActive = data.active || data.visible || (data.elementsData && data.elementsData.length > 0);
         if (shouldBeActive) {
-            await openStudio(true, false);
+            await openStudio(true, false, false);
 
             if (data.elementsData && Array.isArray(data.elementsData) && data.elementsData.length > 0) {
                 isBatchRestoring = true;
@@ -12427,13 +12690,15 @@
         elements.push(newEl);
         activeElementId = newEl.id;
 
-        await openStudio(true, false);
+        await openStudio(true, false, false);
         initElementThreeObjects(newEl);
         setActiveElement(newEl);
         recreateContentMeshes(newEl);
         syncControlsUI();
         update3DLayersOrder();
-        setSelected(true);
+        setSelected(true, { silent: true, openPanel: false });
+        const p2d = document.getElementById('threeDStudioPanel');
+        if (p2d) p2d.style.display = 'none';
         updateDock3DControlsState();
         if (window.DockManager && typeof window.DockManager.setContext === 'function') {
             window.DockManager.setContext('3d');
@@ -12479,7 +12744,8 @@
      * İkon kütüphanesinden veya rozetlerden tıklandığında anında 3D sahneye yeni bir öge ekler.
      */
     async function add3DElementFromData(options = {}) {
-        await openStudio(true, false);
+        const shouldShowPanel = options.showPanel === true; // Varsayılan kapalı, çift tıklamayla açılır!
+        await openStudio(true, false, shouldShowPanel);
 
         const count = elements.length + 1;
         const rawSvg = options.svg || options.rawSvg || null;
@@ -12692,7 +12958,13 @@
         recreateContentMeshes(newEl);
         syncControlsUI();
         update3DLayersOrder();
-        setSelected(true);
+        state.gizmoActive = true;
+        setSelected(true, { silent: true, openPanel: shouldShowPanel });
+        if (!shouldShowPanel) {
+            const p = document.getElementById('threeDStudioPanel');
+            if (p) p.style.display = 'none';
+        }
+        updateDock3DControlsState();
 
         // 🌟 İlk kareyi anında senkron olarak tuvale boya (0ms gecikme garantisi)
         if (renderer && scene && camera) {
@@ -12718,7 +12990,7 @@
      */
     async function add3DEstateElement(item, customOpts = {}) {
         if (!item) return null;
-        await openStudio(true, false);
+        await openStudio(true, false, customOpts.showPanel === true);
 
         const isFenceItem = item.category === 'fences' || (item.tags && item.tags.includes('çit')) || !!customOpts.isFence;
 
@@ -13014,7 +13286,7 @@
             }
         }
 
-        await openStudio(true, false);
+        await openStudio(true, false, false);
 
         let item = null;
         if (window.Estate3DLibrary) {
@@ -13197,7 +13469,7 @@
      */
     async function loadGLBFile(file) {
         if (!file) return;
-        await openStudio(true, false);
+        await openStudio(true, false, false);
 
         if (!window.THREE) {
             await loadThreeLibraries();
@@ -13369,6 +13641,8 @@
         loadLibraries: loadThreeLibraries,
         openStudio: openStudio,
         closeStudio: closeStudio,
+        showStudioPanel: showStudioPanel,
+        openStudioPanel: showStudioPanel,
         applyPreset: applyPreset,
         autoCenter: autoCenterActiveElement,
         getExportContext: getExportContext,
@@ -13384,7 +13658,8 @@
         getActiveElementId: () => activeElementId,
         getActiveElement: getActiveElement,
         setActiveElement: setActiveElement,
-        selectElement: (id) => { setActiveElement(id); setSelected(true); },
+        getElementDimensions: getElementEstimatedDimensions,
+        selectElement: (id) => { setActiveElement(id); state.gizmoActive = true; setSelected(true); updateDock3DControlsState(); },
         updatePlaneTransform: updatePlaneTransform,
         updateContentTransform: updateContentTransform,
         recreateContentMeshes: recreateContentMeshes,
@@ -13403,6 +13678,7 @@
         updateDockControls: updateDock3DControlsState,
         toggleCornerPin: toggleCornerPinMode,
         toggleGizmo: toggleGizmoMode,
+        isGizmoActive: () => !!state.gizmoActive,
         updateGizmo: updateGizmoPositions,
         updateGizmoPositions: updateGizmoPositions,
         setGizmoScale: (s) => { state.gizmoScale = parseFloat(s) || 1.0; updateGizmoPositions(); syncControlsUI(); },
@@ -13435,6 +13711,7 @@
         bringElementToFront: bring3DElementToFront,
         sendElementToBack: send3DElementToBack,
         duplicateElement: duplicate3DElement,
+        duplicate3DElement: duplicate3DElement,
         deleteElement: delete3DElement,
         delete3DElement: delete3DElement,
         alignElement: align3DElement,

@@ -143,6 +143,7 @@ function bindDrag(el){
     });
 
     function down(e){
+        if (window.spaceBarPressed || (e.type === 'mousedown' && e.button === 1)) return; // Space veya orta tık tuval pan'e aittir
         if (e.touches && e.touches.length > 1) return;
         if (e.type === 'mousedown' && e.button !== 0) return; // Sağ tık sürüklemeyi ve seçimi bozmasın
         if(typeof window._rotUp === 'function') window._rotUp();
@@ -888,6 +889,8 @@ function deselectAll(preserveEl){
         if(typeof window.updateMultiSelectUI === 'function') window.updateMultiSelectUI();
         if(typeof saveDrawEdit === 'function' && typeof editingDrawIndex !== 'undefined' && editingDrawIndex >= 0) {
             saveDrawEdit();
+        } else if(typeof window.saveDrawEdit === 'function' && typeof editingDrawIndex !== 'undefined' && editingDrawIndex >= 0) {
+            window.saveDrawEdit();
         }
         // ⚡ 3D Öge seçimi hook'u
         if (window.ThreeDEngine && typeof window.ThreeDEngine.setSelected === 'function') {

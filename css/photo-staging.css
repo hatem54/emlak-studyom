@@ -820,7 +820,7 @@ body[data-theme="dark"] .staging-empty-desc {
     font-size: 11px !important;
 }
 
-/* 🪟 Canlı Tuval Üzerinde Öncesi / Sonrası Karşılaştırma Katmanı (Aynı Ekranda) */
+/* 🪟 Canlı Tuval Üzerinde Öncesi / Sonrası Karşılaştırma Katmanı (Doğrudan İki Görsel Açık) */
 .canvas-compare-slider-overlay {
     position: absolute;
     top: 0;
@@ -831,168 +831,386 @@ body[data-theme="dark"] .staging-empty-desc {
     overflow: hidden;
     user-select: none;
     pointer-events: auto;
-}
-
-.canvas-compare-clip-wrap {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    overflow: hidden;
-    pointer-events: none;
-    clip-path: inset(0 50% 0 0);
-    -webkit-clip-path: inset(0 50% 0 0);
-    z-index: 2;
-}
-
-.canvas-compare-img {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    object-position: 50% 50%;
-    pointer-events: none;
-}
-
-.canvas-compare-divider-line {
-    position: absolute;
-    top: 0;
-    bottom: 0;
-    width: 4px;
-    background: #38bdf8;
-    box-shadow: 0 0 16px rgba(56, 189, 248, 0.9), 0 0 4px rgba(2, 132, 199, 1);
-    z-index: 10;
-    pointer-events: none;
-    transform: translateX(-50%);
-}
-
-.canvas-compare-handle {
-    position: absolute;
-    top: 50%;
-    transform: translate(-50%, -50%);
-    width: 64px;
-    height: 64px;
-    background: #ffffff;
-    border: 3px solid #0284c7;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #0284c7;
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
-    z-index: 12;
-    pointer-events: none;
-    font-size: 24px;
-}
-
-.canvas-compare-badge {
-    position: absolute;
-    bottom: 30px;
-    padding: 8px 24px;
-    font-size: 20px;
-    font-weight: 700;
-    border-radius: 12px;
-    background: rgba(15, 23, 42, 0.85);
-    color: #ffffff;
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-    z-index: 15;
-    pointer-events: none;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
-}
-
-.canvas-compare-badge-left {
-    left: 30px;
-}
-
-.canvas-compare-badge-right {
-    right: 30px;
+    background: rgba(11, 15, 25, 0.94);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
 }
 
 .canvas-compare-topbar {
     position: absolute;
-    top: 24px;
-    left: 24px;
-    right: 24px;
+    top: 14px;
+    left: 16px;
+    right: 16px;
+    height: 40px;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    z-index: 25;
+    z-index: 30;
     pointer-events: auto;
 }
 
 .canvas-compare-top-badge {
     display: inline-flex;
     align-items: center;
-    gap: 10px;
-    padding: 10px 20px;
-    border-radius: 30px;
-    background: rgba(15, 23, 42, 0.88);
+    gap: 8px;
+    padding: 6px 14px;
+    border-radius: 20px;
+    background: rgba(15, 23, 42, 0.9);
     color: #38bdf8;
-    font-size: 20px;
+    font-size: 12.5px;
     font-weight: 700;
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-    border: 1px solid rgba(56, 189, 248, 0.4);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+    border: 1px solid rgba(56, 189, 248, 0.35);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
 .canvas-compare-top-badge span {
     color: #f8fafc;
 }
 
+.compare-overlay-mode-btn {
+    height: 30px !important;
+    padding: 0 12px !important;
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    border-radius: 6px !important;
+    background: rgba(30, 41, 59, 0.8) !important;
+    border: 1px solid rgba(255, 255, 255, 0.15) !important;
+    color: #cbd5e1 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    cursor: pointer !important;
+    transition: all 0.15s ease !important;
+}
+
+.compare-overlay-mode-btn:hover {
+    background: rgba(51, 65, 85, 0.9) !important;
+    color: #ffffff !important;
+    border-color: rgba(255, 255, 255, 0.3) !important;
+}
+
+.compare-overlay-mode-btn.active {
+    background: #0284c7 !important;
+    color: #ffffff !important;
+    border-color: #38bdf8 !important;
+    box-shadow: 0 0 10px rgba(2, 132, 199, 0.4) !important;
+}
+
 .canvas-compare-close-btn {
-    height: 44px;
-    padding: 0 20px;
-    font-size: 18px;
-    font-weight: 700;
-    border-radius: 22px;
-    background: #ffffff;
-    color: #0f172a;
-    border: 1px solid #cbd5e1;
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    cursor: pointer;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+    height: 30px !important;
+    padding: 0 14px !important;
+    font-size: 11.5px !important;
+    font-weight: 700 !important;
+    border-radius: 6px !important;
+    background: rgba(239, 68, 68, 0.15) !important;
+    color: #fca5a5 !important;
+    border: 1px solid rgba(239, 68, 68, 0.4) !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    cursor: pointer !important;
+    transition: all 0.15s ease !important;
 }
 
 .canvas-compare-close-btn:hover {
-    background: #f1f5f9;
-    color: #ef4444;
+    background: rgba(239, 68, 68, 0.85) !important;
+    color: #ffffff !important;
+    border-color: #ef4444 !important;
 }
 
-.canvas-compare-slider-input {
+/* Doğrudan İki Görsel Kapsayıcısı */
+.canvas-compare-view-container {
+    position: absolute;
+    top: 62px;
+    left: 16px;
+    right: 16px;
+    bottom: 16px;
+    display: flex;
+    gap: 12px;
+    z-index: 10;
+    box-sizing: border-box;
+    align-items: stretch;
+    justify-content: center;
+}
+
+/* Yan Yana Modu */
+.canvas-compare-view-container.mode-side-by-side {
+    flex-direction: row;
+}
+
+.canvas-compare-view-container.mode-side-by-side .canvas-compare-card {
+    flex: 1 1 0;
+    min-width: 0;
+    height: 100%;
+}
+
+/* Alt Alta Modu */
+.canvas-compare-view-container.mode-top-bottom {
+    flex-direction: column;
+}
+
+.canvas-compare-view-container.mode-top-bottom .canvas-compare-card {
+    flex: 1 1 0;
+    min-height: 0;
+    width: 100%;
+}
+
+/* Üst Üste Modu */
+.canvas-compare-view-container.mode-overlay {
+    display: block;
+    position: absolute;
+    top: 62px;
+    left: 16px;
+    right: 16px;
+    bottom: 16px;
+}
+
+.canvas-compare-view-container.mode-overlay .canvas-compare-card {
     position: absolute;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    cursor: pointer;
+}
+
+.canvas-compare-view-container.mode-overlay .canvas-compare-card.card-hidden {
     opacity: 0;
-    cursor: ew-resize;
-    z-index: 20;
-    margin: 0;
-    padding: 0;
-    -webkit-appearance: none;
-    appearance: none;
+    pointer-events: none;
+    transform: scale(0.99);
 }
 
-.canvas-compare-slider-input::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    appearance: none;
-    width: 80px;
-    height: 2500px;
-    cursor: ew-resize;
+/* Karşılaştırma Kartları */
+.canvas-compare-card {
+    position: relative;
+    background: #090d16;
+    border: 1.5px solid rgba(255, 255, 255, 0.12);
+    border-radius: 10px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+    user-select: none;
 }
 
-.canvas-compare-slider-input::-moz-range-thumb {
-    width: 80px;
-    height: 2500px;
-    cursor: ew-resize;
+.canvas-compare-card-badge {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    font-size: 11px;
+    font-weight: 700;
+    border-radius: 6px;
+    background: rgba(15, 23, 42, 0.88);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    z-index: 5;
+    pointer-events: none;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+}
+
+.card-before .canvas-compare-card-badge {
+    border-color: rgba(148, 163, 184, 0.4);
+    color: #e2e8f0;
+}
+
+.card-after .canvas-compare-card-badge {
+    border-color: rgba(56, 189, 248, 0.5);
+    color: #38bdf8;
+}
+
+.canvas-compare-overlay-hint {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 10px;
+    font-size: 10.5px;
+    font-weight: 600;
+    color: #94a3b8;
+    background: rgba(15, 23, 42, 0.75);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 6px;
+    pointer-events: none;
+    z-index: 5;
+}
+
+.canvas-compare-card-body {
+    flex: 1;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    background: radial-gradient(circle at center, #1e293b 0%, #080c14 100%);
+    position: relative;
+}
+
+.canvas-compare-direct-img {
+    max-width: 100%;
+    max-height: 100%;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+    display: block;
+    user-select: none;
+    pointer-events: none;
+}
+
+/* Üst Üste Modunda Butonlar */
+.canvas-compare-overlay-controls {
+    position: absolute;
+    bottom: 18px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 8px;
+    background: rgba(15, 23, 42, 0.92);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 20px;
+    z-index: 25;
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}
+
+.overlay-toggle-pill {
+    height: 28px !important;
+    padding: 0 14px !important;
+    font-size: 11px !important;
+    font-weight: 700 !important;
+    border-radius: 14px !important;
+    background: transparent !important;
+    border: 1px solid transparent !important;
+    color: #94a3b8 !important;
+    cursor: pointer !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 5px !important;
+    transition: all 0.15s ease !important;
+}
+
+.overlay-toggle-pill:hover {
+    color: #f8fafc !important;
+    background: rgba(255, 255, 255, 0.08) !important;
+}
+
+.overlay-toggle-pill.active {
+    background: #0284c7 !important;
+    color: #ffffff !important;
+    border-color: #38bdf8 !important;
+    box-shadow: 0 0 10px rgba(2, 132, 199, 0.4) !important;
+}
+
+/* 🎨 Panel İçi Karşılaştırma Mod Seçenekleri (Yan Yana, Alt Alta, Üst Üste) */
+.compare-panel-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-bottom: 8px;
+}
+
+.compare-mode-row {
+    display: flex;
+    gap: 4px;
+    width: 100%;
+}
+
+.compare-mode-pill {
+    flex: 1;
+    height: 28px !important;
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    padding: 0 4px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 4px !important;
+    border-radius: 6px !important;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%) !important;
+    border: 1px solid #cbd5e1 !important;
+    color: #334155 !important;
+    cursor: pointer !important;
+    transition: all 0.15s ease !important;
+    white-space: nowrap !important;
+}
+
+.compare-mode-pill i {
+    font-size: 11px !important;
+    color: #64748b !important;
+}
+
+.compare-mode-pill:hover {
+    background: #f1f5f9 !important;
+    border-color: #94a3b8 !important;
+    color: #0f172a !important;
+}
+
+.compare-mode-pill:hover i {
+    color: #0f172a !important;
+}
+
+.compare-mode-pill.active {
+    background: #e0f2fe !important;
+    border-color: #0284c7 !important;
+    color: #0369a1 !important;
+    font-weight: 700 !important;
+    box-shadow: inset 0 1px 2px rgba(2, 132, 199, 0.1) !important;
+}
+
+.compare-mode-pill.active i {
+    color: #0284c7 !important;
+}
+
+/* 🪟 Tuval Üstü Canlı Karşılaştırma Mod Değiştirici Butonları */
+.canvas-compare-mode-switch {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.compare-overlay-mode-btn {
+    height: 30px !important;
+    padding: 0 10px !important;
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    border-radius: 15px !important;
+    background: rgba(15, 23, 42, 0.75) !important;
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    color: #cbd5e1 !important;
+    cursor: pointer !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 5px !important;
+    backdrop-filter: blur(8px) !important;
+    -webkit-backdrop-filter: blur(8px) !important;
+    transition: all 0.15s ease !important;
+}
+
+.compare-overlay-mode-btn:hover {
+    background: rgba(30, 41, 59, 0.9) !important;
+    color: #ffffff !important;
+    border-color: rgba(255, 255, 255, 0.4) !important;
+}
+
+.compare-overlay-mode-btn.active {
+    background: #0284c7 !important;
+    border-color: #38bdf8 !important;
+    color: #ffffff !important;
+    font-weight: 700 !important;
+    box-shadow: 0 0 12px rgba(56, 189, 248, 0.4) !important;
 }
 
 /* 🖼️ Giriş Sekmesi: Aktif Kapak Görseli ve Havuz Kartı */

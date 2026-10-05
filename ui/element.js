@@ -273,6 +273,7 @@ function hasImageOnCanvas() {
     if (panel && ((panel.style.backgroundImage && panel.style.backgroundImage !== 'none') || panel.querySelector('img'))) return true;
     return false;
 }
+window.hasImageOnCanvas = hasImageOnCanvas;
 
 function getNextCanvasElementZIndex() {
     const existingLayers = Array.from(document.querySelectorAll('#canvas-container .canvas-el, #canvas-container .draggable, #three-d-layer, #saber-layer, [data-layer-uid]'));

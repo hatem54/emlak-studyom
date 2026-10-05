@@ -4,9 +4,15 @@
     <!-- Global Error Handler -->
     <script src="ui/error-handler.js"></script>
     <script>
+        if (typeof window.isMobileDevice !== 'function') {
+            window.isMobileDevice = function() {
+                return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
+                       (window.innerWidth <= 768 && window.innerHeight > window.innerWidth);
+            };
+        }
         (function() {
             try {
-                var isMobile = (window.innerWidth <= 768) || /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+                var isMobile = (window.isMobileDevice && window.isMobileDevice()) || (window.innerWidth <= 768) || /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
                 if (isMobile) {
                     document.documentElement.removeAttribute('data-theme');
                     return;
@@ -1195,9 +1201,23 @@
             </div>
         </details>
         
-        <button id="btnBeforeAfter" class="btn-action" style="margin-bottom:6px; width:100%; height:38px; padding:0 12px; font-size:12.5px; font-weight:700; border-radius:8px; display:flex; align-items:center; justify-content:center; gap:8px;" onclick="toggleBeforeAfter()">
-            <i class="fa-solid fa-code-compare"></i> Öncesi / Sonrası
-        </button>
+        <!-- Karşılaştır & Öncesi / Sonrası Seçenekleri -->
+        <div class="compare-panel-wrapper" style="margin-bottom:6px;">
+            <button type="button" id="btnBeforeAfter" class="btn-action" style="width:100%; height:38px; padding:0 12px; font-size:12.5px; font-weight:700; border-radius:8px; display:flex; align-items:center; justify-content:center; gap:8px;" onclick="if(window.PhotoStagingArchive) window.PhotoStagingArchive.toggleCanvasCompare(); else window.togglePhotoBeforeAfterInstant();" title="Tuval üzerinde canlı karşılaştırmayı aç veya kapat">
+                <i class="fa-solid fa-code-compare"></i> Öncesi / Sonrası
+            </button>
+            <div class="compare-mode-row" style="display:flex; gap:4px; margin-top:5px;">
+                <button type="button" class="btn-action compare-mode-pill active" id="btnCompareSideBySide" onclick="if(window.PhotoStagingArchive){ window.PhotoStagingArchive.setCompareMode('split-vertical'); window.PhotoStagingArchive.openCanvasCompare(); }" style="flex:1; height:28px; font-size:11px; font-weight:600; padding:2px 4px; display:flex; align-items:center; justify-content:center; gap:4px;" title="Yan yana dikey bölmeli karşılaştırma">
+                    <i class="fa-solid fa-table-columns"></i> Yan Yana
+                </button>
+                <button type="button" class="btn-action compare-mode-pill" id="btnCompareTopBottom" onclick="if(window.PhotoStagingArchive){ window.PhotoStagingArchive.setCompareMode('split-horizontal'); window.PhotoStagingArchive.openCanvasCompare(); }" style="flex:1; height:28px; font-size:11px; font-weight:600; padding:2px 4px; display:flex; align-items:center; justify-content:center; gap:4px;" title="Alt alta yatay bölmeli karşılaştırma">
+                    <i class="fa-solid fa-table-cells-large"></i> Alt Alta
+                </button>
+                <button type="button" class="btn-action compare-mode-pill" id="btnCompareOverlay" onclick="if(window.PhotoStagingArchive){ window.PhotoStagingArchive.setCompareMode('overlay'); window.PhotoStagingArchive.openCanvasCompare(); }" style="flex:1; height:28px; font-size:11px; font-weight:600; padding:2px 4px; display:flex; align-items:center; justify-content:center; gap:4px;" title="Üst üste şeffaflık geçişli karşılaştırma">
+                    <i class="fa-solid fa-layer-group"></i> Üst Üste
+                </button>
+            </div>
+        </div>
         <button class="btn-action btn-yellow" style="width:100%; height:38px; padding:0 12px; font-size:12.5px; font-weight:700; border-radius:8px; display:flex; align-items:center; justify-content:center; gap:8px;" onclick="resetFilters()"><i class="fa-solid fa-rotate-left"></i> Filtreleri Sıfırla</button>
     </div>
 
@@ -1521,15 +1541,14 @@
             </div>
         </div>
 
-        <div class="section-title"><i class="fa-solid fa-palette" style="color:#ec4899; margin-right:6px;"></i>Çizim Ayarları</div>
+        <div class="section-title"><i class="fa-solid fa-palette" style="color:#0284c7; margin-right:6px;"></i>Görünüm & Stil</div>
         <div class="color-row"><label>Çizgi Rengi</label><input type="color" id="drawColor" value="#ef4444"></div>
         <div class="slider-group"><label><span>Kalınlık</span><span id="drawWidthVal">6px</span></label><input type="range" id="drawWidth" min="1" max="40" value="6"></div>
         <div class="slider-group"><label><span>Opaklık</span><span id="drawOpacityVal">100%</span></label><input type="range" id="drawOpacity" min="10" max="100" value="100"></div>
         <div class="input-group"><label>Çizgi Stili</label>
             <select id="drawDash"><option value="solid">Düz</option><option value="dashed">Kesikli</option><option value="dotted">Noktalı</option></select>
         </div>
-        <label style="display:flex; align-items:center; gap:8px; margin-top:6px; margin-bottom:12px; cursor:pointer; font-size:13px; color:#e2e8f0;"><input type="checkbox" id="polyShowVertices" checked> Köşelerde Nokta Bırak</label>
-        <div class="section-title"><i class="fa-solid fa-fill-drip" style="color:#10b981; margin-right:6px;"></i>Dolgu</div>
+        <label style="display:flex; align-items:center; gap:8px; margin-top:6px; margin-bottom:10px; cursor:pointer; font-size:12px; color:var(--text, #1e293b);"><input type="checkbox" id="polyShowVertices" checked> Köşelerde Nokta Bırak</label>
         <div class="color-row"><label>Dolgu Rengi</label><input type="color" id="fillColor" value="#ef4444"></div>
         <div class="slider-group"><label><span>Dolgu Opaklık</span><span id="fillOpacityVal">0%</span></label><input type="range" id="fillOpacity" min="0" max="100" value="0"></div>
 
@@ -1549,8 +1568,7 @@
         <div class="saber-accordion">
             <button class="saber-accordion-header" id="saberAccordionToggle" type="button">
                 <span class="saber-accordion-icon"><i class="fa-solid fa-bolt"></i></span>
-                <span class="saber-accordion-title">NEON EFEKTLER</span>
-                <span class="saber-accordion-badge">PRO</span>
+                <span class="saber-accordion-title">Neon Efektleri</span>
                 <span class="saber-accordion-arrow">▼</span>
             </button>
             
@@ -1584,26 +1602,26 @@
                     
                     <div class="saber-slider-row">
                         <label>Akkor Çekirdek</label>
-                        <input type="range" id="saberCoreSize" min="0" max="30" value="4">
-                        <span id="saberCoreSizeVal">4</span>
+                        <input type="range" id="saberCoreSize" min="0" max="30" value="0">
+                        <span id="saberCoreSizeVal">0</span>
                     </div>
                     
                     <div class="saber-slider-row">
                         <label>Neon Parlama</label>
-                        <input type="range" id="saberGlowSize" min="5" max="150" value="30">
-                        <span id="saberGlowSizeVal">30</span>
+                        <input type="range" id="saberGlowSize" min="5" max="150" value="22">
+                        <span id="saberGlowSizeVal">22</span>
                     </div>
                     
                     <div class="saber-slider-row">
                         <label>Işık Şiddeti</label>
-                        <input type="range" id="saberIntensity" min="0.5" max="10" step="0.1" value="2.5">
-                        <span id="saberIntensityVal">2.5</span>
+                        <input type="range" id="saberIntensity" min="0.5" max="10" step="0.1" value="2.4">
+                        <span id="saberIntensityVal">2.4</span>
                     </div>
                     
                     <div class="saber-slider-row">
                         <label>Zemin Işığı</label>
-                        <input type="range" id="saberGroundSpill" min="0" max="100" value="40">
-                        <span id="saberGroundSpillVal">40%</span>
+                        <input type="range" id="saberGroundSpill" min="0" max="100" value="0">
+                        <span id="saberGroundSpillVal">0%</span>
                     </div>
                     
                     <!-- ⚡ NEON TOGGLE AYARLARI (KÖŞE PİNLERİ & CANLI ANİMASYON) -->
@@ -1661,7 +1679,7 @@
         <div class="section-title"><i class="fa-solid fa-clock-rotate-left" style="color:#0284c7; margin-right:6px;"></i>Çizim Geçmişi</div>
         <div class="draw-history" id="drawHistory"><div style="text-align:center;color:#475569;font-size:10px;padding:8px">Henüz çizim yok</div></div>
         <div id="drawEditPanel" style="display:none" class="settings-box">
-            <div class="section-title" style="margin-top:0"><i class="fa-solid fa-pen" style="color:#0284c7; margin-right:6px;"></i>Düzenle — <span id="drawEditLabel">#1</span></div>
+            <div class="section-title" id="drawEditTitle" style="display:none; margin-top:0"><i class="fa-solid fa-pen" style="color:#0284c7; margin-right:6px;"></i>Düzenle — <span id="drawEditLabel">#1</span></div>
             <!-- 1. NORMAL ÇİZİM AYARLARI (Sadece Neon Kapalıyken Görünür) -->
             <div id="deNormalSettingsGroup">
                 <div class="color-row"><label>Çizgi Rengi</label><input type="color" id="deColor" value="#ef4444" oninput="liveUpdateDrawEdit()"></div>
@@ -1677,49 +1695,49 @@
                 <div class="slider-group"><label><span>Opaklık</span><span id="deOpacityVal">100%</span></label><input type="range" id="deOpacity" min="10" max="100" value="100" oninput="liveUpdateDrawEdit()"></div>
                 
                 <div id="dePolyVerticesGroup">
-                    <label style="display:flex; align-items:center; gap:8px; margin-top:8px; cursor:pointer; font-size:13px; color:#e2e8f0;"><input type="checkbox" id="dePolyShowVertices" checked onchange="liveUpdateDrawEdit()"> Köşelerde Nokta Bırak</label>
+                    <label style="display:flex; align-items:center; gap:8px; margin-top:8px; cursor:pointer; font-size:12px; color:var(--text, #1e293b);"><input type="checkbox" id="dePolyShowVertices" checked onchange="liveUpdateDrawEdit()"> Köşelerde Nokta Bırak</label>
                 </div>
                 
-                <div id="deArrowSettings" style="display:none; background:#0f172a; border:1px solid #334155; border-radius:6px; padding:8px; margin-top:8px;">
-                    <div style="font-size:11px; font-weight:bold; color:#60a5fa; margin-bottom:6px;"><i class="fa-solid fa-arrow-right" style="color:#60a5fa; margin-right:4px;"></i>Ok Ayarları</div>
-                    <div class="input-group" style="margin-bottom:6px;">
-                        <label style="font-size:11px;">Ok Yönü</label>
-                        <select id="deArrowDir" onchange="liveUpdateDrawEdit()" style="width:100%; background:#1e293b; color:#fff; border:1px solid #334155; padding:4px; border-radius:4px;">
-                            <option value="outward">➡️ Dışa / Hedefe Doğru</option>
-                            <option value="inward">⬅️ İçe / Ögeye Doğru</option>
-                            <option value="both">↔️ Çift Yönlü</option>
-                        </select>
-                    </div>
-                    <div class="input-group">
-                        <label style="font-size:11px;">Ok Ucu Stili</label>
-                        <select id="deArrowStyle" onchange="liveUpdateDrawEdit()" style="width:100%; background:#1e293b; color:#fff; border:1px solid #334155; padding:4px; border-radius:4px;">
-                            <option value="1">1. Klasik Keskin Ok</option>
-                            <option value="2">2. Stealth / Çentikli Kanat</option>
-                            <option value="3">3. Zarif Açık V</option>
-                            <option value="4">4. Kalın Dolu Chevron</option>
-                            <option value="5">5. Dolu Elmas</option>
-                            <option value="6">6. İçi Boş Elmas</option>
-                            <option value="7">7. Dairesel Dolu Nokta</option>
-                            <option value="8">8. Hedef / Halka</option>
-                            <option value="9">9. Kare / Teknik Blok</option>
-                            <option value="10">10. İçi Boş Kare</option>
-                            <option value="11">11. T-Çizgi / Stoper</option>
-                            <option value="12">12. 45° Çapraz Kesit</option>
-                            <option value="13">13. Çift Katman Ok</option>
-                            <option value="14">14. Üç Katman Akış</option>
-                            <option value="15">15. Kavisli Bıçak</option>
-                            <option value="16">16. Yumuşak Yuvarlak Üçgen</option>
-                            <option value="17">17. İğne Roket Dart</option>
-                            <option value="18">18. Harita Pini (Nokta-Ok)</option>
-                            <option value="19">19. Çift Yönlü Mimari Ok</option>
-                            <option value="20">20. T-Bar ve Ok Kombosu</option>
-                        </select>
-                    </div>
-                </div>
-
                 <button type="button" class="btn-action" onclick="toggleCurrentDrawNeon()" style="background:rgba(0,206,201,0.15); border:1px solid rgba(0,206,201,0.4); color:#00CEC9; width:100%; padding:8px; font-size:12px; margin-top:10px; border-radius:6px; cursor:pointer;">
                     <i class="fas fa-bolt"></i> Neon Efekti Ekle
                 </button>
+            </div>
+            
+            <!-- OK AYARLARI (Hem Normal Hem Neon Modunda Aktif) -->
+            <div id="deArrowSettings" style="display:none; margin-top:8px;">
+                <div class="color-row">
+                    <label>Ok Yönü</label>
+                    <select id="deArrowDir" onchange="liveUpdateDrawEdit()" style="background:#1e293b; color:#fff; border:1px solid #334155; padding:4px 8px; border-radius:4px; font-size:12px; max-width:140px;">
+                        <option value="outward">Dışa Doğru</option>
+                        <option value="inward">İçe Doğru</option>
+                        <option value="both">Çift Yönlü</option>
+                    </select>
+                </div>
+                <div class="color-row" style="margin-top:6px;">
+                    <label>Ok Ucu Stili</label>
+                    <select id="deArrowStyle" onchange="liveUpdateDrawEdit()" style="background:#1e293b; color:#fff; border:1px solid #334155; padding:4px 8px; border-radius:4px; font-size:12px; max-width:140px;">
+                        <option value="1">1. Klasik Keskin Ok</option>
+                        <option value="2">2. Stealth / Çentikli Kanat</option>
+                        <option value="3">3. Zarif Açık V</option>
+                        <option value="4">4. Kalın Dolu Chevron</option>
+                        <option value="5">5. Dolu Elmas</option>
+                        <option value="6">6. İçi Boş Elmas</option>
+                        <option value="7">7. Dairesel Dolu Nokta</option>
+                        <option value="8">8. Hedef / Halka</option>
+                        <option value="9">9. Kare / Teknik Blok</option>
+                        <option value="10">10. İçi Boş Kare</option>
+                        <option value="11">11. T-Çizgi / Stoper</option>
+                        <option value="12">12. 45° Çapraz Kesit</option>
+                        <option value="13">13. Çift Katman Ok</option>
+                        <option value="14">14. Üç Katman Akış</option>
+                        <option value="15">15. Kavisli Bıçak</option>
+                        <option value="16">16. Yumuşak Yuvarlak Üçgen</option>
+                        <option value="17">17. İğne Roket Dart</option>
+                        <option value="18">18. Harita Pini</option>
+                        <option value="19">19. Çift Yönlü Mimari Ok</option>
+                        <option value="20">20. T-Bar ve Ok Kombosu</option>
+                    </select>
+                </div>
             </div>
             
             <!-- 2. DOLGU AYARLARI (Kare, Daire, Çokgen gibi doldurulabilir şekiller için) -->
@@ -1746,23 +1764,23 @@
                 <div>
                     <div class="sep-slider-row">
                         <label>Akkor Çekirdek</label>
-                        <input type="range" id="deSaberCoreSize" min="0" max="30" value="4" oninput="liveUpdateDrawEdit()">
-                        <span id="deSaberCoreSizeVal">4</span>
+                        <input type="range" id="deSaberCoreSize" min="0" max="30" value="0" oninput="liveUpdateDrawEdit()">
+                        <span id="deSaberCoreSizeVal">0</span>
                     </div>
                     <div class="sep-slider-row">
                         <label>Neon Parlama</label>
-                        <input type="range" id="deSaberGlowSize" min="5" max="150" value="30" oninput="liveUpdateDrawEdit()">
-                        <span id="deSaberGlowSizeVal">30</span>
+                        <input type="range" id="deSaberGlowSize" min="5" max="150" value="22" oninput="liveUpdateDrawEdit()">
+                        <span id="deSaberGlowSizeVal">22</span>
                     </div>
                     <div class="sep-slider-row">
                         <label>Işık Şiddeti</label>
-                        <input type="range" id="deSaberIntensity" min="0.5" max="10" step="0.1" value="2.5" oninput="liveUpdateDrawEdit()">
-                        <span id="deSaberIntensityVal">2.5</span>
+                        <input type="range" id="deSaberIntensity" min="0.5" max="10" step="0.1" value="2.4" oninput="liveUpdateDrawEdit()">
+                        <span id="deSaberIntensityVal">2.4</span>
                     </div>
                     <div class="sep-slider-row">
                         <label>Titreme</label>
-                        <input type="range" id="deSaberFlicker" min="0" max="50" value="5" oninput="liveUpdateDrawEdit()">
-                        <span id="deSaberFlickerVal">5</span>
+                        <input type="range" id="deSaberFlicker" min="0" max="50" value="2" oninput="liveUpdateDrawEdit()">
+                        <span id="deSaberFlickerVal">2</span>
                     </div>
                     <div class="sep-slider-row">
                         <label>Nabız Hızı</label>
@@ -1771,11 +1789,11 @@
                     </div>
                     <div class="sep-slider-row">
                         <label>Zemin Işığı</label>
-                        <input type="range" id="deSaberGroundSpill" min="0" max="100" value="40" oninput="liveUpdateDrawEdit()">
-                        <span id="deSaberGroundSpillVal">40%</span>
+                        <input type="range" id="deSaberGroundSpill" min="0" max="100" value="0" oninput="liveUpdateDrawEdit()">
+                        <span id="deSaberGroundSpillVal">0%</span>
                     </div>
                     <label style="display:flex; align-items:center; gap:8px; margin-top:8px; cursor:pointer; font-size:12px; color:#cbd5e1;">
-                        <input type="checkbox" id="deSaberEnergyNodes" checked onchange="liveUpdateDrawEdit()"> Işıklı Köşe Pinleri
+                        <input type="checkbox" id="deSaberEnergyNodes" onchange="liveUpdateDrawEdit()"> Işıklı Köşe Pinleri
                     </label>
                 </div>
 
@@ -1786,8 +1804,10 @@
 
             <button class="btn-action btn-blue" onclick="applyDrawEdit()" style="width:100%; margin-top:10px;"><i class="fas fa-check"></i> Bitti</button>
         </div>
-        <button class="btn-action btn-red" onclick="deleteSelected()" style="margin-bottom:6px; width:100%;"><i class="fa-solid fa-trash-can"></i> Sil</button>
-            <div class="row-2" style="margin-top:6px"><button class="btn-action btn-red" onclick="undoLastDraw()"><i class="fa-solid fa-rotate-left"></i> Geri</button><button class="btn-action btn-red" style="opacity:.7" onclick="clearAllDrawings()"><i class="fa-solid fa-trash-arrow-up"></i> Temizle</button></div>
+        <div class="row-2" style="margin-top:8px">
+            <button type="button" class="btn-action" onclick="undoLastDraw()"><i class="fa-solid fa-rotate-left"></i> Geri Al</button>
+            <button type="button" class="btn-action btn-red" onclick="clearAllDrawings()"><i class="fa-solid fa-trash-can"></i> Tümünü Temizle</button>
+        </div>
 
     </div>
 
@@ -2662,27 +2682,65 @@
                 <img id="elLogoImg" style="width:100%; height:auto; display:block; pointer-events:none; border-radius:inherit; object-fit:contain;" alt="Logo" />
             </div>
 
-            <!-- 🪟 Canlı Tuval Üzerinde Öncesi / Sonrası Karşılaştırma Katmanı (Aynı Ekranda) -->
+            <!-- 🪟 Canlı Tuval Üzerinde Öncesi / Sonrası Karşılaştırma Katmanı (Doğrudan İki Görsel Açık) -->
             <div id="canvasCompareSliderOverlay" class="canvas-compare-slider-overlay" style="display:none;">
-                <div class="canvas-compare-clip-wrap" id="canvasCompareClipWrap" style="clip-path: inset(0 50% 0 0); -webkit-clip-path: inset(0 50% 0 0);">
-                    <img id="canvasCompareBeforeImg" class="canvas-compare-img" alt="Orijinal">
-                </div>
-                <div class="canvas-compare-divider-line" id="canvasCompareDivider" style="left:50%;"></div>
-                <div class="canvas-compare-handle" id="canvasCompareHandle" style="left:50%;">
-                    <i class="fa-solid fa-arrows-left-right"></i>
-                </div>
-                <div class="canvas-compare-badge canvas-compare-badge-left" id="canvasCompareBadgeLeft">Orijinal Çekim</div>
-                <div class="canvas-compare-badge canvas-compare-badge-right" id="canvasCompareBadgeRight">Düzenlenen Tuval</div>
                 <div class="canvas-compare-topbar">
                     <div class="canvas-compare-top-badge">
                         <i class="fa-solid fa-code-compare"></i>
                         <span>Öncesi / Sonrası</span>
                     </div>
-                    <button type="button" class="btn-action canvas-compare-close-btn" onclick="PhotoStagingArchive.closeCanvasCompare()" title="Karşılaştırmayı Kapat">
+                    <div class="canvas-compare-mode-switch" style="display:inline-flex; align-items:center; gap:6px; margin-left:auto; margin-right:12px;">
+                        <button type="button" class="btn-action compare-overlay-mode-btn active" id="ovlCompareSideBySide" onclick="if(window.PhotoStagingArchive) window.PhotoStagingArchive.setCompareMode('split-vertical')" title="Yan Yana">
+                            <i class="fa-solid fa-table-columns"></i> Yan Yana
+                        </button>
+                        <button type="button" class="btn-action compare-overlay-mode-btn" id="ovlCompareTopBottom" onclick="if(window.PhotoStagingArchive) window.PhotoStagingArchive.setCompareMode('split-horizontal')" title="Alt Alta">
+                            <i class="fa-solid fa-table-cells-large"></i> Alt Alta
+                        </button>
+                        <button type="button" class="btn-action compare-overlay-mode-btn" id="ovlCompareOverlay" onclick="if(window.PhotoStagingArchive) window.PhotoStagingArchive.setCompareMode('overlay')" title="Üst Üste">
+                            <i class="fa-solid fa-layer-group"></i> Üst Üste
+                        </button>
+                    </div>
+                    <button type="button" class="btn-action canvas-compare-close-btn" onclick="PhotoStagingArchive.closeCanvasCompare()" title="Kapat">
                         <i class="fa-solid fa-xmark"></i> Kapat
                     </button>
                 </div>
-                <input type="range" class="canvas-compare-slider-input" id="canvasCompareRange" min="0" max="100" value="50" oninput="PhotoStagingArchive.updateCanvasCompareSplit(this.value)">
+
+                <div id="canvasCompareViewContainer" class="canvas-compare-view-container mode-side-by-side">
+                    <!-- Sol / Üst Kart: Öncesi -->
+                    <div class="canvas-compare-card card-before" id="canvasCompareCardBefore" onclick="if(window.PhotoStagingArchive && window.PhotoStagingArchive.compareMode==='overlay') window.PhotoStagingArchive.toggleOverlayLayer();">
+                        <div class="canvas-compare-card-badge">
+                            <i class="fa-solid fa-image"></i>
+                            <span id="canvasCompareBadgeBefore">Öncesi</span>
+                        </div>
+                        <div class="canvas-compare-overlay-hint" id="canvasCompareOverlayHint" style="display:none;">
+                            <i class="fa-solid fa-repeat"></i> Değiştirmek için tıkla
+                        </div>
+                        <div class="canvas-compare-card-body">
+                            <img id="canvasCompareBeforeImg" class="canvas-compare-direct-img" alt="Öncesi">
+                        </div>
+                    </div>
+
+                    <!-- Sağ / Alt Kart: Sonrası -->
+                    <div class="canvas-compare-card card-after" id="canvasCompareCardAfter" onclick="if(window.PhotoStagingArchive && window.PhotoStagingArchive.compareMode==='overlay') window.PhotoStagingArchive.toggleOverlayLayer();">
+                        <div class="canvas-compare-card-badge">
+                            <i class="fa-solid fa-wand-magic-sparkles"></i>
+                            <span id="canvasCompareBadgeAfter">Sonrası</span>
+                        </div>
+                        <div class="canvas-compare-card-body">
+                            <img id="canvasCompareAfterImg" class="canvas-compare-direct-img" alt="Sonrası">
+                        </div>
+                    </div>
+
+                    <!-- Üst Üste Modunda Doğrudan Seçim Butonları -->
+                    <div id="canvasCompareOverlayControls" class="canvas-compare-overlay-controls" style="display:none;">
+                        <button type="button" class="btn-action overlay-toggle-pill" id="btnOverlayShowBefore" onclick="if(window.PhotoStagingArchive) window.PhotoStagingArchive.showOverlayLayer('before')" title="Öncesi">
+                            <i class="fa-solid fa-image"></i> Öncesi
+                        </button>
+                        <button type="button" class="btn-action overlay-toggle-pill active" id="btnOverlayShowAfter" onclick="if(window.PhotoStagingArchive) window.PhotoStagingArchive.showOverlayLayer('after')" title="Sonrası">
+                            <i class="fa-solid fa-wand-magic-sparkles"></i> Sonrası
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -2762,22 +2820,6 @@
 
         <div class="dock-divider"></div>
 
-        <!-- 2.5 Öncesi / Sonrası Karşılaştır -->
-        <button type="button" id="dockBeforeAfterBtn" class="dock-btn" onclick="if(typeof toggleBeforeAfter === 'function') toggleBeforeAfter();" title="Orijinal ile Düzenlenmiş Görseli Karşılaştır">
-            <span class="dock-icon" id="dockBeforeAfterIcon"><i class="fa-solid fa-code-compare"></i></span>
-            <span class="dock-label" id="dockBeforeAfterText">Karşılaştır</span>
-        </button>
-
-        <div class="dock-divider"></div>
-
-        <!-- 2.6 Sayfa Ekle (Çoklu Gönderi / Albüm) -->
-        <button type="button" id="dockAddPageBtn" class="dock-btn" onclick="if(typeof CarouselManager!=='undefined'){ CarouselManager.addPage(); CarouselManager.toggleBar(true); }" title="Yeni Albüm Sayfası Ekle">
-            <span class="dock-icon"><i class="fa-solid fa-file-circle-plus"></i></span>
-            <span class="dock-label">Sayfa Ekle</span>
-        </button>
-
-        <div class="dock-divider"></div>
-
         <!-- ⚡ DİNAMİK KONTEKST BUTONLARI (Aktif Sekme & Araca Göre Değişen Akıllı Kısayollar) -->
         <div id="dockContextualSlot" class="dock-contextual-slot">
             
@@ -2796,10 +2838,18 @@
                     <span class="dock-icon"><i class="fa-solid fa-wand-magic-sparkles"></i></span>
                     <span class="dock-label">Örnek</span>
                 </button>
+                <button type="button" class="dock-btn" onclick="window.resetEntireWorkspace()" title="Tüm çalışmayı ve tuvali sıfırla">
+                    <span class="dock-icon"><i class="fa-solid fa-trash-can"></i></span>
+                    <span class="dock-label">Tuvali Temizle</span>
+                </button>
             </div>
 
             <!-- 2. FOTOĞRAF TABI KISAYOLLARI (photo) -->
             <div id="dockGroup_photo" class="dock-context-group">
+                <button type="button" id="dockBeforeAfterBtn" class="dock-btn" onclick="if(typeof window.togglePhotoBeforeAfterInstant === 'function') window.togglePhotoBeforeAfterInstant(); else if(typeof toggleBeforeAfter === 'function') toggleBeforeAfter();" title="Orijinal ile Düzenlenmiş Görseli Karşılaştır">
+                    <span class="dock-icon" id="dockBeforeAfterIcon"><i class="fa-solid fa-code-compare"></i></span>
+                    <span class="dock-label" id="dockBeforeAfterText">Öncesi / Sonrası</span>
+                </button>
                 <button type="button" class="dock-btn" onclick="if(typeof PhotoMasksManager!=='undefined')PhotoMasksManager.clickMaskButton('btnAiEnhanceModal');" title="Görseli Yapay Zeka ile Netleştir">
                     <span class="dock-icon"><i class="fa-solid fa-wand-magic-sparkles"></i></span>
                     <span class="dock-label">Netleştir</span>
@@ -2916,6 +2966,10 @@
 
             <!-- 8. ŞABLONLAR TABI (canva) -->
             <div id="dockGroup_canva" class="dock-context-group">
+                <button type="button" class="dock-btn" onclick="if(typeof CarouselManager!=='undefined'){ CarouselManager.addPage(); CarouselManager.toggleBar(true); }" title="Yeni Albüm Sayfası Ekle">
+                    <span class="dock-icon"><i class="fa-solid fa-file-circle-plus"></i></span>
+                    <span class="dock-label">Sayfa Ekle</span>
+                </button>
                 <button type="button" class="dock-btn" onclick="if(typeof saveCustomTemplate==='function')saveCustomTemplate();" title="Mevcut Tasarımı Şablon Olarak Kaydet">
                     <span class="dock-icon"><i class="fa-solid fa-floppy-disk"></i></span>
                     <span class="dock-label">Kaydet</span>
@@ -2959,6 +3013,10 @@
                 <button type="button" class="dock-btn" onclick="if(typeof addQuickIcon==='function')addQuickIcon('price');" title="Fiyat / Para İkonu Ekle">
                     <span class="dock-icon"><i class="fa-solid fa-turkish-lira-sign"></i></span>
                     <span class="dock-label">Fiyat</span>
+                </button>
+                <button type="button" class="dock-btn pc-only" onclick="if(typeof window.exportTransparentPNG==='function') window.exportTransparentPNG(); else if(typeof saveImage==='function') saveImage(null, { fileType: 'png_transparent' });" title="Arka planı saydam şeffaf PNG olarak indir">
+                    <span class="dock-icon"><i class="fa-solid fa-file-image"></i></span>
+                    <span class="dock-label">Şeffaf</span>
                 </button>
             </div>
 
@@ -3004,6 +3062,14 @@
                     <span class="dock-icon"><i class="fa-solid fa-film"></i></span>
                     <span class="dock-label">Çoklu Gönderi</span>
                 </button>
+                <button type="button" class="dock-btn" onclick="if(typeof CarouselManager!=='undefined'){ CarouselManager.addPage(); CarouselManager.toggleBar(true); }" title="Yeni Albüm Sayfası Ekle">
+                    <span class="dock-icon"><i class="fa-solid fa-file-circle-plus"></i></span>
+                    <span class="dock-label">Sayfa Ekle</span>
+                </button>
+                <button type="button" class="dock-btn pc-only" onclick="if(typeof window.exportTransparentPNG==='function') window.exportTransparentPNG(); else if(typeof saveImage==='function') saveImage(null, { fileType: 'png_transparent' });" title="Arka planı saydam şeffaf PNG olarak indir">
+                    <span class="dock-icon"><i class="fa-solid fa-file-image"></i></span>
+                    <span class="dock-label">Şeffaf</span>
+                </button>
                 <button type="button" class="dock-btn" onclick="if(typeof loadProject==='function')loadProject();" title="Bilgisayardan Şablon / Proje Dosyası Aç (.json)">
                     <span class="dock-icon"><i class="fa-solid fa-folder-open"></i></span>
                     <span class="dock-label">Şablon Aç</span>
@@ -3015,6 +3081,10 @@
                 <button type="button" class="dock-btn" onclick="if(typeof openBatchExportSection==='function')openBatchExportSection();" title="Çoklu Görsel Yükleme ve Toplu Çıktı Bölümünü Aç">
                     <span class="dock-icon"><i class="fa-solid fa-images"></i></span>
                     <span class="dock-label">Toplu Çıktı</span>
+                </button>
+                <button type="button" class="dock-btn" onclick="window.resetEntireWorkspace()" title="Tüm çalışmayı ve tuvali sıfırla">
+                    <span class="dock-icon"><i class="fa-solid fa-trash-can"></i></span>
+                    <span class="dock-label">Tuvali Temizle</span>
                 </button>
             </div>
 
@@ -3090,6 +3160,26 @@
                 </button>
             </div>
 
+            <!-- 17. EKSTRA ARAÇLAR TABI (settings) -->
+            <div id="dockGroup_settings" class="dock-context-group">
+                <button type="button" class="dock-btn" onclick="document.getElementById('logoInput').click()" title="Firma Logosu Yükle">
+                    <span class="dock-icon"><i class="fa-solid fa-shield-halved"></i></span>
+                    <span class="dock-label">Logo</span>
+                </button>
+                <button type="button" class="dock-btn" onclick="if(window.ThreeDEngine) window.ThreeDEngine.openStudio();" title="3D Düzlem ve Metin Stüdyosu">
+                    <span class="dock-icon"><i class="fa-solid fa-cube"></i></span>
+                    <span class="dock-label">3D Stüdyo</span>
+                </button>
+                <button type="button" class="dock-btn" onclick="if(typeof showTemplateColorModal === 'function') showTemplateColorModal()" title="Renk Paleti & Eşleştirici">
+                    <span class="dock-icon"><i class="fa-solid fa-palette"></i></span>
+                    <span class="dock-label">Renkler</span>
+                </button>
+                <button type="button" class="dock-btn" onclick="switchTab('qr')" title="QR Kod Üretici">
+                    <span class="dock-icon"><i class="fa-solid fa-qrcode"></i></span>
+                    <span class="dock-label">QR Kod</span>
+                </button>
+            </div>
+
         </div>
         <div class="dock-divider" id="dockContextDivider"></div>
 
@@ -3160,26 +3250,12 @@
             </button>
         </div>
 
-        <div class="dock-divider"></div>
-
-        <!-- 5. Sayfayı Temizle / Sıfırla -->
-        <button type="button" id="dockClearBtn" class="dock-btn" onclick="window.resetEntireWorkspace()" title="Tüm çalışmayı ve tuvali sıfırla">
-            <span class="dock-icon"><i class="fa-solid fa-trash-can"></i></span>
-            <span class="dock-label">Tuvali Temizle</span>
-        </button>
-
         <div class="dock-divider pc-only"></div>
 
         <!-- 6. Orijinal Olarak İndir (Sadece PC) -->
         <button type="button" id="dockDownloadOriginalBtn" class="dock-btn pc-only" onclick="window.downloadOriginalFromDock()" title="Tasarımı Orijinal Yüksek Çözünürlükte İndir">
             <span class="dock-icon"><i class="fa-solid fa-download"></i></span>
             <span class="dock-label">İndir</span>
-        </button>
-
-        <!-- 6.1 Şeffaf PNG Olarak İndir -->
-        <button type="button" id="dockDownloadTransparentBtn" class="dock-btn pc-only" onclick="if(typeof window.exportTransparentPNG==='function') window.exportTransparentPNG(); else if(typeof saveImage==='function') saveImage(null, { fileType: 'png_transparent' });" title="Arka planı saydam şeffaf PNG olarak indir">
-            <span class="dock-icon"><i class="fa-solid fa-file-image"></i></span>
-            <span class="dock-label">Şeffaf</span>
         </button>
     </div>
 

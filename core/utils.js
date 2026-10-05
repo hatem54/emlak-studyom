@@ -19,6 +19,25 @@ window.getGlobalScale = function() {
     return sf * ps;
 };
 
+if (typeof window.isMobileDevice !== 'function') {
+    window.isMobileDevice = function() {
+        return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
+               (window.innerWidth <= 768 && window.innerHeight > window.innerWidth);
+    };
+}
+
+if (typeof window.hasImageOnCanvas !== 'function') {
+    window.hasImageOnCanvas = function() {
+        if (typeof uploadedImgUrl !== 'undefined' && uploadedImgUrl && uploadedImgUrl !== '') return true;
+        if (typeof window.uploadedImgUrl !== 'undefined' && window.uploadedImgUrl) return true;
+        const pl = document.getElementById('photo-layer');
+        if (pl && pl.style.backgroundImage && pl.style.backgroundImage !== 'none' && pl.style.backgroundImage !== '') return true;
+        const panel = document.querySelector('.photo-panel');
+        if (panel && ((panel.style.backgroundImage && panel.style.backgroundImage !== 'none') || panel.querySelector('img'))) return true;
+        return false;
+    };
+}
+
 function sleep(ms){return new Promise(r=>setTimeout(r,ms))}
 
 function hexToRgb(h){

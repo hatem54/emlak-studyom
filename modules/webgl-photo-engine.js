@@ -290,7 +290,7 @@
                     float lum = dot(color, vec3(0.2126, 0.7152, 0.0722));
                     if (lum < 0.0001) {
                         if (blacks > 0.0) {
-                            return vec3(clamp(blacks * 0.15, 0.0, 1.0));
+                            return vec3(clamp(blacks * 0.35, 0.0, 1.0));
                         }
                         return color;
                     }
@@ -339,26 +339,28 @@
                     // Gölgeler ve Açık Alanlardan farklı olarak histogramın en uç tavan/taban noktalarını ayarlar.
                     if (abs(blacks) > 0.001) {
                         if (blacks > 0.0) {
-                            // +Siyahlar: Taban siyah noktasını kaldırır (mat / sinematik yumuşak siyahlar)
-                            float bWeight = pow(max(0.0, 1.0 - newLum * 2.5), 1.8);
-                            newLum += blacks * 0.16 * bWeight;
+                            // +Siyahlar: Taban siyah noktasını belirgin şekilde kaldırır (gölgeleri açar, mat / aydınlık siyahlar)
+                            float bWeight = pow(clamp(1.0 - newLum * 1.6, 0.0, 1.0), 1.2);
+                            newLum += blacks * 0.35 * bWeight * (1.0 - newLum * 0.4);
                         } else {
-                            // -Siyahlar: Derin gölgeleri saf 0.0'a doğru çeker (keskin, tok ve derin kontrast)
+                            // -Siyahlar: Derin gölgeleri saf 0.0'a doğru güçlü çeker (keskin, zengin ve derin kontrast)
                             float bComp = -blacks;
-                            float bWeight = pow(max(0.0, 1.0 - newLum * 2.5), 1.4);
-                            newLum = max(0.0, newLum - bComp * 0.18 * bWeight * (newLum * 3.5));
+                            float bWeight = pow(clamp(1.0 - newLum * 1.7, 0.0, 1.0), 1.25);
+                            newLum = max(0.0, newLum - bComp * 0.52 * bWeight * pow(max(0.0, newLum), 0.82));
                         }
                     }
                     if (abs(whites) > 0.001) {
+                        float wWeight = pow(clamp((newLum - 0.20) / 0.80, 0.0, 1.0), 1.3);
                         if (whites > 0.0) {
-                            // +Beyazlar: Tavan beyazını 1.0'a doğru gerer (parlak tavanlar, canlı güneş ve ışıl ışıl beyazlar)
-                            float wWeight = pow(max(0.0, (newLum - 0.40) / 0.60), 1.6);
-                            newLum += whites * 0.18 * wWeight * (1.0 - newLum * 0.35);
+                            // +Beyazlar: Doğal fotografik omuz eğrisi (Soft-Knee Rolloff).
+                            // Düz beyaz blok/clipping oluşturmadan parlak tonları ipeksi ve canlı şekilde parlatır.
+                            float invY = clamp(1.0 - newLum, 0.0, 1.0);
+                            float wExp = 1.0 + whites * 1.45 * wWeight;
+                            newLum = 1.0 - pow(invY, wExp);
                         } else {
-                            // -Beyazlar: Tavan beyazını aşağı bastırır (aşırı patlamış ışık ve pencereleri yumuşatır)
+                            // -Beyazlar: Tavan beyazını ve aşırı patlamış ışıkları aşağı çeker
                             float wComp = -whites;
-                            float wWeight = pow(max(0.0, (newLum - 0.45) / 0.55), 1.8);
-                            newLum -= wComp * 0.18 * wWeight;
+                            newLum -= wComp * 0.38 * wWeight * pow(max(0.0, newLum), 0.85);
                         }
                     }
 

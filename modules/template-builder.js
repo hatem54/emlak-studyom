@@ -70,12 +70,14 @@
                 this.setCanvasRatio(this.currentRatio);
             }
 
-            // Arka plan rengi henüz atanmamışsa varsayılan gece laciverti (#0f172a) yap
+            // Varsayılan tuval arka planı BEYAZ kalsın; sadece kullanıcı paletten veya seçiciden tıklarsa değişsin
             if (cContainer) {
                 const bg = cContainer.style.backgroundColor;
                 const bgImg = cContainer.style.backgroundImage;
-                if ((!bg || bg === 'transparent' || bg === 'rgba(0, 0, 0, 0)') && (!bgImg || bgImg === 'none')) {
-                    this.setCanvasBackground('color', '#0f172a');
+                if (this.userChosenBg) {
+                    this.setCanvasBackground(this.userChosenBg.type, this.userChosenBg.value, false);
+                } else if ((!bg || bg === 'transparent' || bg === 'rgba(0, 0, 0, 0)') && (!bgImg || bgImg === 'none')) {
+                    this.setCanvasBackground('color', '#ffffff', false);
                 }
             }
 
@@ -255,21 +257,64 @@
             const cContainer = document.getElementById('canvas-container');
             if (!cContainer) return;
 
+            const pLayer = document.getElementById('photo-layer');
+
             if (type === 'color') {
-                cContainer.style.backgroundColor = val;
-                cContainer.style.backgroundImage = 'none';
+                cContainer.style.setProperty('background-color', val, 'important');
+                cContainer.style.setProperty('background-image', 'none', 'important');
+                if (pLayer) {
+                    pLayer.style.setProperty('background-color', 'transparent', 'important');
+                    if (!window.uploadedImgUrl || pLayer.style.backgroundImage === 'none') {
+                        pLayer.style.setProperty('background-image', 'none', 'important');
+                    }
+                }
             } else if (type === 'gradient') {
-                cContainer.style.backgroundImage = val;
+                cContainer.style.setProperty('background-image', val, 'important');
+                cContainer.style.setProperty('background-color', 'transparent', 'important');
+                if (pLayer) {
+                    pLayer.style.setProperty('background-color', 'transparent', 'important');
+                    if (!window.uploadedImgUrl || pLayer.style.backgroundImage === 'none') {
+                        pLayer.style.setProperty('background-image', 'none', 'important');
+                    }
+                }
             } else if (type === 'transparent') {
-                cContainer.style.backgroundColor = 'transparent';
-                cContainer.style.backgroundImage = 'none';
+                cContainer.style.setProperty('background-color', 'transparent', 'important');
+                cContainer.style.setProperty('background-image', 'none', 'important');
+                if (pLayer) {
+                    pLayer.style.setProperty('background-color', 'transparent', 'important');
+                    if (!window.uploadedImgUrl || pLayer.style.backgroundImage === 'none') {
+                        pLayer.style.setProperty('background-image', 'none', 'important');
+                    }
+                }
             }
 
             const colorInput = document.getElementById('tbCanvasBgColor');
-            if (colorInput && type === 'color' && typeof val === 'string' && val.startsWith('#')) colorInput.value = val;
+            if (colorInput && type === 'color' && typeof val === 'string' && val.startsWith('#')) {
+                colorInput.value = val;
+            }
+
+            // Sol panel ve dışa aktarma paneli renk seçicilerini senkronize et
+            const generalCanvasBg = document.getElementById('canvasBgColor');
+            if (generalCanvasBg && type === 'color' && typeof val === 'string' && val.startsWith('#')) {
+                generalCanvasBg.value = val;
+            }
+            const exportBgColor = document.getElementById('exportBgColor');
+            if (exportBgColor && type === 'color' && typeof val === 'string' && val.startsWith('#')) {
+                exportBgColor.value = val;
+            }
 
             if (isUserAction) {
                 this.userChosenBg = { type: type, value: val };
+            }
+
+            // Boş tuval başlangıç ekranını anında kapat
+            if (window.CanvasEmptyState && typeof window.CanvasEmptyState.hide === 'function') {
+                window.CanvasEmptyState.hide();
+            }
+
+            // 3D motor render tazele
+            if (window.ThreeDEngine && typeof window.ThreeDEngine.requestRender === 'function') {
+                window.ThreeDEngine.requestRender();
             }
 
             // Bilgi Kartını Arka Planla Otomatik Senkronize Et
@@ -279,12 +324,17 @@
 
             try {
                 localStorage.setItem('emlakstudiom_tb_bgcolor', val);
+                if (type === 'color') localStorage.setItem('emlakstudiom_canvasBgColor', val);
             } catch (e) {}
+
+            if (typeof window.requestAutoSave === 'function') {
+                window.requestAutoSave();
+            }
         },
 
         resetUserBg: function() {
             this.userChosenBg = null;
-            this.setCanvasBackground('color', '#0f172a', false);
+            this.setCanvasBackground('color', '#ffffff', false);
             document.querySelectorAll('.tb-palette-chip').forEach(c => c.classList.remove('active'));
         },
 
@@ -302,9 +352,19 @@
         },
 
         filterBgPalette: function(cat) {
-            this.activeBgFilter = cat;
+            let normalized = cat;
+            if (cat === 'gradient') normalized = 'gradyan';
+            else if (cat === 'dark') normalized = 'koyu';
+            else if (cat === 'vibrant') normalized = 'canli';
+
+            this.activeBgFilter = normalized;
             document.querySelectorAll('#tbBgCatTabs .tb-bg-cat-btn').forEach(btn => {
-                btn.classList.toggle('active', btn.dataset.cat === cat);
+                const bCat = btn.dataset.cat;
+                const isMatch = (bCat === cat) || (bCat === normalized) ||
+                    (cat === 'gradyan' && bCat === 'gradient') ||
+                    (cat === 'koyu' && bCat === 'dark') ||
+                    (cat === 'canli' && bCat === 'vibrant');
+                btn.classList.toggle('active', isMatch);
             });
             this.renderBackgroundPalette();
         },
@@ -319,7 +379,24 @@
 
             let list = this.bgPresets || [];
             if (this.activeBgFilter && this.activeBgFilter !== 'all') {
-                list = list.filter(item => item.category === this.activeBgFilter);
+                const targetCat = this.activeBgFilter.toLowerCase();
+                list = list.filter(item => {
+                    if (!item.category) return false;
+                    const c = item.category.toLowerCase();
+                    if (targetCat === 'gradyan' || targetCat === 'gradient') {
+                        return c === 'gradyan' || c === 'gradient' || item.type === 'gradient';
+                    }
+                    if (targetCat === 'koyu' || targetCat === 'dark') {
+                        return c === 'koyu' || c === 'dark';
+                    }
+                    if (targetCat === 'canli' || targetCat === 'vibrant') {
+                        return c === 'canli' || c === 'vibrant';
+                    }
+                    if (targetCat === 'pastel') {
+                        return c === 'pastel';
+                    }
+                    return c === targetCat;
+                });
             }
 
             grid.innerHTML = '';
@@ -335,7 +412,8 @@
                     chip.style.backgroundImage = p.value;
                 }
 
-                chip.onclick = () => {
+                chip.onclick = (e) => {
+                    if (e) e.stopPropagation();
                     this.setCanvasBackground(p.type, p.value, true);
                     document.querySelectorAll('.tb-palette-chip').forEach(c => c.classList.remove('active'));
                     chip.classList.add('active');

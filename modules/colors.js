@@ -159,22 +159,23 @@ window.applyPixelAdjustmentsToImageData = function(src, dst, width, height) {
                 }
                 if (blackFactor !== 0) {
                     if (blackFactor > 0) {
-                        let bWeight = Math.pow(Math.max(0, 1.0 - newLum * 2.5), 1.8);
-                        newLum += blackFactor * 0.16 * bWeight;
+                        let bWeight = Math.pow(Math.max(0, Math.min(1, 1.0 - newLum * 1.6)), 1.2);
+                        newLum += blackFactor * 0.35 * bWeight * (1.0 - newLum * 0.4);
                     } else {
                         let bComp = -blackFactor;
-                        let bWeight = Math.pow(Math.max(0, 1.0 - newLum * 2.5), 1.4);
-                        newLum = Math.max(0, newLum - bComp * 0.18 * bWeight * (newLum * 3.5));
+                        let bWeight = Math.pow(Math.max(0, Math.min(1, 1.0 - newLum * 1.7)), 1.25);
+                        newLum = Math.max(0, newLum - bComp * 0.52 * bWeight * Math.pow(Math.max(0, newLum), 0.82));
                     }
                 }
                 if (whiteFactor !== 0) {
+                    let wWeight = Math.pow(Math.max(0, Math.min(1, (newLum - 0.20) / 0.80)), 1.3);
                     if (whiteFactor > 0) {
-                        let wWeight = Math.pow(Math.max(0, (newLum - 0.40) / 0.60), 1.6);
-                        newLum += whiteFactor * 0.18 * wWeight * (1.0 - newLum * 0.35);
+                        let invY = Math.max(0, Math.min(1, 1.0 - newLum));
+                        let wExp = 1.0 + whiteFactor * 1.45 * wWeight;
+                        newLum = 1.0 - Math.pow(invY, wExp);
                     } else {
                         let wComp = -whiteFactor;
-                        let wWeight = Math.pow(Math.max(0, (newLum - 0.45) / 0.55), 1.8);
-                        newLum -= wComp * 0.18 * wWeight;
+                        newLum -= wComp * 0.38 * wWeight * Math.pow(Math.max(0, newLum), 0.85);
                     }
                 }
                 hsl[2] = Math.max(0, Math.min(1, newLum));
@@ -489,8 +490,8 @@ function setOriginalView(show) {
         if(!badge) {
             badge = document.createElement('div');
             badge.id = 'originalViewBadge';
-            badge.innerHTML = '<i class="fa-solid fa-eye"></i> ORİJİNAL';
-            badge.style.cssText = 'position:absolute; top:20px; left:50%; transform:translateX(-50%); background:rgba(0,0,0,0.75); color:#fff; padding:8px 16px; border-radius:20px; font-size:14px; font-weight:bold; z-index:999999; pointer-events:none; font-family:sans-serif; transition:opacity 0.2s; box-shadow:0 4px 12px rgba(0,0,0,0.3);';
+            badge.innerHTML = '<i class="fa-solid fa-eye"></i> ÖNCESİ (ORİJİNAL)';
+            badge.style.cssText = 'position:absolute; top:20px; left:50%; transform:translateX(-50%); background:rgba(15,23,42,0.88); color:#f8fafc; border:1px solid rgba(255,255,255,0.25); padding:6px 18px; border-radius:20px; font-size:12px; font-weight:700; z-index:999999; pointer-events:none; font-family:\'Space Grotesk\', sans-serif; backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); box-shadow:0 4px 16px rgba(0,0,0,0.35); letter-spacing:0.5px; transition:opacity 0.2s;';
             const container = document.getElementById('canvas-container');
             if(container) container.appendChild(badge);
         }
@@ -499,7 +500,8 @@ function setOriginalView(show) {
         if (btn) {
             btn.style.backgroundColor = '#f59e0b';
             btn.style.color = '#fff';
-            btn.innerHTML = '<i class="fa-solid fa-eye"></i> Orijinal';
+            btn.innerHTML = '<i class="fa-solid fa-eye"></i> Sonrası';
+            btn.title = 'Düzenlenmiş haline dön (Sonrası)';
         }
         
         const dockBtn = document.getElementById('dockBeforeAfterBtn');
@@ -507,15 +509,17 @@ function setOriginalView(show) {
             dockBtn.style.backgroundColor = '#f59e0b';
             dockBtn.style.color = '#fff';
             dockBtn.classList.add('active');
-            dockBtn.innerHTML = '<span class="dock-icon"><i class="fa-solid fa-eye"></i></span><span class="dock-label">Orijinal</span>';
+            dockBtn.innerHTML = '<span class="dock-icon"><i class="fa-solid fa-eye"></i></span><span class="dock-label">Sonrası</span>';
+            dockBtn.title = 'Düzenlenmiş haline dön (Sonrası)';
         }
 
         if (typeof requestPhotoRepaint === 'function') requestPhotoRepaint();
     } else {
         if (btn) {
-            btn.style.backgroundColor = '#334155';
-            btn.style.color = '#cbd5e1';
+            btn.style.backgroundColor = '';
+            btn.style.color = '';
             btn.innerHTML = '<i class="fa-solid fa-code-compare"></i> Öncesi / Sonrası';
+            btn.title = 'Orijinal görseli göster (Öncesi)';
         }
 
         const dockBtn = document.getElementById('dockBeforeAfterBtn');
@@ -523,7 +527,8 @@ function setOriginalView(show) {
             dockBtn.style.backgroundColor = '';
             dockBtn.style.color = '';
             dockBtn.classList.remove('active');
-            dockBtn.innerHTML = '<span class="dock-icon"><i class="fa-solid fa-code-compare"></i></span><span class="dock-label">Karşılaştır</span>';
+            dockBtn.innerHTML = '<span class="dock-icon"><i class="fa-solid fa-code-compare"></i></span><span class="dock-label">Öncesi / Sonrası</span>';
+            dockBtn.title = 'Orijinal görseli göster (Öncesi)';
         }
         
         ['draw-layer', 'mask-layer', 'canva-render-layer', 'ui-layer', 'shadow-overlay', 'highlight-overlay'].forEach(id => {
@@ -546,17 +551,21 @@ function setOriginalView(show) {
     }
 }
 
-function toggleBeforeAfter(forceState) {
-    if (window.PhotoStagingArchive && typeof window.PhotoStagingArchive.toggleCanvasCompare === 'function') {
-        const hasOverlay = document.getElementById('canvasCompareSliderOverlay');
-        const hasItem = (window.PhotoStagingArchive.items && window.PhotoStagingArchive.items.length > 0) || window._aiOriginalImgDataUrl;
-        if (hasOverlay && hasItem) {
-            return window.PhotoStagingArchive.toggleCanvasCompare();
+function togglePhotoBeforeAfterInstant(forceState) {
+    if (window.PhotoStagingArchive && typeof window.PhotoStagingArchive.closeCanvasCompare === 'function') {
+        const overlay = document.getElementById('canvasCompareSliderOverlay');
+        if (overlay && overlay.style.display !== 'none') {
+            window.PhotoStagingArchive.closeCanvasCompare();
         }
     }
     setOriginalView(forceState);
 }
 
+function toggleBeforeAfter(forceState) {
+    togglePhotoBeforeAfterInstant(forceState);
+}
+
+window.togglePhotoBeforeAfterInstant = togglePhotoBeforeAfterInstant;
 window.toggleBeforeAfter = toggleBeforeAfter;
 window.setOriginalView = setOriginalView;
 

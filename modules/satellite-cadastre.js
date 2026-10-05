@@ -245,7 +245,7 @@
         /**
          * KML / GeoJSON Dosyasını Okur ve Yükler
          */
-        handleKmlFile: function(file) {
+        handleKmlFile: async function(file) {
             if (!file) return;
             const name = (file.name || '').toLowerCase();
             const isKml = name.endsWith('.kml');
@@ -253,6 +253,9 @@
             const isKmz = name.endsWith('.kmz');
 
             if (isKmz) {
+                if (typeof JSZip === 'undefined' && window.LazyLoader) {
+                    await window.LazyLoader.load('zip', { label: 'KMZ Arşiv Açıcı' });
+                }
                 if (typeof JSZip !== 'undefined') {
                     if (typeof window.showAppToast === 'function') {
                         window.showAppToast('📦 KMZ arşivi taranıyor ve KML çıkarılıyor...', 'info', 2500);
@@ -2334,7 +2337,7 @@
                 glowSize: this.parcelNeonGlowSize || 32,
                 intensity: this.parcelNeonIntensity || 2.8,
                 groundSpill: 0.4,
-                energyNodes: true,
+                energyNodes: false,
                 flickerAmount: 0.02,
                 pulseSpeed: 0,
                 distortionAmount: 0,

@@ -283,6 +283,7 @@
                         redrawAll();
                     }
                     this.syncExternalTabs();
+                    if (typeof window.renderLayers === 'function') window.renderLayers();
                     if (typeof window.recordHistoryImmediate === 'function' && !window.isHistoryRestoring) {
                         window.recordHistoryImmediate('Aktif Görsel Tuvale Aktarıldı');
                     }
@@ -394,6 +395,9 @@
             if (targets.length === 0) {
                 if (typeof window.showAppToast === 'function') window.showAppToast('İndirilecek görsel bulunamadı.', 'warning');
                 return;
+            }
+            if (typeof JSZip === 'undefined' && window.LazyLoader) {
+                await window.LazyLoader.load('zip', { label: 'ZIP Kütüphanesi' });
             }
             if (typeof JSZip === 'undefined') {
                 if (typeof window.showAppToast === 'function') window.showAppToast('JSZip kütüphanesi yüklenemedi.', 'error');
@@ -811,8 +815,12 @@
 
             // jsPDF kontrolü
             if (typeof window.jspdf === 'undefined' && typeof window.jsPDF === 'undefined') {
-                if (typeof window.showAppToast === 'function') window.showAppToast('jsPDF kütüphanesi yükleniyor...', 'info', 2000);
-                await this.loadScriptAsync('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
+                if (window.LazyLoader) {
+                    await window.LazyLoader.load('pdf', { label: 'PDF Motoru' });
+                } else {
+                    if (typeof window.showAppToast === 'function') window.showAppToast('jsPDF kütüphanesi yükleniyor...', 'info', 2000);
+                    await this.loadScriptAsync('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
+                }
             }
 
             const { jsPDF } = window.jspdf || window;
@@ -1000,47 +1008,73 @@
             const targets = this.getSelectedItems();
             const activeItem = targets[0] || this.items.find(it => it.id === this.activeItemId) || this.items[0];
 
-            // Tuval boşsa veya aktif öğe tuvalde değilse tuvale uygula (sessizce, loading çıkarmadan)
+            // Tuval boşsa veya aktif öğe tuvalde değilse tuvale uygula (sessizce)
             if (activeItem && activeItem.id && activeItem.id !== this.activeItemId) {
                 this.applyToCanvas(activeItem.id, true);
             } else if (!window.uploadedImgUrl && activeItem) {
                 this.applyToCanvas(activeItem.id, true);
             }
 
-            let beforeUrl = window._aiOriginalImgDataUrl || window.uploadedImgUrl;
-            let beforeLabel = 'Orijinal Çekim';
-            let afterLabel = 'Düzenlenen Tuval';
-
+            // 1. Öncesi (Orijinal) URL'ini belirle
+            let beforeUrl = '';
             if (activeItem) {
-                if (activeItem.isEnhanced && activeItem.originalDataUrl) {
-                    beforeUrl = activeItem.originalDataUrl;
-                    beforeLabel = 'Orijinal Çekim';
-                    afterLabel = 'AI Netleştirilmiş';
-                } else if (activeItem.originalDataUrl) {
-                    beforeUrl = activeItem.originalDataUrl;
-                } else if (activeItem.dataUrl) {
-                    beforeUrl = activeItem.dataUrl;
+                beforeUrl = activeItem.originalDataUrl || window._aiOriginalImgDataUrl || window.uploadedImgUrl || activeItem.dataUrl;
+            } else {
+                beforeUrl = window._aiOriginalImgDataUrl || window.uploadedImgUrl || window.masterImageBase64 || '';
+            }
+
+            // 2. Sonrası (Düzenlenmiş) URL'ini belirle
+            let afterUrl = '';
+            if (activeItem && activeItem.dataUrl) {
+                afterUrl = activeItem.dataUrl;
+            } else {
+                const pl = document.getElementById('photo-layer');
+                const innerZoom = pl ? pl.querySelector('.photo-inner-zoom') : null;
+                const bg = (innerZoom && innerZoom.style.backgroundImage) || (pl && (pl.dataset.savedBg || pl.style.backgroundImage));
+                if (bg && bg !== 'none') {
+                    afterUrl = bg.replace(/^url\(["']?/, '').replace(/["']?\)$/, '');
+                }
+                if (!afterUrl) {
+                    afterUrl = window.uploadedImgUrl || window.masterImageBase64 || beforeUrl;
                 }
             }
 
-            if (!beforeUrl) {
+            if (!beforeUrl && !afterUrl) {
                 if (typeof window.showAppToast === 'function') {
-                    window.showAppToast('Karşılaştırma için tuvalde veya havuzda bir görsel bulunmalıdır.', 'warning');
+                    window.showAppToast('Karşılaştırma için tuvalde bir görsel bulunmalıdır.', 'warning');
                 }
                 return;
             }
 
-            const imgEl = document.getElementById('canvasCompareBeforeImg');
-            if (imgEl) imgEl.src = beforeUrl;
+            if (!beforeUrl) beforeUrl = afterUrl;
+            if (!afterUrl) afterUrl = beforeUrl;
 
-            const bLeft = document.getElementById('canvasCompareBadgeLeft');
-            const bRight = document.getElementById('canvasCompareBadgeRight');
-            if (bLeft) bLeft.textContent = beforeLabel;
-            if (bRight) bRight.textContent = afterLabel;
+            // Eğer anlık "Öncesi" modundaysa, live tuvali normal (sonrası) durumuna getir
+            if (window.isShowingBefore && typeof window.setOriginalView === 'function') {
+                window.setOriginalView(false);
+            }
 
-            this.updateCanvasCompareSplit(50);
+            const beforeImg = document.getElementById('canvasCompareBeforeImg');
+            if (beforeImg) {
+                beforeImg.src = beforeUrl;
+                beforeImg.style.filter = 'none';
+            }
+
+            const afterImg = document.getElementById('canvasCompareAfterImg');
+            if (afterImg) {
+                afterImg.src = afterUrl;
+                const pl = document.getElementById('photo-layer');
+                if (pl && pl.style.filter && pl.style.filter !== 'none') {
+                    afterImg.style.filter = pl.style.filter;
+                } else {
+                    afterImg.style.filter = 'none';
+                }
+            }
+
+            this.compareMode = this.compareMode || 'split-vertical';
+            this.setCompareMode(this.compareMode);
+
             overlay.style.display = 'block';
-            this.initCanvasCompareDragListeners();
 
             const dockBtn = document.getElementById('dockBeforeAfterBtn');
             if (dockBtn) dockBtn.classList.add('active');
@@ -1063,58 +1097,87 @@
             }
         },
 
-        updateCanvasCompareSplit: function(val) {
-            const clip = document.getElementById('canvasCompareClipWrap');
-            const divider = document.getElementById('canvasCompareDivider');
-            const handle = document.getElementById('canvasCompareHandle');
-            const range = document.getElementById('canvasCompareRange');
-            const parsed = parseFloat(val);
-            const pct = Math.max(0, Math.min(100, Number.isFinite(parsed) ? parsed : 50));
+        setCompareMode: function(mode) {
+            this.compareMode = mode || 'split-vertical';
 
-            if (clip) {
-                clip.style.clipPath = `inset(0 ${100 - pct}% 0 0)`;
-                clip.style.webkitClipPath = `inset(0 ${100 - pct}% 0 0)`;
+            // Paneldeki seçenekleri güncelle
+            const sideBtn = document.getElementById('btnCompareSideBySide');
+            const topBtn = document.getElementById('btnCompareTopBottom');
+            const ovlBtn = document.getElementById('btnCompareOverlay');
+            if (sideBtn) sideBtn.classList.toggle('active', this.compareMode === 'split-vertical');
+            if (topBtn) topBtn.classList.toggle('active', this.compareMode === 'split-horizontal');
+            if (ovlBtn) ovlBtn.classList.toggle('active', this.compareMode === 'overlay');
+
+            // Katman üst çubuğundaki seçenekleri güncelle
+            const ovlSide = document.getElementById('ovlCompareSideBySide');
+            const ovlTop = document.getElementById('ovlCompareTopBottom');
+            const ovlOvl = document.getElementById('ovlCompareOverlay');
+            if (ovlSide) ovlSide.classList.toggle('active', this.compareMode === 'split-vertical');
+            if (ovlTop) ovlTop.classList.toggle('active', this.compareMode === 'split-horizontal');
+            if (ovlOvl) ovlOvl.classList.toggle('active', this.compareMode === 'overlay');
+
+            const container = document.getElementById('canvasCompareViewContainer');
+            const overlayControls = document.getElementById('canvasCompareOverlayControls');
+            const overlayHint = document.getElementById('canvasCompareOverlayHint');
+
+            if (container) {
+                container.classList.remove('mode-side-by-side', 'mode-top-bottom', 'mode-overlay');
+                if (this.compareMode === 'split-vertical') {
+                    container.classList.add('mode-side-by-side');
+                } else if (this.compareMode === 'split-horizontal') {
+                    container.classList.add('mode-top-bottom');
+                } else if (this.compareMode === 'overlay') {
+                    container.classList.add('mode-overlay');
+                }
             }
-            if (divider) divider.style.left = pct + '%';
-            if (handle) handle.style.left = pct + '%';
-            if (range && Math.abs(parseFloat(range.value) - pct) > 0.5) range.value = pct;
+
+            if (overlayControls) {
+                overlayControls.style.display = (this.compareMode === 'overlay') ? 'inline-flex' : 'none';
+            }
+            if (overlayHint) {
+                overlayHint.style.display = (this.compareMode === 'overlay') ? 'inline-flex' : 'none';
+            }
+
+            // Kart görünürlüklerini ayarla
+            const cardBefore = document.getElementById('canvasCompareCardBefore');
+            const cardAfter = document.getElementById('canvasCompareCardAfter');
+            if (this.compareMode === 'overlay') {
+                this.showOverlayLayer(this.currentOverlayLayer || 'after');
+            } else {
+                if (cardBefore) {
+                    cardBefore.classList.remove('card-hidden');
+                    cardBefore.style.cursor = 'default';
+                }
+                if (cardAfter) {
+                    cardAfter.classList.remove('card-hidden');
+                    cardAfter.style.cursor = 'default';
+                }
+            }
         },
 
-        initCanvasCompareDragListeners: function() {
-            const overlay = document.getElementById('canvasCompareSliderOverlay');
-            if (!overlay || overlay._dragInitialized) return;
-            overlay._dragInitialized = true;
+        showOverlayLayer: function(layer) {
+            this.currentOverlayLayer = (layer === 'before') ? 'before' : 'after';
+            const cardBefore = document.getElementById('canvasCompareCardBefore');
+            const cardAfter = document.getElementById('canvasCompareCardAfter');
+            const btnBefore = document.getElementById('btnOverlayShowBefore');
+            const btnAfter = document.getElementById('btnOverlayShowAfter');
 
-            let isDragging = false;
-            const onPointerMove = (e) => {
-                if (!isDragging) return;
-                const rect = overlay.getBoundingClientRect();
-                if (rect.width <= 0) return;
-                const pct = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100));
-                this.updateCanvasCompareSplit(pct);
-            };
+            if (cardBefore) {
+                cardBefore.classList.toggle('card-hidden', this.currentOverlayLayer !== 'before');
+                cardBefore.style.cursor = 'pointer';
+            }
+            if (cardAfter) {
+                cardAfter.classList.toggle('card-hidden', this.currentOverlayLayer !== 'after');
+                cardAfter.style.cursor = 'pointer';
+            }
+            if (btnBefore) btnBefore.classList.toggle('active', this.currentOverlayLayer === 'before');
+            if (btnAfter) btnAfter.classList.toggle('active', this.currentOverlayLayer === 'after');
+        },
 
-            const onPointerUp = () => {
-                if (isDragging) {
-                    isDragging = false;
-                    window.removeEventListener('pointermove', onPointerMove);
-                    window.removeEventListener('pointerup', onPointerUp);
-                    window.removeEventListener('pointercancel', onPointerUp);
-                }
-            };
-
-            overlay.onpointerdown = (e) => {
-                if (e.target && e.target.closest('.canvas-compare-close-btn')) return;
-                isDragging = true;
-                const rect = overlay.getBoundingClientRect();
-                if (rect.width > 0) {
-                    const pct = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100));
-                    this.updateCanvasCompareSplit(pct);
-                }
-                window.addEventListener('pointermove', onPointerMove);
-                window.addEventListener('pointerup', onPointerUp);
-                window.addEventListener('pointercancel', onPointerUp);
-            };
+        toggleOverlayLayer: function() {
+            if (this.compareMode !== 'overlay') return;
+            const next = (this.currentOverlayLayer === 'before') ? 'after' : 'before';
+            this.showOverlayLayer(next);
         },
 
         openCompareModal: function() {
@@ -1154,7 +1217,10 @@
         /**
          * Karusel Film Şeridini Açar veya Açıksa Kapatır (Toggle)
          */
-        toggleCarousel: function() {
+        toggleCarousel: async function() {
+            if ((!window.CarouselManager || window.CarouselManager._isProxy) && window.LazyLoader) {
+                await window.LazyLoader.load('carousel', { label: 'Karusel Yöneticisi' });
+            }
             const cm = window.CarouselManager;
             if (!cm) return;
 
@@ -1169,16 +1235,19 @@
         /**
          * Seçili Görselleri Çoklu Gönderi / Albüm Sayfalarına Aktarır
          */
-        exportToCarousel: function() {
+        exportToCarousel: async function() {
             const targets = this.getSelectedItems();
             if (targets.length === 0) {
                 if (typeof window.showAppToast === 'function') window.showAppToast('Çoklu gönderi için en az 1 görsel gereklidir.', 'warning');
                 return;
             }
 
+            if ((!window.CarouselManager || window.CarouselManager._isProxy) && window.LazyLoader) {
+                await window.LazyLoader.load('carousel', { label: 'Karusel Yöneticisi' });
+            }
             const cm = window.CarouselManager;
             if (!cm) {
-                if (typeof window.showAppToast === 'function') window.showAppToast('Albüm yöneticisi bulunamadı.', 'warning');
+                if (typeof window.showAppToast === 'function') window.showAppToast('Albüm yöneticisi bulunamadı.', 'error');
                 return;
             }
 

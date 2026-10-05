@@ -53,6 +53,12 @@ function switchTab(name){
         return; // stop execution
     }
 
+    if (name !== 'draw') {
+        if (typeof window.saveDrawEdit === 'function' && typeof editingDrawIndex !== 'undefined' && editingDrawIndex >= 0) {
+            window.saveDrawEdit();
+        }
+    }
+
     document.querySelectorAll('#mainTabs .tab-btn').forEach(b => {
         if(b.dataset.tab === name || b === btn) {
             b.classList.add('active');

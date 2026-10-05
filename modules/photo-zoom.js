@@ -118,6 +118,9 @@ window.addEventListener('blur', () => {
 
 // ========== TEKERLEK - ZOOM (Ctrl veya Space ile veya Boşta) ==========
 document.addEventListener('wheel', function(e){
+    if (typeof window.hasImageOnCanvas === 'function' && !window.hasImageOnCanvas()) {
+        return; // Tuvalde görsel yokken canvas viewport zoom (canvas-zoom.js) devrededir
+    }
     const isZoomOverride = e.ctrlKey || window.spaceBarPressed;
     if (!isZoomOverride && _isPhotoLocked()) return;
 
@@ -197,6 +200,9 @@ function startPhotoPan(el, e) {
 // 1. Capture Phase: Space + Sol Tık ile Anında Pan (Araçların çizim yapmasını engeller)
 document.addEventListener('mousedown', function(e){
     if (window.spaceBarPressed && e.button === 0) {
+        if (typeof window.hasImageOnCanvas === 'function' && !window.hasImageOnCanvas()) {
+            return; // Tuvalde görsel yokken canvas viewport pan (canvas-zoom.js) devrededir
+        }
         var el = _getZoomTarget(e.target);
         if (el) {
             e.preventDefault();
@@ -359,6 +365,7 @@ var _initialPinchDist = null;
 var _initialPinchScale = null;
 
 document.addEventListener('touchstart', function(e){
+    if (typeof window.hasImageOnCanvas === 'function' && !window.hasImageOnCanvas()) return;
     if(_isPhotoLocked()) return;
     var el = _getZoomTarget(e.target);
     if(!el) return;
@@ -571,7 +578,7 @@ document.addEventListener('dblclick', function(e){
         if (typeof applyPhotoPos === 'function') applyPhotoPos();
         if (typeof redrawAll === 'function') redrawAll();
     }
-    if (typeof window.resetCanvasZoom === 'function' && window.pinchScale && window.pinchScale !== 1) {
+    if (typeof window.resetCanvasZoom === 'function' && ((window.pinchScale && window.pinchScale !== 1) || window.pinchPanX !== 0 || window.pinchPanY !== 0)) {
         window.resetCanvasZoom();
     }
 });

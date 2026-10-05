@@ -15,8 +15,8 @@
     'use strict';
 
     const SmartGuides = {
-        enabled: true,
-        threshold: 8,
+        enabled: false,
+        threshold: 5, // 🌟 Hafif ve zarif manyetik çekim mesafesi (Canva/Figma standardı: 5px, takılma yapmaz)
 
         /**
          * Akıllı Hizalama Katmanını Getir veya Oluştur
@@ -36,13 +36,23 @@
 
         /**
          * Tuval Boyutlarını Al
+         * NOT: Kılavuz çizgileri #canvas-container içine yerleştiği için
+         * DAİMA #canvas-container'ın CSS düzen boyutları (1920x1080 veya görsel boyutu)
+         * baz alınmalıdır. WebGL buffer genişliği (three-d-layer.width) yüksek DPI'da
+         * 1.5x/2x büyüdüğünden koordinat olarak KESİNLİKLE kullanılmamalıdır!
          */
         getCanvasDimensions: function() {
             const container = document.getElementById('canvas-container');
-            if (!container) return { w: 1920, h: 1080 };
-            const w = parseFloat(container.style.width) || container.offsetWidth || 1920;
-            const h = parseFloat(container.style.height) || container.offsetHeight || 1080;
-            return { w, h };
+            if (container) {
+                const w = parseFloat(container.style.width) || container.offsetWidth || 1920;
+                const h = parseFloat(container.style.height) || container.offsetHeight || 1080;
+                if (w > 0 && h > 0) return { w, h };
+            }
+            const drawCvs = document.getElementById('draw-layer');
+            if (drawCvs && drawCvs.width && drawCvs.height) {
+                return { w: drawCvs.width, h: drawCvs.height };
+            }
+            return { w: 1920, h: 1080 };
         },
 
         /**
@@ -79,6 +89,41 @@
                     });
                 }
             });
+
+            // 3D Nesneleri Aday Olarak Ekle (ThreeDEngine sahnede aktifse)
+            if (window.ThreeDEngine && typeof window.ThreeDEngine.getElements === 'function') {
+                try {
+                    const threeEls = window.ThreeDEngine.getElements() || [];
+                    const active3DId = (excludeEl && excludeEl.is3D) ? excludeEl.activeElementId : (window.ThreeDEngine.getActiveElement ? window.ThreeDEngine.getActiveElement()?.id : null);
+                    const { w: cW, h: cH } = this.getCanvasDimensions();
+                    threeEls.forEach(tEl => {
+                        if (!tEl || tEl.visible === false) return;
+                        if (excludeEl && excludeEl.is3D && tEl.id === active3DId) return;
+                        let elW = 200, elH = 80;
+                        if (window.ThreeDEngine && typeof window.ThreeDEngine.getElementDimensions === 'function') {
+                            const dims = window.ThreeDEngine.getElementDimensions(tEl);
+                            if (dims && dims.w && dims.h) {
+                                elW = dims.w;
+                                elH = dims.h;
+                            }
+                        }
+                        const elCx = cW / 2 + (tEl.posX || 0);
+                        const elCy = cH / 2 - (tEl.posY || 0);
+                        candidates.push({
+                            el: null,
+                            is3D: true,
+                            left: elCx - elW / 2,
+                            right: elCx + elW / 2,
+                            centerX: elCx,
+                            top: elCy - elH / 2,
+                            bottom: elCy + elH / 2,
+                            centerY: elCy,
+                            width: elW,
+                            height: elH
+                        });
+                    });
+                } catch(ex){}
+            }
 
             return candidates;
         },
@@ -300,14 +345,12 @@
 
     window.SmartGuides = SmartGuides;
 
-    // Merkezi Akıllı Hizalama Durumu (Varsayılan: Kapalı)
+    // Merkezi Akıllı Hizalama Durumu (Kullanıcı talebi: Varsayılan olarak DAİMA KAPALI başlar)
+    window.isSmartGuidesEnabled = false;
+    SmartGuides.enabled = false;
     try {
-        const saved = localStorage.getItem('es_smart_guides_enabled');
-        window.isSmartGuidesEnabled = saved === '1';
-    } catch(e) {
-        window.isSmartGuidesEnabled = false;
-    }
-    SmartGuides.enabled = window.isSmartGuidesEnabled;
+        localStorage.setItem('es_smart_guides_enabled', '0');
+    } catch(e) {}
 
     window.toggleSmartGuides = function(forcedState) {
         if (typeof forcedState === 'boolean') {
@@ -321,6 +364,16 @@
         if (!window.isSmartGuidesEnabled) {
             SmartGuides.clear();
             if (typeof window.clearSnapGuides === 'function') window.clearSnapGuides();
+        } else {
+            // Canlı görsel geri bildirim: merkez çizgilerini zarifçe 450ms gösterip tuvalin hazır olduğunu hissettir
+            const { w: cW, h: cH } = SmartGuides.getCanvasDimensions();
+            SmartGuides.render([
+                { type: 'v', guidePos: cW / 2, isCenter: true, label: 'Tuval Dikey Merkez' },
+                { type: 'h', guidePos: cH / 2, isCenter: true, label: 'Tuval Yatay Merkez' }
+            ], cW / 2, cH / 2, 100, 50);
+            setTimeout(() => {
+                SmartGuides.clear();
+            }, 450);
         }
 
         // Tüm switchleri senkronize et
@@ -331,6 +384,7 @@
         // Tüm dock butonlarını senkronize et
         document.querySelectorAll('.dock-snap-btn').forEach(btn => {
             btn.classList.toggle('lock-active', window.isSmartGuidesEnabled);
+            btn.classList.toggle('active', window.isSmartGuidesEnabled);
             btn.title = window.isSmartGuidesEnabled ? 'Akıllı Manyetik Hizalamayı Kapat' : 'Akıllı Manyetik Hizalamayı Aç';
         });
 
@@ -349,6 +403,7 @@
         });
         document.querySelectorAll('.dock-snap-btn').forEach(btn => {
             btn.classList.toggle('lock-active', !!window.isSmartGuidesEnabled);
+            btn.classList.toggle('active', !!window.isSmartGuidesEnabled);
             btn.title = window.isSmartGuidesEnabled ? 'Akıllı Manyetik Hizalamayı Kapat' : 'Akıllı Manyetik Hizalamayı Aç';
         });
     }

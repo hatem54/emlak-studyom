@@ -37,34 +37,38 @@ CREATE INDEX IF NOT EXISTS idx_profiles_subscription ON public.profiles(subscrip
 -- 3. GÜVENLİK (ROW LEVEL SECURITY - RLS)
 ALTER TABLE public.license_codes ENABLE ROW LEVEL SECURITY;
 
+-- 3.1 Admin kontrol fonksiyonu (Sonsuz özyinelemeyi önler)
+CREATE OR REPLACE FUNCTION public.is_admin()
+RETURNS BOOLEAN
+LANGUAGE sql
+SECURITY DEFINER
+STABLE
+AS $$
+    SELECT EXISTS (
+        SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin'
+    );
+$$;
+
 -- Güvenlik politikaları
 DO $$ 
 BEGIN
     DROP POLICY IF EXISTS "Admins can do all on license_codes" ON public.license_codes;
     DROP POLICY IF EXISTS "Users can check and redeem active codes" ON public.license_codes;
     DROP POLICY IF EXISTS "Users can update code to used" ON public.license_codes;
+    DROP POLICY IF EXISTS "Users can view only their own redeemed codes" ON public.license_codes;
 END $$;
 
 CREATE POLICY "Admins can do all on license_codes" ON public.license_codes
     FOR ALL
     TO authenticated
-    USING (
-        EXISTS (
-            SELECT 1 FROM public.profiles 
-            WHERE profiles.id = auth.uid() AND profiles.role = 'admin'
-        )
-    );
+    USING (public.is_admin());
 
-CREATE POLICY "Users can check and redeem active codes" ON public.license_codes
+-- 🛡️ KULLANICILAR ASLA AKTİF KODLARI LİSTELEYEMEZ VEYA DÜZENLEYEMEZ!
+-- Kod yükleme işlemi sadece aşağıdaki atomik redeem_license_code RPC fonksiyonu ile yapılır.
+CREATE POLICY "Users can view only their own redeemed codes" ON public.license_codes
     FOR SELECT
     TO authenticated
-    USING (status = 'active' OR used_by = auth.uid());
-
-CREATE POLICY "Users can update code to used" ON public.license_codes
-    FOR UPDATE
-    TO authenticated
-    USING (status = 'active')
-    WITH CHECK (used_by = auth.uid());
+    USING (used_by = auth.uid());
 
 -- 4. KOD KULLANMA RPC FONKSİYONU (GÜVENLİ VE ATOMİK)
 CREATE OR REPLACE FUNCTION public.redeem_license_code(target_code TEXT)
@@ -135,23 +139,52 @@ DO $$
 BEGIN
     DROP POLICY IF EXISTS "Admins can view and update all profiles" ON public.profiles;
     DROP POLICY IF EXISTS "Users can view and update their own profile" ON public.profiles;
+    DROP POLICY IF EXISTS "Users can view own profile" ON public.profiles;
+    DROP POLICY IF EXISTS "Users can update own profile" ON public.profiles;
 END $$;
 
+-- 5.1 Adminler tüm profilleri görebilir ve yönetebilir
 CREATE POLICY "Admins can view and update all profiles" ON public.profiles
     FOR ALL
     TO authenticated
-    USING (
-        EXISTS (
-            SELECT 1 FROM public.profiles p
-            WHERE p.id = auth.uid() AND p.role = 'admin'
-        )
-    );
+    USING (public.is_admin());
 
-CREATE POLICY "Users can view and update their own profile" ON public.profiles
-    FOR ALL
+-- 5.2 Kullanıcılar sadece kendi profillerini görebilir
+CREATE POLICY "Users can view own profile" ON public.profiles
+    FOR SELECT
+    TO authenticated
+    USING (auth.uid() = id);
+
+-- 5.3 Kullanıcılar sadece kendi profillerini güncelleyebilir
+CREATE POLICY "Users can update own profile" ON public.profiles
+    FOR UPDATE
     TO authenticated
     USING (auth.uid() = id)
     WITH CHECK (auth.uid() = id);
+
+-- 5.4 🛡️ HASSAS ALAN KORUMA TETİKLEYİCİSİ (Role, Plan, Ban durumunun kullanıcı tarafından değiştirilmesini engeller)
+CREATE OR REPLACE FUNCTION public.protect_profile_roles()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+    -- Eğer işlemi yapan admin değilse, rol, abonelik ve yasaklama alanlarını eski değerde kilitle
+    IF NOT public.is_admin() THEN
+        NEW.role := OLD.role;
+        NEW.subscription_plan := OLD.subscription_plan;
+        NEW.subscription_expires_at := OLD.subscription_expires_at;
+        NEW.is_banned := OLD.is_banned;
+        NEW.banned_reason := OLD.banned_reason;
+    END IF;
+    RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_protect_profile_roles ON public.profiles;
+CREATE TRIGGER trg_protect_profile_roles
+    BEFORE UPDATE ON public.profiles
+    FOR EACH ROW EXECUTE FUNCTION public.protect_profile_roles();
 
 -- 6. LANSMAN DÖNEMİ: YENİ KAYITLARA OTOMATİK PRO ABONELİK VE TOPLU GÜNCELLEME
 -- 6.1. Mevcut tüm kayıtlı kullanıcıları tek seferde Pro yapmak için:

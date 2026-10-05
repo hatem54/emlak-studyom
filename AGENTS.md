@@ -1,6 +1,6 @@
 # Emlak Stüdyom Proje Standartları, Mimari & Yapay Zeka Kuralları
 
-Bu dosya, Antigravity ve yapay zeka ajanlarının her işlemde istisnasız uyması gereken temel proje, mimari, arayüz ve otonom çalışma kurallarını tanımlar. Tasarım belirteçleri ve renk detayları için [UI_DESIGN_SYSTEM.md](file:///c:/Users/Hatemi/Desktop/emlak%20d%C3%BCzenlemeleri%20i%C3%A7in%20uygulama/emlak-studiom%20v7-0/UI_DESIGN_SYSTEM.md) referans alınmalıdır.
+Bu dosya, Antigravity ve yapay zeka ajanlarının her işlemde istisnasız uyması gereken temel proje, mimari, arayüz ve otonom çalışma kurallarını tanımlar. Projenin mevcut güvenlik durumu ve tamamlanan işlerin kesin envanteri için [docs/GUVENLIK_VE_SISTEM_DURUMU.md](file:///c:/Users/Hatemi/Desktop/emlak%20d%C3%BCzenlemeleri%20i%C3%A7in%20uygulama/emlak-studiom%20v7-0/docs/GUVENLIK_VE_SISTEM_DURUMU.md); açılış performansı iyileştirme adımları ve devir kaydı için [docs/ACILIS_PERFORMANS_YOL_HARITASI.md](file:///c:/Users/Hatemi/Desktop/emlak%20d%C3%BCzenlemeleri%20i%C3%A7in%20uygulama/emlak-studiom%20v7-0/docs/ACILIS_PERFORMANS_YOL_HARITASI.md); genel sistem dökümü için [SISTEM_DURUMU_VE_TAMAMLANANLAR.md](file:///c:/Users/Hatemi/Desktop/emlak%20d%C3%BCzenlemeleri%20i%C3%A7in%20uygulama/emlak-studiom%20v7-0/SISTEM_DURUMU_VE_TAMAMLANANLAR.md); tasarım belirteçleri ve renk detayları için [UI_DESIGN_SYSTEM.md](file:///c:/Users/Hatemi/Desktop/emlak%20d%C3%BCzenlemeleri%20i%C3%A7in%20uygulama/emlak-studiom%20v7-0/UI_DESIGN_SYSTEM.md) referans alınmalıdır.
 
 ---
 

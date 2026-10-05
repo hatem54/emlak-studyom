@@ -105,12 +105,13 @@ function showSaberAnimModal(options = {}) {
 function bindAnimToggleEvents(checkbox, id, controlToggle) {
     if (!checkbox) return;
     if (checkbox.dataset.bound === 'true') {
-        if (controlToggle) checkbox.disabled = !controlToggle.checked;
+        checkbox.disabled = false;
         return;
     }
     checkbox.dataset.bound = 'true';
+    checkbox.disabled = false;
     checkbox.checked = getSaberAnimState(id);
-    if (controlToggle) {
+    if (controlToggle && id !== 'saberEnergyNodesAnim') {
         checkbox.disabled = !controlToggle.checked;
         controlToggle.addEventListener('change', () => {
             checkbox.disabled = !controlToggle.checked;
@@ -123,35 +124,28 @@ function bindAnimToggleEvents(checkbox, id, controlToggle) {
     }
 
     checkbox.addEventListener('change', () => {
-        if (checkbox.checked) {
-            // Kullanıcı daha önce "bir daha sorma" demişse doğrudan aç
-            if (localStorage.getItem('saber_anim_confirmed') === 'true') {
-                setSaberAnimState(id, true);
-                applySaberAnimation(id, true);
-                return;
+        const isChecked = checkbox.checked;
+        setSaberAnimState(id, isChecked);
+        if (isChecked) {
+            document.body.classList.add('saber-animation-active');
+            if (typeof activateSaberIfInactive === 'function') {
+                activateSaberIfInactive();
+            } else if (typeof window.activateSaberIfInactive === 'function') {
+                window.activateSaberIfInactive();
             }
-
-            // Onay penceresi açılana kadar checkbox'ı geri al
-            checkbox.checked = false;
-
-            showSaberAnimModal({
-                onConfirm: (remember) => {
-                    if (remember) {
-                        localStorage.setItem('saber_anim_confirmed', 'true');
-                    }
-                    checkbox.checked = true;
-                    setSaberAnimState(id, true);
-                    applySaberAnimation(id, true);
-                },
-                onCancel: () => {
-                    checkbox.checked = false;
-                    setSaberAnimState(id, false);
-                    applySaberAnimation(id, false);
-                }
-            });
+            const pIn = document.getElementById('saberPulse');
+            const pVal = document.getElementById('saberPulseVal');
+            if (pIn && (parseFloat(pIn.value) || 0) === 0 && (window.saberState && (window.saberState.flickerAmount || 0) <= 0.02)) {
+                pIn.value = 1.5;
+                if (pVal) pVal.textContent = '1.5';
+                if (window.saberState) window.saberState.pulseSpeed = 1.5;
+            }
         } else {
-            setSaberAnimState(id, false);
-            applySaberAnimation(id, false);
+            document.body.classList.remove('saber-animation-active');
+        }
+        applySaberAnimation(id, isChecked);
+        if (typeof window.previewSaber === 'function') {
+            window.previewSaber(true, false);
         }
     });
 }
@@ -320,10 +314,9 @@ function stopNeonSvgAnimationLoop() {
 window.isSaberAnimationActive = function() {
     if (typeof window !== 'undefined' && window.isExportingVideo) return true;
 
-    // 1. Çizim katmanında aktif neon var mı ve animasyon toggle'ı açık mı?
+    // 1. Çizim katmanında aktif neon animasyon toggle'ı açık mı?
     const bottomAnim = document.getElementById('saberEnergyNodesAnim');
-    const hasActiveDrawSaber = typeof drawPaths !== 'undefined' && drawPaths.some(p => p && (p.hasSaber || p.saber));
-    if (hasActiveDrawSaber && bottomAnim && bottomAnim.checked) return true;
+    if (bottomAnim && bottomAnim.checked) return true;
 
     // 2. Yazı katmanında aktif neon ve animasyon açık mı?
     const textAnim = document.getElementById('elTextSaberAnim');
@@ -573,7 +566,7 @@ function initSaberAnimToggles() {
         
         // Alttaki animasyon butonu: Kullanıcının özellikle istediği alt animasyon butonu (saberEnergyNodesAnim) korundu ve aktif edildi
         if (document.getElementById('saberEnergyNodes')) {
-            createAnimToggle('saberEnergyNodesAnim', 'saberEnergyNodes', 'saberModeToggle');
+            createAnimToggle('saberEnergyNodesAnim', 'saberEnergyNodes');
         }
 
         // Çizim Objesi Özellikleri - anim toggle kaldırıldı 
@@ -586,6 +579,7 @@ function initSaberAnimToggles() {
                 cb.id !== 'saberModeToggle' && 
                 cb.id !== 'deSaberToggle' && 
                 cb.id !== 'saberEnergyNodes' &&
+                cb.id !== 'saberEnergyNodesAnim' &&
                 cb.id !== 'deSaberEnergyNodes' &&
                 cb.id !== 'drawSnapToggle' &&
                 cb.id !== 'photoLockToggle' &&
@@ -604,10 +598,17 @@ function initSaberAnimToggles() {
     };
     
     tryCreate();
-    setInterval(tryCreate, 2000);
+    let tryCreateAttempts = 0;
+    const tryCreateInterval = setInterval(() => {
+        tryCreateAttempts++;
+        tryCreate();
+        if (tryCreateAttempts >= 10) {
+            clearInterval(tryCreateInterval);
+        }
+    }, 2000);
     
     setTimeout(() => {
-        applySaberAnimation('deSaberAnim', false);
+        applySaberAnimation('saberEnergyNodesAnim', false);
     }, 1200);
 }
 

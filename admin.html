@@ -9,8 +9,8 @@
     <link rel="shortcut icon" href="assets/logo/favicon.ico">
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.26.25/dist/sweetalert2.all.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.min.js"></script>
     <script src="js/supabase-client.js" defer></script>
     <script src="js/presence.js?v=20260819-1" defer></script>
     <script src="js/subscription.js?v=20260819-1" defer></script>
@@ -518,6 +518,16 @@
             }
         }
 
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
         function renderUsersTable(users) {
             const tbody = document.getElementById('usersTableBody');
             if (!users || !users.length) {
@@ -560,11 +570,14 @@
                     ? '<span class="badge badge-banned">🚫 Yasaklı</span>' 
                     : '<span class="badge badge-active">🟢 Aktif</span>';
 
+                const safeName = escapeHtml(u.full_name) || 'İsimsiz';
+                const safeEmail = escapeHtml(u.email) || '-';
+
                 return `
                     <tr>
                         <td>
-                            <strong style="color:#f8fafc;">${u.full_name || 'İsimsiz'}</strong>
-                            <div style="font-size:11px; color:#94a3b8;">${u.email || '-'}</div>
+                            <strong style="color:#f8fafc;">${safeName}</strong>
+                            <div style="font-size:11px; color:#94a3b8;">${safeEmail}</div>
                         </td>
                         <td><span class="badge ${u.role==='admin'?'badge-admin':'badge-demo'}">${u.role||'user'}</span></td>
                         <td>${planBadge}</td>
@@ -831,16 +844,21 @@
                     ? '<span class="badge badge-active">🟢 Bekliyor (Aktif)</span>'
                     : '<span class="badge badge-used">✅ Kullanıldı</span>';
 
+                const safeCode = escapeHtml(c.code);
+                const safeDuration = escapeHtml(c.duration_label) || (c.duration_days + ' Gün');
+                const safeNote = escapeHtml(c.note) || '-';
+                const safeUsedBy = escapeHtml(c.used_by_email) || '-';
+
                 return `
                     <tr>
-                        <td><strong style="font-family:monospace; color:#c084fc; font-size:14px;">${c.code}</strong></td>
-                        <td>${c.duration_label || (c.duration_days + ' Gün')}</td>
-                        <td style="color:#cbd5e1;">${c.note || '-'}</td>
+                        <td><strong style="font-family:monospace; color:#c084fc; font-size:14px;">${safeCode}</strong></td>
+                        <td>${safeDuration}</td>
+                        <td style="color:#cbd5e1;">${safeNote}</td>
                         <td>${statusBadge}</td>
-                        <td style="color:#93c5fd;">${c.used_by_email || '-'}</td>
+                        <td style="color:#93c5fd;">${safeUsedBy}</td>
                         <td style="color:#94a3b8;">${created}</td>
                         <td>
-                            <button class="btn btn-sm btn-secondary" onclick="navigator.clipboard.writeText('${c.code}'); Swal.fire({ toast:true, position:'top-end', icon:'success', title:'Kod Kopyalandı', showConfirmButton:false, timer:1500 });">
+                            <button class="btn btn-sm btn-secondary" onclick="navigator.clipboard.writeText('${safeCode}'); Swal.fire({ toast:true, position:'top-end', icon:'success', title:'Kod Kopyalandı', showConfirmButton:false, timer:1500 });">
                                 <i class="fa-solid fa-copy"></i>
                             </button>
                         </td>
@@ -903,10 +921,12 @@
                 tbody.innerHTML = feedbacks.map(f => {
                     const stars = f.rating ? '⭐'.repeat(f.rating) : '-';
                     const date = f.created_at ? new Date(f.created_at).toLocaleString('tr-TR') : '-';
+                    const safeEmail = escapeHtml(f.email) || 'Anonim';
+                    const safeMsg = escapeHtml(f.message) || '-';
                     return `
                         <tr>
-                            <td style="color:#93c5fd;">${f.email || 'Anonim'}</td>
-                            <td>${f.message || '-'}</td>
+                            <td style="color:#93c5fd;">${safeEmail}</td>
+                            <td>${safeMsg}</td>
                             <td>${stars}</td>
                             <td style="color:#94a3b8;">${date}</td>
                         </tr>

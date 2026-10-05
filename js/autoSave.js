@@ -631,6 +631,10 @@ async function applyRestoredState(state) {
         if (bgColorToRestore) {
             const canvasContainer = document.getElementById('canvas-container');
             if (canvasContainer) canvasContainer.style.setProperty('background-color', bgColorToRestore, 'important');
+            const pl = document.getElementById('photo-layer');
+            if (pl && (!window.uploadedImgUrl || pl.style.backgroundImage === 'none')) {
+                pl.style.setProperty('background-color', 'transparent', 'important');
+            }
             const canvBg = document.getElementById('canvasBgColor');
             if (canvBg) canvBg.value = bgColorToRestore;
             const expBg = document.getElementById('exportBgColor');

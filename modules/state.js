@@ -212,6 +212,7 @@ function captureFullState() {
             bg: kolajWrap.style.background || kolajWrap.style.backgroundColor || ''
         } : null,
         canvasBgColor: canvasContainer ? canvasContainer.style.backgroundColor : '',
+        canvasBgImage: canvasContainer ? canvasContainer.style.backgroundImage : '',
         lastAppliedPalette: window.lastAppliedPalette ? Object.assign({}, window.lastAppliedPalette) : null,
         currentMode: typeof currentMode !== 'undefined' ? currentMode : window.currentMode,
         activeLayout: typeof activeLayout !== 'undefined' ? activeLayout : window.activeLayout
@@ -341,6 +342,12 @@ function applySnapshot(state) {
             const canvasContainer = document.getElementById('canvas-container');
             if (canvasContainer) {
                 canvasContainer.style.setProperty('background-color', state.canvasBgColor, 'important');
+            }
+        }
+        if (state.canvasBgImage && state.canvasBgImage !== 'none') {
+            const canvasContainer = document.getElementById('canvas-container');
+            if (canvasContainer) {
+                canvasContainer.style.setProperty('background-image', state.canvasBgImage, 'important');
             }
         }
 

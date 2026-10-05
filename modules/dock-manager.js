@@ -180,20 +180,22 @@
                 if (el3d) {
                     this.selected3DElement = el3d;
                     this.selectedElement = null;
-                    contextName = 'element';
+                    contextName = '3d';
                     payload = el3d;
                 }
             }
 
-            // Eğer bir 2D veya 3D öge seçiliyse 'element' kontekstine geç
-            if (contextName === 'element') {
+            // Eğer bir 2D veya 3D öge seçiliyse kontekste geç
+            if (contextName === 'element' || contextName === '3d') {
                 if (payload) {
-                    if (payload.id && (typeof payload.depth !== 'undefined' || payload.isBaseAligned || payload.estateItemId)) {
+                    if (payload.id && (typeof payload.depth !== 'undefined' || payload.isBaseAligned || payload.estateItemId || (payload.type && String(payload.type).startsWith('3d')))) {
                         this.selected3DElement = payload;
                         this.selectedElement = null;
+                        contextName = '3d';
                     } else {
                         this.selectedElement = payload;
                         this.selected3DElement = null;
+                        contextName = 'element';
                     }
                 }
             }
@@ -266,6 +268,17 @@
                 btn.classList.toggle('lock-active', !!window.isSmartGuidesEnabled);
                 btn.title = window.isSmartGuidesEnabled ? 'Akıllı Manyetik Hizalamayı Kapat' : 'Akıllı Manyetik Hizalamayı Aç';
             });
+
+            // 4. 3D Eksen Gizmo / Serbest Taşıma Buton Senkronizasyonu
+            if (contextName === '3d' && window.ThreeDEngine) {
+                const isGizmo = (typeof window.ThreeDEngine.isGizmoActive === 'function')
+                    ? window.ThreeDEngine.isGizmoActive()
+                    : (window.ThreeDEngine.state ? !!window.ThreeDEngine.state.gizmoActive : false);
+                const btnFree = document.getElementById('dock3DBtnFree');
+                const btnGizmo = document.getElementById('dock3DBtnGizmo');
+                if (btnFree) btnFree.classList.toggle('active', !isGizmo);
+                if (btnGizmo) btnGizmo.classList.toggle('active', !!isGizmo);
+            }
         },
 
         /**
@@ -274,7 +287,7 @@
         on3DElementSelected: function(el) {
             this.selected3DElement = el || (window.ThreeDEngine && window.ThreeDEngine.getActiveElement && window.ThreeDEngine.getActiveElement());
             this.selectedElement = null;
-            this.setContext('element', this.selected3DElement);
+            this.setContext('3d', this.selected3DElement);
         },
 
         /**
@@ -308,6 +321,7 @@
     };
 
     window.DockContextManager = DockContextManager;
+    window.DockManager = DockContextManager;
     window.syncDockElementLock = function(el) {
         DockContextManager.syncStateValues('element', el);
     };

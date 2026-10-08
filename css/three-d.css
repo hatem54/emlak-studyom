@@ -254,6 +254,12 @@ body[data-theme="light"] .dock-3d-btn-free.active {
     width: 100%;
     height: 100%;
     z-index: 54;
+    pointer-events: none;
+}
+
+#three-d-layer.three-d-interactive,
+body.three-d-active #three-d-layer,
+body.three-d-panel-open #three-d-layer {
     pointer-events: auto;
 }
 
@@ -274,6 +280,10 @@ body[data-theme="light"] .dock-3d-btn-free.active {
     overflow: hidden;
     user-select: none;
     animation: threeDFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+body.three-d-panel-open:has(#threeDStudioPanel:not([style*="display: none"])) .container > .panel {
+    visibility: hidden !important;
 }
 
 @keyframes threeDFadeIn {

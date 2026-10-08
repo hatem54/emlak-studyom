@@ -74,6 +74,7 @@ function updateVideoToastProgress(pct, remainingSec) {
 }
 
 function finishVideoToastSuccess(filename, sizeMb, url) {
+    if (_videoToastBlobUrl && _videoToastBlobUrl !== url) URL.revokeObjectURL(_videoToastBlobUrl);
     _videoToastBlobUrl = url;
     const toast = createOrGetVideoToast();
     toast.style.borderColor = 'rgba(16, 185, 129, 0.6)';
@@ -220,6 +221,19 @@ async function exportAnimatedVideo(options = {}) {
         return;
     }
 
+    if (typeof Swal !== 'undefined') {
+        Swal.fire({
+            toast: true,
+            position: 'top-end',
+            icon: 'info',
+            title: 'Bilgi',
+            text: 'Sadece 3D alanlar ve neon partikülleri hareketli kaydedilir. HTML/CSS (yazı, rozet) animasyonları videoda sabit kalır.',
+            showConfirmButton: false,
+            timer: 5000,
+            background: '#1e293b',
+            color: '#fff'
+        });
+    }
     const chosenMime = getBestSupportedVideoMime();
     const durationSeconds = (options && options.duration) ? options.duration : 3;
     const durationMs = durationSeconds * 1000;

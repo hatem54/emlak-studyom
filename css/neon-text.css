@@ -76,3 +76,29 @@
     color: #ffffff !important;
     text-shadow: 1px 1px 0 #0f172a, 2px 2px 0 #0f172a, 3px 3px 0 #0f172a, 4px 4px 0 #0f172a, 5px 5px 0 #0f172a, 6px 6px 14px rgba(0,0,0,0.75) !important;
 }
+
+/* Neon Metin Elemanları - DOM Metninin ve Gölgesinin Tuvalde Ayrışmasını/Görünmesini Kesinlikle Engelle */
+#canvas-container .canvas-el[data-saber-active="true"],
+#canvas-container .neon-text-el {
+    color: transparent !important;
+    text-shadow: none !important;
+    -webkit-text-stroke: 0 transparent !important;
+}
+
+/* Neon metin tutamaçlarının ve ikonlarının görünürlüğünü garantiye al */
+#canvas-container .canvas-el[data-saber-active="true"] > .text-handle,
+#canvas-container .neon-text-el > .text-handle {
+    color: #00d2ff !important;
+}
+
+#canvas-container .canvas-el[data-saber-active="true"] > .text-delete-handle,
+#canvas-container .neon-text-el > .text-delete-handle {
+    color: #f43f5e !important;
+}
+
+#canvas-container .canvas-el[data-saber-active="true"] > .text-lock-handle,
+#canvas-container .neon-text-el > .text-lock-handle {
+    color: #f59e0b !important;
+}
+
+

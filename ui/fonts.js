@@ -193,11 +193,16 @@ window.applyGlobalColors = function(){
         const isTemplateElement = el.id === 'elBadge' || el.id === 'elPrice' || el.id === 'infoLineText' || el.id.startsWith('canva');
         const isCallout = el.classList.contains('callout-wrap') || el.classList.contains('svg-callout') || el.classList.contains('co-neon-block');
         const isCerCeva = el.classList.contains('cerceve');
+        const isNeonText = el.dataset.saberActive === 'true' || el.classList.contains('neon-text-el');
         
-        if (!isTemplateElement && !isCallout && !isCerCeva) {
+        if (!isTemplateElement && !isCallout && !isCerCeva && !isNeonText) {
             el.style.color = textColor;
             el.style.backgroundColor = textBgColor;
             el.style.webkitTextStroke = textStrokeWidth > 0 ? `${textStrokeWidth}px ${textStrokeColor}` : '';
+        } else if (isNeonText) {
+            el.style.color = 'transparent';
+            el.style.textShadow = 'none';
+            el.style.webkitTextStroke = 'none';
         }
     });
 };
@@ -230,20 +235,33 @@ function applyFontSettings(){
             if (spacing) el.style.letterSpacing = spacing + 'px';
             if (lh && el.id !== 'elBadge' && el.id !== 'elPrice') el.style.lineHeight = lh;
             if (align && el.id !== 'elBadge' && el.id !== 'elPrice') el.style.textAlign = align;
-            if (shadow) el.style.textShadow = shadow;
+            if (el.dataset.saberActive === 'true' || el.classList.contains('neon-text-el')) {
+                el.style.color = 'transparent';
+                el.style.textShadow = 'none';
+                el.style.webkitTextStroke = 'none';
+            } else if (shadow) {
+                el.style.textShadow = shadow;
+            }
             if (tt) el.style.textTransform = tt;
         }
     });
 
     document.querySelectorAll('#canvas-container .canvas-el, #canvas-container .draggable').forEach(el=>{
         if(el.dataset.customFont)return;
+        const isNeonText = el.dataset.saberActive === 'true' || el.classList.contains('neon-text-el');
         el.style.fontFamily=currentFont;
         el.style.fontWeight=weight;
         el.style.fontStyle=style;
         el.style.letterSpacing=spacing+'px';
         el.style.lineHeight=lh;
         el.style.textAlign=align;
-        el.style.textShadow=shadow;
+        if (isNeonText) {
+            el.style.color = 'transparent';
+            el.style.textShadow = 'none';
+            el.style.webkitTextStroke = 'none';
+        } else {
+            el.style.textShadow=shadow;
+        }
         el.style.textTransform=tt;
     });
 
@@ -255,6 +273,15 @@ function applyFontSettings(){
                 window.updateParcelBadgeFont(b, { fontFamily: currentFont, fontWeight: weight, fontStyle: style, letterSpacing: spacing });
             }
         });
+    }
+
+    // Neon metinlerin PixiJS WebGL katmanını font/kalınlık/aralık değişiklikleriyle anında senkronize et
+    if (window.SaberEngine && typeof window.SaberEngine.updateTextSaberPositions === 'function') {
+        window.SaberEngine.updateTextSaberPositions();
+        const app = window.SaberEngine.getApp ? window.SaberEngine.getApp() : null;
+        if (app && app.renderer && app.stage && (!app.ticker || !app.ticker.started)) {
+            try { app.renderer.render(app.stage); } catch(e) {}
+        }
     }
 }
 
@@ -301,9 +328,14 @@ function applyElFont(){
     if(ff||fw||fs||parseInt(ls)!==0){
         selectedEl.dataset.customFont='1';
         if(ff)selectedEl.style.fontFamily=ff;
-        if(fw){selectedEl.style.fontWeight=fw;$('elWeightSlider').value=fw;$('elWeightVal').textContent=fw}
+        if(fw){selectedEl.style.fontWeight=fw;if($('elWeightSlider'))$('elWeightSlider').value=fw;if($('elWeightVal'))$('elWeightVal').textContent=fw}
         if(fs)selectedEl.style.fontStyle=fs;
         selectedEl.style.letterSpacing=ls+'px';
+        if (selectedEl.dataset.saberActive === 'true' || selectedEl.classList.contains('neon-text-el')) {
+            selectedEl.style.color = 'transparent';
+            selectedEl.style.textShadow = 'none';
+            selectedEl.style.webkitTextStroke = 'none';
+        }
         if(selectedEl.id === 'elDetails') {
             const il = document.getElementById('infoLineText');
             if (il) {
@@ -320,6 +352,14 @@ function applyElFont(){
             if (il) delete il.dataset.customFont;
         }
         applyFontSettings();
+    }
+
+    if (window.SaberEngine && typeof window.SaberEngine.updateTextSaberPositions === 'function') {
+        window.SaberEngine.updateTextSaberPositions();
+        const app = window.SaberEngine.getApp ? window.SaberEngine.getApp() : null;
+        if (app && app.renderer && app.stage && (!app.ticker || !app.ticker.started)) {
+            try { app.renderer.render(app.stage); } catch(e) {}
+        }
     }
 }
 
@@ -339,20 +379,42 @@ function applyElWeight(){
         window.updateParcelBadgeFont(badgeWrap, { fontWeight: w });
     }
     
+    const isNeon = selectedEl.dataset.saberActive === 'true' || selectedEl.classList.contains('neon-text-el');
+
     if (w <= 900) {
         selectedEl.style.fontWeight = w;
-        const tsw = parseInt(selectedEl.dataset.storedTextStrokeWidth) || 0;
-        const tsc = selectedEl.dataset.storedTextStrokeColor || '#000000';
-        selectedEl.style.webkitTextStroke = tsw > 0 ? tsw + 'px ' + tsc : '';
+        if (isNeon) {
+            selectedEl.style.color = 'transparent';
+            selectedEl.style.textShadow = 'none';
+            selectedEl.style.webkitTextStroke = 'none';
+        } else {
+            const tsw = parseInt(selectedEl.dataset.storedTextStrokeWidth) || 0;
+            const tsc = selectedEl.dataset.storedTextStrokeColor || '#000000';
+            selectedEl.style.webkitTextStroke = tsw > 0 ? tsw + 'px ' + tsc : '';
+        }
     } else {
         selectedEl.style.fontWeight = '900';
-        let strokeW = ((w - 900) / 100); 
-        const color = selectedEl.style.color || '#000000';
-        selectedEl.style.webkitTextStroke = strokeW + 'px ' + color;
+        if (isNeon) {
+            selectedEl.style.color = 'transparent';
+            selectedEl.style.textShadow = 'none';
+            selectedEl.style.webkitTextStroke = 'none';
+        } else {
+            let strokeW = ((w - 900) / 100); 
+            const color = selectedEl.style.color || '#000000';
+            selectedEl.style.webkitTextStroke = strokeW + 'px ' + color;
+        }
     }
     
     selectedEl.dataset.customFont='1';
-    document.getElementById('elFontWeight2').value=w;
+    if(document.getElementById('elFontWeight2')) document.getElementById('elFontWeight2').value=w;
+
+    if (window.SaberEngine && typeof window.SaberEngine.updateTextSaberPositions === 'function') {
+        window.SaberEngine.updateTextSaberPositions();
+        const app = window.SaberEngine.getApp ? window.SaberEngine.getApp() : null;
+        if (app && app.renderer && app.stage && (!app.ticker || !app.ticker.started)) {
+            try { app.renderer.render(app.stage); } catch(e) {}
+        }
+    }
 }
 
 function loadElFont(el){

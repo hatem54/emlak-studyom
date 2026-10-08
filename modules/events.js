@@ -217,7 +217,7 @@ function openObjectContextMenu(targetElement, isText, clientX, clientY) {
     if (!targetElement) return;
 
     // 🎯 Her zaman tuvaldeki en üst seviye taşınabilir ana kapsayıcıyı hedef al
-    const rootElement = targetElement.closest('.callout-wrap, .draggable, .canvas-el, .added-icon, [data-layer-uid], .editable-draw, .canva-el, .cvi-item, [data-path-id], [data-path-index]') || targetElement;
+    const rootElement = targetElement.closest('.shape-el, .callout-wrap, .draggable, .canvas-el, .added-icon, [data-layer-uid], .editable-draw, .canva-el, .cvi-item, [data-path-id], [data-path-index]') || targetElement;
     targetElement = rootElement;
 
     // Varsa önceki açık menüyü kapat
@@ -329,19 +329,28 @@ function openObjectContextMenu(targetElement, isText, clientX, clientY) {
         `;
     }
 
+    if (targetElement.dataset.groupId) {
+        html += `
+            <button class="app-context-item" id="acm-single-ungroup">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><path d="M10 10l4 4"/></svg>
+                <span>Grubu Ayır</span>
+            </button>
+        `;
+    }
+
     // Sayfaya 9 Yön Konumlandırma & Ortala
     html += `
-        <div class="acm-section-label">🎯 SAYFADA KONUMLANDIR</div>
+        <div class="acm-section-label">SAYFADA KONUMLANDIR</div>
         <div class="acm-grid-btns">
-            <button class="acm-grid-btn" id="acm-single-top-left" title="Sol Üst"><span>↖ Sol Üst</span></button>
-            <button class="acm-grid-btn" id="acm-single-top-center" title="Üst Orta"><span>⬆ Üst Orta</span></button>
-            <button class="acm-grid-btn" id="acm-single-top-right" title="Sağ Üst"><span>↗ Sağ Üst</span></button>
-            <button class="acm-grid-btn" id="acm-single-middle-left" title="Orta Sol"><span>⬅ Orta Sol</span></button>
-            <button class="acm-grid-btn" id="acm-single-center" title="Sayfa Merkezi" style="background:rgba(56,189,248,0.2); border-color:#38bdf8; color:#fff; font-weight:bold;"><span>🎯 Merkez</span></button>
-            <button class="acm-grid-btn" id="acm-single-middle-right" title="Orta Sağ"><span>➡ Orta Sağ</span></button>
-            <button class="acm-grid-btn" id="acm-single-bottom-left" title="Sol Alt"><span>↙ Sol Alt</span></button>
-            <button class="acm-grid-btn" id="acm-single-bottom-center" title="Alt Orta"><span>⬇ Alt Orta</span></button>
-            <button class="acm-grid-btn" id="acm-single-bottom-right" title="Sağ Alt"><span>↘ Sağ Alt</span></button>
+            <button class="acm-grid-btn" id="acm-single-top-left" title="Sol Üst"><span>Sol Üst</span></button>
+            <button class="acm-grid-btn" id="acm-single-top-center" title="Üst Orta"><span>Üst Orta</span></button>
+            <button class="acm-grid-btn" id="acm-single-top-right" title="Sağ Üst"><span>Sağ Üst</span></button>
+            <button class="acm-grid-btn" id="acm-single-middle-left" title="Orta Sol"><span>Orta Sol</span></button>
+            <button class="acm-grid-btn" id="acm-single-center" title="Sayfa Merkezi"><span>Merkez</span></button>
+            <button class="acm-grid-btn" id="acm-single-middle-right" title="Orta Sağ"><span>Orta Sağ</span></button>
+            <button class="acm-grid-btn" id="acm-single-bottom-left" title="Sol Alt"><span>Sol Alt</span></button>
+            <button class="acm-grid-btn" id="acm-single-bottom-center" title="Alt Orta"><span>Alt Orta</span></button>
+            <button class="acm-grid-btn" id="acm-single-bottom-right" title="Sağ Alt"><span>Sağ Alt</span></button>
         </div>
     `;
 
@@ -514,7 +523,8 @@ function openObjectContextMenu(targetElement, isText, clientX, clientY) {
     // 🌟 3D & GÜNEŞ İŞLEMLERİ
     bindBtn('#acm-convert-3d', () => {
         if (window.ThreeDEngine && typeof window.ThreeDEngine.convert2DBadgeTo3D === 'function') {
-            const elToConvert = targetElement || window.selectedCalloutEl || window.selectedEl;
+            const rawEl = targetElement || window.selectedCalloutEl || window.selectedEl;
+            const elToConvert = rawEl ? (rawEl.closest('.shape-el, .callout-wrap, .callout-wrapper, .draggable, .added-icon, .canvas-el') || rawEl) : null;
             window.ThreeDEngine.convert2DBadgeTo3D(elToConvert);
         }
     });
@@ -557,6 +567,21 @@ function openObjectContextMenu(targetElement, isText, clientX, clientY) {
         if (typeof deselectAll === 'function') deselectAll();
         if (typeof renderLayers === 'function') renderLayers();
     });
+
+        bindBtn('#acm-single-ungroup', () => {
+        if (targetElement.dataset.groupId) {
+            const groupId = targetElement.dataset.groupId;
+            document.querySelectorAll('.canvas-el, .draggable, .callout-wrap, .added-icon, .canva-el').forEach(el => {
+                if (el.dataset.groupId === groupId) {
+                    delete el.dataset.groupId;
+                }
+            });
+            window.selectedElements = [targetElement];
+            if (typeof updateGroupUI === 'function') updateGroupUI();
+            if (typeof renderLayers === 'function') renderLayers();
+        }
+    });
+
 
     bindBtn('#acm-lock', () => {
         const isLocked = targetElement.dataset.locked === 'true' || targetElement.classList.contains('locked-el');
@@ -606,17 +631,26 @@ function openObjectContextMenu(targetElement, isText, clientX, clientY) {
     });
 
     bindBtn('#acm-single-rot-cw', () => {
-        window.selectedElements = [targetElement];
+        if (!window.selectedElements || !window.selectedElements.includes(targetElement)) {
+            const gid = targetElement.dataset.groupId;
+            window.selectedElements = gid ? Array.from(document.querySelectorAll(`[data-group-id="${gid}"]`)) : [targetElement];
+        }
         if (window.multiSelectRotate) window.multiSelectRotate(90);
     });
 
     bindBtn('#acm-single-scale-up', () => {
-        window.selectedElements = [targetElement];
+        if (!window.selectedElements || !window.selectedElements.includes(targetElement)) {
+            const gid = targetElement.dataset.groupId;
+            window.selectedElements = gid ? Array.from(document.querySelectorAll(`[data-group-id="${gid}"]`)) : [targetElement];
+        }
         if (window.multiSelectScale) window.multiSelectScale(1.15);
     });
 
     bindBtn('#acm-single-scale-down', () => {
-        window.selectedElements = [targetElement];
+        if (!window.selectedElements || !window.selectedElements.includes(targetElement)) {
+            const gid = targetElement.dataset.groupId;
+            window.selectedElements = gid ? Array.from(document.querySelectorAll(`[data-group-id="${gid}"]`)) : [targetElement];
+        }
         if (window.multiSelectScale) window.multiSelectScale(0.85);
     });
 
@@ -712,30 +746,29 @@ function openMultiSelectContextMenu(clientX, clientY) {
             <button class="acm-close-btn" id="acm-close-btn" title="Kapat">✕</button>
         </div>
 
-        <div class="acm-section-label">↕️ BOŞLUKLU SIRALA (ANTİ-OVERLAP)</div>
+        <div class="acm-section-label">BOŞLUKLU SIRALA</div>
         
-        <div style="display:flex; align-items:center; justify-content:space-between; background:rgba(0,0,0,0.3); padding:4px 8px; border-radius:6px; margin-bottom:4px; border:1px solid rgba(255,255,255,0.08);">
-            <span style="font-size:11px; color:#cbd5e1; font-weight:600;"><i class="fas fa-arrows-alt-v" style="color:#38bdf8; margin-right:4px;"></i> Boşluk:</span>
-            <div style="display:flex; align-items:center; gap:4px;">
-                <button type="button" class="tab-btn" style="padding:1px 6px; font-size:11px; font-weight:bold; min-width:20px;" onclick="window.stepMultiSelectGap(-2)">-</button>
-                <input type="number" id="acm-gap-val" value="${window.multiSelectGap || 14}" min="0" max="200" step="2" onchange="window.setMultiSelectGap(this.value)" oninput="window.setMultiSelectGap(this.value)" style="width:38px; text-align:center; padding:1px 2px; font-size:11px; background:#0f172a; border:1px solid #334155; color:#fff; border-radius:4px; font-weight:bold;">
-                <span style="font-size:10px; color:#94a3b8;">px</span>
-                <button type="button" class="tab-btn" style="padding:1px 6px; font-size:11px; font-weight:bold; min-width:20px;" onclick="window.stepMultiSelectGap(2)">+</button>
+        <div style="padding: 2px 4px 6px 4px;">
+            <div class="slider-group" style="margin-bottom:6px;">
+                <label style="display:flex; justify-content:space-between; font-size:10px; margin-bottom:2px; font-family:'ClassicAmpersand', 'Space Grotesk', sans-serif; font-weight:600;">
+                    <span>Boşluk</span>
+                    <span id="acm-gap-display">${window.multiSelectGap || 14}px</span>
+                </label>
+                <input type="range" id="acm-gap-slider" min="0" max="100" value="${window.multiSelectGap || 14}" oninput="window.setMultiSelectGap(this.value, false)" onchange="window.setMultiSelectGap(this.value, true)" style="width:100%; height:5px; accent-color:#94a3b8; cursor:pointer;">
+            </div>
+            <div style="display:flex; gap:4px;">
+                <button class="app-context-item" id="acm-stack-v" style="flex:1; justify-content:center;">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+                    <span>Alt Alta Diz</span>
+                </button>
+                <button class="app-context-item" id="acm-stack-h" style="flex:1; justify-content:center;">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="6" y1="3" x2="6" y2="21"/><line x1="12" y1="3" x2="12" y2="21"/><line x1="18" y1="3" x2="18" y2="21"/></svg>
+                    <span>Yan Yana Diz</span>
+                </button>
             </div>
         </div>
 
-        <div style="display:flex; gap:3px; margin-bottom:4px;">
-            <button class="app-context-item" id="acm-stack-v" style="flex:1; justify-content:center; background:rgba(99,102,241,0.2); border:1px solid rgba(99,102,241,0.4); font-weight:600;">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#818cf8" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
-                <span>Alt Alta Diz</span>
-            </button>
-            <button class="app-context-item" id="acm-stack-h" style="flex:1; justify-content:center; background:rgba(99,102,241,0.2); border:1px solid rgba(99,102,241,0.4); font-weight:600;">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#818cf8" stroke-width="2"><line x1="6" y1="3" x2="6" y2="21"/><line x1="12" y1="3" x2="12" y2="21"/><line x1="18" y1="3" x2="18" y2="21"/></svg>
-                <span>Yan Yana Diz</span>
-            </button>
-        </div>
-
-        <div class="acm-section-label">↔️ BİRBİRİNE GÖRE HİZALA</div>
+        <div class="acm-section-label">BİRBİRİNE GÖRE HİZALA</div>
         <div class="acm-grid-btns">
             <button class="acm-grid-btn" id="acm-align-left" title="Sola Hizala">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="2" x2="4" y2="22"/><rect x="8" y="5" width="12" height="4" rx="1"/><rect x="8" y="15" width="8" height="4" rx="1"/></svg>
@@ -763,20 +796,20 @@ function openMultiSelectContextMenu(clientX, clientY) {
             </button>
         </div>
 
-        <div class="acm-section-label">🎯 SAYFADA 9 YÖN KONUMLANDIRMA</div>
+        <div class="acm-section-label">SAYFADA 9 YÖN KONUMLANDIRMA</div>
         <div class="acm-grid-btns">
             <button class="acm-grid-btn" id="acm-pos-top-left" title="Sol Üst"><span>↖ Sol Üst</span></button>
             <button class="acm-grid-btn" id="acm-pos-top-center" title="Üst Orta"><span>⬆ Üst Orta</span></button>
             <button class="acm-grid-btn" id="acm-pos-top-right" title="Sağ Üst"><span>↗ Sağ Üst</span></button>
             <button class="acm-grid-btn" id="acm-pos-middle-left" title="Orta Sol"><span>⬅ Orta Sol</span></button>
-            <button class="acm-grid-btn" id="acm-pos-center" title="Sayfa Merkezi" style="background:rgba(56,189,248,0.2); border-color:#38bdf8; color:#fff; font-weight:bold;"><span>🎯 Merkez</span></button>
+            <button class="acm-grid-btn" id="acm-pos-center" title="Sayfa Merkezi"><span>Merkez</span></button>
             <button class="acm-grid-btn" id="acm-pos-middle-right" title="Orta Sağ"><span>➡ Orta Sağ</span></button>
             <button class="acm-grid-btn" id="acm-pos-bottom-left" title="Sol Alt"><span>↙ Sol Alt</span></button>
             <button class="acm-grid-btn" id="acm-pos-bottom-center" title="Alt Orta"><span>⬇ Alt Orta</span></button>
             <button class="acm-grid-btn" id="acm-pos-bottom-right" title="Sağ Alt"><span>↘ Sağ Alt</span></button>
         </div>
 
-        <div class="acm-section-label">📏 SAYFADA ORTALA & ARALIKLARI EŞİTLE</div>
+        <div class="acm-section-label">SAYFADA ORTALA & ARALIKLARI EŞİTLE</div>
         <button class="app-context-item" id="acm-page-center-h">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2"><circle cx="12" cy="12" r="9"/><line x1="12" y1="3" x2="12" y2="21"/></svg>
             <span>Sayfada Yatay Ortala</span>
@@ -1369,9 +1402,28 @@ document.addEventListener('pointerdown', function(e) {
         return;
     }
 
-    // 🎯 Eğer 3D bir nesneye tıklandıysa seçimi boşaltma (ThreeDEngine kendi tık olayında seçecektir)
-    if (window.ThreeDEngine && typeof window.ThreeDEngine.isActive === 'function' && window.ThreeDEngine.isActive()) {
-        if (typeof window.ThreeDEngine.checkHit === 'function' && window.ThreeDEngine.checkHit(e.clientX, e.clientY)) {
+    // 🎯 Eğer tıklanan noktada 2D bir tuval ögesi veya tutamaç varsa seçimi boşaltma!
+    if (typeof document.elementsFromPoint === 'function') {
+        const hits = document.elementsFromPoint(e.clientX, e.clientY);
+        if (hits && hits.length > 0) {
+            const has2DTarget = hits.some(node => node && node.closest && node.closest(
+                '.draggable, .canvas-el, .callout-wrap, .callout-item, .co-neon-block, .editable-draw, ' +
+                '.text-handle, .text-resize-handle, .text-rotate-handle, .text-delete-handle, .text-lock-handle, ' +
+                '.callout-controls, .callout-resizer, .callout-rotator, .callout-lock-btn, .callout-select-border, ' +
+                '.tb-image-frame, .tb-frame-handle, .tb-frame-floating-tools, .tb-floating-btn, .draw-handle, .vertex-handle, [data-layer-uid]'
+            ));
+            if (has2DTarget) return;
+        }
+    }
+
+    // 🎯 Eğer 3D bir nesneye tıklandıysa seçimi boşaltma ve 3D nesneyi seç
+    if (window.ThreeDEngine && typeof window.ThreeDEngine.checkHit === 'function') {
+        const hit3D = window.ThreeDEngine.checkHit(e.clientX, e.clientY);
+        if (hit3D) {
+            if (typeof window.ThreeDEngine.setActiveElement === 'function') {
+                window.ThreeDEngine.setActiveElement(hit3D);
+                window.ThreeDEngine.setSelected(true, { silent: true });
+            }
             return;
         }
     }
@@ -1530,8 +1582,6 @@ document.addEventListener('DOMContentLoaded', () => {
             document.removeEventListener('pointercancel', stopResize);
         };
 
-        expandBtn.addEventListener('mousedown', startResize, {passive: false});
-        expandBtn.addEventListener('touchstart', startResize, {passive: false});
         expandBtn.addEventListener('pointerdown', startResize, {passive: false});
         
         panel.appendChild(expandBtn);
@@ -1677,3 +1727,5 @@ window.addEventListener('resize', () => {
 
 
 });
+
+

@@ -1,4 +1,4 @@
-/* ============================================================
+﻿/* ============================================================
    config.js — Tüm sabit veriler (fontlar, ikonlar, şablonlar)
    Bu dosyada sadece VERİ değişir, fonksiyon YOK
 ============================================================ */
@@ -150,125 +150,125 @@ const TPL={
 
 // ========== CANVA ŞABLON KARTLARI ==========
 const CANVA_CARDS=[
-    {id:'canva1',name:'1. Bej Gri Modern Konut',tag:'Konut',bg1:'#e6dfd5',bg2:'#94a3b8',accent:'#b45309'},
-    {id:'canva2',name:'2. Sarı Modern Arsa',tag:'Arsa',bg1:'#f4f4f5',bg2:'#f59e0b',accent:'#18181b'},
-    {id:'canva3',name:'3. Gece Mavisi Geometrik',tag:'Lüks',bg1:'#0f172a',bg2:'#38bdf8',accent:'#38bdf8'},
-    {id:'canva4',name:'4. Zümrüt Cam Villa',tag:'Villa',bg1:'#064e3b',bg2:'#10b981',accent:'#a7f3d0'},
-    {id:'canva5',name:'5. Altın Çerçeveli VIP',tag:'VIP',bg1:'#0f172a',bg2:'#f59e0b',accent:'#fbbf24'},
-    {id:'canva6',name:'6. Minimal Beyaz Grid',tag:'Minimal',bg1:'#ffffff',bg2:'#e2e8f0',accent:'#0f172a'},
-    {id:'canva7',name:'7. Bordo Kraliyet',tag:'Prestij',bg1:'#450a0a',bg2:'#fbbf24',accent:'#fef08a'},
-    {id:'canva8',name:'8. Cam Loft',tag:'Loft',bg1:'#334155',bg2:'#64748b',accent:'#38bdf8'},
-    {id:'canva9',name:'9. Endüstriyel Beton',tag:'Ofis',bg1:'#18181b',bg2:'#06b6d4',accent:'#22d3ee'},
-    {id:'canva10',name:'10. Terracotta Sahil',tag:'Yazlık',bg1:'#fff7ed',bg2:'#ea580c',accent:'#c2410c'}
+    {id:'canva1',name:'Doğal Bej Sol Panel',layout:'left-panel',tag:'Konut',bg1:'#f0ebe3',bg2:'#e6dfd5',accent:'#b45309',desc:'Sıcak bej sol sütun ve sağ geniş vitrin'},
+    {id:'canva2',name:'Üst Başlık ve Merkez Vitrin',layout:'afis-overlay',tag:'Arsa',bg1:'#f4f4f5',bg2:'#f59e0b',accent:'#18181b',desc:'Yatay merkez fotoğraf ve çift bilgi bloğu'},
+    {id:'canva3',name:'Geometrik Gece Mavisi',layout:'diagonal-cut',tag:'Lüks',bg1:'#0f172a',bg2:'#38bdf8',accent:'#38bdf8',desc:'Açılı modern poligon ve neon hat'},
+    {id:'canva4',name:'Zümrüt Cam Sağ Panel',layout:'right-panel',tag:'Villa',bg1:'#064e3b',bg2:'#10b981',accent:'#a7f3d0',desc:'Sağ dikey cam sütun ve altın detay'},
+    {id:'canva5',name:'Altın Çerçeveli VIP',layout:'gold-frame',tag:'VIP',bg1:'#0f172a',bg2:'#f59e0b',accent:'#fbbf24',desc:'Altın çerçeve ve VIP prestij rozeti'},
+    {id:'canva6',name:'Minimal Izgara ve Sağ Vitrin',layout:'left-panel',tag:'Minimal',bg1:'#ffffff',bg2:'#e2e8f0',accent:'#0f172a',desc:'Sol mimari liste ve sağ bağımsız görsel'},
+    {id:'canva7',name:'Kraliyet Bordo Sol Sütun',layout:'left-panel',tag:'Prestij',bg1:'#450a0a',bg2:'#fbbf24',accent:'#fef08a',desc:'Bordo sol sütun, altın çizgi ve taç ikonu'},
+    {id:'canva8',name:'Buzlu Cam Çift Kuşak',layout:'bottom-banner',tag:'Loft',bg1:'#334155',bg2:'#64748b',accent:'#38bdf8',desc:'Üst cam başlık ve alt geniş buzlu vitrin'},
+    {id:'canva9',name:'Endüstriyel Alt Panel',layout:'bottom-banner',tag:'Ofis',bg1:'#18181b',bg2:'#06b6d4',accent:'#22d3ee',desc:'Üst fotoğraf ve turkuaz bordürlü alt vitrin'},
+    {id:'canva10',name:'Sahil Koleksiyonu ve Sağ Sütun',layout:'right-panel',tag:'Yazlık',bg1:'#f8fafc',bg2:'#1e293b',accent:'#c9a961',desc:'Sol çerçeveli görsel ve sağ detay paneli'}
 ];
 
 const MINIMAL_CARDS=[
-    {id:'canvaM1',name:'M1. Minimal Tasarım',tag:'Minimal',bg1:'#ffffff',bg2:'#f3f4f6',accent:'#374151'},
-    {id:'canvaM2',name:'M2. Minimal Tasarım',tag:'Minimal',bg1:'#ffffff',bg2:'#f3f4f6',accent:'#374151'},
-    {id:'canvaM3',name:'M3. Minimal Tasarım',tag:'Minimal',bg1:'#ffffff',bg2:'#f3f4f6',accent:'#374151'},
-    {id:'canvaM4',name:'M4. Minimal Tasarım',tag:'Minimal',bg1:'#ffffff',bg2:'#f3f4f6',accent:'#374151'},
-    {id:'canvaM5',name:'M5. Minimal Tasarım',tag:'Minimal',bg1:'#ffffff',bg2:'#f3f4f6',accent:'#374151'},
-    {id:'canvaM6',name:'M6. Minimal Tasarım',tag:'Minimal',bg1:'#ffffff',bg2:'#f3f4f6',accent:'#374151'},
-    {id:'canvaM7',name:'M7. Minimal Tasarım',tag:'Minimal',bg1:'#ffffff',bg2:'#f3f4f6',accent:'#374151'},
-    {id:'canvaM8',name:'M8. Minimal Tasarım',tag:'Minimal',bg1:'#ffffff',bg2:'#f3f4f6',accent:'#374151'},
-    {id:'canvaM9',name:'M9. Minimal Tasarım',tag:'Minimal',bg1:'#ffffff',bg2:'#f3f4f6',accent:'#374151'},
-    {id:'canvaM10',name:'M10. Minimal Tasarım',tag:'Minimal',bg1:'#ffffff',bg2:'#f3f4f6',accent:'#374151'}
+    {id:'canvaM1',name:'1. Editoryal İnce Çizgili',layout:'left-panel',tag:'Minimal',bg1:'#090d16',bg2:'#0f172a',accent:'#38bdf8',desc:'Sotheby\'s ve mimari dergi stili sol panel'},
+    {id:'canvaM2',name:'2. Modern İkon Rozetli',layout:'frosted-card',tag:'Minimal',bg1:'#0f172a',bg2:'#1e293b',accent:'#38bdf8',desc:'Canva Pro stili 2 sütunlu mikro kartlar'},
+    {id:'canvaM3',name:'3. Prestij Altın Çerçeveli',layout:'gold-frame',tag:'Minimal',bg1:'#0b0f19',bg2:'#1e1e1e',accent:'#f59e0b',desc:'VIP çift çerçeveli mimari altın detaylar'},
+    {id:'canvaM4',name:'4. Açılı Monokrom Kesim',layout:'diagonal-cut',tag:'Minimal',bg1:'#090d16',bg2:'#f8fafc',accent:'#0284c7',desc:'Sol açılı poligon blok ve editoryal liste'},
+    {id:'canvaM5',name:'5. İskandinav Yatay Denge',layout:'bottom-banner',tag:'Minimal',bg1:'#090d16',bg2:'#0b0f19',accent:'#38bdf8',desc:'Üst fotoğraf ve modern mikro kartlı alt bant'},
+    {id:'canvaM6',name:'6. Köşe Kartlı Minimal',layout:'frosted-card',tag:'Minimal',bg1:'#090d16',bg2:'#0f172a',accent:'#38bdf8',desc:'Üst başlık kartı ve buzlu cam özellik paneli'},
+    {id:'canvaM7',name:'7. Koyu Cam Sol Sütun',layout:'left-panel',tag:'Minimal',bg1:'#090d16',bg2:'#0f172a',accent:'#38bdf8',desc:'Sol dikey koyu cam panel ve temiz liste'},
+    {id:'canvaM8',name:'8. Nötr Gri Sol Kart',layout:'left-panel',tag:'Minimal',bg1:'#f8fafc',bg2:'#ffffff',accent:'#0284c7',desc:'Sol dikey açık gri kart ve sağ fotoğraf'},
+    {id:'canvaM9',name:'9. Büyük Tipografi ve Sinematik',layout:'bottom-banner',tag:'Minimal',bg1:'#090d16',bg2:'#0f172a',accent:'#38bdf8',desc:'Üst devasa başlık ve cam bilgi kutusu'},
+    {id:'canvaM10',name:'10. Sanat Galerisi Çift Bordür',layout:'gold-frame',tag:'Minimal',bg1:'#f8fafc',bg2:'#0f172a',accent:'#0284c7',desc:'Kesikli iç çerçeve ve sol katalog sütunu'}
 ];
 const LUKS_CARDS=[
-    {id:'canvaL1',name:'L1. Lüks Tasarım',tag:'Lüks',bg1:'#0f172a',bg2:'#d4af37',accent:'#d4af37'},
-    {id:'canvaL2',name:'L2. Lüks Tasarım',tag:'Lüks',bg1:'#0f172a',bg2:'#d4af37',accent:'#d4af37'},
-    {id:'canvaL3',name:'L3. Lüks Tasarım',tag:'Lüks',bg1:'#0f172a',bg2:'#d4af37',accent:'#d4af37'},
-    {id:'canvaL4',name:'L4. Lüks Tasarım',tag:'Lüks',bg1:'#0f172a',bg2:'#d4af37',accent:'#d4af37'},
-    {id:'canvaL5',name:'L5. Lüks Tasarım',tag:'Lüks',bg1:'#0f172a',bg2:'#d4af37',accent:'#d4af37'},
-    {id:'canvaL6',name:'L6. Lüks Tasarım',tag:'Lüks',bg1:'#0f172a',bg2:'#d4af37',accent:'#d4af37'},
-    {id:'canvaL7',name:'L7. Lüks Tasarım',tag:'Lüks',bg1:'#0f172a',bg2:'#d4af37',accent:'#d4af37'},
-    {id:'canvaL8',name:'L8. Lüks Tasarım',tag:'Lüks',bg1:'#0f172a',bg2:'#d4af37',accent:'#d4af37'},
-    {id:'canvaL9',name:'L9. Lüks Tasarım',tag:'Lüks',bg1:'#0f172a',bg2:'#d4af37',accent:'#d4af37'},
-    {id:'canvaL10',name:'L10. Lüks Tasarım',tag:'Lüks',bg1:'#0f172a',bg2:'#d4af37',accent:'#d4af37'}
+    {id:'canvaL1',name:'Zümrüt Yeşili Sol Sütun',layout:'left-panel',tag:'Lüks',bg1:'#0d2d1f',bg2:'#06170f',accent:'#cfb53b',desc:'Koyu zümrüt sol panel ve altın çizgili sağ vitrin'},
+    {id:'canvaL2',name:'Kraliyet Lacivert Alt Bant',layout:'bottom-banner',tag:'Lüks',bg1:'#112244',bg2:'#0f172a',accent:'#d4af37',desc:'Üst geniş fotoğraf ve altın şeritli lacivert alt panel'},
+    {id:'canvaL3',name:'Çift Altın Çerçeve ve Merkez Kart',layout:'gold-frame',tag:'Lüks',bg1:'#000000',bg2:'#1e1e1e',accent:'#d4af37',desc:'Yaldızlı çift çerçeve ve ortada koyu prestij kartı'},
+    {id:'canvaL4',name:'Bordo Yıldız Sağ Panel',layout:'right-panel',tag:'Lüks',bg1:'#4a0e1c',bg2:'#2d0710',accent:'#d4af37',desc:'Sol fotoğraf ve sağda yıldız rozetli asil bordo sütun'},
+    {id:'canvaL5',name:'Zümrüt Çizgili Prestij Blok',layout:'left-panel',tag:'Lüks',bg1:'#022c22',bg2:'#047857',accent:'#fcd34d',desc:'Koyu zümrüt zemin, ince altın hatlar ve sol bilgi alanı'},
+    {id:'canvaL6',name:'Rose Gold ve Antrasit Alt Bant',layout:'bottom-banner',tag:'Lüks',bg1:'#27272a',bg2:'#18181b',accent:'#b76e79',desc:'Üst görsel ve gül kurusu vurgulu antrasit alt vitrin'},
+    {id:'canvaL7',name:'Gece Mavisi Sol Kart Sütun',layout:'left-panel',tag:'Lüks',bg1:'#0f172a',bg2:'#1e293b',accent:'#d4af37',desc:'Sol yüzen lüks koyu kart ve altın çerçeveli rozet'},
+    {id:'canvaL8',name:'Lacivert Çapraz Üçgen Kesim',layout:'diagonal-cut',tag:'Lüks',bg1:'#1e293b',bg2:'#0f172a',accent:'#d4af37',desc:'Sol üst üçgen geometrik panel ve sağ alt fotoğraf'},
+    {id:'canvaL9',name:'Kraliyet Mavisi İkili Alt Blok',layout:'bottom-banner',tag:'Lüks',bg1:'#1e3a8a',bg2:'#172554',accent:'#e5e7eb',desc:'Üst fotoğraf ve platin çizgili iki parçalı mavi alt panel'},
+    {id:'canvaL10',name:'Zümrüt ve Altın Yüzen Kapsül',layout:'bottom-banner',tag:'Lüks',bg1:'#0d2d1f',bg2:'#06170f',accent:'#cfb53b',desc:'Üst rozet ve altta ortalanmış altın kenarlıklı kapsül vitrin'}
 ];
 const KURUMSAL_CARDS=[
-    {id:'canvaK1',name:'K1. Kurumsal Tasarım',tag:'Kurumsal',bg1:'#1e293b',bg2:'#475569',accent:'#38bdf8'},
-    {id:'canvaK2',name:'K2. Kurumsal Tasarım',tag:'Kurumsal',bg1:'#1e293b',bg2:'#475569',accent:'#38bdf8'},
-    {id:'canvaK3',name:'K3. Kurumsal Tasarım',tag:'Kurumsal',bg1:'#1e293b',bg2:'#475569',accent:'#38bdf8'},
-    {id:'canvaK4',name:'K4. Kurumsal Tasarım',tag:'Kurumsal',bg1:'#1e293b',bg2:'#475569',accent:'#38bdf8'},
-    {id:'canvaK5',name:'K5. Kurumsal Tasarım',tag:'Kurumsal',bg1:'#1e293b',bg2:'#475569',accent:'#38bdf8'},
-    {id:'canvaK6',name:'K6. Kurumsal Tasarım',tag:'Kurumsal',bg1:'#1e293b',bg2:'#475569',accent:'#38bdf8'},
-    {id:'canvaK7',name:'K7. Kurumsal Tasarım',tag:'Kurumsal',bg1:'#1e293b',bg2:'#475569',accent:'#38bdf8'},
-    {id:'canvaK8',name:'K8. Kurumsal Tasarım',tag:'Kurumsal',bg1:'#1e293b',bg2:'#475569',accent:'#38bdf8'},
-    {id:'canvaK9',name:'K9. Kurumsal Tasarım',tag:'Kurumsal',bg1:'#1e293b',bg2:'#475569',accent:'#38bdf8'},
-    {id:'canvaK10',name:'K10. Kurumsal Tasarım',tag:'Kurumsal',bg1:'#1e293b',bg2:'#475569',accent:'#38bdf8'}
+    {id:'canvaKurumsal1',name:'Alt Bant ve Fiyat Rozeti',layout:'bottom-banner',tag:'Kurumsal',bg1:'#1e293b',bg2:'#475569',accent:'#38bdf8',desc:'Modern alt koyu şerit ve mavi fiyat'},
+    {id:'canvaKurumsal2',name:'Sol Sütun ve Vitrin',layout:'left-panel',tag:'Kurumsal',bg1:'#1e293b',bg2:'#475569',accent:'#38bdf8',desc:'Sol menü ve sağ geniş görsel'},
+    {id:'canvaKurumsal3',name:'Lacivert Çerçeve ve Beyaz Alt Bant',layout:'gold-frame',tag:'Kurumsal',bg1:'#1e293b',bg2:'#ffffff',accent:'#38bdf8',desc:'Koyu lacivert çerçeve ve beyaz alt bilgi paneli'},
+    {id:'canvaKurumsal4',name:'Sol Vitrin ve İkili Sağ Panel',layout:'right-panel',tag:'Kurumsal',bg1:'#1e293b',bg2:'#ffffff',accent:'#38bdf8',desc:'Sol geniş görsel ve sağda iki renkli bilgi sütunu'},
+    {id:'canvaKurumsal5',name:'Üst Başlık ve Sol Bilgi Alanı',layout:'left-panel',tag:'Kurumsal',bg1:'#1e293b',bg2:'#ffffff',accent:'#38bdf8',desc:'Lacivert üst başlık şeridi, sol özellikler ve sağ görsel'},
+    {id:'canvaKurumsal6',name:'İki Bölümlü Alt Bant',layout:'bottom-banner',tag:'Kurumsal',bg1:'#ffffff',bg2:'#1e293b',accent:'#38bdf8',desc:'İki ayrı alt bilgi alanı ve mavi fiyat'},
+    {id:'canvaKurumsal7',name:'Lacivert Zemin Merkez Vitrin',layout:'afis-overlay',tag:'Kurumsal',bg1:'#1e293b',bg2:'#0f172a',accent:'#38bdf8',desc:'Koyu zemin ortasında geniş fotoğraf ve alt detaylar'},
+    {id:'canvaKurumsal8',name:'Köşeli Mimari Çerçeve',layout:'gold-frame',tag:'Kurumsal',bg1:'#f8fafc',bg2:'#1e293b',accent:'#38bdf8',desc:'Dış ince çerçeve, sol metin ve sağ görsel'},
+    {id:'canvaKurumsal9',name:'Sol Alt Yüzen Bilgi Kartı',layout:'frosted-card',tag:'Kurumsal',bg1:'#ffffff',bg2:'#1e293b',accent:'#38bdf8',desc:'Tam görsel üstünde mavi çizgili sol alt kart'},
+    {id:'canvaKurumsal10',name:'Sağ Bilgi Paneli',layout:'right-panel',tag:'Kurumsal',bg1:'#ffffff',bg2:'#1e293b',accent:'#38bdf8',desc:'Solda ofset gölgeli fotoğraf ve sağ özet panel'}
 ];
 const DINAMIK_CARDS=[
-    {id:'canvaD1',name:'D1. Dinamik Tasarım',tag:'Dinamik',bg1:'#4c1d95',bg2:'#e11d48',accent:'#fbbf24'},
-    {id:'canvaD2',name:'D2. Dinamik Tasarım',tag:'Dinamik',bg1:'#4c1d95',bg2:'#e11d48',accent:'#fbbf24'},
-    {id:'canvaD3',name:'D3. Dinamik Tasarım',tag:'Dinamik',bg1:'#4c1d95',bg2:'#e11d48',accent:'#fbbf24'},
-    {id:'canvaD4',name:'D4. Dinamik Tasarım',tag:'Dinamik',bg1:'#4c1d95',bg2:'#e11d48',accent:'#fbbf24'},
-    {id:'canvaD5',name:'D5. Dinamik Tasarım',tag:'Dinamik',bg1:'#4c1d95',bg2:'#e11d48',accent:'#fbbf24'},
-    {id:'canvaD6',name:'D6. Dinamik Tasarım',tag:'Dinamik',bg1:'#4c1d95',bg2:'#e11d48',accent:'#fbbf24'},
-    {id:'canvaD7',name:'D7. Dinamik Tasarım',tag:'Dinamik',bg1:'#4c1d95',bg2:'#e11d48',accent:'#fbbf24'},
-    {id:'canvaD8',name:'D8. Dinamik Tasarım',tag:'Dinamik',bg1:'#4c1d95',bg2:'#e11d48',accent:'#fbbf24'},
-    {id:'canvaD9',name:'D9. Dinamik Tasarım',tag:'Dinamik',bg1:'#4c1d95',bg2:'#e11d48',accent:'#fbbf24'},
-    {id:'canvaD10',name:'D10. Dinamik Tasarım',tag:'Dinamik',bg1:'#4c1d95',bg2:'#e11d48',accent:'#fbbf24'}
+    {id:'canvaD1',name:'Çapraz Kesim Dinamik',layout:'diagonal-cut',tag:'Dinamik',bg1:'#4c1d95',bg2:'#e11d48',accent:'#fbbf24',desc:'Açılı modern poligon kesim'},
+    {id:'canvaD2',name:'Mor Dikey Gradyan Sol Panel',layout:'left-panel',tag:'Dinamik',bg1:'#4c1d95',bg2:'#111111',accent:'#fbbf24',desc:'Soldan sağa transparan mor gradyan ve sarı başlık'},
+    {id:'canvaD3',name:'Geometrik Üçgen Vurgu',layout:'diagonal-cut',tag:'Dinamik',bg1:'#4c1d95',bg2:'#fbbf24',accent:'#fbbf24',desc:'Sağ üst çift üçgen geometrik vurgu'},
+    {id:'canvaD4',name:'Dairesel Odak Rozet',layout:'circle-frame',tag:'Dinamik',bg1:'#4c1d95',bg2:'#fbbf24',accent:'#fbbf24',desc:'Sağda altın çerçeveli yuvarlak fotoğraf vitrini'},
+    {id:'canvaD5',name:'Pop-Art Çift Ofset Gölge',layout:'frosted-card',tag:'Dinamik',bg1:'#ffffff',bg2:'#4c1d95',accent:'#fbbf24',desc:'Sarı ve mor katı ofset gölgeli modern vitrin'},
+    {id:'canvaD6',name:'Köşeli Açılı Vitrin',layout:'diagonal-cut',tag:'Dinamik',bg1:'#4c1d95',bg2:'#fbbf24',accent:'#fbbf24',desc:'Dinamik açılı vitrin paneli'},
+    {id:'canvaD7',name:'Eğimli Çıkartma Etiketler',layout:'diagonal-cut',tag:'Dinamik',bg1:'#4c1d95',bg2:'#fbbf24',accent:'#fbbf24',desc:'Dinamik açılı şerit etiketler ve sağ alt kart'},
+    {id:'canvaD8',name:'Buzlu Cam Eğimli Kart',layout:'frosted-card',tag:'Dinamik',bg1:'#4c1d95',bg2:'#e11d48',accent:'#fbbf24',desc:'Açılı buzlu cam kart'},
+    {id:'canvaD9',name:'Sol Bölmeli Kontrast',layout:'left-panel',tag:'Dinamik',bg1:'#4c1d95',bg2:'#e11d48',accent:'#fbbf24',desc:'Sol canlı kontrast sütun'},
+    {id:'canvaD10',name:'Çift Açılı Alt Panel',layout:'diagonal-cut',tag:'Dinamik',bg1:'#4c1d95',bg2:'#e11d48',accent:'#fbbf24',desc:'Çift poligon alt kesim'}
 ];
 const KLASIK_CARDS=[
-    {id:'canvaC1',name:'C1. Klasik Tasarım',tag:'Klasik',bg1:'#450a0a',bg2:'#b45309',accent:'#fef3c7'},
-    {id:'canvaC2',name:'C2. Klasik Tasarım',tag:'Klasik',bg1:'#450a0a',bg2:'#b45309',accent:'#fef3c7'},
-    {id:'canvaC3',name:'C3. Klasik Tasarım',tag:'Klasik',bg1:'#450a0a',bg2:'#b45309',accent:'#fef3c7'},
-    {id:'canvaC4',name:'C4. Klasik Tasarım',tag:'Klasik',bg1:'#450a0a',bg2:'#b45309',accent:'#fef3c7'},
-    {id:'canvaC5',name:'C5. Klasik Tasarım',tag:'Klasik',bg1:'#450a0a',bg2:'#b45309',accent:'#fef3c7'},
-    {id:'canvaC6',name:'C6. Klasik Tasarım',tag:'Klasik',bg1:'#450a0a',bg2:'#b45309',accent:'#fef3c7'},
-    {id:'canvaC7',name:'C7. Klasik Tasarım',tag:'Klasik',bg1:'#450a0a',bg2:'#b45309',accent:'#fef3c7'},
-    {id:'canvaC8',name:'C8. Klasik Tasarım',tag:'Klasik',bg1:'#450a0a',bg2:'#b45309',accent:'#fef3c7'},
-    {id:'canvaC9',name:'C9. Klasik Tasarım',tag:'Klasik',bg1:'#450a0a',bg2:'#b45309',accent:'#fef3c7'},
-    {id:'canvaC10',name:'C10. Klasik Tasarım',tag:'Klasik',bg1:'#450a0a',bg2:'#b45309',accent:'#fef3c7'}
+    {id:'canvaC1',name:'Bordo Altın Çift Çerçeve',layout:'gold-frame',tag:'Klasik',bg1:'#450a0a',bg2:'#b45309',accent:'#fef3c7',desc:'Geleneksel çift çerçeve'},
+    {id:'canvaC2',name:'Dairesel Madalyon Rozet',layout:'circle-frame',tag:'Klasik',bg1:'#450a0a',bg2:'#b45309',accent:'#fef3c7',desc:'Merkezi madalyon rozeti'},
+    {id:'canvaC3',name:'Sol Sütun ve Asalet',layout:'left-panel',tag:'Klasik',bg1:'#450a0a',bg2:'#b45309',accent:'#fef3c7',desc:'Klasik bordo sol sütun'},
+    {id:'canvaC4',name:'İç Çerçeve ve Klasik Başlık',layout:'gold-frame',tag:'Klasik',bg1:'#450a0a',bg2:'#b45309',accent:'#fef3c7',desc:'İçten çerçeve ve asil başlık'},
+    {id:'canvaC5',name:'Yarı Fotoğraf ve Alt Bordo Blok',layout:'bottom-banner',tag:'Klasik',bg1:'#450a0a',bg2:'#222222',accent:'#fef3c7',desc:'Üst yarı fotoğraf ve alt yarı klasik bordo panel'},
+    {id:'canvaC6',name:'Merkezi Şeffaf Bordo Kuşak',layout:'bottom-banner',tag:'Klasik',bg1:'#450a0a',bg2:'#111111',accent:'#fef3c7',desc:'Görsel üstü altın bordürlü orta bordo şerit'},
+    {id:'canvaC7',name:'Çift Köşe Süsleme',layout:'gold-frame',tag:'Klasik',bg1:'#450a0a',bg2:'#b45309',accent:'#fef3c7',desc:'Zarif köşe süslü çerçeve'},
+    {id:'canvaC8',name:'Bej Zemin Sol Tipografi ve Sağ Çerçeve',layout:'left-panel',tag:'Klasik',bg1:'#efece6',bg2:'#450a0a',accent:'#450a0a',desc:'Bej fonda sol editoryal metin ve sağ çerçeveli görsel'},
+    {id:'canvaC9',name:'Beyaz İç Kart ve Çift Çizgi',layout:'frosted-card',tag:'Klasik',bg1:'#450a0a',bg2:'#ffffff',accent:'#450a0a',desc:'Beyaz iç kart ve çift çizgi'},
+    {id:'canvaC10',name:'Kahve Zemin Üst Fotoğraf ve Alt Bilgi',layout:'bottom-banner',tag:'Klasik',bg1:'#2c1b18',bg2:'#efece6',accent:'#fef3c7',desc:'Koyu kahve fonda üst çerçeveli görsel ve alt detaylar'}
 ];
 const SOSYAL_CARDS=[
-    {id:'canvaS1',name:'S1. Sosyal Medya Tasarım',tag:'Sosyal',bg1:'#be185d',bg2:'#1d4ed8',accent:'#ffffff'},
-    {id:'canvaS2',name:'S2. Sosyal Medya Tasarım',tag:'Sosyal',bg1:'#be185d',bg2:'#1d4ed8',accent:'#ffffff'},
-    {id:'canvaS3',name:'S3. Sosyal Medya Tasarım',tag:'Sosyal',bg1:'#be185d',bg2:'#1d4ed8',accent:'#ffffff'},
-    {id:'canvaS4',name:'S4. Sosyal Medya Tasarım',tag:'Sosyal',bg1:'#be185d',bg2:'#1d4ed8',accent:'#ffffff'},
-    {id:'canvaS5',name:'S5. Sosyal Medya Tasarım',tag:'Sosyal',bg1:'#be185d',bg2:'#1d4ed8',accent:'#ffffff'},
-    {id:'canvaS6',name:'S6. Sosyal Medya Tasarım',tag:'Sosyal',bg1:'#be185d',bg2:'#1d4ed8',accent:'#ffffff'},
-    {id:'canvaS7',name:'S7. Sosyal Medya Tasarım',tag:'Sosyal',bg1:'#be185d',bg2:'#1d4ed8',accent:'#ffffff'},
-    {id:'canvaS8',name:'S8. Sosyal Medya Tasarım',tag:'Sosyal',bg1:'#be185d',bg2:'#1d4ed8',accent:'#ffffff'},
-    {id:'canvaS9',name:'S9. Sosyal Medya Tasarım',tag:'Sosyal',bg1:'#be185d',bg2:'#1d4ed8',accent:'#ffffff'},
-    {id:'canvaS10',name:'S10. Sosyal Medya Tasarım',tag:'Sosyal',bg1:'#be185d',bg2:'#1d4ed8',accent:'#ffffff'}
+    {id:'canvaS1',name:'Pembe Kavisli Modern Post',layout:'bottom-banner',tag:'Sosyal',bg1:'#be185d',bg2:'#1d4ed8',accent:'#ffffff',desc:'Kavisli alt hikaye şeridi'},
+    {id:'canvaS2',name:'Tam Boy Karartmalı Post',layout:'bottom-banner',tag:'Sosyal',bg1:'#be185d',bg2:'#1d4ed8',accent:'#ffffff',desc:'Sinematik karartma ve başlık'},
+    {id:'canvaS3',name:'Sol Sütun ve Sağ Kavisli Görsel',layout:'left-panel',tag:'Sosyal',bg1:'#f8f9fa',bg2:'#be185d',accent:'#be185d',desc:'Sol bilgi sütunu ve sağda geniş yuvarlak köşeli fotoğraf'},
+    {id:'canvaS4',name:'Kavisli Beyaz Sol Panel',layout:'left-panel',tag:'Sosyal',bg1:'#ffffff',bg2:'#be185d',accent:'#be185d',desc:'Sol dikey kavisli beyaz blok ve pembe vurgular'},
+    {id:'canvaS5',name:'Pop Tipografi ve Eğimli Fiyat',layout:'left-panel',tag:'Sosyal',bg1:'#be185d',bg2:'#1d4ed8',accent:'#ffffff',desc:'Görsel üstü eğik pembe fiyat etiketi ve sol tipografi'},
+    {id:'canvaS6',name:'Bulanık Cam ve Merkez Odak',layout:'frosted-card',tag:'Sosyal',bg1:'#be185d',bg2:'#1d4ed8',accent:'#ffffff',desc:'Buzlu cam orta kart'},
+    {id:'canvaS7',name:'Fotoğraf Çerçeveli Polaroid',layout:'afis-overlay',tag:'Sosyal',bg1:'#be185d',bg2:'#1d4ed8',accent:'#ffffff',desc:'Polaroid stili fotoğraf alanı'},
+    {id:'canvaS8',name:'Pembe Şerit ve Sağ Alt Kart',layout:'frosted-card',tag:'Sosyal',bg1:'#ffffff',bg2:'#be185d',accent:'#be185d',desc:'Sol pembe şerit rozet ve sağ altta yüzen özellik kartı'},
+    {id:'canvaS9',name:'Koyu Zemin Alt Vitrin',layout:'bottom-banner',tag:'Sosyal',bg1:'#000000',bg2:'#be185d',accent:'#ffffff',desc:'Üst fotoğraf ve koyu renkli iki bölümlü alt bant'},
+    {id:'canvaS10',name:'Geniş Çerçeveli Trend Post',layout:'gold-frame',tag:'Sosyal',bg1:'#be185d',bg2:'#1d4ed8',accent:'#ffffff',desc:'Geniş çevreleyen sosyal çerçeve'}
 ];
 const PORTFOY_CARDS=[
-    {id:'canvaP1',name:'P1. Portföy Tasarım',tag:'Portföy',bg1:'#14532d',bg2:'#166534',accent:'#bbf7d0'},
-    {id:'canvaP2',name:'P2. Portföy Tasarım',tag:'Portföy',bg1:'#14532d',bg2:'#166534',accent:'#bbf7d0'},
-    {id:'canvaP3',name:'P3. Portföy Tasarım',tag:'Portföy',bg1:'#14532d',bg2:'#166534',accent:'#bbf7d0'},
-    {id:'canvaP4',name:'P4. Portföy Tasarım',tag:'Portföy',bg1:'#14532d',bg2:'#166534',accent:'#bbf7d0'},
-    {id:'canvaP5',name:'P5. Portföy Tasarım',tag:'Portföy',bg1:'#14532d',bg2:'#166534',accent:'#bbf7d0'},
-    {id:'canvaP6',name:'P6. Portföy Tasarım',tag:'Portföy',bg1:'#14532d',bg2:'#166534',accent:'#bbf7d0'},
-    {id:'canvaP7',name:'P7. Portföy Tasarım',tag:'Portföy',bg1:'#14532d',bg2:'#166534',accent:'#bbf7d0'},
-    {id:'canvaP8',name:'P8. Portföy Tasarım',tag:'Portföy',bg1:'#14532d',bg2:'#166534',accent:'#bbf7d0'},
-    {id:'canvaP9',name:'P9. Portföy Tasarım',tag:'Portföy',bg1:'#14532d',bg2:'#166534',accent:'#bbf7d0'},
-    {id:'canvaP10',name:'P10. Portföy Tasarım',tag:'Portföy',bg1:'#14532d',bg2:'#166534',accent:'#bbf7d0'}
+    {id:'canvaP1',name:'1. Numaralı Zümrüt Tipografi',layout:'bottom-banner',tag:'Portföy',bg1:'#064e3b',bg2:'#04281e',accent:'#bbf7d0',desc:'Geniş numaralı alt cam panel ve mikro kartlar'},
+    {id:'canvaP2',name:'2. Açık Sol Sütun ve Geniş Görsel',layout:'left-panel',tag:'Portföy',bg1:'#f8faf9',bg2:'#166534',accent:'#14532d',desc:'Açık ferah sol sütun ve editoryal liste'},
+    {id:'canvaP3',name:'3. Zümrüt Yeşil Sol Bant VIP',layout:'left-panel',tag:'Portföy',bg1:'#064e3b',bg2:'#022c22',accent:'#fbbf24',desc:'Zümrüt yeşili sol bant ve altın detaylar'},
+    {id:'canvaP4',name:'4. Yatay Vitrin Kuşağı',layout:'afis-overlay',tag:'Portföy',bg1:'#f1f5f9',bg2:'#166534',accent:'#166534',desc:'Ortalanmış panoramik görsel ve alt mikro kartlar'},
+    {id:'canvaP5',name:'5. İnce Çerçeveli Mimari',layout:'gold-frame',tag:'Portföy',bg1:'#ffffff',bg2:'#166534',accent:'#14532d',desc:'İnce yeşil çerçeve ve sol editoryal panel'},
+    {id:'canvaP6',name:'6. Dev Numara ve Zümrüt Zemin',layout:'left-panel',tag:'Portföy',bg1:'#064e3b',bg2:'#04281e',accent:'#bbf7d0',desc:'Numaralandırılmış yeşil blok ve mikro kartlar'},
+    {id:'canvaP7',name:'7. İki Renkli Alt Panel',layout:'bottom-banner',tag:'Portföy',bg1:'#064e3b',bg2:'#f8fafc',accent:'#bbf7d0',desc:'Üst fotoğraf ve yeşil açık gri ikili alt bilgi paneli'},
+    {id:'canvaP8',name:'8. Geometrik Çapraz Çizgi',layout:'diagonal-cut',tag:'Portföy',bg1:'#064e3b',bg2:'#bbf7d0',accent:'#bbf7d0',desc:'Dinamik poligon kesim ve prestij liste'},
+    {id:'canvaP9',name:'9. Alt İnce Şerit ve Yüzen Kart',layout:'bottom-banner',tag:'Portföy',bg1:'#064e3b',bg2:'#04281e',accent:'#bbf7d0',desc:'Zarif ince alt bant ve yüzen cam özellik kartı'},
+    {id:'canvaP10',name:'10. Kartpostal Görsel ve Yüzen Kart',layout:'frosted-card',tag:'Portföy',bg1:'#f1f5f9',bg2:'#ffffff',accent:'#14532d',desc:'Gölge efektli fotoğraf ve altta binen beyaz kart'}
 ];
 const KALIP_CARDS = [
-    {id:'canvaK1', name:'1. Ovacık Gold Afiş', tag:'Afiş', bg1:'#020c24', bg2:'#061c47', accent:'#d4af37', desc:'Alt İkonlu & Çoklu Vitrin'},
-    {id:'canvaK2', name:'2. İnfografik Emlak Rehberi', tag:'İnfografik', bg1:'#3b111f', bg2:'#54192d', accent:'#e0a96d', desc:'Özellik Rozetli & Garantili'},
-    {id:'canvaK3', name:'3. Lüks Magazin Editoryal', tag:'Editoryal', bg1:'#faf9f6', bg2:'#f0eee6', accent:'#1e293b', desc:'Asimetrik Prestij Tipografi'},
-    {id:'canvaK4', name:'4. 3-Fotoğraflı Vitrin İlanı', tag:'Vitrin', bg1:'#dc2626', bg2:'#991b1b', accent:'#facc15', desc:'Klasik Emlakçı Baskı Afişi'},
-    {id:'canvaK5', name:'5. Panoramik Alt Bant', tag:'Sinematik', bg1:'#0f172a', bg2:'#1e293b', accent:'#38bdf8', desc:'Geniş Fotoğraf & Cam Panel'},
-    {id:'canvaK6', name:'6. Çapraz Dinamik Kesim', tag:'Dinamik', bg1:'#064e3b', bg2:'#022c22', accent:'#fbbf24', desc:'Köşe Açı & Geometrik Vurgu'},
-    {id:'canvaK7', name:'7. Arsa & İmar Blueprint', tag:'Teknik', bg1:'#0a192f', bg2:'#0f2b48', accent:'#38bdf8', desc:'Ada/Parsel & Teknik Bilgi'},
-    {id:'canvaK8', name:'8. Penthouse Gece Rezidans', tag:'Rezidans', bg1:'#08080a', bg2:'#18181b', accent:'#e5c07b', desc:'Mat Siyah & Bronz Metalik'},
-    {id:'canvaK9', name:'9. İskandinav Villa & Bahçe', tag:'Villa', bg1:'#f5f5f0', bg2:'#e7e5e0', accent:'#4a5d4e', desc:'Doğal Tonlar & Numaralı Liste'},
-    {id:'canvaK10', name:'10. Lansman & Ödeme Planı', tag:'Lansman', bg1:'#7c2d12', bg2:'#9a3412', accent:'#fde047', desc:'Taksit/Peşinat & Sosyal Tesis'}
+    {id:'canvaK1', name:'Alt İkonlu Çoklu Vitrin', layout:'afis-overlay', tag:'Afiş', bg1:'#020c24', bg2:'#061c47', accent:'#d4af37', desc:'Alt İkonlu ve Çoklu Vitrin'},
+    {id:'canvaK2', name:'İnfografik Emlak Rehberi', layout:'afis-overlay', tag:'İnfografik', bg1:'#3b111f', bg2:'#54192d', accent:'#e0a96d', desc:'Özellik Rozetli ve Garantili'},
+    {id:'canvaK3', name:'Lüks Magazin Editoryal', layout:'left-panel', tag:'Editoryal', bg1:'#faf9f6', bg2:'#f0eee6', accent:'#1e293b', desc:'Asimetrik Prestij Tipografi'},
+    {id:'canvaK4', name:'3 Fotoğraflı Vitrin İlanı', layout:'afis-overlay', tag:'Vitrin', bg1:'#dc2626', bg2:'#991b1b', accent:'#facc15', desc:'Klasik Emlakçı Baskı Afişi'},
+    {id:'canvaK5', name:'Panoramik Alt Bant', layout:'bottom-banner', tag:'Sinematik', bg1:'#0f172a', bg2:'#1e293b', accent:'#38bdf8', desc:'Geniş Fotoğraf ve Cam Panel'},
+    {id:'canvaK6', name:'Çapraz Dinamik Kesim', layout:'diagonal-cut', tag:'Dinamik', bg1:'#064e3b', bg2:'#022c22', accent:'#fbbf24', desc:'Köşe Açı ve Geometrik Vurgu'},
+    {id:'canvaK7', name:'Arsa İmar Teknik Çizim', layout:'left-panel', tag:'Teknik', bg1:'#0a192f', bg2:'#0f2b48', accent:'#38bdf8', desc:'Ada Parsel ve Teknik Bilgi'},
+    {id:'canvaK8', name:'Penthouse Gece Rezidans', layout:'arch-frame', tag:'Rezidans', bg1:'#08080a', bg2:'#18181b', accent:'#e5c07b', desc:'Mat Siyah ve Bronz Metalik'},
+    {id:'canvaK9', name:'İskandinav Villa ve Bahçe', layout:'afis-overlay', tag:'Villa', bg1:'#f5f5f0', bg2:'#e7e5e0', accent:'#4a5d4e', desc:'Doğal Tonlar ve Numaralı Liste'},
+    {id:'canvaK10', name:'Lansman ve Ödeme Planı', layout:'afis-overlay', tag:'Lansman', bg1:'#7c2d12', bg2:'#9a3412', accent:'#fde047', desc:'Taksit Peşinat ve Sosyal Tesis'}
 ];
 const OZEL_CARDS=[
-    {id:'canvaO1',name:'O1. Özel Tasarım',tag:'Özel',bg1:'#000000',bg2:'#27272a',accent:'#a78bfa'},
-    {id:'canvaO2',name:'O2. Özel Tasarım',tag:'Özel',bg1:'#000000',bg2:'#27272a',accent:'#a78bfa'},
-    {id:'canvaO3',name:'O3. Özel Tasarım',tag:'Özel',bg1:'#000000',bg2:'#27272a',accent:'#a78bfa'},
-    {id:'canvaO4',name:'O4. Özel Tasarım',tag:'Özel',bg1:'#000000',bg2:'#27272a',accent:'#a78bfa'},
-    {id:'canvaO5',name:'O5. Özel Tasarım',tag:'Özel',bg1:'#000000',bg2:'#27272a',accent:'#a78bfa'},
-    {id:'canvaO6',name:'O6. Özel Tasarım',tag:'Özel',bg1:'#000000',bg2:'#27272a',accent:'#a78bfa'},
-    {id:'canvaO7',name:'O7. Özel Tasarım',tag:'Özel',bg1:'#000000',bg2:'#27272a',accent:'#a78bfa'},
-    {id:'canvaO8',name:'O8. Özel Tasarım',tag:'Özel',bg1:'#000000',bg2:'#27272a',accent:'#a78bfa'},
-    {id:'canvaO9',name:'O9. Özel Tasarım',tag:'Özel',bg1:'#000000',bg2:'#27272a',accent:'#a78bfa'},
-    {id:'canvaO10',name:'O10. Özel Tasarım',tag:'Özel',bg1:'#000000',bg2:'#27272a',accent:'#a78bfa'}
+    {id:'canvaO1',name:'Cyberpunk Neon Dikey Çizgi',layout:'left-panel',tag:'Özel',bg1:'#000000',bg2:'#27272a',accent:'#a78bfa',desc:'Sol dikey parlayan mor neon aksan ve tipografi'},
+    {id:'canvaO2',name:'Elmas Geometrik Çerçeve',layout:'gold-frame',tag:'Özel',bg1:'#000000',bg2:'#27272a',accent:'#a78bfa',desc:'Geometrik neon çerçeve'},
+    {id:'canvaO3',name:'Sol Şeffaf Cam Panel ve Mor Bordür',layout:'left-panel',tag:'Özel',bg1:'#000000',bg2:'#27272a',accent:'#a78bfa',desc:'Sol dikey koyu buzlu cam panel ve neon hat'},
+    {id:'canvaO4',name:'Fütüristik Köşe Nişangahı',layout:'gold-frame',tag:'Özel',bg1:'#000000',bg2:'#27272a',accent:'#a78bfa',desc:'Köşe nişangahlı çerçeve'},
+    {id:'canvaO5',name:'Siyah Asimetrik Kart',layout:'left-panel',tag:'Özel',bg1:'#000000',bg2:'#27272a',accent:'#a78bfa',desc:'Sol asimetrik sütun'},
+    {id:'canvaO6',name:'Hologram Başlık ve Yüzen Rozetler',layout:'frosted-card',tag:'Özel',bg1:'#000000',bg2:'#27272a',accent:'#a78bfa',desc:'Hologram kontur başlık ve merkezde yüzen haplar'},
+    {id:'canvaO7',name:'Çift Neon Çizgili Sol Kutu',layout:'left-panel',tag:'Özel',bg1:'#000000',bg2:'#27272a',accent:'#a78bfa',desc:'Sol koyu kart, mor ve camgöbeği dikey çift neon sınır'},
+    {id:'canvaO8',name:'Mor Üst Bant Siyah Panel',layout:'right-panel',tag:'Özel',bg1:'#000000',bg2:'#27272a',accent:'#a78bfa',desc:'Sağ dikey siyah sütun'},
+    {id:'canvaO9',name:'Çapraz Açılı Siyah Zemin',layout:'diagonal-cut',tag:'Özel',bg1:'#000000',bg2:'#27272a',accent:'#a78bfa',desc:'Açılı siyah geometrik kesim'},
+    {id:'canvaO10',name:'Synthwave Neon Alt Bilgi Barı',layout:'bottom-banner',tag:'Özel',bg1:'#000000',bg2:'#27272a',accent:'#a78bfa',desc:'Üst fotoğraf ve neon fuşya ile ışıltılı alt vitrin'}
 ];
 
 

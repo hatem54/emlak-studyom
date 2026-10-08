@@ -143,7 +143,8 @@ function applyPhotoPos(){
     photoLayer.style.backgroundColor='transparent';
     
     // Kesin çözüm: Canva modundaysa orijinal fotoğraf katmanını zorla gizle
-    if (typeof isCanvaMode !== 'undefined' && isCanvaMode) {
+    const isCanva = !!(window.isCanvaMode || (typeof isCanvaMode !== 'undefined' && isCanvaMode));
+    if (isCanva) {
         photoLayer.style.setProperty('display', 'none', 'important');
         photoLayer.style.opacity = '0';
     } else {
@@ -152,7 +153,7 @@ function applyPhotoPos(){
     }
 
     document.querySelectorAll('.photo-panel').forEach(p=>{
-        if (p.closest('#canva-render-layer') || (typeof isCanvaMode !== 'undefined' && isCanvaMode)) {
+        if (p.closest('#canva-render-layer') || isCanva) {
             const x = document.getElementById('photoXCtrl') ? document.getElementById('photoXCtrl').value : 50;
             const y = document.getElementById('photoYCtrl') ? document.getElementById('photoYCtrl').value : 50;
             p.style.backgroundSize = isContain ? 'contain' : 'cover';
@@ -692,6 +693,7 @@ function hasActiveWebGLFilters(opts) {
 }
 window.hasActiveWebGLFilters = hasActiveWebGLFilters;
 
+window.drawPhotoToTargetCanvas = _drawToNativeCanvas;
 function _drawToNativeCanvas(el, inner, canvas, scale, panX, panY, sliderX, sliderY) {
     let rawBg = inner.style.backgroundImage || el.dataset.savedBg || el.style.backgroundImage || '';
     if ((!rawBg || rawBg === 'none') && typeof uploadedImgUrl !== 'undefined' && uploadedImgUrl) {

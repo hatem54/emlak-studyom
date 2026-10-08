@@ -397,15 +397,7 @@
                 }
 
                 if (!dirHandle) {
-                    const proceed = confirm(
-                        'Tarayıcınız doğrudan klasör seçimini desteklemiyor veya izin verilmedi.\n\n' +
-                        'Sayfaların ayrı görsel dosyaları halinde bilgisayarınıza indirilmesini onaylıyor musunuz?'
-                    );
-                    if (proceed) {
-                        mode = 'individual';
-                    } else {
-                        return;
-                    }
+                    mode = 'individual';
                 }
             }
 

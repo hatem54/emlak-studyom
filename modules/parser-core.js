@@ -1263,16 +1263,34 @@
                 kFeatsEl.value = kFeatLines.slice(0, 5).join('\n');
             }
 
-            // Eğer şu an bir Kalıp vitrin şablonu açıksa (canvaK1..canvaK10) otomatik yeniden render et
-            if (typeof activeCanvaId !== 'undefined' && activeCanvaId && activeCanvaId.startsWith('canvaK')) {
-                if (typeof renderKTemplate === 'function') {
-                    renderKTemplate(activeCanvaId);
-                } else if (typeof window.renderKTemplate === 'function') {
-                    window.renderKTemplate(activeCanvaId);
+            // Kurumsal Şablon Girdilerini de Senkronize Et
+            const kurumsalTitleEl = document.getElementById('canvaKurumsalTitle');
+            const kurumsalPriceEl = document.getElementById('canvaKurumsalPrice');
+            const kurumsalContactEl = document.getElementById('canvaKurumsalContact');
+            const kurumsalFeatsEl = document.getElementById('canvaKurumsalFeats');
+            if (kurumsalTitleEl && finalTitle) kurumsalTitleEl.value = finalTitle.toUpperCase();
+            if (kurumsalPriceEl && finalPrice) kurumsalPriceEl.value = finalPrice;
+            if (kurumsalContactEl && kContactEl && kContactEl.value) kurumsalContactEl.value = kContactEl.value;
+            if (kurumsalFeatsEl && kFeatsEl && kFeatsEl.value) kurumsalFeatsEl.value = kFeatsEl.value;
+
+            // Eğer şu an bir Kalıp veya Kurumsal şablonu açıksa otomatik yeniden render et
+            if (typeof activeCanvaId !== 'undefined' && activeCanvaId) {
+                if (activeCanvaId.startsWith('canvaKurumsal')) {
+                    if (typeof renderKurumsalTemplate === 'function') {
+                        renderKurumsalTemplate(activeCanvaId);
+                    } else if (typeof window.renderKurumsalTemplate === 'function') {
+                        window.renderKurumsalTemplate(activeCanvaId);
+                    }
+                } else if (activeCanvaId.startsWith('canvaK')) {
+                    if (typeof renderKTemplate === 'function') {
+                        renderKTemplate(activeCanvaId);
+                    } else if (typeof window.renderKTemplate === 'function') {
+                        window.renderKTemplate(activeCanvaId);
+                    }
                 }
             }
         } catch(kalipErr) {
-            console.warn("Kalıp şablonu senkronizasyon uyarısı:", kalipErr);
+            console.warn("Kalıp / Kurumsal şablonu senkronizasyon uyarısı:", kalipErr);
         }
 
         if (typeof activeLayout !== 'undefined' && activeLayout && activeLayout !== 'empty' && activeLayout !== 'none' && (!window.isCanvaMode)) {
@@ -1397,7 +1415,7 @@
     async function executeSmartParse() {
         const aiTextEl = document.getElementById('aiText');
         if (!aiTextEl) return;
-        const rawText = aiTextEl.value;
+        const rawText = aiTextEl.value.replace(/[*_~]/g, '');
         if (!rawText || !rawText.trim()) {
             alert("Lütfen önce ayrıştırılacak ilan metnini yapıştırın!");
             return;
@@ -1521,7 +1539,7 @@ ${rawText}`;
 
         } catch (err) {
             console.error("Metni süzme hatası:", err);
-            applyFinalParseResults(rawText, null);
+            try { applyFinalParseResults(rawText, null); } catch(fallbackErr) { if(typeof Swal!=='undefined') Swal.fire({title:'Hata', text:'Veri okunamadı.', icon:'error', background:'#1e293b', color:'#fff'}); }
         } finally {
             if (parseBtn) {
                 parseBtn.disabled = false;

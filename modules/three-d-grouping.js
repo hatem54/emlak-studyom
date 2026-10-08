@@ -41,11 +41,11 @@
          * 3D ögeleri çoklu seçime atar ve ekran çerçevelerini günceller.
          * @param {Array} elements 
          */
-        setSelected3DElements: function(elements) {
+        setSelected3DElements: function(elements, options = {}) {
             selected3DElements = Array.isArray(elements) ? elements.slice() : [];
 
-            // Eğer 2D seçim varsa çakışmayı önlemek için temizle
-            if (selected3DElements.length > 0 && Array.isArray(window.selectedElements) && window.selectedElements.length > 0) {
+            // Eğer 2D seçim varsa ve keep2DSelection istenmemişse temizle
+            if (!options.keep2DSelection && selected3DElements.length > 0 && Array.isArray(window.selectedElements) && window.selectedElements.length > 0) {
                 window.selectedElements = [];
                 if (typeof window.deselectAll === 'function') {
                     // Sadece 2D eleman seçimlerini kaldır
@@ -89,6 +89,122 @@
         },
 
         /**
+         * Tek bir ögeyi çoklu seçimden düşürür (silme veya seçim kaldırma anında).
+         * @param {Object|string} elOrId 
+         */
+        removeElementFromSelection: function(elOrId) {
+            const id = (typeof elOrId === 'object' && elOrId) ? elOrId.id : elOrId;
+            const idx = selected3DElements.findIndex(item => item && item.id === id);
+            if (idx >= 0) {
+                selected3DElements.splice(idx, 1);
+                this.updateSelectionVisuals();
+            }
+        },
+
+        /**
+         * Seçili tüm 3D ögeleri topluca siler.
+         */
+        deleteSelectedElements: function() {
+            if (!selected3DElements || selected3DElements.length === 0) return;
+            if (!window.ThreeDEngine || typeof window.ThreeDEngine.deleteElement !== 'function') return;
+
+            const toDelete = selected3DElements.slice();
+            this.clearSelection();
+
+            toDelete.forEach((el, index) => {
+                const isLast = (index === toDelete.length - 1);
+                window.ThreeDEngine.deleteElement(el, !isLast);
+            });
+
+            if (window.DockContextManager) {
+                const has2DSel = Array.isArray(window.selectedElements) && window.selectedElements.length > 0;
+                if (has2DSel) {
+                    if (typeof window.DockContextManager.onElementSelected === 'function') {
+                        window.DockContextManager.onElementSelected(window.selectedElements[0]);
+                    }
+                } else if (!window.ThreeDEngine.getElements || window.ThreeDEngine.getElements().length === 0) {
+                    if (typeof window.DockContextManager.onElementDeselected === 'function') {
+                        window.DockContextManager.onElementDeselected();
+                    }
+                }
+            }
+            if (typeof window.recordHistory === 'function') {
+                window.recordHistory('Seçili 3D Ögeler Silindi');
+            }
+        },
+
+        /**
+         * Seçili tüm 3D ögeleri topluca çoğaltır.
+         */
+        duplicateSelectedElements: function() {
+            if (!selected3DElements || selected3DElements.length === 0) return;
+            if (!window.ThreeDEngine || typeof window.ThreeDEngine.duplicateElement !== 'function') return;
+
+            const clones = [];
+            const targets = selected3DElements.slice();
+            targets.forEach(el => {
+                const clone = window.ThreeDEngine.duplicateElement(el);
+                if (clone) clones.push(clone);
+            });
+
+            if (clones.length > 0) {
+                this.setSelected3DElements(clones);
+                if (typeof window.showToast === 'function') {
+                    window.showToast(`${clones.length} adet 3D öge çoğaltıldı`, 'info');
+                }
+            }
+            if (typeof window.recordHistory === 'function') {
+                window.recordHistory('Çoklu 3D Çoğaltma');
+            }
+        },
+
+        /**
+         * Seçili tüm 3D ögeleri topluca kilitler veya kilidini açar.
+         */
+        toggleLockSelectedElements: function() {
+            if (!selected3DElements || selected3DElements.length === 0) return;
+            const anyUnlocked = selected3DElements.some(e => !e.locked);
+            selected3DElements.forEach(el => {
+                el.locked = anyUnlocked;
+            });
+            if (window.ThreeDEngine && typeof window.ThreeDEngine.requestRender === 'function') {
+                window.ThreeDEngine.requestRender();
+            }
+            if (typeof window.showToast === 'function') {
+                window.showToast(anyUnlocked ? 'Seçili 3D ögeler kilitlendi' : '3D ögelerin kilidi açıldı', 'info');
+            }
+        },
+
+        /**
+         * Seçili tüm 3D ögelerin açı ve eğimlerini varsayılana sıfırlar.
+         */
+        resetSelectedElements: function() {
+            if (!selected3DElements || selected3DElements.length === 0) return;
+            selected3DElements.forEach(el => {
+                el.orientation = 'flat';
+                el.planePitch = 0;
+                el.planeYaw = 0;
+                el.planeRoll = 0;
+                el.planeLocalRot = 0;
+                el.planeElevation = 0;
+                el.itemPitch = 0;
+                el.itemRoll = 0;
+                if (window.ThreeDEngine && typeof window.ThreeDEngine.updateContentTransform === 'function') {
+                    window.ThreeDEngine.updateContentTransform(el);
+                }
+            });
+            if (window.ThreeDEngine) {
+                if (typeof window.ThreeDEngine.updateGizmoPositions === 'function') {
+                    window.ThreeDEngine.updateGizmoPositions();
+                }
+                if (typeof window.ThreeDEngine.requestRender === 'function') {
+                    window.ThreeDEngine.requestRender();
+                }
+            }
+            this.updateSelectionVisuals();
+        },
+
+        /**
          * Tuval üzerinde seçili 3D nesnelerin etrafına mavi kesikli seçim kutuları çizer.
          * Grup 'all' modundayken tüm ögeleri tek bir temiz çerçeve ile sarar.
          * Sıfır gecikme (transition: none) ve DOM yeniden kullanım mimarisiyle 60fps akıcı çalışır.
@@ -97,7 +213,13 @@
             const overlay = getOverlayContainer();
             if (!overlay) return;
 
-            if (selected3DElements.length < 2 || !window.ThreeDEngine || !window.ThreeDEngine.isActive()) {
+            const is3DActive = window.ThreeDEngine && (
+                (typeof window.ThreeDEngine.hasElements === 'function' && window.ThreeDEngine.hasElements()) ||
+                (typeof window.ThreeDEngine.getElements === 'function' && window.ThreeDEngine.getElements().length > 0) ||
+                (typeof window.ThreeDEngine.isActive === 'function' && window.ThreeDEngine.isActive())
+            );
+
+            if (selected3DElements.length < 1 || !is3DActive) {
                 for (let i = 0; i < overlay.children.length; i++) {
                     overlay.children[i].style.display = 'none';
                 }
@@ -358,6 +480,9 @@
                     sib.posX = (sib.posX || 0) + dX;
                     sib.posY = (sib.posY || 0) + dY;
                     if (dZ) sib.posZ = Math.max(-2000, Math.min(600, (sib.posZ || 0) + dZ));
+                    if (typeof window.ThreeDEngine.updatePlaneTransform === 'function') {
+                        window.ThreeDEngine.updatePlaneTransform(sib);
+                    }
                     if (typeof window.ThreeDEngine.updateContentTransform === 'function') {
                         window.ThreeDEngine.updateContentTransform(sib);
                     }
@@ -1106,16 +1231,7 @@
             const dupBtn = menu.querySelector('#acm3d-multi-duplicate');
             if (dupBtn) {
                 dupBtn.addEventListener('click', () => {
-                    if (window.ThreeDEngine && typeof window.ThreeDEngine.duplicateElement === 'function') {
-                        const clones = [];
-                        selected3DElements.forEach(el => {
-                            const clone = window.ThreeDEngine.duplicateElement(el);
-                            if (clone) clones.push(clone);
-                        });
-                        if (clones.length > 0) {
-                            this.setSelected3DElements(clones);
-                        }
-                    }
+                    this.duplicateSelectedElements();
                     closeMenu();
                 });
             }
@@ -1124,13 +1240,7 @@
             const delBtn = menu.querySelector('#acm3d-multi-delete');
             if (delBtn) {
                 delBtn.addEventListener('click', () => {
-                    if (window.ThreeDEngine && typeof window.ThreeDEngine.deleteElement === 'function') {
-                        const toDelete = selected3DElements.slice();
-                        toDelete.forEach(el => {
-                            window.ThreeDEngine.deleteElement(el);
-                        });
-                        this.clearSelection();
-                    }
+                    this.deleteSelectedElements();
                     closeMenu();
                 });
             }
@@ -1147,6 +1257,11 @@
             '#app-custom-context-menu, .context-menu, .app-context-menu, .three-d-panel, #threeDStudioPanel, ' +
             'button, input, select, textarea, .panel, .sidebar, .three-d-gizmo-tip, .three-d-gizmo-dot, .three-d-gizmo-sun'
         )) {
+            return;
+        }
+
+        // 🌟 Karma Seçim Koruması: Eğer tıklanan nokta seçili bir 2D öge üzerindeyse seçimi düşürme!
+        if (e.target && ((e.target.closest && e.target.closest('.el-selected')) || (Array.isArray(window.selectedElements) && window.selectedElements.some(el => el === e.target || (el && (el.contains(e.target) || e.target.contains(el))))))) {
             return;
         }
         // Eğer tıklanan nokta seçili 3D nesnelerden birinin üzerindeyse seçimi düşürme

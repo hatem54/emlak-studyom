@@ -16,14 +16,21 @@
 function loadElSettings(el){
     window._loadingElSettings=true;
     const cs=getComputedStyle(el);
-    $('elFontSize').value=parseInt(cs.fontSize)||32;
-    $('elFontSizeVal').textContent=parseInt(cs.fontSize)||32;
+    let curFs = parseInt(cs.fontSize) || 32;
+    if (el.querySelector('img') || el.tagName === 'IMG') {
+        const curW = el.offsetWidth || parseFloat(el.style.width) || 80;
+        curFs = Math.round(curW / 3.33) || 24;
+    }
+    $('elFontSize').value=curFs;
+    $('elFontSizeVal').textContent=curFs;
     
     // Dinamik etiket: İkon ise İkon Boyutu, değilse Yazı Boyutu
     const fsLabel = $('elFontSizeLabel');
     if (fsLabel) {
         if (el.classList.contains('added-icon') || el.classList.contains('is-svg-icon')) {
             fsLabel.textContent = 'İkon Boyutu';
+        } else if (el.querySelector('img') || el.tagName === 'IMG') {
+            fsLabel.textContent = 'Logo Boyutu';
         } else {
             fsLabel.textContent = 'Yazı Boyutu';
         }
@@ -83,7 +90,7 @@ function applyElSettings(){
     
     const targets = (window.selectedElements && window.selectedElements.length > 1)
         ? window.selectedElements
-        : [selectedEl];
+        : (selectedEl && selectedEl.dataset.groupId ? Array.from(document.querySelectorAll(`[data-group-id="${selectedEl.dataset.groupId}"]`)) : [selectedEl]);
         
     const fs=$('elFontSize')?$('elFontSize').value:16, pd=$('elPadding')?$('elPadding').value:0;
     const tc=$('elTextColor')?$('elTextColor').value:'#ffffff', bc=$('elBgColor')?$('elBgColor').value:'#000000', bo=$('elBgOpacity')?$('elBgOpacity').value:0;
@@ -95,7 +102,13 @@ function applyElSettings(){
 
     targets.forEach(el => {
         if(el.dataset.editingText) return;
-        el.style.fontSize=fs+'px';
+        if (el.querySelector('img') || el.tagName === 'IMG') {
+            const logoW = Math.max(20, Math.round(fs * 3.33));
+            el.style.width = logoW + 'px';
+            el.style.height = 'auto';
+        } else {
+            el.style.fontSize=fs+'px';
+        }
         el.style.padding=pd+'px';
         if (!el.classList.contains('editable-draw')) {
             el.style.color=tc;
@@ -104,7 +117,11 @@ function applyElSettings(){
             const weightVal = parseInt(document.getElementById('elWeightSlider') ? document.getElementById('elWeightSlider').value : 400);
             if (weightVal > 900) { applyElWeight(); }
         }
-        if(el.dataset.saberActive === 'true') { el.style.color = 'transparent'; }
+        if(el.dataset.saberActive === 'true') {
+            el.style.color = 'transparent';
+            el.style.textShadow = 'none';
+            el.style.webkitTextStroke = 'none';
+        }
         el.style.opacity=op/100;
         
         // Hayalet katman (0 opacity) tıklama blokajını önleme
@@ -290,10 +307,10 @@ function getNextCanvasElementZIndex() {
 }
 window.getNextCanvasElementZIndex = getNextCanvasElementZIndex;
 
-function addCustomTextBox(){
+function addCustomTextBox(initialText = 'ÖZEL METİN VEYA BAŞLIK'){
     const el=document.createElement('div');
-    el.className='draggable canvas-el custom-text-box';
-    el.textContent='ÖZEL METİN VEYA BAŞLIK';
+    el.className='draggable canvas-el custom-text-box custom-text-el';
+    el.textContent=initialText || 'ÖZEL METİN VEYA BAŞLIK';
     el.dataset.label='Özel Kutu';
     el.dataset.rotation='0';
     el.dataset.shadowVal='10';
@@ -302,6 +319,7 @@ function addCustomTextBox(){
     el.dataset.storedBgOpacity='90';
     el.dataset.storedBorderColor='#000000';
     el.dataset.storedBorderWidth='2';
+    el.id = 'textbox_' + Date.now();
     
     const cContainer = document.getElementById('canvas-container');
     const cW = (cContainer && parseFloat(cContainer.style.width)) || (cContainer && cContainer.offsetWidth) || (typeof uploadedImgW !== 'undefined' && uploadedImgW > 0 ? uploadedImgW : 1920);
@@ -332,7 +350,9 @@ function addCustomTextBox(){
     el.style.left = posX + 'px';
     el.style.top = posY + 'px';
 
-    uiLayer.appendChild(el);
+    const targetLayer = (typeof uiLayer !== 'undefined' && uiLayer) ? uiLayer : (document.getElementById('ui-layer') || cContainer);
+    if (targetLayer) targetLayer.appendChild(el);
+
     if(window.CanvasEmptyState && typeof window.CanvasEmptyState.dismiss === 'function') {
         window.CanvasEmptyState.dismiss();
     } else {
@@ -340,14 +360,17 @@ function addCustomTextBox(){
         if (es) { es.classList.add('is-hidden'); es.style.display = 'none'; }
     }
     const cContBox = document.getElementById('canvas-container');
-    if (cContBox) cContBox.style.backgroundColor = '#ffffff';
+    if (cContBox && !cContBox.style.backgroundColor) cContBox.style.backgroundColor = '#ffffff';
     const pLayBox = document.getElementById('photo-layer');
-    if (pLayBox && (!pLayBox.style.backgroundImage || pLayBox.style.backgroundImage === 'none')) {
+    if (pLayBox && (!pLayBox.style.backgroundImage || pLayBox.style.backgroundImage === 'none') && !pLayBox.style.backgroundColor) {
         pLayBox.style.backgroundColor = '#ffffff';
     }
     if(typeof window.renderLayers === 'function') window.renderLayers();
     bindDrag(el);
     enableInlineEdit(el);
+    if (typeof window.addTextHandles === 'function') {
+        window.addTextHandles(el);
+    }
     if(typeof isCanvaMode!=='undefined' && isCanvaMode)canvaOverlays.push(el);
     if(typeof window.recordHistory === 'function') window.recordHistory('Çerçeveli Metin eklendi');
     if(typeof window.requestAutoSave === 'function') window.requestAutoSave();
@@ -358,12 +381,13 @@ function addCustomTextBox(){
     }
     const elSettings = document.getElementById('elSettings');
     if (elSettings) elSettings.style.display = 'none';
+    return el;
 }
 
-function addCustomTextOnly(){
+function addCustomTextOnly(initialText = 'SERBEST YAZI'){
     const el=document.createElement('div');
-    el.className='draggable canvas-el';
-    el.textContent='SERBEST YAZI';
+    el.className='draggable canvas-el custom-text-el';
+    el.textContent=initialText || 'SERBEST YAZI';
     el.dataset.label='Serbest Yazı';
     el.dataset.rotation='0';
     el.dataset.shadowVal='0';
@@ -372,6 +396,7 @@ function addCustomTextOnly(){
     el.dataset.storedBgOpacity='0';
     el.dataset.storedBorderColor='#000000';
     el.dataset.storedBorderWidth='0';
+    el.id = 'text_' + Date.now();
     
     const cContainer = document.getElementById('canvas-container');
     const cW = (cContainer && parseFloat(cContainer.style.width)) || (cContainer && cContainer.offsetWidth) || (typeof uploadedImgW !== 'undefined' && uploadedImgW > 0 ? uploadedImgW : 1920);
@@ -416,7 +441,9 @@ function addCustomTextOnly(){
     el.style.left = posX + 'px';
     el.style.top = posY + 'px';
 
-    uiLayer.appendChild(el);
+    const targetLayer = (typeof uiLayer !== 'undefined' && uiLayer) ? uiLayer : (document.getElementById('ui-layer') || cContainer);
+    if (targetLayer) targetLayer.appendChild(el);
+
     if(window.CanvasEmptyState && typeof window.CanvasEmptyState.dismiss === 'function') {
         window.CanvasEmptyState.dismiss();
     } else {
@@ -424,14 +451,17 @@ function addCustomTextOnly(){
         if (es) { es.classList.add('is-hidden'); es.style.display = 'none'; }
     }
     const cCont = document.getElementById('canvas-container');
-    if (cCont) cCont.style.backgroundColor = '#ffffff';
+    if (cCont && !cCont.style.backgroundColor) cCont.style.backgroundColor = '#ffffff';
     const pLay = document.getElementById('photo-layer');
-    if (pLay && (!pLay.style.backgroundImage || pLay.style.backgroundImage === 'none')) {
+    if (pLay && (!pLay.style.backgroundImage || pLay.style.backgroundImage === 'none') && !pLay.style.backgroundColor) {
         pLay.style.backgroundColor = '#ffffff';
     }
     if(typeof window.renderLayers === 'function') window.renderLayers();
     bindDrag(el);
     enableInlineEdit(el);
+    if (typeof window.addTextHandles === 'function') {
+        window.addTextHandles(el);
+    }
     if(typeof isCanvaMode!=='undefined' && isCanvaMode)canvaOverlays.push(el);
     if(typeof window.recordHistory === 'function') window.recordHistory('Serbest Yazı eklendi');
     if(typeof window.requestAutoSave === 'function') window.requestAutoSave();
@@ -442,7 +472,13 @@ function addCustomTextOnly(){
     }
     const elSettings = document.getElementById('elSettings');
     if (elSettings) elSettings.style.display = 'none';
+    return el;
 }
+
+window.addCustomTextOnly = addCustomTextOnly;
+window.createCustomTextOnly = addCustomTextOnly;
+window.addCustomTextBox = addCustomTextBox;
+window.createCustomTextBox = addCustomTextBox;
 
 function initGlobalTooltip() {
     let tip = document.querySelector('.global-tooltip');
@@ -666,6 +702,8 @@ window.applyTextSaberOpts = function() {
     
     // Make DOM text transparent to hide it but keep bounding box
     selectedEl.style.color = 'transparent';
+    selectedEl.style.textShadow = 'none';
+    selectedEl.style.webkitTextStroke = 'none';
 
     if (window.SaberEngine && typeof SaberEngine.addTextSaber === 'function') {
         const id = selectedEl.id || ('el_' + Math.random().toString(36).substr(2,9));

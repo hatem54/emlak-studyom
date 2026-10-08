@@ -1,18 +1,18 @@
 console.log('🚀 templateManager.js yükleniyor...');
 
 const TEMPLATE_CATEGORIES = [
-    { id: 'favorites', name: '⭐ Favori Şablonlar' },
-    { id: 'kalip', name: '🖼️ Afiş ve Vitrin' },
-    { id: 'elit', name: '💎 Elit Şablonlar' },
-    { id: 'kolaj', name: '🖼️ Kolaj' },
-    { id: 'minimal', name: '✨ Minimal' },
-    { id: 'luks', name: '👑 Lüks' },
-    { id: 'kurumsal', name: '🏢 Kurumsal' },
-    { id: 'dinamik', name: '⚡ Dinamik' },
-    { id: 'klasik', name: '🏛️ Klasik' },
-    { id: 'sosyal', name: '📱 Sosyal Medya' },
-    { id: 'portfoy', name: '📁 Portföy' },
-    { id: 'ozel', name: '🎯 Özel' }
+    { id: 'favorites', name: 'Favori Şablonlar', icon: 'fa-star', color: '#eab308' },
+    { id: 'kalip', name: 'Afiş ve Vitrin', icon: 'fa-rectangle-ad', color: '#0284c7' },
+    { id: 'elit', name: 'Elit Şablonlar', icon: 'fa-gem', color: '#6366f1' },
+    { id: 'kolaj', name: 'Kolaj', icon: 'fa-table-cells', color: '#0284c7' },
+    { id: 'minimal', name: 'Minimal', icon: 'fa-layer-group', color: '#059669' },
+    { id: 'luks', name: 'Lüks', icon: 'fa-crown', color: '#d97706' },
+    { id: 'kurumsal', name: 'Kurumsal', icon: 'fa-building', color: '#2563eb' },
+    { id: 'dinamik', name: 'Dinamik', icon: 'fa-bolt', color: '#ea580c' },
+    { id: 'klasik', name: 'Klasik', icon: 'fa-landmark', color: '#7c3aed' },
+    { id: 'sosyal', name: 'Sosyal Medya', icon: 'fa-share-nodes', color: '#db2777' },
+    { id: 'portfoy', name: 'Portföy', icon: 'fa-briefcase', color: '#0d9488' },
+    { id: 'ozel', name: 'Özel', icon: 'fa-wand-magic-sparkles', color: '#8b5cf6' }
 ];
 
 window.getFavoriteTemplates = function() {
@@ -58,7 +58,7 @@ window.injectFavoriteStars = function() {
             
             const star = document.createElement('div');
             star.className = 'fav-star';
-            star.innerHTML = '⭐';
+            star.innerHTML = '<i class="fa-solid fa-star"></i>';
             star.title = 'Favorilere Ekle / Çıkar';
             
             const accordionContent = card.closest('.accordion-content');
@@ -153,13 +153,75 @@ function initTemplateManager() {
 
     container.innerHTML = '';
 
+    // 0. Şablon İlan Bilgileri (Tek Merkezli Hızlı Metin Paneli)
+    const infoItem = document.createElement('div');
+    infoItem.className = 'accordion-item tpl-info-accordion';
+    infoItem.id = 'tpl-info-item';
+
+    const infoHeader = document.createElement('div');
+    infoHeader.className = 'accordion-header';
+    infoHeader.innerHTML = `<span style="display:flex;align-items:center;gap:7px;"><i class="fa-solid fa-pen-to-square" style="color:#0284c7;"></i> Şablon İlan Bilgileri</span><span class="arrow">▼</span>`;
+
+    const infoContent = document.createElement('div');
+    infoContent.className = 'accordion-content';
+    infoContent.id = 'tpl-content-info';
+    infoContent.innerHTML = `
+        <div class="input-group">
+            <label>Ana Başlık</label>
+            <input type="text" id="canvaTitle" value="SATILIK MÜSTAKİL EV" placeholder="İlan Başlığı">
+        </div>
+        <div class="input-group">
+            <label>Fiyat</label>
+            <input type="text" id="canvaPrice" value="12.500.000 TL" placeholder="Fiyat">
+        </div>
+        <div class="input-group">
+            <label>Bölge ve Alt Başlık</label>
+            <input type="text" id="canvaSub" value="Çankaya / Ovacık • Elit Yaşam Alanı" placeholder="Konum">
+        </div>
+        <div class="input-group">
+            <label>İletişim ve Danışman</label>
+            <input type="text" id="canvaContact" value="EMLAK STÜDYOM | 0532 000 00 00" placeholder="İletişim">
+        </div>
+        <div class="input-group">
+            <label>İlan Özellikleri</label>
+            <textarea id="canvaFeatures" rows="3" placeholder="Özellikler">Geniş Teras Balkonlu & Manzaralı
+Lüks Donanım & Modern Tasarım
+Site İçi Kapalı Otopark
+Merkezi Konumda</textarea>
+        </div>
+    `;
+
+    infoHeader.onclick = () => {
+        const isActive = infoItem.classList.contains('active');
+        document.querySelectorAll('.accordion-item').forEach(i => i.classList.remove('active'));
+        if (!isActive) {
+            infoItem.classList.add('active');
+        }
+    };
+
+    ['canvaTitle', 'canvaPrice', 'canvaSub', 'canvaContact', 'canvaFeatures'].forEach(id => {
+        const el = infoContent.querySelector('#' + id);
+        if (el) {
+            el.addEventListener('input', () => {
+                if (typeof window.refreshActiveCanvaTemplate === 'function') {
+                    window.refreshActiveCanvaTemplate();
+                }
+            });
+        }
+    });
+
+    infoItem.appendChild(infoHeader);
+    infoItem.appendChild(infoContent);
+    container.appendChild(infoItem);
+
+    // Kategori Akordiyonları
     TEMPLATE_CATEGORIES.forEach((cat, index) => {
         const item = document.createElement('div');
         item.className = 'accordion-item';
         
         const header = document.createElement('div');
         header.className = 'accordion-header';
-        header.innerHTML = `<span>${cat.name}</span><span class="arrow">▼</span>`;
+        header.innerHTML = `<span style="display:flex;align-items:center;gap:7px;"><i class="fa-solid ${cat.icon}" style="color:${cat.color};"></i> ${cat.name}</span><span class="arrow">▼</span>`;
         
         const content = document.createElement('div');
         content.className = 'accordion-content';
@@ -340,14 +402,15 @@ window.arrangeLayers = function(baseNode) {
             if (card && card.dataset && card.dataset.id) {
                 if (typeof activeCanvaId !== 'undefined') {
                     activeCanvaId = card.dataset.id;
-                } else {
-                    window.activeCanvaId = card.dataset.id;
                 }
+                window.activeCanvaId = card.dataset.id;
+                window.lastActiveTemplateId = card.dataset.id;
+                const canvaL = document.getElementById('canva-render-layer');
+                if (canvaL) canvaL.dataset.activeTemplateId = card.dataset.id;
                 if (typeof isCanvaMode !== 'undefined') {
                     isCanvaMode = true;
-                } else {
-                    window.isCanvaMode = true;
                 }
+                window.isCanvaMode = true;
                 // Trigger autoSave to persist the selected template
                 if (typeof requestAutoSave === 'function') {
                     requestAutoSave();

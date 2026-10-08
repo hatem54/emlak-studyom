@@ -1557,15 +1557,6 @@
             }
 
             this.applyLiveMapAiPreview();
-
-            if (typeof window.showAppToast === 'function') {
-                window.showAppToast(
-                    this.aiEnhanceEnabled 
-                        ? `✨ AI HD Netleştirme aktif (%${this.aiEnhanceIntensity || 20})` 
-                        : 'AI Netleştirme kapatıldı', 
-                    'info'
-                );
-            }
         },
 
         /**
@@ -2217,7 +2208,7 @@
                 });
 
                 if (typeof window.showAppToast === 'function') {
-                    window.showAppToast(`📍 Konum bulundu: ${cleanDisplay}`, 'success');
+                    window.showAppToast(`Konum bulundu: ${cleanDisplay}`, 'success');
                 }
             } else {
                 alert(`"${q}" için haritada kesin sonuç bulunamadı. Lütfen il ve ilçe adını kontrol ediniz.`);
@@ -2530,10 +2521,6 @@
             if (resetBtn) resetBtn.style.display = 'none';
 
             this.updateMapModalLayout();
-
-            if (typeof window.showAppToast === 'function') {
-                window.showAppToast('🧭 Harita penceresi varsayılan konuma hizalandı.', 'info');
-            }
         },
 
         /**
@@ -2592,9 +2579,6 @@
          */
         openModal: function(prefer3D = false) {
             if (window.innerWidth <= 768) {
-                if (typeof window.showAppToast === 'function') {
-                    window.showAppToast('🛰️ Uydu haritası özelliği masaüstü cihazlar için optimize edilmiştir.', 'info');
-                }
                 return;
             }
 
@@ -3507,11 +3491,6 @@
                                         if (SatelliteMapModule.measureActive && (SatelliteMapModule.hasVisibleDrawings ? SatelliteMapModule.hasVisibleDrawings() : (SatelliteMapModule.measurePoints && SatelliteMapModule.measurePoints.length >= 2))) {
                                             SatelliteMapModule.addMeasureBadgesToCanvas(targetW, targetH);
                                         }
-
-                                        if (typeof window.showAppToast === 'function') {
-                                            const aiNote = this.aiEnhanceEnabled ? ` (AI %${this.aiEnhanceIntensity || 20} Net)` : '';
-                                            window.showAppToast(`🌐 Google 3D görüntüsü${aiNote} (${targetW}x${targetH}) tuvalinize aktarıldı!`, 'success');
-                                        }
                                     }
                                 });
                                 capturedDirectly = true;
@@ -3707,12 +3686,6 @@
                             if (SatelliteMapModule.measureActive && (SatelliteMapModule.hasVisibleDrawings ? SatelliteMapModule.hasVisibleDrawings() : (SatelliteMapModule.measurePoints && SatelliteMapModule.measurePoints.length >= 2))) {
                                 SatelliteMapModule.addMeasureBadgesToCanvas(targetW, targetH);
                             }
-
-                            if (typeof window.showAppToast === 'function') {
-                                const resTag = (this.selectedResolution || '4K').toUpperCase();
-                                const aiNote = this.aiEnhanceEnabled ? ` (AI %${this.aiEnhanceIntensity || 20} Netleştirildi)` : '';
-                                window.showAppToast(`🛰️ ${resTag} Uydu görüntüsü${aiNote} (${targetW}x${targetH}) başarıyla tuvalinize uygulandı!`, 'success');
-                            }
                         }
                     });
                 } else {
@@ -3801,11 +3774,6 @@
                         }
                     }
                 } catch(eAutoApply) {}
-
-                if (typeof window.showAppToast === 'function') {
-                    const count = window.PhotoStagingArchive ? window.PhotoStagingArchive.items.length : 1;
-                    window.showAppToast(`Açı görsel havuzuna eklendi • Toplam ${count} görsel`, 'success', 2500);
-                }
             } catch(err) {
                 console.error("Havuza ekleme hatası:", err);
                 if (typeof window.showAppToast === 'function') {
@@ -4542,9 +4510,6 @@
                 else btn.classList.remove('active');
             });
 
-            if (this.measureActive && typeof window.showAppToast === 'function') {
-                window.showAppToast('ℹ️ 3D Dünya modunda köşe ölçümleri gizlenir. 2D HD Uyduya döndüğünüzde tüm ölçümleriniz korunur.', 'info', 4500);
-            }
             this.syncMeasureUI();
             this.syncLabelsUI();
             this.updateSmartFooterUI();
@@ -4932,9 +4897,6 @@
 
     window.openSatelliteMapModal = function(prefer3D = false) {
         if (window.innerWidth <= 768) {
-            if (typeof window.showAppToast === 'function') {
-                window.showAppToast('🛰️ Uydu haritası özelliği masaüstü cihazlar için optimize edilmiştir.', 'info');
-            }
             return;
         }
         SatelliteMapModule.openModal(prefer3D);

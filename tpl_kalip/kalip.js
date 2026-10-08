@@ -1,4 +1,4 @@
-/* ============================================================
+﻿/* ============================================================
    🖼️ Afiş ve Vitrin Şablon Seti
    10 Adet Özel Mimaride Profesyonel Emlak Kalıbı (İlgi Çekici İlan Metinleri)
 ============================================================ */
@@ -9,45 +9,7 @@ function _kalipInit(){
         setTimeout(_kalipInit, 500);
         return;
     }
-    
-    container.innerHTML = `
-        <div class="edit-hint" style="display:none;">💡 Yazıya/panele ÇİFT TIKLA | Sürükle Bırak | Sağ Tık (Ayarlar)</div>
-        <div class="section-title" style="margin-top:0"><i class="fa-solid fa-image" style="color:#0284c7; margin-right:6px;"></i>Afiş ve Vitrin Metin Düzenleyici</div>
-        <div class="input-group">
-            <label>Ana Başlık (Title)</label>
-            <input type="text" id="canvaKTitle" value="🔥 4+1 ULTRA LÜKS REZİDANS DAİRE">
-        </div>
-        <div class="input-group">
-            <label>Bölge / Alt Başlık</label>
-            <input type="text" id="canvaKSub" value="Çankaya / Ovacık Sınırında • Elit Site İçerisinde">
-        </div>
-        <div class="input-group">
-            <label>Fiyat</label>
-            <input type="text" id="canvaKPrice" value="8.450.000 ₺">
-        </div>
-        <div class="input-group">
-            <label>Özel Rozet / Vurgu</label>
-            <input type="text" id="canvaKBadge" value="★★★ İSKANLI • HEMEN TAŞINMAYA HAZIR ★★★">
-        </div>
-        <div class="input-group">
-            <label>İletişim / Danışman</label>
-            <input type="text" id="canvaKContact" value="EMLAK STUDYOM | 0532 000 00 00">
-        </div>
-        <div class="input-group">
-            <label>Özellikler (Alt alta)</label>
-            <textarea id="canvaKFeats" rows="5">Geniş Teras Balkonlu & Panoramik Manzaralı
-Jakuzili Ebeveyn Banyolu & Giyinme Odalı
-2 Araçlık Kapalı Otopark & Çift Asansör
-Kat Mülkiyetli • Yüksek Krediye Uygun
-Depreme Dayanıklı C35 Radye Temel</textarea>
-        </div>
-    `;
-
-    ['canvaKTitle','canvaKSub','canvaKPrice','canvaKBadge','canvaKContact','canvaKFeats'].forEach(id=>{
-        const el = document.getElementById(id);
-        if(el) el.addEventListener('input', () => { if(isCanvaMode) renderKTemplate(activeCanvaId); });
-    });
-    
+    container.innerHTML = '';
     buildKCards();
 }
 
@@ -57,37 +19,15 @@ function buildKCards(){
         grid = document.createElement('div');
         grid.className = 'canva-tpl-grid';
         grid.id = 'canvaTplGridK';
-        const hint = document.querySelector('#tpl-content-kalip .edit-hint');
-        if(hint) hint.parentNode.insertBefore(grid, hint.nextSibling);
+        const cont = document.getElementById('tpl-content-kalip');
+        if(cont) cont.appendChild(grid);
     }
     grid.innerHTML = '';
     if(typeof KALIP_CARDS !== 'undefined') {
         KALIP_CARDS.forEach((c, idx) => {
-            const card = document.createElement('div');
-            card.className = 'canva-tpl-card';
-            card.dataset.id = c.id;
-            const tBg = 'linear-gradient(135deg, '+c.bg1+', '+c.bg2+')';
-            card.innerHTML = `
-                <div class="tpl-preview" style="display:flex;gap:0;border-radius:6px;overflow:hidden;background:${tBg};border:1px solid rgba(255,255,255,0.15);box-shadow:0 3px 8px rgba(0,0,0,0.15);">
-                    <div style="flex:1;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:3px;padding:6px;background:rgba(0,0,0,0.3);">
-                        <div style="font-size:12px;font-weight:900;color:${c.accent};letter-spacing:1px;">AFİŞ ${idx+1}</div>
-                        <div style="font-size:10px;font-weight:800;color:#fff;text-align:center;">${c.name.split('.')[1] || c.name}</div>
-                        <div style="font-size:8.5px;color:#cbd5e1;opacity:0.85;">${c.desc || ''}</div>
-                    </div>
-                </div>`;
-            card.onclick = () => {
-                if(card.classList.contains('active')) return;
-                document.querySelectorAll('.canva-tpl-card').forEach(x => x.classList.remove('active'));
-                card.classList.add('active');
-                activeCanvaId = c.id;
-                if (window.CanvasEmptyState && typeof window.CanvasEmptyState.dismiss === 'function') {
-                    window.CanvasEmptyState.dismiss();
-                } else {
-                    const es = document.getElementById('canvasEmptyState');
-                    if (es) { es.classList.add('is-hidden'); es.style.display = 'none'; }
-                }
-                renderKTemplate(c.id);
-            };
+            const card = window.createTemplateCard(c, idx, 'Afiş', (id) => {
+                renderKTemplate(id);
+            });
             grid.appendChild(card);
         });
     }
@@ -95,6 +35,13 @@ function buildKCards(){
 
 function renderKTemplate(id){
     if(!id) return;
+    if (typeof id === 'object' && id && id.id) id = id.id;
+    window.activeCanvaId = id;
+    if (typeof activeCanvaId !== 'undefined') activeCanvaId = id;
+    window.lastActiveTemplateId = id;
+    if (typeof canvaRenderLayer !== 'undefined' && canvaRenderLayer) canvaRenderLayer.dataset.activeTemplateId = id;
+    window.isCanvaMode = true;
+    isCanvaMode = true;
     if (window.CanvasEmptyState && typeof window.CanvasEmptyState.dismiss === 'function') {
         window.CanvasEmptyState.dismiss();
     } else {
@@ -105,7 +52,6 @@ function renderKTemplate(id){
     document.querySelectorAll('.normal-el').forEach(el => el.style.display = 'none');
     document.querySelectorAll('.canva-generated, .canva-panel').forEach(e => e.remove());
     document.querySelectorAll('.template-btn').forEach(b => b.classList.remove('active'));
-    isCanvaMode = true;
     
     if(typeof elLogo !== 'undefined' && elLogo && elLogo.src && elLogo.src !== window.location.href) {
         elLogo.style.visibility = 'visible'; 
@@ -118,20 +64,26 @@ function renderKTemplate(id){
     if(typeof photoLayer !== 'undefined' && photoLayer) photoLayer.style.display = 'none';
     if(typeof canvaRenderLayer !== 'undefined' && canvaRenderLayer) canvaRenderLayer.style.display = 'block';
 
-    const getVal = (id, fallback) => {
-        const el = document.getElementById(id);
-        return el && el.value ? el.value : fallback;
-    };
+    const tData = (typeof window.getUnifiedTemplateData === 'function')
+        ? window.getUnifiedTemplateData()
+        : {
+            title: '🔥 4+1 ULTRA LÜKS REZİDANS DAİRE',
+            sub: 'Bodrum / Yalıkavak Sınırında • Elit Site İçerisinde',
+            price: '8.450.000 ₺',
+            badge: '★★★ İSKANLI • HEMEN TAŞINMAYA HAZIR ★★★',
+            contact: 'EMLAK STUDYOM | 0532 000 00 00',
+            featsLines: ['Geniş Teras Balkonlu & Panoramik Manzaralı', 'Jakuzili Ebeveyn Banyolu & Giyinme Odalı', '2 Araçlık Kapalı Otopark & Çift Asansör', 'Kat Mülkiyetli • Yüksek Krediye Uygun', 'Depreme Dayanıklı C35 Radye Temel']
+        };
 
-    const title = getVal('canvaKTitle', '🔥 4+1 ULTRA LÜKS REZİDANS DAİRE').toUpperCase();
-    const sub = getVal('canvaKSub', 'Çankaya / Ovacık Sınırında • Elit Site İçerisinde');
-    const price = getVal('canvaKPrice', '8.450.000 ₺');
-    const badge = getVal('canvaKBadge', '★★★ İSKANLI • HEMEN TAŞINMAYA HAZIR ★★★');
-    const contact = getVal('canvaKContact', 'EMLAK STUDYOM | 0532 000 00 00');
-    const feats = getVal('canvaKFeats', 'Geniş Teras Balkonlu & Panoramik Manzaralı\nJakuzili Ebeveyn Banyolu & Giyinme Odalı\n2 Araçlık Kapalı Otopark & Çift Asansör\nKat Mülkiyetli • Yüksek Krediye Uygun\nDepreme Dayanıklı C35 Radye Temel');
-    const featsArr = feats.split('\n').map(x => x.trim()).filter(x => x.length > 0);
+    const title = tData.title;
+    const sub = tData.sub;
+    const price = tData.price;
+    const badge = tData.badge;
+    const contact = tData.contact;
+    const featsArr = tData.featsLines || [];
 
-    const bgImg = typeof uploadedImgUrl !== 'undefined' && uploadedImgUrl ? "background-image:url('" + uploadedImgUrl + "')" : "background-color:#1e293b";
+    const cardObj = (typeof KALIP_CARDS !== 'undefined') ? KALIP_CARDS.find(c => c.id === id) : null;
+    const bgImg = (typeof window.getTemplateActiveBg === 'function') ? window.getTemplateActiveBg(cardObj || 'Afiş') : (typeof uploadedImgUrl !== 'undefined' && uploadedImgUrl ? "background-image:url('" + uploadedImgUrl + "')" : "background-image:url('assets/luxury_villa.jpg')");
     const x = document.getElementById('photoXCtrl') ? document.getElementById('photoXCtrl').value : 50;
     const y = document.getElementById('photoYCtrl') ? document.getElementById('photoYCtrl').value : 50;
     const bgPos = bgImg + ";background-position:" + x + "% " + y + "%;background-size:cover;";
@@ -829,3 +781,6 @@ window.renderKTemplate = renderKTemplate;
 
 // Sayfa yüklendiğinde otomatik başlat
 setTimeout(_kalipInit, 300);
+
+
+

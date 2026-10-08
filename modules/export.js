@@ -1459,7 +1459,7 @@ async function saveImage(customBaseName, options = {}){
     }
 
     const wz=drawCanvas.style.zIndex,wp=drawCanvas.style.pointerEvents;
-    drawCanvas.style.zIndex='7';
+    drawCanvas.style.zIndex='50';
     drawCanvas.style.pointerEvents='none';
     
     const isForceOriginal = !!(options && options.forceOriginal);
@@ -1703,7 +1703,20 @@ async function saveImage(customBaseName, options = {}){
             }
             
             const renderCanvas = panel.querySelector('.photo-render-canvas');
-            if (renderCanvas && renderCanvas.width > 0) {
+            const pl = document.getElementById('photo-layer');
+            const plInner = pl ? pl.querySelector('.photo-inner') : null;
+            if (renderCanvas && renderCanvas.width > 0 && pl && plInner && typeof window.drawPhotoToTargetCanvas === 'function') {
+                const tempCanvas = document.createElement('canvas');
+                tempCanvas.width = w;
+                tempCanvas.height = h;
+                const pScale = parseFloat(pl.dataset.scale || 1);
+                const pPanX = parseFloat(pl.dataset.panX || 0);
+                const pPanY = parseFloat(pl.dataset.panY || 0);
+                const pSlX = parseFloat(pl.dataset.sliderX || 50);
+                const pSlY = parseFloat(pl.dataset.sliderY || 50);
+                window.drawPhotoToTargetCanvas(pl, plInner, tempCanvas, pScale, pPanX, pPanY, pSlX, pSlY);
+                ctx.drawImage(tempCanvas, 0, 0, w, h);
+            } else if (renderCanvas && renderCanvas.width > 0) {
                 ctx.drawImage(renderCanvas, 0, 0, w, h);
             } else {
                 const natW = (panel && panel.dataset.naturalW) ? parseFloat(panel.dataset.naturalW) : (window.uploadedImgW || masterImgObj.naturalWidth || masterImgObj.width || 1920);
@@ -1824,6 +1837,9 @@ async function saveImage(customBaseName, options = {}){
         if (typeof window.addWatermark === 'function') {
             await window.addWatermark(finalCanvas);
         }
+
+        // DOM'un güncellenmesine ve UI'ın nefes almasına izin ver (Thread kilidini geçici olarak çöz)
+        await new Promise(r => setTimeout(r, 100));
 
         // INDIRME
         const a = document.createElement('a');
@@ -1980,36 +1996,40 @@ async function startBatchExport(options){
     batchProgress.style.display='block';
     if(drawMode!=='off')setDrawMode('off');
     
-    document.body.classList.add('is-exporting');
-    if(typeof deselectAll === 'function') deselectAll();
-    document.querySelectorAll('.el-selected').forEach(e=>e.classList.remove('el-selected'));
-    document.querySelectorAll('.text-handle').forEach(h=>h.remove());
-    document.querySelectorAll('.callout-controls, .callout-resizer, .callout-rotator, .callout-select-border, .callout-lock-btn, .cbtn-del, .callout-handle-width, .callout-handle-length, .draw-handle, .vertex-handle').forEach(c => c.style.display = 'none');
-    const existingBatchCtx = document.getElementById('app-custom-context-menu');
-    if (existingBatchCtx) existingBatchCtx.remove();
-    
-    const wz=drawCanvas.style.zIndex,wp=drawCanvas.style.pointerEvents;
-    drawCanvas.style.zIndex='7';
-    drawCanvas.style.pointerEvents='none';
-    
-    const formatName=exportFormat?exportFormat.value:'16:9 Full HD';
-    const format=EXPORT_FORMATS[formatName]||{w:1920,h:1080};
-    const fitMode=exportFitMode?exportFitMode.value:'cover';
-    const bgColor=exportBgColor?exportBgColor.value:'#ffffff';
-    const scaleVal1 = exportScale?exportScale.value:'1.5';
-    const rawBatchFileType = document.getElementById('exportFileType') ? document.getElementById('exportFileType').value : 'jpg';
-    const isBatchTransparent = (rawBatchFileType === 'png_transparent');
-    if (isBatchTransparent) {
-        window.isExportingTransparent = true;
-    }
-    const currentW=parseInt(canvasEl.style.width)||1920;
-    const currentH=parseInt(canvasEl.style.height)||1080;
-
-    const startIndex = (options && typeof options.startIndex === 'number') ? options.startIndex : 0;
-    const selectedPresetId = (options && options.presetId) ? options.presetId : (document.getElementById('batchPresetSelect') ? document.getElementById('batchPresetSelect').value : 'current');
-    const prefixInput = document.getElementById('batchPrefixInput') ? document.getElementById('batchPrefixInput').value.trim() : '';
+    const wz = drawCanvas ? drawCanvas.style.zIndex : '5';
+    const wp = drawCanvas ? drawCanvas.style.pointerEvents : 'none';
 
     try {
+        document.body.classList.add('is-exporting');
+        if(typeof deselectAll === 'function') deselectAll();
+        document.querySelectorAll('.el-selected').forEach(e=>e.classList.remove('el-selected'));
+        document.querySelectorAll('.text-handle').forEach(h=>h.remove());
+        document.querySelectorAll('.callout-controls, .callout-resizer, .callout-rotator, .callout-select-border, .callout-lock-btn, .cbtn-del, .callout-handle-width, .callout-handle-length, .draw-handle, .vertex-handle').forEach(c => c.style.display = 'none');
+        const existingBatchCtx = document.getElementById('app-custom-context-menu');
+        if (existingBatchCtx) existingBatchCtx.remove();
+        
+        if (drawCanvas) {
+            drawCanvas.style.zIndex='50';
+            drawCanvas.style.pointerEvents='none';
+        }
+        
+        const formatName=exportFormat?exportFormat.value:'16:9 Full HD';
+        const format=EXPORT_FORMATS[formatName]||{w:1920,h:1080};
+        const fitMode=exportFitMode?exportFitMode.value:'cover';
+        const bgColor=exportBgColor?exportBgColor.value:'#ffffff';
+        const scaleVal1 = exportScale?exportScale.value:'1.5';
+        const rawBatchFileType = document.getElementById('exportFileType') ? document.getElementById('exportFileType').value : 'jpg';
+        const isBatchTransparent = (rawBatchFileType === 'png_transparent');
+        if (isBatchTransparent) {
+            window.isExportingTransparent = true;
+        }
+        const currentW=parseInt(canvasEl.style.width)||1920;
+        const currentH=parseInt(canvasEl.style.height)||1080;
+
+        const startIndex = (options && typeof options.startIndex === 'number') ? options.startIndex : 0;
+        const selectedPresetId = (options && options.presetId) ? options.presetId : (document.getElementById('batchPresetSelect') ? document.getElementById('batchPresetSelect').value : 'current');
+        const prefixInput = document.getElementById('batchPrefixInput') ? document.getElementById('batchPrefixInput').value.trim() : '';
+
         if (selectedPresetId && selectedPresetId !== 'current') {
             if (window.CustomPresetsManager) {
                 window.CustomPresetsManager.applyPreset(selectedPresetId);
@@ -2347,6 +2367,7 @@ async function startBatchExport(options){
         if (typeof _wasTplHiddenBatch !== 'undefined' && _wasTplHiddenBatch && typeof window.toggleTemplateVisibility === 'function') {
             window.toggleTemplateVisibility(true);
         }
+        if (batchProgress) batchProgress.style.display = 'none';
     }
 
     batchProgress.style.display='none';
@@ -2718,27 +2739,6 @@ async function interactiveBatchAutoRemaining() {
 
     const remainingCount = state.files.length - state.currentIndex;
     if (remainingCount <= 0) return;
-
-    let confirmed = true;
-    if (typeof Swal !== 'undefined') {
-        const res = await Swal.fire({
-            title: 'Kalanları İndir',
-            text: `Kalan ${remainingCount} fotoğraf mevcut ayarlarınızla otomatik indirilsin mi?`,
-            icon: 'question',
-            showCancelButton: true,
-            confirmButtonText: 'Otomatik İndir',
-            cancelButtonText: 'Vazgeç',
-            confirmButtonColor: '#3b82f6',
-            cancelButtonColor: '#64748b',
-            background: '#1e293b',
-            color: '#fff'
-        });
-        confirmed = res.isConfirmed;
-    } else {
-        confirmed = confirm(`Kalan ${remainingCount} fotoğraf otomatik indirilsin mi?`);
-    }
-
-    if (!confirmed) return;
 
     const startIndex = state.currentIndex;
     const presetId = state.selectedPresetId;

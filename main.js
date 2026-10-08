@@ -380,6 +380,16 @@ function applyFinalProjectImage(img, finalDataUrl, finalW, finalH) {
 
         uploadedImgUrl = finalDataUrl;
         window.uploadedImgUrl = finalDataUrl;
+        window.activePreviewThumbUrl = null;
+        if (typeof window.generateCardPreviewThumb === 'function') {
+            window.generateCardPreviewThumb(finalDataUrl, () => {
+                if (typeof window.updateTemplateCardPreviews === 'function') {
+                    window.updateTemplateCardPreviews();
+                }
+            });
+        } else if (typeof window.updateTemplateCardPreviews === 'function') {
+            window.updateTemplateCardPreviews();
+        }
         if (!window._isApplyingAiEnhance) {
             window._aiOriginalImgDataUrl = finalDataUrl;
         }
@@ -403,27 +413,29 @@ function applyFinalProjectImage(img, finalDataUrl, finalW, finalH) {
             pl.dataset.naturalH = uploadedImgH;
         }
 
-        // 1. Tuval formatını görselin orijinal ölçülerine uyarla
-        if (typeof autoAdjustFormat === 'function' && window.isRestoringState !== true) {
+        // 1. Tuval formatını görselin orijinal ölçülerine uyarla (Canva şablonu modunda şablon oranını koru)
+        if (typeof autoAdjustFormat === 'function' && window.isRestoringState !== true && !window.isCanvaMode) {
             autoAdjustFormat(uploadedImgW, uploadedImgH);
         }
 
-        // 2. Tuval boyutlarını doğrudan görsel boyutlarına eşitle
-        const cContainer = document.getElementById('canvas-container');
-        if (cContainer) {
-            cContainer.style.width = uploadedImgW + 'px';
-            cContainer.style.height = uploadedImgH + 'px';
-        }
-        if (typeof canvasEl !== 'undefined' && canvasEl) {
-            canvasEl.style.width = uploadedImgW + 'px';
-            canvasEl.style.height = uploadedImgH + 'px';
-        }
-        const drawCanvas = document.getElementById('draw-layer');
-        if (drawCanvas) {
-            drawCanvas.width = uploadedImgW;
-            drawCanvas.height = uploadedImgH;
-            drawCanvas.style.width = uploadedImgW + 'px';
-            drawCanvas.style.height = uploadedImgH + 'px';
+        // 2. Standart moddaysa tuval boyutlarını doğrudan görsel boyutlarına eşitle
+        if (!window.isCanvaMode) {
+            const cContainer = document.getElementById('canvas-container');
+            if (cContainer) {
+                cContainer.style.width = uploadedImgW + 'px';
+                cContainer.style.height = uploadedImgH + 'px';
+            }
+            if (typeof canvasEl !== 'undefined' && canvasEl) {
+                canvasEl.style.width = uploadedImgW + 'px';
+                canvasEl.style.height = uploadedImgH + 'px';
+            }
+            const drawCanvas = document.getElementById('draw-layer');
+            if (drawCanvas) {
+                drawCanvas.width = uploadedImgW;
+                drawCanvas.height = uploadedImgH;
+                drawCanvas.style.width = uploadedImgW + 'px';
+                drawCanvas.style.height = uploadedImgH + 'px';
+            }
         }
         if (window.SaberEngine && typeof window.SaberEngine.resize === 'function') {
             window.SaberEngine.resize(uploadedImgW, uploadedImgH);
@@ -481,8 +493,10 @@ function applyFinalProjectImage(img, finalDataUrl, finalW, finalH) {
             });
         }
 
-        // 4. Fotoğraf katmanını güncelle ve render et
-        document.querySelectorAll('.photo-panel, #photo-layer').forEach(p => {
+        const isCanva = !!(window.isCanvaMode || (typeof isCanvaMode !== 'undefined' && isCanvaMode));
+
+        // 4. Fotoğraf panellerini güncelle (Canva şablonlarındaki kutucuklar)
+        document.querySelectorAll('.photo-panel').forEach(p => {
             p.style.display = 'block';
             p.style.visibility = 'visible';
             p._nativeImg = img;
@@ -503,7 +517,36 @@ function applyFinalProjectImage(img, finalDataUrl, finalW, finalH) {
             if (typeof _applyPhotoTransform === 'function') _applyPhotoTransform(p);
         });
 
-        if (typeof isCanvaMode !== 'undefined' && isCanvaMode) {
+        // 5. Orijinal fotoğraf katmanını güncelle (Canva modundaysa kesinlikle gizli tutulur)
+        const photoLayerEl = document.getElementById('photo-layer');
+        if (photoLayerEl) {
+            photoLayerEl._nativeImg = img;
+            photoLayerEl._nativeImgSrc = finalDataUrl;
+            photoLayerEl.dataset.savedBg = `url('${finalDataUrl}')`;
+            if (isCanva) {
+                photoLayerEl.style.setProperty('display', 'none', 'important');
+                photoLayerEl.style.opacity = '0';
+            } else {
+                photoLayerEl.style.display = 'block';
+                photoLayerEl.style.visibility = 'visible';
+                photoLayerEl.style.opacity = '1';
+                delete photoLayerEl.dataset.zpScale;
+                delete photoLayerEl.dataset.zpX;
+                delete photoLayerEl.dataset.zpY;
+                const inner = photoLayerEl.querySelector('.photo-inner-zoom');
+                if (inner) {
+                    inner.style.backgroundImage = `url('${finalDataUrl}')`;
+                    inner.style.opacity = '0';
+                    photoLayerEl.style.backgroundImage = 'none';
+                } else {
+                    photoLayerEl.style.backgroundImage = `url('${finalDataUrl}')`;
+                    photoLayerEl.style.backgroundSize = 'cover';
+                }
+                if (typeof _applyPhotoTransform === 'function') _applyPhotoTransform(photoLayerEl);
+            }
+        }
+
+        if (isCanva) {
             if (typeof refreshActiveCanvaTemplate === 'function') refreshActiveCanvaTemplate();
             else if (typeof buildCanvaRender === 'function') buildCanvaRender();
         }
@@ -518,8 +561,14 @@ function applyFinalProjectImage(img, finalDataUrl, finalW, finalH) {
             if (lockToggle) lockToggle.checked = true;
             window.isPhotoLocked = true;
         }
-        const photoLayerEl = document.getElementById('photo-layer');
-        if (photoLayerEl && typeof _preparePhoto === 'function') _preparePhoto(photoLayerEl);
+        if (photoLayerEl) {
+            if (isCanva) {
+                photoLayerEl.style.setProperty('display', 'none', 'important');
+                photoLayerEl.style.opacity = '0';
+            } else if (typeof _preparePhoto === 'function') {
+                _preparePhoto(photoLayerEl);
+            }
+        }
         if (typeof resetPixelCache === 'function') resetPixelCache();
         if (typeof resizeCanvas === 'function') resizeCanvas();
         if (typeof applyPhotoPos === 'function') applyPhotoPos();
@@ -579,6 +628,9 @@ function bindInputs(){
 
             const r = new FileReader();
             r.onload = ev => {
+                if (window.CanvasEmptyState && typeof window.CanvasEmptyState.dismiss === 'function') {
+                    window.CanvasEmptyState.dismiss();
+                }
                 const logoEl = document.getElementById('elLogo');
                 if(logoEl) {
                     const img = logoEl.querySelector('img');
@@ -910,11 +962,7 @@ function bindInputs(){
                 reader.onload = function(evt) {
                     const dataUrl = evt.target.result;
                     if (typeof window.applyProjectImageFromDataUrl === 'function') {
-                        window.applyProjectImageFromDataUrl(dataUrl, (err) => {
-                            if (!err && typeof window.showAppToast === 'function') {
-                                window.showAppToast('📋 Panodaki ekran alıntısı (TKGM / Google Earth) başarıyla şablona aktarıldı!', 'success');
-                            }
-                        });
+                        window.applyProjectImageFromDataUrl(dataUrl);
                     }
                 };
                 reader.readAsDataURL(blob);
@@ -934,11 +982,7 @@ function bindInputs(){
                             const reader = new FileReader();
                             reader.onload = (evt) => {
                                 if (typeof window.applyProjectImageFromDataUrl === 'function') {
-                                    window.applyProjectImageFromDataUrl(evt.target.result, (err) => {
-                                        if (!err && typeof window.showAppToast === 'function') {
-                                            window.showAppToast('📋 Panodaki görsel başarıyla şablona aktarıldı!', 'success');
-                                        }
-                                    });
+                                    window.applyProjectImageFromDataUrl(evt.target.result);
                                 }
                             };
                             reader.readAsDataURL(blob);
@@ -1046,9 +1090,6 @@ function bindInputs(){
                     if (!err) {
                         if (typeof window.closeSatelliteMapModal === 'function') {
                             window.closeSatelliteMapModal();
-                        }
-                        if (typeof window.showAppToast === 'function') {
-                            window.showAppToast('📸 Sekme görüntüsü (Google Earth / TKGM) başarıyla şablona aktarıldı!', 'success');
                         }
                     }
                 });
@@ -1239,19 +1280,10 @@ function init(){
         if(elLogo) {
 
             elLogo.addEventListener('contextmenu', function(e) {
-
                 e.preventDefault();
-
-                if(confirm('Logoyu kaldırmak istiyor musunuz?')) {
-
-                    elLogo.src = '';
-
-                    elLogo.style.display = 'none';
-
-                    elLogo.style.visibility = 'hidden';
-
-                }
-
+                elLogo.src = '';
+                elLogo.style.display = 'none';
+                elLogo.style.visibility = 'hidden';
             });
 
         }
@@ -1371,7 +1403,7 @@ window.addEventListener('DOMContentLoaded', init);
 
 // ========== BOŞ SAYFAYA DÖN ==========
 
-function clearAllTemplates(){
+function clearAllTemplates(isSwitching){
 
     // 1. Canva şablonunu kaldır
 
@@ -1438,7 +1470,7 @@ function clearAllTemplates(){
     
 
     if (window.isTemplateHidden) window.toggleTemplateVisibility(false);
-    if (window.CanvasEmptyState && typeof window.CanvasEmptyState.updateState === 'function') {
+    if (!isSwitching && window.CanvasEmptyState && typeof window.CanvasEmptyState.updateState === 'function') {
         window.CanvasEmptyState.resetDismiss();
         window.CanvasEmptyState.updateState();
     }
@@ -1534,10 +1566,20 @@ window.updateTemplateToggleUI = function(isHidden) {
 
 // ========== 🔄 ŞABLONU VARSAYILANA SIFIRLA (KONUM VE BOYUTLARI YENİLE) ==========
 window.resetActiveTemplateToDefault = function() {
+    // 0. Varsa seçimi kaldır ve dock kontekstini temizle
+    if (typeof window.deselectAll === 'function') window.deselectAll();
+    if (window.DockContextManager && typeof window.DockContextManager.onElementDeselected === 'function') {
+        window.DockContextManager.onElementDeselected();
+    }
+
     // 1. Eğer şablon geçici gizlenmişse önce görünür yap
     if (window.isTemplateHidden) {
         window.toggleTemplateVisibility(false);
     }
+    window.lastParsedData = null;
+    const inputsToClear = ['canvaTitle','canvaPrice','canvaContact','canvaFeatures','statusInput','priceInput','canvaKTitle','canvaKPrice','canvaKContact','canvaKFeatures','canvaKurumsalTitle','canvaKurumsalPrice','canvaKurumsalContact','canvaKurumsalFeatures','canvaMTitle','canvaMPrice','canvaMContact','canvaMFeatures'];
+    inputsToClear.forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; });
+
 
     // 2. Boş ekrandan yazılı hale döndür (Empty State kartlarını ve yönlendirmeleri geri getir)
     if (window.CanvasEmptyState) {
@@ -1545,10 +1587,9 @@ window.resetActiveTemplateToDefault = function() {
         window.CanvasEmptyState.updateState();
     }
 
-    // 3. Aktif bir şablon olup olmadığını kesin olarak tespit et
+    // 3. Aktif bir şablon olup olmadığını ve hedef ID'yi kesin olarak tespit et
     const canvaLayer = document.getElementById('canva-render-layer');
     const hasCanvaContent = canvaLayer && canvaLayer.children && canvaLayer.children.length > 0 && canvaLayer.style.display !== 'none';
-    const isCanvaActive = !!((typeof isCanvaMode !== 'undefined' && isCanvaMode) || (typeof activeCanvaId !== 'undefined' && activeCanvaId) || hasCanvaContent || window.activeTemplate || document.getElementById('kolaj-wrapper'));
 
     const isStdVisible = (
         (typeof elBadge !== 'undefined' && elBadge && elBadge.style.visibility !== 'hidden' && elBadge.style.display !== 'none') ||
@@ -1556,6 +1597,32 @@ window.resetActiveTemplateToDefault = function() {
         (typeof elDetails !== 'undefined' && elDetails && elDetails.style.visibility !== 'hidden' && elDetails.style.display !== 'none')
     );
     const hasStandardActive = !!(typeof activeLayout !== 'undefined' && activeLayout && activeLayout !== 'none' && activeLayout !== 'empty' && isStdVisible);
+    const hasKolaj = !!document.getElementById('kolaj-wrapper');
+
+    // ⚡ Tuvalde halihazırda aktif bir şablon veya kolaj yoksa hayalet şablon yükleme!
+    if (!hasCanvaContent && !hasStandardActive && !hasKolaj) {
+        if (typeof resetCanvasZoomAndPan === 'function') resetCanvasZoomAndPan();
+        if (typeof window.fitCanvasToScreen === 'function') window.fitCanvasToScreen();
+        if (typeof window.showToast === 'function') {
+            window.showToast('Tuvalde aktif bir şablon bulunmuyor.', 'info');
+        }
+        return;
+    }
+
+    let targetTemplateId = window.activeCanvaId || 
+                           (typeof activeCanvaId !== 'undefined' ? activeCanvaId : '') ||
+                           (canvaLayer ? canvaLayer.dataset.activeTemplateId : '') ||
+                           window.lastActiveTemplateId ||
+                           '';
+
+    if (!targetTemplateId) {
+        const activeCard = document.querySelector('.canva-tpl-card.active');
+        if (activeCard && activeCard.dataset.id) {
+            targetTemplateId = activeCard.dataset.id;
+        }
+    }
+
+    const isCanvaActive = !!((typeof isCanvaMode !== 'undefined' && isCanvaMode) || window.isCanvaMode || targetTemplateId || hasCanvaContent || window.activeTemplate || hasKolaj);
 
     // Tuval arka plan rengini ve zoom/pan durumunu varsayılana getir
     const canvasContainer = document.getElementById('canvas-container');
@@ -1565,13 +1632,64 @@ window.resetActiveTemplateToDefault = function() {
     }
     if (typeof resetCanvasZoomAndPan === 'function') resetCanvasZoomAndPan();
     if (typeof window.fitCanvasToScreen === 'function') window.fitCanvasToScreen();
+    // Fotoğraf kaydırma ve zoom değerlerini varsayılana getir
+    const pxCtrl = document.getElementById('photoXCtrl');
+    const pyCtrl = document.getElementById('photoYCtrl');
+    const pzCtrl = document.getElementById('photoZoomCtrl');
+    if (pxCtrl) pxCtrl.value = 50;
+    if (pyCtrl) pyCtrl.value = 50;
+    if (pzCtrl) pzCtrl.value = 100;
 
     // 4. Şablon kontrolleri
     if (isCanvaActive) {
-        if (typeof refreshActiveCanvaTemplate === 'function') {
+        if (targetTemplateId) {
+            window.activeCanvaId = targetTemplateId;
+            if (typeof activeCanvaId !== 'undefined') activeCanvaId = targetTemplateId;
+            window.lastActiveTemplateId = targetTemplateId;
+            if (canvaLayer) canvaLayer.dataset.activeTemplateId = targetTemplateId;
+
+            const targetCard = document.querySelector(`.canva-tpl-card[data-id="${targetTemplateId}"]`);
+            if (targetCard) {
+                document.querySelectorAll('.canva-tpl-card').forEach(c => c.classList.remove('active'));
+                targetCard.classList.add('active');
+            }
+
+            if (targetTemplateId.startsWith('canvaM')) {
+                if (typeof window.renderMTemplate === 'function') window.renderMTemplate(targetTemplateId);
+                else if (typeof renderMTemplate === 'function') renderMTemplate(targetTemplateId);
+            } else if (targetTemplateId.startsWith('canvaP')) {
+                if (typeof window.renderPTemplate === 'function') window.renderPTemplate(targetTemplateId);
+                else if (typeof renderPTemplate === 'function') renderPTemplate(targetTemplateId);
+            } else if (targetTemplateId.startsWith('canvaKurumsal')) {
+                if (typeof window.renderKurumsalTemplate === 'function') window.renderKurumsalTemplate(targetTemplateId);
+                else if (typeof renderKurumsalTemplate === 'function') renderKurumsalTemplate(targetTemplateId);
+            } else if (targetTemplateId.startsWith('canvaK')) {
+                if (typeof window.renderKTemplate === 'function') window.renderKTemplate(targetTemplateId);
+                else if (typeof renderKTemplate === 'function') renderKTemplate(targetTemplateId);
+            } else if (targetTemplateId.startsWith('canvaD')) {
+                if (typeof window.renderDTemplate === 'function') window.renderDTemplate(targetTemplateId);
+                else if (typeof renderDTemplate === 'function') renderDTemplate(targetTemplateId);
+            } else if (targetTemplateId.startsWith('canvaC')) {
+                if (typeof window.renderCTemplate === 'function') window.renderCTemplate(targetTemplateId);
+                else if (typeof renderCTemplate === 'function') renderCTemplate(targetTemplateId);
+            } else if (targetTemplateId.startsWith('canvaS')) {
+                if (typeof window.renderSTemplate === 'function') window.renderSTemplate(targetTemplateId);
+                else if (typeof renderSTemplate === 'function') renderSTemplate(targetTemplateId);
+            } else if (targetTemplateId.startsWith('canvaO')) {
+                if (typeof window.renderOTemplate === 'function') window.renderOTemplate(targetTemplateId);
+                else if (typeof renderOTemplate === 'function') renderOTemplate(targetTemplateId);
+            } else if (targetTemplateId.startsWith('canvaL')) {
+                if (typeof window.renderLTemplate === 'function') window.renderLTemplate(targetTemplateId);
+                else if (typeof renderLTemplate === 'function') renderLTemplate(targetTemplateId);
+            } else if (targetTemplateId === 'custom' && window.activeCustomTemplateData && typeof window.renderCustomDynamicTemplate === 'function') {
+                window.renderCustomDynamicTemplate(window.activeCustomTemplateData);
+            } else if (/^canva\d+$/.test(targetTemplateId)) {
+                if (typeof buildCanvaRender === 'function') buildCanvaRender();
+            } else if (typeof refreshActiveCanvaTemplate === 'function') {
+                refreshActiveCanvaTemplate();
+            }
+        } else if (typeof refreshActiveCanvaTemplate === 'function') {
             refreshActiveCanvaTemplate();
-        } else if (typeof buildCanvaRender === 'function') {
-            buildCanvaRender();
         }
     } else if (hasStandardActive) {
         if (typeof setTemplate === 'function') {
@@ -1655,6 +1773,10 @@ window.resetEntireWorkspace = function() {
                 }
                 if (typeof masterImageBase64 !== 'undefined') masterImageBase64 = '';
                 window.masterImageBase64 = '';
+                if (typeof uploadedImgUrl !== 'undefined') uploadedImgUrl = '';
+                window.uploadedImgUrl = '';
+                if (typeof masterPhotoDataUrl !== 'undefined') masterPhotoDataUrl = '';
+                window.masterPhotoDataUrl = '';
                 if (typeof window.resetPixelCache === 'function') window.resetPixelCache();
                 if (window.WebGLPhotoEngine) {
                     window.WebGLPhotoEngine.currentImage = null;
@@ -2028,19 +2150,22 @@ document.addEventListener('keydown', function(e) {
     
 
     if (e.key === 'Delete' || e.key === 'Backspace') {
-
-        if (typeof selectedCalloutEl !== 'undefined' && selectedCalloutEl) {
-
-            deleteSelectedCallout();
-
-        } else if (typeof selectedEl !== 'undefined' && selectedEl) {
-
-            // core.js'deki normal elemanlar için silme
-
-            if (typeof deleteSelected === 'function') deleteSelected();
-
+        const activeTag = document.activeElement ? document.activeElement.tagName.toLowerCase() : '';
+        const isEditable = document.activeElement && (document.activeElement.isContentEditable || activeTag === 'input' || activeTag === 'textarea' || activeTag === 'select');
+        if (!isEditable) {
+            if (typeof selectedCalloutEl !== 'undefined' && selectedCalloutEl) {
+                deleteSelectedCallout();
+            } else if (
+                (typeof selectedEl !== 'undefined' && selectedEl) ||
+                (Array.isArray(window.selectedElements) && window.selectedElements.length > 0) ||
+                (window.ThreeDEngine && typeof window.ThreeDEngine.isSelected === 'function' && window.ThreeDEngine.isSelected()) ||
+                (window.ThreeDGrouping && typeof window.ThreeDGrouping.getSelected3DElements === 'function' && window.ThreeDGrouping.getSelected3DElements().length > 0) ||
+                document.querySelector('.el-selected')
+            ) {
+                if (typeof deleteSelected === 'function') deleteSelected();
+                else if (typeof window.deleteSelected === 'function') window.deleteSelected();
+            }
         }
-
     }
 
     
@@ -2814,10 +2939,10 @@ window.confirmClearDrafts = function() {
         if (confirm('Tüm taslaklar silinecek. Emin misiniz?')) {
             if(typeof deleteStateFromDB === 'function') {
                 deleteStateFromDB().then(() => {
-                    alert('Taslaklar temizlendi.');
+                    if (typeof showToast === 'function') showToast('Taslaklar temizlendi', 'info');
                 }).catch(err => {
                     console.error(err);
-                    alert('Hata oluştu.');
+                    if (typeof showToast === 'function') showToast('Hata oluştu', 'error');
                 });
             }
         }
@@ -2877,6 +3002,9 @@ window.hexToRgba = function(hex, opacity) {
 };
 
 window.addShape = function(type) {
+    if (window.CanvasEmptyState && typeof window.CanvasEmptyState.dismiss === 'function') {
+        window.CanvasEmptyState.dismiss();
+    }
     const cContainer = document.getElementById('canvas-container');
     if (!cContainer) return;
     const el = document.createElement('div');
@@ -3090,7 +3218,8 @@ window.deleteSelectedShape = function() {
 };
 
 window.convertSelectedShapeTo3D = function() {
-    const el = window.selectedEl || document.querySelector('.shape-el.el-selected, .shape-el.selected, .canvas-el.selected');
+    const rawEl = window.selectedEl || document.querySelector('.shape-el.el-selected, .shape-el.selected, .canvas-el.selected');
+    const el = rawEl ? (rawEl.closest('.shape-el') || rawEl) : null;
     if (!el || !el.classList.contains('shape-el')) {
         if (typeof window.showToast === 'function') {
             window.showToast('Lütfen önce dönüştürülecek bir şekil seçin', 'warning');
@@ -3117,6 +3246,8 @@ document.addEventListener('mousedown', (e) => {
         });
     }
 });
+
+
 
 
 

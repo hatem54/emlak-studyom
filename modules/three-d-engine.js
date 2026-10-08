@@ -105,7 +105,7 @@
         const elemType = overrides.elementType || 'text';
         let defaultText = '';
         if (elemType === 'text') {
-            defaultText = '3D METİN';
+            defaultText = (overrides.isShape || overrides.shapeType) ? '' : '3D METİN';
         }
         return {
             id: id,
@@ -159,6 +159,9 @@
             cachedSilhouette: overrides.cachedSilhouette || null,
             isExactSilhouette: overrides.isExactSilhouette !== undefined ? !!overrides.isExactSilhouette : false,
             isRound: overrides.isRound !== undefined ? !!overrides.isRound : false,
+            isShape: overrides.isShape !== undefined ? !!overrides.isShape : false,
+            shapeType: overrides.shapeType || null,
+            shapeBorderWidth: overrides.shapeBorderWidth !== undefined ? overrides.shapeBorderWidth : 0,
             isAutoDefault: !!overrides.isAutoDefault,
             // 🌟 3D Alt Metin Özellikleri
             show3DText: overrides.show3DText !== undefined ? !!overrides.show3DText : false,
@@ -251,6 +254,9 @@
         state.shapeMode = el.shapeMode || 'auto';
         state.cachedSilhouette = el.cachedSilhouette || null;
         state.isExactSilhouette = !!el.isExactSilhouette;
+        state.isShape = !!el.isShape;
+        state.shapeType = el.shapeType || null;
+        state.shapeBorderWidth = el.shapeBorderWidth !== undefined ? el.shapeBorderWidth : 0;
         // 🌟 3D Alt Metin / Yazı Senkronizasyonu
         state.show3DText = el.show3DText !== undefined ? !!el.show3DText : false;
         state.text3DOffset = el.text3DOffset !== undefined ? el.text3DOffset : -25;
@@ -324,6 +330,9 @@
         if (state.shapeMode !== undefined) el.shapeMode = state.shapeMode;
         if (state.cachedSilhouette !== undefined) el.cachedSilhouette = state.cachedSilhouette;
         if (state.isExactSilhouette !== undefined) el.isExactSilhouette = state.isExactSilhouette;
+        if (state.isShape !== undefined) el.isShape = !!state.isShape;
+        if (state.shapeType !== undefined) el.shapeType = state.shapeType;
+        if (state.shapeBorderWidth !== undefined) el.shapeBorderWidth = state.shapeBorderWidth;
         // 🌟 3D Alt Metin / Yazı
         el.show3DText = state.show3DText !== undefined ? !!state.show3DText : false;
         el.text3DOffset = state.text3DOffset !== undefined ? state.text3DOffset : -25;
@@ -723,7 +732,7 @@
             canvasEl.style.width = '100%';
             canvasEl.style.height = '100%';
             canvasEl.style.zIndex = '54'; // Çizimlerin üstünde, UI tutamaçlarının altında
-            canvasEl.style.pointerEvents = 'auto'; // 3D etkileşim için
+            canvasEl.style.pointerEvents = 'none'; // Varsayılan: 2D tuval tıklamalarını engellemez
             container.appendChild(canvasEl);
             attachCanvasEvents(canvasEl);
         }
@@ -981,6 +990,21 @@
     function createCoinShape(radius = 75) {
         const s = new THREE.Shape();
         s.absarc(0, 0, radius, 0, Math.PI * 2, false);
+        return s;
+    }
+
+    function createHeartShape(width = 200, height = 200) {
+        const s = new THREE.Shape();
+        const sx = width / 100;
+        const sy = height / 100;
+        // SVG path: M50,90 C50,90 5,60 5,30 C5,10 30,10 50,30 C70,10 95,10 95,30 C95,60 50,90 50,90 Z
+        // Three.js koordinat sisteminde Y yukarı doğru olduğu için Y ters çevrilir ve (0, 0) merkezlenir
+        s.moveTo(0, -40 * sy);
+        s.bezierCurveTo(0, -40 * sy, -45 * sx, -10 * sy, -45 * sx, 20 * sy);
+        s.bezierCurveTo(-45 * sx, 40 * sy, -20 * sx, 40 * sy, 0, 20 * sy);
+        s.bezierCurveTo(20 * sx, 40 * sy, 45 * sx, 40 * sy, 45 * sx, 20 * sy);
+        s.bezierCurveTo(45 * sx, -10 * sy, 0, -40 * sy, 0, -40 * sy);
+        s.closePath();
         return s;
     }
 
@@ -1743,7 +1767,9 @@
 
                 // 2. fill
                 const fill = node.getAttribute('fill');
-                if (fill && fill !== 'none' && fill !== 'transparent' && !fill.startsWith('url(')) {
+                if (!fill && (tag === 'polygon' || tag === 'path' || tag === 'circle' || tag === 'rect' || tag === 'ellipse')) {
+                    node.setAttribute('fill', gradFillVal);
+                } else if (fill && fill !== 'none' && fill !== 'transparent' && !fill.startsWith('url(')) {
                     const lower = fill.toLowerCase().trim();
                     if (lower === 'currentcolor') {
                         node.setAttribute('fill', gradFillVal);
@@ -1930,7 +1956,9 @@
             // Renkli ikonlarda currentColor varsa ön yüz rengini ver, özel renklerini koru
             const resolvedColor = iconColor || '#ffffff';
             safeSvg = safeSvg.replace(/currentColor/g, resolvedColor);
-            const styleTag = `<style>:root, svg { color: ${resolvedColor}; }</style>`;
+            const styleTag = (isShape || isExactSilhouette)
+                ? `<style>:root, svg { color: ${resolvedColor}; } polygon:not([fill]), path:not([fill]), rect:not([fill]), circle:not([fill]) { fill: ${resolvedColor}; }</style>`
+                : `<style>:root, svg { color: ${resolvedColor}; }</style>`;
             safeSvg = safeSvg.replace(/(<svg[^>]*>)/, `$1${styleTag}`);
         }
 
@@ -2052,8 +2080,49 @@
         let isCircle = (shapeMode === 'coin') || (!options.shapeMode && !!options.isRound);
         let isExactSilhouette = false;
 
+        // 🌟 2D Şekiller İçin Doğrudan Matematiksel Geometri Üretimi (0ms Senkron Çıkarım)
+        const isShapeElement = !!(options.isShape || (options.el && options.el.isShape) || options.shapeType || (options.el && options.el.shapeType));
+        const detectedShapeType = options.shapeType || (options.el && options.el.shapeType) || '';
+
+        if (isShapeElement) {
+            if (detectedShapeType === 'heart' || svgEl.querySelector('path[d*="M50,90"]')) {
+                shape = createHeartShape(targetW, targetH);
+                isExactSilhouette = true;
+            } else if (detectedShapeType === 'circle' || shapeMode === 'coin') {
+                const radius = Math.min(targetW, targetH) / 2;
+                shape = createCoinShape(radius);
+                isCircle = true;
+                isExactSilhouette = true;
+            } else if (detectedShapeType === 'rectangle') {
+                const rx = Math.min(16, targetW / 8, targetH / 8);
+                shape = createCardShape(targetW, targetH, rx);
+                isExactSilhouette = true;
+            } else if (detectedShapeType.includes('line')) {
+                const thickness = Math.max(4, (options.el && options.el.shapeBorderWidth) || 4);
+                shape = createCardShape(targetW, thickness, Math.min(thickness / 2, 4));
+                targetH = thickness;
+                isExactSilhouette = true;
+            } else {
+                const polyNode = svgEl.querySelector('polygon');
+                if (polyNode) {
+                    const rawPts = (polyNode.getAttribute('points') || '').trim().split(/[\s,]+/).map(parseFloat).filter(n => !isNaN(n));
+                    if (rawPts.length >= 6) {
+                        shape = new THREE.Shape();
+                        for (let i = 0; i < rawPts.length; i += 2) {
+                            const tx = (rawPts[i] - ox - vbW / 2) * scaleFactor;
+                            const ty = -(rawPts[i + 1] - oy - vbH / 2) * scaleFactor;
+                            if (i === 0) shape.moveTo(tx, ty);
+                            else shape.lineTo(tx, ty);
+                        }
+                        shape.closePath();
+                        isExactSilhouette = true;
+                    }
+                }
+            }
+        }
+
         // Kontur Önceliği 0: Katı Silüet (Silhouette) Kontrolü
-        if (shapeMode === 'silhouette' || (shapeMode !== 'coin' && shapeMode !== 'card')) {
+        if (!shape && (shapeMode === 'silhouette' || (shapeMode !== 'coin' && shapeMode !== 'card'))) {
             if (options.cachedSilhouette && options.cachedSilhouette.shape) {
                 shape = options.cachedSilhouette.shape;
                 isExactSilhouette = true;
@@ -2666,7 +2735,9 @@
                 isRound: isRound,
                 shapeMode: shapeMode,
                 cachedSilhouette: el.cachedSilhouette,
-                el: el
+                el: el,
+                isShape: !!(el.isShape || el.shapeType),
+                shapeType: el.shapeType
             });
             if (res && res.bounds) {
                 const bounds = res.bounds;
@@ -3663,7 +3734,9 @@
                 isRound: isRound,
                 shapeMode: shapeMode,
                 cachedSilhouette: el.cachedSilhouette,
-                el: el
+                el: el,
+                isShape: !!(el.isShape || el.shapeType),
+                shapeType: el.shapeType
             });
             if (res && res.shape) {
                 const shape = res.shape;
@@ -4158,6 +4231,29 @@
             }
             updateGizmoPositions();
         }
+    }
+
+    function setElementPosition(targetEl, posX, posY, posZ) {
+        const el = targetEl || getActiveElement();
+        if (!el) return;
+        el.posX = Math.round(posX);
+        el.posY = Math.round(posY);
+        if (posZ !== undefined) el.posZ = Math.round(posZ);
+        if (el === getActiveElement()) {
+            state.posX = el.posX;
+            state.posY = el.posY;
+            if (posZ !== undefined) state.posZ = el.posZ;
+        }
+        if (el.planeGroup) {
+            const z = (el.posZ || 0);
+            el.planeGroup.position.set(el.posX, el.posY, z);
+        }
+        updatePlaneTransform(el);
+        updateContentTransform(el);
+        if (typeof updateGizmoPositions === 'function') {
+            updateGizmoPositions();
+        }
+        requestRender();
     }
 
     function updateContentTransform(targetEl) {
@@ -4928,7 +5024,7 @@
         axisPixelsPerUnit.y = lenY > 0.0001 ? lenY : 1.0;
 
         // Ekrana yansıyan yön birim vektörleri
-        axisScreenDirs.x = { x: dVx.x / axisPixelsPerUnit.x, y: dVy.y / axisPixelsPerUnit.x };
+        axisScreenDirs.x = { x: dVx.x / axisPixelsPerUnit.x, y: dVx.y / axisPixelsPerUnit.x };
         axisScreenDirs.y = { x: dVy.x / axisPixelsPerUnit.y, y: dVy.y / axisPixelsPerUnit.y };
 
         const avgPixelsPerUnit = (axisPixelsPerUnit.x + axisPixelsPerUnit.y) / 2;
@@ -5192,6 +5288,26 @@
                 } else if (window.ThreeDGrouping && typeof window.ThreeDGrouping.updateSelectionVisuals === 'function') {
                     window.ThreeDGrouping.updateSelectionVisuals();
                 }
+
+                // 🌟 Karma Seçim: Gizmo merkezinden taşınırken seçili 2D ögeleri de birlikte taşı
+                if (Array.isArray(window.selectedElements) && window.selectedElements.length > 0) {
+                    const dx2d = screenDx / sf;
+                    const dy2d = screenDy / sf;
+                    window.selectedElements.forEach(sEl => {
+                        const curL = parseFloat(sEl.style.left) || sEl.offsetLeft || 0;
+                        const curT = parseFloat(sEl.style.top) || sEl.offsetTop || 0;
+                        sEl.style.left = (curL + dx2d) + 'px';
+                        sEl.style.top = (curT + dy2d) + 'px';
+                        if (sEl.classList.contains('editable-draw')) {
+                            sEl.dataset.baseLeft = curL + dx2d;
+                            sEl.dataset.baseTop = curT + dy2d;
+                        }
+                    });
+                    if (window.SaberEngine && typeof window.SaberEngine.updateTextSaberPositions === 'function') {
+                        window.SaberEngine.updateTextSaberPositions();
+                    }
+                }
+
                 notifyExternalUpdates(false);
                 requestRender();
                 showGizmoHud(`📍 Konum: X: ${Math.round(state.posX)}, Y: ${Math.round(state.posY)}`, e.clientX, e.clientY);
@@ -5211,7 +5327,7 @@
                     window.ThreeDGrouping.updateSelectionVisuals();
                 }
                 if (typeof window.recordHistory === 'function') {
-                    window.recordHistory('3D Öge Taşındı');
+                    window.recordHistory('3D Öge Taşındı', true);
                 }
             };
 
@@ -5734,11 +5850,14 @@
      * Tuvalde doğrudan 3D yazı/nesne üzerine tıklanıp tıklanmadığını tespit eder.
      */
     function check3DHit(clientX, clientY) {
-        if (!state.active || !camera || elements.length === 0 || !canvasEl) return null;
+        if (!camera || elements.length === 0 || !canvasEl) return null;
         const container = document.getElementById('canvas-container');
         if (!container) return null;
         const rect = container.getBoundingClientRect();
         if (clientX < rect.left || clientX > rect.right || clientY < rect.top || clientY > rect.bottom) return null;
+
+        if (camera) camera.updateMatrixWorld(true);
+        if (scene) scene.updateMatrixWorld(true);
 
         const mouseVec = new THREE.Vector2(
             ((clientX - rect.left) / rect.width) * 2 - 1,
@@ -5785,13 +5904,16 @@
      * Mavi seçim penceresi (Marquee) ve çoklu seçim hizalaması için kullanılır.
      */
     function getElementsScreenBounds() {
-        if (!state.active || !camera || elements.length === 0) return [];
+        if (!camera || elements.length === 0) return [];
         const container = document.getElementById('canvas-container');
         if (!container) return [];
         const rect = container.getBoundingClientRect();
         const results = [];
 
-        // 🌟 Sahne nesnelerinin dünya matrislerini hiyerarşik olarak anında güncelle
+        // 🌟 Sahne ve kamera matrislerini hiyerarşik olarak anında güncelle
+        if (camera) {
+            camera.updateMatrixWorld(true);
+        }
         if (scene) {
             scene.updateMatrixWorld(true);
         }
@@ -5801,23 +5923,44 @@
             if (el.visible === false || !el.contentGroup) continue;
             try {
                 el.contentGroup.updateMatrixWorld(true);
-                const lBox = getElementLocalBoundingBox(el);
-                if (!lBox || lBox.isEmpty()) continue;
 
-                const corners = [
-                    new THREE.Vector3(lBox.min.x, lBox.min.y, lBox.min.z),
-                    new THREE.Vector3(lBox.min.x, lBox.min.y, lBox.max.z),
-                    new THREE.Vector3(lBox.min.x, lBox.max.y, lBox.min.z),
-                    new THREE.Vector3(lBox.min.x, lBox.max.y, lBox.max.z),
-                    new THREE.Vector3(lBox.max.x, lBox.min.y, lBox.min.z),
-                    new THREE.Vector3(lBox.max.x, lBox.min.y, lBox.max.z),
-                    new THREE.Vector3(lBox.max.x, lBox.max.y, lBox.min.z),
-                    new THREE.Vector3(lBox.max.x, lBox.max.y, lBox.max.z)
-                ];
+                // 1. Önce doğrudan Three.js nesne dünya sınırlayıcı kutusunu (AABB) hesapla
+                let corners = [];
+                try {
+                    const wBox = new THREE.Box3().setFromObject(el.contentGroup);
+                    if (wBox && !wBox.isEmpty() && isFinite(wBox.min.x) && isFinite(wBox.max.x)) {
+                        corners = [
+                            new THREE.Vector3(wBox.min.x, wBox.min.y, wBox.min.z),
+                            new THREE.Vector3(wBox.min.x, wBox.min.y, wBox.max.z),
+                            new THREE.Vector3(wBox.min.x, wBox.max.y, wBox.min.z),
+                            new THREE.Vector3(wBox.min.x, wBox.max.y, wBox.max.z),
+                            new THREE.Vector3(wBox.max.x, wBox.min.y, wBox.min.z),
+                            new THREE.Vector3(wBox.max.x, wBox.min.y, wBox.max.z),
+                            new THREE.Vector3(wBox.max.x, wBox.max.y, wBox.min.z),
+                            new THREE.Vector3(wBox.max.x, wBox.max.y, wBox.max.z)
+                        ];
+                    }
+                } catch (e) {}
+
+                // 2. Yedek: Eğer setFromObject boşsa yerel kutudan dünya matrisine çevir
+                if (corners.length === 0) {
+                    const lBox = getElementLocalBoundingBox(el);
+                    if (!lBox || lBox.isEmpty()) continue;
+                    corners = [
+                        new THREE.Vector3(lBox.min.x, lBox.min.y, lBox.min.z),
+                        new THREE.Vector3(lBox.min.x, lBox.min.y, lBox.max.z),
+                        new THREE.Vector3(lBox.min.x, lBox.max.y, lBox.min.z),
+                        new THREE.Vector3(lBox.min.x, lBox.max.y, lBox.max.z),
+                        new THREE.Vector3(lBox.max.x, lBox.min.y, lBox.min.z),
+                        new THREE.Vector3(lBox.max.x, lBox.min.y, lBox.max.z),
+                        new THREE.Vector3(lBox.max.x, lBox.max.y, lBox.min.z),
+                        new THREE.Vector3(lBox.max.x, lBox.max.y, lBox.max.z)
+                    ];
+                    corners.forEach(c => c.applyMatrix4(el.contentGroup.matrixWorld));
+                }
 
                 let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
                 corners.forEach(c => {
-                    c.applyMatrix4(el.contentGroup.matrixWorld);
                     // 🛡️ Kamera yakın düzlem patlaması koruması:
                     const cCam = c.clone().applyMatrix4(camera.matrixWorldInverse);
                     if (cCam.z > -10) cCam.z = -10;
@@ -5830,19 +5973,21 @@
                     if (sy > maxY) maxY = sy;
                 });
 
-                results.push({
-                    id: el.id,
-                    el: el,
-                    name: el.name || '3D Öge',
-                    rect: {
-                        left: minX,
-                        top: minY,
-                        right: maxX,
-                        bottom: maxY,
-                        width: Math.max(1, maxX - minX),
-                        height: Math.max(1, maxY - minY)
-                    }
-                });
+                if (isFinite(minX) && isFinite(minY) && isFinite(maxX) && isFinite(maxY)) {
+                    results.push({
+                        id: el.id,
+                        el: el,
+                        name: el.name || '3D Öge',
+                        rect: {
+                            left: minX,
+                            top: minY,
+                            right: maxX,
+                            bottom: maxY,
+                            width: Math.max(1, maxX - minX),
+                            height: Math.max(1, maxY - minY)
+                        }
+                    });
+                }
             } catch (ex) {}
         }
         return results;
@@ -5867,8 +6012,8 @@
             const rect = leftPanel.getBoundingClientRect();
             targetLeft = Math.max(8, Math.min(window.innerWidth - 340, Math.round(rect.left)));
             preferredTop = Math.max(minTop, Math.round(rect.top));
-            if (rect.width > 320) {
-                panel.style.width = Math.min(430, Math.round(rect.width)) + 'px';
+            if (rect.width > 300) {
+                panel.style.width = Math.min(520, Math.round(rect.width)) + 'px';
             }
         }
 
@@ -5902,6 +6047,13 @@
         const maxAvailableHeight = Math.max(200, window.innerHeight - finalTop - bottomMargin);
         panel.style.maxHeight = maxAvailableHeight + 'px';
 
+        // 🛡️ 3D Studio paneli sol panel üzerindeyken arkadaki sekmelerin taşmasını önle (sadece panel flex/açıkken)
+        if (!panel._hasBeenManuallyDragged && panel.style.display === 'flex') {
+            document.body.classList.add('three-d-panel-open');
+        } else if (panel.style.display === 'none' || !panel.style.display) {
+            document.body.classList.remove('three-d-panel-open');
+        }
+
         // DOM reflow ve display:flex sonrası gerçek sınırları tekrar doğrula (çift emniyet)
         requestAnimationFrame(() => {
             if (!panel || panel._hasBeenManuallyDragged) return;
@@ -5926,14 +6078,22 @@
 
         if (state.selected) {
             state.dockTarget = 'item';
-            // 🎯 2D seçimleri kaldır ki sadece tıklanan 3D öge aktif kalsın
-            document.querySelectorAll('.el-selected').forEach(e => e.classList.remove('el-selected'));
-            window.selectedEl = null;
-            window.selectedElements = [];
+            const keep2D = !!(options.keep2DSelection || options.keep2D);
+            if (!keep2D) {
+                // 🎯 2D seçimleri kaldır ki sadece tıklanan 3D öge aktif kalsın
+                document.querySelectorAll('.el-selected').forEach(e => e.classList.remove('el-selected'));
+                document.querySelectorAll('.text-handle, .text-rotate-handle, .text-resize-handle, .callout-controls, .callout-resizer, .callout-rotator, .callout-select-border, .vertex-handle').forEach(h => {
+                    if (h.classList.contains('text-handle')) h.remove();
+                    else h.style.display = 'none';
+                });
+                if (typeof window.hideVertexHandles === 'function') window.hideVertexHandles();
+                window.selectedEl = null;
+                window.selectedElements = [];
 
-            // 🎯 Tuval altındaki ana dock'a 3D ögenin seçildiğini bildir (Çoğalt, Kilit, En Öne, Sil)
-            if (window.DockContextManager && typeof window.DockContextManager.on3DElementSelected === 'function') {
-                window.DockContextManager.on3DElementSelected(getActiveElement());
+                // 🎯 Tuval altındaki ana dock'a 3D ögenin seçildiğini bildir (Çoğalt, Kilit, En Öne, Sil)
+                if (window.DockContextManager && typeof window.DockContextManager.on3DElementSelected === 'function') {
+                    window.DockContextManager.on3DElementSelected(getActiveElement());
+                }
             }
 
             // 3D öge seçildiğinde görseli kilitle ki tekerlek/sürükleme çakışmasın
@@ -5942,7 +6102,10 @@
                     window.updatePhotoLockState(true);
                 }
             }
-            if (canvasEl) canvasEl.style.pointerEvents = 'auto';
+            if (canvasEl) {
+                canvasEl.style.pointerEvents = 'auto';
+                canvasEl.classList.add('three-d-interactive');
+            }
             if (gridHelper) {
                 gridHelper.visible = !!state.showPlaneGrid;
             }
@@ -5970,9 +6133,13 @@
                 if (p) {
                     p.style.display = 'flex';
                     positionStudioPanelOverLeftPanel(p);
+                    document.body.classList.add('three-d-panel-open');
                 }
             } else if (panel && panel.style.display === 'flex') {
                 positionStudioPanelOverLeftPanel(panel);
+                document.body.classList.add('three-d-panel-open');
+            } else {
+                document.body.classList.remove('three-d-panel-open');
             }
 
             // 🌟 Seçili 3D nesnelerin çoklu seçim ve grup kutularını güncelle
@@ -5985,7 +6152,10 @@
             }
         } else {
             // 3D öge seçimi bırakıldı
-            if (canvasEl) canvasEl.style.pointerEvents = 'none';
+            if (canvasEl) {
+                canvasEl.style.pointerEvents = 'none';
+                canvasEl.classList.remove('three-d-interactive');
+            }
             if (gridHelper) {
                 gridHelper.visible = false;
             }
@@ -5999,6 +6169,7 @@
                 const panel = document.getElementById('threeDStudioPanel');
                 if (panel) {
                     panel.style.display = 'none';
+                    document.body.classList.remove('three-d-panel-open');
                 }
             }
 
@@ -6124,9 +6295,14 @@
      */
     function attachCanvasEvents(cvs) {
         let isPointerDown = false;
+        let hasMoved = false;
         let lastCvsDownTime = 0;
         let lastCvsDownX = 0;
         let lastCvsDownY = 0;
+
+        cvs.addEventListener('touchstart', (e) => {
+            if (state.active && !state.cornerPinActive) e.stopPropagation();
+        }, { passive: false });
 
         cvs.addEventListener('pointerdown', (e) => {
             if (!state.active || state.cornerPinActive) return;
@@ -6170,17 +6346,32 @@
                 lastCvsDownY = e.clientY;
             }
 
-            // 🎯 3D üzeri 2D öge tıklama koruması: Sadece gerçekten görünür bir 2D öğe varsa engelle
+            // 🎯 3D üzeri 2D öge tıklama koruması: Sadece gerçekten görünür bir 2D öğe varsa 3D seçimini bırak ve 2D ögeyi seç
             try {
                 const elementsAtPoint = document.elementsFromPoint(e.clientX, e.clientY);
-                const has2DEl = elementsAtPoint && elementsAtPoint.some(node => {
-                    if (node === cvs || node.closest('#three-d-layer, #threeDCanvas')) return false;
-                    const c = node.closest && node.closest('.callout-wrap, .callout-item, .co-neon-block, .neon-text-el, .canvas-icon, .draggable, .added-icon, .svg-icon, .icon-wrapper, .cvi-item, .editable-draw, .canvas-el, .cvi-badge-box, .tb-image-frame, [data-layer-uid]');
-                    if (!c) return false;
-                    const style = window.getComputedStyle(c);
-                    return style && style.display !== 'none' && style.visibility !== 'hidden';
-                });
-                if (has2DEl) {
+                let target2D = null;
+                if (elementsAtPoint) {
+                    for (const node of elementsAtPoint) {
+                        if (node === cvs || (node.closest && node.closest('#three-d-layer, #threeDCanvas'))) continue;
+                        const c = node.closest && node.closest('.callout-wrap, .callout-item, .co-neon-block, .neon-text-el, .canvas-icon, .draggable, .added-icon, .svg-icon, .icon-wrapper, .cvi-item, .editable-draw, .canvas-el, .cvi-badge-box, .tb-image-frame, [data-layer-uid]');
+                        if (c) {
+                            const style = window.getComputedStyle(c);
+                            if (style && style.display !== 'none' && style.visibility !== 'hidden') {
+                                target2D = c;
+                                break;
+                            }
+                        }
+                    }
+                }
+                if (target2D) {
+                    setSelected(false, { silent: true });
+                    if (gridHelper) gridHelper.visible = false;
+                    requestRender();
+                    if (typeof selectElement === 'function') {
+                        selectElement(target2D);
+                    }
+                    e.stopPropagation();
+                    e.preventDefault();
                     return;
                 }
             } catch(ex){}
@@ -6214,7 +6405,9 @@
                 }
                 // 🌟 Ögeye tıklandığında Gizmo'yu aktif yap ve seçimi tazele
                 state.gizmoActive = true;
-                setSelected(true, { silent: true });
+                const isHybridMulti = Array.isArray(window.selectedElements) && window.selectedElements.length > 0;
+                const isMultiKey = e.ctrlKey || e.shiftKey;
+                setSelected(true, { silent: true, keep2DSelection: isHybridMulti || isMultiKey });
                 updateDock3DControlsState();
             }
 
@@ -6226,6 +6419,7 @@
             }
 
             isPointerDown = true;
+            hasMoved = false;
             dragStart.x = e.clientX;
             dragStart.y = e.clientY;
             rawDragPos.x = (state.posX || 0);
@@ -6251,6 +6445,7 @@
 
             const screenDx = e.clientX - dragStart.x;
             const screenDy = e.clientY - dragStart.y;
+            if (screenDx !== 0 || screenDy !== 0) hasMoved = true;
             dragStart.x = e.clientX;
             dragStart.y = e.clientY;
 
@@ -6304,6 +6499,26 @@
                 } else if (window.ThreeDGrouping && typeof window.ThreeDGrouping.updateSelectionVisuals === 'function') {
                     window.ThreeDGrouping.updateSelectionVisuals();
                 }
+
+                // 🌟 Karma Seçim: 3D taşınırken seçili 2D ögeleri de birlikte taşı
+                if (Array.isArray(window.selectedElements) && window.selectedElements.length > 0) {
+                    const sf = (typeof window.getGlobalScale === 'function') ? window.getGlobalScale() : 1.0;
+                    const dx2d = screenDx / sf;
+                    const dy2d = screenDy / sf;
+                    window.selectedElements.forEach(sEl => {
+                        const curL = parseFloat(sEl.style.left) || sEl.offsetLeft || 0;
+                        const curT = parseFloat(sEl.style.top) || sEl.offsetTop || 0;
+                        sEl.style.left = (curL + dx2d) + 'px';
+                        sEl.style.top = (curT + dy2d) + 'px';
+                        if (sEl.classList.contains('editable-draw')) {
+                            sEl.dataset.baseLeft = curL + dx2d;
+                            sEl.dataset.baseTop = curT + dy2d;
+                        }
+                    });
+                    if (window.SaberEngine && typeof window.SaberEngine.updateTextSaberPositions === 'function') {
+                        window.SaberEngine.updateTextSaberPositions();
+                    }
+                }
             }
             notifyExternalUpdates(false);
             requestRender();
@@ -6323,6 +6538,13 @@
             if (window.ThreeDGrouping && typeof window.ThreeDGrouping.updateSelectionVisuals === 'function') {
                 window.ThreeDGrouping.updateSelectionVisuals();
             }
+            if (Array.isArray(window.selectedElements) && window.selectedElements.length > 0 && typeof window.saveState === 'function') {
+                window.saveState();
+            }
+            if (hasMoved && typeof window.recordHistory === 'function') {
+                window.recordHistory(dragMode === 'rotate' ? '3D Öge Döndürüldü' : '3D Öge Taşındı', true);
+            }
+            hasMoved = false;
         };
 
         cvs.addEventListener('pointerup', onPointerUp);
@@ -6455,6 +6677,14 @@
                 // 2D öğeye tıklandıysa: Eğer 3D seçiliyse seçimi bırak ki 2D öge seçilebilsin!
                 const is2DTarget = e.target && e.target.closest && e.target.closest('.callout-wrap, .callout-item, .co-neon-block, .neon-text-el, .canvas-icon, .draggable, .added-icon, .svg-icon, .icon-wrapper, .cvi-item, .editable-draw, .canvas-el, .cvi-badge-box, .tb-image-frame, [data-layer-uid]');
                 if (is2DTarget) {
+                    // 🌟 Karma Seçim Koruması: Tıklanan 2D öge zaten seçiliyse ve 3D de seçiliyse seçimi düşürme!
+                    const isAlreadySelected = (Array.isArray(window.selectedElements) && window.selectedElements.some(s => s === is2DTarget || (s && (s.contains(is2DTarget) || is2DTarget.contains(s))))) || is2DTarget.classList.contains('el-selected');
+                    const has3D = state.selected || (window.ThreeDGrouping && typeof window.ThreeDGrouping.getSelected3DElements === 'function' && window.ThreeDGrouping.getSelected3DElements().length > 0);
+                    const isMultiKey = e.ctrlKey || e.shiftKey;
+                    if ((isAlreadySelected || isMultiKey) && has3D) {
+                        return;
+                    }
+
                     if (state.selected) {
                         setSelected(false, { silent: true });
                         if (gridHelper) gridHelper.visible = false;
@@ -6475,7 +6705,9 @@
                             }
                         }
                         setActiveElement(hitEl);
-                        setSelected(true, { autoLockPhoto: true });
+                        const isHybridMulti = Array.isArray(window.selectedElements) && window.selectedElements.length > 0;
+                        const isMultiKey = e.ctrlKey || e.shiftKey;
+                        setSelected(true, { autoLockPhoto: true, keep2DSelection: isHybridMulti || isMultiKey });
                         // İlk tıklamada bırakmadan hemen taşımaya başla
                         if (!hitEl.locked) {
                             isPointerDown = true;
@@ -6551,8 +6783,18 @@
                         setSelected(false);
                     }
                 } else if ((e.key === 'Delete' || e.key === 'Backspace') && state.active && state.selected) {
+                    const tag = (document.activeElement && document.activeElement.tagName) ? document.activeElement.tagName.toUpperCase() : '';
+                    if (tag === 'INPUT' || tag === 'TEXTAREA' || (document.activeElement && document.activeElement.isContentEditable)) {
+                        return;
+                    }
                     e.preventDefault();
-                    delete3DElement();
+                    if (window.ThreeDGrouping && typeof window.ThreeDGrouping.getSelected3DElements === 'function' && window.ThreeDGrouping.getSelected3DElements().length > 1) {
+                        window.ThreeDGrouping.deleteSelectedElements();
+                    } else if (typeof window.deleteSelected === 'function') {
+                        window.deleteSelected();
+                    } else {
+                        delete3DElement();
+                    }
                 }
             });
         }
@@ -6681,11 +6923,20 @@
     function delete3DElement(elementId, isSilent = false) {
         let elToDelete = null;
         if (elementId) {
-            elToDelete = elements.find(e => e.id === elementId);
+            if (typeof elementId === 'object' && elementId !== null) {
+                elToDelete = elementId.id ? elements.find(e => e.id === elementId.id) : elementId;
+            } else {
+                elToDelete = elements.find(e => e.id === elementId);
+            }
         } else {
             elToDelete = getActiveElement();
         }
         if (!elToDelete) return;
+
+        // 🌟 Çoklu seçim listesinden ve mavi çerçeve overlay'inden bu ögeyi anında düşür
+        if (window.ThreeDGrouping && typeof window.ThreeDGrouping.removeElementFromSelection === 'function') {
+            window.ThreeDGrouping.removeElementFromSelection(elToDelete);
+        }
 
         // 🌟 Grup / Birlikte Silme: Eğer öge bir gruptaysa ve 'all' modundaysa tüm grup üyelerini birlikte sil
         if (elToDelete.groupId && state.groupEditMode === 'all') {
@@ -6759,6 +7010,10 @@
             elements.splice(idx, 1);
         }
 
+        if (window.ThreeDGrouping && typeof window.ThreeDGrouping.updateSelectionVisuals === 'function') {
+            window.ThreeDGrouping.updateSelectionVisuals();
+        }
+
         if (elements.length > 0) {
             const nextEl = elements[Math.max(0, idx - 1)] || elements[0];
             setActiveElement(nextEl);
@@ -6778,6 +7033,7 @@
             if (canvasBadgeEl) canvasBadgeEl.style.display = 'none';
             const panel = document.getElementById('threeDStudioPanel');
             if (panel) panel.style.display = 'none';
+            document.body.classList.remove('three-d-panel-open');
             if (!isSilent && window.showToast) {
                 window.showToast('🗑️ Tüm 3D ögeler tuvalden silindi.', 'info');
             }
@@ -6793,7 +7049,7 @@
         updateDock3DControlsState();
         notifyExternalUpdates();
         if (!isSilent) {
-            if (typeof window.recordHistory === 'function') window.recordHistory('3D Öge Silindi');
+            if (typeof window.recordHistory === 'function') window.recordHistory('3D Öge Silindi', true);
             if (typeof window.requestAutoSave === 'function') window.requestAutoSave();
         }
     }
@@ -6863,7 +7119,7 @@
         syncControlsUI();
         requestRender();
         if (typeof window.recordHistory === 'function') {
-            window.recordHistory(pivotMode === 'base' ? '3D Model Tabana Oturtuldu' : '3D Model Merkezlendi');
+            window.recordHistory(pivotMode === 'base' ? '3D Model Tabana Oturtuldu' : '3D Model Merkezlendi', true);
         }
     }
 
@@ -6915,6 +7171,7 @@
         if (canvasBadgeEl) canvasBadgeEl.style.display = 'none';
         const panel = document.getElementById('threeDStudioPanel');
         if (panel) panel.style.display = 'none';
+        document.body.classList.remove('three-d-panel-open');
 
         updateElementSelectorUI();
         if (typeof window.renderLayers === 'function') window.renderLayers();
@@ -6924,7 +7181,7 @@
 
         if (!isSilent) {
             if (window.showToast) window.showToast('🗑️ Tüm 3D ögeler tuvalden silindi.', 'info');
-            if (typeof window.recordHistory === 'function') window.recordHistory('Tüm 3D Ögeler Silindi');
+            if (typeof window.recordHistory === 'function') window.recordHistory('Tüm 3D Ögeler Silindi', true);
             if (typeof window.requestAutoSave === 'function') window.requestAutoSave();
         }
     }
@@ -6963,71 +7220,27 @@
                 syncControlsUI();
                 update3DLayersOrder();
                 requestRender();
-                if (typeof window.recordHistory === 'function') window.recordHistory('3D Grup Çoğaltıldı');
+                if (typeof window.recordHistory === 'function') window.recordHistory('3D Grup Çoğaltıldı', true);
                 return duplicatedGroup[0];
             }
         }
 
-        const count = elements.length + 1;
-        const newEl = createDefaultElement({
+        // 🌟 Tekil 3D Ögeyi Birebir ve Eksiksiz Kopyala (Şekil tipi, geometri ve tüm doku ayarları korunur)
+        const newElProps = Object.assign({}, src, {
+            id: 'el_3d_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
             name: (src.name || '3D Öge') + ' Kopya',
-            sourceItemName: src.sourceItemName,
-            sourceSvg: src.sourceSvg,
-            sourceSvgOriginal: src.sourceSvgOriginal || src.sourceSvg,
-            elementType: src.elementType,
-            shapeMode: src.shapeMode,
-            cachedSilhouette: src.cachedSilhouette,
-            isExactSilhouette: src.isExactSilhouette,
-            text: src.text,
-            badgeSubtext: src.badgeSubtext,
-            frontColor: src.frontColor,
-            badgeBgColor: src.badgeBgColor,
-            sideColor: src.sideColor,
-            neonFrontIntensity: src.neonFrontIntensity,
-            neonEdgeGlow: src.neonEdgeGlow,
-            neonEdgeIntensity: src.neonEdgeIntensity,
-            neonColor: src.neonColor,
-            neonPreset: src.neonPreset || 'fully-lit',
-            isRound: src.isRound,
-            depth: src.depth,
-            bevelEnabled: src.bevelEnabled,
-            bevelThickness: src.bevelThickness,
-            bevelSize: src.bevelSize,
-            orientation: src.orientation,
-            planePitch: src.planePitch,
-            planeYaw: src.planeYaw,
-            planeRoll: src.planeRoll,
-            planeLocalRot: src.planeLocalRot,
-            planeElevation: src.planeElevation,
             posX: (src.posX || 0) + 50,
             posY: (src.posY || 0) + 40,
-            posZ: src.posZ || 0,
-            planeScale: src.planeScale || 1.0,
-            scaleX: src.scaleX !== undefined ? src.scaleX : 1.0,
-            scaleY: src.scaleY !== undefined ? src.scaleY : 1.0,
-            scaleZ: src.scaleZ !== undefined ? src.scaleZ : 1.0,
-            isBaseAligned: !!src.isBaseAligned,
-            isFence: !!src.isFence,
-            estateItemId: src.estateItemId || null,
-            show3DText: src.show3DText,
-            text3DOffset: src.text3DOffset,
-            text3DXOffset: src.text3DXOffset !== undefined ? src.text3DXOffset : 0,
-            text3DSize: src.text3DSize,
-            text3DDepth: src.text3DDepth,
-            text3DColor: src.text3DColor,
-            text3DMode: src.text3DMode,
-            text3DPitch: src.text3DPitch,
-            text3DYaw: src.text3DYaw,
-            text3DRoll: src.text3DRoll,
-            badgeElementMode: src.badgeElementMode,
-            embossDepth: src.embossDepth,
-            embossScale: src.embossScale,
-            embossOffsetY: src.embossOffsetY,
-            embossOffsetX: src.embossOffsetX,
-            badgeSideColor: src.badgeSideColor,
-            visible: true,
-            locked: false
+            locked: false,
+            planeGroup: null,
+            contentGroup: null,
+            shadowPlane: null,
+            textMesh: null,
+            iconMesh: null,
+            badgeMesh: null,
+            reliefMesh: null
         });
+        const newEl = createDefaultElement(newElProps);
 
         elements.push(newEl);
         activeElementId = newEl.id;
@@ -7037,7 +7250,8 @@
         setSelected(true);
         syncControlsUI();
         update3DLayersOrder();
-        if (typeof window.recordHistory === 'function') window.recordHistory('3D Öge Çoğaltıldı');
+        requestRender();
+        if (typeof window.recordHistory === 'function') window.recordHistory('3D Öge Çoğaltıldı', true);
         if (typeof window.showToast === 'function') window.showToast(`📋 "${newEl.name}" çoğaltıldı`, 'info');
         return newEl;
     }
@@ -8680,7 +8894,12 @@
             if (state.active && state.selected) {
                 window.DockContextManager.on3DElementSelected(getActiveElement());
             } else if (!state.selected) {
-                window.DockContextManager.onElementDeselected();
+                const has2D = Array.isArray(window.selectedElements) && window.selectedElements.length > 0;
+                if (has2D) {
+                    window.DockContextManager.onElementSelected(window.selectedElements[0]);
+                } else {
+                    window.DockContextManager.onElementDeselected();
+                }
             }
         }
 
@@ -8913,6 +9132,7 @@
         panel = document.createElement('div');
         panel.id = 'threeDStudioPanel';
         panel.className = 'three-d-panel';
+        panel.style.display = 'none';
 
         panel.innerHTML = `
             <div id="threeDPanelHeader" class="three-d-header">
@@ -9635,7 +9855,7 @@
         positionStudioPanelOverLeftPanel(panel);
 
         // 🛡️ Panel içi tıklamaların tuvale veya sayfa dışına sızmasını engelle (kabarcık aşamasında durdur)
-        ['pointerdown', 'mousedown', 'click'].forEach(evt => {
+        ['pointerdown', 'mousedown', 'mouseup', 'pointerup', 'click'].forEach(evt => {
             panel.addEventListener(evt, (e) => e.stopPropagation());
         });
 
@@ -11537,6 +11757,7 @@
             const dy = e.clientY - startY;
             if (Math.hypot(dx, dy) > 2) {
                 el._hasBeenManuallyDragged = true;
+                document.body.classList.remove('three-d-panel-open');
             }
             const currentTop = Math.max(10, Math.min(window.innerHeight - el.offsetHeight - 14, initialTop + dy));
             el.style.left = Math.max(10, Math.min(window.innerWidth - el.offsetWidth - 10, initialLeft + dx)) + 'px';
@@ -11562,12 +11783,23 @@
      * 15. Modalı Aç / Kapat
      */
     async function openStudio(skipAutoConvert = false, createDefaultIfEmpty = true, showPanel = true) {
+        if (window.CanvasEmptyState && typeof window.CanvasEmptyState.dismiss === 'function') {
+            window.CanvasEmptyState.dismiss();
+        }
         const panel = ensureStudioPanel();
         if (showPanel) {
             panel.style.display = 'flex';
             positionStudioPanelOverLeftPanel(panel);
+            document.body.classList.add('three-d-panel-open');
         } else {
             panel.style.display = 'none';
+            document.body.classList.remove('three-d-panel-open');
+        }
+        const dockBtn = document.getElementById('dock3DPanelBtn');
+        if (dockBtn) {
+            dockBtn.classList.toggle('active', !!showPanel);
+            dockBtn.classList.toggle('btn-accent', !!showPanel);
+            dockBtn.title = showPanel ? '3D Düzenleme Panelini Kapat' : '3D Düzenleme Panelini Aç';
         }
         state.active = true;
         state.hasBaked = false;
@@ -11616,9 +11848,55 @@
         }
     }
 
+    function isStudioPanelOpen() {
+        const panel = document.getElementById('threeDStudioPanel');
+        return !!(panel && panel.style.display === 'flex');
+    }
+
+    function toggleStudioPanel() {
+        const panel = document.getElementById('threeDStudioPanel');
+        const isOpen = panel && panel.style.display === 'flex';
+
+        if (isOpen) {
+            panel.style.display = 'none';
+            document.body.classList.remove('three-d-panel-open');
+            const dockBtn = document.getElementById('dock3DPanelBtn');
+            if (dockBtn) {
+                dockBtn.classList.remove('active', 'btn-accent');
+                dockBtn.title = '3D Düzenleme Panelini Aç';
+            }
+            notifyExternalUpdates();
+        } else {
+            if (!state.active) {
+                openStudio(true, false, true);
+            } else {
+                const p = ensureStudioPanel();
+                if (p) {
+                    p.style.display = 'flex';
+                    positionStudioPanelOverLeftPanel(p);
+                    document.body.classList.add('three-d-panel-open');
+                    syncControlsUI();
+                    notifyExternalUpdates();
+                }
+            }
+            const dockBtn = document.getElementById('dock3DPanelBtn');
+            if (dockBtn) {
+                dockBtn.classList.add('active', 'btn-accent');
+                dockBtn.title = '3D Düzenleme Panelini Kapat';
+            }
+        }
+    }
+
     function closeStudio() {
         const panel = document.getElementById('threeDStudioPanel');
         if (panel) panel.style.display = 'none';
+        document.body.classList.remove('three-d-panel-open');
+
+        const dockBtn = document.getElementById('dock3DPanelBtn');
+        if (dockBtn) {
+            dockBtn.classList.remove('active', 'btn-accent');
+            dockBtn.title = '3D Düzenleme Panelini Aç';
+        }
 
         // 🎯 Seçimi bırak (tutamaçlar ve eksenler gizlenir), 3D öge tuvalde aktif ve görünür kalmaya devam eder!
         setSelected(false, { silent: true });
@@ -11799,7 +12077,13 @@
      * 17. 💾 Proje Kaydetme & Geri Yükleme API'si (Faz 3)
      */
     function getDataToSave() {
-        if (!state.active && !canvasEl && elements.length === 0) return null;
+        if (elements.length === 0) {
+            return {
+                active: false,
+                studioOpen: false,
+                elementsData: []
+            };
+        }
         if (activeElementId) {
             syncActiveElementFromState();
         }
@@ -11953,7 +12237,41 @@
     }
 
     async function restoreData(data) {
-        if (!data) return;
+        if (!data || !data.elementsData || !Array.isArray(data.elementsData) || data.elementsData.length === 0) {
+            // Sahnede 3D öge bulunmamalı (Geri alındığında tüm 3D ögeler temizlenmeli)
+            if (elements && elements.length > 0) {
+                elements.forEach(el => {
+                    if (el.planeGroup && scene) scene.remove(el.planeGroup);
+                });
+                elements.length = 0;
+            }
+            activeElementId = null;
+            state.active = false;
+            state.selected = false;
+            setSelected(false, { silent: true });
+            if (canvasEl) {
+                canvasEl.style.display = 'none';
+                canvasEl.style.pointerEvents = 'none';
+            }
+            if (canvasBadgeEl) canvasBadgeEl.style.display = 'none';
+            if (gizmoOverlayEl) gizmoOverlayEl.style.display = 'none';
+            if (cornerPinOverlayEl) cornerPinOverlayEl.style.display = 'none';
+            if (gridHelper) gridHelper.visible = false;
+            if (sunGroup) sunGroup.visible = false;
+            if (sunRayLine) sunRayLine.visible = false;
+            const panel = document.getElementById('threeDStudioPanel');
+            if (panel) panel.style.display = 'none';
+            document.body.classList.remove('three-d-panel-open');
+            const dockBtn = document.getElementById('dock3DPanelBtn');
+            if (dockBtn) {
+                dockBtn.classList.remove('active', 'btn-accent');
+                dockBtn.title = '3D Düzenleme Panelini Aç';
+            }
+            if (typeof updateDock3DControlsState === 'function') updateDock3DControlsState();
+            requestRender();
+            return;
+        }
+
         Object.assign(state, data);
         if (data.itemPitch !== undefined) state.itemPitch = data.itemPitch;
         if (data.itemRoll !== undefined) state.itemRoll = data.itemRoll;
@@ -11991,58 +12309,91 @@
             });
         }
 
-        const shouldBeActive = data.active || data.visible || (data.elementsData && data.elementsData.length > 0);
-        if (shouldBeActive) {
-            await openStudio(true, false, false);
+        await openStudio(true, false, false);
 
-            if (data.elementsData && Array.isArray(data.elementsData) && data.elementsData.length > 0) {
-                isBatchRestoring = true;
-                // Sahnedeki eski ögeleri temizle
-                elements.forEach(el => {
-                    if (el.planeGroup && scene) scene.remove(el.planeGroup);
-                });
-                elements.length = 0;
-                activeElementId = null;
+        isBatchRestoring = true;
+        // Sahnedeki eski ögeleri temizle
+        elements.forEach(el => {
+            if (el.planeGroup && scene) scene.remove(el.planeGroup);
+        });
+        elements.length = 0;
+        activeElementId = null;
 
-                // Tüm kayıtlı 3D ögeleri sırayla oluştur ve dönüştür
-                data.elementsData.forEach(elData => {
-                    const restoredEl = createDefaultElement(elData);
-                    Object.assign(restoredEl, elData);
-                    initElementThreeObjects(restoredEl);
-                    elements.push(restoredEl);
-                    recreateContentMeshes(restoredEl);
-                    updatePlaneTransform(restoredEl);
-                    updateContentTransform(restoredEl);
-                });
+        // Tüm kayıtlı 3D ögeleri sırayla oluştur ve dönüştür
+        data.elementsData.forEach(elData => {
+            const restoredEl = createDefaultElement(elData);
+            Object.assign(restoredEl, elData);
+            initElementThreeObjects(restoredEl);
+            elements.push(restoredEl);
+            recreateContentMeshes(restoredEl);
+            updatePlaneTransform(restoredEl);
+            updateContentTransform(restoredEl);
+        });
 
-                isBatchRestoring = false;
+        isBatchRestoring = false;
 
-                const actId = data.activeElementId || (elements[elements.length - 1] && elements[elements.length - 1].id);
-                if (actId) {
-                    setActiveElement(actId);
+        const actId = data.activeElementId || (elements[elements.length - 1] && elements[elements.length - 1].id);
+        if (actId) {
+            setActiveElement(actId);
+        }
+
+        state.active = true;
+        if (canvasEl) {
+            canvasEl.style.display = 'block';
+            canvasEl.style.pointerEvents = 'auto';
+        }
+
+        updateLighting();
+        updatePlaneTransform();
+        update3DLayersOrder();
+        updateElementSelectorUI();
+        syncControlsUI();
+
+        if (camera) camera.updateMatrixWorld(true);
+        if (scene) scene.updateMatrixWorld(true);
+
+        requestRender();
+
+        if (data.visible === false) {
+            toggleVisibility(false);
+        }
+
+        // Panel ve Seçim durumunu doğru yönet:
+        const panel = document.getElementById('threeDStudioPanel');
+        const dockBtn = document.getElementById('dock3DPanelBtn');
+        if (data.studioOpen) {
+            if (panel) {
+                panel.style.display = 'flex';
+                positionStudioPanelOverLeftPanel(panel);
+                document.body.classList.add('three-d-panel-open');
+            }
+            if (dockBtn) {
+                dockBtn.classList.add('active', 'btn-accent');
+                dockBtn.title = '3D Düzenleme Panelini Kapat';
+            }
+        } else {
+            if (panel) panel.style.display = 'none';
+            document.body.classList.remove('three-d-panel-open');
+            if (dockBtn) {
+                dockBtn.classList.remove('active', 'btn-accent');
+                dockBtn.title = '3D Düzenleme Panelini Aç';
+            }
+        }
+
+        if (data.selected !== false) {
+            setSelected(true, { silent: true, autoLockPhoto: false, openPanel: !!data.studioOpen });
+            if (state.gizmoActive && !state.cornerPinActive) {
+                initGizmoOverlay();
+                if (gizmoOverlayEl) {
+                    gizmoOverlayEl.style.display = 'block';
+                    updateGizmoPositions();
                 }
             }
-
-            updateLighting();
-            updatePlaneTransform();
-            update3DLayersOrder();
-            updateElementSelectorUI();
-            syncControlsUI();
-            requestRender();
-
-            if (data.visible === false) {
-                toggleVisibility(false);
-            }
-            if (!data.studioOpen) {
-                closeStudio();
-            }
-        } else if (scene) {
-            updateLighting();
-            updatePlaneTransform();
-            recreateContentMeshes();
-            syncControlsUI();
-            requestRender();
+        } else {
+            setSelected(false, { silent: true });
         }
+        updateDock3DControlsState();
+        requestRender();
     }
 
     /**
@@ -12111,13 +12462,13 @@
         const container = iconPickerModalEl.querySelector('#threeDIconCategoryChips');
         if (!container || !window.ICON_LIBRARY) return;
 
-        let html = `<button type="button" class="three-d-cat-chip ${activeIconCategory === 'all' ? 'active' : ''}" data-cat="all">✨ Tümü (200)</button>`;
+        let html = `<button type="button" class="three-d-cat-chip ${activeIconCategory === 'all' ? 'active' : ''}" data-cat="all" title="Tüm İkonlar">Tümü</button>`;
 
         Object.keys(window.ICON_LIBRARY).forEach(key => {
             const cat = window.ICON_LIBRARY[key];
             const title = cat.title || key;
             const count = (cat.items && cat.items.length) || 0;
-            html += `<button type="button" class="three-d-cat-chip ${activeIconCategory === key ? 'active' : ''}" data-cat="${key}">${title} (${count})</button>`;
+            html += `<button type="button" class="three-d-cat-chip ${activeIconCategory === key ? 'active' : ''}" data-cat="${key}" title="${count} İkon">${title}</button>`;
         });
 
         container.innerHTML = html;
@@ -12310,20 +12661,16 @@
 
         const el = badgeEl || (typeof window.selectedCalloutEl !== 'undefined' ? window.selectedCalloutEl : (typeof selectedCalloutEl !== 'undefined' ? selectedCalloutEl : (typeof window.selectedEl !== 'undefined' ? window.selectedEl : null)));
         if (!el) {
-            const autoEl = document.querySelector('#canvas-container .callout-wrap:not([data-converted-to-3d="true"]), #workArea .callout-wrap:not([data-converted-to-3d="true"]), #ui-layer .added-icon:not([data-converted-to-3d="true"])');
-            if (autoEl) {
-                return convert2DBadgeTo3D(autoEl, meta);
-            }
             if (typeof window.showToast === 'function') {
                 window.showToast('⚠️ Lütfen önce tuvalde dönüştürmek istediğiniz rozet veya ikonu seçin.', 'warning');
             }
             return false;
         }
 
-        const root = el.closest('.callout-wrap, .callout-wrapper, .draggable, .added-icon, .canvas-el') || el;
+        const root = el.closest('.shape-el, .callout-wrap, .callout-wrapper, .draggable, .added-icon, .canvas-el') || el;
         const classList = ((el.className || '') + ' ' + (root.className || '')).toLowerCase();
 
-        // 🌟 2D Şekil Tespiti (Ekstra Araçlar -> Şekiller: Dikdörtgen, Daire, Yıldız, Üçgen, vb.)
+        // 🌟 2D Şekil Tespiti (Ekstra Araçlar -> Şekiller: Dikdörtgen, Daire, Yıldız, Üçgen, Çizgi, Kalp, Ok vb.)
         const isShape = classList.includes('shape-el') || !!(el.dataset && el.dataset.shapeType) || !!(root.dataset && root.dataset.shapeType);
         let shapeType = '';
         let shapeGeneratedSvg = '';
@@ -12334,7 +12681,7 @@
             const sBw = parseFloat(el.dataset?.borderWidth || root.dataset?.borderWidth || '0') || 0;
             const sRad = parseFloat(el.dataset?.radius || root.dataset?.radius || '0') || 0;
             const w = Math.max(30, (el || root).offsetWidth || 120);
-            const h = Math.max(20, (el || root).offsetHeight || 80);
+            const h = Math.max(10, (el || root).offsetHeight || 80);
 
             if (shapeType === 'rectangle') {
                 const rx = sRad > 0 ? sRad : 8;
@@ -12342,6 +12689,9 @@
             } else if (shapeType === 'circle') {
                 const r = Math.min(w, h) / 2;
                 shapeGeneratedSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}" width="${w}" height="${h}"><circle cx="${w/2}" cy="${h/2}" r="${r - sBw/2}" fill="${sBg}" stroke="${sBorder}" stroke-width="${sBw}"/></svg>`;
+            } else if (shapeType.includes('line')) {
+                const lineThick = Math.max(4, sBw || 4);
+                shapeGeneratedSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${lineThick}" width="${w}" height="${lineThick}"><rect x="0" y="0" width="${w}" height="${lineThick}" rx="${Math.min(lineThick/2, 4)}" ry="${Math.min(lineThick/2, 4)}" fill="${sBorder}"/></svg>`;
             } else {
                 const innerSvg = (el || root).querySelector('svg');
                 if (innerSvg) {
@@ -12349,6 +12699,17 @@
                     sHtml = sHtml.replace(/var\(--shape-bg\)/g, sBg);
                     sHtml = sHtml.replace(/var\(--shape-border\)/g, sBorder);
                     sHtml = sHtml.replace(/var\(--shape-border-width\)/g, sBw + 'px');
+                    sHtml = sHtml.replace(/style="[^"]*"/g, '');
+                    if (!sHtml.includes('xmlns=')) {
+                        sHtml = sHtml.replace(/<svg\b/i, '<svg xmlns="http://www.w3.org/2000/svg"');
+                    }
+                    sHtml = sHtml.replace(/<svg\b([^>]*)>/i, `<svg$1 fill="${sBg}" stroke="${sBorder}" stroke-width="${sBw}">`);
+                    sHtml = sHtml.replace(/<(polygon|path)\b([^>]*?)(\/?>)/gi, (m, tag, attrs, end) => {
+                        let a = attrs;
+                        if (!/fill=["']/.test(a)) a += ` fill="${sBg}"`;
+                        if (sBw > 0 && !/stroke=["']/.test(a)) a += ` stroke="${sBorder}" stroke-width="${sBw}"`;
+                        return `<${tag}${a}${end}`;
+                    });
                     shapeGeneratedSvg = sHtml;
                 }
             }
@@ -12432,8 +12793,13 @@
             const sBg = el.dataset?.bgColor || root.dataset?.bgColor || '#3b82f6';
             const sBorder = el.dataset?.borderColor || root.dataset?.borderColor || '#ffffff';
             const sBw = parseFloat(el.dataset?.borderWidth || root.dataset?.borderWidth || '0') || 0;
-            primaryColor = safeHexColor(sBg, '#3b82f6');
-            bgCol = (sBw > 0) ? safeHexColor(sBorder, '#ffffff') : primaryColor;
+            if (shapeType.includes('line')) {
+                primaryColor = safeHexColor(sBorder, '#ffffff');
+                bgCol = primaryColor;
+            } else {
+                primaryColor = safeHexColor(sBg, '#3b82f6');
+                bgCol = (sBw > 0) ? safeHexColor(sBorder, '#ffffff') : primaryColor;
+            }
         } else {
             primaryColor = safeHexColor(primaryColor, '#38bdf8');
             let bgColCandidate = el.dataset?.storedBgHex || root.dataset?.storedBgHex || el.dataset?.coBgColor || root.dataset?.coBgColor || '';
@@ -12530,7 +12896,7 @@
         }
 
         let elemType = 'text';
-        if (isShape && rawSvg) {
+        if (isShape) {
             elemType = 'element_3d';
         } else if (isNeon && neonSvg) {
             rawSvg = neonSvg;
@@ -12548,8 +12914,8 @@
         }
 
         const isGraphicOnly = (elemType === 'element_3d' || elemType === 'pin' || elemType === 'arrow');
-        const finalMainText = hasRealText ? (label.split(/\r?\n/)[0] || '') : (isGraphicOnly && !isNeon ? '' : (label || ''));
-        const finalSubText = hasRealText ? (label.split(/\r?\n/).slice(1).join(' ') || '') : '';
+        const finalMainText = isShape ? '' : (hasRealText ? (label.split(/\r?\n/)[0] || '') : (isGraphicOnly && !isNeon ? '' : (label || '')));
+        const finalSubText = isShape ? '' : (hasRealText ? (label.split(/\r?\n/).slice(1).join(' ') || '') : '');
         
         const shapeNames = {
             'rectangle': 'Dikdörtgen Tabela',
@@ -12560,7 +12926,10 @@
             'hexagon': 'Altıgen Tabela',
             'arrow-right': 'Sağ Ok',
             'arrow-left': 'Sol Ok',
-            'arrow-up': 'Üst Ok'
+            'arrow-up': 'Üst Ok',
+            'line': '3D Çizgi',
+            'dashed-line': '3D Kesikli Çizgi',
+            'dotted-line': '3D Noktalı Çizgi'
         };
         const shapeDisplayName = isShape ? (shapeNames[shapeType] || '3D Şekil') : '';
         const displayName = itemName || shapeDisplayName || (isPin ? 'Konum Pini' : (isArrow ? 'Yön Oku' : (isFramedBox ? (finalMainText ? finalMainText : 'Çerçeveli Metin') : (elemType === 'element_3d' ? (finalMainText ? finalMainText : '3D İkon') : (finalMainText || '3D Öge')))));
@@ -12569,10 +12938,10 @@
         let planeYaw = (meta && meta.planeYaw !== undefined) ? meta.planeYaw : 0;
         let orientation = (meta && meta.orientation) ? meta.orientation : 'standing';
 
-        // Eğer sahnede dokunulmamış boş bir varsayılan metin varsa, onu temizle
+        // Sahnede önceden eklenmiş varsayılan öge varsa durumunu normal ögeye çevir (asla silme)
         const autoDefIdx = elements.findIndex(e => e.isAutoDefault);
         if (autoDefIdx !== -1) {
-            delete3DElement(elements[autoDefIdx].id);
+            elements[autoDefIdx].isAutoDefault = false;
         }
 
         let cachedSilhouette = null;
@@ -12645,10 +13014,12 @@
             isExactSilhouette: isSilhouette,
             isSurfaceBase: isShape || !!(meta && meta.isSurfaceBase),
             isShape: isShape,
+            shapeType: shapeType,
+            shapeBorderWidth: isShape ? (parseFloat(el?.dataset?.borderWidth || root?.dataset?.borderWidth || '0') || 0) : 0,
             text: finalMainText,
             textSize: normal3DTextSize,
             badgeSubtext: finalSubText,
-            show3DText: isNeon ? !!(finalMainText || finalSubText) : false,
+            show3DText: isShape ? false : (isNeon ? !!(finalMainText || finalSubText) : false),
             text3DColor: primaryColor || (isNeon ? '#93c5fd' : '#ffffff'),
             text3DXOffset: 0,
             frontColor: primaryColor || (isNeon ? '#93c5fd' : '#ffffff'),
@@ -12690,15 +13061,35 @@
         elements.push(newEl);
         activeElementId = newEl.id;
 
+        if (isShape) {
+            state.elementType = 'element_3d';
+            state.text = '';
+            state.badgeSubtext = '';
+            state.show3DText = false;
+        }
+
         await openStudio(true, false, false);
         initElementThreeObjects(newEl);
         setActiveElement(newEl);
+        if (isShape) {
+            newEl.elementType = 'element_3d';
+            newEl.text = '';
+            newEl.badgeSubtext = '';
+            newEl.show3DText = false;
+            state.elementType = 'element_3d';
+            state.text = '';
+            state.badgeSubtext = '';
+            state.show3DText = false;
+        }
         recreateContentMeshes(newEl);
         syncControlsUI();
         update3DLayersOrder();
         setSelected(true, { silent: true, openPanel: false });
         const p2d = document.getElementById('threeDStudioPanel');
-        if (p2d) p2d.style.display = 'none';
+        if (p2d) {
+            p2d.style.display = 'none';
+            document.body.classList.remove('three-d-panel-open');
+        }
         updateDock3DControlsState();
         if (window.DockManager && typeof window.DockManager.setContext === 'function') {
             window.DockManager.setContext('3d');
@@ -12713,7 +13104,7 @@
         requestRender();
 
         if (typeof window.renderLayers === 'function') window.renderLayers();
-        if (typeof window.recordHistory === 'function') window.recordHistory('Yeni 3D Öge Eklendi');
+        if (typeof window.recordHistory === 'function') window.recordHistory('Yeni 3D Öge Eklendi', true);
         if (typeof window.requestAutoSave === 'function') window.requestAutoSave();
 
         if (typeof window.showToast === 'function') {
@@ -12728,14 +13119,15 @@
      */
     async function add3DText(text = '3D METİN', options = {}) {
         const count = elements.length + 1;
-        const textVal = text || ('3D METİN ' + count);
+        const textVal = (text && text !== '3D METİN') ? text : (elements.length > 0 ? ('3D METİN ' + count) : '3D METİN');
         const nameVal = options.name || ('3D Metin ' + count);
         return await add3DElementFromData(Object.assign({
             elementType: 'text',
             name: nameVal,
             text: textVal,
             textSize: 36,
-            depth: 16
+            depth: 16,
+            showPanel: options.showPanel !== undefined ? options.showPanel : false
         }, options));
     }
 
@@ -12744,7 +13136,9 @@
      * İkon kütüphanesinden veya rozetlerden tıklandığında anında 3D sahneye yeni bir öge ekler.
      */
     async function add3DElementFromData(options = {}) {
-        const shouldShowPanel = options.showPanel === true; // Varsayılan kapalı, çift tıklamayla açılır!
+        const existingPanel = document.getElementById('threeDStudioPanel');
+        const isPanelCurrentlyOpen = !!(existingPanel && existingPanel.style.display !== 'none');
+        const shouldShowPanel = (options.showPanel !== undefined) ? !!options.showPanel : false;
         await openStudio(true, false, shouldShowPanel);
 
         const count = elements.length + 1;
@@ -12838,16 +13232,10 @@
         let planeScale = (options.planeScale !== undefined && options.planeScale !== null) ? options.planeScale : 1.0;
         let planeLocalRot = options.planeLocalRot !== undefined ? options.planeLocalRot : 0;
 
-        // Eğer sahnede dokunulmamış boş bir varsayılan metin varsa, onu temizle
+        // Sahnede önceden eklenmiş varsayılan öge varsa durumunu normal ögeye çevir (asla silme!)
         const autoDefIdx = elements.findIndex(e => e.isAutoDefault);
         if (autoDefIdx !== -1) {
-            const defEl = elements[autoDefIdx];
-            // Eğer metin veya renk değiştirildiyse kullanıcı bu ögeyi kullanıyor demektir, silme.
-            if (defEl.text === '3D METİN' && defEl.frontColor === '#f59e0b') {
-                delete3DElement(defEl.id);
-            } else {
-                defEl.isAutoDefault = false;
-            }
+            elements[autoDefIdx].isAutoDefault = false;
         }
 
         let cachedSilhouette = null;
@@ -12962,7 +13350,10 @@
         setSelected(true, { silent: true, openPanel: shouldShowPanel });
         if (!shouldShowPanel) {
             const p = document.getElementById('threeDStudioPanel');
-            if (p) p.style.display = 'none';
+            if (p) {
+                p.style.display = 'none';
+                document.body.classList.remove('three-d-panel-open');
+            }
         }
         updateDock3DControlsState();
 
@@ -12975,7 +13366,7 @@
         requestRender();
 
         if (typeof window.renderLayers === 'function') window.renderLayers();
-        if (typeof window.recordHistory === 'function') window.recordHistory('Yeni 3D Öge Eklendi');
+        if (typeof window.recordHistory === 'function') window.recordHistory('Yeni 3D Öge Eklendi', true);
         if (typeof window.requestAutoSave === 'function') window.requestAutoSave();
 
         if (typeof window.showToast === 'function') {
@@ -13158,7 +13549,7 @@
         syncControlsUI();
         requestRender();
 
-        if (typeof window.recordHistory === 'function') window.recordHistory('Emlak Stili Değiştirildi');
+        if (typeof window.recordHistory === 'function') window.recordHistory('Emlak Stili Değiştirildi', true);
         if (typeof window.renderLayers === 'function') window.renderLayers();
         return targetEls[0];
     }
@@ -13577,9 +13968,9 @@
                 modelPivot.name = 'gltfPivotGroup';
                 modelPivot.add(rootModel);
 
-                // Otomatik oluşturulmuş boş varsayılan rozet varsa temizle
-                if (elements.length === 1 && elements[0].isAutoDefault) {
-                    delete3DElement(elements[0].id, true);
+                // Otomatik oluşturulmuş varsayılan öge varsa durumunu normal ögeye çevir (asla silme)
+                if (elements.length > 0 && elements[0].isAutoDefault) {
+                    elements[0].isAutoDefault = false;
                 }
 
                 const cleanName = file.name.replace(/\.[^/.]+$/, "");
@@ -13624,7 +14015,7 @@
                 update3DLayersOrder();
                 requestRender();
 
-                if (typeof window.recordHistory === 'function') window.recordHistory('3D Model Yüklendi');
+                if (typeof window.recordHistory === 'function') window.recordHistory('3D Model Yüklendi', true);
                 if (typeof window.renderLayers === 'function') window.renderLayers();
             }, (error) => {
                 console.error('[ThreeDEngine] GLTF çözümleme hatası:', error);
@@ -13643,6 +14034,9 @@
         closeStudio: closeStudio,
         showStudioPanel: showStudioPanel,
         openStudioPanel: showStudioPanel,
+        toggleStudioPanel: toggleStudioPanel,
+        toggleStudio: toggleStudioPanel,
+        isStudioPanelOpen: isStudioPanelOpen,
         applyPreset: applyPreset,
         autoCenter: autoCenterActiveElement,
         getExportContext: getExportContext,
@@ -13653,6 +14047,7 @@
         clearAll3D: clearAll3D,
         clearScene: clearAll3D,
         getElements: () => elements,
+        hasElements: () => (Array.isArray(elements) && elements.length > 0),
         getCamera: () => camera,
         getElementsScreenBounds: getElementsScreenBounds,
         getActiveElementId: () => activeElementId,
@@ -13662,6 +14057,7 @@
         selectElement: (id) => { setActiveElement(id); state.gizmoActive = true; setSelected(true); updateDock3DControlsState(); },
         updatePlaneTransform: updatePlaneTransform,
         updateContentTransform: updateContentTransform,
+        setElementPosition: setElementPosition,
         recreateContentMeshes: recreateContentMeshes,
         syncControlsUI: syncControlsUI,
         update3DLayersOrder: update3DLayersOrder,
@@ -13673,6 +14069,7 @@
         setSelected: setSelected,
         toggleSelection: toggleSelection,
         isSelected: () => !!state.selected,
+        getSelected: () => !!state.selected,
         isActive: () => !!state.active,
         onPhotoLockChanged: onPhotoLockChanged,
         updateDockControls: updateDock3DControlsState,

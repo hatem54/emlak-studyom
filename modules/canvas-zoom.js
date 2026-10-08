@@ -2,6 +2,7 @@
 window.pinchScale = 1;
 window.pinchPanX = 0;
 window.pinchPanY = 0;
+let isTicking = false;
 
 (function() {
     function hasUploadedPhoto() {
@@ -288,14 +289,27 @@ window.pinchPanY = 0;
                 window.pinchPanX = tInitialPanX + dx;
                 window.pinchPanY = tInitialPanY + dy;
 
-                applyTransform();
+                if (!isTicking) {
+                    window.requestAnimationFrame(() => {
+                        applyTransform();
+                        isTicking = false;
+                    });
+                    isTicking = true;
+                }
             } else if (isPanningMobile && e.touches.length === 1) {
                 if (e.cancelable) e.preventDefault();
                 const dx = e.touches[0].clientX - initialTouchX;
                 const dy = e.touches[0].clientY - initialTouchY;
                 window.pinchPanX = tInitialPanX + dx;
                 window.pinchPanY = tInitialPanY + dy;
-                applyTransform();
+                
+                if (!isTicking) {
+                    window.requestAnimationFrame(() => {
+                        applyTransform();
+                        isTicking = false;
+                    });
+                    isTicking = true;
+                }
             }
         }, { passive: false });
 

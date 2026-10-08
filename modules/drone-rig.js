@@ -208,9 +208,9 @@
             // 1. Parsel kontrolü
             if (!sat.parcelData || !sat.parcelData.latLngs || sat.parcelData.latLngs.length < 3) {
                 if (typeof window.showAppToast === 'function') {
-                    window.showAppToast('Lütfen önce bir KML/KMZ dosyası yükleyin veya harita üzerinde arsa sınırlarını belirleyin.', 'warning', 4500);
+                    window.showAppToast('Lütfen önce bir KML veya KMZ dosyası yükleyin veya harita üzerinde arsa sınırlarını belirleyin.', 'warning', 4500);
                 } else {
-                    alert('Lütfen önce bir KML/KMZ arsa dosyası yükleyin.');
+                    alert('Lütfen önce bir KML veya KMZ arsa dosyası yükleyin.');
                 }
                 return;
             }
@@ -389,7 +389,7 @@
                     }
 
                     if (typeof window.showAppToast === 'function') {
-                        window.showAppToast(`${capturedResults.length} açılı drone çekimi tamamlandı • Arşivden sırayla düzenleyebilirsiniz`, 'success', 4500);
+                        window.showAppToast(`${capturedResults.length} açılı drone çekimi tamamlandı.`, 'success', 3500);
                     }
                 }
             }
@@ -538,9 +538,6 @@
             this.isAborted = true;
             this.hideHud();
             this.isBusy = false;
-            if (typeof window.showAppToast === 'function') {
-                window.showAppToast('Drone çekimi kullanıcı tarafından durduruldu.', 'info');
-            }
         },
 
         /**

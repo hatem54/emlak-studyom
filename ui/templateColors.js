@@ -679,3 +679,5 @@ function showTemplateColorModal() {
         });
     }, 500);
 }
+
+window.showTemplateColorModal = showTemplateColorModal;

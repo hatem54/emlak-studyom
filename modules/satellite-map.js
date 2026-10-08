@@ -54,9 +54,6 @@
     if (!window.openSatelliteMapModal) {
         window.openSatelliteMapModal = async function(prefer3D = false) {
             if (window.innerWidth <= 768) {
-                if (typeof window.showAppToast === 'function') {
-                    window.showAppToast('🛰️ Uydu haritası özelliği masaüstü cihazlar için optimize edilmiştir.', 'info');
-                }
                 return;
             }
             if (typeof window.showAppLoading === 'function') {

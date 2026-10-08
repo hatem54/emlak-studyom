@@ -201,9 +201,6 @@
          */
         openModal: function(sourceImageOrUrl, onApplyCallback) {
             if (window.innerWidth <= 768) {
-                if (typeof window.showAppToast === 'function') {
-                    window.showAppToast('✨ AI Netleştirici penceresi masaüstü cihazlar için optimize edilmiştir.', 'info');
-                }
                 return;
             }
 
@@ -517,7 +514,7 @@
                             window._isApplyingAiEnhance = false;
                             if (typeof window.hideAppLoading === 'function') window.hideAppLoading();
                             if (!err && typeof window.showAppToast === 'function') {
-                                window.showAppToast(`✨ Fotoğraf %${val} seviyesinde başarıyla netleştirildi!`, 'success');
+                                window.showAppToast(`Fotoğraf %${val} seviyesinde netleştirildi.`, 'success');
                             }
                         });
                     } else {
@@ -541,9 +538,6 @@
          */
         revertToOriginal: function() {
             if (!window._aiOriginalImgDataUrl) {
-                if (typeof window.showAppToast === 'function') {
-                    window.showAppToast('Görsel zaten orijinal halinde.', 'info');
-                }
                 return;
             }
 
@@ -553,9 +547,6 @@
                         const slider = document.getElementById('aiPhotoEnhanceSlider');
                         if (slider) slider.value = 25;
                         window.updateAiPhotoEnhanceLabel(25);
-                        if (typeof window.showAppToast === 'function') {
-                            window.showAppToast('🔄 Orijinal temiz fotoğrafa geri dönüldü.', 'info');
-                        }
                     }
                 });
             }
@@ -587,7 +578,7 @@
                     if (!err) {
                         this.closeModal();
                         if (typeof window.showAppToast === 'function') {
-                            window.showAppToast('✨ Görsel AI ile kristal netliğe kavuşturuldu ve tuvale uygulandı!', 'success');
+                            window.showAppToast('Görsel AI ile netleştirildi ve tuvale uygulandı.', 'success');
                         }
                     }
                 });
@@ -614,7 +605,7 @@
             document.body.removeChild(a);
 
             if (typeof window.showAppToast === 'function') {
-                window.showAppToast('💾 AI HD Netleştirilmiş görsel cihazınıza indirildi!', 'success');
+                window.showAppToast('Netleştirilmiş görsel cihaza indirildi.', 'success');
             }
         }
     };
@@ -627,9 +618,6 @@
     window.AiEnhancer = AiEnhancer;
     window.openAiEnhancerModal = function(source, callback) {
         if (window.innerWidth <= 768) {
-            if (typeof window.showAppToast === 'function') {
-                window.showAppToast('✨ AI Netleştirici penceresi masaüstü cihazlar için optimize edilmiştir.', 'info');
-            }
             return;
         }
         AiEnhancer.openModal(source, callback);
@@ -704,14 +692,6 @@
             applyPhotoFilters();
         } else if (typeof requestPhotoRepaint === 'function') {
             requestPhotoRepaint();
-        }
-
-        if (typeof window.showAppToast === 'function') {
-            const num = slider ? slider.value : 35;
-            window.showAppToast(
-                isEnabled ? `✨ AI Netleştirme aktif (%${num})` : 'AI Netleştirme kapatıldı',
-                'info'
-            );
         }
     };
 

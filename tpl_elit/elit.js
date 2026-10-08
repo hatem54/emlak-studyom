@@ -1,4 +1,4 @@
-/* ============================================================
+﻿/* ============================================================
    canva.js "” v14.3
    ✅ Çoklu format desteği
    ✅ Fotoğraflar tuval dışına taşmaz (cover mode)
@@ -113,32 +113,7 @@ function _elitInit(){
         return;
     }
     
-    // Inject the HTML structure for Canva/Elit settings
-    container.innerHTML = `
-        
-        
-        <div class="canva-tpl-grid" id="canvaTplGrid"></div>
-        <div id="canvaSettings" class="settings-box">
-            <div class="section-title" style="margin-top:0"><i class="fa-solid fa-wand-magic-sparkles" style="color:#0284c7; margin-right:6px;"></i>Hızlı Metin Düzenleyici</div>
-            <div class="input-group"><label>Ana Ba&#351;l&#305;k</label><input type="text" id="canvaTitle" value="SATILIK M&#220;STAK&#304;L EV"></div>
-            <div class="input-group"><label>Fiyat</label><input type="text" id="canvaPrice" value="6.750.000 TL"></div>
-            <div class="input-group"><label>&#214;zellikler</label><textarea id="canvaFeatures" rows="4" style="width:100%;padding:6px;background:#0f172a;border:1px solid #334155;color:#fff;border-radius:5px;font-size:11px;resize:vertical">• 4+1 Geniş Salon
-• 180 m² Brüt / 155 m² Net
-• Site İçi Ebeveyn Banyolu
-• Serdivan AVM Karşısı</textarea></div>
-            <div class="input-group"><label>&#304;leti&#351;im</label><input type="text" id="canvaContact" value="emlakstudyomtr@gmail.com"></div>
-        </div>
-        
-        
-    `;
-    
-    // Bind inputs for live update
-    ['canvaTitle','canvaPrice','canvaFeatures','canvaContact'].forEach(id=>{
-        const el = document.getElementById(id);
-        if(el) el.addEventListener('input',()=>{if(isCanvaMode)buildCanvaRender()});
-    });
-
-    // Once the grid container is created, generate the cards
+    container.innerHTML = '<div class="canva-tpl-grid" id="canvaTplGrid"></div>';
     buildCanvaCards();
 }
 
@@ -146,19 +121,13 @@ function _elitInit(){
 function buildCanvaCards(){
     const grid = $('canvaTplGrid');
     if(!grid) return;
-    grid.innerHTML = ''; // Prevent duplicates
-    CANVA_CARDS.forEach(c => {
-        const card = document.createElement('div');
-        card.className = 'canva-tpl-card';
-        card.dataset.id = c.id;
-        card.innerHTML = `<div class="tpl-preview" style="display:flex;gap:0;border-radius:4px;overflow:hidden"><div style="flex:1.2;background:${c.bg1};display:flex;align-items:center;justify-content:center;flex-direction:column;gap:2px;padding:4px"><div style="font-size:9px;font-weight:900;color:${c.accent}">SATILIK</div><div style="font-size:7px;color:${c.accent}">6.750.000 TL</div></div><div style="flex:1;background:${c.bg2}"></div></div>`;
-        card.onclick = () => {
-            document.querySelectorAll('.canva-tpl-card').forEach(x => x.classList.remove('active'));
-            card.classList.add('active');
-            activeCanvaId = c.id;
+    grid.innerHTML = '';
+    CANVA_CARDS.forEach((c, idx) => {
+        const card = window.createTemplateCard ? window.createTemplateCard(c, idx, 'Elit', (id) => {
+            activeCanvaId = id;
             buildCanvaRender();
-        };
-        grid.appendChild(card);
+        }) : null;
+        if(card) grid.appendChild(card);
     });
 }
 
@@ -263,13 +232,14 @@ function renderCustomDynamicTemplate(tplData) {
                     slotImg = window.customSlotImages[idx];
                 } else if (ps.photoUrl) {
                     slotImg = ps.photoUrl;
-                } else if (idx === 0 && uploadedImgUrl) {
-                    slotImg = uploadedImgUrl;
                 } else if (uploadedImgUrl) {
                     slotImg = uploadedImgUrl;
+                } else {
+                    const fallbackList = ['assets/luxury_villa.jpg', 'assets/horizontal_interior.jpg', 'assets/bodrum_luxury_villa.jpg'];
+                    slotImg = fallbackList[idx % fallbackList.length];
                 }
 
-                const slotBg = slotImg ? `background-image:url('${slotImg}');background-size:cover;background-position:${x}% ${y}%;background-repeat:no-repeat;` : 'background-color:#1e293b;';
+                const slotBg = `background-image:url('${slotImg}');background-size:cover;background-position:${x}% ${y}%;background-repeat:no-repeat;`;
                 const slotTitle = ps.title || `Fotoğraf Yuvası #${idx+1} (Değiştirmek İçin Tıklayın)`;
 
                 baseHtml += `
@@ -287,15 +257,15 @@ function renderCustomDynamicTemplate(tplData) {
             const pShadow = ps.shadow || 'none';
             const pZIndex = ps.zIndex ? `z-index:${ps.zIndex};` : '';
 
-            let slotImg = (window.customSlotImages && window.customSlotImages[0]) ? window.customSlotImages[0] : (ps.photoUrl || uploadedImgUrl);
-            const slotBg = slotImg ? `background-image:url('${slotImg}');background-size:cover;background-position:${x}% ${y}%;background-repeat:no-repeat;` : 'background-color:#1e293b;';
+            let slotImg = (window.customSlotImages && window.customSlotImages[0]) ? window.customSlotImages[0] : (ps.photoUrl || uploadedImgUrl || 'assets/luxury_villa.jpg');
+            const slotBg = `background-image:url('${slotImg}');background-size:cover;background-position:${x}% ${y}%;background-repeat:no-repeat;`;
 
             baseHtml += `
                 <div class="photo-panel" data-slot-idx="0" title="Fotoğrafı Değiştirmek İçin Tıklayın" style="width:${pWidth}px;height:${pHeight}px;position:absolute;left:${pLeft}px;top:${pTop}px;border-radius:${pRadius};border:${pBorder};box-shadow:${pShadow};overflow:hidden;${slotBg}${pZIndex}cursor:pointer;" onclick="window.changeCustomSlotPhoto(0)"></div>
             `;
         } else {
-            let slotImg = (window.customSlotImages && window.customSlotImages[0]) ? window.customSlotImages[0] : uploadedImgUrl;
-            const slotBg = slotImg ? `background-image:url('${slotImg}');background-size:cover;background-position:${x}% ${y}%;background-repeat:no-repeat;` : 'background-color:#1e293b;';
+            let slotImg = (window.customSlotImages && window.customSlotImages[0]) ? window.customSlotImages[0] : (uploadedImgUrl || 'assets/luxury_villa.jpg');
+            const slotBg = `background-image:url('${slotImg}');background-size:cover;background-position:${x}% ${y}%;background-repeat:no-repeat;`;
             baseHtml += `
                 <div class="photo-panel" data-slot-idx="0" style="width:100%;height:100%;position:absolute;left:0;top:0;${slotBg}"></div>
             `;
@@ -391,6 +361,14 @@ function buildCanvaRender(){
             return;
         }
         if(!activeCanvaId){alert('Önce bir Canva Şablonu seçin!');return}
+        if (window.CanvasEmptyState && typeof window.CanvasEmptyState.dismiss === 'function') {
+            window.CanvasEmptyState.dismiss();
+        } else {
+            const es = document.getElementById('canvasEmptyState');
+            if (es) { es.classList.add('is-hidden'); es.style.display = 'none'; }
+        }
+        window.isCanvaMode = true;
+        isCanvaMode = true;
         if(typeof _kolajTemizle === 'function') _kolajTemizle();
         
         // Sadece şablonun oluşturduğu eski elementleri sil (Yazı Ekle ile eklenenlere dokunma)
@@ -404,22 +382,24 @@ function buildCanvaRender(){
     
         document.querySelectorAll('.normal-el').forEach(el => el.style.display = 'none');
         document.querySelectorAll('.template-btn').forEach(b => b.classList.remove('active'));
-        isCanvaMode = true;
     
         photoLayer.style.display = 'none';
         canvaRenderLayer.style.display = 'block';
-    
-        const title = $('canvaTitle').value;
-        const price = $('canvaPrice').value || 'FİYAT İÇİN BİZE ULAŞIN';
-        let contactInput = $('canvaContact').value.trim();
+        const tData = (typeof window.getUnifiedTemplateData === 'function')
+            ? window.getUnifiedTemplateData()
+            : { title: 'SATILIK MÜSTAKİL EV', price: '12.500.000 TL', contact: 'EMLAK STÜDYOM | 0532 000 00 00', featsLines: ['Geniş & Ferah Kullanım Alanı', 'Lüks Donanım & Modern Mimari'] };
+
+        const title = tData.title;
+        const price = tData.price || 'FİYAT İÇİN BİZE ULAŞIN';
+        let contactInput = (tData.contact || '').trim();
         let contact = '';
         if (contactInput === '' || contactInput.includes('emlakstudyomtr@gmail.com')) {
             contact = `<div style="display:inline-flex; align-items:center; gap:8px; line-height:1; vertical-align:middle;"><img src="assets/logo/logo-icon.png" style="height:1.25em; width:auto; max-width:1.6em; object-fit:contain; flex-shrink:0; pointer-events:none; margin:0; vertical-align:middle;"> <span style="vertical-align:middle;">emlakstudyomtr@gmail.com</span></div>`;
         } else {
             contact = contactInput;
         }
-        const feats = $('canvaFeatures').value.split('\n').map(l => `<div style="margin-bottom:4px">${l}</div>`).join('');
-        const bgImg = uploadedImgUrl ? `background-image:url('${uploadedImgUrl}')` : 'background-color:#94a3b8';
+        const feats = (tData.featsLines || []).map(l => `<div style="margin-bottom:4px">${l}</div>`).join('');
+        const bgImg = (typeof window.getTemplateActiveBg === 'function') ? window.getTemplateActiveBg('Elit') : (uploadedImgUrl ? `background-image:url('${uploadedImgUrl}')` : "background-image:url('assets/luxury_villa.jpg')");
         const x = $('photoXCtrl').value, y = $('photoYCtrl').value;
         const canvasSize = getCanvasSize();
     
@@ -860,3 +840,5 @@ function clearCanvaTemplate(skipSetTemplate){
 
 // Yüklenince akordiyon içine inject et
 _elitInit();
+
+

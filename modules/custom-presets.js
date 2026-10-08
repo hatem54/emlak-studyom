@@ -160,24 +160,6 @@
             const target = presets.find(p => p.id === id);
             if (!target) return;
 
-            if (typeof Swal !== 'undefined') {
-                const res = await Swal.fire({
-                    title: 'Hazır Ayarı Sil?',
-                    html: `<b>"${target.name}"</b> hazır ayarını silmek istediğinize emin misiniz?`,
-                    icon: 'warning',
-                    showCancelButton: true,
-                    confirmButtonText: 'Evet, Sil',
-                    cancelButtonText: 'Vazgeç',
-                    confirmButtonColor: '#ef4444',
-                    cancelButtonColor: '#64748b',
-                    background: '#1e293b',
-                    color: '#fff'
-                });
-                if (!res.isConfirmed) return;
-            } else {
-                if (!confirm(`"${target.name}" hazır ayarını silmek istiyor musunuz?`)) return;
-            }
-
             const updated = presets.filter(p => p.id !== id);
             this.savePresetsList(updated);
 

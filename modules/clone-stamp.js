@@ -389,6 +389,18 @@
             this.renderSvg();
         },
 
+        setPickingSource: function(val) {
+            this.isPickingSource = !!val;
+            this.updateSourceStatusUI();
+            this.renderSvg();
+        },
+
+        clearMask: function() {
+            if (typeof this.clearAreaDrawing === 'function') {
+                this.clearAreaDrawing();
+            }
+        },
+
         updateSourceStatusUI: function() {
             const statusEl = document.getElementById('cloneSourceStatus');
             const rowEl = document.getElementById('cloneSourceRow');
@@ -841,7 +853,7 @@
         applyAreaClone: async function() {
             if (!this.hasSelectionArea()) {
                 if (typeof window.showAppToast === 'function') {
-                    window.showAppToast('Lütfen önce kapatılacak nesneyi (villayı) seçin veya boyayın.', 'warning');
+                    window.showAppToast('Lütfen önce kapatılacak nesneyi seçin veya boyayın.', 'warning');
                 } else {
                     alert('Lütfen önce kapatılacak villayı fırça, çokgen veya kement ile seçin.');
                 }

@@ -132,6 +132,7 @@ function bindDrag(el){
     if (!el || el.dataset.dragBound === 'true') return;
     el.dataset.dragBound = 'true';
     let dragging=false, resizing=false, sx, sy, il, it, iw, ih, moved=false, downTime=0, multiSelectKey=false, moveRAF=null, lastClientX=0, lastClientY=0;
+    let cached3DTargets = [];
     
     el.addEventListener('mousemove', e => {
         const rect = el.getBoundingClientRect();
@@ -163,9 +164,7 @@ function bindDrag(el){
             return;
         }
         if (e.target.closest('.vertex-handle, .text-rotate-handle, .text-resize-handle, .callout-controls, .callout-resizer, .callout-rotator, .callout-handle-width, .callout-handle-length, .tb-frame-handle, .tb-frame-floating-tools, .tb-floating-btn')) {
-            if (!window.selectedElements || window.selectedElements.length <= 1) {
-                return;
-            }
+            return;
         }
         
         if(el.dataset.editingText)return;
@@ -191,7 +190,7 @@ function bindDrag(el){
         
         const isCallout = el.classList.contains('callout-wrap') || el.classList.contains('svg-callout') || el.classList.contains('co-neon-block') || el.classList.contains('editable-draw');
         
-        if (!isCallout && (!window.selectedElements || window.selectedElements.length <= 1) && (c.clientX >= rect.right - 20 && c.clientY >= rect.bottom - 20)) {
+        if (!isCallout && (c.clientX >= rect.right - 20 && c.clientY >= rect.bottom - 20)) {
             resizing = true;
             iw = el.offsetWidth;
             ih = el.offsetHeight;
@@ -227,6 +226,28 @@ function bindDrag(el){
                 selEl.dataset.dragStartWidth = selEl.offsetWidth;
                 selEl.dataset.dragStartHeight = selEl.offsetHeight;
                 selEl.dataset.dragStartFontSize = parseFloat(window.getComputedStyle(selEl).fontSize) || 16;
+            });
+        }
+
+        // 🌟 Seçili 3D ögelerin başlangıç pozisyonlarını ve boyutlarını önbelleğe al
+        cached3DTargets = [];
+        if (window.ThreeDGrouping && typeof window.ThreeDGrouping.getSelected3DElements === 'function') {
+            cached3DTargets = (window.ThreeDGrouping.getSelected3DElements() || []).slice();
+        }
+        if (cached3DTargets.length === 0 && window.ThreeDEngine && (
+            (typeof window.ThreeDEngine.isSelected === 'function' && window.ThreeDEngine.isSelected()) ||
+            (typeof window.ThreeDEngine.getSelected === 'function' && window.ThreeDEngine.getSelected())
+        )) {
+            const active3D = (typeof window.ThreeDEngine.getActiveElement === 'function') ? window.ThreeDEngine.getActiveElement() : null;
+            if (active3D) cached3DTargets = [active3D];
+        }
+        if (cached3DTargets && cached3DTargets.length > 0) {
+            cached3DTargets.forEach(item => {
+                item._dragStartPosX = (item.posX !== undefined ? item.posX : 0);
+                item._dragStartPosY = (item.posY !== undefined ? item.posY : 0);
+                item._dragStartScaleX = (item.scaleX !== undefined ? item.scaleX : 1.0);
+                item._dragStartScaleY = (item.scaleY !== undefined ? item.scaleY : 1.0);
+                item._dragStartScaleZ = (item.scaleZ !== undefined ? item.scaleZ : 1.0);
             });
         }
         
@@ -332,10 +353,12 @@ function bindDrag(el){
                         // Kutu serbest boyutlandırılır, yazı boyutu değişmez (Ratcheting / küçülme bug'ını çözer)
                     } else {
                         // Serbest yazı veya diğerleri orantılı büyür/küçülür
-                        const ratio = newW / iw;
-                        newH = ih * ratio; // Kutu en-boy oranını korur
+                        const ratio = (iw > 0) ? (newW / iw) : 1;
+                        newH = ih > 0 ? (ih * ratio) : newW; // Kutu en-boy oranını korur
                         
-                        const newFontSize = Math.max(8, parseFloat(el.dataset.startFontSize) * ratio);
+                        const startFs = parseFloat(el.dataset.startFontSize) || 24;
+                        const calcFs = startFs * ratio;
+                        const newFontSize = Math.max(8, isFinite(calcFs) ? calcFs : startFs);
                         el.style.fontSize = newFontSize + 'px';
                         
                         if (typeof selectedEl !== 'undefined' && selectedEl === el) {
@@ -382,6 +405,31 @@ function bindDrag(el){
                         }
                     }
                 });
+            }
+
+            // 🌟 Seçili 3D Ögeleri Orantılı Boyutlandır (Karma Çoklu Boyutlandırma)
+            if (window.ThreeDGrouping && typeof window.ThreeDGrouping.getSelected3DElements === 'function') {
+                const sel3D = window.ThreeDGrouping.getSelected3DElements();
+                if (sel3D && sel3D.length > 0) {
+                    const ratio = Math.max(0.1, newW / (iw || 1));
+                    sel3D.forEach(item => {
+                        const startSx = item._dragStartScaleX !== undefined ? item._dragStartScaleX : 1.0;
+                        const startSy = item._dragStartScaleY !== undefined ? item._dragStartScaleY : 1.0;
+                        const startSz = item._dragStartScaleZ !== undefined ? item._dragStartScaleZ : 1.0;
+                        item.scaleX = +(startSx * ratio).toFixed(3);
+                        item.scaleY = +(startSy * ratio).toFixed(3);
+                        item.scaleZ = +(startSz * ratio).toFixed(3);
+                        if (window.ThreeDEngine && typeof window.ThreeDEngine.updateContentTransform === 'function') {
+                            window.ThreeDEngine.updateContentTransform(item);
+                        }
+                    });
+                    if (window.ThreeDEngine && typeof window.ThreeDEngine.requestRender === 'function') {
+                        window.ThreeDEngine.requestRender();
+                    }
+                    if (typeof window.ThreeDGrouping.updateSelectionVisuals === 'function') {
+                        window.ThreeDGrouping.updateSelectionVisuals();
+                    }
+                }
             }
             if (window.SaberEngine && typeof window.SaberEngine.updateTextSaberPositions === 'function') {
                 window.SaberEngine.updateTextSaberPositions();
@@ -444,6 +492,46 @@ function bindDrag(el){
                         }
                     }
                 });
+            }
+
+            // 🌟 3D Ögeleri 2D Sürükleme ile Eşzamanlı Taşı (Karma Çoklu Taşıma)
+            let sel3DList = (cached3DTargets && cached3DTargets.length > 0) ? cached3DTargets : [];
+            if (sel3DList.length === 0 && window.ThreeDGrouping && typeof window.ThreeDGrouping.getSelected3DElements === 'function') {
+                sel3DList = window.ThreeDGrouping.getSelected3DElements() || [];
+            }
+            if (sel3DList.length === 0 && window.ThreeDEngine && (
+                (typeof window.ThreeDEngine.isSelected === 'function' && window.ThreeDEngine.isSelected()) ||
+                (typeof window.ThreeDEngine.getSelected === 'function' && window.ThreeDEngine.getSelected())
+            )) {
+                const active3D = (typeof window.ThreeDEngine.getActiveElement === 'function') ? window.ThreeDEngine.getActiveElement() : null;
+                if (active3D) sel3DList = [active3D];
+            }
+            if (sel3DList && sel3DList.length > 0) {
+                sel3DList.forEach(item => {
+                    if (item._dragStartPosX !== undefined) {
+                        const targetX = Math.round(item._dragStartPosX + deltaX);
+                        const targetY = Math.round(item._dragStartPosY - deltaY);
+                        if (window.ThreeDEngine && typeof window.ThreeDEngine.setElementPosition === 'function') {
+                            window.ThreeDEngine.setElementPosition(item, targetX, targetY);
+                        } else {
+                            item.posX = targetX;
+                            item.posY = targetY;
+                            if (window.ThreeDEngine) {
+                                if (typeof window.ThreeDEngine.updatePlaneTransform === 'function') window.ThreeDEngine.updatePlaneTransform(item);
+                                if (typeof window.ThreeDEngine.updateContentTransform === 'function') window.ThreeDEngine.updateContentTransform(item);
+                            }
+                        }
+                    }
+                });
+                if (window.ThreeDEngine && typeof window.ThreeDEngine.updateGizmoPositions === 'function') {
+                    window.ThreeDEngine.updateGizmoPositions();
+                }
+                if (window.ThreeDEngine && typeof window.ThreeDEngine.requestRender === 'function') {
+                    window.ThreeDEngine.requestRender();
+                }
+                if (typeof window.ThreeDGrouping.updateSelectionVisuals === 'function') {
+                    window.ThreeDGrouping.updateSelectionVisuals();
+                }
             }
 
             // ⚡ SABER NEON ANLIK SÜRÜKLEME SENKRONİZASYONU (Sıfır Gecikme - GPU Ticker Destekli)
@@ -690,6 +778,37 @@ function bindDrag(el){
                 delete selEl._dragPObj;
             });
 
+            // 🌟 3D Ögelerin sürükleme geçici değerlerini temizle ve senkronize et
+            let sel3DUp = (cached3DTargets && cached3DTargets.length > 0) ? cached3DTargets : [];
+            if (sel3DUp.length === 0 && window.ThreeDGrouping && typeof window.ThreeDGrouping.getSelected3DElements === 'function') {
+                sel3DUp = window.ThreeDGrouping.getSelected3DElements() || [];
+            }
+            if (sel3DUp.length === 0 && window.ThreeDEngine && (
+                (typeof window.ThreeDEngine.isSelected === 'function' && window.ThreeDEngine.isSelected()) ||
+                (typeof window.ThreeDEngine.getSelected === 'function' && window.ThreeDEngine.getSelected())
+            )) {
+                const active3D = (typeof window.ThreeDEngine.getActiveElement === 'function') ? window.ThreeDEngine.getActiveElement() : null;
+                if (active3D) sel3DUp = [active3D];
+            }
+            if (sel3DUp && sel3DUp.length > 0) {
+                sel3DUp.forEach(item => {
+                    delete item._dragStartPosX;
+                    delete item._dragStartPosY;
+                    delete item._dragStartScaleX;
+                    delete item._dragStartScaleY;
+                    delete item._dragStartScaleZ;
+                });
+                if (moved) {
+                    if (window.ThreeDEngine && typeof window.ThreeDEngine.syncControlsUI === 'function') {
+                        window.ThreeDEngine.syncControlsUI();
+                    }
+                    if (window.ThreeDEngine && typeof window.ThreeDEngine.notifyExternalUpdates === 'function') {
+                        window.ThreeDEngine.notifyExternalUpdates(true);
+                    }
+                }
+                cached3DTargets = [];
+            }
+
             document.removeEventListener('mousemove', move);
             document.removeEventListener('touchmove', move);
             document.removeEventListener('mouseup', up);
@@ -703,11 +822,11 @@ function bindDrag(el){
 window.selectedElements = window.selectedElements || [];
 function selectElement(el, isMulti = false, noTabSwitch = false, openSettings = 'auto'){
     if (!el) return;
-    // ⚡ 2D bir öge seçildiğinde 3D seçimini ve panelini hemen kapat
-    if (window.ThreeDEngine && typeof window.ThreeDEngine.setSelected === 'function') {
+    // ⚡ 2D bir öge tekil seçildiğinde 3D seçimini ve panelini hemen kapat
+    if (!isMulti && window.ThreeDEngine && typeof window.ThreeDEngine.setSelected === 'function') {
         window.ThreeDEngine.setSelected(false, { silent: true, autoUnlockPhoto: false });
     }
-    if (el.classList && !el.classList.contains('editable-draw') && el.closest && el.closest('.editable-draw')) {
+    if (el.classList && !el.classList.contains('custom-text-el') && !el.classList.contains('custom-text-box') && !el.classList.contains('editable-draw') && el.closest && el.closest('.editable-draw')) {
         el = el.closest('.editable-draw');
     }
     /* dedicated handling for template image frames */
@@ -774,9 +893,9 @@ function selectElement(el, isMulti = false, noTabSwitch = false, openSettings = 
     // Restore visuals for all selected callouts
     if (window.selectedElements && window.selectedElements.length > 0) {
         window.selectedElements.forEach(selEl => {
-            const isCallout = selEl.classList.contains('co-neon-block') || selEl.classList.contains('callout-wrap') || selEl.classList.contains('svg-callout') || selEl.classList.contains('shape-el');
+            const isCallout = selEl.classList.contains('co-neon-block') || selEl.classList.contains('callout-wrap') || selEl.classList.contains('svg-callout') || selEl.classList.contains('shape-el') || selEl.classList.contains('editable-text') || selEl.classList.contains('brand-element');
             if (isCallout && selEl.dataset.locked !== 'true') {
-                if(selEl.classList.contains('co-neon-block') || selEl.classList.contains('shape-el')) {
+                if(selEl.classList.contains('co-neon-block') || selEl.classList.contains('shape-el') || selEl.classList.contains('editable-text') || selEl.classList.contains('brand-element')) {
                     selEl.style.outline = '1px dashed rgba(255,255,255,0.4)';
                 } 
                 
@@ -787,10 +906,10 @@ function selectElement(el, isMulti = false, noTabSwitch = false, openSettings = 
                 const brd = selEl.querySelector('.callout-select-border');
                 const hw = selEl.querySelector('.callout-handle-width');
                 const hl = selEl.querySelector('.callout-handle-length');
-                if(ctl && !selEl.classList.contains('shape-el')) ctl.style.display = 'flex';
+                if(ctl) ctl.style.display = 'none';
                 if(res && !selEl.classList.contains('shape-el')) res.style.display = 'flex';
                 if(rot && !selEl.classList.contains('shape-el')) rot.style.display = 'flex';
-                if(lk && !selEl.classList.contains('shape-el')) lk.style.display = 'flex';
+                if(lk) lk.style.display = 'none';
                 if(brd) brd.style.display = 'block';
                 if(hw && !selEl.classList.contains('shape-el')) hw.style.display = 'flex';
                 if(hl && !selEl.classList.contains('shape-el')) hl.style.display = 'flex';
@@ -811,7 +930,7 @@ function selectElement(el, isMulti = false, noTabSwitch = false, openSettings = 
     }
 
     
-    if(el.classList.contains('editable-draw') || el.closest('.editable-draw')) {
+    if((el.classList.contains('editable-draw') || el.closest('.editable-draw')) && !el.classList.contains('custom-text-el') && !el.classList.contains('custom-text-box')) {
         const drawEl = el.classList.contains('editable-draw') ? el : el.closest('.editable-draw');
         el = drawEl;
         const isMobile = typeof window.isMobileDevice === 'function' ? window.isMobileDevice() : window.innerWidth <= 768;
@@ -849,10 +968,18 @@ function selectElement(el, isMulti = false, noTabSwitch = false, openSettings = 
         if(document.getElementById('elLabel')) document.getElementById('elLabel').textContent=el.dataset.label||'Eleman';
         if(shouldShowSettings && typeof loadElSettings === 'function') loadElSettings(el);
         if(shouldShowSettings && typeof loadElFont === 'function') loadElFont(el);
-        if(shouldShowSettings && !noTabSwitch && typeof switchTab === 'function' && !el.classList.contains('shape-el') && !el.classList.contains('co-neon-block') && !el.classList.contains('callout-wrap') && !el.classList.contains('svg-callout') && !el.classList.contains('callout-item') && !el.classList.contains('tb-image-frame')) switchTab('font');
-        if (el.classList.contains('canvas-el') && !el.classList.contains('tb-image-frame') && typeof window.addTextHandles === 'function') window.addTextHandles(el); if(el.classList.contains('shape-el')) { el.querySelectorAll('.callout-controls, .callout-resizer, .callout-rotator, .callout-lock-btn, .callout-select-border').forEach(c => c.remove()); } if(el.classList.contains('tb-image-frame') && window.TemplateBuilder) { window.TemplateBuilder.selectFrame(el); }
+        const handleTargets = (window.selectedElements && window.selectedElements.length > 0) ? window.selectedElements : [el];
+        handleTargets.forEach(tEl => {
+            if (tEl && tEl.classList && tEl.classList.contains('canvas-el') && !tEl.classList.contains('tb-image-frame') && !tEl.closest('#canva-render-layer, .cvr-base, .canva-panel, .canva-generated') && typeof window.addTextHandles === 'function') {
+                window.addTextHandles(tEl);
+            }
+            if (tEl && tEl.classList && tEl.classList.contains('shape-el')) {
+                tEl.querySelectorAll('.callout-controls, .callout-resizer, .callout-rotator, .callout-lock-btn, .callout-select-border').forEach(c => c.remove());
+            }
+        });
+        if (el.classList.contains('tb-image-frame') && window.TemplateBuilder) { window.TemplateBuilder.selectFrame(el); }
     }
-    if (window.ThreeDEngine && typeof window.ThreeDEngine.setSelected === 'function') { window.ThreeDEngine.setSelected(false, { silent: true, autoUnlockPhoto: false }); }
+    if (!isMulti && window.ThreeDEngine && typeof window.ThreeDEngine.setSelected === 'function') { window.ThreeDEngine.setSelected(false, { silent: true, autoUnlockPhoto: false }); }
     if (typeof window.updateDockContextUI === 'function') window.updateDockContextUI(el);
 }
 
@@ -1262,7 +1389,7 @@ function createPolygonFromSelectedLines() {
         const svgEl = createSVGFromPath(pObj);
         if(svgEl) {
             pObj.el = svgEl;
-            const container = getActiveV4Element();
+            const container = (typeof getDrawContainer === 'function') ? getDrawContainer() : (document.getElementById('ui-layer') || document.getElementById('canvas-container'));
             if(container) container.appendChild(svgEl);
         }
     }
@@ -1271,4 +1398,11 @@ function createPolygonFromSelectedLines() {
     deselectAll();
     if(pObj.el && typeof selectElement === 'function') selectElement(pObj.el);
 }
+
+
+
+
+
+
+
 

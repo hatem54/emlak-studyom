@@ -138,3 +138,12 @@ Büyük kod tabanlarının yönetilebilirliğini ve yapay zekanın işlem hızı
    - Fonksiyonlar `modules/<ozellik>.js` dosyasına yazılır ve modüler olarak bağlanır.
 3. **Kademeli Ayıklama (Gradual Extraction):** Mevcut monolit dosyalardaki kendi içinde bağımsız mantıksal bloklar (örneğin daha önce yapılan `css/callouts.css` ve `css/three-d.css` gibi), sistem kararlılığını bozmadan adım adım harici alt dosyalara taşınarak monolitlerin yükü hafifletilmelidir.
 4. **Tek Sorumluluk Prensibi (Single Responsibility):** Yeni yazılan her modül tek bir işleve odaklanmalı ve ideal olarak 300-500 satırı aşmayacak şekilde kompakt tutulmalıdır.
+
+---
+
+## 6. Kullanıcı Taleplerinde Çakışma & Risk Analizi Kuralı (Önce Rapor / Erken Uyarı Standardı)
+- Kullanıcı herhangi bir özellik, değişiklik, davranış veya mantık talep ettiğinde; eğer talep edilen işlem uygulamada, mevcut mimaride veya herhangi bir menü/araç/katman çalışmasında **bir çakışmaya, bozulmaya, görsel kirliliğe veya başka bir soruna** yol açma riski taşıyorsa:
+  1. Kod değişikliğine doğrudan geçilmeyecek, **önce detaylı bir risk/çakışma raporu** kullanıcıya sunulacaktır.
+  2. Raporda; çakışmanın nedeni, etkilenecek bileşenler ve varsa güvenli alternatif çözüm senaryoları net olarak açıklanacaktır.
+  3. Kullanıcı raporu inceleyip onay verdikten veya kararlaştırılan yönde talimat verdikten sonra uygulama aşamasına geçilecektir.
+

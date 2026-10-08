@@ -868,6 +868,18 @@
             return finalCanvas.toDataURL('image/jpeg', 0.96);
         },
 
+        apply: function() {
+            return this.executeErasure();
+        },
+
+        clearMask: function() {
+            const mgr = window.PhotoMasksManager;
+            if (mgr && typeof mgr.clearCurrentBrushMask === 'function') {
+                mgr.clearCurrentBrushMask();
+                if (typeof mgr.renderSvg === 'function') mgr.renderSvg();
+            }
+        },
+
         undo: function() {
             if (typeof window.undoGlobal === 'function') window.undoGlobal();
         },

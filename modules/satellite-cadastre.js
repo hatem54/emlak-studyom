@@ -257,9 +257,6 @@
                     await window.LazyLoader.load('zip', { label: 'KMZ Arşiv Açıcı' });
                 }
                 if (typeof JSZip !== 'undefined') {
-                    if (typeof window.showAppToast === 'function') {
-                        window.showAppToast('📦 KMZ arşivi taranıyor ve KML çıkarılıyor...', 'info', 2500);
-                    }
                     JSZip.loadAsync(file).then(zip => {
                         const kmlKey = Object.keys(zip.files).find(k => k.toLowerCase().endsWith('.kml') && !k.startsWith('__MACOSX'));
                         if (!kmlKey) {
@@ -287,27 +284,23 @@
                         }
                         this.loadParcelPolygon(parsed);
                         if (typeof window.showAppToast === 'function') {
-                            window.showAppToast('✅ KMZ arşivi başarıyla açıldı ve arsa sınırları haritaya yüklendi!', 'success', 3500);
+                            window.showAppToast('KMZ arşivi başarıyla açıldı ve arsa sınırları haritaya yüklendi.', 'success', 3500);
                         }
                     }).catch(err => {
                         console.error('KMZ açma hatası:', err);
                         if (typeof window.showAppToast === 'function') {
-                            window.showAppToast('❌ KMZ açılamadı: ' + (err.message || 'Geçersiz dosya'), 'error');
+                            window.showAppToast('KMZ açılamadı: ' + (err.message || 'Geçersiz dosya'), 'error');
                         } else {
                             alert('KMZ açılamadı: ' + err.message);
                         }
                     });
                     return;
-                } else {
-                    if (typeof window.showAppToast === 'function') {
-                        window.showAppToast('ℹ️ KMZ arşivini açmak için JSZip kütüphanesi yükleniyor...', 'info');
-                    }
                 }
             }
 
             if (!isKml && !isGeoJson) {
                 if (typeof window.showAppToast === 'function') {
-                    window.showAppToast('⚠️ Lütfen geçerli bir .kml veya .geojson dosyası seçin.', 'warning');
+                    window.showAppToast('Lütfen geçerli bir .kml veya .geojson dosyası seçin.', 'warning');
                 } else {
                     alert('Lütfen geçerli bir .kml veya .geojson dosyası seçin.');
                 }
@@ -348,7 +341,7 @@
                 } catch(err) {
                     console.error('Parsel dosyası işleme hatası:', err);
                     if (typeof window.showAppToast === 'function') {
-                        window.showAppToast('❌ Parsel okunamadı: ' + (err.message || 'Geçersiz dosya'), 'error');
+                        window.showAppToast('Parsel okunamadı: ' + (err.message || 'Geçersiz dosya'), 'error');
                     } else {
                         alert('Parsel okunamadı: ' + err.message);
                     }
@@ -356,7 +349,7 @@
             };
             reader.onerror = () => {
                 if (typeof window.showAppToast === 'function') {
-                    window.showAppToast('❌ Dosya okuma hatası oluştu.', 'error');
+                    window.showAppToast('Dosya okuma hatası oluştu.', 'error');
                 }
             };
             reader.readAsText(file, 'UTF-8');
@@ -541,14 +534,6 @@
 
             // 🤖 Parsel Bilgilerini "Metni Süz" Alanına Otomatik Aktar, Süz ve Önerilen Rozetleri Aç
             this.syncParcelToSmartParser(parcelInfo);
-
-            if (typeof window.showAppToast === 'function') {
-                const toastTitle = (parcelInfo.ada && parcelInfo.parsel) 
-                    ? `📐 Ada ${parcelInfo.ada} / Parsel ${parcelInfo.parsel} yüklendi!`
-                    : `📐 TKGM Parsel haritada açıldı!`;
-                const toastMsg = parcelInfo.alan ? `(${parcelInfo.alan})` : '';
-                window.showAppToast(`${toastTitle} ${toastMsg}`, 'success');
-            }
         },
 
         /**
@@ -707,10 +692,6 @@
             openSuggestionsAccordion();
             setTimeout(openSuggestionsAccordion, 200);
             setTimeout(openSuggestionsAccordion, 500);
-
-            if (typeof window.showAppToast === 'function') {
-                window.showAppToast('✨ TKGM Parsel bilgileri Metni Süz alanına aktarıldı, otomatik süzüldü ve önerilen rozetler açıldı!', 'success');
-            }
         },
 
         /**
@@ -1883,10 +1864,6 @@
             this.parcelData = null;
             this.floatingParcelPos = null;
             this.updateParcelUI();
-
-            if (typeof window.showAppToast === 'function') {
-                window.showAppToast('📐 Arsa parseli haritadan kaldırıldı.', 'info');
-            }
         },
 
         /**
@@ -2130,15 +2107,7 @@
 
             if (typeof window.showAppToast === 'function') {
                 if (!this.parcelData || !this.parcelData.latLngs || this.parcelData.latLngs.length < 3) {
-                    window.showAppToast('ℹ️ Saber Neon efekti arsa/parsel sınırları üzerinde parlar. Önce bir KML/KMZ veya Parsel yükleyin.', 'info', 4500);
-                } else if (this.parcelNeonEnabled) {
-                    if (this.is3DActive) {
-                        window.showAppToast('⚡ 3D Dünya üzerinde parlayan Saber Neon hatları aktif edildi!', 'success', 4000);
-                    } else {
-                        window.showAppToast('⚡ Arsa parseli için Saber Neon efekti aktif edildi!', 'success');
-                    }
-                } else {
-                    window.showAppToast('⚡ Saber Neon efekti kapatıldı (Klasik Çizim Modu)', 'info');
+                    window.showAppToast('Saber Neon efekti arsa sınırları üzerinde parlar. Önce bir KML veya Parsel yükleyin.', 'info', 4500);
                 }
             }
         },
@@ -2374,7 +2343,7 @@
                 if (svgEl) {
                     pObj.el = svgEl;
                     svgEl.dataset.label = isNeon ? '⚡ Neon Arsa Sınırı' : '📐 Arsa Sınırı (KML)';
-                    const container = typeof getActiveV4Element === 'function' ? getActiveV4Element() : (document.getElementById('photo-layer') || document.getElementById('canvas-container'));
+                    const container = (typeof getDrawContainer === 'function') ? getDrawContainer() : (document.getElementById('ui-layer') || document.getElementById('canvas-container'));
                     if (container && !svgEl.parentElement) {
                         container.appendChild(svgEl);
                     }

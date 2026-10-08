@@ -133,7 +133,7 @@ window.OmniSearch = {
         // 4. Sistem Araçları & Modülleri
         const tools = [
             { id: 'tool_callout', name: 'Vurgu Rozeti Ekle', type: 'Araç', evalStr: "if(typeof switchTab === 'function') switchTab('callout'); if(typeof window.addCallout === 'function') window.addCallout();" },
-            { id: 'tool_neon', name: 'Neon Rozet Ekle', type: 'Araç', evalStr: "if(typeof switchTab === 'function') switchTab('callout'); if(typeof window.addNeonCallout === 'function') window.addNeonCallout();" },
+            { id: 'tool_neon', name: 'Neon Rozet Ekle', type: 'Araç', evalStr: "if(typeof switchTab === 'function') switchTab('font'); if(typeof window.addNeonText === 'function') window.addNeonText('fully-lit', '#00f0ff', 'NEON VURGU');" },
             { id: 'tool_text', name: 'Özel Çerçeveli Metin & Başlık Kutusu', type: 'Araç', evalStr: "if(typeof window.addCustomTextBox === 'function') window.addCustomTextBox();" },
             { id: 'tool_free_text', name: 'Serbest Yazı Ekle', type: 'Araç', evalStr: "if(typeof window.addCustomTextOnly === 'function') window.addCustomTextOnly();" },
             { id: 'tool_draw_free', name: 'Serbest Çizim (Kalem Modu)', type: 'Araç', evalStr: "if(typeof switchTab === 'function') switchTab('draw'); if(typeof setDrawMode === 'function') setDrawMode('free');" },
@@ -142,7 +142,7 @@ window.OmniSearch = {
             { id: 'tool_voiceover', name: 'Yapay Zeka Seslendirme Stüdyosu (AI Voiceover)', type: 'Araç', evalStr: "if(typeof window.openVoiceoverStudio === 'function') window.openVoiceoverStudio();" },
             { id: 'tool_ai_enhance', name: 'Yapay Zeka Fotoğraf İyileştirme & Filtreler', type: 'Araç', evalStr: "if(typeof switchTab === 'function') switchTab('photo');" },
             { id: 'tool_color_matcher', name: 'PRO Renk Paleti & Şablon Renk Eşleştirici', type: 'Araç', evalStr: "if(typeof showTemplateColorModal === 'function') showTemplateColorModal();" },
-            { id: 'tool_3d_engine', name: '3D Düzlem & Kalınlıklı Metin Yerleştirici (PRO)', type: 'Araç', evalStr: "if(window.ThreeDEngine) window.ThreeDEngine.openStudio();" },
+            { id: 'tool_3d_engine', name: '3D Düzlem & Kalınlıklı Metin Yerleştirici (PRO)', type: 'Araç', evalStr: "if(window.ThreeDEngine) { if(typeof window.ThreeDEngine.add3DText === 'function') window.ThreeDEngine.add3DText(); else window.ThreeDEngine.openStudio(); }" },
             { id: 'tool_layers', name: 'Katmanlar Paneli (Tüm Nesneleri Yönet)', type: 'Araç', evalStr: "if(typeof switchTab === 'function') switchTab('layers');" },
             { id: 'tool_qr', name: 'QR Kod Oluşturucu', type: 'Araç', evalStr: "if(typeof switchTab === 'function') switchTab('qr');" },
             { id: 'tool_font', name: 'Tipografi & Font Seçimi', type: 'Araç', evalStr: "if(typeof switchTab === 'function') switchTab('font');" },
@@ -432,6 +432,12 @@ window.OmniSearch = {
                         found.action();
                     } catch(err) {
                         console.error("Recent tool action error:", err);
+                    }
+                } else if (t.evalStr) {
+                    try {
+                        eval(t.evalStr);
+                    } catch(err) {
+                        console.error("Recent tool eval error:", err);
                     }
                 } else {
                     console.warn("Recent tool action not found in index:", t.id);

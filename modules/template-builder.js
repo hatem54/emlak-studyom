@@ -581,6 +581,7 @@
                     frame.dataset[k] = data.dataset[k];
                 });
             }
+            delete frame.dataset.dragBound;
 
             if (data.style) {
                 if (data.style.width) frame.style.width = data.style.width;
@@ -2540,7 +2541,6 @@
         },
 
         deleteCustomTemplate: function(idx) {
-            if (!confirm('Bu şablonu silmek istediğinize emin misiniz?')) return;
             this.customTemplates.splice(idx, 1);
             this.persistCustomTemplates();
             this.renderSavedTemplatesList();
@@ -2602,29 +2602,29 @@
                 `;
             } else {
                 dockGroup.innerHTML = `
+                    <button type="button" class="dock-btn" onclick="if(window.CarouselManager) CarouselManager.toggleBar()" title="Çoklu Gönderi Albüm Şeridini Aç veya Kapat">
+                        <span class="dock-icon"><i class="fa-solid fa-film"></i></span>
+                        <span class="dock-label">Çoklu Gönderi</span>
+                    </button>
                     <button type="button" class="dock-btn" onclick="TemplateBuilder.createImageFrame()" title="Yeni Görsel Çerçevesi Ekle">
                         <span class="dock-icon"><i class="fa-solid fa-image"></i></span>
                         <span class="dock-label">Çerçeve</span>
                     </button>
-                    <button type="button" class="dock-btn" onclick="if(window.TemplatePolygonFrame) TemplatePolygonFrame.startDrawing()" title="Serbest Çokgen Çerçeve Çiz">
-                        <span class="dock-icon"><i class="fa-solid fa-draw-polygon"></i></span>
-                        <span class="dock-label">Çokgen</span>
+                    <button type="button" class="dock-btn dock-snap-btn" onclick="if(typeof window.toggleSmartGuides === 'function') window.toggleSmartGuides()" title="Akıllı Manyetik Hizalamayı Aç veya Kapat">
+                        <span class="dock-icon"><i class="fa-solid fa-magnet"></i></span>
+                        <span class="dock-label">Hizalama</span>
+                    </button>
+                    <button type="button" class="dock-btn" onclick="TemplateBuilder.uploadMultiplePhotos()" title="Tüm Çerçevelere Sırayla Fotoğraf Yükle">
+                        <span class="dock-icon"><i class="fa-solid fa-images"></i></span>
+                        <span class="dock-label">Toplu Görsel</span>
                     </button>
                     <button type="button" class="dock-btn" onclick="TemplateBuilder.addInfoCard('bottom')" title="Alta Bilgi Kartı Ekle">
                         <span class="dock-icon"><i class="fa-solid fa-id-card"></i></span>
                         <span class="dock-label">Kart</span>
                     </button>
-                    <button type="button" class="dock-btn" onclick="TemplateBuilder.createImageFrame({ shape: 'cloud-fluffy' })" title="Bulut Şekilli Çerçeve Ekle">
-                        <span class="dock-icon"><i class="fa-solid fa-cloud"></i></span>
-                        <span class="dock-label">Bulut</span>
-                    </button>
-                    <button type="button" class="dock-btn" onclick="TemplateBuilder.createImageFrame({ shape: 'brush-bold' })" title="Fırça Darbesi Çerçeve Ekle">
-                        <span class="dock-icon"><i class="fa-solid fa-brush"></i></span>
-                        <span class="dock-label">Fırça</span>
-                    </button>
-                    <button type="button" class="dock-btn" onclick="TemplateBuilder.createImageFrame({ blend: 'bottom' })" title="Altı Zemine Eriyen Degrade Çerçeve">
-                        <span class="dock-icon"><i class="fa-solid fa-wand-magic-sparkles"></i></span>
-                        <span class="dock-label">Degrade</span>
+                    <button type="button" class="dock-btn" onclick="if(window.TemplatePolygonFrame) TemplatePolygonFrame.startDrawing()" title="Serbest Çokgen Çerçeve Çiz">
+                        <span class="dock-icon"><i class="fa-solid fa-draw-polygon"></i></span>
+                        <span class="dock-label">Çokgen</span>
                     </button>
                     <button type="button" class="dock-btn" onclick="TemplateBuilder.createTextFrame('heading')" title="Başlık Yazısı Ekle">
                         <span class="dock-icon"><i class="fa-solid fa-font"></i></span>

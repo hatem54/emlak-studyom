@@ -149,13 +149,36 @@
         const renderLayer = document.getElementById('canva-render-layer');
         if (!renderLayer) return;
 
-        const p = parsedData;
+        const p = JSON.parse(JSON.stringify(parsedData));
+        for (const key in p) {
+            if (typeof p[key] === 'string') {
+                p[key] = p[key].replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            } else if (typeof p[key] === 'object' && p[key] !== null) {
+                for (const subKey in p[key]) {
+                    if (typeof p[key][subKey] === 'string') {
+                        p[key][subKey] = p[key][subKey].replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                    }
+                }
+            }
+        }
+        
+        // Geriye Dönük Uyumluluk (Legacy Template Migration)
+        p.price = p.price || p.fiyat;
+        p.location = p.location || p.konum;
+        p.rooms = p.rooms || p.oda;
+        if (!p.sizes && p.metrekare) {
+            p.sizes = { brut: p.metrekare, net: p.metrekare };
+        }
+        if (!p.status && p.durum) p.status = p.durum;
+
         console.log('⚡ Parsed Data PRO Şablona aktarılıyor:', p);
 
         // 1. Fiyat
         if (p.price) {
             renderLayer.querySelectorAll('[data-field="price"]').forEach(el => {
-                el.innerHTML = p.price;
+                const textSpan = el.querySelector('span');
+                if (textSpan) textSpan.textContent = p.price;
+                else el.innerHTML = p.price;
             });
         }
 
@@ -163,25 +186,37 @@
         if (p.status || p.propertyType) {
             const statusText = p.status || p.propertyType;
             renderLayer.querySelectorAll('[data-field="badge"], [data-field="status"]').forEach(el => {
-                const icon = el.querySelector('i');
-                const iconHtml = icon ? icon.outerHTML + ' ' : '';
-                el.innerHTML = iconHtml + statusText.toUpperCase();
+                const textSpan = el.querySelector('span');
+                if (textSpan) {
+                    textSpan.textContent = statusText.toUpperCase();
+                } else {
+                    const icon = el.querySelector('i');
+                    const iconHtml = icon ? icon.outerHTML + ' ' : '';
+                    el.innerHTML = iconHtml + statusText.toUpperCase();
+                }
             });
         }
 
         // 3. Lokasyon / Konum
         if (p.location) {
             renderLayer.querySelectorAll('[data-field="location"]').forEach(el => {
-                const icon = el.querySelector('i');
-                const iconHtml = icon ? icon.outerHTML + ' ' : '';
-                el.innerHTML = iconHtml + p.location;
+                const textSpan = el.querySelector('span');
+                if (textSpan) {
+                    textSpan.textContent = p.location;
+                } else {
+                    const icon = el.querySelector('i');
+                    const iconHtml = icon ? icon.outerHTML + ' ' : '';
+                    el.innerHTML = iconHtml + p.location;
+                }
             });
         }
 
         // 4. Oda Sayısı
         if (p.rooms) {
             renderLayer.querySelectorAll('[data-field="rooms"]').forEach(el => {
-                el.innerHTML = p.rooms;
+                const textSpan = el.querySelector('span');
+                if (textSpan) textSpan.textContent = p.rooms;
+                else el.innerHTML = p.rooms;
             });
         }
 
@@ -189,7 +224,10 @@
         const sizeVal = (p.sizes && (p.sizes.brut || p.sizes.net)) ? (p.sizes.brut || p.sizes.net) : (p.size || '');
         if (sizeVal) {
             renderLayer.querySelectorAll('[data-field="size"], [data-field="m2"]').forEach(el => {
-                el.innerHTML = sizeVal.includes('m²') ? sizeVal : (sizeVal + ' m²');
+                const finalSize = sizeVal.includes('m²') ? sizeVal : (sizeVal + ' m²');
+                const textSpan = el.querySelector('span');
+                if (textSpan) textSpan.textContent = finalSize;
+                else el.innerHTML = finalSize;
             });
         }
 

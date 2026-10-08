@@ -164,7 +164,7 @@ window.SaberEngine = (function() {
         app = new PIXI.Application({
             width: w,
             height: h,
-            transparent: true,
+            backgroundAlpha: 0,
             backgroundAlpha: 0,
             antialias: true,
             resolution: 1,
@@ -201,6 +201,36 @@ window.SaberEngine = (function() {
         } else {
             if (app.ticker && !app.ticker.started) app.ticker.start();
         }
+
+        // ⚡ Otomatik DOM Temizleme Koruması (Öksüz PixiJS Neon Nesnelerini Önler)
+        try {
+            if (typeof MutationObserver !== 'undefined' && canvasContainer) {
+                const mo = new MutationObserver((mutations) => {
+                    mutations.forEach(m => {
+                        m.removedNodes.forEach(node => {
+                            if (node && node.nodeType === 1) {
+                                if ((node.classList && node.classList.contains('neon-text-el')) || (node.dataset && node.dataset.saberActive === 'true')) {
+                                    if (node.id) {
+                                        const currentEl = document.getElementById(node.id);
+                                        if (currentEl && currentEl !== node) return; // Replaced element already in DOM
+                                    }
+                                    removeTextSaber(node);
+                                } else if (node.querySelectorAll) {
+                                    node.querySelectorAll('.neon-text-el, [data-saber-active="true"]').forEach(n => {
+                                        if (n.id) {
+                                            const currentEl = document.getElementById(n.id);
+                                            if (currentEl && currentEl !== n) return;
+                                        }
+                                        removeTextSaber(n);
+                                    });
+                                }
+                            }
+                        });
+                    });
+                });
+                mo.observe(canvasContainer, { childList: true, subtree: true });
+            }
+        } catch(e) {}
         
         return app;
     }
@@ -1395,7 +1425,14 @@ window.SaberEngine = (function() {
         
         const fill = fillPixiColor;
 
-        const textContent = el.innerText || el.textContent;
+        let textContent = el.dataset.rawText;
+        if (!textContent) {
+            const cloneForText = el.cloneNode(true);
+            cloneForText.querySelectorAll('.text-handle, .callout-controls, .callout-resizer, .callout-rotator, svg').forEach(h => h.remove());
+            textContent = (cloneForText.innerText || cloneForText.textContent || '').trim();
+            if (textContent) el.dataset.rawText = textContent;
+        }
+        if (!textContent) textContent = 'NEON YAZI';
         const textAlign = computed.textAlign || 'left';
 
         // Set up PIXI Text Style
@@ -1485,8 +1522,34 @@ window.SaberEngine = (function() {
     }
 
     function removeTextSaber(id) {
-        if (!app || !app.textContainer || !app.textObjects[id]) return;
-        const obj = app.textObjects[id];
+        if (!app || !app.textContainer || !app.textObjects) return;
+        
+        let targetKey = null;
+        if (typeof id === 'string' && app.textObjects[id]) {
+            targetKey = id;
+        } else if (id && typeof id === 'object') {
+            for (const k in app.textObjects) {
+                const item = app.textObjects[k];
+                if (item && item.el === id) {
+                    targetKey = k;
+                    break;
+                }
+            }
+            if (!targetKey && id.id && app.textObjects[id.id] && app.textObjects[id.id].el === id) {
+                targetKey = id.id;
+            }
+        } else if (typeof id === 'string') {
+            for (const k in app.textObjects) {
+                const item = app.textObjects[k];
+                if (item && item.el && (item.el.id === id || item.el.dataset?.layerUid === id || (item.el.dataset && item.el.dataset.saberElId === id))) {
+                    targetKey = k;
+                    break;
+                }
+            }
+        }
+
+        if (!targetKey || !app.textObjects[targetKey]) return;
+        const obj = app.textObjects[targetKey];
         
         try {
             if (obj.pixiText) {
@@ -1497,15 +1560,31 @@ window.SaberEngine = (function() {
         } catch(e) {
             console.warn('Text saber silme hatasi:', e);
         }
-        if (obj.particleContainer) { app.textContainer.removeChild(obj.particleContainer); obj.particleContainer.destroy({children: true}); }
-        if (obj.branchContainer) { app.textContainer.removeChild(obj.branchContainer); obj.branchContainer.destroy({children: true}); }
+        if (obj.particleContainer) {
+            try {
+                if (obj.particleContainer.parent) obj.particleContainer.parent.removeChild(obj.particleContainer);
+                obj.particleContainer.destroy({children: true});
+            } catch(e) {}
+        }
+        if (obj.branchContainer) {
+            try {
+                if (obj.branchContainer.parent) obj.branchContainer.parent.removeChild(obj.branchContainer);
+                obj.branchContainer.destroy({children: true});
+            } catch(e) {}
+        }
         
         // Remove from sabers loop
         const sIdx = sabers.indexOf(obj);
         if (sIdx !== -1) sabers.splice(sIdx, 1);
         
-        delete app.textObjects[id];
+        delete app.textObjects[targetKey];
 
+        // ⚡ Statik modda tuvali anında yeniden çizerek silinen ögenin ekranda asılı kalmasını kesinlikle engelle
+        if (app.renderer && app.stage) {
+            try {
+                app.renderer.render(app.stage);
+            } catch(e) {}
+        }
     }
 
     function setTextSaberVisibility(id, isVisible = true) {
@@ -1597,8 +1676,14 @@ window.SaberEngine = (function() {
             obj.pixiText.scale.set(scale, scale);
 
             // Re-sync text content in case of inline edit
-            const textContent = obj.el.innerText || obj.el.textContent || '';
-            if (obj.pixiText.text !== textContent) {
+            let textContent = obj.el.dataset?.rawText;
+            if (!textContent) {
+                const cloneForText = obj.el.cloneNode(true);
+                cloneForText.querySelectorAll('.text-handle, .callout-controls, .callout-resizer, .callout-rotator, svg').forEach(h => h.remove());
+                textContent = (cloneForText.innerText || cloneForText.textContent || '').trim();
+                if (textContent) obj.el.dataset.rawText = textContent;
+            }
+            if (textContent && obj.pixiText.text !== textContent) {
                 obj.pixiText.text = textContent;
             }
 
@@ -1616,6 +1701,19 @@ window.SaberEngine = (function() {
             }
             if (cs.fontWeight && obj.pixiText.style.fontWeight !== cs.fontWeight) {
                 obj.pixiText.style.fontWeight = cs.fontWeight;
+            }
+            if (cs.fontStyle && obj.pixiText.style.fontStyle !== cs.fontStyle) {
+                obj.pixiText.style.fontStyle = cs.fontStyle;
+            }
+            const currentLS = cs.letterSpacing === 'normal' ? 0 : (parseFloat(cs.letterSpacing) / sf);
+            if (obj.pixiText.style.letterSpacing !== currentLS) {
+                obj.pixiText.style.letterSpacing = currentLS;
+            }
+
+            const finalMetrics = getTextCenterAndMetrics(obj.el);
+            if (finalMetrics) {
+                obj.pixiText.x = (finalMetrics.centerX - cRect.left) / sf;
+                obj.pixiText.y = (finalMetrics.centerY - cRect.top) / sf;
             }
         }
 

@@ -1071,12 +1071,20 @@
     }
 
     function bindEvents(host) {
+        // Host ve Bölüm genelinde olayların dışarı sızmasını engelle
+        const texSection = host.querySelector('#threeDTextureSection') || host;
+        ['pointerdown', 'mousedown', 'mouseup', 'pointerup'].forEach(evt => {
+            texSection.addEventListener(evt, (e) => e.stopPropagation());
+        });
+
         // Ana Doku Bölümü Akordeon Aç / Kapa
         const sectionToggle = host.querySelector('#threeDTexSectionToggle');
         const sectionBody = host.querySelector('#threeDTexSectionBody');
         const sectionChevron = host.querySelector('#threeDTexSectionChevron');
         if (sectionToggle && sectionBody) {
-            sectionToggle.addEventListener('pointerdown', (e) => e.stopPropagation());
+            ['pointerdown', 'mousedown', 'mouseup'].forEach(evt => {
+                sectionToggle.addEventListener(evt, (e) => e.stopPropagation());
+            });
             sectionToggle.addEventListener('click', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
@@ -1090,7 +1098,9 @@
 
         // Slot Seçimi
         host.querySelectorAll('.three-d-tex-slot-btn').forEach(btn => {
-            btn.addEventListener('pointerdown', (e) => e.stopPropagation());
+            ['pointerdown', 'mousedown', 'mouseup'].forEach(evt => {
+                btn.addEventListener(evt, (e) => e.stopPropagation());
+            });
             btn.addEventListener('click', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
@@ -1104,7 +1114,9 @@
 
         // Kategori Seçimi
         host.querySelectorAll('.three-d-tex-cat-chip').forEach(chip => {
-            chip.addEventListener('pointerdown', (e) => e.stopPropagation());
+            ['pointerdown', 'mousedown', 'mouseup'].forEach(evt => {
+                chip.addEventListener(evt, (e) => e.stopPropagation());
+            });
             chip.addEventListener('click', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
@@ -1120,7 +1132,9 @@
         const accBox = host.querySelector('#threeDTexAccBox');
         const accChevron = host.querySelector('#threeDTexAccChevron');
         if (accToggle && accBox) {
-            accToggle.addEventListener('pointerdown', (e) => e.stopPropagation());
+            ['pointerdown', 'mousedown', 'mouseup'].forEach(evt => {
+                accToggle.addEventListener(evt, (e) => e.stopPropagation());
+            });
             accToggle.addEventListener('click', (e) => {
                 e.preventDefault();
                 e.stopPropagation();

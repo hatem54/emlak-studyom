@@ -275,6 +275,9 @@ window.filterLucideIcons = function(query) {
 }
 
 function addIcon(ch){
+    if (window.CanvasEmptyState && typeof window.CanvasEmptyState.dismiss === 'function') {
+        window.CanvasEmptyState.dismiss();
+    }
     const svgStr = (ch && typeof ch === 'object' && ch.svg) ? ch.svg : (typeof ch === 'string' ? ch : '');
     const itemName = (ch && typeof ch === 'object' && ch.name) ? ch.name : '';
 
@@ -378,20 +381,15 @@ window._iconsDeleteSelected = function(){
         if (typeof window.recordHistory === 'function') window.recordHistory('Öğe silindi');
         if (typeof requestAutoSave === 'function') requestAutoSave();
     }else{
-        selectedEl.style.display=selectedEl.style.display==='none'?'block':'none';
+        if (window.SaberEngine && typeof window.SaberEngine.removeTextSaber === 'function') {
+            window.SaberEngine.removeTextSaber(selectedEl);
+        }
+        document.querySelectorAll('.text-handle').forEach(h => h.remove());
+        selectedEl.remove();
+        if (typeof window.recordHistory === 'function') window.recordHistory('Öğe silindi');
         if (typeof requestAutoSave === 'function') requestAutoSave();
     }
     deselectAll();
-};
-
-window.deleteSelected = function(){
-    if (window.ThreeDEngine && typeof window.ThreeDEngine.isActive === 'function' && window.ThreeDEngine.isActive()) {
-        if (typeof window.ThreeDEngine.delete3DElement === 'function') {
-            window.ThreeDEngine.delete3DElement();
-            return;
-        }
-    }
-    window._iconsDeleteSelected();
 };
 
 window.deleteAllIcons = function(){

@@ -395,7 +395,7 @@ window.applyCanvaTabTemplate = function(catId, idx) {
     const featsText = [...new Set(featsLines)].slice(0, 4).join('\n');
 
     // 5. Her şablon modülü için girdi alanlarını doldur
-    const titlePrefixes = ['canvaTitle', 'canvaLTitle', 'canvaETitle', 'canvaDTitle', 'canvaMTitle', 'canvaKTitle', 'canvaPTitle', 'canvaSTitle', 'canvaCTitle', 'canvaOTitle'];
+    const titlePrefixes = ['canvaTitle', 'canvaLTitle', 'canvaETitle', 'canvaDTitle', 'canvaMTitle', 'canvaKTitle', 'canvaKurumsalTitle', 'canvaPTitle', 'canvaSTitle', 'canvaCTitle', 'canvaOTitle'];
     titlePrefixes.forEach(tid => {
         const el = document.getElementById(tid);
         if (el && titleVal) {
@@ -404,7 +404,7 @@ window.applyCanvaTabTemplate = function(catId, idx) {
         }
     });
 
-    const pricePrefixes = ['canvaPrice', 'canvaLPrice', 'canvaEPrice', 'canvaDPrice', 'canvaMPrice', 'canvaKPrice', 'canvaPPrice', 'canvaSPrice', 'canvaCPrice', 'canvaOPrice'];
+    const pricePrefixes = ['canvaPrice', 'canvaLPrice', 'canvaEPrice', 'canvaDPrice', 'canvaMPrice', 'canvaKPrice', 'canvaKurumsalPrice', 'canvaPPrice', 'canvaSPrice', 'canvaCPrice', 'canvaOPrice'];
     pricePrefixes.forEach(pid => {
         const el = document.getElementById(pid);
         if (el && priceVal) {
@@ -413,7 +413,7 @@ window.applyCanvaTabTemplate = function(catId, idx) {
         }
     });
 
-    const featsPrefixes = ['canvaFeatures', 'canvaLFeats', 'canvaEFeats', 'canvaDFeats', 'canvaMFeats', 'canvaKFeats', 'canvaPFeats', 'canvaSFeats', 'canvaCFeats', 'canvaOFeats'];
+    const featsPrefixes = ['canvaFeatures', 'canvaLFeats', 'canvaEFeats', 'canvaDFeats', 'canvaMFeats', 'canvaKFeats', 'canvaKurumsalFeats', 'canvaPFeats', 'canvaSFeats', 'canvaCFeats', 'canvaOFeats'];
     featsPrefixes.forEach(fid => {
         const el = document.getElementById(fid);
         if (el && featsText) {
@@ -1205,11 +1205,7 @@ window.switchAiMainTab = function(tabName) {
 window.copyAiMainText = function() {
     const aiText = document.getElementById("aiText");
     if (aiText && aiText.value) {
-        navigator.clipboard.writeText(aiText.value).then(() => {
-            if (typeof window.showAppToast === "function") {
-                window.showAppToast("Metin başarıyla kopyalandı!", "success");
-            }
-        });
+        navigator.clipboard.writeText(aiText.value);
     }
 };
 
@@ -1220,9 +1216,6 @@ window.applyAiMainToDesc = function() {
         descInput.value = aiText.value;
         if (typeof window.onDescInputChanged === "function") {
             window.onDescInputChanged();
-        }
-        if (typeof window.showAppToast === "function") {
-            window.showAppToast("Metin açıklama kutusuna aktarıldı!", "success");
         }
     }
 };

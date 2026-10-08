@@ -176,6 +176,9 @@ function enableInlineEdit(el) {
         sel.addRange(range);
 
         const handleInput = function() {
+            if (el.classList.contains('neon-text-el') || el.dataset.saberActive === 'true') {
+                el.dataset.rawText = el.textContent.trim();
+            }
             if (window.SaberEngine && typeof window.SaberEngine.updateTextSaberPositions === 'function') {
                 window.SaberEngine.updateTextSaberPositions();
             }
@@ -189,10 +192,15 @@ function enableInlineEdit(el) {
             if (!el.textContent.trim()) {
                 el.textContent = 'Metin';
             }
+            if (el.classList.contains('neon-text-el') || el.dataset.saberActive === 'true') {
+                el.dataset.rawText = el.textContent.trim();
+            }
             
-            // Restore handles if still selected
+            // Restore handles if still selected (yalnızca serbest kanvas ögeleri için)
             if (el.classList.contains('el-selected') && typeof window.addTextHandles === 'function') {
-                window.addTextHandles(el);
+                if (!el.classList.contains('editable-text') && !el.closest('#canva-render-layer, .cvr-base, .canva-panel, .canva-generated')) {
+                    window.addTextHandles(el);
+                }
             }
 
             if (window.SaberEngine && typeof window.SaberEngine.updateTextSaberPositions === 'function') {
@@ -242,80 +250,99 @@ window.showAppToast = function(message, type = 'info', durationMs = 2800) {
             oldToast.remove();
         }
 
+        const isDark = document.documentElement.getAttribute('data-theme') === 'dark' || 
+                       (document.body && document.body.getAttribute('data-theme') === 'dark');
+
+        // Durum belirteçleri ve ikonları (Tek İkon Kuralı: Saf FontAwesome)
+        let iconHtml = '<i class="fa-solid fa-circle-info" style="color: #0284c7; font-size: 15px; flex-shrink: 0;"></i>';
+        let accentBorder = '#0284c7';
+
+        if (type === 'success') {
+            iconHtml = '<i class="fa-solid fa-circle-check" style="color: #10b981; font-size: 15px; flex-shrink: 0;"></i>';
+            accentBorder = '#10b981';
+        } else if (type === 'error') {
+            iconHtml = '<i class="fa-solid fa-circle-exclamation" style="color: #ef4444; font-size: 15px; flex-shrink: 0;"></i>';
+            accentBorder = '#ef4444';
+        } else if (type === 'warning') {
+            iconHtml = '<i class="fa-solid fa-triangle-exclamation" style="color: #f59e0b; font-size: 15px; flex-shrink: 0;"></i>';
+            accentBorder = '#f59e0b';
+        }
+
+        // Dolgulu parlak renkli kutu YASAK: Standart uygulama yüzeyi mikro-gradyanı
+        const bg = isDark 
+            ? 'linear-gradient(180deg, #1e293b 0%, #0f172a 100%)' 
+            : 'linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)';
+        const textColor = isDark ? '#f8fafc' : '#0f172a';
+        const borderColor = isDark ? 'rgba(108, 92, 231, 0.3)' : '#cbd5e1';
+        const shadow = isDark 
+            ? '0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 4px 6px -2px rgba(0, 0, 0, 0.3)' 
+            : '0 10px 25px -5px rgba(15, 23, 42, 0.12), 0 4px 6px -2px rgba(15, 23, 42, 0.05)';
+
+        const isMobile = (typeof window !== 'undefined' && window.innerWidth <= 768);
+
         const toast = document.createElement('div');
         toast.id = 'appGlobalToast';
         toast.setAttribute('role', 'alert');
 
-        // Renk paleti - Varsayılan / info: Klasik Emlak Stüdiom Derin Kraliyet Mavisi (#1d4ed8 -> #2563eb)
-        let bg = 'linear-gradient(135deg, #1d4ed8 0%, #2563eb 100%)';
-        let defaultIcon = '💡';
-        let shadow = '0 10px 25px -5px rgba(37, 99, 235, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.35)';
-
-        if (type === 'success') {
-            bg = 'linear-gradient(135deg, #059669 0%, #10b981 100%)';
-            defaultIcon = '✨';
-            shadow = '0 10px 25px -5px rgba(16, 185, 129, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.35)';
-        } else if (type === 'error') {
-            bg = 'linear-gradient(135deg, #b91c1c 0%, #ef4444 100%)';
-            defaultIcon = '⚠️';
-            shadow = '0 10px 25px -5px rgba(239, 68, 68, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.35)';
-        } else if (type === 'warning') {
-            bg = 'linear-gradient(135deg, #d97706 0%, #f59e0b 100%)';
-            defaultIcon = '⚡';
-            shadow = '0 10px 25px -5px rgba(245, 158, 11, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.35)';
-        }
-
-        const isMobile = (typeof window !== 'undefined' && window.innerWidth <= 768);
-
         toast.style.cssText = `
             position: fixed;
-            top: ${isMobile ? '16px' : '24px'};
-            ${isMobile ? 'left: 50%; right: auto; width: calc(100% - 32px); max-width: 380px;' : 'right: 24px; left: auto; max-width: 440px;'}
-            transform: ${isMobile ? 'translate(-50%, -16px)' : 'translateY(-16px)'};
+            top: ${isMobile ? '16px' : '22px'};
+            ${isMobile ? 'left: 50%; right: auto; width: calc(100% - 32px); max-width: 380px;' : 'right: 24px; left: auto; max-width: 420px;'}
+            transform: ${isMobile ? 'translate(-50%, -12px)' : 'translateY(-12px)'};
             background: ${bg};
-            color: #ffffff;
-            padding: 12px 20px;
-            border-radius: 12px;
-            border: 1px solid rgba(255, 255, 255, 0.25);
+            color: ${textColor};
+            padding: 10px 16px;
+            border-radius: 8px;
+            border: 1px solid ${borderColor};
+            border-left: 3.5px solid ${accentBorder};
             box-shadow: ${shadow};
-            font-family: 'Space Grotesk', 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
-            font-size: 13.5px;
+            font-family: 'ClassicAmpersand', 'Space Grotesk', system-ui, -apple-system, sans-serif;
+            font-size: 12.5px;
             font-weight: 600;
-            letter-spacing: 0.2px;
-            line-height: 1.45;
+            letter-spacing: 0.15px;
+            line-height: 1.4;
             display: flex;
             align-items: center;
-            justify-content: ${isMobile ? 'center' : 'flex-start'};
+            justify-content: flex-start;
             gap: 10px;
             opacity: 0;
             z-index: 999999999;
             pointer-events: auto;
             cursor: pointer;
-            transition: opacity 0.26s cubic-bezier(0.16, 1, 0.3, 1), transform 0.26s cubic-bezier(0.16, 1, 0.3, 1);
+            transition: opacity 0.22s cubic-bezier(0.16, 1, 0.3, 1), transform 0.22s cubic-bezier(0.16, 1, 0.3, 1);
             user-select: none;
-            backdrop-filter: blur(8px);
-            -webkit-backdrop-filter: blur(8px);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
         `;
 
-        // Eğer mesaj başında emoji veya ikon yoksa varsayılan ikon ekle
-        const msgStr = String(message || '');
-        const hasLeadingEmoji = /^[^\p{L}\p{N}\s]/u.test(msgStr.trim());
-        const contentHtml = hasLeadingEmoji ? msgStr : `<span style="font-size:16px;">${defaultIcon}</span> <span>${msgStr}</span>`;
-        toast.innerHTML = contentHtml;
+        // Tek İkon Kuralı: Mesaj başındaki emojileri otomatik temizle
+        let cleanText = String(message || '')
+            .replace(/^[\s\uFE0F\u200D\u{1F300}-\u{1F9FF}\u{2600}-\u{27BF}\u{1FA00}-\u{1FAFF}\u{2300}-\u{23FF}]+[:\s-]*/u, '')
+            .trim();
+
+        // Parantez içi yönlendirmeleri ayıkla
+        cleanText = cleanText.replace(/\s*\([^)]{1,25}\)$/, '');
+
+        toast.innerHTML = `
+            ${iconHtml}
+            <span style="flex: 1; word-break: break-word;">${cleanText}</span>
+            <span style="opacity: 0.5; font-size: 11px; margin-left: 4px; flex-shrink: 0;" title="Kapat">
+                <i class="fa-solid fa-xmark"></i>
+            </span>
+        `;
 
         const dismissToast = () => {
             if (!toast || !toast.parentNode) return;
             toast.style.opacity = '0';
-            toast.style.transform = isMobile ? 'translate(-50%, -16px)' : 'translateY(-16px)';
+            toast.style.transform = isMobile ? 'translate(-50%, -12px)' : 'translateY(-12px)';
             setTimeout(() => {
                 if (toast && toast.parentNode) toast.parentNode.removeChild(toast);
-            }, 280);
+            }, 240);
         };
 
         toast.addEventListener('click', dismissToast);
         document.body.appendChild(toast);
 
-        // Giriş animasyonu
         requestAnimationFrame(() => {
             toast.style.opacity = '1';
             toast.style.transform = isMobile ? 'translate(-50%, 0)' : 'translateY(0)';

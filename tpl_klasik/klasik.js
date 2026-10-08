@@ -1,4 +1,4 @@
-/* ============================================================
+﻿/* ============================================================
    Klasik Şablon Seti - V3 (UNIQUE PRO)
 ============================================================ */
 
@@ -8,20 +8,7 @@ function _klasikInit(){
         setTimeout(_klasikInit, 500);
         return;
     }
-    container.innerHTML = `
-        <div class="section-title" style="margin-top:0"><i class="fa-solid fa-wand-magic-sparkles" style="color:#0284c7; margin-right:6px;"></i>Hızlı Metin Düzenleyici</div>
-        <div class="input-group"><label>Ana Ba&#351;l&#305;k (Title)</label><input type="text" id="canvaCTitle" value="SATILIK M&#220;STAK&#304;L EV"></div>
-        <div class="input-group"><label>Fiyat</label><input type="text" id="canvaCPrice" value="12.500.000 TL"></div>
-        <div class="input-group"><label>&#304;leti&#351;im</label><input type="text" id="canvaCContact" value="EMLAK STUDYOM | 0532 000 0000"></div>
-        <div class="input-group"><label>&#214;zellikler (Alt alta)</label><textarea id="canvaCFeats" rows="4">Yeni Yap&#305;\nL&#252;ks Donan&#305;m\nMerkezi Konum</textarea></div>
-        
-        
-        `;
-
-    ['canvaCTitle','canvaCPrice','canvaCContact','canvaCFeats'].forEach(id=>{
-        const el = document.getElementById(id);
-        if(el) el.addEventListener('input', () => { if(isCanvaMode) renderCTemplate(activeCanvaId) });
-    });
+    container.innerHTML = '';
     buildCCards();
 }
 
@@ -31,23 +18,15 @@ function buildCCards(){
         grid = document.createElement('div');
         grid.className = 'canva-tpl-grid';
         grid.id = 'canvaTplGridC';
-        const cont = document.getElementById('tpl-content-klasik'); if(cont) cont.insertBefore(grid, cont.firstChild);
+        const cont = document.getElementById('tpl-content-klasik');
+        if(cont) cont.appendChild(grid);
     }
     grid.innerHTML = '';
     if(typeof KLASIK_CARDS !== 'undefined') {
         KLASIK_CARDS.forEach((c, idx) => {
-            const card = document.createElement('div');
-            card.className = 'canva-tpl-card';
-            card.dataset.id = c.id;
-            const tBg = 'linear-gradient(135deg, '+c.bg1+', '+c.bg2+')';
-            card.innerHTML = '<div class="tpl-preview" style="display:flex;gap:0;border-radius:4px;overflow:hidden;background:'+tBg+'"><div style="flex:1;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:2px;padding:4px;background:rgba(0,0,0,0.3)"><div style="font-size:13px;font-weight:900;color:'+c.accent+'">PRO</div><div style="font-size:10px;color:#fff">YEN&#304; KALIP '+(idx+1)+'</div></div></div>';
-            card.onclick = () => {
-                if(card.classList.contains('active')) return;
-                document.querySelectorAll('#canvaTplGridC .canva-tpl-card').forEach(x => x.classList.remove('active'));
-                card.classList.add('active');
-                activeCanvaId = c.id;
-                renderCTemplate(c.id);
-            };
+            const card = window.createTemplateCard(c, idx, 'Klasik', (id) => {
+                renderCTemplate(id);
+            });
             grid.appendChild(card);
         });
     }
@@ -55,13 +34,24 @@ function buildCCards(){
 
 function renderCTemplate(id){
     if(!id) return;
+    if (typeof id === 'object' && id && id.id) id = id.id;
+    window.activeCanvaId = id;
+    if (typeof activeCanvaId !== 'undefined') activeCanvaId = id;
+    window.lastActiveTemplateId = id;
+    if (typeof canvaRenderLayer !== 'undefined' && canvaRenderLayer) canvaRenderLayer.dataset.activeTemplateId = id;
+    window.isCanvaMode = true;
+    isCanvaMode = true;
+    if (window.CanvasEmptyState && typeof window.CanvasEmptyState.dismiss === 'function') {
+        window.CanvasEmptyState.dismiss();
+    } else {
+        const es = document.getElementById('canvasEmptyState');
+        if (es) { es.classList.add('is-hidden'); es.style.display = 'none'; }
+    }
     if(typeof _kolajTemizle === 'function') _kolajTemizle();
     document.querySelectorAll('.normal-el').forEach(el => el.style.display = 'none');
-      document.querySelectorAll('.canva-generated, .canva-panel').forEach(e => e.remove());
-      var baseCanvas = document.getElementById('draw-layer');
-      // if(baseCanvas) { var ctx = baseCanvas.getContext('2d'); ctx.clearRect(0,0,1920,1080); }
+    document.querySelectorAll('.canva-generated, .canva-panel').forEach(e => e.remove());
+    var baseCanvas = document.getElementById('draw-layer');
     document.querySelectorAll('.template-btn').forEach(b => b.classList.remove('active'));
-    isCanvaMode = true;
     
     if(typeof elLogo !== 'undefined' && elLogo && elLogo.src && elLogo.src !== window.location.href) {
         elLogo.style.visibility = 'visible'; elLogo.style.top = 'auto'; elLogo.style.left = 'auto'; elLogo.style.bottom = '50px'; elLogo.style.right = '50px';
@@ -69,13 +59,16 @@ function renderCTemplate(id){
     photoLayer.style.display = 'none';
     canvaRenderLayer.style.display = 'block';
 
-    const title = $('canvaCTitle').value.toUpperCase();
-    const price = $('canvaCPrice').value;
-    const contact = $('canvaCContact').value;
-    const featsArr = $('canvaCFeats').value.split('\n').filter(x => x.trim().length > 0);
-    const feats = featsArr.map(l => '<div style="margin-bottom:8px;">• ' + l + '</div>').join('');
+    const tData = (typeof window.getUnifiedTemplateData === 'function')
+        ? window.getUnifiedTemplateData()
+        : { title: 'SATILIK MÜSTAKİL EV', price: '12.500.000 TL', contact: 'EMLAK STUDYOM | 0532 000 00 00', feats: '• Yeni Yapı<br>• Lüks Donanım' };
+
+    const title = tData.title;
+    const price = tData.price;
+    const contact = tData.contact;
+    const feats = tData.feats;
     
-    const bgImg = uploadedImgUrl ? "background-image:url('" + uploadedImgUrl + "')" : "background-color:#94a3b8";
+    const bgImg = (typeof window.getTemplateActiveBg === 'function') ? window.getTemplateActiveBg('Klasik') : (uploadedImgUrl ? "background-image:url('" + uploadedImgUrl + "')" : "background-image:url('assets/luxury_villa.jpg')");
     const x = $('photoXCtrl') ? $('photoXCtrl').value : 50;
     const y = $('photoYCtrl') ? $('photoYCtrl').value : 50;
     const bgPos = bgImg + ";background-position:" + x + "% " + y + "%;background-size:cover;";
@@ -127,6 +120,9 @@ function renderCTemplate(id){
         if(typeof redrawAll === 'function') redrawAll();
     });
 }
+window.renderCTemplate = renderCTemplate;
 setTimeout(_klasikInit, 200);
+
+
 
 

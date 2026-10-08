@@ -63,52 +63,25 @@ function _kolajInit(){
 
 function _kolajPanelHTML(){
     return ''+
-        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;">'+
-            '<button class="btn-action btn-blue" onclick="_kolajGeriAl()"><i class="fa-solid fa-rotate-left"></i> Geri Al</button>'+
-            '<button class="btn-action btn-purple" onclick="_kolajSifirla()"><i class="fa-solid fa-arrows-rotate"></i> Sıfırla</button>'+
+        '<div style="display:flex;gap:6px;margin-bottom:10px;">'+
+            '<button class="btn-action" onclick="_kolajTopluFotoSec()" style="flex:2;"><i class="fa-solid fa-images"></i> Toplu Görsel Seç</button>'+
+            '<button class="btn-action" onclick="_kolajGeriAl()" style="flex:1;" title="Geri Al"><i class="fa-solid fa-rotate-left"></i> Geri Al</button>'+
+            '<button class="btn-action" onclick="_kolajSifirla()" style="flex:1;" title="Sıfırla"><i class="fa-solid fa-arrows-rotate"></i> Sıfırla</button>'+
         '</div>'+
-        '<div class="section-title"><i class="fa-solid fa-shapes" style="color:#0284c7; margin-right:6px;"></i>Kolaj Şablonları</div>'+
-        ''+
-        '<div class="template-grid" id="kolajGrid"></div>'+
-        '<button class="btn-action btn-cyan" onclick="_kolajTopluFotoSec()" style="width:100%;margin-top:10px;margin-bottom:15px;display:flex;align-items:center;justify-content:center;gap:6px;font-weight:700;"><i class="fa-solid fa-images"></i> Toplu Görsel Seç</button>'+
+        '<div class="canva-tpl-grid" id="kolajGrid"></div>'+
         
-        '<div class="section-title"><i class="fa-solid fa-image" style="color:#0284c7; margin-right:6px;"></i>Arka Plan</div>'+
-        '<div class="row-2">'+
-            '<div class="input-group"><label>Renk 1</label><input type="color" id="kolajBgRenk1" value="#0d1b3d" style="width:100%;height:40px;"></div>'+
-            '<div class="input-group"><label>Renk 2</label><input type="color" id="kolajBgRenk2" value="#1a2f5c" style="width:100%;height:40px;"></div>'+
-        '</div>'+
-        '<button class="btn-action btn-purple" onclick="_kolajBgUygula()" style="width:100%;margin-bottom:15px;"><i class="fa-solid fa-palette"></i> Arka Planı Uygula</button>'+
-        
-        '<div class="section-title"><i class="fa-solid fa-clipboard-list" style="color:#0284c7; margin-right:6px;"></i>KOLAJ BİLGİLERİ</div>'+
-        '<div class="input-group"><label>Başlık</label><input type="text" id="kolajBaslik" value="SATILIK LÜKS DAİRE"></div>'+
-        '<div class="input-group"><label>Alt Başlık</label><input type="text" id="kolajAltBaslik" value="MERKEZİ KONUM"></div>'+
-        '<div class="input-group"><label><i class="fa-solid fa-coins" style="color:#0284c7; margin-right:4px;"></i>Fiyat</label><input type="text" id="kolajFiyat" value="6.750.000 TL"></div>'+
-        '<div class="row-2">'+
-            '<div class="input-group"><label>Özellik 1</label><input type="text" id="kolajOzellik1" value="4+1"></div>'+
-            '<div class="input-group"><label>Özellik 2</label><input type="text" id="kolajOzellik2" value="180 m²"></div>'+
-        '</div>'+
-        '<div class="input-group"><label>Özellik 3</label><input type="text" id="kolajOzellik3" value="Doğalgaz"></div>'+
-        '<div class="input-group"><label><i class="fa-solid fa-phone" style="color:#0284c7; margin-right:4px;"></i>Telefon</label><input type="text" id="kolajTelefon" value="0532 000 00 00"></div>'+
-        '<div class="input-group"><label>Açıklama</label><input type="text" id="kolajAciklama" value="Merkezi konumda profesyonel yaşam alanı"></div>'+
-        
-        // Seçili çerçeve editörü (dinamik doldurulacak)
-        '<div id="cerceveEditor" style="display:none;margin-top:15px;padding-top:10px;border-top:1px solid #e2e8f0;">'+
+        // Seçili çerçeve editörü (çerçeveye tıklandığında açılır)
+        '<div id="cerceveEditor" style="display:none;margin-top:12px;padding-top:10px;border-top:1px solid #e2e8f0;">'+
             '<div class="section-title"><i class="fa-solid fa-border-all" style="color:#0284c7; margin-right:6px;"></i>Seçili Çerçeve</div>'+
             '<div id="cerceveEditorIcerik"></div>'+
         '</div>';
 }
 
 function _kolajBilgiInputlariBind(){
-    var alanlar = ['Baslik','AltBaslik','Fiyat','Ozellik1','Ozellik2','Ozellik3','Telefon','Aciklama'];
-    alanlar.forEach(function(a){
-        var el = document.getElementById('kolaj'+a);
-        if(el){
-            el.addEventListener('input', function(){
-                _kolajBilgiler[a.charAt(0).toLowerCase()+a.slice(1)] = el.value;
-                _kolajBilgiGuncelle();
-            });
-        }
-    });
+    // Metinler merkezi tpl-content-info panelinden senkronize edilir
+    if (typeof window.syncKolajFromForm === 'function') {
+        window.syncKolajFromForm();
+    }
 }
 
 window._kolajBilgiler = _kolajBilgiler;
@@ -116,124 +89,21 @@ window._kolajBilgiler = _kolajBilgiler;
 window.syncKolajFromForm = function() {
     try {
         if (typeof _kolajBilgiler === 'undefined') return;
-
-        // 1. Başlık (Giriş sekmesindeki rozet veya seçili kategori)
-        var badge = '';
-        var statusEl = document.getElementById('statusInput');
-        if (statusEl && statusEl.value) {
-            badge = statusEl.value;
-        } else if (window.propertyForms && window.currentMode && window.propertyForms[window.currentMode]) {
-            badge = window.propertyForms[window.currentMode].badge;
-        } else if (document.getElementById('canvaTitle') && document.getElementById('canvaTitle').value) {
-            badge = document.getElementById('canvaTitle').value;
+        var tData = (typeof window.getUnifiedTemplateData === 'function')
+            ? window.getUnifiedTemplateData()
+            : null;
+        if (tData) {
+            _kolajBilgiler.baslik = tData.title || 'SATILIK LÜKS DAİRE';
+            _kolajBilgiler.fiyat = tData.price || '6.750.000 TL';
+            _kolajBilgiler.altBaslik = tData.sub || 'MERKEZİ KONUM';
+            _kolajBilgiler.telefon = tData.contact ? tData.contact.replace(/^EMLAK STÜDYOM\s*\|\s*/i, '') : '0532 000 00 00';
+            
+            var lines = tData.featsLines || [];
+            _kolajBilgiler.ozellik1 = lines[0] || '4+1';
+            _kolajBilgiler.ozellik2 = lines[1] || '180 m²';
+            _kolajBilgiler.ozellik3 = lines[2] || 'Merkezi Konum';
+            _kolajBilgiler.aciklama = lines[3] || (lines[0] ? lines.join(' • ') : 'Merkezi konumda profesyonel yaşam alanı');
         }
-        if (badge) {
-            _kolajBilgiler.baslik = badge;
-            var elBaslik = document.getElementById('kolajBaslik');
-            if (elBaslik) elBaslik.value = badge;
-        }
-
-        // 2. Fiyat
-        var price = '';
-        var priceEl = document.getElementById('priceInput');
-        if (priceEl && priceEl.value) {
-            price = priceEl.value;
-        } else if (window.propertyForms && window.currentMode && window.propertyForms[window.currentMode] && window.propertyForms[window.currentMode].fields && window.propertyForms[window.currentMode].fields[0]) {
-            price = window.propertyForms[window.currentMode].fields[0].value;
-        }
-        if (price) {
-            _kolajBilgiler.fiyat = price;
-            var elFiyat = document.getElementById('kolajFiyat');
-            if (elFiyat) elFiyat.value = price;
-        }
-
-        // 3. Özellikler: Mevcut form alanlarından en fazla 3 tanesini al (Kolaj yapısını bozmadan)
-        var rawFeats = [];
-        if (window.currentMode === 'custom') {
-            ['c_v1', 'c_v2', 'c_v3', 'c_v4'].forEach(function(cid){
-                var ce = document.getElementById(cid);
-                if (ce && ce.value.trim()) rawFeats.push(ce.value.trim());
-            });
-        } else if (window.propertyForms && window.currentMode && window.propertyForms[window.currentMode]) {
-            var config = window.propertyForms[window.currentMode];
-            config.fields.forEach(function(f){
-                if (f.id === 'priceInput') return;
-                var inputEl = document.getElementById(f.id);
-                var val = inputEl ? inputEl.value : (f.value || '');
-                if (val && val.toLowerCase() !== 'yok') {
-                    rawFeats.push(val);
-                }
-            });
-            var extraContainer = document.getElementById('dynamicExtraFields') || (window.currentMode && document.getElementById(window.currentMode + 'ExtraFields'));
-            if (extraContainer) {
-                var rows = extraContainer.querySelectorAll('.extra-field-row, .row-2');
-                rows.forEach(function(r){
-                    var valInput = r.querySelector('.extra-val-input') || r.querySelector('input:nth-child(2)') || r.querySelector('input:nth-child(3)');
-                    if (valInput && valInput.value.trim()) {
-                        rawFeats.push(valInput.value.trim());
-                    }
-                });
-            }
-        }
-
-        if (rawFeats.length > 0 && rawFeats[0]) {
-            _kolajBilgiler.ozellik1 = rawFeats[0];
-            var elO1 = document.getElementById('kolajOzellik1');
-            if (elO1) elO1.value = rawFeats[0];
-        }
-        if (rawFeats.length > 1 && rawFeats[1]) {
-            _kolajBilgiler.ozellik2 = rawFeats[1];
-            var elO2 = document.getElementById('kolajOzellik2');
-            if (elO2) elO2.value = rawFeats[1];
-        }
-        if (rawFeats.length > 2 && rawFeats[2]) {
-            _kolajBilgiler.ozellik3 = rawFeats[2];
-            var elO3 = document.getElementById('kolajOzellik3');
-            if (elO3) elO3.value = rawFeats[2];
-        }
-
-        // 4. Alt Başlık (Konum veya İkincil Bilgi)
-        var loc = '';
-        var locInputs = ['f_lokasyon', 'f_konum', 'f_mahalle', 'locInput', 'canvaLocation'];
-        for (var i = 0; i < locInputs.length; i++) {
-            var le = document.getElementById(locInputs[i]);
-            if (le && le.value && le.value.trim()) { loc = le.value.trim(); break; }
-        }
-        if (loc) {
-            _kolajBilgiler.altBaslik = loc.toUpperCase();
-            var elAlt = document.getElementById('kolajAltBaslik');
-            if (elAlt) elAlt.value = loc.toUpperCase();
-        }
-
-        // 5. Telefon
-        var tel = '';
-        var telInputs = ['contactInput', 'canvaContact', 'phoneInput', 'canvaCContact', 'canvaLContact'];
-        for (var j = 0; j < telInputs.length; j++) {
-            var te = document.getElementById(telInputs[j]);
-            if (te && te.value && /\d{7,}/.test(te.value)) {
-                var m = te.value.match(/(?:0\s*5\d{2}[\s\d]{7,12}|\b\d{10,11}\b)/);
-                tel = m ? m[0].trim() : te.value.trim();
-                break;
-            }
-        }
-        if (tel) {
-            _kolajBilgiler.telefon = tel;
-            var elTel = document.getElementById('kolajTelefon');
-            if (elTel) elTel.value = tel;
-        }
-
-        // 6. Açıklama
-        var descInput = document.getElementById('descInput');
-        if (descInput && descInput.value.trim()) {
-            var firstLine = descInput.value.split('\n')[0].trim();
-            if (firstLine) {
-                _kolajBilgiler.aciklama = firstLine;
-                var elDesc = document.getElementById('kolajAciklama');
-                if (elDesc) elDesc.value = firstLine;
-            }
-        }
-
-        // Eğer tuvalde aktif kolaj varsa metinlerini anında güncelle
         if (typeof _kolajBilgiGuncelle === 'function') {
             _kolajBilgiGuncelle();
         }
@@ -251,53 +121,63 @@ function _kolajBilgiGuncelle(){
     });
 }
 
-function _kolajBgUygula(){
+function _kolajBgUygula(color1, color2){
     var wrap = document.getElementById('kolaj-wrapper');
     if(!wrap) return;
-    var r1 = document.getElementById('kolajBgRenk1').value;
-    var r2 = document.getElementById('kolajBgRenk2').value;
+    var r1El = document.getElementById('kolajBgRenk1');
+    var r2El = document.getElementById('kolajBgRenk2');
+    var r1 = color1 || (r1El ? r1El.value : '#0d1b3d');
+    var r2 = color2 || (r2El ? r2El.value : '#1a2f5c');
     wrap.style.background = 'linear-gradient(135deg,'+r1+' 0%,'+r2+' 100%)';
     _kolajDurumKaydet();
 }
 
 // ==================== 10 ŞABLON ====================
 var KOLAJ_SABLONLARI = [
-    {id:1,  ad:'🏢 Kurumsal Ofis',    fn:'_kolaj1',  bg1:'#0d1b3d', bg2:'#1a2f5c'},
-    {id:2,  ad:'🏠 Modern Daire',     fn:'_kolaj2',  bg1:'#000000', bg2:'#1a1a1a'},
-    {id:3,  ad:'🌿 Doğa & Arazi',     fn:'_kolaj3',  bg1:'#0d3520', bg2:'#1a5c3a'},
-    {id:4,  ad:'🌊 Deniz Manzara',    fn:'_kolaj4',  bg1:'#0a2540', bg2:'#1e5f8e'},
-    {id:5,  ad:'💎 Lüks Rezidans',    fn:'_kolaj5',  bg1:'#3d0d1b', bg2:'#5c1a2f'},
-    {id:6,  ad:'❄️ Buzul Kristali',  fn:'_kolaj6',  bg1:'#a8d5e2', bg2:'#5b9bb8'},
-    {id:7,  ad:'📰 Minimalist Tarz', fn:'_kolaj7',  bg1:'#faf8f3', bg2:'#ede7d9'},
-    {id:8,  ad:'🌿 Botanica Portföy',  fn:'_kolaj8',  bg1:'#1a3a2a', bg2:'#2d5c42'},
-    {id:9,  ad:'💎 Diamond Butik', fn:'_kolaj9',  bg1:'#0f1a2e', bg2:'#1a2a44'},
-    {id:10, ad:'💠 Elmas Magazine',   fn:'_kolaj10', bg1:'#1a1a2e', bg2:'#16213e'}
+    {id:'kolaj1',  name:'Sol Bilgi & 4 Vitrin',    fn:'_kolaj1',  tag:'4 Foto', layout:'kolaj-1', desc:'Sol sütun, geniş vitrin, 3 kare', bg1:'#0d1b3d', bg2:'#1a2f5c', accent:'#c9a961'},
+    {id:'kolaj2',  name:'Geniş Hero & 4 Kare',     fn:'_kolaj2',  tag:'5 Foto', layout:'kolaj-2', desc:'Üst geniş vitrin, 4 alt kare', bg1:'#000000', bg2:'#1a1a1a', accent:'#d4af37'},
+    {id:'kolaj3',  name:'Panoramik & 6 Kare',     fn:'_kolaj3',  tag:'7 Foto', layout:'kolaj-3', desc:'Büyük arazi görseli & 6 detay', bg1:'#0d3520', bg2:'#1a5c3a', accent:'#c9a961'},
+    {id:'kolaj4',  name:'4 Eşit Kare & Rozet',    fn:'_kolaj4',  tag:'4 Foto', layout:'kolaj-4', desc:'Dörtlü ızgara & orta rozet', bg1:'#0a2540', bg2:'#1e5f8e', accent:'#7dd3fc'},
+    {id:'kolaj5',  name:'Çapraz Kesim & 5 Kare',  fn:'_kolaj5',  tag:'6 Foto', layout:'kolaj-5', desc:'Açılı sol görsel, sağ 5 kare', bg1:'#3d0d1b', bg2:'#5c1a2f', accent:'#f5e6d3'},
+    {id:'kolaj6',  name:'Kristal Buzlu Çerçeve',  fn:'_kolaj6',  tag:'5 Foto', layout:'kolaj-6', desc:'Dikey vitrin & yuvarlak detaylar', bg1:'#a8d5e2', bg2:'#5b9bb8', accent:'#2c5f7f'},
+    {id:'kolaj7',  name:'4 Dikey Dergi Şeridi',   fn:'_kolaj7',  tag:'4 Foto', layout:'kolaj-7', desc:'Dergi tarzı sütun yerleşimi', bg1:'#faf8f3', bg2:'#ede7d9', accent:'#8b7355'},
+    {id:'kolaj8',  name:'İkili Dikey & 5 Alt Kare', fn:'_kolaj8', tag:'7 Foto', layout:'kolaj-8', desc:'İki yan sütun & alt şerit', bg1:'#1a3a2a', bg2:'#2d5c42', accent:'#d4af37'},
+    {id:'kolaj9',  name:'Elmas Asimetrik Vitrin', fn:'_kolaj9',  tag:'5 Foto', layout:'kolaj-9', desc:'Geniş sol vitrin & 4 sağ kare', bg1:'#0f1a2e', bg2:'#1a2a44', accent:'#d4af37'},
+    {id:'kolaj10', name:'Tam Boy Magazin Kapak',  fn:'_kolaj10', tag:'7 Foto', layout:'kolaj-10', desc:'Tam ekran zemin & 6 yan vitrin', bg1:'#1a1a2e', bg2:'#16213e', accent:'#c0c0c0'}
 ];
 
 function _kolajBtnBind(){
     var grid = document.getElementById('kolajGrid');
     if(!grid) return;
     grid.innerHTML = '';
-    KOLAJ_SABLONLARI.forEach(function(s){
-        var btn = document.createElement('button');
-        btn.className = 'template-btn';
-        btn.textContent = s.ad;
-        btn.onclick = function(){
-            if(btn.classList.contains('active')) return;
-
+    KOLAJ_SABLONLARI.forEach(function(s, idx){
+        var card = window.createTemplateCard ? window.createTemplateCard(s, idx, 'Kolaj', function(id, cardEl){
             _cerceveSecimKaldir();
-            if(typeof clearAllTemplates === 'function') clearAllTemplates();
+            if(window.CanvasEmptyState && typeof window.CanvasEmptyState.dismiss === 'function') {
+                window.CanvasEmptyState.dismiss();
+            }
+            if(typeof clearAllTemplates === 'function') clearAllTemplates(true);
             if(typeof window.syncKolajFromForm === 'function') window.syncKolajFromForm();
-            window[s.fn]();
-            document.querySelectorAll('#kolajGrid .template-btn').forEach(function(b){b.classList.remove('active');});
-            btn.classList.add('active');
+            if(typeof window[s.fn] === 'function') window[s.fn]();
             _kolajAktif = s.id;
-            document.getElementById('kolajBgRenk1').value = s.bg1;
-            document.getElementById('kolajBgRenk2').value = s.bg2;
+            window._kolajAktif = s.id;
             _kolajGecmis = [];
+            if(typeof _kolajVarsayilanFotolariYukle === 'function') _kolajVarsayilanFotolariYukle();
+            if(window.CanvasEmptyState && typeof window.CanvasEmptyState.dismiss === 'function') {
+                window.CanvasEmptyState.dismiss();
+                if(typeof window.CanvasEmptyState.hide === 'function') window.CanvasEmptyState.hide();
+            }
+            var es = document.getElementById('canvasEmptyState');
+            if (es) {
+                es.classList.add('is-hidden');
+                es.style.setProperty('display', 'none', 'important');
+                es.style.setProperty('visibility', 'hidden', 'important');
+                es.style.setProperty('opacity', '0', 'important');
+                es.style.setProperty('pointer-events', 'none', 'important');
+            }
             setTimeout(_kolajDurumKaydet, 100);
-        };
-        grid.appendChild(btn);
+        }) : null;
+        if(card) grid.appendChild(card);
     });
 }
 
@@ -326,9 +206,21 @@ window.kolajTemizle = _kolajTemizle;
 
 function _kolajWrapper(bg1, bg2){
     _kolajTemizle();
+    if(window.CanvasEmptyState && typeof window.CanvasEmptyState.dismiss === 'function') {
+        window.CanvasEmptyState.dismiss();
+        if(typeof window.CanvasEmptyState.hide === 'function') window.CanvasEmptyState.hide();
+    }
+    var es = document.getElementById('canvasEmptyState');
+    if (es) {
+        es.classList.add('is-hidden');
+        es.style.setProperty('display', 'none', 'important');
+        es.style.setProperty('visibility', 'hidden', 'important');
+        es.style.setProperty('opacity', '0', 'important');
+        es.style.setProperty('pointer-events', 'none', 'important');
+    }
     var w = document.createElement('div');
     w.id = 'kolaj-wrapper';
-    w.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;z-index:5;box-sizing:border-box;overflow:hidden;'+
+    w.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;z-index:15;box-sizing:border-box;overflow:hidden;'+
         'background:linear-gradient(135deg,'+bg1+' 0%,'+bg2+' 100%);';
     return w;
 }
@@ -844,7 +736,7 @@ document.addEventListener('mousedown', function(e){
     if(e.altKey) return;
     var el = e.target.closest('.kolaj-foto');
     if(!el) return;
-    if(el.dataset.kzReady === '1'){ _kolajMdEl = null; return; }
+    if(el.dataset.kzReady === '1' && el.dataset.isSample !== '1'){ _kolajMdEl = null; return; }
     _kolajMdEl = el;
     _kolajMdX = e.clientX;
     _kolajMdY = e.clientY;
@@ -885,6 +777,11 @@ function _kolajTekFotoYukle(el, fileOrDataUrl, callback){
             el.dataset.kzX = String((kutuW - fotoW * minScale) / 2);
             el.dataset.kzY = String((kutuH - fotoH * minScale) / 2);
             
+            if(fileOrDataUrl instanceof Blob || fileOrDataUrl instanceof File){
+                delete el.dataset.isSample;
+                if(el.title && el.title.includes('Kendi')) el.removeAttribute('title');
+            }
+            
             var inner = document.createElement('div');
             inner.className = 'kolaj-inner-zoom';
             inner.style.cssText = 'position:absolute;top:0;left:0;width:'+fotoW+'px;height:'+fotoH+'px;'+
@@ -904,11 +801,62 @@ function _kolajTekFotoYukle(el, fileOrDataUrl, callback){
     } else if(fileOrDataUrl instanceof Blob || fileOrDataUrl instanceof File){
         var r = new FileReader();
         r.onload = function(evt){
-            applyDataUrl(evt.target.result);
+            if (window.PhotoStagingArchive && typeof window.PhotoStagingArchive.downscaleImageIfNeeded === 'function') {
+                window.PhotoStagingArchive.downscaleImageIfNeeded(fileOrDataUrl, evt.target.result).then(function(opt){
+                    applyDataUrl(opt.dataUrl || opt);
+                }).catch(function(){
+                    applyDataUrl(evt.target.result);
+                });
+            } else {
+                applyDataUrl(evt.target.result);
+            }
         };
         r.readAsDataURL(fileOrDataUrl);
     }
 }
+
+function _kolajVarsayilanFotolariYukle(wrap){
+    wrap = wrap || document.getElementById('kolaj-wrapper');
+    if(!wrap) return;
+    
+    var sampleImgs = [
+        'assets/luxury_villa.jpg',
+        'assets/horizontal_interior.jpg',
+        'assets/bodrum_luxury_villa.jpg',
+        'assets/luxury_villa.jpg',
+        'assets/horizontal_interior.jpg',
+        'assets/bodrum_luxury_villa.jpg',
+        'assets/luxury_villa.jpg',
+        'assets/horizontal_interior.jpg',
+        'assets/bodrum_luxury_villa.jpg',
+        'assets/luxury_villa.jpg'
+    ];
+    
+    var userImg = (typeof window.uploadedImgUrl !== 'undefined' && window.uploadedImgUrl && window.uploadedImgUrl.length > 50 && !window.uploadedImgUrl.includes('empty'))
+        ? window.uploadedImgUrl
+        : ((typeof window.masterImageBase64 !== 'undefined' && window.masterImageBase64 && window.masterImageBase64.length > 50 && !window.masterImageBase64.includes('empty'))
+            ? window.masterImageBase64
+            : null);
+            
+    var slots = Array.from(wrap.querySelectorAll('.kolaj-foto'));
+    slots.sort(function(a, b){
+        return (parseInt(a.dataset.kolajNo, 10) || 0) - (parseInt(b.dataset.kolajNo, 10) || 0);
+    });
+    
+    slots.forEach(function(slot, idx){
+        var isUser = (idx === 0 && userImg);
+        var imgSrc = isUser ? userImg : sampleImgs[idx % sampleImgs.length];
+        _kolajTekFotoYukle(slot, imgSrc, function(){
+            if(isUser){
+                delete slot.dataset.isSample;
+            } else {
+                slot.dataset.isSample = '1';
+                slot.title = 'Kendi görselinizi yüklemek için tıklayın';
+            }
+        });
+    });
+}
+window._kolajVarsayilanFotolariYukle = _kolajVarsayilanFotolariYukle;
 
 function _kolajFotoSec(el){
     var input = document.createElement('input');
@@ -1213,7 +1161,6 @@ function _bindCerceveEditor(cerceve){
 
 function _cerceveSil(){
     if(!_seciliCerceve) return;
-    if(!confirm('Bu çerçeveyi sil?')) return;
     _seciliCerceve.remove();
     _cerceveSecimKaldir();
     _kolajDurumKaydet();
@@ -1413,6 +1360,7 @@ function _kolajSifirla(){
     if(s){
         _cerceveSecimKaldir();
         window[s.fn]();
+        if(typeof _kolajVarsayilanFotolariYukle === 'function') _kolajVarsayilanFotolariYukle();
         _kolajGecmis = [];
         setTimeout(_kolajDurumKaydet, 100);
     }
@@ -1603,3 +1551,4 @@ if(document.readyState === 'loading'){
 }
 
 console.log('📸 Kolaj v10 PRO yüklendi - Tam düzenleme aktif');
+

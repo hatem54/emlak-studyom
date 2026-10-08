@@ -118,20 +118,23 @@ function captureCustomElements() {
 
         // Temiz HTML kopyası al (tutamaçlar ve geçici seçim borderları hariç)
         const clone = el.cloneNode(true);
-        clone.classList.remove('selected', 'active', 'dragging');
-        clone.querySelectorAll('.callout-controls, .callout-resizer, .callout-rotator, .callout-select-border, .text-handle, .text-resize-handle, .text-rotate-handle, .text-delete-handle').forEach(h => {
-            if (h.classList.contains('callout-select-border')) h.style.display = 'none';
-            if (h.classList.contains('callout-controls') || h.classList.contains('callout-resizer') || h.classList.contains('callout-rotator')) {
-                h.style.display = 'none';
-            }
-        });
+        clone.classList.remove('selected', 'active', 'dragging', 'el-selected', 'multi-selected');
+        clone.querySelectorAll(
+            '.callout-controls, .callout-resizer, .callout-rotator, .callout-select-border, .callout-lock-btn, ' +
+            '.callout-handle-width, .callout-handle-length, .text-handle, .text-resize-handle, .text-rotate-handle, ' +
+            '.text-delete-handle, .text-lock-handle, .vertex-handle, .selection-box'
+        ).forEach(h => h.remove());
+
+        const rawText = el.dataset.rawText || (el.classList.contains('neon-text-el') ? clone.textContent.trim() : '');
+        const datasetObj = Object.assign({}, el.dataset);
+        if (rawText) datasetObj.rawText = rawText;
 
         elements.push({
             id: el.id || ('el_' + Math.random().toString(36).substr(2, 9)),
             parentId: parentId,
-            className: el.className.replace(/\b(selected|active|dragging)\b/g, '').trim(),
+            className: el.className.replace(/\b(selected|active|dragging|el-selected|multi-selected)\b/g, '').trim(),
             style: el.getAttribute('style') || '',
-            dataset: Object.assign({}, el.dataset),
+            dataset: datasetObj,
             innerHTML: clone.innerHTML
         });
     });
@@ -175,7 +178,8 @@ function captureStandardElements() {
                 innerText: el.innerText,
                 innerHTML: id === 'elDetails' ? el.innerHTML : undefined,
                 style: el.getAttribute('style') || '',
-                dataset: Object.assign({}, el.dataset)
+                dataset: Object.assign({}, el.dataset),
+                logoSrc: (id === 'elLogo') ? (el.src || (el.querySelector('img') ? el.querySelector('img').src : '')) : undefined
             };
         }
     });
@@ -189,11 +193,19 @@ function captureFullState() {
     const kolajWrap = document.getElementById('kolaj-wrapper');
     const canvasContainer = document.getElementById('canvas-container');
 
-    // 📸 Görsel Havuzu Durumu (PhotoStagingArchive)
+    // 📸 Görsel Havuzu Durumu (PhotoStagingArchive) - Hafif Bellek Korumalı Snapshot
     let stagingState = null;
     if (window.PhotoStagingArchive && Array.isArray(window.PhotoStagingArchive.items)) {
         stagingState = {
-            items: window.PhotoStagingArchive.items.map(it => Object.assign({}, it)),
+            items: window.PhotoStagingArchive.items.map(it => ({
+                id: it.id,
+                key: it.key,
+                title: it.title,
+                subTitle: it.subTitle,
+                icon: it.icon,
+                thumbUrl: it.thumbUrl,
+                timestamp: it.timestamp
+            })),
             activeItemId: window.PhotoStagingArchive.activeItemId
         };
     }
@@ -215,16 +227,21 @@ function captureFullState() {
         canvasBgImage: canvasContainer ? canvasContainer.style.backgroundImage : '',
         lastAppliedPalette: window.lastAppliedPalette ? Object.assign({}, window.lastAppliedPalette) : null,
         currentMode: typeof currentMode !== 'undefined' ? currentMode : window.currentMode,
-        activeLayout: typeof activeLayout !== 'undefined' ? activeLayout : window.activeLayout
+        activeLayout: typeof activeLayout !== 'undefined' ? activeLayout : window.activeLayout,
+        threeDData: (window.ThreeDEngine && typeof window.ThreeDEngine.getDataToSave === 'function') ? window.ThreeDEngine.getDataToSave() : null
     };
 }
 
 // Snapshot'ı tuvale eksiksiz ve güvenli şekilde geri yükler
-function applySnapshot(state) {
+async function applySnapshot(state) {
     if (!state) return;
     window.isHistoryRestoring = true;
 
     try {
+        if (window.CanvasEmptyState && typeof window.CanvasEmptyState.dismiss === 'function') {
+            window.CanvasEmptyState.dismiss();
+        }
+
         // 0. Fotoğraf Durumunu Geri Yükle (Eğer değişmişse)
         if (state.photoImgUrl && state.photoImgUrl !== window.uploadedImgUrl) {
             if (typeof window.updateProjectPhotoPixels === 'function') {
@@ -249,7 +266,15 @@ function applySnapshot(state) {
 
         // 0.5. Görsel Havuzunu (PhotoStagingArchive) Geri Yükle
         if (state.stagingState && window.PhotoStagingArchive && Array.isArray(state.stagingState.items)) {
-            window.PhotoStagingArchive.items = state.stagingState.items.map(it => Object.assign({}, it));
+            const masterMap = new Map();
+            if (Array.isArray(window.PhotoStagingArchive.items)) {
+                window.PhotoStagingArchive.items.forEach(it => { if(it && it.id) masterMap.set(it.id, it); });
+            }
+            window.PhotoStagingArchive.items = state.stagingState.items.map(it => {
+                const existing = masterMap.get(it.id);
+                if (existing) return existing;
+                return Object.assign({}, it);
+            });
             window.PhotoStagingArchive.activeItemId = state.stagingState.activeItemId;
             window.PhotoStagingArchive.selectedIds = new Set(window.PhotoStagingArchive.items.map(it => it.id));
             window.PhotoStagingArchive.renderPanel();
@@ -292,7 +317,7 @@ function applySnapshot(state) {
         if (typeof drawPaths !== 'undefined') {
             drawPaths.length = 0;
             if (state.drawPaths && Array.isArray(state.drawPaths)) {
-                state.drawPaths.forEach(p => drawPaths.push(Object.assign({}, p)));
+                cloneDrawPaths(state.drawPaths).forEach(p => drawPaths.push(p));
             }
             window.drawPaths = drawPaths;
         }
@@ -303,8 +328,8 @@ function applySnapshot(state) {
         if (typeof updateDrawHistory === 'function') updateDrawHistory();
 
         // 3. Canva ve Kolaj Şablon Durumlarını Geri Yükle
+        const canvaLayer = document.getElementById('canva-render-layer');
         if (state.canvaHtml) {
-            const canvaLayer = document.getElementById('canva-render-layer');
             if (canvaLayer) {
                 // Güvenlik (XSS)
                 if (window.DOMPurify && typeof window.DOMPurify.sanitize === 'function') {
@@ -319,13 +344,15 @@ function applySnapshot(state) {
                 });
                 canvaLayer.querySelectorAll('.editable-text').forEach(el => {
                     if (typeof enableInlineEdit === 'function') enableInlineEdit(el);
-                    if (typeof bindDrag === 'function') bindDrag(el);
                 });
             }
+        } else if (canvaLayer) {
+            canvaLayer.innerHTML = '';
+            canvaLayer.style.display = 'none';
         }
 
+        const kolajWrap = document.getElementById('kolaj-wrapper');
         if (state.kolajState) {
-            const kolajWrap = document.getElementById('kolaj-wrapper');
             if (kolajWrap) {
                 // Güvenlik (XSS)
                 if (window.DOMPurify && typeof window.DOMPurify.sanitize === 'function') {
@@ -336,18 +363,22 @@ function applySnapshot(state) {
                 kolajWrap.style.background = state.kolajState.bg;
                 if (typeof _kolajFormatGuncelle === 'function') _kolajFormatGuncelle();
             }
+        } else if (kolajWrap) {
+            kolajWrap.remove();
+            window._kolajAktif = false;
         }
 
-        if (state.canvasBgColor) {
-            const canvasContainer = document.getElementById('canvas-container');
-            if (canvasContainer) {
+        const canvasContainer = document.getElementById('canvas-container');
+        if (canvasContainer) {
+            if (state.canvasBgColor) {
                 canvasContainer.style.setProperty('background-color', state.canvasBgColor, 'important');
+            } else {
+                canvasContainer.style.removeProperty('background-color');
             }
-        }
-        if (state.canvasBgImage && state.canvasBgImage !== 'none') {
-            const canvasContainer = document.getElementById('canvas-container');
-            if (canvasContainer) {
+            if (state.canvasBgImage && state.canvasBgImage !== 'none') {
                 canvasContainer.style.setProperty('background-image', state.canvasBgImage, 'important');
+            } else {
+                canvasContainer.style.removeProperty('background-image');
             }
         }
 
@@ -368,6 +399,11 @@ function applySnapshot(state) {
 
         document.querySelectorAll(selector).forEach(el => {
             if (!builtInIds.has(el.id)) {
+                if (window.SaberEngine && typeof window.SaberEngine.removeTextSaber === 'function') {
+                    if (el.classList.contains('neon-text-el') || el.dataset?.saberActive === 'true') {
+                        window.SaberEngine.removeTextSaber(el);
+                    }
+                }
                 el.remove();
             }
         });
@@ -381,7 +417,8 @@ function applySnapshot(state) {
 
                 const el = document.createElement('div');
                 if (data.id) el.id = data.id;
-                el.className = data.className;
+                // Seçim sınıflarından arındırılmış temiz sınıf listesi
+                el.className = (data.className || '').replace(/\b(selected|active|dragging|el-selected|multi-selected)\b/g, '').trim();
                 
                 // Güvenlik (XSS): Geri yüklenen HTML içeriğini temizle
                 if (window.DOMPurify && typeof window.DOMPurify.sanitize === 'function') {
@@ -389,22 +426,72 @@ function applySnapshot(state) {
                 } else {
                     el.innerHTML = data.innerHTML;
                 }
+
+                // Varsa snapshot içindeki artık tutamaçları temizle ki yeni tutamaçlar taze dinleyicilerle eklenebilsin
+                el.querySelectorAll('.callout-controls, .callout-resizer, .callout-rotator, .callout-select-border, .callout-lock-btn, .callout-handle-width, .callout-handle-length, .text-handle, .text-resize-handle, .text-rotate-handle, .text-delete-handle, .text-lock-handle, .vertex-handle, .selection-box').forEach(h => h.remove());
                 
                 if (data.style) el.setAttribute('style', data.style);
                 if (data.dataset) {
                     Object.keys(data.dataset).forEach(k => el.dataset[k] = data.dataset[k]);
                 }
 
+                // ⚡ KRİTİK: Eski dragBound bayrağını temizle ki bindDrag yeni DOM elemanına dinleyicileri bağlayabilsin!
+                delete el.dataset.dragBound;
+
                 parent.appendChild(el);
 
                 if (typeof makeDraggable === 'function') makeDraggable(el);
+                else if (typeof bindDrag === 'function') bindDrag(el);
+
                 if (el.classList.contains('callout-wrap') && typeof window.rebindSVGCallout === 'function') {
                     window.rebindSVGCallout(el);
                 }
                 if (el.classList.contains('co-neon-block') && typeof window.rebindNeonCallout === 'function') {
                     window.rebindNeonCallout(el);
                 }
+
+                // ⚡ Metin elemanları için tutamaç ve satır içi düzenleme bağla
+                const isTextEl = el.classList.contains('custom-text-el') || el.classList.contains('custom-text-box') || 
+                                 el.classList.contains('neon-text-el') || el.classList.contains('editable-text') || 
+                                 el.classList.contains('added-text');
+                if (isTextEl) {
+                    if (typeof enableInlineEdit === 'function') enableInlineEdit(el);
+                    if (typeof window.addTextHandles === 'function') window.addTextHandles(el);
+                }
+
+                // ⚡ Neon Metin için PixiJS Saber motorunu yeniden bağla
+                if (el.dataset.saberActive === 'true' || el.classList.contains('neon-text-el')) {
+                    let opts = null;
+                    try {
+                        opts = el.dataset.saberOpts ? JSON.parse(el.dataset.saberOpts) : null;
+                    } catch(e) {}
+                    if (!opts) {
+                        const preset = el.dataset.neonPreset || 'fully-lit';
+                        opts = {
+                            preset: preset,
+                            glowColor: '#00f0ff',
+                            coreColor: (preset === 'full-neon' ? '#00f0ff' : '#ffffff'),
+                            coreSize: 0,
+                            glowSize: 35,
+                            intensity: 3.0,
+                            flickerAmount: 0.05
+                        };
+                    }
+                    const saberLayer = document.getElementById('saber-layer');
+                    if (saberLayer) {
+                        const elZ = parseInt(el.style.zIndex, 10) || 55;
+                        const sZ = Math.max(1, elZ - 1);
+                        saberLayer.style.setProperty('z-index', String(sZ), 'important');
+                    }
+                    if (window.SaberEngine && typeof window.SaberEngine.addTextSaber === 'function') {
+                        window.SaberEngine.addTextSaber(el.id, el, opts);
+                    }
+                }
             });
+
+            if (window.SaberEngine && typeof window.SaberEngine.updateTextSaberPositions === 'function') {
+                window.SaberEngine.updateTextSaberPositions();
+            }
         }
 
         // 5.5. Şablon Çerçevelerini Geri Yükle (TemplateBuilder Image Frames)
@@ -469,19 +556,36 @@ function applySnapshot(state) {
                     if (data.style) el.setAttribute('style', data.style);
                     if (data.visibility) el.style.visibility = data.visibility;
                     if (data.display) el.style.display = data.display;
+                    if (id === 'elLogo' && data.logoSrc !== undefined) {
+                        el.src = data.logoSrc;
+                        const img = el.querySelector('img');
+                        if (img) img.src = data.logoSrc;
+                    }
                 }
             });
         }
 
-        // 7. Katmanlar Panelini Güncelle
+        // 7. 3D Durumunu Geri Yükle
+        if (window.ThreeDEngine && typeof window.ThreeDEngine.restoreData === 'function') {
+            try {
+                await window.ThreeDEngine.restoreData(state.threeDData || null);
+            } catch (e) {
+                console.error("3D restore error:", e);
+            }
+        }
+
+        // 8. Katmanlar Panelini ve Boş Tuval Durumunu Güncelle
         if (typeof window.renderLayers === 'function') window.renderLayers();
+        if (window.CanvasEmptyState && typeof window.CanvasEmptyState.updateState === 'function') {
+            window.CanvasEmptyState.updateState();
+        }
 
     } catch (err) {
         console.error("History restore error:", err);
     } finally {
         setTimeout(() => {
             window.isHistoryRestoring = false;
-        }, 60);
+        }, 120);
     }
 }
 
@@ -493,7 +597,7 @@ window.recordHistory = function(desc = '', immediate = false) {
         if (window.isHistoryRestoring) return;
         const snap = captureFullState();
         
-        // Önceki durumla aynıysa gereksiz adım ekleme
+        // Önceki durumla aynıysa gereksiz adım ekleme (Tüm sekmeler ve motorlar için tam kontrol)
         const lastSnap = window.undoStack[window.undoStack.length - 1];
         if (lastSnap) {
             const sameDraw = JSON.stringify(lastSnap.drawPaths) === JSON.stringify(snap.drawPaths);
@@ -502,7 +606,14 @@ window.recordHistory = function(desc = '', immediate = false) {
             const sameStd = JSON.stringify(lastSnap.standardElements) === JSON.stringify(snap.standardElements);
             const samePhoto = (lastSnap.photoImgUrl === snap.photoImgUrl);
             const sameStaging = JSON.stringify(lastSnap.stagingState || null) === JSON.stringify(snap.stagingState || null);
-            if (sameDraw && sameCustom && sameFrames && sameStd && samePhoto && sameStaging) {
+            const sameThreeD = JSON.stringify(lastSnap.threeDData || null) === JSON.stringify(snap.threeDData || null);
+            const sameCanva = (lastSnap.canvaHtml === snap.canvaHtml);
+            const sameKolaj = JSON.stringify(lastSnap.kolajState || null) === JSON.stringify(snap.kolajState || null);
+            const sameBgColor = ((lastSnap.canvasBgColor || '') === (snap.canvasBgColor || ''));
+            const sameBgImage = ((lastSnap.canvasBgImage || '') === (snap.canvasBgImage || ''));
+            const samePalette = JSON.stringify(lastSnap.lastAppliedPalette || null) === JSON.stringify(snap.lastAppliedPalette || null);
+
+            if (sameDraw && sameCustom && sameFrames && sameStd && samePhoto && sameStaging && sameThreeD && sameCanva && sameKolaj && sameBgColor && sameBgImage && samePalette) {
                 return;
             }
         }
@@ -535,7 +646,7 @@ window.recordHistoryImmediate = function(desc = '') {
 };
 
 // Evrensel Geri Al (Global Undo)
-window.undoGlobal = function() {
+window.undoGlobal = async function() {
     if (historyRecordTimeout) {
         clearTimeout(historyRecordTimeout);
         historyRecordTimeout = null;
@@ -550,13 +661,13 @@ window.undoGlobal = function() {
 
     const previousState = window.undoStack[window.undoStack.length - 1];
     if (previousState) {
-        applySnapshot(previousState);
+        await applySnapshot(previousState);
         if (typeof window.requestAutoSave === 'function') window.requestAutoSave();
     }
 };
 
 // Evrensel İleri Al (Global Redo)
-window.redoGlobal = function() {
+window.redoGlobal = async function() {
     if (historyRecordTimeout) {
         clearTimeout(historyRecordTimeout);
         historyRecordTimeout = null;
@@ -568,9 +679,11 @@ window.redoGlobal = function() {
 
     const nextState = window.redoStack.pop();
     window.undoStack.push(nextState);
-    applySnapshot(nextState);
+    await applySnapshot(nextState);
     if (typeof window.requestAutoSave === 'function') window.requestAutoSave();
 };
+
+window.applySnapshot = applySnapshot;
 
 // Geriye Dönük Uyumluluk (Legacy Alias)
 window.undoLastDraw = function() {

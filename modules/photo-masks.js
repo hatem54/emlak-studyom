@@ -331,6 +331,21 @@
         }
 
         clickMaskButton(type) {
+            if (type === 'btnAiEnhanceModal' || type === 'aiEnhance') {
+                if (typeof window.openAiEnhancerModal === 'function') {
+                    window.openAiEnhancerModal();
+                } else if (typeof window.setPhotoAiIntensity === 'function') {
+                    const slider = document.getElementById('aiPhotoEnhanceSlider');
+                    if (slider) {
+                        slider.value = 50;
+                        window.setPhotoAiIntensity(50);
+                    }
+                }
+                return;
+            }
+            if (type === 'btnMaskClone') type = 'clone';
+            if (type === 'btnMaskErase') type = 'eraser';
+
             // 1. KLONLAMA DAMGASI (CLONE STAMP)
             if (type === 'clone') {
                 if (window.CloneStamp && window.CloneStamp.isActive) {
@@ -451,6 +466,19 @@
 
         deactivateTool() {
             this.hideGuides();
+        }
+
+        deactivateCurrent() {
+            this.deactivateTool();
+        }
+
+        applyMaskEffect() {
+            this.notifyChange();
+            this.deactivateTool();
+        }
+
+        clearMask() {
+            this.clearCurrentBrushMask();
         }
 
         hideGuides() {

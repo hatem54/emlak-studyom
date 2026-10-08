@@ -69,6 +69,7 @@
     <link rel="stylesheet" href="css/template-builder.css?v=20260929-1">
     <link rel="stylesheet" href="css/template-shapes.css?v=20260929-1">
     <link rel="stylesheet" href="css/template-info-card.css?v=20260929-1">
+    <link rel="stylesheet" href="css/template-cards.css?v=20261005-1">
     <link rel="stylesheet" href="css/neon-text.css?v=20260930-1">
     <link rel="stylesheet" href="css/smart-guides.css?v=20260930-1">
     <link rel="stylesheet" href="css/portfolio-presets.css?v=20260930-1">
@@ -178,11 +179,11 @@
                 </button>
                 <input type="file" id="logoInput" accept="image/*" style="position:absolute; width:1px; height:1px; opacity:0; pointer-events:none;">
             </div>
-            <button class="btn-action pc-only" style="text-align:left; height:38px; padding:0 12px; font-size:12px; font-weight:700; display:flex; align-items:center; gap:8px;" onclick="document.getElementById('mainTabs').classList.remove('active'); if(window.ThreeDEngine) window.ThreeDEngine.openStudio();"><i class="fa-solid fa-cube" style="color:#6366f1;"></i> 3D Düzlem &amp; Metin</button>
-            <button class="btn-action" style="text-align:left; height:38px; padding:0 12px; font-size:12px; font-weight:700; display:flex; align-items:center; gap:8px;" onclick="document.getElementById('mainTabs').classList.remove('active'); if(typeof showTemplateColorModal === 'function') showTemplateColorModal()"><i class="fa-solid fa-palette" style="color:#ec4899;"></i> PRO Renk Paleti &amp; Eşleştirici</button>
-            <button class="btn-action" style="text-align:left; height:38px; padding:0 12px; font-size:12px; font-weight:700; display:flex; align-items:center; gap:8px;" onclick="document.getElementById('mainTabs').classList.remove('active'); switchTab('shapes')"><i class="fa-solid fa-shapes" style="color:#10b981;"></i> Şekiller</button>
-            <button class="btn-action" style="text-align:left; height:38px; padding:0 12px; font-size:12px; font-weight:700; display:flex; align-items:center; gap:8px;" onclick="document.getElementById('mainTabs').classList.remove('active'); switchTab('qr')"><i class="fa-solid fa-qrcode" style="color:#0284c7;"></i> QR Kod</button>
-            <button class="btn-action" style="text-align:left; height:38px; padding:0 12px; font-size:12px; font-weight:700; display:flex; align-items:center; gap:8px;" onclick="document.getElementById('mainTabs').classList.remove('active'); switchTab('brand')"><i class="fa-solid fa-tag" style="color:#f59e0b;"></i> Marka</button>
+            <button class="btn-action pc-only" style="text-align:left; height:38px; padding:0 12px; font-size:12px; font-weight:700; display:flex; align-items:center; gap:8px;" onclick="if(typeof window.closeBottomSheet === 'function') window.closeBottomSheet(); if(window.CanvasEmptyState) window.CanvasEmptyState.dismiss(); if(window.ThreeDEngine) { if(typeof window.ThreeDEngine.add3DText === 'function') window.ThreeDEngine.add3DText(); else window.ThreeDEngine.openStudio(); }"><i class="fa-solid fa-cube" style="color:#6366f1;"></i> 3D Düzlem &amp; Metin</button>
+            <button class="btn-action" style="text-align:left; height:38px; padding:0 12px; font-size:12px; font-weight:700; display:flex; align-items:center; gap:8px;" onclick="if(typeof window.closeBottomSheet === 'function') window.closeBottomSheet(); if(typeof showTemplateColorModal === 'function') showTemplateColorModal()"><i class="fa-solid fa-palette" style="color:#ec4899;"></i> PRO Renk Paleti &amp; Eşleştirici</button>
+            <button class="btn-action" style="text-align:left; height:38px; padding:0 12px; font-size:12px; font-weight:700; display:flex; align-items:center; gap:8px;" onclick="if(typeof window.closeBottomSheet === 'function') window.closeBottomSheet(); switchTab('shapes')"><i class="fa-solid fa-shapes" style="color:#10b981;"></i> Şekiller</button>
+            <button class="btn-action" style="text-align:left; height:38px; padding:0 12px; font-size:12px; font-weight:700; display:flex; align-items:center; gap:8px;" onclick="if(typeof window.closeBottomSheet === 'function') window.closeBottomSheet(); switchTab('qr')"><i class="fa-solid fa-qrcode" style="color:#0284c7;"></i> QR Kod</button>
+            <button class="btn-action" style="text-align:left; height:38px; padding:0 12px; font-size:12px; font-weight:700; display:flex; align-items:center; gap:8px;" onclick="if(typeof window.closeBottomSheet === 'function') window.closeBottomSheet(); switchTab('brand')"><i class="fa-solid fa-tag" style="color:#f59e0b;"></i> Marka</button>
             <button class="btn-action btn-red" style="text-align:left; height:38px; padding:0 12px; font-size:12px; font-weight:700; display:flex; align-items:center; gap:8px;" onclick="confirmClearDrafts()"><i class="fa-solid fa-trash-can"></i> Taslakları Temizle</button>
         </div>
     </div>
@@ -234,6 +235,7 @@
                     <i class="fa-solid fa-cube" style="font-size:14px;"></i>
                     <span id="model3dUploadBtnText">3D Model Yükle</span>
                 </button>
+                <input type="file" id="estate3DGltfInput" accept=".glb,.gltf" style="display:none;" onchange="if(window.CanvasEmptyState) window.CanvasEmptyState.dismiss(); if(window.ThreeDEngine && window.ThreeDEngine.loadGLBFile) window.ThreeDEngine.loadGLBFile(this.files[0]); this.value='';">
             </div>
 
             <!-- Harita / Uydu Görseli Çek (Sadece PC / Tablet) -->
@@ -1372,7 +1374,7 @@
                     <button type="button" class="btn-action" id="neonTextAnimBtn" onclick="toggleNeonTextAnimation()" title="Canlı neon hareketini ve partikül akışını açıp kapatın" style="padding:2px 8px; height:24px; font-size:10.5px;"><i class="fa-solid fa-play"></i> Canlı Animasyon</button>
                 </div>
                 <div class="neon-presets-grid" id="tabFontNeonPresets">
-                    <button type="button" class="btn-action active" data-preset="fully-lit" onclick="selectNeonPreset('fully-lit')" title="Saf pürüzsüz neon ışığı"><i class="fa-solid fa-wand-magic-sparkles"></i> Saf Neon</button>
+                    <button type="button" class="btn-action active" data-preset="fully-lit" onclick="selectNeonPreset('fully-lit')" title="Klasik cam tüp neon: Beyaz akkor çekirdek ve pürüzsüz dış hale"><i class="fa-solid fa-wand-magic-sparkles"></i> Saf Neon</button>
                     <button type="button" class="btn-action" data-preset="full-neon" onclick="selectNeonPreset('full-neon')" title="Tüm harfler tamamen neon renginde parlar"><i class="fa-solid fa-fill-drip"></i> Tam Neon</button>
                     <button type="button" class="btn-action" data-preset="fire" onclick="selectNeonPreset('fire')" title="Alev dilleri ve yükselen kıvılcımlar"><i class="fa-solid fa-fire"></i> Alev</button>
                     <button type="button" class="btn-action" data-preset="vortex" onclick="selectNeonPreset('vortex')" title="Dönen enerji helezonu"><i class="fa-solid fa-arrows-spin"></i> Dönme</button>
@@ -2638,7 +2640,12 @@
         <div class="input-group"><label>Marka Adı</label><input type="text" id="brandNameInput" placeholder="Örn: Ahmet - Remax"></div>
         <div class="input-group"><label>Telefon</label><input type="text" id="brandPhoneInput" placeholder="Örn: 0532 123 45 67"></div>
         <div class="input-group"><label>Instagram</label><input type="text" id="brandInstaInput" placeholder="Örn: @ahmetyilmaz"></div>
-        <div class="input-group"><label>Ana Renk</label><input type="color" id="brandColor1Input" value="#ffffff"></div>
+        <div class="input-group"><label>Web Sitesi</label><input type="text" id="brandWebInput" placeholder="Örn: www.emlakstudyom.com"></div>
+        <div class="input-group"><label>Facebook</label><input type="text" id="brandFbInput" placeholder="Örn: facebook.com/emlakstudyom"></div>
+        <div class="input-group"><label>Twitter</label><input type="text" id="brandTwitterInput" placeholder="Örn: @emlakstudyom"></div>
+        <div class="input-group"><label>YouTube</label><input type="text" id="brandYoutubeInput" placeholder="Örn: youtube.com/@emlakstudyom"></div>
+        <div class="input-group"><label>Adres</label><input type="text" id="brandAddressInput" placeholder="Örn: Kadıköy, İstanbul"></div>
+        <div class="input-group"><label>Ana Renk</label><input type="color" id="brandColor1Input" value="#06b6d4"></div>
         <div class="input-group"><label>İkincil Renk</label><input type="color" id="brandColor2Input" value="#000000"></div>
         <div class="input-group"><label>Logo Seç</label><input type="file" id="brandLogoInput" accept="image/jpeg, image/png, image/webp"></div>
         <img id="brandLogoPreview" style="max-width:100%; max-height:80px; display:none; margin-top:5px; border-radius:4px; object-fit:contain;">
@@ -2980,7 +2987,7 @@
                 </button>
                 <button type="button" class="dock-btn" onclick="window.resetActiveTemplateToDefault && window.resetActiveTemplateToDefault();" title="Şablonu Varsayılana Sıfırla">
                     <span class="dock-icon"><i class="fa-solid fa-arrows-rotate"></i></span>
-                    <span class="dock-label">Sıfırla</span>
+                    <span class="dock-label">Şablonu Sıfırla</span>
                 </button>
             </div>
 
@@ -3022,6 +3029,18 @@
 
             <!-- 11. ELEMENT / SEÇİLİ ÖGE TABI (element) -->
             <div id="dockGroup_element" class="dock-context-group">
+                <button type="button" class="dock-btn btn-accent" onclick="if(typeof window.openSelectedElementSettings==='function') window.openSelectedElementSettings(); else if(typeof switchTab==='function') switchTab('font');" title="Öge Ayarları ve Metin Düzenleme">
+                    <span class="dock-icon"><i class="fa-solid fa-sliders"></i></span>
+                    <span class="dock-label">Ayarlar</span>
+                </button>
+                <button type="button" class="dock-btn" onclick="if(typeof window.rotateSelectedElement==='function')window.rotateSelectedElement(event && event.shiftKey ? -15 : 15);" oncontextmenu="event.preventDefault(); if(typeof window.rotateSelectedElement==='function')window.rotateSelectedElement(-15);" title="Sol Tık: 15° Döndür | Shift+Tık veya Sağ Tık: -15° Ters Döndür">
+                    <span class="dock-icon"><i class="fa-solid fa-rotate-right"></i></span>
+                    <span class="dock-label">Döndür</span>
+                </button>
+                <button type="button" class="dock-btn" onclick="if(typeof window.toggleLockSelected==='function')window.toggleLockSelected();" title="Ögeyi Kilitle veya Kilidi Aç">
+                    <span class="dock-icon"><i class="fa-solid fa-lock-open" id="dockElLockIcon"></i></span>
+                    <span class="dock-label" id="dockElLockLabel">Serbest</span>
+                </button>
                 <button type="button" class="dock-btn" onclick="if(typeof duplicateSelected==='function')duplicateSelected();" title="Seçili Ögeyi Çoğalt">
                     <span class="dock-icon"><i class="fa-solid fa-clone"></i></span>
                     <span class="dock-label">Çoğalt</span>
@@ -3030,9 +3049,9 @@
                     <span class="dock-icon"><i class="fa-solid fa-magnet"></i></span>
                     <span class="dock-label">Hizalama</span>
                 </button>
-                <button type="button" class="dock-btn" onclick="if(typeof window.toggleLockSelected==='function')window.toggleLockSelected();" title="Ögeyi Kilitle veya Kilidi Aç">
-                    <span class="dock-icon"><i class="fa-solid fa-lock-open" id="dockElLockIcon"></i></span>
-                    <span class="dock-label" id="dockElLockLabel">Serbest</span>
+                <button type="button" class="dock-btn" onclick="if(typeof window.resetSelectedElementToDefault==='function')window.resetSelectedElementToDefault();" title="Seçili ögenin açı ve boyutunu varsayılana sıfırla">
+                    <span class="dock-icon"><i class="fa-solid fa-arrow-rotate-left"></i></span>
+                    <span class="dock-label">Ögeyi Sıfırla</span>
                 </button>
                 <button type="button" class="dock-btn btn-red" onclick="if(typeof deleteSelected==='function')deleteSelected();" title="Seçili Ögeyi Sil">
                     <span class="dock-icon"><i class="fa-solid fa-trash-can"></i></span>
@@ -3098,7 +3117,7 @@
                     <span class="dock-icon"><i class="fa-solid fa-square-pen"></i></span>
                     <span class="dock-label">Çerçeveli</span>
                 </button>
-                <button type="button" class="dock-btn" onclick="if(window.ThreeDEngine) window.ThreeDEngine.openStudio();" title="3D Düzlem ve Metin Stüdyosu">
+                <button type="button" class="dock-btn" onclick="if(window.ThreeDEngine) { if(typeof window.ThreeDEngine.add3DText === 'function') window.ThreeDEngine.add3DText(); else window.ThreeDEngine.openStudio(); }" title="3D Metin Ekle">
                     <span class="dock-icon"><i class="fa-solid fa-cube"></i></span>
                     <span class="dock-label">3D Metin</span>
                 </button>
@@ -3166,7 +3185,7 @@
                     <span class="dock-icon"><i class="fa-solid fa-shield-halved"></i></span>
                     <span class="dock-label">Logo</span>
                 </button>
-                <button type="button" class="dock-btn" onclick="if(window.ThreeDEngine) window.ThreeDEngine.openStudio();" title="3D Düzlem ve Metin Stüdyosu">
+                <button type="button" class="dock-btn" onclick="if(window.ThreeDEngine) { if(typeof window.ThreeDEngine.add3DText === 'function') window.ThreeDEngine.add3DText(); else window.ThreeDEngine.openStudio(); }" title="3D Düzlem ve Metin Stüdyosu">
                     <span class="dock-icon"><i class="fa-solid fa-cube"></i></span>
                     <span class="dock-label">3D Stüdyo</span>
                 </button>
@@ -3177,6 +3196,42 @@
                 <button type="button" class="dock-btn" onclick="switchTab('qr')" title="QR Kod Üretici">
                     <span class="dock-icon"><i class="fa-solid fa-qrcode"></i></span>
                     <span class="dock-label">QR Kod</span>
+                </button>
+            </div>
+
+            <!-- 18. 3D ÖGE KISAYOLLARI (3d) -->
+            <div id="dockGroup_3d" class="dock-context-group">
+                <button type="button" class="dock-btn btn-accent active" id="dock3DPanelBtn" onclick="if(window.ThreeDEngine && typeof window.ThreeDEngine.toggleStudioPanel === 'function') window.ThreeDEngine.toggleStudioPanel(); else if(window.ThreeDEngine && typeof window.ThreeDEngine.openStudio === 'function') window.ThreeDEngine.openStudio(true, false, true);" title="3D Düzenleme Panelini Aç veya Kapat">
+                    <span class="dock-icon"><i class="fa-solid fa-cube"></i></span>
+                    <span class="dock-label">3D Panel</span>
+                </button>
+                <button type="button" class="dock-btn" onclick="if(typeof window.rotateSelectedElement==='function')window.rotateSelectedElement(event && event.shiftKey ? -15 : 15);" oncontextmenu="event.preventDefault(); if(typeof window.rotateSelectedElement==='function')window.rotateSelectedElement(-15);" title="Sol Tık: 15° Döndür | Shift+Tık veya Sağ Tık: -15° Ters Döndür">
+                    <span class="dock-icon"><i class="fa-solid fa-rotate-right"></i></span>
+                    <span class="dock-label">Döndür</span>
+                </button>
+                <button type="button" class="dock-btn" onclick="if(typeof window.flipSelectedElementHorizontal==='function')window.flipSelectedElementHorizontal();" title="3D Ögeyi Yatay Çevir">
+                    <span class="dock-icon"><i class="fa-solid fa-arrows-left-right"></i></span>
+                    <span class="dock-label">Aynala</span>
+                </button>
+                <button type="button" class="dock-btn" onclick="if(typeof window.toggleLockSelected==='function')window.toggleLockSelected();" title="3D Ögeyi Kilitle veya Kilidi Aç">
+                    <span class="dock-icon"><i class="fa-solid fa-lock-open" id="dock3DElLockIcon"></i></span>
+                    <span class="dock-label" id="dock3DElLockLabel">Serbest</span>
+                </button>
+                <button type="button" class="dock-btn" onclick="if(typeof window.duplicateSelected==='function')window.duplicateSelected();" title="Seçili 3D Ögeyi Çoğalt">
+                    <span class="dock-icon"><i class="fa-solid fa-clone"></i></span>
+                    <span class="dock-label">Çoğalt</span>
+                </button>
+                <button type="button" class="dock-btn" onclick="if(typeof window.bringToFrontSelected==='function')window.bringToFrontSelected();" title="3D Ögeyi En Öne Getir">
+                    <span class="dock-icon"><i class="fa-solid fa-layer-group"></i></span>
+                    <span class="dock-label">Öne</span>
+                </button>
+                <button type="button" class="dock-btn" onclick="if(typeof window.resetSelectedElementToDefault==='function')window.resetSelectedElementToDefault();" title="Seçili 3D ögenin açı ve boyutunu varsayılana sıfırla">
+                    <span class="dock-icon"><i class="fa-solid fa-arrow-rotate-left"></i></span>
+                    <span class="dock-label">Ögeyi Sıfırla</span>
+                </button>
+                <button type="button" class="dock-btn btn-red" onclick="if(typeof window.deleteSelected==='function')window.deleteSelected();" title="Seçili 3D Ögeyi Sil">
+                    <span class="dock-icon"><i class="fa-solid fa-trash-can"></i></span>
+                    <span class="dock-label">Sil</span>
                 </button>
             </div>
 
@@ -3368,7 +3423,7 @@
 <!-- MODÜLER JS DOSYALARI (SIRAYLA YÜKLENMELİ) -->
 <script src="js/fonts.config.js?v=1"></script>
 <script src="js/filter.config.js?v=1"></script>
-<script src="config.js?v=20260913-02"></script>
+<script src="config.js?v=20261005-1"></script>
 <script src="core/utils.js?v=20260913-32"></script>
 <script src="modules/state.js?v=20260923-15"></script>
 <script src="core/drag.js?v=20260915-94"></script>
@@ -3427,7 +3482,7 @@
     <script src="tpl_kolaj/kolaj.js?v=1785302098430"></script>
     <script src="tpl_minimal/minimal.js?v=20260822-3"></script>
     <script src="tpl_luks/luks.js?v=20260822-3"></script>
-    <script src="tpl_kurumsal/kurumsal.js?v=20260822-3"></script>
+    <script src="tpl_kurumsal/kurumsal.js?v=20261005-1"></script>
     <script src="tpl_dinamik/dinamik.js?v=20260822-4"></script>
     <script src="tpl_klasik/klasik.js?v=20260822-3"></script>
     <script src="tpl_sosyal/sosyal.js?v=20260822-3"></script>
@@ -4387,6 +4442,11 @@ window.addEventListener('DOMContentLoaded', () => {
 </body>
 
 </html>
+
+
+
+
+
 
 
 

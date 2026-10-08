@@ -59,6 +59,11 @@ function sanitizeStateForDB(state) {
     if (!state) return state;
     if (state._isSanitized) return state;
     try {
+        const bigImg = state.uploadedImgUrl;
+        const bigLogo = state.logoImgUrl;
+        state.uploadedImgUrl = null;
+        state.logoImgUrl = null;
+
         const cleaned = JSON.parse(JSON.stringify(state, (key, value) => {
             if (key === 'saberRef' || key === 'el' || key === 'graphics' || key === 'particleContainer' || key === 'branchContainer' || key === '_dragEl') {
                 return undefined;
@@ -68,6 +73,12 @@ function sanitizeStateForDB(state) {
             }
             return value;
         }));
+        
+        cleaned.uploadedImgUrl = bigImg;
+        cleaned.logoImgUrl = bigLogo;
+        state.uploadedImgUrl = bigImg;
+        state.logoImgUrl = bigLogo;
+
         cleaned._isSanitized = true;
         return cleaned;
     } catch(e) {
@@ -84,7 +95,13 @@ function saveStateToDB(state) {
         const request = store.put({ id: 'latest_save', timestamp: Date.now(), state: cleanState });
         
         request.onsuccess = () => resolve();
-        request.onerror = (e) => reject(e.target.error);
+        request.onerror = (e) => {
+            if (e.target.error && e.target.error.name === 'QuotaExceededError') {
+                console.warn('IndexedDB kota dolu! Eski geçmiş temizleniyor...');
+                cleanupOldHistory().catch(()=>{});
+            }
+            reject(e.target.error);
+        };
     });
 }
 

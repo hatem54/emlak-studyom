@@ -18,6 +18,7 @@
         const el = document.createElement('div');
         el.className = 'draggable canvas-el neon-text-el';
         el.textContent = initialText;
+        el.dataset.rawText = initialText;
         el.dataset.label = 'Neon Yazı';
         el.dataset.rotation = '0';
         el.dataset.shadowVal = '0';
@@ -54,8 +55,9 @@
         el.style.setProperty('z-index', String(newZ), 'important');
         const saberLayer = document.getElementById('saber-layer');
         if (saberLayer) {
-            saberLayer.dataset.layerZIndex = String(newZ);
-            saberLayer.style.setProperty('z-index', String(newZ), 'important');
+            const saberZ = Math.max(1, newZ - 1);
+            saberLayer.dataset.layerZIndex = String(saberZ);
+            saberLayer.style.setProperty('z-index', String(saberZ), 'important');
         }
         el.style.fontFamily = "'Archivo Black', sans-serif";
         el.style.fontWeight = '900';
@@ -81,6 +83,7 @@
         if (typeof window.renderLayers === 'function') window.renderLayers();
         if (typeof bindDrag === 'function') bindDrag(el);
         if (typeof enableInlineEdit === 'function') enableInlineEdit(el);
+        if (typeof window.addTextHandles === 'function') window.addTextHandles(el);
         if (typeof isCanvaMode !== 'undefined' && isCanvaMode && typeof canvaOverlays !== 'undefined') canvaOverlays.push(el);
 
         // Saber Engine Parametreleri
@@ -134,6 +137,8 @@
             // Neonu Kapat
             el.dataset.saberActive = 'false';
             el.style.color = el.dataset.storedTextColor || '#ffffff';
+            el.style.textShadow = el.dataset.storedTextShadow || '';
+            el.style.webkitTextStroke = '';
             if (window.SaberEngine && typeof window.SaberEngine.removeTextSaber === 'function') {
                 window.SaberEngine.removeTextSaber(el.id || el.dataset.saberElId);
                 const app = window.SaberEngine.getApp();
@@ -152,7 +157,12 @@
             if (el.style.color && el.style.color !== 'transparent') {
                 el.dataset.storedTextColor = el.style.color;
             }
+            if (el.style.textShadow && el.style.textShadow !== 'none') {
+                el.dataset.storedTextShadow = el.style.textShadow;
+            }
             el.style.color = 'transparent';
+            el.style.textShadow = 'none';
+            el.style.webkitTextStroke = 'none';
 
             const preset = el.dataset.neonPreset || 'fully-lit';
             const colorInput = document.getElementById('neonTextGlowColor');
@@ -190,7 +200,7 @@
      * 3. Hazır Neon Efekti Presetini Seç (Saf Neon, Tam Neon, Alev, Dönme, Elektrik, Kıvılcım, Gökkuşağı)
      */
     function selectNeonPreset(presetKey, targetEl, applyToEl = true) {
-        const el = targetEl || (typeof selectedEl !== 'undefined' ? selectedEl : null);
+        const el = targetEl || (typeof selectedEl !== 'undefined' ? selectedEl : null) || document.querySelector('#canvas-container .canvas-el.selected, #canvas-container .canvas-el[data-saber-active="true"], #canvas-container .neon-text-el');
 
         // UI Butonunu aktif yap
         const grid = document.getElementById('tabFontNeonPresets');
@@ -213,7 +223,12 @@
             if (el.style.color && el.style.color !== 'transparent') {
                 el.dataset.storedTextColor = el.style.color;
             }
+            if (el.style.textShadow && el.style.textShadow !== 'none') {
+                el.dataset.storedTextShadow = el.style.textShadow;
+            }
             el.style.color = 'transparent';
+            el.style.textShadow = 'none';
+            el.style.webkitTextStroke = 'none';
         }
 
         el.dataset.neonPreset = presetKey;
@@ -229,7 +244,11 @@
         let curSize = glowSizeInput ? parseFloat(glowSizeInput.value) : 35;
 
         // Preset'e özel parametre uyarlaması
-        if (presetKey === 'full-neon') {
+        if (presetKey === 'fully-lit') {
+            curCore = '#ffffff';
+            curInt = 3.0;
+            curSize = 35;
+        } else if (presetKey === 'full-neon') {
             curCore = curGlow;
             curInt = 3.2;
             curSize = 35;
@@ -532,6 +551,27 @@
         }
     }
 
+    /**
+     * 8. Neon Metin Görünümünü ve Konumunu Tazele
+     * (Font değişikliği, kalınlık slider'ı ve boyut güncellemelerinde DOM/PixiJS senkronizasyonu sağlar)
+     */
+    function refreshNeonText(targetEl) {
+        const el = targetEl || (typeof selectedEl !== 'undefined' ? selectedEl : null) || document.querySelector('#canvas-container .canvas-el.selected, #canvas-container .canvas-el[data-saber-active="true"], #canvas-container .neon-text-el');
+        if (!el || el.dataset.saberActive !== 'true') return;
+
+        el.style.color = 'transparent';
+        el.style.textShadow = 'none';
+        el.style.webkitTextStroke = 'none';
+
+        if (window.SaberEngine && typeof window.SaberEngine.updateTextSaberPositions === 'function') {
+            window.SaberEngine.updateTextSaberPositions();
+            const app = window.SaberEngine.getApp ? window.SaberEngine.getApp() : null;
+            if (app && app.renderer && app.stage && (!app.ticker || !app.ticker.started)) {
+                try { app.renderer.render(app.stage); } catch(e) {}
+            }
+        }
+    }
+
     // Seçim değiştiğinde otomatik senkronize et
     if (window.EmlakState && typeof window.EmlakState.addEventListener === 'function') {
         window.EmlakState.addEventListener('selectionChanged', (e) => {
@@ -548,5 +588,6 @@
     window.applyTypographyStyle = applyTypographyStyle;
     window.syncNeonTextUI = syncNeonTextUI;
     window.toggleNeonTextAnimation = toggleNeonTextAnimation;
+    window.refreshNeonText = refreshNeonText;
 
 })();

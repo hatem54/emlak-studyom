@@ -96,6 +96,27 @@ function switchTab(name){
 
     if(name!=='draw' && typeof drawMode !== 'undefined' && drawMode!=='off') setDrawMode('off');
     if(name!=='draw' && typeof applyDrawEdit==='function') applyDrawEdit();
+
+    // Diğer araçların açık kalan tuval katmanlarını ve kilitlerini temizle
+    if (window.TemplatePolygonFrame && typeof window.TemplatePolygonFrame.cancelDrawing === 'function') {
+        window.TemplatePolygonFrame.cancelDrawing();
+    }
+    if (window.CloneStamp && window.CloneStamp.isActive && typeof window.CloneStamp.deactivate === 'function') {
+        window.CloneStamp.deactivate();
+    }
+    if (window.PhotoMasksManager && typeof window.PhotoMasksManager.hideGuides === 'function') {
+        window.PhotoMasksManager.hideGuides();
+    }
+    if (name !== 'font') {
+        const studio = document.getElementById('threeDStudioPanel');
+        if (studio && studio.style.display !== 'none') {
+            studio.style.display = 'none';
+        }
+        document.body.classList.remove('three-d-panel-open');
+    }
+    if (window.PhotoStagingArchive && typeof window.PhotoStagingArchive.closeCanvasCompare === 'function') {
+        window.PhotoStagingArchive.closeCanvasCompare();
+    }
     if(name==='callout' && typeof renderCalloutPanel==='function') renderCalloutPanel();
     if(name==='photo' && window.PhotoLayerManager && typeof window.PhotoLayerManager.renderUI === 'function') {
         window.PhotoLayerManager.renderUI();
@@ -160,7 +181,7 @@ window.switchPropertyType = function(type) {
     
     if(document.getElementById('canvaTitle')) document.getElementById('canvaTitle').value = config.badge;
     // Lüks, Elit, Dinamik, Minimal, Kurumsal, Sosyal vs. tüm şablonların başlık alanlarını güncelle
-    const allTitleIds = ['canvaLTitle','canvaDTitle','canvaCTitle','canvaKTitle','canvaMTitle','canvaOTitle','canvaPTitle','canvaSTitle','canvaETitle'];
+    const allTitleIds = ['canvaLTitle','canvaDTitle','canvaCTitle','canvaKTitle','canvaKurumsalTitle','canvaMTitle','canvaOTitle','canvaPTitle','canvaSTitle','canvaETitle'];
     allTitleIds.forEach(tid => {
         const el = document.getElementById(tid);
         if(el) el.value = config.badge;

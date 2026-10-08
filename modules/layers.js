@@ -259,7 +259,11 @@ window.layerSelect = function(uid, event, isDoubleClick = false) {
             if (drawPaths[drawIndex].hidden) return; // Gizliyse seçme
             if (drawPaths[drawIndex].locked) return; // Kilitliyse seçme
         }
-        if (typeof editingDrawIndex !== 'undefined') editingDrawIndex = drawIndex;
+        if (typeof window.startDrawEdit === 'function') {
+            window.startDrawEdit(drawIndex, true);
+        } else if (typeof editingDrawIndex !== 'undefined') {
+            editingDrawIndex = drawIndex;
+        }
         if (typeof drawPaths !== 'undefined' && drawPaths[drawIndex] && drawPaths[drawIndex].el) {
             if (typeof window.selectElement === 'function') window.selectElement(drawPaths[drawIndex].el, false, true);
         }
@@ -785,7 +789,9 @@ window.layerDelete = function(uid) {
     }
     if (uid.startsWith('draw_')) {
         const drawIndex = parseInt(uid.split('_')[1]);
-        if (typeof drawPaths !== 'undefined' && drawPaths[drawIndex]) {
+        if (typeof window.deleteDrawItem === 'function') {
+            window.deleteDrawItem(drawIndex);
+        } else if (typeof drawPaths !== 'undefined' && drawPaths[drawIndex]) {
             const p = drawPaths[drawIndex];
             if (p.el) p.el.remove();
             drawPaths.splice(drawIndex, 1);

@@ -169,9 +169,6 @@
             if (typeof this.updateMapModalLayout === 'function') {
                 this.updateMapModalLayout(false);
             }
-            if (typeof window.showAppToast === 'function') {
-                window.showAppToast('📏 Ölçüm paneli gizlendi. Ölçümler haritada aktif kalır.', 'info');
-            }
             this.saveLastLocation({
                 measureData: this.getMeasureDataToSave()
             });
@@ -1017,10 +1014,6 @@
             this.updateMeasureGraphics();
             this.renderDrawingsListUI();
 
-            if (typeof window.showAppToast === 'function') {
-                window.showAppToast(`➕ ${newDrawing.title} eklendi. Haritada tıklayarak yeni noktaları belirleyin.`, 'success');
-            }
-
             this.saveLastLocation({ measureData: this.getMeasureDataToSave() });
             return newDrawing;
         },
@@ -1035,9 +1028,6 @@
             drawing.isExpanded = true;
             this.updateMeasureGraphics();
             this.renderDrawingsListUI();
-            if (typeof window.showAppToast === 'function') {
-                window.showAppToast(`📍 ${drawing.title} seçildi.`, 'info');
-            }
         },
 
         /**
@@ -1046,9 +1036,6 @@
         deleteDrawing: function(id) {
             if (!this.measureDrawings || this.measureDrawings.length <= 1) {
                 this.resetDrawingPoints(id);
-                if (typeof window.showAppToast === 'function') {
-                    window.showAppToast('ℹ️ Çizim sıfırlandı.', 'info');
-                }
                 return;
             }
             const idx = this.measureDrawings.findIndex(d => d.id === id);
@@ -1064,9 +1051,6 @@
 
             this.updateMeasureGraphics();
             this.renderDrawingsListUI();
-            if (typeof window.showAppToast === 'function') {
-                window.showAppToast(`🗑️ ${removed.title} silindi.`, 'info');
-            }
             this.saveLastLocation({ measureData: this.getMeasureDataToSave() });
         },
 
@@ -1082,9 +1066,6 @@
             }
             this.updateMeasureGraphics();
             this.renderDrawingsListUI();
-            if (typeof window.showAppToast === 'function') {
-                window.showAppToast(`${drawing.visible ? '👁️' : '🚫'} ${drawing.title} ${drawing.visible ? 'gösterildi' : 'gizlendi'}.`, 'info');
-            }
             this.saveLastLocation({ measureData: this.getMeasureDataToSave() });
         },
 
@@ -1137,7 +1118,7 @@
             if (!drawing) return;
             if (!drawing.points || drawing.points.length < 3) {
                 if (typeof window.showAppToast === 'function') {
-                    window.showAppToast('ℹ️ Alanı kapatmak için en az 3 nokta gereklidir.', 'info');
+                    window.showAppToast('Alanı kapatmak için en az 3 nokta gereklidir.', 'info');
                 }
                 return;
             }
@@ -1160,9 +1141,6 @@
             this.updateMeasureGraphics();
             this.renderDrawingsListUI();
             this.saveLastLocation({ measureData: this.getMeasureDataToSave() });
-            if (typeof window.showAppToast === 'function') {
-                window.showAppToast(`↩️ ${drawing.title}: Son nokta geri alındı.`, 'info');
-            }
         },
 
         /**
@@ -1199,7 +1177,7 @@
             if (!drawing) return;
             if (!this.parcelData || !this.parcelData.latLngs || this.parcelData.latLngs.length < 3) {
                 if (typeof window.showAppToast === 'function') {
-                    window.showAppToast('⚠️ Parseli çevrelemek için önce KML / GeoJSON parseli yükleyin.', 'warning');
+                    window.showAppToast('Parseli çevrelemek için önce KML veya GeoJSON parseli yükleyin.', 'warning');
                 }
                 return;
             }
@@ -1230,11 +1208,6 @@
                 this.map.panInsideBounds(bounds, { animate: true, padding: [40, 40] });
             }
             this.saveLastLocation({ measureData: this.getMeasureDataToSave() });
-            if (typeof window.showAppToast === 'function') {
-                const area = this.calculateGeodesicPolygonArea(drawing.points);
-                const areaInfo = this.getFormattedAreaInfo(area);
-                window.showAppToast(`📐 ${drawing.title}: Parsel çevrelendi (${cleanPts.length} köşe, ${areaInfo.m2Text}).`, 'success');
-            }
         },
 
         setDrawingStyle: function(id, style) {
@@ -1640,9 +1613,6 @@
             this.saveLastLocation({
                 measureData: this.getMeasureDataToSave()
             });
-            if (typeof window.showAppToast === 'function') {
-                window.showAppToast(`🗑️ ${index + 1}. köşe noktası silindi.`, 'info');
-            }
         },
 
         /**
@@ -1664,9 +1634,6 @@
          */
         resetMeasurePoints: function(drawingId) {
             this.resetDrawingPoints(drawingId);
-            if (typeof window.showAppToast === 'function') {
-                window.showAppToast('📏 Ölçüm sıfırlandı. Haritada noktalara tıklayarak yeni ölçüm başlatabilirsiniz.', 'info');
-            }
         },
 
         /**
@@ -1778,7 +1745,7 @@
         snapMeasureToAllParcelVertices: function() {
             if (!this.parcelData || !this.parcelData.latLngs || this.parcelData.latLngs.length < 3) {
                 if (typeof window.showAppToast === 'function') {
-                    window.showAppToast('⚠️ Önce KML / GeoJSON parseli yükleyin.', 'warning');
+                    window.showAppToast('Önce KML veya GeoJSON parseli yükleyin.', 'warning');
                 }
                 return;
             }
@@ -1813,12 +1780,6 @@
             this.saveLastLocation({
                 measureData: this.getMeasureDataToSave()
             });
-
-            if (typeof window.showAppToast === 'function') {
-                const area = this.calculateGeodesicPolygonArea(this.measurePoints);
-                const areaInfo = this.getFormattedAreaInfo(area);
-                window.showAppToast(`📐 Tüm parsel çevrelendi: ${cleanPts.length} köşe, ${areaInfo.m2Text} (${areaInfo.donumText}).`, 'success');
-            }
         },
 
         /**
@@ -1828,7 +1789,7 @@
             const edges = this.getParcelEdges();
             if (edges.length === 0) {
                 if (typeof window.showAppToast === 'function') {
-                    window.showAppToast('⚠️ Parsel kenarına oturtmak için önce KML / GeoJSON parseli yükleyin.', 'warning');
+                    window.showAppToast('Parsel kenarına oturtmak için önce KML veya GeoJSON parseli yükleyin.', 'warning');
                 }
                 return;
             }
@@ -1858,10 +1819,6 @@
             this.saveLastLocation({
                 measureData: this.getMeasureDataToSave()
             });
-
-            if (typeof window.showAppToast === 'function') {
-                window.showAppToast(`📐 Parsel Kenarı ${this.measureEdgeIndex + 1}/${edges.length} kilitlendi (${chosenEdge.dist.toFixed(1)} m).`, 'info');
-            }
         },
 
         /**
@@ -2208,9 +2165,6 @@
                                         }
                                     }
                                     this.updateMeasureGraphics();
-                                    if (typeof window.showAppToast === 'function') {
-                                        window.showAppToast(`🔄 Kenar ${edgeIdx + 1} konumu ve açısı sıfırlandı.`, 'info');
-                                    }
                                 });
                                 badgeMarker.on('click', (e) => {
                                     L.DomEvent.stopPropagation(e);
@@ -2326,9 +2280,6 @@
                                 targetD.totalBadgeScale = 1.0;
                             }
                             this.updateMeasureGraphics();
-                            if (typeof window.showAppToast === 'function') {
-                                window.showAppToast('🔄 Toplam mesafe konumu ve boyutu sıfırlandı.', 'info');
-                            }
                         });
                         tMarker.on('click', (e) => {
                             L.DomEvent.stopPropagation(e);
@@ -2486,9 +2437,6 @@
                                         targetD.areaBaseZoom = this.map ? this.map.getZoom() : 17;
                                     }
                                     this.updateMeasureGraphics();
-                                    if (typeof window.showAppToast === 'function') {
-                                        window.showAppToast('🔄 Alan konumu ve boyutu sıfırlandı.', 'info');
-                                    }
                                 });
                                 aMarker.on('click', (e) => {
                                     L.DomEvent.stopPropagation(e);
@@ -3254,9 +3202,6 @@
             this.updateMeasureGraphics();
             this.renderDrawingsListUI();
             this.saveLastLocation({ measureData: this.getMeasureDataToSave() });
-            if (typeof window.showAppToast === 'function') {
-                window.showAppToast(this.measureSmartZoomScale ? '🔍 Akıllı Rozet Ölçekleme Açık' : '🔍 Akıllı Rozet Ölçekleme Kapalı', 'info');
-            }
         },
 
         /**
@@ -3267,9 +3212,6 @@
             this.updateMeasureGraphics();
             this.renderDrawingsListUI();
             this.saveLastLocation({ measureData: this.getMeasureDataToSave() });
-            if (typeof window.showAppToast === 'function') {
-                window.showAppToast(this.measureAutoEdgeAngle ? '📐 Kenar Paralel Açı Açık' : '📐 Kenar Paralel Açı Kapalı', 'info');
-            }
         },
 
         /**
@@ -4705,12 +4647,6 @@
             this.measureHideDefaultParcel = !this.measureHideDefaultParcel;
             this.updateMeasureParcelVisibilityButton();
             this.updateMeasureGraphics();
-            if (typeof window.showAppToast === 'function') {
-                const msg = this.measureHideDefaultParcel 
-                    ? '👁️ Orijinal beyaz parsel katmanı gizlendi (sadece ölçüm görünür).' 
-                    : '👁️ Orijinal beyaz parsel katmanı görünür yapıldı.';
-                window.showAppToast(msg, 'info');
-            }
             this.saveLastLocation({ measureData: this.getMeasureDataToSave() });
         },
 
@@ -4742,9 +4678,6 @@
             if (btn) btn.classList.toggle('active', this.measureShowEdgeDistances);
             this.updateMeasureGraphics();
             this.saveLastLocation({ measureData: this.getMeasureDataToSave() });
-            if (typeof window.showAppToast === 'function') {
-                window.showAppToast(this.measureShowEdgeDistances ? '📏 Kenar metreleri gösterildi.' : '📏 Kenar metreleri gizlendi.', 'info');
-            }
         },
 
         /**
@@ -4756,9 +4689,6 @@
             if (btn) btn.classList.toggle('active', this.measureShowArea);
             this.updateMeasureGraphics();
             this.saveLastLocation({ measureData: this.getMeasureDataToSave() });
-            if (typeof window.showAppToast === 'function') {
-                window.showAppToast(this.measureShowArea ? '🏷️ Arsa m² alanı gösterildi.' : '🏷️ Arsa m² alanı gizlendi.', 'info');
-            }
         },
 
         /**
@@ -4770,9 +4700,6 @@
             if (btn) btn.classList.toggle('active', this.measureShowHandles);
             this.updateMeasureGraphics();
             this.saveLastLocation({ measureData: this.getMeasureDataToSave() });
-            if (typeof window.showAppToast === 'function') {
-                window.showAppToast(this.measureShowHandles ? '📍 Köşe tutamaçları açıldı.' : '📍 Köşe tutamaçları gizlendi.', 'info');
-            }
         },
 
         /**
@@ -4791,10 +4718,6 @@
             }
             this.updateMeasureGraphics();
             this.saveLastLocation({ measureData: this.getMeasureDataToSave() });
-            if (typeof window.showAppToast === 'function') {
-                const isHidden = !!this.measureHiddenEdges[idx];
-                window.showAppToast(isHidden ? `📏 Kenar ${idx + 1} metresi gizlendi.` : `📏 Kenar ${idx + 1} metresi açıldı.`, 'info');
-            }
         },
 
         /**

@@ -244,15 +244,21 @@
                     es.style.display = 'none';
                 }
 
-                // 2. Fotoğraf katmanını görünür yap
+                // 2. Fotoğraf katmanını görünür yap (Canva modundaysa gizli kalır)
+                const isCanvaModeActive = !!(window.isCanvaMode || (typeof isCanvaMode !== 'undefined' && isCanvaMode));
                 const pl = document.getElementById('photo-layer');
                 if (pl) {
-                    pl.style.display = 'block';
-                    pl.style.visibility = 'visible';
+                    if (isCanvaModeActive) {
+                        pl.style.setProperty('display', 'none', 'important');
+                        pl.style.opacity = '0';
+                    } else {
+                        pl.style.display = 'block';
+                        pl.style.visibility = 'visible';
+                    }
                 }
                 const canvaL = document.getElementById('canva-render-layer');
-                if (canvaL && !window.isCanvaMode) {
-                    canvaL.style.display = 'none';
+                if (canvaL) {
+                    canvaL.style.display = isCanvaModeActive ? 'block' : 'none';
                 }
 
                 // 3. Görseli projeye uygula
@@ -268,11 +274,21 @@
                         es.classList.add('is-hidden');
                         es.style.display = 'none';
                     }
+                    const isCanva = !!(window.isCanvaMode || (typeof isCanvaMode !== 'undefined' && isCanvaMode));
                     const pl = document.getElementById('photo-layer');
                     if (pl) {
-                        pl.style.display = 'block';
-                        pl.style.visibility = 'visible';
-                        pl.style.opacity = '1';
+                        if (isCanva) {
+                            pl.style.setProperty('display', 'none', 'important');
+                            pl.style.opacity = '0';
+                        } else {
+                            pl.style.display = 'block';
+                            pl.style.visibility = 'visible';
+                            pl.style.opacity = '1';
+                        }
+                    }
+                    const canvaL = document.getElementById('canva-render-layer');
+                    if (canvaL && isCanva) {
+                        canvaL.style.display = 'block';
                     }
                     if (typeof applyPhotoFilters === 'function') {
                         applyPhotoFilters();
@@ -281,6 +297,9 @@
                     }
                     if (typeof redrawAll === 'function') {
                         redrawAll();
+                    }
+                    if (isCanva && typeof refreshActiveCanvaTemplate === 'function') {
+                        refreshActiveCanvaTemplate();
                     }
                     this.syncExternalTabs();
                     if (typeof window.renderLayers === 'function') window.renderLayers();
@@ -294,9 +313,6 @@
                         window._isApplyingToCanvas = false;
                         if (!err) {
                             finishRender();
-                            if (!skipToast && typeof window.showAppToast === 'function') {
-                                window.showAppToast(`${item.title} tuvale aktarıldı`, 'info', 2000);
-                            }
                         }
                     }, true);
                 } else if (typeof window.applyFinalProjectImage === 'function') {
@@ -305,9 +321,6 @@
                         window._isApplyingToCanvas = false;
                         window.applyFinalProjectImage(img, item.dataUrl, img.naturalWidth || 1920, img.naturalHeight || 1080);
                         finishRender();
-                        if (!skipToast && typeof window.showAppToast === 'function') {
-                            window.showAppToast(`${item.title} tuvale aktarıldı`, 'info', 2000);
-                        }
                     };
                     img.onerror = () => { window._isApplyingToCanvas = false; };
                     img.src = item.dataUrl;
@@ -404,10 +417,6 @@
                 return;
             }
 
-            if (typeof window.showAppToast === 'function') {
-                window.showAppToast(`📦 ${targets.length} görsel ZIP arşivine paketleniyor...`, 'info', 2500);
-            }
-
             try {
                 const zip = new JSZip();
                 const folder = zip.folder('EmlakStudyom_Gorsel_Havuzu');
@@ -429,7 +438,7 @@
                 document.body.removeChild(a);
 
                 if (typeof window.showAppToast === 'function') {
-                    window.showAppToast(`✅ ${targets.length} görsel ZIP olarak indirildi!`, 'success', 3500);
+                    window.showAppToast(`${targets.length} görsel ZIP olarak indirildi.`, 'success', 3500);
                 }
             } catch(e) {
                 console.error("ZIP indirme hatası:", e);
@@ -455,6 +464,10 @@
             this.renderPanel();
         },
 
+        openWatermarkModal: function() {
+            return this.toggleWatermarkTray();
+        },
+
         /**
          * Format & Kadraj Panelini Açar / Kapatır
          */
@@ -465,6 +478,10 @@
                 this.aiTrayOpen = false;
             }
             this.renderPanel();
+        },
+
+        openFormatModal: function() {
+            return this.toggleFormatTray();
         },
 
         /**
@@ -594,9 +611,6 @@
             reader.onload = (e) => {
                 this.watermarkOptions.customLogoUrl = e.target.result;
                 this.renderPanel();
-                if (typeof window.showAppToast === 'function') {
-                    window.showAppToast('✅ Logo yüklendi, filigran olarak hazır.', 'success', 2500);
-                }
             };
             reader.readAsDataURL(file);
         },
@@ -619,10 +633,6 @@
             if (targets.length === 0) {
                 if (typeof window.showAppToast === 'function') window.showAppToast('Lütfen filigran eklenecek görselleri seçin.', 'warning');
                 return;
-            }
-
-            if (typeof window.showAppToast === 'function') {
-                window.showAppToast(`🛡️ ${targets.length} Görsele filigran uygulanıyor...`, 'info', 2000);
             }
 
             const logoImg = await this.loadImageAsync(logoUrl);
@@ -682,7 +692,7 @@
 
             this.renderPanel();
             if (typeof window.showAppToast === 'function') {
-                window.showAppToast(`✅ ${targets.length} Görsele filigran başarıyla damgalandı!`, 'success', 3500);
+                window.showAppToast(`${targets.length} görsele filigran uygulandı.`, 'success', 3500);
             }
         },
 
@@ -704,9 +714,6 @@
                 logoEl.style.zIndex = '9999';
                 if (typeof window.selectElement === 'function') {
                     window.selectElement(logoEl);
-                }
-                if (typeof window.showAppToast === 'function') {
-                    window.showAppToast('✅ Logo tuvale eklendi.', 'success', 2000);
                 }
             }
         },
@@ -731,10 +738,6 @@
             } else if (ratio === '16:9') {
                 targetW = 1920;
                 targetH = 1080;
-            }
-
-            if (typeof window.showAppToast === 'function') {
-                window.showAppToast(`📐 ${targets.length} Görsel ${ratio} formatına uyarlanıyor...`, 'info', 2000);
             }
 
             for (let i = 0; i < targets.length; i++) {
@@ -799,7 +802,7 @@
 
             this.renderPanel();
             if (typeof window.showAppToast === 'function') {
-                window.showAppToast(`✅ ${targets.length} Görsel ${ratio} formatına başarıyla uyarlandı!`, 'success', 3500);
+                window.showAppToast(`${targets.length} görsel ${ratio} formatına uyarlandı.`, 'success', 3500);
             }
         },
 
@@ -818,7 +821,6 @@
                 if (window.LazyLoader) {
                     await window.LazyLoader.load('pdf', { label: 'PDF Motoru' });
                 } else {
-                    if (typeof window.showAppToast === 'function') window.showAppToast('jsPDF kütüphanesi yükleniyor...', 'info', 2000);
                     await this.loadScriptAsync('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
                 }
             }
@@ -827,10 +829,6 @@
             if (!jsPDF) {
                 if (typeof window.showAppToast === 'function') window.showAppToast('PDF motoru başlatılamadı.', 'error');
                 return;
-            }
-
-            if (typeof window.showAppToast === 'function') {
-                window.showAppToast('📄 A4 Portföy broşürü oluşturuluyor...', 'info', 3000);
             }
 
             try {
@@ -988,7 +986,7 @@
                 doc.save(`Emlak_Sunum_Portfoyu_${safeAda || 'Ada'}_${safeParsel || 'Parsel'}.pdf`);
 
                 if (typeof window.showAppToast === 'function') {
-                    window.showAppToast('✅ PDF sunum broşürü başarıyla indirildi!', 'success', 3500);
+                    window.showAppToast('PDF sunum broşürü başarıyla indirildi.', 'success', 3500);
                 }
             } catch(pdfErr) {
                 console.error("PDF oluşturma hatası:", pdfErr);
@@ -1274,10 +1272,6 @@
             }
 
             this.renderPanel();
-
-            if (typeof window.showAppToast === 'function') {
-                window.showAppToast(`${targets.length} görsel çoklu gönderi albümüne aktarıldı`, 'success', 3500);
-            }
         },
 
         /**
@@ -1292,10 +1286,6 @@
 
             const intensity = (typeof this.aiIntensity === 'number') ? this.aiIntensity : 0.35;
             const pct = Math.round(intensity * 100);
-
-            if (typeof window.showAppToast === 'function') {
-                window.showAppToast(`${targets.length} görsel %${pct} netlik ile işleniyor...`, 'info', 2500);
-            }
 
             for (let i = 0; i < targets.length; i++) {
                 const it = targets[i];
@@ -1318,7 +1308,7 @@
 
             this.renderPanel();
             if (typeof window.showAppToast === 'function') {
-                window.showAppToast(`${targets.length} görsel başarıyla netleştirildi`, 'success', 3500);
+                window.showAppToast(`${targets.length} görsel netleştirildi.`, 'success', 3500);
             }
         },
 
@@ -1393,10 +1383,6 @@
             if (typeof window.recordHistoryImmediate === 'function' && !window.isHistoryRestoring) {
                 window.recordHistoryImmediate('Seçilen Görseller Silindi');
             }
-
-            if (typeof window.showAppToast === 'function') {
-                window.showAppToast(`${targets.length} görsel havuzdan silindi`, 'info', 2000);
-            }
         },
 
         /**
@@ -1438,9 +1424,6 @@
          */
         clearAllPool: function(forceWithoutConfirm = false) {
             if (!this.items || this.items.length === 0) {
-                if (typeof window.showAppToast === 'function') {
-                    window.showAppToast('Görsel havuzu zaten boş.', 'info');
-                }
                 return;
             }
 
@@ -1487,10 +1470,6 @@
             if (typeof window.recordHistoryImmediate === 'function' && !window.isHistoryRestoring) {
                 window.recordHistoryImmediate('Havuz Temizlendi');
             }
-
-            if (typeof window.showAppToast === 'function') {
-                window.showAppToast('Görsel havuzu ve tuval temizlendi', 'info', 2500);
-            }
         },
 
         /**
@@ -1501,6 +1480,57 @@
             if (!files || files.length === 0) return;
             this.processUploadedFiles(Array.from(files));
             if (event.target) event.target.value = '';
+        },
+
+        /**
+         * Yüksek Çözünürlüklü Fotoğrafları Güvenli Bellek Sınırlarına Ölçekler (Out of Memory Koruması)
+         */
+        downscaleImageIfNeeded: function(file, dataUrl) {
+            return new Promise((resolve) => {
+                if (!dataUrl || typeof dataUrl !== 'string') return resolve(dataUrl);
+                const img = new Image();
+                img.onload = () => {
+                    const natW = img.naturalWidth || 1920;
+                    const natH = img.naturalHeight || 1080;
+                    const isMob = typeof window.isMobileDevice === 'function' ? window.isMobileDevice() : window.innerWidth <= 768;
+                    const MAX_DIM = isMob ? 2048 : 2880; // 2.5K Ultra Net, bellek dostu tavan çözünürlük
+                    const MAX_AREA = isMob ? 3000000 : 7000000;
+                    
+                    if (natW <= MAX_DIM && natH <= MAX_DIM && (natW * natH) <= MAX_AREA) {
+                        return resolve(dataUrl);
+                    }
+                    
+                    try {
+                        let finalW = natW;
+                        let finalH = natH;
+                        if (finalW > MAX_DIM || finalH > MAX_DIM) {
+                            const ratio = Math.min(MAX_DIM / finalW, MAX_DIM / finalH);
+                            finalW = Math.round(finalW * ratio);
+                            finalH = Math.round(finalH * ratio);
+                        }
+                        if ((finalW * finalH) > MAX_AREA) {
+                            const areaRatio = Math.sqrt(MAX_AREA / (finalW * finalH));
+                            finalW = Math.round(finalW * areaRatio);
+                            finalH = Math.round(finalH * areaRatio);
+                        }
+                        const canvas = document.createElement('canvas');
+                        canvas.width = finalW;
+                        canvas.height = finalH;
+                        const ctx = canvas.getContext('2d');
+                        ctx.imageSmoothingEnabled = true;
+                        ctx.imageSmoothingQuality = 'high';
+                        ctx.drawImage(img, 0, 0, finalW, finalH);
+                        const mime = (file && file.type === 'image/png') ? 'image/png' : 'image/jpeg';
+                        const scaledUrl = canvas.toDataURL(mime, 0.92);
+                        resolve(scaledUrl);
+                    } catch(err) {
+                        console.warn("Downscale fallback:", err);
+                        resolve(dataUrl);
+                    }
+                };
+                img.onerror = () => resolve(dataUrl);
+                img.src = dataUrl;
+            });
         },
 
         /**
@@ -1539,17 +1569,14 @@
             const imageFiles = files.filter(f => f.type && f.type.startsWith('image/'));
             if (imageFiles.length === 0) return;
 
-            if (typeof window.showAppToast === 'function') {
-                window.showAppToast(`${imageFiles.length} görsel havuza ekleniyor...`, 'info', 2000);
-            }
-
             let loadedCount = 0;
             const newEntries = [];
 
             imageFiles.forEach((file, idx) => {
                 const reader = new FileReader();
                 reader.onload = async (e) => {
-                    const dataUrl = e.target.result;
+                    const rawDataUrl = e.target.result;
+                    const dataUrl = await this.downscaleImageIfNeeded(file, rawDataUrl);
                     const thumbUrl = await this.createThumbnailAsync(dataUrl, 480);
                     const cleanName = (file.name || `Fotoğraf ${idx + 1}`).replace(/\.[^/.]+$/, "");
                     newEntries.push({
@@ -1558,16 +1585,13 @@
                         title: cleanName,
                         subTitle: 'Yüklenen Fotoğraf',
                         icon: 'fa-image',
-                        dataUrl: dataUrl,       // Orijinal Master
+                        dataUrl: dataUrl,       // Güvenli ve optimize Master
                         thumbUrl: thumbUrl,     // Hafif 25KB Thumbnail
                         timestamp: Date.now()
                     });
                     loadedCount++;
                     if (loadedCount === imageFiles.length) {
                         this.addItems(newEntries, shouldSwitchTab);
-                        if (typeof window.showAppToast === 'function') {
-                            window.showAppToast(`${imageFiles.length} görsel başarıyla havuza eklendi`, 'success', 3000);
-                        }
                     }
                 };
                 reader.readAsDataURL(file);

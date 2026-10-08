@@ -3,23 +3,29 @@
     let multiPanel = null;
     window.multiSelectGap = 14;
 
-    window.setMultiSelectGap = function(val) {
+    window.setMultiSelectGap = function(val, record = false) {
         let num = parseInt(val);
         if (isNaN(num) || num < 0) num = 0;
         if (num > 300) num = 300;
         window.multiSelectGap = num;
 
-        const inputs = document.querySelectorAll('#multi-gap-val, #acm-gap-val');
-        inputs.forEach(inp => { if (inp) inp.value = num; });
+        const displays = document.querySelectorAll('#multi-gap-display, #acm-gap-display');
+        displays.forEach(d => { if (d) d.innerText = num + 'px'; });
 
-        document.querySelectorAll('.gap-preset-btn').forEach(btn => {
-            if (parseInt(btn.innerText) === num) btn.classList.add('active');
-            else btn.classList.remove('active');
-        });
+        const sliders = document.querySelectorAll('#multi-gap-slider, #acm-gap-slider');
+        sliders.forEach(s => { if (s && parseInt(s.value) !== num) s.value = num; });
+
+        const inputs = document.querySelectorAll('#multi-gap-val, #acm-gap-val');
+        inputs.forEach(inp => { if (inp && parseInt(inp.value) !== num) inp.value = num; });
+
+        if (window.selectedElements && window.selectedElements.length > 1) {
+            const dir = window.lastMultiSelectStackDirection || 'vertical';
+            window.multiSelectStack(dir, num, record);
+        }
     };
 
     window.stepMultiSelectGap = function(delta) {
-        window.setMultiSelectGap((window.multiSelectGap || 14) + delta);
+        window.setMultiSelectGap((window.multiSelectGap || 14) + delta, true);
     };
 
     function initMultiSelectUI() {
@@ -43,27 +49,25 @@
                 <h3 style="margin:0; font-size:14px; color:var(--primary);"><i class="fas fa-layer-group"></i> Toplu İşlemler (<span id="multi-select-count">0</span>)</h3>
             </div>
             
+            <div class="section-title" style="margin-top:5px; margin-bottom:5px;"><i class="fa-solid fa-up-right-and-down-left-from-center" style="color:#0284c7; margin-right:6px;"></i>Toplu Boyutlandırma</div>
+            <div style="display:flex; gap:6px; margin-bottom:10px;">
+                <button type="button" class="tab-btn" style="flex:1; padding:6px 8px; font-size:11px;" onclick="window.multiSelectScale(1.15)" title="Tüm seçili öğeleri %15 büyüt"><i class="fa-solid fa-magnifying-glass-plus"></i> Büyüt</button>
+                <button type="button" class="tab-btn" style="flex:1; padding:6px 8px; font-size:11px;" onclick="window.multiSelectScale(0.85)" title="Tüm seçili öğeleri %15 küçült"><i class="fa-solid fa-magnifying-glass-minus"></i> Küçült</button>
+            </div>
+            
             <div class="section-title" style="margin-top:5px; margin-bottom:5px;"><i class="fa-solid fa-arrows-up-down" style="color:#0284c7; margin-right:6px;"></i>Boşluklu Sırala</div>
             
-            <div style="display:flex; align-items:center; justify-content:space-between; background:rgba(0,0,0,0.25); padding:5px 8px; border-radius:6px; margin-bottom:6px; border:1px solid rgba(255,255,255,0.08);">
-                <span style="font-size:11px; color:#cbd5e1; font-weight:600;"><i class="fas fa-arrows-alt-v" style="color:var(--primary); margin-right:4px;"></i> Boşluk:</span>
-                <div style="display:flex; align-items:center; gap:4px;">
-                    <button type="button" class="tab-btn" style="padding:2px 7px; font-size:12px; font-weight:bold; min-width:24px;" onclick="window.stepMultiSelectGap(-2)">-</button>
-                    <input type="number" id="multi-gap-val" value="${window.multiSelectGap || 14}" min="0" max="200" step="2" onchange="window.setMultiSelectGap(this.value)" oninput="window.setMultiSelectGap(this.value)" style="width:42px; text-align:center; padding:2px 4px; font-size:11px; background:#0f172a; border:1px solid #334155; color:#fff; border-radius:4px; font-weight:bold;">
-                    <span style="font-size:10px; color:#94a3b8;">px</span>
-                    <button type="button" class="tab-btn" style="padding:2px 7px; font-size:12px; font-weight:bold; min-width:24px;" onclick="window.stepMultiSelectGap(2)">+</button>
-                </div>
-            </div>
-            <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:3px; margin-bottom:8px;">
-                <button type="button" class="tab-btn gap-preset-btn ${window.multiSelectGap === 6 ? 'active' : ''}" style="padding:3px 2px; font-size:10px;" onclick="window.setMultiSelectGap(6)">6px</button>
-                <button type="button" class="tab-btn gap-preset-btn ${(!window.multiSelectGap || window.multiSelectGap === 14) ? 'active' : ''}" style="padding:3px 2px; font-size:10px;" onclick="window.setMultiSelectGap(14)">14px</button>
-                <button type="button" class="tab-btn gap-preset-btn ${window.multiSelectGap === 24 ? 'active' : ''}" style="padding:3px 2px; font-size:10px;" onclick="window.setMultiSelectGap(24)">24px</button>
-                <button type="button" class="tab-btn gap-preset-btn ${window.multiSelectGap === 40 ? 'active' : ''}" style="padding:3px 2px; font-size:10px;" onclick="window.setMultiSelectGap(40)">40px</button>
+            <div class="slider-group" style="margin-bottom:8px;">
+                <label>
+                    <span>Boşluk</span>
+                    <span id="multi-gap-display">${window.multiSelectGap || 14}px</span>
+                </label>
+                <input type="range" id="multi-gap-slider" min="0" max="100" value="${window.multiSelectGap || 14}" oninput="window.setMultiSelectGap(this.value, false)" onchange="window.setMultiSelectGap(this.value, true)">
             </div>
 
-            <div style="display:flex; gap:4px; margin-bottom:10px;">
-                <button class="tab-btn" style="padding:6px 6px; flex:1; font-size:11px; background:rgba(99, 102, 241, 0.2); border-color:#6366f1; color:#fff;" onclick="multiSelectStack('vertical')" title="Alt Alta Boşlukla Diz"><i class="fas fa-bars"></i> Alt Alta Diz</button>
-                <button class="tab-btn" style="padding:6px 6px; flex:1; font-size:11px; background:rgba(99, 102, 241, 0.2); border-color:#6366f1; color:#fff;" onclick="multiSelectStack('horizontal')" title="Yan Yana Boşlukla Diz"><i class="fas fa-columns"></i> Yan Yana Diz</button>
+            <div style="display:flex; gap:6px; margin-bottom:10px;">
+                <button type="button" class="tab-btn" style="flex:1; padding:6px 8px; font-size:11px;" onclick="window.multiSelectStack('vertical')" title="Öğeleri alt alta eşit boşlukla dizer"><i class="fa-solid fa-bars"></i> Alt Alta Diz</button>
+                <button type="button" class="tab-btn" style="flex:1; padding:6px 8px; font-size:11px;" onclick="window.multiSelectStack('horizontal')" title="Öğeleri yan yana eşit boşlukla dizer"><i class="fa-solid fa-table-columns"></i> Yan Yana Diz</button>
             </div>
 
             <div class="section-title" style="margin-top:5px; margin-bottom:5px;"><i class="fa-solid fa-arrows-left-right" style="color:#0284c7; margin-right:6px;"></i>Birbirine Göre Hizala</div>
@@ -82,7 +86,7 @@
                 <button class="tab-btn" style="padding:5px 4px; font-size:10px;" onclick="multiSelectPositionOnPage('top-center')" title="Üst Orta"><i class="fas fa-arrow-up"></i> Üst Orta</button>
                 <button class="tab-btn" style="padding:5px 4px; font-size:10px;" onclick="multiSelectPositionOnPage('top-right')" title="Sağ Üst"><i class="fas fa-arrow-up-right"></i> Sağ Üst</button>
                 <button class="tab-btn" style="padding:5px 4px; font-size:10px;" onclick="multiSelectPositionOnPage('middle-left')" title="Orta Sol"><i class="fas fa-arrow-left"></i> Orta Sol</button>
-                <button class="tab-btn" style="padding:5px 4px; font-size:10px; font-weight:bold; background:rgba(56, 189, 248, 0.2); border-color:#38bdf8;" onclick="multiSelectPositionOnPage('center')" title="Tam Sayfa Ortası"><i class="fas fa-crosshairs"></i> Merkez</button>
+                <button class="tab-btn" style="padding:5px 4px; font-size:10px; font-weight:600;" onclick="multiSelectPositionOnPage('center')" title="Tam Sayfa Ortası"><i class="fas fa-crosshairs"></i> Merkez</button>
                 <button class="tab-btn" style="padding:5px 4px; font-size:10px;" onclick="multiSelectPositionOnPage('middle-right')" title="Orta Sağ"><i class="fas fa-arrow-right"></i> Orta Sağ</button>
                 <button class="tab-btn" style="padding:5px 4px; font-size:10px;" onclick="multiSelectPositionOnPage('bottom-left')" title="Sol Alt"><i class="fas fa-arrow-down-left"></i> Sol Alt</button>
                 <button class="tab-btn" style="padding:5px 4px; font-size:10px;" onclick="multiSelectPositionOnPage('bottom-center')" title="Alt Orta"><i class="fas fa-arrow-down"></i> Alt Orta</button>
@@ -106,7 +110,7 @@
                 <button class="tab-btn" style="padding:4px 8px; flex:1;" onclick="multiSelectBringToFront()" title="En Öne Getir"><i class="fas fa-level-up-alt"></i></button>
                 <button class="tab-btn" style="padding:4px 8px; flex:1;" onclick="multiSelectSendToBack()" title="En Arkaya Gönder"><i class="fas fa-level-down-alt"></i></button>
                 <button class="tab-btn" style="padding:4px 8px; flex:1;" onclick="multiSelectDuplicate()" title="Çoğalt"><i class="fas fa-copy"></i></button>
-                <button class="tab-btn" style="padding:4px 8px; flex:1; background:#ef4444; color:white;" onclick="multiSelectDelete()" title="Toplu Sil"><i class="fas fa-trash"></i></button>
+                <button class="tab-btn" style="padding:4px 8px; flex:1; color:#ef4444; border-color:rgba(239, 68, 68, 0.3);" onclick="multiSelectDelete()" title="Toplu Sil"><i class="fas fa-trash"></i></button>
             </div>
 
             <div class="section-title" style="margin-top:5px; margin-bottom:5px;"><i class="fa-solid fa-palette" style="color:#0284c7; margin-right:6px;"></i>Toplu Renk</div>
@@ -123,11 +127,30 @@
         if (!multiPanel) initMultiSelectUI();
         if (!multiPanel) return;
 
-        if (window.selectedElements && window.selectedElements.length > 1) {
+        const count2D = (window.selectedElements && window.selectedElements.length) || 0;
+        const sel3D = (window.ThreeDGrouping && typeof window.ThreeDGrouping.getSelected3DElements === 'function')
+            ? window.ThreeDGrouping.getSelected3DElements()
+            : [];
+        const count3D = (sel3D && sel3D.length) || 0;
+        const totalCount = count2D + count3D;
+
+        if (totalCount > 1) {
             multiPanel.style.display = 'block';
-            document.getElementById('multi-select-count').innerText = window.selectedElements.length;
+            const countEl = document.getElementById('multi-select-count');
+            if (countEl) {
+                if (count2D > 0 && count3D > 0) {
+                    countEl.innerText = `${totalCount} (${count2D} Metin/Öge, ${count3D} 3D)`;
+                } else {
+                    countEl.innerText = totalCount;
+                }
+            }
+            const gapVal = window.multiSelectGap !== undefined ? window.multiSelectGap : 14;
             const gapInp = document.getElementById('multi-gap-val');
-            if (gapInp) gapInp.value = window.multiSelectGap || 14;
+            if (gapInp) gapInp.value = gapVal;
+            const gapSlider = document.getElementById('multi-gap-slider');
+            if (gapSlider) gapSlider.value = gapVal;
+            const gapDisplay = document.getElementById('multi-gap-display');
+            if (gapDisplay) gapDisplay.innerText = gapVal + 'px';
             if (typeof updateGroupUI === 'function') updateGroupUI();
         } else {
             multiPanel.style.display = 'none';
@@ -186,7 +209,8 @@
     }
 
     // Akıllı Sıralama & Üst Üste Binmeyi Önleme (Smart Stacking)
-    window.multiSelectStack = function(direction = 'vertical', customGap = null) {
+    window.multiSelectStack = function(direction = 'vertical', customGap = null, record = true) {
+        window.lastMultiSelectStackDirection = direction;
         const elements = (window.selectedElements && window.selectedElements.length > 1)
             ? window.selectedElements.filter(el => el.dataset.locked !== 'true')
             : [];
@@ -196,16 +220,17 @@
         const cContainer = document.getElementById('canvas-container');
         const cW = (cContainer && parseFloat(cContainer.style.width)) || 1920;
         const formatRatio = Math.max(1, cW / 1920);
-        const activeGap = (typeof customGap === 'number' && !isNaN(customGap)) ? customGap : (window.multiSelectGap || 14);
+        const activeGap = (typeof customGap === 'number' && !isNaN(customGap)) ? customGap : (window.multiSelectGap !== undefined ? window.multiSelectGap : 14);
         const gap = Math.round(activeGap * formatRatio);
 
         let items = elements.map(el => {
+            const rect = el.getBoundingClientRect();
             return {
                 el,
                 l: parseFloat(el.style.left) || el.offsetLeft,
                 t: parseFloat(el.style.top) || el.offsetTop,
-                w: el.offsetWidth || parseFloat(el.style.width) || 50,
-                h: el.offsetHeight || parseFloat(el.style.height) || 50
+                w: el.offsetWidth || (rect ? rect.width : 50) || 50,
+                h: el.offsetHeight || (rect ? rect.height : 30) || 30
             };
         });
 
@@ -218,11 +243,17 @@
         let centerY = (minT + maxB) / 2;
 
         if (direction === 'vertical') {
-            items.sort((a, b) => a.t - b.t);
-            let currentY = items[0].t;
+            const isCurrentlyHorizontal = (maxR - minL) > (maxB - minT) * 1.2;
+            if (isCurrentlyHorizontal) {
+                items.sort((a, b) => a.l - b.l);
+            } else {
+                items.sort((a, b) => a.t - b.t);
+            }
+
+            let currentY = minT;
 
             items.forEach(item => {
-                const newL = centerX - (item.w / 2);
+                const newL = minL;
                 const newT = currentY;
                 const dx = newL - item.l;
                 const dy = newT - item.t;
@@ -246,12 +277,18 @@
                 currentY += item.h + gap;
             });
         } else {
-            items.sort((a, b) => a.l - b.l);
-            let currentX = items[0].l;
+            const isCurrentlyVertical = (maxB - minT) > (maxR - minL) * 1.2;
+            if (isCurrentlyVertical) {
+                items.sort((a, b) => a.t - b.t);
+            } else {
+                items.sort((a, b) => a.l - b.l);
+            }
+
+            let currentX = minL;
 
             items.forEach(item => {
                 const newL = currentX;
-                const newT = centerY - (item.h / 2);
+                const newT = Math.round(centerY - (item.h / 2));
                 const dx = newL - item.l;
                 const dy = newT - item.t;
 
@@ -279,7 +316,9 @@
         if (typeof redrawAll === 'function') redrawAll();
         if (typeof updateDrawHistory === 'function') updateDrawHistory();
         if (typeof renderLayers === 'function') renderLayers();
-        if (typeof window.recordHistory === 'function') window.recordHistory('Öğeler Sıralandı (' + direction + ')');
+        if (record && typeof window.recordHistory === 'function') {
+            window.recordHistory('Öğeler Sıralandı (' + direction + ')');
+        }
     };
 
     // Çoklu Hizalama (Birbirine Göre)
@@ -686,7 +725,13 @@
                 if (origPath) {
                     const clonedPath = Object.assign({}, origPath);
                     clonedPath.el = clone;
+                    clonedPath.saberRef = null;
+                    delete clonedPath.saberRef;
+                    if (Array.isArray(origPath.points)) {
+                        clonedPath.points = origPath.points.map(pt => ({ ...pt }));
+                    }
                     drawPaths.push(clonedPath);
+                    clone.dataset.pathIndex = drawPaths.length - 1;
                 }
             }
         });
@@ -722,25 +767,31 @@
         
         let toDelete = [...window.selectedElements].filter(el => el.dataset.locked !== 'true');
         if (toDelete.length === 0) {
-            alert('Seçili tüm öğeler kilitli olduğu için silinemez.');
+            if (typeof window.showToast === 'function') {
+                window.showToast('Kilitli öğeler silinemez', 'warning');
+            }
             return;
         }
 
-        const confirmDelete = confirm(toDelete.length + ' adet öğeyi silmek istediğinize emin misiniz?');
-        if (!confirmDelete) return;
-        
         if (typeof deselectAll === 'function') deselectAll();
         
         toDelete.forEach(el => {
+            if (window.SaberEngine && typeof window.SaberEngine.removeTextSaber === 'function') {
+                window.SaberEngine.removeTextSaber(el);
+            }
             el.remove();
             if (typeof drawPaths !== 'undefined') {
                 const idx = drawPaths.findIndex(p => p.el === el);
                 if (idx > -1) {
-                    const p = drawPaths[idx];
-                    if (p.hasSaber && typeof window.removeSaberFromPath === 'function') {
-                        window.removeSaberFromPath(idx);
+                    if (typeof window.deleteDrawItem === 'function') {
+                        window.deleteDrawItem(idx);
+                    } else {
+                        const p = drawPaths[idx];
+                        if (p.hasSaber && typeof window.removeSaberFromPath === 'function') {
+                            window.removeSaberFromPath(idx);
+                        }
+                        drawPaths.splice(idx, 1);
                     }
-                    drawPaths.splice(idx, 1);
                 }
             }
         });
@@ -834,20 +885,82 @@
     };
 
     window.multiSelectScale = function(factor = 1.1) {
+        // 🌟 Seçili 3D ögeleri de orantılı boyutlandır
+        if (window.ThreeDGrouping && typeof window.ThreeDGrouping.getSelected3DElements === 'function') {
+            const sel3D = window.ThreeDGrouping.getSelected3DElements();
+            if (sel3D && sel3D.length > 0) {
+                sel3D.forEach(item => {
+                    item.scaleX = +((item.scaleX !== undefined ? item.scaleX : 1.0) * factor).toFixed(3);
+                    item.scaleY = +((item.scaleY !== undefined ? item.scaleY : 1.0) * factor).toFixed(3);
+                    item.scaleZ = +((item.scaleZ !== undefined ? item.scaleZ : 1.0) * factor).toFixed(3);
+                    if (window.ThreeDEngine && typeof window.ThreeDEngine.updateContentTransform === 'function') {
+                        window.ThreeDEngine.updateContentTransform(item);
+                    }
+                });
+                if (window.ThreeDEngine && typeof window.ThreeDEngine.requestRender === 'function') {
+                    window.ThreeDEngine.requestRender();
+                }
+                if (typeof window.ThreeDGrouping.updateSelectionVisuals === 'function') {
+                    window.ThreeDGrouping.updateSelectionVisuals();
+                }
+            }
+        }
+
         if (!window.selectedElements || window.selectedElements.length === 0) return;
         const targets = Array.from(new Set(window.selectedElements.map(el => el.closest('.callout-wrap, .draggable, .canvas-el, .added-icon, [data-layer-uid]') || el)));
+        if (targets.length === 0) return;
+
+        // 1. Calculate bounding box of all targets to find the group center
+        let minL = Infinity, maxR = -Infinity;
+        let minT = Infinity, maxB = -Infinity;
+
         targets.forEach(el => {
+            const l = parseFloat(el.style.left) || el.offsetLeft || 0;
+            const t = parseFloat(el.style.top) || el.offsetTop || 0;
+            const w = el.offsetWidth || parseFloat(el.style.width) || 50;
+            const h = el.offsetHeight || parseFloat(el.style.height) || 50;
+            if (l < minL) minL = l;
+            if (l + w > maxR) maxR = l + w;
+            if (t < minT) minT = t;
+            if (t + h > maxB) maxB = t + h;
+        });
+
+        const centerX = (minL + maxR) / 2;
+        const centerY = (minT + maxB) / 2;
+
+        targets.forEach(el => {
+            const curL = parseFloat(el.style.left) || el.offsetLeft || 0;
+            const curT = parseFloat(el.style.top) || el.offsetTop || 0;
             const curW = el.offsetWidth || parseFloat(el.style.width) || 100;
             const curH = el.offsetHeight || parseFloat(el.style.height) || 100;
+            
             const newW = Math.max(20, Math.round(curW * factor));
             const newH = Math.max(20, Math.round(curH * factor));
-            el.style.width = newW + 'px';
-            el.style.height = newH + 'px';
             
-            if (el.classList.contains('editable-text') || el.classList.contains('canvas-el')) {
+            // Adjust position relative to group center if multiple items
+            if (targets.length > 1) {
+                const elCenterX = curL + curW / 2;
+                const elCenterY = curT + curH / 2;
+                const newElCenterX = centerX + (elCenterX - centerX) * factor;
+                const newElCenterY = centerY + (elCenterY - centerY) * factor;
+                el.style.left = Math.round(newElCenterX - newW / 2) + 'px';
+                el.style.top = Math.round(newElCenterY - newH / 2) + 'px';
+            }
+
+            // Scale dimensions
+            if (el.querySelector('img') || el.tagName === 'IMG') {
+                el.style.width = newW + 'px';
+                el.style.height = 'auto';
+            } else if (el.classList.contains('editable-text') || el.classList.contains('canvas-el') || el.classList.contains('brand-element')) {
                 const curFs = parseFloat(window.getComputedStyle(el).fontSize) || 16;
                 el.style.fontSize = Math.max(8, Math.round(curFs * factor)) + 'px';
+                el.style.width = 'auto';
+                el.style.height = 'auto';
+            } else {
+                el.style.width = newW + 'px';
+                el.style.height = newH + 'px';
             }
+
             if (el.classList.contains('callout-wrap') || el.classList.contains('svg-callout') || el.classList.contains('co-neon-block')) {
                 const item = el.querySelector('.callout-item, .callout-svg-container');
                 if (item) {
@@ -860,24 +973,13 @@
                 }
                 el.dataset.customW = newW;
                 el.dataset.customH = newH;
-                const coW = document.getElementById('coWidth');
-                const coH = document.getElementById('coHeight');
-                const coWV = document.getElementById('coWidthVal');
-                const coHV = document.getElementById('coHeightVal');
-                if (coW && (window.selectedCalloutEl === item || window.selectedCalloutEl === el || window.selectedEl === el)) {
-                    coW.value = newW;
-                    if (coWV) coWV.textContent = newW + 'px';
-                }
-                if (coH && (window.selectedCalloutEl === item || window.selectedCalloutEl === el || window.selectedEl === el)) {
-                    coH.value = newH;
-                    if (coHV) coHV.textContent = newH + 'px';
-                }
             }
             if (el.classList.contains('editable-draw')) {
                 if (el.dataset.baseWidth !== undefined) el.dataset.baseWidth = newW;
                 if (el.dataset.baseHeight !== undefined) el.dataset.baseHeight = newH;
             }
         });
+
         syncMovedDrawElements(targets);
         if (typeof redrawAll === 'function') redrawAll();
         if (typeof updateDrawHistory === 'function') updateDrawHistory();
@@ -887,3 +989,4 @@
 
     document.addEventListener('DOMContentLoaded', initMultiSelectUI);
 })();
+

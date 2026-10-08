@@ -138,18 +138,20 @@
                 const isRealTemplateClick = target.closest(
                     '.canva-tpl-card, .tb-layout-card, .pro-json-card, .pro-tpl-card, .kolaj-btn, .fav-card, ' +
                     '.template-btn:not(#tpl-empty), ' +
-                    '[data-id^="canva"], [data-id^="pj_"], ' +
-                    '[onclick*="renderKTemplate"], [onclick*="renderCanvaTemplate"], ' +
-                    '[onclick*="applyPreset"], [onclick*="applyLayout"]'
+                    '[data-id^="canva"], [data-id^="pj_"], [data-id^="kolaj"], ' +
+                    '[onclick*="renderKTemplate"], [onclick*="renderKurumsalTemplate"], [onclick*="renderCanvaTemplate"], ' +
+                    '[onclick*="_kolaj"], [onclick*="applyPreset"], [onclick*="applyLayout"]'
                 );
 
-                // 3. Tuvale öge ekleyen eylem butonları (Metin, Rozet, Şekil, İkon, Damga)
+                // 3. Tuvale öge ekleyen eylem butonları (Metin, Rozet, Şekil, İkon, Damga, 3D)
                 const isElementAddClick = target.closest(
                     '.btn-add-badge, .btn-add-text, .btn-add-shape, .callout-chip, .badge-preset-btn, ' +
                     '.stamp-item, .icon-item, .canva-badge-item, .shape-btn, .shape-card, .callout-card, .callout-item, ' +
                     '[onclick*="addCustomText"], [onclick*="addBadge"], [onclick*="addCustomShape"], ' +
                     '[onclick*="addShape"], [onclick*="addCallout"], [onclick*="addSVGCallout"], ' +
-                    '[onclick*="addSmartBadge"], [onclick*="addIcon"], [onclick*="addNeon"], [onclick*="addStamp"]'
+                    '[onclick*="addSmartBadge"], [onclick*="addIcon"], [onclick*="addNeon"], [onclick*="addStamp"], ' +
+                    '[onclick*="ThreeDEngine"], [onclick*="threeD"], [onclick*="logoInput"], ' +
+                    '#threeDAddNewElementBtn, .three-d-add-btn, .estate-3d-card'
                 );
 
                 if (isDrawToolClick || isRealTemplateClick || isElementAddClick) {
@@ -259,13 +261,50 @@
 
             [
                 'addCustomTextOnly', 'addCustomTextBox', 'addBadgeElement', 'addCustomShape',
-                'addShape', 'addCalloutPreset', 'addSVGCalloutToCanvas', 'addSmartBadgeToCanvas', 'addStampToCanvas',
-                'addIconElement', 'addLogoToCanvas', 'addNeonText', 'addCallout', 'addParcelBadge',
-                'renderCanvaTemplate', 'renderKTemplate', 'loadPhotoFile', 'loadProjectFromFile', 'applySatelliteImage'
+                'addShape', 'addIcon', 'addIconElement', 'addLogoToCanvas', 'addNeonText', 'addNeonCallout', 'addCallout', 'addParcelBadge', 'generateQRCode',
+                'renderCanvaTemplate', 'renderKTemplate', 'renderKurumsalTemplate', 'loadPhotoFile', 'loadProjectFromFile', 'applySatelliteImage',
+                '_kolaj1', '_kolaj2', '_kolaj3', '_kolaj4', '_kolaj5', '_kolaj6', '_kolaj7', '_kolaj8', '_kolaj9', '_kolaj10', '_kolajWrapper'
             ].forEach(wrapDismissAction);
+
+            // ThreeDEngine eylemlerini bağla
+            const hookThreeD = () => {
+                if (window.ThreeDEngine) {
+                    ['openStudio', 'showStudioPanel', 'addNewElement', 'add3DText', 'add3DElementFromData', 'addEstate3DElement', 'loadGLBFile', 'convert2DBadgeTo3D'].forEach(fn => {
+                        const orig = window.ThreeDEngine[fn];
+                        if (typeof orig === 'function' && !orig._emptyHooked) {
+                            window.ThreeDEngine[fn] = (...args) => {
+                                CanvasEmptyState.dismiss();
+                                return orig.apply(window.ThreeDEngine, args);
+                            };
+                            window.ThreeDEngine[fn]._emptyHooked = true;
+                        }
+                    });
+                }
+            };
+            hookThreeD();
+            setTimeout(hookThreeD, 300);
+            setTimeout(hookThreeD, 1000);
         },
 
         hasActiveCanvasContent() {
+            // 0. 3D Sahnesi veya 3D ögeler aktif mi?
+            if (window.ThreeDEngine) {
+                if (typeof window.ThreeDEngine.hasElements === 'function' && window.ThreeDEngine.hasElements()) {
+                    return true;
+                }
+                if (typeof window.ThreeDEngine.getElements === 'function') {
+                    const t3Els = window.ThreeDEngine.getElements();
+                    if (t3Els && t3Els.length > 0) return true;
+                }
+                if (typeof window.ThreeDEngine.isActive === 'function' && window.ThreeDEngine.isActive()) {
+                    return true;
+                }
+            }
+            const studioPanel = document.getElementById('threeDStudioPanel');
+            if (studioPanel && studioPanel.style.display !== 'none') {
+                return true;
+            }
+
             // 1. Arka plan fotoğrafı var mı?
             const hasUploadUrl = !!(typeof window.uploadedImgUrl !== 'undefined' && window.uploadedImgUrl && typeof window.uploadedImgUrl === 'string' && window.uploadedImgUrl.trim() !== '');
             const hasMasterBase64 = !!(typeof window.masterImageBase64 !== 'undefined' && window.masterImageBase64 && typeof window.masterImageBase64 === 'string' && window.masterImageBase64.trim() !== '');
@@ -285,21 +324,54 @@
                 return true;
             }
 
+            const kolajWrapper = document.getElementById('kolaj-wrapper');
+            if (kolajWrapper) {
+                return true;
+            }
+            if (window._kolajAktif || (typeof _kolajAktif !== 'undefined' && _kolajAktif)) {
+                return true;
+            }
+            if (document.querySelectorAll('.kolaj-cerceve, .kolaj-foto').length > 0) {
+                return true;
+            }
+
             // 3. Tuvalde aktif çizimler var mı?
             if (typeof window.drawPaths !== 'undefined' && window.drawPaths && window.drawPaths.length > 0) {
                 return true;
             }
 
-            // 4. Tuvalde eklenmiş herhangi bir kullanıcı ögesi var mı? (Metin, rozet, şekil, ikon, callout vb.)
+            // 4. Tuvalde eklenmiş herhangi bir kullanıcı ögesi var mı? (Metin, rozet, şekil, ikon, callout, kolaj, logo vb.)
             const editableElements = document.querySelectorAll(
                 '#canvas-container .editable-item, #canvas-container .callout-wrap, #canvas-container .custom-shape, ' +
-                '#canvas-container .editable-draw, #canvas-container .svg-callout-el, #canvas-container [data-element-type]'
+                '#canvas-container .editable-draw, #canvas-container .svg-callout-el, #canvas-container [data-element-type], ' +
+                '#canvas-container .kolaj-cerceve, #canvas-container #kolaj-wrapper, ' +
+                '#canvas-container .shape-el, #canvas-container [data-shape-type], #canvas-container .added-icon, #canvas-container .canvas-icon, ' +
+                '#canvas-container .added-text, #canvas-container .custom-text-box, #canvas-container .co-neon-block, ' +
+                '#canvas-container .cvi-item, #canvas-container .tb-image-frame, ' +
+                '#canvas-container .draggable:not(#elBadge):not(#elPrice):not(#elDetails):not(#elLogo), ' +
+                '#canvas-container .canvas-el:not(#elBadge):not(#elPrice):not(#elDetails):not(#elLogo)'
             );
             if (editableElements && editableElements.length > 0) {
                 return true;
             }
 
-            // 5. Çizim modu aktif mi? (Kullanıcı çizim aracına bastıysa boş tuvalde çizim yapacak)
+            // 5. Firma Logosu aktif mi?
+            const logoEl = document.getElementById('elLogo');
+            if (logoEl && logoEl.style.display !== 'none' && logoEl.style.visibility !== 'hidden' && logoEl.style.opacity !== '0') {
+                return true;
+            }
+
+            // 6. Standart Rozetler aktif/görünür mü?
+            const elBadge = document.getElementById('elBadge');
+            const elPrice = document.getElementById('elPrice');
+            const elDetails = document.getElementById('elDetails');
+            if ((elBadge && elBadge.style.visibility !== 'hidden' && elBadge.style.display !== 'none') ||
+                (elPrice && elPrice.style.visibility !== 'hidden' && elPrice.style.display !== 'none') ||
+                (elDetails && elDetails.style.visibility !== 'hidden' && elDetails.style.display !== 'none')) {
+                return true;
+            }
+
+            // 7. Çizim modu aktif mi? (Kullanıcı çizim aracına bastıysa boş tuvalde çizim yapacak)
             if (typeof window.drawMode !== 'undefined' && window.drawMode && window.drawMode !== 'off') {
                 return true;
             }

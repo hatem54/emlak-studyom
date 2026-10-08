@@ -75,7 +75,11 @@
                 const origSwitchTab = window.switchTab;
                 window.switchTab = (name) => {
                     origSwitchTab(name);
-                    this.setContext(name);
+                    const hasSelected2D = !!(this.selectedElement || document.querySelector('.el-selected'));
+                    const hasSelected3D = !!(this.selected3DElement || (window.ThreeDEngine && window.ThreeDEngine.isSelected && window.ThreeDEngine.isSelected()));
+                    if (!hasSelected2D && !hasSelected3D) {
+                        this.setContext(name);
+                    }
                 };
             }
 
@@ -207,7 +211,18 @@
             groups.forEach(g => g.classList.remove('active'));
 
             // Hedef grubu bul ve aktif yap
-            const targetGroup = document.getElementById(`dockGroup_${contextName}`);
+            let targetGroup = document.getElementById(`dockGroup_${contextName}`);
+            if (!targetGroup) {
+                if (contextName === '3d' || contextName === 'shapes') {
+                    targetGroup = document.getElementById('dockGroup_element');
+                } else if (contextName === 'brand') {
+                    targetGroup = document.getElementById('dockGroup_data');
+                } else if (contextName === 'qr') {
+                    targetGroup = document.getElementById('dockGroup_font');
+                } else {
+                    targetGroup = document.getElementById('dockGroup_element') || document.getElementById('dockGroup_data');
+                }
+            }
             if (targetGroup) {
                 targetGroup.classList.add('active');
             }
@@ -216,6 +231,10 @@
             const dock3D = document.getElementById('dock3DControls');
             if (dock3D) {
                 dock3D.style.display = is3DActive ? 'inline-flex' : 'none';
+            }
+            const dockDiv = document.getElementById('dockContextDivider');
+            if (dockDiv) {
+                dockDiv.style.display = is3DActive ? 'block' : 'none';
             }
 
             // Durum Değerlerini Senkronize Et
@@ -227,7 +246,7 @@
          */
         syncStateValues: function(contextName, payload) {
             // 1. Element Kilit Durumu (2D & 3D Birleşik)
-            if (contextName === 'element') {
+            if (contextName === 'element' || contextName === '3d') {
                 let isLocked = false;
                 if (window.ThreeDEngine && typeof window.ThreeDEngine.isSelected === 'function' && window.ThreeDEngine.isSelected()) {
                     const el3d = (payload && payload.id) ? payload : (window.ThreeDEngine.getActiveElement ? window.ThreeDEngine.getActiveElement() : null);
@@ -239,19 +258,22 @@
                     }
                 }
 
-                const icon = document.getElementById('dockElLockIcon');
-                const lbl = document.getElementById('dockElLockLabel');
-                if (icon) {
-                    icon.className = isLocked ? 'fa-solid fa-lock' : 'fa-solid fa-lock-open';
-                }
-                if (lbl) {
-                    lbl.textContent = isLocked ? 'Kilitli' : 'Serbest';
-                }
-                const dockElLockBtn = icon ? icon.closest('.dock-btn') : null;
-                if (dockElLockBtn) {
-                    dockElLockBtn.classList.toggle('lock-active', isLocked);
-                    dockElLockBtn.title = isLocked ? 'Kilidi Aç' : 'Kilitle';
-                }
+                ['dockElLockIcon', 'dock3DElLockIcon'].forEach(id => {
+                    const icon = document.getElementById(id);
+                    if (icon) icon.className = isLocked ? 'fa-solid fa-lock' : 'fa-solid fa-lock-open';
+                });
+                ['dockElLockLabel', 'dock3DElLockLabel'].forEach(id => {
+                    const lbl = document.getElementById(id);
+                    if (lbl) lbl.textContent = isLocked ? 'Kilitli' : 'Serbest';
+                });
+                ['dockElLockIcon', 'dock3DElLockIcon'].forEach(id => {
+                    const icon = document.getElementById(id);
+                    const dockElLockBtn = icon ? icon.closest('.dock-btn') : null;
+                    if (dockElLockBtn) {
+                        dockElLockBtn.classList.toggle('lock-active', isLocked);
+                        dockElLockBtn.title = isLocked ? 'Kilidi Aç' : 'Kilitle';
+                    }
+                });
             }
 
             // 2. Klonlama Modu (Kaynak Seçimi vs Boyama)
@@ -478,6 +500,13 @@
      * Seçili Ögeyi Çoğalt (2D & 3D Birleşik)
      */
     window.duplicateSelected = function() {
+        if (window.ThreeDGrouping && typeof window.ThreeDGrouping.getSelected3DElements === 'function') {
+            const multi3D = window.ThreeDGrouping.getSelected3DElements();
+            if (multi3D && multi3D.length > 1) {
+                window.ThreeDGrouping.duplicateSelectedElements();
+                return;
+            }
+        }
         if (window.ThreeDEngine && typeof window.ThreeDEngine.isSelected === 'function' && window.ThreeDEngine.isSelected()) {
             if (typeof window.ThreeDEngine.duplicateElement === 'function') {
                 const el = window.ThreeDEngine.getActiveElement ? window.ThreeDEngine.getActiveElement() : null;
@@ -499,27 +528,86 @@
      * Seçili Ögeyi Sil (2D & 3D Birleşik)
      */
     window.deleteSelected = function() {
-        if (window.ThreeDEngine && typeof window.ThreeDEngine.isSelected === 'function' && window.ThreeDEngine.isSelected()) {
-            if (typeof window.ThreeDEngine.deleteElement === 'function') {
-                window.ThreeDEngine.deleteElement();
-                return;
+        let deletedAny = false;
+
+        // 1. 🌟 3D Çoklu Seçim: Çoklu 3D ögeleri sil
+        if (window.ThreeDGrouping && typeof window.ThreeDGrouping.getSelected3DElements === 'function') {
+            const multi3D = window.ThreeDGrouping.getSelected3DElements();
+            if (multi3D && multi3D.length > 0) {
+                window.ThreeDGrouping.deleteSelectedElements();
+                deletedAny = true;
             }
         }
-        if (typeof window.multiSelectDelete === 'function' && window.selectedElements && window.selectedElements.length > 0) {
-            window.multiSelectDelete();
-            return;
+
+        // 2. 🌟 Tekil 3D Öge Seçiliyse Sil
+        if (window.ThreeDEngine && typeof window.ThreeDEngine.isSelected === 'function' && window.ThreeDEngine.isSelected()) {
+            const activeEl = window.ThreeDEngine.getActiveElement ? window.ThreeDEngine.getActiveElement() : null;
+            if (activeEl && !activeEl.locked) {
+                if (typeof window.ThreeDEngine.deleteElement === 'function') {
+                    window.ThreeDEngine.deleteElement();
+                    deletedAny = true;
+                } else if (typeof window.ThreeDEngine.delete3DElement === 'function') {
+                    window.ThreeDEngine.delete3DElement();
+                    deletedAny = true;
+                }
+            }
         }
+
+        // 3. 🌟 2D Çoklu Seçim: Seçili tüm 2D ögeleri (metin, çizim, şekil, rozet, resim) sil
+        if (typeof window.multiSelectDelete === 'function' && Array.isArray(window.selectedElements) && window.selectedElements.length > 0) {
+            window.multiSelectDelete();
+            deletedAny = true;
+        }
+
+        // 4. 🌟 2D Callout Seçiliyse Sil
         if (typeof selectedCalloutEl !== 'undefined' && selectedCalloutEl && typeof deleteSelectedCallout === 'function') {
             deleteSelectedCallout();
-            return;
+            deletedAny = true;
         }
-        const el = DockContextManager.selectedElement || document.querySelector('.el-selected') || window.selectedEl;
-        if (el) {
-            if (el.parentNode) el.remove();
+
+        // 5. 🌟 Tekil 2D Seçili Öge (.el-selected / selectedEl) Silme
+        const targets = (Array.isArray(window.selectedElements) && window.selectedElements.length > 0)
+            ? [...window.selectedElements]
+            : (window.selectedEl ? [window.selectedEl] : (DockContextManager.selectedElement ? [DockContextManager.selectedElement] : Array.from(document.querySelectorAll('.el-selected'))));
+
+        if (targets.length > 0) {
+            targets.forEach(sel => {
+                if (!sel || (sel.dataset && sel.dataset.locked === 'true')) return;
+                if (window.SaberEngine && typeof window.SaberEngine.removeTextSaber === 'function') {
+                    window.SaberEngine.removeTextSaber(sel);
+                }
+                if (typeof drawPaths !== 'undefined' && sel.classList && sel.classList.contains('editable-draw')) {
+                    const idx = drawPaths.findIndex(p => p.el === sel);
+                    if (idx > -1) {
+                        if (typeof window.deleteDrawItem === 'function') window.deleteDrawItem(idx);
+                        else drawPaths.splice(idx, 1);
+                    }
+                }
+                if (typeof sel.remove === 'function') {
+                    sel.remove();
+                    deletedAny = true;
+                }
+            });
+        }
+
+        // 6. 🌟 Temizlik ve Arayüz Senkronizasyonu
+        if (deletedAny) {
             if (typeof window.redrawAll === 'function') window.redrawAll();
             if (typeof window.renderLayers === 'function') window.renderLayers();
             if (typeof window.deselectAll === 'function') window.deselectAll();
+            if (window.ThreeDGrouping && typeof window.ThreeDGrouping.clearSelection === 'function') {
+                window.ThreeDGrouping.clearSelection();
+            }
+            if (window.ThreeDEngine && typeof window.ThreeDEngine.setSelected === 'function') {
+                window.ThreeDEngine.setSelected(false, { silent: true });
+            }
             DockContextManager.onElementDeselected();
+            if (typeof window.recordHistory === 'function') window.recordHistory('Öge Silindi', true);
+        } else {
+            // Eğer silinecek hiçbir şey silinemediyse ama hala seçili 2D ögeler varsa dock'u düşürme
+            if (Array.isArray(window.selectedElements) && window.selectedElements.length > 0) {
+                DockContextManager.onElementSelected(window.selectedElements[0]);
+            }
         }
     };
 
@@ -527,6 +615,13 @@
      * Seçili Ögeyi Kilitle / Kilidi Aç (2D & 3D Birleşik)
      */
     window.toggleLockSelected = function() {
+        if (window.ThreeDGrouping && typeof window.ThreeDGrouping.getSelected3DElements === 'function') {
+            const multi3D = window.ThreeDGrouping.getSelected3DElements();
+            if (multi3D && multi3D.length > 1) {
+                window.ThreeDGrouping.toggleLockSelectedElements();
+                return;
+            }
+        }
         if (window.ThreeDEngine && typeof window.ThreeDEngine.isSelected === 'function' && window.ThreeDEngine.isSelected()) {
             const activeEl = window.ThreeDEngine.getActiveElement ? window.ThreeDEngine.getActiveElement() : null;
             if (activeEl) {
@@ -599,9 +694,66 @@
     };
 
     /**
+     * Seçili Ögenin Açılarını ve Eğimini Sıfırla (2D & 3D Uyumlu)
+     */
+    window.resetSelectedElementAngles = function() {
+        // 1. 3D Öge Seçiliyse:
+        if (window.ThreeDEngine && typeof window.ThreeDEngine.isSelected === 'function' && window.ThreeDEngine.isSelected()) {
+            const el = window.ThreeDEngine.getActiveElement ? window.ThreeDEngine.getActiveElement() : null;
+            if (el) {
+                el.orientation = 'flat';
+                el.planePitch = 0;
+                el.planeYaw = 0;
+                el.planeRoll = 0;
+                el.planeLocalRot = 0;
+                el.planeElevation = 0;
+                el.itemPitch = 0;
+                el.itemRoll = 0;
+                if (window.ThreeDEngine.state) {
+                    window.ThreeDEngine.state.orientation = 'flat';
+                    window.ThreeDEngine.state.planePitch = 0;
+                    window.ThreeDEngine.state.planeYaw = 0;
+                    window.ThreeDEngine.state.planeRoll = 0;
+                    window.ThreeDEngine.state.planeLocalRot = 0;
+                    window.ThreeDEngine.state.planeElevation = 0;
+                    window.ThreeDEngine.state.itemPitch = 0;
+                    window.ThreeDEngine.state.itemRoll = 0;
+                }
+                if (typeof window.ThreeDEngine.updatePlaneTransform === 'function') window.ThreeDEngine.updatePlaneTransform(el);
+                if (typeof window.ThreeDEngine.updateContentTransform === 'function') window.ThreeDEngine.updateContentTransform(el);
+                if (typeof window.ThreeDEngine.updateGizmoPositions === 'function') window.ThreeDEngine.updateGizmoPositions();
+                if (typeof window.ThreeDEngine.syncControlsUI === 'function') window.ThreeDEngine.syncControlsUI();
+                if (typeof window.ThreeDEngine.requestRender === 'function') window.ThreeDEngine.requestRender();
+                if (typeof window.ThreeDEngine.notifyExternalUpdates === 'function') window.ThreeDEngine.notifyExternalUpdates();
+                if (typeof window.recordHistory === 'function') window.recordHistory('3D Açıları Sıfırlandı');
+                return;
+            }
+        }
+
+        // 2. 2D Öge Seçiliyse:
+        const el = DockContextManager.selectedElement || document.querySelector('.el-selected') || window.selectedEl || (window.selectedElements && window.selectedElements[0]);
+        if (el) {
+            el.setAttribute('data-rotation', '0');
+            el.dataset.rotation = '0';
+            const currentScale = el.dataset.scale || 1;
+            el.style.transform = `rotate(0deg) scale(${currentScale})`;
+            const rotSlider = document.getElementById('elRotate');
+            const rotVal = document.getElementById('elRotateVal');
+            if (rotSlider) rotSlider.value = 0;
+            if (rotVal) rotVal.textContent = '0°';
+            if (typeof window.recordHistory === 'function') window.recordHistory('Öge Açısı Sıfırlandı');
+        }
+    };
+
+    /**
      * Seçili Ögeyi Döndür (2D & 3D Birleşik)
      */
     window.rotateSelectedElement = function(deg = 90) {
+        if (deg === 0) {
+            window.resetSelectedElementAngles();
+            return;
+        }
+
         // 1. 3D Öge Seçiliyse:
         if (window.ThreeDEngine && typeof window.ThreeDEngine.isSelected === 'function' && window.ThreeDEngine.isSelected()) {
             const el = window.ThreeDEngine.getActiveElement ? window.ThreeDEngine.getActiveElement() : null;
@@ -644,10 +796,12 @@
         const el = DockContextManager.selectedElement || document.querySelector('.el-selected') || window.selectedEl || (window.selectedElements && window.selectedElements[0]);
         if (el) {
             let curAngle = parseFloat(el.getAttribute('data-rotation') || el.dataset.rotation || '0') || 0;
-            let nextAngle = (curAngle + deg) % 360;
+            let nextAngle = (deg === 0) ? 0 : ((curAngle + deg) % 360);
+            if (nextAngle < 0) nextAngle += 360;
             el.setAttribute('data-rotation', nextAngle);
             el.dataset.rotation = nextAngle;
-            el.style.transform = `rotate(${nextAngle}deg)`;
+            const currentScale = el.dataset.scale || 1;
+            el.style.transform = `rotate(${nextAngle}deg) scale(${currentScale})`;
             const rotSlider = document.getElementById('elRotate');
             const rotVal = document.getElementById('elRotateVal');
             if (rotSlider) rotSlider.value = nextAngle;
@@ -689,6 +843,123 @@
             const curScaleX = !isFlipped ? -1 : 1;
             el.style.transform = (el.style.transform || '').replace(/scaleX\([^)]*\)/g, '').trim() + ` scaleX(${curScaleX})`;
             if (typeof window.recordHistory === 'function') window.recordHistory('Öge Yatay Çevrildi');
+        }
+    };
+
+    /**
+     * Seçili Ögeyi Varsayılan Açı, Boyut ve Duruşa Sıfırla (2D & 3D Evrensel)
+     */
+    window.resetSelectedElementToDefault = function() {
+        if (window.ThreeDGrouping && typeof window.ThreeDGrouping.getSelected3DElements === 'function') {
+            const multi3D = window.ThreeDGrouping.getSelected3DElements();
+            if (multi3D && multi3D.length > 1) {
+                window.ThreeDGrouping.resetSelectedElements();
+                return;
+            }
+        }
+        // 1. 3D Öge Seçiliyse:
+        if (window.ThreeDEngine && typeof window.ThreeDEngine.isSelected === 'function' && window.ThreeDEngine.isSelected()) {
+            const el = window.ThreeDEngine.getActiveElement ? window.ThreeDEngine.getActiveElement() : null;
+            if (el) {
+                // Açıları ve eğimleri sıfırla (Kullanıcıya tam düz baksın)
+                el.orientation = el.estateItemId ? (el.orientation || 'standing') : 'flat';
+                el.planePitch = 0;
+                el.planeYaw = 0;
+                el.planeRoll = 0;
+                el.planeLocalRot = 0;
+                el.planeElevation = 0;
+                el.itemPitch = 0;
+                el.itemRoll = 0;
+                
+                // Ölçeği varsayılana getir
+                el.planeScale = 1.0;
+                el.scaleX = 1.0;
+                el.scaleY = 1.0;
+                el.scaleZ = 1.0;
+
+                if (window.ThreeDEngine.state) {
+                    window.ThreeDEngine.state.orientation = el.orientation;
+                    window.ThreeDEngine.state.planePitch = 0;
+                    window.ThreeDEngine.state.planeYaw = 0;
+                    window.ThreeDEngine.state.planeRoll = 0;
+                    window.ThreeDEngine.state.planeLocalRot = 0;
+                    window.ThreeDEngine.state.planeElevation = 0;
+                    window.ThreeDEngine.state.itemPitch = 0;
+                    window.ThreeDEngine.state.itemRoll = 0;
+                    window.ThreeDEngine.state.planeScale = 1.0;
+                }
+
+                if (typeof window.ThreeDEngine.updatePlaneTransform === 'function') window.ThreeDEngine.updatePlaneTransform(el);
+                if (typeof window.ThreeDEngine.updateContentTransform === 'function') window.ThreeDEngine.updateContentTransform(el);
+                if (typeof window.ThreeDEngine.updateGizmoPositions === 'function') window.ThreeDEngine.updateGizmoPositions();
+                if (typeof window.ThreeDEngine.syncControlsUI === 'function') window.ThreeDEngine.syncControlsUI();
+                if (typeof window.ThreeDEngine.requestRender === 'function') window.ThreeDEngine.requestRender();
+                if (typeof window.ThreeDEngine.notifyExternalUpdates === 'function') window.ThreeDEngine.notifyExternalUpdates();
+                if (typeof window.recordHistory === 'function') window.recordHistory('3D Öge Sıfırlandı');
+                if (typeof window.showToast === 'function') {
+                    window.showToast('3D öge varsayılan açı ve boyutuna sıfırlandı.', 'info');
+                }
+                return;
+            }
+        }
+
+        // 2. 2D Öge veya Callout Seçiliyse:
+        const el = DockContextManager.selectedElement || document.querySelector('.el-selected') || window.selectedEl || (window.selectedElements && window.selectedElements[0]);
+        if (el) {
+            el.setAttribute('data-rotation', '0');
+            el.dataset.rotation = '0';
+            el.setAttribute('data-scale', '1');
+            el.dataset.scale = '1';
+            el.setAttribute('data-flipped-h', 'false');
+            el.style.transform = 'rotate(0deg) scale(1)';
+
+            if (el.dataset.defaultFont) {
+                el.style.fontSize = el.dataset.defaultFont + 'px';
+            }
+
+            const rotSlider = document.getElementById('elRotate');
+            const rotVal = document.getElementById('elRotateVal');
+            if (rotSlider) rotSlider.value = 0;
+            if (rotVal) rotVal.textContent = '0°';
+
+            const scaleSlider = document.getElementById('elScale');
+            const scaleVal = document.getElementById('elScaleVal');
+            if (scaleSlider) scaleSlider.value = 100;
+            if (scaleVal) scaleVal.textContent = '100%';
+
+            if (typeof window.recordHistory === 'function') window.recordHistory('Öge Sıfırlandı');
+            if (typeof window.showToast === 'function') {
+                window.showToast('Öge varsayılan açı ve boyutuna sıfırlandı.', 'info');
+            }
+        }
+    };
+
+    /**
+     * Seçili Ögenin Ayarlarını Akıllıca Aç (2D, 3D, Şekil, Çizim Uyumlu)
+     */
+    window.openSelectedElementSettings = function() {
+        if (window.ThreeDEngine && typeof window.ThreeDEngine.isSelected === 'function' && window.ThreeDEngine.isSelected()) {
+            if (typeof window.ThreeDEngine.openStudio === 'function') window.ThreeDEngine.openStudio(true, false, true);
+            return;
+        }
+        const el = DockContextManager.selectedElement || document.querySelector('.el-selected') || window.selectedEl;
+        if (el) {
+            if (el.classList.contains('shape-el')) {
+                if (typeof switchTab === 'function') switchTab('shapes');
+                if (typeof window.loadShapeSettings === 'function') window.loadShapeSettings(el);
+                const p = document.getElementById('shapeSettingsPanel');
+                if (p) p.style.display = 'block';
+            } else if (el.classList.contains('editable-draw')) {
+                if (typeof switchTab === 'function') switchTab('draw');
+            } else {
+                if (typeof switchTab === 'function') switchTab('font');
+                const elSettings = document.getElementById('elSettings');
+                if (elSettings) elSettings.style.display = 'block';
+            }
+        } else {
+            if (typeof switchTab === 'function') switchTab('font');
+            const elSettings = document.getElementById('elSettings');
+            if (elSettings) elSettings.style.display = 'block';
         }
     };
 

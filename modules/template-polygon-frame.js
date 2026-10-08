@@ -35,6 +35,10 @@
                 window.TemplateBuilder.deselectFrame();
             }
 
+            if (window.CanvasEmptyState && typeof window.CanvasEmptyState.dismiss === 'function') {
+                window.CanvasEmptyState.dismiss();
+            }
+
             this.isDrawing = true;
             this.points = [];
 

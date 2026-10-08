@@ -221,16 +221,17 @@ function runNeonSvgAnimationLoop() {
     }
     _neonAnimTime += 0.05;
     
-    const neonDrawings = document.querySelectorAll('.editable-draw');
+    const neonDrawings = document.getElementsByClassName('editable-draw');
     
-    neonDrawings.forEach(el => {
+    for (let i = 0; i < neonDrawings.length; i++) {
+        const el = neonDrawings[i];
         const svg = el.querySelector('svg');
-        if (!svg) return;
+        if (!svg) continue;
         
         // Sadece neon aktif olanları veya neon filtresi içerenleri canlandır
         const filter = svg.querySelector('filter[id^="neon-bloom-"]');
         const glowStroke = svg.querySelector('.neon-glow-stroke');
-        if (!filter && !glowStroke) return;
+        if (!filter && !glowStroke) continue;
         
         el.classList.add('neon-animated');
         
@@ -273,7 +274,7 @@ function runNeonSvgAnimationLoop() {
             const haloPulse = 0.65 + Math.sin(_neonAnimTime * 5) * 0.25;
             halos.forEach(h => h.setAttribute('opacity', haloPulse.toFixed(2)));
         }
-    });
+    }
 
     _neonAnimRAF = requestAnimationFrame(runNeonSvgAnimationLoop);
 }

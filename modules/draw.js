@@ -11,6 +11,11 @@
  * - main.js
  */
 
+function getDrawContainer() {
+    return (typeof uiLayer !== 'undefined' && uiLayer) ? uiLayer : (document.getElementById('ui-layer') || document.getElementById('canvas-container'));
+}
+window.getDrawContainer = getDrawContainer;
+
 function applyGlowAndStroke(ctx, p) {
     const isNeon = !!(p && (p.saber || p.hasSaber));
     if (isNeon) {
@@ -135,12 +140,15 @@ function drawSinglePath(p, options = {}){
     if (!p.el && typeof createSVGFromPath === 'function') {
         p.el = createSVGFromPath(p);
     }
-    // Ensure p.el is in DOM
-    if (p.el && !p.el.parentElement) {
-        const container = typeof getActiveV4Element === 'function' ? getActiveV4Element() : (document.getElementById('photo-layer') || document.getElementById('canvas-container'));
-        if (container) {
-            container.appendChild(p.el);
+    // Ensure p.el is in DOM and correctly parented to targetContainer
+    const targetContainer = (typeof getDrawContainer === 'function') ? getDrawContainer() : ((typeof uiLayer !== 'undefined' && uiLayer) ? uiLayer : (document.getElementById('ui-layer') || document.getElementById('canvas-container')));
+    if (p.el && targetContainer) {
+        if (!p.el.parentElement || p.el.parentElement !== targetContainer) {
+            targetContainer.appendChild(p.el);
             if (typeof bindDrag === 'function') bindDrag(p.el);
+        }
+        if (!p.hidden && p.el.style && p.el.style.display === 'none') {
+            p.el.style.display = '';
         }
     }
 
@@ -460,8 +468,11 @@ function removeTempPolygonSaber() {
             if (idx > -1) {
                 const s = sabers[idx];
                 if (s.graphics?.parent) s.graphics.parent.removeChild(s.graphics);
+                if (s.graphics?.destroy) s.graphics.destroy(true);
                 if (s.particleContainer?.parent) s.particleContainer.parent.removeChild(s.particleContainer);
+                if (s.particleContainer?.destroy) s.particleContainer.destroy({children: true});
                 if (s.branchContainer?.parent) s.branchContainer.parent.removeChild(s.branchContainer);
+                if (s.branchContainer?.destroy) s.branchContainer.destroy({children: true});
                 sabers.splice(idx, 1);
             }
         } catch(e) {}
@@ -718,6 +729,10 @@ function dMove(e){
     if(!isDrawing)return;
     const s=getDS();
     if(drawMode==='free'){
+        if (currentPath.length > 0) {
+            const lastPt = currentPath[currentPath.length - 1];
+            if (Math.hypot(p.x - lastPt.x, p.y - lastPt.y) < 3) return;
+        }
         currentPath.push(p);
         redrawAll();
         drawCtx.save();
@@ -866,7 +881,7 @@ function dEnd(e){
         let newPathObj = null;
         const el = createSVGFromPath(pObj);
         if (el) {
-            const container = typeof getActiveV4Element === 'function' ? getActiveV4Element() : (document.getElementById('photo-layer') || document.getElementById('canvas-container'));
+            const container = (typeof getDrawContainer === 'function') ? getDrawContainer() : (document.getElementById('ui-layer') || document.getElementById('canvas-container'));
             if (container && !el.parentElement) {
                 container.appendChild(el);
             }
@@ -1004,7 +1019,7 @@ function closePolygon(){
     let newPathObj = null;
     const el = createSVGFromPath(pObj);
     if (el) {
-        const container = typeof getActiveV4Element === 'function' ? getActiveV4Element() : (document.getElementById('photo-layer') || document.getElementById('canvas-container'));
+        const container = (typeof getDrawContainer === 'function') ? getDrawContainer() : (document.getElementById('ui-layer') || document.getElementById('canvas-container'));
         if (container && !el.parentElement) {
             container.appendChild(el);
         }
@@ -1672,6 +1687,16 @@ function redrawAll(options = {}){
         container.appendChild(drawCanvas);
     }
 
+    const targetContainer = (typeof getDrawContainer === 'function') ? getDrawContainer() : (document.getElementById('ui-layer') || document.getElementById('canvas-container'));
+    if (targetContainer) {
+        document.querySelectorAll('#photo-layer .editable-draw, .photo-panel .editable-draw').forEach(el => {
+            targetContainer.appendChild(el);
+            if (el.style && el.style.display === 'none') {
+                el.style.display = '';
+            }
+        });
+    }
+
     const currPhotoState = (options && options.currPhotoState) ? options.currPhotoState : (typeof window.getCurrentPhotoState === 'function' ? window.getCurrentPhotoState() : null);
 
     const existingErr = document.getElementById('draw-error-banner');
@@ -1747,7 +1772,7 @@ function redoLastDraw() {
             const svgEl = createSVGFromPath(next);
             if(svgEl) {
                 next.el = svgEl;
-                const container = typeof getActiveV4Element === 'function' ? getActiveV4Element() : document.getElementById('photo-layer');
+                const container = (typeof getDrawContainer === 'function') ? getDrawContainer() : (document.getElementById('ui-layer') || document.getElementById('canvas-container'));
                 if(container) container.appendChild(svgEl);
             }
         }
@@ -1919,8 +1944,11 @@ function deleteDrawItem(i){
                 if (saberIdx > -1) {
                     const s = sabers[saberIdx];
                     if (s.graphics && s.graphics.parent) s.graphics.parent.removeChild(s.graphics);
+                    if (s.graphics && s.graphics.destroy) s.graphics.destroy(true);
                     if (s.particleContainer && s.particleContainer.parent) s.particleContainer.parent.removeChild(s.particleContainer);
+                    if (s.particleContainer && s.particleContainer.destroy) s.particleContainer.destroy({children: true});
                     if (s.branchContainer && s.branchContainer.parent) s.branchContainer.parent.removeChild(s.branchContainer);
+                    if (s.branchContainer && s.branchContainer.destroy) s.branchContainer.destroy({children: true});
                     sabers.splice(saberIdx, 1);
                 }
             } catch(e) { console.warn('Saber temizleme hatası:', e); }
@@ -1934,6 +1962,9 @@ function deleteDrawItem(i){
         }
     }
     drawPaths.splice(i, 1);
+    drawPaths.forEach((dp, idx) => {
+        if (dp && dp.el) dp.el.dataset.pathIndex = idx;
+    });
     if (editingDrawIndex === i) {
         editingDrawIndex = -1;
         originalDrawState = null;
@@ -1952,6 +1983,7 @@ function deleteDrawItem(i){
     updateDrawHistory();
     if (typeof deselectAll === 'function') deselectAll();
 }
+window.deleteDrawItem = deleteDrawItem;
 
 let originalDrawState = null;
 
@@ -2354,7 +2386,7 @@ function updateSinglePathSvg(p) {
     }
     p.el.style.mixBlendMode = 'normal';
     if (!p.el.parentElement) {
-        const container = typeof getActiveV4Element === 'function' ? getActiveV4Element() : (document.getElementById('photo-layer') || document.getElementById('canvas-container'));
+        const container = (typeof getDrawContainer === 'function') ? getDrawContainer() : (document.getElementById('ui-layer') || document.getElementById('canvas-container'));
         if (container) container.appendChild(p.el);
     }
     const svg = p.el.querySelector('svg');
@@ -2767,7 +2799,7 @@ function createSVGFromPath(p) {
     }
     
     // Güvenli container ekleme ve drag bağlama
-    const container = typeof getActiveV4Element === 'function' ? getActiveV4Element() : (document.getElementById('photo-layer') || document.getElementById('canvas-container'));
+    const container = (typeof getDrawContainer === 'function') ? getDrawContainer() : (document.getElementById('ui-layer') || document.getElementById('canvas-container'));
     if (container && !icon.parentElement) {
         container.appendChild(icon);
     }
@@ -3118,7 +3150,11 @@ window.showVertexHandles = function(el) {
         
         // 4. drawPaths içerisindeki pObj verilerini ve neon efektini senkronize et
         let pIdx = parseInt(el.dataset.pathIndex);
-        let pObj = (typeof drawPaths !== 'undefined' && drawPaths[pIdx]) ? drawPaths[pIdx] : (typeof drawPaths !== 'undefined' ? drawPaths.find(dp => dp.el === el) : null);
+        let pObj = (typeof drawPaths !== 'undefined') ? (drawPaths.find(dp => dp.el === el || (dp.id && dp.id === el.dataset.pathId)) || drawPaths[pIdx]) : null;
+        if (pObj && typeof drawPaths !== 'undefined') {
+            const actualIdx = drawPaths.indexOf(pObj);
+            if (actualIdx !== -1) el.dataset.pathIndex = actualIdx;
+        }
         if (pObj) {
             pObj.x1 = newL;
             pObj.y1 = newT;
@@ -3136,6 +3172,29 @@ window.showVertexHandles = function(el) {
             if (typeof updateSinglePathSvg === 'function') updateSinglePathSvg(pObj);
             if (pObj.hasSaber && typeof window.applySaberToPath === 'function') {
                 window.applySaberToPath(pIdx, pObj.saberOptions || window.saberState);
+            }
+
+            const currentRef = typeof window.getCurrentPhotoState === 'function' ? window.getCurrentPhotoState() : null;
+            if (currentRef) {
+                pObj.photoRef = currentRef;
+            }
+            if (typeof originalDrawState !== 'undefined' && originalDrawState && typeof editingDrawIndex !== 'undefined' && editingDrawIndex >= 0) {
+                if (drawPaths[editingDrawIndex] === pObj) {
+                    const backup = { ...pObj };
+                    delete backup.saberRef;
+                    delete backup.el;
+                    delete backup.photoRef;
+                    try {
+                        originalDrawState = JSON.parse(JSON.stringify(backup));
+                        originalDrawState.photoRef = pObj.photoRef;
+                    } catch(e) {
+                        originalDrawState = backup;
+                    }
+                    originalDrawState.hasSaber = pObj.hasSaber;
+                    if (pObj.saberOptions) originalDrawState.saberOptions = JSON.parse(JSON.stringify(pObj.saberOptions));
+                    originalDrawState.el = pObj.el;
+                    originalDrawState.saberRef = pObj.saberRef;
+                }
             }
         }
         
@@ -3319,9 +3378,13 @@ window.showVertexHandles = function(el) {
             const nx2 = points[1].x, ny2 = points[1].y;
             
             let pIdx = parseInt(el.dataset.pathIndex);
-            let pObj = (typeof drawPaths !== 'undefined' && drawPaths[pIdx]) ? drawPaths[pIdx] : (typeof drawPaths !== 'undefined' ? drawPaths.find(dp => dp.el === el) : null);
-            if (pObj && (isNaN(pIdx) || pIdx < 0 || pIdx >= drawPaths.length)) {
-                pIdx = drawPaths.indexOf(pObj);
+            let pObj = (typeof drawPaths !== 'undefined') ? (drawPaths.find(dp => dp.el === el || (dp.id && dp.id === el.dataset.pathId)) || drawPaths[pIdx]) : null;
+            if (pObj && typeof drawPaths !== 'undefined') {
+                const actualIdx = drawPaths.indexOf(pObj);
+                if (actualIdx !== -1) {
+                    pIdx = actualIdx;
+                    el.dataset.pathIndex = actualIdx;
+                }
             }
             const isNeon = !!(pObj && (pObj.hasSaber || pObj.saber));
             
@@ -3457,7 +3520,11 @@ window.showVertexHandles = function(el) {
 
             try {
                 let pIdx = parseInt(el.dataset.pathIndex);
-                let pObj = (typeof drawPaths !== 'undefined' && drawPaths[pIdx]) ? drawPaths[pIdx] : (typeof drawPaths !== 'undefined' ? drawPaths.find(dp => dp.el === el) : null);
+                let pObj = (typeof drawPaths !== 'undefined') ? (drawPaths.find(dp => dp.el === el || (dp.id && dp.id === el.dataset.pathId)) || drawPaths[pIdx]) : null;
+                if (pObj && typeof drawPaths !== 'undefined') {
+                    const actualIdx = drawPaths.indexOf(pObj);
+                    if (actualIdx !== -1) el.dataset.pathIndex = actualIdx;
+                }
                 if (pObj) {
                     const baseL = parseFloat(el.dataset.baseLeft !== undefined ? el.dataset.baseLeft : el.style.left) || 0;
                     const baseT = parseFloat(el.dataset.baseTop !== undefined ? el.dataset.baseTop : el.style.top) || 0;
@@ -3681,8 +3748,12 @@ window.showVertexHandles = function(el) {
                     if (targetEl.classList.contains('editable-draw')) {
                         const pIdx = parseInt(targetEl.dataset.pathIndex);
                         const pObj = (typeof drawPaths !== 'undefined')
-                            ? (drawPaths[pIdx] || drawPaths.find(p => p.el === targetEl || (p.id && p.id === targetEl.dataset.pathId)))
+                            ? (drawPaths.find(p => p.el === targetEl || (p.id && p.id === targetEl.dataset.pathId)) || drawPaths[pIdx])
                             : null;
+                        if (pObj && typeof drawPaths !== 'undefined') {
+                            const actualIdx = drawPaths.indexOf(pObj);
+                            if (actualIdx !== -1) targetEl.dataset.pathIndex = actualIdx;
+                        }
                             
                         if (pObj) {
                             pObj.rotation = tRot;
@@ -3735,8 +3806,12 @@ window.showVertexHandles = function(el) {
             const curRot = parseFloat(el.dataset.rotation) || 0;
             const pIdx = parseInt(el.dataset.pathIndex);
             const pObj = (typeof drawPaths !== 'undefined')
-                ? (drawPaths[pIdx] || drawPaths.find(p => p.el === el || (p.id && p.id === el.dataset.pathId)))
+                ? (drawPaths.find(p => p.el === el || (p.id && p.id === el.dataset.pathId)) || drawPaths[pIdx])
                 : null;
+            if (pObj && typeof drawPaths !== 'undefined') {
+                const actualIdx = drawPaths.indexOf(pObj);
+                if (actualIdx !== -1) el.dataset.pathIndex = actualIdx;
+            }
             if (pObj) {
                 pObj.rotation = curRot;
             }
@@ -3857,8 +3932,8 @@ window.showVertexHandles = function(el) {
             
             // Pürüzsüz köşegen projeksiyonu ile orantılı ölçekleme (takılmayı ve atlamayı önler)
             const diagLen = Math.sqrt(startW * startW + startH * startH);
-            const proj = (localDx * startW + localDy * startH) / diagLen;
-            const scale = Math.max(0.05, 1 + proj / diagLen);
+            const proj = diagLen > 0.001 ? (localDx * startW + localDy * startH) / diagLen : 0;
+            const scale = (diagLen > 0.001 && isFinite(proj)) ? Math.max(0.05, 1 + proj / diagLen) : 1;
             
             let newW = Math.max(20, Math.round(startW * scale));
             let newH = Math.max(20, Math.round(startH * scale));
@@ -3942,6 +4017,28 @@ window.showVertexHandles = function(el) {
                         svgEl.querySelectorAll('polygon').forEach(poly => poly.setAttribute('points', rPtsStr));
                     }
                     pObj.points = rPts.map(p => ({ x: baseL + p.x, y: baseT + p.y }));
+                    pObj.x1 = baseL;
+                    pObj.y1 = baseT;
+                    pObj.x2 = baseL + curW;
+                    pObj.y2 = baseT + curH;
+                } else if (pObj.type === 'circle') {
+                    const rx = curW / 2;
+                    const ry = curH / 2;
+                    const cx = curW / 2;
+                    const cy = curH / 2;
+                    if (svgEl) {
+                        const ellipse = svgEl.querySelector('ellipse.main-shape, ellipse');
+                        if (ellipse) {
+                            ellipse.setAttribute('cx', cx);
+                            ellipse.setAttribute('cy', cy);
+                            ellipse.setAttribute('rx', rx);
+                            ellipse.setAttribute('ry', ry);
+                        }
+                    }
+                    pObj.x1 = baseL;
+                    pObj.y1 = baseT;
+                    pObj.x2 = baseL + curW;
+                    pObj.y2 = baseT + curH;
                 } else if (pObj.points && pObj.points.length > 0) {
                     pObj.points = pObj.points.map(pt => ({
                         x: baseL + (pt.x - baseL) * scaleX,
@@ -3961,8 +4058,46 @@ window.showVertexHandles = function(el) {
                             }
                         } catch(e) {}
                     }
+                    if (svgEl) {
+                        const pathEl = svgEl.querySelector('path.main-line, path.main-polygon, path');
+                        if (pathEl && pObj.points && pObj.points.length > 0) {
+                            let d = `M ${(pObj.points[0].x - baseL).toFixed(1)} ${(pObj.points[0].y - baseT).toFixed(1)}`;
+                            for(let i=1; i<pObj.points.length; i++) d += ` L ${(pObj.points[i].x - baseL).toFixed(1)} ${(pObj.points[i].y - baseT).toFixed(1)}`;
+                            pathEl.setAttribute('d', d);
+                        }
+                    }
                 }
                 
+                el.dataset.baseWidth = curW;
+                el.dataset.baseHeight = curH;
+                el.dataset.baseLeft = baseL;
+                el.dataset.baseTop = baseT;
+
+                const currentRef = typeof window.getCurrentPhotoState === 'function' ? window.getCurrentPhotoState() : null;
+                if (currentRef) {
+                    pObj.photoRef = currentRef;
+                }
+
+                // Sync originalDrawState to prevent any subsequent cancelDrawEdit from snapping back
+                if (typeof originalDrawState !== 'undefined' && originalDrawState && typeof editingDrawIndex !== 'undefined' && editingDrawIndex >= 0) {
+                    if (drawPaths[editingDrawIndex] === pObj) {
+                        const backup = { ...pObj };
+                        delete backup.saberRef;
+                        delete backup.el;
+                        delete backup.photoRef;
+                        try {
+                            originalDrawState = JSON.parse(JSON.stringify(backup));
+                            originalDrawState.photoRef = pObj.photoRef;
+                        } catch(e) {
+                            originalDrawState = backup;
+                        }
+                        originalDrawState.hasSaber = pObj.hasSaber;
+                        if (pObj.saberOptions) originalDrawState.saberOptions = JSON.parse(JSON.stringify(pObj.saberOptions));
+                        originalDrawState.el = pObj.el;
+                        originalDrawState.saberRef = pObj.saberRef;
+                    }
+                }
+
                 if (typeof updateSinglePathSvg === 'function') updateSinglePathSvg(pObj);
                 if (pObj.hasSaber && typeof window.applySaberToPath === 'function') {
                     window.applySaberToPath(pIdx, pObj.saberOptions || window.saberState);

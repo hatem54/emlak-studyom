@@ -109,7 +109,7 @@ function createPolygonFromSelectedLines() {
         const svgEl = createSVGFromPath(pObj);
         if(svgEl) {
             pObj.el = svgEl;
-            const container = typeof getActiveV4Element === 'function' ? getActiveV4Element() : document.getElementById('photo-layer');
+            const container = (typeof getDrawContainer === 'function') ? getDrawContainer() : (document.getElementById('ui-layer') || document.getElementById('canvas-container'));
             if(container) container.appendChild(svgEl);
         }
     }
@@ -176,7 +176,7 @@ document.addEventListener('mousedown', e => {
     if(!e.target || !e.target.closest) return;
     const cTarget = e.target.closest('.canvas-el, .added-icon, .draggable, .cvi-item, .co-neon-block, .vertex-handle, .text-handle, .callout-controls, .callout-resizer, .callout-rotator, .lp-item, .panel, .lp-header, .editable-draw, .callout-wrap, .callout-item, .svg-callout, .sat-measure-callout, .parcel-badge-callout, .tb-image-frame, .tb-frame-handle, .tb-frame-floating-tools, .tb-floating-btn, .tb-frame-clip, .tb-frame-inner, .tb-frame-img');
     
-    if (e.target.closest('.panel, .lp-header, button, input, select, textarea, .modal-overlay, .app-context-menu')) return;
+    if (e.target.closest('.panel, .lp-header, button, input, select, textarea, .modal-overlay, .app-context-menu, #threeDStudioPanel, .three-d-panel, #threeDDockControls, .dock-3d-controls, #dock3DStepperPopover, .three-d-context-menu')) return;
     
     const isBackground = e.target.id === 'photo-layer' || 
                          e.target.id === 'drawCanvas' || 
@@ -190,9 +190,12 @@ document.addEventListener('mousedown', e => {
                          e.target.classList.contains('main-preview') || 
                          e.target.closest('#canvas-container, .main-canvas');
     
-    const is3DObjectHit = (window.ThreeDEngine && typeof window.ThreeDEngine.isActive === 'function' && window.ThreeDEngine.isActive() && typeof window.ThreeDEngine.checkHit === 'function')
-        ? window.ThreeDEngine.checkHit(e.clientX, e.clientY)
-        : null;
+    const canCheck3DHit = window.ThreeDEngine && typeof window.ThreeDEngine.checkHit === 'function' && (
+        (typeof window.ThreeDEngine.hasElements === 'function' && window.ThreeDEngine.hasElements()) ||
+        (typeof window.ThreeDEngine.getElements === 'function' && window.ThreeDEngine.getElements().length > 0) ||
+        (typeof window.ThreeDEngine.isActive === 'function' && window.ThreeDEngine.isActive())
+    );
+    const is3DObjectHit = canCheck3DHit ? window.ThreeDEngine.checkHit(e.clientX, e.clientY) : null;
 
     if(!cTarget && !is3DObjectHit && isBackground) {
         window.startMobileMarquee(e.clientX, e.clientY);
@@ -289,7 +292,13 @@ const handleMarqueeEnd = function(e) {
 
             // 🌟 3D Ögeleri Seçim Kutusuyla Tespit Et
             const hit3DElements = [];
-            if (window.ThreeDEngine && typeof window.ThreeDEngine.isActive === 'function' && window.ThreeDEngine.isActive()) {
+            const canScan3D = window.ThreeDEngine && (
+                (typeof window.ThreeDEngine.hasElements === 'function' && window.ThreeDEngine.hasElements()) ||
+                (typeof window.ThreeDEngine.getElements === 'function' && window.ThreeDEngine.getElements().length > 0) ||
+                (typeof window.ThreeDEngine.isActive === 'function' && window.ThreeDEngine.isActive())
+            );
+
+            if (canScan3D) {
                 const boundsList = (typeof window.ThreeDEngine.getElementsScreenBounds === 'function')
                     ? window.ThreeDEngine.getElementsScreenBounds()
                     : [];
@@ -305,38 +314,63 @@ const handleMarqueeEnd = function(e) {
             }
 
             if (hit3DElements.length > 0) {
-                if (!multiSelectKey && typeof deselectAll === 'function') {
+                const keep2D = selectedAny || (Array.isArray(window.selectedElements) && window.selectedElements.length > 0);
+                if (!multiSelectKey && !keep2D && typeof deselectAll === 'function') {
                     deselectAll();
                 }
-                if (hit3DElements.length === 1) {
-                    const single = hit3DElements[0];
-                    if (single.groupId && window.ThreeDEngine && typeof window.ThreeDEngine.getElements === 'function') {
-                        const groupMembers = window.ThreeDEngine.getElements().filter(e => e.groupId === single.groupId);
-                        if (groupMembers.length > 1 && window.ThreeDGrouping && typeof window.ThreeDGrouping.setSelected3DElements === 'function') {
-                            window.ThreeDGrouping.setSelected3DElements(groupMembers);
-                            if (window.ThreeDEngine && typeof window.ThreeDEngine.setActiveElement === 'function') {
-                                window.ThreeDEngine.setActiveElement(single, { select: true });
-                            }
-                            return;
-                        }
+
+                // Çoklu veya tekli 3D seçim çerçevelerini ThreeDGrouping ile çiz
+                if (window.ThreeDGrouping && typeof window.ThreeDGrouping.setSelected3DElements === 'function') {
+                    window.ThreeDGrouping.setSelected3DElements(hit3DElements, { keep2DSelection: keep2D });
+                }
+
+                // İlk 3D ögeyi ThreeDEngine tarafında aktif yap ve seçildi durumunu tetikle
+                const primary = hit3DElements[0];
+                if (window.ThreeDEngine) {
+                    if (typeof window.ThreeDEngine.setActiveElement === 'function') {
+                        window.ThreeDEngine.setActiveElement(primary, { select: true });
                     }
-                    if (window.ThreeDEngine && typeof window.ThreeDEngine.setActiveElement === 'function') {
-                        window.ThreeDEngine.setActiveElement(single, { select: true });
+                    if (typeof window.ThreeDEngine.setSelected === 'function') {
+                        window.ThreeDEngine.setSelected(true, { silent: true, keep2DSelection: keep2D });
                     }
-                    if (window.ThreeDGrouping && typeof window.ThreeDGrouping.clearSelection === 'function') {
-                        window.ThreeDGrouping.clearSelection();
+                }
+
+                if (keep2D) {
+                    if (typeof window.updateMultiSelectUI === 'function') {
+                        window.updateMultiSelectUI();
+                    }
+                    if (typeof window.updateGroupUI === 'function') {
+                        window.updateGroupUI();
                     }
                 } else {
-                    if (window.ThreeDGrouping && typeof window.ThreeDGrouping.setSelected3DElements === 'function') {
-                        window.ThreeDGrouping.setSelected3DElements(hit3DElements);
+                    if (window.ThreeDEngine && typeof window.ThreeDEngine.updateDockControls === 'function') {
+                        window.ThreeDEngine.updateDockControls();
                     }
                 }
             } else if (!selectedAny) {
                 if (window.ThreeDGrouping && typeof window.ThreeDGrouping.clearSelection === 'function') {
                     window.ThreeDGrouping.clearSelection();
                 }
+            } else {
+                if (!multiSelectKey) {
+                    if (window.ThreeDGrouping && typeof window.ThreeDGrouping.clearSelection === 'function') {
+                        window.ThreeDGrouping.clearSelection();
+                    }
+                    if (window.ThreeDEngine && typeof window.ThreeDEngine.setSelected === 'function') {
+                        window.ThreeDEngine.setSelected(false, { silent: true });
+                    }
+                }
             }
         } else {
+            // 🛡️ Tıklama 3D Studio Paneli, 3D Kontrolleri veya Popover içine yapıldıysa asla boş alana tıklandı sayma
+            if (e.target && e.target.closest && e.target.closest(
+                '#threeDStudioPanel, .three-d-panel, #threeDDockControls, .dock-3d-controls, ' +
+                '#threeDGizmoOverlay, #threeDCornerPinOverlay, #threeDCanvasBadge, #dock3DStepperPopover, ' +
+                '.three-d-context-menu, #threeDTextureSectionHost, .three-d-section, #threeDTextureSection'
+            )) {
+                return;
+            }
+
             // Tıklama boş alana yapıldıysa (çerçeve açmadan tek tık):
             const isClickOnObject = (e.target && e.target.closest && e.target.closest(
                 '.canvas-el, .added-icon, .draggable, .cvi-item, .co-neon-block, .vertex-handle, .text-handle, ' +
@@ -344,6 +378,7 @@ const handleMarqueeEnd = function(e) {
                 '.callout-wrap, .callout-item, .svg-callout, .sat-measure-callout, .parcel-badge-callout, ' +
                 '.tb-image-frame, .tb-frame-handle, .tb-frame-floating-tools, .tb-floating-btn, .tb-frame-clip, .tb-frame-inner, .tb-frame-img, ' +
                 '.three-d-gizmo-tip, .three-d-gizmo-dot, .three-d-gizmo-sun, button, input, select, textarea, .modal, .context-menu, .app-context-menu, ' +
+                '#threeDStudioPanel, .three-d-panel, #threeDDockControls, .dock-3d-controls, #threeDGizmoOverlay, #threeDCornerPinOverlay, #threeDCanvasBadge, #dock3DStepperPopover, .three-d-context-menu, ' +
                 '.tb-3d-gizmo, .three-d-gizmo-overlay, .three-d-gizmo-svg, .three-d-gizmo-arc, .three-d-gizmo-hit-line, .three-d-gizmo-axis-x, .three-d-gizmo-axis-y, .three-d-gizmo-axis-z, .three-d-gizmo-origin-dot, .three-d-gizmo-hud, .three-d-gizmo-close-btn, #tbFrameSettingsSection'
             )) || (window.Template3DFrame && window.Template3DFrame.isInteracting);
             const is3DObjectHit = (window.ThreeDEngine && typeof window.ThreeDEngine.isActive === 'function' && window.ThreeDEngine.isActive() && typeof window.ThreeDEngine.checkHit === 'function')

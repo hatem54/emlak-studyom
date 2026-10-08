@@ -450,6 +450,14 @@ document.addEventListener('input', function(e) {
 });
 
 function duplicateSelected(){
+    // 0. 🌟 3D Çoklu Seçim Varsa:
+    if (window.ThreeDGrouping && typeof window.ThreeDGrouping.getSelected3DElements === 'function') {
+        const multi3D = window.ThreeDGrouping.getSelected3DElements();
+        if (multi3D && multi3D.length > 1) {
+            window.ThreeDGrouping.duplicateSelectedElements();
+            return;
+        }
+    }
     // 1. 🌟 3D Öge Seçiliyse: 3D ögeyi çoğalt
     if (window.ThreeDEngine && typeof window.ThreeDEngine.isSelected === 'function' && window.ThreeDEngine.isSelected()) {
         if (typeof window.ThreeDEngine.duplicateElement === 'function') {
@@ -469,46 +477,97 @@ function duplicateSelected(){
 window.duplicateSelected = duplicateSelected;
 
 function deleteSelected(){
-    // 1. 🌟 3D Öge Seçiliyse: 3D ögeyi sil
+    let deletedAny = false;
+
+    // 0. 🌟 3D Çoklu Seçim: Birden fazla 3D öge seçiliyse hepsini toplu sil
+    if (window.ThreeDGrouping && typeof window.ThreeDGrouping.getSelected3DElements === 'function') {
+        const multi3D = window.ThreeDGrouping.getSelected3DElements();
+        if (multi3D && multi3D.length > 0) {
+            window.ThreeDGrouping.deleteSelectedElements();
+            deletedAny = true;
+        }
+    }
+    
+    // 1. 🌟 Tek 3D Öge Seçiliyse: 3D ögeyi sil
     if (window.ThreeDEngine && typeof window.ThreeDEngine.isSelected === 'function' && window.ThreeDEngine.isSelected()) {
-        if (typeof window.ThreeDEngine.deleteElement === 'function') {
-            window.ThreeDEngine.deleteElement();
-            if (window.DockContextManager && typeof window.DockContextManager.onElementDeselected === 'function') {
-                window.DockContextManager.onElementDeselected();
+        const active3D = window.ThreeDEngine.getActiveElement ? window.ThreeDEngine.getActiveElement() : null;
+        if (active3D && !active3D.locked) {
+            if (typeof window.ThreeDEngine.deleteElement === 'function') {
+                window.ThreeDEngine.deleteElement();
+                deletedAny = true;
+            } else if (typeof window.ThreeDEngine.delete3DElement === 'function') {
+                window.ThreeDEngine.delete3DElement();
+                deletedAny = true;
             }
-            return;
-        } else if (typeof window.ThreeDEngine.delete3DElement === 'function') {
-            window.ThreeDEngine.delete3DElement();
-            if (window.DockContextManager && typeof window.DockContextManager.onElementDeselected === 'function') {
-                window.DockContextManager.onElementDeselected();
-            }
-            return;
         }
     }
 
-    // 2. 2D Callout / Rozet Seçiliyse
+    // 2. 🌟 2D Çoklu Seçim: Çoklu 2D ögeleri sil
+    if (typeof window.multiSelectDelete === 'function' && Array.isArray(window.selectedElements) && window.selectedElements.length > 0) {
+        window.multiSelectDelete();
+        deletedAny = true;
+    }
+
+    // 3. 2D Callout / Rozet Seçiliyse
     if (typeof window.selectedCalloutEl !== 'undefined' && window.selectedCalloutEl) {
         if (typeof window.deleteSelectedCallout === 'function') {
             window.deleteSelectedCallout();
-            return;
+            deletedAny = true;
         }
     }
 
-    // 3. 2D İkon / Standart Eleman (ui/icons.js)
+    // 4. 2D İkon / Standart Eleman (ui/icons.js)
     if (typeof window._iconsDeleteSelected === 'function') {
         window._iconsDeleteSelected();
-        return;
+        deletedAny = true;
     } else if (typeof window.deleteSelectedIcon === 'function') {
         window.deleteSelectedIcon();
-        return;
+        deletedAny = true;
     }
 
-    // 4. Genel 2D Seçili Öge (.el-selected / selectedEl)
-    const sel = window.selectedEl || (window.selectedElements && window.selectedElements[0]) || document.querySelector('.el-selected');
-    if (sel && typeof sel.remove === 'function') {
-        sel.remove();
+    // 5. Genel 2D Seçili Öge (.el-selected / selectedEl)
+    const targets = (window.selectedElements && window.selectedElements.length > 0)
+        ? [...window.selectedElements]
+        : (window.selectedEl ? [window.selectedEl] : Array.from(document.querySelectorAll('.el-selected')));
+    if (targets.length > 0) {
+        targets.forEach(sel => {
+            if (sel && sel.dataset && sel.dataset.locked === 'true') return;
+            if (window.SaberEngine && typeof window.SaberEngine.removeTextSaber === 'function') {
+                window.SaberEngine.removeTextSaber(sel);
+            }
+            if (typeof drawPaths !== 'undefined' && sel.classList && sel.classList.contains('editable-draw')) {
+                const idx = drawPaths.findIndex(p => p.el === sel);
+                if (idx > -1) {
+                    if (typeof window.deleteDrawItem === 'function') window.deleteDrawItem(idx);
+                    else drawPaths.splice(idx, 1);
+                }
+            }
+            if (sel && typeof sel.remove === 'function') {
+                sel.remove();
+                deletedAny = true;
+            }
+        });
+    }
+
+    if (deletedAny) {
         if (typeof window.deselectAll === 'function') window.deselectAll();
-        if (typeof window.recordHistory === 'function') window.recordHistory('Öge Silindi');
+        if (window.ThreeDGrouping && typeof window.ThreeDGrouping.clearSelection === 'function') {
+            window.ThreeDGrouping.clearSelection();
+        }
+        if (window.ThreeDEngine && typeof window.ThreeDEngine.setSelected === 'function') {
+            window.ThreeDEngine.setSelected(false, { silent: true });
+        }
+        if (window.DockContextManager && typeof window.DockContextManager.onElementDeselected === 'function') {
+            window.DockContextManager.onElementDeselected();
+        }
+        if (typeof window.recordHistory === 'function') window.recordHistory('Öge Silindi', true);
+        if (typeof window.renderLayers === 'function') window.renderLayers();
+    } else {
+        if (Array.isArray(window.selectedElements) && window.selectedElements.length > 0) {
+            if (window.DockContextManager && typeof window.DockContextManager.onElementSelected === 'function') {
+                window.DockContextManager.onElementSelected(window.selectedElements[0]);
+            }
+        }
     }
 }
 window.deleteSelected = deleteSelected;

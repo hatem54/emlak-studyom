@@ -78,11 +78,58 @@
 }
 
 /* Neon Metin Elemanları - DOM Metninin ve Gölgesinin Tuvalde Ayrışmasını/Görünmesini Kesinlikle Engelle */
-#canvas-container .canvas-el[data-saber-active="true"],
-#canvas-container .neon-text-el {
+#canvas-container .canvas-el[data-saber-active="true"]:not(#elDetails):not([data-layer-uid="ui_details"]):not(.sh-box):not(.neon-box-active),
+#canvas-container .neon-text-el:not(#elDetails):not([data-layer-uid="ui_details"]):not(.sh-box):not(.neon-box-active) {
     color: transparent !important;
     text-shadow: none !important;
     -webkit-text-stroke: 0 transparent !important;
+}
+
+/* 🌟 Neon Kutu & Şablon Çerçevesi Stilleri (elDetails & Kompozit Kutular) */
+#canvas-container .neon-box-active,
+#canvas-container #elDetails[data-neon-frame="true"],
+#canvas-container .sh-box[data-neon-frame="true"] {
+    border: var(--neon-box-border, 3px solid var(--neon-box-glow, #00f0ff)) !important;
+    box-shadow: var(--neon-box-shadow, 
+        0 0 var(--neon-box-glow-size, 35px) var(--neon-box-glow, #00f0ff),
+        0 0 calc(var(--neon-box-glow-size, 35px) * 1.8) var(--neon-box-glow, #00f0ff),
+        inset 0 0 calc(var(--neon-box-glow-size, 35px) * 0.5) rgba(0, 240, 255, 0.25)) !important;
+}
+
+/* Seçili iken neon parlaklığını koru (seçim çerçevesini outline olarak dışa taşır) */
+#canvas-container .neon-box-active.el-selected,
+#canvas-container #elDetails[data-neon-frame="true"].el-selected,
+#canvas-container .sh-box[data-neon-frame="true"].el-selected {
+    outline: 2px dashed #38bdf8 !important;
+    outline-offset: 6px !important;
+    box-shadow: var(--neon-box-shadow, 
+        0 0 var(--neon-box-glow-size, 35px) var(--neon-box-glow, #00f0ff),
+        0 0 calc(var(--neon-box-glow-size, 35px) * 1.8) var(--neon-box-glow, #00f0ff),
+        inset 0 0 calc(var(--neon-box-glow-size, 35px) * 0.5) rgba(0, 240, 255, 0.25)) !important;
+}
+
+/* Kutu İçi Metin Parlaması */
+#canvas-container .neon-text-active #infoLineText,
+#canvas-container #elDetails[data-neon-text="true"] #infoLineText,
+#canvas-container .sh-box[data-neon-text="true"] #infoLineText {
+    color: var(--neon-text-color, #ffffff) !important;
+    text-shadow: var(--neon-text-shadow, 
+        0 0 calc(var(--neon-text-glow-size, 35px) * 0.12) var(--neon-core-color, #ffffff),
+        0 0 calc(var(--neon-text-glow-size, 35px) * 0.35) var(--neon-box-glow, #00f0ff),
+        0 0 var(--neon-text-glow-size, 35px) var(--neon-box-glow, #00f0ff),
+        0 0 calc(var(--neon-text-glow-size, 35px) * 1.5) var(--neon-box-glow, #00f0ff)) !important;
+}
+
+/* Kutu İçi İkon Parlaması (Dengeli, göz yormayan ve kademeli neon ışıması) */
+#canvas-container .neon-text-active #infoLineText i,
+#canvas-container .neon-text-active #infoLineText svg,
+#canvas-container #elDetails[data-neon-text="true"] #infoLineText i,
+#canvas-container #elDetails[data-neon-text="true"] #infoLineText svg,
+#canvas-container .sh-box[data-neon-text="true"] #infoLineText i,
+#canvas-container .sh-box[data-neon-text="true"] #infoLineText svg {
+    color: var(--neon-icon-color, var(--neon-box-glow, #00f0ff)) !important;
+    opacity: var(--neon-icon-opacity, 0.9) !important;
+    filter: var(--neon-icon-filter, drop-shadow(0 0 3px var(--neon-box-glow, #00f0ff))) !important;
 }
 
 /* Neon metin tutamaçlarının ve ikonlarının görünürlüğünü garantiye al */
@@ -99,6 +146,100 @@
 #canvas-container .canvas-el[data-saber-active="true"] > .text-lock-handle,
 #canvas-container .neon-text-el > .text-lock-handle {
     color: #f59e0b !important;
+}
+
+/* Neon Renk Seçim Çerçevesi */
+.neon-color-frame {
+    background: rgba(30, 41, 59, 0.4);
+    border: 1px solid #334155;
+    border-radius: 8px;
+    padding: 6px 8px;
+    margin-bottom: 8px;
+}
+
+.neon-color-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 4px 8px;
+    background: rgba(15, 23, 42, 0.6);
+    border: 1px solid #334155;
+    border-radius: 6px;
+    gap: 6px;
+}
+
+.neon-color-card label {
+    font-size: 10.5px;
+    font-weight: 700;
+    color: #e2e8f0;
+    margin: 0;
+    white-space: nowrap;
+}
+
+.neon-color-card input[type="color"] {
+    width: 32px;
+    height: 24px;
+    border-radius: 4px;
+    border: 1px solid #475569;
+    cursor: pointer;
+    background: transparent;
+    padding: 0;
+}
+
+/* Açık Tema */
+body[data-theme="light"] .neon-color-frame,
+html[data-theme="light"] .neon-color-frame {
+    background: rgba(241, 245, 249, 0.7) !important;
+    border: 1px solid #cbd5e1 !important;
+}
+
+body[data-theme="light"] .neon-color-card,
+html[data-theme="light"] .neon-color-card {
+    background: #ffffff !important;
+    border: 1px solid #cbd5e1 !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02) !important;
+}
+
+body[data-theme="light"] .neon-color-card label,
+html[data-theme="light"] .neon-color-card label {
+    color: #1e293b !important;
+}
+
+body[data-theme="light"] .neon-color-card input[type="color"],
+html[data-theme="light"] .neon-color-card input[type="color"] {
+    border-color: #cbd5e1 !important;
+}
+
+/* Gelişmiş Yazı Ayarları Akordeon Stili */
+.advanced-font-details {
+    margin-top: 12px;
+    border-top: 1px dashed #cbd5e1;
+    padding-top: 8px;
+}
+
+.advanced-font-summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 11px;
+    font-weight: 700;
+    color: #475569;
+    cursor: pointer;
+    padding: 6px 6px;
+    border-radius: 6px;
+    user-select: none;
+    background: rgba(241, 245, 249, 0.6);
+    border: 1px solid #cbd5e1;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.advanced-font-summary:hover {
+    color: #0284c7;
+    background: #e0f2fe;
+}
+
+.advanced-font-summary::-webkit-details-marker {
+    display: none;
 }
 
 

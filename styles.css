@@ -373,9 +373,14 @@ body[data-theme="light"] .cat-item:hover {
    ⚡ SEÇİM OUTLINE — HTML2CANVAS'DA GÖRÜNMESİN DİYE 
    ::after pseudo-element kullanıyoruz (indirmede kayboluyor)
 ============================================================ */
-.el-selected{
+.el-selected:not([data-saber-active="true"]):not(.neon-box-active){
     /* position:relative EKLEME — elemanın kendi position'ını koru */
     box-shadow:0 0 0 3px #38bdf8, 0 0 0 5px rgba(56,189,248,.3) !important;
+}
+.el-selected[data-saber-active="true"],
+.el-selected.neon-box-active {
+    outline: 2px dashed #38bdf8 !important;
+    outline-offset: 6px !important;
 }
 .el-selected::after { display: none; }
 .canva-panel{cursor:move;transition:box-shadow .15s}
@@ -523,6 +528,13 @@ html[data-theme="light"] .extra-field-row .remove-field:hover{background:#ef4444
 .font-preview.active{border-color:#38bdf8;background:#0ea5e9;color:#0f172a}
 .font-grid{max-height:280px;overflow-y:auto;display:flex;flex-direction:column;gap:2px;padding:4px;background:#0f172a;border:1px solid #334155;border-radius:6px;margin-bottom:8px}
 .font-cat-title{font-size:10px;color:#38bdf8;font-weight:700;padding:5px 3px 2px;border-bottom:1px solid #1e3a5f;margin-top:5px}
+.font-fav-accordion{margin-bottom:4px}
+.font-fav-btn{width:100%;display:flex;align-items:center;justify-content:space-between;padding:5px 8px;border-radius:6px;cursor:pointer;font-family:'ClassicAmpersand','Space Grotesk',sans-serif;font-size:11px;font-weight:700;transition:all .18s;background:rgba(30,41,59,.7);border:1px solid #334155;color:#f1f5f9;margin:2px 0 3px}
+.font-fav-btn:hover{background:rgba(56,189,248,.15);border-color:#38bdf8;color:#38bdf8}
+.font-fav-btn.open{border-color:#0284c7;background:rgba(14,165,233,.12)}
+.font-fav-badge{font-size:9.5px;font-weight:700;background:#334155;color:#94a3b8;padding:1px 5px;border-radius:10px}
+.font-fav-btn.open .font-fav-badge{background:#0284c7;color:#fff}
+.font-fav-list{display:none;flex-direction:column;gap:2px;margin:2px 0 4px;padding:3px 2px;border-radius:6px;border:1px dashed #334155}
 .canva-tpl-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin-bottom:8px}
 .canva-tpl-card{background:rgba(18, 18, 42, 0.6);border:2px solid rgba(108, 92, 231, 0.2);border-radius:8px;padding:8px;cursor:pointer;transition:.3s;text-align:center;position:relative}
 .canva-tpl-card:hover{border-color:#6C5CE7;box-shadow:0 0 15px rgba(108, 92, 231, 0.4);transform:translateY(-2px)}
@@ -2630,31 +2642,6 @@ body.photo-unlocked.space-pan-dragging {
     }
 }
 
-.dock-icon-btn.active-hidden {
-    background: rgba(239, 68, 68, 0.25) !important;
-    border-color: #ef4444 !important;
-    color: #f87171 !important;
-    box-shadow: 0 0 10px rgba(239, 68, 68, 0.4) !important;
-}
-
-.palette-slash-container {
-    position: relative;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.palette-red-slash {
-    position: absolute;
-    width: 130%;
-    height: 2.5px;
-    background: #ef4444;
-    transform: rotate(-45deg);
-    border-radius: 2px;
-    box-shadow: 0 0 5px rgba(239, 68, 68, 0.9);
-    pointer-events: none;
-}
-
 .dock-format-group {
     display: flex;
     align-items: center;
@@ -2983,8 +2970,12 @@ body.photo-unlocked.space-pan-dragging {
     align-items: center;
     cursor: pointer;
     user-select: none;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    border-bottom: none;
     transition: background 0.2s;
+}
+
+.smart-suggestions-wrapper.open .smart-suggestions-header {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .smart-suggestions-header:hover {
@@ -3630,9 +3621,25 @@ body[data-theme="light"] #aiActionButtonsRow #btnSmartOcr i {
 .hsl-accordion summary:hover {
     background: #334155;
 }
+.hsl-accordion summary i.fa-chevron-down,
+.hsl-accordion summary .accordion-arrow {
+    transition: transform 0.25s ease;
+}
+.hsl-accordion[open] > summary i.fa-chevron-down,
+.hsl-accordion[open] > summary .accordion-arrow {
+    transform: rotate(180deg);
+}
 .hsl-accordion > div {
     border-top: 1px solid #1e293b;
     padding: 10px;
+}
+.hsl-accordion .settings-box,
+.hsl-accordion .el-font-box {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
 }
 
 .cat-group {
@@ -3722,6 +3729,11 @@ body[data-theme="light"] .smart-suggestions-wrapper {
 body[data-theme="light"] .smart-suggestions-header {
     background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%) !important;
     border-left: 3.5px solid #f59e0b !important;
+    border-bottom: none !important;
+}
+
+body[data-theme="light"] .smart-suggestions-wrapper.open .smart-suggestions-header {
+    border-bottom: 1px solid #e2e8f0 !important;
 }
 
 body[data-theme="light"] .smart-suggestions-header span {
@@ -4743,6 +4755,41 @@ body[data-theme="light"] .font-preview.active {
     color: #0f172a !important;
     font-weight: 700 !important;
     box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.08) !important;
+}
+
+body[data-theme="light"] .font-fav-btn,
+html[data-theme="light"] .font-fav-btn {
+    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%) !important;
+    border: 1px solid #cbd5e1 !important;
+    color: #1e293b !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03) !important;
+}
+body[data-theme="light"] .font-fav-btn:hover,
+html[data-theme="light"] .font-fav-btn:hover {
+    background: #f0f9ff !important;
+    border-color: #38bdf8 !important;
+    color: #0284c7 !important;
+}
+body[data-theme="light"] .font-fav-btn.open,
+html[data-theme="light"] .font-fav-btn.open {
+    background: #f0f9ff !important;
+    border-color: #38bdf8 !important;
+    color: #0284c7 !important;
+}
+body[data-theme="light"] .font-fav-badge,
+html[data-theme="light"] .font-fav-badge {
+    background: #e2e8f0 !important;
+    color: #475569 !important;
+}
+body[data-theme="light"] .font-fav-btn.open .font-fav-badge,
+html[data-theme="light"] .font-fav-btn.open .font-fav-badge {
+    background: #0284c7 !important;
+    color: #ffffff !important;
+}
+body[data-theme="light"] .font-fav-list,
+html[data-theme="light"] .font-fav-list {
+    border-color: #cbd5e1 !important;
+    background: rgba(248, 250, 252, 0.6) !important;
 }
 
 /* 15. PRO Renk Eşleştirici Paneli (Ekstra Araçlar) */
@@ -6807,3 +6854,23 @@ body[data-theme="light"] .photo-layer-tab.active {
 /* Override editable-text hiding handles for brand elements */
 .brand-element.editable-text.selected .text-handle, .brand-element.editable-text.el-selected .text-handle { opacity: 1 !important; pointer-events: auto !important; visibility: visible !important; display: flex !important; }
 
+
+
+.smart-desc-section {
+    padding: 10px 12px 12px 12px;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+body[data-theme="light"] .smart-desc-section {
+    border-top: 1px solid #e2e8f0 !important;
+}
+
+body[data-theme="light"] .smart-desc-section label {
+    color: #0f172a !important;
+}
+
+
+body[data-theme="light"] .smart-dynamic-form-wrap,
+body[data-theme="light"] .smart-custom-form-wrap {
+    border-top-color: #e2e8f0 !important;
+}

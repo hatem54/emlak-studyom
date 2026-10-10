@@ -89,6 +89,9 @@
                         if (typeof window.smartParse === 'function') {
                             window.smartParse();
                         }
+                        if (typeof window.toggleSmartSuggestions === 'function') {
+                            window.toggleSmartSuggestions(true);
+                        }
                     }
                     
                     // Başarılı uyarısını popup yerine butonda göster
@@ -1390,6 +1393,9 @@
 
         if (typeof window.renderSmartSuggestionsUI === 'function') {
             window.renderSmartSuggestionsUI();
+        }
+        if (typeof window.toggleSmartSuggestions === 'function') {
+            window.toggleSmartSuggestions(true);
         }
 
         // 7. Kullanıcıya Tek ve Net Bildirim

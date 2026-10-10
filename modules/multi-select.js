@@ -773,6 +773,10 @@
             return;
         }
 
+        // Önce editingDrawIndex'i sıfırla ki deselectAll çağrıldığında saveDrawEdit ögeyi diriltmesin
+        if (typeof editingDrawIndex !== 'undefined') editingDrawIndex = -1;
+        if (typeof originalDrawState !== 'undefined') originalDrawState = null;
+
         if (typeof deselectAll === 'function') deselectAll();
         
         toDelete.forEach(el => {
@@ -781,7 +785,7 @@
             }
             el.remove();
             if (typeof drawPaths !== 'undefined') {
-                const idx = drawPaths.findIndex(p => p.el === el);
+                const idx = drawPaths.findIndex(p => p.el === el || (p.id && el.dataset && p.id === el.dataset.pathId));
                 if (idx > -1) {
                     if (typeof window.deleteDrawItem === 'function') {
                         window.deleteDrawItem(idx);

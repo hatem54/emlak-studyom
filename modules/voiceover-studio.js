@@ -438,7 +438,7 @@
                 this.isSynthesizing = false;
                 if (playBtn) {
                     playBtn.disabled = false;
-                    playBtn.innerHTML = '<i class="fa-solid fa-play"></i> Seslendir ve Dinle';
+                    playBtn.innerHTML = '<i class="fa-solid fa-play" style="color:#10b981;"></i> Seslendir';
                 }
             }
         },
@@ -604,7 +604,7 @@
                     document.body.removeChild(a);
                 }, 100);
             } else {
-                alert('Önce "Seslendir ve Dinle" butonuna basarak seslendirmeyi üretmelisiniz.');
+                alert('Önce "Seslendir" butonuna basarak seslendirmeyi üretmelisiniz.');
             }
         },
 

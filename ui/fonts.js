@@ -16,6 +16,11 @@
 // RECENT & FAVORITE FONTS LOGIC
 let favFonts = [];
 let recentFonts = [];
+let isFavAccordionOpen = false;
+try {
+    const saved = localStorage.getItem('emlakstudiom_fav_fonts_open');
+    if (saved !== null) isFavAccordionOpen = (saved === 'true');
+} catch(e) {}
 
 function loadFontPreferences() {
     try {
@@ -46,6 +51,8 @@ function toggleFavFont(family, e) {
         favFonts = favFonts.filter(f => f !== family);
     } else {
         favFonts.push(family);
+        isFavAccordionOpen = true;
+        try { localStorage.setItem('emlakstudiom_fav_fonts_open', 'true'); } catch(err){}
     }
     saveFontPreferences();
     buildFontUI(); // re-render
@@ -91,17 +98,17 @@ function buildFontUI(){
         // Heart icon
         const isFav = favFonts.includes(f.family);
         const heart = document.createElement('i');
-        heart.className = isFav ? 'fas fa-heart' : 'far fa-heart';
+        heart.className = isFav ? 'fa-solid fa-heart' : 'fa-regular fa-heart';
         heart.style.position = 'absolute';
         heart.style.right = '10px';
         heart.style.top = '50%';
         heart.style.transform = 'translateY(-50%)';
-        heart.style.color = isFav ? '#ef4444' : '#64748b';
+        heart.style.color = isFav ? '#ef4444' : '#94a3b8';
         heart.style.cursor = 'pointer';
         heart.onclick = (e) => toggleFavFont(f.family, e);
         
         const textSpan = document.createElement('span');
-        textSpan.textContent = f.name.replace(/[✒️👑🚀💥🎯]/g, '').trim() + ' - Emlak 123';
+        textSpan.textContent = f.name;
         
         prev.appendChild(textSpan);
         prev.appendChild(heart);
@@ -119,24 +126,72 @@ function buildFontUI(){
         container.appendChild(prev);
     };
 
-    // 1. Render Favorites
+    // 1. Render Favorites (Akordiyon Buton)
     if(favFonts.length > 0) {
-        const tit = document.createElement('div');
-        tit.className = 'font-cat-title';
-        tit.innerHTML = '<i class="fas fa-star" style="color:#fbbf24"></i> Favori Fontlar';
-        grid.appendChild(tit);
-        
+        const accWrapper = document.createElement('div');
+        accWrapper.className = 'font-fav-accordion';
+
+        const accBtn = document.createElement('button');
+        accBtn.type = 'button';
+        accBtn.className = 'font-fav-btn' + (isFavAccordionOpen ? ' open' : '');
+        accBtn.title = 'Favori fontları aç veya kapat';
+
+        const leftSpan = document.createElement('span');
+        leftSpan.style.display = 'flex';
+        leftSpan.style.alignItems = 'center';
+        leftSpan.style.gap = '6px';
+        leftSpan.innerHTML = '<i class="fa-solid fa-star" style="color:#f59e0b; font-size:11px;"></i> Favori Fontlar';
+
+        const rightSpan = document.createElement('span');
+        rightSpan.style.display = 'flex';
+        rightSpan.style.alignItems = 'center';
+        rightSpan.style.gap = '6px';
+
+        const countBadge = document.createElement('span');
+        countBadge.className = 'font-fav-badge';
+        countBadge.textContent = favFonts.length;
+
+        const chevron = document.createElement('i');
+        chevron.className = 'fa-solid ' + (isFavAccordionOpen ? 'fa-chevron-down' : 'fa-chevron-right');
+        chevron.style.fontSize = '9px';
+        chevron.style.color = '#64748b';
+
+        rightSpan.appendChild(countBadge);
+        rightSpan.appendChild(chevron);
+
+        accBtn.appendChild(leftSpan);
+        accBtn.appendChild(rightSpan);
+
+        const listCont = document.createElement('div');
+        listCont.className = 'font-fav-list';
+        listCont.style.display = isFavAccordionOpen ? 'flex' : 'none';
+
         favFonts.forEach(fam => {
             const f = FONTS.find(x => x.family === fam);
-            if(f) renderFontItem(f, grid);
+            if(f) renderFontItem(f, listCont);
         });
+
+        accBtn.onclick = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            isFavAccordionOpen = !isFavAccordionOpen;
+            try { localStorage.setItem('emlakstudiom_fav_fonts_open', isFavAccordionOpen ? 'true' : 'false'); } catch(err){}
+            
+            accBtn.classList.toggle('open', isFavAccordionOpen);
+            listCont.style.display = isFavAccordionOpen ? 'flex' : 'none';
+            chevron.className = 'fa-solid ' + (isFavAccordionOpen ? 'fa-chevron-down' : 'fa-chevron-right');
+        };
+
+        accWrapper.appendChild(accBtn);
+        accWrapper.appendChild(listCont);
+        grid.appendChild(accWrapper);
     }
 
     // 2. Render Recent
     if(recentFonts.length > 0) {
         const tit = document.createElement('div');
         tit.className = 'font-cat-title';
-        tit.innerHTML = '<i class="fas fa-clock" style="color:#38bdf8"></i> Son Kullanılanlar';
+        tit.innerHTML = '<i class="fa-solid fa-clock-rotate-left" style="color:#0284c7; margin-right:4px;"></i> Son Kullanılanlar';
         grid.appendChild(tit);
         
         recentFonts.forEach(fam => {
@@ -157,6 +212,7 @@ function buildFontUI(){
     if (sel && typeof currentFont !== 'undefined' && currentFont) {
         sel.value = currentFont;
     }
+    if (typeof window.syncTextBgTransparentUI === 'function') window.syncTextBgTransparentUI();
 }
 
 function buildElFontSelect(){
@@ -174,6 +230,42 @@ function applyFontFromSelect(){
     if(typeof window.requestAutoSave === 'function') window.requestAutoSave();
 }
 
+window.syncTextBgTransparentUI = function() {
+    const cb = document.getElementById('globalBgTransparent');
+    const btn = document.getElementById('btnBgTransparent');
+    if (!btn || !cb) return;
+    if (cb.checked) {
+        btn.classList.add('active');
+        btn.style.background = '#e0f2fe';
+        btn.style.color = '#0284c7';
+        btn.style.borderColor = '#0284c7';
+        btn.style.borderWidth = '1.5px';
+        btn.title = 'Şeffaf zemin aktif (Kaldırmak için tıkla)';
+    } else {
+        btn.classList.remove('active');
+        btn.style.background = '#ffffff';
+        btn.style.color = '#94a3b8';
+        btn.style.borderColor = '#cbd5e1';
+        btn.style.borderWidth = '1px';
+        btn.title = 'Zemini şeffaf yap';
+    }
+};
+
+window.toggleTextBgTransparent = function() {
+    const cb = document.getElementById('globalBgTransparent');
+    if (!cb) return;
+    cb.checked = !cb.checked;
+    window.syncTextBgTransparentUI();
+    if (typeof window.applyGlobalColors === 'function') window.applyGlobalColors();
+};
+
+window.setTextBgColor = function(colorVal) {
+    const cb = document.getElementById('globalBgTransparent');
+    if (cb) cb.checked = false;
+    window.syncTextBgTransparentUI();
+    if (typeof window.applyGlobalColors === 'function') window.applyGlobalColors();
+};
+
 window.applyGlobalColors = function(){
     const tcEl = $('globalTextColor');
     const tbEl = $('globalTextBg');
@@ -185,6 +277,7 @@ window.applyGlobalColors = function(){
     const textStrokeColor = tscEl ? tscEl.value : '#000000';
     const textStrokeWidth = tswEl ? tswEl.value : '0';
 
+    if (typeof window.syncTextBgTransparentUI === 'function') window.syncTextBgTransparentUI();
     if($('globalTextStrokeWidthVal')) $('globalTextStrokeWidthVal').textContent=textStrokeWidth+'px';
 
     document.querySelectorAll('#canvas-container .canvas-el, #canvas-container .draggable').forEach(el=>{
@@ -207,16 +300,36 @@ window.applyGlobalColors = function(){
     });
 };
 
+window.updateFontWeightFromSlider = function(val) {
+    const wEl = $('fontWeight');
+    if (wEl) wEl.value = val;
+    const vEl = $('fontWeightSliderVal');
+    if (vEl) vEl.textContent = val;
+    applyFontSettings();
+    if (typeof window.requestAutoSave === 'function') window.requestAutoSave();
+};
+
 function applyFontSettings(){
-    const weight=$('fontWeight').value,style=$('fontStyle').value,spacing=$('letterSpacing').value;
-    const lh=($('lineHeight').value/10).toFixed(1),align=$('textAlign').value;
-    const tsc=$('textShadowColor').value,tsv=$('textShadow').value,tt=$('textTransform').value;
+    const weightEl = $('fontWeight');
+    const sliderEl = $('fontWeightSlider');
+    const weight = sliderEl ? sliderEl.value : (weightEl ? weightEl.value : '700');
+    if (weightEl && weightEl.value !== weight) weightEl.value = weight;
+    if ($('fontWeightSliderVal')) $('fontWeightSliderVal').textContent = weight;
+
+    const style = $('fontStyle') ? $('fontStyle').value : 'normal';
+    const spacing = $('letterSpacing') ? $('letterSpacing').value : '0';
+    const lhEl = $('lineHeight');
+    const lh = lhEl ? (lhEl.value / 10).toFixed(1) : '1.6';
+    const align = $('textAlign') ? $('textAlign').value : 'center';
+    const tsc = $('textShadowColor') ? $('textShadowColor').value : '#000000';
+    const tsv = $('textShadow') ? $('textShadow').value : '0';
+    const tt = $('textTransform') ? $('textTransform').value : 'uppercase';
     
-    $('letterSpacingVal').textContent=spacing+'px';
-    $('lineHeightVal').textContent=lh;
-    $('textShadowVal').textContent=tsv;
+    if ($('letterSpacingVal')) $('letterSpacingVal').textContent = spacing + 'px';
+    if ($('lineHeightVal')) $('lineHeightVal').textContent = lh;
+    if ($('textShadowVal')) $('textShadowVal').textContent = tsv;
     
-    const shadow=parseInt(tsv)>0?tsv+'px '+tsv+'px '+(tsv*2)+'px '+tsc:'none';
+    const shadow = parseInt(tsv) > 0 ? tsv + 'px ' + tsv + 'px ' + (tsv * 2) + 'px ' + tsc : 'none';
 
     // Standart şablon öğeleri (elBadge, elPrice, elDetails, infoLineText)
     // Genel yazı tipi değiştirildiğinde her zaman genel fonta tam uyum sağlar

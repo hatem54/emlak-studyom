@@ -1530,35 +1530,31 @@ window.toggleTemplateVisibility = function(forceState) {
 window.updateTemplateToggleUI = function(isHidden) {
     // PC Dock Butonu
     const dockBtn = document.getElementById('dockToggleTemplateBtn');
-    const dockSlash = document.getElementById('dockPaletteSlash');
+    const dockIcon = document.getElementById('dockTemplatePaletteIcon');
     if (dockBtn) {
         if (isHidden) {
-            dockBtn.classList.add('active-hidden');
-            dockBtn.title = 'Şablonu Göster (Şu an Gizli)';
-            if (dockSlash) dockSlash.style.display = 'block';
+            dockBtn.classList.add('active');
+            dockBtn.title = 'Şablonu Göster';
+            if (dockIcon) dockIcon.className = 'fa-solid fa-eye';
         } else {
-            dockBtn.classList.remove('active-hidden');
-            dockBtn.title = 'Şablonu Geçici Olarak Gizle';
-            if (dockSlash) dockSlash.style.display = 'none';
+            dockBtn.classList.remove('active');
+            dockBtn.title = 'Şablonu Gizle';
+            if (dockIcon) dockIcon.className = 'fa-solid fa-eye-slash';
         }
     }
 
     // Şablonlar Sekmesi Butonu (Mobil & PC Tab)
     const tabBtn = document.getElementById('btnToggleTemplateTab');
-    const tabSlash = document.getElementById('tabPaletteSlash');
+    const tabIcon = document.getElementById('tabTemplateEyeIcon');
     const tabText = document.getElementById('tabTemplateEyeText');
     if (tabBtn) {
         if (isHidden) {
-            tabBtn.style.background = 'rgba(239, 68, 68, 0.18)';
-            tabBtn.style.borderColor = '#ef4444';
-            tabBtn.style.color = '#f87171';
-            if (tabSlash) tabSlash.style.display = 'block';
+            tabBtn.classList.add('active');
+            if (tabIcon) tabIcon.className = 'fa-solid fa-eye';
             if (tabText) tabText.textContent = 'Şablonu Göster';
         } else {
-            tabBtn.style.background = 'rgba(56, 189, 248, 0.15)';
-            tabBtn.style.borderColor = 'rgba(56, 189, 248, 0.4)';
-            tabBtn.style.color = '#38bdf8';
-            if (tabSlash) tabSlash.style.display = 'none';
+            tabBtn.classList.remove('active');
+            if (tabIcon) tabIcon.className = 'fa-solid fa-eye-slash';
             if (tabText) tabText.textContent = 'Şablonu Gizle';
         }
     }

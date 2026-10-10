@@ -1372,6 +1372,15 @@ window.SaberEngine = (function() {
         }
         if (!app || !app.textContainer) return;
         
+        // Guard: elDetails, sh-box veya çok satırlı detay kutuları tek satır Pixi metnine dönüştürülmemelidir
+        const isBox = (id === 'elDetails' || (el && (el.id === 'elDetails' || el.dataset?.layerUid === 'ui_details' || el.classList?.contains('sh-box') || (el.querySelector && el.querySelector('#infoLineText')))));
+        if (isBox) {
+            removeTextSaber(id);
+            if (el && el.id) removeTextSaber(el.id);
+            removeTextSaber('elDetails');
+            return;
+        }
+
         removeTextSaber(id); // Clear existing
         
         const elId = el.id || el.dataset.saberElId;
@@ -1429,6 +1438,10 @@ window.SaberEngine = (function() {
         if (!textContent) {
             const cloneForText = el.cloneNode(true);
             cloneForText.querySelectorAll('.text-handle, .callout-controls, .callout-resizer, .callout-rotator, svg').forEach(h => h.remove());
+            if (cloneForText.querySelectorAll('div, p, li').length > 1) {
+                removeTextSaber(id);
+                return;
+            }
             textContent = (cloneForText.innerText || cloneForText.textContent || '').trim();
             if (textContent) el.dataset.rawText = textContent;
         }
@@ -1641,6 +1654,11 @@ window.SaberEngine = (function() {
         for (const id in app.textObjects) {
             const obj = app.textObjects[id];
             if (!obj || !obj.el || !obj.pixiText) continue;
+
+            if (id === 'elDetails' || obj.el.id === 'elDetails' || obj.el.dataset?.layerUid === 'ui_details' || obj.el.classList?.contains('sh-box') || (obj.el.querySelector && obj.el.querySelector('#infoLineText'))) {
+                removeTextSaber(id);
+                continue;
+            }
 
             const isElHidden = (obj.visible === false) ||
                                (obj.el.dataset && obj.el.dataset.hiddenLayer === 'true') ||

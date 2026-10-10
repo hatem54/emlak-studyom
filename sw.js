@@ -1,4 +1,4 @@
-const CACHE_NAME = 'emlak-studiom-v217-20261004-225';
+const CACHE_NAME = 'emlak-studiom-v224-20261009-10';
 const CORE_ASSETS = [
   './core/utils.js',
   './app.html',
@@ -6,6 +6,8 @@ const CORE_ASSETS = [
   './css/callouts.css',
   './css/satellite-map.css',
   './css/three-d.css',
+  './css/neon-text.css',
+  './modules/neon-text.js',
   './main.js',
   './js/searchManager.js',
   './js/autoSave.js',

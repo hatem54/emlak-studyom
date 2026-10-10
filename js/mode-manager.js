@@ -28,25 +28,81 @@ async function checkUserMode() {
       return 'demo';
   }
 
-  // 2. "BENİ HATIRLA" KONTROLÜ
-  // Kullanıcı "Beni Hatırla" demediyse, bu sekmede aktif giriş yoksa ve OAuth token dönmüyorsa oturumu sıfırla:
-  const isRemember = localStorage.getItem('emlak_remember_me') === 'true';
-  const isTabActive = sessionStorage.getItem('emlak_tab_session') === 'active';
-  const hasAuthHash = window.location.hash && (window.location.hash.includes('access_token') || window.location.hash.includes('id_token'));
-
-  if (!isRemember && !isTabActive && !hasAuthHash && !isLocalDev) {
-      if (window.supabaseClient && window.supabaseClient.auth) {
-          try {
-              await window.supabaseClient.auth.signOut();
-          } catch(e) {}
-      }
-  }
+  // 2. OTURUM KONTROLÜ
+  // Supabase kalıcı oturum yönetimini koru (kullanıcı açıkça çıkış yapmadığı sürece oturum açık kalır)
+  sessionStorage.setItem('emlak_tab_session', 'active');
 
   try {
     const { data: { session }, error } = await window.supabaseClient.auth.getSession();
     if (error) throw error;
     
     if (session && session.user) {
+      // 🛡️ KAYITSIZ KULLANICI GİRİŞ KONTROLÜ:
+      // Kullanıcı sisteme kayıtlı değilken "Google ile Giriş Yap" diyerek geldiyse içeri alma!
+      const authIntent = localStorage.getItem('emlak_auth_intent');
+      if (authIntent) {
+          localStorage.removeItem('emlak_auth_intent');
+          const userCreatedAt = new Date(session.user.created_at).getTime();
+          const isNewlyCreated = (Date.now() - userCreatedAt) < 180000; // Son 3 dakikada mı oluştu?
+          
+          if (authIntent === 'login' && isNewlyCreated) {
+              console.warn('⛔ Kayıtsız kullanıcı Google Giriş Yap ile geldi. Giriş engelleniyor...');
+              await window.supabaseClient.auth.signOut();
+              localStorage.removeItem('emlak_remember_me');
+              sessionStorage.removeItem('emlak_tab_session');
+              window.location.href = 'index.html?auth_error=not_registered';
+              return 'not_registered';
+          }
+
+          // 🎉 Google ile HIZLI KAYIT olan kullanıcıya şifre belirleme imkanı sun (İki türlü de girebilmesi için):
+          if (authIntent === 'register' && isNewlyCreated) {
+              setTimeout(() => {
+                  if (typeof Swal !== 'undefined') {
+                      Swal.fire({
+                          title: '🎉 Hoş Geldiniz!',
+                          html: `<div style="font-size:14px; line-height:1.6; color:#cbd5e1; text-align:left; margin-top:8px;">
+                              Google ile hesabınız başarıyla oluşturuldu!<br><br>
+                              Sonraki girişlerinizde <b>e-posta ve şifrenizle de</b> giriş yapabilmek için dilerseniz hemen bir şifre belirleyebilirsiniz:
+                              <input id="swalGooglePass" type="password" placeholder="Şifreniz (En az 6 karakter)" class="swal2-input" style="background:#0f172a; color:#fff; border:1px solid #334155; margin-top:12px; width:80%;">
+                          </div>`,
+                          background: '#1e293b',
+                          color: '#fff',
+                          showCancelButton: true,
+                          confirmButtonText: 'Şifremi Kaydet',
+                          cancelButtonText: 'Daha Sonra',
+                          confirmButtonColor: '#00CEC9',
+                          cancelButtonColor: '#475569',
+                          preConfirm: () => {
+                              const pass = document.getElementById('swalGooglePass') ? document.getElementById('swalGooglePass').value : '';
+                              if (!pass || pass.length < 6) {
+                                  Swal.showValidationMessage('Şifre en az 6 karakter olmalıdır');
+                                  return false;
+                              }
+                              return pass;
+                          }
+                      }).then(async (result) => {
+                          if (result.isConfirmed && result.value) {
+                              try {
+                                  await window.supabaseClient.auth.updateUser({ password: result.value });
+                                  Swal.fire({
+                                      icon: 'success',
+                                      title: 'Şifreniz Tanımlandı!',
+                                      text: 'Artık hem Google ile hem de e-posta ve şifrenizle giriş yapabilirsiniz.',
+                                      timer: 2500,
+                                      showConfirmButton: false,
+                                      background: '#1e293b',
+                                      color: '#fff'
+                                  });
+                              } catch(err) {
+                                  console.error('Şifre belirleme hatası:', err);
+                              }
+                          }
+                      });
+                  }
+              }, 1200);
+          }
+      }
+
       CURRENT_USER = session.user;
       sessionStorage.setItem('emlak_tab_session', 'active');
       

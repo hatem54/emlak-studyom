@@ -54,6 +54,20 @@ window.AppState = {
         document.querySelectorAll('.text-handle, .text-resize-handle, .text-rotate-handle').forEach(h => {
             if (!h.classList.contains('text-lock-handle')) h.remove();
         });
+
+        // Detay çerçevesi ve metin saber koruması: şablon değişiminde eski kalıntıları temizle
+        if (window.SaberEngine && typeof window.SaberEngine.removeTextSaber === 'function') {
+            window.SaberEngine.removeTextSaber('elDetails');
+        }
+        const elDet = document.getElementById('elDetails');
+        if (elDet) {
+            elDet.dataset.saberActive = 'false';
+            const infoLine = document.getElementById('infoLineText');
+            if (infoLine) {
+                infoLine.style.color = '';
+                infoLine.style.textShadow = '';
+            }
+        }
     }
 };
 

@@ -163,7 +163,7 @@ function bindDrag(el){
         if (el.classList.contains('tb-image-frame') && (el.classList.contains('tb-pan-mode') || e.altKey)) {
             return;
         }
-        if (e.target.closest('.vertex-handle, .text-rotate-handle, .text-resize-handle, .callout-controls, .callout-resizer, .callout-rotator, .callout-handle-width, .callout-handle-length, .tb-frame-handle, .tb-frame-floating-tools, .tb-floating-btn')) {
+        if (e.target.closest('.vertex-handle, .text-rotate-handle, .text-resize-handle, .text-delete-handle, .callout-controls, .callout-resizer, .callout-rotator, .callout-handle-width, .callout-handle-length, .tb-frame-handle, .tb-frame-floating-tools, .tb-floating-btn')) {
             return;
         }
         
@@ -958,16 +958,21 @@ function selectElement(el, isMulti = false, noTabSwitch = false, openSettings = 
         }
         if (typeof updateDrawHistory === 'function') updateDrawHistory();
         if (typeof renderLayers === 'function') renderLayers();
-    } else {
         const elSettings = document.getElementById('elSettings');
-        const isSettingsOpen = elSettings && (elSettings.style.display === 'block');
-        const shouldShowSettings = (openSettings === true) || (openSettings === 'auto' && isSettingsOpen);
+        const accDetails = document.getElementById('accordionDetailsEdit');
 
         if(document.getElementById('noSelMsg')) document.getElementById('noSelMsg').style.display='none';
-        if(elSettings) elSettings.style.display = shouldShowSettings ? 'block' : 'none';
+        if(accDetails) {
+            accDetails.style.display = 'block';
+            accDetails.open = (openSettings === 'details');
+        }
+        if(elSettings) {
+            elSettings.style.display = 'block';
+            elSettings.open = (openSettings === true);
+        }
         if(document.getElementById('elLabel')) document.getElementById('elLabel').textContent=el.dataset.label||'Eleman';
-        if(shouldShowSettings && typeof loadElSettings === 'function') loadElSettings(el);
-        if(shouldShowSettings && typeof loadElFont === 'function') loadElFont(el);
+        if(typeof loadElSettings === 'function') loadElSettings(el);
+        if(typeof loadElFont === 'function') loadElFont(el);
         const handleTargets = (window.selectedElements && window.selectedElements.length > 0) ? window.selectedElements : [el];
         handleTargets.forEach(tEl => {
             if (tEl && tEl.classList && tEl.classList.contains('canvas-el') && !tEl.classList.contains('tb-image-frame') && !tEl.closest('#canva-render-layer, .cvr-base, .canva-panel, .canva-generated') && typeof window.addTextHandles === 'function') {
@@ -1009,7 +1014,10 @@ function deselectAll(preserveEl){
         window.selectedElements = [];
         if(window.TemplateBuilder && !(window.Template3DFrame && window.Template3DFrame.isInteracting)) window.TemplateBuilder.deselectFrame();
         if(document.getElementById('noSelMsg')) document.getElementById('noSelMsg').style.display='block';
-        if(document.getElementById('elSettings')) document.getElementById('elSettings').style.display='none';
+        const elSettings = document.getElementById('elSettings');
+        if(elSettings) { elSettings.style.display = 'none'; elSettings.open = false; }
+        const accDetails = document.getElementById('accordionDetailsEdit');
+        if(accDetails) { accDetails.style.display = 'none'; accDetails.open = false; }
         if(document.getElementById('shapeSettingsPanel')) document.getElementById('shapeSettingsPanel').style.display='none';
         if(document.getElementById('calloutSettingsPanel')) document.getElementById('calloutSettingsPanel').style.display='none';
         if(typeof hideVertexHandles === 'function') hideVertexHandles();

@@ -1025,11 +1025,8 @@ window.generateSmartSuggestions = function(data = {}, rawText = '') {
     // 1.7 ARAYÜZÜ YENİLE VE PANELİ OTOMATİK AÇ
     window.renderSmartSuggestionsUI();
 
-    const body = document.getElementById('smartSuggestionsBody');
-    const chevron = document.getElementById('smartSuggestionsChevron');
-    if (body) {
-        body.style.display = 'block';
-        if (chevron) chevron.style.transform = 'rotate(180deg)';
+    if (typeof window.toggleSmartSuggestions === 'function') {
+        window.toggleSmartSuggestions(true);
     }
 };
 
@@ -1052,7 +1049,7 @@ window.renderSmartSuggestionsUI = function() {
     if (totalCount === 0 && (!window.smartMatchedCallouts || window.smartMatchedCallouts.length === 0)) {
         body.innerHTML = `
             <div style="padding:14px; text-align:center; color:#94a3b8; font-size:12px; line-height:1.5;">
-                <span>💡 İlan metnini yapıştırıp <strong>"🤖 Metni Süz"</strong> butonuna bastığınızda, bölge analizli açıklamalar, grafik rozetler ve onaylanabilir öğeler burada listelenir.</span>
+                <span>İlan metnini yapıştırıp <strong>"Metni Süz"</strong> butonuna bastığınızda, bölge analizli açıklamalar, grafik rozetler ve onaylanabilir öğeler burada listelenir.</span>
             </div>
         `;
         return;
@@ -1217,22 +1214,36 @@ window.applyAiMainToDesc = function() {
         if (typeof window.onDescInputChanged === "function") {
             window.onDescInputChanged();
         }
+        if (typeof window.toggleSmartSuggestions === 'function') {
+            window.toggleSmartSuggestions(true);
+        }
     }
 };
 
 // ==================== 3. ETKİLEŞİM & AKSIYON FONKSİYONLARI ====================
 window.toggleSmartSuggestions = function(forceOpen) {
+    const content = document.getElementById('smartSuggestionsContent') || document.getElementById('smartSuggestionsBody');
     const body = document.getElementById('smartSuggestionsBody');
     const chevron = document.getElementById('smartSuggestionsChevron');
-    if (!body) return;
+    const wrapper = document.getElementById('smartSuggestionsWrapper');
+    if (!content) return;
 
-    const shouldOpen = (typeof forceOpen === 'boolean') ? forceOpen : (body.style.display === 'none' || !body.style.display);
+    const shouldOpen = (typeof forceOpen === 'boolean') ? forceOpen : (content.style.display === 'none' || !content.style.display);
     if (shouldOpen) {
-        body.style.display = 'block';
-        if (chevron) chevron.style.transform = 'rotate(180deg)';
+        content.style.display = 'block';
+        if (body) body.style.display = 'block';
+        if (chevron) {
+            chevron.className = 'fa-solid fa-chevron-up';
+            chevron.style.transform = 'none';
+        }
+        if (wrapper) wrapper.classList.add('open');
     } else {
-        body.style.display = 'none';
-        if (chevron) chevron.style.transform = 'rotate(0deg)';
+        content.style.display = 'none';
+        if (chevron) {
+            chevron.className = 'fa-solid fa-chevron-down';
+            chevron.style.transform = 'none';
+        }
+        if (wrapper) wrapper.classList.remove('open');
     }
 };
 

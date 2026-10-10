@@ -496,10 +496,12 @@ function setDrawMode(mode, preserveSelection = false){
             window.CanvasEmptyState.dismiss();
         }
     }
-    if (typeof saveDrawEdit === 'function' && typeof editingDrawIndex !== 'undefined' && editingDrawIndex >= 0) {
-        saveDrawEdit();
-    } else if (typeof window.saveDrawEdit === 'function' && typeof editingDrawIndex !== 'undefined' && editingDrawIndex >= 0) {
-        window.saveDrawEdit();
+    if (!preserveSelection) {
+        if (typeof saveDrawEdit === 'function' && typeof editingDrawIndex !== 'undefined' && editingDrawIndex >= 0) {
+            saveDrawEdit();
+        } else if (typeof window.saveDrawEdit === 'function' && typeof editingDrawIndex !== 'undefined' && editingDrawIndex >= 0) {
+            window.saveDrawEdit();
+        }
     }
     if (mode === 'off') {
         document.querySelectorAll('.editable-draw').forEach(el => {
@@ -936,6 +938,9 @@ function dEnd(e){
 
     redrawAll();
     updateDrawHistory();
+    if (pObj && typeof setDrawMode === 'function') {
+        setDrawMode('off', true);
+    }
 }
 
 function drawTempPolygon(cursor, isDraggingTangent){
@@ -1982,6 +1987,8 @@ function deleteDrawItem(i){
     redrawAll();
     updateDrawHistory();
     if (typeof deselectAll === 'function') deselectAll();
+    if (typeof window.renderLayers === 'function') window.renderLayers();
+    if (typeof window.recordHistory === 'function') window.recordHistory('Çizim Silindi');
 }
 window.deleteDrawItem = deleteDrawItem;
 
@@ -2386,6 +2393,8 @@ function updateSinglePathSvg(p) {
     }
     p.el.style.mixBlendMode = 'normal';
     if (!p.el.parentElement) {
+        const isInPaths = (typeof drawPaths !== 'undefined') && Array.isArray(drawPaths) && drawPaths.includes(p);
+        if (!isInPaths) return;
         const container = (typeof getDrawContainer === 'function') ? getDrawContainer() : (document.getElementById('ui-layer') || document.getElementById('canvas-container'));
         if (container) container.appendChild(p.el);
     }
@@ -3850,21 +3859,34 @@ window.showVertexHandles = function(el) {
     delHandle.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#f43f5e" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="pointer-events:none;"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>';
 
     function delHandleClick(e) {
-        e.preventDefault();
-        e.stopPropagation();
+        if (!el || !el.parentElement) return;
+        if (e) {
+            if (e.preventDefault) e.preventDefault();
+            if (e.stopPropagation) e.stopPropagation();
+        }
         
-        let pIdx = (typeof drawPaths !== 'undefined') ? drawPaths.findIndex(p => p.el === el) : -1;
+        let pIdx = (typeof drawPaths !== 'undefined') ? drawPaths.findIndex(p => p.el === el || (p.id && el.dataset && p.id === el.dataset.pathId)) : -1;
         if (pIdx === -1 && el.dataset.pathIndex !== undefined) {
             pIdx = parseInt(el.dataset.pathIndex);
         }
         
+        // Önce editingDrawIndex'i sıfırla ki deselectAll çağrıldığında saveDrawEdit ögeyi diriltmesin
+        if (typeof editingDrawIndex !== 'undefined') {
+            editingDrawIndex = -1;
+        }
+        if (typeof originalDrawState !== 'undefined') {
+            originalDrawState = null;
+        }
+
         if (pIdx > -1 && typeof deleteDrawItem === 'function') {
             deleteDrawItem(pIdx);
         } else {
             if (pIdx > -1 && typeof window.removeSaberFromPath === 'function') {
                 window.removeSaberFromPath(pIdx);
             }
-            el.remove();
+            if (el && typeof el.remove === 'function') {
+                el.remove();
+            }
             if (pIdx > -1 && typeof drawPaths !== 'undefined') {
                 drawPaths.splice(pIdx, 1);
             }
@@ -3875,8 +3897,8 @@ window.showVertexHandles = function(el) {
         if (typeof deselectAll === 'function') deselectAll();
         if (typeof window.renderLayers === 'function') window.renderLayers();
     }
-    delHandle.addEventListener('mousedown', (e) => { e.preventDefault(); e.stopPropagation(); });
-    delHandle.addEventListener('touchstart', (e) => { e.preventDefault(); e.stopPropagation(); }, {passive: false});
+    delHandle.addEventListener('mousedown', (e) => { e.stopPropagation(); });
+    delHandle.addEventListener('touchstart', (e) => { e.stopPropagation(); }, {passive: false});
     delHandle.addEventListener('click', delHandleClick);
     delHandle.addEventListener('touchend', delHandleClick);
     container.appendChild(delHandle);
@@ -4154,6 +4176,21 @@ window.showVertexHandles = function(el) {
         body.draw-mode-active .draw-handle,
         body.draw-mode-active .vertex-handle { 
             pointer-events: none !important; 
+        }
+        .editable-draw.el-selected,
+        .editable-draw.el-selected *,
+        .editable-draw.el-selected .text-handle,
+        .editable-draw.el-selected .draw-handle,
+        .editable-draw.el-selected .vertex-handle,
+        body.draw-mode-active .editable-draw.el-selected,
+        body.draw-mode-active .editable-draw.el-selected *,
+        body.draw-mode-active .editable-draw.el-selected .text-handle,
+        body.draw-mode-active .editable-draw.el-selected .draw-handle,
+        body.draw-mode-active .editable-draw.el-selected .vertex-handle { 
+            pointer-events: auto !important; 
+        }
+        .editable-draw.el-selected {
+            z-index: 10010 !important;
         }
         body:not(.draw-mode-active) .editable-draw { 
             pointer-events: none !important; 

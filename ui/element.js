@@ -79,6 +79,8 @@ function loadElSettings(el){
     $('elTextStrokeWidthVal').textContent=(parseFloat(el.dataset.storedTextStrokeWidth)||0)+'px';
     
     if(typeof loadTextSaberSettings === 'function') loadTextSaberSettings(el);
+    if(typeof window.syncNeonTextUI === 'function') window.syncNeonTextUI(el);
+    if(typeof window.syncQuickDetailsAccordion === 'function') window.syncQuickDetailsAccordion(el);
     
     setTimeout(()=>{window._loadingElSettings=false},100);
 }
@@ -117,7 +119,8 @@ function applyElSettings(){
             const weightVal = parseInt(document.getElementById('elWeightSlider') ? document.getElementById('elWeightSlider').value : 400);
             if (weightVal > 900) { applyElWeight(); }
         }
-        if(el.dataset.saberActive === 'true') {
+        const isDetails = (el.id === 'elDetails' || el.dataset?.layerUid === 'ui_details' || (el.classList && el.classList.contains('sh-box')) || !!(el.querySelector && el.querySelector('#infoLineText')));
+        if(el.dataset.saberActive === 'true' && !isDetails) {
             el.style.color = 'transparent';
             el.style.textShadow = 'none';
             el.style.webkitTextStroke = 'none';
@@ -172,12 +175,16 @@ function applyElSettings(){
         }
         el.style.borderRadius=rad+'px';
         el.dataset.shadowVal=sh;
-        el.style.boxShadow=+sh>0?'0 '+sh+'px '+(sh*2)+'px rgba(0,0,0,.5)':'none';
+        if (!el.classList.contains('neon-box-active') && el.dataset.saberActive !== 'true') {
+            el.style.boxShadow=+sh>0?'0 '+sh+'px '+(sh*2)+'px rgba(0,0,0,.5)':'none';
+        }
         el.dataset.blurVal=bl;
         el.style.backdropFilter=+bl>0?'blur('+bl+'px)':'none';
         el.dataset.storedBorderColor=brc;
         el.dataset.storedBorderWidth=brw;
-        el.style.border=+brw>0?brw+'px solid '+brc:'none';
+        if (!el.classList.contains('neon-box-active') && el.dataset.saberActive !== 'true') {
+            el.style.border=+brw>0?brw+'px solid '+brc:'none';
+        }
         el.dataset.storedTextStrokeColor=tsc;
         el.dataset.storedTextStrokeWidth=tsw;
         el.style.webkitTextStroke=+tsw>0?tsw+'px '+tsc:'';
@@ -585,130 +592,133 @@ window.setTextSaberColor = function(key) {
 
 function loadTextSaberSettings(el) {
     if (!el) return;
-    const isSaber = el.dataset.saberActive === 'true';
+    const isSaber = (el.dataset.saberActive === 'true' || (el.classList && (el.classList.contains('neon-box-active') || el.classList.contains('neon-text-active'))));
     const chk = document.getElementById('elTextSaber');
+    if (chk) chk.checked = isSaber;
+
+    const btn = document.getElementById('btnToggleElNeon');
+    const btnText = document.getElementById('btnToggleElNeonText');
+    if (btn) {
+        if (isSaber) {
+            btn.classList.add('active');
+            if (btnText) btnText.textContent = 'Neon Açık';
+        } else {
+            btn.classList.remove('active');
+            if (btnText) btnText.textContent = 'Neon Kapalı';
+        }
+    }
+
     const optsDiv = document.getElementById('textSaberOptions');
-    if (!chk || !optsDiv) return;
+    if (optsDiv) optsDiv.style.display = 'none';
 
-    window._loadingElSettings = true;
-    chk.checked = isSaber;
-    optsDiv.style.display = isSaber ? 'block' : 'none';
-
-    let opts = { glowColor: '#00aaff', coreSize: 4, glowSize: 30, intensity: 2.5, coreColor: '#ffffff', preset: 'fully-lit', flickerAmount: 0.05 };
-    if (isSaber) {
-        try {
-            if (el.dataset.saberOpts) opts = Object.assign(opts, JSON.parse(el.dataset.saberOpts));
-        } catch(e) {}
+    if (typeof window.syncNeonTextUI === 'function') {
+        window.syncNeonTextUI(el);
     }
-
-    // Render Presets
-    const presets = window.SaberEngine ? SaberEngine.presets : {};
-    let presetsHTML = '';
-    Object.keys(presets).forEach(key => {
-        const presetData = presets[key];
-        const active = (key === opts.preset || (!opts.preset && key === 'fully-lit')) ? 'active' : '';
-        presetsHTML += `<div class="sep-preset ${active}" data-preset="${key}" onclick="setTextSaberPreset('${key}')"><div>${presetData.icon}</div><div class="sep-preset-name">${presetData.name}</div></div>`;
-    });
-    if ($('textSaberPresets')) $('textSaberPresets').innerHTML = presetsHTML;
-
-    // Render Colors
-    const colors = window.SaberEngine ? SaberEngine.colorPresets : {};
-    let colorsHTML = '';
-    Object.keys(colors).forEach(key => {
-        const c = colors[key];
-        const hex = '#' + c.glow.toString(16).padStart(6, '0');
-        colorsHTML += `<div class="sep-color" data-color="${key}" style="background:${hex}" title="${key}" onclick="setTextSaberColor('${key}')"></div>`;
-    });
-    if ($('textSaberColors')) $('textSaberColors').innerHTML = colorsHTML;
-
-    document.getElementById('textSaberCustomGlow').value = opts.glowColor;
-    document.getElementById('textSaberCustomCore').value = opts.coreColor;
-    document.getElementById('textSaberCoreSize').value = opts.coreSize;
-    document.getElementById('textSaberCoreSizeVal').textContent = opts.coreSize;
-    document.getElementById('textSaberGlowSize').value = opts.glowSize;
-    document.getElementById('textSaberGlowSizeVal').textContent = opts.glowSize;
-    document.getElementById('textSaberIntensity').value = opts.intensity;
-    document.getElementById('textSaberIntensityVal').textContent = opts.intensity;
-    const fval = Math.round((opts.flickerAmount !== undefined ? opts.flickerAmount : 0.05) * 100);
-    if(document.getElementById('textSaberFlicker')) {
-        document.getElementById('textSaberFlicker').value = fval;
-        document.getElementById('textSaberFlickerVal').textContent = fval;
-    }
-
-    setTimeout(()=>{ window._loadingElSettings = false; }, 100);
 }
 
 window.applyTextSaberToggle = function() {
-    if(!selectedEl || window._loadingElSettings) return;
-    const isSaber = document.getElementById('elTextSaber').checked;
-    document.getElementById('textSaberOptions').style.display = isSaber ? 'block' : 'none';
-    
-    selectedEl.dataset.saberActive = isSaber ? 'true' : 'false';
-    
-    if (isSaber) {
-        // Çerçeve opaklığını ve kenarlıkları sıfırla
-        const inputsToZero = ['elBgOpacity', 'elBorderWidth', 'elShadow', 'elBlur'];
-        let changed = false;
-        inputsToZero.forEach(id => {
-            const el = document.getElementById(id);
-            if (el && parseFloat(el.value) > 0) {
-                el.value = 0;
-                const valEl = document.getElementById(id + 'Val');
-                if (valEl) valEl.innerText = '0';
-                changed = true;
-            }
-        });
-        if (changed) applyElSettings();
-
-        // Render options logic before applying
-        loadTextSaberSettings(selectedEl);
-        setTimeout(() => {
-            applyTextSaberOpts();
-        }, 110);
-    } else {
-        selectedEl.style.color = document.getElementById('elTextColor').value;
-        if (window.SaberEngine && typeof SaberEngine.removeTextSaber === 'function') {
-            const id = selectedEl.id || ('el_' + Math.random().toString(36).substr(2,9));
-            selectedEl.id = id;
-            SaberEngine.removeTextSaber(id);
-        }
+    if (!selectedEl || window._loadingElSettings) return;
+    if (typeof window.toggleTextNeon === 'function') {
+        window.toggleTextNeon(selectedEl);
     }
 };
 
 window.applyTextSaberOpts = function() {
-    if(!selectedEl || window._loadingElSettings) return;
-    const isSaber = document.getElementById('elTextSaber').checked;
-    if (!isSaber) return;
+    if (!selectedEl || window._loadingElSettings) return;
+    if (typeof window.updateNeonTextParams === 'function') {
+        window.updateNeonTextParams();
+    }
+};
 
-    const activePresetEl = $('textSaberPresets') ? $('textSaberPresets').querySelector('.active') : null;
-    const presetKey = activePresetEl ? activePresetEl.dataset.preset : 'fully-lit';
+window.syncQuickDetailsAccordion = function(el) {
+    const acc = document.getElementById('accordionDetailsEdit');
+    const body = document.getElementById('quickDetailsContent');
+    if (!acc || !body) return;
 
-    const opts = {
-        preset: presetKey,
-        glowColor: document.getElementById('textSaberCustomGlow').value,
-        coreColor: document.getElementById('textSaberCustomCore').value,
-        coreSize: parseFloat(document.getElementById('textSaberCoreSize').value),
-        glowSize: parseFloat(document.getElementById('textSaberGlowSize').value),
-        intensity: parseFloat(document.getElementById('textSaberIntensity').value),
-        flickerAmount: document.getElementById('textSaberFlicker') ? parseFloat(document.getElementById('textSaberFlicker').value)/100 : 0
-    };
+    if (!el) {
+        acc.style.display = 'none';
+        acc.open = false;
+        return;
+    }
 
-    document.getElementById('textSaberCoreSizeVal').textContent = opts.coreSize;
-    document.getElementById('textSaberGlowSizeVal').textContent = opts.glowSize;
-    document.getElementById('textSaberIntensityVal').textContent = opts.intensity;
-    if(document.getElementById('textSaberFlickerVal')) document.getElementById('textSaberFlickerVal').textContent = document.getElementById('textSaberFlicker').value;
+    acc.style.display = 'block';
 
-    selectedEl.dataset.saberOpts = JSON.stringify(opts);
-    
-    // Make DOM text transparent to hide it but keep bounding box
-    selectedEl.style.color = 'transparent';
-    selectedEl.style.textShadow = 'none';
-    selectedEl.style.webkitTextStroke = 'none';
+    const isDetailsContainer = (el.id === 'elDetails' || el.dataset?.layerUid === 'ui_details' || (el.classList && el.classList.contains('sh-box')) || !!(el.querySelector && el.querySelector('#infoLineText')));
 
-    if (window.SaberEngine && typeof SaberEngine.addTextSaber === 'function') {
-        const id = selectedEl.id || ('el_' + Math.random().toString(36).substr(2,9));
-        selectedEl.id = id;
-        SaberEngine.addTextSaber(id, selectedEl, opts);
+    if (isDetailsContainer) {
+        const brutIn = document.getElementById('f_brut') || document.getElementById('propM2') || document.getElementById('c_size');
+        const odaIn = document.getElementById('f_oda') || document.getElementById('propRooms') || document.getElementById('fld_oda') || document.getElementById('c_rooms');
+        const priceIn = document.getElementById('priceInput') || document.getElementById('c_price');
+        const descIn = document.getElementById('descInput');
+
+        const brutVal = brutIn ? brutIn.value : '';
+        const odaVal = odaIn ? odaIn.value : '';
+        const priceVal = priceIn ? priceIn.value : '';
+        const descVal = descIn ? descIn.value : '';
+
+        body.innerHTML = `
+            <div style="font-size:11px; color:#94a3b8; margin-bottom:8px;">
+                Şablon kutusunun metinlerini buradan düzenleyebilirsiniz. Tuval anlık güncellenir.
+            </div>
+            <div class="row-2" style="margin-bottom:6px;">
+                <div class="input-group">
+                    <label style="font-size:10.5px; font-weight:700;">Brüt m²</label>
+                    <input type="text" id="quick_f_brut" value="${brutVal}" placeholder="Örn: 135 m²" oninput="window.updateQuickField('f_brut', this.value)">
+                </div>
+                <div class="input-group">
+                    <label style="font-size:10.5px; font-weight:700;">Oda Sayısı</label>
+                    <input type="text" id="quick_f_oda" value="${odaVal}" placeholder="Örn: 3+1" oninput="window.updateQuickField('f_oda', this.value)">
+                </div>
+            </div>
+            <div class="input-group" style="margin-bottom:6px;">
+                <label style="font-size:10.5px; font-weight:700;">Fiyat</label>
+                <input type="text" id="quick_priceInput" value="${priceVal}" placeholder="Örn: 4.750.000 TL" oninput="window.updateQuickField('priceInput', this.value)">
+            </div>
+            <div class="input-group" style="margin-bottom:8px;">
+                <label style="font-size:10.5px; font-weight:700;">Açıklama</label>
+                <textarea id="quick_descInput" rows="2" style="width:100%; min-height:48px; padding:6px 8px; font-size:12px; resize:vertical;" placeholder="İlan açıklaması..." oninput="window.updateQuickField('descInput', this.value)">${descVal}</textarea>
+            </div>
+            <button type="button" class="btn-action" style="width:100%; height:32px; font-size:11.5px; font-weight:700; display:flex; align-items:center; justify-content:center; gap:6px;" onclick="if(typeof switchTab==='function') switchTab('data'); if(window.toggleSmartSuggestions) window.toggleSmartSuggestions(true);" title="Tüm veri alanları için Giriş sekmesini açar">
+                <i class="fa-solid fa-arrow-up-right-from-square"></i> Tüm Giriş Formunu Aç
+            </button>
+        `;
+    } else {
+        const currentText = (el.innerText || el.textContent || '').trim();
+        body.innerHTML = `
+            <div style="font-size:11px; color:#94a3b8; margin-bottom:8px;">
+                Metin içeriğini doğrudan buradan değiştirebilirsiniz.
+            </div>
+            <div class="input-group" style="margin-bottom:8px;">
+                <label style="font-size:10.5px; font-weight:700;">Metin İçeriği</label>
+                <textarea id="quickEditTextContent" rows="3" style="width:100%; min-height:60px; padding:8px 10px; border-radius:6px; font-size:12.5px; line-height:1.4; resize:vertical; background:var(--dark-2, #0f172a); color:#fff; border:1px solid #334155;" placeholder="Metin yazın..." oninput="window.applyQuickTextContent(this.value)">${currentText}</textarea>
+            </div>
+        `;
+    }
+};
+
+window.updateQuickField = function(fieldId, val) {
+    const targets = [
+        document.getElementById(fieldId),
+        (fieldId === 'f_brut' ? (document.getElementById('propM2') || document.getElementById('c_size')) : null),
+        (fieldId === 'f_oda' ? (document.getElementById('propRooms') || document.getElementById('fld_oda') || document.getElementById('c_rooms')) : null),
+        (fieldId === 'priceInput' ? document.getElementById('c_price') : null)
+    ].filter(Boolean);
+
+    targets.forEach(t => {
+        t.value = val;
+        if (typeof t.oninput === 'function') t.oninput();
+    });
+
+    if (typeof renderData === 'function') renderData();
+    if (typeof window.syncKolajFromForm === 'function') window.syncKolajFromForm();
+};
+
+window.applyQuickTextContent = function(val) {
+    if (!selectedEl) return;
+    selectedEl.innerText = val;
+    if (typeof updateDrawHistory === 'function') updateDrawHistory();
+    if (window.SaberEngine && typeof window.SaberEngine.updateTextSaberPositions === 'function') {
+        window.SaberEngine.updateTextSaberPositions();
     }
 };
 
@@ -724,11 +734,19 @@ if (window.EmlakState) {
             // Bir eleman seçildi, arayüzü güncelle
             const noSelMsg = document.getElementById('noSelMsg');
             const elSettings = document.getElementById('elSettings');
+            const accDetails = document.getElementById('accordionDetailsEdit');
             const elLabel = document.getElementById('elLabel');
             
             if(noSelMsg) noSelMsg.style.display = 'none';
-            if(elSettings) elSettings.style.display = 'block';
-            if(elLabel) elLabel.textContent = newEl.dataset.label || 'Eleman';
+            if(elSettings) {
+                elSettings.style.display = 'block';
+                elSettings.open = false; // Varsayılan kapalı
+            }
+            if(accDetails) {
+                accDetails.style.display = 'block';
+                accDetails.open = false; // Varsayılan kapalı
+            }
+            if(elLabel) elLabel.textContent = newEl.dataset.label ? ' · ' + newEl.dataset.label : '';
             
             if (typeof loadElSettings === 'function') loadElSettings(newEl);
             if (typeof loadElFont === 'function') loadElFont(newEl);
@@ -737,9 +755,17 @@ if (window.EmlakState) {
             // Seçim kaldırıldı, paneli gizle
             const noSelMsg = document.getElementById('noSelMsg');
             const elSettings = document.getElementById('elSettings');
+            const accDetails = document.getElementById('accordionDetailsEdit');
             
             if(noSelMsg) noSelMsg.style.display = 'block';
-            if(elSettings) elSettings.style.display = 'none';
+            if(elSettings) {
+                elSettings.style.display = 'none';
+                elSettings.open = false;
+            }
+            if(accDetails) {
+                accDetails.style.display = 'none';
+                accDetails.open = false;
+            }
         }
     });
 }

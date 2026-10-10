@@ -577,7 +577,7 @@
                     window.SaberEngine.removeTextSaber(sel);
                 }
                 if (typeof drawPaths !== 'undefined' && sel.classList && sel.classList.contains('editable-draw')) {
-                    const idx = drawPaths.findIndex(p => p.el === sel);
+                    const idx = drawPaths.findIndex(p => p.el === sel || (p.id && sel.dataset && p.id === sel.dataset.pathId));
                     if (idx > -1) {
                         if (typeof window.deleteDrawItem === 'function') window.deleteDrawItem(idx);
                         else drawPaths.splice(idx, 1);
@@ -592,6 +592,8 @@
 
         // 6. 🌟 Temizlik ve Arayüz Senkronizasyonu
         if (deletedAny) {
+            if (typeof editingDrawIndex !== 'undefined') editingDrawIndex = -1;
+            if (typeof originalDrawState !== 'undefined') originalDrawState = null;
             if (typeof window.redrawAll === 'function') window.redrawAll();
             if (typeof window.renderLayers === 'function') window.renderLayers();
             if (typeof window.deselectAll === 'function') window.deselectAll();
@@ -953,13 +955,35 @@
                 if (typeof switchTab === 'function') switchTab('draw');
             } else {
                 if (typeof switchTab === 'function') switchTab('font');
+                const acc = document.getElementById('accordionDetailsEdit');
+                if (acc) {
+                    acc.style.display = 'block';
+                    acc.open = false;
+                }
                 const elSettings = document.getElementById('elSettings');
-                if (elSettings) elSettings.style.display = 'block';
+                if (elSettings) {
+                    elSettings.style.display = 'block';
+                    elSettings.open = true;
+                    if (typeof elSettings.scrollIntoView === 'function') {
+                        elSettings.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    }
+                }
             }
         } else {
             if (typeof switchTab === 'function') switchTab('font');
+            const acc = document.getElementById('accordionDetailsEdit');
+            if (acc) {
+                acc.style.display = 'block';
+                acc.open = false;
+            }
             const elSettings = document.getElementById('elSettings');
-            if (elSettings) elSettings.style.display = 'block';
+            if (elSettings) {
+                elSettings.style.display = 'block';
+                elSettings.open = true;
+                if (typeof elSettings.scrollIntoView === 'function') {
+                    elSettings.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }
+            }
         }
     };
 

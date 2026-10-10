@@ -216,7 +216,7 @@ async function handleLogin(event) {
     console.error('Giriş hatası:', error);
     let msg = error.message || 'Giriş sırasında hata oluştu';
     if (msg.includes('Invalid login') || msg.includes('invalid_credentials')) {
-      msg = 'E-posta veya şifre hatalı';
+      msg = 'E-posta veya şifre hatalı. Eğer hesabınızı Google ile açtıysanız lütfen "Google ile Giriş Yap" butonunu kullanın.';
     } else if (msg.includes('Email not confirmed')) {
       showEmailNotConfirmedModal(email);
       return;
@@ -230,8 +230,9 @@ async function handleLogin(event) {
   }
 }
 
-// SOSYAL MEDYA İLE GİRİŞ (Google, Apple, Facebook)
-async function handleSocialLogin(provider) {
+// SOSYAL MEDYA İLE GİRİŞ / KAYIT (Google, Apple, Facebook)
+// mode: 'login' (Giriş Yap) veya 'register' (Kayıt Ol)
+async function handleSocialLogin(provider, mode = 'login') {
   const client = window.supabaseClient || (typeof initSupabase === 'function' ? initSupabase() : null);
   if (!client) {
     showToast('Veritabanı bağlantısı kurulamadı. Lütfen sayfayı yenileyin.', 'error');
@@ -248,14 +249,14 @@ async function handleSocialLogin(provider) {
   try {
     showToast(`${providerName} ile bağlantı kuruluyor...`, 'info');
     
-    // Sosyal girişte beni hatırla durumunu ve aktif sekme oturumunu işle
-    const rememberCheckbox = document.getElementById('rememberMe');
-    if (rememberCheckbox && rememberCheckbox.checked) {
-      localStorage.setItem('emlak_remember_me', 'true');
-    }
+    // Kullanıcının eylemini (Giriş mi yoksa Kayıt mı?) sakla
+    localStorage.setItem('emlak_auth_intent', mode);
+    localStorage.setItem('emlak_remember_me', 'true');
     sessionStorage.setItem('emlak_tab_session', 'active');
 
-    const redirectUrl = window.location.origin + window.location.pathname.replace(/index\.html$/, '') + 'app.html?mode=pro';
+    // Çift slash (//app.html) riskini önleyen temiz yönlendirme adresi
+    const basePath = window.location.pathname.replace(/\/index\.html$/, '').replace(/\/+$/, '');
+    const redirectUrl = window.location.origin + (basePath ? basePath : '') + '/app.html?mode=pro';
 
     const { data, error } = await client.auth.signInWithOAuth({
       provider: provider,
@@ -411,16 +412,77 @@ window.handleForgotPassword = handleForgotPassword;
 window.handleUpdatePassword = handleUpdatePassword;
 window.goToDemo = goToDemo;
 
-// Recovery ve OAuth bağlantısı dinleyicisi
-window.addEventListener('DOMContentLoaded', () => {
+// Recovery, OAuth bağlantısı ve oturum durumu dinleyicisi
+window.addEventListener('DOMContentLoaded', async () => {
   const client = window.supabaseClient || (typeof initSupabase === 'function' ? initSupabase() : null);
+  
+  // 1. Kayıt olmadan "Google ile Giriş Yap" diyenlerin yakalanması
+  const urlParams = new URLSearchParams(window.location.search);
+  if (urlParams.get('auth_error') === 'not_registered') {
+    window.history.replaceState({}, document.title, window.location.pathname);
+    setTimeout(() => {
+      if (typeof Swal !== 'undefined') {
+        Swal.fire({
+          icon: 'warning',
+          title: 'Kayıtlı Hesap Bulunamadı',
+          html: `<div style="font-size:14px; line-height:1.6; color:#cbd5e1; text-align:left; margin-top:8px;">
+            Bu Google hesabıyla sistemimizde kayıtlı bir kullanıcı bulunamadı.<br><br>
+            Uygulamayı kullanabilmek için lütfen önce <b>Kayıt Ol</b> bölümünden ücretsiz hesabınızı oluşturun.
+          </div>`,
+          background: '#1e293b',
+          color: '#fff',
+          confirmButtonText: 'Ücretsiz Kayıt Ol',
+          confirmButtonColor: '#00CEC9'
+        }).then(() => {
+          if (typeof openModal === 'function') openModal('register');
+        });
+      } else {
+        showToast('Kayıtlı hesap bulunamadı! Lütfen önce ücretsiz kayıt olun.', 'error');
+        if (typeof openModal === 'function') openModal('register');
+      }
+    }, 300);
+    return;
+  }
+
   if (client) {
-    client.auth.onAuthStateChange((event, session) => {
+    // 2. Mevcut oturumu denetle ve Landing Page butonlarını güncelle
+    try {
+      const { data: { session } } = await client.auth.getSession();
+      if (session && session.user) {
+        // Navbar'daki Giriş Yap butonlarını "Stüdyoya Git" yap
+        const loginBtns = document.querySelectorAll('button[onclick*="openModal(\'login\')"]');
+        loginBtns.forEach(btn => {
+          btn.innerHTML = '<i class="fas fa-arrow-right"></i> Stüdyoya Git';
+          btn.onclick = () => { window.location.href = 'app.html?mode=pro'; };
+        });
+      }
+    } catch(e) {}
+
+    // 3. Auth State Dinleyicisi
+    client.auth.onAuthStateChange(async (event, session) => {
       if (event === 'PASSWORD_RECOVERY') {
         openModal('reset');
-      } else if (event === 'SIGNED_IN' && session) {
-        // Sadece OAuth (Google vb.) dönüşünde token varsa yönlendir
+      } else if (event === 'SIGNED_IN' && session && session.user) {
+        // Sadece OAuth dönüşünde hash varsa çalış
         if (window.location.hash && (window.location.hash.includes('access_token') || window.location.hash.includes('id_token'))) {
+          const authIntent = localStorage.getItem('emlak_auth_intent');
+          localStorage.removeItem('emlak_auth_intent');
+          
+          const createdAt = new Date(session.user.created_at).getTime();
+          const isNewlyCreated = (Date.now() - createdAt) < 180000; // Son 3 dakikada ilk defa mı açıldı?
+          
+          // 🛑 KULLANICI KAYITLI DEĞİL AMA "GİRİŞ YAP"TAN GELDİYSE ENGELLE:
+          if (authIntent === 'login' && isNewlyCreated) {
+            await client.auth.signOut();
+            localStorage.removeItem('emlak_remember_me');
+            sessionStorage.removeItem('emlak_tab_session');
+            showToast('Kayıtlı hesap bulunamadı! Lütfen önce kayıt olun.', 'error');
+            setTimeout(() => {
+              if (typeof openModal === 'function') openModal('register');
+            }, 500);
+            return;
+          }
+
           closeModal();
           showToast('✅ Giriş başarılı! Yönlendiriliyorsunuz...', 'success');
           setTimeout(() => {
@@ -430,6 +492,7 @@ window.addEventListener('DOMContentLoaded', () => {
       }
     });
   }
+
   // Sadece şifre sıfırlama (recovery) linkiyle gelindiyse reset modalını aç:
   if (window.location.hash && window.location.hash.includes('type=recovery')) {
     setTimeout(() => {

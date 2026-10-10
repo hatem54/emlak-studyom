@@ -563,8 +563,8 @@ async function compositeContentLayersInZOrder({
 
     const hasTemplateFrame = isTemplateMode || !!canvasEl.querySelector('.cvr-base, .kolaj-wrapper, .photo-panel');
 
-    // Görsel DOM içeriği olan 2D elemanlar (neon metinler PixiJS tarafından çizilir)
-    const visual2DEls = raw2DEls.filter(el => !el.classList.contains('neon-text-el') && el.dataset?.saberActive !== 'true');
+    // Görsel DOM içeriği olan 2D elemanlar (neon metinler PixiJS tarafından çizilir; elDetails ise CSS neon efektine sahiptir)
+    const visual2DEls = raw2DEls.filter(el => !el.classList.contains('neon-text-el') && (el.id === 'elDetails' || el.dataset?.saberActive !== 'true'));
 
     // html2canvas render yardımcı fonksiyonu
     const renderHtml2CanvasPass = async (filterFn = null) => {

@@ -230,9 +230,11 @@ function openObjectContextMenu(targetElement, isText, clientX, clientY) {
     // Label belirle
     let label = targetElement.dataset.label || 'Öğe';
     const isShape = targetElement.classList.contains('shape-el') || !!(targetElement.dataset && targetElement.dataset.shapeType);
+    const isDetailsBox = (targetElement.id === 'elDetails' || !!targetElement.querySelector('#infoLineText'));
     if (targetElement.classList.contains('added-icon')) label = 'İkon';
     else if (isCallout) label = 'Callout';
     else if (isShape) label = 'Şekil';
+    else if (isDetailsBox) label = 'Detay Çerçevesi';
     else if (targetElement.classList.contains('canvas-el')) label = 'Metin';
     else if (targetElement.classList.contains('editable-draw') || targetElement.classList.contains('canva-el') || targetElement.classList.contains('cvi-item') || (targetElement.dataset && targetElement.dataset.pathId)) label = 'Çizim';
 
@@ -288,8 +290,8 @@ function openObjectContextMenu(targetElement, isText, clientX, clientY) {
         `;
     }
 
-    // Metni Düzenle (Eğer metin düzenlenebilir ise)
-    if (!isShape && (isText || targetElement.classList.contains('canvas-el') || targetElement.querySelector('.callout-text, .co-neon-text, text, tspan'))) {
+    // Metni Düzenle (Eğer tekil metin düzenlenebilir ise)
+    if (!isShape && !isDetailsBox && (isText || targetElement.classList.contains('canvas-el') || targetElement.querySelector('.callout-text, .co-neon-text, text, tspan'))) {
         html += `
             <button class="app-context-item item-edit" id="acm-edit">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
@@ -298,12 +300,22 @@ function openObjectContextMenu(targetElement, isText, clientX, clientY) {
         `;
     }
 
-    // Metin için Neon Efekti Ekle / Kapat (3D modunda veya 3D nesnelerde ASLA görünmez)
+    // Detay Çerçevesi için İlan Bilgilerini Düzenleme Kısayolu
+    if (isDetailsBox) {
+        html += `
+            <button class="app-context-item item-edit" id="acm-edit-details">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                <span>Bilgileri Düzenle</span>
+            </button>
+        `;
+    }
+
+    // Metin veya Detay Çerçevesi için Neon Efekti Ekle / Kapat (3D modunda veya 3D nesnelerde ASLA görünmez)
     const is3DActive = (window.ThreeDEngine && typeof window.ThreeDEngine.isActive === 'function' && window.ThreeDEngine.isActive()) || targetElement.classList.contains('three-d-layer') || !!targetElement.closest('#threeDContainer');
-    const is2DText = !is3DActive && !isShape && (isText || targetElement.classList.contains('canvas-el') || targetElement.querySelector('.callout-text, .co-neon-text, text, tspan'));
+    const is2DText = !is3DActive && !isShape && (isDetailsBox || isText || targetElement.classList.contains('canvas-el') || targetElement.querySelector('.callout-text, .co-neon-text, text, tspan'));
 
     if (is2DText) {
-        const isNeonOn = targetElement.dataset.saberActive === 'true';
+        const isNeonOn = targetElement.dataset.saberActive === 'true' || targetElement.classList.contains('neon-box-active');
         html += `
             <button class="app-context-item item-neon" id="acm-toggle-neon">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#00f0ff" stroke-width="2.2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
@@ -692,6 +704,49 @@ function openObjectContextMenu(targetElement, isText, clientX, clientY) {
                 window.SaberEngine.updateTextSaberPositions();
             }
         }
+    });
+
+    bindBtn('#acm-edit-details', () => {
+        const el = window.selectedEl || document.querySelector('.el-selected');
+        const acc = document.getElementById('accordionDetailsEdit');
+        const set = document.getElementById('elSettings');
+        if (el && acc) {
+            if (typeof switchTab === 'function') switchTab('font');
+            acc.style.display = 'block';
+            acc.open = true;
+            if (set) {
+                set.style.display = 'block';
+                set.open = false;
+            }
+            if (typeof acc.scrollIntoView === 'function') {
+                acc.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+            setTimeout(() => {
+                const firstField = acc.querySelector('input:not([type="hidden"]), textarea');
+                if (firstField) {
+                    firstField.focus();
+                }
+            }, 100);
+            return;
+        }
+
+        if (typeof switchTab === 'function') switchTab('data');
+        if (typeof window.toggleSmartSuggestions === 'function') {
+            window.toggleSmartSuggestions(true);
+        }
+        setTimeout(() => {
+            const firstField = document.querySelector('#dynamicFormContainer input:not([type="hidden"])') || 
+                               document.querySelector('#customForm input:not([type="hidden"])') || 
+                               document.getElementById('aiText') || 
+                               document.getElementById('descInput') || 
+                               document.getElementById('f_brut');
+            if (firstField) {
+                firstField.focus();
+                if (typeof firstField.scrollIntoView === 'function') {
+                    firstField.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            }
+        }, 120);
     });
 
     bindBtn('#acm-toggle-neon', () => {

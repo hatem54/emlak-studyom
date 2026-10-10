@@ -245,3 +245,20 @@ body[data-theme="light"] .dock-contextual-slot .dock-btn.btn-red:hover {
         font-size: 10px !important;
     }
 }
+
+/* 7. Mobilde Tuval Altı Dock ve Butonlarını Tamamen Gizle */
+@media (max-width: 768px), (max-height: 500px), (pointer: coarse) and (max-width: 1024px) {
+    #canvasBottomDock,
+    .canvas-bottom-dock,
+    .dock-contextual-slot,
+    .dock-context-group {
+        display: none !important;
+        visibility: hidden !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
+        height: 0 !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        border: none !important;
+    }
+}

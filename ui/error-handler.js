@@ -89,16 +89,34 @@
         }
     }
 
-    // 1. Standart JS hatalarını yakala
+    // 1. Standart JS hatalarını yakala (Konsola kaydet, kullanıcıyı gereksiz yere korkutma)
     window.onerror = function(message, source, lineno, colno, error) {
-        showGlobalErrorToast("Bir sorun oluştu. Lütfen sayfayı yenileyin.");
+        if (!message) return false;
+        const msgStr = String(message).toLowerCase();
+        // Zararsız veya önemsiz mobil/tarayıcı hatalarını filtrele
+        if (msgStr.includes('resizeobserver') || 
+            msgStr.includes('script error') || 
+            msgStr.includes('aborted') || 
+            msgStr.includes('canceled') ||
+            msgStr.includes('play() failed') ||
+            msgStr.includes('interrupted')) {
+            return false;
+        }
         console.error("Global JS Error:", message, "at", source, lineno + ":" + colno, error);
-        return false; // Tarayıcının varsayılan hata gösterimini engelleme (konsola düşsün)
+        return false;
     };
 
-    // 2. Promise (Asenkron) hatalarını yakala
+    // 2. Promise (Asenkron) hatalarını yakala (Konsola kaydet)
     window.addEventListener('unhandledrejection', function(event) {
-        showGlobalErrorToast("Bir sorun oluştu. Lütfen sayfayı yenileyin.");
+        const reason = event.reason ? (event.reason.message || String(event.reason)).toLowerCase() : '';
+        if (reason.includes('resizeobserver') || 
+            reason.includes('aborted') || 
+            reason.includes('canceled') ||
+            reason.includes('play() failed') ||
+            reason.includes('interrupted') ||
+            reason.includes('user gesture')) {
+            return;
+        }
         console.error("Unhandled Promise Rejection:", event.reason);
     });
 

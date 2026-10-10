@@ -1816,10 +1816,10 @@ body.floating-panels-active .floating-expand-btn {
 }
 
 
-/* Mobilde canvas beyaz arka plan */
+/* Mobilde canvas arka planı (tema ile uyumlu, beyaz parlamayı engeller) */
 @media (max-width: 768px) {
     #canvas-container {
-        background-color: #ffffff;
+        background-color: transparent !important;
     }
 }
 

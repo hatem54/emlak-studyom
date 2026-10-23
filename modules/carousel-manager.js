@@ -50,26 +50,9 @@
          * Karusel Film Şeridini Aç / Kapat
          */
         toggleBar: function(forceState) {
+            this.isVisible = false;
             const bar = document.getElementById('carouselFilmstripBar');
-            if (!bar) return;
-
-            this.isVisible = (forceState !== undefined) ? forceState : !this.isVisible;
-            bar.style.display = this.isVisible ? 'flex' : 'none';
-
-            // Havuzdaki Karusel butonunun durumunu senkronize et
-            const stagingCarouselBtn = document.getElementById('stagingCarouselBtn');
-            if (stagingCarouselBtn) {
-                stagingCarouselBtn.classList.toggle('active', this.isVisible);
-            }
-
-            if (this.isVisible) {
-                this.positionBarAboveDock();
-                // Mevcut durumu ilk sayfaya kaydet
-                if (this.pages[this.activePageIndex] && !this.pages[this.activePageIndex].snapshot && typeof window.captureFullState === 'function') {
-                    this.pages[this.activePageIndex].snapshot = window.captureFullState();
-                }
-                this.renderFilmstrip();
-            }
+            if (bar) bar.style.display = 'none';
         },
 
         /**
@@ -221,16 +204,29 @@
             if (targetIdx === this.activePageIndex || targetIdx < 0 || targetIdx >= this.pages.length) return;
 
             // 1. Mevcut sayfayı kaydet
-            if (typeof window.captureFullState === 'function') {
+            if (typeof window.captureFullState === 'function' && this.pages[this.activePageIndex]) {
                 this.pages[this.activePageIndex].snapshot = window.captureFullState();
             }
 
             this.activePageIndex = targetIdx;
             const targetPage = this.pages[targetIdx];
 
-            // 2. Hedef sayfanın snapshot'ını tuvale yükle
+            // 2. Hedef sayfanın staging havuzuyla senkronizasyonu
+            if (targetPage && targetPage.stagingItemId && window.PhotoStagingArchive) {
+                window.PhotoStagingArchive.activeItemId = targetPage.stagingItemId;
+                window.PhotoStagingArchive.updateActiveCardUI();
+            }
+
+            // 3. Hedef sayfanın snapshot'ını veya görselini tuvale yükle
             if (targetPage && targetPage.snapshot && typeof window.applySnapshot === 'function') {
                 window.applySnapshot(targetPage.snapshot);
+            } else if (targetPage && targetPage.stagingItemId && window.PhotoStagingArchive) {
+                window.PhotoStagingArchive.applyToCanvas(targetPage.stagingItemId, true);
+            } else if (targetPage && (targetPage.thumb || (targetPage.snapshot && (targetPage.snapshot.photoImgUrl || targetPage.snapshot.uploadedImgUrl)))) {
+                const imgUrl = targetPage.thumb || (targetPage.snapshot && (targetPage.snapshot.photoImgUrl || targetPage.snapshot.uploadedImgUrl));
+                if (typeof window.applyProjectImageFromDataUrl === 'function') {
+                    window.applyProjectImageFromDataUrl(imgUrl);
+                }
             } else {
                 document.querySelectorAll('.tb-image-frame, .tb-portfolio-text, .tb-layout-text').forEach(el => el.remove());
             }
@@ -286,6 +282,16 @@
                 card.className = `carousel-slide-card ${idx === this.activePageIndex ? 'active' : ''}`;
                 card.title = `${page.title} — Düzenlemek için tıkla`;
                 card.onclick = () => this.switchPage(idx);
+
+                // Küçük Resim (Thumbnail)
+                const thumbSrc = page.thumb || (page.snapshot && (page.snapshot.photoImgUrl || page.snapshot.uploadedImgUrl));
+                if (thumbSrc) {
+                    const thumbImg = document.createElement('img');
+                    thumbImg.className = 'carousel-slide-thumb';
+                    thumbImg.src = thumbSrc;
+                    thumbImg.alt = page.title || `Sayfa ${idx + 1}`;
+                    card.appendChild(thumbImg);
+                }
 
                 // Sayfa Numarası Rozeti
                 const badge = document.createElement('span');

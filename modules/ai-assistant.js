@@ -33,7 +33,7 @@
         if (!apiKey) return { success: false, message: 'API Anahtarı girilmedi.' };
 
         try {
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key=${apiKey}`;
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
             const res = await fetch(url, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -104,7 +104,7 @@
 
         if (apiKey) {
             try {
-                const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key=${apiKey}`;
+                const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
                 const res = await fetch(url, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -222,7 +222,37 @@
                    `• <strong>Şablon:</strong> 'Şablonlar' sekmesinden <strong>'👑 Lüks Villa Prestij'</strong> veya <strong>'💎 Elit VIP Müstakil'</strong> şablonunu seçin.`;
         }
 
-        // 7. Uygulama Araçları & Kullanım Adımları
+        // 7. 3D Stüdyo & Katı Silüet
+        if (q.includes('3d') || q.includes('katı') || q.includes('silüet') || q.includes('üç boyut') || q.includes('kabartma')) {
+            return `🧊 <strong>3D Stüdyo & Katı Silüet Derinlik Rehberi:</strong><br><br>` +
+                   `• <strong>3D Yazı:</strong> Başlıklarınıza 3 boyutlu derinlik, pah (bevel), gölge ve altın/krom materyalleri verebilirsiniz.<br>` +
+                   `• <strong>Katı Silüet:</strong> İkon kütüphanesinden eklediğiniz tüm simgeleri tek tıkla 3D heykelimsi kabartmaya dönüştürün.<br>` +
+                   `• <strong>Açı & Işık:</strong> Zemin hizalaması ve ışık açısıyla vitrin ilanlarınıza lüks bir görünüm kazandırın.`;
+        }
+
+        // 8. Şablon Neon Dış Çerçevesi
+        if (q.includes('çerçeve') || q.includes('kenarlık') || q.includes('neon') || q.includes('frame')) {
+            return `🎨 <strong>Şablon Dış Çerçeve Neon Çizgisi:</strong><br><br>` +
+                   `• 'Şablonlar' sekmesinde herhangi bir şablon seçtiğinizde üstte <strong>'Neon Dış Çerçeve'</strong> anahtarı açılır.<br>` +
+                   `• Buradan çerçeveyi tek tıkla açabilir, renk paletinden ilanınıza uygun tonu (Altın, Neon Cyan, Zümrüt Yeşili) seçip parlamayı ve kalınlığı kırpılma olmadan ayarlayabilirsiniz.`;
+        }
+
+        // 9. Uydu & TKGM Parsel
+        if (q.includes('uydu') || q.includes('tkgm') || q.includes('harita') || q.includes('eğim') || q.includes('parsel sorgu')) {
+            return `🛰️ <strong>Uydu & TKGM Parsel Sistemi:</strong><br><br>` +
+                   `• İl, ilçe, ada ve parsel numarasını girerek resmi kadastro sınırlarını uydu görüntüsü üzerine anında çekin.<br>` +
+                   `• Esri ve Google uydu katmanları arasında geçiş yapabilir, 3D Perspektif & Eğim (Pitch) özelliğiyle araziye açılı kuşbakışı derinlik verebilirsiniz.<br>` +
+                   `• Arsanın m² alanı ve çevre uzunluğu otomatik hesaplanır.`;
+        }
+
+        // 10. AI Fotoğraf & Sihirli Silgi
+        if (q.includes('netleştir') || q.includes('silgi') || q.includes('bulanık') || q.includes('magic')) {
+            return `🪄 <strong>Yapay Zeka Fotoğraf & Silgi Araçları:</strong><br><br>` +
+                   `• <strong>AI Netleştirme (Super-Resolution):</strong> Fotoğraf sekmesindeki kaydırıcıyı artırarak pikselli veya düşük kaliteli fotoğrafları netleştirin.<br>` +
+                   `• <strong>Sihirli Silgi (Magic Eraser):</strong> Fotoğraftaki istenmeyen nesneleri (insan, araba, tabela, çöp kutusu) fırçayla boyayın; yapay zeka dokuyu arkasındaki zeminle pürüzsüzce doldurur.`;
+        }
+
+        // 11. Uygulama Araçları & Kullanım Adımları
         if (q.includes('fotoğraf') || q.includes('resim') || q.includes('çizim') || q.includes('saber') || q.includes('çıktı') || q.includes('indir') || q.includes('katman') || q.includes('nasıl')) {
             return `🛠️ <strong>EmlakStüdyom Hızlı Kullanım Adımları:</strong><br><br>` +
                    `1. <strong>📸 Fotoğraf Yükle:</strong> Sol üstteki 'Fotoğraf Seç / Yükle' butonuyla ana görselinizi tuvale oturtun.<br>` +
@@ -232,7 +262,7 @@
                    `5. <strong>📥 Çıktı Al:</strong> 'Çıktı' sekmesinden Instagram Post (1:1), Story (9:16) veya Web (16:9) Ultra HD indirin!`;
         }
 
-        // 8. Genel Emlak Danışmanlığı
+        // 12. Genel Emlak Danışmanlığı
         return `🎯 <strong>Akıllı Emlak Danışmanı Yanıtı:</strong><br><br>` +
                `Sorunuzla ilgili olarak size en etkili emlak tavsiyeleri:<br><br>` +
                `• <strong>Görsel Önceliği:</strong> Alıcıların %80'i ilk 2 saniyede kapak görselindeki fiyat, lokasyon ve vurucu özelliğe bakar.<br>` +
@@ -244,6 +274,10 @@
     // ==================== ASİSTAN ETKİLEŞİMİ ====================
     window.showAiQuickAnswer = async function(key) {
         const questions = {
+            threed_tips: '3D Stüdyo ve Katı Silüet kabartma nasıl kullanılır?',
+            satellite_tips: 'TKGM parsel sorgulama ve 3D eğimli uydu haritası nasıl çalışır?',
+            neon_tips: 'Şablon dış çerçeve neon çizgisi ve rengi nasıl ayarlanır?',
+            ai_photo_tips: 'AI netleştirme ve sihirli nesne silici nasıl kullanılır?',
             format: 'Instagram için en iyi format ve boyut nedir?',
             price_pos: 'Fiyat rozetini nereye koymalıyım?',
             title_tips: 'İlan başlığı nasıl daha çok tık alır?',
@@ -308,6 +342,65 @@
             <div class="bot-content">${aiReply.replace(/\n/g, '<br>')}</div>
         `;
         chatBox.scrollTop = chatBox.scrollHeight;
+    };
+
+    let _modalRecognition = null;
+    let _modalListening = false;
+
+    window.toggleAiModalVoiceRecognition = function() {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SpeechRecognition) {
+            alert("Tarayıcınız ses tanıma özelliğini desteklemiyor. Lütfen Google Chrome veya Edge kullanın.");
+            return;
+        }
+
+        const voiceBtn = document.getElementById('aiModalVoiceBtn');
+        const input = document.getElementById('aiCustomQuestionInput');
+
+        if (_modalRecognition && _modalListening) {
+            _modalRecognition.stop();
+            return;
+        }
+
+        try {
+            const recognition = new SpeechRecognition();
+            recognition.lang = 'tr-TR';
+            recognition.continuous = false;
+            recognition.interimResults = false;
+
+            recognition.onstart = () => {
+                _modalListening = true;
+                if (voiceBtn) voiceBtn.classList.add('recording');
+                if (input) input.placeholder = "Dinliyorum, konuşun...";
+            };
+
+            recognition.onresult = (event) => {
+                const transcript = event.results[0][0].transcript;
+                if (input && transcript) {
+                    input.value = transcript;
+                    window.sendAiCustomQuestion();
+                }
+            };
+
+            recognition.onerror = (e) => {
+                console.warn("Modal speech recognition error:", e);
+                if (voiceBtn) voiceBtn.classList.remove('recording');
+                if (input) input.placeholder = "Emlak veya tasarım hakkında soru sorun...";
+                _modalListening = false;
+            };
+
+            recognition.onend = () => {
+                _modalListening = false;
+                if (voiceBtn) voiceBtn.classList.remove('recording');
+                if (input) input.placeholder = "Emlak veya tasarım hakkında soru sorun...";
+            };
+
+            _modalRecognition = recognition;
+            recognition.start();
+        } catch(err) {
+            console.error("Modal speech recognition start failed:", err);
+            if (voiceBtn) voiceBtn.classList.remove('recording');
+        }
     };
 
     window.openGeminiApiKeyPrompt = async function() {
@@ -399,12 +492,14 @@
                 <div id="aiTabChat" class="ai-tab-content">
                     <div class="ai-quick-chips-title">💡 Popüler Emlak & Tasarım İpuçları (Tıklayın):</div>
                     <div class="ai-quick-chips">
+                        <button type="button" class="ai-chip-btn" onclick="window.showAiQuickAnswer('threed_tips')">🧊 3D Stüdyo & Katı Silüet</button>
+                        <button type="button" class="ai-chip-btn" onclick="window.showAiQuickAnswer('satellite_tips')">🛰️ TKGM Parsel & Uydu</button>
+                        <button type="button" class="ai-chip-btn" onclick="window.showAiQuickAnswer('neon_tips')">⚡ Şablon Neon Çerçevesi</button>
+                        <button type="button" class="ai-chip-btn" onclick="window.showAiQuickAnswer('ai_photo_tips')">🪄 AI Netleştirme & Silgi</button>
                         <button type="button" class="ai-chip-btn" onclick="window.showAiQuickAnswer('format')">📱 Instagram formatı nedir?</button>
                         <button type="button" class="ai-chip-btn" onclick="window.showAiQuickAnswer('price_pos')">💰 Fiyat rozeti nereye konur?</button>
                         <button type="button" class="ai-chip-btn" onclick="window.showAiQuickAnswer('title_tips')">✍️ Tıklanan başlık nasıl yazılır?</button>
                         <button type="button" class="ai-chip-btn" onclick="window.showAiQuickAnswer('land_tips')">🌾 Arsa afişi püf noktaları</button>
-                        <button type="button" class="ai-chip-btn" onclick="window.showAiQuickAnswer('villa_tips')">🏡 Lüks villa sunumu</button>
-                        <button type="button" class="ai-chip-btn" onclick="window.showAiQuickAnswer('social_times')">⏰ En iyi paylaşım saati</button>
                     </div>
 
                     <div id="aiChatMessages" class="ai-chat-messages">
@@ -416,6 +511,7 @@
 
                     <div class="ai-chat-input-bar">
                         <input type="text" id="aiCustomQuestionInput" placeholder="Emlak veya tasarım hakkında soru sorun..." onkeydown="if(event.key==='Enter') window.sendAiCustomQuestion();">
+                        <button type="button" class="ai-voice-btn" id="aiModalVoiceBtn" title="Sesli Soru Sor" onclick="window.toggleAiModalVoiceRecognition()"><i class="fa-solid fa-microphone"></i></button>
                         <button type="button" class="ai-send-btn" onclick="window.sendAiCustomQuestion()"><i class="fa-solid fa-paper-plane"></i></button>
                     </div>
                 </div>

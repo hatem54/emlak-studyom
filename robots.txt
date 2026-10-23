@@ -1,0 +1,27 @@
+# robots.txt - EmlakStüdyom
+User-agent: *
+Allow: /
+Allow: /index.html
+Allow: /app.html
+Allow: /yardim.html
+Allow: /hakkimizda.html
+Allow: /gizlilik.html
+Allow: /sartlar.html
+Allow: /assets/
+Allow: /css/
+
+# Korunan Alanlar ve Sistem Dosyaları
+Disallow: /admin.html
+Disallow: /*.md$
+Disallow: /*.sql$
+Disallow: /*.ps1$
+Disallow: /docs/
+Disallow: /archive/
+Disallow: /scratch/
+Disallow: /core/
+Disallow: /modules/
+Disallow: /js/
+Disallow: /ui/
+Disallow: /tpl_*/
+
+Sitemap: https://emlakstudyom.com/sitemap.xml

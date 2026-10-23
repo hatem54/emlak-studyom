@@ -15,8 +15,36 @@ window.isMobileDevice = function() {
 window.validateImageUpload = function(file) {
     if (!file) return false;
     
-    // 1. Format Check (Tüm standart görsel türlerini ve uzantıları kabul et)
+    // 0. Boş (0 bayt) dosya kontrolü
+    if (file.size === 0) {
+        const msg = 'Seçilen dosya boş (0 bayt) veya hasarlı.';
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({ title: 'Geçersiz Dosya!', text: msg, icon: 'error', background: '#1e293b', color: '#fff', confirmButtonColor: '#3b82f6' });
+        } else {
+            alert(msg);
+        }
+        return false;
+    }
+
+    // 1. Zararlı çalıştırılabilir uzantı engeli (Kara liste)
     const fileName = (file.name || '').toLowerCase();
+    const dangerousExtensions = [
+        '.exe', '.bat', '.cmd', '.sh', '.php', '.phtml', '.js', '.vbs', 
+        '.ps1', '.py', '.pl', '.jar', '.apk', '.msi', '.dll', '.scr', 
+        '.com', '.hta', '.html', '.htm', '.xhtml', '.shtml', '.asp', '.aspx',
+        '.cgi', '.bin', '.wsf', '.reg'
+    ];
+    if (dangerousExtensions.some(ext => fileName.endsWith(ext))) {
+        const msg = 'Güvenlik Uyarısı: Seçilen dosya türü çalıştırılabilir veya zararlı kod içerebilir.';
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({ title: 'Güvenlik Engeli!', text: msg, icon: 'warning', background: '#1e293b', color: '#fff', confirmButtonColor: '#3b82f6' });
+        } else {
+            alert(msg);
+        }
+        return false;
+    }
+
+    // 2. Format Check (Tüm standart görsel türlerini ve uzantıları kabul et)
     const fileType = (file.type || '').toLowerCase();
     const isImageMime = fileType.startsWith('image/') || fileType.includes('jpeg') || fileType.includes('png') || fileType.includes('webp') || fileType.includes('jpg');
     const validExtensions = ['.jpg', '.jpeg', '.png', '.webp', '.jfif', '.heic', '.heif', '.bmp', '.gif', '.svg'];
@@ -38,7 +66,7 @@ window.validateImageUpload = function(file) {
         return false;
     }
     
-    // 2. Size Check (Maks 35MB)
+    // 3. Size Check (Maks 35MB)
     const maxSize = 35 * 1024 * 1024;
     if (file.size > maxSize) {
         if (typeof Swal !== 'undefined') {
@@ -58,6 +86,20 @@ window.validateImageUpload = function(file) {
     
     return true;
 };
+
+// Global Unhandled Rejection Guard: Beklenmeyen asenkron hatalarda yükleme ekranının donup kalmasını önler
+window.addEventListener('unhandledrejection', (event) => {
+    console.error('Unhandled Promise Rejection:', event.reason);
+    if (typeof window.hideAppLoading === 'function') {
+        window.hideAppLoading(0, true);
+    }
+    if (typeof window.hideExportLoading === 'function') {
+        window.hideExportLoading();
+    }
+    if (window.isExportingNow) {
+        window.isExportingNow = false;
+    }
+});
 
 function buildTemplates(){
 
@@ -315,9 +357,12 @@ window.clearBgImage = function() {
     if (typeof photoLayer !== 'undefined') {
 
         photoLayer.style.backgroundImage = 'none';
-        photoLayer.style.backgroundColor = '#ffffff';
+        photoLayer.style.setProperty('background-color', 'transparent', 'important');
         const cContainerEl = document.getElementById('canvas-container');
-        if (cContainerEl) cContainerEl.style.backgroundColor = '#ffffff';
+        if (cContainerEl) {
+            const savedBg = localStorage.getItem('emlakstudiom_canvasBgColor') || '#ffffff';
+            cContainerEl.style.backgroundColor = savedBg;
+        }
 
         // Zoom sistemini kökten temizle (DOM'dan sil)
         const innerZoom = photoLayer.querySelector('.photo-inner-zoom');
@@ -353,17 +398,271 @@ window.clearBgImage = function() {
     }
 };
 
+window.syncLogoUI = function(logoUrl) {
+    const hasLogo = !!(logoUrl && typeof logoUrl === 'string' && logoUrl.trim().length > 0);
+    const isCustom = hasLogo && !logoUrl.includes('assets/logo/logo.png');
+    
+    // 1. Sol panel Araçlar sekmesindeki buton metni
+    const mainBtnText = document.getElementById('logoUploadBtnText');
+    if (mainBtnText) {
+        mainBtnText.innerText = isCustom ? 'Logo Değiştir' : 'Logo Seç';
+    }
+    
+    // 2. Sol panel Araçlar sekmesindeki sil butonu
+    const clearBtn = document.getElementById('clearLogoBtn');
+    if (clearBtn) {
+        clearBtn.style.display = hasLogo ? 'flex' : 'none';
+    }
+
+    // 3. Staging Havuz paneli buton metni
+    const stagingBtnText = document.getElementById('stagingLogoUploadBtnText');
+    if (stagingBtnText) {
+        stagingBtnText.innerText = isCustom ? 'Logo Değiştir' : 'Logo Seç';
+    }
+    
+    // 4. Staging Havuz paneli sil butonu
+    const stagingRemoveBtn = document.getElementById('stagingLogoRemoveBtn');
+    if (stagingRemoveBtn) {
+        stagingRemoveBtn.style.display = hasLogo ? 'inline-flex' : 'none';
+    }
+    
+    // 5. Staging Havuz paneli varsa ve aktifse logo durumunu güncelle
+    if (window.PhotoStagingArchive) {
+        window.PhotoStagingArchive.watermarkOptions.customLogoUrl = hasLogo ? logoUrl : null;
+    }
+};
+
+window.addDefaultLogoToCanvas = function() {
+    if (window.PhotoStagingArchive && typeof window.PhotoStagingArchive.addDefaultLogoToCanvas === 'function') {
+        window.PhotoStagingArchive.addDefaultLogoToCanvas();
+        return;
+    }
+
+    const defaultLogoUrl = 'assets/logo/logo.png';
+    window.companyLogo = defaultLogoUrl;
+
+    if (window.CanvasEmptyState && typeof window.CanvasEmptyState.dismiss === 'function') {
+        window.CanvasEmptyState.dismiss();
+    }
+
+    const logoEl = document.getElementById('elLogo');
+    if (logoEl) {
+        const img = logoEl.querySelector('img') || logoEl.querySelector('#elLogoImg');
+        if (img) {
+            img.src = defaultLogoUrl;
+            img.style.display = 'block';
+            img.style.visibility = 'visible';
+        }
+        logoEl.src = defaultLogoUrl;
+        logoEl.style.display = 'block';
+        logoEl.style.visibility = 'visible';
+        logoEl.style.zIndex = '99999';
+
+        const canvasContainer = document.getElementById('canvas-container');
+        if (canvasContainer && canvasContainer.lastChild !== logoEl) {
+            canvasContainer.appendChild(logoEl);
+        }
+
+        const cW = canvasContainer ? (parseInt(canvasContainer.style.width) || canvasContainer.offsetWidth || 1920) : 1920;
+        const logoW = Math.max(60, Math.round(cW * 0.12));
+        logoEl.style.width = logoW + 'px';
+        logoEl.style.height = 'auto';
+
+        const margin = Math.round(cW * 0.035);
+        logoEl.style.left = '';
+        logoEl.style.top = '';
+        logoEl.style.right = margin + 'px';
+        logoEl.style.bottom = margin + 'px';
+        logoEl.style.transform = 'none';
+
+        if (typeof selectElement === 'function') {
+            selectElement(logoEl, false, true);
+        }
+    }
+
+    window.syncLogoUI(defaultLogoUrl);
+
+    if (typeof window.renderLayers === 'function') window.renderLayers();
+    if (typeof window.requestAutoSave === 'function') window.requestAutoSave();
+    if (typeof window.showAppToast === 'function') {
+        window.showAppToast('Emlak Stüdyom logosu tuvale eklendi.', 'success', 2200);
+    }
+};
+
+window.addLogoToCanvas = function() {
+    if (window.PhotoStagingArchive && typeof window.PhotoStagingArchive.addLogoToCanvas === 'function') {
+        window.PhotoStagingArchive.addLogoToCanvas();
+    } else if (typeof window.addDefaultLogoToCanvas === 'function') {
+        window.addDefaultLogoToCanvas();
+    }
+};
+
+window.triggerLogoUpload = function() {
+    let li = document.getElementById('logoInput');
+    if (!li) {
+        li = document.getElementById('stagingWatermarkLogoInput');
+    }
+    if (li) {
+        li.value = '';
+        li.click();
+    }
+};
+
+window.handleLogoUploadFile = async function(file) {
+    if (!file) return;
+
+    // Güvenlik ve Bütünlük Doğrulaması (SecurityGuard veya fallback)
+    if (window.SecurityGuard && typeof window.SecurityGuard.validateImageFileAsync === 'function') {
+        const check = await window.SecurityGuard.validateImageFileAsync(file, {
+            maxSize: 20 * 1024 * 1024,
+            maxDimension: 8192
+        });
+        if (!check.valid) {
+            const li1 = document.getElementById('logoInput');
+            if (li1) li1.value = '';
+            const li2 = document.getElementById('stagingWatermarkLogoInput');
+            if (li2) li2.value = '';
+            if (typeof window.showAppToast === 'function') {
+                window.showAppToast(check.error, 'error', 4500);
+            } else if (typeof Swal !== 'undefined') {
+                Swal.fire({ title: 'Geçersiz Logo', text: check.error, icon: 'error' });
+            } else {
+                alert(check.error);
+            }
+            return;
+        }
+    } else if (window.validateImageUpload && !window.validateImageUpload(file)) {
+        return;
+    }
+
+    if (typeof window.showAppLoading === 'function') {
+        window.showAppLoading('Logo Yükleniyor...', 'Firma logosu yerleştiriliyor...');
+    }
+
+    const r = new FileReader();
+    r.onload = ev => {
+        const dataUrl = ev.target.result;
+        window.companyLogo = dataUrl;
+
+        if (window.CanvasEmptyState && typeof window.CanvasEmptyState.dismiss === 'function') {
+            window.CanvasEmptyState.dismiss();
+        }
+
+        const logoEl = document.getElementById('elLogo');
+        if (logoEl) {
+            const img = logoEl.querySelector('img') || logoEl.querySelector('#elLogoImg');
+            if (img) {
+                img.src = dataUrl;
+                img.style.display = 'block';
+            }
+            logoEl.src = dataUrl;
+            logoEl.style.display = 'block';
+            logoEl.style.visibility = 'visible';
+            logoEl.style.zIndex = '9999';
+
+            // Logo her zaman en üstte: canvas-container'ın son çocuğuna taşı
+            const canvasContainer = document.getElementById('canvas-container');
+            if (canvasContainer && canvasContainer.lastChild !== logoEl) {
+                canvasContainer.appendChild(logoEl);
+            }
+
+            // Boyut ayarı
+            const imgTest = new Image();
+            imgTest.onload = () => {
+                const nw = imgTest.naturalWidth || imgTest.width;
+                if (nw > 0) {
+                    let initialW = nw;
+                    if (initialW > 140) initialW = 140;
+                    if (initialW < 60) initialW = 60;
+                    if (!logoEl.style.width || logoEl.style.width === '100px') {
+                        logoEl.style.width = initialW + 'px';
+                    }
+                    logoEl.style.height = 'auto';
+                }
+            };
+            imgTest.src = dataUrl;
+
+            if (typeof selectElement === 'function') {
+                selectElement(logoEl, false, true);
+            }
+        }
+
+        // Tüm UI ve butonları senkronize et
+        window.syncLogoUI(dataUrl);
+
+        if (window.PhotoStagingArchive) {
+            window.PhotoStagingArchive.watermarkOptions.customLogoUrl = dataUrl;
+            if (!window.PhotoStagingArchive.watermarkOptions.position || window.PhotoStagingArchive.watermarkOptions.position === 'custom') {
+                window.PhotoStagingArchive.watermarkOptions.position = 'bottom-right';
+            }
+            window.PhotoStagingArchive.applyWatermarkToCanvas(true);
+            if (typeof window.PhotoStagingArchive.renderPanel === 'function') {
+                window.PhotoStagingArchive.renderPanel();
+            }
+        }
+
+        const li1 = document.getElementById('logoInput');
+        if (li1) li1.value = '';
+        const li2 = document.getElementById('stagingWatermarkLogoInput');
+        if (li2) li2.value = '';
+
+        if (typeof window.hideAppLoading === 'function') window.hideAppLoading(60);
+        if (typeof window.renderLayers === 'function') window.renderLayers();
+        if (typeof window.requestAutoSave === 'function') window.requestAutoSave();
+        if (typeof window.showAppToast === 'function') {
+            window.showAppToast('Logo başarıyla eklendi.', 'success', 2500);
+        }
+    };
+    r.onerror = () => {
+        const li1 = document.getElementById('logoInput');
+        if (li1) li1.value = '';
+        const li2 = document.getElementById('stagingWatermarkLogoInput');
+        if (li2) li2.value = '';
+        if (typeof window.hideAppLoading === 'function') window.hideAppLoading();
+        if (typeof window.showAppToast === 'function') {
+            window.showAppToast('Logo dosyası okunamadı.', 'error');
+        }
+    };
+    r.readAsDataURL(file);
+};
+
 window.clearLogoImage = function() {
     const logoEl = document.getElementById('elLogo');
     if(logoEl) {
         logoEl.src = '';
         logoEl.style.display = 'none';
         logoEl.style.visibility = 'hidden';
+        const img = logoEl.querySelector('img') || logoEl.querySelector('#elLogoImg');
+        if (img) {
+            img.src = '';
+            img.style.display = 'none';
+        }
     }
+    window.companyLogo = '';
     if ($('logoInput')) $('logoInput').value = '';
-    if ($('clearLogoBtn')) $('clearLogoBtn').style.display = 'none';
-    if (document.getElementById('logoUploadBtnText')) document.getElementById('logoUploadBtnText').innerText = 'Firma Logosu (Opsiyonel)';
+    const stInput = document.getElementById('stagingWatermarkLogoInput');
+    if (stInput) stInput.value = '';
+    
+    if (window.PhotoStagingArchive) {
+        window.PhotoStagingArchive.watermarkOptions.customLogoUrl = null;
+        window.PhotoStagingArchive.globalLogoPos = null;
+        if (typeof window.PhotoStagingArchive.renderPanel === 'function') {
+            window.PhotoStagingArchive.renderPanel();
+        }
+    }
+
+    if (typeof window.syncLogoUI === 'function') {
+        window.syncLogoUI(null);
+    } else {
+        if ($('clearLogoBtn')) $('clearLogoBtn').style.display = 'none';
+        if (document.getElementById('logoUploadBtnText')) document.getElementById('logoUploadBtnText').innerText = 'Logo Seç';
+    }
     if (typeof deselectAll === 'function') deselectAll();
+    if (typeof window.renderLayers === 'function') window.renderLayers();
+    if (typeof window.requestAutoSave === 'function') window.requestAutoSave();
+    if (typeof window.showAppToast === 'function') {
+        window.showAppToast('Logo kaldırıldı.', 'info', 2000);
+    }
 };
 
 // Global Proje Fotoğrafı Uygulama Motoru (Dosya yükleme, Uydu Haritası, Pano/Ekran Yakalama için ortak)
@@ -583,7 +882,22 @@ function applyFinalProjectImage(img, finalDataUrl, finalW, finalH) {
         if (typeof requestAutoSave === 'function') requestAutoSave();
         if (typeof window.renderLayers === 'function') window.renderLayers();
 
-        // 5. İlk görsel durumunu Geçmiş Yığınına (Undo/Redo) kaydet
+        // 5. Logo katmanını her zaman tuvalin en üstüne çıkar (Görsel geçişlerinde altta kalmayı kesinlikle önler)
+        const activeLogoEl = document.getElementById('elLogo');
+        const activeCContainer = document.getElementById('canvas-container');
+        if (activeLogoEl && activeCContainer && activeLogoEl.style.display !== 'none' && activeLogoEl.style.visibility !== 'hidden' && activeLogoEl.style.opacity !== '0') {
+            activeLogoEl.style.zIndex = '99999';
+            if (activeCContainer.lastElementChild !== activeLogoEl) {
+                activeCContainer.appendChild(activeLogoEl);
+            }
+            const activeLogoImg = activeLogoEl.querySelector('img') || activeLogoEl.querySelector('#elLogoImg');
+            if (activeLogoImg) {
+                activeLogoImg.style.display = 'block';
+                activeLogoImg.style.visibility = 'visible';
+            }
+        }
+
+        // 6. İlk görsel durumunu Geçmiş Yığınına (Undo/Redo) kaydet
         if (window.undoStack && window.undoStack.length <= 1 && (!window.undoStack[0] || !window.undoStack[0].photoImgUrl)) {
             window.undoStack = [];
             window.redoStack = [];
@@ -620,61 +934,9 @@ function bindInputs(){
         $('logoInput').addEventListener('change', e => {
             const f = e.target.files[0];
             if (!f) return;
-            if (!window.validateImageUpload(f)) { e.target.value = ''; return; }
-            
-            if (typeof window.showAppLoading === 'function') {
-                window.showAppLoading('Logo Yükleniyor...', 'Firma logosu optimize ediliyor...');
+            if (typeof window.handleLogoUploadFile === 'function') {
+                window.handleLogoUploadFile(f);
             }
-
-            const r = new FileReader();
-            r.onload = ev => {
-                if (window.CanvasEmptyState && typeof window.CanvasEmptyState.dismiss === 'function') {
-                    window.CanvasEmptyState.dismiss();
-                }
-                const logoEl = document.getElementById('elLogo');
-                if(logoEl) {
-                    const img = logoEl.querySelector('img');
-                    if (img) {
-                        img.src = ev.target.result;
-                        img.style.display = 'block';
-                    }
-                    logoEl.src = ev.target.result;
-                    logoEl.style.display = 'block';
-                    logoEl.style.visibility = 'visible';
-                    logoEl.style.zIndex = '9999';
-                    // Logo her zaman en üstte: canvas-container'ın son çocuğuna taşı
-                    const canvasContainer = document.getElementById('canvas-container');
-                    if (canvasContainer && canvasContainer.lastChild !== logoEl) {
-                        canvasContainer.appendChild(logoEl);
-                    }
-
-                    const imgTest = new Image();
-                    imgTest.onload = () => {
-                        const nw = imgTest.naturalWidth || imgTest.width;
-                        if (nw > 0) {
-                            let initialW = nw;
-                            if (initialW > 140) initialW = 140;
-                            if (initialW < 60) initialW = 60;
-                            logoEl.style.width = initialW + 'px';
-                            logoEl.style.height = 'auto';
-                        }
-                    };
-                    imgTest.src = ev.target.result;
-
-                    if (typeof selectElement === 'function') {
-                        selectElement(logoEl, false, true);
-                    }
-                }
-                if ($('clearLogoBtn')) $('clearLogoBtn').style.display = 'flex';
-                if (document.getElementById('logoUploadBtnText')) document.getElementById('logoUploadBtnText').innerText = 'Logoyu Değiştir';
-                if (typeof window.hideAppLoading === 'function') window.hideAppLoading(60);
-                if (typeof window.renderLayers === 'function') window.renderLayers();
-                if (typeof window.requestAutoSave === 'function') window.requestAutoSave();
-            };
-            r.onerror = () => {
-                if (typeof window.hideAppLoading === 'function') window.hideAppLoading();
-            };
-            r.readAsDataURL(f);
         });
     }
 
@@ -716,6 +978,15 @@ function bindInputs(){
 
         const processPhotoChange = async () => {
             try {
+                if (typeof window.convertHeicIfNeeded === 'function') {
+                    const converted = await window.convertHeicIfNeeded(f);
+                    if (!converted) {
+                        if ($('imageInput')) $('imageInput').value = '';
+                        if (typeof window.hideAppLoading === 'function') window.hideAppLoading();
+                        return;
+                    }
+                    f = converted;
+                }
                 const objectUrl = URL.createObjectURL(f);
                 
                 const img = new Image();
@@ -778,19 +1049,48 @@ function bindInputs(){
                         scaledImg.src = scaledDataUrl;
                     } catch (canvasErr) {
                         console.error('Canvas Error:', canvasErr);
-                        alert("Canvas Hatası: " + canvasErr.message);
+                        if (typeof Swal !== 'undefined') {
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Görsel Hatası',
+                                text: 'Görsel işlenirken bir sorun oluştu: ' + (canvasErr.message || canvasErr),
+                                confirmButtonText: 'Tamam'
+                            });
+                        } else {
+                            alert("Canvas Hatası: " + canvasErr.message);
+                        }
                     }
                 };
                 img.onerror = () => {
                     URL.revokeObjectURL(objectUrl);
-                    alert("Görsel yüklenirken bir hata oluştu.");
                     if (typeof window.hideAppLoading === 'function') window.hideAppLoading();
+                    if (typeof window.showAppToast === 'function') {
+                        window.showAppToast('Görsel dosyası okunamadı veya bozuk.', 'error');
+                    } else if (typeof Swal !== 'undefined') {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Hata',
+                            text: 'Görsel yüklenirken bir hata oluştu.',
+                            confirmButtonText: 'Tamam'
+                        });
+                    } else {
+                        alert("Görsel yüklenirken bir hata oluştu.");
+                    }
                 };
                 img.src = objectUrl;
             } catch(err) {
                 console.error('Fotoğraf yükleme hatası:', err);
-                alert("Fotoğraf işlenemedi. Lütfen daha küçük boyutlu bir görsel deneyin.");
                 if (typeof window.hideAppLoading === 'function') window.hideAppLoading();
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Fotoğraf İşlenemedi',
+                        text: 'Lütfen daha küçük boyutlu veya farklı formatta bir görsel deneyin.',
+                        confirmButtonText: 'Tamam'
+                    });
+                } else {
+                    alert("Fotoğraf işlenemedi. Lütfen daha küçük boyutlu bir görsel deneyin.");
+                }
             }
         };
 
@@ -801,8 +1101,32 @@ function bindInputs(){
         $('imageInput').addEventListener('change', e => {
             const files = Array.from(e.target.files || []);
             if (files.length === 0) return;
+
+            // 1. Kolaj Şablonu Açıksa: Görselleri kolaj pencerelerine sırayla doldur
+            if (document.getElementById('kolaj-wrapper') && typeof window._kolajCokluFotoYukle === 'function') {
+                window._kolajCokluFotoYukle(files, 0);
+                if (window.PhotoStagingArchive && typeof window.PhotoStagingArchive.processUploadedFiles === 'function') {
+                    window.PhotoStagingArchive.processUploadedFiles(files, false, true);
+                }
+                e.target.value = '';
+                return;
+            }
+
+            // 2. Çoklu Fotoğraflı Normal Şablon (Vitrin / Kalıp) Açıksa:
+            const canvaL = document.getElementById('canva-render-layer');
+            const photoPanels = canvaL ? Array.from(canvaL.querySelectorAll('.photo-panel')) : [];
+            if (photoPanels.length > 1 && typeof window._canvaCokluFotoYukle === 'function') {
+                window._canvaCokluFotoYukle(files, 0);
+                if (window.PhotoStagingArchive && typeof window.PhotoStagingArchive.processUploadedFiles === 'function') {
+                    window.PhotoStagingArchive.processUploadedFiles(files, false, true);
+                }
+                e.target.value = '';
+                return;
+            }
+
+            // 3. Normal Akış:
             if (files.length > 1 && window.PhotoStagingArchive && typeof window.PhotoStagingArchive.processUploadedFiles === 'function') {
-                window.PhotoStagingArchive.processUploadedFiles(files, false);
+                window.PhotoStagingArchive.processUploadedFiles(files, true);
             } else {
                 window.loadPhotoFile(files[0]);
             }
@@ -835,11 +1159,17 @@ function bindInputs(){
                     if (typeof window.loadProjectFromFile === 'function') window.loadProjectFromFile(f);
                     else if (typeof loadProjectFile === 'function') loadProjectFile(f);
                 } else if (f.type.startsWith('image/')) {
-                    const allImages = Array.from(e.dataTransfer.files).filter(fl => fl.type && fl.type.startsWith('image/'));
-                    if (allImages.length > 1 && window.PhotoStagingArchive && typeof window.PhotoStagingArchive.processUploadedFiles === 'function') {
-                        window.PhotoStagingArchive.processUploadedFiles(allImages, false);
+                    const allImages = Array.from(e.dataTransfer.files).filter(fl => (typeof window.validateImageUpload === 'function') ? window.validateImageUpload(fl) : fl.type.startsWith('image/'));
+                    if (allImages.length === 0) return;
+                    if (document.getElementById('kolaj-wrapper') && typeof window._kolajCokluFotoYukle === 'function') {
+                        window._kolajCokluFotoYukle(allImages, 0);
+                        if (window.PhotoStagingArchive && typeof window.PhotoStagingArchive.processUploadedFiles === 'function') {
+                            window.PhotoStagingArchive.processUploadedFiles(allImages, false, true);
+                        }
+                    } else if (allImages.length > 1 && window.PhotoStagingArchive && typeof window.PhotoStagingArchive.processUploadedFiles === 'function') {
+                        window.PhotoStagingArchive.processUploadedFiles(allImages, true);
                     } else if (typeof window.loadPhotoFile === 'function') {
-                        window.loadPhotoFile(f);
+                        window.loadPhotoFile(allImages[0]);
                     }
                 } else if (f.name.toLowerCase().endsWith('.kml') || f.name.toLowerCase().endsWith('.kmz') || f.name.toLowerCase().endsWith('.geojson')) {
                     if (typeof window.openSatelliteMapModal === 'function') {
@@ -927,7 +1257,18 @@ function bindInputs(){
             img.onerror = (err) => {
                 console.error('Görsel yüklenemedi:', err);
                 if (typeof window.hideAppLoading === 'function') window.hideAppLoading();
-                alert('Görsel tuvale aktarılırken hata oluştu.');
+                if (typeof window.showAppToast === 'function') {
+                    window.showAppToast('Görsel tuvale aktarılırken hata oluştu.', 'error');
+                } else if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Hata',
+                        text: 'Görsel tuvale aktarılırken hata oluştu.',
+                        confirmButtonText: 'Tamam'
+                    });
+                } else {
+                    alert('Görsel tuvale aktarılırken hata oluştu.');
+                }
                 if (typeof callback === 'function') callback(err);
             };
             img.src = dataUrl;
@@ -958,7 +1299,11 @@ function bindInputs(){
             }
             const blob = imageItem.getAsFile();
             if (blob) {
+                if (blob.size === 0 || blob.size > 35 * 1024 * 1024) return;
                 const reader = new FileReader();
+                reader.onerror = () => {
+                    if (typeof window.hideAppLoading === 'function') window.hideAppLoading();
+                };
                 reader.onload = function(evt) {
                     const dataUrl = evt.target.result;
                     if (typeof window.applyProjectImageFromDataUrl === 'function') {
@@ -979,7 +1324,11 @@ function bindInputs(){
                     for (const type of item.types) {
                         if (type.startsWith('image/')) {
                             const blob = await item.getType(type);
+                            if (blob.size === 0 || blob.size > 35 * 1024 * 1024) return;
                             const reader = new FileReader();
+                            reader.onerror = () => {
+                                if (typeof window.hideAppLoading === 'function') window.hideAppLoading();
+                            };
                             reader.onload = (evt) => {
                                 if (typeof window.applyProjectImageFromDataUrl === 'function') {
                                     window.applyProjectImageFromDataUrl(evt.target.result);
@@ -1146,7 +1495,11 @@ function init(){
 
         buildTemplates();
 
-        buildIconCategoriesUI();
+        const scheduleIdle = window.requestIdleCallback || function(cb) { setTimeout(cb, 180); };
+        scheduleIdle(function() {
+            if (typeof buildIconCategoriesUI === 'function') buildIconCategoriesUI();
+            if (typeof renderNeonCallouts === 'function') renderNeonCallouts();
+        });
 
         buildFontUI();
 
@@ -1384,10 +1737,10 @@ setTimeout(function(){
         window.isInitialLoad = false;
         const initLoader = document.getElementById('initialAppLoader');
         if (initLoader) {
-            setTimeout(() => {
+            requestAnimationFrame(() => {
                 initLoader.style.opacity = '0';
-                setTimeout(() => initLoader.remove(), 250);
-            }, 500);
+                setTimeout(() => initLoader.remove(), 200);
+            });
         }
     } catch(err){
         console.error('INIT HATASI:',err);
@@ -1434,6 +1787,11 @@ function clearAllTemplates(isSwitching){
     if(infoLine) infoLine.style.visibility = 'hidden';
 
     
+
+    // Dış çerçeveyi temizle
+    if (!isSwitching && window.TemplateFrame && typeof window.TemplateFrame.clear === 'function') {
+        window.TemplateFrame.clear();
+    }
 
     // 3. Aktif şablon değişkenini sıfırla
     if(typeof activeTemplate !== 'undefined') activeTemplate = null;
@@ -1524,6 +1882,11 @@ window.toggleTemplateVisibility = function(forceState) {
     // 4. Arayüz butonlarını güncelle
     if (typeof window.updateTemplateToggleUI === 'function') {
         window.updateTemplateToggleUI(newState);
+    }
+
+    // 5. Dış çerçeve görünürlüğünü senkronize et
+    if (window.TemplateFrame && typeof window.TemplateFrame.toggleVisibility === 'function') {
+        window.TemplateFrame.toggleVisibility(!newState);
     }
 };
 
@@ -1698,6 +2061,57 @@ window.resetActiveTemplateToDefault = function() {
     if (typeof redrawAll === 'function') redrawAll();
     if (typeof renderLayers === 'function') renderLayers();
     if (typeof window.saveState === 'function') window.saveState();
+};
+
+// ========== 🎨 TUVAL ARKA PLAN RENGİNİ GÜNCELLE ==========
+window.setCanvasBgColor = function(color) {
+    if (!color) return;
+
+    // 1. Boş tuval başlangıç ekranı açıksa kaldır
+    if (window.CanvasEmptyState && typeof window.CanvasEmptyState.dismiss === 'function') {
+        window.CanvasEmptyState.dismiss();
+    }
+
+    // 2. Tuval konteynerine rengi uygula
+    const container = document.getElementById('canvas-container');
+    if (container) {
+        container.style.setProperty('background-color', color, 'important');
+        container.style.setProperty('background-image', 'none', 'important');
+    }
+
+    // 3. photo-layer'ın rengini saydam yap (Böylece arkadaki tuval rengi net olarak görünür)
+    const pLayer = document.getElementById('photo-layer');
+    if (pLayer) {
+        pLayer.style.setProperty('background-color', 'transparent', 'important');
+    }
+
+    // 4. İlgili renk seçicileri senkronize et
+    const canvBg = document.getElementById('canvasBgColor');
+    if (canvBg && canvBg.value !== color) canvBg.value = color;
+    const expBg = document.getElementById('exportBgColor');
+    if (expBg && expBg.value !== color) expBg.value = color;
+    const tbBg = document.getElementById('tbCanvasBgColor');
+    if (tbBg && tbBg.value !== color) tbBg.value = color;
+
+    // 5. TemplateBuilder durumunu güncelle
+    if (window.TemplateBuilder) {
+        window.TemplateBuilder.userChosenBg = { type: 'color', value: color };
+    }
+
+    // 6. 3D motor render tazele
+    if (window.ThreeDEngine && typeof window.ThreeDEngine.requestRender === 'function') {
+        window.ThreeDEngine.requestRender();
+    }
+
+    // 7. Hafızaya kaydet
+    try {
+        localStorage.setItem('emlakstudiom_canvasBgColor', color);
+    } catch(e) {}
+
+    // 8. Otomatik kaydet
+    if (typeof window.requestAutoSave === 'function') {
+        window.requestAutoSave();
+    }
 };
 
 // ========== 🚀 TÜM SAYFAYI / TUVALİ SIFIRLA (SIFIRDAN BAŞLA) ==========
@@ -2129,44 +2543,217 @@ document.addEventListener('mousedown', function(e) {
 
 
 
-// Klavye Kısayolları (Delete tuşuyla silme)
-
+// Klavye Kısayolları (Standartlaştırılmış Etkileşim, Modal Kalkanı & Güvenli Metin Koruması)
 document.addEventListener('keydown', function(e) {
-
-    // Eğer bir input veya textarea içindeysek işlem yapma (yazı yazarken silmesin)
-
     const active = document.activeElement;
+    const isTyping = () => {
+        if (!active) return false;
+        const tag = active.tagName ? active.tagName.toLowerCase() : '';
+        if (tag === 'input' || tag === 'textarea' || tag === 'select') return true;
+        if (active.isContentEditable || (active.closest && active.closest('[contenteditable="true"]'))) return true;
+        if (active.dataset && active.dataset.editingText === '1') return true;
+        const editingEl = document.querySelector('[data-editing-text="1"]');
+        if (editingEl && (editingEl.contains(active) || editingEl === active)) return true;
+        return false;
+    };
 
-    if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.isContentEditable)) {
-
+    // Eğer kullanıcı metin düzenliyorsa tuşları tarayıcının doğal metin davranışına bırak
+    if (isTyping()) {
         return;
-
     }
 
-    
+    function getActiveModal() {
+        const satModal = document.getElementById('satelliteMapModal');
+        if (satModal && (satModal.style.display !== 'none' || satModal.classList.contains('active'))) {
+            return { type: 'satellite', el: satModal };
+        }
+        const omniModal = document.getElementById('omniSearchModal');
+        if (omniModal && (omniModal.style.display !== 'none' || omniModal.classList.contains('active'))) {
+            return { type: 'omni', el: omniModal };
+        }
+        const recentModal = document.getElementById('recentToolsModal');
+        if (recentModal && (recentModal.style.display !== 'none' || recentModal.classList.contains('active'))) {
+            return { type: 'recent', el: recentModal };
+        }
+        if (typeof Swal !== 'undefined' && typeof Swal.isVisible === 'function' && Swal.isVisible()) {
+            return { type: 'swal', el: document.querySelector('.swal2-container') };
+        }
+        const cropModal = document.getElementById('cropModal');
+        if (cropModal && (cropModal.style.display !== 'none' || cropModal.classList.contains('active'))) {
+            return { type: 'crop', el: cropModal };
+        }
+        const genericModal = document.querySelector('.modal-overlay.active, .sat-modal-overlay.active');
+        if (genericModal && genericModal.style.display !== 'none') {
+            return { type: 'generic', el: genericModal };
+        }
+        return null;
+    }
 
+    const activeModal = getActiveModal();
+
+    // ─── 🛡️ ESCAPE TUŞU: MODAL KAPATMA & ÇİZİM İPTALİ (Kesin Öncelik) ───
+    if (e.key === 'Escape') {
+        if (activeModal) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (activeModal.type === 'satellite') {
+                if (window.SatelliteMapModule && typeof window.SatelliteMapModule.closeModal === 'function') {
+                    window.SatelliteMapModule.closeModal();
+                } else {
+                    activeModal.el.style.display = 'none';
+                }
+            } else if (activeModal.type === 'omni') {
+                if (window.OmniSearch && typeof window.OmniSearch.closeSearch === 'function') {
+                    window.OmniSearch.closeSearch();
+                } else {
+                    activeModal.el.style.display = 'none';
+                    activeModal.el.classList.remove('active');
+                }
+            } else if (activeModal.type === 'recent') {
+                if (window.OmniSearch && typeof window.OmniSearch.closeRecent === 'function') {
+                    window.OmniSearch.closeRecent();
+                } else if (window.RecentTools && typeof window.RecentTools.closeRecent === 'function') {
+                    window.RecentTools.closeRecent();
+                } else {
+                    activeModal.el.style.display = 'none';
+                    activeModal.el.classList.remove('active');
+                }
+            } else if (activeModal.type === 'swal') {
+                if (typeof Swal !== 'undefined' && typeof Swal.close === 'function') Swal.close();
+            } else {
+                activeModal.el.style.display = 'none';
+                activeModal.el.classList.remove('active');
+            }
+            return;
+        }
+
+        // Eğer çokgen (polygon) çizimi devam ediyorsa çizimi iptal et (tuvale yarım yamalak kaydetme)
+        if (typeof window.isPolygonDrawingActive === 'function' && window.isPolygonDrawingActive()) {
+            e.preventDefault();
+            if (typeof window.cancelPolygon === 'function') {
+                window.cancelPolygon();
+            }
+            return;
+        }
+
+        // Normal tuval durumunda seçimi bırak
+        if (typeof deselectAll === 'function') deselectAll();
+        return;
+    }
+
+    // ─── 🛡️ MODAL KALKANI: Modal açıkken tuval ögelerinin arkadan silinmesini / taşınmasını engelle ───
+    if (activeModal) {
+        if (['Delete', 'Backspace', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key) ||
+            ((e.ctrlKey || e.metaKey) && ['d', 'c', 'v'].includes(e.key.toLowerCase()))) {
+            return;
+        }
+    }
+
+    // 1. Silme (Delete / Backspace)
     if (e.key === 'Delete' || e.key === 'Backspace') {
-        const activeTag = document.activeElement ? document.activeElement.tagName.toLowerCase() : '';
-        const isEditable = document.activeElement && (document.activeElement.isContentEditable || activeTag === 'input' || activeTag === 'textarea' || activeTag === 'select');
-        if (!isEditable) {
-            if (typeof selectedCalloutEl !== 'undefined' && selectedCalloutEl) {
-                deleteSelectedCallout();
-            } else if (
-                (typeof selectedEl !== 'undefined' && selectedEl) ||
-                (Array.isArray(window.selectedElements) && window.selectedElements.length > 0) ||
-                (window.ThreeDEngine && typeof window.ThreeDEngine.isSelected === 'function' && window.ThreeDEngine.isSelected()) ||
-                (window.ThreeDGrouping && typeof window.ThreeDGrouping.getSelected3DElements === 'function' && window.ThreeDGrouping.getSelected3DElements().length > 0) ||
-                document.querySelector('.el-selected')
-            ) {
-                if (typeof deleteSelected === 'function') deleteSelected();
-                else if (typeof window.deleteSelected === 'function') window.deleteSelected();
+        e.preventDefault();
+
+        // Kolaj seçili çerçevesi varsa öncelikle onu sil
+        if (typeof window._hasSeciliCerceve === 'function' && window._hasSeciliCerceve()) {
+            if (typeof window._cerceveSil === 'function') {
+                window._cerceveSil();
+                return;
+            }
+        }
+
+        if (typeof selectedCalloutEl !== 'undefined' && selectedCalloutEl) {
+            if (typeof deleteSelectedCallout === 'function') deleteSelectedCallout();
+            else if (typeof window.deleteSelected === 'function') window.deleteSelected();
+        } else if (
+            (typeof selectedEl !== 'undefined' && selectedEl) ||
+            (Array.isArray(window.selectedElements) && window.selectedElements.length > 0) ||
+            (window.ThreeDEngine && typeof window.ThreeDEngine.isSelected === 'function' && window.ThreeDEngine.isSelected()) ||
+            (window.ThreeDGrouping && typeof window.ThreeDGrouping.getSelected3DElements === 'function' && window.ThreeDGrouping.getSelected3DElements().length > 0) ||
+            document.querySelector('.el-selected')
+        ) {
+            if (typeof window.deleteSelected === 'function') window.deleteSelected();
+            else if (typeof deleteSelected === 'function') deleteSelected();
+        }
+    }
+
+    // 2. Çoğaltma (Ctrl+D)
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'd') {
+        e.preventDefault();
+        if (typeof window.duplicateSelected === 'function') {
+            window.duplicateSelected();
+        } else if (typeof duplicateSelected === 'function') {
+            duplicateSelected();
+        }
+    }
+
+    // 3. Kopyala (Ctrl+C) ve Yapıştır (Ctrl+V)
+    if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 'c') {
+        const hasSelected = (typeof selectedEl !== 'undefined' && selectedEl) ||
+                            (Array.isArray(window.selectedElements) && window.selectedElements.length > 0) ||
+                            (window.ThreeDEngine && typeof window.ThreeDEngine.isSelected === 'function' && window.ThreeDEngine.isSelected());
+        if (hasSelected) {
+            e.preventDefault();
+            window.__copiedSelection = {
+                is3D: (window.ThreeDEngine && typeof window.ThreeDEngine.isSelected === 'function' && window.ThreeDEngine.isSelected()),
+                elements: (window.selectedElements && window.selectedElements.length > 0) ? [...window.selectedElements] : (selectedEl ? [selectedEl] : [])
+            };
+        }
+    }
+
+    if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 'v') {
+        if (window.__copiedSelection) {
+            e.preventDefault();
+            if (typeof window.duplicateSelected === 'function') {
+                window.duplicateSelected();
+            } else if (typeof duplicateSelected === 'function') {
+                duplicateSelected();
             }
         }
     }
 
-    
+    // 4. Yön Tuşları ile Hassas Kaydırma (1px / Shift ile 10px)
+    if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+        const step = e.shiftKey ? 10 : 1;
+        let dx = 0, dy = 0;
+        if (e.key === 'ArrowUp') dy = -step;
+        if (e.key === 'ArrowDown') dy = step;
+        if (e.key === 'ArrowLeft') dx = -step;
+        if (e.key === 'ArrowRight') dx = step;
 
-    // Geri Al (Undo) - Ctrl+Z
+        // 3D Öge Seçiliyse
+        if (window.ThreeDEngine && typeof window.ThreeDEngine.isSelected === 'function' && window.ThreeDEngine.isSelected()) {
+            e.preventDefault();
+            const el = window.ThreeDEngine.getActiveElement ? window.ThreeDEngine.getActiveElement() : null;
+            if (el && typeof window.ThreeDEngine.setElementPosition === 'function') {
+                window.ThreeDEngine.setElementPosition(el, (el.posX || 0) + dx, (el.posY || 0) + dy);
+                if (typeof window.recordHistory === 'function') window.recordHistory('3D Öge Taşındı', true);
+            }
+            return;
+        }
+
+        // 2D Öge Seçiliyse
+        const targets = (window.selectedElements && window.selectedElements.length > 0) 
+            ? window.selectedElements 
+            : ((typeof selectedEl !== 'undefined' && selectedEl) ? [selectedEl] : Array.from(document.querySelectorAll('.el-selected')));
+
+        if (targets.length > 0) {
+            e.preventDefault();
+            targets.forEach(tEl => {
+                const curLeft = parseFloat(tEl.style.left) || 0;
+                const curTop = parseFloat(tEl.style.top) || 0;
+                tEl.style.left = (curLeft + dx) + 'px';
+                tEl.style.top = (curTop + dy) + 'px';
+                if (tEl.classList.contains('canvas-el') && typeof window.addTextHandles === 'function') {
+                    window.addTextHandles(tEl);
+                }
+            });
+            if (typeof window.recordHistory === 'function') window.recordHistory('Öge Taşındı');
+            if (typeof renderLayers === 'function') renderLayers();
+            return;
+        }
+    }
+
+    // 5. Geri Al (Undo) - Ctrl+Z
     if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 'z') {
         e.preventDefault();
         if (typeof window.undoGlobal === 'function') {
@@ -2176,7 +2763,7 @@ document.addEventListener('keydown', function(e) {
         }
     }
 
-    // İleri Al (Redo) - Ctrl+Y veya Ctrl+Shift+Z
+    // 6. İleri Al (Redo) - Ctrl+Y veya Ctrl+Shift+Z
     if (((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') || 
         ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'z')) {
         e.preventDefault();
@@ -2186,19 +2773,6 @@ document.addEventListener('keydown', function(e) {
             redoLastDraw();
         }
     }
-
-    
-
-    // İptal / Seçimi Bırak - Escape
-
-    if (e.key === 'Escape') {
-
-        if (typeof deselectAll === 'function') deselectAll();
-
-        if (typeof closePolygon === 'function') closePolygon(); // Eğer çokgen çizimi yarım kaldıysa
-
-    }
-
 });
 
 
@@ -2244,13 +2818,21 @@ document.addEventListener('keydown', function(e) {
     const renderLayer = document.getElementById('canva-render-layer');
     if(renderLayer) styleObserver.observe(renderLayer, { childList: true, subtree: true });
 
-    setTimeout(renderNeonCallouts, 500);
+    // Neon çağrıları boşta veya Rozetler sekmesi açıldığında otomatik yüklenir
 })();
 
 // ==================== UNIVERSAL SLIDER RESET (INSTANT RENDER ON DBLCLICK) ====================
 window.resetSliderToDefault = function(input) {
     if (!input || input.type !== 'range') return;
     const id = input.id || '';
+
+    // 0. Eleman Ayarları (#elSettings) Özel Delegasyonu (Rozet, Metin, Şekil vb.)
+    if (id.startsWith('el') && typeof window.resetElSettingSlider === 'function') {
+        if (window.resetElSettingSlider(input)) {
+            return;
+        }
+    }
+
     let defaultVal = null;
 
     // 1. HSL Kaydırıcıları
@@ -3003,20 +3585,43 @@ window.addShape = function(type) {
     }
     const cContainer = document.getElementById('canvas-container');
     if (!cContainer) return;
+    const targetLayer = document.getElementById('ui-layer') || cContainer;
+
     const el = document.createElement('div');
     el.className = 'canvas-el draggable shape-el';
     el.dataset.shapeType = type;
-    el.dataset.bgColor = '#3b82f6';
-    el.dataset.bgOpacity = '100';
-    el.dataset.borderColor = '#ffffff';
+
+    // Kullanıcının panelde önceden seçtiği renkleri veya kontrastlı varsayılanı kullan
+    const bgInput = document.getElementById('shapeBgColor');
+    const borderInput = document.getElementById('shapeBorderColor');
+    const borderWidthInput = document.getElementById('shapeBorderWidth');
+    const bgOpacityInput = document.getElementById('shapeBgOpacity');
+
+    let initialBg = (bgInput && bgInput.value) ? bgInput.value : '#3b82f6';
+    let initialBorder = (borderInput && borderInput.value) ? borderInput.value : '#ffffff';
+    let initialBorderWidth = (borderWidthInput && parseInt(borderWidthInput.value, 10) > 0) ? borderWidthInput.value : '2';
+    let initialBgOpacity = (bgOpacityInput && bgOpacityInput.value) ? bgOpacityInput.value : '100';
+
+    // Tuval rengiyle çakışma kontrolü: Tuval koyu/mavi tonlarındaysa şekil kaybolmasın
+    const curCanvasBg = (cContainer.style.backgroundColor || '').toLowerCase();
+    if (curCanvasBg && (curCanvasBg.includes('53, 53, 234') || curCanvasBg.includes('59, 130, 246') || curCanvasBg.includes('18, 18, 42') || curCanvasBg.includes('#5353ea') || curCanvasBg.includes('#3b82f6') || curCanvasBg.includes('#12122a'))) {
+        if (initialBg === '#3b82f6' || initialBg === '#5353ea') {
+            initialBg = '#10b981'; // Canlı zümrüt yeşili kontrast
+            if (bgInput) bgInput.value = '#10b981';
+        }
+    }
+
+    el.dataset.bgColor = initialBg;
+    el.dataset.bgOpacity = initialBgOpacity;
+    el.dataset.borderColor = initialBorder;
     el.dataset.borderOpacity = '100';
-    el.dataset.borderWidth = '0';
-    el.dataset.radius = '0';
+    el.dataset.borderWidth = initialBorderWidth;
+    el.dataset.radius = (type === 'circle') ? '50' : '0';
     el.dataset.opacity = '100';
     
     const targetCanvasW = cContainer.offsetWidth || 1920;
     const targetCanvasH = cContainer.offsetHeight || 1080;
-    el.style.left = Math.round(targetCanvasW / 2 - 50) + 'px';
+    el.style.left = Math.round(targetCanvasW / 2 - 60) + 'px';
     el.style.top = Math.round(targetCanvasH / 2 - 50) + 'px';
     el.style.position = 'absolute';
     el.style.boxSizing = 'border-box';
@@ -3031,7 +3636,7 @@ window.addShape = function(type) {
     inner.style.alignItems = 'center';
     inner.style.justifyContent = 'center';
     
-    el.style.width = '100px';
+    el.style.width = '120px';
     el.style.height = '100px';
 
     const svgs = {
@@ -3044,45 +3649,50 @@ window.addShape = function(type) {
         'arrow-up': '<svg viewBox="0 0 100 100" preserveAspectRatio="none" style="width:100%; height:100%; overflow:visible; fill:var(--shape-bg); stroke:var(--shape-border); stroke-width:var(--shape-border-width); stroke-linejoin:round;"><polygon points="35,95 35,40 15,40 50,5 85,40 65,40 65,95"/></svg>'
     };
 
+    const bgRgba = window.hexToRgba(el.dataset.bgColor, el.dataset.bgOpacity);
+    const bcRgba = window.hexToRgba(el.dataset.borderColor, el.dataset.borderOpacity);
+
     if (type === 'rectangle') {
-        el.style.width = '120px';
-        el.style.height = '80px';
-        inner.style.backgroundColor = 'var(--shape-bg)';
+        el.style.width = '140px';
+        el.style.height = '100px';
+        inner.style.backgroundColor = bgRgba;
+        inner.style.border = el.dataset.borderWidth + 'px solid ' + bcRgba;
+        inner.style.borderRadius = '0px';
     } else if (type === 'circle') {
+        el.style.width = '110px';
+        el.style.height = '110px';
         el.dataset.radius = '50';
-        inner.style.backgroundColor = 'var(--shape-bg)';
+        inner.style.backgroundColor = bgRgba;
+        inner.style.border = el.dataset.borderWidth + 'px solid ' + bcRgba;
         inner.style.borderRadius = '50%';
     } else if (type === 'line') {
-        el.style.width = '150px';
-        el.style.height = '10px';
+        el.style.width = '160px';
+        el.style.height = '14px';
         el.dataset.bgColor = 'transparent';
-        el.dataset.borderColor = '#ffffff';
+        el.dataset.borderColor = initialBorder;
         el.dataset.borderWidth = '4';
-        inner.style.borderTop = 'var(--shape-border-width) solid var(--shape-border)';
+        inner.style.borderTop = '4px solid ' + bcRgba;
     } else if (type === 'dashed-line') {
-        el.style.width = '150px';
-        el.style.height = '10px';
+        el.style.width = '160px';
+        el.style.height = '14px';
         el.dataset.bgColor = 'transparent';
-        el.dataset.borderColor = '#ffffff';
+        el.dataset.borderColor = initialBorder;
         el.dataset.borderWidth = '4';
-        inner.style.borderTop = 'var(--shape-border-width) dashed var(--shape-border)';
+        inner.style.borderTop = '4px dashed ' + bcRgba;
     } else if (type === 'dotted-line') {
-        el.style.width = '150px';
-        el.style.height = '10px';
+        el.style.width = '160px';
+        el.style.height = '14px';
         el.dataset.bgColor = 'transparent';
-        el.dataset.borderColor = '#ffffff';
+        el.dataset.borderColor = initialBorder;
         el.dataset.borderWidth = '4';
-        inner.style.borderTop = 'var(--shape-border-width) dotted var(--shape-border)';
+        inner.style.borderTop = '4px dotted ' + bcRgba;
     } else if (svgs[type]) {
-        el.dataset.borderWidth = '0';
+        el.dataset.borderWidth = initialBorderWidth;
         inner.innerHTML = svgs[type];
     }
     
     el.appendChild(inner);
-    cContainer.appendChild(el);
-    
-    const bgRgba = window.hexToRgba(el.dataset.bgColor, el.dataset.bgOpacity);
-    const bcRgba = window.hexToRgba(el.dataset.borderColor, el.dataset.borderOpacity);
+    targetLayer.appendChild(el);
     
     el.style.setProperty('--shape-bg', bgRgba);
     el.style.setProperty('--shape-border', bcRgba);
@@ -3091,6 +3701,7 @@ window.addShape = function(type) {
 
     if (typeof bindDrag === 'function') bindDrag(el);
     if (typeof selectElement === 'function') selectElement(el);
+    if (typeof window.addTextHandles === 'function') window.addTextHandles(el);
     if (typeof saveState === 'function') saveState();
 };
 
@@ -3147,68 +3758,85 @@ window.loadShapeSettings = function(el) {
 
 window.applyShapeSettings = function() {
     try {
-    if (!selectedEl || !selectedEl.classList.contains('shape-el')) return;
-    
-    const bg = document.getElementById('shapeBgColor').value;
-    const bgOp = document.getElementById('shapeBgOpacity').value;
-    const bc = document.getElementById('shapeBorderColor').value;
-    const bcOp = document.getElementById('shapeBorderOpacity').value;
-    const bw = document.getElementById('shapeBorderWidth').value;
-    const op = document.getElementById('shapeOpacity').value;
-    
-    selectedEl.dataset.bgColor = bg;
-    selectedEl.dataset.bgOpacity = bgOp;
-    selectedEl.dataset.borderColor = bc;
-    selectedEl.dataset.borderOpacity = bcOp;
-    selectedEl.dataset.borderWidth = bw;
-    selectedEl.dataset.opacity = op;
-    
-    const bgRgba = window.hexToRgba(bg, bgOp);
-    const bcRgba = window.hexToRgba(bc, bcOp);
-    
-    selectedEl.style.setProperty('--shape-bg', bgRgba);
-    selectedEl.style.setProperty('--shape-border', bcRgba);
-    selectedEl.style.setProperty('--shape-border-width', bw + 'px');
-    selectedEl.style.opacity = op / 100;
-
-    if (document.getElementById('shapeBgOpacityVal')) document.getElementById('shapeBgOpacityVal').textContent = bgOp + '%';
-    if (document.getElementById('shapeBorderOpacityVal')) document.getElementById('shapeBorderOpacityVal').textContent = bcOp + '%';
-    if (document.getElementById('shapeBorderWidthVal')) document.getElementById('shapeBorderWidthVal').textContent = bw + 'px';
-    if (document.getElementById('shapeOpacityVal')) document.getElementById('shapeOpacityVal').textContent = op + '%';
-
-    const inner = selectedEl.querySelector('.shape-inner');
-    if (inner) {
-        const type = selectedEl.dataset.shapeType;
+        const shape = window.selectedEl || (typeof selectedEl !== 'undefined' ? selectedEl : null) || document.querySelector('.shape-el.el-selected, .shape-el.selected');
+        if (!shape || !shape.classList.contains('shape-el')) return;
         
-        if (type === 'rectangle' || type === 'circle') {
-            const rad = document.getElementById('shapeRadius').value;
-            selectedEl.dataset.radius = rad;
-            if (document.getElementById('shapeRadiusVal')) document.getElementById('shapeRadiusVal').textContent = rad + (type === 'circle' ? '%' : 'px');
+        const bgInput = document.getElementById('shapeBgColor');
+        const bgOpInput = document.getElementById('shapeBgOpacity');
+        const bcInput = document.getElementById('shapeBorderColor');
+        const bcOpInput = document.getElementById('shapeBorderOpacity');
+        const bwInput = document.getElementById('shapeBorderWidth');
+        const opInput = document.getElementById('shapeOpacity');
+        
+        const bg = (bgInput && bgInput.value) ? bgInput.value : (shape.dataset.bgColor || '#3b82f6');
+        const bgOp = (bgOpInput && bgOpInput.value) ? bgOpInput.value : (shape.dataset.bgOpacity || '100');
+        const bc = (bcInput && bcInput.value) ? bcInput.value : (shape.dataset.borderColor || '#ffffff');
+        const bcOp = (bcOpInput && bcOpInput.value) ? bcOpInput.value : (shape.dataset.borderOpacity || '100');
+        const bw = (bwInput && bwInput.value !== '') ? bwInput.value : (shape.dataset.borderWidth || '0');
+        const op = (opInput && opInput.value) ? opInput.value : (shape.dataset.opacity || '100');
+        
+        shape.dataset.bgColor = bg;
+        shape.dataset.bgOpacity = bgOp;
+        shape.dataset.borderColor = bc;
+        shape.dataset.borderOpacity = bcOp;
+        shape.dataset.borderWidth = bw;
+        shape.dataset.opacity = op;
+        
+        const bgRgba = window.hexToRgba(bg, bgOp);
+        const bcRgba = window.hexToRgba(bc, bcOp);
+        
+        shape.style.setProperty('--shape-bg', bgRgba);
+        shape.style.setProperty('--shape-border', bcRgba);
+        shape.style.setProperty('--shape-border-width', bw + 'px');
+        shape.style.opacity = op / 100;
+
+        if (document.getElementById('shapeBgOpacityVal')) document.getElementById('shapeBgOpacityVal').textContent = bgOp + '%';
+        if (document.getElementById('shapeBorderOpacityVal')) document.getElementById('shapeBorderOpacityVal').textContent = bcOp + '%';
+        if (document.getElementById('shapeBorderWidthVal')) document.getElementById('shapeBorderWidthVal').textContent = bw + 'px';
+        if (document.getElementById('shapeOpacityVal')) document.getElementById('shapeOpacityVal').textContent = op + '%';
+
+        const inner = shape.querySelector('.shape-inner');
+        if (inner) {
+            const type = shape.dataset.shapeType || 'rectangle';
             
-            inner.style.borderRadius = rad + (type === 'circle' ? '%' : 'px');
-            if(type === 'rectangle') {
-               inner.style.border = bw + 'px solid ' + bcRgba;
-               inner.style.backgroundColor = bgRgba;
+            if (type === 'rectangle' || type === 'circle') {
+                const radInput = document.getElementById('shapeRadius');
+                const rad = (radInput && radInput.value !== '') ? radInput.value : (shape.dataset.radius || (type === 'circle' ? '50' : '0'));
+                shape.dataset.radius = rad;
+                if (document.getElementById('shapeRadiusVal')) document.getElementById('shapeRadiusVal').textContent = rad + (type === 'circle' ? '%' : 'px');
+                
+                inner.style.borderRadius = rad + (type === 'circle' ? '%' : 'px');
+                inner.style.border = bw + 'px solid ' + bcRgba;
+                inner.style.backgroundColor = bgRgba;
+            } else if (type === 'line') {
+                inner.style.borderTop = bw + 'px solid ' + bcRgba;
+            } else if (type === 'dashed-line') {
+                inner.style.borderTop = bw + 'px dashed ' + bcRgba;
+            } else if (type === 'dotted-line') {
+                inner.style.borderTop = bw + 'px dotted ' + bcRgba;
             } else {
-               inner.style.border = bw + 'px solid ' + bcRgba;
-               inner.style.backgroundColor = bgRgba;
+                // SVG şekilleri (yıldız, kalp, üçgen, altıgen, oklar)
+                const svg = inner.querySelector('svg');
+                if (svg) {
+                    const poly = svg.querySelector('polygon, path');
+                    if (poly) {
+                        poly.style.fill = bgRgba;
+                        poly.style.stroke = bcRgba;
+                        poly.style.strokeWidth = bw + 'px';
+                    }
+                }
             }
-        } else if (type === 'line') {
-            inner.style.borderTop = bw + 'px solid ' + bcRgba;
-        } else if (type === 'dashed-line') {
-            inner.style.borderTop = bw + 'px dashed ' + bcRgba;
-        } else if (type === 'dotted-line') {
-            inner.style.borderTop = bw + 'px dotted ' + bcRgba;
         }
-    }
-    
-    if (typeof requestAutoSave === 'function') requestAutoSave();
+        
+        if (typeof window.addTextHandles === 'function') window.addTextHandles(shape);
+        if (typeof requestAutoSave === 'function') requestAutoSave();
     } catch(err) { console.error('Shape Settings Error:', err); }
 };
 
 window.deleteSelectedShape = function() {
-    if (!selectedEl || !selectedEl.classList.contains('shape-el')) return;
-    selectedEl.remove();
+    const shape = window.selectedEl || (typeof selectedEl !== 'undefined' ? selectedEl : null) || document.querySelector('.shape-el.el-selected, .shape-el.selected');
+    if (!shape || !shape.classList.contains('shape-el')) return;
+    shape.remove();
     if (typeof deselectAll === 'function') deselectAll();
     if (typeof saveState === 'function') saveState();
 };

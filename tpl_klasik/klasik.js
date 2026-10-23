@@ -1,4 +1,4 @@
-﻿/* ============================================================
+/* ============================================================
    Klasik Şablon Seti - V3 (UNIQUE PRO)
 ============================================================ */
 
@@ -118,6 +118,9 @@ function renderCTemplate(id){
         canvaRenderLayer.querySelectorAll('.editable-text').forEach(el => enableInlineEdit(el));
     requestAnimationFrame(() => {
         if(typeof redrawAll === 'function') redrawAll();
+        if(window.TemplateFrame && typeof window.TemplateFrame.onTemplateChanged === 'function') {
+            window.TemplateFrame.onTemplateChanged(id || 'canvaC1', 'canva');
+        }
     });
 }
 window.renderCTemplate = renderCTemplate;

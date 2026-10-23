@@ -1,4 +1,4 @@
-﻿/* ============================================================
+/* ============================================================
    canva.js "” v14.3
    ✅ Çoklu format desteği
    ✅ Fotoğraflar tuval dışına taşmaz (cover mode)
@@ -800,6 +800,9 @@ function buildCanvaRender(){
     document.querySelectorAll('.photo-panel').forEach(p => enablePhotoDrag(p));
         requestAnimationFrame(() => {
             if(typeof redrawAll === 'function') redrawAll();
+            if(window.TemplateFrame && typeof window.TemplateFrame.onTemplateChanged === 'function') {
+                window.TemplateFrame.onTemplateChanged(activeCanvaId || 'canva1', 'canva');
+            }
         });
     } catch (err) {
         console.error("buildCanvaRender ERROR:", err);

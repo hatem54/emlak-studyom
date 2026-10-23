@@ -11,6 +11,28 @@ console.log('🎬 Zoom modülü v4 başlıyor...');
 // ========== YARDIMCI: Zoom yapılabilir eleman bul ==========
 function _getZoomTarget(target) {
     if (!target) return null;
+
+    // 1. Öncelikli Kontrol: Tıklanan öge doğrudan veya kapsayıcı olarak bir .photo-panel ise O SPESİFİK PANİELİ HEDEFLE
+    if (target.closest) {
+        var clickedPanel = target.closest('.photo-panel');
+        if (clickedPanel) {
+            // Space tuşuna basılıyken doğrudan bu spesifik paneli döndür
+            if (window.spaceBarPressed) return clickedPanel;
+
+            // Fotoğraf kilidi serbest bırakıldığında ("Serbest" modu) tuvaldeki tıklamalar doğrudan bu paneli pan yapsın
+            if (!window.isPhotoLocked || document.body.classList.contains('photo-unlocked')) {
+                if (!target.closest('.editable-draw, .draggable, .canvas-el, .cvi-item, .added-icon, .callout-wrap, .svg-callout, .co-neon-block, .vertex-handle, .text-handle, .text-rotate-handle, .text-resize-handle, .callout-controls, .callout-resizer, .callout-rotator, .arrow-heads-group, .color-picker, .ui-panel, button, input, select, textarea')) {
+                    return clickedPanel;
+                }
+            }
+
+            // Doğrudan panelin kendisine, canvasına veya inner zoom div'ine tıklandıysa
+            if (target === clickedPanel || (target.classList && (target.classList.contains('photo-render-canvas') || target.classList.contains('photo-inner-zoom')))) {
+                return clickedPanel;
+            }
+        }
+    }
+
     var pl = document.getElementById('photo-layer') || document.querySelector('.photo-panel');
     
     // Space tuşuna basılıyken tuval alanı üzerindeki herhangi bir tıklama (SVG, ikon, metin, çizim vb.) doğrudan fotoğrafı pan yapsın
@@ -90,6 +112,13 @@ window.addEventListener('keydown', e => {
         if (ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.isContentEditable)) {
             return; 
         }
+        if (e.target && e.target.closest && e.target.closest('#satelliteMapModal, .sat-modal-overlay, #omniSearchModal, #recentToolsModal, #cropModal, .swal2-container, .modal-overlay')) {
+            return;
+        }
+        const satModal = document.getElementById('satelliteMapModal');
+        if (satModal && (satModal.style.display !== 'none' || satModal.classList.contains('active'))) {
+            return;
+        }
         e.preventDefault(); 
         if (!window.spaceBarPressed) {
             window.spaceBarPressed = true;
@@ -101,7 +130,7 @@ window.addEventListener('keydown', e => {
 }, { capture: true });
 
 window.addEventListener('keyup', e => { 
-    if (e.code === 'Space') {
+    if (e.code === 'Space') { 
         window.spaceBarPressed = false;
         updateSpacePanCursor(false, false);
         if (window.CloneStamp && window.CloneStamp.isActive) window.CloneStamp.renderSvg();
@@ -118,6 +147,14 @@ window.addEventListener('blur', () => {
 
 // ========== TEKERLEK - ZOOM (Ctrl veya Space ile veya Boşta) ==========
 document.addEventListener('wheel', function(e){
+    // Modallar, uydu haritası veya harici paneller üzerinde ana görsel zoom'unu kesinlikle engelle
+    if (e.target && e.target.closest && e.target.closest('#satelliteMapModal, .sat-modal-overlay, #omniSearchModal, #recentToolsModal, #cropModal, .swal2-container, .modal-overlay, #satelliteLeafletMap, .leaflet-container')) {
+        return;
+    }
+    const satModal = document.getElementById('satelliteMapModal');
+    if (satModal && (satModal.style.display !== 'none' || satModal.classList.contains('active'))) {
+        return;
+    }
     if (typeof window.hasImageOnCanvas === 'function' && !window.hasImageOnCanvas()) {
         return; // Tuvalde görsel yokken canvas viewport zoom (canvas-zoom.js) devrededir
     }
@@ -245,6 +282,17 @@ document.addEventListener('mousedown', function(e){
         if (timeSinceDown > 40 && timeSinceDown < 550 && distSinceDown < 40) {
             e.preventDefault();
             e.stopPropagation();
+            if (el && el.classList && el.classList.contains('photo-panel')) {
+                // Şablondaki fotoğraf paneline çift tıklandığında o kutunun ölçek ve konumunu varsayılana döndür
+                el.dataset.zpScale = '1';
+                el.dataset.zpX = '0';
+                el.dataset.zpY = '0';
+                delete el.dataset.sX;
+                delete el.dataset.sY;
+                if (typeof _applyPhotoTransform === 'function') _applyPhotoTransform(el);
+                if (typeof window.requestAutoSave === 'function') window.requestAutoSave();
+                return;
+            }
             _triggerPhotoReset();
             return;
         }
@@ -530,6 +578,17 @@ document.addEventListener('dblclick', function(e){
 
     // Etkileşimli kontrol elemanları üzerinde çift tıklandıysa fotoğrafı sıfırlama
     if (e.target.closest && e.target.closest('.canvas-el, .cvi-item, .added-icon, .vertex-handle, .text-handle, .callout-resizer, .callout-rotator, .callout-controls, .draggable, .editable-draw, .editable-text, .tb-frame-handle, .tb-floating-btn, button, input, select, textarea, .panel, .modal-overlay, .app-context-menu')) {
+        return;
+    }
+
+    // Eğer kolaj fotoğraf penceresi ise kolaj sıfırlamasını çalıştır
+    const kolajSlot = e.target.closest && e.target.closest('.kolaj-foto');
+    if (kolajSlot) {
+        if (typeof window._kolajFotoSifirla === 'function') {
+            e.stopPropagation();
+            e.preventDefault();
+            window._kolajFotoSifirla(kolajSlot);
+        }
         return;
     }
 

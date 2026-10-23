@@ -343,6 +343,9 @@ function addSVGCalloutToCanvas(item) {
     wrap.style.height = targetH + 'px';
     wrap.dataset.customW = targetW;
     wrap.dataset.customH = targetH;
+    wrap.dataset.defaultWidth = targetW;
+    wrap.dataset.defaultHeight = targetH;
+    wrap.dataset.aspectRatio = (targetW / targetH).toFixed(4);
 
     // Tuvalin tam ortasına yerleştir (varsa mevcut rozetlere göre hafif kademelendir)
     const existingCallouts = document.querySelectorAll('.callout-wrap').length;
@@ -551,8 +554,29 @@ function addSVGCalloutToCanvas(item) {
 
     el.addEventListener('dblclick', function(e){
         e.stopPropagation();
-        if (typeof window.openQuickEdit3DModal === 'function') {
-            window.openQuickEdit3DModal(el, e.clientX, e.clientY);
+        const textEl = (e.target && e.target.closest && e.target.closest('.editable-text, [contenteditable="true"], .callout-text, .co-title, .co-sub, .co-val')) ||
+                       el.querySelector('.editable-text, [contenteditable="true"], .callout-text, .co-title, .co-sub, .co-val');
+        if (textEl) {
+            textEl.contentEditable = 'true';
+            textEl.dataset.editingText = '1';
+            textEl.focus();
+            if (typeof window.getSelection === 'function' && document.createRange) {
+                const range = document.createRange();
+                range.selectNodeContents(textEl);
+                const sel = window.getSelection();
+                sel.removeAllRanges();
+                sel.addRange(range);
+            }
+            const onBlur = () => {
+                delete textEl.dataset.editingText;
+                textEl.removeEventListener('blur', onBlur);
+                if (typeof window.recordHistory === 'function') window.recordHistory('Rozet Metni Düzenlendi');
+            };
+            textEl.addEventListener('blur', onBlur);
+        } else if (typeof window.openSelectedElementSettings === 'function') {
+            window.openSelectedElementSettings(wrap || el);
+        } else if (typeof selectCalloutEl === 'function') {
+            selectCalloutEl(el, true);
         }
     });
     
@@ -814,12 +838,23 @@ function addSVGCalloutToCanvas(item) {
     handleLength.addEventListener('mousedown', lengthDown);
     handleLength.addEventListener('touchstart', lengthDown, {passive: false});
     
-    // Doğrudan workArea'ya ekle (canvas-container).
-    // ui-layer (z-index:50) içine eklersek şablon elemanları (z-index:100+) arkasında kalır.
     if (typeof makeDraggable === 'function') makeDraggable(wrap);
     workArea.appendChild(wrap);
     if (typeof window.recordHistory === 'function') window.recordHistory('Rozet eklendi');
     if (typeof window.renderLayers === 'function') window.renderLayers();
+    
+    if (typeof selectElement === 'function') {
+        selectElement(wrap);
+    } else if (typeof selectCalloutEl === 'function') {
+        selectCalloutEl(el, true);
+    }
+    const cp = document.getElementById('calloutSettingsPanel');
+    if (cp) {
+        cp.style.display = 'block';
+        cp.open = true;
+        const b = document.getElementById('calloutSettingsBody');
+        if (b) b.style.display = 'block';
+    }
     
     console.log('✅ Rozet eklendi:', item.name);
     return wrap;
@@ -1009,6 +1044,242 @@ window.addParcelBadgeToCanvas = function(parcelData, options = {}) {
         }
     }
     return null;
+};
+
+// 📐 Canlı Metre Bandı (Tuval Sağ Üst Köşesinde Açılıp Kapanabilir & Taşınabilir Bant)
+window.addMeasureRibbonToCanvas = function(measureData, options = {}) {
+    const workArea = document.getElementById('workArea') || document.getElementById('canvas-container') || document.querySelector('.main-preview');
+    if (!workArea) return null;
+
+    // Önceki bant varsa konumunu hatırla ve temizle
+    const existing = document.querySelector('.sat-measure-ribbon-callout');
+    let prevLeft = null;
+    let prevTop = null;
+    if (existing) {
+        prevLeft = existing.style.left;
+        prevTop = existing.style.top;
+        existing.remove();
+    }
+
+    // Veri çözümleme
+    let distStr = '14.2 m';
+    let labelStr = 'Ölçüm';
+    let areaStr = '';
+    let theme = options.theme || 'dark';
+    let color = options.color || '#38bdf8';
+
+    if (typeof measureData === 'string') {
+        distStr = measureData;
+    } else if (measureData && typeof measureData === 'object') {
+        distStr = measureData.distance || measureData.dist || measureData.meters || distStr;
+        labelStr = measureData.label || measureData.title || labelStr;
+        areaStr = measureData.area || '';
+        if (measureData.color) color = measureData.color;
+        if (measureData.theme) theme = measureData.theme;
+    } else if (window.SatelliteMapModule) {
+        const sat = window.SatelliteMapModule;
+        if (sat.measureDistanceMeters > 0) {
+            distStr = sat.getFormattedMeasureText ? sat.getFormattedMeasureText(sat.measureDistanceMeters, false, 'distance_only') : (sat.measureDistanceMeters.toFixed(1) + ' m');
+        }
+        if (sat.measureAreaM2 > 0 && sat.measureIsClosed) {
+            areaStr = sat.getFormattedAreaText ? sat.getFormattedAreaText(sat.measureAreaM2, 'm2_only') : (Math.round(sat.measureAreaM2) + ' m²');
+        }
+    }
+
+    window._lastMeasureRibbonData = {
+        distance: distStr,
+        label: labelStr,
+        area: areaStr,
+        theme: theme,
+        color: color
+    };
+
+    let displayText = distStr;
+    if (areaStr) {
+        displayText = `${distStr} • ${areaStr}`;
+    }
+
+    const presetThemes = {
+        dark: {
+            bg1: '#0f172a',
+            bg2: '#1e293b',
+            border: '#38bdf8',
+            borderWidth: 1.5,
+            title: '#ffffff',
+            sub: '#38bdf8',
+            icon: '#38bdf8'
+        },
+        gold: {
+            bg1: '#1c1917',
+            bg2: '#292524',
+            border: '#f59e0b',
+            borderWidth: 1.5,
+            title: '#fef3c7',
+            sub: '#fbbf24',
+            icon: '#fbbf24'
+        },
+        cyan: {
+            bg1: '#082f49',
+            bg2: '#0c4a6e',
+            border: '#38bdf8',
+            borderWidth: 1.5,
+            title: '#ffffff',
+            sub: '#7dd3fc',
+            icon: '#38bdf8'
+        },
+        emerald: {
+            bg1: '#062e24',
+            bg2: '#064e3b',
+            border: '#10b981',
+            borderWidth: 1.5,
+            title: '#ecfdf5',
+            sub: '#34d399',
+            icon: '#34d399'
+        }
+    };
+
+    const themeConfig = presetThemes[theme] || presetThemes['dark'];
+    const activeFont = options.fontFamily || (typeof currentFont !== 'undefined' && currentFont) || "'Montserrat', 'Inter', -apple-system, sans-serif";
+
+    const badgeH = 46;
+    const textLen = displayText.length;
+    const badgeW = Math.max(190, Math.round(textLen * 10.5 + 74));
+
+    const gradId = 'mRibGrad_' + Math.random().toString(36).substr(2, 6);
+    const shadowId = 'mRibShad_' + Math.random().toString(36).substr(2, 6);
+
+    const svgHtml = `
+<svg width="${badgeW}" height="${badgeH}" viewBox="0 0 ${badgeW} ${badgeH}" xmlns="http://www.w3.org/2000/svg" shape-rendering="geometricPrecision">
+  <defs>
+    <linearGradient id="${gradId}" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="${themeConfig.bg1}" stop-opacity="0.95"/>
+      <stop offset="100%" stop-color="${themeConfig.bg2}" stop-opacity="0.92"/>
+    </linearGradient>
+    <filter id="${shadowId}" x="-15%" y="-20%" width="130%" height="145%">
+      <feDropShadow dx="0" dy="4" stdDeviation="5" flood-color="#000000" flood-opacity="0.65"/>
+    </filter>
+  </defs>
+  <rect x="2" y="2" width="${badgeW - 4}" height="${badgeH - 4}" rx="10" fill="url(#${gradId})" stroke="${themeConfig.border}" stroke-width="${themeConfig.borderWidth}" filter="url(#${shadowId})"/>
+  <g transform="translate(14, 13)">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="${themeConfig.icon}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M21.3 15.3l-6.6 6.6c-.6.6-1.5.6-2.1 0l-9.9-9.9c-.6-.6-.6-1.5 0-2.1l6.6-6.6c.6-.6 1.5-.6 2.1 0l9.9 9.9c.6.6.6 1.5 0 2.1z"/>
+      <path d="M14.5 5.5l1.5 1.5"/>
+      <path d="M11.5 8.5l1.5 1.5"/>
+      <path d="M8.5 11.5l1.5 1.5"/>
+      <path d="M5.5 14.5l1.5 1.5"/>
+    </svg>
+  </g>
+  <text x="44" y="28" font-family="${activeFont}" font-weight="800" font-size="15" fill="${themeConfig.title}" letter-spacing="0.4px">${displayText}</text>
+</svg>`.trim();
+
+    if (typeof addSVGCalloutToCanvas === 'function') {
+        const wrap = addSVGCalloutToCanvas({
+            name: `Metre Bandı: ${displayText}`,
+            svg: svgHtml
+        });
+        if (wrap) {
+            wrap.classList.add('sat-measure-ribbon-callout');
+            wrap.dataset.isMeasureRibbon = 'true';
+            wrap.dataset.measureDistance = distStr;
+            wrap.dataset.fontFamily = activeFont;
+            wrap.dataset.theme = theme;
+
+            // Kapatma butonu (✕)
+            const closeBtn = document.createElement('button');
+            closeBtn.type = 'button';
+            closeBtn.className = 'sat-ribbon-close-btn';
+            closeBtn.title = 'Metre Bandını Kapat';
+            closeBtn.innerHTML = '✕';
+            closeBtn.style.cssText = `
+                position: absolute;
+                top: -7px;
+                right: -7px;
+                width: 20px;
+                height: 20px;
+                border-radius: 50%;
+                background: #0f172a;
+                border: 1px solid #475569;
+                color: #94a3b8;
+                font-size: 11px;
+                font-weight: 700;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                cursor: pointer;
+                z-index: 1000;
+                box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+                padding: 0;
+                line-height: 1;
+                transition: all 0.15s ease;
+            `;
+            closeBtn.onmouseenter = () => { closeBtn.style.background = '#ef4444'; closeBtn.style.color = '#fff'; closeBtn.style.borderColor = '#ef4444'; };
+            closeBtn.onmouseleave = () => { closeBtn.style.background = '#0f172a'; closeBtn.style.color = '#94a3b8'; closeBtn.style.borderColor = '#475569'; };
+            closeBtn.onclick = (e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                window.toggleMeasureRibbon(false);
+            };
+            wrap.appendChild(closeBtn);
+
+            const cContainer = document.getElementById('canvas-container');
+            const cW = (cContainer && parseFloat(cContainer.style.width)) || 1920;
+            const cH = (cContainer && parseFloat(cContainer.style.height)) || 1080;
+
+            const formatRatio = Math.max(1, cW / 1920);
+            const targetW = Math.round(badgeW * 1.35 * formatRatio);
+            const targetH = Math.round(badgeH * 1.35 * formatRatio);
+
+            wrap.style.width = targetW + 'px';
+            wrap.style.height = targetH + 'px';
+            const el = wrap.querySelector('.callout-item');
+            if (el) {
+                el.style.width = targetW + 'px';
+                el.style.height = targetH + 'px';
+            }
+
+            // Sağ üst köşe varsayılan konumu (Eğer önceden taşınmışsa eski konumunu koru)
+            if (prevLeft !== null && prevTop !== null) {
+                wrap.style.left = prevLeft;
+                wrap.style.top = prevTop;
+            } else {
+                const posX = (options.relX !== undefined) ? Math.round(options.relX * cW) : Math.max(20, cW - targetW - Math.round(60 * formatRatio));
+                const posY = (options.relY !== undefined) ? Math.round(options.relY * cH) : Math.round(50 * formatRatio);
+                wrap.style.left = posX + 'px';
+                wrap.style.top = posY + 'px';
+            }
+
+            // Varsayılan görünürlük: seçeneklerde açıkça belirtilmedikçe varsayılan kapalı (display: none)
+            const isVisible = (options.visible !== undefined) ? !!options.visible : (options.defaultVisible !== undefined ? !!options.defaultVisible : false);
+            wrap.style.display = isVisible ? 'block' : 'none';
+            document.querySelectorAll('#dockMeasureRibbonBtn, .dock-measure-ribbon-btn').forEach(btn => btn.classList.toggle('active', isVisible));
+
+            if (typeof window.recordHistory === 'function') window.recordHistory('Metre Bandı Eklendi');
+            return wrap;
+        }
+    }
+    return null;
+};
+
+// 🔲 Metre Bandını Aç / Kapat Fonksiyonu
+window.toggleMeasureRibbon = function(forceState, event) {
+    if (event && event.stopPropagation) event.stopPropagation();
+    const existing = document.querySelector('.sat-measure-ribbon-callout');
+    if (existing) {
+        const isVis = existing.style.display !== 'none';
+        const nextVis = (forceState !== undefined) ? !!forceState : !isVis;
+        existing.style.display = nextVis ? 'block' : 'none';
+        document.querySelectorAll('#dockMeasureRibbonBtn, .dock-measure-ribbon-btn').forEach(btn => btn.classList.toggle('active', nextVis));
+        return nextVis;
+    } else {
+        const sat = window.SatelliteMapModule;
+        const fallbackDist = (sat && sat.measureDistanceMeters > 0)
+            ? (sat.getFormattedMeasureText ? sat.getFormattedMeasureText(sat.measureDistanceMeters, false, 'distance_only') : (sat.measureDistanceMeters.toFixed(1) + ' m'))
+            : '14.2 m';
+        const data = window._lastMeasureRibbonData || { distance: fallbackDist };
+        window.addMeasureRibbonToCanvas(data, { visible: true });
+        document.querySelectorAll('#dockMeasureRibbonBtn, .dock-measure-ribbon-btn').forEach(btn => btn.classList.add('active'));
+        return true;
+    }
 };
 
 // 🔠 Haritadan gelen ada/parsel rozetinin yazı tipini güncelleyen fonksiyon
@@ -1837,6 +2108,9 @@ function addNeonToCanvas(n) {
     el.dataset.coPadding = padding;
     el.dataset.coBoxSize = boxSize;
     el.dataset.coLabel = lines.join('\n');
+    el.dataset.defaultWidth = boxSize;
+    el.dataset.defaultHeight = boxSize;
+    el.dataset.aspectRatio = '1.0000';
 
     el.style.cssText = `
         position: absolute;
@@ -2198,17 +2472,47 @@ function addNeonToCanvas(n) {
     workArea.appendChild(el);
     if (typeof window.recordHistory === 'function') window.recordHistory('Neon Callout eklendi');
     if (typeof window.renderLayers === 'function') window.renderLayers();
+
+    if (typeof selectElement === 'function') {
+        selectElement(el);
+    } else if (typeof selectCalloutEl === 'function') {
+        selectCalloutEl(el, true);
+    }
+    const cp = document.getElementById('calloutSettingsPanel');
+    if (cp) {
+        cp.style.display = 'block';
+        cp.open = true;
+        const b = document.getElementById('calloutSettingsBody');
+        if (b) b.style.display = 'block';
+    }
 }
 
 function selectCalloutEl(el, isUserClick = false) {
   try {
-    if (typeof selectedCalloutEl !== 'undefined' && selectedCalloutEl && selectedCalloutEl !== el) {
+    if (!el) {
+        el = (typeof selectedCalloutEl !== 'undefined' ? selectedCalloutEl : null) ||
+             (typeof selectedEl !== 'undefined' ? selectedEl : null) ||
+             document.querySelector('.callout-wrap.el-selected, .callout-item.el-selected, .svg-callout.el-selected, .co-neon-block.el-selected') ||
+             document.querySelector('.callout-wrap, .callout-item, .svg-callout, .co-neon-block');
+    }
+    if (!el) {
+        const panel = document.getElementById('calloutSettingsPanel');
+        if (panel) {
+            panel.style.display = 'block';
+            panel.open = true;
+            const body = document.getElementById('calloutSettingsBody');
+            if (body) body.style.display = 'block';
+        }
+        return;
+    }
+
+    if (typeof selectedCalloutEl !== 'undefined' && selectedCalloutEl && selectedCalloutEl !== el && selectedCalloutEl.style) {
         selectedCalloutEl.style.outline = 'none';
     }
     
-    // Switch to callout tab
+    // Switch to callout tab if requested or user click
     const tab = document.getElementById('tab-callout');
-    if (tab && tab.style.display === 'none') {
+    if (tab && !tab.classList.contains('show') && isUserClick) {
         if (!(typeof window.isMobileDevice === 'function' && window.isMobileDevice())) {
             if (typeof switchTab === 'function') switchTab('callout');
         }
@@ -2226,12 +2530,17 @@ function selectCalloutEl(el, isUserClick = false) {
             }
         }
     });
-    el.style.outline = '1px dashed rgba(255,255,255,0.4)';
+    if (el.style) el.style.outline = '1px dashed rgba(255,255,255,0.4)';
     selectedCalloutEl = el;
     window.selectedCalloutEl = el;
     window.selectedEl = el;
-    const coDetails = document.querySelector('#tab-callout details');
-    if (coDetails) coDetails.open = true;
+    const coDetails = document.getElementById('calloutSettingsPanel') || document.querySelector('#tab-callout details');
+    if (coDetails) {
+        coDetails.style.display = 'block';
+        coDetails.open = true;
+        const b = document.getElementById('calloutSettingsBody');
+        if (b) b.style.display = 'block';
+    }
     
     // Show controls for neon block
     if (el.classList.contains('co-neon-block')) {
@@ -2253,25 +2562,21 @@ function selectCalloutEl(el, isUserClick = false) {
     if (hw && wrapEl.dataset.locked !== 'true') hw.style.display = 'flex';
     if (hl && wrapEl.dataset.locked !== 'true') hl.style.display = 'flex';
 
+    if (typeof window.syncNeonTextUI === 'function') {
+        window.syncNeonTextUI(wrapEl);
+    }
+    if (typeof window.syncCalloutNeonUI === 'function') {
+        window.syncCalloutNeonUI(wrapEl);
+    }
+
     const panel = document.getElementById('calloutSettingsPanel');
     if (!panel) return;
 
-    // Conditionally show panel on mobile
-    const isMobile = (typeof window.isMobileDevice === 'function' && window.isMobileDevice()) || window.innerWidth <= 900;
-    
-    if (isMobile) {
-        if (window.isLongPressOpen) {
-            panel.style.display = 'block';
-            panel.querySelectorAll('.color-row, .slider-group, .input-group').forEach(e => e.style.display = 'flex');
-            window.isLongPressOpen = false;
-        } else {
-            // Do not open if just programmatically added
-        }
-    } else {
-        panel.style.display = 'block';
-        panel.querySelectorAll('.color-row, .slider-group, .input-group').forEach(e => e.style.display = 'flex');
-    }
-    
+    panel.style.display = 'block';
+    panel.open = true;
+    const body = document.getElementById('calloutSettingsBody') || panel.querySelector('div');
+    if (body) body.style.display = 'block';
+
     // Remove warning div if exists
     const wDiv = document.getElementById('svgCalloutWarning');
     if (wDiv) wDiv.remove();
@@ -2291,16 +2596,16 @@ function selectCalloutEl(el, isUserClick = false) {
     const coHSlider = document.getElementById('coHeight');
     const coHVal = document.getElementById('coHeightVal');
 
-    if (coWSlider && coWVal) {
+    if (coWSlider) {
         coWSlider.value = curW;
-        coWVal.textContent = curW + 'px';
-        const wCont = document.getElementById('coWidthContainer') || coWSlider.parentElement;
+        if (coWVal) coWVal.textContent = curW + 'px';
+        const wCont = document.getElementById('coWidthContainer') || coWSlider.closest('.slider-group');
         if (wCont) wCont.style.display = 'flex';
     }
-    if (coHSlider && coHVal) {
+    if (coHSlider) {
         coHSlider.value = curH;
-        coHVal.textContent = curH + 'px';
-        const hCont = document.getElementById('coHeightContainer') || coHSlider.parentElement;
+        if (coHVal) coHVal.textContent = curH + 'px';
+        const hCont = document.getElementById('coHeightContainer') || coHSlider.closest('.slider-group');
         if (hCont) hCont.style.display = 'flex';
     }
     
@@ -2312,34 +2617,30 @@ function selectCalloutEl(el, isUserClick = false) {
         const bop = document.getElementById('coBgOpacity');
         const is = document.getElementById('coIconSize');
         const ts = document.getElementById('coTextSize');
-        const gw = document.getElementById('coGlow');
         const rd = document.getElementById('coRadius');
         const pd = document.getElementById('coPadding');
         const lt = document.getElementById('coLabelText');
 
-        if (bop) { bop.parentElement.style.display = 'flex'; bop.value = d.coBgOpacity || 0; document.getElementById('coBgOpacityVal').textContent = bop.value + '%'; }
-        if (is) { is.parentElement.style.display = 'flex'; is.value = d.coIconSize || 64; document.getElementById('coIconSizeVal').textContent = is.value + 'px'; }
-        if (ts) { ts.parentElement.style.display = 'flex'; ts.value = d.coTextSize || 14; document.getElementById('coTextSizeVal').textContent = ts.value + 'px'; }
-        if (gw) { gw.parentElement.style.display = 'flex'; gw.value = d.coGlow || 80; document.getElementById('coGlowVal').textContent = gw.value + '%'; }
-        if (rd) { rd.parentElement.style.display = 'flex'; rd.value = d.coRadius || 12; document.getElementById('coRadiusVal').textContent = rd.value + 'px'; }
-        if (pd) { pd.parentElement.style.display = 'flex'; pd.value = d.coPadding || 10; document.getElementById('coPaddingVal').textContent = pd.value + 'px'; }
-        if (lt) { lt.parentElement.style.display = 'block'; lt.value = (d.coLabel || '').replace(/\\n/g, ' '); }
+        if (bop) { const c = bop.closest('.slider-group'); if (c) c.style.display = 'flex'; bop.value = d.coBgOpacity || 0; document.getElementById('coBgOpacityVal').textContent = bop.value + '%'; }
+        if (is) { const c = is.closest('.slider-group'); if (c) c.style.display = 'flex'; is.value = d.coIconSize || 64; document.getElementById('coIconSizeVal').textContent = is.value + 'px'; }
+        if (ts) { const c = ts.closest('.slider-group'); if (c) c.style.display = 'flex'; ts.value = d.coTextSize || 14; document.getElementById('coTextSizeVal').textContent = ts.value + 'px'; }
+        if (rd) { const c = rd.closest('.slider-group'); if (c) c.style.display = 'flex'; rd.value = d.coRadius || 12; document.getElementById('coRadiusVal').textContent = rd.value + 'px'; }
+        if (pd) { const c = pd.closest('.slider-group'); if (c) c.style.display = 'flex'; pd.value = d.coPadding || 10; document.getElementById('coPaddingVal').textContent = pd.value + 'px'; }
+        if (lt) { const c = lt.closest('.input-group') || lt.parentElement; if (c) c.style.display = 'block'; lt.value = (d.coLabel || '').replace(/\\n/g, ' '); }
     } else {
-        // Neon'a özel kontrolleri SVG callout'ta gizle
+        // SVG callout: Yalnızca SVG'ye özel olmayan alt sliderları gizle, diğer tüm ana kontroller açık kalır
         const bop = document.getElementById('coBgOpacity');
         const is = document.getElementById('coIconSize');
         const ts = document.getElementById('coTextSize');
-        const gw = document.getElementById('coGlow');
         const rd = document.getElementById('coRadius');
         const pd = document.getElementById('coPadding');
         const lt = document.getElementById('coLabelText');
         
-        if (bop) bop.parentElement.style.display = 'none';
-        if (is) is.parentElement.style.display = 'none';
-        if (ts) ts.parentElement.style.display = 'none';
-        if (gw) gw.parentElement.style.display = 'none';
-        if (rd) rd.parentElement.style.display = 'none';
-        if (pd) pd.parentElement.style.display = 'none';
+        if (bop) { const c = bop.closest('.slider-group'); if (c) c.style.display = 'none'; }
+        if (is) { const c = is.closest('.slider-group'); if (c) c.style.display = 'none'; }
+        if (ts) { const c = ts.closest('.slider-group'); if (c) c.style.display = 'none'; }
+        if (rd) { const c = rd.closest('.slider-group'); if (c) c.style.display = 'none'; }
+        if (pd) { const c = pd.closest('.slider-group'); if (c) c.style.display = 'none'; }
         
         // SVG renklerini ve metnini oku
         const svg = el.querySelector('svg');
@@ -2347,7 +2648,8 @@ function selectCalloutEl(el, isUserClick = false) {
             // Metin içeriği ve rengi (Tüm SVG metin ve alt başlıklarını oku)
             const textNodes = Array.from(svg.querySelectorAll('text, tspan')).filter(t => t.textContent && t.textContent.trim().length > 0);
             if (lt) {
-                lt.parentElement.style.display = 'block';
+                const c = lt.closest('.input-group') || lt.parentElement;
+                if (c) c.style.display = 'block';
                 lt.value = textNodes.map(t => t.textContent.trim()).join('\n');
             }
             if (tc && textNodes.length > 0) {
@@ -2367,12 +2669,12 @@ function selectCalloutEl(el, isUserClick = false) {
                 if (stroke && stroke.startsWith('#')) ic.value = stroke.substring(0,7);
             }
         } else if (lt) {
-            lt.parentElement.style.display = 'none';
+            const c = lt.closest('.input-group') || lt.parentElement;
+            if (c) c.style.display = 'none';
         }
     }
   } catch(err) {
     console.error("SELECT CALLOUT ERROR:", err);
-    alert("SELECT CALLOUT ERROR: " + err.message + "\n" + err.stack);
   }
 }
 
@@ -2540,6 +2842,17 @@ function applyCalloutSettings() {
                 const stroke = s.getAttribute('stroke');
                 if (stroke && stroke !== 'none' && !stroke.includes('url(#')) s.setAttribute('stroke', iconColor);
             });
+
+            // Rozette neon aktifse metin veya renk değişiminde neonu canlı tazele
+            const wrapForNeon = el.closest('.callout-wrap') || el;
+            if (wrapForNeon && (wrapForNeon.dataset.neonActive === 'true' || wrapForNeon.classList.contains('neon-badge-active'))) {
+                const glowCol = wrapForNeon.dataset.neonGlowColor || (document.getElementById('coNeonGlowColor') ? document.getElementById('coNeonGlowColor').value : '#00f0ff');
+                const glowSize = (wrapForNeon.dataset.neonTextGlow !== undefined && wrapForNeon.dataset.neonTextGlow !== null) ? parseInt(wrapForNeon.dataset.neonTextGlow) : 35;
+                const intensity = wrapForNeon.dataset.neonIntensity ? parseFloat(wrapForNeon.dataset.neonIntensity) : 3.0;
+                if (typeof window.applyNeonToBadge === 'function') {
+                    window.applyNeonToBadge(wrapForNeon, glowSize, intensity, glowCol, textColor);
+                }
+            }
         }
     }
     if (typeof requestAutoSave === 'function') requestAutoSave();
@@ -2551,7 +2864,10 @@ function resetCalloutSetting(type) {
         const wVal = document.getElementById('coWidthVal');
         const wrap = selectedCalloutEl ? (selectedCalloutEl.closest('.callout-wrap') || selectedCalloutEl) : null;
         const defW = wrap && wrap.dataset.origW ? parseInt(wrap.dataset.origW) : 150;
-        if (wSlider && wVal) { wSlider.value = defW; wVal.textContent = defW + 'px'; }
+        if (wSlider) {
+            wSlider.value = defW;
+            if (wVal) wVal.textContent = defW + 'px';
+        }
         applyCalloutSettings();
         return;
     }
@@ -2560,7 +2876,10 @@ function resetCalloutSetting(type) {
         const hVal = document.getElementById('coHeightVal');
         const wrap = selectedCalloutEl ? (selectedCalloutEl.closest('.callout-wrap') || selectedCalloutEl) : null;
         const defH = wrap && wrap.dataset.origH ? parseInt(wrap.dataset.origH) : 150;
-        if (hSlider && hVal) { hSlider.value = defH; hVal.textContent = defH + 'px'; }
+        if (hSlider) {
+            hSlider.value = defH;
+            if (hVal) hVal.textContent = defH + 'px';
+        }
         applyCalloutSettings();
         return;
     }
@@ -2574,14 +2893,18 @@ function resetCalloutSetting(type) {
         'textSize': 14,
         'glow': 45,
         'radius': 12,
-        'padding': 10
+        'padding': 10,
+        'neonBoxGlow': 35,
+        'neonGlowSize': 35,
+        'neonIntensity': 3.0
     };
     
     if (defaults[type] !== undefined) {
         const idMap = {
             'iconColor': 'coIconColor', 'textColor': 'coTextColor', 'bgColor': 'coBgColor',
             'bgOpacity': 'coBgOpacity', 'iconSize': 'coIconSize', 'textSize': 'coTextSize',
-            'glow': 'coGlow', 'radius': 'coRadius', 'padding': 'coPadding'
+            'glow': 'coGlow', 'radius': 'coRadius', 'padding': 'coPadding',
+            'neonBoxGlow': 'coNeonBoxGlow', 'neonGlowSize': 'coNeonGlowSize', 'neonIntensity': 'coNeonIntensity'
         };
         const el = document.getElementById(idMap[type]);
         if (el) {
@@ -2590,11 +2913,15 @@ function resetCalloutSetting(type) {
             const valEl = document.getElementById(idMap[type] + 'Val');
             if (valEl) {
                 let unit = '';
-                if (['iconSize', 'textSize', 'radius', 'padding'].includes(type)) unit = 'px';
+                if (['iconSize', 'textSize', 'radius', 'padding', 'neonBoxGlow', 'neonGlowSize'].includes(type)) unit = 'px';
                 if (['bgOpacity', 'glow'].includes(type)) unit = '%';
                 valEl.textContent = defaults[type] + unit;
             }
-            if (selectedCalloutEl) {
+            if (type === 'neonBoxGlow' || type === 'neonGlowSize' || type === 'neonIntensity') {
+                if (typeof window.applyCalloutNeonSettings === 'function') {
+                    window.applyCalloutNeonSettings();
+                }
+            } else if (selectedCalloutEl) {
                 applyCalloutSettings();
                 if (typeof window.recordHistory === 'function') window.recordHistory('Rozet ayarı sıfırlandı: ' + type);
             }
@@ -2685,6 +3012,8 @@ window.resetCalloutToDefault = resetCalloutToDefault;
 // Slider ve ayar kontrollerine çift tıklama ile varsayılana sıfırlama dinleyicilerini bağla
 function initCalloutSliderResetListeners() {
     const mapping = [
+        { id: 'coWidth', type: 'width' },
+        { id: 'coHeight', type: 'height' },
         { id: 'coIconColor', type: 'iconColor' },
         { id: 'coTextColor', type: 'textColor' },
         { id: 'coBgColor', type: 'bgColor' },
@@ -2693,7 +3022,10 @@ function initCalloutSliderResetListeners() {
         { id: 'coTextSize', type: 'textSize' },
         { id: 'coGlow', type: 'glow' },
         { id: 'coRadius', type: 'radius' },
-        { id: 'coPadding', type: 'padding' }
+        { id: 'coPadding', type: 'padding' },
+        { id: 'coNeonBoxGlow', type: 'neonBoxGlow' },
+        { id: 'coNeonGlowSize', type: 'neonGlowSize' },
+        { id: 'coNeonIntensity', type: 'neonIntensity' }
     ];
 
     mapping.forEach(m => {
@@ -2716,6 +3048,118 @@ function initCalloutSliderResetListeners() {
         }
     });
 }
+
+// ==================== ROZET NEON ENTEGRASYONU ====================
+window.toggleCalloutNeon = function() {
+    const el = (typeof selectedCalloutEl !== 'undefined' && selectedCalloutEl) ? selectedCalloutEl : (window.selectedEl || null);
+    if (!el) return;
+    const wrap = (typeof getBadgeWrapper === 'function' ? getBadgeWrapper(el) : null) || (el.closest && el.closest('.callout-wrap')) || el;
+
+    const isCurrentlyNeon = wrap.dataset.neonActive === 'true' || (wrap.dataset.neonTextGlow && parseInt(wrap.dataset.neonTextGlow) > 0) || (wrap.dataset.neonBoxGlow && parseInt(wrap.dataset.neonBoxGlow) > 0) || wrap.classList.contains('neon-badge-active');
+    const newNeonState = !isCurrentlyNeon;
+    wrap.dataset.neonActive = newNeonState ? 'true' : 'false';
+
+    if (newNeonState) {
+        const glowCol = document.getElementById('coNeonGlowColor')?.value || '#00f0ff';
+        const boxGlow = parseInt(document.getElementById('coNeonBoxGlow')?.value || 35);
+        const glowSize = parseInt(document.getElementById('coNeonGlowSize')?.value || 35);
+        const intensity = parseFloat(document.getElementById('coNeonIntensity')?.value || 3.0);
+        const coreCol = document.getElementById('coTextColor')?.value || '#ffffff';
+        if (typeof window.applyNeonToBadge === 'function') {
+            window.applyNeonToBadge(wrap, glowSize, intensity, glowCol, coreCol, 'fully-lit', boxGlow);
+        }
+    } else {
+        if (typeof window.applyNeonToBadge === 'function') {
+            window.applyNeonToBadge(wrap, 0, 0, '#000000', null, 'off', 0);
+        }
+    }
+    if (typeof window.syncCalloutNeonUI === 'function') {
+        window.syncCalloutNeonUI(wrap);
+    }
+    if (typeof window.syncNeonTextUI === 'function') {
+        window.syncNeonTextUI(wrap);
+    }
+    if (typeof requestAutoSave === 'function') requestAutoSave();
+};
+
+let _calloutNeonRaf = null;
+window.applyCalloutNeonSettings = function() {
+    const el = (typeof selectedCalloutEl !== 'undefined' && selectedCalloutEl) ? selectedCalloutEl : (window.selectedEl || null);
+    if (!el) return;
+    const wrap = (typeof getBadgeWrapper === 'function' ? getBadgeWrapper(el) : null) || (el.closest && el.closest('.callout-wrap')) || el;
+
+    const glowCol = document.getElementById('coNeonGlowColor')?.value || '#00f0ff';
+    const boxGlow = parseInt(document.getElementById('coNeonBoxGlow')?.value || 0);
+    const glowSize = parseInt(document.getElementById('coNeonGlowSize')?.value || 0);
+    const intensity = parseFloat(document.getElementById('coNeonIntensity')?.value || 3.0);
+    const coreCol = document.getElementById('coTextColor')?.value || '#ffffff';
+
+    wrap.dataset.neonActive = (glowSize > 0 || boxGlow > 0) ? 'true' : 'false';
+    wrap.dataset.neonGlowColor = glowCol;
+    wrap.dataset.neonBoxGlow = boxGlow;
+    wrap.dataset.neonGlowSize = glowSize;
+    wrap.dataset.neonTextGlow = glowSize;
+    wrap.dataset.neonIntensity = intensity;
+
+    if (_calloutNeonRaf) cancelAnimationFrame(_calloutNeonRaf);
+    _calloutNeonRaf = requestAnimationFrame(() => {
+        if (typeof window.applyNeonToBadge === 'function') {
+            window.applyNeonToBadge(wrap, glowSize, intensity, glowCol, coreCol, 'fully-lit', boxGlow);
+        }
+        _calloutNeonRaf = null;
+    });
+
+    // Yazı & Font sekmesindeki neon kontrollerini senkronize et
+    const mainGlowSlider = document.getElementById('neonTextGlowSize');
+    const mainIntensitySlider = document.getElementById('neonTextIntensity');
+    const mainGlowColor = document.getElementById('neonTextGlowColor');
+    if (mainGlowSlider) { mainGlowSlider.value = glowSize; const v = document.getElementById('neonTextGlowSizeVal'); if (v) v.textContent = glowSize; }
+    if (mainIntensitySlider) { mainIntensitySlider.value = intensity; const v = document.getElementById('neonTextIntensityVal'); if (v) v.textContent = intensity; }
+    if (mainGlowColor) { mainGlowColor.value = glowCol; }
+
+    if (typeof requestAutoSave === 'function') requestAutoSave();
+};
+
+window.syncCalloutNeonUI = function(wrap) {
+    if (!wrap) return;
+    const isNeon = wrap.dataset.neonActive === 'true' || (parseInt(wrap.dataset.neonTextGlow || wrap.dataset.neonGlowSize || 0) > 0) || (parseInt(wrap.dataset.neonBoxGlow || 0) > 0) || wrap.classList.contains('neon-badge-active') || wrap.classList.contains('co-neon-block');
+    const btn = document.getElementById('btnToggleCalloutNeon');
+    const btnText = document.getElementById('btnToggleCalloutNeonText');
+    const controls = document.getElementById('calloutNeonControls');
+
+    if (btn) {
+        if (isNeon) {
+            btn.classList.add('active');
+            if (btnText) btnText.textContent = 'Neon Kapat';
+        } else {
+            btn.classList.remove('active');
+            if (btnText) btnText.textContent = 'Neon Aç';
+        }
+    }
+    if (controls) {
+        controls.style.display = isNeon ? 'flex' : 'none';
+    }
+
+    if (isNeon) {
+        const glowCol = wrap.dataset.neonGlowColor || wrap.dataset.glowColor || '#00f0ff';
+        const boxGlow = (wrap.dataset.neonBoxGlow !== undefined && wrap.dataset.neonBoxGlow !== null) ? parseInt(wrap.dataset.neonBoxGlow) : 35;
+        const glowSize = (wrap.dataset.neonTextGlow !== undefined && wrap.dataset.neonTextGlow !== null) ? parseInt(wrap.dataset.neonTextGlow) : (wrap.dataset.neonGlowSize ? parseInt(wrap.dataset.neonGlowSize) : 35);
+        const intensity = wrap.dataset.neonIntensity ? parseFloat(wrap.dataset.neonIntensity) : 3.0;
+
+        const gc = document.getElementById('coNeonGlowColor');
+        const gb = document.getElementById('coNeonBoxGlow');
+        const gbv = document.getElementById('coNeonBoxGlowVal');
+        const gs = document.getElementById('coNeonGlowSize');
+        const gsv = document.getElementById('coNeonGlowSizeVal');
+        const gi = document.getElementById('coNeonIntensity');
+        const giv = document.getElementById('coNeonIntensityVal');
+
+        if (gc) gc.value = glowCol;
+        if (gb) { gb.value = boxGlow; if (gbv) gbv.textContent = boxGlow + 'px'; }
+        if (gs) { gs.value = glowSize; if (gsv) gsv.textContent = glowSize + 'px'; }
+        if (gi) { gi.value = intensity; if (giv) giv.textContent = intensity.toFixed(1); }
+    }
+};
 
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {

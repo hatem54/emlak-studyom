@@ -141,10 +141,12 @@ Kapsamlı sistem taraması sonucunda tespit edilen Kritik, Yüksek ve Orta riskl
 
 *Not: Tüm bu güncellemeler, "Sıfır Yeniden Yapılandırma (Zero Refactoring)" ilkesi ve cerrahi doğruluk kurallarıyla, monolit dosyalar şişirilmeden ve arayüz kuralları (Sıfır Toast spam, Dolgulu buton yasağı) gözetilerek yapılmıştır.*
 
-### 6.3. Düşük Riskli Onarımlar ve İyileştirmeler (LOW)
-- **Parser Zenginleştirmesi:** Sahibinden ve Hepsiemlak'tan kopyalanan ilan metinlerindeki "Cephe, Yakıt Tipi, Eşya Durumu, Krediye Uygun" gibi ikincil bilgiler `knownLabels` listesinde olmadığı için daha önce şablonlara aktarılmadan çöpe atılıyordu. Bu eksik etiketler listeye eklendi.
-- **WhatsApp Markdown Karışıklığı:** WhatsApp'tan kopyalanan ilanlarda metinleri kalın veya italik yapmak için kullanılan `*` ve `_` işaretlerinin şablonlara yıldız olarak basılma hatası çözüldü (`replace(/[*_~]/g, '')` ile temizlendi).
-- **PixiJS Sürüm Uyumsuzluğu (Warning):** Eski versiyona (v6) ait olan ve konsolda uyarı fırlatan `transparent: true` parametresi, güncel PixiJS (v7) standardı olan `backgroundAlpha: 0` ile değiştirildi. Arka planda konsol kirliliği önlendi.
-- **Katman Çöp Bellek Temizliği:** Katman silme (`deleteLayer`) işlemleri kontrol edildi; maske verilerinin array tabanlı tutulduğu ve Garbage Collector'a başarıyla teslim edildiği onaylandı.
+### 6.4. Sayfa Yenileme (Refresh) & Açılış Performansı İyileştirmeleri (21 Ekim 2026)
+- **initialAppLoader Yapay Gecikmesinin Kaldırılması:** `main.js` içerisindeki `setTimeout(..., 500)` yapay beklemesi kaldırıldı; `requestAnimationFrame` ve 200ms yumuşak geçiş ile tuval anında açılır hale getirildi.
+- **CDN Sürümlerinin Kilitlenmesi:** `sweetalert2` (v11.26.25) ve `@supabase/supabase-js` (v2.117.2) sürümleri kilitlenerek her sayfa yenilemede CDN 302 yönlendirme gecikmeleri ortadan kaldırıldı.
+- **İkon ve Neon Havuzunun Boşta (Idle) Oluşturulması:** Yüzlerce SVG ikonun `init()` anında senkron render edilip ana iş parçacığını dondurması engellendi; `requestIdleCallback` (180ms) ve sekme geçişi güvencesine alındı.
+- **AutoSave Çifte Sayfa Kapatma (Unload) Kalkanı:** F5 yenilemesinde `beforeunload` ve `pagehide` olaylarının peş peşe 2 kez dev Base64 IndexedDB kaydı tetikleyip tarayıcıyı dondurması engellendi; 2500ms tekilleştirme kilidi eklendi.
+- **Rollback Tarihçesi Tescili:** 3 Ekim'deki ES6 Proxy LazyLoader denemesinin neden geri alındığı ve `ThreeDEngine`, `TemplateBuilder`, `PhotoStaging`, `lucide`, `DOMPurify` gibi bileşenlerin bilerek senkron/eager bırakıldığı `docs/ACILIS_PERFORMANS_YOL_HARITASI.md` içerisine kaydedildi.
+- **Service Worker Önbellek:** `sw.js` cache sürümü `v226-20261021-refresh-perf` olarak güncellendi.
 
 Tüm hata risk düzeyleri sıfırlanmıştır. Mükemmel bir stabilite elde edilmiştir.

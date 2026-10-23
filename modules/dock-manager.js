@@ -938,51 +938,143 @@
 
     /**
      * Seçili Ögenin Ayarlarını Akıllıca Aç (2D, 3D, Şekil, Çizim Uyumlu)
+     * Sağ tık menüsünden veya dock butonundan çağrıldığında hedef ögeye özel akıllı akordiyon yönetimi yapar.
      */
-    window.openSelectedElementSettings = function() {
-        if (window.ThreeDEngine && typeof window.ThreeDEngine.isSelected === 'function' && window.ThreeDEngine.isSelected()) {
-            if (typeof window.ThreeDEngine.openStudio === 'function') window.ThreeDEngine.openStudio(true, false, true);
+    window.openSelectedElementSettings = function(targetEl) {
+        let el = targetEl || DockContextManager.selectedElement || document.querySelector('.el-selected') || window.selectedEl || window.selectedCalloutEl;
+        if (el && el.closest) {
+            const wrapper = el.closest('.shape-el, .callout-wrap, .callout-item, .added-icon, .editable-draw, .canvas-el, .editable-text, .custom-text-el, .custom-text-box, .tb-image-frame, [data-layer-uid]');
+            if (wrapper) el = wrapper;
+        }
+
+        // 3D Öge Kontrolü: 3D nesne seçiliyse veya 3D Stüdyo aktifse
+        const is3DTarget = el && (el.dataset ? (el.dataset.threeD === 'true' || el.dataset.is3d === 'true') : false);
+        const is3DActive = is3DTarget ||
+            (window.ThreeDEngine && typeof window.ThreeDEngine.isSelected === 'function' && window.ThreeDEngine.isSelected()) ||
+            (window.ThreeDGrouping && typeof window.ThreeDGrouping.getSelected3DElements === 'function' && window.ThreeDGrouping.getSelected3DElements().length > 0);
+
+        if (is3DActive) {
+            if (window.ThreeDEngine && typeof window.ThreeDEngine.openStudio === 'function') {
+                window.ThreeDEngine.openStudio(true, false, true);
+                if (typeof window.ThreeDEngine.syncControlsUI === 'function') {
+                    window.ThreeDEngine.syncControlsUI();
+                }
+            }
             return;
         }
-        const el = DockContextManager.selectedElement || document.querySelector('.el-selected') || window.selectedEl;
+
         if (el) {
+            const isCallout = (typeof isCalloutOrBadgeElement === 'function' && isCalloutOrBadgeElement(el)) ||
+                (typeof window.isCalloutOrBadgeElement === 'function' && window.isCalloutOrBadgeElement(el)) ||
+                (el.closest && (el.closest('.callout-wrap') || el.closest('.callout-item') || el.closest('.svg-callout') || el.closest('.co-neon-block'))) ||
+                (el.classList && (el.classList.contains('callout-wrap') || el.classList.contains('callout-item') || el.classList.contains('co-neon-block') || el.classList.contains('svg-callout')));
+
+            if (isCallout) {
+                if (typeof switchTab === 'function') switchTab('callout');
+                const wrap = (typeof getBadgeWrapper === 'function' ? getBadgeWrapper(el) : null) || (el.closest && el.closest('.callout-wrap')) || el;
+                const inner = (wrap.querySelector && wrap.querySelector('.callout-item')) || wrap;
+                if (typeof selectCalloutEl === 'function') selectCalloutEl(inner, true);
+                const p = document.getElementById('calloutSettingsPanel');
+                if (p) {
+                    p.style.display = 'block';
+                    p.open = true;
+                    const body = document.getElementById('calloutSettingsBody');
+                    if (body) body.style.display = 'block';
+                    if (typeof p.scrollIntoView === 'function') {
+                        p.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    }
+                }
+                return;
+            }
+
+            const isIcon = el && el.classList && (
+                el.classList.contains('added-icon') ||
+                el.classList.contains('is-svg-icon') ||
+                el.classList.contains('canvas-icon')
+            );
+            if (isIcon) {
+                if (typeof switchTab === 'function') switchTab('icons');
+                if (typeof window.loadIconSettings === 'function') window.loadIconSettings(el);
+                const p = document.getElementById('iconSettingsPanel');
+                if (p) {
+                    p.style.display = 'block';
+                    p.open = true;
+                    if (typeof p.scrollIntoView === 'function') {
+                        p.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    }
+                }
+                return;
+            }
+
             if (el.classList.contains('shape-el')) {
                 if (typeof switchTab === 'function') switchTab('shapes');
                 if (typeof window.loadShapeSettings === 'function') window.loadShapeSettings(el);
                 const p = document.getElementById('shapeSettingsPanel');
                 if (p) p.style.display = 'block';
+                return;
             } else if (el.classList.contains('editable-draw')) {
                 if (typeof switchTab === 'function') switchTab('draw');
+                return;
+            } else if (el.classList.contains('tb-image-frame')) {
+                if (typeof switchTab === 'function') switchTab('create-template');
+                return;
             } else {
+                // 2D Metin / Yazı / Kutu Ögesi: Akıllı Akordiyon Yönetimi
                 if (typeof switchTab === 'function') switchTab('font');
+
+                // 1. Bilgileri Düzenle akordiyonu: Sadece şablon ilan/detay kutusu ise açık, normal metinde kapalı
+                const isTemplateInfo = el.id === 'elDetails' || !!el.querySelector('#infoLineText') || !!el.dataset.bilgi;
                 const acc = document.getElementById('accordionDetailsEdit');
                 if (acc) {
-                    acc.style.display = 'block';
-                    acc.open = false;
+                    acc.style.display = isTemplateInfo ? 'block' : 'none';
+                    acc.open = isTemplateInfo;
                 }
+
+                // 2. Kutu Ayarları akordiyonu: Seçili yazının ayarları için varsayılan AÇIK
                 const elSettings = document.getElementById('elSettings');
                 if (elSettings) {
                     elSettings.style.display = 'block';
                     elSettings.open = true;
-                    if (typeof elSettings.scrollIntoView === 'function') {
-                        elSettings.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                    }
+                }
+
+                // 3. Gelişmiş Yazı Ayarları akordiyonu: Ekranı şişirmemesi için varsayılan KAPALI
+                const advText = document.getElementById('detailsAdvancedTextSettings');
+                if (advText) {
+                    advText.open = false;
+                }
+
+                // 4. Neon Paneli: Seçili yazıda neon aktifse göster, değilse gizle
+                const isNeonActive = el.classList.contains('neon-text-el') || el.dataset.saberActive === 'true' || !!(el.dataset && el.dataset.saberOpts);
+                const neonPanel = document.getElementById('neonTextControlPanel');
+                if (neonPanel) {
+                    neonPanel.style.display = isNeonActive ? 'block' : 'none';
+                }
+
+                // 5. Ayarları ve fontu yükle
+                if (typeof loadElSettings === 'function') loadElSettings(el);
+                if (typeof loadElFont === 'function') loadElFont(el);
+
+                // 6. Görünür alana yumuşak kaydır
+                const targetScroll = isTemplateInfo && acc ? acc : elSettings;
+                if (targetScroll && typeof targetScroll.scrollIntoView === 'function') {
+                    targetScroll.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 }
             }
         } else {
             if (typeof switchTab === 'function') switchTab('font');
             const acc = document.getElementById('accordionDetailsEdit');
             if (acc) {
-                acc.style.display = 'block';
+                acc.style.display = 'none';
                 acc.open = false;
             }
             const elSettings = document.getElementById('elSettings');
             if (elSettings) {
                 elSettings.style.display = 'block';
-                elSettings.open = true;
-                if (typeof elSettings.scrollIntoView === 'function') {
-                    elSettings.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                }
+                elSettings.open = false;
+            }
+            const advText = document.getElementById('detailsAdvancedTextSettings');
+            if (advText) {
+                advText.open = false;
             }
         }
     };

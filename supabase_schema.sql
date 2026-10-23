@@ -224,4 +224,50 @@ CREATE TRIGGER on_auth_user_created
     AFTER INSERT ON auth.users
     FOR EACH ROW EXECUTE FUNCTION public.handle_new_user_profile();
 
+-- ========================================================
+-- 7. 🚨 SİSTEM HATALARI VE CANLI ARIZA TAKİP TABLOSU (ERROR LOGS)
+-- ========================================================
+CREATE TABLE IF NOT EXISTS public.error_logs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    message TEXT NOT NULL,
+    stack TEXT,
+    source TEXT,
+    lineno INTEGER,
+    colno INTEGER,
+    user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+    user_email TEXT,
+    user_agent TEXT,
+    screen_width INTEGER,
+    screen_height INTEGER,
+    url TEXT,
+    is_resolved BOOLEAN DEFAULT false,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Hızlı sorgulama için indexler
+CREATE INDEX IF NOT EXISTS idx_error_logs_created ON public.error_logs(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_error_logs_resolved ON public.error_logs(is_resolved);
+
+-- RLS (Güvenlik Politikaları)
+ALTER TABLE public.error_logs ENABLE ROW LEVEL SECURITY;
+
+DO $$ 
+BEGIN
+    DROP POLICY IF EXISTS "Anyone can insert error logs" ON public.error_logs;
+    DROP POLICY IF EXISTS "Admins can view and manage error logs" ON public.error_logs;
+END $$;
+
+-- 🛡️ Tüm ziyaretçiler ve kullanıcılar kendi tarayıcılarındaki hatayı sessizce raporlayabilir:
+CREATE POLICY "Anyone can insert error logs" ON public.error_logs
+    FOR INSERT
+    TO public
+    WITH CHECK (true);
+
+-- 🛡️ Sadece yöneticiler hataları görebilir, filtreleyebilir ve çözüldü olarak işaretleyebilir:
+CREATE POLICY "Admins can view and manage error logs" ON public.error_logs
+    FOR ALL
+    TO authenticated
+    USING (public.is_admin());
+
+
 

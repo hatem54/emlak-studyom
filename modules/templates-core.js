@@ -107,49 +107,202 @@ window.getUnifiedTemplateData = function() {
     };
 };
 
-// ==================== UNIFIED TEMPLATE CARD CREATOR & DEFAULT PHOTOS ====================
-window.getTemplateDefaultPhoto = function(catOrTag, name) {
-    const s = ((catOrTag || '') + ' ' + (name || '')).toLowerCase();
-    if (s.includes('minimal') || s.includes('konut') || s.includes('iç') || s.includes('salon') || s.includes('oda') || s.includes('daire') || s.includes('sosyal') || s.includes('rezidans') || s.includes('penthouse') || s.includes('özel') || s.includes('ozel')) {
-        return 'assets/horizontal_interior.jpg';
-    }
-    if (s.includes('lüks') || s.includes('luks') || s.includes('villa') || s.includes('vip') || s.includes('bodrum') || s.includes('yalı') || s.includes('yali') || s.includes('manzara') || s.includes('deniz') || s.includes('portföy') || s.includes('portfoy')) {
-        return 'assets/bodrum_luxury_villa.jpg';
-    }
-    return 'assets/luxury_villa.jpg';
+// ==================== UNIFIED TEMPLATE CARD CREATOR & DIVERSE PREVIEW PHOTOS ====================
+window.PREVIEW_PHOTO_POOL = [
+    'assets/previews/penthouse_living.jpg',   // 0: Dubleks penthouse salon
+    'assets/previews/villa_white.jpg',        // 1: Modern beyaz villa & sonsuzluk havuzu
+    'assets/previews/kitchen.jpg',            // 2: Lüks mermer ada mutfak
+    'assets/bodrum_luxury_villa.jpg',         // 3: Bodrum taş villa & marina gün batımı
+    'assets/previews/bedroom.jpg',            // 4: Penthouse cam cepheli yatak odası
+    'assets/previews/terrace.jpg',            // 5: Çatı terası lounge & ateş çukuru
+    'assets/horizontal_interior.jpg',         // 6: Deniz manzaralı ferah salon
+    'assets/previews/infinity_pool.jpg',      // 7: Uçurum kıyısı sonsuzluk havuzu
+    'assets/previews/detached_house.jpg',     // 8: Müstakil bahçeli iki katlı aile evi
+    'assets/previews/dining.jpg',             // 9: İskandinav açık yemek odası
+    'assets/previews/plaza.jpg',              // 10: Kurumsal cam iş merkezi / plaza
+    'assets/previews/bathroom.jpg'            // 11: Spa konseptli ebeveyn banyosu
+];
+
+window.CATEGORY_PHOTO_PRESETS = {
+    'özel': [
+        'assets/previews/penthouse_living.jpg',
+        'assets/previews/villa_white.jpg',
+        'assets/previews/kitchen.jpg',
+        'assets/previews/terrace.jpg',
+        'assets/previews/bedroom.jpg',
+        'assets/horizontal_interior.jpg',
+        'assets/previews/infinity_pool.jpg',
+        'assets/previews/detached_house.jpg',
+        'assets/previews/bathroom.jpg',
+        'assets/previews/dining.jpg'
+    ],
+    'elit': [
+        'assets/previews/villa_white.jpg',
+        'assets/previews/penthouse_living.jpg',
+        'assets/bodrum_luxury_villa.jpg',
+        'assets/previews/terrace.jpg',
+        'assets/horizontal_interior.jpg',
+        'assets/previews/kitchen.jpg',
+        'assets/previews/infinity_pool.jpg',
+        'assets/previews/bedroom.jpg',
+        'assets/previews/detached_house.jpg',
+        'assets/previews/dining.jpg'
+    ],
+    'lüks': [
+        'assets/bodrum_luxury_villa.jpg',
+        'assets/previews/infinity_pool.jpg',
+        'assets/previews/penthouse_living.jpg',
+        'assets/previews/villa_white.jpg',
+        'assets/previews/terrace.jpg',
+        'assets/previews/bedroom.jpg',
+        'assets/horizontal_interior.jpg',
+        'assets/previews/bathroom.jpg',
+        'assets/previews/kitchen.jpg',
+        'assets/previews/detached_house.jpg'
+    ],
+    'kurumsal': [
+        'assets/previews/plaza.jpg',
+        'assets/previews/detached_house.jpg',
+        'assets/previews/villa_white.jpg',
+        'assets/horizontal_interior.jpg',
+        'assets/previews/penthouse_living.jpg',
+        'assets/previews/kitchen.jpg',
+        'assets/previews/terrace.jpg',
+        'assets/previews/dining.jpg',
+        'assets/previews/bedroom.jpg',
+        'assets/previews/plaza.jpg'
+    ],
+    'minimal': [
+        'assets/previews/dining.jpg',
+        'assets/previews/kitchen.jpg',
+        'assets/horizontal_interior.jpg',
+        'assets/previews/bedroom.jpg',
+        'assets/previews/villa_white.jpg',
+        'assets/previews/detached_house.jpg',
+        'assets/previews/penthouse_living.jpg',
+        'assets/previews/bathroom.jpg',
+        'assets/previews/terrace.jpg',
+        'assets/previews/infinity_pool.jpg'
+    ],
+    'portföy': [
+        'assets/previews/detached_house.jpg',
+        'assets/bodrum_luxury_villa.jpg',
+        'assets/previews/villa_white.jpg',
+        'assets/previews/penthouse_living.jpg',
+        'assets/previews/terrace.jpg',
+        'assets/previews/kitchen.jpg',
+        'assets/horizontal_interior.jpg',
+        'assets/previews/infinity_pool.jpg',
+        'assets/previews/bedroom.jpg',
+        'assets/previews/dining.jpg'
+    ],
+    'dinamik': [
+        'assets/previews/terrace.jpg',
+        'assets/previews/villa_white.jpg',
+        'assets/previews/infinity_pool.jpg',
+        'assets/previews/penthouse_living.jpg',
+        'assets/previews/kitchen.jpg',
+        'assets/horizontal_interior.jpg',
+        'assets/previews/bedroom.jpg',
+        'assets/previews/detached_house.jpg',
+        'assets/previews/dining.jpg',
+        'assets/bodrum_luxury_villa.jpg'
+    ],
+    'klasik': [
+        'assets/previews/detached_house.jpg',
+        'assets/bodrum_luxury_villa.jpg',
+        'assets/previews/dining.jpg',
+        'assets/previews/kitchen.jpg',
+        'assets/horizontal_interior.jpg',
+        'assets/previews/villa_white.jpg',
+        'assets/previews/penthouse_living.jpg',
+        'assets/previews/terrace.jpg',
+        'assets/previews/bedroom.jpg',
+        'assets/previews/bathroom.jpg'
+    ],
+    'sosyal': [
+        'assets/previews/infinity_pool.jpg',
+        'assets/previews/terrace.jpg',
+        'assets/previews/penthouse_living.jpg',
+        'assets/previews/villa_white.jpg',
+        'assets/horizontal_interior.jpg',
+        'assets/previews/kitchen.jpg',
+        'assets/previews/bedroom.jpg',
+        'assets/bodrum_luxury_villa.jpg',
+        'assets/previews/detached_house.jpg',
+        'assets/previews/dining.jpg'
+    ],
+    'afiş': [
+        'assets/previews/villa_white.jpg',
+        'assets/previews/detached_house.jpg',
+        'assets/bodrum_luxury_villa.jpg',
+        'assets/previews/plaza.jpg',
+        'assets/previews/penthouse_living.jpg',
+        'assets/previews/terrace.jpg',
+        'assets/previews/infinity_pool.jpg',
+        'assets/horizontal_interior.jpg',
+        'assets/previews/kitchen.jpg',
+        'assets/previews/bedroom.jpg'
+    ]
 };
 
-window.getTemplateActiveBg = function(cardOrCat) {
+window.getTemplateDefaultPhoto = function(catOrTag, name, idx) {
+    const s = ((catOrTag || '') + ' ' + (name || '')).toLowerCase();
+    for (const k in window.CATEGORY_PHOTO_PRESETS) {
+        if (s.includes(k)) {
+            const list = window.CATEGORY_PHOTO_PRESETS[k];
+            let i = typeof idx === 'number' ? idx : 0;
+            return list[Math.abs(i) % list.length];
+        }
+    }
+    if (typeof idx === 'number' && !isNaN(idx) && window.PREVIEW_PHOTO_POOL.length > 0) {
+        return window.PREVIEW_PHOTO_POOL[Math.abs(idx) % window.PREVIEW_PHOTO_POOL.length];
+    }
+    return 'assets/previews/villa_white.jpg';
+};
+
+window.getTemplateActiveBg = function(cardOrCat, cardId) {
     if (typeof window.uploadedImgUrl !== 'undefined' && window.uploadedImgUrl && window.uploadedImgUrl.length > 50 && !window.uploadedImgUrl.includes('empty')) {
         return "background-image:url('" + window.uploadedImgUrl + "')";
     }
     if (typeof window.masterImageBase64 !== 'undefined' && window.masterImageBase64 && window.masterImageBase64.length > 50 && !window.masterImageBase64.includes('empty')) {
         return "background-image:url('" + window.masterImageBase64 + "')";
     }
-    let defaultImg = 'assets/luxury_villa.jpg';
+    const targetId = cardId || (cardOrCat && typeof cardOrCat === 'object' && cardOrCat.id) || window.activeCanvaId;
+    if (targetId) {
+        const cardEl = document.querySelector(`.canva-tpl-card[data-id="${targetId}"]`);
+        if (cardEl) {
+            const cardIdx = cardEl.dataset.idx ? parseInt(cardEl.dataset.idx) : 0;
+            const cat = cardEl.dataset.cat || (typeof cardOrCat === 'string' ? cardOrCat : '');
+            return "background-image:url('" + window.getTemplateCardBg({ id: targetId }, cardIdx, cat) + "')";
+        }
+    }
+    let defaultImg = 'assets/previews/villa_white.jpg';
     if (typeof cardOrCat === 'string') {
-        defaultImg = window.getTemplateDefaultPhoto(cardOrCat);
+        defaultImg = window.getTemplateDefaultPhoto(cardOrCat, '', 0);
     } else if (cardOrCat && typeof cardOrCat === 'object') {
-        defaultImg = window.getTemplateDefaultPhoto(cardOrCat.tag || cardOrCat.cat, cardOrCat.name);
+        defaultImg = window.getTemplateDefaultPhoto(cardOrCat.tag || cardOrCat.cat, cardOrCat.name, cardOrCat.idx || 0);
     }
     return "background-image:url('" + defaultImg + "')";
 };
 
-function getTemplateCardBg(c) {
-    if (window.activePreviewThumbUrl) {
-        return window.activePreviewThumbUrl;
-    }
-    if (typeof window.uploadedImgUrl !== 'undefined' && window.uploadedImgUrl && window.uploadedImgUrl.length > 50 && !window.uploadedImgUrl.includes('empty')) {
-        return window.uploadedImgUrl;
-    }
-    if (typeof window.masterImageBase64 !== 'undefined' && window.masterImageBase64 && window.masterImageBase64.length > 50 && !window.masterImageBase64.includes('empty')) {
-        return window.masterImageBase64;
-    }
+window.getTemplateCardBg = function(c, idx, catName) {
     if (c && c.previewImg) return c.previewImg;
-    return window.getTemplateDefaultPhoto(c ? (c.tag || c.cat) : '', c ? c.name : '');
-}
+    const cat = ((catName || (c ? (c.tag || c.cat) : '')) || '').toLowerCase().trim();
+    for (const k in window.CATEGORY_PHOTO_PRESETS) {
+        if (cat.includes(k)) {
+            const list = window.CATEGORY_PHOTO_PRESETS[k];
+            let i = typeof idx === 'number' ? idx : 0;
+            return list[Math.abs(i) % list.length];
+        }
+    }
+    if (typeof idx === 'number' && !isNaN(idx) && window.PREVIEW_PHOTO_POOL.length > 0) {
+        return window.PREVIEW_PHOTO_POOL[Math.abs(idx) % window.PREVIEW_PHOTO_POOL.length];
+    }
+    return window.getTemplateDefaultPhoto(c ? (c.tag || c.cat) : '', c ? c.name : '', idx);
+};
 
-function getTemplateMockupHtml(c, catName, accent, bg1, bg2) {
+function getTemplateMockupHtml(c, catName, accent, bg1, bg2, cardImg) {
     if (c.layout && c.layout.startsWith('kolaj-')) {
         return getKolajMockupHtml(c.layout, accent, bg1, bg2);
     }
@@ -179,7 +332,9 @@ function getTemplateMockupHtml(c, catName, accent, bg1, bg2) {
         }
     }
 
-    const cardImg = getTemplateCardBg(c);
+    if (!cardImg) {
+        cardImg = window.getTemplateCardBg(c, 0, catName);
+    }
 
     switch(lType) {
         case 'arch-frame':
@@ -309,13 +464,13 @@ function getKolajMockupHtml(layout, accent, bg1, bg2) {
     const P1 = P_USER;                                      // Ana Dış Cephe & Havuz
     const P2 = 'assets/horizontal_interior.jpg';             // Modern Salon & Yaşam Alanı
     const P3 = 'assets/bodrum_luxury_villa.jpg';             // Deniz Manzaralı Teras
-    const P4 = 'assets/luxury_villa.jpg';                    // Işıklandırılmış Modern Villa
-    const P5 = 'assets/horizontal_interior.jpg';             // Lüks Penthouse İç Mekan
-    const P6 = 'assets/bodrum_luxury_villa.jpg';             // Ege Kıyısı Sonsuzluk Havuzu
-    const P7 = 'assets/luxury_villa.jpg';                    // Modern Mimari Cephe
-    const P8 = 'assets/horizontal_interior.jpg';             // Panoramik Şehir & Deniz Manzarası
-    const P9 = 'assets/bodrum_luxury_villa.jpg';             // Taş Villa & Bahçe
-    const P10 = 'assets/luxury_villa.jpg';                   // Müstakil Havuzlu Konut
+    const P4 = 'assets/previews/kitchen.jpg';                // Lüks Ada Mutfak
+    const P5 = 'assets/previews/bedroom.jpg';                // Penthouse Yatak Odası
+    const P6 = 'assets/previews/terrace.jpg';                // Çatı Terası Lounge
+    const P7 = 'assets/previews/detached_house.jpg';         // Müstakil Villa
+    const P8 = 'assets/previews/dining.jpg';                 // İskandinav Yemek Odası
+    const P9 = 'assets/previews/infinity_pool.jpg';          // Sonsuzluk Havuzu
+    const P10 = 'assets/previews/penthouse_living.jpg';      // Dubleks Penthouse Salon
 
     switch(layout) {
         case 'kolaj-1':
@@ -517,32 +672,40 @@ window.generateCardPreviewThumb = function(sourceUrl, callback) {
 };
 
 window.updateTemplateCardPreviews = function() {
-    const rawUrl = (window.uploadedImgUrl && window.uploadedImgUrl.length > 50 && !window.uploadedImgUrl.includes('empty'))
-        ? window.uploadedImgUrl
-        : (window.masterImageBase64 || null);
-    if (!rawUrl) return;
-
-    const applyThumb = (thumbUrl) => {
-        if (!thumbUrl) return;
-        document.querySelectorAll('.canva-tab-pane.active .canva-tpl-card .tpl-card-preview, .canva-tpl-grid:not([style*="display: none"]) .canva-tpl-card .tpl-card-preview').forEach(el => {
-            el.style.backgroundImage = "url('" + thumbUrl + "')";
-        });
-        document.querySelectorAll('.mockup-kolaj .mk-k-hero-slot, .m-arch-slot').forEach(el => {
-            el.style.backgroundImage = "url('" + thumbUrl + "')";
-        });
-    };
-
-    if (window.activePreviewThumbUrl) {
-        applyThumb(window.activePreviewThumbUrl);
-    } else {
-        window.generateCardPreviewThumb(rawUrl, applyThumb);
-    }
+    // Sol paneldeki şablon kart önizlemelerinin tuvaldeki kullanıcı görselinden etkilenmesini engelle.
+    // Şablon kartları her zaman kendi standart/profesyonel örnek görselini (villa, salon vb.) gösterir.
+    document.querySelectorAll('.canva-tpl-card').forEach((card, domIdx) => {
+        const id = card.dataset.id;
+        if (!id) return;
+        let cObj = null;
+        if (typeof ALL_CANVA_CARDS !== 'undefined') cObj = ALL_CANVA_CARDS.find(x => x.id === id);
+        if (!cObj && typeof KALIP_CARDS !== 'undefined') cObj = KALIP_CARDS.find(x => x.id === id);
+        if (!cObj && typeof CANVA_CARDS !== 'undefined') cObj = CANVA_CARDS.find(x => x.id === id);
+        if (!cObj && typeof MINIMAL_CARDS !== 'undefined') cObj = MINIMAL_CARDS.find(x => x.id === id);
+        if (!cObj && typeof LUKS_CARDS !== 'undefined') cObj = LUKS_CARDS.find(x => x.id === id);
+        if (!cObj && typeof KURUMSAL_CARDS !== 'undefined') cObj = KURUMSAL_CARDS.find(x => x.id === id);
+        if (!cObj && typeof DINAMIK_CARDS !== 'undefined') cObj = DINAMIK_CARDS.find(x => x.id === id);
+        if (!cObj && typeof KLASIK_CARDS !== 'undefined') cObj = KLASIK_CARDS.find(x => x.id === id);
+        if (!cObj && typeof SOSYAL_CARDS !== 'undefined') cObj = SOSYAL_CARDS.find(x => x.id === id);
+        if (!cObj && typeof PORTFOY_CARDS !== 'undefined') cObj = PORTFOY_CARDS.find(x => x.id === id);
+        if (!cObj && typeof OZEL_CARDS !== 'undefined') cObj = OZEL_CARDS.find(x => x.id === id);
+        
+        const cardIdx = (card.dataset.idx !== undefined) ? parseInt(card.dataset.idx) : domIdx;
+        const cat = card.dataset.cat || card.querySelector('.tpl-card-tag')?.textContent || '';
+        const defBg = window.getTemplateCardBg(cObj || { id: id }, cardIdx, cat);
+        const prevEl = card.querySelector('.tpl-card-preview');
+        if (prevEl) prevEl.style.backgroundImage = "url('" + defBg + "')";
+        const slotEl = card.querySelector('.mockup-kolaj .mk-k-hero-slot, .m-arch-slot');
+        if (slotEl) slotEl.style.backgroundImage = "url('" + defBg + "')";
+    });
 };
 
 window.createTemplateCard = function(c, idx, catName, onClick) {
     const card = document.createElement('div');
     card.className = 'canva-tpl-card';
     card.dataset.id = c.id;
+    card.dataset.idx = idx;
+    if (catName) card.dataset.cat = catName;
     
     const cleanName = (c.name || (catName + ' ' + (idx + 1))).replace(/^[A-Za-z0-9]+\.\s*/, '');
     const tag = c.tag || catName;
@@ -550,8 +713,8 @@ window.createTemplateCard = function(c, idx, catName, onClick) {
     const bg1 = c.bg1 || '#1e293b';
     const bg2 = c.bg2 || '#334155';
     
-    const bgImg = getTemplateCardBg(c);
-    const mockupHtml = getTemplateMockupHtml(c, catName, accent, bg1, bg2);
+    const bgImg = window.getTemplateCardBg(c, idx, catName);
+    const mockupHtml = getTemplateMockupHtml(c, catName, accent, bg1, bg2, bgImg);
 
     card.innerHTML = `
         <div class="tpl-card-top">
@@ -587,6 +750,9 @@ window.createTemplateCard = function(c, idx, catName, onClick) {
             if (es) { es.classList.add('is-hidden'); es.style.display = 'none'; }
         }
         if (typeof onClick === 'function') onClick(c.id, card);
+        if (window.TemplateFrame && typeof window.TemplateFrame.onTemplateChanged === 'function') {
+            window.TemplateFrame.onTemplateChanged(c.id, 'canva');
+        }
         if (typeof redrawAll === 'function') {
             setTimeout(redrawAll, 50);
         }
@@ -812,6 +978,11 @@ function setTemplate(k){
             });
         }
 
+        // Dış çerçeve neon çizgisini standart şablon için uygula
+        if (window.TemplateFrame && typeof window.TemplateFrame.applyStandard === 'function') {
+            window.TemplateFrame.applyStandard(k);
+        }
+
         deselectAll();
         renderData();
         if(typeof resizeCanvas === 'function') resizeCanvas();
@@ -918,7 +1089,19 @@ window.renderCanvaTemplate = function(htmlString) {
     
     // Bind interaction logic
     canvaRenderLayer.querySelectorAll('.photo-panel').forEach(el => {
+        if(typeof _preparePhoto === 'function') _preparePhoto(el);
         if(typeof bindPhotoPanel === 'function') enablePhotoDrag(el);
+        el.addEventListener('dblclick', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            el.dataset.zpScale = '1';
+            el.dataset.zpX = '0';
+            el.dataset.zpY = '0';
+            delete el.dataset.sX;
+            delete el.dataset.sY;
+            if (typeof _applyPhotoTransform === 'function') _applyPhotoTransform(el);
+            if (typeof window.requestAutoSave === 'function') window.requestAutoSave();
+        });
     });
     canvaRenderLayer.querySelectorAll('.editable-text').forEach(el => {
         if(typeof enableInlineEdit === 'function') enableInlineEdit(el);
@@ -927,6 +1110,9 @@ window.renderCanvaTemplate = function(htmlString) {
     requestAnimationFrame(() => {
         if(typeof applyPhotoFilters === 'function') applyPhotoFilters();
         if(typeof redrawAll === 'function') redrawAll();
+        if(window.TemplateFrame && typeof window.TemplateFrame.onTemplateChanged === 'function') {
+            window.TemplateFrame.onTemplateChanged(window.activeCanvaId || 'canva', 'canva');
+        }
     });
 };
 

@@ -113,27 +113,12 @@ function enableInlineEdit(el) {
         el.addEventListener('dblclick', function(e) {
             e.stopPropagation();
             e.preventDefault();
-            let defSize = parseFloat(el.dataset.defaultFont);
-            if (!defSize || isNaN(defSize) || defSize <= 0) {
-                const sf = typeof scaleFactor !== 'undefined' && scaleFactor > 0 ? scaleFactor : 1;
-                defSize = Math.round(60 / sf);
+            if (typeof setSelected === 'function') setSelected(el);
+            if (typeof window.openSelectedElementSettings === 'function') {
+                window.openSelectedElementSettings(el);
+            } else if (typeof switchTab === 'function') {
+                switchTab('icons');
             }
-            el.style.fontSize = defSize + 'px';
-            el.dataset.rotation = '0';
-            const currentScale = el.dataset.scale || 1;
-            el.style.transform = `rotate(0deg) scale(${currentScale})`;
-            
-            const fsSlider = document.getElementById('elFontSize') || document.getElementById('fontSize');
-            if (fsSlider) fsSlider.value = defSize;
-            const fsVal = document.getElementById('elFontSizeVal') || document.getElementById('fontSizeVal');
-            if (fsVal) fsVal.textContent = defSize + 'px';
-            
-            const rotSlider = document.getElementById('elRotate');
-            if (rotSlider) rotSlider.value = 0;
-            const rotVal = document.getElementById('elRotateVal');
-            if (rotVal) rotVal.textContent = '0°';
-            
-            if (typeof saveState === 'function') saveState();
         });
         return;
     }
@@ -145,17 +130,12 @@ function enableInlineEdit(el) {
         if (e && e.stopPropagation) e.stopPropagation();
         if (el.isContentEditable) return;
         
-        // ⚡ Çift tıklamada sol paneldeki düzenleme ekranını aç ve font sekmesine geç
+        // ⚡ Tuvalde doğrudan düzenleme moduna geç (sol panel sekmesini ve akordiyonları asla bozma)
         if (typeof selectElement === 'function') {
-            selectElement(el, false, false, true);
+            selectElement(el, false, true, false);
         } else if (typeof window.selectElement === 'function') {
-            window.selectElement(el, false, false, true);
+            window.selectElement(el, false, true, false);
         }
-        const elSettings = document.getElementById('elSettings');
-        if (elSettings) elSettings.style.display = 'block';
-        if (typeof loadElSettings === 'function') loadElSettings(el);
-        if (typeof loadElFont === 'function') loadElFont(el);
-        if (typeof switchTab === 'function') switchTab('font');
 
         // Remove text handles so they don't get deleted by text selection/typing
         el.querySelectorAll('.text-handle').forEach(h => h.remove());
@@ -227,6 +207,7 @@ function enableInlineEdit(el) {
     };
 
     el.addEventListener('dblclick', startEditing);
+    // Not: Tek tıkla düzenleme modu kaldırıldı; seçili ögelerin (özellikle Fiyat Etiketi) fareyle serbestçe sürüklenmesini engellemez
 
     // Mobil çift dokunma (double-tap) ile anında metin düzenleme
     let lastTapTime = 0;
@@ -352,6 +333,63 @@ window.showAppToast = function(message, type = 'info', durationMs = 2800) {
     } catch(err) {
         console.warn('showAppToast error:', err);
     }
+};
+
+/**
+ * 🍏 Apple iPhone (.HEIC / .HEIF) Görsel Çözücü & Dönüştürücü
+ * Tarayıcıda heic2any yüklüyse kayıpsız JPG'ye dönüştürür;
+ * yüklenemezse kullanıcıya net, açıklayıcı bir rehber modalı sunar.
+ */
+window.convertHeicIfNeeded = async function(file) {
+    if (!file) return file;
+    const name = (file.name || '').toLowerCase();
+    const type = (file.type || '').toLowerCase();
+    const isHeic = name.endsWith('.heic') || name.endsWith('.heif') || type.includes('heic') || type.includes('heif');
+    if (!isHeic) return file;
+
+    // 1. heic2any kütüphanesi aktifse otomatik dönüştür
+    if (typeof heic2any === 'function') {
+        try {
+            if (typeof window.showAppLoading === 'function') {
+                window.showAppLoading('iPhone Fotoğrafı İşleniyor...', 'HEIC görseli yüksek kalite JPG formatına dönüştürülüyor...');
+            }
+            const blobResult = await heic2any({
+                blob: file,
+                toType: 'image/jpeg',
+                quality: 0.94
+            });
+            const finalBlob = Array.isArray(blobResult) ? blobResult[0] : blobResult;
+            const newName = file.name.replace(/\.(heic|heif)$/i, '.jpg');
+            const convertedFile = new File([finalBlob], newName, { type: 'image/jpeg' });
+            if (typeof window.hideAppLoading === 'function') {
+                window.hideAppLoading();
+            }
+            return convertedFile;
+        } catch(err) {
+            console.warn('[HEIC] heic2any dönüştürme uyarısı:', err);
+            if (typeof window.hideAppLoading === 'function') window.hideAppLoading();
+        }
+    }
+
+    // 2. Kütüphane yoksa veya dönüştürme başarısız olduysa rehberlik modalı
+    if (typeof Swal !== 'undefined') {
+        Swal.fire({
+            icon: 'info',
+            title: 'Apple iPhone (.HEIC) Fotoğrafı',
+            html: `<div style="font-size:13px; line-height:1.6; color:#cbd5e1; text-align:left; margin-top:8px;">
+                Seçtiğiniz fotoğraf Apple <b>.HEIC</b> formatındadır.<br><br>
+                Tarayıcınızda doğrudan ve en yüksek hızda çalışabilmek için fotoğrafı <b>JPG</b> veya <b>PNG</b> olarak yüklemeniz önerilir.<br><br>
+                <b>💡 İpucu:</b> iPhone'unuzda <i>Ayarlar &gt; Kamera &gt; Biçimler</i> menüsünden <b>"En Yüksek Uyumluluk"</b> seçeneğini aktif ederek fotoğraflarınızın doğrudan JPG kaydedilmesini sağlayabilirsiniz.
+            </div>`,
+            background: '#1e293b',
+            color: '#fff',
+            confirmButtonText: 'Tamam, Anladım',
+            confirmButtonColor: '#00CEC9'
+        });
+    } else {
+        alert('Seçtiğiniz fotoğraf .HEIC formatındadır. Lütfen JPG veya PNG formatında bir görsel yükleyin.');
+    }
+    return null;
 };
 
 

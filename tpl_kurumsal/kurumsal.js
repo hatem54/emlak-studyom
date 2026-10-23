@@ -1,4 +1,4 @@
-﻿/* ============================================================
+/* ============================================================
    Kurumsal Şablon Seti - V3 (UNIQUE PRO)
 ============================================================ */
 
@@ -114,6 +114,9 @@ function renderKurumsalTemplate(id){
     canvaRenderLayer.querySelectorAll('.editable-text').forEach(el => enableInlineEdit(el));
     requestAnimationFrame(() => {
         if(typeof redrawAll === 'function') redrawAll();
+        if(window.TemplateFrame && typeof window.TemplateFrame.onTemplateChanged === 'function') {
+            window.TemplateFrame.onTemplateChanged(id || 'canvaK1', 'canva');
+        }
     });
 }
 

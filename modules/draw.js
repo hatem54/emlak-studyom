@@ -1082,6 +1082,21 @@ function closePolygon(){
     }
 }
 
+function cancelPolygon(){
+    if(window.clearSnapGuides) window.clearSnapGuides();
+    if(typeof removeTempPolygonSaber === 'function') removeTempPolygonSaber();
+    polygonPoints = [];
+    polygonBuilding = false;
+    if(typeof clearDrawCanvas === 'function') clearDrawCanvas();
+    if(typeof redrawAll === 'function') redrawAll();
+    if(typeof setDrawMode === 'function') setDrawMode('off', true);
+}
+window.cancelPolygon = cancelPolygon;
+window.cancelPolygonDrawing = cancelPolygon;
+window.isPolygonDrawingActive = function() {
+    return !!polygonBuilding || (Array.isArray(polygonPoints) && polygonPoints.length > 0);
+};
+
 // ==================== 🏹 20 PROFESYONEL OK STİLİ TANIMI ====================
 window.ARROW_STYLES = [
     { id: 1, name: 'Klasik Keskin Ok', desc: 'Modern keskin üçgen ok ucu (Varsayılan)', iconSvg: '<path d="M4 12 L14 12 M11 7 L19 12 L11 17 Z" fill="currentColor" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/>' },

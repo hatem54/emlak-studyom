@@ -1,4 +1,4 @@
-﻿/* ============================================================
+/* ============================================================
    Sosyal Medya Şablon Seti - V3 (UNIQUE PRO)
 ============================================================ */
 
@@ -116,6 +116,9 @@ function renderSTemplate(id){
         canvaRenderLayer.querySelectorAll('.editable-text').forEach(el => enableInlineEdit(el));
     requestAnimationFrame(() => {
         if(typeof redrawAll === 'function') redrawAll();
+        if(window.TemplateFrame && typeof window.TemplateFrame.onTemplateChanged === 'function') {
+            window.TemplateFrame.onTemplateChanged(id || 'canvaS1', 'canva');
+        }
     });
 }
 window.renderSTemplate = renderSTemplate;

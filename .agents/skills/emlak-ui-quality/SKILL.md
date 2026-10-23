@@ -32,6 +32,11 @@ Bu beceri, **Emlak Stüdyom** projesinde yapılan tüm arayüz, buton, slider ve
 5. **Dinamik Event Listener Hijyeni:**
    - Global `mousemove` ve `touchmove` dinleyicileri yalnızca `mousedown` anında bağlanmalı, `mouseup` anında mutlaka `removeEventListener` ile temizlenmelidir.
 
+6. **Buton Yerleşim, Düzen ve Orantı Standardı (Sıralı, Nizamlı & Eşit Oran):**
+   - Yeni bir buton veya özellik eklenirken arayüz ögeleri daima sıralı, nizamlı, düzenli ve birbiriyle dengeli/orantılı yapıda inşa edilir.
+   - Yan yana gelen kardeş butonlar eşit genişlikte (`flex: 1 1 0; min-width: 0;`), eşit yükseklikte (`height: 32px` veya `34px`) ve tek satırda (`white-space: nowrap;`) konumlandırılır. Metinlerin alt satıra kırılmasına izin verilmez.
+   - Flex satırlarında `.btn-action`'dan gelen istenmeyen dış boşluklar (`margin: 0 !important;`) sıfırlanarak dikey ve yatay hizalama kusursuz sağlanır.
+
 ---
 
 ## 2. Otomatik Doğrulama Adımı

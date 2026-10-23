@@ -514,6 +514,9 @@ function setOriginalView(show) {
         }
 
         if (typeof requestPhotoRepaint === 'function') requestPhotoRepaint();
+        if (window.PhotoStagingArchive && typeof window.PhotoStagingArchive.syncCompareButtonStates === 'function') {
+            window.PhotoStagingArchive.syncCompareButtonStates();
+        }
     } else {
         if (btn) {
             btn.style.backgroundColor = '';
@@ -548,6 +551,9 @@ function setOriginalView(show) {
         if(typeof vignetteLayer !== 'undefined' && vignetteLayer) vignetteLayer.style.opacity = v / 100;
         if(typeof processPixels === 'function') processPixels(true);
         if (typeof requestPhotoRepaint === 'function') requestPhotoRepaint();
+        if (window.PhotoStagingArchive && typeof window.PhotoStagingArchive.syncCompareButtonStates === 'function') {
+            window.PhotoStagingArchive.syncCompareButtonStates();
+        }
     }
 }
 

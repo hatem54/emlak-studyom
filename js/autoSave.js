@@ -332,6 +332,7 @@ async function performAutoSave() {
                 visible: (elLogo.style.display !== 'none' && elLogo.style.visibility !== 'hidden')
             } : null
         };
+        state.templateFrame = (window.TemplateFrame && window.TemplateFrame.config) ? Object.assign({}, window.TemplateFrame.config) : null;
 
         // 6. Özel Tasarım Elemanlarını Saf Veri Olarak Kaydet (DOM klonlama yerine!)
         const customItems = [];
@@ -773,6 +774,11 @@ async function applyRestoredState(state) {
             }
         }
 
+        // 6.2. Dış Çerçeve ve Neon Ayarlarını Geri Yükle
+        if (state.templateFrame && window.TemplateFrame && typeof window.TemplateFrame.apply === 'function') {
+            window.TemplateFrame.apply(state.templateFrame);
+        }
+
         // 6.1. Global Font Ayarını Geri Yükle
         const fontToRestore = state.currentFont || localStorage.getItem('emlakstudiom_currentFont') || '';
         if (fontToRestore) {
@@ -797,7 +803,7 @@ async function applyRestoredState(state) {
                     const icon = document.createElement('div');
                     icon.className = 'draggable added-icon canvas-el' + (item.isSvg ? ' is-svg-icon' : '');
                     if (item.isSvg) {
-                        icon.innerHTML = item.char;
+                        icon.innerHTML = (typeof window.makeSvgIdsUnique === 'function') ? window.makeSvgIdsUnique(item.char, 'cnv_') : item.char;
                     } else {
                         icon.textContent = item.char;
                     }
@@ -933,6 +939,7 @@ async function applyRestoredState(state) {
             });
         }
         
+        if (typeof window.healSvgElementIds === 'function') { try { window.healSvgElementIds(document.getElementById('canvas-container')); } catch(e){} }
         // Re-create DOM SVG elements for drawPaths
         if (activeDrawPaths && activeDrawPaths.length > 0) {
             document.querySelectorAll('#canvas-container .editable-draw, #ui-layer .editable-draw').forEach(el => el.remove());
@@ -1031,8 +1038,15 @@ async function applyRestoredState(state) {
         if(typeof window.resetCanvasZoom === 'function') window.resetCanvasZoom();
 
         // 8.1. 3D Düzlem & Metin Katmanını Geri Yükle
-        if (state.threeDData && window.ThreeDEngine && typeof window.ThreeDEngine.restoreData === 'function') {
-            window.ThreeDEngine.restoreData(state.threeDData);
+        if (state.threeDData) {
+            if (window.ThreeDEngine && typeof window.ThreeDEngine.restoreData === 'function') {
+                window.ThreeDEngine.restoreData(state.threeDData);
+            } else {
+                window._pendingRestore3DData = state.threeDData;
+                if (typeof window.load3DEngineImmediately === 'function') {
+                    window.load3DEngineImmediately();
+                }
+            }
         }
 
         // 9. Çizim Modunu Kapat ve Çizimleri Tıklanabilir Yap
@@ -1168,17 +1182,19 @@ if (document.readyState === 'loading') {
     bootAutoSave();
 }
 
-window.addEventListener('beforeunload', () => {
+let _lastUnloadSaveTime = 0;
+function safeUnloadAutoSave() {
     if (!window.isRestoringState && typeof performAutoSave === 'function') {
-        performAutoSave();
+        const now = Date.now();
+        if (now - _lastUnloadSaveTime > 2500) {
+            _lastUnloadSaveTime = now;
+            performAutoSave();
+        }
     }
-});
+}
 
-window.addEventListener('pagehide', () => {
-    if (!window.isRestoringState && typeof performAutoSave === 'function') {
-        performAutoSave();
-    }
-});
+window.addEventListener('beforeunload', safeUnloadAutoSave);
+window.addEventListener('pagehide', safeUnloadAutoSave);
 
 
 

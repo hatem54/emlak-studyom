@@ -22,37 +22,49 @@ window.onboardingTourState = {
         },
         {
             tab: "photo",
-            title: "2. 📸 Fotoğraf & Kadraj",
-            text: "Arka plan fotoğrafınızı yükleyin; 16:9, 1:1, 4:5 veya 9:16 formatlarını seçip zoom, pan ve canlı renk filtreleriyle görselinizi profesyonelleştirin.",
+            title: "2. 📸 Fotoğraf & AI Netleştirme",
+            text: "Arka plan fotoğrafınızı yükleyin; 16:9, 1:1, 4:5 veya 9:16 formatlarını seçin, yapay zeka ile fotoğrafı netleştirin veya istenmeyen nesneleri Sihirli Silgi ile temizleyin.",
             targetSelector: "button[data-tab='photo']"
         },
         {
+            tab: "settings",
+            title: "3. 🧊 3D Stüdyo & Katı Silüet",
+            text: "Metinlerinize ve ikonlarınıza 3 boyutlu derinlik, kabartma, pah ve altın/metal dokuları kazandırın; vitrin ilanlarınızı lüks 3D görselleştirmeyle öne çıkarın.",
+            targetSelector: "button[data-tab='settings']"
+        },
+        {
+            tab: "data",
+            title: "4. 🛰️ Uydu & TKGM Parsel",
+            text: "İl, ilçe, ada ve parsel numarasını girerek resmi TKGM kadastro sınırlarını uydu görüntüsü üzerine anında aktarın; 3D eğim ve alan ölçümleri yapın.",
+            targetSelector: "#openSatelliteMapBtn"
+        },
+        {
+            tab: "canva",
+            title: "5. 🎨 Profesyonel Şablonlar & Neon Çerçeve",
+            text: "Instagram postu, hikaye veya vitrin baskısı için Elit, Minimal ve Lüks şablonları tek tıkla uygulayın; parlayan neon dış çerçeveyle ilanın fark edilmesini sağlayın.",
+            targetSelector: "button[data-tab='canva']"
+        },
+        {
             tab: "draw",
-            title: "3. 🖌️ Akıllı Çizim & Parsel",
+            title: "6. 🖌️ Akıllı Çizim & Sınırlar",
             text: "Arsa ve bahçe sınırlarını çizimle belirleyin; çizgileri birleştirip otomatik kapalı parsel alanına dönüştürün ve ölçü etiketleri ekleyin.",
             targetSelector: "button[data-tab='draw']"
         },
         {
-            tab: "canva",
-            title: "4. 🎨 Profesyonel Şablonlar",
-            text: "Instagram postu, hikaye veya vitrin baskısı için tasarlanmış Elit, Minimal, Lüks, Kolaj ve Portföy şablonlarını tek tıkla uygulayın.",
-            targetSelector: "button[data-tab='canva']"
-        },
-        {
             tab: "callout",
-            title: "5. 🏷️ Akıllı Rozetler & İkonlar",
-            text: "İlanınızdan otomatik oluşturulan 'Müstakil Tapulu', 'Krediye Uygun', fiyat ve konum gibi hazır rozetleri ve emlak ikonlarını tuvale sürükleyin.",
+            title: "7. 🏷️ Akıllı Rozetler & İkonlar",
+            text: "İlanınızdan otomatik oluşturulan 'Müstakil Tapulu', 'Krediye Uygun', fiyat ve konum rozetlerini ve 100+ sektörel ikonu tuvale sürükleyin.",
             targetSelector: "button[data-tab='callout']"
         },
         {
-            tab: "element",
-            title: "6. 🎛️ Element & Katmanlar",
-            text: "Tuvaldeki tüm nesnelerin font, renk, kutu stili, parlaklık ve katman dizilimini kolayca özelleştirin.",
-            targetSelector: "button[data-tab='element']"
+            tab: null,
+            title: "8. ⚡ Tuval Altı Hızlı Çubuk",
+            text: "Oran değiştirme (1:1, 9:16, 16:9), yakınlaştırma (zoom/pan), geri al ve katman kilitleri gibi en sık kullanılan araçlara alt çubuktan anında erişin.",
+            targetSelector: "#canvasBottomDock"
         },
         {
             tab: "batch",
-            title: "7. 📥 Çıktı Alma (HD / 4K)",
+            title: "9. 📥 Çıktı Alma (HD / 4K)",
             text: "Tasarımınızı yüksek çözünürlükte (HD / 4K / Baskı) JPEG veya PNG olarak tek tıkla indirin veya sosyal medyada paylaşın.",
             targetSelector: "button[data-tab='batch']"
         }

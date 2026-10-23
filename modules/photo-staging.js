@@ -31,12 +31,32 @@
         formatTrayOpen: false,
         aiTrayOpen: false,
         aiIntensity: 0.35,
+        exportQuality: (() => {
+            try {
+                const saved = localStorage.getItem('staging_export_quality');
+                if (['web', 'high', 'ultra', 'lossless'].includes(saved)) return saved;
+            } catch(e) {}
+            return 'web';
+        })(),
+        formatQuality: (() => {
+            try {
+                const saved = localStorage.getItem('staging_format_quality');
+                if (['hd', '2k', '4k', 'png'].includes(saved)) return saved;
+            } catch(e) {}
+            return '2k';
+        })(),
+        isExportingZip: false,
+        isExportingPlatforms: false,
+        isCompareOpen: false,
+        compareMode: 'toggle',
         watermarkOptions: {
             position: 'bottom-right',
             scale: 20,
-            opacity: 85,
-            customLogoUrl: null
+            opacity: 100,
+            customLogoUrl: null,
+            applyToAll: true
         },
+        globalLogoPos: null,
         formatOptions: {
             ratio: '1:1', // '1:1', '9:16', '16:9'
             mode: 'contain_blur' // 'contain_blur', 'cover'
@@ -54,12 +74,22 @@
             const oldDrawer = document.getElementById('photoStagingDrawer');
             if (oldDrawer) oldDrawer.remove();
 
+            // ESC tuşuyla karşılaştırma ekranını anında kapat
+            window.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && this.isCompareOpen) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    this.closeCanvasCompare();
+                }
+            }, true);
+
             // İlk render
             this.renderPanel();
             this.syncExternalTabs();
 
             // Sürükle-bırak olaylarını kur
             this.initDropzoneListeners();
+            this.syncCanvasCarouselBadge();
         },
 
         /**
@@ -70,6 +100,10 @@
 
             // Yeni gelen çekimleri ekle (aynı id varsa ez)
             newItems.forEach(item => {
+                if (!item.originalDataUrl) item.originalDataUrl = item.dataUrl;
+                if (!item.rawOriginalDataUrl) item.rawOriginalDataUrl = item.dataUrl;
+                if (!item.thumbUrl) item.thumbUrl = item.dataUrl;
+                if (!item.rawOriginalThumbUrl) item.rawOriginalThumbUrl = item.thumbUrl;
                 const existingIdx = this.items.findIndex(it => it.id === item.id);
                 if (existingIdx >= 0) {
                     this.items[existingIdx] = item;
@@ -101,7 +135,9 @@
             if (!item || !item.dataUrl) return;
             if (!item.id) item.id = 'photo_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4);
             if (!item.originalDataUrl) item.originalDataUrl = item.dataUrl;
+            if (!item.rawOriginalDataUrl) item.rawOriginalDataUrl = item.dataUrl;
             if (!item.thumbUrl) item.thumbUrl = item.dataUrl;
+            if (!item.rawOriginalThumbUrl) item.rawOriginalThumbUrl = item.thumbUrl;
 
             // Havuzun en başına ekle
             this.items.unshift(item);
@@ -127,18 +163,19 @@
         /**
          * Toplu Görseller Ekler
          */
-        addItems: function(itemsList, shouldSwitchTab = true) {
+        addItems: function(itemsList, shouldSwitchTab = true, skipApplyToCanvas = false) {
             if (!Array.isArray(itemsList) || itemsList.length === 0) return;
-            itemsList.forEach(it => {
-                if (it && it.dataUrl) {
-                    if (!it.id) it.id = 'photo_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4);
-                    if (!it.originalDataUrl) it.originalDataUrl = it.dataUrl;
-                    if (!it.thumbUrl) it.thumbUrl = it.dataUrl;
-                    this.items.unshift(it);
-                    this.selectedIds.add(it.id);
-                }
+            const validItems = itemsList.filter(it => it && it.dataUrl);
+            validItems.forEach(it => {
+                if (!it.id) it.id = 'photo_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4);
+                if (!it.originalDataUrl) it.originalDataUrl = it.dataUrl;
+                if (!it.rawOriginalDataUrl) it.rawOriginalDataUrl = it.dataUrl;
+                if (!it.thumbUrl) it.thumbUrl = it.dataUrl;
+                if (!it.rawOriginalThumbUrl) it.rawOriginalThumbUrl = it.thumbUrl;
+                this.selectedIds.add(it.id);
             });
-            if (itemsList[0]) this.activeItemId = itemsList[0].id;
+            this.items.unshift(...validItems);
+            if (validItems[0]) this.activeItemId = validItems[0].id;
 
             this.renderPanel();
             this.updateBadgeCount();
@@ -148,9 +185,9 @@
                 this.switchToStagingTab();
             }
 
-            // Eklenen ilk görseli otomatik olarak tuvale aktar
-            if (itemsList[0] && itemsList[0].dataUrl) {
-                this.applyToCanvas(itemsList[0].id, false);
+            // Eklenen ilk görseli otomatik olarak tuvale aktar (skipApplyToCanvas false ise)
+            if (!skipApplyToCanvas && validItems[0] && validItems[0].dataUrl) {
+                this.applyToCanvas(validItems[0].id, false);
             }
 
             if (typeof window.recordHistoryImmediate === 'function' && !window.isHistoryRestoring) {
@@ -220,6 +257,13 @@
                     this._isApplying = false;
                     window._isApplyingToCanvas = false;
                     return;
+                }
+
+                // Önceki görselin logo konumunu güvenle yakala ve kaydet
+                const prevActiveId = this.activeItemId;
+                const prevItem = (prevActiveId && this.items) ? this.items.find(it => it.id === prevActiveId) : null;
+                if (prevItem && typeof this.captureCanvasLogoForImage === 'function') {
+                    this.captureCanvasLogoForImage(prevItem);
                 }
 
                 this.activeItemId = id;
@@ -303,9 +347,99 @@
                     }
                     this.syncExternalTabs();
                     if (typeof window.renderLayers === 'function') window.renderLayers();
+
+                    // AI Netleştirme tepsisi açıksa veya görsel netleştirilmişse canlı GPU filtresini uygula
+                    if (item && item.aiIntensity && item.aiIntensity > 0.05) {
+                        this.previewAiIntensityLive(Math.round(item.aiIntensity * 100));
+                    } else if (this.aiTrayOpen) {
+                        this.previewAiIntensityLive(Math.round((this.aiIntensity || 0.35) * 100));
+                    }
+
+                    // Karusel açıksa aktif sayfanın görsel ve önizlemesini senkronize et
+                    if (window.CarouselManager && window.CarouselManager.isVisible && Array.isArray(window.CarouselManager.pages)) {
+                        const curPage = window.CarouselManager.pages[window.CarouselManager.activePageIndex];
+                        if (curPage) {
+                            curPage.thumb = item.thumbUrl || item.dataUrl;
+                            curPage.stagingItemId = item.id;
+                            if (curPage.snapshot) {
+                                curPage.snapshot.photoImgUrl = item.dataUrl;
+                                curPage.snapshot.uploadedImgUrl = item.dataUrl;
+                            }
+                            window.CarouselManager.renderFilmstrip();
+                        }
+                    }
+
+                    // 🛡️ Logo Katmanı (elLogo) Koruma & En Üste Taşıma:
+                    // Havuzda görseller arası gezinirken logonun görselin altında kalmasını kesinlikle önle
+                    const logoEl = document.getElementById('elLogo');
+                    const canvasContainer = document.getElementById('canvas-container');
+                    const currentLogoUrl = (typeof this.getCurrentLogoUrl === 'function') ? this.getCurrentLogoUrl() : (window.companyLogo || null);
+
+                    const isLogoActive = logoEl && (
+                        (logoEl.style.display !== 'none' && logoEl.style.visibility !== 'hidden' && logoEl.style.opacity !== '0') ||
+                        (currentLogoUrl && (this.watermarkTrayOpen || this.watermarkOptions.applyToAll))
+                    );
+
+                    if (logoEl && canvasContainer && isLogoActive && currentLogoUrl) {
+                        const img = logoEl.querySelector('img') || logoEl.querySelector('#elLogoImg');
+                        logoEl.src = currentLogoUrl;
+                        if (img) {
+                            img.src = currentLogoUrl;
+                            img.style.display = 'block';
+                            img.style.visibility = 'visible';
+                            img.style.width = '100%';
+                            img.style.height = 'auto';
+                            img.style.objectFit = 'contain';
+                        }
+                        
+                        logoEl.style.display = 'block';
+                        logoEl.style.visibility = 'visible';
+                        logoEl.style.zIndex = '99999';
+
+                        // Daima canvas-container'ın en son elemanı yap (Hiçbir katman örtemez)
+                        if (canvasContainer.lastElementChild !== logoEl) {
+                            canvasContainer.appendChild(logoEl);
+                        }
+
+                        const cW = parseInt(canvasContainer.style.width) || canvasContainer.offsetWidth || 1920;
+                        const cH = parseInt(canvasContainer.style.height) || canvasContainer.offsetHeight || 1080;
+
+                        // Boyut ve konumu yeni görsel boyutuna uyarla (taşmayı engelle ve akıllı konumlandır)
+                        let targetPos = null;
+                        if (item && item.excludeLogo && item.customLogoPos) {
+                            targetPos = item.customLogoPos;
+                        } else if (this.watermarkOptions.applyToAll !== false && this.globalLogoPos) {
+                            targetPos = this.globalLogoPos;
+                        } else if (item && item.customLogoPos) {
+                            targetPos = item.customLogoPos;
+                        } else {
+                            targetPos = this.captureLogoCoords(logoEl, canvasContainer);
+                            if (targetPos && this.watermarkOptions.applyToAll !== false && !this.globalLogoPos) {
+                                this.globalLogoPos = targetPos;
+                            }
+                        }
+
+                        if (!targetPos && typeof this.getDefaultLogoCoords === 'function') {
+                            targetPos = this.getDefaultLogoCoords(cW, cH);
+                            if (this.watermarkOptions.applyToAll !== false && !this.globalLogoPos) {
+                                this.globalLogoPos = targetPos;
+                            }
+                        }
+
+                        if (targetPos && typeof this.applyLogoCoordsToCanvas === 'function') {
+                            this.applyLogoCoordsToCanvas(targetPos);
+                        } else if (this.watermarkOptions && this.watermarkOptions.position && this.watermarkOptions.position !== 'custom') {
+                            this.applyWatermarkToCanvas(true);
+                        }
+                        if (typeof this.syncWatermarkUiControls === 'function') {
+                            this.syncWatermarkUiControls();
+                        }
+                    }
+
                     if (typeof window.recordHistoryImmediate === 'function' && !window.isHistoryRestoring) {
                         window.recordHistoryImmediate('Aktif Görsel Tuvale Aktarıldı');
                     }
+                    this.syncCanvasCarouselBadge();
                 };
 
                 if (typeof window.applyProjectImageFromDataUrl === 'function') {
@@ -368,21 +502,47 @@
         },
 
         /**
-         * Seçili Görsellerden İlkini Tuvale Aktarır
+         * Seçili veya Aktif Görseli Tuvale Aktarır
+         * Tüm görseller seçili olsa dahi o an aktif üzerinde çalışılan görseli korur, zorla 1. görsele zıplamaz
          */
         applySelectedToCanvas: function() {
             const targets = this.getSelectedItems();
-            if (targets.length === 0) {
+            if (targets.length === 0 && !this.activeItemId) {
                 if (typeof window.showAppToast === 'function') window.showAppToast('Lütfen önce bir görsel seçin.', 'warning');
                 return;
             }
-            this.applyToCanvas(targets[0].id);
+
+            // 1. Tek bir görsel seçilmişse doğrudan onu aktar
+            if (targets.length === 1) {
+                this.applyToCanvas(targets[0].id);
+                return;
+            }
+
+            // 2. Çoklu seçim varsa (veya Tümünü Seç aktifse):
+            // Kullanıcının o an üzerinde çalıştığı aktif görsel seçilenler arasındaysa onu koru
+            if (this.activeItemId) {
+                const activeInTargets = targets.find(it => it.id === this.activeItemId);
+                if (activeInTargets) {
+                    this.applyToCanvas(this.activeItemId);
+                    return;
+                }
+                const activeInItems = this.items ? this.items.find(it => it.id === this.activeItemId) : null;
+                if (activeInItems) {
+                    this.applyToCanvas(this.activeItemId);
+                    return;
+                }
+            }
+
+            // 3. Aktif görsel yoksa seçilenlerin ilkini aktar
+            if (targets.length > 0) {
+                this.applyToCanvas(targets[0].id);
+            }
         },
 
         /**
-         * Tekil Görseli Bilgisayara İndirir
+         * Tekil Görseli Bilgisayara İndirir (Aktif Logo Varsa Ekler & Kaliteyi Korur)
          */
-        downloadSingle: function(id) {
+        downloadSingle: async function(id) {
             const item = this.items.find(it => it.id === id);
             if (!item || !item.dataUrl) return;
 
@@ -390,20 +550,321 @@
             const parsel = item.parcelMeta?.parsel ? `Parsel_${item.parcelMeta.parsel}` : '';
             const tag = (ada || parsel) ? `_${ada}_${parsel}` : '';
             const cleanTitle = (item.title || 'gorsel').replace(/[^a-zA-Z0-9çğıöşüÇĞİÖŞÜ_-]/g, '_');
-            const filename = `EmlakStudyom_${cleanTitle}${tag}.png`;
 
-            const a = document.createElement('a');
-            a.href = item.dataUrl;
-            a.download = filename;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
+            const qKey = this.exportQuality || 'lossless';
+            const res = await this.getItemExportBlobAsync(item, qKey);
+            if (res && res.blob) {
+                const ext = res.ext || 'png';
+                const filename = `EmlakStudyom_${cleanTitle}${tag}.${ext}`;
+                const blobUrl = URL.createObjectURL(res.blob);
+                const a = document.createElement('a');
+                a.href = blobUrl;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+            } else {
+                const filename = `EmlakStudyom_${cleanTitle}${tag}.png`;
+                const a = document.createElement('a');
+                a.href = item.dataUrl;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+            }
+        },
+
+        setExportQuality: function(quality) {
+            const valid = ['web', 'high', 'ultra', 'lossless'];
+            this.exportQuality = valid.includes(quality) ? quality : 'web';
+            try {
+                localStorage.setItem('staging_export_quality', this.exportQuality);
+            } catch(e) {}
+        },
+
+        setFormatQuality: function(quality) {
+            const valid = ['hd', '2k', '4k', 'png'];
+            this.formatQuality = valid.includes(quality) ? quality : '2k';
+            try {
+                localStorage.setItem('staging_format_quality', this.formatQuality);
+            } catch(e) {}
         },
 
         /**
-         * Seçili (veya Tüm) Görselleri ZIP Arşivi Olarak İndirir (JSZip)
+         * En-Boy Oranı ve Kalite Seviyesine Göre Hedef Çözünürlük ve Sıkıştırma Parametrelerini Döndürür
+         */
+        getFormatTargetSpecs: function(ratio, qualityKey, srcW = 1920, srcH = 1080) {
+            const q = qualityKey || this.formatQuality || '2k';
+            let targetW = 2048;
+            let targetH = 2048;
+            let mime = (q === 'png') ? 'image/png' : 'image/jpeg';
+            let quality = (q === '4k') ? 0.98 : (q === '2k' ? 0.96 : 0.92);
+
+            if (ratio === 'original') {
+                targetW = srcW;
+                targetH = srcH;
+                return { targetW, targetH, mime, quality };
+            }
+
+            if (ratio === '1:1') {
+                if (q === 'hd') { targetW = 1080; targetH = 1080; }
+                else if (q === '4k') { targetW = 3072; targetH = 3072; }
+                else { targetW = 2048; targetH = 2048; }
+            } else if (ratio === '16:9') {
+                if (q === 'hd') { targetW = 1920; targetH = 1080; }
+                else if (q === '4k') { targetW = 3840; targetH = 2160; }
+                else { targetW = 2560; targetH = 1440; }
+            } else if (ratio === '9:16') {
+                if (q === 'hd') { targetW = 1080; targetH = 1920; }
+                else if (q === '4k') { targetW = 2160; targetH = 3840; }
+                else { targetW = 1440; targetH = 2560; }
+            } else if (ratio === '4:3') {
+                if (q === 'hd') { targetW = 1440; targetH = 1080; }
+                else if (q === '4k') { targetW = 2880; targetH = 2160; }
+                else { targetW = 2048; targetH = 1536; }
+            }
+
+            return { targetW, targetH, mime, quality };
+        },
+
+        /**
+         * Tuvalde veya Havuzda Aktif Bir Filigran/Logo Bulunup Bulunmadığını Kontrol Eder
+         */
+        hasActiveWatermark: function() {
+            const logoUrl = this.getCurrentLogoUrl();
+            if (!logoUrl || !this.isValidLogoUrl(logoUrl)) {
+                return false;
+            }
+
+            const logoEl = document.getElementById('elLogo');
+            const isCanvasLogoVisible = !!(
+                logoEl &&
+                logoEl.style.display !== 'none' &&
+                logoEl.style.visibility !== 'hidden' &&
+                parseFloat(logoEl.style.opacity || '1') > 0
+            );
+
+            return isCanvasLogoVisible || !!this.watermarkTrayOpen || (this.watermarkOptions && this.watermarkOptions.applyToAll !== false && !!this.globalLogoPos);
+        },
+
+        /**
+         * Verilen Tuval Context'ine Aktif Filigran/Logoyu Kusursuz Şekilde Çizer
+         */
+        renderLogoToCanvasContext: function(ctx, canvas, item, logoImg) {
+            if (!ctx || !canvas || !logoImg || !logoImg.naturalWidth) return false;
+
+            const logoEl = document.getElementById('elLogo');
+            const cc = document.getElementById('canvas-container');
+            const ccW = cc ? (parseInt(cc.style.width) || cc.offsetWidth || 1920) : 1920;
+            const ccH = cc ? (parseInt(cc.style.height) || cc.offsetHeight || 1080) : 1080;
+
+            const { position, scale, opacity } = this.watermarkOptions || {};
+
+            // Aktif veya özel konum ayarı (Görsel bazlı bağımsız konum veya paylaşımlı global konum)
+            const itemPos = (item && item.excludeLogo && item.customLogoPos) 
+                ? item.customLogoPos 
+                : (this.globalLogoPos || (item && item.customLogoPos) || this.watermarkOptions);
+
+            const itScale = (itemPos && typeof itemPos.scale === 'number') ? itemPos.scale : (scale || 20);
+            const itOpacity = (itemPos && typeof itemPos.opacity === 'number') ? itemPos.opacity : (opacity || 100);
+            const itPosition = (itemPos && itemPos.position) ? itemPos.position : (position || 'bottom-right');
+
+            // Hedef tuval boyutuna göre logonun piksel boyutunu hesapla
+            let logoW = Math.max(20, Math.round(canvas.width * (itScale / 100)));
+            let logoH = Math.round(logoW * (logoImg.naturalHeight / logoImg.naturalWidth));
+            let x = 0;
+            let y = 0;
+
+            if (itPosition && itPosition !== 'custom') {
+                // Kullanıcı sol panelden hazır köşe seçtiyse
+                const margin = Math.round(canvas.width * 0.035);
+                x = canvas.width - logoW - margin;
+                y = canvas.height - logoH - margin;
+
+                if (itPosition === 'bottom-left') {
+                    x = margin;
+                    y = canvas.height - logoH - margin;
+                } else if (itPosition === 'top-right') {
+                    x = canvas.width - logoW - margin;
+                    y = margin;
+                } else if (itPosition === 'top-left') {
+                    x = margin;
+                    y = margin;
+                } else if (itPosition === 'center') {
+                    x = Math.round((canvas.width - logoW) / 2);
+                    y = Math.round((canvas.height - logoH) / 2);
+                }
+            } else {
+                // Serbest tuval konumu: oransal ve çıpa korumalı yerleşim
+                const hasItemPos = !!(itemPos && (itemPos.anchorX || itemPos.relX !== undefined));
+                
+                let anchorX = 'right';
+                let anchorY = 'bottom';
+                let marginRightRatio = 0.035;
+                let marginBottomRatio = 0.035;
+                let marginLeftRatio = 0.035;
+                let marginTopRatio = 0.035;
+                let relX = 0;
+                let relY = 0;
+                let relW = itScale / 100;
+
+                if (hasItemPos) {
+                    anchorX = itemPos.anchorX || (itemPos.relX > 0.5 ? 'right' : 'left');
+                    anchorY = itemPos.anchorY || (itemPos.relY > 0.5 ? 'bottom' : 'top');
+                    marginRightRatio = itemPos.marginRightRatio !== undefined ? itemPos.marginRightRatio : Math.max(0, 1 - (itemPos.relX || 0) - (itemPos.relW || relW));
+                    marginBottomRatio = itemPos.marginBottomRatio !== undefined ? itemPos.marginBottomRatio : Math.max(0, 1 - (itemPos.relY || 0) - ((itemPos.relW || relW) * (logoImg.naturalHeight / logoImg.naturalWidth)));
+                    marginLeftRatio = itemPos.marginLeftRatio !== undefined ? itemPos.marginLeftRatio : (itemPos.relX || 0);
+                    marginTopRatio = itemPos.marginTopRatio !== undefined ? itemPos.marginTopRatio : (itemPos.relY || 0);
+                    relX = itemPos.relX || 0;
+                    relY = itemPos.relY || 0;
+                } else if (logoEl && logoEl.style.display !== 'none') {
+                    // Tuvaldeki mevcut logo elementinden anlık oranları oku
+                    const curLeft = (logoEl.offsetLeft !== undefined && !isNaN(logoEl.offsetLeft)) ? logoEl.offsetLeft : (ccW - (ccW * (itScale / 100)) - 50);
+                    const curTop = (logoEl.offsetTop !== undefined && !isNaN(logoEl.offsetTop)) ? logoEl.offsetTop : (ccH - (ccW * (itScale / 100) * (logoImg.naturalHeight / logoImg.naturalWidth)) - 50);
+                    const curW = logoEl.offsetWidth || (ccW * (itScale / 100));
+
+                    relX = Math.max(0, curLeft) / ccW;
+                    relY = Math.max(0, curTop) / ccH;
+                    relW = Math.max(0.02, curW / ccW);
+                    anchorX = relX > 0.5 ? 'right' : 'left';
+                    anchorY = relY > 0.5 ? 'bottom' : 'top';
+                    marginRightRatio = Math.max(0, 1 - relX - relW);
+                    marginBottomRatio = Math.max(0, 1 - relY - (relW * (logoImg.naturalHeight / logoImg.naturalWidth)));
+                    marginLeftRatio = relX;
+                    marginTopRatio = relY;
+                }
+
+                if (anchorX === 'right') {
+                    const mR = Math.round(canvas.width * marginRightRatio);
+                    x = canvas.width - logoW - Math.max(0, mR);
+                } else {
+                    const mL = Math.round(canvas.width * marginLeftRatio);
+                    x = Math.max(0, mL);
+                }
+
+                if (anchorY === 'bottom') {
+                    const mB = Math.round(canvas.height * marginBottomRatio);
+                    y = canvas.height - logoH - Math.max(0, mB);
+                } else {
+                    const mT = Math.round(canvas.height * marginTopRatio);
+                    y = Math.max(0, mT);
+                }
+
+                x = Math.max(0, Math.min(canvas.width - logoW, x));
+                y = Math.max(0, Math.min(canvas.height - logoH, y));
+            }
+
+            ctx.save();
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = 'high';
+            ctx.globalAlpha = Math.max(0.1, Math.min(1, itOpacity / 100));
+            ctx.drawImage(logoImg, x, y, logoW, logoH);
+            ctx.restore();
+            return true;
+        },
+
+        /**
+         * Tekil Bir Görseli Seçilen Kaliteye Göre Asenkron Blob Olarak Üretir (Non-blocking, RAM Korumalı & Aktif Logo Otomatik Eklemeli)
+         */
+        getItemExportBlobAsync: async function(item, qualityKey, preloadedLogoImg = null) {
+            if (!item || !item.dataUrl) return null;
+            const isPngReq = (qualityKey === 'lossless' || qualityKey === 'png');
+            const isCurrentlyPng = item.dataUrl.startsWith('data:image/png');
+
+            // Aktif filigran durumu kontrolü
+            const shouldApplyLogo = !item.watermarkBaked && this.hasActiveWatermark();
+
+            // Eğer filigran eklenmeyecekse ve zaten istenen formatta ise hızlı yoldan blob al
+            if (!shouldApplyLogo) {
+                if ((isPngReq && isCurrentlyPng) || (qualityKey === 'web' && !isCurrentlyPng)) {
+                    try {
+                        const res = await fetch(item.dataUrl);
+                        const blob = await res.blob();
+                        const ext = isPngReq ? 'png' : 'jpg';
+                        return { blob, ext };
+                    } catch(e) {}
+                }
+            }
+
+            // Temiz tuval üzerinden asenkron re-encode
+            const img = await this.loadImageAsync(item.dataUrl);
+            const canvas = document.createElement('canvas');
+            canvas.width = img.naturalWidth || 1920;
+            canvas.height = img.naturalHeight || 1080;
+            const ctx = canvas.getContext('2d');
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = 'high';
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+            // Eğer aktif logo varsa tuvale oransal ve çıpalı olarak çiz
+            if (shouldApplyLogo) {
+                let logoImg = preloadedLogoImg;
+                if (!logoImg) {
+                    const logoUrl = this.getCurrentLogoUrl();
+                    if (logoUrl && this.isValidLogoUrl(logoUrl)) {
+                        try {
+                            logoImg = await this.loadImageAsync(logoUrl);
+                        } catch(err) {
+                            console.warn("Logo export esnasında yüklenemedi:", err);
+                        }
+                    }
+                }
+                if (logoImg) {
+                    this.renderLogoToCanvasContext(ctx, canvas, item, logoImg);
+                }
+            }
+
+            let mime = 'image/jpeg';
+            let q = 0.92;
+            let ext = 'jpg';
+
+            if (isPngReq) {
+                mime = 'image/png';
+                ext = 'png';
+            } else if (qualityKey === 'ultra') {
+                q = 0.98;
+            } else if (qualityKey === 'high') {
+                q = 0.96;
+            } else {
+                q = 0.92;
+            }
+
+            const blob = await new Promise(resolve => {
+                canvas.toBlob(b => resolve(b), mime, q);
+            });
+
+            // Anında bellek tahliyesi (RAM koruması)
+            canvas.width = 0;
+            canvas.height = 0;
+
+            return { blob, ext };
+        },
+
+        /**
+         * Dışa Aktarma İlerleme Durumunu Toplu İndir Butonuna Yansıtır
+         */
+        updateExportProgress: function(current, total, isGenerating = false) {
+            const btn = document.getElementById('stagingBatchDownloadBtn');
+            if (!btn) return;
+            if (isGenerating) {
+                btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Sıkıştırılıyor';
+            } else if (current > 0) {
+                btn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> ${current}/${total} Paketleniyor`;
+            } else {
+                btn.innerHTML = '<i class="fa-solid fa-file-zipper"></i> Toplu İndir';
+            }
+        },
+
+        /**
+         * Seçili (veya Tüm) Görselleri ZIP Arşivi Olarak İndirir (JSZip, Arka Plan Asenkron & RAM Korumalı)
          */
         downloadSelectedZip: async function() {
+            if (this.isExportingZip) {
+                if (typeof window.showAppToast === 'function') window.showAppToast('İndirme işlemi arka planda devam ediyor...', 'info');
+                return;
+            }
+
             const targets = this.getSelectedItems();
             if (targets.length === 0) {
                 if (typeof window.showAppToast === 'function') window.showAppToast('İndirilecek görsel bulunamadı.', 'warning');
@@ -417,19 +878,54 @@
                 return;
             }
 
+            this.isExportingZip = true;
+            this.updateExportProgress(0, targets.length);
+
             try {
                 const zip = new JSZip();
                 const folder = zip.folder('EmlakStudyom_Gorsel_Havuzu');
+                const qKey = this.exportQuality || 'web';
 
-                targets.forEach((it, idx) => {
-                    const base64Data = it.dataUrl.replace(/^data:image\/(png|jpeg|jpg);base64,/, '');
-                    const prefix = String(idx + 1).padStart(2, '0');
-                    const cleanTitle = (it.title || 'gorsel').replace(/[^a-zA-Z0-9çğıöşüÇĞİÖŞÜ_-]/g, '_');
-                    const filename = `${prefix}_${cleanTitle}.png`;
-                    folder.file(filename, base64Data, { base64: true });
+                // Aktif logo varsa döngüden önce tek seferde yükle (yüksek performans & sıfır gecikme)
+                let preloadedLogoImg = null;
+                if (this.hasActiveWatermark()) {
+                    const logoUrl = this.getCurrentLogoUrl();
+                    if (logoUrl && this.isValidLogoUrl(logoUrl)) {
+                        try {
+                            preloadedLogoImg = await this.loadImageAsync(logoUrl);
+                        } catch(err) {
+                            console.warn("Toplu ZIP öncesi logo yüklenemedi:", err);
+                        }
+                    }
+                }
+
+                for (let idx = 0; idx < targets.length; idx++) {
+                    const it = targets[idx];
+                    this.updateExportProgress(idx + 1, targets.length);
+
+                    // Asenkron nefes payı (UI thread'e kontrol ver - sıfır donma)
+                    await new Promise(r => setTimeout(r, 25));
+
+                    const res = await this.getItemExportBlobAsync(it, qKey, preloadedLogoImg);
+                    if (res && res.blob) {
+                        const prefix = String(idx + 1).padStart(2, '0');
+                        const cleanTitle = (it.title || 'gorsel').replace(/[^a-zA-Z0-9çğıöşüÇĞİÖŞÜ_-]/g, '_');
+                        const filename = `${prefix}_${cleanTitle}.${res.ext}`;
+                        const arrayBuf = await res.blob.arrayBuffer();
+                        folder.file(filename, arrayBuf);
+                    }
+                }
+
+                // ZIP sıkıştırma adımı
+                this.updateExportProgress(targets.length, targets.length, true);
+                await new Promise(r => setTimeout(r, 25));
+
+                const content = await zip.generateAsync({ 
+                    type: 'blob',
+                    compression: 'DEFLATE',
+                    compressionOptions: { level: 6 }
                 });
 
-                const content = await zip.generateAsync({ type: 'blob' });
                 const a = document.createElement('a');
                 a.href = URL.createObjectURL(content);
                 a.download = `EmlakStudyom_Gorseller_${Date.now()}.zip`;
@@ -445,6 +941,9 @@
                 if (typeof window.showAppToast === 'function') {
                     window.showAppToast('ZIP oluşturulurken hata oluştu: ' + e.message, 'error');
                 }
+            } finally {
+                this.isExportingZip = false;
+                this.updateExportProgress(0, 0);
             }
         },
 
@@ -492,8 +991,20 @@
             if (this.aiTrayOpen) {
                 this.watermarkTrayOpen = false;
                 this.formatTrayOpen = false;
+                this.previewAiIntensityLive(Math.round((this.aiIntensity || 0.35) * 100));
+            } else {
+                window._photoFilterDirty = true;
+                if (typeof window.applyPhotoFilters === 'function') {
+                    window.applyPhotoFilters();
+                } else if (typeof window.requestPhotoRepaint === 'function') {
+                    window.requestPhotoRepaint();
+                }
             }
             this.renderPanel();
+            const dockCompareBtn = document.getElementById('dockStagingCompareBtn');
+            if (dockCompareBtn) {
+                dockCompareBtn.classList.toggle('active', this.isCompareOpen);
+            }
         },
 
         setAiIntensity: function(val) {
@@ -504,10 +1015,13 @@
         },
 
         /**
-         * Slider Sürüklenirken Anlık Canlı CSS Önizlemesi Gösterir (Hareket Anında Düşük Maliyetli / 60fps)
+         * Slider Sürüklenirken Anlık Canlı GPU Önizlemesi Gösterir (Sıfır Donma / 60fps)
          */
         previewAiIntensityLive: function(val) {
             this.setAiIntensity(val);
+            const num = Math.max(5, Math.min(100, parseInt(val) || 35));
+            const intensity = num / 100;
+            this.aiIntensity = intensity;
 
             // Aktif görseli bul, tuval boşsa tuvale aktar
             const targets = this.getSelectedItems();
@@ -515,102 +1029,409 @@
             if (activeItem && activeItem.dataUrl && !window.uploadedImgUrl) {
                 this.applyToCanvas(activeItem.id, true);
             }
-
-            const intensity = (parseInt(val) || 35) / 100;
-            const contrastPct = Math.round(100 + 24 * intensity);
-            const satPct = Math.round(100 + 32 * intensity);
-            const brightPct = Math.round(100 + 4 * intensity);
-            const filterStr = `contrast(${contrastPct}%) saturate(${satPct}%) brightness(${brightPct}%)`;
-
-            const pl = document.getElementById('photo-layer');
-            if (pl) {
-                pl.style.filter = filterStr;
-                pl.style.webkitFilter = filterStr;
-            }
-            document.querySelectorAll('.photo-panel').forEach(p => {
-                p.style.filter = filterStr;
-                p.style.webkitFilter = filterStr;
-            });
-
-            // Debounce: Kullanıcı slider üzerinde 350ms durakladığında tam çözünürlüklü işlemi arka planda işle
-            if (this._aiCommitTimer) clearTimeout(this._aiCommitTimer);
-            this._aiCommitTimer = setTimeout(() => {
-                this.commitAiIntensity(val);
-            }, 350);
-        },
-
-        /**
-         * Slider Bırakıldığında / Değişim Kesinleştiğinde Yüksek Kaliteli AI Netleştirmeyi Tuvale Uygular
-         */
-        commitAiIntensity: async function(val) {
-            if (this._aiCommitTimer) clearTimeout(this._aiCommitTimer);
-            const num = Math.max(5, Math.min(100, parseInt(val) || 35));
-            const intensity = num / 100;
-            this.aiIntensity = intensity;
-
-            const targets = this.getSelectedItems();
-            const activeItem = targets[0] || this.items.find(it => it.id === this.activeItemId) || this.items[0];
-            if (!activeItem || !activeItem.dataUrl) return;
-
-            if (!activeItem.originalDataUrl) {
-                activeItem.originalDataUrl = activeItem.dataUrl;
-            }
-
-            try {
-                const enhancedDataUrl = await this.enhanceImageDataUrl(activeItem.originalDataUrl, intensity);
-                activeItem.dataUrl = enhancedDataUrl;
-                activeItem.isEnhanced = true;
+            if (activeItem) {
                 activeItem.aiIntensity = intensity;
-                window._aiOriginalImgDataUrl = activeItem.originalDataUrl;
+            }
 
-                // Tuvale yüksek kaliteli net görseli yerleştir
-                this.applyToCanvas(activeItem.id, true);
+            // 1. WebGL & Tuval Render Motorunu Tetikle (Anında 60 FPS GPU Render)
+            window._photoFilterDirty = true;
+            if (typeof window.applyPhotoFilters === 'function') {
+                window.applyPhotoFilters();
+            } else if (typeof window.requestPhotoRepaint === 'function') {
+                window.requestPhotoRepaint();
+            }
 
-                // Geçici CSS filtresini temizle
-                const pl = document.getElementById('photo-layer');
-                if (pl) {
-                    pl.style.filter = 'none';
-                    pl.style.webkitFilter = 'none';
-                }
-                document.querySelectorAll('.photo-panel').forEach(p => {
-                    p.style.filter = 'none';
-                    p.style.webkitFilter = 'none';
-                });
-            } catch(e) {
-                console.warn("AI canlı netleştirme hatası:", e);
+            // 2. Karşılaştırma ekranı açıksa "Sonrası" katmanını anında güncelle
+            const afterImg = document.getElementById('canvasCompareAfterImg');
+            const sliderAfterImg = document.getElementById('canvasCompareSliderAfterImg');
+            if (this.isCompareOpen && (afterImg || sliderAfterImg)) {
+                const k = intensity;
+                const contrastPct = Math.round(100 + 16 * k);
+                const satPct = Math.round(100 + 18 * k);
+                const brightPct = Math.round(100 + 2 * k);
+                const filterStr = `contrast(${contrastPct}%) saturate(${satPct}%) brightness(${brightPct}%) drop-shadow(0 0 0.5px rgba(0,0,0,${(k * 0.45).toFixed(2)}))`;
+                if (afterImg) afterImg.style.filter = filterStr;
+                if (sliderAfterImg) sliderAfterImg.style.filter = filterStr;
             }
         },
 
         /**
-         * Mevcut Firma Logosunu Döndürür
+         * Slider Bırakıldığında Değeri Aktif Görsele Sabitler
+         */
+        commitAiIntensity: function(val) {
+            this.previewAiIntensityLive(val);
+        },
+
+        /**
+         * Verilen URL/String'in Gerçek Bir Görsel Kaynağı Olup Olmadığını Doğrular
+         */
+        isValidLogoUrl: function(url) {
+            if (!url || typeof url !== 'string') return false;
+            const str = url.trim();
+            if (str.length < 5) return false;
+            // HTML sayfası veya doküman url'si kesinlikle olamaz
+            if (str.includes('.html') || (typeof window !== 'undefined' && str === window.location.href)) return false;
+            if (str.startsWith('data:image/')) return true;
+            if (str.startsWith('blob:')) return true;
+            if (/\.(png|jpe?g|webp|svg|gif|ico|bmp)(\?.*)?$/i.test(str)) return true;
+            if (str.startsWith('assets/') || str.startsWith('/assets/') || str.startsWith('./assets/')) return true;
+            if (/^https?:\/\//i.test(str) && !str.endsWith('/') && !str.endsWith('#')) {
+                return /\.(png|jpe?g|webp|svg|gif|ico)(\?.*)?$/i.test(str);
+            }
+            return false;
+        },
+
+        /**
+         * Mevcut Firma Logosunu Güvenli Bir Şekilde Döndürür
          */
         getCurrentLogoUrl: function() {
-            if (this.watermarkOptions.customLogoUrl) return this.watermarkOptions.customLogoUrl;
+            // 1. Kullanıcının bu sekmede yüklediği özel logo
+            if (this.isValidLogoUrl(this.watermarkOptions.customLogoUrl)) {
+                return this.watermarkOptions.customLogoUrl;
+            }
+
+            // 2. Global firma logosu
+            if (this.isValidLogoUrl(window.companyLogo)) {
+                return window.companyLogo;
+            }
+
+            // 3. Tuvaldeki logo katmanı (elLogo) - sadece geçerli bir resim src'si varsa ve görünür durumdaysa
             const logoEl = document.getElementById('elLogo');
-            if (logoEl && logoEl.src && logoEl.src.length > 20 && !logoEl.src.endsWith('#')) {
-                return logoEl.src;
+            if (logoEl && logoEl.style.display !== 'none' && logoEl.style.visibility !== 'hidden') {
+                const img = logoEl.querySelector('img');
+                const rawAttr = img ? img.getAttribute('src') : logoEl.getAttribute('src');
+                const fullSrc = (img && img.src) || logoEl.src;
+                
+                if (fullSrc && !this.isValidLogoUrl(fullSrc)) {
+                    if (img) img.removeAttribute('src');
+                    logoEl.removeAttribute('src');
+                } else if (this.isValidLogoUrl(rawAttr)) {
+                    return rawAttr;
+                } else if (this.isValidLogoUrl(fullSrc)) {
+                    return fullSrc;
+                }
             }
+
+            // 4. Marka yöneticisindeki önizleme (brandLogoPreview)
             const brandPreview = document.getElementById('brandLogoPreview');
-            if (brandPreview && brandPreview.src && brandPreview.src.length > 20) {
-                return brandPreview.src;
+            if (brandPreview && brandPreview.style.display !== 'none') {
+                const rawAttr = brandPreview.getAttribute('src');
+                const fullSrc = brandPreview.src;
+                if (fullSrc && !this.isValidLogoUrl(fullSrc)) {
+                    brandPreview.removeAttribute('src');
+                } else if (this.isValidLogoUrl(rawAttr) && rawAttr !== 'assets/logo/logo.png') {
+                    return rawAttr;
+                } else if (this.isValidLogoUrl(fullSrc) && !fullSrc.includes('assets/logo/logo.png')) {
+                    return fullSrc;
+                }
             }
+
+            // 5. LocalStorage'daki kayıtlı marka şablonu logosu
             try {
                 const brands = JSON.parse(localStorage.getItem('canvaBrandTemplates') || '[]');
-                if (brands.length > 0 && brands[0].logo) return brands[0].logo;
+                if (brands.length > 0 && this.isValidLogoUrl(brands[0].logo) && !brands[0].logo.includes('assets/logo/logo.png')) {
+                    return brands[0].logo;
+                }
             } catch(e) {}
+
             return null;
+        },
+
+        /**
+         * Varsayılan Emlak Stüdyom Logosunu Tuvale Ekler
+         */
+        addDefaultLogoToCanvas: function() {
+            const defaultLogoUrl = 'assets/logo/logo.png';
+            this.watermarkOptions.customLogoUrl = defaultLogoUrl;
+            window.companyLogo = defaultLogoUrl;
+
+            if (window.CanvasEmptyState && typeof window.CanvasEmptyState.dismiss === 'function') {
+                window.CanvasEmptyState.dismiss();
+            }
+
+            if (!this.watermarkOptions.position || this.watermarkOptions.position === 'custom') {
+                this.watermarkOptions.position = 'bottom-right';
+            }
+
+            this.applyWatermarkToCanvas(true);
+
+            const logoEl = document.getElementById('elLogo');
+            if (logoEl) {
+                if (typeof window.selectElement === 'function') {
+                    window.selectElement(logoEl, false, true);
+                }
+                if (typeof window.renderLayers === 'function') {
+                    window.renderLayers();
+                }
+            }
+
+            if (typeof window.syncLogoUI === 'function') {
+                window.syncLogoUI(defaultLogoUrl);
+            }
+
+            this.renderPanel();
+
+            if (typeof window.showAppToast === 'function') {
+                window.showAppToast('Emlak Stüdyom logosu tuvale eklendi.', 'success', 2200);
+            }
+        },
+
+        /**
+         * Tuvaldeki Logoyu Kaldırır ve Sıfırlar
+         */
+        removeLogoFromCanvas: function() {
+            if (typeof window.clearLogoImage === 'function') {
+                try { window.clearLogoImage(); } catch(e) {}
+            }
+            const logoEl = document.getElementById('elLogo');
+            if (logoEl) {
+                logoEl.src = '';
+                logoEl.style.display = 'none';
+                logoEl.style.visibility = 'hidden';
+                const img = logoEl.querySelector('img') || logoEl.querySelector('#elLogoImg');
+                if (img) {
+                    img.src = '';
+                    img.style.display = 'none';
+                }
+            }
+            this.watermarkOptions.customLogoUrl = null;
+            this.globalLogoPos = null;
+            const activeItem = (this.items && this.items.length > 0) ? this.items.find(it => it.id === this.activeItemId) : null;
+            if (activeItem) {
+                activeItem.customLogoPos = null;
+            }
+            window.companyLogo = '';
+
+            // Daha önce damgalanmış görsellerin ham hallerini geri yükle
+            if (Array.isArray(this.items)) {
+                this.items.forEach(it => {
+                    if (it.watermarkBaked && it.rawOriginalDataUrl) {
+                        it.dataUrl = it.rawOriginalDataUrl;
+                        it.watermarkBaked = false;
+                    }
+                });
+            }
+            if (activeItem && activeItem.rawOriginalDataUrl) {
+                this.applyToCanvas(activeItem.id, true);
+            }
+
+            if (typeof window.syncLogoUI === 'function') window.syncLogoUI('');
+            this.renderPanel();
+            if (typeof window.renderLayers === 'function') window.renderLayers();
+            if (typeof window.requestAutoSave === 'function') window.requestAutoSave();
+            if (typeof window.showAppToast === 'function') {
+                window.showAppToast('Logo kaldırıldı.', 'info', 2000);
+            }
+        },
+
+        /**
+         * Logo Seçim / Değiştirme Dosya Penceresini Açar
+         */
+        triggerWatermarkLogoInput: function() {
+            if (typeof window.triggerLogoUpload === 'function') {
+                window.triggerLogoUpload();
+            } else {
+                let input = document.getElementById('stagingWatermarkLogoInput') || document.getElementById('logoInput');
+                if (input) {
+                    input.value = '';
+                    input.click();
+                }
+            }
+        },
+
+        /**
+         * Firma Logosu Güvenlik ve Bütünlük Doğrulayıcısı (Security & Robustness Guard)
+         * - Dosya türü ve tehlikeli uzantı kontrolü
+         * - SVG XSS / script / foreignObject enjeksiyon taraması
+         * - Boş / aşırı büyük dosya engeli (Maks 20MB, Min > 0B)
+         * - Gerçek görsel çözme (decode) ve boyut testi (Decompression Bomb koruması)
+         */
+        validateLogoFileAsync: async function(file) {
+            if (!file) {
+                return { valid: false, error: 'Lütfen bir dosya seçin.' };
+            }
+
+            if (window.SecurityGuard && typeof window.SecurityGuard.validateImageFileAsync === 'function') {
+                return await window.SecurityGuard.validateImageFileAsync(file, {
+                    maxSize: 20 * 1024 * 1024,
+                    maxDimension: 8192
+                });
+            }
+
+            const fileName = (file.name || '').toLowerCase();
+            const fileType = (file.type || '').toLowerCase();
+            const fileSize = file.size || 0;
+
+            // 1. Sıfır Bayt (Bozuk/Boş) Dosya Engeli
+            if (fileSize === 0) {
+                return { valid: false, error: 'Seçilen dosya boş (0 bayt) veya bozuk.' };
+            }
+
+            // 2. Maksimum Boyut Engeli (Logo için maksimum 20 MB)
+            const maxLogoSize = 20 * 1024 * 1024;
+            if (fileSize > maxLogoSize) {
+                return { valid: false, error: 'Logo dosya boyutu çok büyük (maksimum 20 MB olabilir).' };
+            }
+
+            // 3. Tehlikeli Dosya Uzantıları Engeli (Blacklist)
+            const dangerousExtensions = [
+                '.exe', '.bat', '.cmd', '.sh', '.php', '.phtml', '.js', '.vbs', 
+                '.ps1', '.py', '.pl', '.jar', '.apk', '.msi', '.dll', '.scr', 
+                '.com', '.hta', '.html', '.htm', '.xhtml', '.shtml', '.asp', '.aspx',
+                '.cgi', '.bin', '.wsf', '.reg'
+            ];
+            if (dangerousExtensions.some(ext => fileName.endsWith(ext))) {
+                return { valid: false, error: 'Güvenlik Uyarısı: Seçilen dosya türü çalıştırılabilir veya zararlı kod içerebilir.' };
+            }
+
+            // 4. İzin Verilen Görsel Formatları (Whitelist)
+            const allowedExtensions = ['.png', '.jpg', '.jpeg', '.webp', '.svg', '.gif', '.ico', '.bmp'];
+            const isImageMime = fileType.startsWith('image/');
+            const hasAllowedExt = allowedExtensions.some(ext => fileName.endsWith(ext));
+
+            if (!isImageMime && !hasAllowedExt) {
+                return { valid: false, error: 'Lütfen geçerli bir görsel formatı (PNG, JPG, WebP veya SVG) seçin.' };
+            }
+
+            // 5. SVG Güvenlik Taraması (XSS, Script & ForeignObject Enjeksiyon Koruması)
+            const isSvg = fileType === 'image/svg+xml' || fileName.endsWith('.svg');
+            if (isSvg) {
+                try {
+                    const text = await file.text();
+                    const lowerText = text.toLowerCase();
+
+                    // Tehlikeli SVG etiket ve nitelikleri
+                    const dangerousPatterns = [
+                        '<script', 'javascript:', 'data:text/html', 'onload=',
+                        'onerror=', 'onclick=', 'onmouseover=', '<foreignobject',
+                        '<iframe', '<embed', '<object', '<!entity'
+                    ];
+
+                    const foundPattern = dangerousPatterns.find(pat => lowerText.includes(pat));
+                    if (foundPattern) {
+                        return { 
+                            valid: false, 
+                            error: `Güvenlik Uyarısı: Seçilen SVG dosyası potansiyel olarak zararlı kod (${foundPattern}) içeriyor ve engellendi.` 
+                        };
+                    }
+                } catch(svgErr) {
+                    return { valid: false, error: 'SVG dosyası okunamadı veya biçimi bozuk.' };
+                }
+            }
+
+            // 6. Gerçek Görsel Çözümleme ve Boyut Güvenlik Testi (Decompression Bomb / Fake Image Koruması)
+            if (!isSvg) {
+                try {
+                    const objectUrl = URL.createObjectURL(file);
+                    try {
+                        await new Promise((resolve, reject) => {
+                            const testImg = new Image();
+                            let timeout = setTimeout(() => {
+                                testImg.onload = null;
+                                testImg.onerror = null;
+                                reject(new Error('Görsel çözümleme zaman aşımına uğradı.'));
+                            }, 4000);
+
+                            testImg.onload = () => {
+                                clearTimeout(timeout);
+                                const w = testImg.naturalWidth || testImg.width || 0;
+                                const h = testImg.naturalHeight || testImg.height || 0;
+
+                                if (w <= 0 || h <= 0) {
+                                    return reject(new Error('Görsel boyutları geçersiz (0x0 piksel).'));
+                                }
+
+                                // Decompression Bomb koruması: Aşırı devasa görseller tarayıcı sekmesini çökertir (Maks: 8192 x 8192 veya 40 MP)
+                                if (w > 8192 || h > 8192 || (w * h > 40000000)) {
+                                    return reject(new Error(`Görsel boyutları çok büyük (${w}x${h} piksel). Maksimum 8192x8192 piksel desteklenmektedir.`));
+                                }
+
+                                resolve();
+                            };
+
+                            testImg.onerror = () => {
+                                clearTimeout(timeout);
+                                reject(new Error('Dosya içeriği geçerli bir resim olarak çözümlenemedi (bozuk dosya).'));
+                            };
+
+                            testImg.src = objectUrl;
+                        });
+                    } finally {
+                        URL.revokeObjectURL(objectUrl);
+                    }
+                } catch(probeErr) {
+                    return { valid: false, error: probeErr.message || 'Dosya geçerli bir görsel değil veya bozuk.' };
+                }
+            }
+
+            return { valid: true };
         },
 
         /**
          * Kullanıcı Filigran İçin Özel Logo Yüklediğinde Karşılar
          */
-        handleWatermarkLogoUpload: function(event) {
+        handleWatermarkLogoUpload: async function(event) {
             const file = event?.target?.files?.[0];
             if (!file) return;
+
+            // Güvenlik ve Bütünlük Doğrulaması
+            const check = await this.validateLogoFileAsync(file);
+            if (!check.valid) {
+                if (event.target) event.target.value = '';
+                if (typeof window.showAppToast === 'function') {
+                    window.showAppToast(check.error, 'error', 4500);
+                } else {
+                    alert(check.error);
+                }
+                return;
+            }
+
+            if (typeof window.showAppLoading === 'function') {
+                window.showAppLoading('Logo Yükleniyor...', 'Firma logosu yerleştiriliyor...');
+            }
+
             const reader = new FileReader();
             reader.onload = (e) => {
-                this.watermarkOptions.customLogoUrl = e.target.result;
+                const newLogoUrl = e.target.result;
+                this.watermarkOptions.customLogoUrl = newLogoUrl;
+                window.companyLogo = newLogoUrl;
+
+                if (window.CanvasEmptyState && typeof window.CanvasEmptyState.dismiss === 'function') {
+                    window.CanvasEmptyState.dismiss();
+                }
+
+                if (!this.watermarkOptions.position || this.watermarkOptions.position === 'custom') {
+                    this.watermarkOptions.position = 'bottom-right';
+                }
+
+                this.applyWatermarkToCanvas(true);
+
+                const logoEl = document.getElementById('elLogo');
+                if (logoEl && typeof window.selectElement === 'function') {
+                    window.selectElement(logoEl, false, true);
+                }
+
+                if (typeof window.syncLogoUI === 'function') {
+                    window.syncLogoUI(newLogoUrl);
+                }
+
+                if (event.target) event.target.value = '';
+
+                if (typeof window.hideAppLoading === 'function') window.hideAppLoading(60);
+                if (typeof window.renderLayers === 'function') window.renderLayers();
+                if (typeof window.requestAutoSave === 'function') window.requestAutoSave();
+                if (typeof window.showAppToast === 'function') {
+                    window.showAppToast('Logo başarıyla eklendi.', 'success', 2500);
+                }
+
                 this.renderPanel();
+            };
+            reader.onerror = () => {
+                if (event.target) event.target.value = '';
+                if (typeof window.hideAppLoading === 'function') window.hideAppLoading();
+                if (typeof window.showAppToast === 'function') {
+                    window.showAppToast('Dosya okunurken bir hata oluştu.', 'error');
+                }
             };
             reader.readAsDataURL(file);
         },
@@ -621,8 +1442,7 @@
         applyWatermarkSelected: async function() {
             const logoUrl = this.getCurrentLogoUrl();
             if (!logoUrl) {
-                const input = document.getElementById('stagingWatermarkLogoInput');
-                if (input) input.click();
+                this.triggerWatermarkLogoInput();
                 if (typeof window.showAppToast === 'function') {
                     window.showAppToast('Lütfen önce firmanızın logosunu seçin.', 'warning', 3000);
                 }
@@ -635,13 +1455,54 @@
                 return;
             }
 
-            const logoImg = await this.loadImageAsync(logoUrl);
+            let logoImg;
+            try {
+                logoImg = await this.loadImageAsync(logoUrl);
+            } catch(err) {
+                console.error("Filigran logo yüklenemedi:", err);
+                if (typeof window.showAppToast === 'function') {
+                    window.showAppToast('Firma logosu yüklenemedi veya bozuk. Lütfen geçerli bir logo seçin.', 'error', 3500);
+                }
+                return;
+            }
             const { position, scale, opacity } = this.watermarkOptions;
+
+            const logoEl = document.getElementById('elLogo');
+            const hasCanvasLogo = logoEl && logoEl.style.display !== 'none' && logoEl.style.visibility !== 'hidden';
+            const cc = document.getElementById('canvas-container');
+            const ccW = cc ? (parseInt(cc.style.width) || cc.offsetWidth || 1920) : 1920;
+            const ccH = cc ? (parseInt(cc.style.height) || cc.offsetHeight || 1080) : 1080;
+
+            // Varsayılan: Kullanıcının tuvalde serbestçe bıraktığı konum
+            const isCustomPosition = (position === 'custom' || !position) && hasCanvasLogo;
+
+            let customRelX = 0;
+            let customRelY = 0;
+            let customRelW = (scale || 20) / 100;
+
+            if (isCustomPosition) {
+                const curLeft = (logoEl.offsetLeft !== undefined && !isNaN(logoEl.offsetLeft)) ? logoEl.offsetLeft : (ccW - (ccW * customRelW) - 50);
+                const curTop = (logoEl.offsetTop !== undefined && !isNaN(logoEl.offsetTop)) ? logoEl.offsetTop : (ccH - (ccW * customRelW * (logoImg.naturalHeight / logoImg.naturalWidth)) - 50);
+                const curW = logoEl.offsetWidth || (ccW * customRelW);
+
+                customRelX = Math.max(0, curLeft) / ccW;
+                customRelY = Math.max(0, curTop) / ccH;
+                customRelW = Math.max(0.02, curW / ccW);
+            }
+
+            const damgalaBtn = document.getElementById('stagingApplyWatermarkBtn');
 
             for (let i = 0; i < targets.length; i++) {
                 const it = targets[i];
+                if (damgalaBtn) {
+                    damgalaBtn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> ${i + 1}/${targets.length} Damgalanıyor`;
+                }
+                // Asenkron nefes payı (UI thread'e kontrol ver - sıfır donma)
+                await new Promise(r => setTimeout(r, 20));
+
                 try {
-                    const baseImg = await this.loadImageAsync(it.dataUrl);
+                    if (!it.rawOriginalDataUrl) it.rawOriginalDataUrl = it.dataUrl;
+                    const baseImg = await this.loadImageAsync(it.rawOriginalDataUrl || it.dataUrl);
                     const canvas = document.createElement('canvas');
                     canvas.width = baseImg.naturalWidth || 1920;
                     canvas.height = baseImg.naturalHeight || 1080;
@@ -652,35 +1513,21 @@
                     // 1. Orijinal fotoğrafı çiz
                     ctx.drawImage(baseImg, 0, 0, canvas.width, canvas.height);
 
-                    // 2. Logo boyutlarını hesapla
-                    const margin = Math.round(canvas.width * 0.035);
-                    const logoW = Math.round(canvas.width * (scale / 100));
-                    const logoH = Math.round(logoW * (logoImg.naturalHeight / logoImg.naturalWidth));
+                    // 2. Logoyu çiz (renderLogoToCanvasContext ile tutarlı ve çıpa korumalı)
+                    this.renderLogoToCanvasContext(ctx, canvas, it, logoImg);
 
-                    // 3. Konum koordinatları
-                    let x = canvas.width - logoW - margin;
-                    let y = canvas.height - logoH - margin;
-
-                    if (position === 'bottom-left') {
-                        x = margin;
-                        y = canvas.height - logoH - margin;
-                    } else if (position === 'top-right') {
-                        x = canvas.width - logoW - margin;
-                        y = margin;
-                    } else if (position === 'top-left') {
-                        x = margin;
-                        y = margin;
-                    } else if (position === 'center') {
-                        x = Math.round((canvas.width - logoW) / 2);
-                        y = Math.round((canvas.height - logoH) / 2);
+                    const qKey = this.exportQuality || 'web';
+                    if (qKey === 'lossless' || qKey === 'png') {
+                        it.dataUrl = canvas.toDataURL('image/png');
+                    } else {
+                        const qVal = qKey === 'ultra' ? 0.98 : (qKey === 'high' ? 0.96 : 0.92);
+                        it.dataUrl = canvas.toDataURL('image/jpeg', qVal);
                     }
+                    it.watermarkBaked = true;
 
-                    // 4. Opaklık ile logoyu damgala
-                    ctx.globalAlpha = Math.max(0.1, Math.min(1, opacity / 100));
-                    ctx.drawImage(logoImg, x, y, logoW, logoH);
-                    ctx.globalAlpha = 1.0;
-
-                    it.dataUrl = canvas.toDataURL('image/png');
+                    // Anında bellek tahliyesi (RAM koruması)
+                    canvas.width = 0;
+                    canvas.height = 0;
 
                     if (it.id === this.activeItemId) {
                         this.applyToCanvas(it.id, true);
@@ -690,6 +1537,10 @@
                 }
             }
 
+            if (damgalaBtn) {
+                damgalaBtn.innerHTML = '<i class="fa-solid fa-stamp"></i> Seçilenlere Damgala';
+            }
+
             this.renderPanel();
             if (typeof window.showAppToast === 'function') {
                 window.showAppToast(`${targets.length} görsele filigran uygulandı.`, 'success', 3500);
@@ -697,29 +1548,518 @@
         },
 
         /**
-         * Logoyu Mevcut Tuvale Katman Olarak Ekler
+         * Logoyu Mevcut Tuvale Katman Olarak Ekler veya Günceller
          */
         addLogoToCanvas: function() {
-            const logoUrl = this.getCurrentLogoUrl();
-            if (!logoUrl) {
-                const input = document.getElementById('stagingWatermarkLogoInput');
-                if (input) input.click();
-                return;
+            let logoUrl = this.getCurrentLogoUrl();
+            if (!logoUrl || !this.isValidLogoUrl(logoUrl)) {
+                logoUrl = 'assets/logo/logo.png';
+                this.watermarkOptions.customLogoUrl = logoUrl;
+                window.companyLogo = logoUrl;
             }
+
+            if (window.CanvasEmptyState && typeof window.CanvasEmptyState.dismiss === 'function') {
+                window.CanvasEmptyState.dismiss();
+            }
+
+            if (!this.watermarkOptions.position || this.watermarkOptions.position === 'custom') {
+                this.watermarkOptions.position = 'bottom-right';
+            }
+
+            this.applyWatermarkToCanvas(true);
+
             const logoEl = document.getElementById('elLogo');
             if (logoEl) {
-                logoEl.src = logoUrl;
-                logoEl.style.display = 'block';
-                logoEl.style.visibility = 'visible';
-                logoEl.style.zIndex = '9999';
                 if (typeof window.selectElement === 'function') {
+                    window.selectElement(logoEl, false, true);
+                }
+                if (typeof window.renderLayers === 'function') {
+                    window.renderLayers();
+                }
+            }
+
+            if (typeof window.syncLogoUI === 'function') {
+                window.syncLogoUI(logoUrl);
+            }
+
+            this.renderPanel();
+
+            if (typeof window.showAppToast === 'function') {
+                window.showAppToast('Logo tuvale eklendi.', 'success', 2200);
+            }
+        },
+
+        /**
+          * Logoyu Sağ Alt Köşeye Hizalar (Kullanıcı Butona Bastığında)
+          */
+        alignLogoBottomRight: function() {
+            this.watermarkOptions.position = 'bottom-right';
+            const posSel = document.getElementById('watermarkPosSelect');
+            if (posSel) posSel.value = 'bottom-right';
+            const logoEl = document.getElementById('elLogo');
+            const logoUrl = this.getCurrentLogoUrl();
+            if (logoUrl) {
+                this.applyWatermarkToCanvas(true);
+                if (logoEl && typeof window.selectElement === 'function') {
                     window.selectElement(logoEl);
+                }
+                if (typeof this.syncCurrentLogoPosition === 'function') {
+                    this.syncCurrentLogoPosition();
                 }
             }
         },
 
         /**
-         * Seçili Görselleri İstenen Format & En-Boy Oranına Dönüştürür
+          * Filigran Boyut Slider Değişimi
+          */
+        setWatermarkScale: function(val) {
+            const scale = parseInt(val, 10);
+            if (isNaN(scale)) return;
+            this.watermarkOptions.scale = scale;
+            const valEl = document.getElementById('wmScaleVal');
+            if (valEl) valEl.textContent = scale + '%';
+            
+            const logoEl = document.getElementById('elLogo');
+            if (logoEl && logoEl.style.display !== 'none' && logoEl.style.visibility !== 'hidden') {
+                this.applyWatermarkToCanvas(false);
+                if (typeof this.syncCurrentLogoPosition === 'function') {
+                    this.syncCurrentLogoPosition();
+                }
+            }
+        },
+
+        /**
+          * Filigran Opaklık Slider Değişimi
+          */
+        setWatermarkOpacity: function(val) {
+            const opacity = parseInt(val, 10);
+            if (isNaN(opacity)) return;
+            this.watermarkOptions.opacity = opacity;
+            const valEl = document.getElementById('wmOpacityVal');
+            if (valEl) valEl.textContent = opacity + '%';
+            
+            const logoEl = document.getElementById('elLogo');
+            if (logoEl && logoEl.style.display !== 'none' && logoEl.style.visibility !== 'hidden') {
+                this.applyWatermarkToCanvas(false);
+                if (typeof this.syncCurrentLogoPosition === 'function') {
+                    this.syncCurrentLogoPosition();
+                }
+            }
+        },
+
+        /**
+          * Filigran Konum Dropdown Değişimi
+          */
+        setWatermarkPosition: function(val) {
+            this.watermarkOptions.position = val;
+            const posSel = document.getElementById('watermarkPosSelect');
+            if (posSel && posSel.value !== val) {
+                posSel.value = val;
+            }
+            
+            const logoEl = document.getElementById('elLogo');
+            if (logoEl && logoEl.style.display !== 'none' && logoEl.style.visibility !== 'hidden') {
+                if (val !== 'custom') {
+                    this.applyWatermarkToCanvas(true);
+                }
+                if (typeof this.syncCurrentLogoPosition === 'function') {
+                    this.syncCurrentLogoPosition();
+                }
+            }
+        },
+
+        /**
+         * Tuvaldeki Logonun Koordinatlarını ve Oransal Çıpa Değerlerini Yakalar
+         */
+        captureLogoCoords: function(logoEl, canvasContainer) {
+            if (!logoEl || !canvasContainer) return null;
+            // 🛡️ Görünmeyen veya 0 genişlikli elemandan koordinat yakalama (hatalı 0,0 kaydını önle)
+            const isVisible = (
+                logoEl.style.display !== 'none' &&
+                logoEl.style.visibility !== 'hidden' &&
+                parseFloat(logoEl.style.opacity || '1') > 0 &&
+                logoEl.offsetWidth > 0 &&
+                logoEl.offsetHeight > 0
+            );
+            if (!isVisible) return null;
+
+            const cW = parseInt(canvasContainer.style.width) || canvasContainer.offsetWidth || 1920;
+            const cH = parseInt(canvasContainer.style.height) || canvasContainer.offsetHeight || 1080;
+            if (cW <= 0 || cH <= 0) return null;
+
+            const scale = (typeof this.watermarkOptions.scale === 'number') ? this.watermarkOptions.scale : 20;
+            const curW = logoEl.offsetWidth || Math.max(40, Math.round(cW * (scale / 100)));
+            const curH = logoEl.offsetHeight || Math.round(curW * 0.4);
+            const leftPx = (logoEl.offsetLeft !== undefined && !isNaN(logoEl.offsetLeft)) ? logoEl.offsetLeft : 0;
+            const topPx = (logoEl.offsetTop !== undefined && !isNaN(logoEl.offsetTop)) ? logoEl.offsetTop : 0;
+
+            const relX = leftPx / cW;
+            const relY = topPx / cH;
+            const relW = curW / cW;
+            const calculatedScale = Math.max(5, Math.min(50, Math.round(relW * 100)));
+
+            const marginRightRatio = Math.max(0, (cW - (leftPx + curW)) / cW);
+            const marginBottomRatio = Math.max(0, (cH - (topPx + curH)) / cH);
+            const marginLeftRatio = Math.max(0, leftPx / cW);
+            const marginTopRatio = Math.max(0, topPx / cH);
+
+            const anchorX = relX > 0.5 ? 'right' : 'left';
+            const anchorY = relY > 0.5 ? 'bottom' : 'top';
+
+            return {
+                position: this.watermarkOptions.position || 'custom',
+                scale: calculatedScale,
+                opacity: (typeof this.watermarkOptions.opacity === 'number') ? this.watermarkOptions.opacity : 100,
+                leftPx,
+                topPx,
+                relX,
+                relY,
+                relW,
+                anchorX,
+                anchorY,
+                marginRightRatio,
+                marginBottomRatio,
+                marginLeftRatio,
+                marginTopRatio,
+                origCanvasW: cW,
+                origCanvasH: cH
+            };
+        },
+
+        /**
+         * Standart Sağ Alt Logo Koordinatlarını Üretir
+         */
+        getDefaultLogoCoords: function(cW, cH) {
+            const scale = (typeof this.watermarkOptions.scale === 'number') ? this.watermarkOptions.scale : 20;
+            const curW = Math.max(40, Math.round(cW * (scale / 100)));
+            const curH = Math.round(curW * 0.4);
+            const mR = Math.round(cW * 0.035);
+            const mB = Math.round(cH * 0.035);
+            const leftPx = Math.max(0, cW - curW - mR);
+            const topPx = Math.max(0, cH - curH - mB);
+            return {
+                position: 'bottom-right',
+                scale: scale,
+                opacity: (typeof this.watermarkOptions.opacity === 'number') ? this.watermarkOptions.opacity : 100,
+                leftPx,
+                topPx,
+                relX: leftPx / cW,
+                relY: topPx / cH,
+                relW: curW / cW,
+                anchorX: 'right',
+                anchorY: 'bottom',
+                marginRightRatio: mR / cW,
+                marginBottomRatio: mB / cH,
+                marginLeftRatio: leftPx / cW,
+                marginTopRatio: topPx / cH,
+                origCanvasW: cW,
+                origCanvasH: cH
+            };
+        },
+
+        /**
+         * Verilen Logo Koordinat Objelerini Tuvaldeki Logoya Uygular
+         */
+        applyLogoCoordsToCanvas: function(logoPos) {
+            const logoEl = document.getElementById('elLogo');
+            const canvasContainer = document.getElementById('canvas-container');
+            if (!logoEl || !canvasContainer) return;
+
+            const cW = parseInt(canvasContainer.style.width) || canvasContainer.offsetWidth || 1920;
+            const cH = parseInt(canvasContainer.style.height) || canvasContainer.offsetHeight || 1080;
+            if (cW <= 0 || cH <= 0) return;
+
+            if (!logoPos || (logoPos.leftPx === 0 && logoPos.topPx === 0 && !logoPos.userMoved && logoPos.anchorX !== 'left')) {
+                logoPos = this.getDefaultLogoCoords(cW, cH);
+            }
+
+            // Görünürlük ve katman garantisi
+            logoEl.style.display = 'block';
+            logoEl.style.visibility = 'visible';
+            logoEl.style.zIndex = '99999';
+            if (canvasContainer.lastElementChild !== logoEl) {
+                canvasContainer.appendChild(logoEl);
+            }
+
+            const img = logoEl.querySelector('img') || logoEl.querySelector('#elLogoImg');
+            if (img) {
+                img.style.display = 'block';
+                img.style.visibility = 'visible';
+            }
+
+            // 1. Standart köşe konumu ise doğrudan köşe motorunu çalıştır
+            if (logoPos.position && logoPos.position !== 'custom') {
+                this.watermarkOptions.position = logoPos.position;
+                if (typeof logoPos.scale === 'number') this.watermarkOptions.scale = logoPos.scale;
+                if (typeof logoPos.opacity === 'number') this.watermarkOptions.opacity = logoPos.opacity;
+                this.applyWatermarkToCanvas(true);
+                return;
+            }
+
+            // 2. Boyut
+            const scale = (typeof logoPos.scale === 'number') ? logoPos.scale : (this.watermarkOptions.scale || 20);
+            this.watermarkOptions.scale = scale;
+            const logoW = Math.max(40, Math.round(cW * (scale / 100)));
+            logoEl.style.width = logoW + 'px';
+            logoEl.style.height = 'auto';
+
+            // 3. Opaklık
+            if (typeof logoPos.opacity === 'number') {
+                this.watermarkOptions.opacity = logoPos.opacity;
+                logoEl.style.opacity = Math.max(0.1, Math.min(1, logoPos.opacity / 100)).toString();
+            }
+
+            // 4. Çıpa ve kenar payı korumalı koordinat hesabı
+            const logoH = logoEl.offsetHeight || Math.round(logoW * 0.4);
+            let newL, newT;
+
+            if (logoPos.anchorX === 'right') {
+                const mR = Math.round(cW * (logoPos.marginRightRatio !== undefined ? logoPos.marginRightRatio : Math.max(0, 1 - (logoPos.relX || 0) - (logoPos.relW || (scale/100)))));
+                newL = cW - logoW - Math.max(0, mR);
+            } else {
+                const mL = Math.round(cW * (logoPos.marginLeftRatio !== undefined ? logoPos.marginLeftRatio : (logoPos.relX || 0)));
+                newL = Math.max(0, mL);
+            }
+
+            if (logoPos.anchorY === 'bottom') {
+                const mB = Math.round(cH * (logoPos.marginBottomRatio !== undefined ? logoPos.marginBottomRatio : Math.max(0, 1 - (logoPos.relY || 0))));
+                newT = cH - logoH - Math.max(0, mB);
+            } else {
+                const mT = Math.round(cH * (logoPos.marginTopRatio !== undefined ? logoPos.marginTopRatio : (logoPos.relY || 0)));
+                newT = Math.max(0, mT);
+            }
+
+            const maxL = Math.max(0, cW - logoW);
+            const maxT = Math.max(0, cH - logoH);
+            newL = Math.max(0, Math.min(maxL, newL));
+            newT = Math.max(0, Math.min(maxT, newT));
+
+            logoEl.style.left = newL + 'px';
+            logoEl.style.top = newT + 'px';
+            logoEl.style.right = 'auto';
+            logoEl.style.bottom = 'auto';
+            logoEl.style.transform = 'none';
+
+            this.syncWatermarkUiControls();
+        },
+
+        /**
+         * Belirli Bir Görsel İçin O Anki Tuval Logo Konumunu Kaydeder
+         */
+        captureCanvasLogoForImage: function(targetItem) {
+            const logoEl = document.getElementById('elLogo');
+            const canvasContainer = document.getElementById('canvas-container');
+            if (!logoEl || !canvasContainer) return;
+            const isVisible = (logoEl.style.display !== 'none' && logoEl.style.visibility !== 'hidden' && logoEl.style.opacity !== '0');
+            if (!isVisible) return;
+
+            const coords = this.captureLogoCoords(logoEl, canvasContainer);
+            if (!coords) return;
+
+            if (targetItem && targetItem.excludeLogo) {
+                targetItem.customLogoPos = coords;
+            } else if (this.watermarkOptions.applyToAll !== false) {
+                this.globalLogoPos = coords;
+            }
+        },
+
+        /**
+         * Aktif Görselin Logo Konumunu Senkronize Eder
+         */
+        syncCurrentLogoPosition: function() {
+            const activeItem = this.items ? this.items.find(it => it.id === this.activeItemId) : null;
+            this.captureCanvasLogoForImage(activeItem);
+        },
+
+        /**
+         * Logo Tuvalde Taşındığında veya Boyutlandırıldığında Çağrılır
+         */
+        onCanvasLogoMoved: function(targetLogo) {
+            if (!targetLogo) return;
+            const canvasContainer = document.getElementById('canvas-container') || targetLogo.parentElement;
+            if (!canvasContainer) return;
+
+            this.watermarkOptions.position = 'custom';
+            const posSel = document.getElementById('watermarkPosSelect');
+            if (posSel) posSel.value = 'custom';
+
+            const coords = this.captureLogoCoords(targetLogo, canvasContainer);
+            if (!coords) return;
+
+            this.watermarkOptions.scale = coords.scale;
+            const scaleSlider = document.getElementById('wmScaleSlider');
+            const scaleVal = document.getElementById('wmScaleVal');
+            if (scaleSlider) scaleSlider.value = coords.scale;
+            if (scaleVal) scaleVal.textContent = coords.scale + '%';
+
+            const activeItem = this.items ? this.items.find(it => it.id === this.activeItemId) : null;
+            if (activeItem && activeItem.excludeLogo) {
+                activeItem.customLogoPos = coords;
+            } else if (this.watermarkOptions.applyToAll !== false) {
+                this.globalLogoPos = coords;
+            }
+        },
+
+        /**
+         * "Konumu Tümüne Uygula" Seçeneği Değiştiğinde
+         */
+        setWatermarkApplyToAll: function(checked) {
+            this.watermarkOptions.applyToAll = !!checked;
+            if (checked) {
+                const logoEl = document.getElementById('elLogo');
+                const canvasContainer = document.getElementById('canvas-container');
+                if (logoEl && canvasContainer) {
+                    this.globalLogoPos = this.captureLogoCoords(logoEl, canvasContainer);
+                }
+            }
+        },
+
+        /**
+         * Aktif Görseli Global Logo Konumundan Hariç Tut / Dahil Et
+         */
+        toggleExcludeActiveItem: function(checked) {
+            const activeItem = this.items ? this.items.find(it => it.id === this.activeItemId) : null;
+            if (!activeItem) return;
+
+            activeItem.excludeLogo = !!checked;
+
+            const logoEl = document.getElementById('elLogo');
+            const canvasContainer = document.getElementById('canvas-container');
+
+            if (checked) {
+                const currentCoords = (logoEl && canvasContainer)
+                    ? this.captureLogoCoords(logoEl, canvasContainer)
+                    : (this.globalLogoPos ? Object.assign({}, this.globalLogoPos) : null);
+                activeItem.customLogoPos = currentCoords;
+            } else {
+                if (this.globalLogoPos) {
+                    this.applyLogoCoordsToCanvas(this.globalLogoPos);
+                }
+            }
+
+            this.renderPanel();
+        },
+
+        /**
+         * Paneldeki Kontrolleri Aktif Görselin ve Logonun Durumuna Göre Senkronize Eder
+         */
+        syncWatermarkUiControls: function() {
+            const activeItem = this.items ? this.items.find(it => it.id === this.activeItemId) : null;
+            const isExcluded = !!(activeItem && activeItem.excludeLogo);
+            const posObj = (isExcluded && activeItem.customLogoPos) ? activeItem.customLogoPos : (this.globalLogoPos || this.watermarkOptions);
+
+            const posSel = document.getElementById('watermarkPosSelect');
+            if (posSel && posObj && posObj.position) posSel.value = posObj.position;
+
+            const scaleSlider = document.getElementById('wmScaleSlider');
+            const scaleVal = document.getElementById('wmScaleVal');
+            if (scaleSlider && posObj && typeof posObj.scale === 'number') {
+                scaleSlider.value = posObj.scale;
+                if (scaleVal) scaleVal.textContent = posObj.scale + '%';
+            }
+
+            const opacitySlider = document.getElementById('wmOpacitySlider');
+            const opacityVal = document.getElementById('wmOpacityVal');
+            if (opacitySlider && posObj && typeof posObj.opacity === 'number') {
+                opacitySlider.value = posObj.opacity;
+                if (opacityVal) opacityVal.textContent = posObj.opacity + '%';
+            }
+
+            const applyAllCheck = document.getElementById('stagingWmApplyAllCheck');
+            if (applyAllCheck) applyAllCheck.checked = (this.watermarkOptions.applyToAll !== false);
+
+            const excludeCheck = document.getElementById('stagingWmExcludeCheck');
+            if (excludeCheck) excludeCheck.checked = isExcluded;
+        },
+
+        /**
+         * Tuval Üzerindeki Logo Katmanını (elLogo) Günceller
+         */
+        applyWatermarkToCanvas: function(updatePosition = false) {
+            const logoEl = document.getElementById('elLogo');
+            if (!logoEl) return;
+
+            let logoUrl = this.getCurrentLogoUrl();
+            if (!logoUrl || !this.isValidLogoUrl(logoUrl)) {
+                logoUrl = 'assets/logo/logo.png';
+                this.watermarkOptions.customLogoUrl = logoUrl;
+                window.companyLogo = logoUrl;
+            }
+
+            logoEl.src = logoUrl;
+            const img = logoEl.querySelector('img') || logoEl.querySelector('#elLogoImg');
+            if (img) {
+                img.src = logoUrl;
+                img.style.display = 'block';
+                img.style.visibility = 'visible';
+                img.style.width = '100%';
+                img.style.height = 'auto';
+                img.style.objectFit = 'contain';
+            }
+
+            logoEl.style.display = 'block';
+            logoEl.style.visibility = 'visible';
+            logoEl.style.zIndex = '99999';
+            logoEl.style.maxWidth = 'none';
+
+            const canvasContainer = document.getElementById('canvas-container');
+            if (canvasContainer && canvasContainer.lastElementChild !== logoEl) {
+                canvasContainer.appendChild(logoEl);
+            }
+
+            // 1. Opaklık (0.1 - 1.0)
+            const opacity = (typeof this.watermarkOptions.opacity === 'number') ? this.watermarkOptions.opacity : 100;
+            const alpha = Math.max(0.1, Math.min(1, opacity / 100));
+            logoEl.style.opacity = alpha.toString();
+
+            // 2. Boyutlandırma (Tuval genişliğine göre oransal piksel)
+            const scale = (typeof this.watermarkOptions.scale === 'number') ? this.watermarkOptions.scale : 20;
+            const cW = canvasContainer ? (parseInt(canvasContainer.style.width) || canvasContainer.offsetWidth || 1920) : 1920;
+            const logoW = Math.max(40, Math.round(cW * (scale / 100)));
+            logoEl.style.width = logoW + 'px';
+            logoEl.style.height = 'auto';
+
+            // 3. Konumlandırma
+            const pos = this.watermarkOptions.position || 'bottom-right';
+            if (updatePosition || pos !== 'custom') {
+                const margin = Math.round(cW * 0.035);
+
+                logoEl.style.left = '';
+                logoEl.style.right = '';
+                logoEl.style.top = '';
+                logoEl.style.bottom = '';
+                logoEl.style.transform = 'none';
+
+                if (pos === 'bottom-right' || (!pos || pos === 'custom')) {
+                    logoEl.style.right = margin + 'px';
+                    logoEl.style.bottom = margin + 'px';
+                } else if (pos === 'bottom-left') {
+                    logoEl.style.left = margin + 'px';
+                    logoEl.style.bottom = margin + 'px';
+                } else if (pos === 'top-right') {
+                    logoEl.style.right = margin + 'px';
+                    logoEl.style.top = margin + 'px';
+                } else if (pos === 'top-left') {
+                    logoEl.style.left = margin + 'px';
+                    logoEl.style.top = margin + 'px';
+                } else if (pos === 'center') {
+                    logoEl.style.left = '50%';
+                    logoEl.style.top = '50%';
+                    logoEl.style.transform = 'translate(-50%, -50%)';
+                }
+            }
+
+            if (typeof this.syncCurrentLogoPosition === 'function') {
+                this.syncCurrentLogoPosition();
+            }
+
+            if (typeof window.requestAutoSave === 'function') {
+                window.requestAutoSave();
+            }
+        },
+
+        /**
+         * Seçili Görselleri İstenen Format & En-Boy Oranına Dönüştürür (Ham Orijinalden & Asenkron)
          */
         applyFormatSelected: async function() {
             const targets = this.getSelectedItems();
@@ -729,68 +2069,59 @@
             }
 
             const { ratio, mode } = this.formatOptions;
-            let targetW = 1080;
-            let targetH = 1080;
 
-            if (ratio === '9:16') {
-                targetW = 1080;
-                targetH = 1920;
-            } else if (ratio === '16:9') {
-                targetW = 1920;
-                targetH = 1080;
+            // Eğer "original" seçildiyse doğrudan sıfırla
+            if (ratio === 'original') {
+                return this.resetFormatSelected();
             }
+
+            const qKey = this.formatQuality || '2k';
 
             for (let i = 0; i < targets.length; i++) {
                 const it = targets[i];
+                // Asenkron nefes payı (UI donmasını önler)
+                await new Promise(r => setTimeout(r, 35));
+
+                // DAİMA İLK HAM ORİJİNAL KAYNAĞI KULLAN (Asla önceden kırpılmış/bulanıklaşmış tuvali ezme!)
+                const rawUrl = it.rawOriginalDataUrl || it.originalDataUrl || (it.id === this.activeItemId ? (window._aiOriginalImgDataUrl || window.uploadedImgUrl || window.masterImageBase64) : null) || it.dataUrl;
+
+                if (!it.rawOriginalDataUrl && rawUrl) {
+                    it.rawOriginalDataUrl = rawUrl;
+                }
+                if (!it.rawOriginalThumbUrl) {
+                    it.rawOriginalThumbUrl = it.thumbUrl || rawUrl;
+                }
+
                 try {
-                    const img = await this.loadImageAsync(it.dataUrl);
-                    const canvas = document.createElement('canvas');
-                    canvas.width = targetW;
-                    canvas.height = targetH;
-                    const ctx = canvas.getContext('2d');
-                    ctx.imageSmoothingEnabled = true;
-                    ctx.imageSmoothingQuality = 'high';
+                    const img = await this.loadImageAsync(rawUrl);
+                    const srcW = img.naturalWidth || 1920;
+                    const srcH = img.naturalHeight || 1080;
 
-                    const srcW = img.naturalWidth || targetW;
-                    const srcH = img.naturalHeight || targetH;
+                    const specs = this.getFormatTargetSpecs(ratio, qKey, srcW, srcH);
+                    const canvas = this.renderFormattedCanvas(img, specs.targetW, specs.targetH, mode);
 
-                    if (mode === 'contain_blur') {
-                        // 1. Arka planı bulanık doldur
-                        ctx.save();
-                        ctx.filter = 'blur(30px) brightness(60%) saturate(120%)';
-                        // Cover zemin
-                        const scaleCover = Math.max(targetW / srcW, targetH / srcH);
-                        const covW = srcW * scaleCover;
-                        const covH = srcH * scaleCover;
-                        const covX = (targetW - covW) / 2;
-                        const covY = (targetH - covH) / 2;
-                        ctx.drawImage(img, covX - 20, covY - 20, covW + 40, covH + 40);
-                        ctx.restore();
+                    it.dataUrl = canvas.toDataURL(specs.mime, specs.quality);
+                    it.formatRatio = ratio;
 
-                        // 2. Ortaya kırpılmamış orijinal görseli yerleştir (contain)
-                        const scaleFit = Math.min(targetW / srcW, targetH / srcH);
-                        const fitW = Math.round(srcW * scaleFit);
-                        const fitH = Math.round(srcH * scaleFit);
-                        const fitX = Math.round((targetW - fitW) / 2);
-                        const fitY = Math.round((targetH - fitH) / 2);
+                    // Thumbnail'i de yeni formata göre güncelle
+                    try {
+                        const thumbW = Math.min(480, specs.targetW);
+                        const thumbH = Math.max(1, Math.round(thumbW * (specs.targetH / specs.targetW)));
+                        const thumbCanvas = document.createElement('canvas');
+                        thumbCanvas.width = thumbW;
+                        thumbCanvas.height = thumbH;
+                        const tctx = thumbCanvas.getContext('2d');
+                        tctx.imageSmoothingEnabled = true;
+                        tctx.imageSmoothingQuality = 'medium';
+                        tctx.drawImage(canvas, 0, 0, thumbW, thumbH);
+                        it.thumbUrl = thumbCanvas.toDataURL('image/jpeg', 0.72);
+                        thumbCanvas.width = 0;
+                        thumbCanvas.height = 0;
+                    } catch(eThumb){}
 
-                        // Hafif gölge
-                        ctx.shadowColor = 'rgba(0, 0, 0, 0.4)';
-                        ctx.shadowBlur = 24;
-                        ctx.drawImage(img, fitX, fitY, fitW, fitH);
-                        ctx.shadowBlur = 0;
-                    } else {
-                        // Cover mod: Merkezden tam kırparak doldur
-                        const scaleCover = Math.max(targetW / srcW, targetH / srcH);
-                        const covW = srcW * scaleCover;
-                        const covH = srcH * scaleCover;
-                        const covX = (targetW - covW) / 2;
-                        const covY = (targetH - covH) / 2;
-                        ctx.drawImage(img, covX, covY, covW, covH);
-                    }
-
-                    it.dataUrl = canvas.toDataURL('image/png');
-                    it.title = `${it.title || 'gorsel'}_${ratio.replace(':', '_')}`;
+                    // Bellek tahliyesi
+                    canvas.width = 0;
+                    canvas.height = 0;
 
                     if (it.id === this.activeItemId) {
                         this.applyToCanvas(it.id, true);
@@ -802,7 +2133,253 @@
 
             this.renderPanel();
             if (typeof window.showAppToast === 'function') {
-                window.showAppToast(`${targets.length} görsel ${ratio} formatına uyarlandı.`, 'success', 3500);
+                window.showAppToast(`${targets.length} görsel ${ratio} formatına (${qKey.toUpperCase()}) uyarlandı.`, 'success', 3500);
+            }
+        },
+
+        /**
+         * Seçili Görselleri İlk Orijinal Ham Boyutuna ve Kadrajına Döndürür
+         */
+        resetFormatSelected: function() {
+            const targets = this.getSelectedItems();
+            if (targets.length === 0) {
+                if (typeof window.showAppToast === 'function') window.showAppToast('Lütfen sıfırlanacak görselleri seçin.', 'warning');
+                return;
+            }
+
+            let restoredCount = 0;
+            targets.forEach(it => {
+                const raw = it.rawOriginalDataUrl || it.originalDataUrl || (it.id === this.activeItemId ? (window._aiOriginalImgDataUrl || window.uploadedImgUrl || window.masterImageBase64) : null);
+                if (raw) {
+                    it.dataUrl = raw;
+                    if (it.rawOriginalThumbUrl) it.thumbUrl = it.rawOriginalThumbUrl;
+                    it.formatRatio = 'original';
+                    restoredCount++;
+                }
+                if (it.id === this.activeItemId) {
+                    this.applyToCanvas(it.id, true);
+                }
+            });
+
+            this.renderPanel();
+            if (typeof window.showAppToast === 'function') {
+                window.showAppToast(`${restoredCount} görsel orijinal haline döndürüldü.`, 'success', 3000);
+            }
+        },
+
+        /**
+         * Görseli İstenen Çözünürlük ve Kırpma/Bulanıklık Modunda Canvas Olarak Üretir
+         */
+        renderFormattedCanvas: function(img, targetW, targetH, mode = 'contain_blur') {
+            const canvas = document.createElement('canvas');
+            canvas.width = targetW;
+            canvas.height = targetH;
+            const ctx = canvas.getContext('2d');
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = 'high';
+
+            const srcW = img.naturalWidth || targetW;
+            const srcH = img.naturalHeight || targetH;
+
+            if (mode === 'contain_blur') {
+                // 1. Arka planı bulanık doldur
+                ctx.save();
+                ctx.filter = 'blur(30px) brightness(60%) saturate(120%)';
+                const scaleCover = Math.max(targetW / srcW, targetH / srcH);
+                const covW = srcW * scaleCover;
+                const covH = srcH * scaleCover;
+                const covX = (targetW - covW) / 2;
+                const covY = (targetH - covH) / 2;
+                ctx.drawImage(img, covX - 20, covY - 20, covW + 40, covH + 40);
+                ctx.restore();
+
+                // 2. Orijinal görseli sığdır (contain)
+                const scaleFit = Math.min(targetW / srcW, targetH / srcH);
+                const fitW = Math.round(srcW * scaleFit);
+                const fitH = Math.round(srcH * scaleFit);
+                const fitX = Math.round((targetW - fitW) / 2);
+                const fitY = Math.round((targetH - fitH) / 2);
+
+                ctx.shadowColor = 'rgba(0, 0, 0, 0.4)';
+                ctx.shadowBlur = 24;
+                ctx.drawImage(img, fitX, fitY, fitW, fitH);
+                ctx.shadowBlur = 0;
+            } else {
+                // Cover mod
+                const scaleCover = Math.max(targetW / srcW, targetH / srcH);
+                const covW = srcW * scaleCover;
+                const covH = srcH * scaleCover;
+                const covX = (targetW - covW) / 2;
+                const covY = (targetH - covH) / 2;
+                ctx.drawImage(img, covX, covY, covW, covH);
+            }
+            return canvas;
+        },
+
+        /**
+         * Seçili Görselleri Instagram (1:1), Sahibinden/Web (16:9) ve Story (9:16) Formatlarında Arka Planda Tek ZIP Olarak Paketler
+         */
+        downloadMultiPlatformZip: async function() {
+            if (this.isExportingPlatforms) {
+                if (typeof window.showAppToast === 'function') {
+                    window.showAppToast('Paketleme işlemi zaten arka planda devam ediyor.', 'info');
+                }
+                return;
+            }
+
+            const targets = this.getSelectedItems();
+            if (targets.length === 0) {
+                if (typeof window.showAppToast === 'function') window.showAppToast('Lütfen paketlenecek görselleri seçin.', 'warning');
+                return;
+            }
+
+            if (typeof window.JSZip === 'undefined') {
+                if (window.LazyLoader && typeof window.LazyLoader.load === 'function') {
+                    try { await window.LazyLoader.load('zip'); } catch(e){}
+                }
+                if (typeof window.JSZip === 'undefined') {
+                    await new Promise((resolve, reject) => {
+                        const s = document.createElement('script');
+                        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
+                        s.onload = resolve;
+                        s.onerror = reject;
+                        document.head.appendChild(s);
+                    }).catch(e => console.warn('JSZip CDN fallback error:', e));
+                }
+            }
+
+            if (typeof window.JSZip === 'undefined') {
+                if (typeof window.showAppToast === 'function') window.showAppToast('Arşivleme motoru (JSZip) yüklenemedi.', 'error');
+                return;
+            }
+
+            this.isExportingPlatforms = true;
+
+            const btn = document.getElementById('stagingMultiPlatformZipBtn');
+            const origHtml = btn ? btn.innerHTML : '';
+            const updateBtnProgress = (current, total) => {
+                const b = document.getElementById('stagingMultiPlatformZipBtn');
+                if (b) {
+                    b.disabled = true;
+                    b.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> Paket Hazırlanıyor: ${current} / ${total}`;
+                }
+            };
+
+            updateBtnProgress(0, targets.length);
+
+            if (typeof window.showAppToast === 'function') {
+                window.showAppToast('Paketleme arka planda başladı. İşlemlerinize kesintisiz devam edebilirsiniz.', 'info', 3500);
+            }
+
+            try {
+                const zip = new window.JSZip();
+                const folderInsta = zip.folder('01_Instagram_1x1');
+                const folderSahibinden = zip.folder('02_Sahibinden_16x9');
+                const folderStory = zip.folder('03_Story_9x16');
+
+                const mode = this.formatOptions?.mode || 'contain_blur';
+                const qKey = this.formatQuality || '2k';
+
+                // Platform hedefleri
+                const platforms = [
+                    { ratio: '1:1', folder: folderInsta, suffix: '_1x1_Instagram' },
+                    { ratio: '16:9', folder: folderSahibinden, suffix: '_16x9_Sahibinden' },
+                    { ratio: '9:16', folder: folderStory, suffix: '_9x16_Story' }
+                ];
+
+                // Aktif logo varsa döngüden önce tek seferde yükle (yüksek performans)
+                let preloadedLogoImg = null;
+                if (this.hasActiveWatermark()) {
+                    const logoUrl = this.getCurrentLogoUrl();
+                    if (logoUrl && this.isValidLogoUrl(logoUrl)) {
+                        try {
+                            preloadedLogoImg = await this.loadImageAsync(logoUrl);
+                        } catch(err) {
+                            console.warn("Çoklu platform ZIP öncesi logo yüklenemedi:", err);
+                        }
+                    }
+                }
+
+                for (let i = 0; i < targets.length; i++) {
+                    const it = targets[i];
+                    updateBtnProgress(i + 1, targets.length);
+
+                    // Ana işlem döngüsüne nefes payı (UI thread'e kontrol ver - sıfır donma & GC)
+                    await new Promise(r => setTimeout(r, 45));
+
+                    const rawUrl = it.rawOriginalDataUrl || it.originalDataUrl || (it.id === this.activeItemId ? (window._aiOriginalImgDataUrl || window.uploadedImgUrl || window.masterImageBase64) : null) || it.dataUrl;
+                    const img = await this.loadImageAsync(rawUrl);
+                    const cleanTitle = (it.title || `Gorsel_${i + 1}`).replace(/[^\w\d_-]/gi, '_');
+                    const srcW = img.naturalWidth || 1920;
+                    const srcH = img.naturalHeight || 1080;
+
+                    for (const p of platforms) {
+                        const specs = this.getFormatTargetSpecs(p.ratio, qKey, srcW, srcH);
+                        const cvs = this.renderFormattedCanvas(img, specs.targetW, specs.targetH, mode);
+
+                        if (preloadedLogoImg && !it.watermarkBaked) {
+                            this.renderLogoToCanvasContext(cvs.getContext('2d'), cvs, it, preloadedLogoImg);
+                        }
+
+                        // Blob olarak al (RAM tüketimini 3 kat azaltır, çökmeyi önler)
+                        const blob = await new Promise(res => {
+                            if (cvs.toBlob) {
+                                cvs.toBlob(res, specs.mime, specs.quality);
+                            } else {
+                                const dUrl = cvs.toDataURL(specs.mime, specs.quality);
+                                const arr = dUrl.split(',');
+                                const bstr = atob(arr[1]);
+                                let n = bstr.length;
+                                const u8arr = new Uint8Array(n);
+                                while(n--) u8arr[n] = bstr.charCodeAt(n);
+                                res(new Blob([u8arr], { type: specs.mime }));
+                            }
+                        });
+
+                        // Tuval belleğini anında tahliye et (GPU buffer dispose)
+                        cvs.width = 0;
+                        cvs.height = 0;
+
+                        const ext = (specs.mime === 'image/png') ? 'png' : 'jpg';
+                        p.folder.file(`${String(i + 1).padStart(2, '0')}_${cleanTitle}${p.suffix}.${ext}`, blob);
+
+                        // Platform arası mikro nefes
+                        await new Promise(r => setTimeout(r, 20));
+                    }
+                }
+
+                const b = document.getElementById('stagingMultiPlatformZipBtn');
+                if (b) b.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Arşiv Sıkıştırılıyor...';
+
+                const zipBlob = await zip.generateAsync({
+                    type: 'blob',
+                    compression: 'DEFLATE',
+                    compressionOptions: { level: 6 }
+                });
+
+                const dlLink = document.createElement('a');
+                dlLink.href = URL.createObjectURL(zipBlob);
+                dlLink.download = `Emlak_Coklu_Platform_${qKey.toUpperCase()}_${Date.now()}.zip`;
+                document.body.appendChild(dlLink);
+                dlLink.click();
+                setTimeout(() => {
+                    URL.revokeObjectURL(dlLink.href);
+                    dlLink.remove();
+                }, 1000);
+
+                if (typeof window.showAppToast === 'function') {
+                    window.showAppToast(`${targets.length} görsel (${qKey.toUpperCase()}) tüm platformlar için paketlendi ve indirildi.`, 'success', 4000);
+                }
+            } catch(err) {
+                console.error('MultiPlatform Zip Hatası:', err);
+                if (typeof window.showAppToast === 'function') window.showAppToast('Paketleme sırasında bir hata oluştu.', 'error');
+            } finally {
+                this.isExportingPlatforms = false;
+                const b = document.getElementById('stagingMultiPlatformZipBtn');
+                if (b) {
+                    b.disabled = false;
+                    b.innerHTML = origHtml || '<i class="fa-solid fa-file-zipper"></i> Tüm Platformlara Paketle';
+                }
             }
         },
 
@@ -997,9 +2574,9 @@
         },
 
         /**
-         * 🪟 Canlı Tuval Üzerinde Öncesi / Sonrası Karşılaştırma (Aynı Ekranda)
+         * 🪟 Canlı Tuval Üzerinde Öncesi / Sonrası Karşılaştırma
          */
-        openCanvasCompare: function() {
+        openCanvasCompare: function(mode) {
             const overlay = document.getElementById('canvasCompareSliderOverlay');
             if (!overlay) return;
 
@@ -1016,7 +2593,7 @@
             // 1. Öncesi (Orijinal) URL'ini belirle
             let beforeUrl = '';
             if (activeItem) {
-                beforeUrl = activeItem.originalDataUrl || window._aiOriginalImgDataUrl || window.uploadedImgUrl || activeItem.dataUrl;
+                beforeUrl = activeItem.rawOriginalDataUrl || activeItem.originalDataUrl || window._aiOriginalImgDataUrl || window.uploadedImgUrl || activeItem.dataUrl;
             } else {
                 beforeUrl = window._aiOriginalImgDataUrl || window.uploadedImgUrl || window.masterImageBase64 || '';
             }
@@ -1052,104 +2629,221 @@
                 window.setOriginalView(false);
             }
 
+            // İkili Görünüm İmajları
             const beforeImg = document.getElementById('canvasCompareBeforeImg');
             if (beforeImg) {
                 beforeImg.src = beforeUrl;
                 beforeImg.style.filter = 'none';
             }
 
-            const afterImg = document.getElementById('canvasCompareAfterImg');
-            if (afterImg) {
-                afterImg.src = afterUrl;
-                const pl = document.getElementById('photo-layer');
-                if (pl && pl.style.filter && pl.style.filter !== 'none') {
-                    afterImg.style.filter = pl.style.filter;
-                } else {
-                    afterImg.style.filter = 'none';
-                }
+            // Kaydırmalı Görünüm İmajları
+            const sliderBeforeImg = document.getElementById('canvasCompareSliderBeforeImg');
+            if (sliderBeforeImg) {
+                sliderBeforeImg.src = beforeUrl;
+                sliderBeforeImg.style.filter = 'none';
             }
 
-            this.compareMode = this.compareMode || 'split-vertical';
-            this.setCompareMode(this.compareMode);
+            const afterImg = document.getElementById('canvasCompareAfterImg');
+            const sliderAfterImg = document.getElementById('canvasCompareSliderAfterImg');
 
+            const k = (this.aiIntensity !== undefined) ? this.aiIntensity : 0.35;
+            const contrastPct = Math.round(100 + 16 * k);
+            const satPct = Math.round(100 + 18 * k);
+            const brightPct = Math.round(100 + 2 * k);
+            const filterStr = `contrast(${contrastPct}%) saturate(${satPct}%) brightness(${brightPct}%) drop-shadow(0 0 0.5px rgba(0,0,0,${(k * 0.45).toFixed(2)}))`;
+
+            if (afterImg) {
+                afterImg.src = afterUrl;
+                afterImg.style.filter = filterStr;
+            }
+            if (sliderAfterImg) {
+                sliderAfterImg.src = afterUrl;
+                sliderAfterImg.style.filter = filterStr;
+            }
+
+            const targetMode = mode || (this.compareMode === 'toggle' ? 'side-by-side' : this.compareMode) || 'side-by-side';
+            this.compareMode = targetMode;
+
+            this.isCompareOpen = true;
             overlay.style.display = 'block';
+
+            this.setCompareMode(targetMode);
 
             const dockBtn = document.getElementById('dockBeforeAfterBtn');
             if (dockBtn) dockBtn.classList.add('active');
+
+            const stagingBtn = document.getElementById('stagingCompareBtn');
+            if (stagingBtn) stagingBtn.classList.add('active');
+
+            const stagingDockBtn = document.getElementById('dockStagingCompareBtn');
+            if (stagingDockBtn) stagingDockBtn.classList.add('active');
         },
 
         closeCanvasCompare: function() {
+            this.isCompareOpen = false;
             const overlay = document.getElementById('canvasCompareSliderOverlay');
             if (overlay) overlay.style.display = 'none';
 
             const dockBtn = document.getElementById('dockBeforeAfterBtn');
-            if (dockBtn) dockBtn.classList.remove('active');
+            if (dockBtn && !window.isShowingBefore) dockBtn.classList.remove('active');
+
+            const stagingBtn = document.getElementById('stagingCompareBtn');
+            if (stagingBtn && !window.isShowingBefore) stagingBtn.classList.remove('active');
+
+            const stagingDockBtn = document.getElementById('dockStagingCompareBtn');
+            if (stagingDockBtn && !window.isShowingBefore) stagingDockBtn.classList.remove('active');
         },
 
         toggleCanvasCompare: function() {
-            const overlay = document.getElementById('canvasCompareSliderOverlay');
-            if (overlay && overlay.style.display !== 'none') {
-                this.closeCanvasCompare();
-            } else {
-                this.openCanvasCompare();
+            return this.triggerCompareAction();
+        },
+
+        /**
+         * Karşılaştırma Modunu Ayarlar:
+         * 'toggle' (Tıklamalı) | 'side-by-side' (İkili) | 'slider' (Kaydırmalı)
+         */
+        setCompareMode: function(mode) {
+            let m = mode || 'toggle';
+            if (m === 'split-vertical') m = 'side-by-side';
+            if (m === 'split-slider') m = 'slider';
+            this.compareMode = m;
+
+            // 1. Paneldeki Mod Butonlarını Güncelle
+            const btnToggle = document.getElementById('btnStagingModeToggle');
+            const btnSide = document.getElementById('btnStagingModeSideBySide');
+            const btnSlider = document.getElementById('btnStagingModeSlider');
+            if (btnToggle) btnToggle.classList.toggle('active', this.compareMode === 'toggle');
+            if (btnSide) btnSide.classList.toggle('active', this.compareMode === 'side-by-side');
+            if (btnSlider) btnSlider.classList.toggle('active', this.compareMode === 'slider');
+
+            // 2. Katman Üst Çubuğundaki Butonları Güncelle
+            const ovlToggle = document.getElementById('ovlCompareToggle');
+            const ovlSide = document.getElementById('ovlCompareSideBySide');
+            const ovlSlider = document.getElementById('ovlCompareSplitSlider');
+            if (ovlToggle) ovlToggle.classList.toggle('active', this.compareMode === 'toggle');
+            if (ovlSide) ovlSide.classList.toggle('active', this.compareMode === 'side-by-side');
+            if (ovlSlider) ovlSlider.classList.toggle('active', this.compareMode === 'slider');
+
+            // 3. Görünüm Kapsayıcılarını Yönet
+            const sideBySideContainer = document.getElementById('canvasCompareViewContainer');
+            const splitSliderWrap = document.getElementById('canvasCompareSplitSliderWrap');
+
+            if (this.compareMode === 'toggle') {
+                if (this.isCompareOpen) {
+                    this.closeCanvasCompare();
+                    this.toggleCanvasInstantBeforeAfter();
+                }
+            } else if (this.compareMode === 'side-by-side') {
+                if (!this.isCompareOpen) {
+                    this.openCanvasCompare('side-by-side');
+                } else {
+                    if (sideBySideContainer) sideBySideContainer.style.display = 'flex';
+                    if (splitSliderWrap) splitSliderWrap.style.display = 'none';
+                }
+            } else if (this.compareMode === 'slider') {
+                if (!this.isCompareOpen) {
+                    this.openCanvasCompare('slider');
+                } else {
+                    if (sideBySideContainer) sideBySideContainer.style.display = 'none';
+                    if (splitSliderWrap) splitSliderWrap.style.display = 'flex';
+                    const sliderRange = document.getElementById('canvasCompareSliderRange');
+                    if (sliderRange) sliderRange.value = 50;
+                    this.updateSplitSlider(50);
+                }
             }
         },
 
-        setCompareMode: function(mode) {
-            this.compareMode = mode || 'split-vertical';
-
-            // Paneldeki seçenekleri güncelle
-            const sideBtn = document.getElementById('btnCompareSideBySide');
-            const topBtn = document.getElementById('btnCompareTopBottom');
-            const ovlBtn = document.getElementById('btnCompareOverlay');
-            if (sideBtn) sideBtn.classList.toggle('active', this.compareMode === 'split-vertical');
-            if (topBtn) topBtn.classList.toggle('active', this.compareMode === 'split-horizontal');
-            if (ovlBtn) ovlBtn.classList.toggle('active', this.compareMode === 'overlay');
-
-            // Katman üst çubuğundaki seçenekleri güncelle
-            const ovlSide = document.getElementById('ovlCompareSideBySide');
-            const ovlTop = document.getElementById('ovlCompareTopBottom');
-            const ovlOvl = document.getElementById('ovlCompareOverlay');
-            if (ovlSide) ovlSide.classList.toggle('active', this.compareMode === 'split-vertical');
-            if (ovlTop) ovlTop.classList.toggle('active', this.compareMode === 'split-horizontal');
-            if (ovlOvl) ovlOvl.classList.toggle('active', this.compareMode === 'overlay');
-
-            const container = document.getElementById('canvasCompareViewContainer');
-            const overlayControls = document.getElementById('canvasCompareOverlayControls');
-            const overlayHint = document.getElementById('canvasCompareOverlayHint');
-
-            if (container) {
-                container.classList.remove('mode-side-by-side', 'mode-top-bottom', 'mode-overlay');
-                if (this.compareMode === 'split-vertical') {
-                    container.classList.add('mode-side-by-side');
-                } else if (this.compareMode === 'split-horizontal') {
-                    container.classList.add('mode-top-bottom');
-                } else if (this.compareMode === 'overlay') {
-                    container.classList.add('mode-overlay');
+        /**
+         * "Öncesi / Sonrası" Butonuna Basıldığında Seçili Moda Göre Davranır
+         */
+        triggerCompareAction: function() {
+            if (this.compareMode === 'side-by-side') {
+                if (this.isCompareOpen) {
+                    this.closeCanvasCompare();
+                } else {
+                    this.openCanvasCompare('side-by-side');
                 }
-            }
-
-            if (overlayControls) {
-                overlayControls.style.display = (this.compareMode === 'overlay') ? 'inline-flex' : 'none';
-            }
-            if (overlayHint) {
-                overlayHint.style.display = (this.compareMode === 'overlay') ? 'inline-flex' : 'none';
-            }
-
-            // Kart görünürlüklerini ayarla
-            const cardBefore = document.getElementById('canvasCompareCardBefore');
-            const cardAfter = document.getElementById('canvasCompareCardAfter');
-            if (this.compareMode === 'overlay') {
-                this.showOverlayLayer(this.currentOverlayLayer || 'after');
+            } else if (this.compareMode === 'slider') {
+                if (this.isCompareOpen) {
+                    this.closeCanvasCompare();
+                } else {
+                    this.openCanvasCompare('slider');
+                }
             } else {
-                if (cardBefore) {
-                    cardBefore.classList.remove('card-hidden');
-                    cardBefore.style.cursor = 'default';
+                // Varsayılan: Tıklamalı anlık A/B tuval geçişi
+                this.toggleCanvasInstantBeforeAfter();
+            }
+        },
+
+        /**
+         * Tuval Üzerinde Anlık Öncesi / Sonrası A/B Geçişi Yapar (Her Tıklamada Değişir)
+         */
+        toggleCanvasInstantBeforeAfter: function() {
+            if (this.isCompareOpen) {
+                this.closeCanvasCompare();
+            }
+            if (typeof window.togglePhotoBeforeAfterInstant === 'function') {
+                window.togglePhotoBeforeAfterInstant();
+            } else if (typeof window.setOriginalView === 'function') {
+                window.setOriginalView();
+            }
+            this.syncCompareButtonStates();
+        },
+
+        /**
+         * Öncesi / Sonrası Butonlarının (Dock & Panel) Durumunu Senkronize Eder
+         */
+        syncCompareButtonStates: function() {
+            const isShowing = !!window.isShowingBefore;
+
+            // Tuval altı dock butonu
+            const dockBtn = document.getElementById('dockStagingCompareBtn');
+            if (dockBtn) {
+                if (isShowing) {
+                    dockBtn.classList.add('active');
+                    dockBtn.innerHTML = '<span class="dock-icon"><i class="fa-solid fa-eye"></i></span><span class="dock-label">Sonrası</span>';
+                    dockBtn.title = 'Düzenlenmiş haline dön (Sonrası)';
+                } else {
+                    dockBtn.classList.remove('active');
+                    dockBtn.innerHTML = '<span class="dock-icon"><i class="fa-solid fa-code-compare"></i></span><span class="dock-label">Öncesi / Sonrası</span>';
+                    dockBtn.title = 'Öncesi ve Sonrası Karşılaştırma';
                 }
-                if (cardAfter) {
-                    cardAfter.classList.remove('card-hidden');
-                    cardAfter.style.cursor = 'default';
+            }
+
+            // Panel içi buton
+            const trayActionBtn = document.getElementById('stagingCompareActionBtn') || document.getElementById('stagingCompareBtn');
+            if (trayActionBtn) {
+                if (isShowing) {
+                    trayActionBtn.classList.add('active');
+                    trayActionBtn.innerHTML = '<i class="fa-solid fa-eye"></i> Sonrası';
+                    trayActionBtn.title = 'Düzenlenmiş haline dön (Sonrası)';
+                } else {
+                    trayActionBtn.classList.remove('active');
+                    trayActionBtn.innerHTML = '<i class="fa-solid fa-code-compare"></i> Öncesi / Sonrası';
+                    trayActionBtn.title = 'Netleştirilmiş görsel ile orijinali karşılaştır';
                 }
+            }
+        },
+
+        /**
+         * Kaydırmalı Karşılaştırma Bölücü Çizgisini ve Maskesini Günceller
+         */
+        updateSplitSlider: function(val) {
+            const v = Math.max(0, Math.min(100, Number(val) || 50));
+            const clipEl = document.getElementById('canvasCompareClipContainer');
+            const lineEl = document.getElementById('canvasCompareDividerLine');
+            const handleEl = document.getElementById('canvasCompareSliderHandle');
+
+            if (clipEl) {
+                const rightInset = 100 - v;
+                clipEl.style.clipPath = `inset(0 ${rightInset}% 0 0)`;
+                clipEl.style.webkitClipPath = `inset(0 ${rightInset}% 0 0)`;
+            }
+            if (lineEl) {
+                lineEl.style.left = `${v}%`;
+            }
+            if (handleEl) {
+                handleEl.style.left = `${v}%`;
             }
         },
 
@@ -1179,7 +2873,7 @@
         },
 
         openCompareModal: function() {
-            this.openCanvasCompare();
+            return this.triggerCompareAction();
         },
 
         closeCompareModal: function() {
@@ -1200,20 +2894,32 @@
         },
 
         /**
-         * Görsel Yükleme Yardımcısı
+         * Görsel Yükleme Yardımcısı (Zaman Aşımı ve Çökme Korumalı)
          */
-        loadImageAsync: function(src) {
+        loadImageAsync: function(src, timeoutMs = 8000) {
             return new Promise((resolve, reject) => {
+                if (!src) return reject(new Error('Görsel kaynağı boş.'));
                 const img = new Image();
                 img.crossOrigin = 'anonymous';
-                img.onload = () => resolve(img);
-                img.onerror = (e) => reject(e);
+                let timer = setTimeout(() => {
+                    img.onload = null;
+                    img.onerror = null;
+                    reject(new Error('Görsel yükleme zaman aşımına uğradı.'));
+                }, timeoutMs);
+                img.onload = () => {
+                    clearTimeout(timer);
+                    resolve(img);
+                };
+                img.onerror = (e) => {
+                    clearTimeout(timer);
+                    reject(e || new Error('Görsel çözümlenemedi.'));
+                };
                 img.src = src;
             });
         },
 
         /**
-         * Karusel Film Şeridini Açar veya Açıksa Kapatır (Toggle)
+         * Karusel / Çoklu Gönderi Modunu Açar veya Açıksa Kapatır (Toggle)
          */
         toggleCarousel: async function() {
             if ((!window.CarouselManager || window.CarouselManager._isProxy) && window.LazyLoader) {
@@ -1224,7 +2930,13 @@
 
             if (cm.isVisible) {
                 cm.toggleBar(false);
+                cm.isVisible = false;
+                const badge = document.getElementById('canvasCarouselBadge');
+                if (badge) badge.style.display = 'none';
                 this.renderPanel();
+                if (typeof window.showAppToast === 'function') {
+                    window.showAppToast('Çoklu gönderi modu kapatıldı.', 'info');
+                }
                 return;
             }
             this.exportToCarousel();
@@ -1254,28 +2966,110 @@
                 cm.pages.push({
                     id: 'page_staging_' + (it.key || 'snap') + '_' + Date.now() + '_' + idx,
                     title: it.title || `Sayfa ${idx + 1}`,
+                    stagingItemId: it.id,
                     snapshot: {
+                        photoImgUrl: it.dataUrl,
                         uploadedImgUrl: it.dataUrl,
                         activeLayout: window.activeLayout || '',
                         timestamp: Date.now()
                     },
-                    thumb: it.dataUrl
+                    thumb: it.thumbUrl || it.dataUrl
                 });
             });
 
             cm.activePageIndex = 0;
-            cm.renderFilmstrip();
-            cm.toggleBar(true);
+            cm.isVisible = true;
+
+            // Alt film şeridi çubuğunu açmıyoruz (kapalı kalır)
+            cm.toggleBar(false);
 
             if (targets[0] && targets[0].dataUrl) {
                 this.applyToCanvas(targets[0].id, true);
             }
 
+            this.syncCanvasCarouselBadge();
             this.renderPanel();
+
+            if (typeof window.showAppToast === 'function') {
+                window.showAppToast('Çoklu gönderi aktif. Tuval üstündeki oklardan veya sol havuzdan görseller arasında geçiş yapabilirsiniz.', 'info', 4000);
+            }
         },
 
         /**
-         * Seçili Görsellere Toplu AI Netleştirme Uygular
+         * Tuvaldeki Aktif Görseli Havuz Listesinde Sırayla Gezer (-1: Önceki, 1: Sonraki)
+         */
+        stepCanvasPhoto: function(direction) {
+            const list = this.getFilteredItems();
+            if (!list || list.length === 0) return;
+            let currIdx = list.findIndex(it => it.id === this.activeItemId);
+            if (currIdx === -1) currIdx = 0;
+            let nextIdx = currIdx + direction;
+            if (nextIdx < 0) nextIdx = list.length - 1;
+            if (nextIdx >= list.length) nextIdx = 0;
+            const nextItem = list[nextIdx];
+            if (nextItem) {
+                this.applyToCanvas(nextItem.id, true);
+                this.syncCanvasCarouselBadge();
+            }
+        },
+
+        /**
+         * Tuval Üstü Sayfa & Görsel Gezinme Rozetini Günceller
+         */
+        syncCanvasCarouselBadge: function() {
+            const badge = document.getElementById('canvasCarouselBadge');
+            if (!badge) return;
+            const list = this.getFilteredItems();
+            if (!list || list.length <= 1) {
+                badge.style.display = 'none';
+                return;
+            }
+            let currIdx = list.findIndex(it => it.id === this.activeItemId);
+            if (currIdx === -1) currIdx = 0;
+            const currItem = list[currIdx];
+            badge.style.display = 'inline-flex';
+            const textEl = document.getElementById('canvasCarouselBadgeText');
+            if (textEl) {
+                const titleStr = currItem?.title ? ` • ${currItem.title}` : '';
+                textEl.textContent = `Görsel ${currIdx + 1} / ${list.length}${titleStr}`;
+            }
+        },
+
+        /**
+         * Görselin Havuzdaki Sırasını Değiştirir (-1: Öne, +1: Arkaya)
+         */
+        moveItemById: function(itemId, direction) {
+            const idx = this.items.findIndex(it => it.id === itemId);
+            if (idx === -1) return;
+            const targetIdx = idx + direction;
+            if (targetIdx < 0 || targetIdx >= this.items.length) return;
+            const temp = this.items[idx];
+            this.items[idx] = this.items[targetIdx];
+            this.items[targetIdx] = temp;
+            if (typeof this.saveToStorage === 'function') this.saveToStorage();
+            this.renderPanel();
+            this.syncCanvasCarouselBadge();
+        },
+
+        /**
+         * Kart Sürükle-Bırak Sıralama Bırakma Olayı
+         */
+        dropItem: function(targetId, evt) {
+            const srcId = evt.dataTransfer.getData('application/x-staging-id') || evt.dataTransfer.getData('text/plain');
+            if (!srcId || srcId === targetId) return;
+            const srcIdx = this.items.findIndex(it => it.id === srcId);
+            const targetIdx = this.items.findIndex(it => it.id === targetId);
+            if (srcIdx === -1 || targetIdx === -1) return;
+
+            const [movedItem] = this.items.splice(srcIdx, 1);
+            this.items.splice(targetIdx, 0, movedItem);
+            if (typeof this.saveToStorage === 'function') this.saveToStorage();
+            this.renderPanel();
+            this.syncCanvasCarouselBadge();
+        },
+
+        /**
+         * Seçili Görsellere Toplu AI Netleştirme Uygular (Tümüne Uygula)
          */
         applyAiEnhanceSelected: async function() {
             const targets = this.getSelectedItems();
@@ -1285,30 +3079,67 @@
             }
 
             const intensity = (typeof this.aiIntensity === 'number') ? this.aiIntensity : 0.35;
-            const pct = Math.round(intensity * 100);
-
-            for (let i = 0; i < targets.length; i++) {
-                const it = targets[i];
-                try {
-                    if (!it.originalDataUrl) {
-                        it.originalDataUrl = it.dataUrl;
-                    }
-                    const enhancedDataUrl = await this.enhanceImageDataUrl(it.originalDataUrl || it.dataUrl, intensity);
-                    it.dataUrl = enhancedDataUrl;
-                    it.isEnhanced = true;
-                    it.aiIntensity = intensity;
-                    if (it.id === this.activeItemId) {
-                        window._aiOriginalImgDataUrl = it.originalDataUrl;
-                        this.applyToCanvas(it.id, true);
-                    }
-                } catch(err) {
-                    console.warn("Görsel netleştirme atlandı:", err);
-                }
+            const btn = document.getElementById('stagingApplyAiAllBtn');
+            const originalBtnHtml = btn ? btn.innerHTML : '';
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Uygulanıyor...';
             }
 
-            this.renderPanel();
-            if (typeof window.showAppToast === 'function') {
-                window.showAppToast(`${targets.length} görsel netleştirildi.`, 'success', 3500);
+            try {
+                for (let i = 0; i < targets.length; i++) {
+                    const it = targets[i];
+                    if (btn) {
+                        btn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> ${i + 1}/${targets.length}`;
+                    }
+                    // Asenkron nefes payı (UI thread dondurmaz)
+                    await new Promise(r => setTimeout(r, 20));
+
+                    try {
+                        if (!it.rawOriginalDataUrl) {
+                            it.rawOriginalDataUrl = it.originalDataUrl || it.dataUrl;
+                        }
+                        if (!it.originalDataUrl) {
+                            it.originalDataUrl = it.dataUrl;
+                        }
+                        const enhancedDataUrl = await this.enhanceImageDataUrl(it.rawOriginalDataUrl || it.originalDataUrl || it.dataUrl, intensity);
+                        it.dataUrl = enhancedDataUrl;
+                        it.isEnhanced = true;
+                        it.aiIntensity = intensity;
+
+                        // Thumbnail güncellemesi (Havuz kartlarında netlik görünür)
+                        try {
+                            const img = await this.loadImageAsync(enhancedDataUrl);
+                            const thumbCanvas = document.createElement('canvas');
+                            const thumbW = 320;
+                            const thumbH = Math.max(1, Math.round(thumbW * ((img.naturalHeight || 1080) / (img.naturalWidth || 1920))));
+                            thumbCanvas.width = thumbW;
+                            thumbCanvas.height = thumbH;
+                            const tctx = thumbCanvas.getContext('2d');
+                            tctx.drawImage(img, 0, 0, thumbW, thumbH);
+                            it.thumbUrl = thumbCanvas.toDataURL('image/jpeg', 0.72);
+                            thumbCanvas.width = 0;
+                            thumbCanvas.height = 0;
+                        } catch(eThumb) {}
+
+                        if (it.id === this.activeItemId) {
+                            window._aiOriginalImgDataUrl = it.originalDataUrl;
+                            this.applyToCanvas(it.id, true);
+                        }
+                    } catch(err) {
+                        console.warn("Görsel netleştirme atlandı:", err);
+                    }
+                }
+
+                this.renderPanel();
+                if (typeof window.showAppToast === 'function') {
+                    window.showAppToast(`${targets.length} görsel netleştirildi.`, 'success', 3000);
+                }
+            } finally {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = originalBtnHtml || '<i class="fa-solid fa-check"></i> Tümüne Uygula';
+                }
             }
         },
 
@@ -1326,21 +3157,38 @@
                     ctx.imageSmoothingEnabled = true;
                     ctx.imageSmoothingQuality = 'high';
                     // Canlı kontrast, doygunluk ve netlik mikro-filtresi (intensity ölçeğinde)
-                    const contrastPct = Math.round(100 + 20 * intensity);
-                    const satPct = Math.round(100 + 35 * intensity);
-                    const brightPct = Math.round(100 + 5 * intensity);
+                    const contrastPct = Math.round(100 + 16 * intensity);
+                    const satPct = Math.round(100 + 20 * intensity);
+                    const brightPct = Math.round(100 + 3 * intensity);
                     ctx.filter = `contrast(${contrastPct}%) saturate(${satPct}%) brightness(${brightPct}%)`;
                     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
                     ctx.filter = 'none';
 
+                    const qKey = this.exportQuality || 'web';
+                    let mime = 'image/jpeg';
+                    let q = 0.94;
+                    if (qKey === 'lossless' || qKey === 'png') {
+                        mime = 'image/png';
+                    } else if (qKey === 'ultra') {
+                        q = 0.98;
+                    } else if (qKey === 'high') {
+                        q = 0.96;
+                    }
+
                     if (window.AiEnhancer && typeof window.AiEnhancer.applyAiFilters === 'function') {
                         try {
                             const finalCanvas = window.AiEnhancer.applyAiFilters(canvas, 'picsart_hd', intensity);
-                            resolve(finalCanvas.toDataURL('image/png'));
+                            const res = finalCanvas.toDataURL(mime, q);
+                            canvas.width = 0;
+                            canvas.height = 0;
+                            resolve(res);
                             return;
                         } catch(e) {}
                     }
-                    resolve(canvas.toDataURL('image/png'));
+                    const res = canvas.toDataURL(mime, q);
+                    canvas.width = 0;
+                    canvas.height = 0;
+                    resolve(res);
                 };
                 img.onerror = () => resolve(dataUrl);
                 img.src = dataUrl;
@@ -1364,11 +3212,7 @@
 
             if (this.items.length === 0) {
                 this.activeItemId = null;
-                if (typeof window.clearBgImage === 'function') window.clearBgImage();
-                if (window.CanvasEmptyState && typeof window.CanvasEmptyState.resetDismiss === 'function') {
-                    window.CanvasEmptyState.resetDismiss();
-                    window.CanvasEmptyState.updateState();
-                }
+                this.resetCanvasToEmpty();
             } else if (targetIds.has(this.activeItemId)) {
                 this.activeItemId = this.items[0] ? this.items[0].id : null;
                 if (this.activeItemId) {
@@ -1398,11 +3242,7 @@
 
             if (this.items.length === 0) {
                 this.activeItemId = null;
-                if (typeof window.clearBgImage === 'function') window.clearBgImage();
-                if (window.CanvasEmptyState && typeof window.CanvasEmptyState.resetDismiss === 'function') {
-                    window.CanvasEmptyState.resetDismiss();
-                    window.CanvasEmptyState.updateState();
-                }
+                this.resetCanvasToEmpty();
             } else if (this.activeItemId === id) {
                 this.activeItemId = this.items[0] ? this.items[0].id : null;
                 if (this.activeItemId) {
@@ -1420,27 +3260,30 @@
         },
 
         /**
-         * Tüm Havuzu Boşaltır ve Tuvali Sıfırlar
+         * Tuvali ve şablon/kolaj artıklarını tamamen temizler, boş durum kartlarını geri getirir
          */
-        clearAllPool: function(forceWithoutConfirm = false) {
-            if (!this.items || this.items.length === 0) {
-                return;
+        resetCanvasToEmpty: function() {
+            // 1. Şablonları temizle
+            if (typeof window.clearAllTemplates === 'function') {
+                window.clearAllTemplates();
             }
 
-            if (!forceWithoutConfirm) {
-                const count = this.items.length;
-                const ok = confirm(`Görsel havuzundaki tüm fotoğraflar (${count} adet) silinecek ve tuval sıfırlanacaktır. Devam etmek istiyor musunuz?`);
-                if (!ok) return;
+            // 2. Kolajı temizle
+            if (typeof window._kolajTemizle === 'function') {
+                window._kolajTemizle();
+            } else if (typeof window.kolajTemizle === 'function') {
+                window.kolajTemizle();
             }
 
-            if (typeof window.recordHistoryImmediate === 'function' && !window.isHistoryRestoring) {
-                window.recordHistoryImmediate('Havuz Temizleme Öncesi');
-            }
+            // 3. Kolaj ve canva DOM artıklarını zorla temizle
+            const kw = document.getElementById('kolaj-wrapper');
+            if (kw) kw.remove();
+            
+            document.querySelectorAll('.kolaj-cerceve, .kolaj-foto, .canva-generated, .slot-photo-change-btn').forEach(el => {
+                if (el.parentNode) el.remove();
+            });
 
-            this.items = [];
-            this.activeItemId = null;
-            this.selectedIds.clear();
-
+            // 4. Arka plan görselini ve katmanları temizle
             if (typeof window.clearBgImage === 'function') {
                 window.clearBgImage();
             } else {
@@ -1453,15 +3296,59 @@
                 }
             }
 
+            // 5. Canva modunu sıfırla
+            window.isCanvaMode = false;
+            window.activeCanvaId = '';
+            if (typeof isCanvaMode !== 'undefined') isCanvaMode = false;
+            if (typeof activeCanvaId !== 'undefined') activeCanvaId = '';
+            const canvaLayer = document.getElementById('canva-render-layer');
+            if (canvaLayer) {
+                canvaLayer.innerHTML = '';
+                canvaLayer.style.display = 'none';
+            }
+
+            // 6. Tuval arka planını varsayılana getir (beyaz)
+            const cContainerEl = document.getElementById('canvas-container');
+            if (cContainerEl) {
+                const savedBg = localStorage.getItem('emlakstudiom_canvasBgColor') || '#ffffff';
+                cContainerEl.style.backgroundColor = savedBg;
+                cContainerEl.style.backgroundImage = 'none';
+            }
+
+            // 7. Boş durum kartlarını (CanvasEmptyState) temiz bir şekilde geri aç
+            const es = document.getElementById('canvasEmptyState');
+            if (es) {
+                es.classList.remove('is-hidden');
+                es.style.removeProperty('display');
+                es.style.removeProperty('visibility');
+                es.style.removeProperty('opacity');
+                es.style.removeProperty('pointer-events');
+                es.style.display = 'flex';
+            }
             if (window.CanvasEmptyState && typeof window.CanvasEmptyState.resetDismiss === 'function') {
                 window.CanvasEmptyState.resetDismiss();
                 window.CanvasEmptyState.updateState();
             }
-            const es = document.getElementById('canvasEmptyState');
-            if (es) {
-                es.classList.remove('is-hidden');
-                es.style.display = 'flex';
+        },
+
+        /**
+         * Tüm Havuzu Boşaltır ve Tuvali Sıfırlar (Sessiz ve Bildirimsiz)
+         */
+        clearAllPool: function() {
+            if (!this.items || this.items.length === 0) {
+                this.resetCanvasToEmpty();
+                return;
             }
+
+            if (typeof window.recordHistoryImmediate === 'function' && !window.isHistoryRestoring) {
+                window.recordHistoryImmediate('Havuz Temizleme Öncesi');
+            }
+
+            this.items = [];
+            this.activeItemId = null;
+            this.selectedIds.clear();
+
+            this.resetCanvasToEmpty();
 
             this.renderPanel();
             this.updateBadgeCount();
@@ -1563,39 +3450,197 @@
         },
 
         /**
-         * Yüklenen Dosyaları DataURL'e Çevirip Havuzda Toplar (Thumbnail ile Birlikte)
+         * Yükleme Butonlarında Dönen Spinner ve Yükleniyor Durumunu Yönetir
          */
-        processUploadedFiles: function(files, shouldSwitchTab = true) {
-            const imageFiles = files.filter(f => f.type && f.type.startsWith('image/'));
-            if (imageFiles.length === 0) return;
+        setButtonLoading: function(isLoading) {
+            const btn = document.getElementById('bgUploadBtn') || document.querySelector('.pro-upload-container .btn-blue');
+            if (btn) {
+                if (isLoading) {
+                    if (!btn._origHtml) btn._origHtml = btn.innerHTML;
+                    btn.disabled = true;
+                    btn.style.pointerEvents = 'none';
+                    btn.style.opacity = '0.85';
+                    btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin" style="font-size:14px;"></i> <span id="bgUploadBtnText">Yükleniyor...</span>';
+                } else {
+                    btn.disabled = false;
+                    btn.style.pointerEvents = '';
+                    btn.style.opacity = '';
+                    if (btn._origHtml) {
+                        btn.innerHTML = btn._origHtml;
+                        btn._origHtml = null;
+                    }
+                }
+            }
 
-            let loadedCount = 0;
-            const newEntries = [];
+            const dropzone = document.getElementById('stagingDropzone');
+            if (dropzone) {
+                const icon = dropzone.querySelector('.staging-drop-icon');
+                const text = dropzone.querySelector('.staging-drop-main');
+                if (isLoading) {
+                    if (icon) {
+                        if (!icon._origClass) icon._origClass = icon.className;
+                        icon.className = 'fa-solid fa-circle-notch fa-spin staging-drop-icon';
+                    }
+                    if (text) {
+                        if (!text._origText) text._origText = text.textContent;
+                        text.textContent = 'Görseller İşleniyor...';
+                    }
+                } else {
+                    if (icon && icon._origClass) {
+                        icon.className = icon._origClass;
+                        icon._origClass = null;
+                    }
+                    if (text && text._origText) {
+                        text.textContent = text._origText;
+                        text._origText = null;
+                    }
+                }
+            }
+        },
 
-            imageFiles.forEach((file, idx) => {
-                const reader = new FileReader();
-                reader.onload = async (e) => {
-                    const rawDataUrl = e.target.result;
-                    const dataUrl = await this.downscaleImageIfNeeded(file, rawDataUrl);
-                    const thumbUrl = await this.createThumbnailAsync(dataUrl, 480);
-                    const cleanName = (file.name || `Fotoğraf ${idx + 1}`).replace(/\.[^/.]+$/, "");
-                    newEntries.push({
-                        id: 'upload_' + Date.now() + '_' + idx,
-                        key: 'local_file',
-                        title: cleanName,
-                        subTitle: 'Yüklenen Fotoğraf',
-                        icon: 'fa-image',
-                        dataUrl: dataUrl,       // Güvenli ve optimize Master
-                        thumbUrl: thumbUrl,     // Hafif 25KB Thumbnail
-                        timestamp: Date.now()
-                    });
-                    loadedCount++;
-                    if (loadedCount === imageFiles.length) {
-                        this.addItems(newEntries, shouldSwitchTab);
+        /**
+         * Tekil Bir Görseli Native Blob ve Canvas ile Turbo Optimize Eder (Thumbnail Dahil)
+         */
+        processSingleFile: function(file, idx) {
+            return new Promise((resolve) => {
+                if (!file) return resolve(null);
+                const blobUrl = URL.createObjectURL(file);
+                const img = new Image();
+                img.onload = () => {
+                    try {
+                        const natW = img.naturalWidth || 1920;
+                        const natH = img.naturalHeight || 1080;
+                        const isMob = typeof window.isMobileDevice === 'function' ? window.isMobileDevice() : window.innerWidth <= 768;
+                        const MAX_DIM = isMob ? 2048 : 2880;
+                        const MAX_AREA = isMob ? 3000000 : 7000000;
+
+                        let finalW = natW;
+                        let finalH = natH;
+                        if (finalW > MAX_DIM || finalH > MAX_DIM) {
+                            const ratio = Math.min(MAX_DIM / finalW, MAX_DIM / finalH);
+                            finalW = Math.round(finalW * ratio);
+                            finalH = Math.round(finalH * ratio);
+                        }
+                        if ((finalW * finalH) > MAX_AREA) {
+                            const areaRatio = Math.sqrt(MAX_AREA / (finalW * finalH));
+                            finalW = Math.round(finalW * areaRatio);
+                            finalH = Math.round(finalH * areaRatio);
+                        }
+
+                        // 1. Optimize Master Canvas (2.5K Ultra Net)
+                        const canvas = document.createElement('canvas');
+                        canvas.width = finalW;
+                        canvas.height = finalH;
+                        const ctx = canvas.getContext('2d');
+                        ctx.imageSmoothingEnabled = true;
+                        ctx.imageSmoothingQuality = 'high';
+                        ctx.drawImage(img, 0, 0, finalW, finalH);
+                        const mime = (file.type === 'image/png') ? 'image/png' : 'image/jpeg';
+                        const dataUrl = canvas.toDataURL(mime, 0.92);
+
+                        // 2. Doğrudan Canvas Üzerinden 480px Thumbnail (Gecikmesiz & Sıfır Bellek Atığı)
+                        const thumbW = Math.min(480, finalW);
+                        const thumbH = Math.max(1, Math.round(thumbW * (finalH / finalW)));
+                        const thumbCanvas = document.createElement('canvas');
+                        thumbCanvas.width = thumbW;
+                        thumbCanvas.height = thumbH;
+                        const tctx = thumbCanvas.getContext('2d');
+                        tctx.imageSmoothingEnabled = true;
+                        tctx.imageSmoothingQuality = 'medium';
+                        tctx.drawImage(canvas, 0, 0, thumbW, thumbH);
+                        const thumbUrl = thumbCanvas.toDataURL('image/jpeg', 0.72);
+
+                        URL.revokeObjectURL(blobUrl);
+
+                        const cleanName = (file.name || `Fotoğraf ${idx + 1}`).replace(/\.[^/.]+$/, "");
+                        resolve({
+                            id: 'upload_' + Date.now() + '_' + idx + '_' + Math.random().toString(36).substr(2, 4),
+                            key: 'local_file',
+                            title: cleanName,
+                            subTitle: 'Yüklenen Fotoğraf',
+                            icon: 'fa-image',
+                            dataUrl: dataUrl,
+                            thumbUrl: thumbUrl,
+                            originalDataUrl: dataUrl,
+                            rawOriginalDataUrl: dataUrl,
+                            rawOriginalThumbUrl: thumbUrl,
+                            timestamp: Date.now()
+                        });
+                    } catch(err) {
+                        console.warn("processSingleFile error:", err);
+                        URL.revokeObjectURL(blobUrl);
+                        resolve(null);
                     }
                 };
-                reader.readAsDataURL(file);
+                img.onerror = () => {
+                    URL.revokeObjectURL(blobUrl);
+                    resolve(null);
+                };
+                img.src = blobUrl;
             });
+        },
+
+        /**
+         * Yüklenen Dosyaları DataURL'e Çevirip Havuzda Toplar (Progressive Canlı Akış)
+         */
+        processUploadedFiles: async function(files, shouldSwitchTab = true, skipApplyToCanvas = false) {
+            if (!Array.isArray(files) || files.length === 0) return;
+
+            this.setButtonLoading(true);
+
+            try {
+                // 🍏 HEIC / iPhone Fotoğrafları için Otomatik Dönüştürme Kontrolü
+                const processedFiles = [];
+                for (let f of files) {
+                    if (typeof window.convertHeicIfNeeded === 'function') {
+                        const converted = await window.convertHeicIfNeeded(f);
+                        if (converted) processedFiles.push(converted);
+                    } else {
+                        processedFiles.push(f);
+                    }
+                }
+                if (processedFiles.length === 0) {
+                    this.setButtonLoading(false);
+                    return;
+                }
+
+                const imageFiles = processedFiles.filter(f => (f.type && f.type.startsWith('image/')) || /\.(jpg|jpeg|png|webp|jfif|bmp)$/i.test(f.name || ''));
+                if (imageFiles.length === 0) {
+                    this.setButtonLoading(false);
+                    return;
+                }
+
+                if (shouldSwitchTab) {
+                    this.switchToStagingTab();
+                }
+
+                // 🚀 ADIM 1: İlk görseli turbo hızda (~200ms) hazırla ve anında tuvale aktar
+                const firstEntry = await this.processSingleFile(imageFiles[0], 0);
+                if (firstEntry) {
+                    this.addItems([firstEntry], false, skipApplyToCanvas);
+                }
+
+                // 🚀 ADIM 2: Kalan görselleri tarayıcıyı dondurmadan arka planda peş peşe akıt
+                for (let i = 1; i < imageFiles.length; i++) {
+                    await new Promise(r => setTimeout(r, 15));
+                    const entry = await this.processSingleFile(imageFiles[i], i);
+                    if (entry) {
+                        this.items.splice(i, 0, entry);
+                        this.selectedIds.add(entry.id);
+                        this.renderPanel();
+                        this.updateBadgeCount();
+                        this.syncExternalTabs();
+                    }
+                }
+
+                if (typeof window.recordHistoryImmediate === 'function' && !window.isHistoryRestoring) {
+                    window.recordHistoryImmediate('Havuz Toplu Görsel Eklendi');
+                }
+            } catch(e) {
+                console.error('processUploadedFiles error:', e);
+            } finally {
+                this.setButtonLoading(false);
+            }
         },
 
         /**
@@ -1731,6 +3776,7 @@
                 `;
             } else {
                 const cardsInner = filteredList.map((it, idx) => {
+                    const safeTitle = (typeof window.escapeHtml === 'function') ? window.escapeHtml(it.title || '') : String(it.title || '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
                     const isActive = (it.id === this.activeItemId);
                     const isSelected = this.selectedIds.has(it.id);
                     const tagParts = [];
@@ -1740,14 +3786,21 @@
                     const tagStr = tagParts.join(' • ');
 
                     return `
-                        <div class="staging-card ${isActive ? 'is-active' : ''} ${isSelected ? 'is-selected' : ''}" data-id="${it.id}">
+                        <div class="staging-card ${isActive ? 'is-active' : ''} ${isSelected ? 'is-selected' : ''}" data-id="${it.id}" draggable="true" ondragstart="event.dataTransfer.setData('text/plain', '${it.id}'); event.dataTransfer.setData('application/x-staging-id', '${it.id}'); event.dataTransfer.effectAllowed = 'copy';" ondragover="event.preventDefault();" ondrop="event.preventDefault(); PhotoStagingArchive.dropItem('${it.id}', event);">
                             <div class="staging-card-thumb-wrap" onclick="PhotoStagingArchive.applyToCanvas('${it.id}')">
                                 <label class="staging-card-check" onclick="event.stopPropagation()">
                                     <input type="checkbox" ${isSelected ? 'checked' : ''} onchange="PhotoStagingArchive.toggleSelect('${it.id}')">
                                 </label>
                                 ${isActive ? '<span class="staging-active-pill"><i class="fa-solid fa-circle-check"></i> Tuvalde</span>' : ''}
-                                <img class="staging-card-img" src="${it.thumbUrl || it.dataUrl}" alt="${it.title}" loading="lazy">
+                                ${it.excludeLogo ? '<span class="staging-card-badge-custom-logo" title="Bu görselde bağımsız logo konumu var"><i class="fa-solid fa-location-crosshairs"></i> Özel Konum</span>' : ''}
+                                <img class="staging-card-img" src="${it.thumbUrl || it.dataUrl}" alt="${safeTitle}" loading="lazy">
                                 <div class="staging-card-hover-actions">
+                                    <button type="button" class="staging-hover-btn" onclick="event.stopPropagation(); PhotoStagingArchive.moveItemById('${it.id}', -1)" title="Öne Taşı">
+                                        <i class="fa-solid fa-chevron-left"></i>
+                                    </button>
+                                    <button type="button" class="staging-hover-btn" onclick="event.stopPropagation(); PhotoStagingArchive.moveItemById('${it.id}', 1)" title="Arkaya Taşı">
+                                        <i class="fa-solid fa-chevron-right"></i>
+                                    </button>
                                     <button type="button" class="staging-hover-btn" onclick="event.stopPropagation(); PhotoStagingArchive.applyToCanvas('${it.id}')" title="Tuvale Aktar">
                                         <i class="fa-solid fa-arrow-up-right-from-square"></i>
                                     </button>
@@ -1761,8 +3814,12 @@
                             </div>
                             <div class="staging-card-meta" onclick="PhotoStagingArchive.applyToCanvas('${it.id}')">
                                 <div class="staging-card-title-row">
-                                    <span class="staging-card-idx">${idx + 1}</span>
-                                    <span class="staging-card-title" title="${it.title}">${it.title}</span>
+                                    <div class="staging-order-stepper" onclick="event.stopPropagation()">
+                                        <button type="button" class="staging-step-btn" onclick="PhotoStagingArchive.moveItemById('${it.id}', -1)" title="Öne Taşı"><i class="fa-solid fa-chevron-left"></i></button>
+                                        <span class="staging-card-idx">${idx + 1}</span>
+                                        <button type="button" class="staging-step-btn" onclick="PhotoStagingArchive.moveItemById('${it.id}', 1)" title="Arkaya Taşı"><i class="fa-solid fa-chevron-right"></i></button>
+                                    </div>
+                                    <span class="staging-card-title" title="${safeTitle}">${safeTitle}</span>
                                 </div>
                                 ${tagStr ? `<div class="staging-card-tag" title="${tagStr}">${tagStr}</div>` : ''}
                             </div>
@@ -1774,6 +3831,18 @@
             }
 
             const currentLogo = this.getCurrentLogoUrl();
+            const hasCustomLogo = !!(currentLogo && !currentLogo.includes('assets/logo/logo.png'));
+            const activeItem = (this.items && this.items.length > 0) ? this.items.find(it => it.id === this.activeItemId) : null;
+            const isActiveItemExcluded = !!(activeItem && activeItem.excludeLogo);
+
+            const logoEl = document.getElementById('elLogo');
+            const isLogoOnCanvas = !!(
+                logoEl &&
+                logoEl.style.display !== 'none' &&
+                logoEl.style.visibility !== 'hidden' &&
+                parseFloat(logoEl.style.opacity || '1') > 0 &&
+                (logoEl.src || (logoEl.querySelector('img') && logoEl.querySelector('img').src))
+            );
 
             root.innerHTML = `
                 <!-- Başlık ve Sayaç -->
@@ -1824,12 +3893,21 @@
                             </label>
                             <span id="stagingSelectedCount" class="staging-selected-count">${selCount} / ${filteredList.length} Seçili</span>
                         </div>
+                        <div class="staging-quality-row">
+                            <span class="staging-quality-label"><i class="fa-solid fa-sliders"></i> Kalite</span>
+                            <select class="staging-tray-select staging-quality-select" id="stagingExportQualitySelect" onchange="PhotoStagingArchive.setExportQuality(this.value)" title="Toplu indirme ve damgalama için çıktı kalitesi">
+                                <option value="web" ${this.exportQuality === 'web' ? 'selected' : ''}>Web ve Portallar</option>
+                                <option value="high" ${this.exportQuality === 'high' ? 'selected' : ''}>Yüksek Kalite</option>
+                                <option value="ultra" ${this.exportQuality === 'ultra' ? 'selected' : ''}>Ultra Netlik</option>
+                                <option value="lossless" ${this.exportQuality === 'lossless' ? 'selected' : ''}>Kayıpsız PNG</option>
+                            </select>
+                        </div>
                         <div class="staging-batch-actions-grid">
                             <button type="button" class="btn-action staging-batch-btn" onclick="PhotoStagingArchive.applySelectedToCanvas()" title="Seçilen görseli tuvale aktarır">
                                 <i class="fa-solid fa-arrow-up-right-from-square"></i> Tuvale Aktar
                             </button>
-                            <button type="button" class="btn-action staging-batch-btn" onclick="PhotoStagingArchive.downloadSelectedZip()" title="Seçilen görselleri tek ZIP olarak indirir">
-                                <i class="fa-solid fa-file-zipper"></i> Toplu İndir
+                            <button type="button" id="stagingBatchDownloadBtn" class="btn-action staging-batch-btn" onclick="PhotoStagingArchive.downloadSelectedZip()" title="Seçilen görselleri tek ZIP olarak indirir">
+                                ${this.isExportingZip ? '<i class="fa-solid fa-circle-notch fa-spin"></i> İndiriliyor' : '<i class="fa-solid fa-file-zipper"></i> Toplu İndir'}
                             </button>
                             <button type="button" class="btn-action staging-batch-btn ${this.watermarkTrayOpen ? 'active' : ''}" onclick="PhotoStagingArchive.toggleWatermarkTray()" title="Görsellere firma logosu ve filigran damgalayın">
                                 <i class="fa-solid fa-shield-halved"></i> Filigran &amp; Logo
@@ -1840,8 +3918,8 @@
                             <button type="button" class="btn-action staging-batch-btn" onclick="PhotoStagingArchive.generatePortfolioPdf()" title="Görseller ve emlak detaylarıyla A4 PDF sunum broşürü indirin">
                                 <i class="fa-solid fa-file-pdf"></i> PDF Portföy
                             </button>
-                            <button type="button" class="btn-action staging-batch-btn" onclick="PhotoStagingArchive.openCompareModal()" title="Orijinal ve düzenlenen görseli karşılaştırın">
-                                <i class="fa-solid fa-table-columns"></i> Öncesi / Sonrası
+                            <button type="button" id="stagingCompareBtn" class="btn-action staging-batch-btn ${(this.isCompareOpen || window.isShowingBefore) ? 'active' : ''}" onclick="PhotoStagingArchive.triggerCompareAction()" title="Orijinal ve düzenlenen görseli karşılaştırın">
+                                <i class="fa-solid ${window.isShowingBefore ? 'fa-eye' : 'fa-code-compare'}"></i> ${window.isShowingBefore ? 'Sonrası' : 'Öncesi / Sonrası'}
                             </button>
                             <button type="button" id="stagingCarouselBtn" class="btn-action staging-batch-btn ${window.CarouselManager && window.CarouselManager.isVisible ? 'active' : ''}" onclick="PhotoStagingArchive.toggleCarousel()" title="Çoklu Gönderi: Seçilen fotoğrafları Instagram ve sosyal medya için çok sayfalı kaydırmalı albüme dönüştürür. Açmak veya kapatmak için tıklayın.">
                                 <i class="fa-solid fa-layer-group"></i> Çoklu Gönderi
@@ -1860,39 +3938,64 @@
                         <!-- 🛡️ FİLİGRAN & LOGO AYAR PANELİ (Açılır) -->
                         <div class="staging-sub-tray ${this.watermarkTrayOpen ? 'is-open' : ''}" id="stagingWatermarkTray">
                             <div class="staging-tray-title">
-                                <span><i class="fa-solid fa-shield-halved" style="color:#0284c7; margin-right:5px;"></i>Filigran &amp; Logo Damgalama</span>
-                                <button type="button" class="btn-action" style="padding:1px 6px; height:20px; font-size:10px;" onclick="PhotoStagingArchive.toggleWatermarkTray()">Kapat</button>
+                                <span class="staging-tray-title-text"><i class="fa-solid fa-shield-halved" style="color:#0284c7;"></i> Filigran &amp; Logo</span>
+                                <button type="button" class="btn-action staging-tray-close-btn" onclick="PhotoStagingArchive.toggleWatermarkTray()">Kapat</button>
                             </div>
                             <div class="staging-tray-row">
-                                <div class="staging-logo-preview-box">
-                                    ${currentLogo ? `<img src="${currentLogo}" class="staging-logo-preview-img" alt="Logo">` : '<i class="fa-solid fa-image" style="color:#94a3b8; font-size:14px;"></i>'}
+                                <!-- Solda Logo Önizleme Kutusu (Tıklayınca Tuvale Ekler) -->
+                                <div class="staging-logo-preview-box" id="stagingLogoPreviewBox" onclick="PhotoStagingArchive.addLogoToCanvas()" style="cursor:pointer;" title="Logoyu tuvale ekle">
+                                    <img src="${currentLogo || 'assets/logo/logo.png'}" class="staging-logo-preview-img" alt="Logo" onerror="this.style.display='none'; const ph=this.parentElement.querySelector('.staging-logo-fallback-icon'); if(ph) ph.style.display='inline-block';">
+                                    <i class="fa-solid fa-shield-halved staging-logo-fallback-icon" style="display:none; color:#0284c7; font-size:14px;"></i>
                                 </div>
                                 <input type="file" id="stagingWatermarkLogoInput" accept="image/*" style="display:none;" onchange="PhotoStagingArchive.handleWatermarkLogoUpload(event)">
-                                <button type="button" class="btn-action" style="flex:1; height:32px; font-size:11px;" onclick="document.getElementById('stagingWatermarkLogoInput').click()">
-                                    <i class="fa-solid fa-arrow-up-from-bracket"></i> ${currentLogo ? 'Logoyu Değiştir' : 'Logo Seç'}
-                                </button>
-                                <button type="button" class="btn-action" style="height:32px; padding:0 8px; font-size:11px;" onclick="PhotoStagingArchive.addLogoToCanvas()" title="Logoyu tuval tasarımına ekleyin">
-                                    <i class="fa-solid fa-plus"></i> Tuvale
-                                </button>
+                                ${isLogoOnCanvas ? `
+                                    <button type="button" id="stagingLogoUploadBtn" class="btn-action staging-tray-btn" onclick="PhotoStagingArchive.triggerWatermarkLogoInput()" title="Kendi logonuzu seçin veya değiştirin">
+                                        <i class="fa-solid fa-arrow-up-from-bracket"></i> <span id="stagingLogoUploadBtnText">${hasCustomLogo ? 'Logo Değiştir' : 'Logo Seç'}</span>
+                                    </button>
+                                    <button type="button" id="stagingLogoRemoveBtn" class="btn-action staging-tray-btn staging-tray-btn-danger" onclick="PhotoStagingArchive.removeLogoFromCanvas()" title="Logoyu tuvalden kaldırır">
+                                        <i class="fa-solid fa-trash-can"></i> Logoyu Kaldır
+                                    </button>
+                                ` : `
+                                    <button type="button" id="stagingLogoAddBtn" class="btn-action staging-tray-btn" onclick="PhotoStagingArchive.addLogoToCanvas()" title="Logoyu tuvale yerleştirir">
+                                        <i class="fa-solid fa-stamp"></i> Logo Ekle
+                                    </button>
+                                    <button type="button" id="stagingLogoUploadBtn" class="btn-action staging-tray-btn" onclick="PhotoStagingArchive.triggerWatermarkLogoInput()" title="Kendi logonuzu seçin">
+                                        <i class="fa-solid fa-arrow-up-from-bracket"></i> <span id="stagingLogoUploadBtnText">Logo Seç</span>
+                                    </button>
+                                `}
                             </div>
                             <div class="staging-tray-row">
-                                <select class="staging-tray-select" id="watermarkPosSelect" onchange="PhotoStagingArchive.watermarkOptions.position = this.value">
+                                <select class="staging-tray-select" id="watermarkPosSelect" onchange="PhotoStagingArchive.setWatermarkPosition(this.value)">
                                     <option value="bottom-right" ${this.watermarkOptions.position === 'bottom-right' ? 'selected' : ''}>Konum: Sağ Alt</option>
                                     <option value="bottom-left" ${this.watermarkOptions.position === 'bottom-left' ? 'selected' : ''}>Konum: Sol Alt</option>
                                     <option value="top-right" ${this.watermarkOptions.position === 'top-right' ? 'selected' : ''}>Konum: Sağ Üst</option>
                                     <option value="top-left" ${this.watermarkOptions.position === 'top-left' ? 'selected' : ''}>Konum: Sol Üst</option>
                                     <option value="center" ${this.watermarkOptions.position === 'center' ? 'selected' : ''}>Konum: Merkez</option>
+                                    <option value="custom" ${this.watermarkOptions.position === 'custom' ? 'selected' : ''}>Konum: Serbest Taşıma</option>
                                 </select>
+                                <button type="button" class="btn-action staging-tray-btn" onclick="PhotoStagingArchive.alignLogoBottomRight()" title="Logoyu sağ alt köşeye yerleştirir">
+                                    <i class="fa-solid fa-arrows-to-dot"></i> Sağ Alta Hizala
+                                </button>
                             </div>
-                            <div class="slider-group">
-                                <label><span>Boyut</span><span id="wmScaleVal">${this.watermarkOptions.scale}%</span></label>
-                                <input type="range" min="10" max="45" value="${this.watermarkOptions.scale}" oninput="PhotoStagingArchive.watermarkOptions.scale = parseInt(this.value); document.getElementById('wmScaleVal').textContent = this.value + '%';">
+                            <div class="staging-logo-sync-bar">
+                                <label class="staging-logo-sync-item" title="Logonun belirlenen konumunu havuzdaki tüm görsellere uygular">
+                                    <input type="checkbox" id="stagingWmApplyAllCheck" ${this.watermarkOptions.applyToAll !== false ? 'checked' : ''} onchange="PhotoStagingArchive.setWatermarkApplyToAll(this.checked)">
+                                    <span>Konumu Tümüne Uygula</span>
+                                </label>
+                                <label class="staging-logo-sync-item ${isActiveItemExcluded ? 'is-excluded' : ''}" title="Seçili görselde logo konumunu bağımsız olarak ayarlayın">
+                                    <input type="checkbox" id="stagingWmExcludeCheck" ${isActiveItemExcluded ? 'checked' : ''} onchange="PhotoStagingArchive.toggleExcludeActiveItem(this.checked)">
+                                    <span>Bu Görseli Hariç Tut</span>
+                                </label>
                             </div>
-                            <div class="slider-group">
-                                <label><span>Opaklık</span><span id="wmOpacityVal">${this.watermarkOptions.opacity}%</span></label>
-                                <input type="range" min="20" max="100" value="${this.watermarkOptions.opacity}" oninput="PhotoStagingArchive.watermarkOptions.opacity = parseInt(this.value); document.getElementById('wmOpacityVal').textContent = this.value + '%';">
+                            <div class="slider-group" style="margin:0;">
+                                <label style="display:flex; justify-content:space-between; margin-bottom:2px; font-size:11px; font-weight:600;"><span>Boyut</span><span id="wmScaleVal">${this.watermarkOptions.scale}%</span></label>
+                                <input type="range" id="wmScaleSlider" min="5" max="50" value="${this.watermarkOptions.scale}" oninput="PhotoStagingArchive.setWatermarkScale(this.value)">
                             </div>
-                            <button type="button" class="btn-action" style="width:100%; height:32px; font-size:11.5px; font-weight:700;" onclick="PhotoStagingArchive.applyWatermarkSelected()">
+                            <div class="slider-group" style="margin:0;">
+                                <label style="display:flex; justify-content:space-between; margin-bottom:2px; font-size:11px; font-weight:600;"><span>Opaklık</span><span id="wmOpacityVal">${this.watermarkOptions.opacity}%</span></label>
+                                <input type="range" id="wmOpacitySlider" min="10" max="100" value="${this.watermarkOptions.opacity}" oninput="PhotoStagingArchive.setWatermarkOpacity(this.value)">
+                            </div>
+                            <button type="button" id="stagingApplyWatermarkBtn" class="btn-action" style="width:100%; height:34px; margin:0; font-size:11.5px; font-weight:700; display:inline-flex; align-items:center; justify-content:center; gap:6px;" onclick="PhotoStagingArchive.applyWatermarkSelected()">
                                 <i class="fa-solid fa-stamp"></i> Seçilenlere Damgala
                             </button>
                         </div>
@@ -1900,41 +4003,78 @@
                         <!-- 📐 FORMAT & KADRAJ PANELİ (Açılır) -->
                         <div class="staging-sub-tray ${this.formatTrayOpen ? 'is-open' : ''}" id="stagingFormatTray">
                             <div class="staging-tray-title">
-                                <span><i class="fa-solid fa-crop-simple" style="color:#0284c7; margin-right:5px;"></i>Format &amp; Sosyal Medya</span>
-                                <button type="button" class="btn-action" style="padding:1px 6px; height:20px; font-size:10px;" onclick="PhotoStagingArchive.toggleFormatTray()">Kapat</button>
+                                <span class="staging-tray-title-text"><i class="fa-solid fa-crop-simple" style="color:#0284c7;"></i> Format &amp; Kadraj</span>
+                                <button type="button" class="btn-action staging-tray-close-btn" onclick="PhotoStagingArchive.toggleFormatTray()">Kapat</button>
                             </div>
                             <div class="staging-tray-row">
                                 <select class="staging-tray-select" id="formatRatioSelect" onchange="PhotoStagingArchive.formatOptions.ratio = this.value">
-                                    <option value="1:1" ${this.formatOptions.ratio === '1:1' ? 'selected' : ''}>1:1 Kare Post</option>
-                                    <option value="9:16" ${this.formatOptions.ratio === '9:16' ? 'selected' : ''}>9:16 Dikey Story</option>
-                                    <option value="16:9" ${this.formatOptions.ratio === '16:9' ? 'selected' : ''}>16:9 Yatay Web</option>
+                                    <option value="original" ${this.formatOptions.ratio === 'original' ? 'selected' : ''}>Orijinal Boyut</option>
+                                    <option value="1:1" ${this.formatOptions.ratio === '1:1' ? 'selected' : ''}>1:1 Instagram Post</option>
+                                    <option value="16:9" ${this.formatOptions.ratio === '16:9' ? 'selected' : ''}>16:9 Sahibinden ve Portallar</option>
+                                    <option value="9:16" ${this.formatOptions.ratio === '9:16' ? 'selected' : ''}>9:16 Story ve Reels</option>
+                                    <option value="4:3" ${this.formatOptions.ratio === '4:3' ? 'selected' : ''}>4:3 Portallar</option>
                                 </select>
                                 <select class="staging-tray-select" id="formatModeSelect" onchange="PhotoStagingArchive.formatOptions.mode = this.value">
                                     <option value="contain_blur" ${this.formatOptions.mode === 'contain_blur' ? 'selected' : ''}>Bulanık Zeminle Sığdır</option>
                                     <option value="cover" ${this.formatOptions.mode === 'cover' ? 'selected' : ''}>Ortalayarak Doldur</option>
                                 </select>
                             </div>
-                            <button type="button" class="btn-action" style="width:100%; height:32px; font-size:11.5px; font-weight:700;" onclick="PhotoStagingArchive.applyFormatSelected()">
-                                <i class="fa-solid fa-arrows-split-up-and-left"></i> Seçilenleri Boyutlandır
-                            </button>
+                            <div class="staging-tray-row" style="margin-top:4px;">
+                                <select class="staging-tray-select" id="formatQualitySelect" style="width:100%;" onchange="PhotoStagingArchive.setFormatQuality(this.value)" title="Dışa aktarma ve formatlama çözünürlük kalitesi">
+                                    <option value="hd" ${this.formatQuality === 'hd' ? 'selected' : ''}>Standart HD 1080p</option>
+                                    <option value="2k" ${(this.formatQuality === '2k' || !this.formatQuality) ? 'selected' : ''}>Yüksek Kalite 2K</option>
+                                    <option value="4k" ${this.formatQuality === '4k' ? 'selected' : ''}>Ultra Netlik 4K</option>
+                                    <option value="png" ${this.formatQuality === 'png' ? 'selected' : ''}>Kayıpsız PNG</option>
+                                </select>
+                            </div>
+                            <div class="staging-tray-row" style="margin-top:4px;">
+                                <button type="button" class="btn-action staging-tray-btn" onclick="PhotoStagingArchive.applyFormatSelected()" title="Seçilen en-boy oranına dönüştürür">
+                                    <i class="fa-solid fa-arrows-split-up-and-left"></i> Boyutlandır
+                                </button>
+                                <button type="button" class="btn-action staging-tray-btn staging-tray-btn-danger" onclick="PhotoStagingArchive.resetFormatSelected()" title="Görselleri orijinal kadrajına ve boyutuna döndürür">
+                                    <i class="fa-solid fa-rotate-left"></i> Orijinale Dön
+                                </button>
+                            </div>
+                            <div class="staging-tray-row" style="margin-top:6px;">
+                                <button type="button" id="stagingMultiPlatformZipBtn" class="btn-action staging-tray-btn" style="width:100%; height:32px;" onclick="PhotoStagingArchive.downloadMultiPlatformZip()" title="Seçili görselleri Instagram 1:1, Sahibinden 16:9 ve Story 9:16 klasörlerine ayırıp tek ZIP olarak indirir">
+                                    ${this.isExportingPlatforms ? '<i class="fa-solid fa-circle-notch fa-spin"></i> Paket Hazırlanıyor...' : '<i class="fa-solid fa-file-zipper"></i> Tüm Platformlara Paketle'}
+                                </button>
+                            </div>
                         </div>
 
                         <!-- 🪄 AI NETLEŞTİRME AYAR PANELİ (Açılır) -->
                         <div class="staging-sub-tray ${this.aiTrayOpen ? 'is-open' : ''}" id="stagingAiTray">
                             <div class="staging-tray-title">
-                                <span><i class="fa-solid fa-wand-magic-sparkles" style="color:#0284c7; margin-right:5px;"></i>AI Netleştirme Ayarı</span>
-                                <button type="button" class="btn-action" style="padding:1px 6px; height:20px; font-size:10px;" onclick="PhotoStagingArchive.toggleAiTray()">Kapat</button>
+                                <span class="staging-tray-title-text"><i class="fa-solid fa-wand-magic-sparkles" style="color:#0284c7;"></i> AI Netleştirme</span>
+                                <button type="button" class="btn-action staging-tray-close-btn" onclick="PhotoStagingArchive.toggleAiTray()">Kapat</button>
                             </div>
-                            <div class="slider-group">
-                                <label><span>Netlik Miktarı</span><span id="stagingAiIntensityVal">%${Math.round((this.aiIntensity || 0.35) * 100)}</span></label>
+                            <div class="slider-group" style="margin:0;">
+                                <label style="display:flex; justify-content:space-between; margin-bottom:2px; font-size:11px; font-weight:600;"><span>Netlik Miktarı</span><span id="stagingAiIntensityVal">%${Math.round((this.aiIntensity || 0.35) * 100)}</span></label>
                                 <input type="range" id="stagingAiIntensitySlider" min="10" max="100" step="5" value="${Math.round((this.aiIntensity || 0.35) * 100)}" 
                                        oninput="PhotoStagingArchive.previewAiIntensityLive(this.value)" 
                                        onchange="PhotoStagingArchive.commitAiIntensity(this.value)"
-                                       title="Sliderı kaydırarak canlı netlik önizlemesini izleyin">
+                                       title="Canlı netlik önizlemesi">
                             </div>
-                            <button type="button" class="btn-action" style="width:100%; height:32px; font-size:11.5px; font-weight:700;" onclick="PhotoStagingArchive.applyAiEnhanceSelected()" title="Seçili tüm görsellere bu netliği kalıcı olarak uygula">
-                                <i class="fa-solid fa-wand-magic-sparkles"></i> Netleştir
-                            </button>
+                            <!-- Karşılaştırma Mod Seçenekleri -->
+                            <div class="compare-mode-row" style="margin-top:6px; margin-bottom:2px;">
+                                <button type="button" class="compare-mode-pill ${this.compareMode === 'toggle' ? 'active' : ''}" id="btnStagingModeToggle" onclick="PhotoStagingArchive.setCompareMode('toggle')" title="Tıklamayla tuvalde anlık öncesi ve sonrası geçişi">
+                                    <i class="fa-solid fa-repeat"></i> Tıklamalı
+                                </button>
+                                <button type="button" class="compare-mode-pill ${this.compareMode === 'side-by-side' ? 'active' : ''}" id="btnStagingModeSideBySide" onclick="PhotoStagingArchive.setCompareMode('side-by-side')" title="Yan yana iki görselle karşılaştır">
+                                    <i class="fa-solid fa-table-columns"></i> İkili
+                                </button>
+                                <button type="button" class="compare-mode-pill ${this.compareMode === 'slider' ? 'active' : ''}" id="btnStagingModeSlider" onclick="PhotoStagingArchive.setCompareMode('slider')" title="Ortadan kaydırarak karşılaştır">
+                                    <i class="fa-solid fa-arrows-left-right"></i> Kaydırmalı
+                                </button>
+                            </div>
+                            <div class="staging-tray-row" style="margin-top:6px;">
+                                <button type="button" id="stagingCompareActionBtn" class="btn-action staging-tray-btn ${window.isShowingBefore ? 'active' : ''}" onclick="PhotoStagingArchive.triggerCompareAction()" title="Netleştirilmiş görsel ile orijinali karşılaştır">
+                                    <i class="fa-solid ${window.isShowingBefore ? 'fa-eye' : 'fa-code-compare'}"></i> ${window.isShowingBefore ? 'Sonrası' : 'Öncesi / Sonrası'}
+                                </button>
+                                <button type="button" id="stagingApplyAiAllBtn" class="btn-action staging-tray-btn" onclick="PhotoStagingArchive.applyAiEnhanceSelected()" title="Seçili tüm görsellere bu netliği kalıcı olarak uygula">
+                                    <i class="fa-solid fa-check"></i> Tümüne Uygula
+                                </button>
+                            </div>
                         </div>
                     </div>
                 ` : ''}
@@ -1944,6 +4084,7 @@
             `;
 
             this.initDropzoneListeners();
+            this.syncCanvasCarouselBadge();
         },
 
         /**
@@ -2062,6 +4203,8 @@
     };
 
     window.PhotoStagingArchive = PhotoStagingArchive;
+    window.validateLogoFileAsync = (file) => PhotoStagingArchive.validateLogoFileAsync(file);
+    window.addLogoToCanvas = () => PhotoStagingArchive.addLogoToCanvas();
 
     // Sayfa hazır olduğunda başlat
     if (document.readyState === 'loading') {

@@ -239,8 +239,10 @@
                 window.redrawAll();
             }
 
-            // 9. Boş durum kartlarını güncelle
-            if (window.CanvasEmptyState && typeof window.CanvasEmptyState.updateState === 'function') {
+            // 9. Boş durum kartlarını güncelle ve kaldır
+            if (window.CanvasEmptyState && typeof window.CanvasEmptyState.dismiss === 'function') {
+                window.CanvasEmptyState.dismiss();
+            } else if (window.CanvasEmptyState && typeof window.CanvasEmptyState.updateState === 'function') {
                 window.CanvasEmptyState.updateState();
             }
 
@@ -307,8 +309,10 @@
                 this.userChosenBg = { type: type, value: val };
             }
 
-            // Boş tuval başlangıç ekranını anında kapat
-            if (window.CanvasEmptyState && typeof window.CanvasEmptyState.hide === 'function') {
+            // Boş tuval başlangıç ekranını anında kapat ve kalıcı olarak kaldır
+            if (window.CanvasEmptyState && typeof window.CanvasEmptyState.dismiss === 'function') {
+                window.CanvasEmptyState.dismiss();
+            } else if (window.CanvasEmptyState && typeof window.CanvasEmptyState.hide === 'function') {
                 window.CanvasEmptyState.hide();
             }
 
@@ -414,6 +418,9 @@
 
                 chip.onclick = (e) => {
                     if (e) e.stopPropagation();
+                    if (window.CanvasEmptyState && typeof window.CanvasEmptyState.dismiss === 'function') {
+                        window.CanvasEmptyState.dismiss();
+                    }
                     this.setCanvasBackground(p.type, p.value, true);
                     document.querySelectorAll('.tb-palette-chip').forEach(c => c.classList.remove('active'));
                     chip.classList.add('active');
@@ -443,6 +450,9 @@
          * 2. AŞAMA: Akıllı Görsel Çerçevesi Ekle (Image Frame / Photo Holder)
          */
         createImageFrame: function(opts = {}) {
+            if (window.CanvasEmptyState && typeof window.CanvasEmptyState.dismiss === 'function') {
+                window.CanvasEmptyState.dismiss();
+            }
             const cContainer = document.getElementById('canvas-container');
             const uiLayer = document.getElementById('ui-layer') || cContainer;
             if (!cContainer || !uiLayer) return null;
@@ -1901,6 +1911,9 @@
          * 3. AŞAMA: Akıllı Yazı & Rozet Alanları Ekle
          */
         createTextFrame: function(type) {
+            if (window.CanvasEmptyState && typeof window.CanvasEmptyState.dismiss === 'function') {
+                window.CanvasEmptyState.dismiss();
+            }
             const cContainer = document.getElementById('canvas-container');
             const uiLayer = document.getElementById('ui-layer') || cContainer;
             if (!cContainer || !uiLayer) return;
@@ -1950,7 +1963,8 @@
                 el.style.boxShadow = '0 8px 24px rgba(0,0,0,0.3)';
                 el.style.border = '2px solid #0284c7';
                 el.style.left = '60px';
-                el.style.bottom = '60px';
+                el.style.top = Math.max(60, cH - 130) + 'px';
+                el.style.bottom = 'auto';
             } else if (type === 'feature_pills') {
                 el.textContent = '4+1 • 280 m² • Akıllı Ev • Otopark';
                 el.dataset.label = 'Özellik Rozeti';
@@ -1962,7 +1976,8 @@
                 el.style.borderRadius = '8px';
                 el.style.border = '1px solid rgba(255,255,255,0.2)';
                 el.style.left = '60px';
-                el.style.bottom = '130px';
+                el.style.top = Math.max(60, cH - 200) + 'px';
+                el.style.bottom = 'auto';
             } else if (type === 'agent_strip') {
                 el.innerHTML = '<span style="font-weight:700;">Ahmet Yılmaz</span> • 0532 123 45 67 • Remax Gold';
                 el.dataset.label = 'Danışman Şeridi';
@@ -1972,8 +1987,10 @@
                 el.style.background = 'rgba(2, 132, 199, 0.9)';
                 el.style.padding = '8px 18px';
                 el.style.borderRadius = '6px';
-                el.style.right = '60px';
-                el.style.bottom = '60px';
+                el.style.left = Math.max(60, cW - 400) + 'px';
+                el.style.top = Math.max(60, cH - 130) + 'px';
+                el.style.bottom = 'auto';
+                el.style.right = 'auto';
             }
 
             uiLayer.appendChild(el);
@@ -2196,6 +2213,9 @@
          * Akıllı Bilgi Kartı Ekleme / Kaldırma / Tema
          */
         addInfoCard: function(pos, customData) {
+            if (window.CanvasEmptyState && typeof window.CanvasEmptyState.dismiss === 'function') {
+                window.CanvasEmptyState.dismiss();
+            }
             if (window.TemplateInfoCard && typeof window.TemplateInfoCard.addCard === 'function') {
                 window.TemplateInfoCard.addCard(pos, customData);
             }
@@ -2214,6 +2234,9 @@
         },
 
         setInfoCardBg: function(val) {
+            if (window.CanvasEmptyState && typeof window.CanvasEmptyState.dismiss === 'function') {
+                window.CanvasEmptyState.dismiss();
+            }
             if (window.TemplateInfoCard && typeof window.TemplateInfoCard.setCustomBackground === 'function') {
                 window.TemplateInfoCard.setCustomBackground(val);
             }

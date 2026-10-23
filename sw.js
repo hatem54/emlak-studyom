@@ -1,4 +1,4 @@
-const CACHE_NAME = 'emlak-studiom-v224-20261009-10';
+const CACHE_NAME = 'emlak-studiom-v231-20261022-staging-active-canvas-fix';
 const CORE_ASSETS = [
   './core/utils.js',
   './app.html',

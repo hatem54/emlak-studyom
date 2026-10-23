@@ -6,93 +6,536 @@
     <title>Yardım Merkezi & SSS - Emlak Stüdyom</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        body { margin: 0; padding: 0; font-family: 'Inter', system-ui, -apple-system, sans-serif; background: #0b0f19; color: #cbd5e1; line-height: 1.7; }
-        .container { max-width: 860px; margin: 50px auto; padding: 40px; background: #131b2e; border-radius: 20px; border: 1px solid #1e293b; box-shadow: 0 20px 40px rgba(0,0,0,0.4); }
-        .back-btn { display: inline-flex; align-items: center; gap: 8px; background: #1e293b; color: #94a3b8; text-decoration: none; padding: 10px 20px; border-radius: 10px; font-weight: 600; font-size: 14px; margin-bottom: 30px; transition: all 0.2s; border: 1px solid #334155; }
-        .back-btn:hover { background: #3b82f6; color: white; border-color: #3b82f6; }
-        h1 { color: #ffffff; font-size: 32px; margin-bottom: 10px; font-weight: 800; letter-spacing: -0.5px; }
-        .subtitle { color: #3b82f6; font-size: 16px; font-weight: 500; margin-bottom: 35px; }
+        * { box-sizing: border-box; }
+        body { 
+            margin: 0; 
+            padding: 0; 
+            font-family: 'Inter', system-ui, -apple-system, sans-serif; 
+            background: #0b0f19; 
+            color: #cbd5e1; 
+            line-height: 1.7; 
+        }
+        .container { 
+            max-width: 920px; 
+            margin: 40px auto; 
+            padding: 36px 40px; 
+            background: #131b2e; 
+            border-radius: 20px; 
+            border: 1px solid #1e293b; 
+            box-shadow: 0 20px 40px rgba(0,0,0,0.45); 
+        }
+        .top-nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+        }
+        .back-btn { 
+            display: inline-flex; 
+            align-items: center; 
+            gap: 8px; 
+            background: #1e293b; 
+            color: #94a3b8; 
+            text-decoration: none; 
+            padding: 9px 18px; 
+            border-radius: 10px; 
+            font-weight: 600; 
+            font-size: 13.5px; 
+            transition: all 0.2s; 
+            border: 1px solid #334155; 
+        }
+        .back-btn:hover { 
+            background: #2563eb; 
+            color: #ffffff; 
+            border-color: #2563eb; 
+        }
+        .live-studio-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: linear-gradient(135deg, #0284c7, #2563eb);
+            color: #ffffff;
+            text-decoration: none;
+            padding: 9px 18px;
+            border-radius: 10px;
+            font-weight: 700;
+            font-size: 13.5px;
+            transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 4px 14px rgba(37,99,235,0.35);
+        }
+        .live-studio-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 18px rgba(37,99,235,0.5);
+        }
+        h1 { 
+            color: #ffffff; 
+            font-size: 30px; 
+            margin: 0 0 6px 0; 
+            font-weight: 800; 
+            letter-spacing: -0.5px; 
+        }
+        .subtitle { 
+            color: #38bdf8; 
+            font-size: 15px; 
+            font-weight: 500; 
+            margin-bottom: 24px; 
+        }
+
+        /* Search Bar */
+        .search-wrapper {
+            position: relative;
+            margin-bottom: 24px;
+        }
+        .search-icon {
+            position: absolute;
+            left: 18px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #64748b;
+            font-size: 15px;
+        }
+        .search-input {
+            width: 100%;
+            padding: 14px 18px 14px 46px;
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 12px;
+            color: #ffffff;
+            font-size: 14.5px;
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        .search-input:focus {
+            border-color: #38bdf8;
+            box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.15);
+        }
+        .search-input::placeholder {
+            color: #64748b;
+        }
+
+        /* Category Filter Pills */
+        .categories-bar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 28px;
+        }
+        .cat-pill {
+            background: #1e293b;
+            border: 1px solid #334155;
+            color: #94a3b8;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 12.5px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .cat-pill:hover, .cat-pill.active {
+            background: #0284c7;
+            color: #ffffff;
+            border-color: #0284c7;
+        }
+
+        /* FAQ Accordion Items */
+        .faq-item { 
+            background: #182238; 
+            border: 1px solid #293854; 
+            border-radius: 12px; 
+            margin-bottom: 12px; 
+            overflow: hidden; 
+            transition: border-color 0.2s, background 0.2s; 
+        }
+        .faq-item:hover { 
+            border-color: #38bdf8; 
+        }
+        .faq-item.open {
+            border-color: #0284c7;
+            background: #151e32;
+        }
+        .faq-question { 
+            padding: 16px 20px; 
+            cursor: pointer; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            font-weight: 600; 
+            color: #f1f5f9; 
+            font-size: 15px; 
+            user-select: none;
+        }
+        .faq-question-title {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .faq-badge {
+            display: inline-block;
+            font-size: 10.5px;
+            font-weight: 700;
+            text-transform: uppercase;
+            padding: 2px 8px;
+            border-radius: 6px;
+            letter-spacing: 0.5px;
+        }
+        .badge-3d { background: rgba(168, 85, 247, 0.2); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.3); }
+        .badge-tpl { background: rgba(56, 189, 248, 0.2); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); }
+        .badge-map { background: rgba(34, 197, 94, 0.2); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.3); }
+        .badge-ai { background: rgba(244, 63, 94, 0.2); color: #fb7185; border: 1px solid rgba(244, 63, 94, 0.3); }
+        .badge-tool { background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3); }
+        .badge-core { background: rgba(148, 163, 184, 0.2); color: #cbd5e1; border: 1px solid rgba(148, 163, 184, 0.3); }
+
+        .faq-question i.chevron { 
+            color: #38bdf8; 
+            font-size: 13px;
+            transition: transform 0.25s ease; 
+        }
+        .faq-item.open .faq-question i.chevron {
+            transform: rotate(180deg);
+        }
+        .faq-answer { 
+            display: none;
+            padding: 0 20px 18px 20px; 
+            color: #94a3b8; 
+            font-size: 14px; 
+            border-top: 1px solid rgba(51, 65, 85, 0.35); 
+            padding-top: 14px; 
+            line-height: 1.65;
+        }
+        .faq-item.open .faq-answer {
+            display: block;
+        }
+        .faq-answer strong {
+            color: #f8fafc;
+        }
+        .faq-answer code {
+            background: #0f172a;
+            color: #38bdf8;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+        .faq-answer ul {
+            margin: 8px 0;
+            padding-left: 20px;
+        }
+        .faq-answer li {
+            margin-bottom: 5px;
+        }
         
-        .faq-item { background: #1e293b; border: 1px solid #334155; border-radius: 14px; margin-bottom: 16px; overflow: hidden; transition: border-color 0.2s; }
-        .faq-item:hover { border-color: #3b82f6; }
-        .faq-question { padding: 20px 24px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; font-weight: 600; color: white; font-size: 16px; }
-        .faq-question i { color: #3b82f6; transition: transform 0.3s; }
-        .faq-answer { padding: 0 24px 20px 24px; color: #94a3b8; font-size: 14.5px; border-top: 1px solid rgba(51, 65, 85, 0.5); padding-top: 15px; }
-        
-        .contact-card { background: linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(37, 99, 235, 0.05)); border: 1px solid #3b82f6; border-radius: 16px; padding: 25px; text-align: center; margin-top: 40px; }
-        .contact-card h3 { color: white; margin: 0 0 10px 0; font-size: 18px; }
-        .contact-card p { color: #cbd5e1; margin-bottom: 20px; font-size: 14px; }
-        .contact-btn { display: inline-block; background: #3b82f6; color: white; text-decoration: none; padding: 12px 28px; border-radius: 8px; font-weight: bold; font-size: 14px; transition: background 0.2s; }
-        .contact-btn:hover { background: #2563eb; }
-        .footer-note { text-align: center; margin-top: 40px; padding-top: 20px; border-top: 1px solid #1e293b; color: #64748b; font-size: 13px; }
+        .contact-card { 
+            background: linear-gradient(135deg, rgba(2, 132, 199, 0.15), rgba(37, 99, 235, 0.05)); 
+            border: 1px solid #0284c7; 
+            border-radius: 16px; 
+            padding: 25px; 
+            text-align: center; 
+            margin-top: 35px; 
+        }
+        .contact-card h3 { 
+            color: #ffffff; 
+            margin: 0 0 10px 0; 
+            font-size: 17px; 
+        }
+        .contact-card p { 
+            color: #cbd5e1; 
+            margin-bottom: 20px; 
+            font-size: 13.5px; 
+        }
+        .contact-btn { 
+            display: inline-block; 
+            background: #0284c7; 
+            color: #ffffff; 
+            text-decoration: none; 
+            padding: 10px 24px; 
+            border-radius: 8px; 
+            font-weight: 700; 
+            font-size: 13.5px; 
+            transition: background 0.2s; 
+        }
+        .contact-btn:hover { 
+            background: #0369a1; 
+        }
+        .footer-note { 
+            text-align: center; 
+            margin-top: 35px; 
+            padding-top: 18px; 
+            border-top: 1px solid #1e293b; 
+            color: #64748b; 
+            font-size: 12.5px; 
+        }
+        .no-results {
+            text-align: center;
+            padding: 30px;
+            color: #64748b;
+            font-size: 14px;
+            display: none;
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <a href="index.html" class="back-btn"><i class="fas fa-arrow-left"></i> Ana Sayfaya Dön</a>
+        <div class="top-nav">
+            <a href="index.html" class="back-btn"><i class="fas fa-arrow-left"></i> Ana Sayfaya Dön</a>
+            <a href="app.html" class="live-studio-btn"><i class="fas fa-magic"></i> Uygulamaya Git</a>
+        </div>
         
         <h1>Yardım Merkezi & SSS</h1>
-        <div class="subtitle">Sıkça Sorulan Sorular ve Kullanım Kılavuzu</div>
+        <div class="subtitle">Sıkça Sorulan Sorular, Araç Rehberleri ve İpuçları</div>
 
-        <div class="faq-item">
-            <div class="faq-question">
-                <span>1. Şablonlar nasıl kullanılır ve düzenlenir?</span>
-                <i class="fas fa-chevron-down"></i>
-            </div>
-            <div class="faq-answer">
-                Uygulama stüdyosuna girdikten sonra sol menüdeki <strong>"Şablonlar"</strong> sekmesinden portföyünüze uygun hazır emlak şablonunu seçin. Ardından fotoğrafınızı yükleyip metinleri, fiyatları ve logonuzu çift tıklayarak kolayca düzenleyebilirsiniz.
-            </div>
+        <!-- Anlık Arama Kutusu -->
+        <div class="search-wrapper">
+            <i class="fas fa-search search-icon"></i>
+            <input type="text" id="faqSearchInput" class="search-input" placeholder="Soru veya özellik arayın (örn: 3D, neon çerçeve, parsel, AI netleştirme)..." oninput="filterFaq()">
         </div>
 
-        <div class="faq-item">
-            <div class="faq-question">
-                <span>2. Pro üyelik avantajları nelerdir?</span>
-                <i class="fas fa-chevron-down"></i>
-            </div>
-            <div class="faq-answer">
-                <strong>Pro Üyelik</strong> ile sınırsız yüksek çözünürlüklü (HD) indirme yapabilir, fotoğraflardaki filigranı (watermark) tamamen kaldırabilir, premium şablon havuzuna ve yeni çıkacak yapay zeka araçlarına öncelikli erişim sağlayabilirsiniz.
-            </div>
+        <!-- Kategori Filtre Butonları -->
+        <div class="categories-bar">
+            <button type="button" class="cat-pill active" onclick="setCategory('all', this)">Tümü</button>
+            <button type="button" class="cat-pill" onclick="setCategory('3d', this)">3D Stüdyo</button>
+            <button type="button" class="cat-pill" onclick="setCategory('tpl', this)">Şablonlar & Çerçeve</button>
+            <button type="button" class="cat-pill" onclick="setCategory('map', this)">Uydu & Parsel</button>
+            <button type="button" class="cat-pill" onclick="setCategory('ai', this)">Yapay Zeka & Fotoğraf</button>
+            <button type="button" class="cat-pill" onclick="setCategory('tool', this)">Ekstra Araçlar</button>
+            <button type="button" class="cat-pill" onclick="setCategory('core', this)">Genel & Üyelik</button>
         </div>
 
-        <div class="faq-item">
-            <div class="faq-question">
-                <span>3. Fotoğraflardan filigran (EmlakStüdyom yazısı) nasıl kalkar?</span>
-                <i class="fas fa-chevron-down"></i>
+        <div id="faqList">
+
+            <!-- 1. 3D Stüdyo & 3D Katı Silüet -->
+            <div class="faq-item" data-category="3d">
+                <div class="faq-question" onclick="toggleFaq(this)">
+                    <div class="faq-question-title">
+                        <span class="faq-badge badge-3d">3D Stüdyo</span>
+                        <span>Yazıları ve ikonları nasıl 3D yapabilirim ve "Katı Silüet" ne işe yarar?</span>
+                    </div>
+                    <i class="fas fa-chevron-down chevron"></i>
+                </div>
+                <div class="faq-answer">
+                    Sol menüdeki <strong>"3D Stüdyo"</strong> sekmesinden veya alt dock çubuğundaki <strong>3D</strong> butonuna basarak metinlerinize derinlik kazandırabilirsiniz. İkon kütüphanesinden eklediğiniz tüm simgeleri <strong>"Katı Silüet"</strong> özelliğiyle tek tıkla 3 boyutlu heykelimsi bir kabartmaya dönüştürebilirsiniz. Altın sarısı, krom veya antrasit materyalleri, bevel (pah), ışık açısı ve zemin hizalamasıyla vitrin ilanlarınıza lüks derinlik katabilirsiniz.
+                </div>
             </div>
-            <div class="faq-answer">
-                Demo modundaki kullanıcılarımızın indirdiği tasarımlarda tanıtım amaçlı filigran yer alır. E-posta adresinizle giriş yapıp <strong>Pro üyeliğe</strong> geçtiğiniz andan itibaren tüm tasarımlarınız tamamen filigransız, temiz ve logonuzla iner.
+
+            <!-- 2. Şablon Dış Çerçeve Neon Çizgisi -->
+            <div class="faq-item" data-category="tpl">
+                <div class="faq-question" onclick="toggleFaq(this)">
+                    <div class="faq-question-title">
+                        <span class="faq-badge badge-tpl">Şablonlar</span>
+                        <span>Şablonların etrafındaki neon çerçeve çizgisini nasıl açıp kapatabilirim veya rengini değiştirebilirim?</span>
+                    </div>
+                    <i class="fas fa-chevron-down chevron"></i>
+                </div>
+                <div class="faq-answer">
+                    <strong>"Şablonlar"</strong> sekmesinde bir şablon seçtiğinizde üst kısımda <strong>"Neon Dış Çerçeve"</strong> anahtarı görünür. Buradan çerçeveyi tek tıkla açıp kapatabilir; parlaklık şiddetini (glow), çizgi kalınlığını ve ilanınıza en uygun rengi (Neon Cyan, Altın Sarısı, Zümrüt Yeşili, Ateş Kırmızısı vb.) kenarlar kırpılmadan ayarlayabilirsiniz.
+                </div>
             </div>
+
+            <!-- 3. Uydu, TKGM Parsel & Eğim Modu -->
+            <div class="faq-item" data-category="map">
+                <div class="faq-question" onclick="toggleFaq(this)">
+                    <div class="faq-question-title">
+                        <span class="faq-badge badge-map">Uydu & Parsel</span>
+                        <span>Bir arsanın resmi TKGM ada/parsel sınırlarını uydu görüntüsü üzerine nasıl aktarırım?</span>
+                    </div>
+                    <i class="fas fa-chevron-down chevron"></i>
+                </div>
+                <div class="faq-answer">
+                    <strong>"Uydu & Parsel"</strong> sekmesine geçerek İl, İlçe, Mahalle, Ada ve Parsel numarasını girin. Sistem resmi kadastro sınırlarını otomatik çeker. Esri ve Google uydu katmanları arasında geçiş yapabilir, <strong>3D Perspektif / Eğim (Pitch)</strong> özelliğiyle araziye açılı/eğimli kuşbakışı derinlik verebilir, arsanın m² ve çevre uzunluğunu otomatik hesaplatabilirsiniz.
+                </div>
+            </div>
+
+            <!-- 4. AI Fotoğraf İyileştirme & Sihirli Silgi -->
+            <div class="faq-item" data-category="ai">
+                <div class="faq-question" onclick="toggleFaq(this)">
+                    <div class="faq-question-title">
+                        <span class="faq-badge badge-ai">Yapay Zeka</span>
+                        <span>Düşük kaliteli fotoğrafları nasıl netleştiririm veya istenmeyen nesneleri nasıl silerim?</span>
+                    </div>
+                    <i class="fas fa-chevron-down chevron"></i>
+                </div>
+                <div class="faq-answer">
+                    <strong>"Fotoğraf & AI"</strong> sekmesinden <strong>"AI Netleştirme (Super-Resolution)"</strong> kaydırıcısını artırarak pikselli veya bulanık fotoğrafları netleştirebilirsiniz. Fotoğraftaki kablo, tabela, çöp kutusu veya insan gibi dikkat dağıtıcı ögeleri kaldırmak için <strong>"Sihirli Silgi (Magic Eraser)"</strong> fırçasıyla nesnenin üzerini boyamanız yeterlidir; yapay zeka dokuyu arkasındaki zeminle pürüzsüzce doldurur.
+                </div>
+            </div>
+
+            <!-- 5. Ekstra Araçlar -->
+            <div class="faq-item" data-category="tool">
+                <div class="faq-question" onclick="toggleFaq(this)">
+                    <div class="faq-question-title">
+                        <span class="faq-badge badge-tool">Ekstra Araçlar</span>
+                        <span>Ekstra Araçlar sekmesindeki efektler ne işe yarar?</span>
+                    </div>
+                    <i class="fas fa-chevron-down chevron"></i>
+                </div>
+                <div class="faq-answer">
+                    <ul>
+                        <li><strong>Büyüteç:</strong> Fotoğraftaki önemli bir detayı (villa kapısı, havuz, manzara vb.) dairesel lens ile yakınlaştırarak gösterir.</li>
+                        <li><strong>Işık Hüzmesi:</strong> Görselinize güneş ışığı huzmesi veya gün batımı atmosferi katar.</li>
+                        <li><strong>Odak / Vurgu:</strong> Ana yapıyı net bırakıp arka planı flulaştırarak (bokeh) dikkati konuta çeker.</li>
+                        <li><strong>Çevre Analizi:</strong> Sahile 500m, Okula 1km, Metroya 2dk gibi lokasyon mesafelerini otomatik ok ve pimlerle işaretler.</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- 6. Katman Yönetimi & Çoklu Seçim -->
+            <div class="faq-item" data-category="tool">
+                <div class="faq-question" onclick="toggleFaq(this)">
+                    <div class="faq-question-title">
+                        <span class="faq-badge badge-tool">Katmanlar</span>
+                        <span>Birden fazla nesneyi aynı anda nasıl seçebilir ve hizalayabilirim?</span>
+                    </div>
+                    <i class="fas fa-chevron-down chevron"></i>
+                </div>
+                <div class="faq-answer">
+                    Tuvalde klavyeden <code>Ctrl</code> veya <code>Shift</code> tuşuna basılı tutarak birden fazla nesneye tıklayabilir ya da fareyle alan seçimi yapabilirsiniz. Seçtiğiniz nesneleri tek tıkla yatay/dikey ortalayabilir, eşit aralıklarla dağıtabilir veya grup haline getirebilirsiniz.
+                </div>
+            </div>
+
+            <!-- 7. Otomatik Kayıt & Kurtarma -->
+            <div class="faq-item" data-category="core">
+                <div class="faq-question" onclick="toggleFaq(this)">
+                    <div class="faq-question-title">
+                        <span class="faq-badge badge-core">Sistem</span>
+                        <span>Elektrik kesintisinde veya sayfayı kapattığımda çalışmam kaybolur mu?</span>
+                    </div>
+                    <i class="fas fa-chevron-down chevron"></i>
+                </div>
+                <div class="faq-answer">
+                    Hayır. EmlakStüdyom yaptığınız her işlemi anlık olarak tarayıcınızın yerel hafızasına kaydeder. Sayfayı yeniden açtığınızda üst menüdeki <strong>"Çalışmayı Geri Yükle"</strong> butonuna basarak tüm yazılarınızı, 3D nesnelerinizi ve çizimlerinizi kaldığınız yerden devam ettirebilirsiniz.
+                </div>
+            </div>
+
+            <!-- 8. Şablon Kullanımı -->
+            <div class="faq-item" data-category="tpl">
+                <div class="faq-question" onclick="toggleFaq(this)">
+                    <div class="faq-question-title">
+                        <span class="faq-badge badge-tpl">Şablonlar</span>
+                        <span>Şablonlar nasıl kullanılır ve düzenlenir?</span>
+                    </div>
+                    <i class="fas fa-chevron-down chevron"></i>
+                </div>
+                <div class="faq-answer">
+                    Uygulama stüdyosuna girdikten sonra sol menüdeki <strong>"Şablonlar"</strong> sekmesinden portföyünüze uygun hazır emlak şablonunu seçin. Ardından fotoğrafınızı yükleyip metinleri, fiyatları ve logonuzu çift tıklayarak kolayca düzenleyebilirsiniz.
+                </div>
+            </div>
+
+            <!-- 9. Pro Üyelik Avantajları -->
+            <div class="faq-item" data-category="core">
+                <div class="faq-question" onclick="toggleFaq(this)">
+                    <div class="faq-question-title">
+                        <span class="faq-badge badge-core">Üyelik</span>
+                        <span>Pro üyelik avantajları nelerdir?</span>
+                    </div>
+                    <i class="fas fa-chevron-down chevron"></i>
+                </div>
+                <div class="faq-answer">
+                    <strong>Pro Üyelik</strong> ile sınırsız yüksek çözünürlüklü (HD / 4K) indirme yapabilir, fotoğraflardaki filigranı (watermark) tamamen kaldırabilir, premium şablon havuzuna ve yeni çıkacak yapay zeka araçlarına öncelikli erişim sağlayabilirsiniz.
+                </div>
+            </div>
+
+            <!-- 10. Filigran Kaldırma -->
+            <div class="faq-item" data-category="core">
+                <div class="faq-question" onclick="toggleFaq(this)">
+                    <div class="faq-question-title">
+                        <span class="faq-badge badge-core">Üyelik</span>
+                        <span>Fotoğraflardan filigran (EmlakStüdyom yazısı) nasıl kalkar?</span>
+                    </div>
+                    <i class="fas fa-chevron-down chevron"></i>
+                </div>
+                <div class="faq-answer">
+                    Demo modundaki kullanıcılarımızın indirdiği tasarımlarda tanıtım amaçlı filigran yer alır. E-posta adresinizle giriş yapıp <strong>Pro üyeliğe</strong> geçtiğiniz andan itibaren tüm tasarımlarınız tamamen filigransız, temiz ve logonuzla iner.
+                </div>
+            </div>
+
+            <!-- 11. Formatlar & İndirme -->
+            <div class="faq-item" data-category="core">
+                <div class="faq-question" onclick="toggleFaq(this)">
+                    <div class="faq-question-title">
+                        <span class="faq-badge badge-core">Çıktı</span>
+                        <span>Hazırladığım görselleri hangi formatta indirebilirim?</span>
+                    </div>
+                    <i class="fas fa-chevron-down chevron"></i>
+                </div>
+                <div class="faq-answer">
+                    Tasarımlarınızı Sahibinden, Hepsiemlak, Emlakjet, Instagram gönderi ve hikaye (Story) formatlarına tam uyumlu yüksek kaliteli <strong>PNG ve JPG</strong> formatlarında tek tıkla indirebilirsiniz.
+                </div>
+            </div>
+
+            <!-- 12. Ofis Logosu Ekleme -->
+            <div class="faq-item" data-category="core">
+                <div class="faq-question" onclick="toggleFaq(this)">
+                    <div class="faq-question-title">
+                        <span class="faq-badge badge-core">Özelleştirme</span>
+                        <span>Şablonlara kendi ofis logomu ekleyebilir miyim?</span>
+                    </div>
+                    <i class="fas fa-chevron-down chevron"></i>
+                </div>
+                <div class="faq-answer">
+                    Evet! Sol paneldeki <strong>"Giriş & Logo"</strong> alanından kendi logonuzu yükleyip dilediğiniz köşeye yerleştirebilir, boyutlandırabilir ve saydamlığını ayarlayabilirsiniz.
+                </div>
+            </div>
+
         </div>
 
-        <div class="faq-item">
-            <div class="faq-question">
-                <span>4. Hazırladığım görselleri hangi formatta indirebilirim?</span>
-                <i class="fas fa-chevron-down"></i>
-            </div>
-            <div class="faq-answer">
-                Tasarımlarınızı Sahibinden, Hepsiemlak, Emlakjet, Instagram gönderi ve hikaye (Story) formatlarına tam uyumlu yüksek kaliteli <strong>PNG ve JPG</strong> formatlarında tek tıkla indirebilirsiniz.
-            </div>
-        </div>
-
-        <div class="faq-item">
-            <div class="faq-question">
-                <span>5. Şablonlara kendi ofis logomu ekleyebilir miyim?</span>
-                <i class="fas fa-chevron-down"></i>
-            </div>
-            <div class="faq-answer">
-                Evet! Sol paneldeki <strong>"Görsel / Logo Yükle"</strong> alanından kendi logonuzu şablona sürükleyip dilediğiniz köşeye yerleştirebilir ve boyutlandırabilirsiniz.
-            </div>
+        <div id="noResults" class="no-results">
+            <i class="fas fa-search" style="font-size:24px; margin-bottom:10px; display:block;"></i>
+            Aramanıza uygun bir soru bulunamadı. Lütfen farklı anahtar kelimeler deneyin.
         </div>
 
         <div class="contact-card">
             <h3><i class="fas fa-headset" style="margin-right: 8px;"></i> Aradığınız cevabı bulamadınız mı?</h3>
-            <p>Destek ekibimiz size yardımcı olmaktan mutluluk duyar. Bize doğrudan mesaj gönderebilir veya Instagram'dan ulaşabilirsiniz.</p>
-            <a href="index.html" class="contact-btn">Ana Sayfaya Git & Bize Ulaş</a>
+            <p>Destek ekibimiz ve yapay zeka asistanımız size yardımcı olmaktan mutluluk duyar. Uygulama içerisindeki Akıllı Asistan'a canlı danışabilirsiniz.</p>
+            <a href="app.html" class="contact-btn">Stüdyoda Asistana Sor</a>
         </div>
 
         <div class="footer-note">
             © 2026 EmlakStüdyom • Yardım & Destek Merkezi
         </div>
     </div>
+
+    <script>
+        let currentCategory = 'all';
+
+        function toggleFaq(el) {
+            const item = el.closest('.faq-item');
+            const isOpen = item.classList.contains('open');
+            // Close all
+            document.querySelectorAll('.faq-item').forEach(i => i.classList.remove('open'));
+            if (!isOpen) {
+                item.classList.add('open');
+            }
+        }
+
+        function setCategory(cat, btn) {
+            currentCategory = cat;
+            document.querySelectorAll('.cat-pill').forEach(p => p.classList.remove('active'));
+            if (btn) btn.classList.add('active');
+            filterFaq();
+        }
+
+        function filterFaq() {
+            const query = (document.getElementById('faqSearchInput').value || '').trim().toLowerCase();
+            const items = document.querySelectorAll('.faq-item');
+            let visibleCount = 0;
+
+            items.forEach(item => {
+                const cat = item.getAttribute('data-category');
+                const text = item.innerText.toLowerCase();
+                const matchesCat = (currentCategory === 'all' || cat === currentCategory);
+                const matchesQuery = (!query || text.includes(query));
+
+                if (matchesCat && matchesQuery) {
+                    item.style.display = 'block';
+                    visibleCount++;
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+
+            const noResults = document.getElementById('noResults');
+            if (noResults) {
+                noResults.style.display = (visibleCount === 0) ? 'block' : 'none';
+            }
+        }
+    </script>
 </body>
 </html>

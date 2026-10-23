@@ -247,7 +247,11 @@ async function exportAnimatedVideo(options = {}) {
     // Sağ altta yüzen mini bildirim kartını başlat
     updateVideoToastProgress(5, durationSeconds.toFixed(1));
 
-    await ensureFontsLoaded();
+    let saberApp = null;
+    let saberView = null;
+
+    try {
+        await ensureFontsLoaded();
     await new Promise(r => setTimeout(r, 40));
 
     // Deselect UI
@@ -289,8 +293,10 @@ async function exportAnimatedVideo(options = {}) {
     if (targetW % 2 !== 0) targetW += 1;
     if (targetH % 2 !== 0) targetH += 1;
 
-    const saberApp = (window.SaberEngine && typeof window.SaberEngine.getApp === 'function') ? window.SaberEngine.getApp() : null;
-    const saberView = saberApp ? saberApp.view : document.getElementById('saber-layer');
+    const outputScale = targetW / (currentW || 1920);
+
+    saberApp = (window.SaberEngine && typeof window.SaberEngine.getApp === 'function') ? window.SaberEngine.getApp() : null;
+    saberView = saberApp ? saberApp.view : document.getElementById('saber-layer');
     if (saberView) saberView.style.visibility = 'hidden';
 
     // ══════════════════════════════════════════════════
@@ -471,6 +477,17 @@ async function exportAnimatedVideo(options = {}) {
 
     // 6. ANİMASYON DÖNGÜSÜ VE KAYIT
     recorder.start(100);
+    } catch (prepareErr) {
+        console.error("Video hazırlama hatası:", prepareErr);
+        window.isExportingVideo = false;
+        if (saberView) saberView.style.visibility = 'visible';
+        else {
+            const sEl = document.getElementById('saber-layer');
+            if (sEl) sEl.style.visibility = 'visible';
+        }
+        finishVideoToastError("Video hazırlığı sırasında hata oluştu: " + (prepareErr.message || prepareErr));
+        return;
+    }
     const startTs = performance.now();
     let animId = null;
     let timerId = null;
@@ -478,6 +495,7 @@ async function exportAnimatedVideo(options = {}) {
     return new Promise((resolve) => {
         const cleanup = () => {
             window.isExportingVideo = false;
+            if (saberView) saberView.style.visibility = 'visible';
             if (animId) cancelAnimationFrame(animId);
             if (timerId) clearTimeout(timerId);
             if (saberApp && saberApp.ticker && !wasTickerStarted) {

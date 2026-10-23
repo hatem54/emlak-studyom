@@ -16,8 +16,32 @@
         if (!input.files || !input.files[0]) return;
         const file = input.files[0];
         input.value = ''; // Reset input
+
+        // Güvenlik & Boyut Kontrolü (Maks: 15MB, sadece geçerli raster görseller)
+        if (window.SecurityGuard && typeof window.SecurityGuard.validateImageFileAsync === 'function') {
+            const check = await window.SecurityGuard.validateImageFileAsync(file, {
+                maxSize: 15 * 1024 * 1024,
+                maxDimension: 8192
+            });
+            if (!check.valid) {
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire('Güvenlik Uyarısı', check.error, 'warning');
+                } else if (typeof window.showAppToast === 'function') {
+                    window.showAppToast(check.error, 'warning');
+                } else {
+                    alert(check.error);
+                }
+                return;
+            }
+        }
         
         const reader = new FileReader();
+        reader.onerror = () => {
+            const btn = document.getElementById('btnSmartParse');
+            if (btn) btn.innerHTML = 'Metni Süz';
+            if (typeof Swal !== 'undefined') Swal.fire('Hata', 'Görsel okunamadı.', 'error');
+            else alert('Görsel okunamadı.');
+        };
         reader.onload = async function(e) {
             const btn = document.getElementById('btnSmartParse');
             const originalBtnHtml = btn ? btn.innerHTML : 'Metni Süz';
@@ -1477,7 +1501,7 @@
 
 İlan Metni:
 ${rawText}`;
-                            const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key=${directApiKey}`;
+                            const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${directApiKey}`;
                             const gRes = await fetch(geminiUrl, {
                                 method: 'POST',
                                 signal: controller.signal,

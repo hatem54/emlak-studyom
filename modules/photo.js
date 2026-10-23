@@ -251,7 +251,7 @@ window.getWebGLPhotoOptions = function() {
     
     const conRaw = getVal('contrast', 100);
     // 100% -> 0.0, 0% -> -0.8, 200% -> +0.8, 300% -> +1.5
-    const contrast = (conRaw - 100) / 100.0 * 0.8;
+    let contrast = (conRaw - 100) / 100.0 * 0.8;
     
     const highlights = getVal('highlightsCtrl', 0) / 100.0;
     const shadows = getVal('shadowsCtrl', 0) / 100.0;
@@ -262,15 +262,34 @@ window.getWebGLPhotoOptions = function() {
     const temp = getVal('tempCtrl', 0) / 100.0;
     const tint = getVal('tintCtrl', 0) / 100.0;
     const satRaw = getVal('saturate', 100);
-    const saturate = satRaw / 100.0;
+    let saturate = satRaw / 100.0;
     const vibrance = getVal('vibranceCtrl', 0) / 100.0;
 
     // 3. Detay & Efektler
-    const sharpness = getVal('sharpnessCtrl', 0) / 100.0;
-    const aiSharpenRaw = getVal('aiPhotoEnhanceSlider', 0);
+    let sharpness = getVal('sharpnessCtrl', 0) / 100.0;
+    let aiSharpenRaw = getVal('aiPhotoEnhanceSlider', 0);
+
+    // Staging AI Netleştirme sliderı entegrasyonu
+    const stagingSlider = document.getElementById('stagingAiIntensitySlider');
+    if (stagingSlider && window.PhotoStagingArchive && window.PhotoStagingArchive.aiTrayOpen) {
+        aiSharpenRaw = parseFloat(stagingSlider.value) || 0;
+    } else if (window.PhotoStagingArchive && window.PhotoStagingArchive.activeItemId) {
+        const activeItem = window.PhotoStagingArchive.items && window.PhotoStagingArchive.items.find(it => it.id === window.PhotoStagingArchive.activeItemId);
+        if (activeItem && activeItem.aiIntensity !== undefined && activeItem.aiIntensity > 0) {
+            aiSharpenRaw = Math.round(activeItem.aiIntensity * 100);
+        }
+    }
+
     const aiSharpen = aiSharpenRaw / 100.0;
     const isAiEnhanceEnabled = aiSharpen > 0;
-    const clarity = getVal('clarityCtrl', 0) / 100.0;
+    let clarity = getVal('clarityCtrl', 0) / 100.0;
+
+    if (aiSharpen > 0) {
+        clarity += aiSharpen * 0.45;
+        sharpness += aiSharpen * 0.50;
+        contrast += aiSharpen * 0.16;
+        saturate += aiSharpen * 0.18;
+    }
     const dehaze = getVal('dehazeCtrl', 0) / 100.0;
     const sepia = getVal('sepia', 0) / 100.0;
     const grayscale = getVal('grayscale', 0) / 100.0;
@@ -412,7 +431,16 @@ function applyPhotoFilters(){
     if($('sharpnessVal')) $('sharpnessVal').textContent=sharp;
     if($('clarityVal')) $('clarityVal').textContent=clarity;
     if($('dehazeVal')) $('dehazeVal').textContent=dehaze;
-    const aiEnh = $('aiPhotoEnhanceSlider') ? +$('aiPhotoEnhanceSlider').value : 0;
+    let aiEnh = $('aiPhotoEnhanceSlider') ? +$('aiPhotoEnhanceSlider').value : 0;
+    const stgSlider = document.getElementById('stagingAiIntensitySlider');
+    if (stgSlider && window.PhotoStagingArchive && window.PhotoStagingArchive.aiTrayOpen) {
+        aiEnh = parseFloat(stgSlider.value) || 0;
+    } else if (window.PhotoStagingArchive && window.PhotoStagingArchive.activeItemId) {
+        const activeItem = window.PhotoStagingArchive.items && window.PhotoStagingArchive.items.find(it => it.id === window.PhotoStagingArchive.activeItemId);
+        if (activeItem && activeItem.aiIntensity !== undefined && activeItem.aiIntensity > 0) {
+            aiEnh = Math.round(activeItem.aiIntensity * 100);
+        }
+    }
     if($('aiPhotoEnhanceLevelVal')) $('aiPhotoEnhanceLevelVal').textContent = aiEnh + '%';
     if($('aiPhotoEnhanceVal')) $('aiPhotoEnhanceVal').textContent = aiEnh + '%';
 
@@ -437,12 +465,12 @@ function applyPhotoFilters(){
         requestPhotoRepaint();
     } else {
         // WebGL desteklenmiyorsa eski CSS filtresi yedeği
-        let effectiveSat=sat+vib*0.5;
-        let effectiveContrast=con+clarity*0.4+dehaze*0.3;
-        let effectiveBrightness=exp+dehaze*0.15;
+        let effectiveSat=sat+vib*0.5 + (aiEnh * 0.18);
+        let effectiveContrast=con+clarity*0.4+dehaze*0.3 + (aiEnh * 0.22);
+        let effectiveBrightness=exp+dehaze*0.15 + (aiEnh * 0.02);
         let effectiveHue=hue+temp*0.3-tint*0.3;
         let filter='brightness('+effectiveBrightness+'%) contrast('+effectiveContrast+'%) saturate('+effectiveSat+'%) blur('+blur+'px) sepia('+sep+'%) hue-rotate('+effectiveHue+'deg) grayscale('+gray+'%) invert('+inv+'%)';
-        if(sharp>0)filter+=' drop-shadow(0 0 0.5px rgba(0,0,0,'+(sharp/200)+'))';
+        if(sharp>0 || aiEnh > 0)filter+=' drop-shadow(0 0 0.5px rgba(0,0,0,'+((sharp*2 + aiEnh*0.8)/200)+'))';
         if (typeof photoLayer !== 'undefined' && photoLayer) photoLayer.style.filter=filter;
         document.querySelectorAll('.photo-panel').forEach(p=>p.style.filter=filter);
     }
@@ -652,8 +680,8 @@ function _applyPhotoTransform(el){
     var x = parseFloat(el.dataset.zpX) || 0;
     var y = parseFloat(el.dataset.zpY) || 0;
     
-    var sX = document.getElementById('photoXCtrl') ? document.getElementById('photoXCtrl').value : 50;
-    var sY = document.getElementById('photoYCtrl') ? document.getElementById('photoYCtrl').value : 50;
+    var sX = (el.id === 'photo-layer' && document.getElementById('photoXCtrl')) ? document.getElementById('photoXCtrl').value : (parseFloat(el.dataset.sX) || 50);
+    var sY = (el.id === 'photo-layer' && document.getElementById('photoYCtrl')) ? document.getElementById('photoYCtrl').value : (parseFloat(el.dataset.sY) || 50);
     
     inner.style.backgroundPosition = 'calc(' + sX + '% + ' + x + 'px) calc(' + sY + '% + ' + y + 'px)';
     inner.style.transform = 'translate(' + x + 'px, ' + y + 'px) scale(' + s + ')';
@@ -828,7 +856,27 @@ function _drawToNativeCanvas(el, inner, canvas, scale, panX, panY, sliderX, slid
     if (window.isShowingBefore) {
         // Öncesi / Sonrası Orijinal Görünümü: Ham, filtrelenmemiş saf görseli çiz
         ctx.filter = 'none';
-        ctx.drawImage(img, baseX, baseY, drawW, drawH);
+        let drawSourceImg = img;
+        if (window.PhotoStagingArchive && Array.isArray(window.PhotoStagingArchive.items)) {
+            const active = window.PhotoStagingArchive.items.find(it => it && it.id === window.PhotoStagingArchive.activeItemId);
+            const origUrl = active ? (active.rawOriginalDataUrl || active.originalDataUrl) : null;
+            if (origUrl && origUrl !== img.src) {
+                if (!window._stagingOrigImgCache || window._stagingOrigImgCache._srcUrl !== origUrl) {
+                    window._stagingOrigImgCache = new Image();
+                    window._stagingOrigImgCache._srcUrl = origUrl;
+                    window._stagingOrigImgCache.onload = function() {
+                        if (window.isShowingBefore && typeof window.requestPhotoRepaint === 'function') {
+                            window.requestPhotoRepaint();
+                        }
+                    };
+                    window._stagingOrigImgCache.src = origUrl;
+                }
+                if (window._stagingOrigImgCache.complete && window._stagingOrigImgCache.naturalWidth > 0) {
+                    drawSourceImg = window._stagingOrigImgCache;
+                }
+            }
+        }
+        ctx.drawImage(drawSourceImg, baseX, baseY, drawW, drawH);
         imageDrawn = true;
     } else if (window.WebGLPhotoEngine && window.WebGLPhotoEngine.initialized && typeof window.getWebGLPhotoOptions === 'function') {
         const opts = window.getWebGLPhotoOptions();

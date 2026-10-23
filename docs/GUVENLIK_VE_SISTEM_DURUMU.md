@@ -41,6 +41,15 @@ Bu maddeler daha önce çözülmüştür, kodda veya harici panellerde aktiftir;
 - **Durum:** ✅ Dosya güncellendi (`supabase_schema.sql`).
 - **Açıklama:** `is_admin()` fonksiyonu eklenerek sonsuz özyineleme riski kaldırılmış; kullanıcıların aktif lisans kodlarını listeleyebilmesi engellenmiş ve `protect_profile_roles` trigger'ı ile kullanıcıların kendi rollerini admin yapması engellenmiştir. Kullanıcının Supabase SQL Editor'de bir kez çalıştırması yeterlidir.
 
+### 1.7. Merkezi Giriş ve Dosya Güvenlik Kalkanı (SecurityGuard)
+- **Durum:** ✅ Tamamlandı.
+- **Dosyalar:** `modules/security-guard.js`, `app.html`, `modules/satellite-cadastre.js`, `modules/export.js`, `modules/three-d-engine.js`, `modules/parser-core.js`, `main.js`
+- **Açıklama:** Uygulamaya giren tüm veri kanalları (dosya yüklemeleri, sürükle-bırak, pano yapıştırma, KML/KMZ, JSON şablonları, 3D modeller ve OCR) koruma altına alınmıştır:
+  - **XSS & XXE Koruması:** DOMPurify destekli HTML arındırma (`sanitizeHtml`), KML popup güvenliği (`escapeHtml`), XXE XML entity engeli (`validateKmlText`) ve ID arındırma (`sanitizeId`).
+  - **Zararlı Uzantı & Sahtecilik Engeli:** `.exe`, `.bat`, `.cmd`, `.sh`, `.php`, `.js` vb. tüm çalıştırılabilir dosyalar engellenmiştir.
+  - **Piksel Bombası & Dekompresyon Koruması:** Aşırı yüksek çözünürlüklü (8K+ / 40MP+) ve sahte/bozuk görseller decode probe ile engellenir.
+  - **Hata Yakalama & Donma Önleme:** 3D GLTF yükleyicisi ve FileReader okuyucularına `onerror` korumaları eklenmiş; bekleme ekranının (`hideAppLoading`) donup kalması önlenmiştir.
+
 ---
 
 ## 2. ⚠️ HÂLÂ YAPILMASI GEREKENLER

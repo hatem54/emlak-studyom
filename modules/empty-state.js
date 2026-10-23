@@ -154,10 +154,43 @@
                     '#threeDAddNewElementBtn, .three-d-add-btn, .estate-3d-card'
                 );
 
-                if (isDrawToolClick || isRealTemplateClick || isElementAddClick) {
+                // 4. Şablon Oluşturucu (Template Builder) tuval müdahaleleri (Renk, Boyut, Çerçeve, Şekil, Kart vb.)
+                const isTemplateBuilderClick = target.closest(
+                    '#tab-create-template button, #tab-create-template .btn-action, #tab-create-template .tb-ratio-btn, ' +
+                    '#tab-create-template .tb-palette-chip, #tab-create-template .tb-card-bg-chip, #tab-create-template .tb-shape-card, ' +
+                    '#tab-create-template .tb-layout-card, #tab-create-template .tb-blend-btn, #tab-create-template .tb-bg-cat-btn, ' +
+                    '#tab-create-template .tb-shapes-cat-btn, #tab-create-template .tb-layout-cat-btn, ' +
+                    '#tab-create-template input, #tab-create-template select, ' +
+                    '[onclick*="TemplateBuilder"], [onclick*="TemplatePolygonFrame"]'
+                );
+
+                // 5. Arka plan rengi veya gradyan doku müdahaleleri (Tuval rengi, dışa aktarma rengi vb.)
+                const isCanvasBgAction = target.closest(
+                    '#canvasBgColor, #exportBgColor, #tbCanvasBgColor, #tbInfoCardBgColor, ' +
+                    '.tb-palette-chip, .tb-card-bg-chip, [onclick*="setCanvasBackground"], [onclick*="resetUserBg"], [onclick*="setInfoCardBg"]'
+                );
+
+                // 6. Tuval alanına doğrudan tıklama (Boş durum kartları dışındaki tuval gövdesi)
+                const isDirectCanvasClick = target.closest('#canvas-container') && !target.closest('#canvasEmptyState');
+
+                if (isDrawToolClick || isRealTemplateClick || isElementAddClick || isTemplateBuilderClick || isCanvasBgAction || isDirectCanvasClick) {
                     this.dismiss();
                 }
             }, true);
+
+            // Renk ve tuval boyutu seçimlerinde input ve change anında boş durumu kaldır
+            ['input', 'change'].forEach(eventType => {
+                document.addEventListener(eventType, (e) => {
+                    const target = e.target;
+                    if (!target) return;
+                    if (target.matches(
+                        '#tbCanvasBgColor, #canvasBgColor, #exportBgColor, #tbInfoCardBgColor, ' +
+                        '#tbCustomW, #tbCustomH, #globalTextBg, #elBgColor, #previewFormat, #exportFormat, #tbInfoCardTheme, #tbSnapToggle'
+                    ) || target.closest('#tab-create-template')) {
+                        this.dismiss();
+                    }
+                }, true);
+            });
         },
 
         dismiss() {
@@ -171,13 +204,24 @@
         },
 
         ensureWhiteCanvas() {
+            // Eğer TemplateBuilder veya kullanıcı özel bir arka plan seçtiyse beyaz ile ezme
+            if (window.TemplateBuilder && window.TemplateBuilder.userChosenBg) {
+                return;
+            }
             const container = document.getElementById('canvas-container');
             if (container) {
-                container.style.backgroundColor = '#ffffff';
+                const curBg = container.style.backgroundColor;
+                const curImg = container.style.backgroundImage;
+                // Yalnızca arka plan atanmamışsa veya boşsa beyaz ata
+                if ((!curBg || curBg === '' || curBg === 'transparent' || curBg === 'rgba(0, 0, 0, 0)') &&
+                    (!curImg || curImg === 'none' || curImg === '')) {
+                    container.style.backgroundColor = '#ffffff';
+                }
             }
             const pLayer = document.getElementById('photo-layer');
-            if (pLayer && (!pLayer.style.backgroundImage || pLayer.style.backgroundImage === 'none')) {
-                pLayer.style.backgroundColor = '#ffffff';
+            if (pLayer) {
+                // photo-layer daima şeffaf kalmalı ki canvas-container'ın rengi görünsün
+                pLayer.style.setProperty('background-color', 'transparent', 'important');
             }
         },
 
@@ -284,6 +328,41 @@
             hookThreeD();
             setTimeout(hookThreeD, 300);
             setTimeout(hookThreeD, 1000);
+
+            // TemplateBuilder (Şablon Oluşturucu) eylemlerini bağla
+            const hookTemplateBuilder = () => {
+                if (window.TemplateBuilder) {
+                    [
+                        'setCanvasBackground', 'setCanvasRatio', 'resetUserBg',
+                        'createImageFrame', 'createCircleFrame', 'applyShapeOrNew',
+                        'applyPrebuiltLayout', 'createTextFrame', 'addInfoCard',
+                        'setInfoCardBg', 'resetInfoCardBg', 'uploadMultiplePhotos',
+                        'makeSelectedFrameCircle', 'setFrameShape', 'setFrameBlend'
+                    ].forEach(fn => {
+                        const orig = window.TemplateBuilder[fn];
+                        if (typeof orig === 'function' && !orig._emptyHooked) {
+                            window.TemplateBuilder[fn] = (...args) => {
+                                CanvasEmptyState.dismiss();
+                                return orig.apply(window.TemplateBuilder, args);
+                            };
+                            window.TemplateBuilder[fn]._emptyHooked = true;
+                        }
+                    });
+                }
+                if (window.TemplatePolygonFrame) {
+                    const origPoly = window.TemplatePolygonFrame.startDrawing;
+                    if (typeof origPoly === 'function' && !origPoly._emptyHooked) {
+                        window.TemplatePolygonFrame.startDrawing = (...args) => {
+                            CanvasEmptyState.dismiss();
+                            return origPoly.apply(window.TemplatePolygonFrame, args);
+                        };
+                        window.TemplatePolygonFrame.startDrawing._emptyHooked = true;
+                    }
+                }
+            };
+            hookTemplateBuilder();
+            setTimeout(hookTemplateBuilder, 300);
+            setTimeout(hookTemplateBuilder, 1000);
         },
 
         hasActiveCanvasContent() {
@@ -305,7 +384,7 @@
                 return true;
             }
 
-            // 1. Arka plan fotoğrafı var mı?
+            // 1. Arka plan fotoğrafı veya özel arka plan rengi/gradyan dokusu var mı?
             const hasUploadUrl = !!(typeof window.uploadedImgUrl !== 'undefined' && window.uploadedImgUrl && typeof window.uploadedImgUrl === 'string' && window.uploadedImgUrl.trim() !== '');
             const hasMasterBase64 = !!(typeof window.masterImageBase64 !== 'undefined' && window.masterImageBase64 && typeof window.masterImageBase64 === 'string' && window.masterImageBase64.trim() !== '');
 
@@ -317,6 +396,23 @@
             ));
 
             if (hasUploadUrl || hasMasterBase64 || hasLayerBg) return true;
+
+            // 1.1. Tuval konteynerinde özel bir arka plan rengi veya gradyan dokusu var mı?
+            const container = document.getElementById('canvas-container');
+            if (container) {
+                const bgImg = container.style.backgroundImage;
+                if (bgImg && bgImg !== 'none' && bgImg !== '' && bgImg !== 'url("")' && bgImg !== 'url("none")') {
+                    return true;
+                }
+                const bgCol = container.style.backgroundColor;
+                if (bgCol && bgCol !== '' && bgCol !== 'transparent' && bgCol !== 'rgba(0, 0, 0, 0)' &&
+                    bgCol !== 'rgb(255, 255, 255)' && bgCol !== '#ffffff') {
+                    return true;
+                }
+            }
+            if (window.TemplateBuilder && window.TemplateBuilder.userChosenBg) {
+                return true;
+            }
 
             // 2. Canva / Kolaj katmanı dolu mu?
             const canvaLayer = document.getElementById('canva-render-layer');
@@ -340,14 +436,15 @@
                 return true;
             }
 
-            // 4. Tuvalde eklenmiş herhangi bir kullanıcı ögesi var mı? (Metin, rozet, şekil, ikon, callout, kolaj, logo vb.)
+            // 4. Tuvalde eklenmiş herhangi bir kullanıcı ögesi var mı? (Metin, rozet, şekil, ikon, callout, kolaj, logo, şablon çerçevesi vb.)
             const editableElements = document.querySelectorAll(
                 '#canvas-container .editable-item, #canvas-container .callout-wrap, #canvas-container .custom-shape, ' +
                 '#canvas-container .editable-draw, #canvas-container .svg-callout-el, #canvas-container [data-element-type], ' +
                 '#canvas-container .kolaj-cerceve, #canvas-container #kolaj-wrapper, ' +
                 '#canvas-container .shape-el, #canvas-container [data-shape-type], #canvas-container .added-icon, #canvas-container .canvas-icon, ' +
                 '#canvas-container .added-text, #canvas-container .custom-text-box, #canvas-container .co-neon-block, ' +
-                '#canvas-container .cvi-item, #canvas-container .tb-image-frame, ' +
+                '#canvas-container .cvi-item, #canvas-container .tb-image-frame, #canvas-container .tb-layout-text, ' +
+                '#canvas-container .tb-info-card, #canvas-container #tb-active-info-card, #canvas-container .tb-polygon-canvas, ' +
                 '#canvas-container .draggable:not(#elBadge):not(#elPrice):not(#elDetails):not(#elLogo), ' +
                 '#canvas-container .canvas-el:not(#elBadge):not(#elPrice):not(#elDetails):not(#elLogo)'
             );

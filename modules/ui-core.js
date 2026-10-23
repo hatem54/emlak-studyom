@@ -78,8 +78,62 @@ function switchTab(name){
         targetPanel.classList.add('show');
         if (name === 'font') {
             const elSet = document.getElementById('elSettings');
-            if (elSet && elSet.style.display !== 'none' && elSet.scrollIntoView) {
+            const curEl = (typeof selectedEl !== 'undefined' ? selectedEl : null) || (typeof selectedCalloutEl !== 'undefined' ? selectedCalloutEl : null);
+            const isCallout = curEl && (
+                (typeof isCalloutOrBadgeElement === 'function' && isCalloutOrBadgeElement(curEl)) ||
+                (typeof window.isCalloutOrBadgeElement === 'function' && window.isCalloutOrBadgeElement(curEl)) ||
+                (curEl.closest && (curEl.closest('.callout-wrap') || curEl.closest('.callout-item') || curEl.closest('.svg-callout') || curEl.closest('.co-neon-block'))) ||
+                (curEl.classList && (curEl.classList.contains('callout-wrap') || curEl.classList.contains('callout-item') || curEl.classList.contains('co-neon-block') || curEl.classList.contains('svg-callout')))
+            );
+            const isIcon = !isCallout && curEl && curEl.classList && (
+                curEl.classList.contains('added-icon') ||
+                curEl.classList.contains('is-svg-icon') ||
+                curEl.classList.contains('canvas-icon')
+            );
+            if (isCallout || isIcon) {
+                if (elSet) elSet.style.display = 'none';
+            } else if (elSet && elSet.style.display !== 'none' && elSet.scrollIntoView) {
                 elSet.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+            if (curEl && typeof window.syncNeonTextUI === 'function') {
+                window.syncNeonTextUI(curEl);
+            }
+        } else if (name === 'icons') {
+            if (typeof buildIconCategoriesUI === 'function') {
+                const iconCatList = document.getElementById('iconCategoryList');
+                if (!iconCatList || !iconCatList.children || iconCatList.children.length === 0 || !window.ICON_CATEGORIES) {
+                    buildIconCategoriesUI();
+                }
+            }
+            const curEl = (typeof selectedEl !== 'undefined' ? selectedEl : null) || document.querySelector('.added-icon.el-selected, .is-svg-icon.el-selected');
+            const isIcon = curEl && curEl.classList && (
+                curEl.classList.contains('added-icon') ||
+                curEl.classList.contains('is-svg-icon') ||
+                curEl.classList.contains('canvas-icon')
+            );
+            const p = document.getElementById('iconSettingsPanel');
+            if (isIcon && p) {
+                p.style.display = 'block';
+                p.open = true;
+                if (typeof window.loadIconSettings === 'function') window.loadIconSettings(curEl);
+            }
+        } else if (name === 'callout') {
+            const curEl = (typeof selectedCalloutEl !== 'undefined' ? selectedCalloutEl : null) || (typeof selectedEl !== 'undefined' ? selectedEl : null) || document.querySelector('.callout-wrap.el-selected, .callout-item.el-selected, .svg-callout.el-selected, .co-neon-block.el-selected');
+            const isCallout = curEl && (
+                (typeof isCalloutOrBadgeElement === 'function' && isCalloutOrBadgeElement(curEl)) ||
+                (typeof window.isCalloutOrBadgeElement === 'function' && window.isCalloutOrBadgeElement(curEl)) ||
+                (curEl.closest && (curEl.closest('.callout-wrap') || curEl.closest('.callout-item') || curEl.closest('.svg-callout') || curEl.closest('.co-neon-block'))) ||
+                (curEl.classList && (curEl.classList.contains('callout-wrap') || curEl.classList.contains('callout-item') || curEl.classList.contains('co-neon-block') || curEl.classList.contains('svg-callout')))
+            );
+            const p = document.getElementById('calloutSettingsPanel');
+            if (isCallout && p) {
+                p.style.display = 'block';
+                p.open = true;
+                const body = document.getElementById('calloutSettingsBody');
+                if (body) body.style.display = 'block';
+                const wrap = (typeof getBadgeWrapper === 'function' ? getBadgeWrapper(curEl) : null) || (curEl.closest && curEl.closest('.callout-wrap')) || curEl;
+                const inner = (wrap.querySelector && wrap.querySelector('.callout-item')) || wrap;
+                if (typeof selectCalloutEl === 'function') selectCalloutEl(inner, true);
             }
         }
     }
@@ -117,7 +171,13 @@ function switchTab(name){
     if (window.PhotoStagingArchive && typeof window.PhotoStagingArchive.closeCanvasCompare === 'function') {
         window.PhotoStagingArchive.closeCanvasCompare();
     }
-    if(name==='callout' && typeof renderCalloutPanel==='function') renderCalloutPanel();
+    if(name==='callout') {
+        if(typeof renderCalloutPanel==='function') renderCalloutPanel();
+        if(typeof renderNeonCallouts==='function') {
+            const pool = document.getElementById('neonCalloutPool');
+            if(!pool || !pool.children || pool.children.length === 0) renderNeonCallouts();
+        }
+    }
     if(name==='photo' && window.PhotoLayerManager && typeof window.PhotoLayerManager.renderUI === 'function') {
         window.PhotoLayerManager.renderUI();
     }
@@ -129,6 +189,9 @@ function switchTab(name){
     }
     if((name==='data' || name==='batch' || name==='staging') && window.PhotoStagingArchive && typeof window.PhotoStagingArchive.syncExternalTabs === 'function') {
         window.PhotoStagingArchive.syncExternalTabs();
+    }
+    if (typeof window.healSvgElementIds === 'function') {
+        window.healSvgElementIds();
     }
 
     if(document.getElementById('kolaj-wrapper')){

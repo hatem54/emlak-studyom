@@ -109,7 +109,7 @@
         measureIsClosed: true,     // 3+ nokta olduğunda poligon kapalı mı?
         measureInteractionMode: 'draw', // 'draw' (nokta ekle) | 'pan' (haritada gezin)
         measureCustomText: '',
-        measurePreset: 'frontage', // 'frontage' | 'front' | 'depth' | 'setback' | 'distance_only'
+        measurePreset: 'distance_only', // 'distance_only' | 'frontage' | 'front' | 'depth' | 'setback'
         measureStyle: 'cad',       // 'cad' | 'neon' | 'arrow' | 'dashed'
         measureColor: '#f59e0b',   // Varsayılan: Altın Sarısı
         measureBadgeTheme: 'dark', // 'dark' | 'gold' | 'emerald' | 'minimal'
@@ -134,7 +134,7 @@
         measurePanelCollapsed: false,
         measureHideDefaultParcel: true, // Ölçüm açıkken varsayılan beyaz parsel konturunu gizler (çakışmayı önler)
         measurePanelPos: null, // { left, top, relX, relY } panelin taşındığı konum
-        measureShowEdgeDistances: true, // Kenar cephe metreleri görünürlüğü (varsayılan: açık)
+        measureShowEdgeDistances: false, // Kenar cephe metreleri görünürlüğü (varsayılan: kapalı)
         measureShowArea: true, // Arsa alanı m² rozeti görünürlüğü (varsayılan: açık)
         measureShowHandles: true, // Köşe tutamaçları/numaraları görünürlüğü (varsayılan: açık)
         measureSmartZoomScale: true, // Harita uzaklaşınca rozetlerin araziye orantılı küçülmesini sağlar
@@ -211,6 +211,10 @@
                                 <button type="button" class="sat-badge-btn" onclick="window.zoomToCurrentParcel()" title="Arsayı Ortala"><i class="fas fa-crosshairs"></i></button>
                                 <button type="button" class="sat-badge-btn" onclick="window.clearSatelliteParcel()" title="Parseli Kaldır"><i class="fas fa-trash-alt"></i></button>
                             </div>
+
+                            <button type="button" id="satResetDefaultBtn" class="sat-btn-reset-default" onclick="window.resetSatelliteToDefault()" title="Haritayı, parseli ve tüm çizimleri temizleyip varsayılan başlangıç ekranına dön">
+                                <i class="fa-solid fa-rotate-left"></i> <span>Sıfırla</span>
+                            </button>
 
                             <button type="button" id="satHamburgerBtn" class="sat-hamburger-btn" onclick="window.toggleSatelliteSettingsDrawer()" title="Hızlı Ayarlar Menüsü">
                                 <i class="fas fa-bars"></i> <span>Ayarlar</span>
@@ -608,6 +612,9 @@
                             </button>
                         </div>
                         <div class="sat-measure-header-actions">
+                            <button type="button" class="sat-measure-btn-reset" onclick="window.resetSatelliteMeasurePoints()" title="Tüm Ölçüm Çizgilerini Temizle" style="background:transparent; border:none; color:#ef4444; font-size:12px; cursor:pointer; padding:3px 6px;">
+                                <i class="fa-solid fa-trash-can"></i>
+                            </button>
                             <button type="button" class="sat-measure-btn-parcel-layer active" id="satMeasureToggleParcelBtn" onclick="window.toggleSatelliteMeasureParcelLayer()" title="Beyaz TKGM Parsel Katmanını Gizle / Göster">
                                 <i class="fas fa-eye-slash" id="satMeasureParcelLayerIcon"></i>
                             </button>
@@ -629,15 +636,23 @@
 
                         <!-- ➕ Yeni Çizim Ekle Üst Butonu (2D Only) -->
                         <div class="sat-measure-top-add sat-2d-only-row" id="satMeasureTopAdd">
-                            <button type="button" class="sat-btn-add-drawing" onclick="window.addNewSatelliteDrawing()" title="Haritaya bağımsız yeni bir ölçüm çizgisi veya poligon alanı ekleyin">
-                                <i class="fas fa-plus-circle"></i> <span>Yeni Çizim Ekle</span>
-                            </button>
+                            <div style="display:flex; gap:6px;">
+                                <button type="button" class="sat-btn-add-drawing" style="flex:1;" onclick="window.addNewSatelliteDrawing()" title="Haritaya bağımsız yeni bir ölçüm çizgisi veya poligon alanı ekleyin">
+                                    <i class="fas fa-plus-circle"></i> <span>Yeni Çizim Ekle</span>
+                                </button>
+                                <button type="button" class="sat-btn-add-drawing" id="satSnapParcelBtn" onclick="window.snapSatelliteActiveDrawingToParcel()" title="Çizimi doğrudan parsel sınırlarına sıfırlar ve çevreler" style="display:none; flex:1; background:rgba(2,132,199,0.15); border:1px solid #0284c7; color:#0284c7;">
+                                    <i class="fa-solid fa-crosshairs"></i> <span>Parseli Çevrele</span>
+                                </button>
+                            </div>
                             <div style="display:flex; gap:6px; margin-top:6px;">
                                 <button type="button" id="satSmartZoomToggleBtn" class="sat-measure-style-btn active" onclick="window.toggleSatelliteSmartZoomScale()" title="Uzaklaşınca butonların arsayı kaplamasını engeller, araziye göre orantılı ölçekler" style="flex:1; justify-content:center; font-size:11px; padding:5px 4px;">
-                                    🔍 Akıllı Boyut
+                                    <i class="fa-solid fa-magnifying-glass"></i> Akıllı Boyut
                                 </button>
                                 <button type="button" id="satAutoAngleToggleBtn" class="sat-measure-style-btn active" onclick="window.toggleSatelliteAutoEdgeAngle()" title="Kenar metrelerini otomatik olarak çizgiye paralel hizalar" style="flex:1; justify-content:center; font-size:11px; padding:5px 4px;">
-                                    📐 Paralel Açı
+                                    <i class="fa-solid fa-ruler"></i> Paralel Açı
+                                </button>
+                                <button type="button" id="satVisEdgeDistancesBtn" class="sat-measure-style-btn" onclick="window.toggleSatelliteMeasureAllEdges()" title="Çizgi Üstü Metre Yazılarını Aç / Kapat" style="flex:1; justify-content:center; font-size:11px; padding:5px 4px;">
+                                    <i class="fa-solid fa-eye"></i> Çizgi Metresi
                                 </button>
                             </div>
                         </div>
@@ -647,11 +662,11 @@
                             <!-- renderDrawingsListUI ile dinamik doldurulur -->
                         </div>
 
-                        <!-- 1. Bölüm: Parsel Kenar Çizgisi & Neon Parlama (Hem 2D Hem 3D) -->
+                        <!-- 1. Bölüm: 🎨 Çizim Rengi & Neon Parlama (Hem 2D Hem 3D) -->
                         <div class="sat-measure-row" id="satMeasureStrokeRow">
                             <div class="sat-measure-sub-row" style="margin-bottom:6px;">
                                 <div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
-                                    <label class="sat-measure-label" style="margin-bottom:0;"><i class="fas fa-pen" style="margin-right:4px; opacity:0.8;"></i> Parsel Çizgisi:</label>
+                                    <label class="sat-measure-label" style="margin-bottom:0;"><i class="fas fa-palette" style="margin-right:4px; opacity:0.8;"></i> Çizim Rengi:</label>
                                     <button type="button" id="satMeasureNeonToggleBtn" class="sat-pill-toggle-btn" onclick="window.toggleSatelliteParcelNeon()" style="padding:2px 10px; font-size:11px; border-radius:12px; cursor:pointer; font-weight:600; border:1px solid #475569; background:transparent; color:#94a3b8; transition:all 0.2s ease;">
                                         <i class="fas fa-bolt"></i> Neon: <b>Kapalı</b>
                                     </button>
@@ -665,7 +680,7 @@
                                 <button type="button" class="sat-measure-color-dot sat-stroke-dot" style="background:#10b981;" data-color="#10b981" onclick="window.setParcelStrokeColor('#10b981')" title="Yeşil"></button>
                                 <button type="button" class="sat-measure-color-dot sat-stroke-dot active" style="background:#ef4444;" data-color="#ef4444" onclick="window.setParcelStrokeColor('#ef4444')" title="Kırmızı"></button>
                                 <button type="button" class="sat-measure-color-dot sat-stroke-dot" style="background:#a855f7;" data-color="#a855f7" onclick="window.setParcelStrokeColor('#a855f7')" title="Mor"></button>
-                                <label class="sat-measure-color-custom-btn" id="satStrokeCustomLabel" title="Özel Çizgi Rengi">
+                                <label class="sat-measure-color-custom-btn" id="satStrokeCustomLabel" title="Özel Renk">
                                     <i class="fas fa-eye-dropper"></i>
                                     <input type="color" id="satStrokeCustomInput" value="#ef4444" oninput="window.setParcelStrokeColor(this.value)">
                                 </label>
@@ -679,7 +694,14 @@
                         <!-- 2. Bölüm: 🎨 Arsa Zemin Dolgusu (Hem 2D Hem 3D) -->
                         <div class="sat-measure-row" id="satMeasureFillRow">
                             <div class="sat-measure-sub-row" style="margin-bottom:6px;">
-                                <label class="sat-measure-label"><i class="fas fa-fill-drip" style="margin-right:4px; opacity:0.8;"></i> Arsa Dolgusu:</label>
+                                <div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
+                                    <label class="sat-measure-label" style="margin-bottom:0;"><i class="fas fa-fill-drip" style="margin-right:4px; opacity:0.8;"></i> Arsa Dolgusu:</label>
+                                    <button type="button" id="satMeasureFillNeonToggleBtn" class="sat-pill-toggle-btn" onclick="window.toggleSatelliteParcelFillNeon()" style="padding:2px 10px; font-size:11px; border-radius:12px; cursor:pointer; font-weight:600; border:1px solid #475569; background:transparent; color:#94a3b8; transition:all 0.2s ease;" title="Arsa zemin dolgusuna neon parlama efekti verir">
+                                        <i class="fas fa-bolt"></i> Neon: <b>Kapalı</b>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="sat-measure-sub-row" style="margin-bottom:6px;">
                                 <div class="sat-measure-chips" id="satMeasureFillModeChips">
                                     <button type="button" class="sat-measure-chip" data-fill="white" onclick="window.setParcelFillMode('white')" title="Beyaz yarı saydam arsa dolgusu">⚪ Beyaz</button>
                                     <button type="button" class="sat-measure-chip active" data-fill="color" onclick="window.setParcelFillMode('color')" title="Seçili renkte arsa dolgusu">🎨 Renkli</button>
@@ -704,6 +726,13 @@
                                 <span>Dolgu Saydamlığı: <b id="satMeasureFillOpacityText" style="color:#e2e8f0;">%22</b></span>
                                 <input type="range" id="satMeasureFillOpacitySlider" min="5" max="95" step="1" value="22" oninput="window.setParcelOpacity(this.value)" style="width:110px; accent-color:#38bdf8;">
                             </div>
+                        </div>
+
+                        <!-- 3. Bölüm: Ölçümü Tamamla & Haritada Sabitle Butonu -->
+                        <div class="sat-measure-complete-wrap" style="margin-top:10px; padding-top:8px; border-top:1px solid rgba(255,255,255,0.08);">
+                            <button type="button" class="sat-btn-complete-measure" id="satCompleteMeasureBtn" onclick="window.finalizeSatelliteMeasurement()" title="Çizimi tamamla, tutamaçları gizle ve harita üzerinde sabitle">
+                                <i class="fa-solid fa-check"></i> Ölçümü Tamamla
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -886,6 +915,23 @@
                     markerLat: e.latlng.lat,
                     markerLng: e.latlng.lng
                 });
+            });
+
+            // Canlı Ölçüm İmleç Takip Çizgisi (Rubber-band Line)
+            this.map.on('mousemove', (e) => {
+                if (typeof this.handleMeasureMouseMove === 'function') {
+                    this.handleMeasureMouseMove(e);
+                }
+            });
+            this.map.on('mouseout', () => {
+                if (typeof this.hideMeasureGuide === 'function') {
+                    this.hideMeasureGuide();
+                }
+            });
+            this.map.on('zoomstart', () => {
+                if (typeof this.hideMeasureGuide === 'function') {
+                    this.hideMeasureGuide();
+                }
             });
 
             // Harita kapsayıcısına tıklandığında tutamaçları temizle (dışarı tıklandığında)
@@ -1152,8 +1198,8 @@
                     is3D: (data.is3D !== undefined) ? data.is3D : (this.is3DActive || existing.is3D || false),
                     range: (data.range !== undefined) ? data.range : (existing.range || 650),
                     tilt: (data.tilt !== undefined) ? data.tilt : (existing.tilt || 45),
-                    parcelData: (data.parcelData !== undefined) ? data.parcelData : (this.parcelData || existing.parcelData || null),
-                    measureData: (data.measureData !== undefined) ? data.measureData : (this.getMeasureDataToSave ? this.getMeasureDataToSave() : (existing.measureData || null))
+                    parcelData: (data.parcelData !== undefined) ? data.parcelData : (this.parcelData || null),
+                    measureData: (data.measureData !== undefined) ? data.measureData : (this.getMeasureDataToSave ? this.getMeasureDataToSave() : null)
                 };
                 localStorage.setItem('emlak_sat_last_location', JSON.stringify(toSave));
             } catch(e) {
@@ -2639,12 +2685,8 @@
             let targetQuery = '';
             const hasSavedLocation = !!(lastLoc && typeof lastLoc.lat === 'number' && typeof lastLoc.lng === 'number');
 
-            if (lastLoc && lastLoc.parcelData && !this.parcelData) {
-                this.parcelData = lastLoc.parcelData;
-            }
-
+            // 1. KESİN ÖNCELİK: Yüklü bir arsa/parsel varsa (yalnızca mevcut oturumda yüklü olan) parsel merkezine odaklan!
             if (this.parcelData && this.parcelData.latLngs && this.parcelData.latLngs.length >= 3) {
-                // 1. KESİN ÖNCELİK: Yüklü bir arsa/parsel varsa daima arsanın kendi merkezine odaklan!
                 const pBounds = this.getParcelCenterAndBounds();
                 if (pBounds && pBounds.center) {
                     this.currentLat = pBounds.center.lat;
@@ -2659,11 +2701,17 @@
                 const dims = (typeof this.getParcelDimensionsAndRanges === 'function') ? this.getParcelDimensionsAndRanges() : null;
                 this.google3DRange = dims ? dims.rangeDetail : (lastLoc?.range || 450);
                 this.google3DTilt = 65;
-                if (lastLoc && lastLoc.measureData) {
-                    this.restoreMeasureData(lastLoc.measureData);
+            } else if (detected) {
+                // 2. ÖNCELİK: Projeden algılanan konum (Aktif ilan formu adresi)
+                targetQuery = detected;
+                if (hasSavedLocation && lastLoc.address && lastLoc.address.toLowerCase().includes(detected.toLowerCase())) {
+                    this.currentLat = lastLoc.lat;
+                    this.currentLng = lastLoc.lng;
+                    this.currentZoom = lastLoc.zoom || 17;
+                    this.markerLatLng = L.latLng(lastLoc.markerLat || lastLoc.lat, lastLoc.markerLng || lastLoc.lng);
                 }
             } else if (hasSavedLocation) {
-                // 2. ÖNCELİK: Parsel yoksa en son kullanılan harita konumu
+                // 3. ÖNCELİK: Parsel veya proje adresi yoksa en son gezilen harita konumu
                 targetQuery = lastLoc.address || '';
                 this.currentLat = lastLoc.lat;
                 this.currentLng = lastLoc.lng;
@@ -2676,12 +2724,12 @@
                     this.google3DRange = lastLoc.range || 450;
                     this.google3DTilt = lastLoc.tilt || 65;
                 }
-                if (lastLoc.measureData) {
-                    this.restoreMeasureData(lastLoc.measureData);
-                }
-            } else if (detected) {
-                // 3. ÖNCELİK: Sadece geçmişte hiçbir harita/parsel kaydı yoksa proje formundan algıla
-                targetQuery = detected;
+            } else {
+                // 4. ÖNCELİK: Varsayılan temiz başlangıç ekranı (İstanbul / Boğaz Tarihi Yarımada)
+                this.currentLat = 41.0082;
+                this.currentLng = 28.9784;
+                this.currentZoom = 15;
+                this.markerLatLng = L.latLng(41.0082, 28.9784);
             }
 
             const savedMarkerStyle = localStorage.getItem('emlak_sat_marker_style');
@@ -2758,7 +2806,24 @@
                     if (lastLoc && lastLoc.address) {
                         this.updateFoundAddressBadge(lastLoc.address);
                     }
-                } else if (hasSavedLocation || this.parcelData) {
+                } else if (this.parcelData && this.parcelData.latLngs && this.parcelData.latLngs.length >= 3) {
+                    // Yüklü parsel merkezine odaklan
+                    if (this.map) {
+                        if (this.activeLayer === 'esri_sat' && this.currentZoom > 16) {
+                            this.currentZoom = 16;
+                        }
+                        this.map.setView([this.currentLat, this.currentLng], this.currentZoom, { animate: false });
+                        this.map.invalidateSize();
+                        if (!this.parcelPolygon) {
+                            this.loadParcelPolygon(this.parcelData);
+                        }
+                    }
+                    this.updateMarkerOverlayPosition();
+                    this.updateCoordsBadge();
+                } else if (detected && (!hasSavedLocation || !lastLoc.address || !lastLoc.address.toLowerCase().includes(detected.toLowerCase()))) {
+                    // Projeden algılanan yeni bir adres varsa otomatik bul ve oraya git
+                    this.searchLocation(detected);
+                } else if (hasSavedLocation) {
                     // Son kaydedilen adrese ve koordinata doğrudan git ve pini yerleştir
                     if (this.map) {
                         if (this.activeLayer === 'esri_sat' && this.currentZoom > 16) {
@@ -2766,25 +2831,33 @@
                         }
                         this.map.setView([this.currentLat, this.currentLng], this.currentZoom, { animate: false });
                         this.map.invalidateSize();
-                        // Eğer parsel varsa ve haritada katman olarak yoksa tekrar yükle
-                        if (this.parcelData && !this.parcelPolygon) {
-                            this.loadParcelPolygon(this.parcelData);
-                        }
                     }
                     this.updateMarkerOverlayPosition();
                     this.updateCoordsBadge();
                     if (lastLoc && lastLoc.address) {
                         this.updateFoundAddressBadge(lastLoc.address);
                     }
-                } else if (detected) {
-                    // YALNIZCA sıfır geçmiş/hafıza varsa ve algılanan bir proje konumu varsa ara
-                    this.searchLocation(detected);
                 } else if (this.map) {
+                    // Varsayılan temiz başlangıç ekranı
+                    this.map.setView([this.currentLat, this.currentLng], this.currentZoom, { animate: false });
                     this.map.invalidateSize();
                     this.updateMarkerOverlayPosition();
+                    this.updateCoordsBadge();
+                }
+
+                const snapBtn = document.getElementById('satSnapParcelBtn');
+                if (snapBtn) {
+                    snapBtn.style.display = (this.parcelData && this.parcelData.latLngs && this.parcelData.latLngs.length >= 3) ? 'flex' : 'none';
                 }
 
                 if (this.measureActive) {
+                    const panel = document.getElementById('satMeasureFloatingPanel');
+                    if (panel && this.measurePanelVisible !== false) {
+                        panel.style.display = 'flex';
+                        if (typeof this.restoreMeasurePanelPosition === 'function') {
+                            this.restoreMeasurePanelPosition(panel);
+                        }
+                    }
                     this.updateMeasureGraphics();
                 }
                 this.updateSmartFooterUI();
@@ -2872,7 +2945,17 @@
                 window.hideAppLoading();
             }
             const mapEl = document.getElementById('satelliteLeafletMap');
-            if (mapEl) mapEl.style.filter = '';
+            if (mapEl) {
+                mapEl.style.filter = '';
+                mapEl.classList.remove('measure-nav-panning', 'space-panning', 'measure-mode-panning');
+            }
+            if (this.measureActive && typeof this.toggleMeasure === 'function') {
+                this.toggleMeasure(false);
+            }
+            this.measureActive = false;
+            this.isSpacePressed = false;
+            this.isCtrlPressed = false;
+            this.measureIsNavPanning = false;
             this.unbindDroneKeyboardNavigation();
 
             // Eğer tuval hala boşsa ve görsel havuzunda görsel varsa, ilk görseli varsayılan olarak tuvale aktar
@@ -2885,6 +2968,80 @@
             } catch(eAutoApply) {} finally {
                 this._isClosing = false;
             }
+        },
+
+        /**
+         * Haritayı, Parseli ve Tüm Çizimleri Temizleyip Varsayılan Başlangıç Ekranına Döndürür
+         */
+        resetToDefault: function() {
+            // 1. Parseli Haritadan ve Bellekten Kaldır
+            if (typeof this.clearParcel === 'function') {
+                this.clearParcel();
+            }
+
+            // 2. Tüm Ölçüm Çizimlerini ve Noktalarını Temizle
+            if (typeof this.clearAllMeasurements === 'function') {
+                this.clearAllMeasurements();
+            } else if (typeof this.resetMeasurePoints === 'function') {
+                this.resetMeasurePoints();
+            }
+
+            // 3. Arama Çubuğunu ve Adres Rozetini Temizle
+            const input = document.getElementById('satSearchInput');
+            if (input) input.value = '';
+            const addrBadge = document.getElementById('satFoundAddressBadge');
+            if (addrBadge) addrBadge.style.display = 'none';
+
+            // 4. Konum Pinini Kapat
+            if (this.markerEnabled) {
+                this.toggleMarker(false);
+            }
+
+            // 5. 3D Modu Aktifse 2D Uydu Moduna Geri Dön
+            if (this.is3DActive && typeof this.setSatelliteLayer === 'function') {
+                this.setSatelliteLayer('google_sat');
+            }
+
+            // 6. Başlangıç Ekranını Belirle (Mevcut proje lokasyonu veya varsayılan İstanbul)
+            const detected = (typeof this.detectLocationFromProject === 'function') ? this.detectLocationFromProject() : null;
+            let targetLat = 41.0082; // İstanbul Boğazı / Tarihi Yarımada
+            let targetLng = 28.9784;
+            let targetZoom = 15;
+
+            if (detected) {
+                if (input) input.value = detected;
+                if (typeof this.searchLocation === 'function') {
+                    this.searchLocation(detected);
+                }
+            } else {
+                this.currentLat = targetLat;
+                this.currentLng = targetLng;
+                this.currentZoom = targetZoom;
+                if (this.map) {
+                    this.map.setView([targetLat, targetLng], targetZoom, { animate: true });
+                }
+            }
+
+            // 7. Tarayıcı Hafızasındaki (localStorage) eski parsel ve ölçüm kalıntılarını kalıcı olarak sil
+            if (typeof this.saveLastLocation === 'function') {
+                this.saveLastLocation({
+                    address: detected || '',
+                    lat: targetLat,
+                    lng: targetLng,
+                    zoom: targetZoom,
+                    parcelData: null,
+                    measureData: null
+                });
+            }
+
+            // 8. Arayüzleri ve Rozetleri Güncelle
+            if (typeof this.updateParcelUI === 'function') this.updateParcelUI();
+            if (typeof this.syncMeasureUI === 'function') this.syncMeasureUI();
+            if (typeof this.updateCoordsBadge === 'function') this.updateCoordsBadge();
+            if (typeof this.updateMarkerOverlayPosition === 'function') this.updateMarkerOverlayPosition();
+
+            const snapBtn = document.getElementById('satSnapParcelBtn');
+            if (snapBtn) snapBtn.style.display = 'none';
         },
 
         /**
@@ -3143,6 +3300,21 @@
             return canvas;
         },
 
+        captureMapToCanvas: async function(targetW, targetH) {
+            let offCanvas = null;
+            try {
+                if (typeof this.fetchAndStitchHighResTiles === 'function') {
+                    offCanvas = await this.fetchAndStitchHighResTiles(targetW, targetH);
+                }
+            } catch (e) {
+                console.warn("High-res stitch error:", e);
+            }
+            if (!offCanvas && typeof this.renderVisibleDomTilesToCanvas === 'function') {
+                offCanvas = this.renderVisibleDomTilesToCanvas(targetW, targetH);
+            }
+            return offCanvas;
+        },
+
         /**
          * Haritadaki Mevcut Görünümü Doğrudan DataURL Olarak Döndürür (Otonom Çekim & Arşiv İçin)
          */
@@ -3250,7 +3422,7 @@
                     return dataUrl;
                 }
             } else {
-                const offCanvas = this.captureMapToCanvas(targetW, targetH);
+                const offCanvas = await this.captureMapToCanvas(targetW, targetH);
                 if (offCanvas) {
                     let thumbUrl = null;
                     if (options.withThumb) {
@@ -3293,8 +3465,8 @@
                 captureBtn.disabled = true;
             }
 
-            // 📐 Parsel yüklüyse ve ölçüm henüz başlatılmamışsa, varsayılan metreleri otomatik dahil et
-            if (this.parcelData && (!this.measurePoints || this.measurePoints.length < 2)) {
+            // 📐 2D modda parsel yüklüyse ve ölçüm henüz başlatılmamışsa, varsayılan metreleri otomatik dahil et (3D modda kendi perspektif çizimi kullanılır)
+            if (!this.is3DActive && this.parcelData && (!this.measurePoints || this.measurePoints.length < 2)) {
                 this.snapMeasureToAllParcelVertices();
                 this.measureActive = true;
             }
@@ -3363,12 +3535,7 @@
                             this.drawVectorMarker(ctx3d, pinCanvasX, pinCanvasY, this.markerStyle, this.customMarkerText, targetW, wrapper);
                         }
 
-                        // 📏 Eğer Ölçüm Aracı aktifse ve görünür çizimler varsa 3D tuvaline vektörel çiz
-                        if (this.measureActive && (this.hasVisibleDrawings ? this.hasVisibleDrawings() : (this.measurePoints && this.measurePoints.length >= 2))) {
-                            const ctx3d = offCanvas.getContext('2d');
-                            const wrapper = document.getElementById('satMapWrapper');
-                            this.drawVectorMeasurement(ctx3d, targetW, wrapper, null, { bakeBadges: false, bakeHandles: false });
-                        }
+                        // 📏 3D modda 2B kuşbakışı çizim çizilmez (Google 3D WebGL katmanı kendi 3D perspektif poligonunu çizer)
 
                         // Parsel rozeti tuval fotoğrafının içine sabit basılmaz.
                         // Kullanıcının tuvalde serbestçe taşıyabilmesi ve boyutlandırabilmesi için
@@ -3407,7 +3574,6 @@
                         if (dataUrl && dataUrl.length > 1000) {
                             if (typeof window.applyProjectImageFromDataUrl === 'function') {
                                 window._skipDrawConfirm = true;
-                                if (typeof window.clearAllDrawings === 'function') window.clearAllDrawings();
                                 window.applyProjectImageFromDataUrl(dataUrl, (err) => {
                                     delete window._skipDrawConfirm;
                                     if (captureBtn) {
@@ -3487,10 +3653,7 @@
                                             }
                                         }
 
-                                        // 📐 Ölçüm Rozetlerini Tuval Üzerine Serbestçe Taşınabilir Elemanlar Olarak Ekle
-                                        if (SatelliteMapModule.measureActive && (SatelliteMapModule.hasVisibleDrawings ? SatelliteMapModule.hasVisibleDrawings() : (SatelliteMapModule.measurePoints && SatelliteMapModule.measurePoints.length >= 2))) {
-                                            SatelliteMapModule.addMeasureBadgesToCanvas(targetW, targetH);
-                                        }
+                                        // 📐 3B modda 2B kuşbakışı ölçüm rozetleri eklenmez (yalnızca 2B modda eklenir)
                                     }
                                 });
                                 capturedDirectly = true;
@@ -3546,6 +3709,7 @@
 
                 const ctx = offCanvas.getContext('2d');
                 const cropInfo = offCanvas._cropInfo || { cropX: 0, cropY: 0, cropW: mapContainer.offsetWidth, cropH: mapContainer.offsetHeight };
+                this._lastCropInfo = cropInfo;
 
                 // 📐 Eğer TKGM Parsel Poligonu yüklüyse koordinatları tuval piksel kadrajına dönüştür
                 let parcelCanvasPoints = null;
@@ -3580,8 +3744,9 @@
                     this.drawVectorMarker(ctx, pinCanvasX, pinCanvasY, this.markerStyle, this.customMarkerText, targetW, mapContainer);
                 }
 
-                // 📏 Eğer Ölçüm Aracı aktifse ve görünür çizimler varsa 2D tuvaline vektörel çiz
-                if (this.measureActive && (this.hasVisibleDrawings ? this.hasVisibleDrawings() : (this.measurePoints && this.measurePoints.length >= 2))) {
+                // 📏 Eğer Ölçüm Aracı aktifse veya çizilmiş alan/çizgiler varsa 2D tuvaline vektörel çiz
+                const hasMeasForVector = (this.hasVisibleDrawings ? this.hasVisibleDrawings() : (this.measurePoints && this.measurePoints.length >= 2));
+                if ((this.measureActive || this.measureFinalized || hasMeasForVector) && hasMeasForVector) {
                     this.drawVectorMeasurement(ctx, targetW, mapContainer, cropInfo, { bakeBadges: false, bakeHandles: false });
                 }
 
@@ -3620,7 +3785,6 @@
                 // Ana uygulamaya aktar (Şablonun boyutunu bozmadan tam çözünürlükte uygular)
                 if (typeof window.applyProjectImageFromDataUrl === 'function') {
                     window._skipDrawConfirm = true;
-                    if (typeof window.clearAllDrawings === 'function') window.clearAllDrawings();
                     window.applyProjectImageFromDataUrl(dataUrl, (err) => {
                         delete window._skipDrawConfirm;
                         if (captureBtn) {
@@ -3660,13 +3824,25 @@
                                 });
                             }
 
+                            // 📐 Ölçüm Rozetlerini (Metre & Alan) Tuval Üzerine Canlı Elemanlar Olarak Ekle (Modal kapanmadan önce aktarılır)
+                            const hasMeasureDrawings = (typeof SatelliteMapModule.hasVisibleDrawings === 'function')
+                                ? SatelliteMapModule.hasVisibleDrawings()
+                                : (SatelliteMapModule.measurePoints && SatelliteMapModule.measurePoints.length >= 2);
+                            const hasCachedBadges = (SatelliteMapModule._cachedMeasureCanvasBadgesList && SatelliteMapModule._cachedMeasureCanvasBadgesList.length > 0) ||
+                                                    (SatelliteMapModule._cachedMeasureCanvasBadges != null);
+                            const shouldExportMeasure = (hasMeasureDrawings || hasCachedBadges || SatelliteMapModule.measureActive || SatelliteMapModule.measureFinalized);
+
+                            if (shouldExportMeasure && typeof SatelliteMapModule.addMeasureBadgesToCanvas === 'function') {
+                                SatelliteMapModule.addMeasureBadgesToCanvas(targetW, targetH);
+                            }
+
                             SatelliteMapModule.closeModal();
                             if (SatelliteMapModule.parcelData) {
                                 SatelliteMapModule.syncParcelToSmartParser(SatelliteMapModule.parcelData);
 
                                 // 🚀 Parsel Poligonunu Canlı Tuval Katmanına (drawPaths) ve Saber WebGL Neon Motoruna Aktar (Ölçüm açıkken çakışmayı önlemek için kontrol edilir)
                                 if (shouldDrawDefaultParcel && parcelCanvasPoints && typeof SatelliteMapModule.transferParcelToCanvas === 'function') {
-                                    SatelliteMapModule.transferParcelToCanvas(parcelCanvasPoints);
+                                    SatelliteMapModule.transferParcelToCanvas(parcelCanvasPoints, targetW, targetH);
                                 }
 
                                 // Parsel rozetini tuval üzerine serbestçe taşınabilir & boyutlandırılabilir eleman olarak ekle (Varsayılan: Sol üst)
@@ -3680,11 +3856,6 @@
                                         customColors: SatelliteMapModule.parcelBadgeCustomColors
                                     });
                                 }
-                            }
-
-                            // 📐 Ölçüm Rozetlerini Tuval Üzerine Serbestçe Taşınabilir Elemanlar Olarak Ekle
-                            if (SatelliteMapModule.measureActive && (SatelliteMapModule.hasVisibleDrawings ? SatelliteMapModule.hasVisibleDrawings() : (SatelliteMapModule.measurePoints && SatelliteMapModule.measurePoints.length >= 2))) {
-                                SatelliteMapModule.addMeasureBadgesToCanvas(targetW, targetH);
                             }
                         }
                     });
@@ -4975,6 +5146,10 @@
         SatelliteMapModule.clearParcel();
     };
 
+    window.resetSatelliteToDefault = function() {
+        SatelliteMapModule.resetToDefault();
+    };
+
     window.zoomToCurrentParcel = function() {
         SatelliteMapModule.zoomToCurrentParcel();
     };
@@ -5047,6 +5222,12 @@
         SatelliteMapModule.toggleSatelliteParcelNeon(forceState);
     };
 
+    window.toggleSatelliteParcelFillNeon = function(forceState) {
+        if (typeof SatelliteMapModule.toggleSatelliteParcelFillNeon === 'function') {
+            SatelliteMapModule.toggleSatelliteParcelFillNeon(forceState);
+        }
+    };
+
     window.setSatelliteParcelNeonColor = function(color) {
         SatelliteMapModule.setSatelliteParcelNeonColor(color);
     };
@@ -5070,6 +5251,12 @@
 
     window.closeSatelliteMeasurePanel = function() {
         SatelliteMapModule.closeMeasurePanel();
+    };
+
+    window.finalizeSatelliteMeasurement = function() {
+        if (typeof SatelliteMapModule.finalizeMeasurement === 'function') {
+            SatelliteMapModule.finalizeMeasurement();
+        }
     };
 
     window.toggleSatelliteMeasurePanelCollapse = function() {
@@ -5189,6 +5376,12 @@
 
     window.snapSatelliteDrawingToParcel = function(id) {
         SatelliteMapModule.snapDrawingToParcel(id);
+    };
+
+    window.snapSatelliteActiveDrawingToParcel = function() {
+        if (SatelliteMapModule && typeof SatelliteMapModule.snapDrawingToParcel === 'function') {
+            SatelliteMapModule.snapDrawingToParcel();
+        }
     };
 
     window.toggleSatelliteDrawingClosed = function(id) {

@@ -307,15 +307,371 @@
     window.applyNeonBoxAndTextGlow = applyNeonBoxAndTextGlow;
 
     /**
-     * 2. Mevcut 2D Metinde Neonu Aç / Kapat
+     * 1.1. Rozet / Callout Nesnesi Tespiti ve Kapsayıcı Yardımcıları
+     */
+    function isCalloutOrBadgeElement(el) {
+        if (!el || !(el instanceof Element)) return false;
+        if (el.closest('.callout-wrap, .svg-callout, .callout-wrapper, .parcel-badge-callout, .co-neon-block, .callout-item')) return true;
+        if (el.classList && (
+            el.classList.contains('callout-wrap') || 
+            el.classList.contains('svg-callout') || 
+            el.classList.contains('callout-wrapper') || 
+            el.classList.contains('parcel-badge-callout') || 
+            el.classList.contains('co-neon-block') || 
+            el.classList.contains('callout-item')
+        )) return true;
+        return false;
+    }
+
+    function getBadgeWrapper(el) {
+        if (!el || !(el instanceof Element)) return null;
+        return el.closest('.callout-wrap, .callout-wrapper, .parcel-badge-callout') || 
+               (el.classList && (el.classList.contains('callout-wrap') || el.classList.contains('callout-wrapper') || el.classList.contains('parcel-badge-callout')) ? el : null) || 
+               el;
+    }
+
+    /**
+     * 1.2. Rozet ve Callout Nesnelerine Özel Donanım Hızlandırmalı Neon Parlama Uygulayıcısı
+     * (SVG <text> ve HTML etiketlerini PixiJS'i kilitlemeden GPU drop-shadow & text-shadow ile 60fps render eder)
+     */
+    function applyNeonToBadge(el, textGlow, intensity, glowCol, coreCol, presetKey, boxGlow) {
+        const wrap = getBadgeWrapper(el);
+        if (!wrap) return;
+
+        glowCol = glowCol || wrap.dataset.neonGlowColor || (document.getElementById('coNeonGlowColor') ? document.getElementById('coNeonGlowColor').value : null) || (document.getElementById('neonTextGlowColor') ? document.getElementById('neonTextGlowColor').value : '#00f0ff');
+        coreCol = coreCol || wrap.dataset.neonCoreColor || (document.getElementById('coTextColor') ? document.getElementById('coTextColor').value : null) || (document.getElementById('neonTextCoreColor') ? document.getElementById('neonTextCoreColor').value : '#ffffff');
+        intensity = (intensity !== undefined && intensity !== null) ? parseFloat(intensity) : (wrap.dataset.neonIntensity ? parseFloat(wrap.dataset.neonIntensity) : 3.0);
+        textGlow = (textGlow !== undefined && textGlow !== null) ? parseInt(textGlow) : (wrap.dataset.neonTextGlow !== undefined ? parseInt(wrap.dataset.neonTextGlow) : 35);
+        boxGlow = (boxGlow !== undefined && boxGlow !== null) ? parseInt(boxGlow) : (wrap.dataset.neonBoxGlow !== undefined ? parseInt(wrap.dataset.neonBoxGlow) : 35);
+        presetKey = presetKey || wrap.dataset.neonPreset || 'fully-lit';
+
+        wrap.dataset.neonGlowColor = glowCol;
+        wrap.dataset.neonCoreColor = coreCol;
+        wrap.dataset.neonIntensity = intensity;
+        wrap.dataset.neonTextGlow = textGlow;
+        wrap.dataset.neonBoxGlow = boxGlow;
+        wrap.dataset.neonPreset = presetKey;
+        wrap.dataset.saberActive = (textGlow > 0 || boxGlow > 0) ? 'true' : 'false';
+
+        // Rozetler SVG/DOM tabanlı olduğundan PixiJS Saber motorundaki eski/kazara eklenmiş kayıtları temizle
+        if (window.SaberEngine && typeof window.SaberEngine.removeTextSaber === 'function') {
+            if (wrap.id) window.SaberEngine.removeTextSaber(wrap.id);
+            if (el.id && el.id !== wrap.id) window.SaberEngine.removeTextSaber(el.id);
+            const app = window.SaberEngine.getApp ? window.SaberEngine.getApp() : null;
+            if (app && app.renderer && app.stage) {
+                try { app.renderer.render(app.stage); } catch(e) {}
+            }
+        }
+
+        const svg = wrap.querySelector('svg');
+        const svgTexts = wrap.querySelectorAll('svg text');
+        const htmlTexts = wrap.querySelectorAll('.co-label, .callout-text, .co-price, .callout-title, .callout-sub, .co-sub');
+        const icons = wrap.querySelectorAll('i, .co-icon');
+        const svgShapes = Array.from(wrap.querySelectorAll('svg rect, svg circle, svg polygon, svg path')).filter(s => 
+            !s.closest('defs') && 
+            !s.closest('text') && 
+            !s.classList.contains('callout-controls') && 
+            !s.classList.contains('callout-resizer') && 
+            !s.classList.contains('callout-rotator') && 
+            !s.classList.contains('callout-lock-btn') && 
+            !s.classList.contains('callout-handle-width') && 
+            !s.classList.contains('callout-handle-length')
+        );
+        const neonBlock = wrap.classList.contains('co-neon-block') ? wrap : wrap.querySelector('.co-neon-block');
+
+        if (textGlow <= 0 && boxGlow <= 0) {
+            wrap.classList.remove('neon-badge-active', 'neon-text-active', 'neon-box-active');
+            if (svg) svg.style.overflow = '';
+            svgTexts.forEach(t => {
+                t.style.filter = '';
+                t.style.textShadow = '';
+                if (t.dataset.origFill) {
+                    t.style.fill = t.dataset.origFill;
+                    delete t.dataset.origFill;
+                } else {
+                    t.style.fill = '';
+                }
+            });
+            htmlTexts.forEach(item => {
+                item.style.filter = '';
+                item.style.textShadow = '';
+                if (item.dataset.origColor) {
+                    item.style.color = item.dataset.origColor;
+                    delete item.dataset.origColor;
+                } else {
+                    item.style.color = '';
+                }
+            });
+            icons.forEach(ic => {
+                ic.style.filter = '';
+                ic.style.color = '';
+            });
+            svgShapes.forEach(s => {
+                s.style.filter = '';
+            });
+            if (neonBlock) {
+                neonBlock.style.boxShadow = '';
+                neonBlock.style.borderColor = '';
+            }
+            return;
+        }
+
+        wrap.classList.add('neon-badge-active');
+        if (svg) svg.style.overflow = 'visible';
+
+        const normInt = Math.max(0.5, Math.min(8.0, intensity));
+        const intScale = normInt / 3.0;
+
+        // 1. YAZI PARLAMASI
+        if (textGlow > 0) {
+            wrap.classList.add('neon-text-active');
+            const tFactor = Math.min(1, Math.max(0.04, textGlow / 25));
+            const coreBlur = Math.min(5, Math.max(0.2, textGlow * 0.15)).toFixed(1);
+            const coreAlpha = Math.min(1, (0.15 + tFactor * 0.85) * intScale);
+
+            const haloBlur = Math.min(15, Math.max(0.6, textGlow * 0.45)).toFixed(1);
+            const haloAlpha = Math.min(1, (0.12 + tFactor * 0.88) * intScale);
+
+            const glowBlur1 = textGlow;
+            const glowAlpha1 = Math.min(0.95, (0.08 + tFactor * 0.87) * intScale);
+
+            const glowBlur2 = (textGlow * 1.6).toFixed(1);
+            const glowAlpha2 = Math.min(0.75, (0.03 + tFactor * 0.62) * intScale);
+
+            let textShadowVal = '';
+            let dropShadowVal = '';
+
+            if (presetKey === 'rainbow') {
+                textShadowVal = `0 0 3px #ffffff, 0 0 ${coreBlur}px #ff007f, 0 0 ${haloBlur}px #a855f7, 0 0 ${glowBlur1}px #00f0ff, 0 0 ${glowBlur2}px #22c55e`;
+                dropShadowVal = `drop-shadow(0 0 ${coreBlur}px #ff007f) drop-shadow(0 0 ${haloBlur}px #a855f7) drop-shadow(0 0 ${glowBlur1}px #00f0ff)`;
+            } else if (presetKey === 'fire') {
+                textShadowVal = `0 0 ${coreBlur}px #fffbe0, 0 0 ${haloBlur}px #ff9900, 0 0 ${glowBlur1}px #ff4400, 0 0 ${glowBlur2}px #cc1100`;
+                dropShadowVal = `drop-shadow(0 0 ${coreBlur}px #fffbe0) drop-shadow(0 0 ${haloBlur}px #ff9900) drop-shadow(0 0 ${glowBlur1}px #ff4400)`;
+            } else if (presetKey === 'electric') {
+                textShadowVal = `0 0 ${coreBlur}px #ffffff, 0 0 ${haloBlur}px #60a5fa, 0 0 ${glowBlur1}px #00aaff, 0 0 ${glowBlur2}px #0055ff`;
+                dropShadowVal = `drop-shadow(0 0 ${coreBlur}px #ffffff) drop-shadow(0 0 ${haloBlur}px #00aaff) drop-shadow(0 0 ${glowBlur1}px #0055ff)`;
+            } else if (presetKey === 'vortex') {
+                textShadowVal = `0 0 ${coreBlur}px #ffffff, 0 0 ${haloBlur}px #c084fc, 0 0 ${glowBlur1}px #a855f7, 0 0 ${glowBlur2}px #6366f1`;
+                dropShadowVal = `drop-shadow(0 0 ${coreBlur}px #ffffff) drop-shadow(0 0 ${haloBlur}px #a855f7) drop-shadow(0 0 ${glowBlur1}px #6366f1)`;
+            } else if (presetKey === 'sparks') {
+                textShadowVal = `0 0 ${coreBlur}px #fffbeb, 0 0 ${haloBlur}px #fde047, 0 0 ${glowBlur1}px #f59e0b, 0 0 ${glowBlur2}px #d97706`;
+                dropShadowVal = `drop-shadow(0 0 ${coreBlur}px #fffbeb) drop-shadow(0 0 ${haloBlur}px #f59e0b) drop-shadow(0 0 ${glowBlur1}px #d97706)`;
+            } else if (presetKey === 'full-neon') {
+                textShadowVal = `0 0 ${coreBlur}px ${colorToRgba(glowCol, coreAlpha)}, 0 0 ${haloBlur}px ${colorToRgba(glowCol, haloAlpha)}, 0 0 ${glowBlur1}px ${colorToRgba(glowCol, glowAlpha1)}, 0 0 ${glowBlur2}px ${colorToRgba(glowCol, glowAlpha2)}`;
+                dropShadowVal = `drop-shadow(0 0 ${coreBlur}px ${colorToRgba(glowCol, Math.min(1, coreAlpha * 0.9))}) drop-shadow(0 0 ${haloBlur}px ${colorToRgba(glowCol, Math.min(1, haloAlpha * 0.85))}) drop-shadow(0 0 ${glowBlur1}px ${colorToRgba(glowCol, Math.min(1, glowAlpha1 * 0.75))})`;
+            } else { // fully-lit
+                textShadowVal = `0 0 ${coreBlur}px ${colorToRgba(coreCol, coreAlpha)}, 0 0 ${haloBlur}px ${colorToRgba(glowCol, haloAlpha)}, 0 0 ${glowBlur1}px ${colorToRgba(glowCol, glowAlpha1)}, 0 0 ${glowBlur2}px ${colorToRgba(glowCol, glowAlpha2)}`;
+                dropShadowVal = `drop-shadow(0 0 ${coreBlur}px ${colorToRgba(coreCol, Math.min(1, coreAlpha * 0.9))}) drop-shadow(0 0 ${haloBlur}px ${colorToRgba(glowCol, Math.min(1, haloAlpha * 0.85))}) drop-shadow(0 0 ${glowBlur1}px ${colorToRgba(glowCol, Math.min(1, glowAlpha1 * 0.75))})`;
+            }
+
+            const actualCoreColor = (presetKey === 'full-neon') ? glowCol : coreCol;
+
+            svgTexts.forEach(t => {
+                if (!t.dataset.origFill) {
+                    t.dataset.origFill = t.getAttribute('fill') || t.style.fill || 'white';
+                }
+                t.style.filter = dropShadowVal;
+                t.style.textShadow = textShadowVal;
+                t.style.fill = actualCoreColor;
+            });
+
+            htmlTexts.forEach(item => {
+                if (!item.dataset.origColor) {
+                    item.dataset.origColor = item.style.color || window.getComputedStyle(item).color || '#ffffff';
+                }
+                item.style.color = actualCoreColor;
+                item.style.textShadow = textShadowVal;
+            });
+
+            icons.forEach(ic => {
+                ic.style.filter = dropShadowVal;
+                ic.style.color = glowCol;
+            });
+        } else {
+            wrap.classList.remove('neon-text-active');
+            svgTexts.forEach(t => {
+                t.style.filter = '';
+                t.style.textShadow = '';
+                if (t.dataset.origFill) {
+                    t.style.fill = t.dataset.origFill;
+                    delete t.dataset.origFill;
+                } else {
+                    t.style.fill = '';
+                }
+            });
+            htmlTexts.forEach(item => {
+                item.style.filter = '';
+                item.style.textShadow = '';
+                if (item.dataset.origColor) {
+                    item.style.color = item.dataset.origColor;
+                    delete item.dataset.origColor;
+                } else {
+                    item.style.color = '';
+                }
+            });
+            icons.forEach(ic => {
+                ic.style.filter = '';
+                ic.style.color = '';
+            });
+        }
+
+        // 2. PANEL / KUTU / ÇERÇEVE PARLAMASI
+        if (boxGlow > 0) {
+            wrap.classList.add('neon-box-active');
+            const bFactor = Math.min(1, Math.max(0.04, boxGlow / 30));
+            const bCoreBlur = Math.min(6, Math.max(0.3, boxGlow * 0.15)).toFixed(1);
+            const bHaloBlur = Math.min(18, Math.max(0.8, boxGlow * 0.45)).toFixed(1);
+            const bGlowBlur1 = boxGlow;
+
+            let boxDropShadowVal = '';
+            if (presetKey === 'rainbow') {
+                boxDropShadowVal = `drop-shadow(0 0 ${bCoreBlur}px #ff007f) drop-shadow(0 0 ${bHaloBlur}px #a855f7) drop-shadow(0 0 ${bGlowBlur1}px #00f0ff)`;
+            } else if (presetKey === 'fire') {
+                boxDropShadowVal = `drop-shadow(0 0 ${bCoreBlur}px #fffbe0) drop-shadow(0 0 ${bHaloBlur}px #ff9900) drop-shadow(0 0 ${bGlowBlur1}px #ff4400)`;
+            } else if (presetKey === 'electric') {
+                boxDropShadowVal = `drop-shadow(0 0 ${bCoreBlur}px #ffffff) drop-shadow(0 0 ${bHaloBlur}px #00aaff) drop-shadow(0 0 ${bGlowBlur1}px #0055ff)`;
+            } else if (presetKey === 'vortex') {
+                boxDropShadowVal = `drop-shadow(0 0 ${bCoreBlur}px #ffffff) drop-shadow(0 0 ${bHaloBlur}px #a855f7) drop-shadow(0 0 ${bGlowBlur1}px #6366f1)`;
+            } else if (presetKey === 'sparks') {
+                boxDropShadowVal = `drop-shadow(0 0 ${bCoreBlur}px #fffbeb) drop-shadow(0 0 ${bHaloBlur}px #f59e0b) drop-shadow(0 0 ${bGlowBlur1}px #d97706)`;
+            } else {
+                boxDropShadowVal = `drop-shadow(0 0 ${bCoreBlur}px ${colorToRgba(glowCol, Math.min(1, 0.45 * intScale))}) drop-shadow(0 0 ${bHaloBlur}px ${colorToRgba(glowCol, Math.min(0.9, 0.55 * intScale))}) drop-shadow(0 0 ${bGlowBlur1}px ${colorToRgba(glowCol, Math.min(0.8, 0.65 * intScale))})`;
+            }
+
+            svgShapes.forEach(s => {
+                s.style.filter = boxDropShadowVal;
+            });
+
+            if (neonBlock) {
+                neonBlock.style.boxShadow = `0 0 ${bCoreBlur}px ${colorToRgba(glowCol, Math.min(1, 0.8 * intScale))}, 0 0 ${bHaloBlur}px ${colorToRgba(glowCol, Math.min(0.9, 0.6 * intScale))}, 0 0 ${bGlowBlur1}px ${colorToRgba(glowCol, Math.min(0.8, 0.5 * intScale))}, inset 0 0 ${Math.min(12, boxGlow * 0.3)}px ${colorToRgba(glowCol, 0.3 * intScale)}`;
+                neonBlock.style.borderColor = glowCol;
+            }
+        } else {
+            wrap.classList.remove('neon-box-active');
+            svgShapes.forEach(s => {
+                s.style.filter = '';
+            });
+            if (neonBlock) {
+                neonBlock.style.boxShadow = '';
+                neonBlock.style.borderColor = '';
+            }
+        }
+    }
+
+    /**
+     * 1.3. Rozet ve Callout Nesnelerine Özel 2D Tipografi Stili Uygulayıcısı
+     */
+    function applyTypographyToBadge(el, styleKey) {
+        const wrap = getBadgeWrapper(el);
+        if (!wrap) return;
+
+        wrap.dataset.typographyStyle = styleKey;
+        wrap.classList.remove('typo-gold', 'typo-chrome', 'typo-sticker', 'typo-cyberpunk', 'typo-shadow3d');
+
+        const svgTexts = wrap.querySelectorAll('svg text');
+        const htmlTexts = wrap.querySelectorAll('.co-label, .callout-text, .co-price, .callout-title, .callout-sub, .co-sub');
+
+        if (styleKey === 'clean') {
+            wrap.dataset.saberActive = 'false';
+            wrap.dataset.neonTextGlow = 0;
+            applyNeonToBadge(wrap, 0);
+            return;
+        }
+
+        wrap.classList.add('typo-' + styleKey);
+
+        let textColor = '#ffffff';
+        let textShadow = '';
+        let filterDrop = '';
+        let fontFamily = '';
+        let fontWeight = '700';
+
+        if (styleKey === 'gold') {
+            textColor = '#fffbeb';
+            fontFamily = "'Montserrat', sans-serif";
+            fontWeight = '800';
+            textShadow = '0 0 12px rgba(251,191,36,0.95), 0 2px 5px rgba(180,83,9,0.9), 0 0 26px rgba(245,158,11,0.6)';
+            filterDrop = 'drop-shadow(0 0 8px rgba(251,191,36,0.9)) drop-shadow(0 2px 4px rgba(180,83,9,0.8))';
+        } else if (styleKey === 'chrome') {
+            textColor = '#f8fafc';
+            fontFamily = "'Space Grotesk', sans-serif";
+            fontWeight = '700';
+            textShadow = '0 1px 0 #cbd5e1, 0 2px 0 #94a3b8, 0 3px 0 #64748b, 0 5px 12px rgba(0,0,0,0.85)';
+            filterDrop = 'drop-shadow(0 1px 1px #cbd5e1) drop-shadow(0 3px 4px rgba(0,0,0,0.85))';
+        } else if (styleKey === 'sticker') {
+            textColor = '#fef08a';
+            fontFamily = "'Archivo Black', sans-serif";
+            fontWeight = '900';
+            textShadow = '-2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000, 2px 2px 0 #000, 0 5px 12px rgba(0,0,0,0.85)';
+            filterDrop = 'drop-shadow(-1px -1px 0 #000) drop-shadow(1px 1px 0 #000) drop-shadow(0 3px 6px rgba(0,0,0,0.85))';
+        } else if (styleKey === 'cyberpunk') {
+            textColor = '#ff2a85';
+            fontFamily = "'Space Grotesk', sans-serif";
+            fontWeight = '800';
+            textShadow = '0 0 8px #ff2a85, 0 0 16px #ff2a85, 0 0 28px #00f0ff, 0 0 42px #00f0ff';
+            filterDrop = 'drop-shadow(0 0 8px #ff2a85) drop-shadow(0 0 18px #00f0ff)';
+        } else if (styleKey === 'shadow3d') {
+            textColor = '#ffffff';
+            fontFamily = "'Archivo Black', sans-serif";
+            fontWeight = '900';
+            textShadow = '1px 1px 0 #0f172a, 2px 2px 0 #0f172a, 3px 3px 0 #0f172a, 4px 4px 0 #0f172a, 5px 5px 0 #0f172a, 6px 6px 14px rgba(0,0,0,0.75)';
+            filterDrop = 'drop-shadow(2px 2px 0 #0f172a) drop-shadow(4px 4px 6px rgba(0,0,0,0.75))';
+        }
+
+        svgTexts.forEach(t => {
+            if (!t.dataset.origFill) {
+                t.dataset.origFill = t.getAttribute('fill') || t.style.fill || 'white';
+            }
+            t.style.fill = textColor;
+            t.style.textShadow = textShadow;
+            t.style.filter = filterDrop;
+            if (fontFamily) t.style.fontFamily = fontFamily;
+            if (fontWeight) t.style.fontWeight = fontWeight;
+        });
+
+        htmlTexts.forEach(item => {
+            if (!item.dataset.origColor) {
+                item.dataset.origColor = item.style.color || window.getComputedStyle(item).color || '#ffffff';
+            }
+            item.style.color = textColor;
+            item.style.textShadow = textShadow;
+            if (fontFamily) item.style.fontFamily = fontFamily;
+            if (fontWeight) item.style.fontWeight = fontWeight;
+        });
+    }
+
+    /**
+     * 2. Mevcut 2D Metinde / Rozette Neonu Aç / Kapat
      */
     function toggleTextNeon(targetEl) {
-        const el = targetEl || (typeof selectedEl !== 'undefined' ? selectedEl : null);
+        const el = targetEl || (typeof selectedEl !== 'undefined' ? selectedEl : null) || (typeof selectedCalloutEl !== 'undefined' ? selectedCalloutEl : null);
         if (!el) return;
 
         // 3D kontrolü: 3D nesne veya 3D modu ise neon uygulanmaz
         if (window.ThreeDEngine && typeof window.ThreeDEngine.isActive === 'function' && window.ThreeDEngine.isActive()) return;
         if (el.classList.contains('three-d-layer') || el.closest('#threeDContainer')) return;
+
+        // Rozet / Callout nesnesi kontrolü
+        if (isCalloutOrBadgeElement(el)) {
+            const wrap = getBadgeWrapper(el);
+            const isNeonOn = wrap.dataset.saberActive === 'true' || wrap.classList.contains('neon-badge-active') || wrap.classList.contains('neon-text-active');
+            if (isNeonOn) {
+                applyNeonToBadge(wrap, 0);
+                const tgIn = document.getElementById('neonTextGlowSize');
+                if (tgIn) { tgIn.value = 0; const v = document.getElementById('neonTextGlowSizeVal'); if (v) v.textContent = 'Kapalı'; }
+                updateNeonUIStatus(false);
+            } else {
+                const glowColInput = document.getElementById('neonTextGlowColor');
+                const coreColInput = document.getElementById('neonTextCoreColor');
+                const glowCol = glowColInput ? glowColInput.value : '#00f0ff';
+                const coreCol = coreColInput ? coreColInput.value : '#ffffff';
+                applyNeonToBadge(wrap, 35, 3.0, glowCol, coreCol, 'fully-lit');
+                const tgIn = document.getElementById('neonTextGlowSize');
+                if (tgIn) { tgIn.value = 35; const v = document.getElementById('neonTextGlowSizeVal'); if (v) v.textContent = '35'; }
+                updateNeonUIStatus(true, 'fully-lit');
+            }
+            return;
+        }
 
         const isDetailsContainer = (el.id === 'elDetails' || el.dataset?.layerUid === 'ui_details' || (el.classList && el.classList.contains('sh-box')) || !!(el.querySelector && el.querySelector('#infoLineText')));
         const isNeonOn = el.dataset.saberActive === 'true' || el.classList.contains('neon-box-active') || el.classList.contains('neon-text-active');
@@ -451,7 +807,7 @@
      * 3. Hazır Neon Efekti Presetini Seç (Saf Neon, Tam Neon, Alev, Dönme, Elektrik, Kıvılcım, Gökkuşağı)
      */
     function selectNeonPreset(presetKey, targetEl, applyToEl = true) {
-        const el = targetEl || (typeof selectedEl !== 'undefined' ? selectedEl : null) || document.querySelector('#canvas-container .canvas-el.selected, #canvas-container .canvas-el[data-saber-active="true"], #canvas-container .neon-text-el');
+        const el = targetEl || (typeof selectedEl !== 'undefined' ? selectedEl : null) || (typeof selectedCalloutEl !== 'undefined' ? selectedCalloutEl : null) || document.querySelector('#canvas-container .canvas-el.selected, #canvas-container .callout-wrap.selected, #canvas-container .callout-wrap[data-saber-active="true"], #canvas-container .neon-text-el');
 
         // UI Butonunu aktif yap
         const grid = document.getElementById('tabFontNeonPresets');
@@ -467,26 +823,8 @@
 
         if (!el || !applyToEl) return;
 
+        const isBadge = isCalloutOrBadgeElement(el);
         const isDetailsContainer = (el.id === 'elDetails' || el.dataset?.layerUid === 'ui_details' || (el.classList && el.classList.contains('sh-box')) || !!(el.querySelector && el.querySelector('#infoLineText')));
-
-        // Metinde neon kapalıysa aç
-        if (el.dataset.saberActive !== 'true') {
-            el.dataset.saberActive = 'true';
-            if (!el.id) el.id = 'neon_text_' + Date.now();
-            if (!isDetailsContainer) {
-                if (el.style.color && el.style.color !== 'transparent') {
-                    el.dataset.storedTextColor = el.style.color;
-                }
-                if (el.style.textShadow && el.style.textShadow !== 'none') {
-                    el.dataset.storedTextShadow = el.style.textShadow;
-                }
-                el.style.color = 'transparent';
-                el.style.textShadow = 'none';
-                el.style.webkitTextStroke = 'none';
-            }
-        }
-
-        el.dataset.neonPreset = presetKey;
 
         const glowColInput = document.getElementById('neonTextGlowColor');
         const coreColInput = document.getElementById('neonTextCoreColor');
@@ -545,6 +883,32 @@
             if (valEl) valEl.textContent = curSize;
         }
 
+        // Rozet / Callout nesnesi kontrolü
+        if (isBadge) {
+            applyNeonToBadge(el, curSize, curInt, curGlow, curCore, presetKey);
+            updateNeonUIStatus(true, presetKey);
+            return;
+        }
+
+        // Metinde neon kapalıysa aç
+        if (el.dataset.saberActive !== 'true') {
+            el.dataset.saberActive = 'true';
+            if (!el.id) el.id = 'neon_text_' + Date.now();
+            if (!isDetailsContainer) {
+                if (el.style.color && el.style.color !== 'transparent') {
+                    el.dataset.storedTextColor = el.style.color;
+                }
+                if (el.style.textShadow && el.style.textShadow !== 'none') {
+                    el.dataset.storedTextShadow = el.style.textShadow;
+                }
+                el.style.color = 'transparent';
+                el.style.textShadow = 'none';
+                el.style.webkitTextStroke = 'none';
+            }
+        }
+
+        el.dataset.neonPreset = presetKey;
+
         if (isDetailsContainer) {
             el.dataset.saberActive = 'true';
             el.dataset.neonFrame = 'true';
@@ -600,12 +964,44 @@
 
     /**
      * 4. Neon Parametrelerini Canlı Güncelle (Parlama Şiddeti, Hale, Renkler)
+     * (requestAnimationFrame ile ekran tazeleme hızına kilitlenerek slider sürükleme kasmasını ve takılmasını sıfırlar)
      */
-    function updateNeonTextParams() {
-        const el = (typeof selectedEl !== 'undefined' ? selectedEl : null);
-        if (!el) return;
+    let _neonParamsRaf = null;
 
-        const isDetailsContainer = (el.id === 'elDetails' || el.dataset?.layerUid === 'ui_details' || (el.classList && el.classList.contains('sh-box')) || !!(el.querySelector && el.querySelector('#infoLineText')));
+    function updateNeonTextParams() {
+        // Sayısal değerleri kullanıcı sliderı hareket ettirdiği milisaniyede sıfır gecikmeyle DOM'da güncelle
+        const glowSizeInput = document.getElementById('neonTextGlowSize');
+        const intInput = document.getElementById('neonTextIntensity');
+        const boxGlowInput = document.getElementById('neonBoxGlow');
+
+        if (glowSizeInput) {
+            const glowValEl = document.getElementById('neonTextGlowSizeVal');
+            const curVal = parseInt(glowSizeInput.value);
+            if (glowValEl) glowValEl.textContent = (curVal === 0 ? 'Kapalı' : curVal);
+        }
+        if (intInput) {
+            const intValEl = document.getElementById('neonTextIntensityVal');
+            if (intValEl) intValEl.textContent = intInput.value;
+        }
+        if (boxGlowInput) {
+            const boxValEl = document.getElementById('neonBoxGlowVal');
+            const curVal = parseInt(boxGlowInput.value);
+            if (boxValEl) boxValEl.textContent = (curVal === 0 ? 'Kapalı' : boxValEl);
+        }
+
+        // Ağır görsel render işlemlerini rAF kuyruğuna alarak akıcı 60fps garanti et
+        if (_neonParamsRaf) cancelAnimationFrame(_neonParamsRaf);
+        _neonParamsRaf = requestAnimationFrame(() => {
+            _neonParamsRaf = null;
+            _doUpdateNeonTextParams();
+        });
+    }
+
+    function _doUpdateNeonTextParams() {
+        const el = (typeof selectedEl !== 'undefined' ? selectedEl : null) || 
+                   (typeof selectedCalloutEl !== 'undefined' ? selectedCalloutEl : null) ||
+                   document.querySelector('#canvas-container .canvas-el.selected, #canvas-container .callout-wrap.selected, #canvas-container .callout-wrap[data-saber-active="true"]');
+        if (!el) return;
 
         const glowColInput = document.getElementById('neonTextGlowColor');
         const coreColInput = document.getElementById('neonTextCoreColor');
@@ -615,7 +1011,12 @@
 
         let glowCol = glowColInput ? glowColInput.value : '#00f0ff';
         let coreCol = coreColInput ? coreColInput.value : '#ffffff';
-        const isFullNeon = (el.dataset.neonPreset === 'full-neon');
+
+        const isBadge = isCalloutOrBadgeElement(el);
+        const wrap = isBadge ? getBadgeWrapper(el) : null;
+        const currentPreset = isBadge ? (wrap?.dataset.neonPreset || 'fully-lit') : (el.dataset.neonPreset || 'fully-lit');
+
+        const isFullNeon = (currentPreset === 'full-neon');
         if (isFullNeon) {
             coreCol = glowCol;
             if (coreColInput) coreColInput.value = glowCol;
@@ -623,15 +1024,15 @@
 
         const intensity = intInput ? parseFloat(intInput.value) : 3.0;
         const textGlow = glowSizeInput ? parseInt(glowSizeInput.value) : 35;
-        const boxGlow = boxGlowInput ? parseInt(boxGlowInput.value) : (el.dataset.neonBoxGlow !== undefined ? parseInt(el.dataset.neonBoxGlow) : 35);
+        const boxGlow = boxGlowInput ? parseInt(boxGlowInput.value) : 35;
 
-        const intValEl = document.getElementById('neonTextIntensityVal');
-        if (intValEl) intValEl.textContent = intensity;
-        const glowValEl = document.getElementById('neonTextGlowSizeVal');
-        if (glowValEl) glowValEl.textContent = (textGlow === 0 ? 'Kapalı' : textGlow);
-        const boxValEl = document.getElementById('neonBoxGlowVal');
-        if (boxValEl) boxValEl.textContent = (boxGlow === 0 ? 'Kapalı' : boxGlow);
+        // Rozet / Callout nesnesi kontrolü (Doğrudan GPU filtreleri ile render)
+        if (isBadge) {
+            applyNeonToBadge(el, textGlow, intensity, glowCol, coreCol, currentPreset);
+            return;
+        }
 
+        const isDetailsContainer = (el.id === 'elDetails' || el.dataset?.layerUid === 'ui_details' || (el.classList && el.classList.contains('sh-box')) || !!(el.querySelector && el.querySelector('#infoLineText')));
         if (isDetailsContainer) {
             // Eleman Ayarları (#elSettings) alanındaki sliderları senkronize et
             const sBoxIn = document.getElementById('textSaberBoxGlow');
@@ -655,8 +1056,9 @@
             return;
         }
 
+        // Serbest 2D Metin Nesnesi (PixiJS Saber)
         const opts = {
-            preset: el.dataset.neonPreset || 'fully-lit',
+            preset: currentPreset,
             glowColor: glowCol,
             coreColor: coreCol,
             coreSize: 0,
@@ -679,7 +1081,7 @@
      * 5. Alternatif Tipografi Stilleri (Lüks Altın, Metalik Krom, Çift Kontur, Cyberpunk, 3D Gölge)
      */
     function applyTypographyStyle(styleKey, targetEl) {
-        const el = targetEl || (typeof selectedEl !== 'undefined' ? selectedEl : null);
+        const el = targetEl || (typeof selectedEl !== 'undefined' ? selectedEl : null) || (typeof selectedCalloutEl !== 'undefined' ? selectedCalloutEl : null);
         if (!el) return;
 
         // UI Butonunu aktif yap
@@ -692,6 +1094,13 @@
                     b.classList.remove('active');
                 }
             });
+        }
+
+        // Rozet / Callout nesnesi kontrolü
+        if (isCalloutOrBadgeElement(el)) {
+            applyTypographyToBadge(el, styleKey);
+            if (typeof updateDrawHistory === 'function') updateDrawHistory();
+            return;
         }
 
         // Önceki tipografi stillerini temizle
@@ -786,7 +1195,11 @@
     }
 
     function syncNeonTextUI(el) {
-        if (!el || !el.classList || !el.classList.contains('canvas-el')) return;
+        if (!el || !(el instanceof Element)) return;
+
+        const isBadge = isCalloutOrBadgeElement(el);
+        const isCanvasEl = el.classList && el.classList.contains('canvas-el');
+        if (!isBadge && !isCanvasEl && !el.classList?.contains('draggable')) return;
 
         const isDetailsContainer = (el.id === 'elDetails' || el.dataset?.layerUid === 'ui_details' || (el.classList && el.classList.contains('sh-box')) || !!(el.querySelector && el.querySelector('#infoLineText')));
 
@@ -794,8 +1207,55 @@
         const saberBoxRow = document.getElementById('saberBoxGlowRow');
         const labelTextGlow = document.getElementById('labelNeonTextGlow');
         const intensityGroup = document.getElementById('groupNeonIntensity');
+        const typoSec = document.getElementById('sectionTypoPresets');
 
-        if (isDetailsContainer) {
+        if (isBadge) {
+            const wrap = getBadgeWrapper(el) || el;
+            if (boxGroup) boxGroup.style.display = 'none';
+            if (saberBoxRow) saberBoxRow.style.display = 'none';
+            if (labelTextGlow) labelTextGlow.textContent = 'Yazı Parlaması';
+            if (intensityGroup) intensityGroup.style.display = 'block';
+            if (typoSec) typoSec.style.display = 'block';
+
+            const isNeonOn = wrap.dataset.saberActive === 'true' || wrap.classList.contains('neon-badge-active') || wrap.classList.contains('neon-text-active');
+            const textGlow = wrap.dataset.neonTextGlow !== undefined ? parseInt(wrap.dataset.neonTextGlow) : (isNeonOn ? 35 : 0);
+            const intensity = wrap.dataset.neonIntensity !== undefined ? parseFloat(wrap.dataset.neonIntensity) : 3.0;
+            const glowCol = wrap.dataset.neonGlowColor || '#00f0ff';
+            const coreCol = wrap.dataset.neonCoreColor || '#ffffff';
+            const preset = wrap.dataset.neonPreset || 'fully-lit';
+
+            const tgIn = document.getElementById('neonTextGlowSize');
+            if (tgIn) {
+                tgIn.value = textGlow;
+                const v = document.getElementById('neonTextGlowSizeVal');
+                if (v) v.textContent = (textGlow === 0 ? 'Kapalı' : textGlow);
+            }
+            const intIn = document.getElementById('neonTextIntensity');
+            if (intIn) {
+                intIn.value = intensity;
+                const v = document.getElementById('neonTextIntensityVal');
+                if (v) v.textContent = intensity;
+            }
+            const colIn = document.getElementById('neonTextGlowColor');
+            if (colIn && glowCol.startsWith('#')) colIn.value = glowCol;
+            const coreIn = document.getElementById('neonTextCoreColor');
+            if (coreIn && coreCol.startsWith('#')) coreIn.value = coreCol;
+
+            updateNeonUIStatus(isNeonOn, preset);
+
+            if (wrap.dataset.typographyStyle) {
+                const typoGrid = document.getElementById('tabFontTypoPresets');
+                if (typoGrid) {
+                    typoGrid.querySelectorAll('.btn-action').forEach(b => {
+                        if (b.dataset.style === wrap.dataset.typographyStyle) {
+                            b.classList.add('active');
+                        } else {
+                            b.classList.remove('active');
+                        }
+                    });
+                }
+            }
+        } else if (isDetailsContainer) {
             if (boxGroup) boxGroup.style.display = 'block';
             if (saberBoxRow) saberBoxRow.style.display = 'flex';
             if (labelTextGlow) labelTextGlow.textContent = 'Yazı Parlaması';
@@ -953,6 +1413,7 @@
 
         const isDetailsContainer = (el.id === 'elDetails' || !!(el.querySelector && el.querySelector('#infoLineText')));
         if (isDetailsContainer) return; // Detay kutusu şeffaf yapılmamalıdır!
+        if (isCalloutOrBadgeElement(el)) return; // Rozetler şeffaf yapılmamalıdır!
 
         el.style.color = 'transparent';
         el.style.textShadow = 'none';
@@ -1002,5 +1463,9 @@
     window.syncNeonTextUI = syncNeonTextUI;
     window.toggleNeonTextAnimation = toggleNeonTextAnimation;
     window.refreshNeonText = refreshNeonText;
+    window.applyNeonToBadge = applyNeonToBadge;
+    window.applyTypographyToBadge = applyTypographyToBadge;
+    window.isCalloutOrBadgeElement = isCalloutOrBadgeElement;
+    window.getBadgeWrapper = getBadgeWrapper;
 
 })();

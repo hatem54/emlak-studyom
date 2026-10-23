@@ -156,6 +156,41 @@ function _kolajBtnBind(){
             if(window.CanvasEmptyState && typeof window.CanvasEmptyState.dismiss === 'function') {
                 window.CanvasEmptyState.dismiss();
             }
+
+            // Eski kolajdaki mevcut kullanıcı fotoğraflarını koru
+            var oldWrap = document.getElementById('kolaj-wrapper');
+            if (oldWrap) {
+                var prevSlots = Array.from(oldWrap.querySelectorAll('.kolaj-foto'));
+                prevSlots.sort(function(a, b){
+                    return (parseInt(a.dataset.kolajNo, 10) || 0) - (parseInt(b.dataset.kolajNo, 10) || 0);
+                });
+                var prevPhotos = [];
+                prevSlots.forEach(function(ps){
+                    if (ps.dataset.isSample !== '1') {
+                        var inner = ps.querySelector('.kolaj-inner-zoom');
+                        var bg = inner ? inner.style.backgroundImage : (ps.style.backgroundImage || '');
+                        var m = bg ? bg.match(/url\(['"]?(.*?)['"]?\)/) : null;
+                        if (m && m[1] && !m[1].includes('luxury_villa') && !m[1].includes('horizontal_interior') && !m[1].includes('bodrum_luxury_villa')) {
+                            prevPhotos.push(m[1]);
+                        }
+                    }
+                });
+                if (prevPhotos.length > 0 && window.PhotoStagingArchive && typeof window.PhotoStagingArchive.addItem === 'function') {
+                    prevPhotos.slice().reverse().forEach(function(u, pIdx){
+                        var exists = window.PhotoStagingArchive.items.some(function(it){ return (it.dataUrl === u || it.originalDataUrl === u); });
+                        if (!exists) {
+                            window.PhotoStagingArchive.addItem({
+                                id: 'slot_prev_' + Date.now() + '_' + pIdx,
+                                dataUrl: u,
+                                thumbUrl: u,
+                                title: 'Kolaj Görseli',
+                                key: 'local_file'
+                            }, false);
+                        }
+                    });
+                }
+            }
+
             if(typeof clearAllTemplates === 'function') clearAllTemplates(true);
             if(typeof window.syncKolajFromForm === 'function') window.syncKolajFromForm();
             if(typeof window[s.fn] === 'function') window[s.fn]();
@@ -200,6 +235,14 @@ function _kolajTemizle(){
             if(idx > -1) canvaOverlays.splice(idx, 1);
         }
     });
+
+    var es = document.getElementById('canvasEmptyState');
+    if (es) {
+        es.style.removeProperty('display');
+        es.style.removeProperty('visibility');
+        es.style.removeProperty('opacity');
+        es.style.removeProperty('pointer-events');
+    }
 }
 window._kolajTemizle = _kolajTemizle;
 window.kolajTemizle = _kolajTemizle;
@@ -222,6 +265,9 @@ function _kolajWrapper(bg1, bg2){
     w.id = 'kolaj-wrapper';
     w.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;z-index:15;box-sizing:border-box;overflow:hidden;'+
         'background:linear-gradient(135deg,'+bg1+' 0%,'+bg2+' 100%);';
+    if (window.TemplateFrame && typeof window.TemplateFrame.onTemplateChanged === 'function') {
+        window.TemplateFrame.onTemplateChanged('kolaj', 'kolaj');
+    }
     return w;
 }
 
@@ -734,6 +780,7 @@ var _kolajMdEl = null, _kolajMdX = 0, _kolajMdY = 0;
 
 document.addEventListener('mousedown', function(e){
     if(e.altKey) return;
+    if(e.target.closest('.slot-photo-change-btn')) return;
     var el = e.target.closest('.kolaj-foto');
     if(!el) return;
     if(el.dataset.kzReady === '1' && el.dataset.isSample !== '1'){ _kolajMdEl = null; return; }
@@ -749,6 +796,95 @@ document.addEventListener('mouseup', function(e){
     if(Math.abs(e.clientX - _kolajMdX) > 5 || Math.abs(e.clientY - _kolajMdY) > 5) return;
     _kolajFotoSec(el);
 }, true);
+
+// Tek bir slot için özel dosya seçici
+function _kolajTekSlotIcinSec(el){
+    var input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.style.display = 'none';
+    input.onchange = function(ev){
+        var file = ev.target.files && ev.target.files[0];
+        if(!file) return;
+        _kolajTekFotoYukle(el, file, function(){
+            delete el.dataset.isSample;
+            _kolajDurumKaydet();
+            if(window.PhotoStagingArchive && typeof window.PhotoStagingArchive.processUploadedFiles === 'function'){
+                window.PhotoStagingArchive.processUploadedFiles([file], false, true);
+            }
+        });
+    };
+    document.body.appendChild(input);
+    input.click();
+    setTimeout(function(){ if(input.parentElement) input.remove(); }, 60000);
+}
+window._kolajTekSlotIcinSec = _kolajTekSlotIcinSec;
+
+// Slot üzerine sürükle-bırak (Drag & Drop) dinleyicileri
+function _kolajSlotDragDropKur(el){
+    if(!el || el._kolajDropBound) return;
+    el._kolajDropBound = true;
+
+    el.addEventListener('dragover', function(e){
+        e.preventDefault();
+        e.stopPropagation();
+        if(e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+        el.style.outline = '3px dashed #38bdf8';
+        el.style.outlineOffset = '-3px';
+    });
+    el.addEventListener('dragleave', function(e){
+        e.preventDefault();
+        e.stopPropagation();
+        el.style.outline = '';
+        el.style.outlineOffset = '';
+    });
+    el.addEventListener('drop', function(e){
+        e.preventDefault();
+        e.stopPropagation();
+        el.style.outline = '';
+        el.style.outlineOffset = '';
+
+        // 1. PhotoStagingArchive havuz kartından mı sürüklendi?
+        var stagingId = (e.dataTransfer && (e.dataTransfer.getData('application/x-staging-id') || e.dataTransfer.getData('text/plain'))) || '';
+        if(stagingId && window.PhotoStagingArchive && Array.isArray(window.PhotoStagingArchive.items)){
+            var item = window.PhotoStagingArchive.items.find(function(it){ return it.id === stagingId; });
+            if(item && item.dataUrl){
+                _kolajTekFotoYukle(el, item.dataUrl, function(){
+                    delete el.dataset.isSample;
+                    _kolajDurumKaydet();
+                });
+                return;
+            }
+        }
+
+        // 2. Masaüstünden görsel dosyası mı bırakıldı?
+        if(e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0){
+            var files = Array.from(e.dataTransfer.files).filter(function(fl){ return fl.type && fl.type.startsWith('image/'); });
+            if(files.length === 1){
+                _kolajTekFotoYukle(el, files[0], function(){
+                    delete el.dataset.isSample;
+                    _kolajDurumKaydet();
+                    if(window.PhotoStagingArchive && typeof window.PhotoStagingArchive.processUploadedFiles === 'function'){
+                        window.PhotoStagingArchive.processUploadedFiles(files, false, true);
+                    }
+                });
+            } else if(files.length > 1){
+                var wrap = document.getElementById('kolaj-wrapper');
+                var allSlots = Array.from((wrap || document).querySelectorAll('.kolaj-foto'));
+                allSlots.sort(function(a, b){
+                    return (parseInt(a.dataset.kolajNo, 10) || 0) - (parseInt(b.dataset.kolajNo, 10) || 0);
+                });
+                var startIdx = allSlots.indexOf(el);
+                if(startIdx === -1) startIdx = 0;
+                _kolajCokluFotoYukle(files, startIdx);
+                if(window.PhotoStagingArchive && typeof window.PhotoStagingArchive.processUploadedFiles === 'function'){
+                    window.PhotoStagingArchive.processUploadedFiles(files, false, true);
+                }
+            }
+        }
+    });
+}
+window._kolajSlotDragDropKur = _kolajSlotDragDropKur;
 
 function _kolajTekFotoYukle(el, fileOrDataUrl, callback){
     if(!el) return;
@@ -768,6 +904,7 @@ function _kolajTekFotoYukle(el, fileOrDataUrl, callback){
             if(existingInner) existingInner.remove();
             
             el.style.cursor = 'grab';
+            el.style.position = 'absolute';
             
             el.dataset.kzReady = '1';
             el.dataset.kzScale = String(minScale);
@@ -777,7 +914,7 @@ function _kolajTekFotoYukle(el, fileOrDataUrl, callback){
             el.dataset.kzX = String((kutuW - fotoW * minScale) / 2);
             el.dataset.kzY = String((kutuH - fotoH * minScale) / 2);
             
-            if(fileOrDataUrl instanceof Blob || fileOrDataUrl instanceof File){
+            if(fileOrDataUrl instanceof Blob || fileOrDataUrl instanceof File || (typeof fileOrDataUrl === 'string' && !fileOrDataUrl.includes('luxury_villa') && !fileOrDataUrl.includes('horizontal_interior') && !fileOrDataUrl.includes('bodrum_luxury_villa'))){
                 delete el.dataset.isSample;
                 if(el.title && el.title.includes('Kendi')) el.removeAttribute('title');
             }
@@ -790,6 +927,39 @@ function _kolajTekFotoYukle(el, fileOrDataUrl, callback){
                 'transform-origin:0 0;transition:none;pointer-events:none;';
             el.appendChild(inner);
             _kzTransform(el);
+
+            // "Görseli Değiştir" butonu ekle
+            if (!el.querySelector('.slot-photo-change-btn')) {
+                var changeBtn = document.createElement('button');
+                changeBtn.type = 'button';
+                changeBtn.className = 'slot-photo-change-btn';
+                changeBtn.title = 'Bu pencerenin fotoğrafını değiştir';
+                changeBtn.innerHTML = '<i class="fa-solid fa-camera"></i> Görseli Değiştir';
+                changeBtn.style.cssText = 'position:absolute; top:8px; right:8px; z-index:25; background:rgba(15,23,42,0.85); color:#ffffff; border:1px solid rgba(255,255,255,0.3); border-radius:6px; padding:3.5px 8px; font-size:10.5px; font-weight:700; font-family:\'ClassicAmpersand\',\'Space Grotesk\',sans-serif; cursor:pointer; display:inline-flex; align-items:center; gap:5px; box-shadow:0 4px 12px rgba(0,0,0,0.35); transition:all 0.15s ease; backdrop-filter:blur(4px); line-height:1.2;';
+                changeBtn.onmouseenter = function() { changeBtn.style.background = '#0284c7'; changeBtn.style.borderColor = '#38bdf8'; };
+                changeBtn.onmouseleave = function() { changeBtn.style.background = 'rgba(15,23,42,0.85)'; changeBtn.style.borderColor = 'rgba(255,255,255,0.3)'; };
+                changeBtn.onclick = function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    _kolajTekSlotIcinSec(el);
+                };
+                el.appendChild(changeBtn);
+            }
+
+            // Sürükle-bırak desteği kur
+            _kolajSlotDragDropKur(el);
+
+            // Çift tıklama ile varsayılana sıfırlama dinleyicisini bağla
+            if (!el._kolajDblBound) {
+                el._kolajDblBound = true;
+                el.addEventListener('dblclick', function(e){
+                    if (e.target.closest && e.target.closest('.slot-photo-change-btn')) return;
+                    e.preventDefault();
+                    e.stopPropagation();
+                    _kolajFotoSifirla(el);
+                });
+            }
+
             console.log('✅ Foto '+(el.dataset.kolajNo || '')+' yüklendi');
             if(callback) callback();
         };
@@ -831,12 +1001,27 @@ function _kolajVarsayilanFotolariYukle(wrap){
         'assets/bodrum_luxury_villa.jpg',
         'assets/luxury_villa.jpg'
     ];
-    
-    var userImg = (typeof window.uploadedImgUrl !== 'undefined' && window.uploadedImgUrl && window.uploadedImgUrl.length > 50 && !window.uploadedImgUrl.includes('empty'))
+
+    // Havuzdaki mevcut görselleri topla (PhotoStagingArchive > uploadedImgUrl > masterImageBase64)
+    var userPhotos = [];
+    if(window.PhotoStagingArchive && Array.isArray(window.PhotoStagingArchive.items) && window.PhotoStagingArchive.items.length > 0){
+        window.PhotoStagingArchive.items.forEach(function(it){
+            if(it && (it.dataUrl || it.originalDataUrl)){
+                var u = it.dataUrl || it.originalDataUrl;
+                if(!userPhotos.includes(u)) userPhotos.push(u);
+            }
+        });
+    }
+
+    var primaryImg = (typeof window.uploadedImgUrl !== 'undefined' && window.uploadedImgUrl && window.uploadedImgUrl.length > 50 && !window.uploadedImgUrl.includes('empty'))
         ? window.uploadedImgUrl
         : ((typeof window.masterImageBase64 !== 'undefined' && window.masterImageBase64 && window.masterImageBase64.length > 50 && !window.masterImageBase64.includes('empty'))
             ? window.masterImageBase64
             : null);
+
+    if(primaryImg && !userPhotos.includes(primaryImg)){
+        userPhotos.unshift(primaryImg);
+    }
             
     var slots = Array.from(wrap.querySelectorAll('.kolaj-foto'));
     slots.sort(function(a, b){
@@ -844,11 +1029,12 @@ function _kolajVarsayilanFotolariYukle(wrap){
     });
     
     slots.forEach(function(slot, idx){
-        var isUser = (idx === 0 && userImg);
-        var imgSrc = isUser ? userImg : sampleImgs[idx % sampleImgs.length];
+        var isUser = (idx < userPhotos.length && userPhotos[idx]);
+        var imgSrc = isUser ? userPhotos[idx] : sampleImgs[idx % sampleImgs.length];
         _kolajTekFotoYukle(slot, imgSrc, function(){
             if(isUser){
                 delete slot.dataset.isSample;
+                if(slot.title && slot.title.includes('Kendi')) slot.removeAttribute('title');
             } else {
                 slot.dataset.isSample = '1';
                 slot.title = 'Kendi görselinizi yüklemek için tıklayın';
@@ -857,6 +1043,41 @@ function _kolajVarsayilanFotolariYukle(wrap){
     });
 }
 window._kolajVarsayilanFotolariYukle = _kolajVarsayilanFotolariYukle;
+
+// Çoklu dosyayı kolaj pencerelerine sırayla doldurur
+function _kolajCokluFotoYukle(filesOrUrls, startIndex, callback){
+    var wrap = document.getElementById('kolaj-wrapper');
+    if(!wrap) return;
+    if(!filesOrUrls || !filesOrUrls.length) return;
+
+    var slots = Array.from(wrap.querySelectorAll('.kolaj-foto'));
+    slots.sort(function(a, b){
+        return (parseInt(a.dataset.kolajNo, 10) || 0) - (parseInt(b.dataset.kolajNo, 10) || 0);
+    });
+    if(!slots.length) return;
+
+    var sIdx = parseInt(startIndex, 10) || 0;
+    if(sIdx < 0 || sIdx >= slots.length) sIdx = 0;
+
+    var targetSlots = slots.slice(sIdx);
+    var count = Math.min(filesOrUrls.length, targetSlots.length);
+    var loaded = 0;
+
+    for (var i = 0; i < count; i++) {
+        (function(slot, item){
+            _kolajTekFotoYukle(slot, item, function(){
+                delete slot.dataset.isSample;
+                if(slot.title && slot.title.includes('Kendi')) slot.removeAttribute('title');
+                loaded++;
+                if(loaded === count){
+                    _kolajDurumKaydet();
+                    if(typeof callback === 'function') callback();
+                }
+            });
+        })(targetSlots[i], filesOrUrls[i]);
+    }
+}
+window._kolajCokluFotoYukle = _kolajCokluFotoYukle;
 
 function _kolajFotoSec(el){
     var input = document.createElement('input');
@@ -877,7 +1098,11 @@ function _kolajFotoSec(el){
         // Tek bir dosya seçildiyse ve tıklanan bir slot varsa sadece ona yükle
         if(files.length === 1 && el){
             _kolajTekFotoYukle(el, files[0], function(){
+                delete el.dataset.isSample;
                 _kolajDurumKaydet();
+                if(window.PhotoStagingArchive && typeof window.PhotoStagingArchive.processUploadedFiles === 'function'){
+                    window.PhotoStagingArchive.processUploadedFiles(files, false, true);
+                }
             });
             return;
         }
@@ -888,18 +1113,12 @@ function _kolajFotoSec(el){
             startIndex = 0;
         }
         
-        var done = 0;
-        var targetSlots = allSlots.slice(startIndex);
-        files.forEach(function(file, i){
-            if(i < targetSlots.length){
-                _kolajTekFotoYukle(targetSlots[i], file, function(){
-                    done++;
-                    if(done === Math.min(files.length, targetSlots.length)){
-                        _kolajDurumKaydet();
-                    }
-                });
-            }
+        _kolajCokluFotoYukle(files, startIndex, function(){
+            _kolajDurumKaydet();
         });
+        if(window.PhotoStagingArchive && typeof window.PhotoStagingArchive.processUploadedFiles === 'function'){
+            window.PhotoStagingArchive.processUploadedFiles(files, false, true);
+        }
     };
     document.body.appendChild(input);
     input.click();
@@ -915,7 +1134,7 @@ function _kolajTopluFotoSec(){
 window._kolajTopluFotoSec = _kolajTopluFotoSec;
 window._kolajFotoSec = _kolajFotoSec;
 
-// ==================== FOTO ZOOM/PAN ====================
+// ==================== FOTO ZOOM/PAN & SIFIRLAMA ====================
 function _kzTransform(el){
     var inner = el.querySelector('.kolaj-inner-zoom');
     if(!inner) return;
@@ -924,6 +1143,47 @@ function _kzTransform(el){
     var y = parseFloat(el.dataset.kzY) || 0;
     inner.style.transform = 'translate('+x+'px,'+y+'px) scale('+s+')';
 }
+
+function _kolajFotoSifirla(el){
+    if(!el) return;
+    var inner = el.querySelector('.kolaj-inner-zoom');
+    if(!inner) return;
+
+    var fotoW = parseFloat(el.dataset.kzFotoW);
+    var fotoH = parseFloat(el.dataset.kzFotoH);
+    var kutuW = el.offsetWidth;
+    var kutuH = el.offsetHeight;
+
+    if(!fotoW || !fotoH || isNaN(fotoW) || isNaN(fotoH)){
+        fotoW = parseFloat(inner.style.width) || 400;
+        fotoH = parseFloat(inner.style.height) || 300;
+    }
+    if(!kutuW || !kutuH || isNaN(kutuW) || isNaN(kutuH)){
+        var rect = el.getBoundingClientRect();
+        kutuW = rect.width || 400;
+        kutuH = rect.height || 300;
+    }
+
+    var minScale = Math.max(kutuW / fotoW, kutuH / fotoH);
+    var defX = (kutuW - fotoW * minScale) / 2;
+    var defY = (kutuH - fotoH * minScale) / 2;
+
+    el.dataset.kzScale = String(minScale);
+    el.dataset.kzMinScale = String(minScale * 0.5);
+    el.dataset.kzX = String(defX);
+    el.dataset.kzY = String(defY);
+
+    inner.style.transition = 'transform 0.22s cubic-bezier(0.2, 0.9, 0.3, 1)';
+    inner.style.transform = 'translate(' + defX + 'px, ' + defY + 'px) scale(' + minScale + ')';
+    
+    setTimeout(function(){
+        if(inner) inner.style.transition = 'none';
+    }, 240);
+
+    _kolajDurumKaydet();
+    console.log('🔄 Kolaj görseli varsayılana sıfırlandı:', el.dataset.kolajNo);
+}
+window._kolajFotoSifirla = _kolajFotoSifirla;
 
 document.addEventListener('wheel', function(e){
     var el = e.target.closest('.kolaj-foto');
@@ -945,9 +1205,15 @@ document.addEventListener('wheel', function(e){
 }, { passive: false, capture: true });
 
 var _kzDrag = null, _kzSX, _kzSY, _kzIX, _kzIY;
+var _lastKolajSlotClickTime = 0;
+var _lastKolajSlotEl = null;
+var _lastKolajSlotX = 0;
+var _lastKolajSlotY = 0;
+
 document.addEventListener('mousedown', function(e){
     if(e.altKey || e.button !== 0) return;
-    var el = e.target.closest('.kolaj-foto');
+    if(e.target.closest && e.target.closest('.slot-photo-change-btn')) return;
+    var el = e.target.closest && e.target.closest('.kolaj-foto');
     if(!el || el.dataset.kzReady !== '1') return;
     _kzDrag = el;
     _kzSX = e.clientX; _kzSY = e.clientY;
@@ -964,21 +1230,38 @@ document.addEventListener('mousemove', function(e){
     _kzTransform(_kzDrag);
 });
 
-document.addEventListener('mouseup', function(){
-    if(_kzDrag){ _kzDrag.style.cursor = 'grab'; _kzDrag = null; _kolajDurumKaydet(); }
+document.addEventListener('mouseup', function(e){
+    if(_kzDrag){
+        var draggedEl = _kzDrag;
+        draggedEl.style.cursor = 'grab';
+        _kzDrag = null;
+        _kolajDurumKaydet();
+
+        // 🎯 Hızlı Çift Tıklama Takibi (Tarayıcı micro-drag sebebiyle dblclick'i yutsa bile %100 sıfırlama)
+        var now = Date.now();
+        var dist = Math.hypot(e.clientX - _lastKolajSlotX, e.clientY - _lastKolajSlotY);
+        if (_lastKolajSlotEl === draggedEl && (now - _lastKolajSlotClickTime) < 380 && dist < 16) {
+            _lastKolajSlotClickTime = 0;
+            _lastKolajSlotEl = null;
+            _kolajFotoSifirla(draggedEl);
+        } else {
+            _lastKolajSlotClickTime = now;
+            _lastKolajSlotEl = draggedEl;
+            _lastKolajSlotX = e.clientX;
+            _lastKolajSlotY = e.clientY;
+        }
+    }
 });
 
+// Capture phase ile doğrudan çift tıklama yakalama (tüm kütüphanelerden ve alt elementlerden önce)
 document.addEventListener('dblclick', function(e){
-    var el = e.target.closest('.kolaj-foto');
-    if(!el || el.dataset.kzReady !== '1') return;
-    var fotoW = parseFloat(el.dataset.kzFotoW), fotoH = parseFloat(el.dataset.kzFotoH);
-    var kutuW = el.offsetWidth, kutuH = el.offsetHeight;
-    var minScale = Math.max(kutuW/fotoW, kutuH/fotoH);
-    el.dataset.kzScale = String(minScale);
-    el.dataset.kzX = String((kutuW - fotoW * minScale) / 2);
-    el.dataset.kzY = String((kutuH - fotoH * minScale) / 2);
-    _kzTransform(el);
-});
+    if(e.target.closest && e.target.closest('.slot-photo-change-btn')) return;
+    var el = e.target.closest && e.target.closest('.kolaj-foto');
+    if(!el) return;
+    e.preventDefault();
+    e.stopPropagation();
+    _kolajFotoSifirla(el);
+}, true);
 
 // ==================== ÇERÇEVE SEÇİMİ ====================
 function _cerceveSec(cerceve){
@@ -1165,6 +1448,10 @@ function _cerceveSil(){
     _cerceveSecimKaldir();
     _kolajDurumKaydet();
 }
+window._cerceveSil = _cerceveSil;
+window._hasSeciliCerceve = function() {
+    return !!_seciliCerceve;
+};
 
 function _rgbToHex(rgb){
     if(!rgb || rgb.indexOf('rgb') !== 0) return null;
@@ -1344,10 +1631,11 @@ document.addEventListener('keydown', function(e){
     if(e.key === 'Escape'){
         _cerceveSecimKaldir();
     }
-    // Delete → seçili çerçeveyi sil
-    if(e.key === 'Delete' && _seciliCerceve){
+    // Delete veya Backspace → seçili çerçeveyi sil
+    if((e.key === 'Delete' || e.key === 'Backspace') && _seciliCerceve){
         var aktif = document.activeElement;
-        if(aktif && (aktif.tagName === 'INPUT' || aktif.tagName === 'TEXTAREA')) return;
+        if(aktif && (aktif.tagName === 'INPUT' || aktif.tagName === 'TEXTAREA' || aktif.isContentEditable)) return;
+        e.preventDefault();
         _cerceveSil();
     }
 });

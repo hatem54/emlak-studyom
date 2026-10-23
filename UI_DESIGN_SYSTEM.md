@@ -129,6 +129,11 @@ Uygulamadaki tüm butonların (tuval altı dock butonları ve yan panel butonlar
 - Sliderların (kaydırıcıların) altına veya yanına `%50`, `%80`, `%100`, `Kompakt`, `Normal`, `Geniş`, `İnce`, `Blok` gibi hızlı değer/yüzde atama butonları (`.chip`, `.preset-btn` vb.) kesinlikle eklenemez.
 - Slider bileşeni zaten hassas ve kademeli ayar yapmayı sağladığından, bu tip butonlar arayüzü kalabalıklaştırmakta ve panellerin ekran altına taşmasına yol açmaktadır. Değer seçimi sadece kaydırıcı üzerinden yapılmalıdır.
 
+### Kural 7: Buton Yerleşim, Düzen ve Orantı Standardı (Sıralı, Nizamlı & Eşit Oran Kuralı)
+- Yeni bir buton, kontrol veya özellik eklenirken arayüz ögeleri daima sıralı, nizamlı, düzenli ve birbiriyle dengeli/oranlı bir yapıda inşa edilmelidir.
+- Yan yana gelen kardeş butonlar eşit genişlikte (`flex: 1 1 0; min-width: 0;`), eşit yükseklikte (`height: 32px` veya `34px`) ve tek satırda (`white-space: nowrap;`) konumlandırılmalıdır.
+- Biri aşırı uzarken diğerinin daralıp metninin alt satıra kırılmasına kesinlikle izin verilemez. Flex satırlarında `.btn-action`'dan gelen istenmeyen dış boşluklar (`margin: 0 !important;`) sıfırlanmalıdır.
+
 ---
 
 ## 4. Olay Dinleyicisi & Bellek Yaşam Döngüsü (Performance & Memory)

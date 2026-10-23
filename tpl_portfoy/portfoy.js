@@ -1,4 +1,4 @@
-﻿/* ============================================================
+/* ============================================================
    Portföy Şablon Seti - V3 (UNIQUE PRO & ULTRA QUALITY)
    10 Adet Özel Zümrüt & Altın Prestij Tasarım
 ============================================================ */
@@ -244,7 +244,7 @@ function renderPTemplate(id){
             }
         }).join('');
 
-        canvaRenderLayer.innerHTML = `<div class="cvr-base" style="width:100%;height:100%;position:relative;overflow:hidden;background:#ffffff;font-family:'Space Grotesk',Inter,sans-serif;"><div style="position:absolute;left:${scaleX(40)}px;top:${scaleY(40)}px;right:${scaleX(40)}px;bottom:${scaleY(40)}px;border:2px solid #166534;pointer-events:none;z-index:10;"></div><div class="photo-panel" style="width:${scaleX(1180)}px;height:${scaleY(760)}px;position:absolute;right:${scaleX(80)}px;top:${scaleY(80)}px;${bgPos};border-radius:${scaleMin(12)}px;box-shadow:0 25px 50px rgba(0,0,0,0.12);"></div><div style="position:absolute;left:${scaleX(80)}px;top:${scaleY(90)}px;width:${scaleX(520)}px;z-index:5;"><div style="font-size:${scaleMin(18)}px;color:#166534;font-weight:800;letter-spacing:3px;text-transform:uppercase;margin-bottom:${scaleY(14)}px;">MİMARİ KOLEKSİYON</div><div style="font-size:${scaleMin(68)}px;color:#14532d;font-weight:900;line-height:1.15;margin-bottom:${scaleY(20)}px;text-transform:uppercase;"><span class="editable-text" style="display:inline-block;min-width:50px;">${title}</span></div><div style="font-size:${scaleMin(58)}px;color:#0f172a;font-weight:900;margin-bottom:${scaleY(34)}px;padding-bottom:${scaleY(14)}px;border-bottom:2px solid #166534;"><span class="editable-text" style="display:inline-block;min-width:50px;">${price}</span></div><div style="display:flex;flex-direction:column;margin-bottom:${scaleY(34)}px;">${featsHtmlP5}</div><div style="display:inline-flex;align-items:center;gap:${scaleX(10)}px;background:#f8faf9;border:1px solid #cbd5e1;padding:${scaleY(10)}px ${scaleX(22)}px;border-radius:${scaleMin(10)}px;font-size:${scaleMin(22)}px;color:#334155;font-weight:700;"><i class="fa-solid fa-phone" style="color:#166534;"></i> <span class="editable-text">${contact}</span></div></div></div>`;
+        canvaRenderLayer.innerHTML = `<div class="cvr-base" style="width:100%;height:100%;position:relative;overflow:hidden;background:#ffffff;font-family:'Space Grotesk',Inter,sans-serif;"><div class="photo-panel" style="width:${scaleX(1180)}px;height:${scaleY(760)}px;position:absolute;right:${scaleX(80)}px;top:${scaleY(80)}px;${bgPos};border-radius:${scaleMin(12)}px;box-shadow:0 25px 50px rgba(0,0,0,0.12);"></div><div style="position:absolute;left:${scaleX(80)}px;top:${scaleY(90)}px;width:${scaleX(520)}px;z-index:5;"><div style="font-size:${scaleMin(18)}px;color:#166534;font-weight:800;letter-spacing:3px;text-transform:uppercase;margin-bottom:${scaleY(14)}px;">MİMARİ KOLEKSİYON</div><div style="font-size:${scaleMin(68)}px;color:#14532d;font-weight:900;line-height:1.15;margin-bottom:${scaleY(20)}px;text-transform:uppercase;"><span class="editable-text" style="display:inline-block;min-width:50px;">${title}</span></div><div style="font-size:${scaleMin(58)}px;color:#0f172a;font-weight:900;margin-bottom:${scaleY(34)}px;padding-bottom:${scaleY(14)}px;border-bottom:2px solid #166534;"><span class="editable-text" style="display:inline-block;min-width:50px;">${price}</span></div><div style="display:flex;flex-direction:column;margin-bottom:${scaleY(34)}px;">${featsHtmlP5}</div><div style="display:inline-flex;align-items:center;gap:${scaleX(10)}px;background:#f8faf9;border:1px solid #cbd5e1;padding:${scaleY(10)}px ${scaleX(22)}px;border-radius:${scaleMin(10)}px;font-size:${scaleMin(22)}px;color:#334155;font-weight:700;"><i class="fa-solid fa-phone" style="color:#166534;"></i> <span class="editable-text">${contact}</span></div></div></div>`;
     }
     else if (id === 'canvaP6') {
         const itemsP6 = parsePortfoyFeatures(effectiveLines).slice(0, 4);
@@ -362,6 +362,11 @@ function renderPTemplate(id){
 
     canvaRenderLayer.querySelectorAll('.photo-panel').forEach(el => enablePhotoDrag(el));
     canvaRenderLayer.querySelectorAll('.editable-text').forEach(el => enableInlineEdit(el));
+    
+    if (window.TemplateFrame && typeof window.TemplateFrame.applyForCanva === 'function') {
+        window.TemplateFrame.applyForCanva(id);
+    }
+    
     requestAnimationFrame(() => {
         if(typeof redrawAll === 'function') redrawAll();
     });

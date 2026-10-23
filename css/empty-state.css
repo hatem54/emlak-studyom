@@ -248,15 +248,66 @@ body[data-theme="light"] .empty-state-footer i {
 }
 
 /* ==========================================================================
-   RESPONSIVE (MOBİLDE TUVAL BAŞLANGIÇ KARTLARINI GİZLE)
+   RESPONSIVE (MOBİLDE TUVAL BAŞLANGIÇ KARTLARINI DÜZENLE)
    ========================================================================== */
-@media (max-width: 768px), (pointer: coarse) and (max-width: 1024px) {
+@media (max-width: 768px) {
     .canvas-empty-state,
     #canvasEmptyState {
-        display: none !important;
-        visibility: hidden !important;
-        opacity: 0 !important;
-        pointer-events: none !important;
+        padding: 12px 10px !important;
+        justify-content: flex-start !important;
+        overflow-y: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+    }
+    .empty-state-header {
+        margin-bottom: 10px !important;
+    }
+    .empty-state-badge {
+        padding: 3px 8px !important;
+        font-size: 10.5px !important;
+        margin-bottom: 6px !important;
+    }
+    .empty-state-title {
+        font-size: 15px !important;
+        line-height: 1.25 !important;
+    }
+    .empty-state-sub {
+        font-size: 11px !important;
+        margin-top: 3px !important;
+        line-height: 1.3 !important;
+    }
+    .empty-state-cards {
+        flex-direction: column !important;
+        gap: 8px !important;
+        width: 100% !important;
+        max-width: 320px !important;
+    }
+    .empty-card {
+        padding: 10px 14px !important;
+        flex-direction: row !important;
+        align-items: center !important;
+        text-align: left !important;
+        gap: 12px !important;
+        min-height: auto !important;
+    }
+    .empty-card-icon {
+        width: 34px !important;
+        height: 34px !important;
+        min-width: 34px !important;
+        font-size: 15px !important;
+        margin-bottom: 0 !important;
+    }
+    .empty-card-title {
+        font-size: 12.5px !important;
+        margin-bottom: 2px !important;
+    }
+    .empty-card-desc {
+        font-size: 10px !important;
+        line-height: 1.25 !important;
+    }
+    .empty-state-footer {
+        margin-top: 8px !important;
+        font-size: 10px !important;
+        padding-bottom: 12px !important;
     }
 }
 

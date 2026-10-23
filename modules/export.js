@@ -100,6 +100,7 @@ function isExportIgnoredElement(el) {
             el.classList.contains('tb-frame-file-input') ||
             el.classList.contains('tb-ic-close-btn') ||
             el.classList.contains('tb-pan-indicator') ||
+            el.classList.contains('slot-photo-change-btn') ||
             el.classList.contains('dock-contextual-bar')) {
             return true;
         }
@@ -115,6 +116,7 @@ function sanitizeExportClone(clonedDoc) {
         if (clonedContainer) {
             const origContainer = document.getElementById('canvas-container');
             const origW = origContainer ? (parseInt(origContainer.style.width) || origContainer.offsetWidth || 1920) : 1920;
+            const origH = origContainer ? (parseInt(origContainer.style.height) || origContainer.offsetHeight || 1080) : 1080;
             const origBgImg = origContainer ? (origContainer.style.backgroundImage || '') : '';
             if (origBgImg && origBgImg !== 'none' && origBgImg.includes('gradient')) {
                 clonedContainer.style.setProperty('background-image', origBgImg, 'important');
@@ -172,7 +174,7 @@ function sanitizeExportClone(clonedDoc) {
         }
 
         // 🚫 Şablon çerçeve tutamaçları, yüzen araçlar, bilgi kartı kapat butonu ve tuval altı dock'u klondan temizle
-        clonedDoc.querySelectorAll('.tb-frame-handle, .tb-frame-floating-tools, .tb-floating-btn, .tb-frame-file-input, .tb-ic-close-btn, .tb-pan-indicator, #canvasBottomDock, .dock-contextual-bar').forEach(el => el.remove());
+        clonedDoc.querySelectorAll('.tb-frame-handle, .tb-frame-floating-tools, .tb-floating-btn, .tb-frame-file-input, .tb-ic-close-btn, .tb-pan-indicator, #canvasBottomDock, .dock-contextual-bar, .slot-photo-change-btn').forEach(el => el.remove());
         clonedDoc.querySelectorAll('.tb-frame-selected, .el-selected, .selected').forEach(el => {
             el.classList.remove('tb-frame-selected', 'el-selected', 'selected');
             if (el.style) {
@@ -208,7 +210,7 @@ function sanitizeExportClone(clonedDoc) {
             '.cbtn-del', '.draw-handle', '.vertex-handle', '.polygon-vertex', '.app-context-menu', '.draw-selection-box',
             '.cerceve-handle', '.kolaj-handle', '.kolaj-tutamac', '#cerceveEditor',
             '.photo-inner-zoom',
-            '.tb-frame-handle', '.tb-frame-floating-tools', '.tb-floating-btn', '.tb-frame-file-input', '.tb-ic-close-btn', '.tb-pan-indicator', '.tb-swap-badge', '.dock-contextual-bar'
+            '.tb-frame-handle', '.tb-frame-floating-tools', '.tb-floating-btn', '.tb-frame-file-input', '.tb-ic-close-btn', '.tb-pan-indicator', '.tb-swap-badge', '.dock-contextual-bar', '.slot-photo-change-btn'
         ];
         
         hiddenSelectors.forEach(sel => {
@@ -1378,8 +1380,18 @@ async function prepareTemplateFramesForExport() {
 }
 
 async function saveImage(customBaseName, options = {}){
+    if (window.isExportingNow) {
+        console.warn('Dışa aktarma işlemi zaten devam ediyor...');
+        if (typeof window.showAppToast === 'function') {
+            window.showAppToast('Dışa aktarma hazırlanıyor, lütfen bekleyin...', 'info');
+        }
+        return;
+    }
+    window.isExportingNow = true;
+
     const rawFileType = options.fileType || (document.getElementById('exportFileType') ? document.getElementById('exportFileType').value : 'jpg');
     if (rawFileType === 'mp4' || rawFileType === 'video') {
+        window.isExportingNow = false;
         if (typeof window.exportAnimatedVideo === 'function') return window.exportAnimatedVideo(options);
         console.warn('Video export modülü henüz yüklenmedi.');
         return;
@@ -1388,7 +1400,9 @@ async function saveImage(customBaseName, options = {}){
     if (isTransparent) {
         window.isExportingTransparent = true;
     }
-    showExportLoading('Tasarım İndiriliyor...', 'Tasarımınız yüksek çözünürlüklü olarak indirmeye hazırlanıyor...');
+    if (!options.silentLoading) {
+        showExportLoading('Tasarım İndiriliyor...', 'Tasarımınız yüksek çözünürlüklü olarak indirmeye hazırlanıyor...');
+    }
     
     // 1. Yazı tiplerinin (Google Fonts) belleğe tam oturmasını ve render edilmesini bekle
     await ensureFontsLoaded();
@@ -1396,6 +1410,7 @@ async function saveImage(customBaseName, options = {}){
     if (typeof window.validateExportAllowed === 'function') {
         const check = window.validateExportAllowed();
         if (!check.allowed) {
+            window.isExportingNow = false;
             hideExportLoading();
             if (typeof Swal !== 'undefined') {
                 Swal.fire({
@@ -1463,7 +1478,7 @@ async function saveImage(customBaseName, options = {}){
     drawCanvas.style.pointerEvents='none';
     
     const isForceOriginal = !!(options && options.forceOriginal);
-    const formatName = isForceOriginal ? 'Orijinal Görsel Boyutu' : (exportFormat ? exportFormat.value : '16:9 Full HD');
+    const formatName = isForceOriginal ? 'Orijinal Görsel Boyutu' : ((options && options.format) ? options.format : (exportFormat ? exportFormat.value : '16:9 Full HD'));
     const isOriginal = isForceOriginal || (formatName === 'Orijinal Görsel Boyutu');
     const format = EXPORT_FORMATS[formatName] || {w:1920,h:1080};
     const fitMode = exportFitMode ? exportFitMode.value : 'cover';
@@ -1527,11 +1542,24 @@ async function saveImage(customBaseName, options = {}){
         targetH = Math.round(format.h * outputScale);
     }
     
-    if (typeof window.isMobileDevice === 'function' && window.isMobileDevice()) {
-        const maxMobileScale = 2.5;
+    const isMobile = (typeof window.isMobileDevice === 'function' && window.isMobileDevice()) ||
+                     (typeof window !== 'undefined' && (window.innerWidth <= 768 || /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)));
+
+    if (isMobile) {
+        const maxMobileScale = 2.0;
         if (outputScale > maxMobileScale) {
-            console.warn('Mobile memory lock active: Reduced export scale from ' + outputScale + ' to ' + maxMobileScale);
             outputScale = maxMobileScale;
+            targetW = Math.round((isOriginal ? (currentW || 1920) : format.w) * outputScale);
+            targetH = Math.round((isOriginal ? (currentH || 1080) : format.h) * outputScale);
+        }
+        // iOS Safari 16.7MP donanım bellek sınırı koruması (14 Megapiksel tavanı)
+        const maxMobilePixels = 14000000;
+        const totalPixels = targetW * targetH;
+        if (totalPixels > maxMobilePixels) {
+            const downFactor = Math.sqrt(maxMobilePixels / totalPixels);
+            targetW = Math.round(targetW * downFactor);
+            targetH = Math.round(targetH * downFactor);
+            console.warn(`[Mobile Memory Guard] Çıktı boyutu mobil donanım sınırına (${targetW}x${targetH}) dengelendi.`);
         }
     }
 
@@ -1667,7 +1695,7 @@ async function saveImage(customBaseName, options = {}){
         canvasEl.style.margin = oldMargin;
         canvasEl.style.zIndex = oldZIndex;
         document.body.removeChild(overlay);
-        if (typeof resizeCanvas === 'function') resizeCanvas();
+        if (typeof resizeCanvas === 'function') { resizeCanvas(); if (typeof window.healSvgElementIds === 'function') window.healSvgElementIds(); }
 
         // --- UI RESTORE ---
         document.querySelectorAll('.photo-panel, #photo-layer').forEach(p => { if (typeof _applyPhotoTransform === 'function') _applyPhotoTransform(p); });
@@ -1841,26 +1869,64 @@ async function saveImage(customBaseName, options = {}){
         // DOM'un güncellenmesine ve UI'ın nefes almasına izin ver (Thread kilidini geçici olarak çöz)
         await new Promise(r => setTimeout(r, 100));
 
+        if (options && options.returnBlob) {
+            const mime = (rawFileType === 'jpg') ? 'image/jpeg' : 'image/png';
+            const q = (rawFileType === 'jpg') ? 0.95 : undefined;
+            const blob = await new Promise(resolve => finalCanvas.toBlob(resolve, mime, q));
+            return { blob, width: targetW, height: targetH, mime };
+        }
+
         // INDIRME
         const a = document.createElement('a');
         const fmtSafe = formatName.replace(/[^a-z0-9]/gi, '-').toLowerCase();
         const basePrefix = (customBaseName && typeof customBaseName === 'string') ? customBaseName : 'emlak-studiom';
+        
+        let downloadMime = 'image/png';
+        let downloadQuality = undefined;
+
         if (rawFileType === 'jpg') {
+            downloadMime = 'image/jpeg';
+            downloadQuality = 0.98;
             a.download = basePrefix + '-' + fmtSafe + '-' + targetW + 'x' + targetH + '.jpg';
-            a.href = finalCanvas.toDataURL('image/jpeg', 1.0);
         } else if (rawFileType === 'png_transparent') {
+            downloadMime = 'image/png';
             a.download = basePrefix + '-' + fmtSafe + '-' + targetW + 'x' + targetH + '-seffaf.png';
-            a.href = finalCanvas.toDataURL('image/png');
         } else {
+            downloadMime = 'image/png';
             a.download = basePrefix + '-' + fmtSafe + '-' + targetW + 'x' + targetH + '.png';
-            a.href = finalCanvas.toDataURL('image/png');
         }
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
+
+        if (typeof finalCanvas.toBlob === 'function') {
+            const blob = await new Promise(resolve => finalCanvas.toBlob(resolve, downloadMime, downloadQuality));
+            if (blob) {
+                const blobUrl = URL.createObjectURL(blob);
+                a.href = blobUrl;
+                document.body.appendChild(a);
+                a.click();
+                setTimeout(() => {
+                    URL.revokeObjectURL(blobUrl);
+                    if (a.parentNode) a.parentNode.removeChild(a);
+                }, 1200);
+            }
+        } else {
+            a.href = finalCanvas.toDataURL(downloadMime, downloadQuality);
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
     } catch(err) {
         console.error("SaveImage Error:", err);
-        alert("Dışa aktarma sırasında bir hata oluştu: " + (err.message || err));
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                icon: 'error',
+                title: 'Dışa Aktarma Hatası',
+                text: 'İşlem sırasında bir hata oluştu: ' + (err.message || err),
+                confirmButtonText: 'Tamam',
+                confirmButtonColor: '#0284c7'
+            });
+        } else {
+            alert("Dışa aktarma sırasında bir hata oluştu: " + (err.message || err));
+        }
     } finally {
         if (typeof cleanupTemplateFrames === 'function') {
             try { cleanupTemplateFrames(); } catch(e){}
@@ -1869,18 +1935,182 @@ async function saveImage(customBaseName, options = {}){
         if (typeof _wasTplHidden !== 'undefined' && _wasTplHidden && typeof window.toggleTemplateVisibility === 'function') {
             window.toggleTemplateVisibility(true);
         }
-        if (typeof resizeCanvas === 'function') resizeCanvas();
+        if (typeof resizeCanvas === 'function') { resizeCanvas(); if (typeof window.healSvgElementIds === 'function') window.healSvgElementIds(); }
         window.isExportingNow = false;
         document.body.classList.remove('is-exporting');
         // Tuvalin yerine tam oturup ekranın boyanması için yükleme ekranını tuval hazır olunca kapatıyoruz
-        setTimeout(() => {
-            hideAppLoading(0, true);
-        }, 350);
+        if (!options.silentLoading) {
+            setTimeout(() => {
+                hideAppLoading(0, true);
+            }, 350);
+        }
     }
 }
 
 window.exportTransparentPNG = function(customBaseName) {
     return saveImage(customBaseName, { fileType: 'png_transparent' });
+};
+
+// ══════════════════════════════════════════════
+// 📦 ÇOKLU FORMAT OTOMATİK DAĞITIM (1-Click Multi-Format Export)
+// 1:1 Kare Post, 9:16 Hikaye/Reels ve 16:9 Web/Sahibinden formatlarını tek tıkla üretir ve ZIP olarak paketler.
+// ══════════════════════════════════════════════
+window.exportMultiFormat = async function(mode = 'zip') {
+    // 1. Pro / Yetki kontrolü
+    if (typeof window.validateExportAllowed === 'function') {
+        const check = window.validateExportAllowed();
+        if (!check.allowed) {
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    icon: 'warning',
+                    title: check.title || '🔒 Pro Özellik',
+                    text: check.message,
+                    background: '#1e293b',
+                    color: '#fff'
+                });
+            } else {
+                alert(check.message);
+            }
+            return;
+        }
+    }
+
+    // 2. JSZip kütüphanesini hazırla
+    if (mode === 'zip' && typeof window.JSZip === 'undefined') {
+        showExportLoading('Modül Yükleniyor...', 'Sıkıştırma motoru hazırlanıyor...');
+        if (window.LazyLoader && typeof window.LazyLoader.load === 'function') {
+            try {
+                await window.LazyLoader.load('zip');
+            } catch (e) {
+                console.warn('LazyLoader zip error:', e);
+            }
+        }
+        if (typeof window.JSZip === 'undefined') {
+            await new Promise((resolve, reject) => {
+                const s = document.createElement('script');
+                s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
+                s.onload = resolve;
+                s.onerror = reject;
+                document.head.appendChild(s);
+            }).catch(e => console.warn('JSZip CDN fallback error:', e));
+        }
+    }
+
+    if (mode === 'zip' && typeof window.JSZip === 'undefined') {
+        alert('Arşivleme motoru (JSZip) yüklenemedi. Lütfen internet bağlantınızı kontrol edin.');
+        hideExportLoading();
+        return;
+    }
+
+    const zip = (mode === 'zip') ? new window.JSZip() : null;
+
+    // 3. Kullanıcının mevcut formatını kaydet
+    const originalExportFormat = (document.getElementById('exportFormat') ? document.getElementById('exportFormat').value : '16:9 Full HD');
+    const originalPreviewFormat = (document.getElementById('previewFormat') ? document.getElementById('previewFormat').value : originalExportFormat);
+
+    const formats = [
+        { key: '1:1 Instagram Post (Kare)', fileName: '01_Instagram_Kare_Post_1x1', title: '1:1 Kare Post' },
+        { key: '9:16 Instagram/TikTok Story', fileName: '02_Hikaye_Reels_9x16', title: '9:16 Hikaye ve Reels' },
+        { key: '16:9 Full HD (YouTube/Banner)', fileName: '03_Sahibinden_Web_16x9', title: '16:9 Sahibinden ve Web' }
+    ];
+
+    const rawFileType = document.getElementById('exportFileType') ? document.getElementById('exportFileType').value : 'jpg';
+    const ext = (rawFileType === 'png' || rawFileType === 'png_transparent') ? 'png' : 'jpg';
+
+    showExportLoading('Çoklu Format Dağıtımı...', 'Tasarımınız 1:1, 9:16 ve 16:9 boyutlarına otomatik uyarlanıyor...');
+
+    try {
+        for (let i = 0; i < formats.length; i++) {
+            const fmt = formats[i];
+            showExportLoading(
+                'Çoklu Format Hazırlanıyor...',
+                `${fmt.title} uyarlanıyor ve işleniyor... (${i + 1} / ${formats.length})`
+            );
+
+            // Formatı uygula
+            if (document.getElementById('exportFormat')) document.getElementById('exportFormat').value = fmt.key;
+            if (document.getElementById('previewFormat')) document.getElementById('previewFormat').value = fmt.key;
+            window._suppressFormatLoading = true;
+
+            if (typeof switchPreviewFormat === 'function') {
+                switchPreviewFormat();
+            }
+
+            // Canvas & DOM yerleşiminin tam oturması için kısa bekleme
+            await new Promise(r => setTimeout(r, 260));
+
+            // saveImage ile render al
+            const res = await saveImage(fmt.fileName, {
+                format: fmt.key,
+                returnBlob: true,
+                skipDownload: true,
+                silentLoading: true,
+                fileType: (rawFileType === 'png_transparent' ? 'png_transparent' : ext)
+            });
+
+            if (res && res.blob) {
+                if (mode === 'zip' && zip) {
+                    zip.file(`${fmt.fileName}.${ext}`, res.blob);
+                } else {
+                    const a = document.createElement('a');
+                    a.download = `${fmt.fileName}.${ext}`;
+                    a.href = URL.createObjectURL(res.blob);
+                    document.body.appendChild(a);
+                    a.click();
+                    setTimeout(() => {
+                        URL.revokeObjectURL(a.href);
+                        a.remove();
+                    }, 500);
+                    await new Promise(r => setTimeout(r, 350));
+                }
+            }
+        }
+
+        // ZIP arşivi oluştur ve indir
+        if (mode === 'zip' && zip) {
+            showExportLoading('Arşiv Paketleniyor...', 'Tüm formatlar tek bir ZIP dosyasına sıkıştırılıyor...');
+            const zipBlob = await zip.generateAsync({
+                type: 'blob',
+                compression: 'DEFLATE',
+                compressionOptions: { level: 6 }
+            });
+
+            const dateStr = new Date().toISOString().slice(0, 10);
+            const a = document.createElement('a');
+            a.download = `Emlak_Studyom_Coklu_Format_Paketi_${dateStr}.zip`;
+            a.href = URL.createObjectURL(zipBlob);
+            document.body.appendChild(a);
+            a.click();
+            setTimeout(() => {
+                URL.revokeObjectURL(a.href);
+                a.remove();
+            }, 1000);
+        }
+
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                icon: 'success',
+                title: 'Çoklu Format Paketi İndirildi',
+                html: '<div style="font-size:13px; color:#94a3b8; line-height:1.5;">1:1 Kare Post, 9:16 Hikaye ve 16:9 Web/Sahibinden formatları tek pakette hazırlandı.</div>',
+                background: '#1e293b',
+                color: '#fff',
+                timer: 3000,
+                showConfirmButton: false
+            });
+        }
+    } catch (err) {
+        console.error('Multi-Format Export Error:', err);
+        alert('Çoklu format dışa aktarımında bir hata oluştu: ' + (err.message || err));
+    } finally {
+        // Kullanıcının orijinal formatını geri yükle
+        window._suppressFormatLoading = false;
+        if (document.getElementById('exportFormat')) document.getElementById('exportFormat').value = originalExportFormat;
+        if (document.getElementById('previewFormat')) document.getElementById('previewFormat').value = originalPreviewFormat;
+        if (typeof switchPreviewFormat === 'function') {
+            switchPreviewFormat();
+        }
+        hideExportLoading();
+    }
 };
 
 // ══════════════════════════════════════════════
@@ -2339,19 +2569,39 @@ async function startBatchExport(options){
         // INDIRME
         const a = document.createElement('a');
         const fmtSafe = formatName.replace(/[^a-z0-9]/gi, '-').toLowerCase();
+        let bMime = 'image/png';
+        let bQuality = undefined;
+
         if (rawBatchFileType === 'jpg') {
+            bMime = 'image/jpeg';
+            bQuality = 0.98;
             a.download = batchName + '-' + fmtSafe + '-' + targetW + 'x' + targetH + '.jpg';
-            a.href = finalCanvas.toDataURL('image/jpeg', 1.0);
         } else if (rawBatchFileType === 'png_transparent') {
+            bMime = 'image/png';
             a.download = batchName + '-' + fmtSafe + '-' + targetW + 'x' + targetH + '-seffaf.png';
-            a.href = finalCanvas.toDataURL('image/png');
         } else {
+            bMime = 'image/png';
             a.download = batchName + '-' + fmtSafe + '-' + targetW + 'x' + targetH + '.png';
-            a.href = finalCanvas.toDataURL('image/png');
         }
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
+
+        if (typeof finalCanvas.toBlob === 'function') {
+            const blob = await new Promise(resolve => finalCanvas.toBlob(resolve, bMime, bQuality));
+            if (blob) {
+                const bUrl = URL.createObjectURL(blob);
+                a.href = bUrl;
+                document.body.appendChild(a);
+                a.click();
+                setTimeout(() => {
+                    URL.revokeObjectURL(bUrl);
+                    if (a.parentNode) a.parentNode.removeChild(a);
+                }, 1200);
+            }
+        } else {
+            a.href = finalCanvas.toDataURL(bMime, bQuality);
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
         
         // Memory leak temizligi
         finalCanvas = null;
@@ -2819,7 +3069,7 @@ async function cancelInteractiveBatch(restoreOriginal = true) {
                     }
                 }
 
-                if (typeof resizeCanvas === 'function') resizeCanvas();
+                if (typeof resizeCanvas === 'function') { resizeCanvas(); if (typeof window.healSvgElementIds === 'function') window.healSvgElementIds(); }
                 if (typeof redrawAll === 'function') redrawAll();
             } catch(e) {
                 console.error('Orijinal görsel geri yüklenirken hata:', e);
@@ -2926,6 +3176,12 @@ async function getBase64FromCSSUrl(cssUrl) {
 
 function _sanitizeExportImportHtml(html) {
     if (!html) return '';
+    if (window.SecurityGuard && typeof window.SecurityGuard.sanitizeHtml === 'function') {
+        return window.SecurityGuard.sanitizeHtml(html);
+    }
+    if (window.DOMPurify && typeof window.DOMPurify.sanitize === 'function') {
+        return window.DOMPurify.sanitize(html);
+    }
     return html.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
                .replace(/\bon\w+\s*=/gi, 'data-blocked=');
 }
@@ -3206,10 +3462,24 @@ async function saveProject() {
 
 window.loadProjectFromFile = function(file) {
     if(!file) return;
+    if (file.size === 0) {
+        if (typeof window.showAppToast === 'function') window.showAppToast('Dosya boş (0 bayt).', 'warning');
+        else alert('Dosya boş (0 bayt).');
+        return;
+    }
+    if (file.size > 50 * 1024 * 1024) {
+        if (typeof window.showAppToast === 'function') window.showAppToast('Proje dosyası çok büyük (maksimum 50 MB).', 'warning');
+        else alert('Proje dosyası çok büyük (maksimum 50 MB).');
+        return;
+    }
     if (typeof window.showAppLoading === 'function') {
         window.showAppLoading('Şablon Yüklendi...', 'Tasarım ve katmanlar tuvale yerleştiriliyor...', 8000);
     }
     const reader = new FileReader();
+    reader.onerror = () => {
+        if (typeof window.hideAppLoading === 'function') window.hideAppLoading();
+        alert('Dosya okunamadı veya erişim engellendi.');
+    };
     reader.onload = async (event) => {
         try {
             const state = JSON.parse(event.target.result);
@@ -3257,20 +3527,31 @@ window.loadProjectFromFile = function(file) {
             }
 
             Object.keys(extraFieldsData).forEach(mode => {
-                const c = document.getElementById(mode+'ExtraFields');
+                const cleanMode = (window.SecurityGuard && window.SecurityGuard.sanitizeId) ? window.SecurityGuard.sanitizeId(mode) : String(mode).replace(/[^a-zA-Z0-9_\-]/g, '');
+                const c = document.getElementById(cleanMode+'ExtraFields');
                 if(c) {
                     c.innerHTML = '';
                     extraFieldsData[mode].forEach(id => {
+                        const cleanId = (window.SecurityGuard && window.SecurityGuard.sanitizeId) ? window.SecurityGuard.sanitizeId(id) : String(id).replace(/[^a-zA-Z0-9_\-]/g, '');
+                        if (!cleanId) return;
                         const row = document.createElement('div');
                         row.className = 'extra-field-row';
-                        row.id = 'row_'+id;
-                        row.innerHTML = '<input type="text" id="lbl_'+id+'" placeholder="Başlık"><input type="text" id="val_'+id+'" placeholder="Değer"><button type="button" class="remove-field" onclick="removeExtraField(\''+id+'\',\''+mode+'\')" title="Bilgiyi Sil"><i class="fa-solid fa-xmark"></i></button>';
+                        row.id = 'row_'+cleanId;
+                        row.innerHTML = '<input type="text" id="lbl_'+cleanId+'" placeholder="Başlık"><input type="text" id="val_'+cleanId+'" placeholder="Değer"><button type="button" class="remove-field" title="Bilgiyi Sil"><i class="fa-solid fa-xmark"></i></button>';
+                        const btn = row.querySelector('.remove-field');
+                        if (btn) {
+                            btn.addEventListener('click', () => {
+                                if (typeof removeExtraField === 'function') removeExtraField(cleanId, cleanMode);
+                            });
+                        }
                         c.appendChild(row);
-                        document.getElementById('lbl_'+id).addEventListener('input', renderData);
-                        document.getElementById('val_'+id).addEventListener('input', renderData);
+                        const lblInput = document.getElementById('lbl_'+cleanId);
+                        const valInput = document.getElementById('val_'+cleanId);
+                        if (lblInput) lblInput.addEventListener('input', renderData);
+                        if (valInput) valInput.addEventListener('input', renderData);
                         
-                        if(state.inputs && state.inputs['lbl_'+id]) document.getElementById('lbl_'+id).value = state.inputs['lbl_'+id];
-                        if(state.inputs && state.inputs['val_'+id]) document.getElementById('val_'+id).value = state.inputs['val_'+id];
+                        if(state.inputs && state.inputs['lbl_'+id] && lblInput) lblInput.value = state.inputs['lbl_'+id];
+                        if(state.inputs && state.inputs['val_'+id] && valInput) valInput.value = state.inputs['val_'+id];
                     });
                 }
             });
@@ -3350,7 +3631,7 @@ window.loadProjectFromFile = function(file) {
 
                 if (te.badge && curBadge) {
                     if (te.badge.style) curBadge.setAttribute('style', te.badge.style);
-                    if (te.badge.html) curBadge.innerHTML = te.badge.html;
+                    if (te.badge.html) curBadge.innerHTML = (window.DOMPurify && typeof window.DOMPurify.sanitize === 'function') ? window.DOMPurify.sanitize(te.badge.html) : te.badge.html;
                     else if (te.badge.text) curBadge.innerText = te.badge.text;
                     curBadge.style.visibility = (te.badge.visible !== false) ? 'visible' : 'hidden';
                     curBadge.style.display = (te.badge.visible !== false) ? 'block' : 'none';
@@ -3358,7 +3639,7 @@ window.loadProjectFromFile = function(file) {
                 }
                 if (te.price && curPrice) {
                     if (te.price.style) curPrice.setAttribute('style', te.price.style);
-                    if (te.price.html) curPrice.innerHTML = te.price.html;
+                    if (te.price.html) curPrice.innerHTML = (window.DOMPurify && typeof window.DOMPurify.sanitize === 'function') ? window.DOMPurify.sanitize(te.price.html) : te.price.html;
                     else if (te.price.text) curPrice.innerText = te.price.text;
                     curPrice.style.visibility = (te.price.visible !== false) ? 'visible' : 'hidden';
                     curPrice.style.display = (te.price.visible !== false) ? 'block' : 'none';
@@ -3366,13 +3647,13 @@ window.loadProjectFromFile = function(file) {
                 }
                 if (te.details && curDetails) {
                     if (te.details.style) curDetails.setAttribute('style', te.details.style);
-                    if (te.details.html) curDetails.innerHTML = te.details.html;
+                    if (te.details.html) curDetails.innerHTML = (window.DOMPurify && typeof window.DOMPurify.sanitize === 'function') ? window.DOMPurify.sanitize(te.details.html) : te.details.html;
                     curDetails.style.visibility = (te.details.visible !== false) ? 'visible' : 'hidden';
                     curDetails.style.display = (te.details.visible !== false) ? 'block' : 'none';
                     if (typeof bindDrag === 'function') bindDrag(curDetails);
                 }
                 if (te.infoLineHtml && curInfoLine) {
-                    curInfoLine.innerHTML = te.infoLineHtml;
+                    curInfoLine.innerHTML = (window.DOMPurify && typeof window.DOMPurify.sanitize === 'function') ? window.DOMPurify.sanitize(te.infoLineHtml) : te.infoLineHtml;
                     curInfoLine.style.visibility = 'visible';
                     curInfoLine.style.display = 'block';
                 }
@@ -3397,7 +3678,7 @@ window.loadProjectFromFile = function(file) {
                         const icon = document.createElement('div');
                         icon.className = 'draggable added-icon canvas-el' + (item.isSvg ? ' is-svg-icon' : '');
                         if (item.isSvg) {
-                            icon.innerHTML = item.char;
+                            icon.innerHTML = (window.DOMPurify && typeof window.DOMPurify.sanitize === 'function') ? window.DOMPurify.sanitize(item.char) : item.char;
                         } else {
                             icon.textContent = item.char;
                         }
@@ -3531,7 +3812,7 @@ window.loadProjectFromFile = function(file) {
                     const el = document.createElement('div');
                     if(data.id) el.id = data.id;
                     el.className = data.className;
-                    el.innerHTML = data.innerHTML;
+                    el.innerHTML = _sanitizeExportImportHtml(data.innerHTML);
                     if(data.style) el.setAttribute('style', data.style);
                     if(data.dataset) {
                         Object.keys(data.dataset).forEach(k => el.dataset[k] = data.dataset[k]);

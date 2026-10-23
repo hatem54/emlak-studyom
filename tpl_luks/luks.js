@@ -1,4 +1,4 @@
-﻿/* ============================================================
+/* ============================================================
    Lüks Şablon Seti - HIGH END
    10 Adet Ultra Premium Tasarım (High Detail)
 ============================================================ */
@@ -139,6 +139,9 @@ function renderLuksTemplate(htmlString) {
     canvaRenderLayer.querySelectorAll('.editable-text').forEach(el => enableInlineEdit(el));
     requestAnimationFrame(() => {
         if(typeof redrawAll === 'function') redrawAll();
+        if(window.TemplateFrame && typeof window.TemplateFrame.onTemplateChanged === 'function') {
+            window.TemplateFrame.onTemplateChanged(window.activeCanvaId || 'canvaL1', 'canva');
+        }
     });
 }
 

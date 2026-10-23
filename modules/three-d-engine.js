@@ -1009,22 +1009,28 @@
     }
 
     function getShapeBounds(shape) {
-        if (!shape || typeof shape.extractPoints !== 'function') {
+        if (!shape) {
             return { minX: -100, maxX: 100, minY: -50, maxY: 50, width: 200, height: 100 };
         }
-        const points = shape.extractPoints(12).shape || [];
+        const shapes = Array.isArray(shape) ? shape : [shape];
         let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-        points.forEach(p => {
-            if (p.x < minX) minX = p.x;
-            if (p.x > maxX) maxX = p.x;
-            if (p.y < minY) minY = p.y;
-            if (p.y > maxY) maxY = p.y;
+        shapes.forEach(s => {
+            if (s && typeof s.extractPoints === 'function') {
+                const points = s.extractPoints(12).shape || [];
+                points.forEach(p => {
+                    if (p.x < minX) minX = p.x;
+                    if (p.x > maxX) maxX = p.x;
+                    if (p.y < minY) minY = p.y;
+                    if (p.y > maxY) maxY = p.y;
+                });
+            }
         });
         if (minX === Infinity) {
             minX = -100; maxX = 100; minY = -50; maxY = 50;
         }
         return { minX, maxX, minY, maxY, width: maxX - minX || 1, height: maxY - minY || 1 };
     }
+
 
     function getNormalizedUVGenerator(minX, maxX, minY, maxY) {
         const w = maxX - minX || 1;
@@ -1416,6 +1422,16 @@
         cleanSvg = cleanSvg.replace(/(<svg\b[^>]*?)\s+height="[^"]*"/i, '$1');
         cleanSvg = cleanSvg.replace(/currentColor/g, '#000000');
         cleanSvg = cleanSvg.replace(/preserveAspectRatio="[^"]*"/gi, '');
+        // Çizgisel ikonlarda (Lucide vb.) ok uçlarının ve ince çizgilerin kopmasını önlemek için stroke'u güçlendir
+        if (cleanSvg.includes('stroke=') || cleanSvg.includes('stroke-width=') || cleanSvg.includes('fill="none"')) {
+            cleanSvg = cleanSvg.replace(/stroke-width="([^"]*)"/gi, (m, val) => {
+                const num = parseFloat(val) || 2;
+                return `stroke-width="${Math.max(2.4, num)}"`;
+            });
+            if (!cleanSvg.includes('stroke-linecap=')) {
+                cleanSvg = cleanSvg.replace('<svg', '<svg stroke-linecap="round" stroke-linejoin="round"');
+            }
+        }
         cleanSvg = cleanSvg.replace('<svg', `<svg width="${W}" height="${H}" preserveAspectRatio="none"`);
 
         const blob = new Blob([cleanSvg], { type: 'image/svg+xml;charset=utf-8' });
@@ -1444,7 +1460,7 @@
         for (let y = 0; y < H; y++) {
             for (let x = 0; x < W; x++) {
                 const alpha = imgData[(y * W + x) * 4 + 3];
-                if (alpha > 40) {
+                if (alpha > 35) {
                     grid[y * W + x] = 1;
                     solidCount++;
                     if (x < minX) minX = x;
@@ -1460,22 +1476,19 @@
         const bboxArea = bboxW * bboxH;
         const fillDensity = bboxArea > 0 ? (solidCount / bboxArea) : 0;
 
-        // Katı nesne kontrolü (Kullanıcı: yaprak, damla gibi çok narin ikonlar rozet üzerinde kalsın)
+        // Katı nesne kontrolü (Sadece saf metin içeren plaketler silüet yapılmaz)
         const totalPixels = W * H;
         if (!options.forceSilhouette) {
-            // Yazı (<text>) veya tipografik callout rozetleri katı silüet yapılmaz; rozet/kart plaketi olarak kalmalıdır
             if (/<text\b/i.test(rawSvg)) return null;
-            if (solidCount < totalPixels * 0.04) return null; // < %4 tuval doluluğu
-            if (fillDensity < 0.15) return null; // Çok ince veya seyrek çizgiler
-            if (bboxW < Math.max(16, W * 0.10) || bboxH < Math.max(16, H * 0.10)) return null;
+            if (solidCount < totalPixels * 0.008) return null; // Çok boş tuval
+            if (bboxW < 12 || bboxH < 12) return null;
         } else {
-            if (solidCount < totalPixels * 0.01) return null;
+            if (solidCount < totalPixels * 0.005) return null;
         }
 
         // 🌟 Morfolojik Kapatma (Morphological Closing):
-        // 2-3px'lik boşlukları (araba gövdesi ile tekerlekler, tren ile raylar, paratoner vb.)
-        // tek bir yekpare gövde olarak birbirine bağlar ve dış kontur sınırlarını korur.
-        function morphologicalCloseGrid(srcGrid, width, height, radius = 2) {
+        // 1px'lik antialiasing boşluklarını birbirine bağlar, ince ok uçlarını ve keskin detayları asla koparmaz.
+        function morphologicalCloseGrid(srcGrid, width, height, radius = 1) {
             const dilated = new Uint8Array(width * height);
             for (let y = 0; y < height; y++) {
                 const minY = Math.max(0, y - radius);
@@ -1485,12 +1498,8 @@
                     const minX = Math.max(0, x - radius);
                     const maxX = Math.min(width - 1, x + radius);
                     for (let ny = minY; ny <= maxY; ny++) {
-                        const dy = ny - y;
                         for (let nx = minX; nx <= maxX; nx++) {
-                            const dx = nx - x;
-                            if (dx * dx + dy * dy <= radius * radius) {
-                                dilated[ny * width + nx] = 1;
-                            }
+                            dilated[ny * width + nx] = 1;
                         }
                     }
                 }
@@ -1506,10 +1515,8 @@
                     const minX = Math.max(0, x - radius);
                     const maxX = Math.min(width - 1, x + radius);
                     for (let ny = minY; ny <= maxY; ny++) {
-                        const dy = ny - y;
                         for (let nx = minX; nx <= maxX; nx++) {
-                            const dx = nx - x;
-                            if (dx * dx + dy * dy <= radius * radius && !dilated[ny * width + nx]) {
+                            if (!dilated[ny * width + nx]) {
                                 keep = false;
                                 break;
                             }
@@ -1522,31 +1529,31 @@
             return closed;
         }
 
-        // 🌟 Bağlantılı Bileşen Analizi (CCA):
-        // Gökyüzünde veya köşede asılı duran minik süslemeleri (örn. Metro "M" logosu, güneş, madeni para)
-        // ana nesneden ayırır ve en büyük/baskın gövdenin (örn. Metro treni) kontur başlangıç noktasını seçer.
-        function findDominantComponent(gridData, width, height) {
+        // 🌟 Çoklu Bağlantılı Bileşen Analizi (Multi-Component CCA):
+        // İkonlardaki bağımsız veya çatallı tüm önemli parçaları (ok uçları, noktalar, saat ibreleri, ana gövde vb.)
+        // tek tek keşfeder ve hepsini 3D silüete dahil eder.
+        function findAllComponents(gridData, width, height) {
             const visited = new Uint8Array(width * height);
             const queue = new Int32Array(width * height);
-            let bestSize = 0;
-            let bestTopX = -1, bestTopY = -1;
-            let bestMinX = width, bestMaxX = 0, bestMinY = height, bestMaxY = 0;
+            const comps = [];
 
             for (let y = 0; y < height; y++) {
                 for (let x = 0; x < width; x++) {
-                    const idx = y * width + x;
-                    if (!gridData[idx] || visited[idx]) continue;
+                    const startIdx = y * width + x;
+                    if (!gridData[startIdx] || visited[startIdx]) continue;
 
                     let head = 0, tail = 0;
-                    queue[tail++] = idx;
-                    visited[idx] = 1;
+                    queue[tail++] = startIdx;
+                    visited[startIdx] = 1;
 
                     let count = 0;
                     let cMinX = x, cMaxX = x, cMinY = y, cMaxY = y;
                     let topX = x, topY = y;
+                    const indices = [];
 
                     while (head < tail) {
                         const cur = queue[head++];
+                        indices.push(cur);
                         const cx = cur % width;
                         const cy = (cur / width) | 0;
                         count++;
@@ -1578,70 +1585,89 @@
                         }
                     }
 
-                    if (count > bestSize) {
-                        bestSize = count;
-                        bestTopX = topX;
-                        bestTopY = topY;
-                        bestMinX = cMinX;
-                        bestMaxX = cMaxX;
-                        bestMinY = cMinY;
-                        bestMaxY = cMaxY;
+                    // En az 8 piksellik tüm belirgin parçaları al
+                    if (count >= 8) {
+                        comps.push({
+                            size: count,
+                            topX: topX,
+                            topY: topY,
+                            indices: indices,
+                            bbox: { minX: cMinX, maxX: cMaxX, minY: cMinY, maxY: cMaxY }
+                        });
                     }
                 }
             }
 
-            return {
-                size: bestSize,
-                topX: bestTopX,
-                topY: bestTopY,
-                bbox: { minX: bestMinX, maxX: bestMaxX, minY: bestMinY, maxY: bestMaxY }
-            };
+            comps.sort((a, b) => b.size - a.size);
+            return comps;
         }
 
-        const workGrid = morphologicalCloseGrid(grid, W, H, 2);
-        const dominant = findDominantComponent(workGrid, W, H);
-        const startX = dominant.topX;
-        const startY = dominant.topY;
+        const workGrid = morphologicalCloseGrid(grid, W, H, 1);
+        const components = findAllComponents(workGrid, W, H);
+        if (!components || components.length === 0) return null;
 
-        const rawContour = traceMooreNeighborContour(workGrid, W, H, startX, startY);
-        if (!rawContour || rawContour.length < 16) return null;
+        const shapes = [];
+        let totalCompPixels = 0;
+        const maxComponents = Math.min(32, components.length);
+        const largestCompSize = components[0].size;
 
-        const simplified = douglasPeucker(rawContour, 1.2);
-        if (!simplified || simplified.length < 5) return null;
+        for (let cIdx = 0; cIdx < maxComponents; cIdx++) {
+            const comp = components[cIdx];
+            // En büyük parçaya kıyasla anlamsız mikro toz parçaları (< %0.2) atla
+            if (cIdx > 0 && comp.size < Math.max(8, largestCompSize * 0.002)) continue;
 
-        const points3D = simplified.map(p => ({
-            x: (p.x / W - 0.5) * actualTargetW,
-            y: -(p.y / H - 0.5) * actualTargetH
-        }));
+            const compGrid = new Uint8Array(W * H);
+            for (let i = 0; i < comp.indices.length; i++) {
+                compGrid[comp.indices[i]] = 1;
+            }
 
-        // Counter-Clockwise (CCW) yön kontrolü
-        let signedArea = 0;
-        for (let i = 0; i < points3D.length; i++) {
-            const j = (i + 1) % points3D.length;
-            signedArea += points3D[i].x * points3D[j].y - points3D[j].x * points3D[i].y;
+            const rawContour = traceMooreNeighborContour(compGrid, W, H, comp.topX, comp.topY);
+            if (!rawContour || rawContour.length < 8) continue;
+
+            const simplified = douglasPeucker(rawContour, 1.0);
+            if (!simplified || simplified.length < 3) continue;
+
+            const points3D = simplified.map(p => ({
+                x: (p.x / W - 0.5) * actualTargetW,
+                y: -(p.y / H - 0.5) * actualTargetH
+            }));
+
+            // Counter-Clockwise (CCW) yön kontrolü
+            let signedArea = 0;
+            for (let i = 0; i < points3D.length; i++) {
+                const j = (i + 1) % points3D.length;
+                signedArea += points3D[i].x * points3D[j].y - points3D[j].x * points3D[i].y;
+            }
+            if (signedArea < 0) {
+                points3D.reverse();
+            }
+
+            const subShape = new THREE.Shape();
+            subShape.moveTo(points3D[0].x, points3D[0].y);
+            for (let i = 1; i < points3D.length; i++) {
+                subShape.lineTo(points3D[i].x, points3D[i].y);
+            }
+            subShape.closePath();
+            shapes.push(subShape);
+            totalCompPixels += comp.size;
         }
-        if (signedArea < 0) {
-            points3D.reverse();
-        }
 
-        const shape = new THREE.Shape();
-        shape.moveTo(points3D[0].x, points3D[0].y);
-        for (let i = 1; i < points3D.length; i++) {
-            shape.lineTo(points3D[i].x, points3D[i].y);
-        }
-        shape.closePath();
+        if (shapes.length === 0) return null;
 
-        // 🌟 Bounding Box: Doku (UV) hizalamasını kesinleştirmek için çıkarılan asıl silüet konturunun sınırlarını kullan
+        const finalShape = (shapes.length === 1) ? shapes[0] : shapes;
+
+        // 🌟 Bounding Box: Tüm bileşenlerin ortak kapsayıcı sınırlarını hesapla
         let cMinX = W, cMaxX = 0, cMinY = H, cMaxY = 0;
-        for (const p of simplified) {
-            if (p.x < cMinX) cMinX = p.x;
-            if (p.x > cMaxX) cMaxX = p.x;
-            if (p.y < cMinY) cMinY = p.y;
-            if (p.y > cMaxY) cMaxY = p.y;
+        for (let i = 0; i < maxComponents; i++) {
+            const b = components[i].bbox;
+            if (b.minX < cMinX) cMinX = b.minX;
+            if (b.maxX > cMaxX) cMaxX = b.maxX;
+            if (b.minY < cMinY) cMinY = b.minY;
+            if (b.maxY > cMaxY) cMaxY = b.maxY;
         }
 
         const result = {
-            shape: shape,
+            shape: finalShape,
             bounds: {
                 minX: -actualTargetW / 2,
                 maxX: actualTargetW / 2,
@@ -1662,14 +1688,15 @@
                 H: H
             },
             isExactSilhouette: true,
-            pointsCount: points3D.length,
-            solidCount: dominant.size || solidCount,
+            shapesCount: shapes.length,
+            solidCount: totalCompPixels || solidCount,
             fillDensity: fillDensity
         };
 
         svgSilhouetteCache.set(cacheKey, result);
         return result;
     }
+
 
     /**
      * Kontrast Renk Hesaplayıcı (Açık renklere koyu, koyu renklere beyaz)
@@ -1745,6 +1772,11 @@
             }
             const gradFillVal = svgGradId ? ('url(#' + svgGradId + ')') : targetHexColor;
 
+            const rootFill = (svgEl.getAttribute('fill') || '').trim().toLowerCase();
+            const rootStroke = (svgEl.getAttribute('stroke') || '').trim().toLowerCase();
+            const isRootFillNone = rootFill === 'none';
+            const isStrokeIcon = isRootFillNone || rawSvg.includes('stroke="currentColor"') || /stroke-width/i.test(rawSvg);
+
             allNodes.forEach(node => {
                 const tag = node.tagName.toLowerCase();
 
@@ -1767,9 +1799,16 @@
 
                 // 2. fill
                 const fill = node.getAttribute('fill');
-                if (!fill && (tag === 'polygon' || tag === 'path' || tag === 'circle' || tag === 'rect' || tag === 'ellipse')) {
-                    node.setAttribute('fill', gradFillVal);
-                } else if (fill && fill !== 'none' && fill !== 'transparent' && !fill.startsWith('url(')) {
+                const hasExplicitFill = (fill !== null && fill !== undefined);
+                const isFillNone = hasExplicitFill && (fill.trim().toLowerCase() === 'none' || fill.trim().toLowerCase() === 'transparent');
+                const inheritsFillNone = !hasExplicitFill && isRootFillNone;
+
+                if (!hasExplicitFill) {
+                    // Sadece fill="none" miras almayan ve stroke ikonu olmayan katı silüet parçalarına fill uygula
+                    if (!inheritsFillNone && !isStrokeIcon && (tag === 'polygon' || tag === 'path' || tag === 'circle' || tag === 'rect' || tag === 'ellipse')) {
+                        node.setAttribute('fill', gradFillVal);
+                    }
+                } else if (!isFillNone && !fill.startsWith('url(')) {
                     const lower = fill.toLowerCase().trim();
                     if (lower === 'currentcolor') {
                         node.setAttribute('fill', gradFillVal);
@@ -1826,6 +1865,10 @@
                         } catch(e) {
                             node.setAttribute('stroke', targetHexColor);
                         }
+                    }
+                } else if (!stroke && isStrokeIcon && (tag === 'polygon' || tag === 'path' || tag === 'circle' || tag === 'rect' || tag === 'ellipse' || tag === 'line' || tag === 'polyline')) {
+                    if (!isMultiColor && !hasExplicitFill) {
+                        node.setAttribute('stroke', targetHexColor);
                     }
                 }
             });
@@ -1946,8 +1989,9 @@
                              (!safeSvg.includes('fill=') || /fill\s*=\s*["']none["']/i.test(safeSvg));
 
         if (isStrokeOnly) {
-            // Çizgisel ikonlarda zemin rozet/plaket rengi, çizgiler seçili ikon rengi (veya silüette kontrastlı) olsun
-            const strokeColor = (!isExactSilhouette && iconColor) ? iconColor : getContrastingColor(baseColor);
+            // Çizgisel ikonlarda zemin rozet/plaket rengi, çizgiler seçili ikon rengi olsun
+            // Katı silüette çizgi rengi daima doğrudan seçili ikon rengidir (asla ters kontrast rengi verilmez!)
+            const strokeColor = iconColor || (isExactSilhouette ? '#ffffff' : getContrastingColor(baseColor));
             safeSvg = safeSvg.replace(/currentColor/g, strokeColor);
             safeSvg = safeSvg.replace(/stroke="[^"]*"/g, `stroke="${strokeColor}"`);
             const styleTag = `<style>:root, svg { color: ${strokeColor}; stroke: ${strokeColor}; }</style>`;
@@ -1956,7 +2000,8 @@
             // Renkli ikonlarda currentColor varsa ön yüz rengini ver, özel renklerini koru
             const resolvedColor = iconColor || '#ffffff';
             safeSvg = safeSvg.replace(/currentColor/g, resolvedColor);
-            const styleTag = (isShape || isExactSilhouette)
+            const shouldInjectFillStyle = !isStrokeOnly && !safeSvg.includes('fill="none"') && (isShape || isExactSilhouette);
+            const styleTag = shouldInjectFillStyle
                 ? `<style>:root, svg { color: ${resolvedColor}; } polygon:not([fill]), path:not([fill]), rect:not([fill]), circle:not([fill]) { fill: ${resolvedColor}; }</style>`
                 : `<style>:root, svg { color: ${resolvedColor}; }</style>`;
             safeSvg = safeSvg.replace(/(<svg[^>]*>)/, `$1${styleTag}`);
@@ -1989,7 +2034,7 @@
                     const r = Math.min(32, cw * 0.12, ch * 0.12);
                     drawRoundRect(ctx, 0, 0, cw, ch, r);
                     ctx.fill();
-                } else {
+                } else if (!isStrokeOnly) {
                     ctx.fillRect(0, 0, cw, ch);
                 }
                 ctx.restore();
@@ -2743,6 +2788,12 @@
                 const bounds = res.bounds;
                 const isExactSilhouette = !!res.isExactSilhouette;
                 const mat = Array.isArray(el.badgeMesh.material) ? el.badgeMesh.material[0] : el.badgeMesh.material;
+                if (mat && !mat.map && isExactSilhouette && !el.useGradient && !el.isMultiColorSvg) {
+                    mat.color.set(el.frontColor || '#ffffff');
+                    mat.needsUpdate = true;
+                    requestRender();
+                    return;
+                }
                 const existingTex = (mat && mat.map) ? mat.map : null;
 
                 createExactSvgTexture(
@@ -3508,7 +3559,14 @@
 
         // Rozet / SVG dokulu ön yüzler (Geometriyi yıkmadan rAF ile dokuyu güncelle)
         if (el.badgeMesh && (el.elementType === 'element_3d' || (el.elementType && el.elementType.startsWith('badge_')) || el.elementType === 'icon_3d')) {
-            queueBadgeTextureUpdate(el);
+            const m0 = Array.isArray(el.badgeMesh.material) ? el.badgeMesh.material[0] : el.badgeMesh.material;
+            if (m0 && !m0.map && el.isExactSilhouette && !el.useGradient) {
+                m0.color.set(frontColorHex);
+                m0.needsUpdate = true;
+                requestRender();
+            } else {
+                queueBadgeTextureUpdate(el);
+            }
         }
 
         // 🌟 GLB / GLTF 3D Modelleri İçin Anlık Renk Ayarı (Diffuse Tint / Renk Değişimi)
@@ -3767,15 +3825,24 @@
                     }
                 );
 
-                const badgeFrontMat = new THREE.MeshStandardMaterial({
-                    map: badgeTex,
-                    roughness: el.roughness !== undefined ? el.roughness : 0.55,
-                    metalness: el.metalness !== undefined ? el.metalness : 0.08,
-                    transparent: isPurePlane || (!isExactSilhouette && (!el.badgeBgColor || el.badgeBgColor === 'transparent')),
-                    alphaTest: isPurePlane ? 0.04 : 0.02,
-                    depthWrite: true,
-                    side: THREE.DoubleSide
-                });
+                const isSolidMonochromeSilhouette = isExactSilhouette && !isMultiColorSvg && !el.useGradient;
+                const badgeFrontMat = isSolidMonochromeSilhouette
+                    ? new THREE.MeshStandardMaterial({
+                        color: new THREE.Color(el.frontColor || '#ffffff'),
+                        roughness: el.roughness !== undefined ? el.roughness : 0.55,
+                        metalness: el.metalness !== undefined ? el.metalness : 0.08,
+                        depthWrite: true,
+                        side: THREE.DoubleSide
+                    })
+                    : new THREE.MeshStandardMaterial({
+                        map: badgeTex,
+                        roughness: el.roughness !== undefined ? el.roughness : 0.55,
+                        metalness: el.metalness !== undefined ? el.metalness : 0.08,
+                        transparent: isPurePlane || (!isExactSilhouette && (!el.badgeBgColor || el.badgeBgColor === 'transparent')),
+                        alphaTest: isPurePlane ? 0.04 : 0.02,
+                        depthWrite: true,
+                        side: THREE.DoubleSide
+                    });
 
                 let badgeGeo;
 
@@ -3867,19 +3934,22 @@
                     // start: lidGroup.start -> Z = -depth/2 (ARKA KAPAK)
                     // start: lidGroup.start + halfLid -> Z = +depth/2 (ÖN KAPAK, KAMERAYA BAKAN YÜZ)
                     if (badgeGeo.groups && badgeGeo.groups.length >= 2) {
-                        const lidGroup = badgeGeo.groups[0];
-                        const halfLid = Math.floor(lidGroup.count / 2);
-                        if (!isEstateItem) {
-                            // Rozetler için: Arka kapağa katı malzeme ata (çift parça illüzyonunu önle)
-                            badgeGeo.groups[0] = { start: lidGroup.start, count: halfLid, materialIndex: 1 };
-                            badgeGeo.groups.splice(1, 0, { start: lidGroup.start + halfLid, count: lidGroup.count - halfLid, materialIndex: 0 });
-                        } else {
-                            // 🏡 Emlak Ögeleri (Evler, Villalar, Ağaçlar):
-                            // Ön kapak daima detaylı mimari ön cephe görselini (materialIndex: 0) alır!
-                            // Arka kapak da mimari dokuyu (materialIndex: 0) alarak evin her açıdan pencereli ve tam bir yapı olarak görünmesini sağlar.
-                            badgeGeo.groups[0] = { start: lidGroup.start, count: halfLid, materialIndex: 0 };
-                            badgeGeo.groups.splice(1, 0, { start: lidGroup.start + halfLid, count: lidGroup.count - halfLid, materialIndex: 0 });
-                        }
+                        const newGroups = [];
+                        badgeGeo.groups.forEach(grp => {
+                            if (grp.materialIndex === 0) {
+                                const halfLid = Math.floor(grp.count / 2);
+                                if (!isEstateItem) {
+                                    newGroups.push({ start: grp.start, count: halfLid, materialIndex: 1 });
+                                    newGroups.push({ start: grp.start + halfLid, count: grp.count - halfLid, materialIndex: 0 });
+                                } else {
+                                    newGroups.push({ start: grp.start, count: halfLid, materialIndex: 0 });
+                                    newGroups.push({ start: grp.start + halfLid, count: grp.count - halfLid, materialIndex: 0 });
+                                }
+                            } else {
+                                newGroups.push(grp);
+                            }
+                        });
+                        badgeGeo.groups = newGroups;
                     }
 
                     // 🌟 Masif ve Gerçekçi 3D Mimari Gövde Malzemesi:
@@ -7004,6 +7074,11 @@
         disposeMesh(elToDelete.badgeMesh);
         disposeMesh(elToDelete.reliefMesh);
         disposeMesh(elToDelete.shadowPlane);
+        if (elToDelete.planeGroup) {
+            elToDelete.planeGroup.traverse(child => {
+                if (child && child.isMesh) disposeMesh(child);
+            });
+        }
 
         const idx = elements.indexOf(elToDelete);
         if (idx !== -1) {
@@ -7154,6 +7229,11 @@
                 disposeMesh(el.iconMesh);
                 disposeMesh(el.badgeMesh);
                 disposeMesh(el.shadowPlane);
+                if (el.planeGroup) {
+                    el.planeGroup.traverse(child => {
+                        if (child && child.isMesh) disposeMesh(child);
+                    });
+                }
             }
         });
 
@@ -7459,6 +7539,12 @@
                 <button class="acm-close-btn" id="acm-close-btn" title="Kapat">✕</button>
             </div>
 
+            <button class="app-context-item item-3d" id="acm3d-open-studio-panel" style="font-weight:700;">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2.2"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
+                <span>Düzenleme Paneli</span>
+            </button>
+            <div class="acm-divider"></div>
+
             ${isElem3D ? `
             <div class="acm-section-label">💎 3D ŞEKİL FORMU</div>
             <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:4px; margin-bottom:4px;">
@@ -7671,6 +7757,11 @@
                 });
             }
         };
+
+        // Düzenleme Paneli
+        bindItem('#acm3d-open-studio-panel', () => {
+            openStudio(true, false, true);
+        });
 
         // Şekil Formları
         bindItem('#acm3d-shape-sil', () => setElementShapeMode('silhouette', el));
@@ -9881,7 +9972,7 @@
             state.isRound = false;
             el.sideColor = autoGenerateSideColor(el.frontColor);
             state.sideColor = el.sideColor;
-            if (!el.cachedSilhouette && el.sourceSvg) {
+            if (el.sourceSvg) {
                 const svgDims = parseSvgDimensions(el.sourceSvg);
                 extractSvgSilhouetteShape(el.sourceSvg, svgDims.targetW, svgDims.targetH, { forceSilhouette: true }).then(res => {
                     if (res && res.shape) {
@@ -12886,7 +12977,8 @@
             hasRealText = false;
             label = '';
         }
-        const isRound = isPureIcon || classList.includes('added-icon') || root.style.borderRadius === '50%' || el.style.borderRadius === '50%';
+        // İkonlar artık asla yapay daire plaket (coin) yapılmaz; daima katı silüet olarak açılır
+        const isRound = !isPureIcon && (root.style.borderRadius === '50%' || el.style.borderRadius === '50%');
 
         const isNeon = classList.includes('co-neon-block') || !!(el.dataset && el.dataset.coIcon) || !!(root.dataset && root.dataset.coIcon);
         const neonIconClass = isNeon ? (el.dataset.coIcon || root.dataset.coIcon || (el.querySelector('i')?.className || '')) : '';
@@ -12946,7 +13038,7 @@
 
         let cachedSilhouette = null;
         let isSilhouette = false;
-        let shapeMode = isNeon ? 'card' : (isFramedBox ? 'card' : 'auto');
+        let shapeMode = (meta && meta.shapeMode) || (isPureIcon ? 'silhouette' : (isNeon ? 'card' : (isFramedBox ? 'card' : 'auto')));
         const hasSvgText = !!(rawSvg && /<text\b/i.test(rawSvg));
 
         if (elemType === 'element_3d' && rawSvg) {
@@ -12966,10 +13058,18 @@
                     if (cachedSilhouette && cachedSilhouette.shape) {
                         isSilhouette = true;
                         shapeMode = 'silhouette';
+                    } else if (isPureIcon) {
+                        isSilhouette = true;
+                        shapeMode = 'silhouette';
                     } else {
                         shapeMode = isRound ? 'coin' : 'card';
                     }
-                } catch(e) {}
+                } catch(e) {
+                    if (isPureIcon) {
+                        isSilhouette = true;
+                        shapeMode = 'silhouette';
+                    }
+                }
             }
         }
 
@@ -12989,7 +13089,7 @@
         } else if (isMultiColorSvg) {
             initialSideColor = '#334155'; // Çok renkli ögeler için nötr şık antrasit yan kalınlık
         } else if (isSilhouette) {
-            initialSideColor = autoGenerateSideColor(primaryColor);
+            initialSideColor = (primaryColor === '#ffffff' || primaryColor === '#f8fafc') ? '#0284c7' : autoGenerateSideColor(primaryColor);
         } else if (bgCol === '#ffffff' || primaryColor === '#000000' || isDarkPrimary) {
             initialSideColor = '#94a3b8';
         } else {
@@ -13194,7 +13294,11 @@
                 }
             } catch(e){}
         }
-        primaryColor = safeHexColor(primaryColor, '#38bdf8');
+        if (!primaryColor && isPureIcon) {
+            primaryColor = '#f8fafc';
+        } else {
+            primaryColor = safeHexColor(primaryColor, '#38bdf8');
+        }
 
         if (!bgCol) {
             let isDarkIcon = false;
@@ -13240,7 +13344,8 @@
 
         let cachedSilhouette = null;
         let isSilhouette = false;
-        let shapeMode = options.shapeMode || (elemType === 'badge_card' ? 'card' : 'auto');
+        const isPureIcon = !!(options.isIcon || (options.catTitle && options.catTitle.includes('ikon')) || (options.name && options.name.includes('İkon')));
+        let shapeMode = options.shapeMode || (elemType === 'badge_card' ? 'card' : (isPureIcon ? 'silhouette' : 'auto'));
         const hasSvgText = !!(rawSvg && /<text\b/i.test(rawSvg));
 
         if (elemType === 'element_3d' && rawSvg) {
@@ -13259,11 +13364,18 @@
                     if (cachedSilhouette && cachedSilhouette.shape) {
                         isSilhouette = true;
                         shapeMode = 'silhouette';
+                    } else if (isPureIcon || options.shapeMode === 'silhouette') {
+                        isSilhouette = true;
+                        shapeMode = 'silhouette';
                     } else if (shapeMode === 'auto') {
                         shapeMode = (Math.abs(svgDims.targetW - svgDims.targetH) > 10) ? 'card' : (options.isRound ? 'coin' : 'card');
                     }
                 } catch(e) {
                     console.warn('[ThreeDEngine] Silüet analizi hatası:', e);
+                    if (isPureIcon || options.shapeMode === 'silhouette') {
+                        isSilhouette = true;
+                        shapeMode = 'silhouette';
+                    }
                 }
             }
         }
@@ -13281,7 +13393,7 @@
             } else if (isMultiColorSvg) {
                 initialSideColor = '#334155';
             } else if (isSilhouette) {
-                initialSideColor = autoGenerateSideColor(primaryColor);
+                initialSideColor = (primaryColor === '#ffffff' || primaryColor === '#f8fafc') ? '#0284c7' : autoGenerateSideColor(primaryColor);
             } else if (bgCol === '#ffffff' || primaryColor === '#000000' || isDarkPrimary) {
                 initialSideColor = '#94a3b8';
             } else {
@@ -13860,6 +13972,17 @@
      */
     async function loadGLBFile(file) {
         if (!file) return;
+
+        if (window.SecurityGuard && typeof window.SecurityGuard.validate3DFile === 'function') {
+            const check = window.SecurityGuard.validate3DFile(file);
+            if (!check.valid) {
+                if (typeof window.showToast === 'function') window.showToast(check.error, 'error');
+                else if (typeof window.showAppToast === 'function') window.showAppToast(check.error, 'error');
+                else alert(check.error);
+                return;
+            }
+        }
+
         await openStudio(true, false, false);
 
         if (!window.THREE) {
@@ -13881,10 +14004,15 @@
         }
 
         const reader = new FileReader();
+        reader.onerror = (err) => {
+            console.error('[ThreeDEngine] Dosya okuma hatası:', err);
+            if (window.showToast) window.showToast('3D model dosyası okunamadı.', 'error');
+        };
         reader.onload = async (e) => {
-            const contents = e.target.result;
-            const loader = new THREE.GLTFLoader();
-            loader.parse(contents, '', (gltf) => {
+            try {
+                const contents = e.target.result;
+                const loader = new THREE.GLTFLoader();
+                loader.parse(contents, '', (gltf) => {
                 const rootModel = gltf.scene || gltf.scenes[0];
                 if (!rootModel) return;
 
@@ -14021,6 +14149,10 @@
                 console.error('[ThreeDEngine] GLTF çözümleme hatası:', error);
                 if (window.showToast) window.showToast('3D Model yüklenemedi: ' + (error && error.message ? error.message : 'Uyumsuz dosya'), 'error');
             });
+            } catch(syncErr) {
+                console.error('[ThreeDEngine] GLTF yükleme beklenmeyen hata:', syncErr);
+                if (window.showToast) window.showToast('3D model yüklenirken bir hata oluştu.', 'error');
+            }
         };
         reader.readAsArrayBuffer(file);
     }

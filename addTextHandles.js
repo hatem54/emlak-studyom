@@ -93,6 +93,9 @@ window.addTextHandles = function(el) {
             if (window.SaberEngine && typeof window.SaberEngine.updateTextSaberPositions === 'function') {
                 window.SaberEngine.updateTextSaberPositions();
             }
+            if (el && el.id === 'elLogo' && window.PhotoStagingArchive && typeof window.PhotoStagingArchive.onCanvasLogoMoved === 'function') {
+                window.PhotoStagingArchive.onCanvasLogoMoved(el);
+            }
             if(typeof saveState === 'function') saveState();
             if(typeof window.recordHistory === 'function') window.recordHistory('Metin Döndürüldü');
         };
@@ -322,6 +325,9 @@ window.addTextHandles = function(el) {
             // ⚡ Saber Neon son kare güncellemesi
             if (window.SaberEngine && typeof window.SaberEngine.updateTextSaberPositions === 'function') {
                 window.SaberEngine.updateTextSaberPositions();
+            }
+            if (el && el.id === 'elLogo' && window.PhotoStagingArchive && typeof window.PhotoStagingArchive.onCanvasLogoMoved === 'function') {
+                window.PhotoStagingArchive.onCanvasLogoMoved(el);
             }
             if(typeof saveState === 'function') saveState();
             if(typeof window.recordHistory === 'function') window.recordHistory('Metin Boyutlandırıldı');

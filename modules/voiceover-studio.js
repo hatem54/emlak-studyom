@@ -613,15 +613,15 @@
          */
         rescanFormAndRegenerate: function() {
             const freshData = {
-                title: document.getElementById('titleInput')?.value || '',
-                price: document.getElementById('priceInput')?.value || '',
-                size: document.getElementById('sizeInput')?.value || document.getElementById('araziSizeInput')?.value || '',
-                rooms: document.getElementById('roomsInput')?.value || '',
-                imar: document.getElementById('imarInput')?.value || '',
-                tapu: document.getElementById('tapuInput')?.value || '',
-                location: document.getElementById('locationInput')?.value || document.getElementById('locSelect')?.value || '',
-                ada: document.getElementById('adaInput')?.value || '',
-                parsel: document.getElementById('parselInput')?.value || '',
+                title: document.getElementById('titleInput')?.value || document.getElementById('canvaTitle')?.value || document.getElementById('statusInput')?.value || document.getElementById('elBadge')?.textContent?.trim() || '',
+                price: document.getElementById('priceInput')?.value || document.getElementById('elPrice')?.textContent?.trim() || '',
+                size: document.getElementById('sizeInput')?.value || document.getElementById('f_m2')?.value || document.getElementById('f_brut')?.value || document.getElementById('c_size')?.value || document.getElementById('araziSizeInput')?.value || document.getElementById('c_araziSize')?.value || '',
+                rooms: document.getElementById('roomsInput')?.value || document.getElementById('f_oda')?.value || document.getElementById('c_rooms')?.value || '',
+                imar: document.getElementById('imarInput')?.value || document.getElementById('f_imar')?.value || document.getElementById('c_imar')?.value || '',
+                tapu: document.getElementById('tapuInput')?.value || document.getElementById('c_tapu')?.value || '',
+                location: document.getElementById('locationInput')?.value || document.getElementById('f_konum')?.value || document.getElementById('locSelect')?.value || '',
+                ada: document.getElementById('f_ada')?.value || document.getElementById('adaInput')?.value || ((document.getElementById('c_adaParsel')?.value || document.getElementById('adaParselInput')?.value || '').split(/[\/,|]/)[0] || '').replace(/\D+/g, '') || '',
+                parsel: document.getElementById('f_parsel')?.value || document.getElementById('parselInput')?.value || ((document.getElementById('c_adaParsel')?.value || document.getElementById('adaParselInput')?.value || '').split(/[\/,|]/)[1] || '').replace(/\D+/g, '') || '',
                 desc: document.getElementById('descInput')?.value || ''
             };
 
@@ -688,7 +688,7 @@ Aşağıdaki Türkçe emlak reklam seslendirme metnini şu yönergeye göre YEN�
 Mevcut Metin:
 ${currentText}`;
 
-                    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key=${apiKey}`;
+                    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
                     const res = await fetch(url, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },

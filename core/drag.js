@@ -159,15 +159,17 @@ function bindDrag(el){
                 e.preventDefault();
                 return;
             }
-          if(el.contentEditable==='true')return;
+          if(el.dataset.editingText) return;
+          if(el.contentEditable === 'true') {
+              el.contentEditable = 'false';
+              delete el.dataset.editingText;
+          }
         if (el.classList.contains('tb-image-frame') && (el.classList.contains('tb-pan-mode') || e.altKey)) {
             return;
         }
         if (e.target.closest('.vertex-handle, .text-rotate-handle, .text-resize-handle, .text-delete-handle, .callout-controls, .callout-resizer, .callout-rotator, .callout-handle-width, .callout-handle-length, .tb-frame-handle, .tb-frame-floating-tools, .tb-floating-btn')) {
             return;
         }
-        
-        if(el.dataset.editingText)return;
           
         let wasSelected = true;
         const isAlreadySelected = window.selectedElements && (
@@ -216,6 +218,16 @@ function bindDrag(el){
         el.dataset.dragStartX = il;
         el.dataset.dragStartY = it;
         
+        // Sağ/alt konumlu elemanların (özellikle Fiyat Etiketi) sürükleme koordinatlarını anında left/top'a dönüştür
+        if (el.style.right && el.style.right !== 'auto') {
+            el.style.left = il + 'px';
+            el.style.right = 'auto';
+        }
+        if (el.style.bottom && el.style.bottom !== 'auto') {
+            el.style.top = it + 'px';
+            el.style.bottom = 'auto';
+        }
+        
         if (window.selectedElements && window.selectedElements.length > 0) {
             window.selectedElements.forEach(selEl => {
                 const s_cs = getComputedStyle(selEl);
@@ -226,6 +238,14 @@ function bindDrag(el){
                 selEl.dataset.dragStartWidth = selEl.offsetWidth;
                 selEl.dataset.dragStartHeight = selEl.offsetHeight;
                 selEl.dataset.dragStartFontSize = parseFloat(window.getComputedStyle(selEl).fontSize) || 16;
+                if (selEl.style.right && selEl.style.right !== 'auto') {
+                    selEl.style.left = selEl.dataset.dragStartX + 'px';
+                    selEl.style.right = 'auto';
+                }
+                if (selEl.style.bottom && selEl.style.bottom !== 'auto') {
+                    selEl.style.top = selEl.dataset.dragStartY + 'px';
+                    selEl.style.bottom = 'auto';
+                }
             });
         }
 
@@ -610,6 +630,8 @@ function bindDrag(el){
                 }
                 el.style.left = newL + 'px';
                 el.style.top = newT + 'px';
+                el.style.bottom = 'auto';
+                el.style.right = 'auto';
                 if (el.classList.contains('tb-image-frame')) {
                     if (window.Template3DFrame && typeof window.Template3DFrame.applyTransform === 'function') {
                         window.Template3DFrame.applyTransform(el);
@@ -631,6 +653,8 @@ function bindDrag(el){
                             const s_newT = s_it + deltaY;
                             selEl.style.left = s_newL + 'px';
                             selEl.style.top = s_newT + 'px';
+                            selEl.style.bottom = 'auto';
+                            selEl.style.right = 'auto';
                             if (selEl.classList.contains('editable-draw')) {
                                 selEl.dataset.baseLeft = s_newL;
                                 selEl.dataset.baseTop = s_newT;
@@ -778,6 +802,33 @@ function bindDrag(el){
                 delete selEl._dragPObj;
             });
 
+            // 🏷️ Firma logosu tuvalde taşındığında veya boyutlandırıldığında filigran konumunu 'custom' (Tuvaldeki Konum) yap
+            if (moved) {
+                const targetLogo = (el && el.id === 'elLogo') ? el : (targets && targets.find(t => t && t.id === 'elLogo')) || (el && el.closest ? el.closest('#elLogo') : null);
+                if (targetLogo && window.PhotoStagingArchive) {
+                    if (typeof window.PhotoStagingArchive.onCanvasLogoMoved === 'function') {
+                        window.PhotoStagingArchive.onCanvasLogoMoved(targetLogo);
+                    } else {
+                        window.PhotoStagingArchive.watermarkOptions.position = 'custom';
+                        const posSel = document.getElementById('watermarkPosSelect');
+                        if (posSel) posSel.value = 'custom';
+
+                        const cc = document.getElementById('canvas-container');
+                        const ccW = cc ? (parseInt(cc.style.width) || cc.offsetWidth || 1920) : 1920;
+                        if (targetLogo.offsetWidth && ccW > 0) {
+                            const calculatedScale = Math.round((targetLogo.offsetWidth / ccW) * 100);
+                            if (calculatedScale >= 5 && calculatedScale <= 50) {
+                                window.PhotoStagingArchive.watermarkOptions.scale = calculatedScale;
+                                const scaleSlider = document.getElementById('wmScaleSlider');
+                                const scaleVal = document.getElementById('wmScaleVal');
+                                if (scaleSlider) scaleSlider.value = calculatedScale;
+                                if (scaleVal) scaleVal.textContent = calculatedScale + '%';
+                            }
+                        }
+                    }
+                }
+            }
+
             // 🌟 3D Ögelerin sürükleme geçici değerlerini temizle ve senkronize et
             let sel3DUp = (cached3DTargets && cached3DTargets.length > 0) ? cached3DTargets : [];
             if (sel3DUp.length === 0 && window.ThreeDGrouping && typeof window.ThreeDGrouping.getSelected3DElements === 'function') {
@@ -820,6 +871,8 @@ function bindDrag(el){
 }
 
 window.selectedElements = window.selectedElements || [];
+var selectedEl = null;
+window.selectedEl = null;
 function selectElement(el, isMulti = false, noTabSwitch = false, openSettings = 'auto'){
     if (!el) return;
     // ⚡ 2D bir öge tekil seçildiğinde 3D seçimini ve panelini hemen kapat
@@ -836,7 +889,7 @@ function selectElement(el, isMulti = false, noTabSwitch = false, openSettings = 
         selectedEl = el;
         window.selectedEl = el;
         el.classList.add('selected', 'el-selected');
-        if (!noTabSwitch && typeof switchTab === 'function') switchTab('create-template');
+        if (!noTabSwitch && (openSettings === true || window.isLongPressOpen) && typeof switchTab === 'function') switchTab('create-template');
         if (window.TemplateBuilder && typeof window.TemplateBuilder.selectFrame === 'function') {
             window.TemplateBuilder.selectFrame(el);
         }
@@ -845,10 +898,7 @@ function selectElement(el, isMulti = false, noTabSwitch = false, openSettings = 
         if (typeof window.updateDockContextUI === 'function') window.updateDockContextUI(el);
         return;
     }
-    /* removed lock check to allow unlocking */
-    if(el && !isMulti && (el.classList.contains('co-neon-block') || el.classList.contains('callout-wrap') || el.classList.contains('svg-callout') || el.classList.contains('callout-item'))) {
-        if(typeof selectCalloutEl === 'function') selectCalloutEl(el);
-    }
+
     
     const groupId = el.dataset.groupId;
     if(groupId && !isMulti) {
@@ -923,7 +973,7 @@ function selectElement(el, isMulti = false, noTabSwitch = false, openSettings = 
     
     if(el.classList.contains('shape-el')) {
         const isMobile = typeof window.isMobileDevice === 'function' ? window.isMobileDevice() : window.innerWidth <= 768;
-        if (!noTabSwitch && (!isMobile || window.isLongPressOpen)) {
+        if (!noTabSwitch && (openSettings === true || window.isLongPressOpen)) {
             if(typeof switchTab === 'function') switchTab('shapes');
         }
         if(!isMulti && typeof window.loadShapeSettings === 'function') window.loadShapeSettings(el);
@@ -935,7 +985,7 @@ function selectElement(el, isMulti = false, noTabSwitch = false, openSettings = 
         el = drawEl;
         const isMobile = typeof window.isMobileDevice === 'function' ? window.isMobileDevice() : window.innerWidth <= 768;
         // noTabSwitch true ise (örn. Katmanlar panelinden tıklanmışsa) sekme değiştirme
-        if (!noTabSwitch && (!isMobile || window.isLongPressOpen)) {
+        if (!noTabSwitch && (openSettings === true || window.isLongPressOpen)) {
             if(typeof switchTab === 'function') switchTab('draw');
         }
         if(!isMulti && typeof loadDrawSettings === 'function') loadDrawSettings(el);
@@ -958,32 +1008,62 @@ function selectElement(el, isMulti = false, noTabSwitch = false, openSettings = 
         }
         if (typeof updateDrawHistory === 'function') updateDrawHistory();
         if (typeof renderLayers === 'function') renderLayers();
-        const elSettings = document.getElementById('elSettings');
-        const accDetails = document.getElementById('accordionDetailsEdit');
+    }
+    const elSettings = document.getElementById('elSettings');
+    const accDetails = document.getElementById('accordionDetailsEdit');
 
-        if(document.getElementById('noSelMsg')) document.getElementById('noSelMsg').style.display='none';
-        if(accDetails) {
-            accDetails.style.display = 'block';
-            accDetails.open = (openSettings === 'details');
+    const isCalloutEl = (typeof isCalloutOrBadgeElement === 'function' && isCalloutOrBadgeElement(el)) ||
+        (typeof window.isCalloutOrBadgeElement === 'function' && window.isCalloutOrBadgeElement(el)) ||
+        (el.closest && (el.closest('.callout-wrap') || el.closest('.callout-item') || el.closest('.svg-callout') || el.closest('.co-neon-block'))) ||
+        (el.classList && (el.classList.contains('callout-wrap') || el.classList.contains('callout-item') || el.classList.contains('co-neon-block') || el.classList.contains('svg-callout')));
+    const isIconEl = !isCalloutEl && el && el.classList && (
+        el.classList.contains('added-icon') ||
+        el.classList.contains('is-svg-icon') ||
+        el.classList.contains('canvas-icon')
+    );
+
+    if(document.getElementById('noSelMsg')) document.getElementById('noSelMsg').style.display='none';
+    if(accDetails) {
+        accDetails.style.display = (isCalloutEl || isIconEl) ? 'none' : 'block';
+        accDetails.open = (openSettings === 'details');
+    }
+    if(elSettings) {
+        elSettings.style.display = (isCalloutEl || isIconEl) ? 'none' : 'block';
+        elSettings.open = (openSettings === true);
+    }
+    if(isIconEl && typeof window.loadIconSettings === 'function') {
+        window.loadIconSettings(el);
+    }
+    if (isCalloutEl && !isMulti) {
+        if (!noTabSwitch && (openSettings === true || window.isLongPressOpen)) {
+            if (typeof switchTab === 'function') switchTab('callout');
         }
-        if(elSettings) {
-            elSettings.style.display = 'block';
-            elSettings.open = (openSettings === true);
+        const wrap = (typeof getBadgeWrapper === 'function' ? getBadgeWrapper(el) : null) || (el.closest && el.closest('.callout-wrap')) || el;
+        const inner = (wrap.querySelector && wrap.querySelector('.callout-item')) || wrap;
+        if (typeof selectCalloutEl === 'function') selectCalloutEl(inner, true);
+        const cp = document.getElementById('calloutSettingsPanel');
+        if (cp) {
+            cp.style.display = 'block';
+            cp.open = true;
+            const b = document.getElementById('calloutSettingsBody');
+            if (b) b.style.display = 'block';
         }
-        if(document.getElementById('elLabel')) document.getElementById('elLabel').textContent=el.dataset.label||'Eleman';
+    }
+    if(document.getElementById('elLabel')) document.getElementById('elLabel').textContent=el.dataset.label||'Eleman';
+    if(!isCalloutEl && !isIconEl) {
         if(typeof loadElSettings === 'function') loadElSettings(el);
         if(typeof loadElFont === 'function') loadElFont(el);
-        const handleTargets = (window.selectedElements && window.selectedElements.length > 0) ? window.selectedElements : [el];
-        handleTargets.forEach(tEl => {
-            if (tEl && tEl.classList && tEl.classList.contains('canvas-el') && !tEl.classList.contains('tb-image-frame') && !tEl.closest('#canva-render-layer, .cvr-base, .canva-panel, .canva-generated') && typeof window.addTextHandles === 'function') {
-                window.addTextHandles(tEl);
-            }
-            if (tEl && tEl.classList && tEl.classList.contains('shape-el')) {
-                tEl.querySelectorAll('.callout-controls, .callout-resizer, .callout-rotator, .callout-lock-btn, .callout-select-border').forEach(c => c.remove());
-            }
-        });
-        if (el.classList.contains('tb-image-frame') && window.TemplateBuilder) { window.TemplateBuilder.selectFrame(el); }
     }
+    const handleTargets = (window.selectedElements && window.selectedElements.length > 0) ? window.selectedElements : [el];
+    handleTargets.forEach(tEl => {
+        if (tEl && tEl.classList && tEl.classList.contains('canvas-el') && !tEl.classList.contains('tb-image-frame') && !tEl.closest('#canva-render-layer, .cvr-base, .canva-panel, .canva-generated') && typeof window.addTextHandles === 'function') {
+            window.addTextHandles(tEl);
+        }
+        if (tEl && tEl.classList && tEl.classList.contains('shape-el')) {
+            tEl.querySelectorAll('.callout-controls, .callout-resizer, .callout-rotator, .callout-lock-btn, .callout-select-border').forEach(c => c.remove());
+        }
+    });
+    if (el.classList.contains('tb-image-frame') && window.TemplateBuilder) { window.TemplateBuilder.selectFrame(el); }
     if (!isMulti && window.ThreeDEngine && typeof window.ThreeDEngine.setSelected === 'function') { window.ThreeDEngine.setSelected(false, { silent: true, autoUnlockPhoto: false }); }
     if (typeof window.updateDockContextUI === 'function') window.updateDockContextUI(el);
 }
@@ -1020,6 +1100,7 @@ function deselectAll(preserveEl){
         if(accDetails) { accDetails.style.display = 'none'; accDetails.open = false; }
         if(document.getElementById('shapeSettingsPanel')) document.getElementById('shapeSettingsPanel').style.display='none';
         if(document.getElementById('calloutSettingsPanel')) document.getElementById('calloutSettingsPanel').style.display='none';
+        if(document.getElementById('iconSettingsPanel')) document.getElementById('iconSettingsPanel').style.display='none';
         if(typeof hideVertexHandles === 'function') hideVertexHandles();
         if(typeof window.updateMultiSelectUI === 'function') window.updateMultiSelectUI();
         if(typeof saveDrawEdit === 'function' && typeof editingDrawIndex !== 'undefined' && editingDrawIndex >= 0) {

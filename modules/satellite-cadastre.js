@@ -22,6 +22,12 @@
          */
         parseKmlText: function(kmlText) {
             try {
+                if (window.SecurityGuard && typeof window.SecurityGuard.validateKmlText === 'function') {
+                    const check = window.SecurityGuard.validateKmlText(kmlText);
+                    if (!check.valid) {
+                        throw new Error(check.error);
+                    }
+                }
                 const parser = new DOMParser();
                 const xmlDoc = parser.parseFromString(kmlText, 'text/xml');
                 const parseError = xmlDoc.querySelector('parsererror');
@@ -247,6 +253,18 @@
          */
         handleKmlFile: async function(file) {
             if (!file) return;
+            if (file.size === 0) {
+                const msg = 'Seçilen dosya boş (0 bayt).';
+                if (typeof window.showAppToast === 'function') window.showAppToast(msg, 'warning');
+                else alert(msg);
+                return;
+            }
+            if (file.size > 25 * 1024 * 1024) {
+                const msg = 'Dosya boyutu çok yüksek (maksimum 25 MB desteklenmektedir).';
+                if (typeof window.showAppToast === 'function') window.showAppToast(msg, 'warning');
+                else alert(msg);
+                return;
+            }
             const name = (file.name || '').toLowerCase();
             const isKml = name.endsWith('.kml');
             const isGeoJson = name.endsWith('.geojson') || name.endsWith('.json');
@@ -397,13 +415,17 @@
             this.updateParcelNeonUI();
 
             // Hover / Click Popup
-            const adaParselStr = (parcelInfo.ada && parcelInfo.parsel) ? `Ada: ${parcelInfo.ada} / Parsel: ${parcelInfo.parsel}` : (parcelInfo.name || 'TKGM Parseli');
-            const locStr = [parcelInfo.il, parcelInfo.ilce, parcelInfo.mahalle].filter(Boolean).join(' • ');
+            const rawAdaParselStr = (parcelInfo.ada && parcelInfo.parsel) ? `Ada: ${parcelInfo.ada} / Parsel: ${parcelInfo.parsel}` : (parcelInfo.name || 'TKGM Parseli');
+            const rawLocStr = [parcelInfo.il, parcelInfo.ilce, parcelInfo.mahalle].filter(Boolean).join(' • ');
+            const esc = (window.SecurityGuard && window.SecurityGuard.escapeHtml) ? window.SecurityGuard.escapeHtml : (s => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'));
+            const adaParselStr = esc(rawAdaParselStr);
+            const locStr = esc(rawLocStr);
+            const alanStr = esc(parcelInfo.alan || '');
             const popupContent = `
                 <div style="font-family:-apple-system,BlinkMacSystemFont,sans-serif; min-width:140px; color:#0f172a; padding:4px;">
                     <div style="font-weight:700; font-size:13px; color:#0284c7; margin-bottom:2px;"><i class="fas fa-draw-polygon"></i> ${adaParselStr}</div>
                     ${locStr ? `<div style="font-size:11px; color:#64748b; margin-bottom:3px;">${locStr}</div>` : ''}
-                    ${parcelInfo.alan ? `<div style="font-weight:600; font-size:12px; color:#10b981;">📐 ${parcelInfo.alan}</div>` : ''}
+                    ${alanStr ? `<div style="font-weight:600; font-size:12px; color:#10b981;">📐 ${alanStr}</div>` : ''}
                 </div>
             `;
             this.parcelPolygon.bindPopup(popupContent);
@@ -1115,6 +1137,16 @@
             this.updateParcelPolygonStyle();
             this.updateParcelUI();
             this.syncAllColorPickersUI();
+
+            // Kullanıcının çizdiği ölçüm arsasını da senkronize et
+            if (this.measureDrawings && Array.isArray(this.measureDrawings)) {
+                this.measureDrawings.forEach(d => {
+                    d.fillMode = mode;
+                });
+                if (typeof this.updateMeasureGraphics === 'function') {
+                    this.updateMeasureGraphics();
+                }
+            }
         },
 
         /**
@@ -1127,6 +1159,17 @@
             this.updateParcelPolygonStyle();
             this.updateParcelUI();
             this.syncAllColorPickersUI();
+
+            // Kullanıcının çizdiği ölçüm arsasını da senkronize et
+            if (this.measureDrawings && Array.isArray(this.measureDrawings)) {
+                this.measureDrawings.forEach(d => {
+                    d.fillColor = color;
+                    d.fillMode = 'color';
+                });
+                if (typeof this.updateMeasureGraphics === 'function') {
+                    this.updateMeasureGraphics();
+                }
+            }
         },
 
         /**
@@ -1146,6 +1189,16 @@
             if (opSlider && parseInt(opSlider.value, 10) !== parseInt(val, 10)) opSlider.value = val;
             this.updateParcelPolygonStyle();
             this.updateParcelUI();
+
+            // Kullanıcının çizdiği ölçüm arsasını da senkronize et
+            if (this.measureDrawings && Array.isArray(this.measureDrawings)) {
+                this.measureDrawings.forEach(d => {
+                    d.fillOpacity = this.parcelFillOpacity;
+                });
+                if (typeof this.updateMeasureGraphics === 'function') {
+                    this.updateMeasureGraphics();
+                }
+            }
         },
 
         /**
@@ -1154,10 +1207,24 @@
         setParcelStrokeColor: function(color) {
             if (!color) return;
             this.parcelStrokeColor = color;
+            this.measureColor = color;
             this.parcelNeonColor = color; // Neon her zaman seçilen çizgi rengiyle senkron parlar
             this.updateParcelPolygonStyle();
             this.updateParcelUI();
             this.syncAllColorPickersUI();
+
+            // Kullanıcının çizdiği ölçüm arsasını da senkronize et
+            if (this.measureDrawings && Array.isArray(this.measureDrawings)) {
+                this.measureDrawings.forEach(d => {
+                    d.color = color;
+                });
+                if (typeof this.updateMeasureGraphics === 'function') {
+                    this.updateMeasureGraphics();
+                }
+                if (typeof this.renderDrawingsListUI === 'function') {
+                    this.renderDrawingsListUI();
+                }
+            }
         },
 
         /**
@@ -1185,6 +1252,16 @@
             }
             this.updateParcelPolygonStyle();
             this.updateParcelUI();
+
+            // Kullanıcının çizdiği ölçüm arsasını da senkronize et
+            if (this.measureDrawings && Array.isArray(this.measureDrawings)) {
+                this.measureDrawings.forEach(d => {
+                    d.strokeWidth = this.parcelStrokeWidth;
+                });
+                if (typeof this.updateMeasureGraphics === 'function') {
+                    this.updateMeasureGraphics();
+                }
+            }
         },
 
         /**
@@ -1242,12 +1319,17 @@
 
                         // Canlı Leaflet SVG path neon efekti (Seçilen rengin zengin katmanlı ışıması)
                         if (this.parcelPolygon._path) {
-                            if (isNeon) {
-                                this.parcelPolygon._path.style.filter = `drop-shadow(0 0 2px ${neonColor}) drop-shadow(0 0 6px ${neonColor}) drop-shadow(0 0 14px ${neonColor})`;
-                                this.parcelPolygon._path.style.transition = 'filter 0.3s ease, stroke 0.3s ease';
-                            } else {
-                                this.parcelPolygon._path.style.filter = '';
+                            const isFillNeon = !!this.parcelFillNeonEnabled;
+                            let filterStyle = '';
+                            if (isNeon && isFillNeon) {
+                                filterStyle = `drop-shadow(0 0 3px ${neonColor}) drop-shadow(0 0 10px ${neonColor}) drop-shadow(0 0 20px ${fillColor})`;
+                            } else if (isNeon) {
+                                filterStyle = `drop-shadow(0 0 2px ${neonColor}) drop-shadow(0 0 6px ${neonColor}) drop-shadow(0 0 14px ${neonColor})`;
+                            } else if (isFillNeon) {
+                                filterStyle = `drop-shadow(0 0 8px ${fillColor}) drop-shadow(0 0 20px ${fillColor})`;
                             }
+                            this.parcelPolygon._path.style.filter = filterStyle;
+                            this.parcelPolygon._path.style.transition = 'filter 0.3s ease, stroke 0.3s ease, fill-opacity 0.2s ease';
                         }
                     }
                 }
@@ -1374,8 +1456,10 @@
             if (floatInfo) {
                 if (hasParcel && this.parcelShowLabel) {
                     floatInfo.style.display = 'flex';
-                    const locStr = [p.il, p.ilce, p.mahalle].filter(Boolean).join(' / ');
-                    const apStr = (p.ada && p.parsel) ? `Ada ${p.ada} • Parsel ${p.parsel}` : (p.name || 'TKGM Parsel');
+                    const safeEscape = (str) => String(str || '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+                    const locStr = safeEscape([p.il, p.ilce, p.mahalle].filter(Boolean).join(' / '));
+                    const apStr = safeEscape((p.ada && p.parsel) ? `Ada ${p.ada} • Parsel ${p.parsel}` : (p.name || 'TKGM Parsel'));
+                    const alanStr = safeEscape(p.alan || 'TKGM Parsel');
                     floatInfo.innerHTML = `
                         <div class="sat-drag-handle-grip" title="Sürükleyerek İstediğiniz Yere Taşıyın">
                             <i class="fas fa-grip-vertical"></i>
@@ -1383,7 +1467,7 @@
                         <div class="sat-float-icon"><i class="fas fa-location-dot"></i></div>
                         <div class="sat-float-body">
                             <span class="sat-float-title">${apStr}</span>
-                            <span class="sat-float-sub">${locStr ? locStr : (p.alan || 'TKGM Parsel')}</span>
+                            <span class="sat-float-sub">${locStr ? locStr : alanStr}</span>
                         </div>
                         <div class="sat-float-actions-group">
                             <button type="button" class="sat-float-btn sat-float-neon-btn ${this.parcelNeonEnabled ? 'active' : ''}" onclick="window.toggleSatelliteParcelNeon(event)" title="⚡ Saber Neon Efektini Aç/Kapat" id="satFloatNeonBtn"><i class="fas fa-bolt"></i></button>
@@ -1413,6 +1497,10 @@
                     }
                     this.initFloatingParcelDrag();
                     this.initFloatingParcelResize();
+                    if (typeof L !== 'undefined' && L.DomEvent && floatInfo) {
+                        L.DomEvent.disableClickPropagation(floatInfo);
+                        L.DomEvent.disableScrollPropagation(floatInfo);
+                    }
                 } else {
                     floatInfo.style.display = 'none';
                     floatInfo.innerHTML = '';
@@ -1864,6 +1952,11 @@
             this.parcelData = null;
             this.floatingParcelPos = null;
             this.updateParcelUI();
+            const snapBtn = document.getElementById('satSnapParcelBtn');
+            if (snapBtn) snapBtn.style.display = 'none';
+            if (typeof this.saveLastLocation === 'function') {
+                this.saveLastLocation({ parcelData: null });
+            }
         },
 
         /**
@@ -2105,9 +2198,50 @@
             this.updateParcelUI();
             this.syncAllColorPickersUI();
 
-            if (typeof window.showAppToast === 'function') {
+            // ⚡ Kullanıcının el ile çizdiği ölçüm arsasını da Neon stiliyle anında senkronize et
+            if (this.measureDrawings && Array.isArray(this.measureDrawings) && this.measureDrawings.length > 0) {
+                this.measureDrawings.forEach(d => {
+                    if (this.parcelNeonEnabled) {
+                        d.style = 'neon';
+                    } else if (d.style === 'neon') {
+                        d.style = 'cad';
+                    }
+                });
+                if (typeof this.updateMeasureGraphics === 'function') {
+                    this.updateMeasureGraphics();
+                }
+                if (typeof this.renderDrawingsListUI === 'function') {
+                    this.renderDrawingsListUI();
+                }
+            } else if (typeof window.showAppToast === 'function') {
                 if (!this.parcelData || !this.parcelData.latLngs || this.parcelData.latLngs.length < 3) {
-                    window.showAppToast('Saber Neon efekti arsa sınırları üzerinde parlar. Önce bir KML veya Parsel yükleyin.', 'info', 4500);
+                    window.showAppToast('Saber Neon efekti arsa sınırları üzerinde parlar. Önce bir KML veya Parsel yükleyin ya da arsayı çizin.', 'info', 4500);
+                }
+            }
+        },
+
+        /**
+         * ⚡ Arsa Zemin Dolgusu İçin Saber Neon Efektini Açar / Kapatır
+         */
+        toggleSatelliteParcelFillNeon: function(forceState) {
+            if (typeof forceState === 'boolean') {
+                this.parcelFillNeonEnabled = forceState;
+            } else {
+                this.parcelFillNeonEnabled = !this.parcelFillNeonEnabled;
+            }
+
+            this.updateParcelPolygonStyle();
+            this.updateParcelNeonUI();
+            this.updateParcelUI();
+            this.syncAllColorPickersUI();
+
+            // Kullanıcının el ile çizdiği ölçüm arsasını da Dolgu Neon stiliyle senkronize et
+            if (this.measureDrawings && Array.isArray(this.measureDrawings) && this.measureDrawings.length > 0) {
+                this.measureDrawings.forEach(d => {
+                    d.fillNeon = this.parcelFillNeonEnabled;
+                });
+                if (typeof this.updateMeasureGraphics === 'function') {
+                    this.updateMeasureGraphics();
                 }
             }
         },
@@ -2259,15 +2393,36 @@
                 floatBtn.style.color = isNeon ? neonColor : '#cbd5e1';
                 floatBtn.style.boxShadow = 'none';
             }
+
+            // 4. Ölçüm Paneli Çizgi Neon Butonu (#satMeasureNeonToggleBtn)
+            const measNeonBtn = document.getElementById('satMeasureNeonToggleBtn');
+            if (measNeonBtn) {
+                measNeonBtn.classList.toggle('active', isNeon);
+                measNeonBtn.innerHTML = `<i class="fas fa-bolt"></i> Neon: <b>${isNeon ? 'Açık' : 'Kapalı'}</b>`;
+            }
+
+            // 5. Ölçüm Paneli Dolgu Neon Butonu (#satMeasureFillNeonToggleBtn)
+            const isFillNeon = !!this.parcelFillNeonEnabled;
+            const measFillNeonBtn = document.getElementById('satMeasureFillNeonToggleBtn');
+            if (measFillNeonBtn) {
+                measFillNeonBtn.classList.toggle('active', isFillNeon);
+                measFillNeonBtn.innerHTML = `<i class="fas fa-bolt"></i> Neon: <b>${isFillNeon ? 'Açık' : 'Kapalı'}</b>`;
+            }
         },
 
         /**
          * 🚀 Parsel Poligonunu Tuval Çizim Katmanına (drawPaths) Canlı Aktarır
          * Saber Neon Efekti Aktifse WebGL Motoruyla Birlikte Başlatır
          */
-        transferParcelToCanvas: function(points) {
+        transferParcelToCanvas: function(points, targetW, targetH) {
             if (!points || !Array.isArray(points) || points.length < 3) return;
             if (typeof drawPaths === 'undefined') return;
+
+            const cContainer = document.getElementById('canvas-container');
+            const cW = (cContainer && parseFloat(cContainer.style.width)) || 1920;
+            const cH = (cContainer && parseFloat(cContainer.style.height)) || 1080;
+            const scaleX = (targetW && cW) ? (cW / targetW) : 1;
+            const scaleY = (targetH && cH) ? (cH / targetH) : 1;
 
             const isNeon = !!this.parcelNeonEnabled;
             const neonColor = this.parcelNeonColor || '#ef4444';
@@ -2320,7 +2475,7 @@
             const pObj = {
                 id: 'draw-path-parcel-' + Date.now(),
                 type: 'polygon',
-                points: points.map(pt => ({ x: pt.x, y: pt.y })),
+                points: points.map(pt => ({ x: pt.x * scaleX, y: pt.y * scaleY })),
                 color: strokeColor,
                 width: strokeWidth,
                 opacity: 1,

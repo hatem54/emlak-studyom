@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
     <title>Admin Komuta Merkezi - EmlakStüdyom</title>
     <link rel="apple-touch-icon" href="assets/logo/icon-192.png">
     <link rel="icon" type="image/png" href="assets/logo/favicon.png">
@@ -170,6 +171,61 @@
             display: flex; flex-direction: column; align-items: center; justify-content: center;
             min-height: 80vh; text-align: center;
         }
+
+        /* ☀️ AÇIK TEMA STANDARTLARI (UI Design System Uyumlu) */
+        body.light-theme {
+            background: #f8fafc;
+            color: #0f172a;
+        }
+        body.light-theme .header,
+        body.light-theme .section,
+        body.light-theme .stat-card {
+            background: #ffffff;
+            border-color: #e2e8f0;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.04);
+            color: #0f172a;
+        }
+        body.light-theme .user-info { color: #64748b; }
+        body.light-theme .stat-value { color: #0f172a; }
+        body.light-theme .stat-label { color: #64748b; }
+        body.light-theme .section-title { color: #0f172a; }
+        body.light-theme .table-wrap { border-color: #e2e8f0; }
+        body.light-theme table th {
+            background: #f1f5f9;
+            color: #475569;
+            border-color: #e2e8f0;
+        }
+        body.light-theme table td {
+            border-color: #f1f5f9;
+            color: #1e293b;
+        }
+        body.light-theme tr:hover td { background: #f8fafc; }
+        body.light-theme .form-control,
+        body.light-theme .search-input {
+            background: #f8fafc;
+            border-color: #cbd5e1;
+            color: #0f172a;
+        }
+        body.light-theme .form-control:focus,
+        body.light-theme .search-input:focus {
+            border-color: #0284c7;
+            background: #ffffff;
+        }
+        body.light-theme .btn-secondary {
+            background: #f1f5f9;
+            color: #1e293b;
+            border-color: #cbd5e1;
+        }
+        body.light-theme .realtime-bar {
+            background: linear-gradient(90deg, rgba(16, 185, 129, 0.08), rgba(59, 130, 246, 0.08));
+            border-color: rgba(16, 185, 129, 0.3);
+        }
+        body.light-theme .live-pill {
+            background: #f1f5f9;
+            color: #334155;
+            border-color: #cbd5e1;
+        }
+        body.light-theme .live-badge span strong { color: #0f172a !important; }
     </style>
 </head>
 <body>
@@ -184,7 +240,7 @@
         <p style="color: #94a3b8; margin-bottom: 20px;">Bu paneli görüntülemek için Admin yetkisine sahip bir hesapla giriş yapmalısınız.</p>
         <a href="index.html" class="btn btn-primary">🏠 Ana Sayfaya Dön</a>
         
-        <div style="margin-top: 30px; padding: 15px; background: rgba(0,0,0,0.2); border-radius: 8px;">
+        <div id="devMasterKeyBox" style="display:none; margin-top: 30px; padding: 15px; background: rgba(0,0,0,0.2); border-radius: 8px;">
             <p style="color: #64748b; font-size: 13px; margin-bottom: 8px;">Geliştirici Girişi (Çevrimdışı / Veritabanı Bypass)</p>
             <div style="display: flex; gap: 8px; justify-content: center;">
                 <input type="password" id="masterKeyInput" placeholder="Master Key..." style="background: #1e293b; border: 1px solid #334155; color: white; padding: 6px 12px; border-radius: 6px; outline: none;">
@@ -203,6 +259,7 @@
                 <div class="user-info" id="adminUserInfo">Yönetici: Yükleniyor...</div>
             </div>
             <div class="header-actions">
+                <button class="btn btn-secondary" onclick="toggleAdminTheme()" id="adminThemeBtn" title="Açık / Koyu Tema"><i class="fa-solid fa-moon"></i></button>
                 <button class="btn btn-secondary" onclick="loadAllData()"><i class="fa-solid fa-rotate"></i> Yenile</button>
                 <a href="app.html" class="btn btn-primary"><i class="fa-solid fa-palette"></i> Uygulamaya Git</a>
                 <button class="btn btn-danger" onclick="adminLogout()"><i class="fa-solid fa-right-from-bracket"></i> Çıkış</button>
@@ -254,6 +311,16 @@
                 <div class="stat-icon">💬</div>
                 <div class="stat-value" id="statFeedback">-</div>
                 <div class="stat-label">Geri Bildirimler</div>
+            </div>
+            <div class="stat-card" style="border-top: 3px solid #ef4444;">
+                <div class="stat-icon">🚨</div>
+                <div class="stat-value" id="statErrors" style="color:#ef4444;">0</div>
+                <div class="stat-label">Sistem Hataları</div>
+            </div>
+            <div class="stat-card" style="border-top: 3px solid #a78bfa;">
+                <div class="stat-icon">📊</div>
+                <div class="stat-value" id="statDeviceRatio" style="font-size:18px; margin-top:6px;">-%</div>
+                <div class="stat-label">Cihaz Dağılımı</div>
             </div>
         </div>
 
@@ -373,13 +440,74 @@
             </div>
         </div>
 
+        <!-- 🚨 SİSTEM HATALARI & CANLI ARIZA TAKİP MASASI -->
+        <div class="section" id="sectionErrorLogs">
+            <div class="section-header">
+                <div class="section-title"><i class="fa-solid fa-shield-virus" style="color:#ef4444;"></i> Canlı Hata & Arıza Kayıtları</div>
+                <div style="display:flex; gap:10px; align-items:center;">
+                    <select id="errorFilterLevel" onchange="filterErrorLogs()" style="padding:6px 12px; border-radius:8px; border:1px solid #334155; background:var(--card-bg, #1e293b); color:var(--text-primary, #f8fafc); font-size:12px;">
+                        <option value="ALL">Tüm Hatalar</option>
+                        <option value="UNRESOLVED" selected>Sadece Çözülmemişler</option>
+                        <option value="RESOLVED">Çözülenler</option>
+                    </select>
+                    <button class="btn btn-secondary" onclick="loadErrorLogs()" style="padding:6px 12px; font-size:12px;"><i class="fa-solid fa-arrows-rotate"></i> Yenile</button>
+                    <button class="btn btn-secondary" onclick="clearAllResolvedErrors()" style="padding:6px 12px; font-size:12px; color:#ef4444;"><i class="fa-solid fa-trash-can"></i> Çözülenleri Temizle</button>
+                </div>
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Tarih</th>
+                            <th>Kullanıcı / Cihaz</th>
+                            <th>Hata Konumu</th>
+                            <th>Hata Mesajı</th>
+                            <th>Durum</th>
+                            <th>İşlemler</th>
+                        </tr>
+                    </thead>
+                    <tbody id="errorLogsTableBody">
+                        <tr><td colspan="6" style="text-align:center; padding:20px; color:#94a3b8;">Hata kayıtları yükleniyor...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
     </div>
 
     <!-- JS Mantığı -->
     <script>
         let ALL_USERS = [];
         let ALL_CODES = [];
+        let ALL_ERROR_LOGS = [];
         let LATEST_GENERATED_CODE = '';
+
+        // 0. Tema Yönetimi (Açık / Koyu Tema)
+        function initAdminTheme() {
+            const savedTheme = localStorage.getItem('emlak_admin_theme') || 'dark';
+            document.documentElement.setAttribute('data-theme', savedTheme);
+            updateAdminThemeBtn(savedTheme);
+        }
+
+        function toggleAdminTheme() {
+            const current = document.documentElement.getAttribute('data-theme') || 'dark';
+            const next = current === 'light' ? 'dark' : 'light';
+            document.documentElement.setAttribute('data-theme', next);
+            localStorage.setItem('emlak_admin_theme', next);
+            updateAdminThemeBtn(next);
+        }
+
+        function updateAdminThemeBtn(theme) {
+            const btn = document.getElementById('adminThemeBtn');
+            if (!btn) return;
+            if (theme === 'light') {
+                btn.innerHTML = '<i class="fa-solid fa-moon"></i>';
+                btn.setAttribute('title', 'Koyu Temaya Geç');
+            } else {
+                btn.innerHTML = '<i class="fa-solid fa-sun"></i>';
+                btn.setAttribute('title', 'Açık Temaya Geç');
+            }
+        }
 
         // 1. Yetki Kontrolü
         async function checkAdminAccess() {
@@ -387,8 +515,9 @@
                 if (!window.supabaseClient) throw new Error('Supabase başlatılamadı');
 
                 const { data: { session } } = await window.supabaseClient.auth.getSession();
+                const isLocalDevEnv = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:';
                 if (!session || !session.user) {
-                    if (localStorage.getItem('emlak_admin_access') === 'true') {
+                    if (isLocalDevEnv && localStorage.getItem('emlak_admin_access') === 'true') {
                         document.getElementById('adminUserInfo').textContent = 'Yönetici: Offline Mode (Master Key)';
                         document.getElementById('loadingScreen').style.display = 'none';
                         document.getElementById('accessDenied').style.display = 'none';
@@ -407,7 +536,7 @@
                     .maybeSingle();
 
                 if (error || !profile || profile.role !== 'admin') {
-                    if (localStorage.getItem('emlak_admin_access') === 'true') {
+                    if (isLocalDevEnv && localStorage.getItem('emlak_admin_access') === 'true') {
                         document.getElementById('adminUserInfo').textContent = `Yönetici: Offline Mode (Master Key)`;
                         document.getElementById('loadingScreen').style.display = 'none';
                         document.getElementById('accessDenied').style.display = 'none';
@@ -448,9 +577,17 @@
             document.getElementById('adminPanel').style.display = 'none';
             document.getElementById('accessDenied').style.display = 'flex';
             if (msg) document.querySelector('#accessDenied p').textContent = msg;
+            const isLocalDevEnv = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:';
+            const devBox = document.getElementById('devMasterKeyBox');
+            if (devBox) devBox.style.display = isLocalDevEnv ? 'block' : 'none';
         }
 
         function checkMasterKey() {
+            const isLocalDevEnv = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:';
+            if (!isLocalDevEnv) {
+                alert('Master Key ile çevrimdışı erişim yalnızca yerel geliştirme (localhost) ortamında geçerlidir. Canlı sistemde lütfen Supabase admin hesabınızla giriş yapınız.');
+                return;
+            }
             const key = document.getElementById('masterKeyInput').value.trim();
             if (key === 'EMLAK-ADMIN-2026') {
                 localStorage.setItem('emlak_admin_access', 'true');
@@ -468,8 +605,10 @@
             await Promise.all([
                 loadUsers(),
                 loadLicenseCodes(),
-                loadFeedback()
+                loadFeedback(),
+                loadErrorLogs()
             ]);
+            updateDeviceAnalytics();
         }
 
         // 3. Kullanıcıları Yükle & Listele
@@ -938,6 +1077,209 @@
             }
         }
 
+        // 7. 🚨 Sistem Hatalarını Yükle
+        async function loadErrorLogs() {
+            try {
+                if (!window.supabaseClient) return;
+                const { data: logs, error } = await window.supabaseClient
+                    .from('error_logs')
+                    .select('*')
+                    .order('created_at', { ascending: false })
+                    .limit(100);
+
+                if (error) {
+                    console.warn('[Admin] error_logs tablosu sorgu uyarısı:', error.message);
+                    const tbody = document.getElementById('errorLogsTableBody');
+                    if (tbody) {
+                        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px; color:#94a3b8;"><i class="fa-solid fa-circle-info"></i> Henüz kayıt yok veya Supabase tablosu oluşturulmamış.</td></tr>';
+                    }
+                    const statEl = document.getElementById('statErrors');
+                    if (statEl) statEl.textContent = '0';
+                    return;
+                }
+
+                ALL_ERROR_LOGS = logs || [];
+
+                // İstatistik: Çözülmemiş hata sayısı
+                const unresolvedCount = ALL_ERROR_LOGS.filter(l => !l.is_resolved).length;
+                const statEl = document.getElementById('statErrors');
+                if (statEl) {
+                    statEl.textContent = unresolvedCount;
+                    statEl.style.color = unresolvedCount > 0 ? '#ef4444' : '#10b981';
+                }
+
+                filterErrorLogs();
+
+            } catch (e) {
+                console.warn('Hata kayıtları yüklenemedi:', e);
+            }
+        }
+
+        function filterErrorLogs() {
+            const filterEl = document.getElementById('errorFilterLevel');
+            const filter = filterEl ? filterEl.value : 'UNRESOLVED';
+            let filtered = ALL_ERROR_LOGS;
+
+            if (filter === 'UNRESOLVED') {
+                filtered = ALL_ERROR_LOGS.filter(l => !l.is_resolved);
+            } else if (filter === 'RESOLVED') {
+                filtered = ALL_ERROR_LOGS.filter(l => l.is_resolved);
+            }
+
+            renderErrorLogsTable(filtered);
+        }
+
+        function renderErrorLogsTable(logs) {
+            const tbody = document.getElementById('errorLogsTableBody');
+            if (!tbody) return;
+
+            if (!logs || !logs.length) {
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px; color:#10b981;"><i class="fa-solid fa-circle-check"></i> Seçilen filtrede kayıtlı sistem arızası bulunmuyor.</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = logs.map(l => {
+                const date = l.created_at ? new Date(l.created_at).toLocaleString('tr-TR') : '-';
+                const user = escapeHtml(l.user_email) || (l.user_id ? l.user_id.slice(0, 8) + '...' : 'Anonim');
+                const screen = (l.screen_width && l.screen_height) ? `${l.screen_width}x${l.screen_height}` : '-';
+                const source = escapeHtml(l.source || '-');
+                const line = l.lineno ? `:${l.lineno}` : '';
+                const msg = escapeHtml(l.message || 'Hata detayı yok');
+                const isResolved = l.is_resolved;
+                const statusBadge = isResolved
+                    ? '<span class="badge" style="background:rgba(16, 185, 129, 0.2); color:#10b981; border:1px solid rgba(16, 185, 129, 0.4);"><i class="fa-solid fa-check"></i> Çözüldü</span>'
+                    : '<span class="badge" style="background:rgba(239, 68, 68, 0.2); color:#ef4444; border:1px solid rgba(239, 68, 68, 0.4);"><i class="fa-solid fa-triangle-exclamation"></i> Açık</span>';
+                const logId = l.id;
+
+                return `
+                    <tr>
+                        <td style="color:var(--text-secondary, #94a3b8); font-size:12px; white-space:nowrap;">${date}</td>
+                        <td>
+                            <div style="font-weight:600; color:var(--text-primary, #f8fafc);">${user}</div>
+                            <div style="font-size:11px; color:var(--text-secondary, #94a3b8);">${screen}</div>
+                        </td>
+                        <td style="font-size:12px; max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${source}${line}">
+                            <code>${source}${line}</code>
+                        </td>
+                        <td style="max-width:260px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${msg}">
+                            ${msg}
+                        </td>
+                        <td>${statusBadge}</td>
+                        <td>
+                            <div style="display:flex; gap:6px;">
+                                <button class="btn btn-secondary" onclick="viewErrorDetails('${logId}')" style="padding:4px 8px; font-size:11px;" title="Detayları İncele"><i class="fa-solid fa-eye"></i> Detay</button>
+                                ${!isResolved ? `<button class="btn btn-primary" onclick="markErrorResolved('${logId}')" style="padding:4px 8px; font-size:11px; background:#10b981; border-color:#059669;" title="Çözüldü Olarak İşaretle"><i class="fa-solid fa-check"></i> Çözüldü</button>` : ''}
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function viewErrorDetails(id) {
+            const log = ALL_ERROR_LOGS.find(l => l.id === id);
+            if (!log) return;
+
+            const safeMsg = escapeHtml(log.message || '-');
+            const safeStack = escapeHtml(log.stack || 'Yığın izi (stack trace) bulunmuyor.');
+            const safeAgent = escapeHtml(log.user_agent || '-');
+            const safeUrl = escapeHtml(log.url || '-');
+
+            Swal.fire({
+                title: 'Hata Ayrıntıları',
+                html: `
+                    <div style="text-align:left; font-size:13px; line-height:1.6; max-height:420px; overflow-y:auto;">
+                        <div style="margin-bottom:8px;"><strong>Mesaj:</strong> <span style="color:#ef4444;">${safeMsg}</span></div>
+                        <div style="margin-bottom:8px;"><strong>Sayfa URL:</strong> <code>${safeUrl}</code></div>
+                        <div style="margin-bottom:8px;"><strong>Kullanıcı / Ekran:</strong> ${escapeHtml(log.user_email || 'Anonim')} | ${log.screen_width || '?'}x${log.screen_height || '?'}</div>
+                        <div style="margin-bottom:8px;"><strong>Tarayıcı:</strong> <span style="font-size:11px; color:#94a3b8;">${safeAgent}</span></div>
+                        <div style="margin-bottom:4px;"><strong>Yığın İzi (Stack):</strong></div>
+                        <pre style="background:#0f172a; color:#f8fafc; padding:10px; border-radius:6px; font-size:11px; white-space:pre-wrap; word-break:break-all;">${safeStack}</pre>
+                    </div>
+                `,
+                width: '680px',
+                confirmButtonText: 'Kapat',
+                confirmButtonColor: '#3b82f6',
+                background: 'var(--card-bg, #1e293b)',
+                color: 'var(--text-primary, #f8fafc)'
+            });
+        }
+
+        async function markErrorResolved(id) {
+            try {
+                if (!window.supabaseClient) return;
+                const { error } = await window.supabaseClient
+                    .from('error_logs')
+                    .update({ is_resolved: true })
+                    .eq('id', id);
+
+                if (error) throw error;
+                const target = ALL_ERROR_LOGS.find(l => l.id === id);
+                if (target) target.is_resolved = true;
+                filterErrorLogs();
+                const unresolvedCount = ALL_ERROR_LOGS.filter(l => !l.is_resolved).length;
+                const statEl = document.getElementById('statErrors');
+                if (statEl) {
+                    statEl.textContent = unresolvedCount;
+                    statEl.style.color = unresolvedCount > 0 ? '#ef4444' : '#10b981';
+                }
+            } catch (e) {
+                console.error('Hata durumu güncellenemedi:', e);
+                Swal.fire({ icon: 'error', title: 'İşlem Başarısız', text: e.message });
+            }
+        }
+
+        async function clearAllResolvedErrors() {
+            if (!confirm('Çözülmüş olarak işaretlenen tüm hata kayıtlarını kalıcı olarak silmek istediğinize emin misiniz?')) {
+                return;
+            }
+            try {
+                if (!window.supabaseClient) return;
+                const { error } = await window.supabaseClient
+                    .from('error_logs')
+                    .delete()
+                    .eq('is_resolved', true);
+
+                if (error) throw error;
+                ALL_ERROR_LOGS = ALL_ERROR_LOGS.filter(l => !l.is_resolved);
+                filterErrorLogs();
+                Swal.fire({ icon: 'success', title: 'Temizlendi', text: 'Çözülen arıza kayıtları temizlendi.', timer: 1500, showConfirmButton: false });
+            } catch (e) {
+                console.error('Kayıtlar silinemedi:', e);
+                Swal.fire({ icon: 'error', title: 'Hata', text: e.message });
+            }
+        }
+
+        // 8. Cihaz Dağılımı İstatistiği (Analytics)
+        function updateDeviceAnalytics() {
+            const statDeviceEl = document.getElementById('statDeviceRatio');
+            if (!statDeviceEl) return;
+
+            let mobile = 0;
+            let desktop = 0;
+
+            if (ALL_ERROR_LOGS && ALL_ERROR_LOGS.length > 0) {
+                ALL_ERROR_LOGS.forEach(log => {
+                    const ua = (log.user_agent || '').toLowerCase();
+                    const w = log.screen_width || 1200;
+                    if (/iphone|ipad|ipod|android|mobile/.test(ua) || w <= 768) {
+                        mobile++;
+                    } else {
+                        desktop++;
+                    }
+                });
+            }
+
+            const total = mobile + desktop;
+            if (total > 0) {
+                const mobPct = Math.round((mobile / total) * 100);
+                const dskPct = 100 - mobPct;
+                statDeviceEl.textContent = `%${mobPct} Mob / %${dskPct} Masa`;
+            } else {
+                statDeviceEl.textContent = 'Masaüstü Ağırlıklı';
+            }
+        }
+
         async function adminLogout() {
             if (confirm('Admin panelinden çıkış yapmak istediğinize emin misiniz?')) {
                 localStorage.removeItem('emlak_admin_access');
@@ -947,6 +1289,7 @@
         }
 
         document.addEventListener('DOMContentLoaded', () => {
+            initAdminTheme();
             setTimeout(checkAdminAccess, 300);
         });
     </script>

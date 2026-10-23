@@ -8,11 +8,11 @@
 
 | Alan | Değer |
 |---|---|
-| Son güncelleme | 2026-10-03 12:35 – Faz 1, Faz 2 ve Faz 3 eksiksiz tamamlandı |
-| Aktif görev | — (sıradaki: **F4.1**) |
+| Son güncelleme | 2026-10-21 16:05 – Yenileme (Refresh) & Açılış Gecikmesi İyileştirmesi Tamamlandı |
+| Aktif görev | — (Sistem kararlı ve optimize) |
 | Yarım kalan görev | Yok |
-| Son ölçüm | Eager yerel JS: 4.688 KB (-967 KB) \| Blocking CSS: 233 KB (-538 KB) \| defer'siz script: 95 (-15) \| CDN JS: 5 (-6) \| CDN CSS: 2 (-1) |
-| Notlar | Faz 1 (CDN düzenleme/sürüm sabitleme), Faz 2 (asenkron CSS), Faz 3 (on-demand LazyLoader: satellite, zip, pdf, qrcode, video, carousel, saber, voice) tamamlandı. `sw.js` cache: v207-20261003-116. |
+| Son ölçüm | Eager yerel JS: Kararlı \| Yapay Gecikme: 0ms (-500ms) \| CDN Sürüm Kilitli \| Unload Çifte Kayıt Korumalı |
+| Notlar | 3 Ekim'deki Proxy LazyLoader denemesinin neden geri alındığı (rollback) ve hangi modüllerin bilerek eager bırakıldığı dokümante edildi. initialAppLoader yapay 500ms gecikmesi kaldırıldı, CDN sürümleri sabitlendi, İkon & Neon havuzu inşası idle callback'e alındı, AutoSave unload kalkanı eklendi. sw.js cache: v226-20261021-refresh-perf. |
 
 ### Durum İşaretleri
 - `[ ]` başlanmadı
@@ -89,6 +89,33 @@ Select-String -Path app.html -Pattern '<script[^>]*src=|<link[^>]*stylesheet' | 
 | **Photo staging** | photo-staging 95 | state.js (25), main.js, export.js ... | 🔴 Sıkı bağlı. Idle-time (Faz 4) |
 | **lucide** | CDN | icons.js (açılışta ikon render), callout_v2 | ⛔ Açılışta gerekli; sadece head'den body sonuna taşınabilir |
 | **DOMPurify, SweetAlert2, Supabase, html2canvas** | CDN | Pek çok yer | ⛔ Eager kalsın; sadece head'den body sonuna taşı |
+
+---
+
+## 3.1. ⚠️ ÖNEMLİ: Rollback Geçmişi ve "Bilerek Bırakılanlar" Standartı (21 Ekim 2026 Tescili)
+
+> **Geçmiş Deneyim & Geri Alma (Rollback):**  
+> 3 Ekim 2026 tarihinde `core/lazy-loader.js` ile ES6 Proxy ve asenkron sarmalayıcılar kullanılarak `CarouselManager`, `VoiceStudio`, `satellite` ve `saber` modülleri "on-demand" (ihtiyaç anında yükle) yapılmaya çalışılmıştır. Ancak;
+> 1. `CarouselManager` ve diğer alt modüller `app.html` içinde ve tuval altı dock çubuğunda senkron property ve dizi erişimlerine (`pages.length`, `activePageIndex`) sahip olduğundan,
+> 2. `autoSave.js` açılışta önceki oturumun 3D katmanlarını, şablonlarını ve çizimlerini doğrudan senkron okuyup kurduğundan,
+> 3. Asenkron proxy mimarisi canlı çalışma kurtarma ve sekme geçişlerinde fonksiyon kırılmalarına yol açtığından,
+> sistem derhal [`archive/backups/_backup_20261003_pre_rollback/`](file:///c:/Users/Hatemi/Desktop/emlak%20d%C3%BCzenlemeleri%20i%C3%A7in%20uygulama/emlak-studiom%20v7-0/archive/backups/_backup_20261003_pre_rollback) yedeğine **Geri Alınmış (Rollback yapılmış)** ve sistem kararlılığı için şu bileşenler **BİLEREK EAGER/SENKRON BIRAKILMIŞTIR**:
+
+### 🛑 Bilerek Eager / Senkron Kalanlar (Gelecekteki Ajanlar Asla On-Demand Yapmamalıdır):
+- **`lucide`:** Tuval dock butonları ve ikon havuzu (`icons.js`, `callout_v2.js`) için ilk saniyede DOM'a bağlanmalıdır.
+- **`DOMPurify` & `SecurityGuard`:** Uygulamaya giren tüm verileri en baştan temizleyen merkezi güvenlik kalkanıdır.
+- **`SweetAlert2` & `Supabase`:** Oturum, yetkilendirme ve hata kontrolleri için hazır olmalıdır. Sürümleri `@11.26.25` ve `@2.117.2` olarak kilitlenmiştir.
+- **`heic2any`:** iPhone'dan seçilen fotoğrafları anında çevirmek için 13 Ekim denetiminde bilerek `<head>` içine alınmıştır.
+- **3D Motoru (`ThreeDEngine`), Şablon Oluşturucu (`TemplateBuilder`), Fotoğraf Arşivi (`PhotoStaging`):** 469, 175 ve 121 dış referansı vardır. `autoSave.js` açılışta taslak geri yüklerken bunları arar. Asenkron yapılırsa taslak kurtarma çöker.
+- **Çekirdek Arayüz Stilleri (`styles.css`, `callouts.css`, `dock-contextual.css`, `canvas-tools.css`, `empty-state.css`):** FOUC (stilsiz / bozuk açılma) olmaması için senkron kalmalıdır.
+- **Minify / Webpack / Vite / esbuild (Faz 5):** Global `window.` değişken mimarisi ve statik dosya sunumu korunduğu için askıya alınmıştır.
+
+### ✅ 21 Ekim 2026 Güvenli Hızlandırma Paketi:
+1. **`initialAppLoader` Yapay 500ms Gecikmesi Kaldırıldı (`main.js:1710`):** Tuval çizildiği anda bekleme ekranı derhal (`requestAnimationFrame`) kapatılır; yapay 500ms bekleme iptal edildi.
+2. **CDN Sürümleri Sabitlendi (`app.html:91, 97` & `index.html:33`):** `sweetalert2@11.26.25` ve `@supabase/supabase-js@2.117.2` tam sürüme kilitlendi; 302 redirect gecikmeleri sıfırlandı.
+3. **İkon ve Neon Havuzu İnşası Rölantiye Alındı (`main.js:1472, 2795` & `modules/ui-core.js:101, 173`):** Yüzlerce SVG ikonu açılış milisaniyesinde değil, `requestIdleCallback` (180ms) ile veya ilgili sekme tıklandığında anında oluşturulur.
+4. **AutoSave Unload Çifte Kayıt Kalkanı Eklendi (`js/autoSave.js:1184`):** F5 yenilemesinde hem `beforeunload` hem `pagehide` tetiklenmesi durumunda 2.5 sn içi mükerrer Base64 serileştirme engellendi; sayfa yenileme takılması giderildi.
+5. **Service Worker Sürümü Güncellendi (`sw.js:1`):** `emlak-studiom-v226-20261021-refresh-perf`.
 
 ---
 
@@ -296,3 +323,4 @@ Select-String -Path app.html -Pattern '<script[^>]*src=|<link[^>]*stylesheet' | 
 | 2026-10-03 12:20 | Faz 1 | ✅ | `app.html`, `index.html`, `admin.html`, `js/saber-animation.js`, `sw.js` | CDN scriptleri taşındı/sabitlendi, fontlar hafifletildi, helvetiker_bold kaldırıldı, sw cache v114 |
 | 2026-10-03 12:25 | Faz 2 | ✅ | `app.html`, `sw.js` | Modül stilleri media=print onload ile non-blocking yapıldı (771 KB -> 233 KB), sw cache v115 |
 | 2026-10-03 12:35 | Faz 3 | ✅ | `core/lazy-loader.js`, `modules/satellite-map.js`, `main.js`, `modules/empty-state.js`, `modules/carousel-manager.js`, `modules/photo-staging.js`, `modules/satellite-cadastre.js`, `js/modules/qrManager.js`, `app.html`, `sw.js` | LazyLoader ile 7 paket on-demand bağlandı, 6 CDN kütüphanesi açılıştan kaldırıldı, eager JS 967 KB düştü, sw cache v116 |
+| 2026-10-21 16:05 | Yenileme & Açılış İyileştirmesi | ✅ | `app.html`, `index.html`, `main.js`, `modules/ui-core.js`, `js/autoSave.js`, `sw.js`, `docs/ACILIS_PERFORMANS_YOL_HARITASI.md` | initialAppLoader yapay 500ms gecikmesi kaldırıldı (requestAnimationFrame + 200ms fadeout), CDN sürümleri sabitlendi (SweetAlert2 v11.26.25, Supabase v2.117.2), İkon ve Neon UI inşası requestIdleCallback'e ve sekme geçişine bağlandı, AutoSave beforeunload+pagehide çifte Base64 kaydı debounced tekilleştirildi, sw cache v226 |

@@ -1,4 +1,4 @@
-﻿/* ============================================================
+/* ============================================================
    🖼️ Afiş ve Vitrin Şablon Seti
    10 Adet Özel Mimaride Profesyonel Emlak Kalıbı (İlgi Çekici İlan Metinleri)
 ============================================================ */
@@ -83,6 +83,25 @@ function renderKTemplate(id){
     const featsArr = tData.featsLines || [];
 
     const cardObj = (typeof KALIP_CARDS !== 'undefined') ? KALIP_CARDS.find(c => c.id === id) : null;
+    const poolItems = (window.PhotoStagingArchive && Array.isArray(window.PhotoStagingArchive.items)) ? window.PhotoStagingArchive.items : [];
+    
+    const getSlotBg = (slotIdx) => {
+        let url = null;
+        if (poolItems[slotIdx] && poolItems[slotIdx].dataUrl) {
+            url = poolItems[slotIdx].dataUrl;
+        } else if (poolItems[0] && poolItems[0].dataUrl) {
+            url = poolItems[0].dataUrl;
+        } else if (typeof uploadedImgUrl !== 'undefined' && uploadedImgUrl) {
+            url = uploadedImgUrl;
+        } else if (typeof window.getTemplateActiveBg === 'function') {
+            const rawBg = window.getTemplateActiveBg(cardObj || 'Afiş');
+            return rawBg + ";background-position:50% 50%;background-size:cover;";
+        } else {
+            url = 'assets/luxury_villa.jpg';
+        }
+        return "background-image:url('" + url + "');background-position:50% 50%;background-size:cover;background-repeat:no-repeat;";
+    };
+
     const bgImg = (typeof window.getTemplateActiveBg === 'function') ? window.getTemplateActiveBg(cardObj || 'Afiş') : (typeof uploadedImgUrl !== 'undefined' && uploadedImgUrl ? "background-image:url('" + uploadedImgUrl + "')" : "background-image:url('assets/luxury_villa.jpg')");
     const x = document.getElementById('photoXCtrl') ? document.getElementById('photoXCtrl').value : 50;
     const y = document.getElementById('photoYCtrl') ? document.getElementById('photoYCtrl').value : 50;
@@ -140,11 +159,11 @@ function renderKTemplate(id){
                 <!-- Sağ Kolon: Çoklu Fotoğraf Vitrini -->
                 <div style="flex:0.85; position:relative; display:flex; gap:${scaleMin(8)}px;">
                     <!-- Sol Ana Foto -->
-                    <div class="photo-panel" style="flex:1.2; height:100%; border:3.5px solid #f59e0b; border-radius:14px; box-shadow:0 10px 30px rgba(0,0,0,0.6); ${bgPos};"></div>
+                    <div class="photo-panel" style="flex:1.2; height:100%; border:3.5px solid #f59e0b; border-radius:14px; box-shadow:0 10px 30px rgba(0,0,0,0.6); ${getSlotBg(0)};"></div>
                     <!-- Sağ İki Küçük Foto -->
                     <div style="flex:0.8; display:flex; flex-direction:column; gap:${scaleMin(8)}px;">
-                        <div class="photo-panel" style="flex:1; border:3px solid #f59e0b; border-radius:10px; box-shadow:0 8px 20px rgba(0,0,0,0.5); ${bgPos};"></div>
-                        <div class="photo-panel" style="flex:1; border:3px solid #f59e0b; border-radius:10px; box-shadow:0 8px 20px rgba(0,0,0,0.5); ${bgPos};"></div>
+                        <div class="photo-panel" style="flex:1; border:3px solid #f59e0b; border-radius:10px; box-shadow:0 8px 20px rgba(0,0,0,0.5); ${getSlotBg(1)};"></div>
+                        <div class="photo-panel" style="flex:1; border:3px solid #f59e0b; border-radius:10px; box-shadow:0 8px 20px rgba(0,0,0,0.5); ${getSlotBg(2)};"></div>
                     </div>
 
                     <!-- Ortadaki Altın Rozet -->
@@ -370,15 +389,15 @@ function renderKTemplate(id){
 
             <!-- Orta Bölüm: 3 Fotoğraflı Grid -->
             <div style="display:flex; gap:${scaleMin(10)}px; height:45%; margin:${scaleMin(8)}px 0;">
-                <div class="photo-panel" style="flex:1.4; height:100%; border-radius:10px; border:2.5px solid #cbd5e1; ${bgPos}; position:relative;">
-                    <div style="position:absolute; bottom:8px; left:8px; background:rgba(0,0,0,0.75); color:#fff; font-size:${scaleMin(12)}px; font-weight:900; padding:3px 8px; border-radius:4px;">ANA SALON</div>
+                <div class="photo-panel" style="flex:1.4; height:100%; border-radius:10px; border:2.5px solid #cbd5e1; ${getSlotBg(0)}; position:relative;">
+                    <div style="position:absolute; bottom:8px; left:8px; background:rgba(0,0,0,0.75); color:#fff; font-size:${scaleMin(12)}px; font-weight:900; padding:3px 8px; border-radius:4px; pointer-events:none;">ANA SALON</div>
                 </div>
                 <div style="flex:0.8; display:flex; flex-direction:column; gap:${scaleMin(10)}px;">
-                    <div class="photo-panel" style="flex:1; border-radius:10px; border:2.5px solid #cbd5e1; ${bgPos}; position:relative;">
-                        <div style="position:absolute; bottom:8px; left:8px; background:rgba(0,0,0,0.75); color:#fff; font-size:${scaleMin(12)}px; font-weight:900; padding:3px 8px; border-radius:4px;">LAKE MUTFAK</div>
+                    <div class="photo-panel" style="flex:1; border-radius:10px; border:2.5px solid #cbd5e1; ${getSlotBg(1)}; position:relative;">
+                        <div style="position:absolute; bottom:8px; left:8px; background:rgba(0,0,0,0.75); color:#fff; font-size:${scaleMin(12)}px; font-weight:900; padding:3px 8px; border-radius:4px; pointer-events:none;">LAKE MUTFAK</div>
                     </div>
-                    <div class="photo-panel" style="flex:1; border-radius:10px; border:2.5px solid #cbd5e1; ${bgPos}; position:relative;">
-                        <div style="position:absolute; bottom:8px; left:8px; background:rgba(0,0,0,0.75); color:#fff; font-size:${scaleMin(12)}px; font-weight:900; padding:3px 8px; border-radius:4px;">MANZARA</div>
+                    <div class="photo-panel" style="flex:1; border-radius:10px; border:2.5px solid #cbd5e1; ${getSlotBg(2)}; position:relative;">
+                        <div style="position:absolute; bottom:8px; left:8px; background:rgba(0,0,0,0.75); color:#fff; font-size:${scaleMin(12)}px; font-weight:900; padding:3px 8px; border-radius:4px; pointer-events:none;">MANZARA</div>
                     </div>
                 </div>
             </div>
@@ -589,9 +608,9 @@ function renderKTemplate(id){
             <!-- Orta Bölüm: Kemerli Lüks Fotoğraf + İkincil Yuvarlak Detay -->
             <div style="height:50%; position:relative; margin:${scaleMin(10)}px 0;">
                 <!-- Kemerli Ana Foto -->
-                <div class="photo-panel" style="width:100%; height:100%; border-radius:${scaleMin(90)}px ${scaleMin(90)}px 14px 14px; border:2.5px solid #e5c07b; box-shadow:0 20px 50px rgba(0,0,0,0.85); ${bgPos};"></div>
+                <div class="photo-panel" style="width:100%; height:100%; border-radius:${scaleMin(90)}px ${scaleMin(90)}px 14px 14px; border:2.5px solid #e5c07b; box-shadow:0 20px 50px rgba(0,0,0,0.85); ${getSlotBg(0)};"></div>
                 <!-- Yuvarlak İkincil Detay Foto -->
-                <div class="photo-panel" style="position:absolute; bottom:-${scaleMin(18)}px; right:${scaleMin(24)}px; width:${scaleMin(100)}px; height:${scaleMin(100)}px; border-radius:50%; border:3.5px solid #e5c07b; box-shadow:0 10px 30px rgba(0,0,0,0.9); ${bgPos};"></div>
+                <div class="photo-panel" style="position:absolute; bottom:-${scaleMin(18)}px; right:${scaleMin(24)}px; width:${scaleMin(100)}px; height:${scaleMin(100)}px; border-radius:50%; border:3.5px solid #e5c07b; box-shadow:0 10px 30px rgba(0,0,0,0.9); ${getSlotBg(1)};"></div>
             </div>
 
             <!-- 3 Lüks Metrik Çubuğu -->
@@ -739,45 +758,198 @@ function renderKTemplate(id){
         </div>`;
     }
 
-    // Dinamik Foto ve Metin Düzenleme Olaylarını Bağla
-    if (typeof enablePhotoDrag === 'function') {
-        canvaRenderLayer.querySelectorAll('.photo-panel').forEach(el => enablePhotoDrag(el));
-    }
+    // Dinamik Metin Düzenleme Olaylarını Bağla
     if (typeof enableInlineEdit === 'function') {
         canvaRenderLayer.querySelectorAll('.editable-text').forEach(el => enableInlineEdit(el));
     }
 
-    // Her bir fotoğraf paneli için bağımsız görsel yükleme (Çift tıkla görsel değiştir)
-    canvaRenderLayer.querySelectorAll('.photo-panel').forEach(panel => {
-        panel.style.cursor = 'pointer';
-        panel.title = 'Fotoğraf seçmek için çift tıklayın';
-        panel.addEventListener('dblclick', (e) => {
-            e.stopPropagation();
-            const input = document.createElement('input');
-            input.type = 'file';
-            input.accept = 'image/*';
-            input.onchange = (ev) => {
-                const file = ev.target.files[0];
-                if (!file) return;
-                const reader = new FileReader();
-                reader.onload = (re) => {
-                    panel.style.backgroundImage = `url("${re.target.result}")`;
-                    panel.style.backgroundSize = 'cover';
-                    panel.style.backgroundPosition = 'center';
-                    if (typeof window.requestAutoSave === 'function') window.requestAutoSave();
+    // Her bir fotoğraf paneli için bağımsız görsel yükleme, sürükle-bırak ve pan/zoom hazırlığı
+    const panels = canvaRenderLayer.querySelectorAll('.photo-panel');
+    panels.forEach((panel, pIdx) => {
+        panel.dataset.slotIndex = pIdx;
+        panel.style.cursor = 'grab';
+        panel.style.position = 'relative';
+        panel.title = 'Fotoğrafı taşımak için Boşluk (Space) tuşuna basılı tutun veya Serbest modda sürükleyin. Yakınlaştırmak için fare tekerleğini kullanın. Sıfırlamak için çift tıklayın.';
+
+        // Modern V4 Zoom & Pan yapısını hazırla
+        if (typeof _preparePhoto === 'function') {
+            _preparePhoto(panel);
+        }
+
+        // "Görseli Değiştir" butonu ekle (Kullanıcı o pencerenin görselini kolayca değiştirebilsin)
+        if (!panel.querySelector('.slot-photo-change-btn')) {
+            const changeBtn = document.createElement('button');
+            changeBtn.type = 'button';
+            changeBtn.className = 'slot-photo-change-btn';
+            changeBtn.title = 'Bu pencerenin fotoğrafını değiştir';
+            changeBtn.innerHTML = '<i class="fa-solid fa-camera"></i> Görseli Değiştir';
+            changeBtn.style.cssText = 'position:absolute; top:8px; right:8px; z-index:15; background:rgba(15,23,42,0.85); color:#ffffff; border:1px solid rgba(255,255,255,0.3); border-radius:6px; padding:3.5px 8px; font-size:10.5px; font-weight:700; font-family:\'ClassicAmpersand\',\'Space Grotesk\',sans-serif; cursor:pointer; display:inline-flex; align-items:center; gap:5px; box-shadow:0 4px 12px rgba(0,0,0,0.35); transition:all 0.15s ease; backdrop-filter:blur(4px); line-height:1.2;';
+            
+            changeBtn.onmouseenter = () => { changeBtn.style.background = '#0284c7'; changeBtn.style.borderColor = '#38bdf8'; };
+            changeBtn.onmouseleave = () => { changeBtn.style.background = 'rgba(15,23,42,0.85)'; changeBtn.style.borderColor = 'rgba(255,255,255,0.3)'; };
+            
+            changeBtn.onclick = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.accept = 'image/*';
+                input.onchange = (ev) => {
+                    const file = ev.target.files[0];
+                    if (!file) return;
+                    const reader = new FileReader();
+                    reader.onload = (re) => {
+                        window.updatePanelImage(panel, re.target.result);
+                    };
+                    reader.readAsDataURL(file);
                 };
-                reader.readAsDataURL(file);
+                input.click();
             };
-            input.click();
+            panel.appendChild(changeBtn);
+        }
+
+        // 1. Çift Tıklama ile Konum ve Yakınlaştırmayı Varsayılana Sıfırla
+        panel.addEventListener('dblclick', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            panel.dataset.zpScale = '1';
+            panel.dataset.zpX = '0';
+            panel.dataset.zpY = '0';
+            delete panel.dataset.sX;
+            delete panel.dataset.sY;
+            if (typeof _applyPhotoTransform === 'function') {
+                _applyPhotoTransform(panel);
+            }
+            if (typeof window.requestAutoSave === 'function') {
+                window.requestAutoSave();
+            }
+        });
+
+        // 2. Drag & Drop: Hem masaüstünden hem de "Görseller" havuzundan sürükle-bırak
+        panel.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            e.dataTransfer.dropEffect = 'copy';
+            panel.style.outline = '3px dashed #38bdf8';
+            panel.style.outlineOffset = '-3px';
+        });
+        panel.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            panel.style.outline = '';
+            panel.style.outlineOffset = '';
+        });
+        panel.addEventListener('drop', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            panel.style.outline = '';
+            panel.style.outlineOffset = '';
+
+            // A. "Görseller" sekmesindeki karttan mı sürüklendi?
+            const stagingId = e.dataTransfer.getData('application/x-staging-id') || e.dataTransfer.getData('text/plain');
+            if (stagingId && window.PhotoStagingArchive && Array.isArray(window.PhotoStagingArchive.items)) {
+                const item = window.PhotoStagingArchive.items.find(it => it.id === stagingId);
+                if (item && item.dataUrl) {
+                    window.updatePanelImage(panel, item.dataUrl);
+                    return;
+                }
+            }
+
+            // B. Masaüstünden dosya mı bırakıldı?
+            if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                const file = e.dataTransfer.files[0];
+                if (file && file.type.startsWith('image/')) {
+                    const reader = new FileReader();
+                    reader.onload = (re) => {
+                        window.updatePanelImage(panel, re.target.result);
+                    };
+                    reader.readAsDataURL(file);
+                }
+            }
         });
     });
     
     requestAnimationFrame(() => {
         if(typeof redrawAll === 'function') redrawAll();
+        if(window.TemplateFrame && typeof window.TemplateFrame.onTemplateChanged === 'function') {
+            window.TemplateFrame.onTemplateChanged(id || 'canvaKlp1', 'canva');
+        }
     });
 }
 
 window.renderKTemplate = renderKTemplate;
+
+window.updatePanelImage = function(panel, dataUrl) {
+    if (!panel || !dataUrl) return;
+    panel.dataset.savedBg = "url('" + dataUrl + "')";
+    panel.style.backgroundImage = "url('" + dataUrl + "')";
+    panel.style.backgroundSize = 'cover';
+    panel.style.backgroundPosition = 'center';
+    
+    panel._nativeImg = null;
+    panel._nativeImgSrc = null;
+    delete panel._cachedGlCanvas;
+
+    const inner = panel.querySelector('.photo-inner-zoom');
+    if (inner) {
+        inner.style.backgroundImage = "url('" + dataUrl + "')";
+    }
+
+    panel.dataset.zpScale = '1';
+    panel.dataset.zpX = '0';
+    panel.dataset.zpY = '0';
+
+    if (typeof _preparePhoto === 'function') {
+        _preparePhoto(panel);
+    }
+    if (typeof _applyPhotoTransform === 'function') {
+        _applyPhotoTransform(panel);
+    }
+
+    if (window.PhotoStagingArchive && typeof window.PhotoStagingArchive.addItem === 'function') {
+        const exists = window.PhotoStagingArchive.items.some(it => it.dataUrl === dataUrl);
+        if (!exists) {
+            window.PhotoStagingArchive.addItem({
+                id: 'slot_img_' + Date.now(),
+                dataUrl: dataUrl,
+                thumbUrl: dataUrl,
+                title: 'Şablon Fotoğrafı',
+                key: 'local_file'
+            }, false);
+        }
+    }
+
+    if (typeof window.requestAutoSave === 'function') window.requestAutoSave();
+};
+
+window._canvaCokluFotoYukle = function(files, startIndex) {
+    const canvaL = document.getElementById('canva-render-layer');
+    if (!canvaL) return;
+    const panels = Array.from(canvaL.querySelectorAll('.photo-panel'));
+    if (panels.length === 0) return;
+    startIndex = parseInt(startIndex, 10) || 0;
+    if (startIndex < 0 || startIndex >= panels.length) startIndex = 0;
+    const targetPanels = panels.slice(startIndex);
+    const count = Math.min(files.length, targetPanels.length);
+
+    for (let i = 0; i < count; i++) {
+        const file = files[i];
+        const panel = targetPanels[i];
+        if (file instanceof Blob || file instanceof File) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                if (typeof window.updatePanelImage === 'function') {
+                    window.updatePanelImage(panel, e.target.result);
+                }
+            };
+            reader.readAsDataURL(file);
+        } else if (typeof file === 'string') {
+            if (typeof window.updatePanelImage === 'function') {
+                window.updatePanelImage(panel, file);
+            }
+        }
+    }
+};
 
 // Sayfa yüklendiğinde otomatik başlat
 setTimeout(_kalipInit, 300);

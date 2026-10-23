@@ -123,7 +123,7 @@ let isTicking = false;
                 const timeDiff = now - lastDownTime;
                 const distDiff = Math.hypot(e.clientX - lastDownX, e.clientY - lastDownY);
                 if (timeDiff > 40 && timeDiff < 500 && distDiff < 35) {
-                    if (!e.target.closest('input, button, select, textarea, .panel, .mobile-panel, .tab-content, .preset-picker, .swal2-container, #canvasBottomDock, #threeDStudioPanel')) {
+                    if (!isInteractiveTarget(e.target) && !e.target.closest('input, button, select, textarea, .panel, .mobile-panel, .tab-content, .preset-picker, .swal2-container, #canvasBottomDock, #threeDStudioPanel, .kolaj-foto, .kolaj-cerceve')) {
                         lastDownTime = 0;
                         e.preventDefault();
                         e.stopPropagation();

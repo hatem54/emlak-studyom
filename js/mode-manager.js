@@ -641,10 +641,14 @@ function addWatermark(canvas) {
 
 async function handleLogout() {
   try {
-    await window.supabaseClient.auth.signOut();
+    localStorage.removeItem('emlak_admin_access');
+    if (window.supabaseClient && window.supabaseClient.auth) {
+      await window.supabaseClient.auth.signOut();
+    }
     window.location.href = 'index.html';
   } catch (e) {
     console.error('Çıkış hatası:', e);
+    window.location.href = 'index.html';
   }
 }
 

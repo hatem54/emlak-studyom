@@ -894,6 +894,12 @@
                     <button class="acm-close-btn" id="acm-close-btn" title="Kapat">✕</button>
                 </div>
 
+                <button class="app-context-item item-3d" id="acm3d-multi-open-panel" style="font-weight:700;">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2.2"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
+                    <span>Düzenleme Paneli</span>
+                </button>
+                <div class="acm-divider"></div>
+
                 <div class="acm-section-label">🧲 YÜZEY VE BİRLEŞTİRME</div>
                 <button class="app-context-item" id="acm3d-snap-surface">
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.2"><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242M12 12v9m-4-4 4 4 4-4"/></svg>
@@ -1021,6 +1027,17 @@
             // Buton Olayları Bağlama
             menu.querySelector('#acm-close-btn').addEventListener('click', closeMenu);
 
+            // 0. Düzenleme Paneli Aç
+            const multiOpenPanelBtn = menu.querySelector('#acm3d-multi-open-panel');
+            if (multiOpenPanelBtn) {
+                multiOpenPanelBtn.addEventListener('click', () => {
+                    closeMenu();
+                    if (window.ThreeDEngine && typeof window.ThreeDEngine.openStudio === 'function') {
+                        window.ThreeDEngine.openStudio(true, false, true);
+                    }
+                });
+            }
+
             // 1. Yüzeye Yapıştır
             const snapBtn = menu.querySelector('#acm3d-snap-surface');
             if (snapBtn) {
@@ -1120,7 +1137,7 @@
                     if (id && window.ThreeDEngine && typeof window.ThreeDEngine.setActiveElement === 'function') {
                         window.ThreeDEngine.setActiveElement(id, { select: true });
                         if (typeof window.ThreeDEngine.openStudio === 'function') {
-                            window.ThreeDEngine.openStudio();
+                            window.ThreeDEngine.openStudio(true, false, true);
                         }
                     }
                     closeMenu();

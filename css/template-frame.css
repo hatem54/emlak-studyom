@@ -1,0 +1,27 @@
+/* ============================================================
+   ŞABLON DIŞ ÇERÇEVE ÇİZGİSİ & NEON IŞIMA KATMANI
+   Emlak Stüdyom Tasarım Sistemiyle Tam Uyumlu
+============================================================ */
+
+.tpl-outer-frame {
+    position: absolute;
+    box-sizing: border-box;
+    pointer-events: none;
+    z-index: 25;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, border-width 0.15s ease, border-radius 0.15s ease;
+}
+
+/* Donanım hızlandırmalı GPU parlama desteği */
+.tpl-outer-frame.neon-glow {
+    will-change: box-shadow;
+}
+
+/* Sidebar Akordiyon & Kontrol Paneli */
+#tplOuterFrameAccordion {
+    margin-bottom: 12px;
+}
+
+#tplOuterFrameAccordion .color-row,
+#tplOuterFrameAccordion .slider-group {
+    margin-bottom: 6px;
+}

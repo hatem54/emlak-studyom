@@ -83,6 +83,14 @@ Bu dosya, Antigravity ve yapay zeka ajanlarının her işlemde istisnasız uymas
   - **Gerekçe:** Slider zaten kullanıcının dilediği değeri akıcı ve hassas bir biçimde seçmesini sağlar. Slider altına eklenen bu tip ekstra butonlar görsel kirlilik yaratmakta, dikeyde gereksiz yer kaplamakta ve panellerin ekran altına taşmasına yol açmaktadır.
   - Değer seçimi daima doğrudan standart `.slider-group` kaydırıcısı üzerinden yapılmalıdır.
 
+### 2.11. Buton Yerleşim, Düzen ve Orantı Standardı (Sıralı, Nizamlı & Eşit Oran Kuralı - Kesin Kural)
+- **Sıralı, Nizamlı ve Düzenli Yapı Zorunluluğu:** Uygulamaya yeni bir buton, kontrol veya özellik eklenirken arayüz ögeleri daima sıralı, nizamlı, düzenli ve birbiriyle dengeli/oranlı bir yapıda inşa edilecektir.
+- **Kardeş Butonlarda Eşit Orantı & Simetri (`flex: 1 1 0; min-width: 0;`):** Aynı satırda yan yana yer alan aksiyon butonları rastgele genişliklerle bırakılamaz; biri daralıp ezilirken diğeri devasa uzayamaz. Satırdaki kardeş butonlar eşit genişlikte (`flex: 1`) ve dengeli oranlarda konumlandırılmalıdır.
+- **Tek Satır ve Metin Kırılma Yasağı (`white-space: nowrap;`):** Buton metinlerinin buton içinde dikeyde 2-3 satıra kırılıp kutuyu deforme etmesi kesinlikle yasaktır. Buton metinleri daima tek satırda kalmalı, ikon ve metin yatayda ve dikeyde kusursuz ortalanmalıdır.
+- **Yükseklik Eşitleme & Dikey Hizalama:** Aynı satırda yer alan tüm bileşenler (butonlar, seçim kutuları/select, görsel önizleme kutuları) tek tip standart piksel yüksekliğine (`height: 32px` veya `34px`) ve `box-sizing: border-box` yapısına sahip olmalıdır.
+- **Flex İçi Margin Sıfırlama (`margin: 0;`):** `.btn-action` sınıfından gelebilecek varsayılan üst/alt boşluklar (`margin-top: 4px`), flex satırlarında dikey hizalamayı bozmaması için satır içi butonlarda mutlaka sıfırlanmalıdır (`margin: 0 !important;`).
+- **Açılır Panel Başlığı ve Kapat Butonu:** Başlık satırlarındaki kapatma butonu gereksizce tüm satırı kaplayamaz (`flex: 0 0 auto; width: auto;`); başlık metni tek satırda sola yaslı, kapat butonu ise sağa yaslı kompakt yapıda yer almalıdır.
+
 ---
 
 ## 3. Performans ve Kod Yaşam Döngüsü Kuralları

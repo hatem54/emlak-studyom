@@ -54,7 +54,9 @@ window.applyPixelAdjustmentsToImageData = function(src, dst, width, height) {
         if(h!==0 || s!==0 || l!==0) hasHsl = true;
     });
 
-    if(sv === 0 && hv === 0 && bl === 0 && wh === 0 && tmp === 0 && tnt === 0 && vbr === 0 && shp === 0 && !hasHsl) return false;
+    const hasCustomColor = (window.customColorState && window.customColorState.active &&
+        ((window.customColorState.shiftH || 0) !== 0 || (window.customColorState.shiftS || 0) !== 0 || (window.customColorState.shiftL || 0) !== 0));
+    if(sv === 0 && hv === 0 && bl === 0 && wh === 0 && tmp === 0 && tnt === 0 && vbr === 0 && shp === 0 && !hasHsl && !hasCustomColor) return false;
 
     // Safety checks for 1D arrays
     if (!width || !height) {
@@ -191,6 +193,30 @@ window.applyPixelAdjustmentsToImageData = function(src, dst, width, height) {
                     if(hsl[1] < 0) hsl[1] = 0; if(hsl[1] > 1) hsl[1] = 1;
                     hsl[2] += (lShift / 200);
                     if(hsl[2] < 0) hsl[2] = 0; if(hsl[2] > 1) hsl[2] = 1;
+                }
+            }
+
+            if (window.customColorState && window.customColorState.active) {
+                const cs = window.customColorState;
+                const cShiftH = cs.shiftH || 0, cShiftS = cs.shiftS || 0, cShiftL = cs.shiftL || 0;
+                if (cShiftH !== 0 || cShiftS !== 0 || cShiftL !== 0) {
+                    let distH = Math.abs(hsl[0] - cs.h);
+                    if (distH > 0.5) distH = 1.0 - distH;
+                    let tol = Math.max(0.015, (cs.range !== undefined ? cs.range : 0.20) * 0.45);
+                    if (distH < tol) {
+                        let wHue = 1.0 - (distH / tol);
+                        let distS = Math.abs(hsl[1] - cs.s);
+                        let distL = Math.abs(hsl[2] - cs.l);
+                        let wSat = Math.max(0, 1.0 - (distS / 0.50));
+                        let wLum = Math.max(0, 1.0 - (distL / 0.55));
+                        let wTarget = wHue * wSat * wLum;
+                        if (wTarget > 0.001) {
+                            hsl[0] = (hsl[0] + (cShiftH / 100.0) * 0.25 * wTarget) % 1.0;
+                            if (hsl[0] < 0) hsl[0] += 1.0;
+                            hsl[1] = Math.max(0, Math.min(1, hsl[1] + (cShiftS / 100.0) * 0.60 * wTarget));
+                            hsl[2] = Math.max(0, Math.min(1, hsl[2] + (cShiftL / 100.0) * 0.50 * wTarget));
+                        }
+                    }
                 }
             }
             let rgb = hslToRgbFast(hsl[0], hsl[1], hsl[2]);
@@ -504,14 +530,14 @@ function setOriginalView(show) {
             btn.title = 'Düzenlenmiş haline dön (Sonrası)';
         }
         
-        const dockBtn = document.getElementById('dockBeforeAfterBtn');
-        if (dockBtn) {
+        const dockBtns = document.querySelectorAll('#dockBeforeAfterBtn, #dockGlobalBeforeAfterBtn');
+        dockBtns.forEach(dockBtn => {
             dockBtn.style.backgroundColor = '#f59e0b';
             dockBtn.style.color = '#fff';
             dockBtn.classList.add('active');
             dockBtn.innerHTML = '<span class="dock-icon"><i class="fa-solid fa-eye"></i></span><span class="dock-label">Sonrası</span>';
             dockBtn.title = 'Düzenlenmiş haline dön (Sonrası)';
-        }
+        });
 
         if (typeof requestPhotoRepaint === 'function') requestPhotoRepaint();
         if (window.PhotoStagingArchive && typeof window.PhotoStagingArchive.syncCompareButtonStates === 'function') {
@@ -525,14 +551,14 @@ function setOriginalView(show) {
             btn.title = 'Orijinal görseli göster (Öncesi)';
         }
 
-        const dockBtn = document.getElementById('dockBeforeAfterBtn');
-        if (dockBtn) {
+        const dockBtns = document.querySelectorAll('#dockBeforeAfterBtn, #dockGlobalBeforeAfterBtn');
+        dockBtns.forEach(dockBtn => {
             dockBtn.style.backgroundColor = '';
             dockBtn.style.color = '';
             dockBtn.classList.remove('active');
             dockBtn.innerHTML = '<span class="dock-icon"><i class="fa-solid fa-code-compare"></i></span><span class="dock-label">Öncesi / Sonrası</span>';
             dockBtn.title = 'Orijinal görseli göster (Öncesi)';
-        }
+        });
         
         ['draw-layer', 'mask-layer', 'canva-render-layer', 'ui-layer', 'shadow-overlay', 'highlight-overlay'].forEach(id => {
             const el = document.getElementById(id);
@@ -692,11 +718,17 @@ function bindPixelSliders() {
                     isQualityPreviewMode = false;
                     if(typeof processHSL === 'function') processHSL();
                 }, 220);
+                if (typeof window.triggerPhotoFilterHistory === 'function') {
+                    window.triggerPhotoFilterHistory(false);
+                }
             });
             el.addEventListener('change', () => {
                 clearTimeout(hslTimeout);
                 isQualityPreviewMode = false;
                 if(typeof processHSL === 'function') processHSL();
+                if (typeof window.triggerPhotoFilterHistory === 'function') {
+                    window.triggerPhotoFilterHistory(true);
+                }
             });
         }
     });
@@ -709,4 +741,225 @@ if (document.readyState === 'loading') {
 }
 setTimeout(bindPixelSliders, 800);
 setTimeout(bindPixelSliders, 2000);
+
+// =========================================================================
+// 🎯 8-KANAL HSL DAMLALIK MOTORU (EYEDROPPER & COLOR PICKER)
+// =========================================================================
+(function() {
+    function hexToRgb(hex) {
+        if (!hex) return { r: 0, g: 0, b: 0 };
+        let c = hex.replace('#', '').trim();
+        if (c.length === 3) {
+            c = c.split('').map(x => x + x).join('');
+        }
+        const num = parseInt(c, 16);
+        return {
+            r: (num >> 16) & 255,
+            g: (num >> 8) & 255,
+            b: num & 255
+        };
+    }
+
+    function rgbToHsl(r, g, b) {
+        r /= 255; g /= 255; b /= 255;
+        const max = Math.max(r, g, b), min = Math.min(r, g, b);
+        let h, s, l = (max + min) / 2;
+
+        if (max === min) {
+            h = s = 0;
+        } else {
+            const d = max - min;
+            s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+            switch (max) {
+                case r: h = ((g - b) / d + (g < b ? 6 : 0)); break;
+                case g: h = ((b - r) / d + 2); break;
+                case b: h = ((r - g) / d + 4); break;
+            }
+            h *= 60;
+        }
+        return { h: (h % 360 + 360) % 360, s: s * 100, l: l * 100 };
+    }
+
+    function matchHslChannel(h) {
+        h = (h % 360 + 360) % 360;
+        if (h >= 345 || h < 15) return 'red';
+        if (h >= 15 && h < 40) return 'orange';
+        if (h >= 40 && h < 70) return 'yellow';
+        if (h >= 70 && h < 165) return 'green';
+        if (h >= 165 && h < 200) return 'aqua';
+        if (h >= 200 && h < 255) return 'blue';
+        if (h >= 255 && h < 305) return 'purple';
+        if (h >= 305 && h < 345) return 'magenta';
+        return 'red';
+    }
+
+    window.applyPickedColorToHsl = function(hex) {
+        if (!hex) return;
+        const rgb = hexToRgb(hex);
+        const hsl = rgbToHsl(rgb.r, rgb.g, rgb.b);
+
+        // Damlalıkla seçilen rengi doğrudan nokta atışı hedef özel renk durumuna ata
+        window.customColorState = {
+            active: true,
+            hex: hex.toUpperCase(),
+            h: (hsl.h % 360) / 360.0,
+            s: Math.max(0, Math.min(1, hsl.s / 100.0)),
+            l: Math.max(0, Math.min(1, hsl.l / 100.0)),
+            shiftH: 0,
+            shiftS: 0,
+            shiftL: 0,
+            range: 0.20
+        };
+
+        if (typeof window.syncCustomColorUI === 'function') {
+            window.syncCustomColorUI(true);
+        } else {
+            const customDot = document.getElementById('hslCustomColorDot');
+            if (customDot) customDot.click();
+        }
+
+        if (typeof applyPhotoFilters === 'function') applyPhotoFilters();
+        if (typeof processHSL === 'function') processHSL();
+    };
+
+    window.resetHslAdjustments = function() {
+        // 8 Renk Kanalı Sıfırla
+        const hslColors = ['red', 'orange', 'yellow', 'green', 'aqua', 'blue', 'purple', 'magenta'];
+        hslColors.forEach(color => {
+            ['h', 's', 'l'].forEach(type => {
+                const slider = document.querySelector(`.hsl-slider[data-color="${color}"][data-type="${type}"]`);
+                if (slider) slider.value = 0;
+                const span = document.getElementById(`hsl_${type}_${color}Val`);
+                if (span) span.textContent = '0';
+            });
+        });
+
+        // Özel Hedef Renk Durumunu Sıfırla
+        window.customColorState = null;
+        
+        // Arayüz Sliderlarını Sıfırla
+        ['h', 's', 'l'].forEach(t => {
+            const s = document.getElementById(`hsl_${t}_slider`);
+            if (s) s.value = 0;
+            const v = document.getElementById(`hsl_${t}_val`);
+            if (v) v.textContent = '0';
+        });
+        const tolSlider = document.getElementById('hsl_range_slider');
+        if (tolSlider) tolSlider.value = 20;
+        const tolVal = document.getElementById('hsl_range_val');
+        if (tolVal) tolVal.textContent = '20%';
+
+        // UI Senkronizasyonu
+        if (typeof window.syncCustomColorUI === 'function') {
+            window.syncCustomColorUI(false);
+        }
+
+        // Kırmızı Noktayı Aktif Yap
+        const redDot = document.querySelector('.hsl-color-dot[data-color="red"]');
+        if (redDot) redDot.click();
+
+        // Filtreleri Güncelle
+        if (typeof applyPhotoFilters === 'function') applyPhotoFilters();
+        if (typeof processHSL === 'function') processHSL();
+    };
+
+    window.pickHslColorFromPhoto = async function() {
+        const btn = document.getElementById('hslEyedropperBtn');
+
+        // 1. Modern Chromium EyeDropper API (Piksel büyüteçli doğal damlalık)
+        if (window.EyeDropper) {
+            try {
+                if (btn) {
+                    btn.style.borderColor = '#3b82f6';
+                    btn.style.color = '#3b82f6';
+                }
+                const eyeDropper = new window.EyeDropper();
+                const result = await eyeDropper.open();
+                if (result && result.sRGBHex) {
+                    window.applyPickedColorToHsl(result.sRGBHex);
+                }
+            } catch (err) {
+                // Kullanıcı ESC ile iptal ettiğinde
+            } finally {
+                if (btn) {
+                    btn.style.borderColor = '';
+                    btn.style.color = '';
+                }
+            }
+            return;
+        }
+
+        // 2. Fallback: EyeDropper desteklenmiyorsa tuval üzerinden piksel yakalama
+        const canvasContainer = document.getElementById('canvas-container');
+        if (!canvasContainer) return;
+
+        if (btn) {
+            btn.style.borderColor = '#3b82f6';
+            btn.style.color = '#3b82f6';
+        }
+        const oldCursor = canvasContainer.style.cursor;
+        canvasContainer.style.cursor = 'crosshair';
+
+        const onCancelKey = (e) => {
+            if (e.key === 'Escape') cleanup();
+        };
+
+        const cleanup = () => {
+            canvasContainer.style.cursor = oldCursor;
+            if (btn) {
+                btn.style.borderColor = '';
+                btn.style.color = '';
+            }
+            canvasContainer.removeEventListener('click', onCanvasClick, true);
+            window.removeEventListener('keydown', onCancelKey);
+        };
+
+        const onCanvasClick = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+
+            try {
+                const rect = canvasContainer.getBoundingClientRect();
+                const clickX = e.clientX - rect.left;
+                const clickY = e.clientY - rect.top;
+
+                const scaleX = (canvasContainer.offsetWidth > 0) ? (1920 / canvasContainer.offsetWidth) : 1;
+                const scaleY = (canvasContainer.offsetHeight > 0) ? (1080 / canvasContainer.offsetHeight) : 1;
+
+                const targetX = Math.max(0, Math.min(1919, Math.round(clickX * scaleX)));
+                const targetY = Math.max(0, Math.min(1079, Math.round(clickY * scaleY)));
+
+                const masterImg = window.masterImageBase64 || window.uploadedImgUrl;
+                if (masterImg) {
+                    const tempImg = new Image();
+                    tempImg.onload = () => {
+                        try {
+                            const offCanvas = document.createElement('canvas');
+                            offCanvas.width = 1;
+                            offCanvas.height = 1;
+                            const offCtx = offCanvas.getContext('2d');
+                            const natW = tempImg.naturalWidth || 1920;
+                            const natH = tempImg.naturalHeight || 1080;
+                            const imgX = (targetX / 1920) * natW;
+                            const imgY = (targetY / 1080) * natH;
+                            offCtx.drawImage(tempImg, imgX, imgY, 1, 1, 0, 0, 1, 1);
+                            const pixel = offCtx.getImageData(0, 0, 1, 1).data;
+                            const hex = '#' + ((1 << 24) + (pixel[0] << 16) + (pixel[1] << 8) + pixel[2]).toString(16).slice(1);
+                            window.applyPickedColorToHsl(hex);
+                        } catch(errOff) {}
+                    };
+                    tempImg.src = masterImg;
+                }
+            } catch (errPick) {
+                console.warn('Piksel rengi okunamadı:', errPick);
+            } finally {
+                cleanup();
+            }
+        };
+
+        canvasContainer.addEventListener('click', onCanvasClick, true);
+        window.addEventListener('keydown', onCancelKey);
+    };
+})();
+
 

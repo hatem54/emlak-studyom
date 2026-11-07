@@ -180,7 +180,7 @@ function initTemplateManager() {
         </div>
         <div class="input-group">
             <label>İletişim ve Danışman</label>
-            <input type="text" id="canvaContact" value="EMLAK STÜDYOM | 0532 000 00 00" placeholder="İletişim">
+            <input type="text" id="canvaContact" value="EMLAK STÜDYOM | emlakstudyomtr@gmail.com" placeholder="İletişim">
         </div>
         <div class="input-group">
             <label>İlan Özellikleri</label>

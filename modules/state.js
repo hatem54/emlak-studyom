@@ -218,16 +218,27 @@ function captureFullState() {
                 subTitle: it.subTitle,
                 icon: it.icon,
                 thumbUrl: it.thumbUrl,
-                timestamp: it.timestamp
+                timestamp: it.timestamp,
+                photoAdjustments: it.photoAdjustments ? JSON.parse(JSON.stringify(it.photoAdjustments)) : null,
+                aiIntensity: it.aiIntensity,
+                formatFramingState: it.formatFramingState ? JSON.parse(JSON.stringify(it.formatFramingState)) : null
             })),
             activeItemId: window.PhotoStagingArchive.activeItemId
         };
+    }
+
+    // 🎨 Aktif Fotoğraf Ayarları (Exposure, Contrast, Saturation, Temp, Tint, AI Intensity, Curves, Masks vb.)
+    let currentPhotoAdjustments = null;
+    if (typeof window.capturePhotoAdjustments === 'function') {
+        currentPhotoAdjustments = window.capturePhotoAdjustments();
     }
 
     return {
         timestamp: Date.now(),
         photoImgUrl: (typeof window.uploadedImgUrl !== 'undefined' && window.uploadedImgUrl) ? window.uploadedImgUrl : (typeof uploadedImgUrl !== 'undefined' ? uploadedImgUrl : null),
         stagingState: stagingState,
+        photoAdjustments: currentPhotoAdjustments,
+        formatFramingState: window._formatFramingState ? JSON.parse(JSON.stringify(window._formatFramingState)) : null,
         drawPaths: cloneDrawPaths(activeDrawPaths),
         customElements: captureCustomElements(),
         templateFrames: captureTemplateFrames(),
@@ -286,7 +297,12 @@ async function applySnapshot(state) {
             }
             window.PhotoStagingArchive.items = state.stagingState.items.map(it => {
                 const existing = masterMap.get(it.id);
-                if (existing) return existing;
+                if (existing) {
+                    if (it.photoAdjustments !== undefined) existing.photoAdjustments = it.photoAdjustments ? JSON.parse(JSON.stringify(it.photoAdjustments)) : null;
+                    if (it.aiIntensity !== undefined) existing.aiIntensity = it.aiIntensity;
+                    if (it.formatFramingState !== undefined) existing.formatFramingState = it.formatFramingState ? JSON.parse(JSON.stringify(it.formatFramingState)) : null;
+                    return existing;
+                }
                 return Object.assign({}, it);
             });
             window.PhotoStagingArchive.activeItemId = state.stagingState.activeItemId;
@@ -323,6 +339,24 @@ async function applySnapshot(state) {
             }
         }
 
+        // 0.6. Aktif Fotoğraf Ayarlarını ve Format Kadraj Hafızasını Geri Yükle
+        if (state.photoAdjustments && typeof window.restorePhotoAdjustments === 'function') {
+            window.restorePhotoAdjustments(state.photoAdjustments);
+        } else if (state.photoAdjustments === null && typeof window.resetPhotoAdjustmentsToDefault === 'function') {
+            window.resetPhotoAdjustmentsToDefault();
+        } else if (typeof applyPhotoFilters === 'function') {
+            applyPhotoFilters();
+        }
+
+        if (state.formatFramingState) {
+            window._formatFramingState = JSON.parse(JSON.stringify(state.formatFramingState));
+            if (typeof window.updateQuickFormatBadges === 'function') window.updateQuickFormatBadges();
+            const curFormat = (document.getElementById('exportFormat') || document.getElementById('previewFormat') || {}).value;
+            if (curFormat && typeof window.restorePhotoFramingForFormat === 'function' && window._formatFramingState[curFormat]) {
+                window.restorePhotoFramingForFormat(curFormat);
+            }
+        }
+
         // 1. Seçimleri kapat
         if (typeof deselectAll === 'function') deselectAll();
         if (typeof cancelDrawEdit === 'function') cancelDrawEdit();
@@ -334,6 +368,11 @@ async function applySnapshot(state) {
                 cloneDrawPaths(state.drawPaths).forEach(p => drawPaths.push(p));
             }
             window.drawPaths = drawPaths;
+        }
+
+        // Saber (Neon) motorunu temizle - eski / artık neon hayaletleri Pixi tuvalinde kalmasın
+        if (window.SaberEngine && typeof window.SaberEngine.clear === 'function') {
+            try { window.SaberEngine.clear(); } catch(e) {}
         }
 
         // Eski çizim SVG elemanlarını temizle ve yeniden çiz
@@ -610,6 +649,7 @@ window.recordHistory = function(desc = '', immediate = false) {
     const doRecord = () => {
         if (window.isHistoryRestoring) return;
         const snap = captureFullState();
+        snap.desc = desc || 'Aksiyon';
         
         // Önceki durumla aynıysa gereksiz adım ekleme (Tüm sekmeler ve motorlar için tam kontrol)
         const lastSnap = window.undoStack[window.undoStack.length - 1];
@@ -626,8 +666,10 @@ window.recordHistory = function(desc = '', immediate = false) {
             const sameBgColor = ((lastSnap.canvasBgColor || '') === (snap.canvasBgColor || ''));
             const sameBgImage = ((lastSnap.canvasBgImage || '') === (snap.canvasBgImage || ''));
             const samePalette = JSON.stringify(lastSnap.lastAppliedPalette || null) === JSON.stringify(snap.lastAppliedPalette || null);
+            const samePhotoAdj = JSON.stringify(lastSnap.photoAdjustments || null) === JSON.stringify(snap.photoAdjustments || null);
+            const sameFraming = JSON.stringify(lastSnap.formatFramingState || null) === JSON.stringify(snap.formatFramingState || null);
 
-            if (sameDraw && sameCustom && sameFrames && sameStd && samePhoto && sameStaging && sameThreeD && sameCanva && sameKolaj && sameBgColor && sameBgImage && samePalette) {
+            if (sameDraw && sameCustom && sameFrames && sameStd && samePhoto && sameStaging && sameThreeD && sameCanva && sameKolaj && sameBgColor && sameBgImage && samePalette && samePhotoAdj && sameFraming) {
                 return;
             }
         }

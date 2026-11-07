@@ -157,7 +157,8 @@ window.openQuickEdit3DModal = function(targetElement, clientX, clientY) {
             closeModal();
             if (window.ThreeDEngine && typeof window.ThreeDEngine.convert2DBadgeTo3D === 'function') {
                 const isPureIcon = root && (root.classList.contains('added-icon') || root.classList.contains('is-svg-icon') || root.classList.contains('canvas-icon'));
-                window.ThreeDEngine.convert2DBadgeTo3D(root, isPureIcon ? { shapeMode: 'silhouette' } : {});
+                const isArrowOrPin = root && (root.classList.contains('arrow') || root.classList.contains('pin') || root.dataset?.isArrow === 'true' || root.dataset?.isPin === 'true');
+                window.ThreeDEngine.convert2DBadgeTo3D(root, (isPureIcon || isArrowOrPin) ? { shapeMode: 'silhouette' } : {});
             }
         });
     }
@@ -412,6 +413,10 @@ function openObjectContextMenu(targetElement, isText, clientX, clientY) {
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#818cf8" stroke-width="2.2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
             <span>Çoğalt</span>
         </button>
+        <button class="app-context-item" id="acm-select-all" title="Tuvaldeki tüm ögeleri ve çizimleri seç">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2.2"><path d="M3 3h7v7H3z"/><path d="M14 3h7v7h-7z"/><path d="M14 14h7v7h-7z"/><path d="M3 14h7v7H3z"/></svg>
+            <span>Tümünü Seç</span>
+        </button>
     `;
 
     // Sil
@@ -531,7 +536,18 @@ function openObjectContextMenu(targetElement, isText, clientX, clientY) {
         });
     }
 
-    const bindBtn = (id, fn) => {
+    const getCurrentTarget = () => {
+        if (targetElement && targetElement.dataset && targetElement.dataset.pathId && typeof drawPaths !== 'undefined') {
+            const p = drawPaths.find(p => p.id === targetElement.dataset.pathId);
+            if (p && p.el && p.el.parentNode) return p.el;
+        }
+        if (targetElement && !targetElement.parentNode && window.selectedEl && window.selectedEl.parentNode) {
+            return window.selectedEl;
+        }
+        return targetElement;
+    };
+
+    const bindBtn = (id, fn, autoClose = false) => {
         const btn = menu.querySelector(id);
         if (btn) {
             const trigger = (e) => {
@@ -539,10 +555,15 @@ function openObjectContextMenu(targetElement, isText, clientX, clientY) {
                     e.preventDefault();
                     e.stopPropagation();
                 }
-                closeMenu();
+                if (autoClose) {
+                    closeMenu();
+                }
+                targetElement = getCurrentTarget();
                 setTimeout(() => {
                     try {
-                        fn();
+                        targetElement = getCurrentTarget();
+                        fn(e);
+                        targetElement = getCurrentTarget();
                     } catch (err) {
                         console.error('Single context menu action error for ' + id + ':', err);
                     }
@@ -554,6 +575,7 @@ function openObjectContextMenu(targetElement, isText, clientX, clientY) {
 
     // 🌟 EN ÜST KISAYOL: DÜZENLEME PANELİ
     bindBtn('#acm-open-settings', () => {
+        targetElement = getCurrentTarget();
         if (typeof window.openSelectedElementSettings === 'function') {
             window.openSelectedElementSettings(targetElement);
         }
@@ -561,15 +583,18 @@ function openObjectContextMenu(targetElement, isText, clientX, clientY) {
 
     // 🌟 3D & GÜNEŞ İŞLEMLERİ
     bindBtn('#acm-convert-3d', () => {
+        targetElement = getCurrentTarget();
         if (window.ThreeDEngine && typeof window.ThreeDEngine.convert2DBadgeTo3D === 'function') {
             const rawEl = targetElement || window.selectedCalloutEl || window.selectedEl;
             const elToConvert = rawEl ? (rawEl.closest('.shape-el, .callout-wrap, .callout-wrapper, .draggable, .added-icon, .canvas-el') || rawEl) : null;
             const isPureIcon = elToConvert && (elToConvert.classList.contains('added-icon') || elToConvert.classList.contains('is-svg-icon') || elToConvert.classList.contains('canvas-icon'));
-            window.ThreeDEngine.convert2DBadgeTo3D(elToConvert, isPureIcon ? { shapeMode: 'silhouette' } : {});
+            const isArrowOrPin = elToConvert && (elToConvert.classList.contains('arrow') || elToConvert.classList.contains('pin') || elToConvert.dataset?.isArrow === 'true' || elToConvert.dataset?.isPin === 'true');
+            window.ThreeDEngine.convert2DBadgeTo3D(elToConvert, (isPureIcon || isArrowOrPin) ? { shapeMode: 'silhouette' } : {});
         }
     });
 
     bindBtn('#acm-convert-fence-3d', () => {
+        targetElement = getCurrentTarget();
         if (window.ThreeDEngine && typeof window.ThreeDEngine.convertLineTo3DFence === 'function') {
             const elToConvert = targetElement || window.selectedCalloutEl || window.selectedEl;
             window.ThreeDEngine.convertLineTo3DFence(elToConvert, 'fence_panel_green');
@@ -597,6 +622,14 @@ function openObjectContextMenu(targetElement, isText, clientX, clientY) {
 
     // Event Handlers
     bindBtn('#acm-delete', () => {
+        targetElement = getCurrentTarget();
+        if (targetElement.classList.contains('editable-draw') && typeof drawPaths !== 'undefined') {
+            const idx = drawPaths.findIndex(p => p.el === targetElement || (p.id && targetElement.dataset && p.id === targetElement.dataset.pathId));
+            if (idx > -1 && typeof window.deleteDrawItem === 'function') {
+                window.deleteDrawItem(idx);
+                return;
+            }
+        }
         targetElement.remove();
         if (typeof drawPaths !== 'undefined') {
             const idx = drawPaths.findIndex(p => p.el === targetElement);
@@ -606,9 +639,10 @@ function openObjectContextMenu(targetElement, isText, clientX, clientY) {
         if (typeof updateDrawHistory === 'function') updateDrawHistory();
         if (typeof deselectAll === 'function') deselectAll();
         if (typeof renderLayers === 'function') renderLayers();
-    });
+    }, true);
 
-        bindBtn('#acm-single-ungroup', () => {
+    bindBtn('#acm-single-ungroup', () => {
+        targetElement = getCurrentTarget();
         if (targetElement.dataset.groupId) {
             const groupId = targetElement.dataset.groupId;
             document.querySelectorAll('.canvas-el, .draggable, .callout-wrap, .added-icon, .canva-el').forEach(el => {
@@ -622,28 +656,72 @@ function openObjectContextMenu(targetElement, isText, clientX, clientY) {
         }
     });
 
-
     bindBtn('#acm-lock', () => {
-        if (!targetElement.dataset.layerUid) {
-            targetElement.dataset.layerUid = 'layer_' + Math.random().toString(36).substr(2, 9);
-        }
-        if (typeof window.layerToggleLock === 'function') {
-            window.layerToggleLock(targetElement.dataset.layerUid);
+        targetElement = getCurrentTarget();
+        let isNowLocked = false;
+        if (targetElement.classList.contains('editable-draw') && typeof drawPaths !== 'undefined') {
+            const idx = drawPaths.findIndex(p => p.el === targetElement || (p.id && targetElement.dataset && p.id === targetElement.dataset.pathId));
+            if (idx > -1) {
+                if (typeof window.layerToggleLock === 'function') {
+                    window.layerToggleLock(null, true, idx);
+                    isNowLocked = drawPaths[idx] ? !!drawPaths[idx].locked : false;
+                }
+            }
         } else {
-            const isLocked = targetElement.dataset.locked === 'true' || targetElement.classList.contains('locked-el');
-            targetElement.dataset.locked = isLocked ? 'false' : 'true';
-            if (isLocked) {
-                targetElement.classList.remove('locked-el');
-                targetElement.style.pointerEvents = 'auto';
+            if (!targetElement.dataset.layerUid) {
+                targetElement.dataset.layerUid = 'layer_' + Math.random().toString(36).substr(2, 9);
+            }
+            if (typeof window.layerToggleLock === 'function') {
+                window.layerToggleLock(targetElement.dataset.layerUid);
+                isNowLocked = targetElement.dataset.locked === 'true';
             } else {
-                targetElement.classList.add('locked-el');
-                targetElement.style.pointerEvents = 'none';
+                const isLocked = targetElement.dataset.locked === 'true' || targetElement.classList.contains('locked-el');
+                targetElement.dataset.locked = isLocked ? 'false' : 'true';
+                if (isLocked) {
+                    targetElement.classList.remove('locked-el');
+                    targetElement.style.pointerEvents = 'auto';
+                    isNowLocked = false;
+                } else {
+                    targetElement.classList.add('locked-el');
+                    targetElement.style.pointerEvents = 'none';
+                    isNowLocked = true;
+                }
             }
         }
         if (typeof renderLayers === 'function') renderLayers();
+
+        // Buton görünümünü anlık güncelle (panel açık kaldığı için yeni durum anında yansır)
+        const lockBtn = menu.querySelector('#acm-lock');
+        if (lockBtn) {
+            if (isNowLocked) {
+                lockBtn.innerHTML = `
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2.2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                    <span>Kilidi Aç</span>
+                `;
+            } else {
+                lockBtn.innerHTML = `
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2.2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 9.9-1"></path></svg>
+                    <span>Kilitle</span>
+                `;
+            }
+        }
     });
 
     bindBtn('#acm-front', () => {
+        if (targetElement.classList.contains('editable-draw') && typeof drawPaths !== 'undefined') {
+            const idx = drawPaths.findIndex(p => p.el === targetElement || (p.id && targetElement.dataset && p.id === targetElement.dataset.pathId));
+            if (idx > -1) {
+                const p = drawPaths.splice(idx, 1)[0];
+                drawPaths.push(p);
+                drawPaths.forEach((item, i) => { if (item.el) item.el.dataset.pathIndex = i; });
+                const parent = targetElement.parentElement;
+                if (parent) parent.appendChild(targetElement);
+                if (typeof redrawAll === 'function') redrawAll();
+                if (typeof updateDrawHistory === 'function') updateDrawHistory();
+                if (typeof renderLayers === 'function') renderLayers();
+                return;
+            }
+        }
         if (!targetElement.dataset.layerUid) {
             targetElement.dataset.layerUid = 'layer_' + Math.random().toString(36).substr(2, 9);
         }
@@ -665,19 +743,26 @@ function openObjectContextMenu(targetElement, isText, clientX, clientY) {
                 parent.appendChild(targetElement);
             }
         }
-        if (targetElement.classList.contains('editable-draw') && typeof drawPaths !== 'undefined') {
-            const idx = drawPaths.findIndex(p => p.el === targetElement);
-            if (idx > -1) {
-                const p = drawPaths.splice(idx, 1)[0];
-                drawPaths.push(p);
-            }
-        }
         if (typeof redrawAll === 'function') redrawAll();
         if (typeof updateDrawHistory === 'function') updateDrawHistory();
         if (typeof renderLayers === 'function') renderLayers();
     });
 
     bindBtn('#acm-back', () => {
+        if (targetElement.classList.contains('editable-draw') && typeof drawPaths !== 'undefined') {
+            const idx = drawPaths.findIndex(p => p.el === targetElement || (p.id && targetElement.dataset && p.id === targetElement.dataset.pathId));
+            if (idx > -1) {
+                const p = drawPaths.splice(idx, 1)[0];
+                drawPaths.unshift(p);
+                drawPaths.forEach((item, i) => { if (item.el) item.el.dataset.pathIndex = i; });
+                const parent = targetElement.parentElement;
+                if (parent && parent.firstChild) parent.insertBefore(targetElement, parent.firstChild);
+                if (typeof redrawAll === 'function') redrawAll();
+                if (typeof updateDrawHistory === 'function') updateDrawHistory();
+                if (typeof renderLayers === 'function') renderLayers();
+                return;
+            }
+        }
         if (!targetElement.dataset.layerUid) {
             targetElement.dataset.layerUid = 'layer_' + Math.random().toString(36).substr(2, 9);
         }
@@ -708,13 +793,6 @@ function openObjectContextMenu(targetElement, isText, clientX, clientY) {
                 parent.insertBefore(targetElement, parent.firstChild);
             }
         }
-        if (targetElement.classList.contains('editable-draw') && typeof drawPaths !== 'undefined') {
-            const idx = drawPaths.findIndex(p => p.el === targetElement);
-            if (idx > -1) {
-                const p = drawPaths.splice(idx, 1)[0];
-                drawPaths.unshift(p);
-            }
-        }
         if (typeof redrawAll === 'function') redrawAll();
         if (typeof updateDrawHistory === 'function') updateDrawHistory();
         if (typeof renderLayers === 'function') renderLayers();
@@ -734,6 +812,20 @@ function openObjectContextMenu(targetElement, isText, clientX, clientY) {
             el.dataset.rotation = '0';
             const curScale = el.dataset.scale || 1;
             el.style.transform = `rotate(0deg) scale(${curScale})`;
+            if (el.classList.contains('editable-draw') && typeof drawPaths !== 'undefined') {
+                const p = drawPaths.find(p => p.el === el || (p.id && el.dataset && p.id === el.dataset.pathId));
+                if (p) p.rotation = 0;
+            }
+        });
+        if (typeof syncMovedDrawElements === 'function') syncMovedDrawElements(targets);
+        if (typeof redrawAll === 'function') redrawAll();
+        if (typeof updateDrawHistory === 'function') updateDrawHistory();
+        targets.forEach(el => {
+            if (el && el.classList && el.classList.contains('editable-draw')) {
+                if (typeof window.showVertexHandles === 'function' && (document.querySelector('.draw-vertex-handle') || el.classList.contains('el-selected') || window.selectedEl === el)) {
+                    window.showVertexHandles(el);
+                }
+            }
         });
         const rotSlider = document.getElementById('elRotate') || document.getElementById('shapeRotate');
         if (rotSlider) rotSlider.value = 0;
@@ -743,6 +835,23 @@ function openObjectContextMenu(targetElement, isText, clientX, clientY) {
     });
 
     bindBtn('#acm-step-forward', () => {
+        if (targetElement.classList.contains('editable-draw') && typeof drawPaths !== 'undefined') {
+            const idx = drawPaths.findIndex(p => p.el === targetElement || (p.id && targetElement.dataset && p.id === targetElement.dataset.pathId));
+            if (idx > -1 && idx < drawPaths.length - 1) {
+                const temp = drawPaths[idx];
+                drawPaths[idx] = drawPaths[idx + 1];
+                drawPaths[idx + 1] = temp;
+                drawPaths.forEach((item, i) => { if (item.el) item.el.dataset.pathIndex = i; });
+                const next = targetElement.nextElementSibling;
+                if (next && targetElement.parentElement) {
+                    targetElement.parentElement.insertBefore(next, targetElement);
+                }
+                if (typeof redrawAll === 'function') redrawAll();
+                if (typeof updateDrawHistory === 'function') updateDrawHistory();
+                if (typeof renderLayers === 'function') renderLayers();
+                return;
+            }
+        }
         if (!targetElement.dataset.layerUid) {
             targetElement.dataset.layerUid = 'layer_' + Math.random().toString(36).substr(2, 9);
         }
@@ -758,6 +867,23 @@ function openObjectContextMenu(targetElement, isText, clientX, clientY) {
     });
 
     bindBtn('#acm-step-backward', () => {
+        if (targetElement.classList.contains('editable-draw') && typeof drawPaths !== 'undefined') {
+            const idx = drawPaths.findIndex(p => p.el === targetElement || (p.id && targetElement.dataset && p.id === targetElement.dataset.pathId));
+            if (idx > 0) {
+                const temp = drawPaths[idx];
+                drawPaths[idx] = drawPaths[idx - 1];
+                drawPaths[idx - 1] = temp;
+                drawPaths.forEach((item, i) => { if (item.el) item.el.dataset.pathIndex = i; });
+                const prev = targetElement.previousElementSibling;
+                if (prev && targetElement.parentElement) {
+                    targetElement.parentElement.insertBefore(targetElement, prev);
+                }
+                if (typeof redrawAll === 'function') redrawAll();
+                if (typeof updateDrawHistory === 'function') updateDrawHistory();
+                if (typeof renderLayers === 'function') renderLayers();
+                return;
+            }
+        }
         if (!targetElement.dataset.layerUid) {
             targetElement.dataset.layerUid = 'layer_' + Math.random().toString(36).substr(2, 9);
         }
@@ -896,21 +1022,44 @@ function openObjectContextMenu(targetElement, isText, clientX, clientY) {
     bindPos('#acm-single-bottom-right', 'bottom-right');
 
     bindBtn('#acm-single-duplicate', () => {
-        window.selectedElements = [targetElement];
-        if (window.multiSelectDuplicate) window.multiSelectDuplicate();
+        targetElement = getCurrentTarget();
+        let cloned = null;
+        if (targetElement.classList.contains('editable-draw') || (targetElement.closest && targetElement.closest('.editable-draw'))) {
+            const drawEl = targetElement.classList.contains('editable-draw') ? targetElement : targetElement.closest('.editable-draw');
+            if (typeof window.duplicateDrawPath === 'function') {
+                cloned = window.duplicateDrawPath(drawEl, 30);
+            }
+        } else {
+            window.selectedElements = [targetElement];
+            if (window.multiSelectDuplicate) window.multiSelectDuplicate();
+            cloned = window.selectedElements && window.selectedElements[0];
+        }
+        if (cloned) {
+            targetElement = cloned;
+        } else if (window.selectedEl) {
+            targetElement = window.selectedEl;
+        }
+    });
+
+    bindBtn('#acm-select-all', () => {
+        closeMenu();
+        if (typeof window.selectAllCanvasElements === 'function') {
+            window.selectAllCanvasElements();
+        }
     });
 }
 window.openObjectContextMenu = openObjectContextMenu;
 
 // ==================== ÇOKLU SEÇİM SAĞ TIK & HİZALAMA MENÜSÜ ====================
 function openMultiSelectContextMenu(clientX, clientY) {
-    if (!window.selectedElements || window.selectedElements.length < 2) return;
+    const count2D = (window.selectedElements && Array.isArray(window.selectedElements)) ? window.selectedElements.length : 0;
+    const count3D = (window.ThreeDGrouping && typeof window.ThreeDGrouping.getSelected3DElements === 'function') ? window.ThreeDGrouping.getSelected3DElements().length : 0;
+    const count = count2D + count3D;
+    if (count < 2) return;
 
     // Varsa önceki açık menüyü kapat
     const existing = document.getElementById('app-custom-context-menu');
     if (existing) existing.remove();
-
-    const count = window.selectedElements.length;
     const menu = document.createElement('div');
     menu.id = 'app-custom-context-menu';
     menu.className = 'app-context-menu';
@@ -1013,7 +1162,7 @@ function openMultiSelectContextMenu(clientX, clientY) {
 
         <div style="height: 1px; background: rgba(255,255,255,0.06); margin: 3px 0;"></div>
 
-        <div class="acm-section-label">📦 TOPLU İŞLEMLER</div>
+        <div class="acm-section-label">TOPLU İŞLEMLER</div>
         <button class="app-context-item" id="acm-multi-group">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2"><rect x="3" y="3" width="8" height="8" rx="1"/><rect x="13" y="13" width="8" height="8" rx="1"/><path d="M7 11v6h6"/></svg>
             <span>Grup Yap</span>
@@ -1157,7 +1306,7 @@ function openMultiSelectContextMenu(clientX, clientY) {
     }
 
     // Attach actions
-    const bindBtn = (id, fn) => {
+    const bindBtn = (id, fn, autoClose = false) => {
         const btn = menu.querySelector(id);
         if (btn) {
             const trigger = (e) => {
@@ -1165,10 +1314,12 @@ function openMultiSelectContextMenu(clientX, clientY) {
                     e.preventDefault();
                     e.stopPropagation();
                 }
-                closeMenu();
+                if (autoClose) {
+                    closeMenu();
+                }
                 setTimeout(() => {
                     try {
-                        fn();
+                        fn(e);
                     } catch (err) {
                         console.error('Context menu action error for ' + id + ':', err);
                     }
@@ -1181,7 +1332,7 @@ function openMultiSelectContextMenu(clientX, clientY) {
     // 🌟 EN ÜST KISAYOL: DÜZENLEME PANELİ
     bindBtn('#acm-multi-open-settings', () => {
         if (typeof window.openSelectedElementSettings === 'function') {
-            window.openSelectedElementSettings();
+            window.openSelectedElementSettings((window.selectedElements && window.selectedElements[0]) || window.selectedEl);
         }
     });
 
@@ -1221,7 +1372,7 @@ function openMultiSelectContextMenu(clientX, clientY) {
     bindBtn('#acm-multi-scale-down', () => { if (window.multiSelectScale) window.multiSelectScale(0.85); });
     bindBtn('#acm-multi-lock', () => { if (window.multiSelectToggleLock) window.multiSelectToggleLock(); });
     bindBtn('#acm-multi-duplicate', () => { if (window.multiSelectDuplicate) window.multiSelectDuplicate(); });
-    bindBtn('#acm-multi-delete', () => { if (window.multiSelectDelete) window.multiSelectDelete(); });
+    bindBtn('#acm-multi-delete', () => { if (window.multiSelectDelete) window.multiSelectDelete(); }, true);
 }
 
 // 🌟 Rozetler veya İkonlar kütüphanesindeki bir öğeye sağ tıklandığında açılan 3D Hızlı Seçenek Menüsü
@@ -1398,12 +1549,12 @@ document.addEventListener('contextmenu', function(e) {
         callout = window.selectedElements[0];
     }
 
-    // Çoklu seçim varken sağ tıklandıysa
+    // Çoklu seçim varken sağ tıklandıysa: Yalnızca seçili ögelerden birine sağ tıklandıysa çoklu seçim menüsünü aç
     if (window.selectedElements && window.selectedElements.length > 1) {
-        const clickedEl = callout || (e.target.closest && e.target.closest('.callout-item, .callout-wrap, .co-neon-block, .canvas-icon, .draggable, .added-icon, .cvi-item, .editable-draw, .canvas-el, .cvi-badge-box, [data-layer-uid], .editable-text, .custom-text-el, .custom-text-box'));
+        const clickedEl = callout || (e.target.closest && e.target.closest('.callout-item, .callout-wrap, .co-neon-block, .canvas-icon, .draggable, .added-icon, .cvi-item, .editable-draw, .canvas-el, .cvi-badge-box, [data-layer-uid], .editable-text, .custom-text-el, .custom-text-box, .tb-image-frame'));
         const isOneOfSelected = (clickedEl && window.selectedElements.some(sel => sel === clickedEl || sel.contains(clickedEl) || clickedEl.contains(sel))) ||
                                 window.selectedElements.some(sel => sel.contains(e.target));
-        if (isOneOfSelected || e.target.closest('#canvas-container, .main-canvas, #ui-layer, #draw-canvas, #canva-render-layer, #photo-layer')) {
+        if (isOneOfSelected) {
             e.preventDefault();
             openMultiSelectContextMenu(e.clientX, e.clientY);
             return;
@@ -1415,7 +1566,7 @@ document.addEventListener('contextmenu', function(e) {
         const topEl = callout.closest('.callout-wrap, .draggable, .canvas-el, .added-icon, [data-layer-uid], .editable-draw, .canva-el, .cvi-item, [data-path-id], [data-path-index], .editable-text, .kolaj-cerceve') || callout;
         callout = topEl;
         e.preventDefault();
-        if (typeof selectElement === 'function' && (!window.selectedElements || window.selectedElements.length <= 1)) {
+        if (typeof selectElement === 'function') {
             selectElement(callout, false, true, false);
         }
         const isText = (callout.classList.contains('callout-item') && !callout.classList.contains('callout-wrap')) || callout.classList.contains('editable-text') || callout.classList.contains('canvas-el') || callout.classList.contains('custom-text-el');

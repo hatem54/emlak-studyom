@@ -712,28 +712,53 @@ function applyFinalProjectImage(img, finalDataUrl, finalW, finalH) {
             pl.dataset.naturalH = uploadedImgH;
         }
 
-        // 1. Tuval formatını görselin orijinal ölçülerine uyarla (Canva şablonu modunda şablon oranını koru)
-        if (typeof autoAdjustFormat === 'function' && window.isRestoringState !== true && !window.isCanvaMode) {
+        const curFormatName = (document.getElementById('exportFormat') || document.getElementById('previewFormat') || {}).value;
+        const hasExplicitFormat = !!(window.userHasManuallyChangedFormat || (curFormatName && curFormatName !== 'Orijinal Görsel Boyutu'));
+        const isSwitchingPhoto = !!(window._isApplyingToCanvas || window.isRestoringState);
+
+        // 1. Tuval formatını görselin orijinal ölçülerine uyarla (Yalnızca ilk yüklemede ve kullanıcı manuel format seçmemişse)
+        if (!hasExplicitFormat && !isSwitchingPhoto && typeof autoAdjustFormat === 'function' && !window.isCanvaMode) {
             autoAdjustFormat(uploadedImgW, uploadedImgH);
         }
 
-        // 2. Standart moddaysa tuval boyutlarını doğrudan görsel boyutlarına eşitle
+        // 2. Standart moddaysa tuval boyutlarını belirle
         if (!window.isCanvaMode) {
-            const cContainer = document.getElementById('canvas-container');
-            if (cContainer) {
-                cContainer.style.width = uploadedImgW + 'px';
-                cContainer.style.height = uploadedImgH + 'px';
-            }
-            if (typeof canvasEl !== 'undefined' && canvasEl) {
-                canvasEl.style.width = uploadedImgW + 'px';
-                canvasEl.style.height = uploadedImgH + 'px';
-            }
-            const drawCanvas = document.getElementById('draw-layer');
-            if (drawCanvas) {
-                drawCanvas.width = uploadedImgW;
-                drawCanvas.height = uploadedImgH;
-                drawCanvas.style.width = uploadedImgW + 'px';
-                drawCanvas.style.height = uploadedImgH + 'px';
+            if (hasExplicitFormat && typeof EXPORT_FORMATS !== 'undefined' && EXPORT_FORMATS[curFormatName]) {
+                // Kullanıcı veya havuz formatı belirlemişse o formatın ölçülerini koru!
+                const targetFmt = EXPORT_FORMATS[curFormatName];
+                const cContainer = document.getElementById('canvas-container');
+                if (cContainer) {
+                    cContainer.style.width = targetFmt.w + 'px';
+                    cContainer.style.height = targetFmt.h + 'px';
+                }
+                if (typeof canvasEl !== 'undefined' && canvasEl) {
+                    canvasEl.style.width = targetFmt.w + 'px';
+                    canvasEl.style.height = targetFmt.h + 'px';
+                }
+                const drawCanvas = document.getElementById('draw-layer');
+                if (drawCanvas) {
+                    drawCanvas.width = targetFmt.w;
+                    drawCanvas.height = targetFmt.h;
+                    drawCanvas.style.width = targetFmt.w + 'px';
+                    drawCanvas.style.height = targetFmt.h + 'px';
+                }
+            } else if (!hasExplicitFormat) {
+                const cContainer = document.getElementById('canvas-container');
+                if (cContainer) {
+                    cContainer.style.width = uploadedImgW + 'px';
+                    cContainer.style.height = uploadedImgH + 'px';
+                }
+                if (typeof canvasEl !== 'undefined' && canvasEl) {
+                    canvasEl.style.width = uploadedImgW + 'px';
+                    canvasEl.style.height = uploadedImgH + 'px';
+                }
+                const drawCanvas = document.getElementById('draw-layer');
+                if (drawCanvas) {
+                    drawCanvas.width = uploadedImgW;
+                    drawCanvas.height = uploadedImgH;
+                    drawCanvas.style.width = uploadedImgW + 'px';
+                    drawCanvas.style.height = uploadedImgH + 'px';
+                }
             }
         }
         if (window.SaberEngine && typeof window.SaberEngine.resize === 'function') {
@@ -1454,26 +1479,56 @@ function bindInputs(){
     };
 }
 
+let _photoFilterHistoryTimer = null;
+window.triggerPhotoFilterHistory = function(immediate = false) {
+    if (window.isHistoryRestoring) return;
+    
+    // Aktif havuz görseli varsa ayarları görsel nesnesine de anında senkronize et
+    if (window.PhotoStagingArchive && typeof window.PhotoStagingArchive.syncActiveItemAdjustments === 'function') {
+        window.PhotoStagingArchive.syncActiveItemAdjustments();
+    }
+
+    if (immediate) {
+        if (_photoFilterHistoryTimer) {
+            clearTimeout(_photoFilterHistoryTimer);
+            _photoFilterHistoryTimer = null;
+        }
+        if (typeof window.recordHistoryImmediate === 'function') {
+            window.recordHistoryImmediate('Fotoğraf Ayarı');
+        }
+    } else {
+        if (_photoFilterHistoryTimer) clearTimeout(_photoFilterHistoryTimer);
+        _photoFilterHistoryTimer = setTimeout(() => {
+            _photoFilterHistoryTimer = null;
+            if (typeof window.recordHistory === 'function') {
+                window.recordHistory('Fotoğraf Ayarı');
+            }
+        }, 350);
+    }
+};
+
 function bindPhotoFilters(){
+    const shadowHighlightIds = new Set(['shadowsCtrl', 'highlightsCtrl', 'blacksCtrl', 'whitesCtrl', 'tempCtrl', 'tintCtrl', 'vibranceCtrl', 'sharpnessCtrl']);
 
-    FILTER_IDS.forEach(id=>{if($(id))$(id).addEventListener('input',applyPhotoFilters)});
-
-    if($('shadowsCtrl'))$('shadowsCtrl').addEventListener('input',applyShadowHighlight);
-
-    if($('highlightsCtrl'))$('highlightsCtrl').addEventListener('input',applyShadowHighlight);
-
-    if($('blacksCtrl'))$('blacksCtrl').addEventListener('input',applyShadowHighlight);
-
-    if($('whitesCtrl'))$('whitesCtrl').addEventListener('input',applyShadowHighlight);
-
-    if($('tempCtrl'))$('tempCtrl').addEventListener('input',applyShadowHighlight);
-
-    if($('tintCtrl'))$('tintCtrl').addEventListener('input',applyShadowHighlight);
-
-    if($('vibranceCtrl'))$('vibranceCtrl').addEventListener('input',applyShadowHighlight);
-
-    if($('sharpnessCtrl'))$('sharpnessCtrl').addEventListener('input',applyShadowHighlight);
-
+    FILTER_IDS.forEach(id => {
+        const el = document.getElementById(id) || (typeof $ === 'function' ? $(id) : null);
+        if (el) {
+            el.addEventListener('input', () => {
+                applyPhotoFilters();
+                if (shadowHighlightIds.has(id) && typeof applyShadowHighlight === 'function') {
+                    applyShadowHighlight();
+                }
+                window.triggerPhotoFilterHistory(false);
+            });
+            el.addEventListener('change', () => {
+                applyPhotoFilters();
+                if (shadowHighlightIds.has(id) && typeof applyShadowHighlight === 'function') {
+                    applyShadowHighlight();
+                }
+                window.triggerPhotoFilterHistory(true);
+            });
+        }
+    });
 }
 
 
@@ -1513,7 +1568,25 @@ function init(){
 
         bindPhotoFilters();
 
-        ['photoZoomCtrl','photoXCtrl','photoYCtrl'].forEach(id=>{if($(id))$(id).addEventListener('input',applyPhotoPos)});
+        ['photoZoomCtrl','photoXCtrl','photoYCtrl'].forEach(id=>{
+            const el = document.getElementById(id) || (typeof $ === 'function' ? $(id) : null);
+            if (el) {
+                el.addEventListener('input', () => {
+                    applyPhotoPos();
+                    if (typeof window.savePhotoFramingForCurrentFormat === 'function') {
+                        window.savePhotoFramingForCurrentFormat();
+                    }
+                });
+                el.addEventListener('change', () => {
+                    if (typeof window.savePhotoFramingForCurrentFormat === 'function') {
+                        window.savePhotoFramingForCurrentFormat();
+                    }
+                    if (typeof window.recordHistory === 'function') {
+                        window.recordHistory('Fotoğraf Konumu');
+                    }
+                });
+            }
+        });
 
         ['fontWeight','fontStyle','letterSpacing','lineHeight','textAlign','textShadowColor','textShadow','textTransform'].forEach(id=>{if($(id))$(id).addEventListener('input',applyFontSettings)});
 
@@ -2195,6 +2268,10 @@ window.resetEntireWorkspace = function() {
                 if (window.CloneStamp && typeof window.CloneStamp.reset === 'function') {
                     window.CloneStamp.reset();
                 }
+                window._formatFramingState = {};
+                if (typeof window.updateQuickFormatBadges === 'function') {
+                    window.updateQuickFormatBadges();
+                }
 
                 // 2b. Tuval Arka Plan Rengini Varsayılana Sıfırla
                 const canvasContainer = document.getElementById('canvas-container');
@@ -2273,6 +2350,15 @@ window.resetEntireWorkspace = function() {
                 if (uiLayer) {
                     const uiExtras = uiLayer.querySelectorAll(':scope > *:not(#elBadge):not(#elPrice):not(#elDetails):not(#elLogo)');
                     uiExtras.forEach(el => el.remove());
+                }
+
+                // 6.1. Özel Rozet ve Logo Havuzunu Sıfırla (Geçici olanları sil, kalıcıları koru)
+                if (window.CustomBadges && typeof window.CustomBadges.resetWorkspaceBadges === 'function') {
+                    try {
+                        window.CustomBadges.resetWorkspaceBadges();
+                    } catch(eCbg) {
+                        console.warn('[resetEntireWorkspace] CustomBadges sıfırlama hatası:', eCbg);
+                    }
                 }
 
                 // 7. Standart elemanları gizle ve sıfırla
@@ -2661,18 +2747,13 @@ document.addEventListener('keydown', function(e) {
             }
         }
 
-        if (typeof selectedCalloutEl !== 'undefined' && selectedCalloutEl) {
+        // Merkezi deleteSelected: Çoklu seçim (2D / 3D), tekil 3D, tekil 2D veya callout'u hatasız siler
+        if (typeof window.deleteSelected === 'function') {
+            window.deleteSelected();
+        } else if (typeof deleteSelected === 'function') {
+            deleteSelected();
+        } else if (typeof selectedCalloutEl !== 'undefined' && selectedCalloutEl) {
             if (typeof deleteSelectedCallout === 'function') deleteSelectedCallout();
-            else if (typeof window.deleteSelected === 'function') window.deleteSelected();
-        } else if (
-            (typeof selectedEl !== 'undefined' && selectedEl) ||
-            (Array.isArray(window.selectedElements) && window.selectedElements.length > 0) ||
-            (window.ThreeDEngine && typeof window.ThreeDEngine.isSelected === 'function' && window.ThreeDEngine.isSelected()) ||
-            (window.ThreeDGrouping && typeof window.ThreeDGrouping.getSelected3DElements === 'function' && window.ThreeDGrouping.getSelected3DElements().length > 0) ||
-            document.querySelector('.el-selected')
-        ) {
-            if (typeof window.deleteSelected === 'function') window.deleteSelected();
-            else if (typeof deleteSelected === 'function') deleteSelected();
         }
     }
 
@@ -2720,15 +2801,33 @@ document.addEventListener('keydown', function(e) {
         if (e.key === 'ArrowLeft') dx = -step;
         if (e.key === 'ArrowRight') dx = step;
 
-        // 3D Öge Seçiliyse
-        if (window.ThreeDEngine && typeof window.ThreeDEngine.isSelected === 'function' && window.ThreeDEngine.isSelected()) {
+        let movedAny = false;
+
+        // 3D Ögeler Seçiliyse (Çoklu veya Tekil)
+        const has3D = (window.ThreeDGrouping && typeof window.ThreeDGrouping.getSelected3DElements === 'function' && window.ThreeDGrouping.getSelected3DElements().length > 0) ||
+                      (window.ThreeDEngine && typeof window.ThreeDEngine.isSelected === 'function' && window.ThreeDEngine.isSelected());
+        if (has3D) {
             e.preventDefault();
-            const el = window.ThreeDEngine.getActiveElement ? window.ThreeDEngine.getActiveElement() : null;
-            if (el && typeof window.ThreeDEngine.setElementPosition === 'function') {
-                window.ThreeDEngine.setElementPosition(el, (el.posX || 0) + dx, (el.posY || 0) + dy);
-                if (typeof window.recordHistory === 'function') window.recordHistory('3D Öge Taşındı', true);
+            const multi3D = (window.ThreeDGrouping && typeof window.ThreeDGrouping.getSelected3DElements === 'function')
+                ? window.ThreeDGrouping.getSelected3DElements()
+                : [];
+            if (multi3D && multi3D.length > 0) {
+                multi3D.forEach(thEl => {
+                    if (thEl && !thEl.locked && typeof window.ThreeDEngine.setElementPosition === 'function') {
+                        window.ThreeDEngine.setElementPosition(thEl, (thEl.posX || 0) + dx, (thEl.posY || 0) + dy);
+                    }
+                });
+                movedAny = true;
+            } else {
+                const el = (window.ThreeDEngine && typeof window.ThreeDEngine.getActiveElement === 'function') ? window.ThreeDEngine.getActiveElement() : null;
+                if (el && !el.locked && typeof window.ThreeDEngine.setElementPosition === 'function') {
+                    window.ThreeDEngine.setElementPosition(el, (el.posX || 0) + dx, (el.posY || 0) + dy);
+                    movedAny = true;
+                }
             }
-            return;
+            if (movedAny && typeof window.recordHistory === 'function') {
+                window.recordHistory('3D Öge Taşındı', true);
+            }
         }
 
         // 2D Öge Seçiliyse
@@ -2739,18 +2838,62 @@ document.addEventListener('keydown', function(e) {
         if (targets.length > 0) {
             e.preventDefault();
             targets.forEach(tEl => {
+                if (!tEl || (tEl.dataset && tEl.dataset.locked === 'true')) return;
                 const curLeft = parseFloat(tEl.style.left) || 0;
                 const curTop = parseFloat(tEl.style.top) || 0;
-                tEl.style.left = (curLeft + dx) + 'px';
-                tEl.style.top = (curTop + dy) + 'px';
-                if (tEl.classList.contains('canvas-el') && typeof window.addTextHandles === 'function') {
+                const newLeft = curLeft + dx;
+                const newTop = curTop + dy;
+                tEl.style.left = newLeft + 'px';
+                tEl.style.top = newTop + 'px';
+
+                // Çizim elemanı ise koordinatlarını ve Saber'ı senkronize et
+                if (tEl.classList && tEl.classList.contains('editable-draw')) {
+                    tEl.dataset.baseLeft = newLeft;
+                    tEl.dataset.baseTop = newTop;
+                    tEl.dataset.dragStartX = newLeft;
+                    tEl.dataset.dragStartY = newTop;
+                    if (typeof window.findDrawPathForElement === 'function') {
+                        const pObj = window.findDrawPathForElement(tEl);
+                        if (pObj) {
+                            if (pObj.points && Array.isArray(pObj.points)) {
+                                pObj.points.forEach(pt => {
+                                    pt.x += dx;
+                                    pt.y += dy;
+                                    if (pt.cpIn) { pt.cpIn.x += dx; pt.cpIn.y += dy; }
+                                    if (pt.cpOut) { pt.cpOut.x += dx; pt.cpOut.y += dy; }
+                                });
+                            }
+                            if (pObj.x1 !== undefined && pObj.x2 !== undefined) {
+                                pObj.x1 += dx;
+                                pObj.y1 += dy;
+                                pObj.x2 += dx;
+                                pObj.y2 += dy;
+                            }
+                            if (typeof window.refreshDrawElement === 'function') {
+                                window.refreshDrawElement(pObj);
+                            }
+                        }
+                    }
+                }
+
+                if (tEl.classList && tEl.classList.contains('canvas-el') && typeof window.addTextHandles === 'function') {
                     window.addTextHandles(tEl);
                 }
             });
+
+            const drawTargets = targets.filter(el => el && el.classList && el.classList.contains('editable-draw'));
+            if (drawTargets.length > 0) {
+                if (typeof syncMovedDrawElements === 'function') syncMovedDrawElements(drawTargets);
+                if (typeof redrawAll === 'function') redrawAll();
+                if (typeof updateDrawHistory === 'function') updateDrawHistory();
+            }
+
+            movedAny = true;
             if (typeof window.recordHistory === 'function') window.recordHistory('Öge Taşındı');
             if (typeof renderLayers === 'function') renderLayers();
-            return;
         }
+
+        if (movedAny) return;
     }
 
     // 5. Geri Al (Undo) - Ctrl+Z
@@ -2886,20 +3029,38 @@ window.resetSliderToDefault = function(input) {
     if (defaultVal !== null) {
         input.value = defaultVal;
 
-        // Özel Durum: HSL Kaydırıcıları (8 Renk Kanalı Senkronizasyonu)
+        // Özel Durum: HSL Kaydırıcıları (8 Renk Kanalı & Özel Renk Senkronizasyonu)
         if (id === 'hsl_h_slider' || id === 'hsl_s_slider' || id === 'hsl_l_slider') {
             const type = id.split('_')[1]; // 'h', 's' veya 'l'
             const activeDot = document.querySelector('.hsl-color-dot.active');
             const color = (activeDot && activeDot.dataset.color) ? activeDot.dataset.color : 'red';
-            const hiddenInput = document.querySelector(`.hsl-slider[data-color="${color}"][data-type="${type}"]`) ||
-                                document.getElementById(`hsl_${type}_${color}Val_input`);
-            if (hiddenInput) {
-                hiddenInput.value = defaultVal;
-                hiddenInput.dispatchEvent(new Event('input', { bubbles: true }));
-                hiddenInput.dispatchEvent(new Event('change', { bubbles: true }));
+            if (color === 'custom' && window.customColorState) {
+                if (type === 'h') window.customColorState.shiftH = defaultVal;
+                if (type === 's') window.customColorState.shiftS = defaultVal;
+                if (type === 'l') window.customColorState.shiftL = defaultVal;
+                window.customColorState.active = true;
+                if (typeof applyPhotoFilters === 'function') applyPhotoFilters();
+            } else {
+                const hiddenInput = document.querySelector(`.hsl-slider[data-color="${color}"][data-type="${type}"]`) ||
+                                    document.getElementById(`hsl_${type}_${color}Val_input`);
+                if (hiddenInput) {
+                    hiddenInput.value = defaultVal;
+                    hiddenInput.dispatchEvent(new Event('input', { bubbles: true }));
+                    hiddenInput.dispatchEvent(new Event('change', { bubbles: true }));
+                }
             }
             const hslValSpan = document.getElementById(`hsl_${type}_val`);
             if (hslValSpan) hslValSpan.textContent = defaultVal;
+        }
+
+        if (id === 'hsl_range_slider') {
+            if (window.customColorState) {
+                window.customColorState.range = defaultVal / 100.0;
+                window.customColorState.active = true;
+                if (typeof applyPhotoFilters === 'function') applyPhotoFilters();
+            }
+            const rangeValSpan = document.getElementById('hsl_range_val');
+            if (rangeValSpan) rangeValSpan.textContent = defaultVal + '%';
         }
 
         // Özel Durum: AI HD Netleştirici

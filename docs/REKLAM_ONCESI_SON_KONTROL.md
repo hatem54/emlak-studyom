@@ -66,7 +66,14 @@ Reklam yayınına (Meta/Instagram/Google Ads) çıkıldığında doğrudan **olu
 
 ### 8. Service Worker Önbellek Sürüm Güncellemesi — [TAMAMLANDI ✅]
 - **Dosya / Satır:** [`sw.js:1`](file:///c:/Users/Hatemi/Desktop/emlak%20d%C3%BCzenlemeleri%20i%C3%A7in%20uygulama/emlak-studiom%20v7-0/sw.js#L1)
-- **Yapılan İyileştirme:** `CACHE_NAME` değeri `'emlak-studiom-v225-20261013-launch'` olarak güncellendi. Yeni reklam ziyaretçileri ve mevcut kullanıcılar en son güncel dosya ve kalkanları anında alacaktır.
+- **Yapılan İyileştirme:** `CACHE_NAME` değeri `'emlak-studiom-v232-20261023-prelaunch-audit-fixes'` olarak güncellendi. Yeni reklam ziyaretçileri ve mevcut kullanıcılar en son güncel dosya ve kalkanları anında alacaktır.
+
+### 9. Müşteri Yayını Öncesi Son Tarama & Stres Testi Düzeltmeleri (23.10.2026) — [TAMAMLANDI ✅]
+- **Filigran & Kadraj/AI Koruma (`modules/photo-staging.js`):** Damgalama (`applyWatermarkSelected`) ve logo kaldırma (`removeLogoFromCanvas`) işlemlerinin Format & Kadraj ve AI Netleştirme düzenlemelerini silmesini önleyen `preWatermarkDataUrl` katmanı eklendi.
+- **Çoklu Platform ZIP & Gizli Logo Kalkanı (`modules/photo-staging.js`):** 3'lü Platform ZIP çıktısında damgalı görsellerde logonun kaybolması düzeltildi; Katmanlar panelinden gizlenen logonun (`hiddenLayer === 'true'`) ZIP çıktısına basılması önlendi; `downloadSelectedZip` Blob URL bellek tahliyesi ve `beforeunload` yenileme koruması eklendi.
+- **Şablon & Marka Kotası Koruması (`modules/template-builder.js`, `js/brandManager.js`):** Özel şablon kaydında `QuotaExceededError` yakalama ve hafif şablon yedeklemesi eklendi; marka logoları `max 512px` boyutuna otomatik optimize edilerek `localStorage` taşması önlendi.
+- **Otomatik Kayıt & Ortak Bilgisayar Hijyeni (`js/autoSave.js`, `js/mode-manager.js`, `app.html`):** Değişiklik olmadığında her 5 saniyede bir yapılan gereksiz IndexedDB yazımı imza kontrolüyle önlendi; geçmiş sınırı `(Maks. 5 kayıt)` olarak eşitlendi; çıkış (`handleLogout`) anında aktif taslak temizliği eklendi.
+- **SEO, OG Görseli & Vitrin İkonları (`index.html`, `robots.txt`, `sitemap.xml`):** WhatsApp/Twitter paylaşım görseli mutlak URL ve hafif önizleme görseline çevrildi; `robots.txt` içinde Googlebot render izni açıldı ve `sitemap.xml` oluşturuldu; `fa-sparkles` ikonu ve alt bilgi sosyal linkleri düzeltildi.
 
 ---
 

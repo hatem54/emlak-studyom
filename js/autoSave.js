@@ -117,6 +117,7 @@ function loadStateFromDB() {
     });
 }
 
+window.deleteStateFromDB = deleteStateFromDB;
 function deleteStateFromDB() {
     if (!dbInstance) return Promise.resolve();
     return new Promise((resolve, reject) => {
@@ -156,8 +157,8 @@ function cleanupOldHistory() {
             const records = e.target.result;
             const historyRecords = records.filter(r => r.id && r.id.startsWith('history_')).sort((a,b) => b.timestamp - a.timestamp);
             
-            if (historyRecords.length > 3) {
-                const toDelete = historyRecords.slice(3);
+            if (historyRecords.length > 5) {
+                const toDelete = historyRecords.slice(5);
                 toDelete.forEach(r => store.delete(r.id));
             }
             resolve();
@@ -483,6 +484,25 @@ async function performAutoSave() {
             state.threeDData = window.ThreeDEngine.getDataToSave();
         }
 
+        const currentSignature = JSON.stringify({
+            m: state.currentMode,
+            l: state.activeLayout,
+            uLen: state.uploadedImgUrl ? state.uploadedImgUrl.length : 0,
+            uTail: state.uploadedImgUrl ? state.uploadedImgUrl.slice(-64) : '',
+            lLen: state.logoImgUrl ? state.logoImgUrl.length : 0,
+            dp: state.drawPaths ? state.drawPaths.length : 0,
+            ci: state.customItems,
+            te: state.templateElements,
+            inp: state.inputs,
+            kh: state.kolajHtml ? state.kolajHtml.length : 0,
+            ch: state.canvaHtml ? state.canvaHtml.length : 0,
+            td: state.threeDData,
+            pc: state.photoCurves
+        });
+        if (window._lastAutoSaveSignature === currentSignature) {
+            return;
+        }
+        window._lastAutoSaveSignature = currentSignature;
         await saveStateToDB(state);
         
         if (Date.now() - lastHistorySaveTime > HISTORY_INTERVAL) {

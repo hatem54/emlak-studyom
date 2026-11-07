@@ -97,7 +97,9 @@ body[data-theme="light"] input[type="range"]:hover{accent-color:#1e293b !importa
    ✨ UNIFIED BUTTON DESIGN SYSTEM & ELEGANT AMBIENT SHADOW (12 SEKMELİK ORTAK SİSTEM)
    ========================================================================== */
 .btn-action {
-    border: none;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: linear-gradient(180deg, rgba(30, 41, 59, 0.85) 0%, rgba(15, 23, 42, 0.85) 100%);
+    color: #f1f5f9;
     padding: 8px 12px;
     font-family: 'ClassicAmpersand', 'Space Grotesk', sans-serif;
     font-size: 11.5px;
@@ -115,11 +117,15 @@ body[data-theme="light"] input[type="range"]:hover{accent-color:#1e293b !importa
     justify-content: center;
     gap: 7px;
     letter-spacing: 0.3px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
 }
 
 .btn-action:hover {
     transform: translateY(-1.5px);
-    box-shadow: 0 4px 12px rgba(108, 92, 231, 0.22), 0 1px 3px rgba(0, 0, 0, 0.12);
+    background: linear-gradient(180deg, rgba(51, 65, 85, 0.95) 0%, rgba(30, 41, 59, 0.95) 100%);
+    border-color: #a855f7;
+    color: #ffffff;
+    box-shadow: 0 4px 14px rgba(108, 92, 231, 0.28), 0 2px 6px rgba(0, 0, 0, 0.2);
 }
 
 .btn-action:active {
@@ -222,6 +228,50 @@ body[data-theme="light"] input[type="range"]:hover{accent-color:#1e293b !importa
 .btn-cyan:hover {
     transform: translateY(-1.5px);
     box-shadow: 0 4px 12px rgba(6, 182, 212, 0.3) !important;
+}
+
+/* 🌟 Koyu Tema Genel Buton Standartları (Fallback & Garanti) */
+body[data-theme="dark"] .btn-action:not(.btn-blue):not(.btn-purple):not(.btn-green):not(.btn-red):not(.btn-yellow):not(.btn-cyan):not(.btn-save):not(.btn-primary):not(.btn-ai),
+:root:not([data-theme="light"]) .btn-action:not(.btn-blue):not(.btn-purple):not(.btn-green):not(.btn-red):not(.btn-yellow):not(.btn-cyan):not(.btn-save):not(.btn-primary):not(.btn-ai) {
+    background: linear-gradient(180deg, rgba(30, 41, 59, 0.85) 0%, rgba(15, 23, 42, 0.85) 100%) !important;
+    border: 1px solid rgba(255, 255, 255, 0.12) !important;
+    color: #f1f5f9 !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25) !important;
+}
+
+body[data-theme="dark"] .btn-action:not(.btn-blue):not(.btn-purple):not(.btn-green):not(.btn-red):not(.btn-yellow):not(.btn-cyan):not(.btn-save):not(.btn-primary):not(.btn-ai):hover,
+:root:not([data-theme="light"]) .btn-action:not(.btn-blue):not(.btn-purple):not(.btn-green):not(.btn-red):not(.btn-yellow):not(.btn-cyan):not(.btn-save):not(.btn-primary):not(.btn-ai):hover {
+    background: linear-gradient(180deg, rgba(51, 65, 85, 0.95) 0%, rgba(30, 41, 59, 0.95) 100%) !important;
+    border-color: #a855f7 !important;
+    color: #ffffff !important;
+    box-shadow: 0 4px 14px rgba(108, 92, 231, 0.28), 0 2px 6px rgba(0, 0, 0, 0.2) !important;
+}
+
+body[data-theme="dark"] .btn-action:not(.btn-blue):not(.btn-purple):not(.btn-green):not(.btn-red):not(.btn-yellow):not(.btn-cyan):not(.btn-save) i,
+:root:not([data-theme="light"]) .btn-action:not(.btn-blue):not(.btn-purple):not(.btn-green):not(.btn-red):not(.btn-yellow):not(.btn-cyan):not(.btn-save) i {
+    color: #38bdf8;
+}
+
+/* ☀️ Açık Tema Genel Buton Standartları (Temiz & Nizamlı Açık Zemin) */
+html[data-theme="light"] .btn-action:not(.btn-blue):not(.btn-purple):not(.btn-green):not(.btn-red):not(.btn-yellow):not(.btn-cyan):not(.btn-save):not(.btn-primary):not(.btn-ai),
+body[data-theme="light"] .btn-action:not(.btn-blue):not(.btn-purple):not(.btn-green):not(.btn-red):not(.btn-yellow):not(.btn-cyan):not(.btn-save):not(.btn-primary):not(.btn-ai) {
+    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%) !important;
+    border: 1px solid #cbd5e1 !important;
+    color: #1e293b !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06) !important;
+}
+
+html[data-theme="light"] .btn-action:not(.btn-blue):not(.btn-purple):not(.btn-green):not(.btn-red):not(.btn-yellow):not(.btn-cyan):not(.btn-save):not(.btn-primary):not(.btn-ai):hover,
+body[data-theme="light"] .btn-action:not(.btn-blue):not(.btn-purple):not(.btn-green):not(.btn-red):not(.btn-yellow):not(.btn-cyan):not(.btn-save):not(.btn-primary):not(.btn-ai):hover {
+    background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%) !important;
+    border-color: #94a3b8 !important;
+    color: #0f172a !important;
+    box-shadow: 0 4px 12px rgba(108, 92, 231, 0.15), 0 1px 3px rgba(0, 0, 0, 0.08) !important;
+}
+
+html[data-theme="light"] .btn-action:not(.btn-blue):not(.btn-purple):not(.btn-green):not(.btn-red):not(.btn-yellow):not(.btn-cyan):not(.btn-save) i,
+body[data-theme="light"] .btn-action:not(.btn-blue):not(.btn-purple):not(.btn-green):not(.btn-red):not(.btn-yellow):not(.btn-cyan):not(.btn-save) i {
+    color: #475569 !important;
 }
 
 .btn-save {
@@ -654,16 +704,16 @@ svg, .callout-svg-container svg, .is-svg-icon svg, .draw-svg-item, #drawCanvas {
     z-index:5 !important;
 }
 
-/* Yazı/metin/kutu elemanları varsayılan taban z-index */
+/* Yazı/metin/kutu elemanları varsayılan taban z-index (Çizimlerin ve 3D'nin üzerinde kalır) */
 #ui-layer .canvas-el,
 .canva-generated, .canvas-el { 
-    z-index: 20; 
+    z-index: 35; 
     min-width: min-content;
     min-height: min-content;
     word-break: break-word;
 }
 #ui-layer .draggable{
-    z-index: 20;
+    z-index: 35;
 }
 
 /* Seçili eleman: z-index Katmanlar panelindeki derinlik hiyerarşisine sadık kalır */
@@ -717,16 +767,30 @@ svg, .callout-svg-container svg, .is-svg-icon svg, .draw-svg-item, #drawCanvas {
     color: #f43f5e !important;
 }
 
-/* Seçili çizim, mavi seçim kutusu ve tutamaçlar (rotate, resize, delete, vertex pins) Saber glow'un KESİNLİKLE ÜZERİNDE olmalı */
+/* Çizim elemanları zemin katmanında (z-index: 10) yer alır; 3D ögeler (25) ve UI etiketleri (35) çizimlerin üzerinde durur */
 .editable-draw {
-    pointer-events: auto !important;
-    z-index: 50;
+    pointer-events: none !important;
+    z-index: 10;
 }
 .editable-draw > svg {
-    pointer-events: all !important;
+    pointer-events: none !important;
 }
-.editable-draw > svg * {
+.editable-draw > svg path,
+.editable-draw > svg polygon,
+.editable-draw > svg rect,
+.editable-draw > svg ellipse,
+.editable-draw > svg line,
+.editable-draw > svg circle,
+.editable-draw > svg polyline {
     pointer-events: all !important;
+    cursor: pointer;
+}
+.editable-draw[data-locked="true"],
+.editable-draw[data-locked="true"] *,
+.editable-draw.locked-el,
+.editable-draw.locked-el * {
+    pointer-events: none !important;
+    user-select: none !important;
 }
 .editable-draw .vertex-handles-container {
     pointer-events: none !important;
@@ -736,9 +800,36 @@ svg, .callout-svg-container svg, .is-svg-icon svg, .draw-svg-item, #drawCanvas {
     pointer-events: auto !important;
     z-index: 10025 !important;
 }
-.editable-draw.el-selected,
+.editable-draw .vertex-handle,
+.editable-draw .vertex-handle *,
+.editable-draw .midpoint-handle,
+.editable-draw .midpoint-handle * {
+    cursor: default !important;
+}
+.editable-draw.el-selected {
+    outline: 2px dashed #0284c7 !important;
+    outline-offset: 4px !important;
+    border-radius: 4px !important;
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.85), 0 0 12px rgba(2, 132, 199, 0.4) !important;
+    z-index: 15 !important;
+}
 .editable-draw.neon-active.el-selected {
-    /* z-index Katmanlar tarafından yönetilir */
+    outline: 2px dashed #38bdf8 !important;
+    outline-offset: 6px !important;
+    border-radius: 4px !important;
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.85), 0 0 15px rgba(56, 189, 248, 0.5) !important;
+    z-index: 15 !important;
+}
+.editable-draw.marquee-candidate,
+.canvas-el.marquee-candidate,
+.draggable.marquee-candidate,
+.cvi-item.marquee-candidate,
+.co-neon-block.marquee-candidate,
+.shape-el.marquee-candidate,
+.callout-wrap.marquee-candidate {
+    outline: 2px dashed #3b82f6 !important;
+    outline-offset: 3px !important;
+    box-shadow: 0 0 10px rgba(59, 130, 246, 0.5) !important;
 }
 
 /* Callout Panel */
@@ -2083,6 +2174,26 @@ body.floating-panels-active .floating-expand-btn {
 }
 .text-resize-handle, .text-delete-handle, .text-lock-handle, .draw-handle { 
     transform: scale(var(--handle-scale, 1)) !important; 
+}
+
+/* Çizim Üst Kontrol Butonları (Döndür 🔄 ve Sil 🗑️) - Üst üste binmeyi önleyen nizamlı yerleşim */
+.editable-draw .vertex-handles-container .text-rotate-handle.draw-top-handle {
+    top: -32px !important;
+    bottom: auto !important;
+    left: calc(50% - 26px) !important;
+    right: auto !important;
+    transform: translateX(-50%) scale(var(--handle-scale, 1)) !important;
+    transform-origin: center center !important;
+    margin: 0 !important;
+}
+.editable-draw .vertex-handles-container .text-delete-handle.draw-top-handle {
+    top: -32px !important;
+    bottom: auto !important;
+    left: calc(50% + 26px) !important;
+    right: auto !important;
+    transform: translateX(-50%) scale(var(--handle-scale, 1)) !important;
+    transform-origin: center center !important;
+    margin: 0 !important;
 }
 
 /* Tutamaç Boyutları - İdeal 26px & 13px SVG */
@@ -3736,6 +3847,11 @@ body[data-theme="light"] .hsl-accordion summary {
 
 body[data-theme="light"] .hsl-accordion > div {
     border-top: 1px solid #e2e8f0 !important;
+}
+
+body[data-theme="light"] #multi-select-panel summary,
+body[data-theme="light"] #drawEditPanel summary {
+    border-left: 3.5px solid #0284c7 !important;
 }
 
 /* İlana Özel Hazır Öğeler Başlığı */

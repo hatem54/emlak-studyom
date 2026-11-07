@@ -219,10 +219,20 @@ function resetPhotoPos(){
 }
 window.resetPhotoPos = resetPhotoPos;
 
-window.getWebGLPhotoOptions = function() {
-    if (window.PhotoLayerManager) window.PhotoLayerManager.saveActiveState();
+window.getWebGLPhotoOptions = function(targetAdj) {
+    if (!targetAdj && window.PhotoLayerManager) window.PhotoLayerManager.saveActiveState();
     
     const getVal = (id, def = 0) => {
+        if (targetAdj) {
+            if (targetAdj.filters && targetAdj.filters[id] !== undefined) {
+                return parseFloat(targetAdj.filters[id]);
+            }
+            if (targetAdj.geometry && targetAdj.geometry[id] !== undefined) {
+                return parseFloat(targetAdj.geometry[id]);
+            }
+            return def;
+        }
+
         if (!window.PhotoLayerManager) {
             const el = document.getElementById(id);
             return el ? parseFloat(el.value) : def;
@@ -267,16 +277,25 @@ window.getWebGLPhotoOptions = function() {
 
     // 3. Detay & Efektler
     let sharpness = getVal('sharpnessCtrl', 0) / 100.0;
-    let aiSharpenRaw = getVal('aiPhotoEnhanceSlider', 0);
+    let aiSharpenRaw = 0;
 
-    // Staging AI Netleştirme sliderı entegrasyonu
-    const stagingSlider = document.getElementById('stagingAiIntensitySlider');
-    if (stagingSlider && window.PhotoStagingArchive && window.PhotoStagingArchive.aiTrayOpen) {
-        aiSharpenRaw = parseFloat(stagingSlider.value) || 0;
-    } else if (window.PhotoStagingArchive && window.PhotoStagingArchive.activeItemId) {
-        const activeItem = window.PhotoStagingArchive.items && window.PhotoStagingArchive.items.find(it => it.id === window.PhotoStagingArchive.activeItemId);
-        if (activeItem && activeItem.aiIntensity !== undefined && activeItem.aiIntensity > 0) {
-            aiSharpenRaw = Math.round(activeItem.aiIntensity * 100);
+    if (targetAdj) {
+        if (targetAdj.aiIntensity !== undefined && targetAdj.aiIntensity > 0) {
+            aiSharpenRaw = Math.round(targetAdj.aiIntensity * 100);
+        } else if (targetAdj.filters && targetAdj.filters.aiPhotoEnhanceSlider !== undefined) {
+            aiSharpenRaw = parseFloat(targetAdj.filters.aiPhotoEnhanceSlider) || 0;
+        }
+    } else {
+        aiSharpenRaw = getVal('aiPhotoEnhanceSlider', 0);
+        // Staging AI Netleştirme sliderı entegrasyonu
+        const stagingSlider = document.getElementById('stagingAiIntensitySlider');
+        if (stagingSlider && window.PhotoStagingArchive && window.PhotoStagingArchive.aiTrayOpen) {
+            aiSharpenRaw = parseFloat(stagingSlider.value) || 0;
+        } else if (window.PhotoStagingArchive && window.PhotoStagingArchive.activeItemId) {
+            const activeItem = window.PhotoStagingArchive.items && window.PhotoStagingArchive.items.find(it => it.id === window.PhotoStagingArchive.activeItemId);
+            if (activeItem && activeItem.aiIntensity !== undefined && activeItem.aiIntensity > 0) {
+                aiSharpenRaw = Math.round(activeItem.aiIntensity * 100);
+            }
         }
     }
 
@@ -307,13 +326,39 @@ window.getWebGLPhotoOptions = function() {
     const hslLum = new Float32Array(8);
 
     hslColors.forEach((color, idx) => {
-        const hEl = document.querySelector('.hsl-slider[data-color="' + color + '"][data-type="h"]');
-        const sEl = document.querySelector('.hsl-slider[data-color="' + color + '"][data-type="s"]');
-        const lEl = document.querySelector('.hsl-slider[data-color="' + color + '"][data-type="l"]');
-        hslHue[idx] = hEl ? (parseFloat(hEl.value) / 100.0) : 0.0;
-        hslSat[idx] = sEl ? (parseFloat(sEl.value) / 100.0) : 0.0;
-        hslLum[idx] = lEl ? (parseFloat(lEl.value) / 100.0) : 0.0;
+        if (targetAdj && targetAdj.hsl && targetAdj.hsl[color]) {
+            hslHue[idx] = (parseFloat(targetAdj.hsl[color].h) || 0.0) / 100.0;
+            hslSat[idx] = (parseFloat(targetAdj.hsl[color].s) || 0.0) / 100.0;
+            hslLum[idx] = (parseFloat(targetAdj.hsl[color].l) || 0.0) / 100.0;
+        } else {
+            const hEl = document.querySelector('.hsl-slider[data-color="' + color + '"][data-type="h"]');
+            const sEl = document.querySelector('.hsl-slider[data-color="' + color + '"][data-type="s"]');
+            const lEl = document.querySelector('.hsl-slider[data-color="' + color + '"][data-type="l"]');
+            hslHue[idx] = hEl ? (parseFloat(hEl.value) / 100.0) : 0.0;
+            hslSat[idx] = sEl ? (parseFloat(sEl.value) / 100.0) : 0.0;
+            hslLum[idx] = lEl ? (parseFloat(lEl.value) / 100.0) : 0.0;
+        }
     });
+
+    // 4.1 Damlalıkla Seçilen Özel Renk (Targeted Color)
+    const customCol = targetAdj ? targetAdj.targetColor : (window.customColorState && window.customColorState.active ? window.customColorState : null);
+    const targetColor = (customCol && (customCol.active || customCol.hex)) ? {
+        active: 1,
+        hex: customCol.hex || '#ffffff',
+        h: customCol.h || 0.0,
+        s: customCol.s || 0.0,
+        l: customCol.l || 0.0,
+        shiftH: (customCol.shiftH || 0.0) / 100.0,
+        shiftS: (customCol.shiftS || 0.0) / 100.0,
+        shiftL: (customCol.shiftL || 0.0) / 100.0,
+        range: customCol.range !== undefined ? customCol.range : 0.20
+    } : {
+        active: 0,
+        hex: '#ffffff',
+        h: 0.0, s: 0.0, l: 0.0,
+        shiftH: 0.0, shiftS: 0.0, shiftL: 0.0,
+        range: 0.20
+    };
 
     // 5. Mimari Keystone & Geometri
     const vKeystone = getVal('keystoneV', 0) / 100.0;
@@ -323,20 +368,20 @@ window.getWebGLPhotoOptions = function() {
     const zoom = getVal('keystoneZoom', 100) / 100.0;
 
     // 6. Yerel Maskeler
-    const pmm = window.PhotoMasksManager;
-    const radialMask = pmm ? pmm.radial : {};
-    const linearMask = pmm ? pmm.linear : {};
-    let radialMasks = pmm && typeof pmm.getActiveRadialMasks === 'function' ? pmm.getActiveRadialMasks() : (radialMask.active ? [radialMask] : []);
-    let linearMasks = pmm && typeof pmm.getActiveLinearMasks === 'function' ? pmm.getActiveLinearMasks() : (linearMask.active ? [linearMask] : []);
-    let aiMasks = pmm && typeof pmm.getActiveAiMasks === 'function' ? pmm.getActiveAiMasks() : [];
+    const pmm = targetAdj ? (targetAdj.masks || null) : window.PhotoMasksManager;
+    const radialMask = pmm ? (pmm.radial || {}) : {};
+    const linearMask = pmm ? (pmm.linear || {}) : {};
+    let radialMasks = pmm && typeof pmm.getActiveRadialMasks === 'function' ? pmm.getActiveRadialMasks() : (radialMask.active ? [radialMask] : (Array.isArray(pmm?.radialMasks) ? pmm.radialMasks : []));
+    let linearMasks = pmm && typeof pmm.getActiveLinearMasks === 'function' ? pmm.getActiveLinearMasks() : (linearMask.active ? [linearMask] : (Array.isArray(pmm?.linearMasks) ? pmm.linearMasks : []));
+    let aiMasks = pmm && typeof pmm.getActiveAiMasks === 'function' ? pmm.getActiveAiMasks() : (Array.isArray(pmm?.aiMasks) ? pmm.aiMasks : []);
 
-    const aiMaskCanvas = pmm && typeof pmm.getCompositeAiCanvas === 'function' ? pmm.getCompositeAiCanvas() : null;
-    const aiMaskBuffer = pmm && typeof pmm.getCompositeAiBuffer === 'function' ? pmm.getCompositeAiBuffer() : null;
+    const aiMaskCanvas = pmm && typeof pmm.getCompositeAiCanvas === 'function' ? pmm.getCompositeAiCanvas() : (pmm?.aiMaskCanvas || null);
+    const aiMaskBuffer = pmm && typeof pmm.getCompositeAiBuffer === 'function' ? pmm.getCompositeAiBuffer() : (pmm?.aiMaskBuffer || null);
 
-    const showMaskOverlay = pmm ? (pmm.showOverlay !== undefined ? pmm.showOverlay : true) : true;
-    const showRadialOverlay = pmm ? (radialMask.showOverlay !== undefined ? radialMask.showOverlay : (!!showMaskOverlay && pmm.activeMaskType === 'radial')) : true;
-    const showLinearOverlay = pmm ? (linearMask.showOverlay !== undefined ? linearMask.showOverlay : (!!showMaskOverlay && pmm.activeMaskType === 'linear')) : true;
-    const activeMaskType = pmm ? (pmm.activeTool || pmm.activeMaskType) : null;
+    const showMaskOverlay = targetAdj ? false : (pmm ? (pmm.showOverlay !== undefined ? pmm.showOverlay : true) : true);
+    const showRadialOverlay = targetAdj ? false : (pmm ? (radialMask.showOverlay !== undefined ? radialMask.showOverlay : (!!showMaskOverlay && pmm.activeMaskType === 'radial')) : true);
+    const showLinearOverlay = targetAdj ? false : (pmm ? (linearMask.showOverlay !== undefined ? linearMask.showOverlay : (!!showMaskOverlay && pmm.activeMaskType === 'linear')) : true);
+    const activeMaskType = targetAdj ? null : (pmm ? (pmm.activeTool || pmm.activeMaskType) : null);
 
     return {
         exposure,
@@ -363,6 +408,7 @@ window.getWebGLPhotoOptions = function() {
         hslHue,
         hslSat,
         hslLum,
+        targetColor,
         vKeystone,
         hKeystone,
         rotate,
@@ -508,9 +554,26 @@ function resetFilters(){
         window.togglePhotoAiEnhance(false);
     }
 
+    // Katmanları Sıfırla
+    if (window.PhotoLayerManager && typeof window.PhotoLayerManager.reset === 'function') {
+        window.PhotoLayerManager.reset();
+    }
+
+    // Aktif havuz görseli varsa onun kayıtlı ayarını da temizle
+    if (window.PhotoStagingArchive && window.PhotoStagingArchive.activeItemId) {
+        const activeItem = window.PhotoStagingArchive.items && window.PhotoStagingArchive.items.find(it => it.id === window.PhotoStagingArchive.activeItemId);
+        if (activeItem) {
+            activeItem.photoAdjustments = null;
+        }
+    }
+
     if(typeof processHSL === 'function') processHSL();
     applyPhotoFilters();
     if(typeof applyShadowHighlight === 'function') applyShadowHighlight();
+
+    if (typeof window.recordHistoryImmediate === 'function' && !window.isHistoryRestoring) {
+        window.recordHistoryImmediate('Filtreler Sıfırlandı');
+    }
 }
 
 function autoFitPerspective() {
@@ -621,6 +684,12 @@ function applyPreset(name){
     if(typeof applyPhotoFilters === 'function') applyPhotoFilters();
     // Piksel motoru senkron çalıştır
     if(typeof processPixels === 'function') processPixels(true);
+    if (window.PhotoStagingArchive && typeof window.PhotoStagingArchive.syncActiveItemAdjustments === 'function') {
+        window.PhotoStagingArchive.syncActiveItemAdjustments();
+    }
+    if (typeof window.recordHistoryImmediate === 'function' && !window.isHistoryRestoring) {
+        window.recordHistoryImmediate('Hazır Ayar: ' + name);
+    }
 }
 
 function _preparePhoto(el){
@@ -665,7 +734,7 @@ function _preparePhoto(el){
     _applyPhotoTransform(el);
 }
 
-function _applyPhotoTransform(el){
+function _applyPhotoTransform(el, options = {}){
     if(!el) return;
     var inner = el.querySelector('.photo-inner-zoom');
     var canvas = el.querySelector('.photo-render-canvas');
@@ -691,7 +760,7 @@ function _applyPhotoTransform(el){
         _drawToNativeCanvas(el, inner, canvas, s, x, y, sX, sY);
     }
     
-    if(typeof redrawAll === 'function') redrawAll();
+    if(typeof redrawAll === 'function') redrawAll(options);
 }
 
 function hasActiveWebGLFilters(opts) {
@@ -711,9 +780,12 @@ function hasActiveWebGLFilters(opts) {
     if ((opts.sepia || 0) > 0.001 || (opts.grayscale || 0) > 0.001 || (opts.invert || 0) > 0.001 || (opts.vignette || 0) > 0.001) return true;
     if (Math.abs(opts.hueRotate || 0) > 0.001 || (opts.blur || 0) > 0.001) return true;
     if (Math.abs(opts.vKeystone || 0) > 0.001 || Math.abs(opts.hKeystone || 0) > 0.001 || Math.abs(opts.rotate || 0) > 0.001 || Math.abs((opts.aspect || 0)) > 0.001) return true;
+    if (opts.zoom !== undefined && Math.abs(opts.zoom - 1.0) > 0.001) return true;
     if (opts.hslHue && Array.from(opts.hslHue).some(v => Math.abs(v) > 0.001)) return true;
     if (opts.hslSat && Array.from(opts.hslSat).some(v => Math.abs(v) > 0.001)) return true;
     if (opts.hslLum && Array.from(opts.hslLum).some(v => Math.abs(v) > 0.001)) return true;
+    if (opts.targetColor && opts.targetColor.active === 1 &&
+        (Math.abs(opts.targetColor.shiftH) > 0.001 || Math.abs(opts.targetColor.shiftS) > 0.001 || Math.abs(opts.targetColor.shiftL) > 0.001)) return true;
     if (opts.radialMasks && opts.radialMasks.some(m => m.active)) return true;
     if (opts.linearMasks && opts.linearMasks.some(m => m.active)) return true;
     if (opts.aiMasks && opts.aiMasks.some(m => m.active)) return true;
@@ -779,7 +851,13 @@ function _drawToNativeCanvas(el, inner, canvas, scale, panX, panY, sliderX, slid
         let nativeScaleX = natW / boxW;
         let nativeScaleY = natH / boxH;
         let maxNativeScale = Math.max(nativeScaleX, nativeScaleY);
-        baseResMul = Math.min(4, Math.max(1, maxNativeScale * activeScale));
+        // Canlı stüdyo düzenleme modunda tuval boyutu ekran ve doğal görsel oranına sabitlenir (1.0x - 2.0x).
+        // Yakınlaştırma (zoom) ve kaydırma (pan) 2D canvas GPU matris dönüşümüyle (ctx.scale, ctx.translate)
+        // donanım hızlandırmalı yapılır. Böylece fare tekerleğiyle yakınlaştıkça (zoom derinleştikçe)
+        // 12 Megapiksel bellek tahsisi ve kasma yaşanmaz, 60-120 FPS akıcılık korunur.
+        baseResMul = Math.min(2.0, Math.max(1.0, maxNativeScale));
+    } else {
+        baseResMul = window.exportingScale;
     }
     
     const HIGH_RES_MUL = baseResMul;
@@ -850,7 +928,8 @@ function _drawToNativeCanvas(el, inner, canvas, scale, panX, panY, sliderX, slid
     ctx.translate(-cx, -cy);
     
     ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = window._isPhotoDragging ? 'low' : 'high';
+    const isFastInteracting = window._isPhotoDragging || window._isPhotoZooming;
+    ctx.imageSmoothingQuality = isFastInteracting ? 'low' : 'high';
     
     let imageDrawn = false;
     if (window.isShowingBefore) {
@@ -1063,6 +1142,37 @@ window.PhotoLayerManager = {
         this.loadActiveState();
     },
     
+    getState: function() {
+        this.saveActiveState();
+        return {
+            layers: JSON.parse(JSON.stringify(this.layers)),
+            activeIndex: this.activeIndex,
+            nextId: this.nextId
+        };
+    },
+    
+    setState: function(saved) {
+        if (saved && Array.isArray(saved.layers) && saved.layers.length > 0) {
+            this.layers = JSON.parse(JSON.stringify(saved.layers));
+            this.activeIndex = Math.max(0, Math.min(saved.activeIndex || 0, this.layers.length - 1));
+            this.nextId = saved.nextId || (this.layers.length + 1);
+        } else {
+            this.reset();
+            return;
+        }
+        this.renderUI();
+        this.loadActiveState();
+    },
+    
+    reset: function() {
+        this.layers = [
+            { id: 1, name: 'Katman 1', state: {} }
+        ];
+        this.activeIndex = 0;
+        this.nextId = 2;
+        this.renderUI();
+    },
+    
     renderUI: function() {
         const container = document.getElementById('photoLayerTabsContainer');
         if (!container) return;
@@ -1092,4 +1202,370 @@ if (typeof document !== 'undefined') {
         setTimeout(initPhotoLayers, 50);
     }
 }
+
+// =========================================================================
+// 🌟 BAĞIMSIZ FOTOĞRAF AYARLARI YÖNETİMİ (ISOLATED PHOTO ADJUSTMENTS)
+// =========================================================================
+window.capturePhotoAdjustments = function() {
+    const filters = {};
+    const filterIds = [
+        'exposure', 'contrast', 'saturate', 'fblur', 'sepia', 'hueRotate',
+        'grayscale', 'invertCtrl', 'vignette', 'shadowsCtrl', 'highlightsCtrl',
+        'blacksCtrl', 'whitesCtrl', 'tempCtrl', 'tintCtrl', 'vibranceCtrl',
+        'sharpnessCtrl', 'clarityCtrl', 'dehazeCtrl', 'aiPhotoEnhanceSlider'
+    ];
+    filterIds.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            filters[id] = parseFloat(el.value);
+        } else if (typeof FILTER_DEFAULTS !== 'undefined' && FILTER_DEFAULTS[id] !== undefined) {
+            filters[id] = FILTER_DEFAULTS[id];
+        }
+    });
+
+    const geometry = {};
+    ['keystoneV', 'keystoneH', 'keystoneRotate', 'keystoneAspect', 'keystoneZoom'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            geometry[id] = parseFloat(el.value);
+        } else {
+            geometry[id] = (id === 'keystoneZoom') ? 100 : 0;
+        }
+    });
+
+    const hsl = {};
+    const hslColors = ['red', 'orange', 'yellow', 'green', 'aqua', 'blue', 'purple', 'magenta'];
+    hslColors.forEach(color => {
+        hsl[color] = { h: 0, s: 0, l: 0 };
+        ['h', 's', 'l'].forEach(type => {
+            const slider = document.querySelector(`.hsl-slider[data-color="${color}"][data-type="${type}"]`);
+            if (slider) hsl[color][type] = parseFloat(slider.value) || 0;
+        });
+    });
+
+    let curves = null;
+    if (window.PhotoCurvesManager && typeof window.PhotoCurvesManager.getState === 'function') {
+        curves = window.PhotoCurvesManager.getState();
+    }
+
+    let masks = null;
+    if (window.PhotoMasksManager && typeof window.PhotoMasksManager.getState === 'function') {
+        masks = window.PhotoMasksManager.getState();
+    }
+
+    let layers = null;
+    if (window.PhotoLayerManager && typeof window.PhotoLayerManager.getState === 'function') {
+        layers = window.PhotoLayerManager.getState();
+    }
+
+    const targetColor = (window.customColorState && window.customColorState.active) ? {
+        active: true,
+        hex: window.customColorState.hex,
+        h: window.customColorState.h,
+        s: window.customColorState.s,
+        l: window.customColorState.l,
+        shiftH: window.customColorState.shiftH || 0,
+        shiftS: window.customColorState.shiftS || 0,
+        shiftL: window.customColorState.shiftL || 0,
+        range: window.customColorState.range !== undefined ? window.customColorState.range : 0.20
+    } : null;
+
+    return {
+        filters,
+        geometry,
+        hsl,
+        targetColor,
+        curves,
+        masks,
+        layers
+    };
+};
+
+window.isPhotoAdjustmentsModified = function(adj) {
+    if (!adj) return false;
+    if (adj.aiIntensity !== undefined && adj.aiIntensity > 0.001) return true;
+    const f = adj.filters || {};
+    if (f.exposure !== undefined && Math.abs(f.exposure - 100) > 0.001) return true;
+    if (f.contrast !== undefined && Math.abs(f.contrast - 100) > 0.001) return true;
+    if (f.saturate !== undefined && Math.abs(f.saturate - 100) > 0.001) return true;
+
+    const zeroIds = [
+        'fblur', 'sepia', 'hueRotate', 'grayscale', 'invertCtrl', 'vignette',
+        'shadowsCtrl', 'highlightsCtrl', 'blacksCtrl', 'whitesCtrl', 'tempCtrl',
+        'tintCtrl', 'vibranceCtrl', 'sharpnessCtrl', 'clarityCtrl', 'dehazeCtrl',
+        'aiPhotoEnhanceSlider'
+    ];
+    for (let i = 0; i < zeroIds.length; i++) {
+        const val = f[zeroIds[i]];
+        if (val !== undefined && Math.abs(val) > 0.001) return true;
+    }
+
+    const g = adj.geometry || {};
+    if (g.keystoneZoom !== undefined && Math.abs(g.keystoneZoom - 100) > 0.001) return true;
+    if (g.keystoneV !== undefined && Math.abs(g.keystoneV) > 0.001) return true;
+    if (g.keystoneH !== undefined && Math.abs(g.keystoneH) > 0.001) return true;
+    if (g.keystoneRotate !== undefined && Math.abs(g.keystoneRotate) > 0.001) return true;
+    if (g.keystoneAspect !== undefined && Math.abs(g.keystoneAspect) > 0.001) return true;
+
+    if (adj.hsl) {
+        for (const c of Object.keys(adj.hsl)) {
+            const hVal = adj.hsl[c];
+            if (hVal && (Math.abs(hVal.h) > 0.001 || Math.abs(hVal.s) > 0.001 || Math.abs(hVal.l) > 0.001)) return true;
+        }
+    }
+
+    if (adj.targetColor && adj.targetColor.active) {
+        if (Math.abs(adj.targetColor.shiftH || 0) > 0.001 ||
+            Math.abs(adj.targetColor.shiftS || 0) > 0.001 ||
+            Math.abs(adj.targetColor.shiftL || 0) > 0.001) return true;
+    }
+
+    if (adj.layers && Array.isArray(adj.layers.layers)) {
+        if (adj.layers.layers.length > 1) return true;
+        const l0 = adj.layers.layers[0];
+        if (l0 && l0.state && typeof l0.state === 'object') {
+            for (const k of Object.keys(l0.state)) {
+                const val = l0.state[k];
+                if (k === 'exposure' || k === 'contrast' || k === 'saturate') {
+                    if (val !== undefined && Math.abs(val - 100) > 0.001) return true;
+                } else if (val !== undefined && Math.abs(val) > 0.001) {
+                    return true;
+                }
+            }
+        }
+    }
+
+    if (adj.curves) {
+        for (const ch of ['rgb', 'r', 'g', 'b']) {
+            const pts = adj.curves[ch];
+            if (Array.isArray(pts)) {
+                if (pts.length !== 2) return true;
+                if (pts[0][0] !== 0 || pts[0][1] !== 0 || pts[1][0] !== 255 || pts[1][1] !== 255) return true;
+            }
+        }
+    }
+
+    if (adj.masks) {
+        if (adj.masks.radial && adj.masks.radial.active) return true;
+        if (adj.masks.linear && adj.masks.linear.active) return true;
+        if (Array.isArray(adj.masks.radialMasks) && adj.masks.radialMasks.length > 0) return true;
+        if (Array.isArray(adj.masks.linearMasks) && adj.masks.linearMasks.length > 0) return true;
+        if (Array.isArray(adj.masks.aiMasks) && adj.masks.aiMasks.length > 0) return true;
+    }
+
+    return false;
+};
+
+window.restorePhotoAdjustments = function(adj) {
+    if (!adj) return;
+
+    if (adj.filters) {
+        Object.keys(adj.filters).forEach(id => {
+            const el = document.getElementById(id);
+            if (el && adj.filters[id] !== undefined) {
+                el.value = adj.filters[id];
+            }
+        });
+    }
+
+
+    if (adj.geometry) {
+        Object.keys(adj.geometry).forEach(id => {
+            const el = document.getElementById(id);
+            if (el && adj.geometry[id] !== undefined) {
+                el.value = adj.geometry[id];
+            }
+        });
+    }
+
+
+    if (adj.hsl) {
+        Object.keys(adj.hsl).forEach(color => {
+            ['h', 's', 'l'].forEach(type => {
+                const val = (adj.hsl[color] && adj.hsl[color][type] !== undefined) ? adj.hsl[color][type] : 0;
+                const slider = document.querySelector(`.hsl-slider[data-color="${color}"][data-type="${type}"]`);
+                if (slider) slider.value = val;
+                const valSpan = document.getElementById(`hsl_${type}_${color}Val`);
+                if (valSpan) valSpan.textContent = val;
+            });
+        });
+    }
+
+    if (adj.targetColor && adj.targetColor.active) {
+        window.customColorState = { ...adj.targetColor };
+    } else {
+        window.customColorState = null;
+    }
+    if (typeof window.syncCustomColorUI === 'function') {
+        window.syncCustomColorUI();
+    }
+
+
+    if (window.PhotoLayerManager) {
+        if (adj.layers) {
+            window.PhotoLayerManager.setState(adj.layers);
+        } else {
+            window.PhotoLayerManager.reset();
+        }
+    }
+
+    if (window.PhotoCurvesManager && typeof window.PhotoCurvesManager.setState === 'function') {
+        if (adj.curves) {
+            window.PhotoCurvesManager.setState(adj.curves);
+        } else if (typeof window.PhotoCurvesManager.resetAllChannels === 'function') {
+            window.PhotoCurvesManager.resetAllChannels();
+        }
+    }
+
+    if (window.PhotoMasksManager) {
+        if (adj.masks && typeof window.PhotoMasksManager.setState === 'function') {
+            window.PhotoMasksManager.setState(adj.masks);
+        } else if (typeof window.PhotoMasksManager.resetAll === 'function') {
+            window.PhotoMasksManager.resetAll();
+        }
+    }
+
+    if (typeof applyPhotoFilters === 'function') {
+        applyPhotoFilters();
+    }
+    if (typeof processHSL === 'function') {
+        processHSL();
+    }
+    if (typeof requestPhotoRepaint === 'function') {
+        requestPhotoRepaint();
+    }
+};
+
+/**
+ * Belirli bir görseli verilen fotoğraf ayarlarına göre (WebGL veya 2D Canvas Fallback ile)
+ * tam çözünürlüklü ve filtrelenmiş bir canvas olarak işleyip döndürür.
+ */
+window.renderPhotoWithAdjustments = function(sourceImg, adj) {
+    if (!sourceImg) return null;
+    const isModified = (adj && window.isPhotoAdjustmentsModified && window.isPhotoAdjustmentsModified(adj)) ||
+                       (adj && adj.aiIntensity !== undefined && adj.aiIntensity > 0);
+    if (!adj || !isModified) {
+        return sourceImg;
+    }
+
+    if (window.WebGLPhotoEngine && window.WebGLPhotoEngine.initialized && typeof window.getWebGLPhotoOptions === 'function') {
+        try {
+            let prevCurvesState = null;
+            if (adj.curves && window.PhotoCurvesManager) {
+                prevCurvesState = window.PhotoCurvesManager.getState();
+                window.PhotoCurvesManager.setState(adj.curves);
+            }
+
+            const photoOpts = window.getWebGLPhotoOptions(adj);
+            photoOpts.showMaskOverlay = false;
+            photoOpts.showRadialOverlay = false;
+            photoOpts.showLinearOverlay = false;
+
+            const processedCanvas = window.WebGLPhotoEngine.getProcessedCanvas(sourceImg, photoOpts);
+
+            if (prevCurvesState && window.PhotoCurvesManager) {
+                window.PhotoCurvesManager.setState(prevCurvesState);
+            }
+
+            if (processedCanvas) return processedCanvas;
+        } catch(e) {
+            console.error('WebGL renderPhotoWithAdjustments hatası: ', e);
+        }
+    }
+
+    // Canvas 2D Fallback
+    if (adj.filters) {
+        const f = adj.filters;
+        const tmpCanvas = document.createElement('canvas');
+        const natW = sourceImg.naturalWidth || sourceImg.width || 1920;
+        const natH = sourceImg.naturalHeight || sourceImg.height || 1080;
+        tmpCanvas.width = natW;
+        tmpCanvas.height = natH;
+        const ctx = tmpCanvas.getContext('2d');
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+
+        let filterParts = [];
+        if (f.exposure !== undefined && Math.abs(f.exposure - 100) > 0.001) filterParts.push(`brightness(${f.exposure}%)`);
+        if (f.contrast !== undefined && Math.abs(f.contrast - 100) > 0.001) filterParts.push(`contrast(${f.contrast}%)`);
+        if (f.saturate !== undefined && Math.abs(f.saturate - 100) > 0.001) filterParts.push(`saturate(${f.saturate}%)`);
+        if (f.grayscale !== undefined && f.grayscale > 0) filterParts.push(`grayscale(${f.grayscale}%)`);
+        if (f.sepia !== undefined && f.sepia > 0) filterParts.push(`sepia(${f.sepia}%)`);
+        if (f.hueRotate !== undefined && f.hueRotate !== 0) filterParts.push(`hue-rotate(${f.hueRotate}deg)`);
+        if (f.fblur !== undefined && f.fblur > 0) filterParts.push(`blur(${f.fblur}px)`);
+        if (f.invertCtrl !== undefined && f.invertCtrl > 0) filterParts.push(`invert(${f.invertCtrl}%)`);
+
+        ctx.filter = filterParts.length > 0 ? filterParts.join(' ') : 'none';
+        ctx.drawImage(sourceImg, 0, 0, natW, natH);
+        ctx.filter = 'none';
+        return tmpCanvas;
+    }
+
+    return sourceImg;
+};
+
+window.resetPhotoAdjustmentsToDefault = function(item) {
+    if (typeof FILTER_DEFAULTS !== 'undefined') {
+        Object.keys(FILTER_DEFAULTS).forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.value = FILTER_DEFAULTS[id];
+        });
+    } else {
+        ['exposure', 'contrast', 'saturate'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.value = 100;
+        });
+    }
+
+
+    ['keystoneV', 'keystoneH', 'keystoneRotate', 'keystoneAspect'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = 0;
+    });
+    const zoomEl = document.getElementById('keystoneZoom');
+    if (zoomEl) zoomEl.value = 100;
+
+    document.querySelectorAll('.hsl-slider').forEach(s => {
+        s.value = 0;
+        const valSpan = document.getElementById('hsl_' + s.dataset.type + '_' + s.dataset.color + 'Val');
+        if (valSpan) valSpan.textContent = '0';
+    });
+
+    window.customColorState = null;
+    if (typeof window.syncCustomColorUI === 'function') {
+        window.syncCustomColorUI();
+    }
+
+    if (window.PhotoLayerManager && typeof window.PhotoLayerManager.reset === 'function') {
+        window.PhotoLayerManager.reset();
+    }
+
+    if (window.PhotoCurvesManager && typeof window.PhotoCurvesManager.resetAllChannels === 'function') {
+        window.PhotoCurvesManager.resetAllChannels();
+    }
+
+    if (window.PhotoMasksManager && typeof window.PhotoMasksManager.resetAll === 'function') {
+        window.PhotoMasksManager.resetAll();
+    }
+
+    let aiEnhVal = 0;
+    if (item && item.aiIntensity !== undefined && item.aiIntensity > 0) {
+        aiEnhVal = Math.round(item.aiIntensity * 100);
+    }
+    const aiSlider = document.getElementById('aiPhotoEnhanceSlider');
+    if (aiSlider) aiSlider.value = aiEnhVal;
+    const aiLevelSpan = document.getElementById('aiPhotoEnhanceLevelVal');
+    if (aiLevelSpan) aiLevelSpan.textContent = aiEnhVal + '%';
+    window._photoAiEnabled = (aiEnhVal > 0);
+
+    if (typeof applyPhotoFilters === 'function') {
+        applyPhotoFilters();
+    }
+    if (typeof processHSL === 'function') {
+        processHSL();
+    }
+    if (typeof requestPhotoRepaint === 'function') {
+        requestPhotoRepaint();
+    }
+};
 

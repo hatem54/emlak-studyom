@@ -9,6 +9,10 @@ Allow: /gizlilik.html
 Allow: /sartlar.html
 Allow: /assets/
 Allow: /css/
+Allow: /js/
+Allow: /modules/
+Allow: /core/
+Allow: /ui/
 
 # Korunan Alanlar ve Sistem Dosyaları
 Disallow: /admin.html
@@ -18,10 +22,5 @@ Disallow: /*.ps1$
 Disallow: /docs/
 Disallow: /archive/
 Disallow: /scratch/
-Disallow: /core/
-Disallow: /modules/
-Disallow: /js/
-Disallow: /ui/
-Disallow: /tpl_*/
 
 Sitemap: https://emlakstudyom.com/sitemap.xml

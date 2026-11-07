@@ -7,6 +7,22 @@
 (function(window) {
     'use strict';
 
+    function getElementHalfDims(el) {
+        let halfW = 60;
+        let halfH = 40;
+        try {
+            const curScale = (el.planeScale !== undefined && el.planeScale !== null) ? el.planeScale : 1.0;
+            const m = el.badgeMesh || el.iconMesh || el.textMesh;
+            if (m && m.geometry) {
+                if (!m.geometry.boundingBox) m.geometry.computeBoundingBox();
+                const bb = m.geometry.boundingBox;
+                halfW = Math.max(20, ((bb.max.x - bb.min.x) / 2) * curScale);
+                halfH = Math.max(15, ((bb.max.y - bb.min.y) / 2) * curScale);
+            }
+        } catch (e) {}
+        return { halfW, halfH };
+    }
+
     const ThreeDAlign = {
         /**
          * Seçili iki nesneden birini diğerinin ön yüzeyine sıfır çakışma ve ayarlanabilir ofset ile yapıştırır.
@@ -175,26 +191,26 @@
             if (!Array.isArray(elements) || elements.length < 2) return false;
             if (!window.ThreeDEngine) return false;
 
-            const boundsList = typeof window.ThreeDEngine.getElementsScreenBounds === 'function'
-                ? window.ThreeDEngine.getElementsScreenBounds()
-                : [];
-
-            // Ekran veya 3D koordinatlarına göre sınırları topla
             const items = elements.map(el => {
-                const b = boundsList.find(item => item.id === el.id);
+                const dims = getElementHalfDims(el);
                 return {
                     el: el,
                     posX: el.posX || 0,
                     posY: el.posY || 0,
                     posZ: el.posZ || 0,
-                    rect: b ? b.rect : null
+                    halfW: dims.halfW,
+                    halfH: dims.halfH,
+                    left: (el.posX || 0) - dims.halfW,
+                    right: (el.posX || 0) + dims.halfW,
+                    top: (el.posY || 0) + dims.halfH,     // Three.js koordinatında +Y yukarıdır
+                    bottom: (el.posY || 0) - dims.halfH  // Three.js koordinatında -Y aşağıdır
                 };
             });
 
             switch (direction) {
                 case 'left': {
-                    const minX = Math.min(...items.map(it => it.posX));
-                    items.forEach(it => { it.el.posX = minX; });
+                    const minLeft = Math.min(...items.map(it => it.left));
+                    items.forEach(it => { it.el.posX = Math.round(minLeft + it.halfW); });
                     break;
                 }
                 case 'center': {
@@ -203,13 +219,14 @@
                     break;
                 }
                 case 'right': {
-                    const maxX = Math.max(...items.map(it => it.posX));
-                    items.forEach(it => { it.el.posX = maxX; });
+                    const maxRight = Math.max(...items.map(it => it.right));
+                    items.forEach(it => { it.el.posX = Math.round(maxRight - it.halfW); });
                     break;
                 }
                 case 'top': {
-                    const minY = Math.min(...items.map(it => it.posY));
-                    items.forEach(it => { it.el.posY = minY; });
+                    // Three.js: +Y tepe noktasıdır
+                    const maxTop = Math.max(...items.map(it => it.top));
+                    items.forEach(it => { it.el.posY = Math.round(maxTop - it.halfH); });
                     break;
                 }
                 case 'middle': {
@@ -218,8 +235,9 @@
                     break;
                 }
                 case 'bottom': {
-                    const maxY = Math.max(...items.map(it => it.posY));
-                    items.forEach(it => { it.el.posY = maxY; });
+                    // Three.js: -Y dip noktasıdır
+                    const minBottom = Math.min(...items.map(it => it.bottom));
+                    items.forEach(it => { it.el.posY = Math.round(minBottom + it.halfH); });
                     break;
                 }
                 case 'depth': {
@@ -229,18 +247,35 @@
                 }
             }
 
-            // Tüm ögelerin Three.js transformlarını güncelle
+            // Tüm ögelerin Three.js transformlarını güncelle (hem düzlem konumu hem içerik)
             items.forEach(it => {
+                if (window.ThreeDEngine && window.ThreeDEngine.state && it.el === (typeof window.ThreeDEngine.getActiveElement === 'function' ? window.ThreeDEngine.getActiveElement() : null)) {
+                    if (it.el.posX !== undefined) window.ThreeDEngine.state.posX = it.el.posX;
+                    if (it.el.posY !== undefined) window.ThreeDEngine.state.posY = it.el.posY;
+                    if (it.el.posZ !== undefined) window.ThreeDEngine.state.posZ = it.el.posZ;
+                }
+                if (typeof window.ThreeDEngine.updatePlaneTransform === 'function') {
+                    window.ThreeDEngine.updatePlaneTransform(it.el);
+                }
                 if (typeof window.ThreeDEngine.updateContentTransform === 'function') {
                     window.ThreeDEngine.updateContentTransform(it.el);
                 }
             });
 
-            if (typeof window.ThreeDEngine.requestRender === 'function') {
-                window.ThreeDEngine.requestRender();
+            if (typeof window.ThreeDEngine.updateGizmoPositions === 'function') {
+                window.ThreeDEngine.updateGizmoPositions();
+            }
+            if (window.ThreeDGrouping && typeof window.ThreeDGrouping.updateSelectionVisuals === 'function') {
+                window.ThreeDGrouping.updateSelectionVisuals();
             }
             if (typeof window.ThreeDEngine.syncControlsUI === 'function') {
                 window.ThreeDEngine.syncControlsUI();
+            }
+            if (typeof window.ThreeDEngine.notifyExternalUpdates === 'function') {
+                window.ThreeDEngine.notifyExternalUpdates();
+            }
+            if (typeof window.ThreeDEngine.requestRender === 'function') {
+                window.ThreeDEngine.requestRender();
             }
 
             return true;
@@ -252,7 +287,7 @@
          * @param {string} axis - 'horizontal' | 'vertical'
          */
         distributeElements: function(elements, axis) {
-            if (!Array.isArray(elements) || elements.length < 3) return false;
+            if (!Array.isArray(elements) || elements.length < 2) return false;
             if (!window.ThreeDEngine) return false;
 
             const isHoriz = (axis === 'horizontal');
@@ -264,7 +299,7 @@
             const last = sorted[sorted.length - 1];
             const startVal = isHoriz ? (first.posX || 0) : (first.posY || 0);
             const endVal = isHoriz ? (last.posX || 0) : (last.posY || 0);
-            const step = (endVal - startVal) / (sorted.length - 1);
+            const step = (sorted.length > 1) ? (endVal - startVal) / (sorted.length - 1) : 0;
 
             sorted.forEach((el, idx) => {
                 if (isHoriz) {
@@ -272,16 +307,32 @@
                 } else {
                     el.posY = Math.round(startVal + step * idx);
                 }
+                if (window.ThreeDEngine && window.ThreeDEngine.state && el === (typeof window.ThreeDEngine.getActiveElement === 'function' ? window.ThreeDEngine.getActiveElement() : null)) {
+                    if (el.posX !== undefined) window.ThreeDEngine.state.posX = el.posX;
+                    if (el.posY !== undefined) window.ThreeDEngine.state.posY = el.posY;
+                }
+                if (typeof window.ThreeDEngine.updatePlaneTransform === 'function') {
+                    window.ThreeDEngine.updatePlaneTransform(el);
+                }
                 if (typeof window.ThreeDEngine.updateContentTransform === 'function') {
                     window.ThreeDEngine.updateContentTransform(el);
                 }
             });
 
-            if (typeof window.ThreeDEngine.requestRender === 'function') {
-                window.ThreeDEngine.requestRender();
+            if (typeof window.ThreeDEngine.updateGizmoPositions === 'function') {
+                window.ThreeDEngine.updateGizmoPositions();
+            }
+            if (window.ThreeDGrouping && typeof window.ThreeDGrouping.updateSelectionVisuals === 'function') {
+                window.ThreeDGrouping.updateSelectionVisuals();
             }
             if (typeof window.ThreeDEngine.syncControlsUI === 'function') {
                 window.ThreeDEngine.syncControlsUI();
+            }
+            if (typeof window.ThreeDEngine.notifyExternalUpdates === 'function') {
+                window.ThreeDEngine.notifyExternalUpdates();
+            }
+            if (typeof window.ThreeDEngine.requestRender === 'function') {
+                window.ThreeDEngine.requestRender();
             }
 
             return true;
@@ -362,25 +413,149 @@
         /**
          * Seçilen tüm ögeleri orantısını bozmadan tuvalin merkezine (X: 0, Y: 0) toplar.
          * @param {Array} elements - Ortalanacak ögeler
+         * @param {string} [axis='both'] - 'both' | 'horizontal' | 'vertical'
          */
-        centerInPage: function(elements) {
+        centerInPage: function(elements, axis = 'both') {
             if (!Array.isArray(elements) || elements.length === 0) return false;
             const avgX = elements.reduce((sum, el) => sum + (el.posX || 0), 0) / elements.length;
             const avgY = elements.reduce((sum, el) => sum + (el.posY || 0), 0) / elements.length;
 
+            const deltaX = (axis === 'vertical') ? 0 : -avgX;
+            const deltaY = (axis === 'horizontal') ? 0 : -avgY;
+
             elements.forEach(el => {
-                el.posX = Math.round((el.posX || 0) - avgX);
-                el.posY = Math.round((el.posY || 0) - avgY);
+                el.posX = Math.round((el.posX || 0) + deltaX);
+                el.posY = Math.round((el.posY || 0) + deltaY);
+                if (window.ThreeDEngine && window.ThreeDEngine.state && el === (typeof window.ThreeDEngine.getActiveElement === 'function' ? window.ThreeDEngine.getActiveElement() : null)) {
+                    if (el.posX !== undefined) window.ThreeDEngine.state.posX = el.posX;
+                    if (el.posY !== undefined) window.ThreeDEngine.state.posY = el.posY;
+                }
+                if (typeof window.ThreeDEngine.updatePlaneTransform === 'function') {
+                    window.ThreeDEngine.updatePlaneTransform(el);
+                }
                 if (typeof window.ThreeDEngine.updateContentTransform === 'function') {
                     window.ThreeDEngine.updateContentTransform(el);
                 }
             });
 
-            if (typeof window.ThreeDEngine.requestRender === 'function') {
-                window.ThreeDEngine.requestRender();
+            if (typeof window.ThreeDEngine.updateGizmoPositions === 'function') {
+                window.ThreeDEngine.updateGizmoPositions();
+            }
+            if (window.ThreeDGrouping && typeof window.ThreeDGrouping.updateSelectionVisuals === 'function') {
+                window.ThreeDGrouping.updateSelectionVisuals();
             }
             if (typeof window.ThreeDEngine.syncControlsUI === 'function') {
                 window.ThreeDEngine.syncControlsUI();
+            }
+            if (typeof window.ThreeDEngine.notifyExternalUpdates === 'function') {
+                window.ThreeDEngine.notifyExternalUpdates();
+            }
+            if (typeof window.ThreeDEngine.requestRender === 'function') {
+                window.ThreeDEngine.requestRender();
+            }
+
+            return true;
+        },
+
+        /**
+         * Seçili bir veya birden fazla 3D ögeyi sayfada 9 yöne topluca konumlandırır.
+         * Grup olarak sınırlayıcı kutuyu (bounding box) hesaplayarak hiçbir ögenin DOM çerçevesini geride bırakmaz.
+         * @param {Array} elements - Konumlandırılacak 3D ögeler
+         * @param {string} posKey - 'top-left' | 'top-center' | 'top-right' | 'middle-left' | 'center' | 'middle-right' | 'bottom-left' | 'bottom-center' | 'bottom-right' | 'horizontal-center' | 'vertical-center'
+         */
+        positionElementsOnPage: function(elements, posKey) {
+            if (!Array.isArray(elements) || elements.length === 0) return false;
+            if (!window.ThreeDEngine) return false;
+
+            const cam = (typeof window.ThreeDEngine.getCamera === 'function') ? window.ThreeDEngine.getCamera() : null;
+            const fov = (cam && cam.fov) ? cam.fov : 45;
+            const aspect = (cam && cam.aspect) ? cam.aspect : (16 / 9);
+            const camZ = (cam && cam.position && typeof cam.position.z === 'number') ? cam.position.z : 850;
+
+            const avgZ = elements.reduce((sum, el) => sum + (el.posZ || 0), 0) / elements.length;
+            const dist = Math.max(300, camZ - avgZ);
+            const degToRad = (typeof THREE !== 'undefined' && THREE.MathUtils && THREE.MathUtils.degToRad)
+                ? THREE.MathUtils.degToRad
+                : (d => d * Math.PI / 180);
+            const halfFrustumH = dist * Math.tan(degToRad(fov / 2));
+            const halfFrustumW = halfFrustumH * aspect;
+
+            let minL = Infinity, maxR = -Infinity;
+            let minB = Infinity, maxT = -Infinity;
+
+            elements.forEach(el => {
+                const dims = getElementHalfDims(el);
+                const l = (el.posX || 0) - dims.halfW;
+                const r = (el.posX || 0) + dims.halfW;
+                const b = (el.posY || 0) - dims.halfH; // -Y is bottom
+                const t = (el.posY || 0) + dims.halfH; // +Y is top
+                if (l < minL) minL = l;
+                if (r > maxR) maxR = r;
+                if (b < minB) minB = b;
+                if (t > maxT) maxT = t;
+            });
+
+            const groupW = maxR - minL;
+            const groupH = maxT - minB;
+            const groupCenterX = (minL + maxR) / 2;
+            const groupCenterY = (minB + maxT) / 2;
+
+            const marginX = 35;
+            const marginY = 30;
+            const xSpan = Math.max(80, Math.round(halfFrustumW - (groupW / 2) - marginX));
+            const ySpan = Math.max(60, Math.round(halfFrustumH - (groupH / 2) - marginY));
+
+            let targetCenterX = 0;
+            let targetCenterY = 0;
+
+            if (posKey.includes('left')) targetCenterX = -xSpan;
+            else if (posKey.includes('right')) targetCenterX = xSpan;
+            else targetCenterX = 0;
+
+            if (posKey.includes('top')) targetCenterY = ySpan;
+            else if (posKey.includes('bottom')) targetCenterY = -ySpan;
+            else targetCenterY = 0;
+
+            if (posKey === 'horizontal-center') {
+                targetCenterX = 0;
+                targetCenterY = groupCenterY;
+            } else if (posKey === 'vertical-center') {
+                targetCenterX = groupCenterX;
+                targetCenterY = 0;
+            }
+
+            const deltaX = targetCenterX - groupCenterX;
+            const deltaY = targetCenterY - groupCenterY;
+
+            elements.forEach(el => {
+                el.posX = Math.round((el.posX || 0) + deltaX);
+                el.posY = Math.round((el.posY || 0) + deltaY);
+                if (window.ThreeDEngine && window.ThreeDEngine.state && el === (typeof window.ThreeDEngine.getActiveElement === 'function' ? window.ThreeDEngine.getActiveElement() : null)) {
+                    if (el.posX !== undefined) window.ThreeDEngine.state.posX = el.posX;
+                    if (el.posY !== undefined) window.ThreeDEngine.state.posY = el.posY;
+                }
+                if (typeof window.ThreeDEngine.updatePlaneTransform === 'function') {
+                    window.ThreeDEngine.updatePlaneTransform(el);
+                }
+                if (typeof window.ThreeDEngine.updateContentTransform === 'function') {
+                    window.ThreeDEngine.updateContentTransform(el);
+                }
+            });
+
+            if (typeof window.ThreeDEngine.updateGizmoPositions === 'function') {
+                window.ThreeDEngine.updateGizmoPositions();
+            }
+            if (window.ThreeDGrouping && typeof window.ThreeDGrouping.updateSelectionVisuals === 'function') {
+                window.ThreeDGrouping.updateSelectionVisuals();
+            }
+            if (typeof window.ThreeDEngine.syncControlsUI === 'function') {
+                window.ThreeDEngine.syncControlsUI();
+            }
+            if (typeof window.ThreeDEngine.notifyExternalUpdates === 'function') {
+                window.ThreeDEngine.notifyExternalUpdates();
+            }
+            if (typeof window.ThreeDEngine.requestRender === 'function') {
+                window.ThreeDEngine.requestRender();
             }
 
             return true;

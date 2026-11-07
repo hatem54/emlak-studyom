@@ -278,8 +278,13 @@ window.layerSelect = function(uid, event, isDoubleClick = false) {
     if (el.dataset.locked === 'true') return; // Do not select if locked
     if (el.dataset.hiddenLayer === 'true') return; // Do not select if hidden
 
+    const isMulti = Boolean(event && (event.shiftKey || event.ctrlKey || event.metaKey));
+    const noTabSwitch = !Boolean(isDoubleClick);
+
     if (el.classList.contains('tb-image-frame')) {
-        if (window.TemplateBuilder && typeof window.TemplateBuilder.selectFrame === 'function') {
+        if (typeof window.selectElement === 'function') {
+            window.selectElement(el, isMulti, noTabSwitch);
+        } else if (window.TemplateBuilder && typeof window.TemplateBuilder.selectFrame === 'function') {
             window.TemplateBuilder.selectFrame(el);
         }
         window.renderLayers();
@@ -287,8 +292,7 @@ window.layerSelect = function(uid, event, isDoubleClick = false) {
     }
     
     if (typeof window.selectElement === 'function') {
-        const noTabSwitch = !Boolean(isDoubleClick);
-        window.selectElement(el, (event && event.shiftKey) ? true : false, noTabSwitch);
+        window.selectElement(el, isMulti, noTabSwitch);
     }
     window.renderLayers();
 };
@@ -446,7 +450,7 @@ window.renderLayers = function() {
              ondragleave="window.layerDragLeave(event)"
              ondrop="window.layerDrop(event, '${uid}')"
              style="display:flex; justify-content:space-between; align-items:center; background:${bg}; border:${border}; padding:10px 12px; border-radius:6px; margin-bottom:5px; cursor:grab; box-shadow: 0 2px 10px rgba(14,165,233,0.15);"
-             onclick="if(window.ThreeDEngine) { window.ThreeDEngine.selectElement('${el.id}'); window.renderLayers(); }">
+             onclick="if(window.ThreeDEngine) { window.ThreeDEngine.selectElement('${el.id}', { keep2DSelection: Boolean(event && (event.shiftKey || event.ctrlKey || event.metaKey)) }); window.renderLayers(); }">
             <div style="display:flex; align-items:center; gap:8px; overflow:hidden;">
                 <i class="fas fa-grip-vertical" style="color:rgba(255,255,255,0.2); font-size:10px; margin-right:4px; cursor:grab;"></i>
                 <i class="fas ${iconClass}" style="color:#0ea5e9; font-size:13px;"></i>
@@ -635,11 +639,12 @@ window.getCanvasLayersList = function() {
         if (!el.dataset.layerUid) el.dataset.layerUid = 'layer_' + Math.random().toString(36).substr(2, 9);
         let rawZ = el.dataset.layerZIndex || el.style.zIndex;
         let z = parseInt(rawZ, 10);
+        const defaultZ = el.classList.contains('editable-draw') ? 10 : 35;
         if (isNaN(z)) {
-            z = parseInt(window.getComputedStyle ? window.getComputedStyle(el).zIndex : 10, 10);
-            if (isNaN(z)) z = 60;
+            z = parseInt(window.getComputedStyle ? window.getComputedStyle(el).zIndex : defaultZ, 10);
+            if (isNaN(z)) z = defaultZ;
         } else if (z >= 900) {
-            z = 60;
+            z = defaultZ;
         }
         list.push({
             type: '2d',
@@ -657,7 +662,7 @@ window.getCanvasLayersList = function() {
         const cvs = document.getElementById('three-d-layer') || (window.ThreeDEngine.getCanvas ? window.ThreeDEngine.getCanvas() : null);
         let rawCvsZ = cvs?.dataset?.layerZIndex || cvs?.style?.zIndex;
         let cvsZ = parseInt(rawCvsZ, 10);
-        if (isNaN(cvsZ) || cvsZ >= 900) cvsZ = 54;
+        if (isNaN(cvsZ) || cvsZ >= 900) cvsZ = 25;
 
         if (thElements.length > 0) {
             [...thElements].reverse().forEach((thEl, idx) => {
@@ -815,10 +820,18 @@ window.layerDelete = function(uid) {
         window.TemplateBuilder.deselectFrame();
     }
     if (window.selectedEl === el) window.selectedEl = null;
-    if (window.selectedElements) window.selectedElements = window.selectedElements.filter(x => x !== el);
-    if (typeof deselectAll === 'function') deselectAll();
-    if (typeof window.deselectAll === 'function') window.deselectAll();
+    if (window.selectedElements) {
+        window.selectedElements = window.selectedElements.filter(x => x !== el);
+    }
     el.remove();
+    if (window.selectedElements && window.selectedElements.length > 0) {
+        window.selectedEl = window.selectedElements[window.selectedElements.length - 1];
+        if (typeof window.updateMultiSelectUI === 'function') window.updateMultiSelectUI();
+        if (typeof window.updateGroupUI === 'function') window.updateGroupUI();
+    } else {
+        if (typeof deselectAll === 'function') deselectAll();
+        else if (typeof window.deselectAll === 'function') window.deselectAll();
+    }
     if (typeof window.recordHistory === 'function') window.recordHistory('Katman Silindi');
     window.renderLayers();
 };

@@ -11,6 +11,7 @@ function getBrands() {
             brands = [{
                 id: 'default_emlak_studiom',
                 name: 'Emlak Stüdyom',
+                email: 'emlakstudyomtr@gmail.com',
                 phone: '',
                 insta: '',
                 website: 'www.emlakstudyom.com',
@@ -19,13 +20,40 @@ function getBrands() {
                 logo: 'assets/logo/logo.png' // Default logo
             }];
             localStorage.setItem('canvaBrandTemplates', JSON.stringify(brands));
+        } else {
+            const defBrand = brands.find(b => b.id === 'default_emlak_studiom');
+            if (defBrand) {
+                let updated = false;
+                if (!defBrand.email || defBrand.email !== 'emlakstudyomtr@gmail.com') {
+                    defBrand.email = 'emlakstudyomtr@gmail.com';
+                    updated = true;
+                }
+                if (defBrand.phone) {
+                    defBrand.phone = '';
+                    updated = true;
+                }
+                if (updated) {
+                    localStorage.setItem('canvaBrandTemplates', JSON.stringify(brands));
+                }
+            }
         }
         return brands;
     } catch(e) { return []; }
 }
 
 function saveBrands(brands) {
-    localStorage.setItem('canvaBrandTemplates', JSON.stringify(brands));
+    try {
+        localStorage.setItem('canvaBrandTemplates', JSON.stringify(brands));
+        return true;
+    } catch (e) {
+        console.warn('Marka şablonu kaydedilemedi (Depolama kotası):', e);
+        if (typeof window.showAppToast === 'function') {
+            window.showAppToast('Tarayıcı hafızası dolu! Lütfen daha küçük bir logo seçin veya eski markaları silin.', 'error', 4000);
+        } else {
+            alert('Tarayıcı hafızası dolu! Lütfen daha küçük bir logo seçin veya eski markaları silin.');
+        }
+        return false;
+    }
 }
 
 function initBrandManager() {
@@ -39,15 +67,52 @@ function initBrandManager() {
                 }
                 const r = new FileReader();
                 r.onload = ev => {
-                    currentLogoDataUrl = ev.target.result;
-                    const preview = document.getElementById('brandLogoPreview');
-                    if (preview) {
-                        preview.src = currentLogoDataUrl;
-                        preview.style.display = 'block';
-                    }
-                    if (typeof window.hideAppLoading === 'function') {
-                        window.hideAppLoading(60);
-                    }
+                    const rawDataUrl = ev.target.result;
+                    const img = new Image();
+                    img.onload = () => {
+                        let finalDataUrl = rawDataUrl;
+                        const maxDim = 512;
+                        const w = img.naturalWidth || img.width || 0;
+                        const h = img.naturalHeight || img.height || 0;
+                        if (w > maxDim || h > maxDim || rawDataUrl.length > 250000) {
+                            try {
+                                const scale = (w > maxDim || h > maxDim) ? Math.min(maxDim / w, maxDim / h) : 1;
+                                const cw = Math.max(1, Math.round(w * scale));
+                                const ch = Math.max(1, Math.round(h * scale));
+                                const cvs = document.createElement('canvas');
+                                cvs.width = cw;
+                                cvs.height = ch;
+                                const ctx = cvs.getContext('2d');
+                                ctx.imageSmoothingEnabled = true;
+                                ctx.imageSmoothingQuality = 'high';
+                                ctx.drawImage(img, 0, 0, cw, ch);
+                                finalDataUrl = cvs.toDataURL('image/png');
+                                cvs.width = 0;
+                                cvs.height = 0;
+                            } catch (errOpt) {}
+                        }
+                        currentLogoDataUrl = finalDataUrl;
+                        const preview = document.getElementById('brandLogoPreview');
+                        if (preview) {
+                            preview.src = currentLogoDataUrl;
+                            preview.style.display = 'block';
+                        }
+                        if (typeof window.hideAppLoading === 'function') {
+                            window.hideAppLoading(60);
+                        }
+                    };
+                    img.onerror = () => {
+                        currentLogoDataUrl = rawDataUrl;
+                        const preview = document.getElementById('brandLogoPreview');
+                        if (preview) {
+                            preview.src = currentLogoDataUrl;
+                            preview.style.display = 'block';
+                        }
+                        if (typeof window.hideAppLoading === 'function') {
+                            window.hideAppLoading(60);
+                        }
+                    };
+                    img.src = rawDataUrl;
                 };
                 r.onerror = () => {
                     if (typeof window.hideAppLoading === 'function') window.hideAppLoading();
@@ -71,6 +136,8 @@ window.showBrandForm = function(brandId = null) {
         const brand = getBrands().find(b => b.id === brandId);
         if (brand) {
             document.getElementById('brandNameInput').value = brand.name || '';
+            const emailInput = document.getElementById('brandEmailInput');
+            if (emailInput) emailInput.value = brand.email || '';
             document.getElementById('brandPhoneInput').value = brand.phone || '';
             document.getElementById('brandInstaInput').value = brand.insta || '';
             const webInput = document.getElementById('brandWebInput');
@@ -94,6 +161,8 @@ window.showBrandForm = function(brandId = null) {
         editingBrandId = null;
         currentLogoDataUrl = null;
         document.getElementById('brandNameInput').value = '';
+        const emailInput = document.getElementById('brandEmailInput');
+        if (emailInput) emailInput.value = '';
         document.getElementById('brandPhoneInput').value = '';
         document.getElementById('brandInstaInput').value = '';
         const webInput = document.getElementById('brandWebInput');
@@ -115,6 +184,8 @@ window.hideBrandForm = function() {
 
 window.saveBrand = function() {
     const name = document.getElementById('brandNameInput').value.trim() || 'İsimsiz Marka';
+    const emailInput = document.getElementById('brandEmailInput');
+    const email = emailInput ? emailInput.value.trim() : '';
     const phone = document.getElementById('brandPhoneInput').value.trim();
     const insta = document.getElementById('brandInstaInput').value.trim();
     const webInput = document.getElementById('brandWebInput');
@@ -131,12 +202,13 @@ window.saveBrand = function() {
     if (editingBrandId) {
         const idx = brands.findIndex(b => b.id === editingBrandId);
         if (idx >= 0) {
-            brands[idx] = { ...brands[idx], name, phone, insta, website, fb, twitter, youtube, address, color1, color2, logo: currentLogoDataUrl };
+            brands[idx] = { ...brands[idx], name, email, phone, insta, website, fb, twitter, youtube, address, color1, color2, logo: currentLogoDataUrl };
         }
     } else {
         brands.push({
             id: Date.now().toString(),
             name,
+            email,
             phone,
             insta,
             website, fb, twitter, youtube, address, color1, color2,
@@ -144,9 +216,10 @@ window.saveBrand = function() {
         });
     }
     
-    saveBrands(brands);
-    hideBrandForm();
-    renderBrandList();
+    if (saveBrands(brands)) {
+        hideBrandForm();
+        renderBrandList();
+    }
 };
 
 window.deleteBrand = function(id) {
@@ -299,6 +372,7 @@ window.applyBrand = function(brandId) {
         currentTop += 50;
     };
 
+    if (brand.email) createTextElement('<i class="fa-solid fa-envelope"></i>', brand.email, 'Marka E-posta');
     if (brand.phone) createTextElement('<i class="fa-solid fa-phone"></i>', brand.phone, 'Marka Telefon');
     if (brand.website) createTextElement('<i class="fa-solid fa-globe"></i>', brand.website, 'Marka Web Sitesi');
     if (brand.insta) createTextElement('<i class="fa-brands fa-instagram"></i>', brand.insta, 'Marka Instagram');

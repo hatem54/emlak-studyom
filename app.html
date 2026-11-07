@@ -17,11 +17,14 @@
                     document.documentElement.removeAttribute('data-theme');
                     return;
                 }
-                var t = localStorage.getItem('emlak_app_theme');
-                // Masaüstü için: Kullanıcı 'dark' seçmediyse varsayılan Açık Tema (light)
+                var t = localStorage.getItem('emlakstudiom_theme') || localStorage.getItem('emlak_app_theme') || 'light';
+                // Masaüstü için: Kullanıcı 'dark' seçtiyse data-theme="dark", aksi halde data-theme="light"
                 if (t === 'dark') {
-                    document.documentElement.removeAttribute('data-theme');
-                    if (document.body) document.body.removeAttribute('data-theme');
+                    document.documentElement.setAttribute('data-theme', 'dark');
+                    if (document.body) document.body.setAttribute('data-theme', 'dark');
+                    document.addEventListener('DOMContentLoaded', function() {
+                        if (document.body) document.body.setAttribute('data-theme', 'dark');
+                    });
                 } else {
                     document.documentElement.setAttribute('data-theme', 'light');
                     if (document.body) document.body.setAttribute('data-theme', 'light');
@@ -78,6 +81,7 @@
     <link rel="stylesheet" href="css/drone-rig.css?v=20261001-1">
     <link rel="stylesheet" href="css/bezier-curves.css?v=20261002-1">
     <link rel="stylesheet" href="css/template-frame.css?v=20261011-1">
+    <link rel="stylesheet" href="css/custom-badges.css?v=20261025-1">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <!-- ⚡ SABER EFFECT ENGINE - PixiJS + Filters -->
     <script src="https://cdn.jsdelivr.net/npm/pixi.js@7.4.0/dist/pixi.min.js"></script>
@@ -275,6 +279,14 @@
                     <span id="model3dUploadBtnText">3D Model Yükle</span>
                 </button>
                 <input type="file" id="estate3DGltfInput" accept=".glb,.gltf" style="display:none;" onchange="if(window.CanvasEmptyState) window.CanvasEmptyState.dismiss(); if(window.ThreeDEngine && window.ThreeDEngine.loadGLBFile) window.ThreeDEngine.loadGLBFile(this.files[0]); this.value='';">
+            </div>
+
+            <!-- Logo & Şeffaf Rozet Ekle -->
+            <div style="display:flex; align-items:center; gap:6px;">
+                <button type="button" class="btn-action btn-blue" style="flex:1; height:38px; padding:0 12px; font-size:12.5px; font-weight:700; border-radius:8px; display:flex; align-items:center; justify-content:center; gap:8px; cursor:pointer;" onclick="if(window.CustomBadges) window.CustomBadges.triggerUpload(); else { const li=document.getElementById('logoInput'); if(li) li.click(); }" title="Firma logosu veya şeffaf PNG/SVG rozet ekleyin">
+                    <i class="fa-solid fa-shield-halved" style="font-size:14px;"></i>
+                    <span>Logo &amp; Rozet Ekle</span>
+                </button>
             </div>
         </div>
 
@@ -491,10 +503,10 @@
             </div>
             
             <div style="display:none; gap:6px; margin-bottom:8px; margin-top:8px; align-items:stretch;" id="aiCopyButtonsRow">
-                <button class="btn-action" onclick="window.copyAiMainText()" style="flex:1; height:38px; background:#f8fafc; border:1px solid #cbd5e1; color:#475569; font-size:12.5px; font-weight:700; border-radius:8px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px;">
+                <button class="btn-action" onclick="window.copyAiMainText()" style="flex:1; height:38px; font-size:12.5px; font-weight:700; border-radius:8px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px;">
                     <i class="fa-solid fa-copy"></i> Kopyala
                 </button>
-                <button class="btn-action" onclick="window.applyAiMainToDesc()" style="flex:1; height:38px; background:#f0fdf4; border:1px solid #86efac; color:#166534; font-size:12.5px; font-weight:700; border-radius:8px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px;">
+                <button class="btn-action btn-green" onclick="window.applyAiMainToDesc()" style="flex:1; height:38px; font-size:12.5px; font-weight:700; border-radius:8px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px;">
                     <i class="fa-solid fa-file-pen"></i> Açıklamaya Aktar
                 </button>
             </div>
@@ -708,9 +720,14 @@
                 <div class="section-title" style="margin:0; padding:0; border:none; font-size:12px; display:flex; align-items:center; gap:6px;">
                     <i class="fa-solid fa-layer-group"></i> Katmanlar
                 </div>
-                <button type="button" class="btn-action" onclick="if(window.PhotoLayerManager) window.PhotoLayerManager.addLayer()" style="width:auto; padding:3px 9px; font-size:11px; margin:0; border-radius:5px;" title="Yeni Katman Ekle">
-                    <i class="fa-solid fa-plus"></i> Katman Ekle
-                </button>
+                <div style="display:flex; gap:4px;">
+                    <button type="button" class="btn-action" onclick="if(window.PhotoStagingArchive) window.PhotoStagingArchive.applyCurrentAdjustmentsToAll()" style="width:auto; padding:3px 9px; font-size:11px; margin:0; border-radius:5px;" title="Mevcut fotoğraf ayarlarını havuzdaki tüm görsellere uygular">
+                        <i class="fa-solid fa-clone"></i> Tümüne Uygula
+                    </button>
+                    <button type="button" class="btn-action" onclick="if(window.PhotoLayerManager) window.PhotoLayerManager.addLayer()" style="width:auto; padding:3px 9px; font-size:11px; margin:0; border-radius:5px;" title="Yeni Katman Ekle">
+                        <i class="fa-solid fa-plus"></i> Katman Ekle
+                    </button>
+                </div>
             </div>
             <div id="photoLayerTabsContainer" style="display:flex; gap:6px; overflow-x:auto; padding:2px 0;"></div>
         </div>
@@ -781,29 +798,46 @@
             </div>
         </details>
 
-        <!-- 🌈 8-KANAL PROFESYONEL EMLAK HSL AKORDEONU -->
+        <!-- 🌈 PROFESYONEL EMLAK HSL & ÖZEL RENK DÜZENLEME AKORDEONU -->
         <details class="hsl-accordion">
             <summary onclick="const i=this.querySelector('i.fa-chevron-down, i.fa-chevron-up'); if(i){i.classList.toggle('fa-chevron-up'); i.classList.toggle('fa-chevron-down');}">
-                <span><i class="fa-solid fa-palette" style="color:#ec4899;"></i> 8-Kanal Renk Ayarı</span>
+                <span><i class="fa-solid fa-palette" style="color:#ec4899;"></i> Renk Ayarı</span>
                 <i class="fa-solid fa-chevron-down" style="font-size:12px;"></i>
             </summary>
             <div>
-                <!-- 8 Renk Noktası -->
+                <!-- Aksiyon Butonları (Damlalık & Sıfırla) -->
+                <div style="display:flex; gap:8px; margin-bottom:12px;">
+                    <button type="button" id="hslEyedropperBtn" class="btn-action" style="flex:1 1 0; min-width:0; height:32px; margin:0 !important; display:inline-flex; align-items:center; justify-content:center; gap:6px; white-space:nowrap;" onclick="if(window.pickHslColorFromPhoto) window.pickHslColorFromPhoto();" title="Fotoğraftan damlalık ile nokta atışı renk seçin">
+                        <i class="fa-solid fa-eye-dropper"></i> Renk Seç
+                    </button>
+                    <button type="button" id="hslResetBtn" class="btn-action" style="flex:1 1 0; min-width:0; height:32px; margin:0 !important; display:inline-flex; align-items:center; justify-content:center; gap:6px; white-space:nowrap;" onclick="if(window.resetHslAdjustments) window.resetHslAdjustments();" title="Tüm renk ayarlarını sıfırla">
+                        <i class="fa-solid fa-rotate-left"></i> Sıfırla
+                    </button>
+                </div>
+
+                <!-- 8 Standart Renk Noktası + 1 Damlalık Özel Renk Noktası -->
                 <div class="hsl-dots-bar">
-                    <div class="hsl-color-dot active" data-color="red" style="background:#ef4444;" title="Kırmızı (Tuğla & Çatı)"></div>
-                    <div class="hsl-color-dot" data-color="orange" style="background:#f97316;" title="Turuncu (Ahşap & Parke & Laminant)"></div>
-                    <div class="hsl-color-dot" data-color="yellow" style="background:#eab308;" title="Sarı (İç Aydınlatma & Avize)"></div>
-                    <div class="hsl-color-dot" data-color="green" style="background:#22c55e;" title="Yeşil (Bahçe & Peyzaj & Bitki)"></div>
-                    <div class="hsl-color-dot" data-color="aqua" style="background:#06b6d4;" title="Turkuaz (Havuz Suyu & Deniz & Jakuzi)"></div>
-                    <div class="hsl-color-dot" data-color="blue" style="background:#3b82f6;" title="Mavi (Gökyüzü & Pencere)"></div>
-                    <div class="hsl-color-dot" data-color="purple" style="background:#a855f7;" title="Mor (Dekor & Çiçek)"></div>
-                    <div class="hsl-color-dot" data-color="magenta" style="background:#ec4899;" title="Magenta (Vurgu Işığı)"></div>
+                    <div class="hsl-color-dot active" data-color="red" style="background:#ef4444;" title="Kırmızı - Tuğla ve Çatı"></div>
+                    <div class="hsl-color-dot" data-color="orange" style="background:#f97316;" title="Turuncu - Ahşap ve Parke"></div>
+                    <div class="hsl-color-dot" data-color="yellow" style="background:#eab308;" title="Sarı - İç Aydınlatma"></div>
+                    <div class="hsl-color-dot" data-color="green" style="background:#22c55e;" title="Yeşil - Peyzaj ve Bahçe"></div>
+                    <div class="hsl-color-dot" data-color="aqua" style="background:#06b6d4;" title="Turkuaz - Havuz ve Deniz"></div>
+                    <div class="hsl-color-dot" data-color="blue" style="background:#3b82f6;" title="Mavi - Gökyüzü"></div>
+                    <div class="hsl-color-dot" data-color="purple" style="background:#a855f7;" title="Mor - Dekorasyon"></div>
+                    <div class="hsl-color-dot" data-color="magenta" style="background:#ec4899;" title="Magenta - Vurgu Işığı"></div>
+                    <div class="hsl-color-dot" data-color="custom" id="hslCustomColorDot" style="background:conic-gradient(red, yellow, lime, aqua, blue, magenta, red); display:flex; align-items:center; justify-content:center;" title="Damlalıkla Seçilen Özel Renk">
+                        <i class="fa-solid fa-crosshairs" style="font-size:9px; color:#ffffff; text-shadow:0 0 2px #000;"></i>
+                    </div>
                 </div>
                 
-                <!-- Aktif Renk Başlığı -->
-                <div id="hslActiveColorLabel" style="text-align:center; color:#ef4444; font-weight:bold; font-size:13.5px; margin-bottom:12px;">🔴 Kırmızı (Tuğla & Çatı)</div>
+                <!-- Aktif Renk Bilgi Barı (Damlalık ile seçilen renk ferah ve bağımsız şekilde gösterilir) -->
+                <div id="hslActiveColorInfoBar" style="display:flex; align-items:center; gap:8px; margin-bottom:12px; padding:6px 10px; border-radius:6px; background:rgba(0,0,0,0.12); border:1px solid rgba(255,255,255,0.08);">
+                    <span id="hslPickedColorSwatch" style="width:16px; height:16px; border-radius:50%; background:#ef4444; border:2px solid #ffffff; flex-shrink:0; box-shadow:0 0 4px rgba(0,0,0,0.25);"></span>
+                    <div id="hslActiveColorLabel" style="font-weight:700; font-size:12px; color:#ef4444; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; flex:1;">Kırmızı</div>
+                    <span id="hslActiveColorCode" style="font-size:11px; font-family:monospace; color:#94a3b8; flex-shrink:0;">#EF4444</span>
+                </div>
                 
-                <!-- 3 Evrensel Kaydırıcı -->
+                <!-- 3 Evrensel Kaydırıcı + 1 Özel Tolerans Kaydırıcısı -->
                 <div class="slider-group">
                     <label><span>Ton</span><span id="hsl_h_val">0</span></label>
                     <input type="range" id="hsl_h_slider" min="-100" max="100" value="0">
@@ -816,8 +850,12 @@
                     <label><span>Işık</span><span id="hsl_l_val">0</span></label>
                     <input type="range" id="hsl_l_slider" min="-100" max="100" value="0">
                 </div>
+                <div class="slider-group" id="hslCustomRangeGroup" style="display:none;">
+                    <label><span>Renk Aralığı</span><span id="hsl_range_val">20%</span></label>
+                    <input type="range" id="hsl_range_slider" min="5" max="60" value="20">
+                </div>
                 
-                <!-- 8 Renk İçin Gizli Girdi Alanları (AutoSave ve Geriye Dönük Uyumluluk) -->
+                <!-- 8 Renk + Özel Renk İçin Gizli Girdi Alanları -->
                 <div style="display:none;" id="hslHiddenInputs">
                     <input type="range" class="hsl-slider" data-type="h" data-color="red" min="-100" max="100" value="0" id="hsl_h_redVal_input">
                     <input type="range" class="hsl-slider" data-type="s" data-color="red" min="-100" max="100" value="0" id="hsl_s_redVal_input">
@@ -850,6 +888,11 @@
                     <input type="range" class="hsl-slider" data-type="h" data-color="magenta" min="-100" max="100" value="0" id="hsl_h_magentaVal_input">
                     <input type="range" class="hsl-slider" data-type="s" data-color="magenta" min="-100" max="100" value="0" id="hsl_s_magentaVal_input">
                     <input type="range" class="hsl-slider" data-type="l" data-color="magenta" min="-100" max="100" value="0" id="hsl_l_magentaVal_input">
+
+                    <input type="range" class="hsl-slider" data-type="h" data-color="custom" min="-100" max="100" value="0" id="hsl_h_customVal_input">
+                    <input type="range" class="hsl-slider" data-type="s" data-color="custom" min="-100" max="100" value="0" id="hsl_s_customVal_input">
+                    <input type="range" class="hsl-slider" data-type="l" data-color="custom" min="-100" max="100" value="0" id="hsl_l_customVal_input">
+                    <input type="range" class="hsl-slider" data-type="range" data-color="custom" min="5" max="60" value="20" id="hsl_range_customVal_input">
                 </div>
             </div>
         </details>
@@ -1210,7 +1253,7 @@
 
                     <!-- Serbest Çizim Eylem Butonları -->
                     <div id="cloneAreaActionRow" style="display:none; margin-top:8px;">
-                        <div id="cloneModeHintText" style="font-size:11px; color:#64748b; margin-bottom:8px; line-height:1.4; padding:6px 8px; background:#f8fafc; border-radius:5px; border:1px solid #e2e8f0;">
+                        <div id="cloneModeHintText" style="font-size:11px; color:var(--text-muted); margin-bottom:8px; line-height:1.4; padding:6px 8px; background:rgba(30, 41, 59, 0.4); border-radius:5px; border:1px solid rgba(255, 255, 255, 0.08);">
                             Kapatılacak villanın üzerini fırçayla boyayın. Yeşil kaynak çerçevesini temiz çime sürükleyip <b>Alanı Klonla</b> butonuna basın.
                         </div>
                         <button type="button" class="btn-action" style="width:100%; font-weight:600; margin-bottom:6px;" onclick="window.CloneStamp && window.CloneStamp.applyAreaClone()" title="Çizilen alanın içini seçilen kaynak dokuyla doldurur">
@@ -1245,24 +1288,90 @@
 
         <script>
         const hslColorNames = {
-            'red': '🔴 Kırmızı (Tuğla / Çatı)', 
-            'orange': '🟠 Turuncu (Ahşap / Parke / Mobilya)', 
-            'yellow': '🟡 Sarı (İç Aydınlatma / Avize)',
-            'green': '🟢 Yeşil (Bahçe / Peyzaj / Bitki)', 
-            'aqua': '💎 Turkuaz (Havuz Suyu / Deniz / Jakuzi)',
-            'blue': '🔵 Mavi (Gökyüzü / Pencere)', 
-            'purple': '🟣 Mor (Dekorasyon / Çiçek)',
-            'magenta': '🌸 Magenta (Akşam / Vurgu Işığı)'
+            'red': 'Kırmızı', 
+            'orange': 'Turuncu', 
+            'yellow': 'Sarı',
+            'green': 'Yeşil', 
+            'aqua': 'Turkuaz',
+            'blue': 'Mavi', 
+            'purple': 'Mor',
+            'magenta': 'Magenta',
+            'custom': 'Özel Renk'
         };
         const hslColorsHex = {
             'red': '#ef4444', 'orange': '#f97316', 'yellow': '#eab308',
             'green': '#22c55e', 'aqua': '#06b6d4', 'blue': '#3b82f6', 
-            'purple': '#a855f7', 'magenta': '#ec4899'
+            'purple': '#a855f7', 'magenta': '#ec4899', 'custom': '#38bdf8'
         };
 
         let activeHslColor = 'red';
 
-        // 8 Renk Noktası Tıklandığında
+        window.syncCustomColorUI = function(shouldActivate) {
+            const customDot = document.getElementById('hslCustomColorDot');
+            const swatch = document.getElementById('hslPickedColorSwatch');
+            const lbl = document.getElementById('hslActiveColorLabel');
+            const code = document.getElementById('hslActiveColorCode');
+            const rangeGroup = document.getElementById('hslCustomRangeGroup');
+
+            if (window.customColorState && window.customColorState.active) {
+                const hex = window.customColorState.hex || '#38bdf8';
+                if (customDot) {
+                    customDot.style.background = hex;
+                    customDot.title = `Özel Renk: ${hex}`;
+                }
+                if (shouldActivate) {
+                    document.querySelectorAll('.hsl-color-dot').forEach(d => {
+                        d.classList.remove('active');
+                        d.style.borderColor = 'transparent';
+                        d.style.boxShadow = 'none';
+                    });
+                    if (customDot) {
+                        customDot.classList.add('active');
+                        customDot.style.borderColor = '#ffffff';
+                        customDot.style.boxShadow = '0 0 8px ' + hex;
+                    }
+                    activeHslColor = 'custom';
+                    if (lbl) {
+                        lbl.textContent = 'Özel Renk';
+                        lbl.style.color = hex;
+                    }
+                    if (swatch) {
+                        swatch.style.background = hex;
+                        swatch.style.borderColor = '#ffffff';
+                    }
+                    if (code) {
+                        code.textContent = hex;
+                    }
+                    if (rangeGroup) rangeGroup.style.display = 'block';
+
+                    const hVal = window.customColorState.shiftH || 0;
+                    const sVal = window.customColorState.shiftS || 0;
+                    const lVal = window.customColorState.shiftL || 0;
+                    const rVal = Math.round((window.customColorState.range !== undefined ? window.customColorState.range : 0.20) * 100);
+
+                    if (document.getElementById('hsl_h_slider')) document.getElementById('hsl_h_slider').value = hVal;
+                    if (document.getElementById('hsl_s_slider')) document.getElementById('hsl_s_slider').value = sVal;
+                    if (document.getElementById('hsl_l_slider')) document.getElementById('hsl_l_slider').value = lVal;
+                    if (document.getElementById('hsl_range_slider')) document.getElementById('hsl_range_slider').value = rVal;
+
+                    if (document.getElementById('hsl_h_val')) document.getElementById('hsl_h_val').textContent = hVal;
+                    if (document.getElementById('hsl_s_val')) document.getElementById('hsl_s_val').textContent = sVal;
+                    if (document.getElementById('hsl_l_val')) document.getElementById('hsl_l_val').textContent = lVal;
+                    if (document.getElementById('hsl_range_val')) document.getElementById('hsl_range_val').textContent = rVal + '%';
+                }
+            } else {
+                if (customDot) {
+                    customDot.style.background = 'conic-gradient(red, yellow, lime, aqua, blue, magenta, red)';
+                    customDot.title = 'Damlalıkla Seçilen Özel Renk';
+                }
+                if (activeHslColor === 'custom') {
+                    const redDot = document.querySelector('.hsl-color-dot[data-color="red"]');
+                    if (redDot) redDot.click();
+                }
+            }
+        };
+
+        // 8 Renk Noktası + 1 Özel Renk Tıklandığında
         document.querySelectorAll('.hsl-color-dot').forEach(dot => {
             dot.addEventListener('click', function() {
                 document.querySelectorAll('.hsl-color-dot').forEach(d => {
@@ -1272,46 +1381,129 @@
                 });
                 this.classList.add('active');
                 this.style.borderColor = '#fff';
-                this.style.boxShadow = '0 0 8px ' + this.style.backgroundColor;
+                this.style.boxShadow = '0 0 8px ' + (this.style.backgroundColor || '#fff');
                 
                 activeHslColor = this.dataset.color;
-                
+                const rangeGroup = document.getElementById('hslCustomRangeGroup');
+                const swatch = document.getElementById('hslPickedColorSwatch');
                 const lbl = document.getElementById('hslActiveColorLabel');
-                lbl.textContent = hslColorNames[activeHslColor] || activeHslColor;
-                lbl.style.color = hslColorsHex[activeHslColor] || '#ffffff';
+                const code = document.getElementById('hslActiveColorCode');
+
+                if (activeHslColor === 'custom') {
+                    if (rangeGroup) rangeGroup.style.display = 'block';
+                    if (window.customColorState && window.customColorState.active) {
+                        const hex = window.customColorState.hex || '#38bdf8';
+                        if (lbl) { lbl.textContent = 'Özel Renk'; lbl.style.color = hex; }
+                        if (swatch) { swatch.style.background = hex; swatch.style.borderColor = '#ffffff'; }
+                        if (code) { code.textContent = hex; }
+
+                        const hVal = window.customColorState.shiftH || 0;
+                        const sVal = window.customColorState.shiftS || 0;
+                        const lVal = window.customColorState.shiftL || 0;
+                        const rVal = Math.round((window.customColorState.range !== undefined ? window.customColorState.range : 0.20) * 100);
+
+                        if (document.getElementById('hsl_h_slider')) document.getElementById('hsl_h_slider').value = hVal;
+                        if (document.getElementById('hsl_s_slider')) document.getElementById('hsl_s_slider').value = sVal;
+                        if (document.getElementById('hsl_l_slider')) document.getElementById('hsl_l_slider').value = lVal;
+                        if (document.getElementById('hsl_range_slider')) document.getElementById('hsl_range_slider').value = rVal;
+
+                        if (document.getElementById('hsl_h_val')) document.getElementById('hsl_h_val').textContent = hVal;
+                        if (document.getElementById('hsl_s_val')) document.getElementById('hsl_s_val').textContent = sVal;
+                        if (document.getElementById('hsl_l_val')) document.getElementById('hsl_l_val').textContent = lVal;
+                        if (document.getElementById('hsl_range_val')) document.getElementById('hsl_range_val').textContent = rVal + '%';
+                    } else {
+                        if (lbl) { lbl.textContent = 'Özel Renk'; lbl.style.color = '#38bdf8'; }
+                        if (swatch) { swatch.style.background = '#38bdf8'; swatch.style.borderColor = '#ffffff'; }
+                        if (code) { code.textContent = '#38BDF8'; }
+                    }
+                    return;
+                }
+
+                // 8 Standart Renk
+                if (rangeGroup) rangeGroup.style.display = 'none';
+                const colorHex = hslColorsHex[activeHslColor] || '#ffffff';
+                if (lbl) {
+                    lbl.textContent = hslColorNames[activeHslColor] || activeHslColor;
+                    lbl.style.color = colorHex;
+                }
+                if (swatch) {
+                    swatch.style.background = colorHex;
+                    swatch.style.borderColor = '#ffffff';
+                }
+                if (code) {
+                    code.textContent = colorHex.toUpperCase();
+                }
                 
                 const hInput = document.querySelector(`.hsl-slider[data-color="${activeHslColor}"][data-type="h"]`);
                 const sInput = document.querySelector(`.hsl-slider[data-color="${activeHslColor}"][data-type="s"]`);
                 const lInput = document.querySelector(`.hsl-slider[data-color="${activeHslColor}"][data-type="l"]`);
                 
-                if (hInput) document.getElementById('hsl_h_slider').value = hInput.value;
-                if (sInput) document.getElementById('hsl_s_slider').value = sInput.value;
-                if (lInput) document.getElementById('hsl_l_slider').value = lInput.value;
+                if (hInput && document.getElementById('hsl_h_slider')) document.getElementById('hsl_h_slider').value = hInput.value;
+                if (sInput && document.getElementById('hsl_s_slider')) document.getElementById('hsl_s_slider').value = sInput.value;
+                if (lInput && document.getElementById('hsl_l_slider')) document.getElementById('hsl_l_slider').value = lInput.value;
                 
-                if (hInput) document.getElementById('hsl_h_val').textContent = hInput.value;
-                if (sInput) document.getElementById('hsl_s_val').textContent = sInput.value;
-                if (lInput) document.getElementById('hsl_l_val').textContent = lInput.value;
+                if (hInput && document.getElementById('hsl_h_val')) document.getElementById('hsl_h_val').textContent = hInput.value;
+                if (sInput && document.getElementById('hsl_s_val')) document.getElementById('hsl_s_val').textContent = sInput.value;
+                if (lInput && document.getElementById('hsl_l_val')) document.getElementById('hsl_l_val').textContent = lInput.value;
             });
         });
 
-        // 3 Ana Kaydırıcı Hareket Ettiğinde
+        // 3 Ana Kaydırıcı Hareket Ettiğinde (Ton, Doygunluk, Işık)
         ['h', 's', 'l'].forEach(type => {
             const slider = document.getElementById(`hsl_${type}_slider`);
             if(slider) {
                 const updateHSL = function() {
-                    document.getElementById(`hsl_${type}_val`).textContent = this.value;
-                    const hiddenInput = document.querySelector(`.hsl-slider[data-color="${activeHslColor}"][data-type="${type}"]`);
-                    if (hiddenInput) {
-                        hiddenInput.value = this.value;
-                        const event = new Event('input', { bubbles: true });
-                        hiddenInput.dispatchEvent(event);
+                    const val = parseFloat(this.value) || 0;
+                    const valSpan = document.getElementById(`hsl_${type}_val`);
+                    if (valSpan) valSpan.textContent = val;
+
+                    if (activeHslColor === 'custom') {
+                        if (!window.customColorState) {
+                            window.customColorState = {
+                                active: true,
+                                hex: '#38BDF8',
+                                h: 0.55, s: 0.8, l: 0.6,
+                                shiftH: 0, shiftS: 0, shiftL: 0,
+                                range: 0.20
+                            };
+                        }
+                        if (type === 'h') window.customColorState.shiftH = val;
+                        if (type === 's') window.customColorState.shiftS = val;
+                        if (type === 'l') window.customColorState.shiftL = val;
+                        window.customColorState.active = true;
+                    } else {
+                        const hiddenInput = document.querySelector(`.hsl-slider[data-color="${activeHslColor}"][data-type="${type}"]`);
+                        if (hiddenInput) {
+                            hiddenInput.value = val;
+                            const event = new Event('input', { bubbles: true });
+                            hiddenInput.dispatchEvent(event);
+                        }
                     }
                     if (typeof applyPhotoFilters === 'function') applyPhotoFilters();
+                    if (typeof processHSL === 'function') processHSL();
                 };
                 slider.addEventListener('input', updateHSL);
                 slider.addEventListener('change', updateHSL);
             }
         });
+
+        // Damlalık Özel Renk Tolerans (Aralık) Kaydırıcısı
+        const rangeSlider = document.getElementById('hsl_range_slider');
+        if (rangeSlider) {
+            const updateRange = function() {
+                const val = parseFloat(this.value) || 20;
+                const valSpan = document.getElementById('hsl_range_val');
+                if (valSpan) valSpan.textContent = val + '%';
+                if (window.customColorState) {
+                    window.customColorState.range = val / 100.0;
+                    window.customColorState.active = true;
+                }
+                if (typeof applyPhotoFilters === 'function') applyPhotoFilters();
+                if (typeof processHSL === 'function') processHSL();
+            };
+            rangeSlider.addEventListener('input', updateRange);
+            rangeSlider.addEventListener('change', updateRange);
+        }
 
         // Ton Eğrisi ve Maske Modüllerini Başlat
         document.addEventListener('DOMContentLoaded', () => {
@@ -1371,7 +1563,14 @@
                 </button>
             </div>
         </div>
-        <button class="btn-action btn-yellow" style="width:100%; height:38px; padding:0 12px; font-size:12.5px; font-weight:700; border-radius:8px; display:flex; align-items:center; justify-content:center; gap:8px;" onclick="resetFilters()"><i class="fa-solid fa-rotate-left"></i> Filtreleri Sıfırla</button>
+        <div style="display:flex; gap:6px; margin-top:8px;">
+            <button type="button" class="btn-action btn-blue" style="flex:1 1 0; min-width:0; height:38px; padding:0 8px; font-size:12px; font-weight:700; border-radius:8px; display:flex; align-items:center; justify-content:center; gap:6px; white-space:nowrap; margin:0 !important;" onclick="if(window.PhotoStagingArchive) window.PhotoStagingArchive.applyCurrentAdjustmentsToAll()" title="Mevcut fotoğraf ayarlarını havuzdaki tüm görsellere uygular">
+                <i class="fa-solid fa-clone"></i> Tümüne Uygula
+            </button>
+            <button type="button" class="btn-action btn-yellow" style="flex:1 1 0; min-width:0; height:38px; padding:0 8px; font-size:12px; font-weight:700; border-radius:8px; display:flex; align-items:center; justify-content:center; gap:6px; white-space:nowrap; margin:0 !important;" onclick="resetFilters()" title="Tüm filtre ve renk ayarlarını sıfırlar">
+                <i class="fa-solid fa-rotate-left"></i> Filtreleri Sıfırla
+            </button>
+        </div>
     </div>
 
     <!-- GÖRSELLER (ÇEKİM & GÖRSEL HAVUZU) -->
@@ -1489,7 +1688,7 @@
             <button type="button" class="btn-action" onclick="addNeonText()" title="Tuvale parlak neon efektli metin ekleyin">
                 <i class="fa-solid fa-bolt" style="color:#00f0ff;"></i> Neon Yazı Ekle
             </button>
-            <button type="button" class="btn-action pc-only" onclick="if(window.ThreeDEngine) { if(typeof window.ThreeDEngine.add3DText === 'function') window.ThreeDEngine.add3DText(); else window.ThreeDEngine.openStudio(); }" title="Görsel üzerine 3D perspektifli yazı ekleyin">
+            <button type="button" class="btn-action pc-only" onclick="if(typeof open3DStudioSafe === 'function') open3DStudioSafe(); else if(window.ThreeDEngine) { if(typeof window.ThreeDEngine.add3DText === 'function') window.ThreeDEngine.add3DText(); else window.ThreeDEngine.openStudio(); }" title="Görsel üzerine 3D perspektifli yazı ekleyin">
                 <i class="fa-solid fa-cube" style="color:#6366f1;"></i> 3D Metin
             </button>
         </div>
@@ -1872,7 +2071,12 @@
 
         <div class="section-title"><i class="fa-solid fa-clock-rotate-left" style="color:#0284c7; margin-right:6px;"></i>Çizim Geçmişi</div>
         <div class="draw-history" id="drawHistory"><div style="text-align:center;color:#475569;font-size:10px;padding:8px">Henüz çizim yok</div></div>
-        <div id="drawEditPanel" style="display:none" class="settings-box">
+        <details id="drawEditPanel" class="hsl-accordion" style="display:none;" open>
+            <summary id="drawEditSummary" style="border-left: 3.5px solid #0284c7 !important;">
+                <span><i class="fa-solid fa-pen-ruler" style="color:#0284c7; margin-right:6px;"></i><span id="drawEditAccordionTitle">Çizim &amp; Neon Ayarları</span></span>
+                <i class="fa-solid fa-chevron-down" style="font-size:11px;"></i>
+            </summary>
+            <div id="drawEditBody" class="settings-box" style="padding:10px;">
             <div class="section-title" id="drawEditTitle" style="display:none; margin-top:0"><i class="fa-solid fa-pen" style="color:#0284c7; margin-right:6px;"></i>Düzenle — <span id="drawEditLabel">#1</span></div>
             <!-- 1. NORMAL ÇİZİM AYARLARI (Sadece Neon Kapalıyken Görünür) -->
             <div id="deNormalSettingsGroup">
@@ -1997,7 +2201,8 @@
             </div>
 
             <button type="button" class="btn-action" onclick="applyDrawEdit()" style="width:100%; margin-top:10px;" title="Düzenlemeyi tamamlar"><i class="fa-solid fa-check" style="color:#10b981;"></i> Bitti</button>
-        </div>
+            </div>
+        </details>
         <div class="row-2" style="margin-top:8px">
             <button type="button" class="btn-action" onclick="undoLastDraw()"><i class="fa-solid fa-rotate-left"></i> Geri Al</button>
             <button type="button" class="btn-action" onclick="clearAllDrawings()" title="Tüm çizimleri temizler"><i class="fa-solid fa-trash-can" style="color:#ef4444;"></i> Tümünü Temizle</button>
@@ -2500,6 +2705,161 @@
 <!-- ✅ ROZET PANELİ -->
 <div id="tab-callout" class="dynamic-field">
 
+    <!-- 🛡️ ÖZEL LOGO & ŞEFFAF ROZET (SVG / PNG) YÜKLEME & YÖNETİM MERKEZİ -->
+    <div class="custom-badge-module-wrap" style="margin-bottom:14px;">
+        <div class="section-title" style="margin-top:0;">
+            <i class="fa-solid fa-shield-halved" style="color:#0284c7; margin-right:6px;"></i>Özel Logo &amp; Şeffaf Rozet
+        </div>
+
+        <!-- Yükleme Dropzone'u -->
+        <div class="custom-badge-dropzone" onclick="CustomBadges.triggerUpload()" title="Şeffaf PNG, SVG, WebP veya JPG logo/rozet yükleyin">
+            <i class="fa-solid fa-cloud-arrow-up custom-badge-drop-icon"></i>
+            <span class="custom-badge-drop-title">Logo veya Rozet Seç</span>
+            <span class="custom-badge-drop-desc">Şeffaf PNG, SVG ve WebP Çoklu Seçim</span>
+        </div>
+        <input type="file" id="customBadgeFileInput" accept="image/png,image/svg+xml,image/webp,image/jpeg" multiple style="display:none;" onchange="CustomBadges.handleFileInput(event)">
+
+        <!-- Oturum Koleksiyonu (Yüklenen Rozetler Galerisi) -->
+        <div class="custom-badge-library-wrap">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                <span style="font-size:11px; font-weight:700; color:#475569;">Yüklenen Rozetler &amp; Logolar</span>
+                <button type="button" class="btn-action" style="font-size:10px; padding:1px 6px; margin:0 !important; height:20px; line-height:18px;" onclick="CustomBadges.clearAllSavedBadges()" title="Havuzdaki tüm rozetleri temizle">Temizle</button>
+            </div>
+            <div id="customBadgeSessionGrid" class="custom-badge-session-grid"></div>
+        </div>
+
+        <!-- SEÇİLİ ÖZEL ROZET & LOGO AYAR PANELİ (Seçilince Görünür) -->
+        <div id="customBadgeSettingsPanel" class="custom-badge-settings-panel" style="display:none;">
+            <div class="custom-badge-panel-title">
+                <span id="cbgPanelTitleText" style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:180px;"><i class="fa-solid fa-sliders" style="color:#0284c7; margin-right:4px;"></i>Seçili Rozet Ayarları</span>
+                <div style="display:flex; gap:5px; align-items:center;">
+                    <button type="button" id="cbgSavePermanentBtn" class="btn-action btn-green" style="padding:2px 8px; font-size:10px; margin:0 !important; height:22px;" onclick="CustomBadges.saveSelectedBadgePermanent()" title="Sayfa yenilenince silinmemesi için kalıcı kütüphaneye kaydet"><i class="fa-solid fa-bookmark"></i> Kaydet</button>
+                    <button type="button" class="btn-action" style="padding:2px 8px; font-size:10px; margin:0 !important; height:22px;" onclick="CustomBadges.resetToDefault()" title="Varsayılan açı ve boyuta sıfırla">Sıfırla</button>
+                </div>
+            </div>
+
+            <!-- Boyut -->
+            <div class="slider-group">
+                <label><span>Boyut</span><span id="cbgSizeVal">180px</span></label>
+                <input type="range" id="cbgSizeSlider" min="30" max="600" value="180" oninput="CustomBadges.updateSelectedBadge()">
+            </div>
+
+            <!-- Opaklık -->
+            <div class="slider-group">
+                <label><span>Opaklık</span><span id="cbgOpacityVal">100%</span></label>
+                <input type="range" id="cbgOpacitySlider" min="10" max="100" value="100" oninput="CustomBadges.updateSelectedBadge()">
+            </div>
+
+            <!-- Döndürme Açısı -->
+            <div class="slider-group">
+                <label><span>Döndürme Açısı</span><span id="cbgRotateVal">0°</span></label>
+                <input type="range" id="cbgRotateSlider" min="-180" max="180" value="0" oninput="CustomBadges.updateSelectedBadge()">
+            </div>
+
+            <!-- Hızlı Eylemler (Aynala & Sıfırla) -->
+            <div style="display:flex; gap:4px; margin-bottom:8px;">
+                <button type="button" class="btn-action" style="flex:1; height:28px; font-size:10.5px;" onclick="CustomBadges.flipHorizontal()" title="Rozeti yatay aynala">
+                    <i class="fa-solid fa-arrows-left-right"></i> Aynala
+                </button>
+                <button type="button" class="btn-action" style="flex:1; height:28px; font-size:10.5px;" onclick="CustomBadges.resetToDefault()" title="Açı ve boyutu sıfırla">
+                    <i class="fa-solid fa-rotate-left"></i> Sıfırla
+                </button>
+            </div>
+
+            <!-- 9-Nokta Akıllı Çıpa Hizalama -->
+            <div style="margin-bottom:6px;">
+                <span style="font-size:11px; font-weight:700; color:#475569; display:block; margin-bottom:4px;">Akıllı Köşe Hizalama</span>
+                <div class="custom-badge-anchor-grid">
+                    <button type="button" class="custom-badge-anchor-btn" data-pos="top-left" onclick="CustomBadges.anchorSelectedBadge('top-left')">Sol Üst</button>
+                    <button type="button" class="custom-badge-anchor-btn" data-pos="top-center" onclick="CustomBadges.anchorSelectedBadge('top-center')">Üst Orta</button>
+                    <button type="button" class="custom-badge-anchor-btn" data-pos="top-right" onclick="CustomBadges.anchorSelectedBadge('top-right')">Sağ Üst</button>
+                    <button type="button" class="custom-badge-anchor-btn" data-pos="middle-left" onclick="CustomBadges.anchorSelectedBadge('middle-left')">Sol Orta</button>
+                    <button type="button" class="custom-badge-anchor-btn" data-pos="center" onclick="CustomBadges.anchorSelectedBadge('center')">Merkez</button>
+                    <button type="button" class="custom-badge-anchor-btn" data-pos="middle-right" onclick="CustomBadges.anchorSelectedBadge('middle-right')">Sağ Orta</button>
+                    <button type="button" class="custom-badge-anchor-btn" data-pos="bottom-left" onclick="CustomBadges.anchorSelectedBadge('bottom-left')">Sol Alt</button>
+                    <button type="button" class="custom-badge-anchor-btn" data-pos="bottom-center" onclick="CustomBadges.anchorSelectedBadge('bottom-center')">Alt Orta</button>
+                    <button type="button" class="custom-badge-anchor-btn" data-pos="bottom-right" onclick="CustomBadges.anchorSelectedBadge('bottom-right')">Sağ Alt</button>
+                </div>
+            </div>
+
+            <!-- Kenar Boşluğu -->
+            <div class="slider-group">
+                <label><span>Kenar Boşluğu</span><span id="cbgMarginVal">24px</span></label>
+                <input type="range" id="cbgMarginSlider" min="0" max="100" value="24" oninput="CustomBadges.updateSelectedBadge()">
+            </div>
+
+            <!-- Yumuşak Alt Gölge -->
+            <div class="slider-group">
+                <label><span>Alt Gölge Derinliği</span><span id="cbgShadowVal">0px</span></label>
+                <input type="range" id="cbgShadowSlider" min="0" max="40" value="0" oninput="CustomBadges.updateSelectedBadge()">
+            </div>
+
+            <!-- ROZET RENKLERİ & PALET EŞLEŞTİRİCİ -->
+            <div id="cbgColorsSection" style="margin-top:10px; margin-bottom:8px;">
+                <div class="section-title" style="margin-bottom:6px; display:flex; align-items:center; justify-content:space-between;">
+                    <span><i class="fa-solid fa-palette" style="color:#6366f1; margin-right:6px;"></i>Rozet Renkleri</span>
+                    <button type="button" class="btn-action" style="font-size:10px; padding:1px 6px; margin:0 !important; height:20px; line-height:18px;" onclick="if(window.showTemplateColorModal) window.showTemplateColorModal();" title="PRO Renk Paleti ve Eşleştiriciyi Aç">Palet Eşleştir</button>
+                </div>
+                <div id="cbgSvgColorsGrid" style="display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin-bottom:8px;"></div>
+                <div id="cbgQuickThemesRow" style="display:flex; gap:4px; margin-bottom:6px;">
+                    <button type="button" class="btn-action" style="flex:1 1 0; min-width:0; height:24px; font-size:10px; padding:0 2px; margin:0 !important;" onclick="CustomBadges.applyQuickTheme('gold')" title="Altın Sarısı Renk Teması">Altın</button>
+                    <button type="button" class="btn-action" style="flex:1 1 0; min-width:0; height:24px; font-size:10px; padding:0 2px; margin:0 !important;" onclick="CustomBadges.applyQuickTheme('cyan')" title="Camgöbeği Neon Teması">Cyan</button>
+                    <button type="button" class="btn-action" style="flex:1 1 0; min-width:0; height:24px; font-size:10px; padding:0 2px; margin:0 !important;" onclick="CustomBadges.applyQuickTheme('emerald')" title="Zümrüt Yeşili Teması">Zümrüt</button>
+                    <button type="button" class="btn-action" style="flex:1 1 0; min-width:0; height:24px; font-size:10px; padding:0 2px; margin:0 !important;" onclick="CustomBadges.applyQuickTheme('crimson')" title="Kırmızı Vurgu Teması">Kırmızı</button>
+                    <button type="button" class="btn-action" style="flex:1 1 0; min-width:0; height:24px; font-size:10px; padding:0 2px; margin:0 !important;" onclick="CustomBadges.applyQuickTheme('white')" title="Beyaz Vurgu Teması">Beyaz</button>
+                </div>
+            </div>
+
+            <!-- ⚡ NEON & PARLAMA AYARLARI -->
+            <div class="section-title" style="margin-top:10px; margin-bottom:6px;">
+                <i class="fa-solid fa-bolt" style="color:#00f0ff; margin-right:6px;"></i>Neon &amp; Parlama
+            </div>
+
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+                <span style="font-size:11px; font-weight:700; color:#334155;">Rozet Neon Işıması</span>
+                <button type="button" id="btnToggleCbgNeon" class="btn-action" style="padding:4px 12px; font-size:11px; font-weight:700; display:flex; align-items:center; gap:6px;" onclick="CustomBadges.toggleNeon()" title="Şeffaf rozet hatları boyunca neon parlamasını açar veya kapatır">
+                    <i class="fa-solid fa-bolt"></i> <span id="btnToggleCbgNeonText">Neon Aç</span>
+                </button>
+            </div>
+
+            <div id="cbgNeonControls" style="display:none; flex-direction:column; gap:6px;">
+                <div class="color-row" title="Neon dış parlama rengi">
+                    <label><i class="fa-solid fa-palette" style="color:#00f0ff; margin-right:4px;"></i>Işıma Rengi</label>
+                    <input type="color" id="cbgNeonColorInput" value="#00f0ff" oninput="CustomBadges.updateSelectedBadge()">
+                </div>
+                <div class="slider-group" title="Neon ışığının çevreye yayılma genişliği">
+                    <label><span>Parlama Gücü</span><span id="cbgNeonPowerVal">25px</span></label>
+                    <input type="range" id="cbgNeonPowerSlider" min="1" max="60" value="25" oninput="CustomBadges.updateSelectedBadge()">
+                </div>
+                <div class="slider-group" title="Neon ışığının yoğunluğu ve parlaklık şiddeti">
+                    <label><span>Parlama Şiddeti</span><span id="cbgNeonIntensityVal">2.5x</span></label>
+                    <input type="range" id="cbgNeonIntensitySlider" min="1.0" max="5.0" step="0.1" value="2.5" oninput="CustomBadges.updateSelectedBadge()">
+                </div>
+            </div>
+
+            <!-- Katman & Eylem Butonları -->
+            <div style="display:flex; gap:4px; margin-top:10px;">
+                <button type="button" class="btn-action" style="flex:1; height:30px; font-size:10.5px;" onclick="CustomBadges.bringToFront()" title="En öne getir">
+                    <i class="fa-solid fa-arrow-up"></i> Öne
+                </button>
+                <button type="button" class="btn-action" style="flex:1; height:30px; font-size:10.5px;" onclick="CustomBadges.sendToBack()" title="En arkaya gönder">
+                    <i class="fa-solid fa-arrow-down"></i> Arkaya
+                </button>
+                <button type="button" class="btn-action" style="flex:1; height:30px; font-size:10.5px;" onclick="CustomBadges.duplicateBadge()" title="Rozeti çoğalt">
+                    <i class="fa-solid fa-copy"></i> Çoğalt
+                </button>
+                <button type="button" class="btn-action staging-btn-danger" style="flex:1; height:30px; font-size:10.5px;" onclick="CustomBadges.deleteSelectedBadge()" title="Rozeti sil">
+                    <i class="fa-solid fa-trash-can"></i> Sil
+                </button>
+            </div>
+
+            <!-- Tüm Havuza Uygula Butonu -->
+            <button type="button" class="btn-action" style="width:100%; height:32px; margin-top:8px; font-size:11px; font-weight:700; display:flex; align-items:center; justify-content:center; gap:6px;" onclick="CustomBadges.applySelectedBadgeToAllStagingPhotos()" title="Bu rozeti görsel havuzundaki tüm fotoğraflara aynı konum ve boyutta damgalar">
+                <i class="fa-solid fa-stamp"></i> Tüm Havuza Damgala
+            </button>
+        </div>
+    </div>
+
     <!-- ROZET AYARLARI PANELİ (seçilince açılır) -->
     <details id="calloutSettingsPanel" style="display:none; margin-bottom:14px; border:1px solid rgba(226,232,240,0.8); border-radius:10px; background:rgba(248,250,252,0.6); overflow:hidden;">
         <summary style="font-size:11px; font-weight:700; color:var(--text-primary, #1e293b); text-transform:uppercase; letter-spacing:1px; padding:10px 12px; cursor:pointer; list-style:none; display:flex; justify-content:space-between; align-items:center; background:rgba(241,245,249,0.7); user-select:none;" onclick="const ch=this.querySelector('.fa-chevron-down, .fa-chevron-up'); if(ch){ch.classList.toggle('fa-chevron-up'); ch.classList.toggle('fa-chevron-down');} const b=document.getElementById('calloutSettingsBody'); if(b) b.style.display='block'; if(typeof selectCalloutEl==='function') selectCalloutEl();">
@@ -2594,7 +2954,7 @@
         <!-- Metin Düzenle -->
         <div class="input-group" style="margin-top:6px;">
             <label><i class="fa-solid fa-pen-to-square" style="color:#0284c7; margin-right:4px;"></i>Rozet Metni</label>
-            <textarea id="coLabelText" placeholder="Metin girin..." oninput="applyCalloutSettings()" style="background:#ffffff; border:1px solid #cbd5e1; color:#1e293b; border-radius:6px; padding:6px 8px; font-size:12px; width:100%; min-height:50px;"></textarea>
+            <textarea id="coLabelText" placeholder="Metin girin..." oninput="applyCalloutSettings()" style="border-radius:6px; padding:6px 8px; font-size:12px; width:100%; min-height:50px;"></textarea>
         </div>
         <!-- Eylem Butonları -->
         <div style="display:flex; gap:6px; margin-top:10px;">
@@ -2620,7 +2980,7 @@
         <span><strong>3D İpucu:</strong> Rozetlere sağ tıklayıp <em>"3D'ye Dönüştür"</em> diyerek kalınlık ve 6 yön panelini anında açabilirsiniz.</span>
     </div>
     
-    <div id="calloutAccordion" class="accordion-container" style="margin-top:6px; border-radius:8px; border:1px solid #cbd5e1; background:#f8fafc; padding:5px;"></div>
+    <div id="calloutAccordion" class="accordion-container" style="margin-top:6px; border-radius:8px; padding:5px;"></div>
 
 </div>
 
@@ -2722,7 +3082,7 @@
         <p class="info-text">İlan linki, Instagram, WhatsApp veya herhangi bir web adresini QR koda dönüştürüp tuvale ekleyin.</p>
         <div class="input-group">
             <label>Bağlantı</label>
-            <input type="text" id="qrUrlInput" placeholder="Örn: https://sahibinden.com/..." style="width:100%; padding:8px; border-radius:5px; border:1px solid #cbd5e1; background: #fff; color: #000;">
+            <input type="text" id="qrUrlInput" placeholder="Örn: https://sahibinden.com/..." style="width:100%; padding:8px; border-radius:5px;">
         </div>
         <button class="btn-action btn-blue" onclick="if(window.generateQRCode) window.generateQRCode()" style="width:100%; margin-top:10px; display:flex; align-items:center; justify-content:center; gap:8px;">
             <i class="fa-solid fa-qrcode"></i> QR Kod Ekle
@@ -2793,14 +3153,14 @@
         <i class="fa-solid fa-chevron-down" style="transition: transform 0.3s; transform: rotate(0deg);"></i>
     </div>
     <div id="historyAccordion" style="display:none; margin-top:5px; margin-bottom:15px;">
-        <p class="info-text" style="margin-bottom:8px;">Geçmişteki otomatik kayıtlara buradan dönebilirsiniz (Maks. 10 kayıt).</p>
+        <p class="info-text" style="margin-bottom:8px;">Geçmişteki otomatik kayıtlara buradan dönebilirsiniz (Maks. 5 kayıt).</p>
         <div id="projectHistoryContainer" style="display:flex; flex-direction:column; gap:6px; max-height:200px; overflow-y:auto;">
             <div style="font-size:11px; color:#94a3b8; text-align:center; padding:10px;">Geçmiş kayıt aranıyor...</div>
         </div>
     </div>
     
     <!-- 🎞️ ÇOKLU GÖNDERİ SAYFA ALBÜM ÇIKTISI -->
-    <div class="section-title" style="cursor:pointer; display:flex; justify-content:space-between; align-items:center;" onclick="const acc = document.getElementById('carouselBatchAccordion'); const icon = this.querySelector('i.fa-chevron-down'); if(acc.style.display === 'none'){acc.style.display='block'; if(icon) icon.style.transform='rotate(180deg)';}else{acc.style.display='none'; if(icon) icon.style.transform='rotate(0deg)';}">
+    <div class="section-title" style="cursor:pointer; display:flex; justify-content:space-between; align-items:center;" onclick="const acc = document.getElementById('carouselBatchAccordion'); const icon = this.querySelector('i.fa-chevron-down'); if(acc.style.display === 'none'){acc.style.display='block'; if(icon) icon.style.transform='rotate(180deg)'; if(window.CarouselManager) CarouselManager.syncFromStaging(true);}else{acc.style.display='none'; if(icon) icon.style.transform='rotate(0deg)';}">
         <span><i class="fa-solid fa-layer-group" style="color:#0284c7; margin-right:6px;"></i>Çoklu Gönderi Çıktısı</span>
         <i class="fa-solid fa-chevron-down" style="transition: transform 0.3s; transform: rotate(0deg);"></i>
     </div>
@@ -2812,8 +3172,8 @@
                 <i class="fa-solid fa-images" style="color:#0284c7;"></i>
                 <span style="font-size:12px; font-weight:700; color:var(--text, #0f172a);" id="carouselBatchCountText">1 Sayfa Mevcut</span>
             </div>
-            <button type="button" class="btn-action" style="padding:3px 8px; font-size:10.5px;" onclick="CarouselManager.toggleBar(true)" title="Tuval altındaki sayfa albüm şeridini aç">
-                <i class="fa-solid fa-film"></i> Şeridi Aç
+            <button type="button" class="btn-action" style="padding:3px 8px; font-size:10.5px;" onclick="if(window.CarouselManager) CarouselManager.syncFromStaging(false)" title="Görsel havuzundaki fotoğraflarla albüm sayfalarını senkronize et">
+                <i class="fa-solid fa-arrows-rotate"></i> Havuzla Eşitle
             </button>
         </div>
 
@@ -2930,6 +3290,7 @@
     </div>
     <div id="brand-form-view" style="display:none; background:rgba(0,0,0,0.2); padding:10px; border-radius:8px;">
         <div class="input-group"><label>Marka Adı</label><input type="text" id="brandNameInput" placeholder="Örn: Ahmet - Remax"></div>
+        <div class="input-group"><label>E-posta</label><input type="email" id="brandEmailInput" placeholder="Örn: emlakstudyomtr@gmail.com"></div>
         <div class="input-group"><label>Telefon</label><input type="text" id="brandPhoneInput" placeholder="Örn: 0532 123 45 67"></div>
         <div class="input-group"><label>Instagram</label><input type="text" id="brandInstaInput" placeholder="Örn: @ahmetyilmaz"></div>
         <div class="input-group"><label>Web Sitesi</label><input type="text" id="brandWebInput" placeholder="Örn: www.emlakstudyom.com"></div>
@@ -3162,10 +3523,6 @@
 
             <!-- 2. FOTOĞRAF TABI KISAYOLLARI (photo) -->
             <div id="dockGroup_photo" class="dock-context-group">
-                <button type="button" id="dockBeforeAfterBtn" class="dock-btn" onclick="if(typeof window.togglePhotoBeforeAfterInstant === 'function') window.togglePhotoBeforeAfterInstant(); else if(typeof toggleBeforeAfter === 'function') toggleBeforeAfter();" title="Orijinal ile Düzenlenmiş Görseli Karşılaştır">
-                    <span class="dock-icon" id="dockBeforeAfterIcon"><i class="fa-solid fa-code-compare"></i></span>
-                    <span class="dock-label" id="dockBeforeAfterText">Öncesi / Sonrası</span>
-                </button>
                 <button type="button" class="dock-btn" onclick="if(typeof PhotoMasksManager!=='undefined')PhotoMasksManager.clickMaskButton('btnAiEnhanceModal');" title="Görseli Yapay Zeka ile Netleştir">
                     <span class="dock-icon"><i class="fa-solid fa-wand-magic-sparkles"></i></span>
                     <span class="dock-label">Netleştir</span>
@@ -3177,6 +3534,10 @@
                 <button type="button" class="dock-btn" onclick="if(typeof PhotoMasksManager!=='undefined')PhotoMasksManager.clickMaskButton('btnMaskClone');" title="Doku Klonlama Damgası">
                     <span class="dock-icon"><i class="fa-solid fa-clone"></i></span>
                     <span class="dock-label">Klonla</span>
+                </button>
+                <button type="button" class="dock-btn" onclick="if(typeof PhotoMasksManager!=='undefined')PhotoMasksManager.clickMaskButton('radial');" title="Radyal ve Lineer Yerel Maskeler">
+                    <span class="dock-icon"><i class="fa-solid fa-circle-dot"></i></span>
+                    <span class="dock-label">Maskeler</span>
                 </button>
                 <button type="button" class="dock-btn" onclick="if(typeof resetAllPhotoAdjustments==='function')resetAllPhotoAdjustments();" title="Tüm Fotoğraf Ayarlarını Sıfırla">
                     <span class="dock-icon"><i class="fa-solid fa-arrows-rotate"></i></span>
@@ -3254,6 +3615,10 @@
                     <span class="dock-icon"><i class="fa-solid fa-magnet"></i></span>
                     <span class="dock-label">Hizalama</span>
                 </button>
+                <button type="button" class="dock-btn" onclick="window.toggleMeasureRibbon();" title="Tuvaldeki Metre Bandını Aç veya Kapat">
+                    <span class="dock-icon"><i class="fa-solid fa-ruler-combined"></i></span>
+                    <span class="dock-label">Metre</span>
+                </button>
                 <button type="button" class="dock-btn" onclick="if(typeof clearAllDrawings==='function')clearAllDrawings();" title="Tüm Çizimleri Temizle">
                     <span class="dock-icon"><i class="fa-solid fa-trash-can"></i></span>
                     <span class="dock-label">Temizle</span>
@@ -3294,13 +3659,13 @@
                     <span class="dock-icon"><i class="fa-solid fa-border-all"></i></span>
                     <span class="dock-label">Çerçeve</span>
                 </button>
-                <button type="button" class="dock-btn" onclick="window.toggleTemplateVisibility && window.toggleTemplateVisibility();" title="Şablonu Gizle veya Göster">
-                    <span class="dock-icon"><i class="fa-solid fa-eye-slash"></i></span>
-                    <span class="dock-label">Gizle</span>
+                <button type="button" class="dock-btn" onclick="if(typeof showTemplateColorModal === 'function') showTemplateColorModal();" title="Şablon Renk Paleti ve Uyum">
+                    <span class="dock-icon"><i class="fa-solid fa-palette"></i></span>
+                    <span class="dock-label">Renkler</span>
                 </button>
-                <button type="button" class="dock-btn" onclick="window.resetActiveTemplateToDefault && window.resetActiveTemplateToDefault();" title="Şablonu Varsayılana Sıfırla">
-                    <span class="dock-icon"><i class="fa-solid fa-arrows-rotate"></i></span>
-                    <span class="dock-label">Şablonu Sıfırla</span>
+                <button type="button" class="dock-btn" onclick="if(typeof CarouselManager!=='undefined') CarouselManager.toggleBar();" title="Çoklu Gönderi Albüm Şeridini Aç veya Kapat">
+                    <span class="dock-icon"><i class="fa-solid fa-film"></i></span>
+                    <span class="dock-label">Çoklu Gönderi</span>
                 </button>
             </div>
 
@@ -3394,6 +3759,14 @@
                     <span class="dock-icon"><i class="fa-solid fa-eye"></i></span>
                     <span class="dock-label">Göster</span>
                 </button>
+                <button type="button" class="dock-btn" onclick="if(typeof window.bringToFrontSelected==='function')window.bringToFrontSelected();" title="Seçili Katmanı En Öne Getir">
+                    <span class="dock-icon"><i class="fa-solid fa-arrow-up"></i></span>
+                    <span class="dock-label">Öne</span>
+                </button>
+                <button type="button" class="dock-btn" onclick="if(typeof window.sendToBackSelected==='function')window.sendToBackSelected();" title="Seçili Katmanı En Arkaya Gönder">
+                    <span class="dock-icon"><i class="fa-solid fa-arrow-down"></i></span>
+                    <span class="dock-label">Arkaya</span>
+                </button>
             </div>
 
             <!-- 13. ÇIKTI TABI KISAYOLLARI (batch) -->
@@ -3438,7 +3811,7 @@
                     <span class="dock-icon"><i class="fa-solid fa-square-pen"></i></span>
                     <span class="dock-label">Çerçeveli</span>
                 </button>
-                <button type="button" class="dock-btn" onclick="if(window.ThreeDEngine) { if(typeof window.ThreeDEngine.add3DText === 'function') window.ThreeDEngine.add3DText(); else window.ThreeDEngine.openStudio(); }" title="3D Metin Ekle">
+                <button type="button" class="dock-btn" onclick="if(typeof open3DStudioSafe === 'function') open3DStudioSafe(); else if(window.ThreeDEngine) { if(typeof window.ThreeDEngine.add3DText === 'function') window.ThreeDEngine.add3DText(); else window.ThreeDEngine.openStudio(); }" title="3D Metin Ekle">
                     <span class="dock-icon"><i class="fa-solid fa-cube"></i></span>
                     <span class="dock-label">3D Metin</span>
                 </button>
@@ -3482,29 +3855,29 @@
 
             <!-- 16. GÖRSELLER / ARŞİV KISAYOLLARI (staging) -->
             <div id="dockGroup_staging" class="dock-context-group">
-                <button type="button" class="dock-btn" onclick="document.getElementById('kmlFileInput') && document.getElementById('kmlFileInput').click()" title="KML / KMZ Parsel Dosyası Yükle">
-                    <span class="dock-icon"><i class="fa-solid fa-map-location-dot"></i></span>
-                    <span class="dock-label">KML</span>
+                <button type="button" class="dock-btn btn-accent" onclick="if(window.PhotoStagingArchive) PhotoStagingArchive.applySelectedToCanvas();" title="Seçilen görseli tuvale aktar">
+                    <span class="dock-icon"><i class="fa-solid fa-arrow-up-right-from-square"></i></span>
+                    <span class="dock-label">Tuvale Aktar</span>
                 </button>
-                <button type="button" class="dock-btn btn-accent" onclick="if(typeof openSatelliteMapModal==='function') openSatelliteMapModal(true);" title="3D Uydu ve Drone Haritasını Aç">
-                    <span class="dock-icon"><i class="fa-solid fa-crosshairs"></i></span>
-                    <span class="dock-label">Drone</span>
+                <button type="button" id="dockStagingBatchDownloadBtn" class="dock-btn" onclick="if(window.PhotoStagingArchive) PhotoStagingArchive.downloadSelectedZip();" title="Seçilen görselleri toplu ZIP olarak indir">
+                    <span class="dock-icon"><i class="fa-solid fa-file-zipper"></i></span>
+                    <span class="dock-label">Toplu İndir</span>
                 </button>
-                <button type="button" class="dock-btn" onclick="window.toggleMeasureRibbon();" title="Tuvaldeki Metre Bandını Aç veya Kapat">
-                    <span class="dock-icon"><i class="fa-solid fa-ruler-combined"></i></span>
-                    <span class="dock-label">Metre</span>
-                </button>
-                <button type="button" class="dock-btn" onclick="if(window.PhotoStagingArchive) PhotoStagingArchive.openWatermarkModal();" title="Arşivdeki Görsellere Logo / Filigran Ekle">
-                    <span class="dock-icon"><i class="fa-solid fa-stamp"></i></span>
+                <button type="button" class="dock-btn" onclick="if(window.PhotoStagingArchive) PhotoStagingArchive.toggleWatermarkTray();" title="Görsellere logo ve filigran ekle">
+                    <span class="dock-icon"><i class="fa-solid fa-shield-halved"></i></span>
                     <span class="dock-label">Filigran</span>
                 </button>
-                <button type="button" class="dock-btn" onclick="if(window.PhotoStagingArchive) PhotoStagingArchive.openFormatModal();" title="Format ve Kadraj Uyarlama">
-                    <span class="dock-icon"><i class="fa-solid fa-crop-simple"></i></span>
-                    <span class="dock-label">Formatla</span>
+                <button type="button" class="dock-btn" onclick="if(window.PhotoStagingArchive) PhotoStagingArchive.generatePortfolioPdf();" title="A4 PDF sunum broşürü oluştur">
+                    <span class="dock-icon"><i class="fa-solid fa-file-pdf"></i></span>
+                    <span class="dock-label">PDF Portföy</span>
                 </button>
-                <button type="button" id="dockStagingCompareBtn" class="dock-btn" onclick="if(window.PhotoStagingArchive) PhotoStagingArchive.triggerCompareAction();" title="Öncesi ve Sonrası Karşılaştırma">
-                    <span class="dock-icon"><i class="fa-solid fa-code-compare"></i></span>
-                    <span class="dock-label">Öncesi / Sonrası</span>
+                <button type="button" class="dock-btn" onclick="if(window.PhotoStagingArchive) PhotoStagingArchive.toggleAiTray();" title="Yapay zeka netleştirme ayarını aç">
+                    <span class="dock-icon"><i class="fa-solid fa-wand-magic-sparkles"></i></span>
+                    <span class="dock-label">Netleştir</span>
+                </button>
+                <button type="button" class="dock-btn" onclick="if(window.PhotoStagingArchive) PhotoStagingArchive.clearAllPool();" title="Görsel havuzunu ve tuvali tamamen temizler">
+                    <span class="dock-icon"><i class="fa-solid fa-broom"></i></span>
+                    <span class="dock-label">Havuzu Boşalt</span>
                 </button>
             </div>
 
@@ -3564,6 +3937,58 @@
                 </button>
             </div>
 
+            <!-- 19. ŞEKİLLER TABI (shapes) -->
+            <div id="dockGroup_shapes" class="dock-context-group">
+                <button type="button" class="dock-btn" onclick="if(typeof window.addShape==='function')window.addShape('rectangle');" title="Tuvale Dikdörtgen Ekle">
+                    <span class="dock-icon"><i class="fa-solid fa-square"></i></span>
+                    <span class="dock-label">Dikdörtgen</span>
+                </button>
+                <button type="button" class="dock-btn" onclick="if(typeof window.addShape==='function')window.addShape('circle');" title="Tuvale Daire Ekle">
+                    <span class="dock-icon"><i class="fa-solid fa-circle"></i></span>
+                    <span class="dock-label">Daire</span>
+                </button>
+                <button type="button" class="dock-btn" onclick="if(typeof window.addShape==='function')window.addShape('line');" title="Tuvale Düz Çizgi Ekle">
+                    <span class="dock-icon"><i class="fa-solid fa-minus"></i></span>
+                    <span class="dock-label">Çizgi</span>
+                </button>
+                <button type="button" class="dock-btn" onclick="if(typeof window.addShape==='function')window.addShape('arrow');" title="Tuvale Vurgu Oku Ekle">
+                    <span class="dock-icon"><i class="fa-solid fa-arrow-right"></i></span>
+                    <span class="dock-label">Ok</span>
+                </button>
+            </div>
+
+            <!-- 20. QR KOD TABI (qr) -->
+            <div id="dockGroup_qr" class="dock-context-group">
+                <button type="button" class="dock-btn btn-accent" onclick="if(window.generateQRCode) window.generateQRCode();" title="Bağlantıyı QR Koda Dönüştür">
+                    <span class="dock-icon"><i class="fa-solid fa-qrcode"></i></span>
+                    <span class="dock-label">QR Üret</span>
+                </button>
+                <button type="button" class="dock-btn" onclick="const i=document.getElementById('qrUrlInput'); if(i){i.value='https://sahibinden.com/'; i.focus();}" title="İlan Linki Taslağı Doldur">
+                    <span class="dock-icon"><i class="fa-solid fa-link"></i></span>
+                    <span class="dock-label">İlan Linki</span>
+                </button>
+                <button type="button" class="dock-btn" onclick="const i=document.getElementById('qrUrlInput'); if(i){i.value='https://wa.me/90'; i.focus();}" title="WhatsApp İletişim Linki Doldur">
+                    <span class="dock-icon"><i class="fa-brands fa-whatsapp"></i></span>
+                    <span class="dock-label">WhatsApp</span>
+                </button>
+            </div>
+
+            <!-- 21. MARKA TABI (brand) -->
+            <div id="dockGroup_brand" class="dock-context-group">
+                <button type="button" class="dock-btn" onclick="document.getElementById('logoInput').click();" title="Firma Logosu Yükle">
+                    <span class="dock-icon"><i class="fa-solid fa-shield-halved"></i></span>
+                    <span class="dock-label">Logo Yükle</span>
+                </button>
+                <button type="button" class="dock-btn" onclick="if(typeof showTemplateColorModal==='function')showTemplateColorModal();" title="Kurumsal Renk Paleti">
+                    <span class="dock-icon"><i class="fa-solid fa-palette"></i></span>
+                    <span class="dock-label">Renkler</span>
+                </button>
+                <button type="button" class="dock-btn" onclick="if(typeof addCalloutPreset==='function')addCalloutPreset('badge');" title="Kurumsal İletişim veya Durum Rozeti">
+                    <span class="dock-icon"><i class="fa-solid fa-address-card"></i></span>
+                    <span class="dock-label">İletişim</span>
+                </button>
+            </div>
+
         </div>
         <div class="dock-divider" id="dockContextDivider"></div>
 
@@ -3606,6 +4031,17 @@
             </button>
         </div>
 
+        <!-- SAĞ SABİT BÖLGE: FORMATLA & ÖNCESİ / SONRASI -->
+        <button type="button" id="dockGlobalFormatBtn" class="dock-btn" onclick="window.openQuickFormatFromDock()" title="Tuval Formatı ve Kadraj Uyarlama">
+            <span class="dock-icon"><i class="fa-solid fa-crop-simple"></i></span>
+            <span class="dock-label">Formatla</span>
+        </button>
+        <button type="button" id="dockGlobalBeforeAfterBtn" class="dock-btn" onclick="if(typeof window.togglePhotoBeforeAfterInstant === 'function') window.togglePhotoBeforeAfterInstant(); else if(typeof toggleBeforeAfter === 'function') toggleBeforeAfter();" title="Orijinal ile Düzenlenmiş Görseli Karşılaştır">
+            <span class="dock-icon" id="dockGlobalBeforeAfterIcon"><i class="fa-solid fa-code-compare"></i></span>
+            <span class="dock-label" id="dockGlobalBeforeAfterText">Öncesi / Sonrası</span>
+        </button>
+        <div class="dock-divider"></div>
+
         <!-- 4. Hızlı Araçlar: Görseli Sığdır, Tam Ekran, Izgara (Grid), Şablonu Gizle/Göster, Şablonu Sıfırla, Geri Al, İleri Al -->
         <div class="dock-tool-group">
             <button type="button" id="dockFitCanvasBtn" class="dock-icon-btn" onclick="window.fitImageToCanvas()" title="Görseli Tuvale Sığdır">
@@ -3638,6 +4074,40 @@
             <span class="dock-icon"><i class="fa-solid fa-download"></i></span>
             <span class="dock-label">İndir</span>
         </button>
+    </div>
+
+    <!-- 📐 DOCK HIZLI FORMAT SEÇİM POPOVERI -->
+    <div id="dockFormatPopover" class="dock-format-popover" style="display:none;">
+        <div class="dock-format-header">
+            <span class="dock-format-title"><i class="fa-solid fa-crop-simple"></i> Tuval Formatı</span>
+            <button type="button" class="dock-format-close-btn" onclick="window.closeQuickFormatPopover()" title="Kapat">✕</button>
+        </div>
+        <div class="dock-format-grid">
+            <button type="button" class="dock-format-chip" onclick="window.setFormatFromQuickDock('16:9 Full HD (YouTube/Banner)')" data-format="16:9 Full HD (YouTube/Banner)" title="16:9 Yatay Format">
+                <span class="dock-format-ratio">16:9</span>
+                <span class="dock-format-desc">Portallar (1920x1080)</span>
+            </button>
+            <button type="button" class="dock-format-chip" onclick="window.setFormatFromQuickDock('1:1 Instagram Post (Kare)')" data-format="1:1 Instagram Post (Kare)" title="1:1 Kare Format">
+                <span class="dock-format-ratio">1:1</span>
+                <span class="dock-format-desc">Kare Post (1080x1080)</span>
+            </button>
+            <button type="button" class="dock-format-chip" onclick="window.setFormatFromQuickDock('9:16 Instagram/TikTok Story')" data-format="9:16 Instagram/TikTok Story" title="9:16 Dikey Format">
+                <span class="dock-format-ratio">9:16</span>
+                <span class="dock-format-desc">Story & Reels (1080x1920)</span>
+            </button>
+            <button type="button" class="dock-format-chip" onclick="window.setFormatFromQuickDock('4:3 Klasik')" data-format="4:3 Klasik" title="4:3 Klasik Vitrin">
+                <span class="dock-format-ratio">4:3</span>
+                <span class="dock-format-desc">Klasik Vitrin (1600x1200)</span>
+            </button>
+            <button type="button" class="dock-format-chip" onclick="window.setFormatFromQuickDock('A4 Yatay (Print)')" data-format="A4 Yatay (Print)" title="A4 Baskı ve Sunum">
+                <span class="dock-format-ratio">A4</span>
+                <span class="dock-format-desc">Baskı & Sunum</span>
+            </button>
+            <button type="button" class="dock-format-chip" onclick="window.setFormatFromQuickDock('Orijinal Görsel Boyutu')" data-format="Orijinal Görsel Boyutu" title="Fotoğrafın Öz Boyutu">
+                <span class="dock-format-ratio">Orijinal</span>
+                <span class="dock-format-desc">Fotoğrafın Öz Boyutu</span>
+            </button>
+        </div>
     </div>
 
     <!-- 🎛️ 3D DOCK HIZLI ADIM AYAR POPOVERI -->
@@ -3769,6 +4239,7 @@
     <script src="ui/icons.js?v=20260925-1"></script>
     <script src="modules/callout_v2.js?v=20260918-5"></script>
     <script src="modules/other-callouts.js?v=20260917-131"></script>
+    <script src="modules/custom-badges.js?v=20261025-1"></script>
 <script src="modules/bezier-curves.js?v=20261002-1"></script>
 <script src="modules/draw.js?v=20260914-58"></script>
 <script src="modules/layers.js?v=20260918-2"></script>
@@ -3897,7 +4368,8 @@
     <script src="modules/template-3d-frame.js?v=20260930-1"></script>
     <script src="modules/template-polygon-frame.js?v=20260930-1"></script>
     <script src="modules/portfolio-manager.js?v=20260930-1"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <!-- JSZip (Çoklu Format ve Albüm Arşivleme) -->
+    <script src="js/jszip.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="modules/carousel-manager.js?v=20260930-1"></script>
     <script src="modules/drone-rig.js?v=20260930-1"></script>

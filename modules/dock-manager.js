@@ -645,9 +645,22 @@
         const el = DockContextManager.selectedElement || document.querySelector('.el-selected') || window.selectedEl;
         if (el) {
             const isLocked = el.dataset.locked === 'true' || el.classList.contains('locked-el');
-            el.dataset.locked = (!isLocked).toString();
-            el.classList.toggle('locked-el', !isLocked);
+            const nextLocked = !isLocked;
+            el.dataset.locked = nextLocked.toString();
+            el.classList.toggle('locked-el', nextLocked);
+            if (el.classList.contains('editable-draw')) {
+                if (typeof drawPaths !== 'undefined') {
+                    const p = drawPaths.find(dp => dp.el === el || (dp.id && dp.id === el.dataset.pathId));
+                    if (p) p.locked = nextLocked;
+                }
+                if (nextLocked) {
+                    if (typeof window.hideVertexHandles === 'function') window.hideVertexHandles();
+                    if (typeof hideVertexHandles === 'function') hideVertexHandles();
+                    if (typeof window.deselectAll === 'function') window.deselectAll();
+                }
+            }
             DockContextManager.syncStateValues('element', el);
+            if (typeof window.renderLayers === 'function') window.renderLayers();
         }
     };
 
@@ -693,6 +706,86 @@
             if (icon) icon.style.transform = 'rotate(180deg)';
             acc.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         }
+    };
+
+    /**
+     * Tuval Altı Hızlı Format Popoverını Aç / Kapat
+     */
+    window.openQuickFormatFromDock = function() {
+        const pop = document.getElementById('dockFormatPopover');
+        const btn = document.getElementById('dockGlobalFormatBtn');
+        if (!pop || !btn) return;
+
+        if (pop.style.display !== 'none') {
+            window.closeQuickFormatPopover();
+            return;
+        }
+
+        const rect = btn.getBoundingClientRect();
+        pop.style.bottom = `${Math.round(window.innerHeight - rect.top + 8)}px`;
+        const popW = 270;
+        let leftPos = Math.round(rect.left + (rect.width / 2) - (popW / 2));
+        if (leftPos < 10) leftPos = 10;
+        if (leftPos + popW > window.innerWidth - 10) leftPos = window.innerWidth - popW - 10;
+        pop.style.left = `${leftPos}px`;
+        pop.style.display = 'block';
+
+        // Aktif formatı işaretle
+        const curFormat = (document.getElementById('exportFormat') || {}).value || '';
+        pop.querySelectorAll('.dock-format-chip').forEach(chip => {
+            const fKey = chip.getAttribute('data-format');
+            chip.classList.toggle('active', fKey === curFormat);
+        });
+
+        // Varsa özel kadraj rozetlerini güncelle
+        if (typeof window.updateQuickFormatBadges === 'function') {
+            window.updateQuickFormatBadges();
+        }
+
+        // Dışına tıklandığında kapat
+        setTimeout(() => {
+            const onOutside = (e) => {
+                if (!pop.contains(e.target) && e.target !== btn && !btn.contains(e.target)) {
+                    window.closeQuickFormatPopover();
+                    document.removeEventListener('click', onOutside);
+                }
+            };
+            document.addEventListener('click', onOutside);
+        }, 20);
+    };
+
+    window.closeQuickFormatPopover = function() {
+        const pop = document.getElementById('dockFormatPopover');
+        if (pop) pop.style.display = 'none';
+    };
+
+    window.setFormatFromQuickDock = function(formatKey) {
+        if (!formatKey) return;
+        if (typeof window.quickSetFormat === 'function') {
+            window.quickSetFormat(formatKey);
+        } else {
+            const exp = document.getElementById('exportFormat');
+            const prv = document.getElementById('previewFormat');
+            if (exp) exp.value = formatKey;
+            if (prv) prv.value = formatKey;
+            if (typeof switchPreviewFormat === 'function') switchPreviewFormat();
+        }
+
+        // Staging arşivi açıksa oranı senkronize et
+        const ratioMap = {
+            '16:9 Full HD (YouTube/Banner)': '16:9',
+            '1:1 Instagram Post (Kare)': '1:1',
+            '9:16 Instagram/TikTok Story': '9:16',
+            '4:3 Klasik': '4:3',
+            'Orijinal Görsel Boyutu': 'original'
+        };
+        if (window.PhotoStagingArchive && ratioMap[formatKey]) {
+            PhotoStagingArchive.formatOptions.ratio = ratioMap[formatKey];
+            const sel = document.getElementById('formatRatioSelect');
+            if (sel) sel.value = ratioMap[formatKey];
+        }
+
+        window.closeQuickFormatPopover();
     };
 
     /**
@@ -947,6 +1040,27 @@
             if (wrapper) el = wrapper;
         }
 
+        // Toplu seçim kontrolü: Çoklu öge seçiliyse doğrudan Toplu İşlemler akordiyonunu aç
+        if (window.selectedElements && window.selectedElements.length > 1) {
+            const multiPanel = document.getElementById('multi-select-panel');
+            if (multiPanel) {
+                multiPanel.style.display = 'block';
+                if (multiPanel.tagName === 'DETAILS') multiPanel.open = true;
+                if (typeof multiPanel.scrollIntoView === 'function') {
+                    multiPanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }
+            }
+            const drawCount = window.selectedElements.filter(e => e && e.classList && e.classList.contains('editable-draw')).length;
+            if (drawCount > 0) {
+                const drawPanel = document.getElementById('drawEditPanel');
+                if (drawPanel) {
+                    drawPanel.style.display = 'block';
+                    if (drawPanel.tagName === 'DETAILS') drawPanel.open = false;
+                }
+            }
+            return;
+        }
+
         // 3D Öge Kontrolü: 3D nesne seçiliyse veya 3D Stüdyo aktifse
         const is3DTarget = el && (el.dataset ? (el.dataset.threeD === 'true' || el.dataset.is3d === 'true') : false);
         const is3DActive = is3DTarget ||
@@ -964,6 +1078,21 @@
         }
 
         if (el) {
+            const isCustomBadge = el && (
+                (el.classList && el.classList.contains('custom-graphic-badge')) ||
+                (el.closest && el.closest('.custom-graphic-badge'))
+            );
+            if (isCustomBadge) {
+                if (typeof switchTab === 'function') switchTab('callout');
+                const bWrap = el.classList.contains('custom-graphic-badge') ? el : el.closest('.custom-graphic-badge');
+                if (window.CustomBadges && typeof window.CustomBadges.selectBadge === 'function') {
+                    window.CustomBadges.selectBadge(bWrap);
+                }
+                const p = document.getElementById('calloutSettingsPanel');
+                if (p) { p.style.display = 'none'; p.open = false; }
+                return;
+            }
+
             const isCallout = (typeof isCalloutOrBadgeElement === 'function' && isCalloutOrBadgeElement(el)) ||
                 (typeof window.isCalloutOrBadgeElement === 'function' && window.isCalloutOrBadgeElement(el)) ||
                 (el.closest && (el.closest('.callout-wrap') || el.closest('.callout-item') || el.closest('.svg-callout') || el.closest('.co-neon-block'))) ||
@@ -982,6 +1111,28 @@
                     if (body) body.style.display = 'block';
                     if (typeof p.scrollIntoView === 'function') {
                         p.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    }
+                }
+                return;
+            }
+
+            // 🌟 2D Çizim Elemanları (is-svg-icon sınıfına sahip oldukları için ikon kontrolünden önce gelmelidir!)
+            if (el.classList && (el.classList.contains('editable-draw') || (el.closest && el.closest('.editable-draw')))) {
+                const drawEl = el.classList.contains('editable-draw') ? el : el.closest('.editable-draw');
+                if (typeof switchTab === 'function') switchTab('draw');
+                if (typeof loadDrawSettings === 'function') loadDrawSettings(drawEl);
+                if (typeof drawPaths !== 'undefined') {
+                    const idx = drawPaths.findIndex(p => p.el === drawEl || (p.id && drawEl.dataset && p.id === drawEl.dataset.pathId));
+                    if (idx > -1 && typeof startDrawEdit === 'function') startDrawEdit(idx, true);
+                }
+                const drawPanel = document.getElementById('drawEditPanel');
+                if (drawPanel) {
+                    drawPanel.style.display = 'block';
+                    if (drawPanel.tagName === 'DETAILS') {
+                        drawPanel.open = true;
+                    }
+                    if (typeof drawPanel.scrollIntoView === 'function') {
+                        drawPanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
                     }
                 }
                 return;
@@ -1011,9 +1162,6 @@
                 if (typeof window.loadShapeSettings === 'function') window.loadShapeSettings(el);
                 const p = document.getElementById('shapeSettingsPanel');
                 if (p) p.style.display = 'block';
-                return;
-            } else if (el.classList.contains('editable-draw')) {
-                if (typeof switchTab === 'function') switchTab('draw');
                 return;
             } else if (el.classList.contains('tb-image-frame')) {
                 if (typeof switchTab === 'function') switchTab('create-template');

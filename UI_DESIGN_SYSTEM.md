@@ -91,13 +91,32 @@ Uygulamadaki tüm butonların (tuval altı dock butonları ve yan panel butonlar
 | **Aktif Kalınlık (Active Weight)** | `700` (`.lock-active`, `.active`) | `700` (`.active`) | `700` (`.active`) |
 | **Yazı Rengi (Açık Tema)** | `#0f172a` (Slate 900) | `#0f172a` (Slate 900) | `#1e293b` (Slate 800) |
 | **Yazı Rengi (Koyu Tema)** | `#e2e8f0` (Slate 200) | `#e2e8f0` (Slate 200) | `#f1f5f9` (Slate 100) |
-| **İkon Rengi (Icon Color)** | `#0f172a` / `#475569` | `#475569` (Slate 600) | İlgili aksiyon rengi veya beyaz |
+| **İkon Rengi (Açık Tema)** | `#0f172a` / `#475569` | `#475569` (Slate 600) | `#475569` veya Aksiyon Rengi |
+| **İkon Rengi (Koyu Tema)** | `#cbd5e1` (Slate 300) | `#38bdf8` (Gök Mavisi) | `#38bdf8` veya Beyaz (`#fff`) |
 | **Zemin (Açık Tema)** | `linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)` | `linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)` | `linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)` |
 | **Aktif Zemin (Açık Tema)** | `linear-gradient(180deg, #f1f5f9 0%, #e2e8f0 100%)` | `linear-gradient(180deg, #f1f5f9 0%, #e2e8f0 100%)` | Mikro-gradyanlı durum dolgusu |
-| **Kenarlık (Border)** | `1px solid #cbd5e1` (Aktif: `#94a3b8`) | `1px solid #cbd5e1` (Aktif: `#94a3b8`) | `1px solid #cbd5e1` |
+| **Zemin (Koyu Tema)** | `rgba(30, 41, 59, 0.7)` | `rgba(30, 41, 59, 0.7)` | `linear-gradient(180deg, rgba(30, 41, 59, 0.85) 0%, rgba(15, 23, 42, 0.85) 100%)` |
+| **Hover / Aktif (Koyu Tema)** | `rgba(51, 65, 85, 0.9)` | `rgba(51, 65, 85, 0.9)` | `linear-gradient(180deg, rgba(51, 65, 85, 0.95) 0%, rgba(30, 41, 59, 0.95) 100%)` (Kenarlık: `#a855f7`) |
+| **Kenarlık (Açık Tema)** | `1px solid #cbd5e1` (Aktif: `#94a3b8`) | `1px solid #cbd5e1` (Aktif: `#94a3b8`) | `1px solid #cbd5e1` |
+| **Kenarlık (Koyu Tema)** | `1px solid #334155` (Aktif: `#0284c7`) | `1px solid #334155` (Aktif: `#0284c7`) | `1px solid rgba(255, 255, 255, 0.12)` (Hover: `#a855f7`) |
 | **İç Boşluk (Padding)** | `2.5px 6px` | `2.5px 6px` | `8px 12px` |
 | **Yükseklik (Height)** | `25px` | `24px` | Otomatik (`~32px`) |
 | **Köşe Yuvarlama (Radius)** | `6px` | `5px` | `7px` |
+
+---
+
+### 2.4. Koyu Tema Buton & Arayüz Standartları (Dark Theme System Specifications)
+Açık temada uygulanan sadelik, ferahlık ve tutarlılık kuralları koyu temada da birebir korunmak zorundadır:
+1. **İstisnasız Arka Plan Koruması:** Hiçbir buton, kapsayıcı veya form elemanı koyu temada varsayılan tarayıcı `buttonface` (çiğ beyaz veya açık gri) zeminine düşemez.
+2. **Koyu Tema Zemin Formülü:** Yan panel butonları için yarı-saydam derin antrasit gradyan (`linear-gradient(180deg, rgba(30, 41, 59, 0.85) 0%, rgba(15, 23, 42, 0.85) 100%)`), açık gri yazı (`#f1f5f9`), ince zarif kenarlık (`1px solid rgba(255, 255, 255, 0.12)`) ve canlı gök mavisi ikon (`#38bdf8`) standarttır.
+3. **Hover & Vurgu Işıması:** Üzerine gelindiğinde (Hover) butonlar neon mor/mavi ışıma (`border-color: #a855f7; box-shadow: 0 4px 14px rgba(108, 92, 231, 0.28)`) ile canlanır; göz alıcı beyaz patlamalar yapmaz.
+4. **Özel Renkli Eylem Butonları:**
+   - Birincil Dosya / Seçim: `.btn-blue` (`linear-gradient(135deg, #0284c7 0%, #38bdf8 100%)`)
+   - Yapay Zeka / Sihirli Araçlar: `.btn-purple` (`linear-gradient(135deg, #7c3aed 0%, #a855f7 100%)`)
+   - Kaydet / İndir / Başarı: `.btn-green` (`linear-gradient(135deg, #059669 0%, #10b981 100%)`)
+   - Sil / Temizle: `.btn-red` (`linear-gradient(135deg, #e11d48 0%, #f43f5e 100%)`)
+   - Sıfırla / İptal: `.btn-yellow` (`linear-gradient(135deg, #d97706 0%, #f59e0b 100%)`)
+5. **Koyu/Açık Tema Değişken Senkronizasyonu:** Tema değişimi `document.documentElement` ve `document.body` üzerinde eşzamanlı olarak `data-theme="dark"` veya `data-theme="light"` özniteliği ile yürütülür; özniteliğin tamamen silinmesi (remove) yerine açıkça `dark` atanması alt modüllerdeki tüm koyu tema seçicilerini kararlı kılar.
 
 ---
 

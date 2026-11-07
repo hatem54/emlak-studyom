@@ -92,6 +92,12 @@
             }
 
             this.updateDockControls(false);
+
+            setTimeout(() => {
+                document.querySelectorAll('.tb-image-frame.has-image').forEach(f => {
+                    this.applyImageZoomPan(f);
+                });
+            }, 60);
         },
 
         /**
@@ -831,7 +837,7 @@
                     const startPanY = parseFloat(frame.dataset.imgPanY) || 0;
 
                     const cContainer = document.getElementById('canvas-container');
-                    const scaleFactor = (cContainer && cContainer._scaleFactor) ? cContainer._scaleFactor : 1;
+                    const scaleFactor = (typeof window.getGlobalScale === 'function' ? window.getGlobalScale() : (typeof window.scaleFactor !== 'undefined' ? window.scaleFactor : 1)) || 1;
 
                     const onPanMove = (moveEvent) => {
                         const dx = (moveEvent.clientX - startX) / scaleFactor;
@@ -862,87 +868,6 @@
                     document.addEventListener('mouseup', onPanUp);
                     return;
                 }
-
-                // Normal Çerçeve Sürüklemesi Sırasında: Başka bir çerçevenin üzerine bırakılırsa görselleri takas et!
-                const origLeft = parseFloat(frame.style.left) || frame.offsetLeft;
-                const origTop = parseFloat(frame.style.top) || frame.offsetTop;
-                const startPointerX = e.clientX;
-                const startPointerY = e.clientY;
-                let hasMoved = false;
-                let currentHoverTarget = null;
-
-                const onFrameTrackMove = (moveEv) => {
-                    const dist = Math.hypot(moveEv.clientX - startPointerX, moveEv.clientY - startPointerY);
-                    if (dist > 18) {
-                        hasMoved = true;
-                    }
-
-                    if (hasMoved) {
-                        // İmleç altındaki diğer çerçeveyi bul (hit-test)
-                        const allFrames = document.querySelectorAll('.tb-image-frame');
-                        let hovered = null;
-                        allFrames.forEach(other => {
-                            if (other === frame) return;
-                            const r = other.getBoundingClientRect();
-                            if (
-                                moveEv.clientX >= r.left &&
-                                moveEv.clientX <= r.right &&
-                                moveEv.clientY >= r.top &&
-                                moveEv.clientY <= r.bottom
-                            ) {
-                                hovered = other;
-                            }
-                        });
-
-                        if (hovered !== currentHoverTarget) {
-                            if (currentHoverTarget) {
-                                currentHoverTarget.classList.remove('tb-swap-target-hover');
-                                const b = currentHoverTarget.querySelector('.tb-swap-badge');
-                                if (b) b.remove();
-                            }
-                            currentHoverTarget = hovered;
-                            if (currentHoverTarget) {
-                                currentHoverTarget.classList.add('tb-swap-target-hover');
-                                let badge = currentHoverTarget.querySelector('.tb-swap-badge');
-                                if (!badge) {
-                                    badge = document.createElement('div');
-                                    badge.className = 'tb-swap-badge';
-                                    badge.innerHTML = '<i class="fa-solid fa-arrows-rotate"></i> Yer Değiştir';
-                                    currentHoverTarget.appendChild(badge);
-                                }
-                            }
-                        }
-                    }
-                };
-
-                const onFrameTrackUp = (upEv) => {
-                    document.removeEventListener('mousemove', onFrameTrackMove);
-                    document.removeEventListener('mouseup', onFrameTrackUp);
-
-                    const targetToSwap = currentHoverTarget;
-                    if (currentHoverTarget) {
-                        currentHoverTarget.classList.remove('tb-swap-target-hover');
-                        const b = currentHoverTarget.querySelector('.tb-swap-badge');
-                        if (b) b.remove();
-                        currentHoverTarget = null;
-                    }
-
-                    if (hasMoved && targetToSwap && (frame.classList.contains('has-image') || targetToSwap.classList.contains('has-image'))) {
-                        // Sürüklenen çerçeveyi eski koordinatlarına geri oturt (şablon düzeni bozulmasın)
-                        frame.style.left = origLeft + 'px';
-                        frame.style.top = origTop + 'px';
-
-                        // İki çerçevenin görsellerini takas et!
-                        this.swapFrameImages(frame, targetToSwap);
-                    }
-
-                    if (window.SmartGuides && typeof window.SmartGuides.clear === 'function') {
-                        window.SmartGuides.clear();
-                    }
-                };
-
-                document.addEventListener('mousemove', onFrameTrackMove);
-                document.addEventListener('mouseup', onFrameTrackUp);
             });
 
             // Fare Tekerleği ile Çerçeve İçi Zoom (Alt veya Pan Modunda)
@@ -1027,6 +952,15 @@
                     document.querySelectorAll('.tb-image-frame').forEach(f => f.classList.remove('tb-can-swap'));
                     this.swapFrameImages(source, frame);
                     return;
+                }
+
+                const stagingId = e.dataTransfer ? (e.dataTransfer.getData('application/x-staging-id') || e.dataTransfer.getData('text/plain')) : null;
+                if (stagingId && window.PhotoStagingArchive && typeof window.PhotoStagingArchive.getItemById === 'function') {
+                    const item = window.PhotoStagingArchive.getItemById(stagingId);
+                    if (item && (item.fullDataUrl || item.originalDataUrl || item.thumbUrl)) {
+                        this.loadPhotoIntoFrame(frame, item.fullDataUrl || item.originalDataUrl || item.thumbUrl);
+                        return;
+                    }
                 }
 
                 if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
@@ -1123,7 +1057,7 @@
             const hasShape = (frame.dataset.shape && frame.dataset.shape !== 'none');
 
             const cContainer = document.getElementById('canvas-container');
-            const scaleFactor = (cContainer && cContainer._scaleFactor) ? cContainer._scaleFactor : 1;
+            const scaleFactor = (typeof window.getGlobalScale === 'function' ? window.getGlobalScale() : (typeof window.scaleFactor !== 'undefined' ? window.scaleFactor : 1)) || 1;
 
             const onMouseMove = (moveEvent) => {
                 if (!this.resizingFrame) return;
@@ -1198,6 +1132,7 @@
                 frame.style.left = Math.round(newLeft) + 'px';
                 frame.style.top = Math.round(newTop) + 'px';
 
+                this.applyImageZoomPan(frame);
                 this.syncSettingsPanelWithFrame(frame);
                 if (window.Template3DFrame && typeof window.Template3DFrame.updateGizmoPosition === 'function') {
                     window.Template3DFrame.updateGizmoPosition(frame);
@@ -1234,6 +1169,11 @@
                     inner.insertBefore(img, inner.firstChild);
                 }
 
+                img.onload = () => {
+                    this.applyFrameStyling(frame);
+                    this.applyImageZoomPan(frame);
+                    this.syncSettingsPanelWithFrame(frame);
+                };
                 img.src = dataUrl;
                 frame.dataset.imgSrc = dataUrl;
                 frame.classList.add('has-image');
@@ -1241,8 +1181,11 @@
                 const placeholder = frame.querySelector('.tb-frame-placeholder');
                 if (placeholder) placeholder.style.display = 'none';
 
-                this.applyFrameStyling(frame);
-                this.applyImageZoomPan(frame);
+                if (img.complete && img.naturalWidth > 0) {
+                    this.applyFrameStyling(frame);
+                    this.applyImageZoomPan(frame);
+                    this.syncSettingsPanelWithFrame(frame);
+                }
                 this.selectFrame(frame);
 
                 if (typeof window.recordHistory === 'function') {
@@ -1327,12 +1270,21 @@
                     img.className = 'tb-frame-img';
                     inner.insertBefore(img, inner.firstChild);
                 }
+                img.onload = () => {
+                    this.applyFrameStyling(frame);
+                    this.applyImageZoomPan(frame);
+                    this.syncSettingsPanelWithFrame(frame);
+                };
                 img.src = data.src;
                 img.style.display = 'block';
 
                 if (placeholder) placeholder.style.display = 'none';
-                this.applyFrameStyling(frame);
-                this.applyImageZoomPan(frame);
+
+                if (img.complete && img.naturalWidth > 0) {
+                    this.applyFrameStyling(frame);
+                    this.applyImageZoomPan(frame);
+                    this.syncSettingsPanelWithFrame(frame);
+                }
             } else {
                 delete frame.dataset.imgSrc;
                 frame.dataset.imgZoom = '1.0';
@@ -1390,14 +1342,68 @@
          * Çerçeve İçi Fotoğraf Zoom & Pan
          */
         applyImageZoomPan: function(frame) {
+            if (!frame) return;
             const img = frame.querySelector('.tb-frame-img');
             if (!img) return;
 
-            const zoom = parseFloat(frame.dataset.imgZoom) || 1.0;
-            const panX = parseFloat(frame.dataset.imgPanX) || 0;
-            const panY = parseFloat(frame.dataset.imgPanY) || 0;
+            const zoom = Math.max(0.2, parseFloat(frame.dataset.imgZoom) || 1.0);
+            let panX = parseFloat(frame.dataset.imgPanX) || 0;
+            let panY = parseFloat(frame.dataset.imgPanY) || 0;
 
-            img.style.transform = `translate(calc(-50% + ${panX}px), calc(-50% + ${panY}px)) scale(${zoom})`;
+            const frameW = frame.offsetWidth || parseFloat(frame.style.width) || 300;
+            const frameH = frame.offsetHeight || parseFloat(frame.style.height) || 300;
+
+            const natW = img.naturalWidth || 0;
+            const natH = img.naturalHeight || 0;
+
+            if (natW > 0 && natH > 0 && frameW > 0 && frameH > 0) {
+                const coverScale = Math.max(frameW / natW, frameH / natH) * zoom;
+                const imgW = Math.round(natW * coverScale);
+                const imgH = Math.round(natH * coverScale);
+
+                img.style.width = imgW + 'px';
+                img.style.height = imgH + 'px';
+                img.style.minWidth = '100%';
+                img.style.minHeight = '100%';
+                img.style.maxWidth = 'none';
+                img.style.maxHeight = 'none';
+                img.style.objectFit = 'fill';
+
+                const maxPanX = Math.max(0, (imgW - frameW) / 2);
+                const maxPanY = Math.max(0, (imgH - frameH) / 2);
+
+                if (panX > maxPanX) panX = maxPanX;
+                if (panX < -maxPanX) panX = -maxPanX;
+                if (panY > maxPanY) panY = maxPanY;
+                if (panY < -maxPanY) panY = -maxPanY;
+
+                frame.dataset.imgPanX = panX;
+                frame.dataset.imgPanY = panY;
+
+                const pxInput = document.getElementById('tbFramePanX');
+                const pxVal = document.getElementById('tbFramePanXVal');
+                const pyInput = document.getElementById('tbFramePanY');
+                const pyVal = document.getElementById('tbFramePanYVal');
+
+                const boundX = Math.round(maxPanX);
+                const boundY = Math.round(maxPanY);
+
+                if (pxInput && document.activeElement !== pxInput) {
+                    pxInput.min = -boundX;
+                    pxInput.max = boundX;
+                    pxInput.value = Math.round(panX);
+                }
+                if (pxVal) pxVal.textContent = Math.round(panX) + 'px';
+
+                if (pyInput && document.activeElement !== pyInput) {
+                    pyInput.min = -boundY;
+                    pyInput.max = boundY;
+                    pyInput.value = Math.round(panY);
+                }
+                if (pyVal) pyVal.textContent = Math.round(panY) + 'px';
+            }
+
+            img.style.transform = 'translate(calc(-50% + ' + panX + 'px), calc(-50% + ' + panY + 'px))';
         },
 
         /**
@@ -1414,6 +1420,7 @@
                 window.selectedElements = [frame];
                 if (typeof selectedEl !== 'undefined') selectedEl = frame;
 
+                this.applyImageZoomPan(frame);
                 this.syncSettingsPanelWithFrame(frame);
 
                 if (window.Template3DFrame && typeof window.Template3DFrame.syncPanel === 'function') {
@@ -1456,6 +1463,12 @@
 
                 document.querySelectorAll('.tb-shape-card').forEach(card => card.classList.remove('active'));
                 this.updateDockControls(false);
+
+            setTimeout(() => {
+                document.querySelectorAll('.tb-image-frame.has-image').forEach(f => {
+                    this.applyImageZoomPan(f);
+                });
+            }, 60);
             }
         },
 
@@ -1508,12 +1521,34 @@
             const panY = parseInt(frame.dataset.imgPanY) || 0;
             const panXInput = document.getElementById('tbFramePanX');
             const panXVal = document.getElementById('tbFramePanXVal');
-            const panYInput = document.getElementById('tbFramePanY');
-            const panYVal = document.getElementById('tbFramePanYVal');
+            const pyInput = document.getElementById('tbFramePanY');
+            const pyVal = document.getElementById('tbFramePanYVal');
+
+            const fImg = frame.querySelector('.tb-frame-img');
+            const fFrameW = frame.offsetWidth || parseFloat(frame.style.width) || 300;
+            const fFrameH = frame.offsetHeight || parseFloat(frame.style.height) || 300;
+            const fNatW = (fImg && fImg.naturalWidth) || 0;
+            const fNatH = (fImg && fImg.naturalHeight) || 0;
+            if (fNatW > 0 && fNatH > 0 && fFrameW > 0 && fFrameH > 0) {
+                const fCoverScale = Math.max(fFrameW / fNatW, fFrameH / fNatH) * zoom;
+                const fImgW = Math.round(fNatW * fCoverScale);
+                const fImgH = Math.round(fNatH * fCoverScale);
+                const fMaxPanX = Math.max(0, (fImgW - fFrameW) / 2);
+                const fMaxPanY = Math.max(0, (fImgH - fFrameH) / 2);
+                if (panXInput) {
+                    panXInput.min = -Math.round(fMaxPanX);
+                    panXInput.max = Math.round(fMaxPanX);
+                }
+                if (pyInput) {
+                    pyInput.min = -Math.round(fMaxPanY);
+                    pyInput.max = Math.round(fMaxPanY);
+                }
+            }
+
             if (panXInput) panXInput.value = panX;
             if (panXVal) panXVal.textContent = panX + 'px';
-            if (panYInput) panYInput.value = panY;
-            if (panYVal) panYVal.textContent = panY + 'px';
+            if (pyInput) pyInput.value = panY;
+            if (pyVal) pyVal.textContent = panY + 'px';
 
             const rotInput = document.getElementById('tbFrameRotation');
             const rotVal = document.getElementById('tbFrameRotationVal');
@@ -2486,10 +2521,18 @@
             };
 
             this.customTemplates.unshift(templateObj);
-            this.persistCustomTemplates();
+            const saveResult = this.persistCustomTemplates();
             this.renderSavedTemplatesList();
 
-            alert('Tebrikler! "' + templateName + '" şablonunuz başarıyla kaydedildi.');
+            if (saveResult === true) {
+                alert('Tebrikler! "' + templateName + '" şablonunuz başarıyla kaydedildi.');
+            } else if (saveResult === 'lightweight') {
+                alert('"' + templateName + '" şablonunuzun yerleşim düzeni kaydedildi (Tarayıcı hafıza kotası nedeniyle yüksek boyutlu çerçeve görselleri şablona dahil edilmedi).');
+            } else {
+                this.customTemplates.shift();
+                this.renderSavedTemplatesList();
+                alert('Tarayıcı depolama alanı (localStorage) dolu olduğu için şablon kaydedilemedi. Lütfen kullanmadığınız eski özel şablonları silip tekrar deneyin.');
+            }
         },
 
         loadCustomTemplates: function() {
@@ -2504,6 +2547,27 @@
         persistCustomTemplates: function() {
             try {
                 localStorage.setItem('emlakstudiom_custom_templates', JSON.stringify(this.customTemplates));
+                return true;
+            } catch (e) {
+                try {
+                    if (this.customTemplates.length > 0) {
+                        const latest = this.customTemplates[0];
+                        if (latest.bgImage && latest.bgImage.length > 1024) latest.bgImage = '';
+                        if (Array.isArray(latest.frames)) {
+                            latest.frames.forEach(f => {
+                                if (f.imgUrl && f.imgUrl.startsWith('data:')) f.imgUrl = '';
+                            });
+                        }
+                        localStorage.setItem('emlakstudiom_custom_templates', JSON.stringify(this.customTemplates));
+                        return 'lightweight';
+                    }
+                } catch (retryErr) {
+                    console.warn('Özel şablon kaydedilemedi (Kota aşımı):', retryErr);
+                }
+                return false;
+            }
+            try {
+                // fallback no-op
             } catch (e) {}
         },
 
@@ -2565,7 +2629,7 @@
 
         deleteCustomTemplate: function(idx) {
             this.customTemplates.splice(idx, 1);
-            this.persistCustomTemplates();
+            const saveResult = this.persistCustomTemplates();
             this.renderSavedTemplatesList();
         },
 

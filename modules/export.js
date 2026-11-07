@@ -384,8 +384,8 @@ function showExportLoading(title = 'Görsel Hazırlanıyor...', subtitle = 'Yük
 }
 
 function hideAppLoading(delay = 0, force = false) {
-    // Export işlemi sürerken ara fonksiyonların loader'ı kapatmasını engelle
-    if (!force && document.body && document.body.classList.contains('is-exporting')) {
+    // Export veya çoklu format işlemi sürerken ara fonksiyonların loader'ı kapatmasını engelle
+    if (!force && (window._isMultiFormatExporting || (document.body && document.body.classList.contains('is-exporting')))) {
         return;
     }
     if (_appLoadingTimeout) {
@@ -797,9 +797,15 @@ function switchPreviewFormat(){
             }
 
             // 2. Fotoğraf panellerini güncelle ve native canvas'a çiz (redrawAll tetiklenir)
-            document.querySelectorAll('.photo-panel, #photo-layer').forEach(p => { 
-                if (typeof _applyPhotoTransform === 'function') _applyPhotoTransform(p); 
-            });
+            let hasRestoredFraming = false;
+            if (typeof window.restorePhotoFramingForFormat === 'function') {
+                hasRestoredFraming = window.restorePhotoFramingForFormat(formatName);
+            }
+            if (!hasRestoredFraming) {
+                document.querySelectorAll('.photo-panel, #photo-layer').forEach(p => { 
+                    if (typeof _applyPhotoTransform === 'function') _applyPhotoTransform(p); 
+                });
+            }
             
             const newPhotoState = window.getCurrentPhotoState ? window.getCurrentPhotoState() : null;
             
@@ -938,10 +944,12 @@ function switchPreviewFormat(){
     // Format değiştiğinde ölçek çözünürlüklerini dinamik güncelle
     updateExportScaleDisplay();
 
-    // Yükleme ekranını kapat
-    setTimeout(() => {
-        hideAppLoading(80);
-    }, 200);
+    // Yükleme ekranını kapat (çoklu format modunda loader açık tutulur)
+    if (!window._isMultiFormatExporting && !window._suppressFormatLoading) {
+        setTimeout(() => {
+            hideAppLoading(80);
+        }, 200);
+    }
 }
 
 function updateExportScaleDisplay() {
@@ -1872,7 +1880,24 @@ async function saveImage(customBaseName, options = {}){
         if (options && options.returnBlob) {
             const mime = (rawFileType === 'jpg') ? 'image/jpeg' : 'image/png';
             const q = (rawFileType === 'jpg') ? 0.95 : undefined;
-            const blob = await new Promise(resolve => finalCanvas.toBlob(resolve, mime, q));
+            let blob = await new Promise(resolve => {
+                try {
+                    finalCanvas.toBlob(b => resolve(b), mime, q);
+                } catch(e) {
+                    resolve(null);
+                }
+            });
+            if (!blob) {
+                try {
+                    const dataUrl = finalCanvas.toDataURL(mime, q);
+                    const bin = atob(dataUrl.split(',')[1]);
+                    const u8 = new Uint8Array(bin.length);
+                    for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+                    blob = new Blob([u8], { type: mime });
+                } catch(e) {
+                    console.error("Canvas to blob conversion fallback failed:", e);
+                }
+            }
             return { blob, width: targetW, height: targetH, mime };
         }
 
@@ -1975,37 +2000,43 @@ window.exportMultiFormat = async function(mode = 'zip') {
         }
     }
 
-    // 2. JSZip kütüphanesini hazırla
+    window._isMultiFormatExporting = true;
+    window._suppressFormatLoading = true;
+
+    // 2. JSZip kütüphanesini hazırla (Önce yerel js/jszip.min.js, ardından CDN fallback)
     if (mode === 'zip' && typeof window.JSZip === 'undefined') {
         showExportLoading('Modül Yükleniyor...', 'Sıkıştırma motoru hazırlanıyor...');
-        if (window.LazyLoader && typeof window.LazyLoader.load === 'function') {
-            try {
-                await window.LazyLoader.load('zip');
-            } catch (e) {
-                console.warn('LazyLoader zip error:', e);
-            }
-        }
-        if (typeof window.JSZip === 'undefined') {
-            await new Promise((resolve, reject) => {
-                const s = document.createElement('script');
-                s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
-                s.onload = resolve;
-                s.onerror = reject;
-                document.head.appendChild(s);
-            }).catch(e => console.warn('JSZip CDN fallback error:', e));
-        }
+        
+        // Yerel dosyadan yüklemeyi dene
+        await new Promise((resolve) => {
+            const s = document.createElement('script');
+            s.src = 'js/jszip.min.js';
+            s.onload = resolve;
+            s.onerror = () => {
+                // CDN Fallback
+                const cdnScript = document.createElement('script');
+                cdnScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
+                cdnScript.onload = resolve;
+                cdnScript.onerror = resolve;
+                document.head.appendChild(cdnScript);
+            };
+            document.head.appendChild(s);
+        }).catch(e => console.warn('JSZip load error:', e));
     }
 
-    if (mode === 'zip' && typeof window.JSZip === 'undefined') {
-        alert('Arşivleme motoru (JSZip) yüklenemedi. Lütfen internet bağlantınızı kontrol edin.');
-        hideExportLoading();
-        return;
+    // JSZip hala yüklenemediyse işlemi durdurmak yerine dosyaları tek tek indirme moduna otomatik geç
+    let zip = null;
+    if (mode === 'zip') {
+        if (typeof window.JSZip !== 'undefined') {
+            zip = new window.JSZip();
+        } else {
+            console.warn('[MultiFormat] JSZip yüklenemedi, tek tek doğrudan indirme moduna geçiliyor.');
+            mode = 'files';
+        }
     }
-
-    const zip = (mode === 'zip') ? new window.JSZip() : null;
 
     // 3. Kullanıcının mevcut formatını kaydet
-    const originalExportFormat = (document.getElementById('exportFormat') ? document.getElementById('exportFormat').value : '16:9 Full HD');
+    const originalExportFormat = (document.getElementById('exportFormat') ? document.getElementById('exportFormat').value : '16:9 Full HD (YouTube/Banner)');
     const originalPreviewFormat = (document.getElementById('previewFormat') ? document.getElementById('previewFormat').value : originalExportFormat);
 
     const formats = [
@@ -2019,25 +2050,38 @@ window.exportMultiFormat = async function(mode = 'zip') {
 
     showExportLoading('Çoklu Format Dağıtımı...', 'Tasarımınız 1:1, 9:16 ve 16:9 boyutlarına otomatik uyarlanıyor...');
 
+    const generatedFiles = [];
+
     try {
         for (let i = 0; i < formats.length; i++) {
             const fmt = formats[i];
+            
+            // Olası kilit durumlarını sıfırla
+            window.isExportingNow = false;
+
+            const hasCustomFraming = !!(window._formatFramingState && window._formatFramingState[fmt.key] && window._formatFramingState[fmt.key].userAdjusted);
+
             showExportLoading(
-                'Çoklu Format Hazırlanıyor...',
-                `${fmt.title} uyarlanıyor ve işleniyor... (${i + 1} / ${formats.length})`
+                `Format ${i + 1} / ${formats.length} Hazırlanıyor...`,
+                hasCustomFraming
+                    ? `${fmt.title} özel kadrajınızla işleniyor...`
+                    : `${fmt.title} uyarlanıyor ve yüksek kalitede işleniyor...`
             );
 
             // Formatı uygula
             if (document.getElementById('exportFormat')) document.getElementById('exportFormat').value = fmt.key;
             if (document.getElementById('previewFormat')) document.getElementById('previewFormat').value = fmt.key;
-            window._suppressFormatLoading = true;
 
             if (typeof switchPreviewFormat === 'function') {
                 switchPreviewFormat();
             }
 
-            // Canvas & DOM yerleşiminin tam oturması için kısa bekleme
-            await new Promise(r => setTimeout(r, 260));
+            if (hasCustomFraming && typeof window.restorePhotoFramingForFormat === 'function') {
+                window.restorePhotoFramingForFormat(fmt.key);
+            }
+
+            // Canvas & DOM yerleşiminin tam oturması için yeterli süre tanı
+            await new Promise(r => setTimeout(r, 300));
 
             // saveImage ile render al
             const res = await saveImage(fmt.fileName, {
@@ -2049,26 +2093,32 @@ window.exportMultiFormat = async function(mode = 'zip') {
             });
 
             if (res && res.blob) {
-                if (mode === 'zip' && zip) {
-                    zip.file(`${fmt.fileName}.${ext}`, res.blob);
-                } else {
-                    const a = document.createElement('a');
-                    a.download = `${fmt.fileName}.${ext}`;
-                    a.href = URL.createObjectURL(res.blob);
-                    document.body.appendChild(a);
-                    a.click();
-                    setTimeout(() => {
-                        URL.revokeObjectURL(a.href);
-                        a.remove();
-                    }, 500);
-                    await new Promise(r => setTimeout(r, 350));
+                const targetFileName = `${fmt.fileName}.${ext}`;
+                generatedFiles.push({
+                    name: targetFileName,
+                    blob: res.blob,
+                    title: fmt.title
+                });
+
+                if (zip) {
+                    zip.file(targetFileName, res.blob);
                 }
+            } else {
+                console.warn(`[MultiFormat] ${fmt.title} formatı için görsel verisi üretilemedi.`);
             }
+
+            // Arayüzün nefes alması için kısa bekleme
+            await new Promise(r => setTimeout(r, 150));
+        }
+
+        if (generatedFiles.length === 0) {
+            throw new Error('Formatlar işlenirken görsel verisi alınamadı. Lütfen tuvalde geçerli bir görsel veya çizim olduğundan emin olun.');
         }
 
         // ZIP arşivi oluştur ve indir
         if (mode === 'zip' && zip) {
-            showExportLoading('Arşiv Paketleniyor...', 'Tüm formatlar tek bir ZIP dosyasına sıkıştırılıyor...');
+            showExportLoading('Arşiv Paketleniyor...', `${generatedFiles.length} format tek bir ZIP paketine sıkıştırılıyor...`);
+            
             const zipBlob = await zip.generateAsync({
                 type: 'blob',
                 compression: 'DEFLATE',
@@ -2076,40 +2126,106 @@ window.exportMultiFormat = async function(mode = 'zip') {
             });
 
             const dateStr = new Date().toISOString().slice(0, 10);
+            const zipFileName = `Emlak_Studyom_Coklu_Format_Paketi_${dateStr}.zip`;
+            const zipUrl = URL.createObjectURL(zipBlob);
+            const sizeMb = (zipBlob.size / (1024 * 1024)).toFixed(1);
+
+            // Otomatik indirmeyi tetikle
             const a = document.createElement('a');
-            a.download = `Emlak_Studyom_Coklu_Format_Paketi_${dateStr}.zip`;
-            a.href = URL.createObjectURL(zipBlob);
+            a.style.display = 'none';
+            a.download = zipFileName;
+            a.href = zipUrl;
             document.body.appendChild(a);
             a.click();
+            setTimeout(() => { if (a.parentNode) a.parentNode.removeChild(a); }, 2000);
+            
+            // Tarayıcının dosyayı rahatça indirmesi için URL hemen silinmez (120 saniye saklanır)
             setTimeout(() => {
-                URL.revokeObjectURL(a.href);
-                a.remove();
-            }, 1000);
-        }
+                try { URL.revokeObjectURL(zipUrl); } catch(e){}
+            }, 120000);
 
-        if (typeof Swal !== 'undefined') {
-            Swal.fire({
-                icon: 'success',
-                title: 'Çoklu Format Paketi İndirildi',
-                html: '<div style="font-size:13px; color:#94a3b8; line-height:1.5;">1:1 Kare Post, 9:16 Hikaye ve 16:9 Web/Sahibinden formatları tek pakette hazırlandı.</div>',
-                background: '#1e293b',
-                color: '#fff',
-                timer: 3000,
-                showConfirmButton: false
-            });
+            // Kullanıcıya hem indirme bildirimi hem de tarayıcı engellemesine karşı tek tıkla doğrudan indirme butonu sun
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Çoklu Format Paketi Hazır',
+                    html: `
+                        <div style="font-size:13px; color:#cbd5e1; text-align:left; line-height:1.6; margin-bottom:14px; background:rgba(15,23,42,0.6); padding:12px; border-radius:8px; border:1px solid rgba(255,255,255,0.08);">
+                            <div style="font-weight:700; color:#38bdf8; margin-bottom:6px;">Paket İçeriği (${sizeMb} MB):</div>
+                            <div>• <strong>01_Instagram_Kare_Post_1x1.${ext}</strong> (1080x1080)</div>
+                            <div>• <strong>02_Hikaye_Reels_9x16.${ext}</strong> (1080x1920)</div>
+                            <div>• <strong>03_Sahibinden_Web_16x9.${ext}</strong> (1920x1080)</div>
+                        </div>
+                        <div style="margin-top:10px;">
+                            <a href="${zipUrl}" download="${zipFileName}" class="btn-action btn-green" style="display:inline-flex; align-items:center; justify-content:center; gap:8px; width:100%; height:38px; text-decoration:none; font-weight:700; border-radius:6px; box-sizing:border-box; color:#fff;">
+                                <i class="fa-solid fa-file-zipper"></i> ZIP Paketini İndir
+                            </a>
+                        </div>
+                    `,
+                    background: '#1e293b',
+                    color: '#fff',
+                    showConfirmButton: false,
+                    showCloseButton: true
+                });
+            }
+        } else {
+            // ZIP oluşturulamadıysa dosyaları sırayla doğrudan indir
+            showExportLoading('Dosyalar İndiriliyor...', 'Formatlar sırayla kaydediliyor...');
+            for (let f of generatedFiles) {
+                const a = document.createElement('a');
+                a.download = f.name;
+                const fileUrl = URL.createObjectURL(f.blob);
+                a.href = fileUrl;
+                document.body.appendChild(a);
+                a.click();
+                setTimeout(() => {
+                    try { URL.revokeObjectURL(fileUrl); } catch(e){}
+                    if (a.parentNode) a.parentNode.removeChild(a);
+                }, 60000);
+                await new Promise(r => setTimeout(r, 400));
+            }
+
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Formatlar İndirildi',
+                    text: `${generatedFiles.length} format başarıyla bilgisayarınıza kaydedildi.`,
+                    background: '#1e293b',
+                    color: '#fff',
+                    timer: 3500,
+                    showConfirmButton: false
+                });
+            }
         }
     } catch (err) {
         console.error('Multi-Format Export Error:', err);
-        alert('Çoklu format dışa aktarımında bir hata oluştu: ' + (err.message || err));
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                icon: 'error',
+                title: 'Dışa Aktarma Hatası',
+                text: 'Çoklu format dışa aktarımında bir hata oluştu: ' + (err.message || err),
+                background: '#1e293b',
+                color: '#fff',
+                confirmButtonText: 'Tamam'
+            });
+        } else {
+            alert('Çoklu format dışa aktarımında bir hata oluştu: ' + (err.message || err));
+        }
     } finally {
         // Kullanıcının orijinal formatını geri yükle
+        window._isMultiFormatExporting = false;
         window._suppressFormatLoading = false;
+        window.isExportingNow = false;
+
         if (document.getElementById('exportFormat')) document.getElementById('exportFormat').value = originalExportFormat;
         if (document.getElementById('previewFormat')) document.getElementById('previewFormat').value = originalPreviewFormat;
         if (typeof switchPreviewFormat === 'function') {
             switchPreviewFormat();
         }
-        hideExportLoading();
+        if (typeof window.restorePhotoFramingForFormat === 'function') {
+            window.restorePhotoFramingForFormat(originalExportFormat);
+        }
+        hideAppLoading(0, true);
     }
 };
 
@@ -2169,9 +2285,15 @@ async function startBatchExport(options){
         if (typeof batchFiles !== 'undefined' && batchFiles && batchFiles.length) {
             activeBatchFiles = batchFiles;
         } else if (window.PhotoStagingArchive && window.PhotoStagingArchive.items && window.PhotoStagingArchive.items.length > 0) {
+            if (typeof window.PhotoStagingArchive.syncActiveItemAdjustments === 'function') {
+                window.PhotoStagingArchive.syncActiveItemAdjustments();
+            }
             activeBatchFiles = window.PhotoStagingArchive.items.map((it, i) => ({
                 name: (it.title || ('foto_' + (i + 1))) + '.png',
-                dataUrl: it.dataUrl
+                dataUrl: it.dataUrl,
+                photoAdjustments: it.photoAdjustments || null,
+                aiIntensity: it.aiIntensity !== undefined ? it.aiIntensity : 0,
+                item: it
             }));
         } else {
             activeBatchFiles = window.batchFiles || [];
@@ -2268,6 +2390,11 @@ async function startBatchExport(options){
             }
         }
 
+        let preBatchAdjustments = null;
+        if (typeof window.capturePhotoAdjustments === 'function') {
+            preBatchAdjustments = window.capturePhotoAdjustments();
+        }
+
         for(let i = startIndex; i < activeBatchFiles.length; i++){
         const rawBaseName = activeBatchFiles[i].name.replace(/\.[^/.]+$/, "");
         const batchName = (prefixInput ? prefixInput : '') + rawBaseName;
@@ -2286,6 +2413,14 @@ async function startBatchExport(options){
         if(typeof isCanvaMode !== 'undefined' && isCanvaMode && typeof refreshActiveCanvaTemplate === 'function') refreshActiveCanvaTemplate();
         else if(typeof isCanvaMode !== 'undefined' && isCanvaMode) buildCanvaRender();
         
+        // Görsele ait bağımsız fotoğraf ayarları varsa uygula, yoksa varsayılana sıfırla
+        if (activeBatchFiles[i].photoAdjustments && typeof window.restorePhotoAdjustments === 'function') {
+            window.restorePhotoAdjustments(activeBatchFiles[i].photoAdjustments);
+        } else if (typeof window.resetPhotoAdjustmentsToDefault === 'function') {
+            window.resetPhotoAdjustmentsToDefault(activeBatchFiles[i].item || null);
+        }
+        if (typeof applyPhotoFilters === 'function') applyPhotoFilters();
+
         // Gorsel panele yerlestirildikten sonra hazirla
         let needsPrep = false;
         document.querySelectorAll('.photo-panel, #photo-layer').forEach(p => {
@@ -2609,6 +2744,11 @@ async function startBatchExport(options){
         masterImgObj = null;
     } // for loop end
     } finally {
+        if (preBatchAdjustments && typeof window.restorePhotoAdjustments === 'function') {
+            window.restorePhotoAdjustments(preBatchAdjustments);
+            if (typeof applyPhotoFilters === 'function') applyPhotoFilters();
+        }
+
         window.isExportingTransparent = false;
         drawCanvas.style.zIndex = wz;
         drawCanvas.style.pointerEvents = wp;
@@ -3310,6 +3450,7 @@ async function saveProject() {
         document.querySelectorAll('#ui-layer .canvas-el.draggable, #photo-layer .canvas-el.draggable, #canvas-container .canvas-el.draggable').forEach(el => {
             if (['elBadge', 'elPrice', 'elDetails', 'elLogo', 'badge', 'price', 'details', 'logo_overlay'].includes(el.id)) return;
             if (el.classList.contains('added-icon') || el.classList.contains('is-svg-icon')) return;
+            if (el.classList.contains('custom-graphic-badge') || (el.closest && el.closest('.custom-graphic-badge'))) return;
             if (el.closest('.callout-wrap') || el.closest('.co-neon-block') || el.closest('.callout-wrapper')) return;
             if (el.classList.contains('normal-el') || el.classList.contains('canva-generated') || el.classList.contains('canva-panel')) return;
             if (el.classList.contains('editable-draw')) return;
@@ -3409,6 +3550,42 @@ async function saveProject() {
                 scale: scale,
                 userScale: userScale,
                 rotation: rotation,
+                dataset: Object.assign({}, wrap.dataset)
+            });
+        });
+
+        // E. Özel Rozetler & Logolar (Custom Graphic Badges)
+        document.querySelectorAll('#canvas-container .custom-graphic-badge, #workArea .custom-graphic-badge').forEach(wrap => {
+            const left = parseFloat(wrap.style.left) || 0;
+            const top = parseFloat(wrap.style.top) || 0;
+            const width = parseFloat(wrap.style.width) || wrap.offsetWidth;
+            const height = parseFloat(wrap.style.height) || wrap.offsetHeight;
+            const scale = parseFloat(wrap.dataset.scale) || 1.0;
+            const rotation = parseFloat(wrap.dataset.rotation) || 0;
+
+            customItems.push({
+                kind: 'custom-badge',
+                badgeDataUrl: wrap.dataset.badgeDataUrl,
+                label: wrap.dataset.label || 'Özel Rozet',
+                left: left,
+                top: top,
+                xPercent: canvasW > 0 ? (left / canvasW) : 0,
+                yPercent: canvasH > 0 ? (top / canvasH) : 0,
+                width: width,
+                height: height,
+                scale: scale,
+                rotation: rotation,
+                opacity: wrap.dataset.opacity || '100',
+                shadow: wrap.dataset.shadow || '0',
+                margin: wrap.dataset.margin || '24',
+                neon: wrap.dataset.neon === 'true',
+                neonColor: wrap.dataset.neonColor || '#00f0ff',
+                neonSize: wrap.dataset.neonSize || 25,
+                neonIntensity: wrap.dataset.neonIntensity || 2.5,
+                flippedH: wrap.dataset.flippedH === 'true',
+                naturalW: wrap.dataset.naturalW,
+                naturalH: wrap.dataset.naturalH,
+                aspectRatio: wrap.dataset.aspectRatio,
                 dataset: Object.assign({}, wrap.dataset)
             });
         });
@@ -3803,6 +3980,31 @@ window.loadProjectFromFile = function(file) {
                             } else if (item.isNeon && typeof window.rebindNeonCallout === 'function') {
                                 window.rebindNeonCallout(wrap);
                             }
+                        } else if (item.kind === 'custom-badge' && window.CustomBadges && typeof window.CustomBadges.addToCanvas === 'function') {
+                            const posX = typeof item.left !== 'undefined' ? item.left : Math.round(item.xPercent * targetCanvasW);
+                            const posY = typeof item.top !== 'undefined' ? item.top : Math.round(item.yPercent * targetCanvasH);
+                            window.CustomBadges.addToCanvas({
+                                id: item.dataset?.id || ('cbg_' + Date.now()),
+                                name: item.label || 'Özel Rozet',
+                                dataUrl: item.badgeDataUrl,
+                                naturalW: item.naturalW,
+                                naturalH: item.naturalH,
+                                aspect: item.aspectRatio
+                            }, {
+                                left: posX,
+                                top: posY,
+                                width: item.width,
+                                scale: item.scale,
+                                rotation: item.rotation,
+                                opacity: item.opacity,
+                                shadow: item.shadow,
+                                margin: item.margin,
+                                neon: item.neon,
+                                neonColor: item.neonColor,
+                                neonSize: item.neonSize,
+                                neonIntensity: item.neonIntensity,
+                                flippedH: item.flippedH
+                            });
                         }
                     }
                 });

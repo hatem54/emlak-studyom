@@ -642,6 +642,10 @@ function addWatermark(canvas) {
 async function handleLogout() {
   try {
     localStorage.removeItem('emlak_admin_access');
+    window._suppressBeforeUnload = true;
+    if (typeof window.deleteStateFromDB === 'function') {
+      try { await window.deleteStateFromDB(); } catch (dbErr) {}
+    }
     if (window.supabaseClient && window.supabaseClient.auth) {
       await window.supabaseClient.auth.signOut();
     }

@@ -133,6 +133,9 @@ function showTemplateColorModal() {
         if(el.classList.contains('callout-wrapper') || el.classList.contains('callout-wrap') || el.classList.contains('co-neon-block')) {
             typeName = 'Callout'; groupName = 'callout'; icon = 'fas fa-comment-dots'; 
         }
+        else if(el.classList.contains('custom-graphic-badge')) {
+            typeName = 'Özel Rozet'; groupName = 'badge'; icon = 'fas fa-certificate';
+        }
         else if(el.classList.contains('editable-draw')) {
             let pObj = null;
             if(typeof drawPaths !== 'undefined') pObj = drawPaths.find(p => p.el === el || (el.id && p.el && p.el.id === el.id));
@@ -167,7 +170,7 @@ function showTemplateColorModal() {
     });
 
     // Sort: First by Group, then by DOM index (insertion order)
-    const groupOrder = { 'callout': 1, 'text': 2, 'box': 3, 'icon': 4, 'shape': 5, 'draw': 6 };
+    const groupOrder = { 'callout': 1, 'badge': 2, 'text': 3, 'box': 4, 'icon': 5, 'shape': 6, 'draw': 7 };
     targetEls.sort((a, b) => {
         if (groupOrder[a.group] !== groupOrder[b.group]) {
             return groupOrder[a.group] - groupOrder[b.group];
@@ -181,6 +184,8 @@ function showTemplateColorModal() {
         if (t.group === 'callout') {
             const txt = t.el.querySelector('.callout-text');
             if (txt) contentText = txt.innerText || txt.textContent;
+        } else if (t.group === 'badge') {
+            contentText = t.el.dataset.label || 'Özel Rozet';
         } else if (t.group === 'text' || t.group === 'box' || t.group === 'free-text') {
             contentText = t.el.innerText || t.el.textContent;
         }
@@ -200,6 +205,7 @@ function showTemplateColorModal() {
         targetsHtml = '<div style="padding:10px; text-align:center; color:#94a3b8; font-size:12px;">Tuvalde uygun öge bulunamadı. Lütfen önce yazı, ikon veya etiket ekleyin.</div>';
     } else {
         const groupTitles = {
+            'badge': 'Özel Rozetler ve Logolar',
             'text': 'Şablon Öğeleri (Yazılar)',
             'free-text': 'Serbest Yazılar',
             'draw': 'Çizim ve Şekiller',
@@ -455,7 +461,16 @@ function showTemplateColorModal() {
             // If the element is currently selected globally, update global inputs too
             const isSelected = (typeof selectedCalloutEl !== 'undefined' && selectedCalloutEl === el);
             
-            if(el.classList.contains('callout-wrapper') || el.classList.contains('callout-wrap') || el.classList.contains('co-neon-block')) {
+            if (el.classList.contains('custom-graphic-badge')) {
+                if (window.CustomBadges && typeof window.CustomBadges.recolorSvgBadge === 'function') {
+                    window.CustomBadges.recolorSvgBadge(el, {
+                        bgCol: applyBg ? bgCol : null,
+                        acCol: acCol,
+                        txtCol: txtCol
+                    });
+                }
+            }
+            else if(el.classList.contains('callout-wrapper') || el.classList.contains('callout-wrap') || el.classList.contains('co-neon-block')) {
                 // 1. NEON CALLOUT (.co-neon-block)
                 if (el.classList.contains('co-neon-block')) {
                     if (applyBg) {

@@ -206,8 +206,12 @@
 
             // Bitiş (Up)
             const onUp = () => {
+                const wasDragging = this.isDragging;
                 this.isDragging = false;
                 this.draw();
+                if (wasDragging && typeof window.triggerPhotoFilterHistory === 'function') {
+                    window.triggerPhotoFilterHistory(true);
+                }
             };
 
             const onLeave = () => {
@@ -423,6 +427,9 @@
             this.updateLUT();
             if (typeof window.applyPhotoFilters === 'function') {
                 window.applyPhotoFilters();
+            }
+            if (typeof window.triggerPhotoFilterHistory === 'function') {
+                window.triggerPhotoFilterHistory(false);
             }
         }
 

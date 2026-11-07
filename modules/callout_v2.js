@@ -240,7 +240,8 @@ function renderCalloutPanel(){
                 btn.addEventListener('mouseenter', () => { btn.style.borderColor = '#3b82f6'; btn.style.boxShadow = '0 2px 8px rgba(59,130,246,0.2)'; });
                 btn.addEventListener('mouseleave', () => { btn.style.borderColor = '#334155'; btn.style.boxShadow = 'none'; });
                 
-                btn.onclick = () => addSVGCalloutToCanvas(item);
+                const itemWithCat = Object.assign({}, item, { category: cat.key || cat.title || '' });
+                btn.onclick = () => addSVGCalloutToCanvas(itemWithCat);
                 body.appendChild(btn);
             });
         }
@@ -346,6 +347,31 @@ function addSVGCalloutToCanvas(item) {
     wrap.dataset.defaultWidth = targetW;
     wrap.dataset.defaultHeight = targetH;
     wrap.dataset.aspectRatio = (targetW / targetH).toFixed(4);
+
+    if (item) {
+        if (item.name) {
+            wrap.dataset.name = item.name;
+            wrap.dataset.itemName = item.name;
+            el.dataset.name = item.name;
+            el.dataset.itemName = item.name;
+        }
+        if (item.category) {
+            wrap.dataset.category = item.category;
+            el.dataset.category = item.category;
+        }
+        const nameLower = (item.name || '').toLowerCase();
+        const catLower = (item.category || '').toLowerCase();
+        if (nameLower.includes('ok') || nameLower.includes('arrow') || nameLower.includes('yön') || catLower.includes('ok') || catLower.includes('arrow') || catLower.includes('yön')) {
+            wrap.classList.add('arrow');
+            wrap.dataset.isArrow = 'true';
+            el.dataset.isArrow = 'true';
+        }
+        if (nameLower.includes('pin') || nameLower.includes('konum') || nameLower.includes('marker') || catLower.includes('pin') || catLower.includes('konum')) {
+            wrap.classList.add('pin');
+            wrap.dataset.isPin = 'true';
+            el.dataset.isPin = 'true';
+        }
+    }
 
     // Tuvalin tam ortasına yerleştir (varsa mevcut rozetlere göre hafif kademelendir)
     const existingCallouts = document.querySelectorAll('.callout-wrap').length;
@@ -2489,20 +2515,20 @@ function addNeonToCanvas(n) {
 
 function selectCalloutEl(el, isUserClick = false) {
   try {
-    if (!el) {
-        el = (typeof selectedCalloutEl !== 'undefined' ? selectedCalloutEl : null) ||
-             (typeof selectedEl !== 'undefined' ? selectedEl : null) ||
-             document.querySelector('.callout-wrap.el-selected, .callout-item.el-selected, .svg-callout.el-selected, .co-neon-block.el-selected') ||
-             document.querySelector('.callout-wrap, .callout-item, .svg-callout, .co-neon-block');
+    if (el && (el.classList?.contains('custom-graphic-badge') || el.closest?.('.custom-graphic-badge'))) {
+        return; // Özel grafik rozetler hazır şablon motorundan muaftır
     }
     if (!el) {
-        const panel = document.getElementById('calloutSettingsPanel');
-        if (panel) {
-            panel.style.display = 'block';
-            panel.open = true;
-            const body = document.getElementById('calloutSettingsBody');
-            if (body) body.style.display = 'block';
+        // Eğer seçili olan eleman bir özel rozet ise hazır rozet seçimi yapma
+        const curSel = (typeof selectedEl !== 'undefined' ? selectedEl : null) || window.selectedEl;
+        if (curSel && (curSel.classList?.contains('custom-graphic-badge') || curSel.closest?.('.custom-graphic-badge'))) {
+            return;
         }
+        el = (typeof selectedCalloutEl !== 'undefined' ? selectedCalloutEl : null) ||
+             (typeof selectedEl !== 'undefined' ? selectedEl : null) ||
+             document.querySelector('.callout-wrap.el-selected, .callout-item.el-selected, .svg-callout.el-selected, .co-neon-block.el-selected');
+    }
+    if (!el || el.classList?.contains('custom-graphic-badge') || el.closest?.('.custom-graphic-badge')) {
         return;
     }
 
@@ -2518,6 +2544,14 @@ function selectCalloutEl(el, isUserClick = false) {
         }
     }
     
+    // Özel rozet panelini ve seçimini gizle
+    const cbgPanel = document.getElementById('customBadgeSettingsPanel');
+    if (cbgPanel) cbgPanel.style.display = 'none';
+    if (window.CustomBadges) {
+        window.CustomBadges.selectedBadgeEl = null;
+        document.querySelectorAll('.custom-graphic-badge').forEach(b => b.classList.remove('el-selected'));
+    }
+
     document.querySelectorAll('.co-neon-block').forEach(e => {
         if (!window.selectedElements || !window.selectedElements.includes(e)) {
             e.style.outline = 'none';

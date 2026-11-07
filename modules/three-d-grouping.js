@@ -9,6 +9,7 @@
 
     let selected3DElements = [];
     let overlayContainer = null;
+    let isPropagatingScale = false;
 
     /**
      * Çoklu seçim görsel çerçevesini (highlight overlay) oluşturur veya getirir.
@@ -63,6 +64,16 @@
             }
 
             this.updateSelectionVisuals();
+            if (typeof window.updateMultiSelectUI === 'function') {
+                window.updateMultiSelectUI();
+            }
+        },
+
+        /**
+         * Birden fazla 3D ögeyi topluca seçime atar (Tümünü Seç / Marquee hook'u).
+         */
+        selectMultiple3D: function(elements, keep2D = false) {
+            this.setSelected3DElements(elements, { keep2DSelection: keep2D });
         },
 
         /**
@@ -86,6 +97,9 @@
         clearSelection: function() {
             selected3DElements = [];
             this.updateSelectionVisuals();
+            if (typeof window.updateMultiSelectUI === 'function') {
+                window.updateMultiSelectUI();
+            }
         },
 
         /**
@@ -98,6 +112,9 @@
             if (idx >= 0) {
                 selected3DElements.splice(idx, 1);
                 this.updateSelectionVisuals();
+                if (typeof window.updateMultiSelectUI === 'function') {
+                    window.updateMultiSelectUI();
+                }
             }
         },
 
@@ -266,6 +283,7 @@
                     dot.style.height = '7px';
                     dot.style.backgroundColor = '#38bdf8';
                     dot.style.borderRadius = '50%';
+                    dot.style.pointerEvents = 'none';
                     box.appendChild(dot);
 
                     overlay.appendChild(box);
@@ -446,12 +464,12 @@
                 siblings = all.filter(e => e && e.groupId === primaryEl.groupId && e.id !== primaryEl.id);
             }
             // 2. Eğer grup yok ama çoklu seçim yapılmışsa çoklu seçimdeki kardeşleri topla
-            else if (selected3DElements.length > 1 && selected3DElements.some(e => e.id === primaryEl.id)) {
-                siblings = selected3DElements.filter(e => e.id !== primaryEl.id);
+            else if (selected3DElements.length > 1) {
+                siblings = selected3DElements.filter(e => e && String(e.id) !== String(primaryEl.id));
             }
             if (siblings.length === 0) {
                 const all = (typeof window.ThreeDEngine.getElements === 'function') ? window.ThreeDEngine.getElements() : [];
-                siblings = all.filter(e => e && e.id !== primaryEl.id && (e.attachedTo === primaryEl.id || primaryEl.attachedTo === e.id));
+                siblings = all.filter(e => e && String(e.id) !== String(primaryEl.id) && (e.attachedTo === primaryEl.id || primaryEl.attachedTo === e.id));
             }
 
             if (siblings.length > 0) {
@@ -480,6 +498,10 @@
                     sib.posX = (sib.posX || 0) + dX;
                     sib.posY = (sib.posY || 0) + dY;
                     if (dZ) sib.posZ = Math.max(-2000, Math.min(600, (sib.posZ || 0) + dZ));
+                    if (sib.planeGroup) {
+                        const z = (sib.posZ || 0);
+                        sib.planeGroup.position.set(sib.posX, sib.posY, z);
+                    }
                     if (typeof window.ThreeDEngine.updatePlaneTransform === 'function') {
                         window.ThreeDEngine.updatePlaneTransform(sib);
                     }
@@ -737,12 +759,7 @@
                         }
 
                         if (m !== primaryEl) {
-                            if (isFenceGroup) {
-                                let nr = ((m.planeLocalRot || 0) + dRoll) % 360;
-                                while (nr > 180) nr -= 360;
-                                while (nr < -180) nr += 360;
-                                m.planeLocalRot = Math.round(nr);
-                            } else if (mode === 'plane') {
+                            if (mode === 'plane') {
                                 m.planeRoll = Math.round(((m.planeRoll || 0) + dRoll) % 360);
                             } else {
                                 let newRoll = Math.round(((m.itemRoll || 0) + dRoll) % 360);
@@ -755,8 +772,8 @@
                         if (m === primaryEl && window.ThreeDEngine && window.ThreeDEngine.state) {
                             window.ThreeDEngine.state.posX = primaryEl.posX;
                             window.ThreeDEngine.state.posY = primaryEl.posY;
-                            if (isFenceGroup) {
-                                window.ThreeDEngine.state.planeLocalRot = primaryEl.planeLocalRot;
+                            if (mode !== 'plane') {
+                                window.ThreeDEngine.state.itemRoll = primaryEl.itemRoll;
                             }
                         }
 
@@ -797,6 +814,7 @@
         propagateScaleDelta: function(primaryEl, newScale, oldScale) {
             if (!primaryEl || !newScale || !oldScale || Math.abs(newScale - oldScale) < 0.001) return;
             if (!window.ThreeDEngine) return;
+            if (isPropagatingScale) return;
 
             // Grup ölçek senkronizasyonu kontrolü (varsayılan: 'all' / Birlikte Düzenle)
             const isGroupAll = (window.ThreeDEngine && typeof window.ThreeDEngine.getGroupEditMode === 'function')
@@ -804,6 +822,21 @@
                 : true;
             if (!isGroupAll) return;
 
+            const ratio = newScale / oldScale;
+
+            // 🌟 1. Çoklu Seçimdeki 2D Ögeleri de Orantılı Boyutlandır (Hibrit Çoklu Seçim)
+            if (window.selectedElements && window.selectedElements.length > 0 && typeof window.multiSelectScale2DElements === 'function') {
+                isPropagatingScale = true;
+                try {
+                    window.multiSelectScale2DElements(ratio);
+                } catch(e) {
+                    console.warn('[ThreeDGrouping] multiSelectScale2DElements hatası:', e);
+                } finally {
+                    isPropagatingScale = false;
+                }
+            }
+
+            // 🌟 2. 3D Kardeşleri Orantılı Boyutlandır
             let siblings = [];
             if (primaryEl.groupId) {
                 const all = (typeof window.ThreeDEngine.getElements === 'function')
@@ -818,46 +851,44 @@
                 siblings = all.filter(e => e && e.id !== primaryEl.id && (e.attachedTo === primaryEl.id || primaryEl.attachedTo === e.id));
             }
 
-            if (siblings.length === 0) return;
-
-            const ratio = newScale / oldScale;
-
-            siblings.forEach(sib => {
-                // 1. Eğer sib, primaryEl'in yüzeyine bağlı çocuk ise:
-                if (sib.attachedTo === primaryEl.id) {
-                    sib.planeScale = Math.max(0.15, Math.min(5.0, parseFloat(((sib.planeScale || 1.0) * ratio).toFixed(3))));
-                    if (typeof window.ThreeDEngine.updateContentTransform === 'function') {
-                        window.ThreeDEngine.updateContentTransform(sib);
-                    }
-                    return;
-                }
-
-                // 2. Eğer primaryEl, sib'in yüzeyine bağlı çocuk ise:
-                if (primaryEl.attachedTo === sib.id) {
-                    if (isGroupAll) {
+            if (siblings.length > 0) {
+                siblings.forEach(sib => {
+                    // 1. Eğer sib, primaryEl'in yüzeyine bağlı çocuk ise:
+                    if (sib.attachedTo === primaryEl.id) {
                         sib.planeScale = Math.max(0.15, Math.min(5.0, parseFloat(((sib.planeScale || 1.0) * ratio).toFixed(3))));
-                        if (typeof window.ThreeDEngine.updatePlaneTransform === 'function') {
-                            window.ThreeDEngine.updatePlaneTransform(sib);
+                        if (typeof window.ThreeDEngine.updateContentTransform === 'function') {
+                            window.ThreeDEngine.updateContentTransform(sib);
                         }
+                        return;
                     }
-                    if (typeof window.ThreeDEngine.updateContentTransform === 'function') {
-                        window.ThreeDEngine.updateContentTransform(primaryEl);
+
+                    // 2. Eğer primaryEl, sib'in yüzeyine bağlı çocuk ise:
+                    if (primaryEl.attachedTo === sib.id) {
+                        if (isGroupAll) {
+                            sib.planeScale = Math.max(0.15, Math.min(5.0, parseFloat(((sib.planeScale || 1.0) * ratio).toFixed(3))));
+                            if (typeof window.ThreeDEngine.updatePlaneTransform === 'function') {
+                                window.ThreeDEngine.updatePlaneTransform(sib);
+                            }
+                        }
+                        if (typeof window.ThreeDEngine.updateContentTransform === 'function') {
+                            window.ThreeDEngine.updateContentTransform(primaryEl);
+                        }
+                        return;
                     }
-                    return;
-                }
 
-                // 3. Normal grup kardeşleri (yüzeye bağlı olmayan):
-                sib.planeScale = Math.max(0.15, Math.min(5.0, parseFloat(((sib.planeScale || 1.0) * ratio).toFixed(3))));
-                const dx = (sib.posX - primaryEl.posX) * (ratio - 1.0);
-                const dy = (sib.posY - primaryEl.posY) * (ratio - 1.0);
-                sib.posX = Math.round(sib.posX + dx);
-                sib.posY = Math.round(sib.posY + dy);
-                if (typeof window.ThreeDEngine.updatePlaneTransform === 'function') {
-                    window.ThreeDEngine.updatePlaneTransform(sib);
-                }
-            });
+                    // 3. Normal grup kardeşleri (yüzeye bağlı olmayan):
+                    sib.planeScale = Math.max(0.15, Math.min(5.0, parseFloat(((sib.planeScale || 1.0) * ratio).toFixed(3))));
+                    const dx = (sib.posX - primaryEl.posX) * (ratio - 1.0);
+                    const dy = (sib.posY - primaryEl.posY) * (ratio - 1.0);
+                    sib.posX = Math.round(sib.posX + dx);
+                    sib.posY = Math.round(sib.posY + dy);
+                    if (typeof window.ThreeDEngine.updatePlaneTransform === 'function') {
+                        window.ThreeDEngine.updatePlaneTransform(sib);
+                    }
+                });
 
-            this.updateSelectionVisuals();
+                this.updateSelectionVisuals();
+            }
 
             if (typeof window.ThreeDEngine.requestRender === 'function') {
                 window.ThreeDEngine.requestRender();
@@ -944,6 +975,19 @@
                     <button class="acm-grid-btn" id="acm3d-align-bottom" title="Alta Hizala"><span>Alta</span></button>
                 </div>
 
+                <div class="acm-section-label">🎯 SAYFADA 9 YÖN KONUMLANDIRMA</div>
+                <div class="acm-grid-btns">
+                    <button class="acm-grid-btn" id="acm3d-multi-pos-top-left" title="Sol Üst"><span>↖ Sol Üst</span></button>
+                    <button class="acm-grid-btn" id="acm3d-multi-pos-top-center" title="Üst Orta"><span>⬆ Üst Orta</span></button>
+                    <button class="acm-grid-btn" id="acm3d-multi-pos-top-right" title="Sağ Üst"><span>↗ Sağ Üst</span></button>
+                    <button class="acm-grid-btn" id="acm3d-multi-pos-middle-left" title="Orta Sol"><span>⬅ Orta Sol</span></button>
+                    <button class="acm-grid-btn" id="acm3d-multi-pos-center" title="Sayfa Merkezi" style="background:rgba(56,189,248,0.2); border-color:#38bdf8; color:#fff; font-weight:bold;"><span>🎯 Merkez</span></button>
+                    <button class="acm-grid-btn" id="acm3d-multi-pos-middle-right" title="Orta Sağ"><span>➡ Orta Sağ</span></button>
+                    <button class="acm-grid-btn" id="acm3d-multi-pos-bottom-left" title="Sol Alt"><span>↙ Sol Alt</span></button>
+                    <button class="acm-grid-btn" id="acm3d-multi-pos-bottom-center" title="Alt Orta"><span>⬇ Alt Orta</span></button>
+                    <button class="acm-grid-btn" id="acm3d-multi-pos-bottom-right" title="Sağ Alt"><span>↘ Sağ Alt</span></button>
+                </div>
+
                 <div class="acm-section-label">📏 ARALIKLARI EŞİTLE</div>
                 <button class="app-context-item" id="acm3d-distribute-h">
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2"><line x1="4" y1="3" x2="4" y2="21"/><line x1="20" y1="3" x2="20" y2="21"/><rect x="9" y="7" width="6" height="10" rx="1"/></svg>
@@ -954,7 +998,11 @@
                     <span>Dikey Aralıkları Eşitle</span>
                 </button>
 
-                <div class="acm-section-label">📐 AÇI VE BOYUT EŞİTLE</div>
+                <div class="acm-section-label">📐 AÇI VE BOYUT</div>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:4px; margin-bottom:4px;">
+                    <button class="acm-grid-btn" id="acm3d-multi-scale-up" title="Tüm Seçili Ögeleri Büyüt"><span style="font-size:11px;">Büyüt</span></button>
+                    <button class="acm-grid-btn" id="acm3d-multi-scale-down" title="Tüm Seçili Ögeleri Küçült"><span style="font-size:11px;">Küçült</span></button>
+                </div>
                 <button class="app-context-item" id="acm3d-match-angles">
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
                     <span>Açıları Eşitle</span>
@@ -1190,7 +1238,20 @@
                 });
             }
 
-            // 6. Açı ve Boyut Eşitle
+            // 6. Açı ve Boyut
+            const multiScaleUp = menu.querySelector('#acm3d-multi-scale-up');
+            if (multiScaleUp) {
+                multiScaleUp.addEventListener('click', () => {
+                    if (typeof window.multiSelectScale === 'function') window.multiSelectScale(1.15);
+                });
+            }
+            const multiScaleDown = menu.querySelector('#acm3d-multi-scale-down');
+            if (multiScaleDown) {
+                multiScaleDown.addEventListener('click', () => {
+                    if (typeof window.multiSelectScale === 'function') window.multiSelectScale(0.85);
+                });
+            }
+
             const matchAng = menu.querySelector('#acm3d-match-angles');
             if (matchAng) {
                 matchAng.addEventListener('click', () => {
@@ -1212,12 +1273,31 @@
                 });
             }
 
+            // 6.5. Sayfada 9 Yön Konumlandırma
+            const posKeys = [
+                'top-left', 'top-center', 'top-right',
+                'middle-left', 'center', 'middle-right',
+                'bottom-left', 'bottom-center', 'bottom-right'
+            ];
+            posKeys.forEach(pk => {
+                const btn = menu.querySelector('#acm3d-multi-pos-' + pk);
+                if (btn) {
+                    btn.addEventListener('click', () => {
+                        if (window.ThreeDAlign && typeof window.ThreeDAlign.positionElementsOnPage === 'function') {
+                            window.ThreeDAlign.positionElementsOnPage(selected3DElements, pk);
+                            this.updateSelectionVisuals();
+                        }
+                        closeMenu();
+                    });
+                }
+            });
+
             // 7. Sayfada Ortala & Zemine Oturt
             const centerBtn = menu.querySelector('#acm3d-multi-center');
             if (centerBtn) {
                 centerBtn.addEventListener('click', () => {
                     if (window.ThreeDAlign) {
-                        window.ThreeDAlign.centerInPage(selected3DElements);
+                        window.ThreeDAlign.centerInPage(selected3DElements, 'both');
                         this.updateSelectionVisuals();
                     }
                     closeMenu();

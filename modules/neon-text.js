@@ -311,6 +311,7 @@
      */
     function isCalloutOrBadgeElement(el) {
         if (!el || !(el instanceof Element)) return false;
+        if (el.closest('.custom-graphic-badge') || (el.classList && el.classList.contains('custom-graphic-badge'))) return false;
         if (el.closest('.callout-wrap, .svg-callout, .callout-wrapper, .parcel-badge-callout, .co-neon-block, .callout-item')) return true;
         if (el.classList && (
             el.classList.contains('callout-wrap') || 

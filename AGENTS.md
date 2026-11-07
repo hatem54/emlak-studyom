@@ -75,7 +75,10 @@ Bu dosya, Antigravity ve yapay zeka ajanlarının her işlemde istisnasız uymas
   - **Yükseklik & İç Boşluk:** `height: 24px - 25px; padding: 2.5px 6px;`
 - **Yan Panel Butonları (`.btn-action`):**
   - **Font Ailesi:** `'ClassicAmpersand', 'Space Grotesk', sans-serif`
-  - **Font Boyutu:** `11.5px` | **Kalınlık:** `700` | **Renk:** `#1e293b` (Slate 800)
+  - **Font Boyutu:** `11.5px` | **Kalınlık:** `700`
+  - **Açık Tema:** Zemin `linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)`, Kenarlık `1px solid #cbd5e1`, Yazı `#1e293b`, İkon `#475569`
+  - **Koyu Tema:** Zemin `linear-gradient(180deg, rgba(30, 41, 59, 0.85) 0%, rgba(15, 23, 42, 0.85) 100%)`, Kenarlık `1px solid rgba(255, 255, 255, 0.12)`, Yazı `#f1f5f9`, İkon `#38bdf8`, Hover Kenarlık `#a855f7`
+  - **Koyu Temada Çiğ Beyaz Buton Yasağı:** Hiçbir buton veya kontrol koyu temada varsayılan tarayıcı `buttonface` (beyaz kutu) zemininde bırakılamaz. Eylem butonları standart canlı gradyan sınıfları (`.btn-blue`, `.btn-purple`, `.btn-green`, `.btn-red`, `.btn-yellow`) ile eşleştirilir.
 
 ### 2.10. Slider Altı Kolay Erişim / Hızlı Değer / Yüzde Butonları Yasağı (Kesin Kural)
 - **Slider Altında Ön Ayar (Preset) Butonu Kullanımı Yasaktır:**

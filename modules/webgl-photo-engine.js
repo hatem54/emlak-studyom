@@ -172,6 +172,12 @@
                 uniform float u_hsl_sat[8];
                 uniform float u_hsl_lum[8];
                 
+                // Damlalıkla Seçilen Özel Renk Düzenlemesi (Targeted Selective Color)
+                uniform int u_target_color_active;
+                uniform vec3 u_target_color_hsl;
+                uniform float u_target_color_range;
+                uniform vec3 u_target_color_shift;
+                
                 // Yerel Maskeleme (Lightroom Tarzı Çoklu Katman & AI Desteği)
                 #define MAX_RADIAL 4
                 uniform int u_radial_count;
@@ -578,6 +584,30 @@
                         hsl.x = fract(hsl.x + shiftH * 0.15);
                         hsl.y = clamp(hsl.y + shiftS * 0.5, 0.0, 1.0);
                         hsl.z = clamp(hsl.z + shiftL * 0.4, 0.0, 1.0);
+                    }
+                    
+                    // ====================================================
+                    // 5.1 DAMLALIKLA SEÇİLEN ÖZEL RENK DÜZENLEMESİ (TARGETED COLOR)
+                    // ====================================================
+                    if (u_target_color_active == 1) {
+                        float distH = abs(hsl.x - u_target_color_hsl.x);
+                        if (distH > 0.5) distH = 1.0 - distH;
+                        
+                        float tol = max(0.015, u_target_color_range * 0.45);
+                        float wHue = 1.0 - smoothstep(tol * 0.35, tol, distH);
+                        
+                        float distS = abs(hsl.y - u_target_color_hsl.y);
+                        float wSat = 1.0 - smoothstep(0.12, 0.50, distS);
+                        
+                        float distL = abs(hsl.z - u_target_color_hsl.z);
+                        float wLum = 1.0 - smoothstep(0.15, 0.55, distL);
+                        
+                        float wTarget = wHue * wSat * wLum;
+                        if (wTarget > 0.001) {
+                            hsl.x = fract(hsl.x + u_target_color_shift.x * 0.25 * wTarget + 1.0);
+                            hsl.y = clamp(hsl.y + u_target_color_shift.y * 0.60 * wTarget, 0.0, 1.0);
+                            hsl.z = clamp(hsl.z + u_target_color_shift.z * 0.50 * wTarget, 0.0, 1.0);
+                        }
                     }
                     
                     // Akıllı Canlılık (Vibrance - Profesyonel Lightroom Standardı)
@@ -1032,6 +1062,14 @@
             gl.uniform1fv(gl.getUniformLocation(this.program, 'u_hsl_hue'), hslH);
             gl.uniform1fv(gl.getUniformLocation(this.program, 'u_hsl_sat'), hslS);
             gl.uniform1fv(gl.getUniformLocation(this.program, 'u_hsl_lum'), hslL);
+
+            // 5.1 Damlalıkla Seçilen Özel Hedef Renk (Targeted Color)
+            const tc = options.targetColor || {};
+            const tcActive = (tc.active && (Math.abs(tc.shiftH) > 0.001 || Math.abs(tc.shiftS) > 0.001 || Math.abs(tc.shiftL) > 0.001)) ? 1 : 0;
+            gl.uniform1i(gl.getUniformLocation(this.program, 'u_target_color_active'), tcActive);
+            gl.uniform3f(gl.getUniformLocation(this.program, 'u_target_color_hsl'), tc.h || 0.0, tc.s || 0.0, tc.l || 0.0);
+            gl.uniform1f(gl.getUniformLocation(this.program, 'u_target_color_range'), tc.range !== undefined ? tc.range : 0.20);
+            gl.uniform3f(gl.getUniformLocation(this.program, 'u_target_color_shift'), tc.shiftH || 0.0, tc.shiftS || 0.0, tc.shiftL || 0.0);
 
             // 6. Radyal Maskeler (Çoklu Katman Desteği)
             const radialList = (options.radialMasks && options.radialMasks.length > 0)

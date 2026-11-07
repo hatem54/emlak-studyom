@@ -118,7 +118,20 @@ function switchTab(name){
                 if (typeof window.loadIconSettings === 'function') window.loadIconSettings(curEl);
             }
         } else if (name === 'callout') {
-            const curEl = (typeof selectedCalloutEl !== 'undefined' ? selectedCalloutEl : null) || (typeof selectedEl !== 'undefined' ? selectedEl : null) || document.querySelector('.callout-wrap.el-selected, .callout-item.el-selected, .svg-callout.el-selected, .co-neon-block.el-selected');
+            const curEl = (typeof selectedCalloutEl !== 'undefined' ? selectedCalloutEl : null) || (typeof selectedEl !== 'undefined' ? selectedEl : null) || document.querySelector('.custom-graphic-badge.el-selected, .callout-wrap.el-selected, .callout-item.el-selected, .svg-callout.el-selected, .co-neon-block.el-selected');
+            const isCustomBadge = curEl && (
+                (curEl.classList && curEl.classList.contains('custom-graphic-badge')) ||
+                (curEl.closest && curEl.closest('custom-graphic-badge'))
+            );
+            if (isCustomBadge) {
+                const bWrap = curEl.classList.contains('custom-graphic-badge') ? curEl : curEl.closest('.custom-graphic-badge');
+                if (window.CustomBadges && typeof window.CustomBadges.selectBadge === 'function') {
+                    window.CustomBadges.selectBadge(bWrap);
+                }
+                const p = document.getElementById('calloutSettingsPanel');
+                if (p) { p.style.display = 'none'; p.open = false; }
+                return;
+            }
             const isCallout = curEl && (
                 (typeof isCalloutOrBadgeElement === 'function' && isCalloutOrBadgeElement(curEl)) ||
                 (typeof window.isCalloutOrBadgeElement === 'function' && window.isCalloutOrBadgeElement(curEl)) ||
@@ -138,6 +151,12 @@ function switchTab(name){
         }
     }
     
+    if (name === 'batch') {
+        if (window.CarouselManager && typeof window.CarouselManager.syncFromStaging === 'function') {
+            window.CarouselManager.syncFromStaging(true);
+        }
+    }
+
     document.querySelectorAll('.photo-tab-only').forEach(el => {
         el.style.display = (name === 'photo') ? '' : 'none';
     });
@@ -772,11 +791,11 @@ function isMobileAppView() {
 function initAppTheme() {
     try {
         if (isMobileAppView()) {
-            document.documentElement.removeAttribute('data-theme');
-            if (document.body) document.body.removeAttribute('data-theme');
+            document.documentElement.setAttribute('data-theme', 'dark');
+            if (document.body) document.body.setAttribute('data-theme', 'dark');
             return;
         }
-        const savedTheme = localStorage.getItem('emlak_app_theme') || 'light';
+        const savedTheme = localStorage.getItem('emlakstudiom_theme') || localStorage.getItem('emlak_app_theme') || 'light';
         applyAppTheme(savedTheme, false);
     } catch(e) {
         console.error("initAppTheme error:", e);
@@ -785,8 +804,8 @@ function initAppTheme() {
 
 function applyAppTheme(theme, save) {
     if (isMobileAppView()) {
-        document.documentElement.removeAttribute('data-theme');
-        if (document.body) document.body.removeAttribute('data-theme');
+        document.documentElement.setAttribute('data-theme', 'dark');
+        if (document.body) document.body.setAttribute('data-theme', 'dark');
         return;
     }
     if (typeof save === 'undefined') save = true;
@@ -795,13 +814,15 @@ function applyAppTheme(theme, save) {
         document.documentElement.setAttribute('data-theme', 'light');
         if (document.body) document.body.setAttribute('data-theme', 'light');
     } else {
-        document.documentElement.removeAttribute('data-theme');
-        if (document.body) document.body.removeAttribute('data-theme');
+        document.documentElement.setAttribute('data-theme', 'dark');
+        if (document.body) document.body.setAttribute('data-theme', 'dark');
     }
     
     if (save) {
         try {
-            localStorage.setItem('emlak_app_theme', isLight ? 'light' : 'dark');
+            const val = isLight ? 'light' : 'dark';
+            localStorage.setItem('emlakstudiom_theme', val);
+            localStorage.setItem('emlak_app_theme', val);
         } catch(e) {}
     }
     
@@ -831,3 +852,12 @@ function toggleAppTheme() {
 window.initAppTheme = initAppTheme;
 window.applyAppTheme = applyAppTheme;
 window.toggleAppTheme = toggleAppTheme;
+
+// Sekmeler arası canlı tema senkronizasyonu (Landing & App)
+window.addEventListener('storage', function(e) {
+    if (e.key === 'emlakstudiom_theme' || e.key === 'emlak_app_theme') {
+        if (typeof applyAppTheme === 'function') {
+            applyAppTheme(e.newValue || 'light', false);
+        }
+    }
+});

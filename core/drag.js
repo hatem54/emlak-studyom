@@ -155,6 +155,9 @@ function bindDrag(el){
         if (e.touches && typeof longPressTimer !== 'undefined') { /* mobile long press logic handled separately */ }
           
           if(el.dataset.locked === 'true') {
+                if (el.classList.contains('editable-draw')) {
+                    return; // Kilitli çizim arkadaki ögelerin tıklanmasını veya sürüklenmesini engellemesin
+                }
                 if (typeof selectElement === 'function') selectElement(el, multiSelectKey, true);
                 e.preventDefault();
                 return;
@@ -179,7 +182,13 @@ function bindDrag(el){
 
         if (!isAlreadySelected) {
             wasSelected = false;
-            if (typeof selectElement === 'function') selectElement(el, multiSelectKey, true);
+            if (typeof selectElement === 'function') {
+                try {
+                    selectElement(el, multiSelectKey, true);
+                } catch (selErr) {
+                    console.warn('[Drag] selectElement hatası:', selErr);
+                }
+            }
         }
           
         e.preventDefault();
@@ -284,11 +293,17 @@ function bindDrag(el){
                     ? drawPaths.find(p => p.el === tEl || (p.id && p.id === tEl.dataset.pathId) || (tEl.dataset.pathIndex !== undefined && drawPaths[parseInt(tEl.dataset.pathIndex)] === p))
                     : null;
                 tEl._dragPObj = pObj;
-                if (pObj && pObj.hasSaber && pObj.saberRef) {
-                    hasSaberInDrag = true;
-                    tEl._dragStartSaberX = (pObj.saberRef.dx !== undefined) ? pObj.saberRef.dx : ((pObj.saberRef.graphics && pObj.saberRef.graphics.x !== undefined) ? pObj.saberRef.graphics.x : 0);
-                    tEl._dragStartSaberY = (pObj.saberRef.dy !== undefined) ? pObj.saberRef.dy : ((pObj.saberRef.graphics && pObj.saberRef.graphics.y !== undefined) ? pObj.saberRef.graphics.y : 0);
-                    tEl._dragStartSaberScale = (pObj.saberRef.scale !== undefined) ? pObj.saberRef.scale : ((pObj.saberRef.graphics && pObj.saberRef.graphics.scale) ? pObj.saberRef.graphics.scale.x : 1);
+                if (pObj && pObj.hasSaber) {
+                    if (!pObj.saberRef && typeof window.applySaberToPath === 'function') {
+                        const pIdx = (typeof drawPaths !== 'undefined') ? drawPaths.indexOf(pObj) : -1;
+                        if (pIdx >= 0) pObj.saberRef = window.applySaberToPath(pIdx, pObj.saberOptions || window.saberState);
+                    }
+                    if (pObj.saberRef) {
+                        hasSaberInDrag = true;
+                        tEl._dragStartSaberX = (pObj.saberRef.dx !== undefined) ? pObj.saberRef.dx : ((pObj.saberRef.graphics && pObj.saberRef.graphics.x !== undefined) ? pObj.saberRef.graphics.x : 0);
+                        tEl._dragStartSaberY = (pObj.saberRef.dy !== undefined) ? pObj.saberRef.dy : ((pObj.saberRef.graphics && pObj.saberRef.graphics.y !== undefined) ? pObj.saberRef.graphics.y : 0);
+                        tEl._dragStartSaberScale = (pObj.saberRef.scale !== undefined) ? pObj.saberRef.scale : ((pObj.saberRef.graphics && pObj.saberRef.graphics.scale) ? pObj.saberRef.graphics.scale.x : 1);
+                    }
                 }
             }
         });
@@ -363,6 +378,19 @@ function bindDrag(el){
                     if (rd) { rd.value = newRadius; document.getElementById('coRadiusVal').textContent = newRadius + 'px'; }
                     const pd = document.getElementById('coPadding');
                     if (pd) { pd.value = newPadding; document.getElementById('coPaddingVal').textContent = newPadding + 'px'; }
+                }
+            } else if (el.classList.contains('custom-graphic-badge')) {
+                let aspect = parseFloat(el.dataset.aspectRatio);
+                if (!aspect || isNaN(aspect) || aspect <= 0) {
+                    aspect = (iw > 0 && ih > 0) ? (iw / ih) : 1.0;
+                }
+                const ratio = (iw > 0) ? (newW / iw) : 1;
+                const calcW = Math.max(20, Math.min(1920, Math.round(iw * ratio)));
+                const calcH = Math.max(10, Math.round(calcW / aspect));
+                el.style.width = calcW + 'px';
+                el.style.height = calcH + 'px';
+                if (window.CustomBadges && typeof window.CustomBadges._setSliderVal === 'function') {
+                    window.CustomBadges._setSliderVal('cbgSizeSlider', 'cbgSizeVal', calcW, 'px');
                 }
             } else {
                 if (el.id === 'elLogo' || el.classList.contains('sh-logo') || el.querySelector('img') || el.tagName === 'IMG') {
@@ -451,6 +479,7 @@ function bindDrag(el){
                     }
                 }
             }
+
             if (window.SaberEngine && typeof window.SaberEngine.updateTextSaberPositions === 'function') {
                 window.SaberEngine.updateTextSaberPositions();
             }
@@ -485,11 +514,11 @@ function bindDrag(el){
                         window.Template3DFrame.updateGizmoPosition(el);
                     }
                 }
-            } else {
-                const rot = el.dataset.rotation || 0;
-                const scale = el.dataset.scale || 1;
-                el.style.transform = `rotate(${rot}deg) scale(${scale})`;
             }
+
+            const rot = el.dataset.rotation || 0;
+            const scale = el.dataset.scale || 1;
+            el.style.transform = `rotate(${rot}deg) scale(${scale})`;
             
             const selectedOtherTargets = (window.selectedElements && window.selectedElements.length > 1 && window.selectedElements.includes(el))
                 ? window.selectedElements
@@ -509,6 +538,14 @@ function bindDrag(el){
                         if (selEl.classList.contains('editable-draw')) {
                             selEl.dataset.baseLeft = s_newL;
                             selEl.dataset.baseTop = s_newT;
+                        }
+                        if (selEl.classList.contains('tb-image-frame')) {
+                            if (window.Template3DFrame && typeof window.Template3DFrame.applyTransform === 'function') {
+                                window.Template3DFrame.applyTransform(selEl);
+                                if (typeof window.Template3DFrame.updateGizmoPosition === 'function') {
+                                    window.Template3DFrame.updateGizmoPosition(selEl);
+                                }
+                            }
                         }
                     }
                 });
@@ -561,40 +598,50 @@ function bindDrag(el){
                 const dragTargets = selectedOtherTargets || [el];
                 
                 dragTargets.forEach(tEl => {
-                    if (tEl.classList.contains('editable-draw') && tEl._dragStartSaberScale !== undefined) {
+                    if (tEl.classList.contains('editable-draw')) {
                         const pObj = tEl._dragPObj || ((typeof drawPaths !== 'undefined')
                             ? drawPaths.find(p => p.el === tEl || (p.id && p.id === tEl.dataset.pathId) || (tEl.dataset.pathIndex !== undefined && drawPaths[parseInt(tEl.dataset.pathIndex)] === p))
                             : null);
                         
-                        if (pObj && pObj.hasSaber && pObj.saberRef) {
-                            const startX = (tEl.dataset.dragStartX !== undefined && !isNaN(parseFloat(tEl.dataset.dragStartX)))
-                                ? parseFloat(tEl.dataset.dragStartX)
-                                : (tEl === el ? il : (parseFloat(tEl.dataset.baseLeft) || 0));
-                            const startY = (tEl.dataset.dragStartY !== undefined && !isNaN(parseFloat(tEl.dataset.dragStartY)))
-                                ? parseFloat(tEl.dataset.dragStartY)
-                                : (tEl === el ? it : (parseFloat(tEl.dataset.baseTop) || 0));
-                            
-                            const curL = (tEl === el ? newL : (parseFloat(tEl.dataset.dragStartX || 0) + deltaX));
-                            const curT = (tEl === el ? newT : (parseFloat(tEl.dataset.dragStartY || 0) + deltaY));
-                            const dX = curL - startX;
-                            const dY = curT - startY;
+                        if (pObj && pObj.hasSaber) {
+                            if (!pObj.saberRef && typeof window.applySaberToPath === 'function') {
+                                const pIdx = (typeof drawPaths !== 'undefined') ? drawPaths.indexOf(pObj) : -1;
+                                if (pIdx >= 0) pObj.saberRef = window.applySaberToPath(pIdx, pObj.saberOptions || window.saberState);
+                            }
+                            if (pObj.saberRef) {
+                                const startX = (tEl.dataset.dragStartX !== undefined && !isNaN(parseFloat(tEl.dataset.dragStartX)))
+                                    ? parseFloat(tEl.dataset.dragStartX)
+                                    : (tEl === el ? il : (parseFloat(tEl.dataset.baseLeft) || 0));
+                                const startY = (tEl.dataset.dragStartY !== undefined && !isNaN(parseFloat(tEl.dataset.dragStartY)))
+                                    ? parseFloat(tEl.dataset.dragStartY)
+                                    : (tEl === el ? it : (parseFloat(tEl.dataset.baseTop) || 0));
+                                
+                                const curL = (tEl === el ? newL : (parseFloat(tEl.dataset.dragStartX || 0) + deltaX));
+                                const curT = (tEl === el ? newT : (parseFloat(tEl.dataset.dragStartY || 0) + deltaY));
+                                const dX = curL - startX;
+                                const dY = curT - startY;
 
-                            const rot = (pObj.rotation !== undefined) ? pObj.rotation : (parseFloat(tEl.dataset.rotation) || 0);
-                            const baseW = parseFloat(tEl.dataset.baseWidth) || tEl.offsetWidth || 0;
-                            const baseH = parseFloat(tEl.dataset.baseHeight) || tEl.offsetHeight || 0;
-                            const origCx = startX + baseW / 2;
-                            const origCy = startY + baseH / 2;
+                                const rot = (pObj.rotation !== undefined) ? pObj.rotation : (parseFloat(tEl.dataset.rotation) || 0);
+                                const baseW = parseFloat(tEl.dataset.baseWidth) || tEl.offsetWidth || 0;
+                                const baseH = parseFloat(tEl.dataset.baseHeight) || tEl.offsetHeight || 0;
+                                const origCx = startX + baseW / 2;
+                                const origCy = startY + baseH / 2;
 
-                            window.SaberEngine.setSaberTransform(
-                                pObj.saberRef,
-                                tEl._dragStartSaberScale,
-                                tEl._dragStartSaberX + dX,
-                                tEl._dragStartSaberY + dY,
-                                false,
-                                rot,
-                                origCx,
-                                origCy
-                            );
+                                const startSaberScale = (tEl._dragStartSaberScale !== undefined) ? tEl._dragStartSaberScale : (pObj.saberRef.scale || 1);
+                                const startSaberX = (tEl._dragStartSaberX !== undefined) ? tEl._dragStartSaberX : ((pObj.saberRef.dx !== undefined) ? pObj.saberRef.dx : 0);
+                                const startSaberY = (tEl._dragStartSaberY !== undefined) ? tEl._dragStartSaberY : ((pObj.saberRef.dy !== undefined) ? pObj.saberRef.dy : 0);
+
+                                window.SaberEngine.setSaberTransform(
+                                    pObj.saberRef,
+                                    startSaberScale,
+                                    startSaberX + dX,
+                                    startSaberY + dY,
+                                    false,
+                                    rot,
+                                    origCx,
+                                    origCy
+                                );
+                            }
                         }
                     }
                 });
@@ -659,6 +706,14 @@ function bindDrag(el){
                                 selEl.dataset.baseLeft = s_newL;
                                 selEl.dataset.baseTop = s_newT;
                             }
+                            if (selEl.classList.contains('tb-image-frame')) {
+                                if (window.Template3DFrame && typeof window.Template3DFrame.applyTransform === 'function') {
+                                    window.Template3DFrame.applyTransform(selEl);
+                                    if (typeof window.Template3DFrame.updateGizmoPosition === 'function') {
+                                        window.Template3DFrame.updateGizmoPosition(selEl);
+                                    }
+                                }
+                            }
                         }
                     });
                 }
@@ -672,9 +727,38 @@ function bindDrag(el){
             window.SaberEngine.updateTextSaberPositions();
         }
         const clickDuration=Date.now()-downTime;
-        if(!moved && drawMode==='off' && typeof selectElement === 'function') {
-            if (!multiSelectKey && (!window.selectedElements || window.selectedElements.length <= 1)) {
-                selectElement(el, false, true);
+        if(!moved && (typeof drawMode === 'undefined' || drawMode==='off' || drawMode === null)) {
+            try {
+                if (multiSelectKey && wasSelected) {
+                    // Shift/Ctrl+Click ile zaten seçili ögeye tıklandı -> seçimden çıkar (toggle)
+                    if (window.selectedElements && window.selectedElements.includes(el)) {
+                        const idx = window.selectedElements.indexOf(el);
+                        if (idx > -1) window.selectedElements.splice(idx, 1);
+                        el.classList.remove('el-selected');
+                        if (el.classList.contains('editable-draw')) {
+                            el.style.outline = 'none';
+                            el.style.outlineOffset = '0px';
+                        }
+                        if (window.selectedElements.length === 0) {
+                            if (typeof deselectAll === 'function') deselectAll();
+                        } else {
+                            window.selectedEl = window.selectedElements[window.selectedElements.length - 1];
+                            if (typeof updateGroupUI === 'function') updateGroupUI();
+                            if (typeof window.updateMultiSelectUI === 'function') window.updateMultiSelectUI();
+                        }
+                    }
+                } else if (!multiSelectKey && window.selectedElements && window.selectedElements.length > 1) {
+                    // Çoklu seçim varken tek bir ögeye düz tıklandı -> yalnızca o ögeyi seç
+                    if (typeof selectElement === 'function') {
+                        selectElement(el, false, true);
+                    }
+                } else if (!multiSelectKey && (!window.selectedElements || window.selectedElements.length <= 1)) {
+                    if (typeof selectElement === 'function') {
+                        selectElement(el, false, true);
+                    }
+                }
+            } catch (upSelErr) {
+                console.warn('[Drag] up selection hatası:', upSelErr);
             }
         }
             
@@ -724,6 +808,14 @@ function bindDrag(el){
                                 pathObj.points.forEach(pt => {
                                     pt.x = (pt.x * tScale + tDx) + screenDeltaL;
                                     pt.y = (pt.y * tScale + tDy) + screenDeltaT;
+                                    if (pt.cpIn) {
+                                        pt.cpIn.x = (pt.cpIn.x * tScale + tDx) + screenDeltaL;
+                                        pt.cpIn.y = (pt.cpIn.y * tScale + tDy) + screenDeltaT;
+                                    }
+                                    if (pt.cpOut) {
+                                        pt.cpOut.x = (pt.cpOut.x * tScale + tDx) + screenDeltaL;
+                                        pt.cpOut.y = (pt.cpOut.y * tScale + tDy) + screenDeltaT;
+                                    }
                                 });
                             }
                             if (typeof pathObj.x1 !== 'undefined') {
@@ -753,7 +845,13 @@ function bindDrag(el){
                                     originalDrawState = backup;
                                 }
                                 originalDrawState.hasSaber = pathObj.hasSaber;
-                                if (pathObj.saberOptions) originalDrawState.saberOptions = JSON.parse(JSON.stringify(pathObj.saberOptions));
+                                if (pathObj.saberOptions) {
+                                    try {
+                                        originalDrawState.saberOptions = JSON.parse(JSON.stringify(pathObj.saberOptions, (k, v) => (k === 'el' || k === 'saberRef' || k === 'graphics' || k === 'parent') ? undefined : v));
+                                    } catch(e) {
+                                        originalDrawState.saberOptions = Object.assign({}, pathObj.saberOptions);
+                                    }
+                                }
                                 originalDrawState.el = pathObj.el;
                                 originalDrawState.saberRef = pathObj.saberRef;
                             }
@@ -829,6 +927,14 @@ function bindDrag(el){
                 }
             }
 
+            if (moved && el && el.classList && el.classList.contains('custom-graphic-badge')) {
+                let aspect = parseFloat(el.dataset.aspectRatio) || 1.0;
+                const curW = parseInt(el.style.width) || el.offsetWidth || 180;
+                const curH = Math.max(10, Math.round(curW / aspect));
+                el.style.width = curW + 'px';
+                el.style.height = curH + 'px';
+            }
+
             // 🌟 3D Ögelerin sürükleme geçici değerlerini temizle ve senkronize et
             let sel3DUp = (cached3DTargets && cached3DTargets.length > 0) ? cached3DTargets : [];
             if (sel3DUp.length === 0 && window.ThreeDGrouping && typeof window.ThreeDGrouping.getSelected3DElements === 'function') {
@@ -884,19 +990,42 @@ function selectElement(el, isMulti = false, noTabSwitch = false, openSettings = 
     }
     /* dedicated handling for template image frames */
     if (el && el.classList && el.classList.contains('tb-image-frame')) {
-        deselectAll(el);
-        window.selectedElements = [el];
-        selectedEl = el;
-        window.selectedEl = el;
-        el.classList.add('selected', 'el-selected');
-        if (!noTabSwitch && (openSettings === true || window.isLongPressOpen) && typeof switchTab === 'function') switchTab('create-template');
-        if (window.TemplateBuilder && typeof window.TemplateBuilder.selectFrame === 'function') {
-            window.TemplateBuilder.selectFrame(el);
+        if (!isMulti) {
+            deselectAll(el);
+            window.selectedElements = [el];
+            selectedEl = el;
+            window.selectedEl = el;
+            el.classList.add('selected', 'el-selected');
+            if (!noTabSwitch && (openSettings === true || window.isLongPressOpen) && typeof switchTab === 'function') switchTab('create-template');
+            if (window.TemplateBuilder && typeof window.TemplateBuilder.selectFrame === 'function') {
+                window.TemplateBuilder.selectFrame(el);
+            }
+            if (document.getElementById('noSelMsg')) document.getElementById('noSelMsg').style.display = 'none';
+            if (document.getElementById('elSettings')) document.getElementById('elSettings').style.display = 'none';
+            if (typeof window.updateDockContextUI === 'function') window.updateDockContextUI(el);
+            if (typeof window.updateMultiSelectUI === 'function') window.updateMultiSelectUI();
+            return;
+        } else {
+            const isAlready = window.selectedElements.includes(el);
+            if (isAlready) {
+                const idx = window.selectedElements.indexOf(el);
+                if (idx > -1) window.selectedElements.splice(idx, 1);
+                el.classList.remove('selected', 'el-selected');
+            } else {
+                window.selectedElements.push(el);
+                el.classList.add('selected', 'el-selected');
+            }
+            selectedEl = window.selectedElements.length > 0 ? window.selectedElements[window.selectedElements.length - 1] : null;
+            window.selectedEl = selectedEl;
+            if (window.selectedElements.length === 0) {
+                deselectAll();
+            } else {
+                if (typeof updateGroupUI === 'function') updateGroupUI();
+                if (typeof window.updateMultiSelectUI === 'function') window.updateMultiSelectUI();
+                if (typeof window.updateDockContextUI === 'function') window.updateDockContextUI(selectedEl);
+            }
+            return;
         }
-        if (document.getElementById('noSelMsg')) document.getElementById('noSelMsg').style.display = 'none';
-        if (document.getElementById('elSettings')) document.getElementById('elSettings').style.display = 'none';
-        if (typeof window.updateDockContextUI === 'function') window.updateDockContextUI(el);
-        return;
     }
 
     
@@ -956,13 +1085,20 @@ function selectElement(el, isMulti = false, noTabSwitch = false, openSettings = 
                 const brd = selEl.querySelector('.callout-select-border');
                 const hw = selEl.querySelector('.callout-handle-width');
                 const hl = selEl.querySelector('.callout-handle-length');
+                const isSingleCallout = (window.selectedElements && window.selectedElements.length === 1);
                 if(ctl) ctl.style.display = 'none';
-                if(res && !selEl.classList.contains('shape-el')) res.style.display = 'flex';
-                if(rot && !selEl.classList.contains('shape-el')) rot.style.display = 'flex';
+                if(res && !selEl.classList.contains('shape-el')) res.style.display = isSingleCallout ? 'flex' : 'none';
+                if(rot && !selEl.classList.contains('shape-el')) rot.style.display = isSingleCallout ? 'flex' : 'none';
                 if(lk) lk.style.display = 'none';
                 if(brd) brd.style.display = 'block';
-                if(hw && !selEl.classList.contains('shape-el')) hw.style.display = 'flex';
-                if(hl && !selEl.classList.contains('shape-el')) hl.style.display = 'flex';
+                if(hw && !selEl.classList.contains('shape-el')) hw.style.display = isSingleCallout ? 'flex' : 'none';
+                if(hl && !selEl.classList.contains('shape-el')) hl.style.display = isSingleCallout ? 'flex' : 'none';
+            }
+            if (selEl.classList.contains('editable-draw') && selEl.dataset.locked !== 'true') {
+                const isNeon = selEl.classList.contains('neon-active') || selEl.dataset.saberActive === 'true';
+                selEl.style.outline = isNeon ? '2px dashed #38bdf8' : '2px dashed #0284c7';
+                selEl.style.outlineOffset = isNeon ? '6px' : '4px';
+                selEl.style.borderRadius = '4px';
             }
         });
     }
@@ -980,7 +1116,12 @@ function selectElement(el, isMulti = false, noTabSwitch = false, openSettings = 
     }
 
     
-    if((el.classList.contains('editable-draw') || el.closest('.editable-draw')) && !el.classList.contains('custom-text-el') && !el.classList.contains('custom-text-box')) {
+    const isDrawEl = el && el.classList && (
+        el.classList.contains('editable-draw') ||
+        (el.closest && el.closest('.editable-draw'))
+    );
+
+    if(isDrawEl && !el.classList.contains('custom-text-el') && !el.classList.contains('custom-text-box')) {
         const drawEl = el.classList.contains('editable-draw') ? el : el.closest('.editable-draw');
         el = drawEl;
         const isMobile = typeof window.isMobileDevice === 'function' ? window.isMobileDevice() : window.innerWidth <= 768;
@@ -988,35 +1129,60 @@ function selectElement(el, isMulti = false, noTabSwitch = false, openSettings = 
         if (!noTabSwitch && (openSettings === true || window.isLongPressOpen)) {
             if(typeof switchTab === 'function') switchTab('draw');
         }
-        if(!isMulti && typeof loadDrawSettings === 'function') loadDrawSettings(el);
-        if(!isMulti && (!window.selectedElements || window.selectedElements.length <= 1)) {
-            if(typeof showVertexHandles === 'function') showVertexHandles(el);
-        } else {
-            if(typeof hideVertexHandles === 'function') hideVertexHandles();
+        if(!isMulti && typeof loadDrawSettings === 'function') {
+            try { loadDrawSettings(el); } catch(e) {}
         }
-        
-        // Çizim sekmesinde o çizimi aktif et, geçmiş panelinde vurgula ve düzenleme panelini aç
-        if (typeof drawPaths !== 'undefined') {
-            const idx = drawPaths.findIndex(p => p.el === el || (p.el && el && (p.el === el || p.el.contains(el) || el.contains(p.el))));
-            if (idx > -1) {
-                if (typeof window.startDrawEdit === 'function') {
-                    window.startDrawEdit(idx, !isMulti, isMulti);
-                } else if (typeof startDrawEdit === 'function') {
-                    startDrawEdit(idx, !isMulti, isMulti);
-                }
+        if(!isMulti && (!window.selectedElements || window.selectedElements.length <= 1)) {
+            if(typeof showVertexHandles === 'function') {
+                try { showVertexHandles(el); } catch(e) {}
+            }
+        } else {
+            if(typeof hideVertexHandles === 'function') {
+                try { hideVertexHandles(); } catch(e) {}
+            }
+            if (typeof window.saveDrawEdit === 'function' && typeof editingDrawIndex !== 'undefined' && editingDrawIndex >= 0) {
+                try { window.saveDrawEdit(); } catch(e) {}
+            } else if (typeof saveDrawEdit === 'function' && typeof editingDrawIndex !== 'undefined' && editingDrawIndex >= 0) {
+                try { saveDrawEdit(); } catch(e) {}
             }
         }
-        if (typeof updateDrawHistory === 'function') updateDrawHistory();
-        if (typeof renderLayers === 'function') renderLayers();
+        
+        // Çizim sekmesinde o çizimi aktif et (yalnızca tekli seçimdeyken; çoklu seçimde multiSelectUI koordine eder)
+        if (typeof drawPaths !== 'undefined' && !isMulti) {
+            const idx = drawPaths.findIndex(p => p.el === el || (p.id && el.dataset && p.id === el.dataset.pathId) || (p.el && el && (p.el === el || p.el.contains(el) || el.contains(p.el))));
+            if (idx > -1) {
+                try {
+                    if (typeof window.startDrawEdit === 'function') {
+                        window.startDrawEdit(idx, true, false);
+                    } else if (typeof startDrawEdit === 'function') {
+                        startDrawEdit(idx, true, false);
+                    }
+                } catch(e) { console.warn('startDrawEdit hatası:', e); }
+            }
+        }
+        if (!isMulti) {
+            if (typeof updateDrawHistory === 'function') {
+                try { updateDrawHistory(); } catch(e) {}
+            }
+            if (typeof renderLayers === 'function') {
+                try { renderLayers(); } catch(e) {}
+            }
+        }
     }
     const elSettings = document.getElementById('elSettings');
     const accDetails = document.getElementById('accordionDetailsEdit');
 
-    const isCalloutEl = (typeof isCalloutOrBadgeElement === 'function' && isCalloutOrBadgeElement(el)) ||
+    const isCustomBadge = el && (
+        (el.classList && el.classList.contains('custom-graphic-badge')) ||
+        (el.closest && el.closest('.custom-graphic-badge'))
+    );
+    const isCalloutEl = !isCustomBadge && (
+        (typeof isCalloutOrBadgeElement === 'function' && isCalloutOrBadgeElement(el)) ||
         (typeof window.isCalloutOrBadgeElement === 'function' && window.isCalloutOrBadgeElement(el)) ||
         (el.closest && (el.closest('.callout-wrap') || el.closest('.callout-item') || el.closest('.svg-callout') || el.closest('.co-neon-block'))) ||
-        (el.classList && (el.classList.contains('callout-wrap') || el.classList.contains('callout-item') || el.classList.contains('co-neon-block') || el.classList.contains('svg-callout')));
-    const isIconEl = !isCalloutEl && el && el.classList && (
+        (el.classList && (el.classList.contains('callout-wrap') || el.classList.contains('callout-item') || el.classList.contains('co-neon-block') || el.classList.contains('svg-callout')))
+    );
+    const isIconEl = !isDrawEl && !isCalloutEl && !isCustomBadge && el && el.classList && (
         el.classList.contains('added-icon') ||
         el.classList.contains('is-svg-icon') ||
         el.classList.contains('canvas-icon')
@@ -1024,20 +1190,45 @@ function selectElement(el, isMulti = false, noTabSwitch = false, openSettings = 
 
     if(document.getElementById('noSelMsg')) document.getElementById('noSelMsg').style.display='none';
     if(accDetails) {
-        accDetails.style.display = (isCalloutEl || isIconEl) ? 'none' : 'block';
+        accDetails.style.display = (isCalloutEl || isIconEl || isCustomBadge) ? 'none' : 'block';
         accDetails.open = (openSettings === 'details');
     }
     if(elSettings) {
-        elSettings.style.display = (isCalloutEl || isIconEl) ? 'none' : 'block';
+        elSettings.style.display = (isCalloutEl || isIconEl || isCustomBadge) ? 'none' : 'block';
         elSettings.open = (openSettings === true);
     }
     if(isIconEl && typeof window.loadIconSettings === 'function') {
         window.loadIconSettings(el);
     }
+    if (isCustomBadge && !isMulti) {
+        if (!noTabSwitch && (openSettings === true || window.isLongPressOpen)) {
+            if (typeof switchTab === 'function') switchTab('callout');
+        }
+        const bWrap = el.classList.contains('custom-graphic-badge') ? el : el.closest('.custom-graphic-badge');
+        if (window.CustomBadges && typeof window.CustomBadges.selectBadge === 'function') {
+            window.CustomBadges.selectBadge(bWrap);
+        }
+        // Hazır rozet (callout) ayarlarını kesinlikle gizle/kapat
+        const cp = document.getElementById('calloutSettingsPanel');
+        if (cp) {
+            cp.style.display = 'none';
+            cp.open = false;
+        }
+    }
     if (isCalloutEl && !isMulti) {
         if (!noTabSwitch && (openSettings === true || window.isLongPressOpen)) {
             if (typeof switchTab === 'function') switchTab('callout');
         }
+        // Özel rozet panelini gizle (çakışma ve kirliliği önler)
+        const cbgPanel = document.getElementById('customBadgeSettingsPanel');
+        if (cbgPanel) {
+            cbgPanel.style.display = 'none';
+        }
+        if (window.CustomBadges) {
+            window.CustomBadges.selectedBadgeEl = null;
+            document.querySelectorAll('.custom-graphic-badge').forEach(b => b.classList.remove('el-selected'));
+        }
+
         const wrap = (typeof getBadgeWrapper === 'function' ? getBadgeWrapper(el) : null) || (el.closest && el.closest('.callout-wrap')) || el;
         const inner = (wrap.querySelector && wrap.querySelector('.callout-item')) || wrap;
         if (typeof selectCalloutEl === 'function') selectCalloutEl(inner, true);
@@ -1050,7 +1241,7 @@ function selectElement(el, isMulti = false, noTabSwitch = false, openSettings = 
         }
     }
     if(document.getElementById('elLabel')) document.getElementById('elLabel').textContent=el.dataset.label||'Eleman';
-    if(!isCalloutEl && !isIconEl) {
+    if(!isCalloutEl && !isIconEl && !isCustomBadge) {
         if(typeof loadElSettings === 'function') loadElSettings(el);
         if(typeof loadElFont === 'function') loadElFont(el);
     }
@@ -1059,8 +1250,8 @@ function selectElement(el, isMulti = false, noTabSwitch = false, openSettings = 
         if (tEl && tEl.classList && tEl.classList.contains('canvas-el') && !tEl.classList.contains('tb-image-frame') && !tEl.closest('#canva-render-layer, .cvr-base, .canva-panel, .canva-generated') && typeof window.addTextHandles === 'function') {
             window.addTextHandles(tEl);
         }
-        if (tEl && tEl.classList && tEl.classList.contains('shape-el')) {
-            tEl.querySelectorAll('.callout-controls, .callout-resizer, .callout-rotator, .callout-lock-btn, .callout-select-border').forEach(c => c.remove());
+        if (tEl && tEl.classList && (tEl.classList.contains('shape-el') || tEl.classList.contains('custom-graphic-badge'))) {
+            tEl.querySelectorAll('.callout-controls, .callout-resizer, .callout-rotator, .callout-lock-btn, .callout-select-border, .callout-handle-width, .callout-handle-length').forEach(c => c.remove());
         }
     });
     if (el.classList.contains('tb-image-frame') && window.TemplateBuilder) { window.TemplateBuilder.selectFrame(el); }
@@ -1078,7 +1269,66 @@ window.updateDockContextUI = function(el) {
     }
 };
 
+function deselect2DElements() {
+    document.querySelectorAll('.el-selected, .multi-selected').forEach(e => {
+        e.classList.remove('el-selected', 'multi-selected');
+    });
+    document.querySelectorAll('.text-handle:not(.text-lock-handle)').forEach(h => h.remove());
+    document.querySelectorAll('.callout-controls, .callout-resizer, .callout-rotator, .callout-select-border, .callout-handle-width, .callout-handle-length').forEach(c => c.style.display = 'none');
+    document.querySelectorAll('.callout-lock-btn').forEach(c => c.style.display = 'flex');
+    document.querySelectorAll('.co-neon-block, .shape-el, .editable-draw').forEach(n => {
+        n.style.outline = 'none';
+        n.style.outlineOffset = '0px';
+    });
+    document.querySelectorAll('.vertex-handles-container').forEach(c => {
+        if (c.parentElement) c.parentElement.dataset.hasHandles = 'false';
+        c.remove();
+    });
+    if (typeof hideVertexHandles === 'function') hideVertexHandles();
+    if (typeof window.hideVertexHandles === 'function') window.hideVertexHandles();
+    selectedEl = null;
+    window.selectedEl = null;
+    window.selectedElements = [];
+    if (typeof selectedCalloutEl !== 'undefined') selectedCalloutEl = null;
+    if (typeof window.selectedCalloutEl !== 'undefined') window.selectedCalloutEl = null;
+    if (window.TemplateBuilder && !(window.Template3DFrame && window.Template3DFrame.isInteracting)) window.TemplateBuilder.deselectFrame();
+    if (document.getElementById('noSelMsg')) document.getElementById('noSelMsg').style.display = 'block';
+    const elSettings = document.getElementById('elSettings');
+    if (elSettings) { elSettings.style.display = 'none'; elSettings.open = false; }
+    const accDetails = document.getElementById('accordionDetailsEdit');
+    if (accDetails) { accDetails.style.display = 'none'; accDetails.open = false; }
+    if (document.getElementById('shapeSettingsPanel')) document.getElementById('shapeSettingsPanel').style.display = 'none';
+    if (document.getElementById('calloutSettingsPanel')) {
+        const cp = document.getElementById('calloutSettingsPanel');
+        cp.style.display = 'none';
+        cp.open = false;
+    }
+    const cbgPanel = document.getElementById('customBadgeSettingsPanel');
+    if (cbgPanel) cbgPanel.style.display = 'none';
+    if (window.CustomBadges) window.CustomBadges.selectedBadgeEl = null;
+    if (document.getElementById('iconSettingsPanel')) document.getElementById('iconSettingsPanel').style.display = 'none';
+    const drawEditPanel = document.getElementById('drawEditPanel');
+    if (drawEditPanel) {
+        drawEditPanel.style.display = 'none';
+        if (drawEditPanel.tagName === 'DETAILS') drawEditPanel.open = false;
+    }
+    if (typeof saveDrawEdit === 'function' && typeof editingDrawIndex !== 'undefined' && editingDrawIndex >= 0) {
+        saveDrawEdit();
+    } else if (typeof window.saveDrawEdit === 'function' && typeof editingDrawIndex !== 'undefined' && editingDrawIndex >= 0) {
+        window.saveDrawEdit();
+    }
+    if (typeof editingDrawIndex !== 'undefined') editingDrawIndex = -1;
+    if (typeof originalDrawState !== 'undefined') originalDrawState = null;
+    if (typeof window.updateMultiSelectUI === 'function') window.updateMultiSelectUI();
+    if (typeof window.updateDockContextUI === 'function') window.updateDockContextUI(null);
+}
+window.deselect2DElements = deselect2DElements;
+
 function deselectAll(preserveEl){
+    if (preserveEl === '3d' || (preserveEl && preserveEl.keep3D)) {
+        deselect2DElements();
+        return;
+    }
     document.querySelectorAll('.el-selected, .multi-selected').forEach(e => {
         if (!preserveEl || e !== preserveEl) {
             e.classList.remove('el-selected', 'multi-selected');
@@ -1087,11 +1337,16 @@ function deselectAll(preserveEl){
     document.querySelectorAll('.text-handle:not(.text-lock-handle)').forEach(h=>h.remove());
     document.querySelectorAll('.callout-controls, .callout-resizer, .callout-rotator, .callout-select-border, .callout-handle-width, .callout-handle-length').forEach(c => c.style.display = 'none');
     document.querySelectorAll('.callout-lock-btn').forEach(c => c.style.display = 'flex');
-    document.querySelectorAll('.co-neon-block, .shape-el').forEach(n => n.style.outline = 'none');
+    document.querySelectorAll('.co-neon-block, .shape-el, .editable-draw').forEach(n => {
+        n.style.outline = 'none';
+        n.style.outlineOffset = '0px';
+    });
     if (!preserveEl) {
         selectedEl=null;
         window.selectedEl=null;
         window.selectedElements = [];
+        if (typeof selectedCalloutEl !== 'undefined') selectedCalloutEl = null;
+        if (typeof window.selectedCalloutEl !== 'undefined') window.selectedCalloutEl = null;
         if(window.TemplateBuilder && !(window.Template3DFrame && window.Template3DFrame.isInteracting)) window.TemplateBuilder.deselectFrame();
         if(document.getElementById('noSelMsg')) document.getElementById('noSelMsg').style.display='block';
         const elSettings = document.getElementById('elSettings');
@@ -1099,8 +1354,20 @@ function deselectAll(preserveEl){
         const accDetails = document.getElementById('accordionDetailsEdit');
         if(accDetails) { accDetails.style.display = 'none'; accDetails.open = false; }
         if(document.getElementById('shapeSettingsPanel')) document.getElementById('shapeSettingsPanel').style.display='none';
-        if(document.getElementById('calloutSettingsPanel')) document.getElementById('calloutSettingsPanel').style.display='none';
+        if(document.getElementById('calloutSettingsPanel')) {
+            const cp = document.getElementById('calloutSettingsPanel');
+            cp.style.display = 'none';
+            cp.open = false;
+        }
+        const cbgPanel = document.getElementById('customBadgeSettingsPanel');
+        if(cbgPanel) cbgPanel.style.display = 'none';
+        if(window.CustomBadges) window.CustomBadges.selectedBadgeEl = null;
         if(document.getElementById('iconSettingsPanel')) document.getElementById('iconSettingsPanel').style.display='none';
+        const drawEditPanel = document.getElementById('drawEditPanel');
+        if (drawEditPanel) {
+            drawEditPanel.style.display = 'none';
+            if (drawEditPanel.tagName === 'DETAILS') drawEditPanel.open = false;
+        }
         if(typeof hideVertexHandles === 'function') hideVertexHandles();
         if(typeof window.updateMultiSelectUI === 'function') window.updateMultiSelectUI();
         if(typeof saveDrawEdit === 'function' && typeof editingDrawIndex !== 'undefined' && editingDrawIndex >= 0) {
@@ -1167,9 +1434,15 @@ window.ungroupSelected = function() {
 };
 
 window.updateGroupUI = function() {
-    if (typeof checkConvertPolygonButton === "function") checkConvertPolygonButton();
+    if (typeof checkConvertPolygonButton === "function") {
+        try { checkConvertPolygonButton(); } catch(e) {}
+    }
 
-    const isLocked = window.selectedElements && window.selectedElements.length > 0 && (window.selectedElements[0].dataset.locked === 'true' || window.selectedElements[0].classList.contains('locked-el'));
+    const firstEl = (window.selectedElements && window.selectedElements.length > 0) ? window.selectedElements[0] : null;
+    const isLocked = firstEl && (
+        (firstEl.dataset && firstEl.dataset.locked === 'true') ||
+        (firstEl.classList && firstEl.classList.contains('locked-el'))
+    );
     const lockText = isLocked ? '🔓 Kilidi Aç' : '🔒 Kilitle';
     const lockBtns = ['btnLock', 'coBtnLock', 'lpBtnLock', 'drawBtnLock'];
     lockBtns.forEach(id => {
@@ -1177,9 +1450,9 @@ window.updateGroupUI = function() {
         if(b) b.innerHTML = lockText;
     });
 
-    if (window.selectedElements && window.selectedElements.length > 0) {
+    if (firstEl) {
         if (window.DockContextManager && typeof window.DockContextManager.syncStateValues === 'function') {
-            window.DockContextManager.syncStateValues('element', window.selectedElements[0]);
+            try { window.DockContextManager.syncStateValues('element', firstEl); } catch(e) {}
         }
     }
     const btnGroup = document.getElementById('btnGroup');
@@ -1195,7 +1468,7 @@ window.updateGroupUI = function() {
     const msBtnUngroup = document.getElementById('msBtnUngroup');
     
     if(window.selectedElements && window.selectedElements.length > 1) {
-        const firstGroup = window.selectedElements[0].dataset.groupId;
+        const firstGroup = (firstEl && firstEl.dataset) ? firstEl.dataset.groupId : null;
         let allSameGroup = firstGroup ? true : false;
         if(firstGroup) {
             for(let i=1; i<window.selectedElements.length; i++) {

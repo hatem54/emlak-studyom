@@ -1205,16 +1205,35 @@ window.SaberEngine = (function() {
     // 🧹 TÜM SABER'LARI TEMİZLE
     function clear() {
         if (!container) return;
-        // Sadece çizim saber'larını (graphics olanları) temizle
+        // Sadece çizim saber'larını (graphics olanları) güvenle temizle ve bellekten düşür
         sabers = sabers.filter(s => {
-            if (s.graphics) {
-                container.removeChild(s.graphics);
-                if (s.particleContainer) container.removeChild(s.particleContainer);
-                if (s.branchContainer) container.removeChild(s.branchContainer);
+            if (s.graphics || !s.isTextSaber) {
+                try {
+                    if (s.graphics) {
+                        if (s.graphics.parent) s.graphics.parent.removeChild(s.graphics);
+                        if (typeof s.graphics.destroy === 'function') s.graphics.destroy(true);
+                    }
+                } catch(e) {}
+                try {
+                    if (s.particleContainer) {
+                        if (s.particleContainer.parent) s.particleContainer.parent.removeChild(s.particleContainer);
+                        if (typeof s.particleContainer.destroy === 'function') s.particleContainer.destroy(true);
+                    }
+                } catch(e) {}
+                try {
+                    if (s.branchContainer) {
+                        if (s.branchContainer.parent) s.branchContainer.parent.removeChild(s.branchContainer);
+                        if (typeof s.branchContainer.destroy === 'function') s.branchContainer.destroy(true);
+                    }
+                } catch(e) {}
                 return false; // Sil
             }
             return true; // Metin saber'ı ise tut
         });
+        const app = getApp();
+        if (app && app.renderer && app.stage) {
+            try { app.renderer.render(app.stage); } catch(e) {}
+        }
     }
     
     // 🎨 RENK YARDIMCISI (HSL → RGB)
@@ -2167,20 +2186,38 @@ window.applySaberToPath = function(pathIndex, saberOptions) {
     const path = drawPaths[pathIndex];
     if (!path) return null;
     
-    // Eski saber varsa temizle
-    if (path.saberRef) {
-        try {
-            const sabers = SaberEngine.getSabers();
-            const idx = sabers.indexOf(path.saberRef);
-            if (idx > -1) {
-                const s = sabers[idx];
-                if (s.graphics?.parent) s.graphics.parent.removeChild(s.graphics);
-                if (s.particleContainer?.parent) s.particleContainer.parent.removeChild(s.particleContainer);
-                if (s.branchContainer?.parent) s.branchContainer.parent.removeChild(s.branchContainer);
-                sabers.splice(idx, 1);
+    // Eski saber varsa temizle (referans, pathId veya pathIndex eşleşmesi ile)
+    try {
+        const sabers = SaberEngine.getSabers();
+        const pId = path.id || path.pathId;
+        for (let i = sabers.length - 1; i >= 0; i--) {
+            const s = sabers[i];
+            const isMatch = (path.saberRef && s === path.saberRef) ||
+                            (pId && s.pathId === pId) ||
+                            (s.pathIndex === pathIndex && !s.isTextSaber);
+            if (isMatch) {
+                try {
+                    if (s.graphics) {
+                        if (s.graphics.parent) s.graphics.parent.removeChild(s.graphics);
+                        if (typeof s.graphics.destroy === 'function') s.graphics.destroy(true);
+                    }
+                } catch(e) {}
+                try {
+                    if (s.particleContainer) {
+                        if (s.particleContainer.parent) s.particleContainer.parent.removeChild(s.particleContainer);
+                        if (typeof s.particleContainer.destroy === 'function') s.particleContainer.destroy(true);
+                    }
+                } catch(e) {}
+                try {
+                    if (s.branchContainer) {
+                        if (s.branchContainer.parent) s.branchContainer.parent.removeChild(s.branchContainer);
+                        if (typeof s.branchContainer.destroy === 'function') s.branchContainer.destroy(true);
+                    }
+                } catch(e) {}
+                sabers.splice(i, 1);
             }
-        } catch(e) {}
-    }
+        }
+    } catch(e) {}
     
     // Path tipine göre noktalar
     let points = [];
@@ -2270,6 +2307,8 @@ window.applySaberToPath = function(pathIndex, saberOptions) {
     }
     const saberObj = SaberEngine.drawSaberLine(points, effectiveOptions);
     if (saberObj) {
+        saberObj.pathId = path.id || path.pathId || ('path_' + pathIndex);
+        saberObj.pathIndex = pathIndex;
         path.saberRef = saberObj;
         path.hasSaber = true;
         path.saber = true;

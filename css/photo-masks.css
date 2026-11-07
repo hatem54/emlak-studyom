@@ -835,3 +835,164 @@ html[data-theme="light"] .canvas-mask-hud {
     border: 1px solid rgba(0, 0, 0, 0.14) !important;
     box-shadow: 0 4px 18px rgba(0, 0, 0, 0.12) !important;
 }
+
+body[data-theme="light"] #hslActiveColorInfoBar,
+html[data-theme="light"] #hslActiveColorInfoBar {
+    background: #f1f5f9 !important;
+    border: 1px solid #cbd5e1 !important;
+}
+
+/* ====================================================================
+   📐 DOCK HIZLI FORMAT SEÇİM POPOVER STİLLERİ
+   ==================================================================== */
+.dock-format-popover {
+    position: fixed;
+    z-index: 10001;
+    width: 270px;
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 10px;
+    box-shadow: 0 12px 28px -4px rgba(15, 23, 42, 0.16), 0 4px 10px -2px rgba(15, 23, 42, 0.08);
+    padding: 8px 10px;
+    font-family: 'ClassicAmpersand', 'Inter', sans-serif;
+    user-select: none;
+    animation: dockFormatPopIn 0.14s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes dockFormatPopIn {
+    from { opacity: 0; transform: translateY(6px) scale(0.96); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+body[data-theme="dark"] .dock-format-popover {
+    background: #0f172a;
+    border-color: #334155;
+    box-shadow: 0 14px 30px rgba(0, 0, 0, 0.6), 0 0 15px rgba(59, 130, 246, 0.15);
+}
+
+.dock-format-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: 6px;
+    margin-bottom: 6px;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+body[data-theme="dark"] .dock-format-header {
+    border-bottom-color: #1e293b;
+}
+
+.dock-format-title {
+    font-size: 11.5px;
+    font-weight: 700;
+    color: #0f172a;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+body[data-theme="dark"] .dock-format-title {
+    color: #f8fafc;
+}
+
+.dock-format-title i {
+    color: #0284c7;
+    font-size: 11px;
+}
+
+.dock-format-close-btn {
+    background: transparent;
+    border: none;
+    color: #64748b;
+    font-size: 12px;
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 4px;
+    line-height: 1;
+    transition: background 0.12s ease, color 0.12s ease;
+}
+
+.dock-format-close-btn:hover {
+    background: #f1f5f9;
+    color: #0f172a;
+}
+
+body[data-theme="dark"] .dock-format-close-btn:hover {
+    background: #1e293b;
+    color: #f8fafc;
+}
+
+.dock-format-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.dock-format-chip {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 9px;
+    border-radius: 6px;
+    border: 1px solid #e2e8f0;
+    background: #f8fafc;
+    color: #1e293b;
+    cursor: pointer;
+    font-family: inherit;
+    width: 100%;
+    box-sizing: border-box;
+    transition: all 0.12s ease;
+    text-align: left;
+}
+
+.dock-format-chip:hover {
+    border-color: #0284c7;
+    background: #f0f9ff;
+    transform: translateY(-1px);
+}
+
+.dock-format-chip.active {
+    border-color: #0284c7;
+    background: #e0f2fe;
+}
+
+body[data-theme="dark"] .dock-format-chip {
+    background: rgba(30, 41, 59, 0.7);
+    border-color: #334155;
+    color: #e2e8f0;
+}
+
+body[data-theme="dark"] .dock-format-chip:hover {
+    background: #1e293b;
+    border-color: #38bdf8;
+}
+
+body[data-theme="dark"] .dock-format-chip.active {
+    background: rgba(14, 165, 233, 0.2);
+    border-color: #38bdf8;
+    color: #38bdf8;
+}
+
+.dock-format-ratio {
+    font-size: 11px;
+    font-weight: 700;
+    color: #0284c7;
+    min-width: 44px;
+}
+
+body[data-theme="dark"] .dock-format-ratio {
+    color: #38bdf8;
+}
+
+.dock-format-desc {
+    font-size: 10.5px;
+    color: #64748b;
+    font-weight: 500;
+    text-align: right;
+    white-space: nowrap;
+}
+
+body[data-theme="dark"] .dock-format-desc {
+    color: #94a3b8;
+}

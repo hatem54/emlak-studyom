@@ -420,6 +420,7 @@ window.updatePhotoLockState = function(isLocked) {
         if (typeof setDrawMode === 'function') setDrawMode('off');
         else if (typeof window.setDrawMode === 'function') window.setDrawMode('off');
         document.querySelectorAll('.poly-marquee-box').forEach(el => el.remove());
+        if (typeof deselectAll === 'function') deselectAll();
     }
 
     window.updateDockLockUI(!!isLocked);
@@ -430,7 +431,132 @@ window.togglePhotoLockFromDock = function() {
     window.updatePhotoLockState(newState);
 };
 
+// ==================== FORMAT BAZLI ÖZEL KADRAJ HAFIZASI ====================
+window._formatFramingState = window._formatFramingState || {};
+
+/**
+ * Mevcut seçili format için fotoğrafın kadraj ve ölçek değerlerini kaydeder.
+ */
+window.savePhotoFramingForCurrentFormat = function(targetEl) {
+    if (window._isApplyingToCanvas || window.isRestoringState) return;
+    const el = targetEl || document.getElementById('photo-layer') || document.querySelector('.photo-panel');
+    if (!el) return;
+    const formatName = (document.getElementById('exportFormat') || document.getElementById('previewFormat') || {}).value || '16:9 Full HD (YouTube/Banner)';
+    
+    const zpScale = parseFloat(el.dataset.zpScale) || 1;
+    const zpX = parseFloat(el.dataset.zpX) || 0;
+    const zpY = parseFloat(el.dataset.zpY) || 0;
+    const sX = (el.id === 'photo-layer' && document.getElementById('photoXCtrl')) ? parseFloat(document.getElementById('photoXCtrl').value) : (parseFloat(el.dataset.sX) || 50);
+    const sY = (el.id === 'photo-layer' && document.getElementById('photoYCtrl')) ? parseFloat(document.getElementById('photoYCtrl').value) : (parseFloat(el.dataset.sY) || 50);
+
+    const cContainer = document.getElementById('canvas-container');
+    const boxW = cContainer ? (parseInt(cContainer.style.width) || cContainer.offsetWidth || 1920) : 1920;
+    const boxH = cContainer ? (parseInt(cContainer.style.height) || cContainer.offsetHeight || 1080) : 1080;
+
+    window._formatFramingState[formatName] = {
+        zpScale,
+        zpX,
+        zpY,
+        sX,
+        sY,
+        boxW,
+        boxH,
+        userAdjusted: true,
+        timestamp: Date.now()
+    };
+
+    // Staging görsel havuzunda aktif olan görsele de bu kadrajı anında yaz
+    if (window.PhotoStagingArchive && window.PhotoStagingArchive.activeItemId && Array.isArray(window.PhotoStagingArchive.items)) {
+        const activeStagingItem = window.PhotoStagingArchive.items.find(it => it.id === window.PhotoStagingArchive.activeItemId);
+        if (activeStagingItem) {
+            activeStagingItem.formatFramingState = activeStagingItem.formatFramingState || {};
+            activeStagingItem.formatFramingState[formatName] = Object.assign({}, window._formatFramingState[formatName]);
+            if (typeof window.PhotoStagingArchive.updateItemThumbnailDebounced === 'function') {
+                window.PhotoStagingArchive.updateItemThumbnailDebounced(activeStagingItem.id);
+            }
+        }
+    }
+
+    if (typeof window.updateQuickFormatBadges === 'function') {
+        window.updateQuickFormatBadges();
+    }
+};
+
+/**
+ * Belirtilen format için daha önce kaydedilmiş bir özel kadraj varsa uygular.
+ * @returns {boolean} Kayıtlı kadraj bulunduysa true, yoksa false
+ */
+window.restorePhotoFramingForFormat = function(formatName) {
+    if (!formatName || !window._formatFramingState || !window._formatFramingState[formatName]) return false;
+    const saved = window._formatFramingState[formatName];
+    if (!saved || !saved.userAdjusted) return false;
+
+    const el = document.getElementById('photo-layer') || document.querySelector('.photo-panel');
+    if (!el) return false;
+
+    el.dataset.zpScale = saved.zpScale;
+    el.dataset.zpX = saved.zpX;
+    el.dataset.zpY = saved.zpY;
+    el.dataset.sX = saved.sX;
+    el.dataset.sY = saved.sY;
+
+    const xCtrl = document.getElementById('photoXCtrl');
+    const yCtrl = document.getElementById('photoYCtrl');
+    if (xCtrl) {
+        xCtrl.value = saved.sX;
+        const xVal = document.getElementById('photoXVal');
+        if (xVal) xVal.textContent = Math.round(saved.sX || 50) + '%';
+    }
+    if (yCtrl) {
+        yCtrl.value = saved.sY;
+        const yVal = document.getElementById('photoYVal');
+        if (yVal) yVal.textContent = Math.round(saved.sY || 50) + '%';
+    }
+    const zCtrl = document.getElementById('photoZoomCtrl');
+    if (zCtrl) {
+        zCtrl.value = Math.round((saved.zpScale || 1) * 100);
+        const zVal = document.getElementById('photoZoomVal');
+        if (zVal) zVal.textContent = zCtrl.value + '%';
+    }
+
+    if (typeof _applyPhotoTransform === 'function') {
+        _applyPhotoTransform(el);
+    }
+    return true;
+};
+
+/**
+ * Format Popoverındaki çiplere özel kadraj rozeti ekler
+ */
+window.updateQuickFormatBadges = function() {
+    const pop = document.getElementById('dockFormatPopover');
+    if (!pop || !window._formatFramingState) return;
+
+    pop.querySelectorAll('.dock-format-chip').forEach(chip => {
+        const fKey = chip.getAttribute('data-format');
+        const hasCustom = !!(window._formatFramingState[fKey] && window._formatFramingState[fKey].userAdjusted);
+        let dot = chip.querySelector('.format-custom-dot');
+        if (hasCustom) {
+            if (!dot) {
+                dot = document.createElement('span');
+                dot.className = 'format-custom-dot';
+                dot.style.cssText = 'position:absolute; top:4px; right:4px; width:7px; height:7px; background:#10b981; border-radius:50%; box-shadow:0 0 6px #10b981;';
+                dot.title = 'Özel kadraj ayarlandı';
+                chip.style.position = 'relative';
+                chip.appendChild(dot);
+            }
+        } else if (dot) {
+            dot.remove();
+        }
+    });
+};
+
 window.quickSetFormat = function(formatKey) {
+    // Önceki formattaki kadrajı hafızaya al
+    if (typeof window.savePhotoFramingForCurrentFormat === 'function') {
+        window.savePhotoFramingForCurrentFormat();
+    }
+
     window.userHasManuallyChangedFormat = true;
     const exp = document.getElementById('exportFormat');
     const prv = document.getElementById('previewFormat');
@@ -438,10 +564,23 @@ window.quickSetFormat = function(formatKey) {
     if (prv) prv.value = formatKey;
     if (typeof switchPreviewFormat === 'function') switchPreviewFormat();
     
+    // Varsa hedef formatın kayıtlı kadrajını uygula
+    if (typeof window.restorePhotoFramingForFormat === 'function') {
+        window.restorePhotoFramingForFormat(formatKey);
+    }
+
+    if (typeof resizeCanvas === 'function') {
+        resizeCanvas();
+    }
+
     // Dock format butonlarının aktiflik durumunu güncelle
     document.querySelectorAll('.dock-pill-btn').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.format === formatKey);
     });
+
+    if (typeof window.updateQuickFormatBadges === 'function') {
+        window.updateQuickFormatBadges();
+    }
 };
 
 let _isNativeFullscreen = false;

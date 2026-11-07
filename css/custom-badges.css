@@ -1,0 +1,339 @@
+/* ==========================================================================
+   EMLAK STÜDYOM - ÖZEL LOGO & ŞEFFAF ROZET (SVG / PNG) MODÜL STİLLERİ
+   Standart: UI_DESIGN_SYSTEM.md | Bağımsız Alt Modül
+   ========================================================================== */
+
+/* 1. Tuval Üzerindeki Özel Logo & Rozet Elemanı */
+.custom-graphic-badge {
+    position: absolute;
+    z-index: 500;
+    cursor: move;
+    user-select: none;
+    touch-action: none;
+    box-sizing: border-box;
+    line-height: 0;
+    overflow: visible;
+}
+
+.custom-graphic-badge.el-selected {
+    outline: 1.5px dashed #0284c7;
+    outline-offset: 4px;
+}
+
+body[data-theme="dark"] .custom-graphic-badge.el-selected {
+    outline-color: #38bdf8;
+}
+
+.custom-badge-content {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transform-origin: center center;
+    overflow: hidden;
+    pointer-events: none;
+}
+
+.custom-badge-img {
+    width: 100% !important;
+    height: 100% !important;
+    max-width: 100% !important;
+    max-height: 100% !important;
+    object-fit: contain !important;
+    display: block;
+    pointer-events: none;
+    transition: filter 0.12s ease;
+}
+
+/* 2. Rozetler Sekmesindeki Yükleme Dropzone'u */
+.custom-badge-dropzone {
+    border: 1.5px dashed #cbd5e1;
+    border-radius: 8px;
+    padding: 12px 10px;
+    text-align: center;
+    background: #f8fafc;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    margin-bottom: 10px;
+    user-select: none;
+}
+
+.custom-badge-dropzone:hover {
+    border-color: #0284c7;
+    background: #f0f9ff;
+}
+
+body[data-theme="dark"] .custom-badge-dropzone {
+    background: rgba(30, 41, 59, 0.5);
+    border-color: #334155;
+}
+
+body[data-theme="dark"] .custom-badge-dropzone:hover {
+    border-color: #38bdf8;
+    background: rgba(56, 189, 248, 0.08);
+}
+
+.custom-badge-drop-icon {
+    font-size: 22px;
+    color: #0284c7;
+    margin-bottom: 4px;
+}
+
+.custom-badge-drop-title {
+    font-size: 12px;
+    font-weight: 700;
+    color: #0f172a;
+    display: block;
+}
+
+body[data-theme="dark"] .custom-badge-drop-title {
+    color: #f8fafc;
+}
+
+.custom-badge-drop-desc {
+    font-size: 10.5px;
+    color: #64748b;
+    display: block;
+    margin-top: 2px;
+}
+
+/* 3. Oturum Koleksiyonu (Yüklenen Rozetler Izgarası) */
+.custom-badge-library-wrap {
+    margin-bottom: 12px;
+}
+
+.custom-badge-session-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+    max-height: 140px;
+    overflow-y: auto;
+    padding: 4px 2px;
+}
+
+.custom-badge-thumb-card {
+    position: relative;
+    height: 56px;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    background: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    box-sizing: border-box;
+}
+
+.custom-badge-thumb-card:hover {
+    border-color: #0284c7;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+}
+
+body[data-theme="dark"] .custom-badge-thumb-card {
+    background: #1e293b;
+    border-color: #334155;
+}
+
+body[data-theme="dark"] .custom-badge-thumb-card:hover {
+    border-color: #38bdf8;
+}
+
+.custom-badge-thumb-img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    pointer-events: none;
+}
+
+.custom-badge-delete-btn {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: rgba(239, 68, 68, 0.85);
+    color: #ffffff;
+    border: none;
+    font-size: 9px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    opacity: 0.55;
+    transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.custom-badge-delete-btn:hover {
+    opacity: 1;
+    transform: scale(1.15);
+}
+
+/* Kalıcı Kayıtlı Rozet İmi ve Kart Kaydet Butonu */
+.custom-badge-saved-tag,
+.custom-badge-card-save-btn {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 16px;
+    height: 16px;
+    border-radius: 4px;
+    background: #10b981;
+    color: #ffffff;
+    border: none;
+    font-size: 8.5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.custom-badge-card-save-btn {
+    background: rgba(30, 41, 59, 0.75);
+    color: #cbd5e1;
+    cursor: pointer;
+    opacity: 0.65;
+    transition: all 0.15s ease;
+}
+
+.custom-badge-card-save-btn:hover {
+    background: #10b981;
+    color: #ffffff;
+    opacity: 1;
+    transform: scale(1.15);
+}
+
+body[data-theme="light"] .custom-badge-card-save-btn {
+    background: rgba(241, 245, 249, 0.9);
+    color: #64748b;
+    border: 1px solid #cbd5e1;
+}
+
+body[data-theme="light"] .custom-badge-card-save-btn:hover {
+    background: #10b981;
+    color: #ffffff;
+    border-color: #10b981;
+}
+
+/* 4. Seçili Rozet Ayar Paneli */
+.custom-badge-settings-panel {
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 10px;
+    background: #f8fafc;
+    margin-bottom: 12px;
+    user-select: none;
+}
+
+body[data-theme="dark"] .custom-badge-settings-panel {
+    background: rgba(15, 23, 42, 0.4);
+    border-color: #334155;
+}
+
+.custom-badge-panel-title {
+    font-size: 11.5px;
+    font-weight: 700;
+    color: #0f172a;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+body[data-theme="dark"] .custom-badge-panel-title {
+    color: #f8fafc;
+    border-bottom-color: #1e293b;
+}
+
+/* 5. 9-Nokta Akıllı Çıpa Izgarası */
+.custom-badge-anchor-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 4px;
+    margin-bottom: 8px;
+}
+
+.custom-badge-anchor-btn {
+    height: 28px;
+    border: 1px solid #cbd5e1;
+    background: #ffffff;
+    color: #334155;
+    border-radius: 5px;
+    font-size: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    transition: all 0.12s ease;
+    white-space: nowrap;
+    padding: 0 4px;
+}
+
+.custom-badge-anchor-btn:hover {
+    border-color: #0284c7;
+    background: #f0f9ff;
+    color: #0284c7;
+}
+
+.custom-badge-anchor-btn.active {
+    border-color: #0284c7;
+    background: #e0f2fe;
+    color: #0284c7;
+    font-weight: 700;
+}
+
+body[data-theme="dark"] .custom-badge-anchor-btn {
+    background: #1e293b;
+    border-color: #334155;
+    color: #cbd5e1;
+}
+
+body[data-theme="dark"] .custom-badge-anchor-btn:hover {
+    border-color: #38bdf8;
+    background: #0f172a;
+    color: #38bdf8;
+}
+
+body[data-theme="dark"] .custom-badge-anchor-btn.active {
+    border-color: #38bdf8;
+    background: rgba(56, 189, 248, 0.15);
+    color: #38bdf8;
+}
+
+/* 7. Rozet Renk Paleti ve Renk Değiştirici */
+.cbg-color-swatch-wrap {
+    position: relative;
+    width: 26px;
+    height: 26px;
+    border-radius: 6px;
+    cursor: pointer;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+    border: 1.5px solid #cbd5e1;
+    transition: transform 0.15s ease, border-color 0.15s ease;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.cbg-color-swatch-wrap:hover {
+    transform: scale(1.08);
+    border-color: #6366f1;
+}
+
+.cbg-color-swatch-input {
+    position: absolute;
+    top: -10px;
+    left: -10px;
+    width: 46px;
+    height: 46px;
+    opacity: 0;
+    cursor: pointer;
+}

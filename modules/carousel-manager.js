@@ -47,12 +47,73 @@
         },
 
         /**
-         * Karusel Film Şeridini Aç / Kapat
+         * Karusel Film Şeridini Aç / Kapat veya Tuval Göstergesini Senkronize Et
          */
         toggleBar: function(forceState) {
-            this.isVisible = false;
+            if (forceState !== undefined) {
+                this.isVisible = !!forceState;
+            } else {
+                this.isVisible = !this.isVisible;
+            }
+            if (this.isVisible) {
+                this.syncFromStaging(true);
+            }
+            const badge = document.getElementById('canvasCarouselBadge');
+            if (badge) {
+                badge.style.display = (this.isVisible && this.pages.length > 1) ? 'flex' : 'none';
+            }
             const bar = document.getElementById('carouselFilmstripBar');
             if (bar) bar.style.display = 'none';
+        },
+
+        /**
+         * Görsel Havuzundaki Fotoğrafları Karusel Albüm Sayfalarına Senkronize Eder
+         */
+        syncFromStaging: function(silent = false) {
+            const psa = window.PhotoStagingArchive;
+            if (!psa || !Array.isArray(psa.items) || psa.items.length === 0) {
+                const batchCounter = document.getElementById('carouselBatchCountText');
+                if (batchCounter) batchCounter.textContent = '0 Sayfa Mevcut';
+                if (!silent && typeof window.showAppToast === 'function') {
+                    window.showAppToast('Görsel havuzunda fotoğraf bulunamadı.', 'warning');
+                }
+                return;
+            }
+
+            const targets = (typeof psa.getSelectedItems === 'function') ? psa.getSelectedItems() : [];
+            const itemsToUse = (targets && targets.length > 0) ? targets : psa.items;
+
+            this.pages = itemsToUse.map((it, idx) => ({
+                id: 'page_staging_' + (it.key || 'snap') + '_' + Date.now() + '_' + idx,
+                title: it.title || `Sayfa ${idx + 1}`,
+                stagingItemId: it.id,
+                snapshot: {
+                    photoImgUrl: it.dataUrl,
+                    uploadedImgUrl: it.dataUrl,
+                    activeLayout: window.activeLayout || '',
+                    timestamp: Date.now()
+                },
+                thumb: it.thumbUrl || it.dataUrl
+            }));
+
+            this.isVisible = true;
+            if (this.activePageIndex >= this.pages.length) {
+                this.activePageIndex = 0;
+            }
+
+            // Çıktı sekmesindeki sayacı anında güncelle
+            const batchCounter = document.getElementById('carouselBatchCountText');
+            if (batchCounter) {
+                batchCounter.textContent = `${this.pages.length} Sayfa Mevcut`;
+            }
+
+            if (typeof psa.syncCanvasCarouselBadge === 'function') {
+                psa.syncCanvasCarouselBadge();
+            }
+
+            if (!silent && typeof window.showAppToast === 'function') {
+                window.showAppToast(`Havuzdaki ${this.pages.length} görsel albüme eşitlendi.`, 'success', 2500);
+            }
         },
 
         /**
@@ -450,7 +511,9 @@
                     progressModal.innerHTML = `<i class="fa-solid fa-spinner fa-spin" style="color:#0ea5e9;"></i> <span>Sayfa ${i + 1} / ${this.pages.length}: ${page.title} işleniyor...</span>`;
 
                     // Sayfayı tuvale yükle
-                    if (page.snapshot && typeof window.applySnapshot === 'function') {
+                    if (page.stagingItemId && window.PhotoStagingArchive) {
+                        window.PhotoStagingArchive.applyToCanvas(page.stagingItemId, true);
+                    } else if (page.snapshot && typeof window.applySnapshot === 'function') {
                         window.applySnapshot(page.snapshot);
                     }
 

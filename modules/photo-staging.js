@@ -34,13 +34,21 @@
         exportQuality: (() => {
             try {
                 const saved = localStorage.getItem('staging_export_quality');
+                if (saved === 'lossless') {
+                    localStorage.setItem('staging_export_quality', 'ultra');
+                    return 'ultra';
+                }
                 if (['web', 'high', 'ultra', 'lossless'].includes(saved)) return saved;
             } catch(e) {}
-            return 'web';
+            return 'ultra';
         })(),
         formatQuality: (() => {
             try {
                 const saved = localStorage.getItem('staging_format_quality');
+                if (saved === 'png') {
+                    localStorage.setItem('staging_format_quality', '2k');
+                    return '2k';
+                }
                 if (['hd', '2k', '4k', 'png'].includes(saved)) return saved;
             } catch(e) {}
             return '2k';
@@ -249,25 +257,66 @@
         applyToCanvas: function(id, skipToast) {
             if (this._isApplying) return;
             this._isApplying = true;
-            window._isApplyingToCanvas = true;
 
             try {
                 const item = this.items.find(it => it.id === id);
                 if (!item || !item.dataUrl) {
                     this._isApplying = false;
-                    window._isApplyingToCanvas = false;
                     return;
                 }
 
-                // Önceki görselin logo konumunu güvenle yakala ve kaydet
+                // Önceki görselin logo konumunu, fotoğraf ayarlarını ve format kadraj hafızasını güvenle kaydet
                 const prevActiveId = this.activeItemId;
                 const prevItem = (prevActiveId && this.items) ? this.items.find(it => it.id === prevActiveId) : null;
-                if (prevItem && typeof this.captureCanvasLogoForImage === 'function') {
-                    this.captureCanvasLogoForImage(prevItem);
+                if (prevItem && prevItem.id !== id) {
+                    if (typeof this.captureCanvasLogoForImage === 'function') {
+                        this.captureCanvasLogoForImage(prevItem);
+                    }
+                    if (typeof window.capturePhotoAdjustments === 'function') {
+                        const currentAdj = window.capturePhotoAdjustments();
+                        if (window.isPhotoAdjustmentsModified && window.isPhotoAdjustmentsModified(currentAdj)) {
+                            prevItem.photoAdjustments = currentAdj;
+                        } else {
+                            prevItem.photoAdjustments = null;
+                        }
+                    }
+                    if (typeof window.savePhotoFramingForCurrentFormat === 'function') {
+                        window.savePhotoFramingForCurrentFormat();
+                    }
+                    if (window._formatFramingState && Object.keys(window._formatFramingState).length > 0) {
+                        prevItem.formatFramingState = prevItem.formatFramingState || {};
+                        Object.assign(prevItem.formatFramingState, JSON.parse(JSON.stringify(window._formatFramingState)));
+                    }
                 }
+
+                window._isApplyingToCanvas = true;
 
                 this.activeItemId = id;
                 this.updateActiveCardUI();
+
+                // Hedef formatı belirle
+                const ratioMap = {
+                    '1:1': '1:1 Instagram Post (Kare)',
+                    '16:9': '16:9 Full HD (YouTube/Banner)',
+                    '9:16': '9:16 Instagram/TikTok Story',
+                    '4:3': '4:3 Klasik',
+                    'original': 'Orijinal Görsel Boyutu'
+                };
+                const expectedFmt = (item.formatRatio && ratioMap[item.formatRatio]) ? ratioMap[item.formatRatio] : (document.getElementById('exportFormat') || {}).value;
+
+                // Yeni görselin format kadraj hafızası varsa onu öncelikli yükle;
+                // eğer bu görsel için henüz özel bir kadraj yapılmamışsa, aktif formattaki kadrajı devral (kullanıcı ayarı kaybolmaz!)
+                if (item.formatFramingState && Object.keys(item.formatFramingState).length > 0) {
+                    window._formatFramingState = JSON.parse(JSON.stringify(item.formatFramingState));
+                } else if (expectedFmt && window._formatFramingState && window._formatFramingState[expectedFmt]) {
+                    item.formatFramingState = item.formatFramingState || {};
+                    item.formatFramingState[expectedFmt] = Object.assign({}, window._formatFramingState[expectedFmt]);
+                } else if (!window._formatFramingState) {
+                    window._formatFramingState = {};
+                }
+                if (typeof window.updateQuickFormatBadges === 'function') {
+                    window.updateQuickFormatBadges();
+                }
 
                 // 0. Açık olabilecek harita modalını kapat ve tuvali öne çıkar (sadece modal gerçekten açıksa)
                 const satModal = document.getElementById('satelliteMapModal');
@@ -334,7 +383,14 @@
                     if (canvaL && isCanva) {
                         canvaL.style.display = 'block';
                     }
-                    if (typeof applyPhotoFilters === 'function') {
+                    // 🌟 Her görsel için bağımsız ayar yönetimi:
+                    // Eğer bu görsel daha önce ayarlanmışsa mevcut ayarlarını geri yükle,
+                    // henüz ayarlanmamışsa ayarları temiz varsayılana sıfırla!
+                    if (item && item.photoAdjustments && typeof window.restorePhotoAdjustments === 'function') {
+                        window.restorePhotoAdjustments(item.photoAdjustments);
+                    } else if (typeof window.resetPhotoAdjustmentsToDefault === 'function') {
+                        window.resetPhotoAdjustmentsToDefault(item);
+                    } else if (typeof applyPhotoFilters === 'function') {
                         applyPhotoFilters();
                     } else if (typeof requestPhotoRepaint === 'function') {
                         requestPhotoRepaint();
@@ -346,6 +402,41 @@
                         refreshActiveCanvaTemplate();
                     }
                     this.syncExternalTabs();
+
+                    const ratioMap = {
+                        '1:1': '1:1 Instagram Post (Kare)',
+                        '16:9': '16:9 Full HD (YouTube/Banner)',
+                        '9:16': '9:16 Instagram/TikTok Story',
+                        '4:3': '4:3 Klasik',
+                        'original': 'Orijinal Görsel Boyutu'
+                    };
+                    let targetFmt = (item && item.formatRatio && ratioMap[item.formatRatio]) ? ratioMap[item.formatRatio] : null;
+                    if (!targetFmt) {
+                        targetFmt = (document.getElementById('exportFormat') || document.getElementById('previewFormat') || {}).value;
+                    }
+
+                    if (targetFmt && targetFmt !== 'Orijinal Görsel Boyutu' && typeof window.quickSetFormat === 'function') {
+                        window.quickSetFormat(targetFmt);
+                    }
+
+                    let restoredFraming = false;
+                    if (targetFmt && typeof window.restorePhotoFramingForFormat === 'function' && window._formatFramingState && window._formatFramingState[targetFmt]) {
+                        restoredFraming = window.restorePhotoFramingForFormat(targetFmt);
+                    }
+                    if (!restoredFraming && targetFmt && targetFmt !== 'Orijinal Görsel Boyutu') {
+                        const fitMode = (item && item.formatMode === 'contain_blur') ? 'contain' : (window.photoFitMode || 'cover');
+                        if (typeof window.fitImageToCanvas === 'function') {
+                            window.fitImageToCanvas(fitMode);
+                        }
+                    }
+
+                    if (typeof window.updatePhotoLockState === 'function') {
+                        window.updatePhotoLockState(false);
+                    }
+                    if (typeof resizeCanvas === 'function') {
+                        resizeCanvas();
+                    }
+
                     if (typeof window.renderLayers === 'function') window.renderLayers();
 
                     // AI Netleştirme tepsisi açıksa veya görsel netleştirilmişse canlı GPU filtresini uygula
@@ -375,7 +466,8 @@
                     const canvasContainer = document.getElementById('canvas-container');
                     const currentLogoUrl = (typeof this.getCurrentLogoUrl === 'function') ? this.getCurrentLogoUrl() : (window.companyLogo || null);
 
-                    const isLogoActive = logoEl && (
+                    const isLogoHiddenLayer = logoEl && logoEl.dataset && logoEl.dataset.hiddenLayer === 'true';
+                    const isLogoActive = logoEl && !isLogoHiddenLayer && (
                         (logoEl.style.display !== 'none' && logoEl.style.visibility !== 'hidden' && logoEl.style.opacity !== '0') ||
                         (currentLogoUrl && (this.watermarkTrayOpen || this.watermarkOptions.applyToAll))
                     );
@@ -442,26 +534,59 @@
                     this.syncCanvasCarouselBadge();
                 };
 
+                const imgDataToApply = item.rawOriginalDataUrl || item.dataUrl;
+                item.dataUrl = imgDataToApply;
+
+                // Tuval formatını görsel yüklenmeden hemen önce hedef formata hazırla (16:9 sıçramasını önle)
+                const preRatioMap = {
+                    '1:1': '1:1 Instagram Post (Kare)',
+                    '16:9': '16:9 Full HD (YouTube/Banner)',
+                    '9:16': '9:16 Instagram/TikTok Story',
+                    '4:3': '4:3 Klasik',
+                    'original': 'Orijinal Görsel Boyutu'
+                };
+                if (item && item.formatRatio && preRatioMap[item.formatRatio]) {
+                    const mappedFmt = preRatioMap[item.formatRatio];
+                    const exp = document.getElementById('exportFormat');
+                    const prv = document.getElementById('previewFormat');
+                    if (exp) exp.value = mappedFmt;
+                    if (prv) prv.value = mappedFmt;
+                    window.userHasManuallyChangedFormat = true;
+                }
+
                 if (typeof window.applyProjectImageFromDataUrl === 'function') {
-                    window.applyProjectImageFromDataUrl(item.dataUrl, (err) => {
-                        window._isApplyingToCanvas = false;
-                        if (!err) {
-                            finishRender();
+                    window.applyProjectImageFromDataUrl(imgDataToApply, (err) => {
+                        try {
+                            if (!err) {
+                                finishRender();
+                            }
+                        } finally {
+                            window._isApplyingToCanvas = false;
+                            this._isApplying = false;
                         }
                     }, true);
                 } else if (typeof window.applyFinalProjectImage === 'function') {
                     const img = new Image();
                     img.onload = () => {
-                        window._isApplyingToCanvas = false;
-                        window.applyFinalProjectImage(img, item.dataUrl, img.naturalWidth || 1920, img.naturalHeight || 1080);
-                        finishRender();
+                        try {
+                            window.applyFinalProjectImage(img, imgDataToApply, img.naturalWidth || 1920, img.naturalHeight || 1080);
+                            finishRender();
+                        } finally {
+                            window._isApplyingToCanvas = false;
+                            this._isApplying = false;
+                        }
                     };
-                    img.onerror = () => { window._isApplyingToCanvas = false; };
-                    img.src = item.dataUrl;
+                    img.onerror = () => {
+                        window._isApplyingToCanvas = false;
+                        this._isApplying = false;
+                    };
+                    img.src = imgDataToApply;
                 } else {
                     window._isApplyingToCanvas = false;
+                    this._isApplying = false;
                 }
-            } finally {
+            } catch(e) {
+                window._isApplyingToCanvas = false;
                 this._isApplying = false;
             }
         },
@@ -546,15 +671,19 @@
             const item = this.items.find(it => it.id === id);
             if (!item || !item.dataUrl) return;
 
+            if (this.activeItemId === id) {
+                this.syncActiveItemAdjustments();
+            }
+
             const ada = item.parcelMeta?.ada ? `Ada_${item.parcelMeta.ada}` : '';
             const parsel = item.parcelMeta?.parsel ? `Parsel_${item.parcelMeta.parsel}` : '';
             const tag = (ada || parsel) ? `_${ada}_${parsel}` : '';
             const cleanTitle = (item.title || 'gorsel').replace(/[^a-zA-Z0-9çğıöşüÇĞİÖŞÜ_-]/g, '_');
 
-            const qKey = this.exportQuality || 'lossless';
+            const qKey = this.exportQuality || 'ultra';
             const res = await this.getItemExportBlobAsync(item, qKey);
             if (res && res.blob) {
-                const ext = res.ext || 'png';
+                const ext = res.ext || 'jpg';
                 const filename = `EmlakStudyom_${cleanTitle}${tag}.${ext}`;
                 const blobUrl = URL.createObjectURL(res.blob);
                 const a = document.createElement('a');
@@ -565,7 +694,7 @@
                 document.body.removeChild(a);
                 setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
             } else {
-                const filename = `EmlakStudyom_${cleanTitle}${tag}.png`;
+                const filename = `EmlakStudyom_${cleanTitle}${tag}.jpg`;
                 const a = document.createElement('a');
                 a.href = item.dataUrl;
                 a.download = filename;
@@ -638,6 +767,9 @@
             }
 
             const logoEl = document.getElementById('elLogo');
+            if (logoEl && logoEl.dataset && logoEl.dataset.hiddenLayer === 'true') {
+                return false;
+            }
             const isCanvasLogoVisible = !!(
                 logoEl &&
                 logoEl.style.display !== 'none' &&
@@ -775,8 +907,30 @@
             // Aktif filigran durumu kontrolü
             const shouldApplyLogo = !item.watermarkBaked && this.hasActiveWatermark();
 
-            // Eğer filigran eklenmeyecekse ve zaten istenen formatta ise hızlı yoldan blob al
-            if (!shouldApplyLogo) {
+            // Fotoğraf ayarları kontrolü (filtreler, ışık, renk, netleştirme vb.)
+            let adj = item.photoAdjustments || null;
+            let itAi = (item.aiIntensity !== undefined) ? item.aiIntensity : null;
+
+            // Eğer bu görsele özel ayar yoksa ama aktif tuvalde genel ayarlar varsa bağla ("ve genel ayarlarda tabiki")
+            if (!adj && this.activeItemId) {
+                const act = this.items.find(x => x.id === this.activeItemId);
+                if (act && act.photoAdjustments && window.isPhotoAdjustmentsModified && window.isPhotoAdjustmentsModified(act.photoAdjustments)) {
+                    adj = act.photoAdjustments;
+                }
+                if (itAi === null && act && act.aiIntensity > 0) {
+                    itAi = act.aiIntensity;
+                }
+            }
+
+            const hasAdjustments = (adj && window.isPhotoAdjustmentsModified && window.isPhotoAdjustmentsModified(adj)) || 
+                                   (itAi !== null && itAi > 0) ||
+                                   (adj && adj.aiIntensity > 0);
+
+            const hasFormatOrFraming = (item.formatRatio && item.formatRatio !== 'original') || 
+                                       (item.formatFramingState && Object.keys(item.formatFramingState).length > 0);
+
+            // Eğer filigran eklenmeyecekse, hiçbir fotoğraf ayarı yapılmamışsa ve format/kadraj ayarı yoksa hızlı yoldan blob al
+            if (!shouldApplyLogo && !hasAdjustments && !hasFormatOrFraming) {
                 if ((isPngReq && isCurrentlyPng) || (qualityKey === 'web' && !isCurrentlyPng)) {
                     try {
                         const res = await fetch(item.dataUrl);
@@ -787,15 +941,84 @@
                 }
             }
 
-            // Temiz tuval üzerinden asenkron re-encode
-            const img = await this.loadImageAsync(item.dataUrl);
-            const canvas = document.createElement('canvas');
-            canvas.width = img.naturalWidth || 1920;
-            canvas.height = img.naturalHeight || 1080;
+            // Temiz tuval üzerinden asenkron re-encode (ham orijinal kaynağı koru)
+            const rawExportUrl = item.rawOriginalDataUrl || item.originalDataUrl || item.dataUrl;
+            const img = await this.loadImageAsync(rawExportUrl);
+
+            // Eğer ayarlar varsa WebGL fotoğraf motoruyla render et
+            let processedCanvas = null;
+            if (hasAdjustments && typeof window.renderPhotoWithAdjustments === 'function') {
+                try {
+                    const finalAdj = Object.assign({}, adj);
+                    if (itAi !== null && finalAdj.aiIntensity === undefined) {
+                        finalAdj.aiIntensity = itAi;
+                    }
+                    processedCanvas = window.renderPhotoWithAdjustments(img, finalAdj);
+                } catch(e) {
+                    console.error("Görsel ayarları işlenirken hata oluştu:", e);
+                }
+            }
+
+            const sourceToDraw = processedCanvas || img;
+            let canvas = null;
+            const ratioMap = {
+                '1:1': '1:1 Instagram Post (Kare)',
+                '16:9': '16:9 Full HD (YouTube/Banner)',
+                '9:16': '9:16 Instagram/TikTok Story',
+                '4:3': '4:3 Klasik'
+            };
+            const fKey = item.formatRatio ? ratioMap[item.formatRatio] : null;
+
+            if (item.formatRatio && item.formatRatio !== 'original' && fKey) {
+                const specs = this.getFormatTargetSpecs(item.formatRatio, qualityKey, sourceToDraw.naturalWidth || sourceToDraw.width, sourceToDraw.naturalHeight || sourceToDraw.height);
+                
+                let framing = null;
+                const itemFraming = item.formatFramingState || null;
+                const globalFraming = (window._formatFramingState && Object.keys(window._formatFramingState).length > 0) ? window._formatFramingState : null;
+                const candidateKeys = [fKey, item.formatRatio];
+
+                if (itemFraming) {
+                    for (const k of candidateKeys) {
+                        if (itemFraming[k] && itemFraming[k].userAdjusted) { framing = itemFraming[k]; break; }
+                    }
+                    if (!framing) {
+                        for (const k of Object.keys(itemFraming)) {
+                            if (itemFraming[k] && itemFraming[k].userAdjusted) {
+                                if (item.formatRatio === '1:1' && (k.includes('1:1') || k.includes('Kare') || k.includes('1920x1920'))) { framing = itemFraming[k]; break; }
+                                if (item.formatRatio === '16:9' && (k.includes('16:9') || k.includes('Orijinal') || k.includes('Sahibinden'))) { framing = itemFraming[k]; break; }
+                                if (item.formatRatio === '9:16' && (k.includes('9:16') || k.includes('Story') || k.includes('Hikaye') || k.includes('Reels'))) { framing = itemFraming[k]; break; }
+                                if (item.formatRatio === '4:3' && k.includes('4:3')) { framing = itemFraming[k]; break; }
+                            }
+                        }
+                    }
+                }
+                if (!framing && globalFraming) {
+                    for (const k of candidateKeys) {
+                        if (globalFraming[k] && globalFraming[k].userAdjusted) { framing = globalFraming[k]; break; }
+                    }
+                    if (!framing) {
+                        for (const k of Object.keys(globalFraming)) {
+                            if (globalFraming[k] && globalFraming[k].userAdjusted) {
+                                if (item.formatRatio === '1:1' && (k.includes('1:1') || k.includes('Kare') || k.includes('1920x1920'))) { framing = globalFraming[k]; break; }
+                                if (item.formatRatio === '16:9' && (k.includes('16:9') || k.includes('Orijinal') || k.includes('Sahibinden'))) { framing = globalFraming[k]; break; }
+                                if (item.formatRatio === '9:16' && (k.includes('9:16') || k.includes('Story') || k.includes('Hikaye') || k.includes('Reels'))) { framing = globalFraming[k]; break; }
+                                if (item.formatRatio === '4:3' && k.includes('4:3')) { framing = globalFraming[k]; break; }
+                            }
+                        }
+                    }
+                }
+
+                canvas = this.renderFormattedCanvas(sourceToDraw, specs.targetW, specs.targetH, item.formatMode || 'cover', framing);
+            } else {
+                canvas = document.createElement('canvas');
+                canvas.width = sourceToDraw.naturalWidth || sourceToDraw.width || 1920;
+                canvas.height = sourceToDraw.naturalHeight || sourceToDraw.height || 1080;
+                const ctx2 = canvas.getContext('2d');
+                ctx2.imageSmoothingEnabled = true;
+                ctx2.imageSmoothingQuality = 'high';
+                ctx2.drawImage(sourceToDraw, 0, 0, canvas.width, canvas.height);
+            }
             const ctx = canvas.getContext('2d');
-            ctx.imageSmoothingEnabled = true;
-            ctx.imageSmoothingQuality = 'high';
-            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
             // Eğer aktif logo varsa tuvale oransal ve çıpalı olarak çiz
             if (shouldApplyLogo) {
@@ -835,6 +1058,10 @@
             });
 
             // Anında bellek tahliyesi (RAM koruması)
+            if (processedCanvas && processedCanvas !== img && processedCanvas !== canvas) {
+                processedCanvas.width = 0;
+                processedCanvas.height = 0;
+            }
             canvas.width = 0;
             canvas.height = 0;
 
@@ -879,6 +1106,7 @@
             }
 
             this.isExportingZip = true;
+            this.syncActiveItemAdjustments();
             this.updateExportProgress(0, targets.length);
 
             try {
@@ -927,11 +1155,13 @@
                 });
 
                 const a = document.createElement('a');
-                a.href = URL.createObjectURL(content);
+                const blobUrl = URL.createObjectURL(content);
+                a.href = blobUrl;
                 a.download = `EmlakStudyom_Gorseller_${Date.now()}.zip`;
                 document.body.appendChild(a);
                 a.click();
                 document.body.removeChild(a);
+                setTimeout(() => URL.revokeObjectURL(blobUrl), 2000);
 
                 if (typeof window.showAppToast === 'function') {
                     window.showAppToast(`${targets.length} görsel ZIP olarak indirildi.`, 'success', 3500);
@@ -949,6 +1179,68 @@
 
         downloadAllZip: function() {
             return this.downloadSelectedZip();
+        },
+
+        /**
+         * Aktif Görselin Fotoğraf Ayarlarını Havuzdaki Tüm Görsellere Kopyalar (Tümüne Uygula)
+         */
+        applyCurrentAdjustmentsToAll: function() {
+            if (!Array.isArray(this.items) || this.items.length === 0) {
+                if (typeof window.showAppToast === 'function') {
+                    window.showAppToast('Görsel havuzunda fotoğraf bulunamadı.', 'warning');
+                }
+                return;
+            }
+
+            this.syncActiveItemAdjustments();
+
+            const activeItem = this.activeItemId ? this.items.find(it => it.id === this.activeItemId) : null;
+            let baseAdj = null;
+            if (activeItem && activeItem.photoAdjustments) {
+                baseAdj = activeItem.photoAdjustments;
+            } else if (typeof window.capturePhotoAdjustments === 'function') {
+                baseAdj = window.capturePhotoAdjustments();
+            }
+
+            const activeAiIntensity = (activeItem && activeItem.aiIntensity !== undefined) 
+                ? activeItem.aiIntensity 
+                : ((document.getElementById('stagingAiIntensitySlider') && this.aiTrayOpen) 
+                    ? (parseFloat(document.getElementById('stagingAiIntensitySlider').value) || 0) / 100 
+                    : (baseAdj && baseAdj.filters && baseAdj.filters.aiPhotoEnhanceSlider ? baseAdj.filters.aiPhotoEnhanceSlider / 100 : 0));
+
+            const isModified = (baseAdj && window.isPhotoAdjustmentsModified && window.isPhotoAdjustmentsModified(baseAdj)) || (activeAiIntensity > 0);
+
+            if (typeof window.savePhotoFramingForCurrentFormat === 'function' && !window._isApplyingToCanvas) {
+                window.savePhotoFramingForCurrentFormat();
+            }
+            const currentFramingState = window._formatFramingState ? JSON.parse(JSON.stringify(window._formatFramingState)) : null;
+
+            this.items.forEach(it => {
+                if (baseAdj) {
+                    it.photoAdjustments = JSON.parse(JSON.stringify(baseAdj));
+                } else {
+                    it.photoAdjustments = null;
+                }
+                it.aiIntensity = activeAiIntensity;
+                if (currentFramingState) {
+                    it.formatFramingState = it.formatFramingState || {};
+                    Object.assign(it.formatFramingState, JSON.parse(JSON.stringify(currentFramingState)));
+                }
+            });
+
+            this.renderPanel();
+
+            if (typeof window.recordHistoryImmediate === 'function' && !window.isHistoryRestoring) {
+                window.recordHistoryImmediate('Tümüne Fotoğraf Ayarı Uygulandı');
+            }
+
+            if (typeof window.showAppToast === 'function') {
+                const count = this.items.length;
+                const msg = isModified 
+                    ? `${count} fotoğrafın tümüne mevcut ayarlar uygulandı.`
+                    : `${count} fotoğrafın ayarları sıfırlandı.`;
+                window.showAppToast(msg, 'success');
+            }
         },
 
         /**
@@ -1202,16 +1494,17 @@
             }
             window.companyLogo = '';
 
-            // Daha önce damgalanmış görsellerin ham hallerini geri yükle
+            // Daha önce damgalanmış görsellerin filigran öncesi hallerini (format/AI korumalı) geri yükle
             if (Array.isArray(this.items)) {
                 this.items.forEach(it => {
-                    if (it.watermarkBaked && it.rawOriginalDataUrl) {
-                        it.dataUrl = it.rawOriginalDataUrl;
+                    if (it.watermarkBaked && (it.preWatermarkDataUrl || it.rawOriginalDataUrl)) {
+                        it.dataUrl = it.preWatermarkDataUrl || it.rawOriginalDataUrl;
                         it.watermarkBaked = false;
+                        it.preWatermarkDataUrl = null;
                     }
                 });
             }
-            if (activeItem && activeItem.rawOriginalDataUrl) {
+            if (activeItem && (activeItem.preWatermarkDataUrl || activeItem.rawOriginalDataUrl)) {
                 this.applyToCanvas(activeItem.id, true);
             }
 
@@ -1502,7 +1795,10 @@
 
                 try {
                     if (!it.rawOriginalDataUrl) it.rawOriginalDataUrl = it.dataUrl;
-                    const baseImg = await this.loadImageAsync(it.rawOriginalDataUrl || it.dataUrl);
+                    if (!it.watermarkBaked || !it.preWatermarkDataUrl) {
+                        it.preWatermarkDataUrl = it.dataUrl;
+                    }
+                    const baseImg = await this.loadImageAsync(it.preWatermarkDataUrl || it.dataUrl);
                     const canvas = document.createElement('canvas');
                     canvas.width = baseImg.naturalWidth || 1920;
                     canvas.height = baseImg.naturalHeight || 1080;
@@ -2059,6 +2355,59 @@
         },
 
         /**
+         * Format seçildiğinde tuvali ve oranları anında günceller
+         */
+        setFormatRatio: function(ratio) {
+            this.formatOptions.ratio = ratio;
+            if (ratio === 'original') {
+                return this.resetFormatSelected();
+            }
+
+            const ratioMap = {
+                '1:1': '1:1 Instagram Post (Kare)',
+                '16:9': '16:9 Full HD (YouTube/Banner)',
+                '9:16': '9:16 Instagram/TikTok Story',
+                '4:3': '4:3 Klasik'
+            };
+            const targetFormatKey = ratioMap[ratio];
+            if (!targetFormatKey) return;
+
+            // Önce mevcut formattaki kadrajı kaydet
+            if (typeof window.savePhotoFramingForCurrentFormat === 'function' && !window._isApplyingToCanvas) {
+                window.savePhotoFramingForCurrentFormat();
+            }
+
+            window.userHasManuallyChangedFormat = true;
+            if (typeof window.quickSetFormat === 'function') {
+                window.quickSetFormat(targetFormatKey);
+            } else {
+                const exp = document.getElementById('exportFormat');
+                const prv = document.getElementById('previewFormat');
+                if (exp) exp.value = targetFormatKey;
+                if (prv) prv.value = targetFormatKey;
+                if (typeof switchPreviewFormat === 'function') switchPreviewFormat();
+            }
+
+            const activeItem = this.items ? this.items.find(it => it.id === this.activeItemId) : null;
+            let restored = false;
+            if (activeItem && activeItem.formatFramingState && activeItem.formatFramingState[targetFormatKey]) {
+                restored = window.restorePhotoFramingForFormat(targetFormatKey);
+            } else if (window._formatFramingState && window._formatFramingState[targetFormatKey]) {
+                restored = window.restorePhotoFramingForFormat(targetFormatKey);
+            }
+
+            if (!restored) {
+                const fitMode = (this.formatOptions.mode === 'contain_blur') ? 'contain' : 'cover';
+                if (typeof window.fitImageToCanvas === 'function') {
+                    window.fitImageToCanvas(fitMode);
+                }
+            }
+            if (typeof window.updatePhotoLockState === 'function') {
+                window.updatePhotoLockState(false);
+            }
+        },
+
+        /**
          * Seçili Görselleri İstenen Format & En-Boy Oranına Dönüştürür (Ham Orijinalden & Asenkron)
          */
         applyFormatSelected: async function() {
@@ -2068,73 +2417,167 @@
                 return;
             }
 
-            const { ratio, mode } = this.formatOptions;
+            const ratioEl = document.getElementById('formatRatioSelect');
+            const modeEl = document.getElementById('formatModeSelect');
+            const qualityEl = document.getElementById('formatQualitySelect');
+            const ratio = ratioEl ? ratioEl.value : (this.formatOptions.ratio || '1:1');
+            const mode = modeEl ? modeEl.value : (this.formatOptions.mode || 'cover');
+            const qKey = qualityEl ? qualityEl.value : (this.formatQuality || '2k');
+            this.formatOptions.ratio = ratio;
+            this.formatOptions.mode = mode;
+            this.formatQuality = qKey;
 
             // Eğer "original" seçildiyse doğrudan sıfırla
             if (ratio === 'original') {
                 return this.resetFormatSelected();
             }
 
-            const qKey = this.formatQuality || '2k';
+            const ratioMap = {
+                '1:1': '1:1 Instagram Post (Kare)',
+                '16:9': '16:9 Full HD (YouTube/Banner)',
+                '9:16': '9:16 Instagram/TikTok Story',
+                '4:3': '4:3 Klasik',
+                'original': 'Orijinal Görsel Boyutu'
+            };
+            const targetFormatKey = ratioMap[ratio] || '1:1 Instagram Post (Kare)';
 
+            const activeItem = (this.items && this.items.length > 0) ? this.items.find(it => it.id === this.activeItemId) : null;
+            const pl = document.getElementById('photo-layer') || document.querySelector('.photo-panel');
+
+            // 1. Kullanıcının şu an tuvalde yaptığı kadrajı (pan/zoom) ÖNCELİKLE yakala ve koru
+            let currentFraming = null;
+            if (pl) {
+                const zpScale = parseFloat(pl.dataset.zpScale) || 1;
+                const zpX = parseFloat(pl.dataset.zpX) || 0;
+                const zpY = parseFloat(pl.dataset.zpY) || 0;
+                const sX = (pl.id === 'photo-layer' && document.getElementById('photoXCtrl')) ? parseFloat(document.getElementById('photoXCtrl').value) : (parseFloat(pl.dataset.sX) || 50);
+                const sY = (pl.id === 'photo-layer' && document.getElementById('photoYCtrl')) ? parseFloat(document.getElementById('photoYCtrl').value) : (parseFloat(pl.dataset.sY) || 50);
+                const cContainer = document.getElementById('canvas-container');
+                const boxW = cContainer ? (parseInt(cContainer.style.width) || cContainer.offsetWidth || 1920) : 1920;
+                const boxH = cContainer ? (parseInt(cContainer.style.height) || cContainer.offsetHeight || 1080) : 1080;
+                
+                // Eğer kullanıcı tuvalde kaydırma yaptıysa:
+                if (zpX !== 0 || zpY !== 0 || zpScale !== 1 || sX !== 50 || sY !== 50) {
+                    currentFraming = { zpScale, zpX, zpY, sX, sY, boxW, boxH, userAdjusted: true, timestamp: Date.now() };
+                }
+            }
+
+            // Tuvalden alınamadıysa kayıtlı hafızadan al
+            if (!currentFraming && activeItem && activeItem.formatFramingState && activeItem.formatFramingState[targetFormatKey]) {
+                currentFraming = activeItem.formatFramingState[targetFormatKey];
+            } else if (!currentFraming && window._formatFramingState && window._formatFramingState[targetFormatKey]) {
+                currentFraming = window._formatFramingState[targetFormatKey];
+            }
+
+            // 2. Tuval formatını doğrudan ve anında seçilen formata geçir (1:1, 16:9, 9:16 vb.)
+            window.userHasManuallyChangedFormat = true;
+            window._suppressFormatLoading = true;
+            window._isApplyingToCanvas = true; // KORUMA: applyPhotoPos'un kadrajı sıfırlamasını engelle
+
+            try {
+                if (activeItem) {
+                    const fullImgUrl = activeItem.rawOriginalDataUrl || activeItem.dataUrl;
+                    activeItem.dataUrl = fullImgUrl;
+                    window.uploadedImgUrl = fullImgUrl;
+                    if (pl) {
+                        pl.style.backgroundImage = `url("${fullImgUrl}")`;
+                        pl.dataset.savedBg = `url("${fullImgUrl}")`;
+                        pl._cachedGlCanvas = null;
+                    }
+                }
+
+                if (typeof window.quickSetFormat === 'function') {
+                    window.quickSetFormat(targetFormatKey);
+                } else {
+                    const exp = document.getElementById('exportFormat');
+                    const prv = document.getElementById('previewFormat');
+                    if (exp) exp.value = targetFormatKey;
+                    if (prv) prv.value = targetFormatKey;
+                    if (typeof switchPreviewFormat === 'function') switchPreviewFormat();
+                }
+
+                window.photoFitMode = (mode === 'contain_blur') ? 'contain' : 'cover';
+
+                // Kadrajı uygula: Eğer kullanıcı kadraj yaptıysa onu uygula, kesinlikle sıfırlama!
+                if (currentFraming) {
+                    window._formatFramingState = window._formatFramingState || {};
+                    window._formatFramingState[targetFormatKey] = Object.assign({}, currentFraming);
+                    if (activeItem) {
+                        activeItem.formatFramingState = activeItem.formatFramingState || {};
+                        activeItem.formatFramingState[targetFormatKey] = Object.assign({}, currentFraming);
+                    }
+                    if (pl) {
+                        pl.dataset.zpScale = currentFraming.zpScale;
+                        pl.dataset.zpX = currentFraming.zpX;
+                        pl.dataset.zpY = currentFraming.zpY;
+                        pl.dataset.sX = currentFraming.sX;
+                        pl.dataset.sY = currentFraming.sY;
+                        if (typeof _applyPhotoTransform === 'function') _applyPhotoTransform(pl);
+                    }
+                } else {
+                    if (typeof window.fitImageToCanvas === 'function') {
+                        window.fitImageToCanvas(window.photoFitMode);
+                    }
+                }
+
+                if (typeof window.updatePhotoLockState === 'function') {
+                    window.updatePhotoLockState(false);
+                }
+                if (typeof resizeCanvas === 'function') {
+                    resizeCanvas();
+                }
+            } finally {
+                window._isApplyingToCanvas = false;
+                window._suppressFormatLoading = false;
+            }
+
+            // 3. Seçili tüm görsellere bu formatı ve kadrajı aktar ("ve genel ayarlarda tabiki")
             for (let i = 0; i < targets.length; i++) {
                 const it = targets[i];
-                // Asenkron nefes payı (UI donmasını önler)
-                await new Promise(r => setTimeout(r, 35));
-
-                // DAİMA İLK HAM ORİJİNAL KAYNAĞI KULLAN (Asla önceden kırpılmış/bulanıklaşmış tuvali ezme!)
                 const rawUrl = it.rawOriginalDataUrl || it.originalDataUrl || (it.id === this.activeItemId ? (window._aiOriginalImgDataUrl || window.uploadedImgUrl || window.masterImageBase64) : null) || it.dataUrl;
-
                 if (!it.rawOriginalDataUrl && rawUrl) {
                     it.rawOriginalDataUrl = rawUrl;
                 }
                 if (!it.rawOriginalThumbUrl) {
                     it.rawOriginalThumbUrl = it.thumbUrl || rawUrl;
                 }
+                it.dataUrl = it.rawOriginalDataUrl || rawUrl;
+                it.formatRatio = ratio;
+                it.formatMode = mode;
+                it.formatQuality = qKey;
 
-                try {
-                    const img = await this.loadImageAsync(rawUrl);
-                    const srcW = img.naturalWidth || 1920;
-                    const srcH = img.naturalHeight || 1080;
-
-                    const specs = this.getFormatTargetSpecs(ratio, qKey, srcW, srcH);
-                    const canvas = this.renderFormattedCanvas(img, specs.targetW, specs.targetH, mode);
-
-                    it.dataUrl = canvas.toDataURL(specs.mime, specs.quality);
-                    it.formatRatio = ratio;
-
-                    // Thumbnail'i de yeni formata göre güncelle
-                    try {
-                        const thumbW = Math.min(480, specs.targetW);
-                        const thumbH = Math.max(1, Math.round(thumbW * (specs.targetH / specs.targetW)));
-                        const thumbCanvas = document.createElement('canvas');
-                        thumbCanvas.width = thumbW;
-                        thumbCanvas.height = thumbH;
-                        const tctx = thumbCanvas.getContext('2d');
-                        tctx.imageSmoothingEnabled = true;
-                        tctx.imageSmoothingQuality = 'medium';
-                        tctx.drawImage(canvas, 0, 0, thumbW, thumbH);
-                        it.thumbUrl = thumbCanvas.toDataURL('image/jpeg', 0.72);
-                        thumbCanvas.width = 0;
-                        thumbCanvas.height = 0;
-                    } catch(eThumb){}
-
-                    // Bellek tahliyesi
-                    canvas.width = 0;
-                    canvas.height = 0;
-
-                    if (it.id === this.activeItemId) {
-                        this.applyToCanvas(it.id, true);
-                    }
-                } catch(err) {
-                    console.warn("Format dönüştürme hatası:", err);
+                // Kadraj hafızasını seçili tüm görsellere bağla
+                if (currentFraming) {
+                    it.formatFramingState = it.formatFramingState || {};
+                    it.formatFramingState[targetFormatKey] = Object.assign({}, currentFraming);
                 }
             }
 
             this.renderPanel();
             if (typeof window.showAppToast === 'function') {
-                window.showAppToast(`${targets.length} görsel ${ratio} formatına (${qKey.toUpperCase()}) uyarlandı.`, 'success', 3500);
+                window.showAppToast(`Tuval ${ratio} formatına uyarlandı. Kadraj ayarlarınız korundu.`, 'success', 3500);
             }
+
+            // 4. Arka planda kart küçük resimlerini (thumbnail) asenkron güncelle
+            setTimeout(async () => {
+                for (let i = 0; i < targets.length; i++) {
+                    const it = targets[i];
+                    try {
+                        const img = await this.loadImageAsync(it.dataUrl);
+                        const srcW = img.naturalWidth || img.width || 1920;
+                        const srcH = img.naturalHeight || img.height || 1080;
+                        const specs = this.getFormatTargetSpecs(ratio, qKey, srcW, srcH);
+                        const thumbW = Math.min(480, specs.targetW);
+                        const thumbH = Math.max(1, Math.round(thumbW * (specs.targetH / specs.targetW)));
+                        const framing = (it.formatFramingState && it.formatFramingState[targetFormatKey]) || currentFraming || (window._formatFramingState && window._formatFramingState[targetFormatKey]) || null;
+                        const canvas = this.renderFormattedCanvas(img, thumbW, thumbH, mode, framing);
+                        it.thumbUrl = canvas.toDataURL('image/jpeg', 0.72);
+                        canvas.width = 0;
+                        canvas.height = 0;
+                    } catch(eThumb){}
+                }
+                this.renderPanel();
+            }, 60);
         },
 
         /**
@@ -2149,28 +2592,64 @@
 
             let restoredCount = 0;
             targets.forEach(it => {
-                const raw = it.rawOriginalDataUrl || it.originalDataUrl || (it.id === this.activeItemId ? (window._aiOriginalImgDataUrl || window.uploadedImgUrl || window.masterImageBase64) : null);
+                const raw = it.rawOriginalDataUrl || it.originalDataUrl || (it.id === this.activeItemId ? (window._aiOriginalImgDataUrl || window.uploadedImgUrl || window.masterImageBase64) : null) || it.dataUrl;
                 if (raw) {
                     it.dataUrl = raw;
                     if (it.rawOriginalThumbUrl) it.thumbUrl = it.rawOriginalThumbUrl;
                     it.formatRatio = 'original';
+                    it.watermarkBaked = false;
+                    it.preWatermarkDataUrl = raw;
+                    it.formatFramingState = {};
                     restoredCount++;
-                }
-                if (it.id === this.activeItemId) {
-                    this.applyToCanvas(it.id, true);
                 }
             });
 
+            // 1. Tuval formatını orijinal boyuta geçir
+            window.userHasManuallyChangedFormat = true;
+            window._suppressFormatLoading = true;
+
+            const activeItem = this.items.find(it => it.id === this.activeItemId);
+            if (activeItem) {
+                const fullImg = activeItem.rawOriginalDataUrl || activeItem.dataUrl;
+                activeItem.dataUrl = fullImg;
+                window.uploadedImgUrl = fullImg;
+                const pl = document.getElementById('photo-layer');
+                if (pl) {
+                    pl.style.backgroundImage = `url("${fullImg}")`;
+                    pl.dataset.savedBg = `url("${fullImg}")`;
+                    pl._cachedGlCanvas = null;
+                }
+            }
+
+            if (typeof window.quickSetFormat === 'function') {
+                window.quickSetFormat('Orijinal Görsel Boyutu');
+            } else {
+                const exp = document.getElementById('exportFormat');
+                const prv = document.getElementById('previewFormat');
+                if (exp) exp.value = 'Orijinal Görsel Boyutu';
+                if (prv) prv.value = 'Orijinal Görsel Boyutu';
+                if (typeof switchPreviewFormat === 'function') switchPreviewFormat();
+            }
+
+            window.photoFitMode = 'cover';
+            if (typeof window.fitImageToCanvas === 'function') {
+                window.fitImageToCanvas('cover');
+            }
+            if (typeof resizeCanvas === 'function') {
+                resizeCanvas();
+            }
+            window._suppressFormatLoading = false;
+
             this.renderPanel();
             if (typeof window.showAppToast === 'function') {
-                window.showAppToast(`${restoredCount} görsel orijinal haline döndürüldü.`, 'success', 3000);
+                window.showAppToast(`${restoredCount} görsel orijinal boyut ve kadrajına döndürüldü.`, 'success', 3000);
             }
         },
 
         /**
-         * Görseli İstenen Çözünürlük ve Kırpma/Bulanıklık Modunda Canvas Olarak Üretir
+         * Görseli İstenen Çözünürlük, Format ve Özel Kadraj Hafızasında (Framing Pan/Zoom) Canvas Olarak Üretir
          */
-        renderFormattedCanvas: function(img, targetW, targetH, mode = 'contain_blur') {
+        renderFormattedCanvas: function(img, targetW, targetH, mode = 'contain_blur', framing = null) {
             const canvas = document.createElement('canvas');
             canvas.width = targetW;
             canvas.height = targetH;
@@ -2178,10 +2657,61 @@
             ctx.imageSmoothingEnabled = true;
             ctx.imageSmoothingQuality = 'high';
 
-            const srcW = img.naturalWidth || targetW;
-            const srcH = img.naturalHeight || targetH;
+            const srcW = img.naturalWidth || img.width || targetW;
+            const srcH = img.naturalHeight || img.height || targetH;
 
-            if (mode === 'contain_blur') {
+            const hasCustomFraming = !!(framing && (framing.userAdjusted || framing.zpScale !== undefined || framing.zpX !== undefined));
+
+            if (hasCustomFraming) {
+                // 🎯 KULLANICI KADRAJI (Ana Tuvalde Ayarlanan Birebir Pan, Zoom ve Konumlandırma)
+                const imgRatio = srcW / srcH;
+                const targetRatio = targetW / targetH;
+
+                let drawW, drawH;
+                if (imgRatio > targetRatio) {
+                    drawH = targetH;
+                    drawW = Math.round(srcW * (targetH / srcH));
+                } else {
+                    drawW = targetW;
+                    drawH = Math.round(srcH * (targetW / srcW));
+                }
+
+                const sX = (typeof framing.sX === 'number') ? framing.sX : (parseFloat(framing.sX) || 50);
+                const sY = (typeof framing.sY === 'number') ? framing.sY : (parseFloat(framing.sY) || 50);
+                const baseX = Math.round((targetW - drawW) * (sX / 100));
+                const baseY = Math.round((targetH - drawH) * (sY / 100));
+
+                const scale = parseFloat(framing.zpScale) || 1;
+
+                const boxW = framing.boxW || (targetW >= 2048 ? 1080 : targetW);
+                const boxH = framing.boxH || (targetH >= 2048 ? 1080 : targetH);
+                const scaleMulX = targetW / boxW;
+                const scaleMulY = targetH / boxH;
+
+                const trX = Math.round((parseFloat(framing.zpX) || 0) * scaleMulX);
+                const trY = Math.round((parseFloat(framing.zpY) || 0) * scaleMulY);
+
+                const cx = Math.round(targetW / 2);
+                const cy = Math.round(targetH / 2);
+
+                if (mode === 'contain_blur' && scale < 1) {
+                    ctx.save();
+                    ctx.filter = 'blur(30px) brightness(60%) saturate(120%)';
+                    const scaleCover = Math.max(targetW / srcW, targetH / srcH);
+                    const covW = srcW * scaleCover;
+                    const covH = srcH * scaleCover;
+                    ctx.drawImage(img, (targetW - covW) / 2 - 20, (targetH - covH) / 2 - 20, covW + 40, covH + 40);
+                    ctx.restore();
+                }
+
+                ctx.save();
+                ctx.translate(cx, cy);
+                ctx.scale(scale, scale);
+                ctx.translate(trX, trY);
+                ctx.translate(-cx, -cy);
+                ctx.drawImage(img, baseX, baseY, drawW, drawH);
+                ctx.restore();
+            } else if (mode === 'contain_blur') {
                 // 1. Arka planı bulanık doldur
                 ctx.save();
                 ctx.filter = 'blur(30px) brightness(60%) saturate(120%)';
@@ -2265,6 +2795,7 @@
                 }
             };
 
+            this.syncActiveItemAdjustments();
             updateBtnProgress(0, targets.length);
 
             if (typeof window.showAppToast === 'function') {
@@ -2280,12 +2811,18 @@
                 const mode = this.formatOptions?.mode || 'contain_blur';
                 const qKey = this.formatQuality || '2k';
 
-                // Platform hedefleri
+                // Platform hedefleri (Format anahtarları ile tam eşleştirilmiş)
                 const platforms = [
-                    { ratio: '1:1', folder: folderInsta, suffix: '_1x1_Instagram' },
-                    { ratio: '16:9', folder: folderSahibinden, suffix: '_16x9_Sahibinden' },
-                    { ratio: '9:16', folder: folderStory, suffix: '_9x16_Story' }
+                    { ratio: '1:1', folder: folderInsta, suffix: '_1x1_Instagram', formatKeys: ['1:1 Instagram Post (Kare)', '1:1 Instagram Post', '1:1 Kare (Instagram)', '1:1', 'Instagram 1:1', '1920x1920 Kare HD'] },
+                    { ratio: '16:9', folder: folderSahibinden, suffix: '_16x9_Sahibinden', formatKeys: ['16:9 Full HD (YouTube/Banner)', '16:9 Full HD', '16:9', 'Sahibinden 16:9', 'Orijinal Görsel Boyutu'] },
+                    { ratio: '9:16', folder: folderStory, suffix: '_9x16_Story', formatKeys: ['9:16 Instagram/TikTok Story', '9:16 Dikey Hikaye (Story/Reels)', '9:16', 'Story 9:16'] }
                 ];
+
+                // Aktif tuvaldeki genel ayarları tespit et ("ve genel ayarlarda tabiki")
+                const activeItem = this.activeItemId ? this.items.find(it => it.id === this.activeItemId) : null;
+                const activeAdj = activeItem ? (activeItem.photoAdjustments || null) : (typeof window.capturePhotoAdjustments === 'function' ? window.capturePhotoAdjustments() : null);
+                const activeAi = (activeItem && activeItem.aiIntensity !== undefined) ? activeItem.aiIntensity : (this.aiIntensity || 0);
+                const hasActiveGeneralAdj = (activeAdj && window.isPhotoAdjustmentsModified && window.isPhotoAdjustmentsModified(activeAdj)) || (activeAi > 0.001);
 
                 // Aktif logo varsa döngüden önce tek seferde yükle (yüksek performans)
                 let preloadedLogoImg = null;
@@ -2307,17 +2844,91 @@
                     // Ana işlem döngüsüne nefes payı (UI thread'e kontrol ver - sıfır donma & GC)
                     await new Promise(r => setTimeout(r, 45));
 
-                    const rawUrl = it.rawOriginalDataUrl || it.originalDataUrl || (it.id === this.activeItemId ? (window._aiOriginalImgDataUrl || window.uploadedImgUrl || window.masterImageBase64) : null) || it.dataUrl;
+                    const rawUrl = (it.id === this.activeItemId ? (window._aiOriginalImgDataUrl || window.uploadedImgUrl || window.masterImageBase64) : null) || it.rawOriginalDataUrl || it.originalDataUrl || it.preWatermarkDataUrl || it.dataUrl;
                     const img = await this.loadImageAsync(rawUrl);
+                    let sourceForFormat = img;
+                    let processedAdjCanvas = null;
+
+                    // Görselin kendi ayarları veya sahnede aktif genel ayarlar ("ve genel ayarlarda tabiki")
+                    let adj = it.photoAdjustments || null;
+                    let itAi = (it.aiIntensity !== undefined) ? it.aiIntensity : null;
+
+                    if (!adj && hasActiveGeneralAdj) {
+                        adj = activeAdj;
+                    }
+                    if (itAi === null && activeAi > 0.001) {
+                        itAi = activeAi;
+                    }
+
+                    const hasAdjustments = (adj && window.isPhotoAdjustmentsModified && window.isPhotoAdjustmentsModified(adj)) || 
+                                           (itAi !== null && itAi > 0.001);
+                    if (hasAdjustments && typeof window.renderPhotoWithAdjustments === 'function') {
+                        try {
+                            const finalAdj = Object.assign({}, adj);
+                            if (itAi !== null && finalAdj.aiIntensity === undefined) {
+                                finalAdj.aiIntensity = itAi;
+                            }
+                            processedAdjCanvas = window.renderPhotoWithAdjustments(img, finalAdj);
+                            if (processedAdjCanvas) sourceForFormat = processedAdjCanvas;
+                        } catch(e) {
+                            console.warn("Çoklu platform görsel ayarı render hatası:", e);
+                        }
+                    }
                     const cleanTitle = (it.title || `Gorsel_${i + 1}`).replace(/[^\w\d_-]/gi, '_');
-                    const srcW = img.naturalWidth || 1920;
-                    const srcH = img.naturalHeight || 1080;
+                    const srcW = sourceForFormat.naturalWidth || sourceForFormat.width || 1920;
+                    const srcH = sourceForFormat.naturalHeight || sourceForFormat.height || 1080;
 
                     for (const p of platforms) {
-                        const specs = this.getFormatTargetSpecs(p.ratio, qKey, srcW, srcH);
-                        const cvs = this.renderFormattedCanvas(img, specs.targetW, specs.targetH, mode);
+                        // 🎯 FORMAT KADRAJ HAFIZASI (İlk seçenekteki 1:1, 9:16 ve 16:9 kadraj ayarlarını bağla)
+                        let framing = null;
+                        const itemFraming = it.formatFramingState || null;
+                        const globalFraming = (window._formatFramingState && Object.keys(window._formatFramingState).length > 0) 
+                            ? window._formatFramingState 
+                            : null;
 
-                        if (preloadedLogoImg && !it.watermarkBaked) {
+                        // 1. Önce görselin kendi özel formatFramingState hafızası
+                        if (itemFraming) {
+                            for (const k of p.formatKeys) {
+                                if (itemFraming[k] && itemFraming[k].userAdjusted) {
+                                    framing = itemFraming[k];
+                                    break;
+                                }
+                            }
+                            if (!framing) {
+                                for (const k of Object.keys(itemFraming)) {
+                                    if (itemFraming[k] && itemFraming[k].userAdjusted) {
+                                        if (p.ratio === '1:1' && (k.includes('1:1') || k.includes('Kare') || k.includes('1920x1920'))) { framing = itemFraming[k]; break; }
+                                        if (p.ratio === '16:9' && (k.includes('16:9') || k.includes('Orijinal') || k.includes('Sahibinden'))) { framing = itemFraming[k]; break; }
+                                        if (p.ratio === '9:16' && (k.includes('9:16') || k.includes('Story') || k.includes('Hikaye') || k.includes('Reels'))) { framing = itemFraming[k]; break; }
+                                    }
+                                }
+                            }
+                        }
+
+                        // 2. Görselde bu format için kadraj yoksa, genel tuval framing hafızasından devral
+                        if (!framing && globalFraming) {
+                            for (const k of p.formatKeys) {
+                                if (globalFraming[k] && globalFraming[k].userAdjusted) {
+                                    framing = globalFraming[k];
+                                    break;
+                                }
+                            }
+                            if (!framing) {
+                                for (const k of Object.keys(globalFraming)) {
+                                    if (globalFraming[k] && globalFraming[k].userAdjusted) {
+                                        if (p.ratio === '1:1' && (k.includes('1:1') || k.includes('Kare') || k.includes('1920x1920'))) { framing = globalFraming[k]; break; }
+                                        if (p.ratio === '16:9' && (k.includes('16:9') || k.includes('Orijinal') || k.includes('Sahibinden'))) { framing = globalFraming[k]; break; }
+                                        if (p.ratio === '9:16' && (k.includes('9:16') || k.includes('Story') || k.includes('Hikaye') || k.includes('Reels'))) { framing = globalFraming[k]; break; }
+                                    }
+                                }
+                            }
+                        }
+
+                        const specs = this.getFormatTargetSpecs(p.ratio, qKey, srcW, srcH);
+                        const platformMode = it.formatMode || this.formatOptions?.mode || 'cover';
+                        const cvs = this.renderFormattedCanvas(sourceForFormat, specs.targetW, specs.targetH, platformMode, framing);
+
+                        if (preloadedLogoImg) {
                             this.renderLogoToCanvasContext(cvs.getContext('2d'), cvs, it, preloadedLogoImg);
                         }
 
@@ -2345,6 +2956,11 @@
 
                         // Platform arası mikro nefes
                         await new Promise(r => setTimeout(r, 20));
+                    }
+
+                    if (processedAdjCanvas && processedAdjCanvas !== img) {
+                        processedAdjCanvas.width = 0;
+                        processedAdjCanvas.height = 0;
                     }
                 }
 
@@ -3106,6 +3722,8 @@
                         it.dataUrl = enhancedDataUrl;
                         it.isEnhanced = true;
                         it.aiIntensity = intensity;
+                        it.watermarkBaked = false;
+                        it.preWatermarkDataUrl = enhancedDataUrl;
 
                         // Thumbnail güncellemesi (Havuz kartlarında netlik görünür)
                         try {
@@ -3711,6 +4329,116 @@
             });
         },
 
+        _thumbUpdateTimers: {},
+
+        /**
+         * Belirtilen görselin sol havuzdaki küçük kart görselini (thumbnail) canlı kadraja göre gecikmeli yeniler
+         */
+        updateItemThumbnailDebounced: function(id, delay = 180) {
+            if (!id) id = this.activeItemId;
+            if (!id) return;
+            if (!this._thumbUpdateTimers) this._thumbUpdateTimers = {};
+            if (this._thumbUpdateTimers[id]) {
+                clearTimeout(this._thumbUpdateTimers[id]);
+            }
+            this._thumbUpdateTimers[id] = setTimeout(() => {
+                if (this._thumbUpdateTimers) delete this._thumbUpdateTimers[id];
+                this.updateItemThumbnailNow(id);
+            }, delay);
+        },
+
+        /**
+         * Belirtilen görselin sol havuzdaki küçük kart görselini (thumbnail) anında yeniden hesaplar ve günceller
+         */
+        updateItemThumbnailNow: async function(id) {
+            if (!id) id = this.activeItemId;
+            if (!id) return;
+            const it = (this.items && Array.isArray(this.items)) ? this.items.find(x => x.id === id) : null;
+            if (!it) return;
+
+            try {
+                // Aktif formatı belirle
+                const expVal = (document.getElementById('exportFormat') || document.getElementById('previewFormat') || {}).value || '';
+                const ratioMap = {
+                    '1:1 Instagram Post (Kare)': '1:1',
+                    '16:9 Full HD (YouTube/Banner)': '16:9',
+                    '9:16 Instagram/TikTok Story': '9:16',
+                    '4:3 Klasik': '4:3'
+                };
+                let activeRatio = it.formatRatio || ratioMap[expVal] || '16:9';
+                if (expVal.includes('1:1')) activeRatio = '1:1';
+                else if (expVal.includes('16:9')) activeRatio = '16:9';
+                else if (expVal.includes('9:16')) activeRatio = '9:16';
+                else if (expVal.includes('4:3')) activeRatio = '4:3';
+
+                // Kadrajı bul
+                let framing = null;
+                const itemFraming = it.formatFramingState || null;
+                const globalFraming = (it.id === this.activeItemId && window._formatFramingState) ? window._formatFramingState : null;
+                const candidateKeys = [expVal, activeRatio];
+
+                if (itemFraming) {
+                    for (const k of candidateKeys) {
+                        if (itemFraming[k] && itemFraming[k].userAdjusted) { framing = itemFraming[k]; break; }
+                    }
+                    if (!framing) {
+                        for (const k of Object.keys(itemFraming)) {
+                            if (itemFraming[k] && itemFraming[k].userAdjusted) {
+                                if (activeRatio === '1:1' && (k.includes('1:1') || k.includes('Kare') || k.includes('1920x1920'))) { framing = itemFraming[k]; break; }
+                                if (activeRatio === '16:9' && (k.includes('16:9') || k.includes('Orijinal') || k.includes('Sahibinden'))) { framing = itemFraming[k]; break; }
+                                if (activeRatio === '9:16' && (k.includes('9:16') || k.includes('Story') || k.includes('Hikaye') || k.includes('Reels'))) { framing = itemFraming[k]; break; }
+                                if (activeRatio === '4:3' && k.includes('4:3')) { framing = itemFraming[k]; break; }
+                            }
+                        }
+                    }
+                }
+                if (!framing && globalFraming) {
+                    for (const k of candidateKeys) {
+                        if (globalFraming[k] && globalFraming[k].userAdjusted) { framing = globalFraming[k]; break; }
+                    }
+                    if (!framing) {
+                        for (const k of Object.keys(globalFraming)) {
+                            if (globalFraming[k] && globalFraming[k].userAdjusted) {
+                                if (activeRatio === '1:1' && (k.includes('1:1') || k.includes('Kare') || k.includes('1920x1920'))) { framing = globalFraming[k]; break; }
+                                if (activeRatio === '16:9' && (k.includes('16:9') || k.includes('Orijinal') || k.includes('Sahibinden'))) { framing = globalFraming[k]; break; }
+                                if (activeRatio === '9:16' && (k.includes('9:16') || k.includes('Story') || k.includes('Hikaye') || k.includes('Reels'))) { framing = globalFraming[k]; break; }
+                                if (activeRatio === '4:3' && k.includes('4:3')) { framing = globalFraming[k]; break; }
+                            }
+                        }
+                    }
+                }
+
+                // Ham görsel kaynağını al
+                const rawUrl = (it.id === this.activeItemId ? (window._aiOriginalImgDataUrl || window.uploadedImgUrl || window.masterImageBase64) : null) || it.rawOriginalDataUrl || it.originalDataUrl || it.dataUrl;
+                const img = await this.loadImageAsync(rawUrl);
+                const srcW = img.naturalWidth || img.width || 1920;
+                const srcH = img.naturalHeight || img.height || 1080;
+
+                // Thumbnail boyutlarını hesapla (max 320px - süper hızlı render)
+                const specs = this.getFormatTargetSpecs(activeRatio, 'web', srcW, srcH);
+                const thumbW = Math.min(320, specs.targetW || 320);
+                const thumbH = Math.max(1, Math.round(thumbW * ((specs.targetH || 180) / (specs.targetW || 320))));
+                const mode = it.formatMode || this.formatOptions?.mode || 'cover';
+
+                // Kadrajlı küçük tuvali render et
+                const cvs = this.renderFormattedCanvas(img, thumbW, thumbH, mode, framing);
+                it.thumbUrl = cvs.toDataURL('image/jpeg', 0.75);
+                cvs.width = 0;
+                cvs.height = 0;
+
+                // DOM'daki kart görselini anında ve kesintisiz güncelle
+                const card = document.querySelector(`.staging-card[data-id="${id}"]`);
+                if (card) {
+                    const cardImg = card.querySelector('.staging-card-img');
+                    if (cardImg) {
+                        cardImg.src = it.thumbUrl;
+                    }
+                }
+            } catch(e) {
+                console.warn("Kart küçük görseli güncellenirken hata:", e);
+            }
+        },
+
         /**
          * Seçim Çubuğu UI'sini Günceller
          */
@@ -3865,6 +4593,104 @@
                     </div>
                 </div>
 
+                <!-- Havuz Henüz Boşken de Erişilebilir Hızlı Araç Çubuğu (Logo & Format) -->
+                ${total === 0 ? `
+                    <div class="staging-prep-bar" style="display:flex; gap:6px; margin-bottom:10px;">
+                        <button type="button" class="btn-action staging-batch-btn ${this.watermarkTrayOpen ? 'active' : ''}" onclick="PhotoStagingArchive.toggleWatermarkTray()" style="flex:1; height:34px;" title="Fotoğraflara eklenecek firma logosunu ve filigran ayarlarını önceden belirleyin">
+                            <i class="fa-solid fa-shield-halved"></i> Filigran &amp; Logo
+                        </button>
+                        <button type="button" class="btn-action staging-batch-btn ${this.formatTrayOpen ? 'active' : ''}" onclick="PhotoStagingArchive.toggleFormatTray()" style="flex:1; height:34px;" title="Varsayılan tuval formatını (16:9, 1:1, 9:16) seçin">
+                            <i class="fa-solid fa-crop-simple"></i> Format &amp; Kadraj
+                        </button>
+                    </div>
+
+                    ${(this.watermarkTrayOpen || this.formatTrayOpen) ? `
+                        <div class="staging-batch-toolbar" style="margin-bottom:10px; padding:8px;">
+                            ${this.watermarkTrayOpen ? `
+                                <!-- 🛡️ FİLİGRAN & LOGO AYAR PANELİ (Boş Havuzdayken Açık) -->
+                                <div class="staging-sub-tray is-open" id="stagingWatermarkTray">
+                                    <div class="staging-tray-title">
+                                        <span class="staging-tray-title-text"><i class="fa-solid fa-shield-halved" style="color:#0284c7;"></i> Filigran &amp; Logo</span>
+                                        <button type="button" class="btn-action staging-tray-close-btn" onclick="PhotoStagingArchive.toggleWatermarkTray()">Kapat</button>
+                                    </div>
+                                    <div class="staging-tray-row">
+                                        <div class="staging-logo-preview-box" id="stagingLogoPreviewBox" onclick="PhotoStagingArchive.addLogoToCanvas()" style="cursor:pointer;" title="Logoyu tuvale ekle">
+                                            <img src="${currentLogo || 'assets/logo/logo.png'}" class="staging-logo-preview-img" alt="Logo" onerror="this.style.display='none'; const ph=this.parentElement.querySelector('.staging-logo-fallback-icon'); if(ph) ph.style.display='inline-block';">
+                                            <i class="fa-solid fa-shield-halved staging-logo-fallback-icon" style="display:none; color:#0284c7; font-size:14px;"></i>
+                                        </div>
+                                        <input type="file" id="stagingWatermarkLogoInput" accept="image/*" style="display:none;" onchange="PhotoStagingArchive.handleWatermarkLogoUpload(event)">
+                                        ${isLogoOnCanvas ? `
+                                            <button type="button" id="stagingLogoUploadBtn" class="btn-action staging-tray-btn" onclick="PhotoStagingArchive.triggerWatermarkLogoInput()" title="Kendi logonuzu seçin veya değiştirin">
+                                                <i class="fa-solid fa-arrow-up-from-bracket"></i> <span id="stagingLogoUploadBtnText">${hasCustomLogo ? 'Logo Değiştir' : 'Logo Seç'}</span>
+                                            </button>
+                                            <button type="button" id="stagingLogoRemoveBtn" class="btn-action staging-tray-btn staging-tray-btn-danger" onclick="PhotoStagingArchive.removeLogoFromCanvas()" title="Logoyu tuvalden kaldırır">
+                                                <i class="fa-solid fa-trash-can"></i> Logoyu Kaldır
+                                            </button>
+                                        ` : `
+                                            <button type="button" id="stagingLogoAddBtn" class="btn-action staging-tray-btn" onclick="PhotoStagingArchive.addLogoToCanvas()" title="Logoyu tuvale yerleştirir">
+                                                <i class="fa-solid fa-stamp"></i> Logo Ekle
+                                            </button>
+                                            <button type="button" id="stagingLogoUploadBtn" class="btn-action staging-tray-btn" onclick="PhotoStagingArchive.triggerWatermarkLogoInput()" title="Kendi logonuzu seçin">
+                                                <i class="fa-solid fa-arrow-up-from-bracket"></i> <span id="stagingLogoUploadBtnText">Logo Seç</span>
+                                            </button>
+                                        `}
+                                    </div>
+                                    <div class="staging-tray-row">
+                                        <select class="staging-tray-select" id="watermarkPosSelect" onchange="PhotoStagingArchive.setWatermarkPosition(this.value)">
+                                            <option value="bottom-right" ${this.watermarkOptions.position === 'bottom-right' ? 'selected' : ''}>Konum: Sağ Alt</option>
+                                            <option value="bottom-left" ${this.watermarkOptions.position === 'bottom-left' ? 'selected' : ''}>Konum: Sol Alt</option>
+                                            <option value="top-right" ${this.watermarkOptions.position === 'top-right' ? 'selected' : ''}>Konum: Sağ Üst</option>
+                                            <option value="top-left" ${this.watermarkOptions.position === 'top-left' ? 'selected' : ''}>Konum: Sol Üst</option>
+                                            <option value="center" ${this.watermarkOptions.position === 'center' ? 'selected' : ''}>Konum: Merkez</option>
+                                            <option value="custom" ${this.watermarkOptions.position === 'custom' ? 'selected' : ''}>Konum: Serbest Taşıma</option>
+                                        </select>
+                                        <button type="button" class="btn-action staging-tray-btn" onclick="PhotoStagingArchive.alignLogoBottomRight()" title="Logoyu sağ alt köşeye yerleştirir">
+                                            <i class="fa-solid fa-arrows-to-dot"></i> Sağ Alta Hizala
+                                        </button>
+                                    </div>
+                                    <div class="staging-logo-sync-bar">
+                                        <label class="staging-logo-sync-item" title="Logonun belirlenen konumunu havuzdaki tüm görsellere uygular">
+                                            <input type="checkbox" id="stagingWmApplyAllCheck" ${this.watermarkOptions.applyToAll !== false ? 'checked' : ''} onchange="PhotoStagingArchive.setWatermarkApplyToAll(this.checked)">
+                                            <span>Konumu Tümüne Uygula</span>
+                                        </label>
+                                    </div>
+                                    <div class="slider-group" style="margin:0;">
+                                        <label style="display:flex; justify-content:space-between; margin-bottom:2px; font-size:11px; font-weight:600;"><span>Boyut</span><span id="wmScaleVal">${this.watermarkOptions.scale}%</span></label>
+                                        <input type="range" id="wmScaleSlider" min="5" max="50" value="${this.watermarkOptions.scale}" oninput="PhotoStagingArchive.setWatermarkScale(this.value)">
+                                    </div>
+                                    <div class="slider-group" style="margin:0;">
+                                        <label style="display:flex; justify-content:space-between; margin-bottom:2px; font-size:11px; font-weight:600;"><span>Opaklık</span><span id="wmOpacityVal">${this.watermarkOptions.opacity}%</span></label>
+                                        <input type="range" id="wmOpacitySlider" min="10" max="100" value="${this.watermarkOptions.opacity}" oninput="PhotoStagingArchive.setWatermarkOpacity(this.value)">
+                                    </div>
+                                </div>
+                            ` : ''}
+
+                            ${this.formatTrayOpen ? `
+                                <!-- 📐 FORMAT & KADRAJ PANELİ (Boş Havuzdayken Açık) -->
+                                <div class="staging-sub-tray is-open" id="stagingFormatTray">
+                                    <div class="staging-tray-title">
+                                        <span class="staging-tray-title-text"><i class="fa-solid fa-crop-simple" style="color:#0284c7;"></i> Format &amp; Kadraj</span>
+                                        <button type="button" class="btn-action staging-tray-close-btn" onclick="PhotoStagingArchive.toggleFormatTray()">Kapat</button>
+                                    </div>
+                                    <div class="staging-tray-row">
+                                        <select class="staging-tray-select" id="formatRatioSelect" onchange="PhotoStagingArchive.setFormatRatio(this.value)">
+                                            <option value="original" ${this.formatOptions.ratio === 'original' ? 'selected' : ''}>Orijinal Boyut</option>
+                                            <option value="1:1" ${this.formatOptions.ratio === '1:1' ? 'selected' : ''}>1:1 Instagram Post</option>
+                                            <option value="16:9" ${this.formatOptions.ratio === '16:9' ? 'selected' : ''}>16:9 Sahibinden ve Portallar</option>
+                                            <option value="9:16" ${this.formatOptions.ratio === '9:16' ? 'selected' : ''}>9:16 Story ve Reels</option>
+                                            <option value="4:3" ${this.formatOptions.ratio === '4:3' ? 'selected' : ''}>4:3 Portallar</option>
+                                        </select>
+                                        <select class="staging-tray-select" id="formatModeSelect" onchange="PhotoStagingArchive.formatOptions.mode = this.value">
+                                            <option value="contain_blur" ${this.formatOptions.mode === 'contain_blur' ? 'selected' : ''}>Bulanık Zeminle Sığdır</option>
+                                            <option value="cover" ${this.formatOptions.mode === 'cover' ? 'selected' : ''}>Ortalayarak Doldur</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            ` : ''}
+                        </div>
+                    ` : ''}
+                ` : ''}
+
                 <!-- Kaynak Filtreleri (Filter Pills) -->
                 ${total > 0 ? `
                     <div class="staging-filter-pills">
@@ -3896,9 +4722,9 @@
                         <div class="staging-quality-row">
                             <span class="staging-quality-label"><i class="fa-solid fa-sliders"></i> Kalite</span>
                             <select class="staging-tray-select staging-quality-select" id="stagingExportQualitySelect" onchange="PhotoStagingArchive.setExportQuality(this.value)" title="Toplu indirme ve damgalama için çıktı kalitesi">
-                                <option value="web" ${this.exportQuality === 'web' ? 'selected' : ''}>Web ve Portallar</option>
-                                <option value="high" ${this.exportQuality === 'high' ? 'selected' : ''}>Yüksek Kalite</option>
-                                <option value="ultra" ${this.exportQuality === 'ultra' ? 'selected' : ''}>Ultra Netlik</option>
+                                <option value="ultra" ${(this.exportQuality === 'ultra' || !this.exportQuality) ? 'selected' : ''}>Ultra Netlik JPG %98</option>
+                                <option value="high" ${this.exportQuality === 'high' ? 'selected' : ''}>Yüksek Kalite JPG %96</option>
+                                <option value="web" ${this.exportQuality === 'web' ? 'selected' : ''}>Web ve Portallar JPG %92</option>
                                 <option value="lossless" ${this.exportQuality === 'lossless' ? 'selected' : ''}>Kayıpsız PNG</option>
                             </select>
                         </div>
@@ -3926,6 +4752,9 @@
                             </button>
                             <button type="button" class="btn-action staging-batch-btn ${this.aiTrayOpen ? 'active' : ''}" onclick="PhotoStagingArchive.toggleAiTray()" title="Yapay zeka netleştirme ayarını açar">
                                 <i class="fa-solid fa-wand-magic-sparkles"></i> AI Netleştir
+                            </button>
+                            <button type="button" class="btn-action staging-batch-btn" onclick="PhotoStagingArchive.applyCurrentAdjustmentsToAll()" title="Mevcut fotoğraf ayarlarını havuzdaki tüm görsellere uygular">
+                                <i class="fa-solid fa-clone"></i> Tümüne Uygula
                             </button>
                             <button type="button" class="btn-action staging-batch-btn staging-btn-danger" onclick="PhotoStagingArchive.deleteSelected()" title="Seçilen görselleri havuzdan siler">
                                 <i class="fa-solid fa-trash-can"></i> Seçilenleri Sil
@@ -4007,7 +4836,7 @@
                                 <button type="button" class="btn-action staging-tray-close-btn" onclick="PhotoStagingArchive.toggleFormatTray()">Kapat</button>
                             </div>
                             <div class="staging-tray-row">
-                                <select class="staging-tray-select" id="formatRatioSelect" onchange="PhotoStagingArchive.formatOptions.ratio = this.value">
+                                <select class="staging-tray-select" id="formatRatioSelect" onchange="PhotoStagingArchive.setFormatRatio(this.value)">
                                     <option value="original" ${this.formatOptions.ratio === 'original' ? 'selected' : ''}>Orijinal Boyut</option>
                                     <option value="1:1" ${this.formatOptions.ratio === '1:1' ? 'selected' : ''}>1:1 Instagram Post</option>
                                     <option value="16:9" ${this.formatOptions.ratio === '16:9' ? 'selected' : ''}>16:9 Sahibinden ve Portallar</option>
@@ -4021,9 +4850,9 @@
                             </div>
                             <div class="staging-tray-row" style="margin-top:4px;">
                                 <select class="staging-tray-select" id="formatQualitySelect" style="width:100%;" onchange="PhotoStagingArchive.setFormatQuality(this.value)" title="Dışa aktarma ve formatlama çözünürlük kalitesi">
-                                    <option value="hd" ${this.formatQuality === 'hd' ? 'selected' : ''}>Standart HD 1080p</option>
-                                    <option value="2k" ${(this.formatQuality === '2k' || !this.formatQuality) ? 'selected' : ''}>Yüksek Kalite 2K</option>
-                                    <option value="4k" ${this.formatQuality === '4k' ? 'selected' : ''}>Ultra Netlik 4K</option>
+                                    <option value="2k" ${(this.formatQuality === '2k' || !this.formatQuality) ? 'selected' : ''}>Yüksek Kalite 2K JPG</option>
+                                    <option value="4k" ${this.formatQuality === '4k' ? 'selected' : ''}>Maksimum Netlik 4K JPG</option>
+                                    <option value="hd" ${this.formatQuality === 'hd' ? 'selected' : ''}>Standart HD 1080p JPG</option>
                                     <option value="png" ${this.formatQuality === 'png' ? 'selected' : ''}>Kayıpsız PNG</option>
                                 </select>
                             </div>
@@ -4197,6 +5026,34 @@
             this.renderExportTabBatchList();
         },
 
+        syncActiveItemAdjustments: function() {
+            if (!this.activeItemId || !Array.isArray(this.items)) return;
+            const activeItem = this.items.find(it => it.id === this.activeItemId);
+            if (!activeItem) return;
+            if (typeof window.capturePhotoAdjustments === 'function') {
+                const adj = window.capturePhotoAdjustments();
+                const stagingSlider = document.getElementById('stagingAiIntensitySlider');
+                if (stagingSlider && this.aiTrayOpen) {
+                    activeItem.aiIntensity = (parseFloat(stagingSlider.value) || 0) / 100.0;
+                }
+                const hasAdj = (window.isPhotoAdjustmentsModified && window.isPhotoAdjustmentsModified(adj)) || 
+                               (activeItem.aiIntensity !== undefined && activeItem.aiIntensity > 0);
+                if (hasAdj) {
+                    activeItem.photoAdjustments = adj;
+                } else {
+                    activeItem.photoAdjustments = null;
+                }
+            }
+            if (typeof window.savePhotoFramingForCurrentFormat === 'function' && !window._isApplyingToCanvas) {
+                window.savePhotoFramingForCurrentFormat();
+            }
+            // Format kadraj hafızasını da aktif görsel için senkronize et
+            if (window._formatFramingState && Object.keys(window._formatFramingState).length > 0) {
+                activeItem.formatFramingState = activeItem.formatFramingState || {};
+                Object.assign(activeItem.formatFramingState, JSON.parse(JSON.stringify(window._formatFramingState)));
+            }
+        },
+
         close: function() {
             // Panelde kapatma gerekmez, sol sekme olarak açık kalır
         }
@@ -4205,6 +5062,15 @@
     window.PhotoStagingArchive = PhotoStagingArchive;
     window.validateLogoFileAsync = (file) => PhotoStagingArchive.validateLogoFileAsync(file);
     window.addLogoToCanvas = () => PhotoStagingArchive.addLogoToCanvas();
+
+    // Sayfa yenileme / sekme kapatma koruması (Görsel havuzunda işlenmekte olan fotoğraflar varsa uyar)
+    window.addEventListener('beforeunload', (e) => {
+        if (PhotoStagingArchive.items && PhotoStagingArchive.items.length > 0 && !window._suppressBeforeUnload) {
+            e.preventDefault();
+            e.returnValue = '';
+            return '';
+        }
+    });
 
     // Sayfa hazır olduğunda başlat
     if (document.readyState === 'loading') {

@@ -255,6 +255,13 @@
                 window.requestPhotoRepaint();
             }
 
+            if (window.PhotoStagingArchive && typeof window.PhotoStagingArchive.syncActiveItemAdjustments === 'function') {
+                window.PhotoStagingArchive.syncActiveItemAdjustments();
+            }
+            if (typeof window.recordHistoryImmediate === 'function' && !window.isHistoryRestoring) {
+                window.recordHistoryImmediate(`Hazır Ayar: ${preset.name || 'Özel Ayar'}`);
+            }
+
             // Toast bildirimi
             if (typeof Swal !== 'undefined' && preset.name) {
                 Swal.fire({

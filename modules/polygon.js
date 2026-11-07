@@ -4,8 +4,10 @@ function createPolygonFromSelectedLines() {
     if (!window.selectedElements || window.selectedElements.length < 2) return;
     
     const lines = window.selectedElements.filter(el => {
-        if (!el.classList.contains('editable-draw')) return false;
-        const pObj = typeof drawPaths !== 'undefined' ? drawPaths.find(p => p.el === el) : null;
+        if (!el || !el.classList || !el.classList.contains('editable-draw')) return false;
+        const pObj = (typeof window.findDrawPathForElement === 'function')
+            ? window.findDrawPathForElement(el)
+            : (typeof drawPaths !== 'undefined' ? drawPaths.find(p => p.el === el || (p.id && el.dataset && p.id === el.dataset.pathId) || (el.dataset && el.dataset.pathIndex !== undefined && drawPaths[parseInt(el.dataset.pathIndex)] === p)) : null);
         return pObj && (pObj.type === 'line' || pObj.x1 !== undefined);
     });
     
@@ -16,7 +18,9 @@ function createPolygonFromSelectedLines() {
     
     let linesData = [];
     lines.forEach((el) => {
-        const pObj = drawPaths.find(p => p.el === el);
+        const pObj = (typeof window.findDrawPathForElement === 'function')
+            ? window.findDrawPathForElement(el)
+            : (typeof drawPaths !== 'undefined' ? drawPaths.find(p => p.el === el || (p.id && el.dataset && p.id === el.dataset.pathId) || (el.dataset && el.dataset.pathIndex !== undefined && drawPaths[parseInt(el.dataset.pathIndex)] === p)) : null);
         if (pObj) {
             if (pObj.points && pObj.points.length >= 2) {
                 linesData.push({ el, p1: {x: pObj.points[0].x, y: pObj.points[0].y}, p2: {x: pObj.points[pObj.points.length-1].x, y: pObj.points[pObj.points.length-1].y} });
@@ -124,6 +128,53 @@ function createPolygonFromSelectedLines() {
 }
 window.createPolygonFromSelectedLines = createPolygonFromSelectedLines;
 
+// ========== MARQUEE CONSTANTS & SCREEN RECT HELPERS ==========
+const MARQUEE_SELECTOR = '.cvi-item, .co-neon-block, .draggable, .added-icon, .canvas-el, .editable-draw, .callout-wrap, .callout-wrapper, .svg-callout, .parcel-badge-callout, .sat-measure-callout, .shape-el, .editable-text, .custom-graphic-badge, .brand-element, .tb-image-frame';
+
+function getElementScreenRect(el) {
+    if (!el || typeof el.getBoundingClientRect !== 'function') return null;
+    let rect = el.getBoundingClientRect();
+    
+    // SVG ve içerisindeki alt şekillerin (polygon, rect, circle, ellipse, path, line) gerçek ekran sınırlarını da kapsama ekle
+    try {
+        const svg = el.querySelector('svg');
+        if (svg) {
+            const sRect = svg.getBoundingClientRect();
+            if (sRect && sRect.width > 0 && sRect.height > 0) {
+                if (!rect || rect.width === 0 || rect.height === 0) {
+                    rect = sRect;
+                } else {
+                    rect = {
+                        left: Math.min(rect.left, sRect.left),
+                        right: Math.max(rect.right, sRect.right),
+                        top: Math.min(rect.top, sRect.top),
+                        bottom: Math.max(rect.bottom, sRect.bottom),
+                        width: Math.max(rect.right, sRect.right) - Math.min(rect.left, sRect.left),
+                        height: Math.max(rect.bottom, sRect.bottom) - Math.min(rect.top, sRect.top)
+                    };
+                }
+            }
+            const shapes = svg.querySelectorAll('polygon, rect, ellipse, circle, path, line');
+            shapes.forEach(sh => {
+                if (typeof sh.getBoundingClientRect === 'function') {
+                    const shRect = sh.getBoundingClientRect();
+                    if (shRect && shRect.width > 0 && shRect.height > 0) {
+                        rect = {
+                            left: Math.min(rect.left, shRect.left),
+                            right: Math.max(rect.right, shRect.right),
+                            top: Math.min(rect.top, shRect.top),
+                            bottom: Math.max(rect.bottom, shRect.bottom),
+                            width: Math.max(rect.right, shRect.right) - Math.min(rect.left, shRect.left),
+                            height: Math.max(rect.bottom, shRect.bottom) - Math.min(rect.top, shRect.top)
+                        };
+                    }
+                }
+            });
+        }
+    } catch(e) {}
+    return rect;
+}
+
 // ========== MARQUEE SELECTION ==========
 let polyMarqueeBox = null;
 let polyMarqueeStartX = 0;
@@ -209,6 +260,7 @@ const handleMarqueeMove = function(e) {
             polyMarqueeBox = null;
         }
         document.querySelectorAll('.poly-marquee-box').forEach(el => el.remove());
+        document.querySelectorAll('.marquee-candidate').forEach(el => el.classList.remove('marquee-candidate'));
         return;
     }
     if(polyMarqueeBox) {
@@ -227,8 +279,42 @@ const handleMarqueeMove = function(e) {
         polyMarqueeBox.style.top = top + 'px';
         polyMarqueeBox.style.width = width + 'px';
         polyMarqueeBox.style.height = height + 'px';
+
+        // 🎯 Sürükleme anında kapsanan ögeleri anlık (real-time) vurgula
+        if (width > 6 && height > 6) {
+            const mBox = {
+                left: left,
+                top: top,
+                right: left + width,
+                bottom: top + height
+            };
+            const rawElements = Array.from(document.querySelectorAll(MARQUEE_SELECTOR));
+            const elements = rawElements.filter(el => {
+                return !rawElements.some(parent => parent !== el && parent.contains(el));
+            });
+            const tol = 12;
+            elements.forEach(el => {
+                if(el.style.display === 'none' || el.style.visibility === 'hidden' || el.dataset.locked === 'true') return;
+                const rect = getElementScreenRect(el);
+                if (!rect) return;
+                const hit = (
+                    rect.left < mBox.right + tol &&
+                    rect.right > mBox.left - tol &&
+                    rect.top < mBox.bottom + tol &&
+                    rect.bottom > mBox.top - tol
+                );
+                if (hit) {
+                    el.classList.add('marquee-candidate');
+                } else {
+                    el.classList.remove('marquee-candidate');
+                }
+            });
+        } else {
+            document.querySelectorAll('.marquee-candidate').forEach(el => el.classList.remove('marquee-candidate'));
+        }
     }
 };
+
 
 const handleMarqueeEnd = function(e) {
     document.removeEventListener('mousemove', handleMarqueeMove);
@@ -249,41 +335,65 @@ const handleMarqueeEnd = function(e) {
             if (!multiSelectKey && typeof deselectAll === 'function') {
                 deselectAll();
             }
-            const rawElements = Array.from(document.querySelectorAll(
-                '.cvi-item, .co-neon-block, .draggable, .added-icon, .canvas-el, .editable-draw, .callout-wrap, .callout-wrapper, .svg-callout, .parcel-badge-callout, .sat-measure-callout'
-            ));
+            const rawElements = Array.from(document.querySelectorAll(MARQUEE_SELECTOR));
             // Sadece en üst seviye elemanları seç (iç içe seçimi ve çift sayımı önle)
             const elements = rawElements.filter(el => {
                 return !rawElements.some(parent => parent !== el && parent.contains(el));
             });
-            let selectedAny = false;
-            let lastEl = null;
             
+            const matchedElements = [];
+            const tol = 12;
             elements.forEach(el => {
                 if(el.style.display === 'none' || el.style.visibility === 'hidden' || el.dataset.locked === 'true') return;
-                let rect = el.getBoundingClientRect();
-                if (rect.width === 0 || rect.height === 0) {
-                    const inner = el.querySelector('svg, .callout-svg-container, div');
-                    if (inner) rect = inner.getBoundingClientRect();
-                }
+                const rect = getElementScreenRect(el);
+                if (!rect) return;
                 
-                if (rect.left < mRect.right &&
-                    rect.right > mRect.left &&
-                    rect.top < mRect.bottom &&
-                    rect.bottom > mRect.top) {
-                    
-                    if (typeof selectElement === 'function') {
-                          selectElement(el, true, true);
-                          lastEl = el;
-                          selectedAny = true;
-                      }
+                if (rect.left < mRect.right + tol &&
+                    rect.right > mRect.left - tol &&
+                    rect.top < mRect.bottom + tol &&
+                    rect.bottom > mRect.top - tol) {
+                    matchedElements.push(el);
                 }
             });
             
+            let selectedAny = false;
+            let lastEl = null;
+
+            if (matchedElements.length > 0) {
+                selectedAny = true;
+                lastEl = matchedElements[matchedElements.length - 1];
+                if (matchedElements.length === 1 && !multiSelectKey && (!window.selectedElements || window.selectedElements.length <= 1)) {
+                    if (typeof selectElement === 'function') {
+                        try { selectElement(matchedElements[0], false, true); } catch(e) {}
+                    }
+                } else {
+                    if (!window.selectedElements) window.selectedElements = [];
+                    matchedElements.forEach(el => {
+                        try {
+                            if (!window.selectedElements.includes(el)) {
+                                window.selectedElements.push(el);
+                                el.classList.add('el-selected');
+                            }
+                            if (el.classList.contains('editable-draw')) {
+                                const isNeon = el.classList.contains('neon-active') || el.dataset.saberActive === 'true';
+                                el.style.outline = isNeon ? '2px dashed #38bdf8' : '2px dashed #0284c7';
+                                el.style.outlineOffset = isNeon ? '6px' : '4px';
+                                el.style.borderRadius = '4px';
+                            }
+                        } catch(e) {}
+                    });
+                }
+            }
+            
             if(selectedAny && lastEl) {
                 if(typeof window.selectedEl !== 'undefined') window.selectedEl = lastEl;
+                if (typeof window.saveDrawEdit === 'function' && typeof editingDrawIndex !== 'undefined' && editingDrawIndex >= 0) {
+                    try { window.saveDrawEdit(); } catch(e) {}
+                }
                 if(typeof updateGroupUI === 'function') updateGroupUI();
                 if(typeof window.updateMultiSelectUI === 'function') window.updateMultiSelectUI();
+                if(typeof updateDrawHistory === 'function') updateDrawHistory();
+                if(typeof renderLayers === 'function') renderLayers();
                 
                 if(window.LayerPanelV2 && window.LayerPanelV2.highlightActiveLayer) {
                     setTimeout(() => window.LayerPanelV2.highlightActiveLayer(), 80);
@@ -335,17 +445,16 @@ const handleMarqueeEnd = function(e) {
                     }
                 }
 
-                if (keep2D) {
+                if (hit3DElements.length > 1 || keep2D) {
                     if (typeof window.updateMultiSelectUI === 'function') {
                         window.updateMultiSelectUI();
                     }
                     if (typeof window.updateGroupUI === 'function') {
                         window.updateGroupUI();
                     }
-                } else {
-                    if (window.ThreeDEngine && typeof window.ThreeDEngine.updateDockControls === 'function') {
-                        window.ThreeDEngine.updateDockControls();
-                    }
+                }
+                if (window.ThreeDEngine && typeof window.ThreeDEngine.updateDockControls === 'function') {
+                    window.ThreeDEngine.updateDockControls();
                 }
             } else if (!selectedAny) {
                 if (window.ThreeDGrouping && typeof window.ThreeDGrouping.clearSelection === 'function') {
@@ -404,13 +513,74 @@ window.addEventListener('blur', () => {
     document.querySelectorAll('.poly-marquee-box').forEach(el => el.remove());
     if (polyMarqueeBox) { try { polyMarqueeBox.remove(); } catch(e) {} polyMarqueeBox = null; }
 }, true);
+window.selectAllCanvasElements = function() {
+    if (typeof deselectAll === 'function') deselectAll();
+    
+    const rawElements = Array.from(document.querySelectorAll(MARQUEE_SELECTOR));
+    const elements = rawElements.filter(el => {
+        if (el.style.display === 'none' || el.style.visibility === 'hidden' || el.dataset.locked === 'true') return false;
+        return !rawElements.some(parent => parent !== el && parent.contains(el));
+    });
+
+    if (elements.length > 0) {
+        if (!window.selectedElements) window.selectedElements = [];
+        elements.forEach(el => {
+            try {
+                if (!window.selectedElements.includes(el)) {
+                    window.selectedElements.push(el);
+                    el.classList.add('el-selected');
+                }
+                if (el.classList.contains('editable-draw')) {
+                    const isNeon = el.classList.contains('neon-active') || el.dataset.saberActive === 'true';
+                    el.style.outline = isNeon ? '2px dashed #38bdf8' : '2px dashed #0284c7';
+                    el.style.outlineOffset = isNeon ? '6px' : '4px';
+                    el.style.borderRadius = '4px';
+                }
+            } catch(e) {}
+        });
+        window.selectedEl = elements[elements.length - 1];
+        if (typeof updateGroupUI === 'function') updateGroupUI();
+        if (typeof window.updateMultiSelectUI === 'function') window.updateMultiSelectUI();
+        if (typeof updateDrawHistory === 'function') updateDrawHistory();
+        if (typeof renderLayers === 'function') renderLayers();
+    }
+
+    // 🌟 3D Ögeleri de seç (eğer sahnede varsa)
+    if (window.ThreeDEngine && (
+        (typeof window.ThreeDEngine.hasElements === 'function' && window.ThreeDEngine.hasElements()) ||
+        (typeof window.ThreeDEngine.getElements === 'function' && window.ThreeDEngine.getElements().length > 0) ||
+        (typeof window.ThreeDEngine.isActive === 'function' && window.ThreeDEngine.isActive())
+    )) {
+        const all3D = (typeof window.ThreeDEngine.getElements === 'function') ? window.ThreeDEngine.getElements() : [];
+        const visible3D = all3D.filter(it => it && it.visible !== false && !it.locked);
+        if (visible3D.length > 0 && window.ThreeDGrouping) {
+            if (typeof window.ThreeDGrouping.selectMultiple3D === 'function') {
+                window.ThreeDGrouping.selectMultiple3D(visible3D, true);
+            } else if (typeof window.ThreeDGrouping.setSelected3DElements === 'function') {
+                window.ThreeDGrouping.setSelected3DElements(visible3D, { keep2DSelection: true });
+            }
+        }
+    }
+};
+
 window.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
         document.querySelectorAll('.poly-marquee-box').forEach(el => el.remove());
+        document.querySelectorAll('.marquee-candidate').forEach(el => el.classList.remove('marquee-candidate'));
         if (polyMarqueeBox) { try { polyMarqueeBox.remove(); } catch(e) {} polyMarqueeBox = null; }
         if (typeof deselectAll === 'function') deselectAll();
         if (window.ThreeDGrouping && typeof window.ThreeDGrouping.clearSelection === 'function') {
             window.ThreeDGrouping.clearSelection();
+        }
+    }
+    if ((e.ctrlKey || e.metaKey) && (e.key === 'a' || e.key === 'A')) {
+        const isInput = e.target.closest('input, textarea, select, [contenteditable="true"]');
+        if (!isInput) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (typeof window.selectAllCanvasElements === 'function') {
+                window.selectAllCanvasElements();
+            }
         }
     }
 }, true);

@@ -1,9 +1,12 @@
-const CACHE_NAME = 'emlak-studiom-v231-20261022-staging-active-canvas-fix';
+const CACHE_NAME = 'emlak-studiom-v292-fix-frame-swap-collision';
 const CORE_ASSETS = [
   './core/utils.js',
   './app.html',
+  './js/jszip.min.js',
   './styles.css',
   './css/callouts.css',
+  './css/custom-badges.css',
+  './modules/custom-badges.js',
   './css/satellite-map.css',
   './css/three-d.css',
   './css/neon-text.css',

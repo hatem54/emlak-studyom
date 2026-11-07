@@ -76,7 +76,12 @@ function trackImageSize(url, callback) {
                 const scaleRatio = typeof getDrawScaleRatio === 'function' ? getDrawScaleRatio() : (uploadedImgW / 1920);
                 drawPaths.forEach(p => {
                     if (p.points && Array.isArray(p.points)) {
-                        p.points.forEach(pt => { pt.x *= sX; pt.y *= sY; });
+                        p.points.forEach(pt => {
+                            pt.x *= sX;
+                            pt.y *= sY;
+                            if (pt.cpIn) { pt.cpIn.x *= sX; pt.cpIn.y *= sY; }
+                            if (pt.cpOut) { pt.cpOut.x *= sX; pt.cpOut.y *= sY; }
+                        });
                     }
                     if (typeof p.x1 !== 'undefined') {
                         p.x1 *= sX; p.y1 *= sY; p.x2 *= sX; p.y2 *= sY;

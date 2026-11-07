@@ -240,8 +240,8 @@ function drawSinglePath(p, options = {}){
                 if (p.el) {
                     const baseL = parseFloat(p.el.dataset.baseLeft !== undefined ? p.el.dataset.baseLeft : p.el.style.left) || 0;
                     const baseT = parseFloat(p.el.dataset.baseTop !== undefined ? p.el.dataset.baseTop : p.el.style.top) || 0;
-                    const baseW = parseFloat(p.el.dataset.baseWidth) || p.el.offsetWidth || 0;
-                    const baseH = parseFloat(p.el.dataset.baseHeight) || p.el.offsetHeight || 0;
+                    const baseW = (p.el.dataset && p.el.dataset.baseWidth !== undefined) ? (parseFloat(p.el.dataset.baseWidth) || 0) : (p.el.offsetWidth || 0);
+                    const baseH = (p.el.dataset && p.el.dataset.baseHeight !== undefined) ? (parseFloat(p.el.dataset.baseHeight) || 0) : (p.el.offsetHeight || 0);
                     if (baseW > 0 && baseH > 0) {
                         cx = baseL + baseW / 2;
                         cy = baseT + baseH / 2;
@@ -280,8 +280,8 @@ function drawSinglePath(p, options = {}){
                 if (p.el) {
                     const baseL = parseFloat(p.el.dataset.baseLeft !== undefined ? p.el.dataset.baseLeft : p.el.style.left) || 0;
                     const baseT = parseFloat(p.el.dataset.baseTop !== undefined ? p.el.dataset.baseTop : p.el.style.top) || 0;
-                    const baseW = parseFloat(p.el.dataset.baseWidth) || p.el.offsetWidth || 0;
-                    const baseH = parseFloat(p.el.dataset.baseHeight) || p.el.offsetHeight || 0;
+                    const baseW = (p.el.dataset && p.el.dataset.baseWidth !== undefined) ? (parseFloat(p.el.dataset.baseWidth) || 0) : (p.el.offsetWidth || 0);
+                    const baseH = (p.el.dataset && p.el.dataset.baseHeight !== undefined) ? (parseFloat(p.el.dataset.baseHeight) || 0) : (p.el.offsetHeight || 0);
                     if (baseW > 0 && baseH > 0) {
                         cx = baseL + baseW / 2;
                         cy = baseT + baseH / 2;
@@ -395,7 +395,15 @@ function drawSinglePath(p, options = {}){
             }
         }
     } else if(p.type === 'rect'){
-        if(typeof p.x1 !== 'undefined' && typeof p.x2 !== 'undefined') {
+        if (p.points && p.points.length >= 4) {
+            drawCtx.moveTo(p.points[0].x, p.points[0].y);
+            for(let i=1; i<p.points.length; i++) drawCtx.lineTo(p.points[i].x, p.points[i].y);
+            drawCtx.closePath();
+            applyPathFill(drawCtx, p, isNeon);
+            if(shouldDraw2DStroke){
+                applyGlowAndStroke(drawCtx, p);
+            }
+        } else if(typeof p.x1 !== 'undefined' && typeof p.x2 !== 'undefined') {
             const rx = Math.min(p.x1, p.x2);
             const ry = Math.min(p.y1, p.y2);
             const rw = Math.abs(p.x2 - p.x1);
@@ -547,11 +555,11 @@ function setDrawMode(mode, preserveSelection = false){
         $('canvasHint').textContent='💡 Tek tık: Seç | Çift tık: Yazıyı Düzenle | Sürükle: Taşı';
     }else{
         drawCanvas.style.pointerEvents='auto';
-        drawCanvas.style.zIndex='90';
+        drawCanvas.style.zIndex='10050';
         document.body.classList.add('draw-mode-active');
         drawCanvas.style.cursor='default';
         $('drawIndicator').classList.add('show');
-        $('canvasHint').textContent=mode==='polygon'?'📍 Tıklayarak köşe ekle, çift tıkla kapat':'✏️ ÇİZİM AKTİF';
+        $('canvasHint').textContent=mode==='polygon'?'📍 Tıklayarak köşe ekle, çift tıkla kapat':(mode==='line'?'📏 Düz Çizgi: Tıklayıp sürükleyerek art arda çizebilirsiniz (Bitirmek için Çizimi Kapat)':(mode==='arrow'?'🏹 Ok: Tıklayıp sürükleyerek art arda çizebilirsiniz':'✏️ ÇİZİM AKTİF'));
     }
 }
 window.setDrawMode = setDrawMode;
@@ -920,7 +928,8 @@ function dEnd(e){
             if (newPathObj) {
                 window.lastActiveDrawPath = newPathObj;
             }
-            if (typeof window.selectElement === 'function') {
+            const keepContinuousMode = (pObj && (pObj.type === 'line' || pObj.type === 'arrow'));
+            if (!keepContinuousMode && typeof window.selectElement === 'function') {
                 window.selectElement(el, false, true);
             }
         }
@@ -938,7 +947,8 @@ function dEnd(e){
 
     redrawAll();
     updateDrawHistory();
-    if (pObj && typeof setDrawMode === 'function') {
+    const keepContinuousMode = (pObj && (pObj.type === 'line' || pObj.type === 'arrow'));
+    if (!keepContinuousMode && pObj && typeof setDrawMode === 'function') {
         setDrawMode('off', true);
     }
 }
@@ -1699,22 +1709,24 @@ function redrawAll(options = {}){
         window.SaberEngine.resize(w, h);
     }
     
-    // draw-layer and ui-layer now sit in canvas-container natively.
-    // Since canva-render-layer no longer creates a stacking context,
-    // they interleave with cvr-base children (photo-panel z:1, decorations z:100) automatically!
-    const container = document.getElementById('canvas-container');
-    if (container && drawCanvas.parentNode !== container) {
-        container.appendChild(drawCanvas);
-    }
+    const isLiveTransform = window._isPhotoZooming || window._isPhotoDragging || (options && options.isInteractiveZoom);
 
-    const targetContainer = (typeof getDrawContainer === 'function') ? getDrawContainer() : (document.getElementById('ui-layer') || document.getElementById('canvas-container'));
-    if (targetContainer) {
-        document.querySelectorAll('#photo-layer .editable-draw, .photo-panel .editable-draw').forEach(el => {
-            targetContainer.appendChild(el);
-            if (el.style && el.style.display === 'none') {
-                el.style.display = '';
-            }
-        });
+    // Canlı zoom/pan sırasında DOM ağacında gereksiz arama ve taşıma yapma (60 FPS koruma)
+    if (!isLiveTransform) {
+        const container = document.getElementById('canvas-container');
+        if (container && drawCanvas.parentNode !== container) {
+            container.appendChild(drawCanvas);
+        }
+
+        const targetContainer = (typeof getDrawContainer === 'function') ? getDrawContainer() : (document.getElementById('ui-layer') || document.getElementById('canvas-container'));
+        if (targetContainer) {
+            document.querySelectorAll('#photo-layer .editable-draw, .photo-panel .editable-draw').forEach(el => {
+                targetContainer.appendChild(el);
+                if (el.style && el.style.display === 'none') {
+                    el.style.display = '';
+                }
+            });
+        }
     }
 
     const currPhotoState = (options && options.currPhotoState) ? options.currPhotoState : (typeof window.getCurrentPhotoState === 'function' ? window.getCurrentPhotoState() : null);
@@ -1723,7 +1735,7 @@ function redrawAll(options = {}){
     if (existingErr) existingErr.remove();
 
     try {
-        drawPaths.forEach(p=>drawSinglePath(p, { currPhotoState }));
+        drawPaths.forEach(p=>drawSinglePath(p, { currPhotoState, isLiveTransform }));
     } catch(e) {
         console.error("RedrawAll error:", e);
         const errDiv = document.createElement("div");
@@ -1861,7 +1873,12 @@ function updateDrawHistory(){
         const tabDraw = $('tab-draw');
         if (editPanel && tabDraw && editPanel.parentElement !== tabDraw) {
             editPanel.style.display = 'none';
-            tabDraw.appendChild(editPanel);
+            const row2 = tabDraw.querySelector('.row-2');
+            if (row2) {
+                tabDraw.insertBefore(editPanel, row2);
+            } else {
+                tabDraw.appendChild(editPanel);
+            }
         }
 
         if(!drawPaths.length){
@@ -1878,7 +1895,7 @@ function updateDrawHistory(){
                 polygon: 'Çokgen'
             };
             drawPaths.forEach((p, i) => {
-                const isOpen = (i === editingDrawIndex);
+                const isOpen = (i === editingDrawIndex) || (p.el && window.selectedElements && window.selectedElements.includes(p.el));
                 const typeName = typeLabels[p.type] || 'Çizim';
                 
                 const item = document.createElement('div');
@@ -1933,18 +1950,8 @@ function updateDrawHistory(){
                     }
                 };
                 
-                const body = document.createElement('div');
-                body.className = 'dh-acc-body';
-                body.style.display = isOpen ? 'block' : 'none';
-                
                 item.appendChild(header);
-                item.appendChild(body);
                 h.appendChild(item);
-                
-                if (isOpen && editPanel) {
-                    body.appendChild(editPanel);
-                    editPanel.style.display = 'block';
-                }
             });
         }
     }
@@ -1998,6 +2005,7 @@ function deleteDrawItem(i){
     }
     if (editingDrawIndex === -1 && editPanel) {
         editPanel.style.display = 'none';
+        if (editPanel.tagName === 'DETAILS') editPanel.open = false;
     }
     redrawAll();
     updateDrawHistory();
@@ -2006,6 +2014,123 @@ function deleteDrawItem(i){
     if (typeof window.recordHistory === 'function') window.recordHistory('Çizim Silindi');
 }
 window.deleteDrawItem = deleteDrawItem;
+
+// 🌟 Çizimi Kusursuz Çoğaltma Fonksiyonu (Sağ Tık, Dock & Kısayol)
+function duplicateDrawPath(drawEl, offset = 30) {
+    if (!drawEl || typeof drawPaths === 'undefined') return null;
+    const targetEl = drawEl.closest ? (drawEl.closest('.editable-draw') || drawEl) : drawEl;
+    const pIdx = drawPaths.findIndex(p => p.el === targetEl || (p.id && targetEl.dataset && p.id === targetEl.dataset.pathId));
+    if (pIdx === -1) return null;
+    const origPath = drawPaths[pIdx];
+    if (!origPath) return null;
+
+    const newId = 'draw-path-' + Date.now() + '-' + Math.floor(Math.random() * 10000);
+    const clonedPath = Object.assign({}, origPath, {
+        id: newId,
+        saberRef: null
+    });
+    delete clonedPath.el;
+
+    // Koordinatları offset (30px) kadar sağ-aşağı kaydır
+    const dx = offset;
+    const dy = offset;
+
+    if (Array.isArray(origPath.points)) {
+        clonedPath.points = origPath.points.map(pt => {
+            const np = { x: pt.x + dx, y: pt.y + dy };
+            if (pt.cpIn) np.cpIn = { x: pt.cpIn.x + dx, y: pt.cpIn.y + dy };
+            if (pt.cpOut) np.cpOut = { x: pt.cpOut.x + dx, y: pt.cpOut.y + dy };
+            if (pt.curve) np.curve = true;
+            return np;
+        });
+    }
+    if (clonedPath.x1 !== undefined && clonedPath.x2 !== undefined) {
+        clonedPath.x1 += dx; clonedPath.y1 += dy;
+        clonedPath.x2 += dx; clonedPath.y2 += dy;
+    }
+
+    // Temiz, yepyeni bir SVG DOM elemanı oluştur
+    const newEl = createSVGFromPath(clonedPath);
+    if (!newEl) return null;
+
+    const container = (typeof getDrawContainer === 'function') ? getDrawContainer() : (document.getElementById('ui-layer') || document.getElementById('canvas-container'));
+    if (container) container.appendChild(newEl);
+
+    if (typeof bindDrag === 'function') bindDrag(newEl);
+    if (typeof allIcons !== 'undefined' && !allIcons.includes(newEl)) {
+        allIcons.push(newEl);
+    }
+
+    clonedPath.el = newEl;
+    drawPaths.push(clonedPath);
+    const newIndex = drawPaths.length - 1;
+    newEl.dataset.pathIndex = newIndex;
+    newEl.dataset.pathId = newId;
+
+    if (clonedPath.hasSaber && typeof window.applySaberToPath === 'function') {
+        clonedPath.saberRef = window.applySaberToPath(newIndex, clonedPath.saberOptions || window.saberState);
+    }
+
+    if (typeof window.selectElement === 'function') {
+        window.selectElement(newEl, false, true);
+    }
+
+    redrawAll();
+    updateDrawHistory();
+    if (typeof renderLayers === 'function') renderLayers();
+    if (typeof window.recordHistory === 'function') window.recordHistory('Çizim Çoğaltıldı');
+
+    return newEl;
+}
+window.duplicateDrawPath = duplicateDrawPath;
+
+// 🌟 Çizimi Yeniden İnşa Etme ve Senkronizasyon (Büyütme / Boyut Değişimi Sonrası)
+function refreshDrawElement(p) {
+    if (!p || typeof createSVGFromPath !== 'function') return;
+    const isSelected = p.el && (
+        p.el.classList.contains('el-selected') || 
+        (window.selectedElements && window.selectedElements.includes(p.el)) || 
+        window.selectedEl === p.el
+    );
+    const oldEl = p.el;
+    const oldParent = oldEl ? oldEl.parentElement : null;
+    const newEl = createSVGFromPath(p);
+    if (!newEl) return;
+
+    if (oldEl && oldParent) {
+        oldParent.replaceChild(newEl, oldEl);
+    } else {
+        const container = (typeof getDrawContainer === 'function') ? getDrawContainer() : (document.getElementById('ui-layer') || document.getElementById('canvas-container'));
+        if (container) container.appendChild(newEl);
+    }
+
+    p.el = newEl;
+    if (typeof bindDrag === 'function') bindDrag(newEl);
+    if (typeof allIcons !== 'undefined' && oldEl) {
+        const aIdx = allIcons.indexOf(oldEl);
+        if (aIdx >= 0) allIcons[aIdx] = newEl;
+        else allIcons.push(newEl);
+    }
+
+    if (isSelected) {
+        newEl.classList.add('el-selected');
+        if (window.selectedEl === oldEl) window.selectedEl = newEl;
+        if (window.selectedElements && Array.isArray(window.selectedElements)) {
+            const sIdx = window.selectedElements.indexOf(oldEl);
+            if (sIdx >= 0) window.selectedElements[sIdx] = newEl;
+        }
+        if (typeof window.showVertexHandles === 'function') {
+            window.showVertexHandles(newEl);
+        }
+    }
+
+    if (p.hasSaber && typeof window.applySaberToPath === 'function') {
+        const pIdx = drawPaths.indexOf(p);
+        if (pIdx >= 0) window.applySaberToPath(pIdx, p.saberOptions || window.saberState);
+    }
+    return newEl;
+}
+window.refreshDrawElement = refreshDrawElement;
 
 let originalDrawState = null;
 
@@ -2040,7 +2165,13 @@ function startDrawEdit(i, showPanel = true, isMulti = false){
         originalDrawState = backup;
     }
     originalDrawState.hasSaber = p.hasSaber;
-    if (p.saberOptions) originalDrawState.saberOptions = JSON.parse(JSON.stringify(p.saberOptions));
+    if (p.saberOptions) {
+        try {
+            originalDrawState.saberOptions = JSON.parse(JSON.stringify(p.saberOptions, (k, v) => (k === 'el' || k === 'saberRef' || k === 'graphics' || k === 'parent') ? undefined : v));
+        } catch (e) {
+            originalDrawState.saberOptions = Object.assign({}, p.saberOptions);
+        }
+    }
     originalDrawState.el = p.el;
     originalDrawState.saberRef = p.saberRef;
     
@@ -2081,7 +2212,9 @@ function startDrawEdit(i, showPanel = true, isMulti = false){
     if($('deFillOpVal'))$('deFillOpVal').textContent=Math.round((p.fillOpacity||0)*100)+'%';
     if($('dePolyShowVertices')) {
         $('dePolyShowVertices').checked = p.showVertices !== false;
-        $('dePolyShowVertices').parentElement.style.display = (p.type === 'polygon' || p.type === 'rect') ? 'flex' : 'none';
+        if ($('dePolyShowVertices').parentElement) {
+            $('dePolyShowVertices').parentElement.style.display = (p.type === 'polygon' || p.type === 'rect') ? 'flex' : 'none';
+        }
     }
     if($('deArrowSettings')) {
         $('deArrowSettings').style.display = (p.type === 'arrow') ? 'block' : 'none';
@@ -2154,10 +2287,25 @@ function startDrawEdit(i, showPanel = true, isMulti = false){
     
     if($('drawEditPanel')) {
         $('drawEditPanel').style.display = showPanel ? 'block' : 'none';
+        if (showPanel && $('drawEditPanel').tagName === 'DETAILS') {
+            if (isMulti || (window.selectedElements && window.selectedElements.length > 1)) {
+                $('drawEditPanel').open = false; // Toplu seçimde akordiyon kapalı gelir
+            } else {
+                $('drawEditPanel').open = true; // Tekil seçimde açık gelir
+            }
+        }
     }
     const typeLabels = { free: 'Serbest', line: 'Çizgi', arrow: 'Ok', rect: 'Kare', circle: 'Daire', polygon: 'Çokgen' };
     const typeName = typeLabels[p.type] || 'Çizim';
     if($('drawEditLabel')) $('drawEditLabel').textContent = `${typeName} #${i + 1}`;
+    if($('drawEditAccordionTitle')) {
+        if (window.selectedElements && window.selectedElements.length > 1) {
+            const dCount = window.selectedElements.filter(e => e && e.classList && e.classList.contains('editable-draw')).length;
+            $('drawEditAccordionTitle').textContent = `Toplu Çizim & Neon Ayarları (${dCount} Çizim)`;
+        } else {
+            $('drawEditAccordionTitle').textContent = `${typeName} #${i + 1} Ayarları`;
+        }
+    }
     if(typeof updateDrawHistory === 'function') updateDrawHistory();
     if(typeof renderLayers === 'function') renderLayers();
 }
@@ -2198,7 +2346,10 @@ window.cancelDrawEdit = function(){
     if (editPanel && tabDraw && editPanel.parentElement !== tabDraw) {
         tabDraw.appendChild(editPanel);
     }
-    if(editPanel) editPanel.style.display='none';
+    if(editPanel) {
+        editPanel.style.display='none';
+        if (editPanel.tagName === 'DETAILS') editPanel.open = false;
+    }
     if(typeof updateDrawHistory === 'function') updateDrawHistory();
     if(typeof renderLayers === 'function') renderLayers();
 };
@@ -2221,7 +2372,10 @@ window.saveDrawEdit = function(){
     if (editPanel && tabDraw && editPanel.parentElement !== tabDraw) {
         tabDraw.appendChild(editPanel);
     }
-    if(editPanel) editPanel.style.display='none';
+    if(editPanel) {
+        editPanel.style.display='none';
+        if (editPanel.tagName === 'DETAILS') editPanel.open = false;
+    }
     redrawAll();
     updateDrawHistory();
     if(typeof renderLayers === 'function') renderLayers();
@@ -2235,68 +2389,99 @@ window.applyDrawEdit = function(){
 };
 
 window.toggleCurrentDrawNeon = function() {
-    if (typeof editingDrawIndex === 'undefined' || editingDrawIndex < 0 || typeof drawPaths === 'undefined' || !drawPaths[editingDrawIndex]) {
-        if (window.selectedEl && typeof drawPaths !== 'undefined') {
-            const idx = drawPaths.findIndex(p => p.el === window.selectedEl || (p.el && window.selectedEl && (p.el.contains(window.selectedEl) || window.selectedEl.contains(p.el))));
-            if (idx > -1) editingDrawIndex = idx;
+    const targetDrawings = [];
+    if (window.selectedElements && window.selectedElements.length > 1) {
+        window.selectedElements.forEach(el => {
+            const dEl = el.closest ? (el.closest('.editable-draw') || el) : el;
+            const idx = drawPaths.findIndex(p => p.el === dEl || (p.id && dEl.dataset && p.id === dEl.dataset.pathId));
+            if (idx > -1 && !targetDrawings.some(t => t.idx === idx)) {
+                targetDrawings.push({ path: drawPaths[idx], idx: idx });
+            }
+        });
+    }
+    if (targetDrawings.length === 0) {
+        if (typeof editingDrawIndex === 'undefined' || editingDrawIndex < 0 || typeof drawPaths === 'undefined' || !drawPaths[editingDrawIndex]) {
+            if (window.selectedEl && typeof drawPaths !== 'undefined') {
+                const idx = drawPaths.findIndex(p => p.el === window.selectedEl || (p.el && window.selectedEl && (p.el.contains(window.selectedEl) || window.selectedEl.contains(p.el))));
+                if (idx > -1) editingDrawIndex = idx;
+            }
+            if ((typeof editingDrawIndex === 'undefined' || editingDrawIndex < 0) && typeof drawPaths !== 'undefined' && drawPaths.length > 0) {
+                editingDrawIndex = drawPaths.length - 1;
+            }
         }
-        if ((typeof editingDrawIndex === 'undefined' || editingDrawIndex < 0) && typeof drawPaths !== 'undefined' && drawPaths.length > 0) {
-            editingDrawIndex = drawPaths.length - 1;
+        if (typeof editingDrawIndex !== 'undefined' && editingDrawIndex >= 0 && drawPaths[editingDrawIndex]) {
+            targetDrawings.push({ path: drawPaths[editingDrawIndex], idx: editingDrawIndex });
         }
     }
-    if (typeof editingDrawIndex === 'undefined' || editingDrawIndex < 0 || !drawPaths[editingDrawIndex]) return;
-    const p = drawPaths[editingDrawIndex];
-    if (p.hasSaber || p.saber) {
-        if (window.removeSaberFromPath) {
-            window.removeSaberFromPath(editingDrawIndex);
+    if (targetDrawings.length === 0) return;
+
+    // En az birinde neon kapalıysa tümüne aç, hepsinde açıksa tümünü kapat
+    const shouldEnable = targetDrawings.some(t => !t.path.hasSaber && !t.path.saber);
+
+    targetDrawings.forEach(target => {
+        const p = target.path;
+        const idx = target.idx;
+        if (shouldEnable) {
+            if (window.addSaberToPath) window.addSaberToPath(idx);
+            p.hasSaber = true;
+            p.saber = true;
+        } else {
+            if (window.removeSaberFromPath) window.removeSaberFromPath(idx);
+            p.hasSaber = false;
+            p.saber = false;
+            delete p.saberOptions;
+            delete p.saberRef;
         }
-        p.hasSaber = false;
-        p.saber = false;
-        delete p.saberOptions;
-        delete p.saberRef;
-    } else {
-        if (window.addSaberToPath) {
-            window.addSaberToPath(editingDrawIndex);
+        if (p.el && typeof updateSinglePathSvg === 'function') {
+            updateSinglePathSvg(p);
         }
-        p.hasSaber = true;
-        p.saber = true;
-    }
-    startDrawEdit(editingDrawIndex, true);
-    if (p.el && typeof updateSinglePathSvg === 'function') {
-        updateSinglePathSvg(p);
-    }
-    if (typeof redrawAll === 'function') {
-        redrawAll();
-    }
+    });
+
+    const isMulti = targetDrawings.length > 1;
+    startDrawEdit(targetDrawings[0].idx, true, isMulti);
+    if ($('deSaberToggle')) $('deSaberToggle').checked = shouldEnable;
+    liveUpdateDrawEdit();
+    if (typeof redrawAll === 'function') redrawAll();
     if (typeof updateDrawHistory === 'function') updateDrawHistory();
 };
 
 window.startDrawEdit = startDrawEdit;
 window.updateDrawHistory = updateDrawHistory;
+window.syncDrawEditControls = function(i) { startDrawEdit(i, true, true); };
 
 let updateSaberTimer = null;
 
 window.liveUpdateDrawEdit = function(){
-    if(editingDrawIndex<0||editingDrawIndex>=drawPaths.length)return;
-    const p=drawPaths[editingDrawIndex];
+    const targetDrawings = [];
+    if (window.selectedElements && window.selectedElements.length > 1) {
+        window.selectedElements.forEach(el => {
+            const dEl = el.closest ? (el.closest('.editable-draw') || el) : el;
+            const idx = drawPaths.findIndex(p => p.el === dEl || (p.id && dEl.dataset && p.id === dEl.dataset.pathId));
+            if (idx > -1 && !targetDrawings.some(t => t.idx === idx)) {
+                targetDrawings.push({ path: drawPaths[idx], idx: idx });
+            }
+        });
+    }
+    if (targetDrawings.length === 0) {
+        if (typeof editingDrawIndex !== 'undefined' && editingDrawIndex >= 0 && editingDrawIndex < drawPaths.length) {
+            targetDrawings.push({ path: drawPaths[editingDrawIndex], idx: editingDrawIndex });
+        }
+    }
+    if (targetDrawings.length === 0) return;
+
     const scaleRatio = getDrawScaleRatio();
-    
-    if($('deColor')) p.color=$('deColor').value;
+    const color = $('deColor') ? $('deColor').value : null;
     let rawW = 6;
     if($('deWidth')) {
         rawW = +$('deWidth').value;
-        p.rawWidth = rawW;
-        p.width = Math.max(1, Math.round(rawW * scaleRatio));
     }
-    if($('deDash')) p.dashStyle = $('deDash').value;
-    if($('deOpacity')) p.opacity=+$('deOpacity').value/100;
-    if($('deFillColor')) p.fillColor=$('deFillColor').value;
-    if($('deFillOp')) p.fillOpacity=+$('deFillOp').value/100;
-    if($('dePolyShowVertices')) p.showVertices = $('dePolyShowVertices').checked;
-    if(p.type === 'arrow') {
-        if($('deArrowDir')) p.arrowDir = $('deArrowDir').value;
-        if($('deArrowStyle')) p.arrowStyle = parseInt($('deArrowStyle').value) || 1;
-    }
+    const dashStyle = $('deDash') ? $('deDash').value : 'solid';
+    const opacity = $('deOpacity') ? +$('deOpacity').value/100 : 1;
+    const fillColor = $('deFillColor') ? $('deFillColor').value : null;
+    const fillOp = $('deFillOp') ? +$('deFillOp').value/100 : 0;
+    const showVertices = $('dePolyShowVertices') ? $('dePolyShowVertices').checked : true;
+    const arrowDir = $('deArrowDir') ? $('deArrowDir').value : 'outward';
+    const arrowStyle = $('deArrowStyle') ? (parseInt($('deArrowStyle').value) || 1) : 1;
     
     // Update span labels
     if ($('deWidthVal') && $('deWidth')) $('deWidthVal').textContent = $('deWidth').value;
@@ -2306,21 +2491,26 @@ window.liveUpdateDrawEdit = function(){
     // SABER UPDATE
     const toggle = $('deSaberToggle');
     const settings = $('deSaberSettings');
-    const isNeonActive = !!(p.hasSaber) || !!(p.saber);
-    if (toggle) toggle.checked = isNeonActive;
+    const firstP = targetDrawings[0].path;
+    const isNeonActive = toggle ? toggle.checked : !!(firstP.hasSaber || firstP.saber);
     
     const normGroup = $('deNormalSettingsGroup');
     if (normGroup) normGroup.style.display = isNeonActive ? 'none' : 'block';
     const fillGroup = $('deFillGroup');
     if (fillGroup) {
-        const isFillable = (p.type === 'rect' || p.type === 'circle' || p.type === 'polygon' || p.type === 'free');
-        fillGroup.style.display = isFillable ? 'block' : 'none';
+        const anyFillable = targetDrawings.some(t => {
+            const type = t.path.type;
+            return (type === 'rect' || type === 'circle' || type === 'polygon' || type === 'free');
+        });
+        fillGroup.style.display = anyFillable ? 'block' : 'none';
     }
+
+    let newOptions = null;
     if (isNeonActive) {
         if (settings) settings.style.display = 'flex';
         
         const activePresetEl = $('deSaberPresets') ? $('deSaberPresets').querySelector('.active') : null;
-        const presetKey = activePresetEl ? activePresetEl.dataset.preset : ((p.saberOptions && p.saberOptions.preset) || (window.saberState && window.saberState.preset) || 'fully-lit');
+        const presetKey = activePresetEl ? activePresetEl.dataset.preset : ((firstP.saberOptions && firstP.saberOptions.preset) || (window.saberState && window.saberState.preset) || 'fully-lit');
         
         let coreColor = 0xFFFFFF;
         let glowColor = 0x00CEC9;
@@ -2329,13 +2519,13 @@ window.liveUpdateDrawEdit = function(){
         if (activeColorKey && window.SaberEngine && SaberEngine.colorPresets[activeColorKey]) {
             coreColor = SaberEngine.colorPresets[activeColorKey].core;
             glowColor = SaberEngine.colorPresets[activeColorKey].glow;
-        } else if (p.color && p.color.startsWith('#')) {
-            glowColor = parseInt(p.color.replace('#', ''), 16) || 0x00CEC9;
-            if (p.saberOptions && p.saberOptions.coreColor) coreColor = p.saberOptions.coreColor;
+        } else if (color && color.startsWith('#')) {
+            glowColor = parseInt(color.replace('#', ''), 16) || 0x00CEC9;
+            if (firstP.saberOptions && firstP.saberOptions.coreColor) coreColor = firstP.saberOptions.coreColor;
             else if (window.saberState && window.saberState.coreColor) coreColor = window.saberState.coreColor;
-        } else if (p.saberOptions && p.saberOptions.glowColor) {
-            glowColor = typeof p.saberOptions.glowColor === 'number' ? p.saberOptions.glowColor : (parseInt(p.saberOptions.glowColor.replace('#',''), 16) || 0x00CEC9);
-            if (p.saberOptions.coreColor) coreColor = p.saberOptions.coreColor;
+        } else if (firstP.saberOptions && firstP.saberOptions.glowColor) {
+            glowColor = typeof firstP.saberOptions.glowColor === 'number' ? firstP.saberOptions.glowColor : (parseInt(firstP.saberOptions.glowColor.replace('#',''), 16) || 0x00CEC9);
+            if (firstP.saberOptions.coreColor) coreColor = firstP.saberOptions.coreColor;
             else if (window.saberState && window.saberState.coreColor) coreColor = window.saberState.coreColor;
         } else if (window.saberState) {
             coreColor = saberState.coreColor;
@@ -2345,7 +2535,7 @@ window.liveUpdateDrawEdit = function(){
         const dynCore = Math.max(2, Math.round(rawW * 0.7));
         const dynGlow = Math.max(12, Math.round(rawW * 4.2));
 
-        const newOptions = {
+        newOptions = {
             preset: presetKey,
             coreColor: coreColor,
             glowColor: glowColor,
@@ -2356,7 +2546,7 @@ window.liveUpdateDrawEdit = function(){
             pulseSpeed: parseFloat($('deSaberPulse') ? $('deSaberPulse').value : 0),
             groundSpill: parseInt($('deSaberGroundSpill') ? $('deSaberGroundSpill').value : 40) / 100,
             energyNodes: $('deSaberEnergyNodes') ? $('deSaberEnergyNodes').checked : false,
-            dashStyle: p.dashStyle || 'solid'
+            dashStyle: dashStyle
         };
         
         // update span labels
@@ -2366,29 +2556,52 @@ window.liveUpdateDrawEdit = function(){
         if ($('deSaberFlickerVal')) $('deSaberFlickerVal').textContent = Math.round(newOptions.flickerAmount * 100);
         if ($('deSaberPulseVal')) $('deSaberPulseVal').textContent = newOptions.pulseSpeed;
         if ($('deSaberGroundSpillVal') && $('deSaberGroundSpill')) $('deSaberGroundSpillVal').textContent = $('deSaberGroundSpill').value + '%';
-        
-        p.hasSaber = true;
-        p.saber = true;
-        p.saberOptions = newOptions;
-        
-        if (window.applySaberToPath) {
-            clearTimeout(updateSaberTimer);
-            updateSaberTimer = setTimeout(() => {
-                applySaberToPath(editingDrawIndex, newOptions);
-            }, 30);
-        }
     } else {
         if (settings) settings.style.display = 'none';
-        p.hasSaber = false;
-        p.saber = false;
-        if (window.removeSaberFromPath && p.saberRef) {
-            removeSaberFromPath(editingDrawIndex);
-        }
     }
-    
-    // Doğrudan mevcut SVG elementini güncelle
-    if (p.el) {
-        updateSinglePathSvg(p);
+
+    targetDrawings.forEach(target => {
+        const p = target.path;
+        const idx = target.idx;
+
+        if (color) p.color = color;
+        p.rawWidth = rawW;
+        p.width = Math.max(1, Math.round(rawW * scaleRatio));
+        p.dashStyle = dashStyle;
+        p.opacity = opacity;
+        if (fillColor) p.fillColor = fillColor;
+        p.fillOpacity = fillOp;
+        p.showVertices = showVertices;
+
+        if (p.type === 'arrow') {
+            p.arrowDir = arrowDir;
+            p.arrowStyle = arrowStyle;
+        }
+
+        if (isNeonActive && newOptions) {
+            p.hasSaber = true;
+            p.saber = true;
+            p.saberOptions = Object.assign({}, newOptions);
+        } else if (!isNeonActive) {
+            p.hasSaber = false;
+            p.saber = false;
+            if (window.removeSaberFromPath && p.saberRef) {
+                removeSaberFromPath(idx);
+            }
+        }
+
+        if (p.el && typeof updateSinglePathSvg === 'function') {
+            updateSinglePathSvg(p);
+        }
+    });
+
+    if (isNeonActive && newOptions && window.applySaberToPath) {
+        clearTimeout(updateSaberTimer);
+        updateSaberTimer = setTimeout(() => {
+            targetDrawings.forEach(target => {
+                applySaberToPath(target.idx, target.path.saberOptions);
+            });
+        }, 30);
     }
     
     redrawAll();
@@ -2457,36 +2670,7 @@ function updateSinglePathSvg(p) {
     let filterId = 'neon-bloom-' + pathId;
 
     if (isNeon) {
-        if (p.fillOpacity > 0) {
-            const fillFilterId = 'neon-fill-bloom-' + pathId;
-            const fillFilter = document.createElementNS('http://www.w3.org/2000/svg', 'filter');
-            fillFilter.setAttribute('id', fillFilterId);
-            fillFilter.setAttribute('x', '-30%');
-            fillFilter.setAttribute('y', '-30%');
-            fillFilter.setAttribute('width', '160%');
-            fillFilter.setAttribute('height', '160%');
-            
-            const fb1 = document.createElementNS('http://www.w3.org/2000/svg', 'feGaussianBlur');
-            fb1.setAttribute('in', 'SourceGraphic');
-            fb1.setAttribute('stdDeviation', '10');
-            fb1.setAttribute('result', 'softGlow');
-            fillFilter.appendChild(fb1);
-            
-            const fb2 = document.createElementNS('http://www.w3.org/2000/svg', 'feGaussianBlur');
-            fb2.setAttribute('in', 'SourceGraphic');
-            fb2.setAttribute('stdDeviation', '3');
-            fb2.setAttribute('result', 'innerGlow');
-            fillFilter.appendChild(fb2);
-            
-            const fMerge = document.createElementNS('http://www.w3.org/2000/svg', 'feMerge');
-            ['softGlow', 'innerGlow', 'SourceGraphic'].forEach(r => {
-                const mNode = document.createElementNS('http://www.w3.org/2000/svg', 'feMergeNode');
-                mNode.setAttribute('in', r);
-                fMerge.appendChild(mNode);
-            });
-            fillFilter.appendChild(fMerge);
-            defs.appendChild(fillFilter);
-        }
+        // Neon modunda SVG fill için ağır multi-pass blur filtresi eklenmez; temiz ve yüksek performanslı SVG dolgusu kullanılır.
     } else if (p.glow > 0) {
         const std = (p.glow / 2).toFixed(1);
         const filterEl = document.createElementNS('http://www.w3.org/2000/svg', 'filter');
@@ -2568,17 +2752,10 @@ function updateSinglePathSvg(p) {
 
             const isFillable = mainShape.tagName.toLowerCase() === 'polygon' || mainShape.tagName.toLowerCase() === 'ellipse' || mainShape.tagName.toLowerCase() === 'circle' || mainShape.tagName.toLowerCase() === 'rect' || (mainShape.tagName.toLowerCase() === 'path' && p.fillOpacity > 0);
             if (isFillable) {
-                if (isNeon && p.fillOpacity > 0) {
-                    mainShape.setAttribute('fill', p.fillColor || '#00e5ff');
-                    mainShape.setAttribute('fill-opacity', Math.min(1, (p.fillOpacity || 0.3) * 1.15));
-                    mainShape.setAttribute('filter', `url(#neon-fill-bloom-${pathId})`);
-                    mainShape.style.mixBlendMode = 'screen';
-                } else {
-                    mainShape.removeAttribute('filter');
-                    mainShape.style.mixBlendMode = 'normal';
-                    mainShape.setAttribute('fill', p.fillOpacity > 0 ? p.fillColor : 'transparent');
-                    mainShape.setAttribute('fill-opacity', p.fillOpacity || 0);
-                }
+                mainShape.removeAttribute('filter');
+                mainShape.style.mixBlendMode = 'normal';
+                mainShape.setAttribute('fill', p.fillOpacity > 0 ? (p.fillColor || '#00e5ff') : 'transparent');
+                mainShape.setAttribute('fill-opacity', p.fillOpacity || 0);
             }
             if (dashArr.length > 0) mainShape.setAttribute('stroke-dasharray', dashArr.join(','));
             else mainShape.removeAttribute('stroke-dasharray');
@@ -2642,7 +2819,7 @@ window.redrawAllToContext = function(targetCtx, scaleMultiplier, options = {}) {
 function createSVGFromPath(p) {
     if (!p.id) p.id = 'draw-path-' + Date.now() + '-' + Math.floor(Math.random()*10000);
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-    const pts = p.type === 'free' ? p.points : (p.type === 'polygon' ? p.points : [{x:p.x1,y:p.y1},{x:p.x2,y:p.y2}]);
+    const pts = (p.type === 'free' || p.type === 'polygon' || (p.type === 'rect' && p.points && p.points.length >= 4)) ? p.points : [{x:p.x1,y:p.y1},{x:p.x2,y:p.y2}];
     if(!pts || pts.length === 0) return null;
     
     pts.forEach(pt => {
@@ -2691,19 +2868,7 @@ function createSVGFromPath(p) {
     let filterAttr = '';
 
     if (isNeon) {
-        if (p.fillOpacity > 0) {
-            svgDefs = `<defs>
-                <filter id="${fillFilterId}" x="-30%" y="-30%" width="160%" height="160%">
-                    <feGaussianBlur in="SourceGraphic" stdDeviation="10" result="softGlow" />
-                    <feGaussianBlur in="SourceGraphic" stdDeviation="3" result="innerGlow" />
-                    <feMerge>
-                        <feMergeNode in="softGlow" />
-                        <feMergeNode in="innerGlow" />
-                        <feMergeNode in="SourceGraphic" />
-                    </feMerge>
-                </filter>
-            </defs>`;
-        }
+        // Neon modunda SVG fill için ağır multi-pass blur filtresi eklenmez; temiz ve yüksek performanslı SVG dolgusu kullanılır.
     } else if (p.glow > 0) {
         const std = (p.glow / 2).toFixed(1);
         svgDefs = `<defs><filter id="${filterId}"><feGaussianBlur stdDeviation="${std}" result="coloredBlur"/><feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>`;
@@ -2715,10 +2880,7 @@ function createSVGFromPath(p) {
     const strokeWidth = p.width;
     const dashArr = (!isNeon && typeof getDash === 'function') ? getDash(p.dashStyle, p.width) : [];
     const dashStr = dashArr.length > 0 ? ` stroke-dasharray="${dashArr.join(',')}"` : '';
-    const isNeonFill = isNeon && (p.fillOpacity > 0);
-    const fillFilterAttr = isNeonFill ? ` filter="url(#${fillFilterId})"` : '';
-    const fillBlendStyle = isNeonFill ? ' style="mix-blend-mode:screen;"' : '';
-    const styleStr = `stroke="${strokeColor}" stroke-width="${strokeWidth}" stroke-linecap="round" stroke-linejoin="round" fill="${p.fillOpacity > 0 ? (p.fillColor || '#00e5ff') : 'transparent'}" fill-opacity="${p.fillOpacity || 0}" stroke-opacity="${isNeon ? 0 : p.opacity}"${dashStr}${fillFilterAttr}${fillBlendStyle}`;
+    const styleStr = `stroke="${strokeColor}" stroke-width="${strokeWidth}" stroke-linecap="round" stroke-linejoin="round" fill="${p.fillOpacity > 0 ? (p.fillColor || '#00e5ff') : 'transparent'}" fill-opacity="${p.fillOpacity || 0}" stroke-opacity="${isNeon ? 0 : p.opacity}"${dashStr}`;
     const fillStr = `fill="${p.color}" fill-opacity="${p.opacity}"`;
     const dotRadius = Math.max(2.5, Math.round(p.width * 0.75));
     
@@ -2737,12 +2899,17 @@ function createSVGFromPath(p) {
             body = `<polygon class="main-polygon" points="${ptStr}" ${styleStr} />`;
         }
     } else if(p.type === 'rect') {
-        const rX = Math.min(p.x1, p.x2) - minX;
-        const rY = Math.min(p.y1, p.y2) - minY;
-        const rW = Math.abs(p.x2 - p.x1);
-        const rH = Math.abs(p.y2 - p.y1);
-        const ptStr = `${rX},${rY} ${rX+rW},${rY} ${rX+rW},${rY+rH} ${rX},${rY+rH}`;
-        body = `<polygon class="main-polygon" points="${ptStr}" ${styleStr} />`;
+        if (p.points && p.points.length >= 4) {
+            let ptStr = p.points.map(pt => `${(pt.x - minX).toFixed(1)},${(pt.y - minY).toFixed(1)}`).join(' ');
+            body = `<polygon class="main-polygon" points="${ptStr}" ${styleStr} />`;
+        } else {
+            const rX = Math.min(p.x1, p.x2) - minX;
+            const rY = Math.min(p.y1, p.y2) - minY;
+            const rW = Math.abs(p.x2 - p.x1);
+            const rH = Math.abs(p.y2 - p.y1);
+            const ptStr = `${rX},${rY} ${rX+rW},${rY} ${rX+rW},${rY+rH} ${rX},${rY+rH}`;
+            body = `<polygon class="main-polygon" points="${ptStr}" ${styleStr} />`;
+        }
     } else if(p.type === 'circle') {
         const cx = (p.x1 + p.x2)/2 - minX;
         const cy = (p.y1 + p.y2)/2 - minY;
@@ -2784,7 +2951,7 @@ function createSVGFromPath(p) {
     p.el = icon;
     icon.dataset.label = 'Çizim: ' + p.type;
     icon.dataset.drawType = p.type;
-    if (p.type === 'polygon' && pts) {
+    if ((p.type === 'polygon' || p.type === 'rect') && pts && pts.length >= 4) {
         icon.dataset.polygonPoints = JSON.stringify(pts.map(pt => {
             const np = { x: pt.x - minX, y: pt.y - minY };
             if (pt.cpIn) np.cpIn = { x: pt.cpIn.x - minX, y: pt.cpIn.y - minY };
@@ -2792,6 +2959,17 @@ function createSVGFromPath(p) {
             if (pt.curve) np.curve = true;
             return np;
         }));
+    } else if (p.type === 'rect') {
+        const rX = Math.min(p.x1, p.x2) - minX;
+        const rY = Math.min(p.y1, p.y2) - minY;
+        const rW = Math.abs(p.x2 - p.x1);
+        const rH = Math.abs(p.y2 - p.y1);
+        icon.dataset.polygonPoints = JSON.stringify([
+            {x: rX, y: rY},
+            {x: rX + rW, y: rY},
+            {x: rX + rW, y: rY + rH},
+            {x: rX, y: rY + rH}
+        ]);
     }
     icon.dataset.drawColor = strokeColor;
     icon.dataset.drawWidth = p.width;
@@ -2908,8 +3086,8 @@ window.loadDrawSettings = function(el) {
 
 window.updateSelectedDraw = function() {
     const targets = (window.selectedElements && window.selectedElements.length > 0) 
-        ? window.selectedElements.filter(e => e.classList.contains('editable-draw'))
-        : (window.selectedEl && window.selectedEl.classList.contains('editable-draw') ? [window.selectedEl] : []);
+        ? window.selectedElements.filter(e => e && e.classList && e.classList.contains('editable-draw'))
+        : (window.selectedEl && window.selectedEl.classList && window.selectedEl.classList.contains('editable-draw') ? [window.selectedEl] : []);
     
     if (targets.length === 0) return;
     
@@ -3067,6 +3245,16 @@ window.showVertexHandles = function(el) {
         const svgEl = el.querySelector('svg');
         if (!svgEl) return;
         
+        let pIdx = parseInt(el.dataset.pathIndex);
+        let pObj = (typeof drawPaths !== 'undefined') ? (drawPaths.find(dp => dp.el === el || (dp.id && dp.id === el.dataset.pathId)) || drawPaths[pIdx]) : null;
+        if (pObj && typeof drawPaths !== 'undefined') {
+            const actualIdx = drawPaths.indexOf(pObj);
+            if (actualIdx !== -1) {
+                pIdx = actualIdx;
+                el.dataset.pathIndex = actualIdx;
+            }
+        }
+
         const baseL = parseFloat(el.dataset.baseLeft !== undefined ? el.dataset.baseLeft : el.style.left) || 0;
         const baseT = parseFloat(el.dataset.baseTop !== undefined ? el.dataset.baseTop : el.style.top) || 0;
         
@@ -3096,16 +3284,33 @@ window.showVertexHandles = function(el) {
             newT = Math.round(minY);
         }
         
-        // 1. Element sınırlarını güncelle (Mavi seçim alanı .el-selected el'in box-shadow'udur, anında yeni şekli sarar!)
-        el.style.left = newL + 'px';
-        el.style.top = newT + 'px';
-        el.style.width = newW + 'px';
-        el.style.height = newH + 'px';
-        
+        // 1. Element temel boyutlarını kaydet (unscaled base koordinatları)
         el.dataset.baseLeft = newL;
         el.dataset.baseTop = newT;
         el.dataset.baseWidth = newW;
         el.dataset.baseHeight = newH;
+
+        // Fotoğraf yakınlaştırılmış/ötelenmişse transform parametrelerini hesapla
+        let tParams = null;
+        if (pObj && pObj.photoRef && typeof window.getCurrentPhotoState === 'function' && typeof window.calculateTransformParams === 'function') {
+            const currObj = window.getCurrentPhotoState();
+            if (currObj) {
+                tParams = window.calculateTransformParams(pObj.photoRef, currObj);
+            }
+        }
+
+        // Element DOM sınırlarını güncelle (Zoom aktifse ölçeklendirerek ayarla, içeri çökme olmasın!)
+        if (tParams) {
+            el.style.left = (newL * tParams.scale + tParams.dx) + 'px';
+            el.style.top = (newT * tParams.scale + tParams.dy) + 'px';
+            el.style.width = (newW * tParams.scale) + 'px';
+            el.style.height = (newH * tParams.scale) + 'px';
+        } else {
+            el.style.left = newL + 'px';
+            el.style.top = newT + 'px';
+            el.style.width = newW + 'px';
+            el.style.height = newH + 'px';
+        }
         
         // 2. SVG viewBox'ı yeni sınırlara uyarla
         svgEl.setAttribute('viewBox', `0 0 ${newW} ${newH}`);
@@ -3173,12 +3378,6 @@ window.showVertexHandles = function(el) {
         }
         
         // 4. drawPaths içerisindeki pObj verilerini ve neon efektini senkronize et
-        let pIdx = parseInt(el.dataset.pathIndex);
-        let pObj = (typeof drawPaths !== 'undefined') ? (drawPaths.find(dp => dp.el === el || (dp.id && dp.id === el.dataset.pathId)) || drawPaths[pIdx]) : null;
-        if (pObj && typeof drawPaths !== 'undefined') {
-            const actualIdx = drawPaths.indexOf(pObj);
-            if (actualIdx !== -1) el.dataset.pathIndex = actualIdx;
-        }
         if (pObj) {
             pObj.x1 = newL;
             pObj.y1 = newT;
@@ -3194,14 +3393,11 @@ window.showVertexHandles = function(el) {
                 pObj.points = absPts;
             }
             if (typeof updateSinglePathSvg === 'function') updateSinglePathSvg(pObj);
-            if (pObj.hasSaber && typeof window.applySaberToPath === 'function') {
-                window.applySaberToPath(pIdx, pObj.saberOptions || window.saberState);
+            if (pObj.hasSaber && typeof window.applySaberToPath === 'function' && pIdx >= 0) {
+                pObj.saberRef = window.applySaberToPath(pIdx, pObj.saberOptions || window.saberState);
             }
 
-            const currentRef = typeof window.getCurrentPhotoState === 'function' ? window.getCurrentPhotoState() : null;
-            if (currentRef) {
-                pObj.photoRef = currentRef;
-            }
+            // pObj.photoRef korunmalıdır (absPts unscaled base koordinat sistemindedir, foto referansı bozulmamalıdır)
             if (typeof originalDrawState !== 'undefined' && originalDrawState && typeof editingDrawIndex !== 'undefined' && editingDrawIndex >= 0) {
                 if (drawPaths[editingDrawIndex] === pObj) {
                     const backup = { ...pObj };
@@ -3237,7 +3433,7 @@ window.showVertexHandles = function(el) {
         handle.style.transform = 'translate(-50%, -50%)';
         handle.style.background = 'transparent';
         handle.style.borderRadius = '50%';
-        handle.style.cursor = 'grab';
+        handle.style.cursor = 'default';
         handle.style.pointerEvents = 'auto';
         handle.style.zIndex = '10010';
         
@@ -3289,7 +3485,8 @@ window.showVertexHandles = function(el) {
             const startCpOutY = pt.cpOut ? pt.cpOut.y : null;
             
             handle.classList.add('active-drag');
-            handle.style.cursor = 'grabbing';
+            handle.style.cursor = 'default';
+            document.body.style.cursor = 'default';
             visual.style.transform = 'translate(-50%, -50%) scale(1.35)';
             visual.style.borderColor = '#00f0ff';
             visual.style.boxShadow = '0 0 0 2px #fff, 0 0 16px #00f0ff';
@@ -3349,7 +3546,8 @@ window.showVertexHandles = function(el) {
                 document.removeEventListener('touchend', onUp);
                 
                 handle.classList.remove('active-drag');
-                handle.style.cursor = 'grab';
+                handle.style.cursor = 'default';
+                document.body.style.cursor = '';
                 visual.style.transform = 'translate(-50%, -50%)';
                 visual.style.borderColor = (pt.curve || pt.cpIn || pt.cpOut) ? '#06b6d4' : '#2563eb';
                 visual.style.boxShadow = '0 0 0 2px rgba(255,255,255,0.9), 0 2px 8px rgba(0,0,0,0.5), 0 0 10px rgba(37,99,235,0.6)';
@@ -3370,27 +3568,11 @@ window.showVertexHandles = function(el) {
         handle.addEventListener('mousedown', handleDown);
         handle.addEventListener('touchstart', handleDown, {passive: false});
 
-        // Çift tık ile köşe tipini değiştir (Keskin köşe <-> Kavisli köşe)
+        // Köşe pinlerinde çift tıkla kavislendirme kaldırıldı (kazara bozulmaları önlemek için).
+        // Kavislendirme yalnızca kenar ortasındaki .midpoint-handle tutamacı ile kontrollü yapılır.
         handle.addEventListener('dblclick', (e) => {
             e.preventDefault();
             e.stopPropagation();
-            if (pt.cpIn || pt.cpOut) {
-                delete pt.cpIn;
-                delete pt.cpOut;
-                delete pt.curve;
-            } else if (polygon && points.length > 2) {
-                const prevPt = points[(i - 1 + points.length) % points.length];
-                const nextPt = points[(i + 1) % points.length];
-                const tanX = (nextPt.x - prevPt.x) * 0.25;
-                const tanY = (nextPt.y - prevPt.y) * 0.25;
-                pt.cpOut = { x: pt.x + tanX, y: pt.y + tanY };
-                pt.cpIn = { x: pt.x - tanX, y: pt.y - tanY };
-                pt.curve = true;
-            }
-            if (typeof updatePolygonGeometry === 'function') updatePolygonGeometry();
-            recalcElementBoundsAfterVertexMove(el, points, false);
-            if (typeof updateDrawHistory === 'function') updateDrawHistory();
-            if (typeof window.recordHistory === 'function') window.recordHistory('Köşe Kavis Tipi Değiştirildi');
         });
 
         return handle;
@@ -3486,7 +3668,7 @@ window.showVertexHandles = function(el) {
                 pObj.y2 = baseT + ny2;
                 
                 if (isNeon && window.applySaberToPath && pIdx >= 0) {
-                    window.applySaberToPath(pIdx, pObj.saberOptions || window.saberState);
+                    pObj.saberRef = window.applySaberToPath(pIdx, pObj.saberOptions || window.saberState);
                 }
             }
         };
@@ -3547,7 +3729,10 @@ window.showVertexHandles = function(el) {
                 let pObj = (typeof drawPaths !== 'undefined') ? (drawPaths.find(dp => dp.el === el || (dp.id && dp.id === el.dataset.pathId)) || drawPaths[pIdx]) : null;
                 if (pObj && typeof drawPaths !== 'undefined') {
                     const actualIdx = drawPaths.indexOf(pObj);
-                    if (actualIdx !== -1) el.dataset.pathIndex = actualIdx;
+                    if (actualIdx !== -1) {
+                        pIdx = actualIdx;
+                        el.dataset.pathIndex = actualIdx;
+                    }
                 }
                 if (pObj) {
                     const baseL = parseFloat(el.dataset.baseLeft !== undefined ? el.dataset.baseLeft : el.style.left) || 0;
@@ -3560,8 +3745,8 @@ window.showVertexHandles = function(el) {
                         if (p.curve) np.curve = true;
                         return np;
                     });
-                    if (pObj.hasSaber && window.applySaberToPath) {
-                        applySaberToPath(pIdx, pObj.saberOptions);
+                    if (pObj.hasSaber && window.applySaberToPath && pIdx >= 0) {
+                        pObj.saberRef = window.applySaberToPath(pIdx, pObj.saberOptions || window.saberState);
                     }
                 }
             } catch(e) {}
@@ -3590,6 +3775,7 @@ window.showVertexHandles = function(el) {
             midHandle.style.left = (midPt.x / baseW * 100) + '%';
             midHandle.style.top = (midPt.y / baseH * 100) + '%';
             midHandle.title = 'Kavislendir (Sürükle) | Çift tık: Düzleştir';
+            midHandle.style.cursor = 'default';
 
             const midVisual = document.createElement('div');
             midVisual.className = 'midpoint-handle-visual';
@@ -3618,7 +3804,8 @@ window.showVertexHandles = function(el) {
                 const startMidY = midPt.y;
 
                 midHandle.classList.add('active-drag');
-                midHandle.style.cursor = 'grabbing';
+                midHandle.style.cursor = 'default';
+                document.body.style.cursor = 'default';
 
                 const globalScale = typeof window.getGlobalScale === 'function' ? window.getGlobalScale() : 1;
                 const curScaleX = (el.offsetWidth / baseW) * globalScale;
@@ -3673,7 +3860,8 @@ window.showVertexHandles = function(el) {
                     document.removeEventListener('touchend', onMidUp);
 
                     midHandle.classList.remove('active-drag');
-                    midHandle.style.cursor = 'crosshair';
+                    midHandle.style.cursor = 'default';
+                    document.body.style.cursor = '';
 
                     if (typeof updateDrawHistory === 'function') updateDrawHistory();
                     if (typeof window.recordHistory === 'function') window.recordHistory('Kavis Düzenlendi');
@@ -3693,11 +3881,13 @@ window.showVertexHandles = function(el) {
         }
     }
     
+    const hasVertices = (points && points.length > 0);
+
     const rotHandle = document.createElement('div');
-    rotHandle.className = 'text-handle text-rotate-handle';
+    rotHandle.className = 'text-handle text-rotate-handle' + (hasVertices ? ' draw-top-handle' : '');
     rotHandle.style.position = 'absolute';
-    rotHandle.style.top = '-28px';
-    rotHandle.style.left = '50%';
+    rotHandle.style.top = '-32px';
+    rotHandle.style.left = hasVertices ? 'calc(50% - 26px)' : '50%';
     rotHandle.style.transform = 'translateX(-50%)';
     rotHandle.style.cursor = 'grab';
     rotHandle.style.pointerEvents = 'auto';
@@ -3862,11 +4052,17 @@ window.showVertexHandles = function(el) {
     // Normal ve neon çizimlerde ikon/rozet standartlarında silme
     // ════════════════════════════════════════════════════════════════
     const delHandle = document.createElement('div');
-    delHandle.className = 'text-handle text-delete-handle';
+    delHandle.className = 'text-handle text-delete-handle' + (hasVertices ? ' draw-top-handle' : '');
     delHandle.style.position = 'absolute';
-    delHandle.style.bottom = '0px';
-    delHandle.style.left = '0px';
-    delHandle.style.transform = 'translate(-50%, 50%)';
+    if (hasVertices) {
+        delHandle.style.top = '-32px';
+        delHandle.style.left = 'calc(50% + 26px)';
+        delHandle.style.transform = 'translateX(-50%)';
+    } else {
+        delHandle.style.bottom = '0px';
+        delHandle.style.left = '0px';
+        delHandle.style.transform = 'translate(-50%, 50%)';
+    }
     delHandle.style.cursor = 'pointer';
     delHandle.style.pointerEvents = 'auto';
     delHandle.style.zIndex = '10020';
@@ -4152,7 +4348,9 @@ window.showVertexHandles = function(el) {
     }
     resizeHandle.addEventListener('mousedown', rsDown);
     resizeHandle.addEventListener('touchstart', rsDown, {passive: false});
-    container.appendChild(resizeHandle);
+    if (!hasVertices) {
+        container.appendChild(resizeHandle);
+    }
     
     el.appendChild(container);
     el.dataset.hasHandles = 'true';
@@ -4192,38 +4390,44 @@ window.showVertexHandles = function(el) {
         body.draw-mode-active .vertex-handle { 
             pointer-events: none !important; 
         }
-        .editable-draw.el-selected,
-        .editable-draw.el-selected *,
+        .editable-draw {
+            pointer-events: none !important;
+            z-index: 10;
+        }
+        .editable-draw.el-selected {
+            pointer-events: none !important;
+            z-index: 15 !important;
+        }
+        .editable-draw[data-locked="true"],
+        .editable-draw[data-locked="true"] *,
+        .editable-draw.locked-el,
+        .editable-draw.locked-el * {
+            pointer-events: none !important;
+            user-select: none !important;
+        }
         .editable-draw.el-selected .text-handle,
         .editable-draw.el-selected .draw-handle,
         .editable-draw.el-selected .vertex-handle,
-        body.draw-mode-active .editable-draw.el-selected,
-        body.draw-mode-active .editable-draw.el-selected *,
         body.draw-mode-active .editable-draw.el-selected .text-handle,
         body.draw-mode-active .editable-draw.el-selected .draw-handle,
         body.draw-mode-active .editable-draw.el-selected .vertex-handle { 
             pointer-events: auto !important; 
-        }
-        .editable-draw.el-selected {
-            z-index: 10010 !important;
+            z-index: 10025 !important;
         }
         body:not(.draw-mode-active) .editable-draw { 
             pointer-events: none !important; 
         }
-        body:not(.draw-mode-active) .editable-draw.el-selected { 
-            pointer-events: auto !important; 
-        }
         body:not(.draw-mode-active) .editable-draw svg { 
             pointer-events: none !important; 
         }
-        body:not(.draw-mode-active) .editable-draw svg path, 
-        body:not(.draw-mode-active) .editable-draw svg polygon, 
-        body:not(.draw-mode-active) .editable-draw svg rect, 
-        body:not(.draw-mode-active) .editable-draw svg ellipse, 
-        body:not(.draw-mode-active) .editable-draw svg line, 
-        body:not(.draw-mode-active) .editable-draw svg circle, 
-        body:not(.draw-mode-active) .editable-draw svg polyline,
-        body:not(.draw-mode-active) .editable-draw svg g {
+        body:not(.draw-mode-active) .editable-draw:not([data-locked="true"]):not(.locked-el) svg path, 
+        body:not(.draw-mode-active) .editable-draw:not([data-locked="true"]):not(.locked-el) svg polygon, 
+        body:not(.draw-mode-active) .editable-draw:not([data-locked="true"]):not(.locked-el) svg rect, 
+        body:not(.draw-mode-active) .editable-draw:not([data-locked="true"]):not(.locked-el) svg ellipse, 
+        body:not(.draw-mode-active) .editable-draw:not([data-locked="true"]):not(.locked-el) svg line, 
+        body:not(.draw-mode-active) .editable-draw:not([data-locked="true"]):not(.locked-el) svg circle, 
+        body:not(.draw-mode-active) .editable-draw:not([data-locked="true"]):not(.locked-el) svg polyline,
+        body:not(.draw-mode-active) .editable-draw:not([data-locked="true"]):not(.locked-el) svg g {
             pointer-events: all !important;
             cursor: pointer;
         }

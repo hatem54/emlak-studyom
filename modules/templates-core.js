@@ -52,7 +52,7 @@ window.getUnifiedTemplateData = function() {
 
     // 4. İletişim / Danışman
     let contact = '';
-    const phoneCandidates = ['phoneInput', 'contactInput', 'canvaContact', 'canvaKContact', 'brandPhoneInput'];
+    const phoneCandidates = ['brandEmailInput', 'canvaContact', 'phoneInput', 'contactInput', 'canvaKContact', 'brandPhoneInput'];
     for (let id of phoneCandidates) {
         const el = document.getElementById(id);
         if (el && el.value && el.value.trim()) {
@@ -63,7 +63,7 @@ window.getUnifiedTemplateData = function() {
     if (contact && !contact.toUpperCase().includes('EMLAK')) {
         contact = 'EMLAK STÜDYOM | ' + contact;
     }
-    if (!contact) contact = 'EMLAK STÜDYOM | 0532 000 0000';
+    if (!contact) contact = 'EMLAK STÜDYOM | emlakstudyomtr@gmail.com';
 
     // 5. Özellikler
     let featsLines = [];

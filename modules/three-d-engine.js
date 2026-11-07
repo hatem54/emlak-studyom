@@ -91,7 +91,8 @@
         embossScale: 85,              // Öge boyutu / ölçeği (30% - 150%)
         embossOffsetY: 0,             // Dikey konum kaydırma (-100px - +100px)
         embossOffsetX: 0,             // Yatay konum kaydırma (-120px - +120px)
-        badgeSideColor: '#cbd5e1'     // Rozet yan/kenarlık rengi (platin varsayılan)
+        badgeSideColor: '#cbd5e1',    // Rozet yan/kenarlık rengi (platin varsayılan)
+        _userHasChangedText: false    // Kullanıcı metni manuel değiştirdi mi? (false ise SVG'nin orijinal metni korunur)
     };
 
     // 🌟 ÇOKLU 3D ÖGE KOLEKSİYONU (Unlimited Multi-Element System)
@@ -163,6 +164,7 @@
             shapeType: overrides.shapeType || null,
             shapeBorderWidth: overrides.shapeBorderWidth !== undefined ? overrides.shapeBorderWidth : 0,
             isAutoDefault: !!overrides.isAutoDefault,
+            _userHasChangedText: !!overrides._userHasChangedText,
             // 🌟 3D Alt Metin Özellikleri
             show3DText: overrides.show3DText !== undefined ? !!overrides.show3DText : false,
             text3DOffset: overrides.text3DOffset !== undefined ? overrides.text3DOffset : -25,
@@ -257,6 +259,7 @@
         state.isShape = !!el.isShape;
         state.shapeType = el.shapeType || null;
         state.shapeBorderWidth = el.shapeBorderWidth !== undefined ? el.shapeBorderWidth : 0;
+        state._userHasChangedText = !!el._userHasChangedText;
         // 🌟 3D Alt Metin / Yazı Senkronizasyonu
         state.show3DText = el.show3DText !== undefined ? !!el.show3DText : false;
         state.text3DOffset = el.text3DOffset !== undefined ? el.text3DOffset : -25;
@@ -318,9 +321,9 @@
         el.heightScale = state.heightScale !== undefined ? state.heightScale : 1.0;
         el.shadowOpacity = state.shadowOpacity;
         el.shadowSoftness = state.shadowSoftness;
-        el.posX = state.posX;
-        el.posY = state.posY;
-        el.posZ = state.posZ;
+        if (state.posX !== undefined && !isNaN(state.posX)) el.posX = state.posX;
+        if (state.posY !== undefined && !isNaN(state.posY)) el.posY = state.posY;
+        if (state.posZ !== undefined && !isNaN(state.posZ)) el.posZ = state.posZ;
         el.badgeBgColor = state.badgeBgColor;
         el.badgeSubtext = state.badgeSubtext;
         el.selectedIconId = state.selectedIconId;
@@ -333,6 +336,7 @@
         if (state.isShape !== undefined) el.isShape = !!state.isShape;
         if (state.shapeType !== undefined) el.shapeType = state.shapeType;
         if (state.shapeBorderWidth !== undefined) el.shapeBorderWidth = state.shapeBorderWidth;
+        if (state._userHasChangedText !== undefined) el._userHasChangedText = !!state._userHasChangedText;
         // 🌟 3D Alt Metin / Yazı
         el.show3DText = state.show3DText !== undefined ? !!state.show3DText : false;
         el.text3DOffset = state.text3DOffset !== undefined ? state.text3DOffset : -25;
@@ -719,8 +723,8 @@
         const container = document.getElementById('canvas-container');
         if (!container) return false;
 
-        const w = container.offsetWidth || 1920;
-        const h = container.offsetHeight || 1080;
+        const w = parseFloat(container.style.width) || container.offsetWidth || 1920;
+        const h = parseFloat(container.style.height) || container.offsetHeight || 1080;
 
         // Mevcut canvas varsa güncelle
         if (!canvasEl) {
@@ -852,8 +856,8 @@
     function createOrUpdateGridHelper() {
         if (typeof THREE === 'undefined' || !scene) return null;
         const container = document.getElementById('canvas-container');
-        const w = container ? (container.offsetWidth || 1920) : 1920;
-        const h = container ? (container.offsetHeight || 1080) : 1080;
+        const w = container ? (parseFloat(container.style.width) || container.offsetWidth || 1920) : 1920;
+        const h = container ? (parseFloat(container.style.height) || container.offsetHeight || 1080) : 1080;
         const aspect = (w > 0 && h > 0) ? (w / h) : (16 / 9);
         const visibleH = 704;
         const visibleW = visibleH * aspect;
@@ -907,8 +911,8 @@
         const container = document.getElementById('canvas-container');
         if (!container) return;
 
-        const newW = w || container.offsetWidth || 1920;
-        const newH = h || container.offsetHeight || 1080;
+        const newW = w || parseFloat(container.style.width) || container.offsetWidth || 1920;
+        const newH = h || parseFloat(container.style.height) || container.offsetHeight || 1080;
 
         if (canvasEl) {
             canvasEl.width = newW;
@@ -1230,10 +1234,14 @@
             const doc = parser.parseFromString(safeSvg, 'image/svg+xml');
             const textNodes = Array.from(doc.querySelectorAll('text'));
             if (textNodes.length > 0) {
+                // Metinleri dikey (y) ve yatay (x) konum sırasına göre diz (Başlık üstte, değer/alt metin altta)
                 textNodes.sort((a, b) => {
-                    const fsA = parseFloat(a.getAttribute('font-size')) || 0;
-                    const fsB = parseFloat(b.getAttribute('font-size')) || 0;
-                    return fsB - fsA;
+                    const yA = parseFloat(a.getAttribute('y')) || 0;
+                    const yB = parseFloat(b.getAttribute('y')) || 0;
+                    if (Math.abs(yA - yB) > 2) return yA - yB;
+                    const xA = parseFloat(a.getAttribute('x')) || 0;
+                    const xB = parseFloat(b.getAttribute('x')) || 0;
+                    return xA - xB;
                 });
                 if (typeof newText === 'string' && newText.trim()) {
                     textNodes[0].textContent = newText;
@@ -1970,7 +1978,8 @@
         }
 
         // 2. SVG Akıllı Renklendirme ve Çözünürlük Büyütme
-        let recolored = (options && options.skipRecolor) ? rawSvg : ((iconColor && iconColor !== 'none') ? recolorSvg(rawSvg, iconColor, { isExactSilhouette, bgColor, useGradient, isShape, forceRecolor: !!options.forceRecolor }) : rawSvg);
+        const skipRecolorForThis = options && (options.skipRecolor || (options.isEstate && !options.forceRecolor));
+        let recolored = skipRecolorForThis ? rawSvg : ((iconColor && iconColor !== 'none') ? recolorSvg(rawSvg, iconColor, { isExactSilhouette, bgColor, useGradient, isShape, forceRecolor: !!options.forceRecolor }) : rawSvg);
         let safeSvg = ensureSvgXmlns(recolored);
 
         // Var olan '1em', '100%' veya küçük piksel boyutlarını temizle ve yüksek çözünürlüğe ölçekle
@@ -2022,11 +2031,14 @@
             // 4. Yeniden Çizim ve Vektör Bindirme
             ctx.clearRect(0, 0, cw, ch);
 
-            // Zemin Doldurma: Emlak/çit ögeleri hariç katı silüet veya rozet zemininde içi asla boş/şeffaf kalmaz
+            // Zemin Doldurma: Emlak/çit ögeleri hariç rozet/kart zemininde içi asla boş/şeffaf kalmaz.
+            // Katı silüetlerde ise arka plan şeffaf bırakılır (kutu/kare gölge ve kare zemin oluşması önlenir),
+            // ancak daire rozet ise daima dairesel zemin doldurulur.
             if (!isEstate) {
                 ctx.save();
                 ctx.fillStyle = getFillStyle();
-                if (!isExactSilhouette && isRound) {
+                const isCircleShape = isRound || (options && (options.isRound || options.isCircle));
+                if (isCircleShape) {
                     ctx.beginPath();
                     ctx.arc(cw / 2, ch / 2, (cw / 2) - 2, 0, Math.PI * 2);
                     ctx.fill();
@@ -2034,8 +2046,6 @@
                     const r = Math.min(32, cw * 0.12, ch * 0.12);
                     drawRoundRect(ctx, 0, 0, cw, ch, r);
                     ctx.fill();
-                } else if (!isStrokeOnly) {
-                    ctx.fillRect(0, 0, cw, ch);
                 }
                 ctx.restore();
             }
@@ -2166,8 +2176,13 @@
             }
         }
 
-        // Kontur Önceliği 0: Katı Silüet (Silhouette) Kontrolü
-        if (!shape && (shapeMode === 'silhouette' || (shapeMode !== 'coin' && shapeMode !== 'card'))) {
+        const isEstateItem = !!(options.el && options.el.estateItemId);
+        const isFenceEl = !!(options.el && (options.el.isFence || (options.el.tags && options.el.tags.includes('çit'))));
+
+        // 🌟 Kontur Önceliği 0: Katı Silüet (Silhouette) Kontrolü (Serbest ikonlar, binalar, evler, ağaçlar vb.)
+        // Eğer silüet modu istendiyse, hazır silüet varsa veya emlak mimari ögesiyse, daima gerçek silüeti kullan!
+        // (Binaların ve evlerin geniş cephe/duvar rect'leri asla rozet/kart dikdörtgenine dönüştürülmez!)
+        if (!shape && !isFenceEl && (shapeMode === 'silhouette' || isEstateItem || (options.cachedSilhouette && options.cachedSilhouette.shape))) {
             if (options.cachedSilhouette && options.cachedSilhouette.shape) {
                 shape = options.cachedSilhouette.shape;
                 isExactSilhouette = true;
@@ -2183,9 +2198,8 @@
             }
         }
 
-        // Eğer kullanıcı silüet modunu seçtiyse ve henüz önbellekte yoksa arka planda çıkar
-        if (!shape && shapeMode === 'silhouette' && options.el) {
-            const isFenceEl = !!(options.el.isFence || (options.el.tags && options.el.tags.includes('çit')));
+        // Eğer kullanıcı silüet modunu seçtiyse / emlak ögesiyse ve henüz önbellekte yoksa arka planda çıkar
+        if (!shape && (shapeMode === 'silhouette' || isEstateItem) && options.el) {
             if (isFenceEl) {
                 // Tel çit panelleri şeffaf alfa dokusu ile çalıştığı için hafif kart geometrisi kullanır
                 shape = createCardShape(targetW, targetH, 2);
@@ -2201,46 +2215,42 @@
             }
         }
 
-        // Kontur Önceliği 1: SVG içinde belirgin bir <circle> arka plan var mı? (Sadece rozet modunda)
-        if (!shape && shapeMode !== 'silhouette' && shapeMode !== 'card') {
+        // 🌟 Rozet, damga veya kart SVG'lerinde belirgin dış çember / dikdörtgen kontrolü
+        // (Sadece serbest silüet veya emlak ögesi DEĞİLSE çalışır)
+        if (!shape && shapeMode !== 'silhouette' && !isEstateItem) {
             const circleNodes = Array.from(svgEl.querySelectorAll('circle')).filter(c => !c.closest('defs'));
-            if (circleNodes.length > 0) {
-                let maxR = 0;
-                for (const c of circleNodes) {
-                    const r = parseFloat(c.getAttribute('r')) || 0;
-                    if (r > maxR) maxR = r;
-                }
-                if (maxR >= Math.min(vbW, vbH) * 0.35) {
-                    isCircle = true;
-                }
+            let maxR = 0;
+            for (const c of circleNodes) {
+                const r = parseFloat(c.getAttribute('r')) || 0;
+                if (r > maxR) maxR = r;
             }
+            const hasEnclosingCircle = maxR >= Math.min(vbW, vbH) * 0.35;
+            const isCircleBadge = isCircle || (hasEnclosingCircle && Math.abs(targetW - targetH) <= Math.max(targetW, targetH) * 0.25);
 
-            if (isCircle && (shapeMode === 'coin' || Math.abs(targetW - targetH) <= Math.max(targetW, targetH) * 0.2)) {
+            if (!shape && (shapeMode === 'coin' || (isCircleBadge && shapeMode !== 'card'))) {
                 const radius = (Math.min(targetW, targetH) / 2) * 0.98;
                 shape = createCoinShape(radius);
+                isCircle = true;
             }
-        }
 
-        // Kontur Önceliği 2: SVG içinde belirgin bir <rect> arka plan var mı?
-        if (!shape && shapeMode !== 'silhouette' && shapeMode !== 'coin') {
             const rectNodes = Array.from(svgEl.querySelectorAll('rect')).filter(r => !r.closest('defs'));
-            if (rectNodes.length > 0) {
-                let bestRect = null;
-                let maxArea = 0;
-                for (const r of rectNodes) {
-                    const rw = parseFloat(r.getAttribute('width')) || 0;
-                    const rh = parseFloat(r.getAttribute('height')) || 0;
-                    const area = rw * rh;
-                    if (area > maxArea) {
-                        maxArea = area;
-                        bestRect = r;
-                    }
+            let bestRect = null;
+            let maxArea = 0;
+            for (const r of rectNodes) {
+                const rw = parseFloat(r.getAttribute('width')) || 0;
+                const rh = parseFloat(r.getAttribute('height')) || 0;
+                const area = rw * rh;
+                if (area > maxArea) {
+                    maxArea = area;
+                    bestRect = r;
                 }
-                if (bestRect && maxArea >= (vbW * vbH) * 0.35) {
-                    const rxRaw = parseFloat(bestRect.getAttribute('rx') || bestRect.getAttribute('ry') || '16');
-                    const rxVal = Math.min(rxRaw * scaleFactor, targetW / 4, targetH / 4);
-                    shape = createCardShape(targetW, targetH, Math.max(8, rxVal));
-                }
+            }
+            const hasEnclosingRect = bestRect && maxArea >= (vbW * vbH) * 0.35;
+
+            if (!shape && (shapeMode === 'card' || (hasEnclosingRect && shapeMode !== 'coin'))) {
+                const rxRaw = parseFloat(bestRect ? (bestRect.getAttribute('rx') || bestRect.getAttribute('ry') || '16') : '16');
+                const rxVal = Math.min(rxRaw * scaleFactor, targetW / 4, targetH / 4);
+                shape = createCardShape(targetW, targetH, Math.max(8, rxVal));
             }
         }
 
@@ -2773,7 +2783,8 @@
             const rawSource = el.sourceSvgOriginal || el.sourceSvg;
             const shouldRecolor = !!(el._userHasChangedColor && el.frontColor);
             const recoloredSvg = shouldRecolor ? recolorSvg(rawSource, el.frontColor, { forceRecolor: true }) : rawSource;
-            const svgToRender = (el.text || el.badgeSubtext) ? updateSvgText(recoloredSvg, el.text, el.badgeSubtext) : recoloredSvg;
+            const shouldUpdateText = !!(el._userHasChangedText && (el.text || el.badgeSubtext));
+            const svgToRender = shouldUpdateText ? updateSvgText(recoloredSvg, el.text, el.badgeSubtext) : recoloredSvg;
             const shapeMode = el.shapeMode || (el.isExactSilhouette ? 'silhouette' : (el.isRound ? 'coin' : 'card'));
             const isRound = (shapeMode === 'coin');
             const res = createShapeAndBoundsFromSvg(svgToRender, {
@@ -3611,6 +3622,13 @@
         const el = targetEl || getActiveElement();
         if (!el || !el.contentGroup) return;
 
+        // 🌟 3D Font Hazırlık Koruması: Font henüz çözümlenmediyse önceden yüklenmiş fonttan anında üret
+        if (!loadedFont && typeof THREE !== 'undefined' && THREE.FontLoader && window.THREE_FONT_HELVETIKER_BOLD) {
+            try {
+                loadedFont = new THREE.FontLoader().parse(window.THREE_FONT_HELVETIKER_BOLD);
+            } catch (e) {}
+        }
+
         if (el.customGltfModel) {
             updateContentTransform(el);
             return;
@@ -3785,7 +3803,8 @@
             const rawSource = el.sourceSvgOriginal || el.sourceSvg;
             const shouldRecolor = !!(el._userHasChangedColor && el.frontColor);
             const recoloredSvg = shouldRecolor ? recolorSvg(rawSource, el.frontColor, { forceRecolor: true }) : rawSource;
-            const svgToRender = (el.text || el.badgeSubtext) ? updateSvgText(recoloredSvg, el.text, el.badgeSubtext) : recoloredSvg;
+            const shouldUpdateText = !!(el._userHasChangedText && (el.text || el.badgeSubtext));
+            const svgToRender = shouldUpdateText ? updateSvgText(recoloredSvg, el.text, el.badgeSubtext) : recoloredSvg;
             const shapeMode = el.shapeMode || (el.isExactSilhouette ? 'silhouette' : (el.isRound ? 'coin' : 'card'));
             const isRound = (shapeMode === 'coin');
             const res = createShapeAndBoundsFromSvg(svgToRender, {
@@ -3805,8 +3824,8 @@
 
                 const isEstateItem = !!el.estateItemId;
                 const isFenceItem = !!(el.isFence || (el.tags && el.tags.includes('çit')));
-                // Sadece tel çitler veya açıkça düzlem istenen nesneler tek parça PlaneGeometry kalır:
-                const isPurePlane = isFenceItem || (!isExactSilhouette && el.shapeMode === 'plane');
+                // Sadece açıkça düzlem istenen veya kalınlığı 0 olan nesneler tek parça PlaneGeometry kalır:
+                const isPurePlane = (el.shapeMode === 'plane') || (el.depth !== undefined && el.depth <= 0);
 
                 const badgeTex = createExactSvgTexture(
                     svgToRender,
@@ -3825,7 +3844,7 @@
                     }
                 );
 
-                const isSolidMonochromeSilhouette = isExactSilhouette && !isMultiColorSvg && !el.useGradient;
+                const isSolidMonochromeSilhouette = isExactSilhouette && !isEstateItem && !isFenceItem && !el.isMultiColorSvg && !el.useGradient && !el.text && !el.badgeSubtext && !(/<text\b|<linearGradient\b/i.test(svgToRender));
                 const badgeFrontMat = isSolidMonochromeSilhouette
                     ? new THREE.MeshStandardMaterial({
                         color: new THREE.Color(el.frontColor || '#ffffff'),
@@ -3838,8 +3857,8 @@
                         map: badgeTex,
                         roughness: el.roughness !== undefined ? el.roughness : 0.55,
                         metalness: el.metalness !== undefined ? el.metalness : 0.08,
-                        transparent: isPurePlane || (!isExactSilhouette && (!el.badgeBgColor || el.badgeBgColor === 'transparent')),
-                        alphaTest: isPurePlane ? 0.04 : 0.02,
+                        transparent: isPurePlane || isFenceItem || (!isExactSilhouette && (!el.badgeBgColor || el.badgeBgColor === 'transparent')) || (el.badgeBgColor === 'transparent'),
+                        alphaTest: 0.02,
                         depthWrite: true,
                         side: THREE.DoubleSide
                     });
@@ -3868,7 +3887,9 @@
                     const isSilhouette = (shapeMode === 'silhouette');
                     const safeBevelSize = isSilhouette ? Math.min(0.8, el.bevelSize || 1.5) : el.bevelSize;
                     const safeBevelThickness = isSilhouette ? Math.min(1.2, el.bevelThickness || 2) : el.bevelThickness;
-                    const effectiveDepth = Math.max(12, el.depth || (isEstateItem ? 60 : 20));
+                    const effectiveDepth = (el.depth !== undefined && el.depth !== null && !isNaN(el.depth))
+                        ? Math.max(1, parseFloat(el.depth))
+                        : (isEstateItem ? (isFenceItem ? 8 : 60) : 20);
 
                     const badgeExtrudeOpts = {
                         depth: effectiveDepth,
@@ -3938,7 +3959,7 @@
                         badgeGeo.groups.forEach(grp => {
                             if (grp.materialIndex === 0) {
                                 const halfLid = Math.floor(grp.count / 2);
-                                if (!isEstateItem) {
+                                if (!isEstateItem && !isFenceItem) {
                                     newGroups.push({ start: grp.start, count: halfLid, materialIndex: 1 });
                                     newGroups.push({ start: grp.start + halfLid, count: grp.count - halfLid, materialIndex: 0 });
                                 } else {
@@ -4442,25 +4463,14 @@
         });
 
         // 🎯 3D Ögenin Düzlem Üzerinde Kendi Ekseni Etrafında Dönüşü (Plakayı/Izgarayı döndürmez!)
+        // Slot 0 (X - Kırmızı Dot X): Öne/Arkaya Eğim (Pitch)
+        // Slot 1 (Y - Yeşil Dot Y): Kendi Ekseni Etrafında 360° Yatay Dönüş (Yaw)
+        // Slot 2 (Z - Mavi Dot Z): Sağa/Sola Yatırma (Roll)
         el.contentGroup.rotation.order = 'ZYX';
-        const isFenceEl = !!(el.isFence || el.isFenceGroup);
         const pitchRad = THREE.MathUtils.degToRad(el.itemPitch || el.planePitch || 0);
         const yawRad = THREE.MathUtils.degToRad(el.planeLocalRot || 0);
         const rollRad = THREE.MathUtils.degToRad(el.itemRoll || 0);
-        const localRotRad = THREE.MathUtils.degToRad(el.planeLocalRot || 0);
-
-        if (isFenceEl) {
-            // 🛡️ Çit Segmenti: Taban çizgisi üzerinde localRotRad ile Z ekseninde çizgiye hizalanır.
-            // pitchRad ile doğrudan taban çizgisi etrafında öne/arkaya yatar.
-            const fenceYaw = THREE.MathUtils.degToRad(el.planeYaw || 0);
-            el.contentGroup.rotation.set(pitchRad, fenceYaw, localRotRad);
-        } else {
-            // 🎯 Evler, Villalar, Ağaçlar, 3D Rozetler ve Simgeler:
-            // Slot 0 (X - Kırmızı Dot X): Öne/Arkaya Eğim (Pitch)
-            // Slot 1 (Y - Yeşil Dot Y): Kendi Ekseni Etrafında 360° Yatay Dönüş (Yaw)
-            // Slot 2 (Z - Mavi Dot Z): Sağa/Sola Yatırma (Roll)
-            el.contentGroup.rotation.set(pitchRad, yawRad, -rollRad);
-        }
+        el.contentGroup.rotation.set(pitchRad, yawRad, -rollRad);
 
         if (el.shadowPlane) {
             el.shadowPlane.visible = false;
@@ -4898,6 +4908,9 @@
         container.appendChild(overlay);
         gizmoOverlayEl = overlay;
         attachGizmoEvents(overlay);
+        if (!state.selected || elements.length === 0) {
+            gizmoOverlayEl.style.display = 'none';
+        }
         overlay.addEventListener('dblclick', (e) => {
             if (e.button !== 0) return;
             showStudioPanel();
@@ -4977,8 +4990,8 @@
         const container = document.getElementById('canvas-container');
         if (!container) return;
 
-        const cw = container.offsetWidth || 1920;
-        const ch = container.offsetHeight || 1080;
+        const cw = parseFloat(container.style.width) || container.offsetWidth || 1920;
+        const ch = parseFloat(container.style.height) || container.offsetHeight || 1080;
 
         // 🔍 Çözünürlük ve Zoom Adaptasyonu:
         // canvas-container'ın scaleFactor ölçeklemesi nedeniyle yüksek çözünürlüklü fotoğraflarda
@@ -5278,11 +5291,14 @@
 
         lastOriginScreen = { x: cx, y: cy };
 
-        // 4. Tuval Üstü 3D Güneş Işık Tutamacı (Real 3D Perspective Projection)
+        // 4. Tuval Üstü 3D Güneş Işık Tutamacı (Real 3D Perspective Projection & Tuval İçi Güvenli Sınır)
         const sunWorldVec = new THREE.Vector3(state.sunPosX, state.sunPosY, state.sunPosZ);
         sunWorldVec.project(camera);
-        const sunScreenX = (sunWorldVec.x + 1) * cw / 2;
-        const sunScreenY = (-sunWorldVec.y + 1) * ch / 2;
+        const rawSunX = (sunWorldVec.x + 1) * cw / 2;
+        const rawSunY = (-sunWorldVec.y + 1) * ch / 2;
+        const sunMargin = 28;
+        const sunScreenX = Math.max(sunMargin, Math.min(cw - sunMargin, rawSunX));
+        const sunScreenY = Math.max(sunMargin, Math.min(ch - sunMargin, rawSunY));
 
         const sunLineEl = gizmoOverlayEl.querySelector('#threeDGizmoSunLine');
         if (sunLineEl) {
@@ -5295,6 +5311,223 @@
         if (sunEl) {
             sunEl.style.left = sunScreenX + 'px';
             sunEl.style.top = sunScreenY + 'px';
+        }
+    }
+
+    /**
+     * 🌟 Karma Çoklu Seçim: 3D öge sürüklenirken seçili 2D ögelerin (Çizim, Saber Neon, Görsel vb.)
+     * başlangıç koordinatlarını ve Saber dokusunu önbelleğe al.
+     */
+    function initHybrid2DDragStart() {
+        if (!Array.isArray(window.selectedElements) || window.selectedElements.length === 0) return;
+        window.selectedElements.forEach(sEl => {
+            if (!sEl) return;
+            const curL = parseFloat(sEl.style.left) || sEl.offsetLeft || 0;
+            const curT = parseFloat(sEl.style.top) || sEl.offsetTop || 0;
+            sEl.dataset.dragStartX = curL;
+            sEl.dataset.dragStartY = curT;
+            sEl._hybridTotalDx = 0;
+            sEl._hybridTotalDy = 0;
+
+            if (sEl.classList.contains('editable-draw')) {
+                const pObj = (typeof window.findDrawPathForElement === 'function')
+                    ? window.findDrawPathForElement(sEl)
+                    : ((typeof drawPaths !== 'undefined' && Array.isArray(drawPaths))
+                        ? drawPaths.find(p => p.el === sEl || (sEl.dataset && p.id === sEl.dataset.pathId) || (sEl.dataset && sEl.dataset.pathIndex !== undefined && drawPaths[parseInt(sEl.dataset.pathIndex)] === p))
+                        : null);
+                sEl._dragPObj = pObj;
+                if (pObj && pObj.hasSaber) {
+                    if (!pObj.saberRef && typeof window.applySaberToPath === 'function') {
+                        const pIdx = (typeof drawPaths !== 'undefined') ? drawPaths.indexOf(pObj) : -1;
+                        if (pIdx >= 0) pObj.saberRef = window.applySaberToPath(pIdx, pObj.saberOptions || window.saberState);
+                    }
+                    if (pObj.saberRef) {
+                        sEl._dragStartSaberX = (pObj.saberRef.dx !== undefined) ? pObj.saberRef.dx : ((pObj.saberRef.graphics && pObj.saberRef.graphics.x !== undefined) ? pObj.saberRef.graphics.x : 0);
+                        sEl._dragStartSaberY = (pObj.saberRef.dy !== undefined) ? pObj.saberRef.dy : ((pObj.saberRef.graphics && pObj.saberRef.graphics.y !== undefined) ? pObj.saberRef.graphics.y : 0);
+                        sEl._dragStartSaberScale = (pObj.saberRef.scale !== undefined) ? pObj.saberRef.scale : ((pObj.saberRef.graphics && pObj.saberRef.graphics.scale) ? pObj.saberRef.graphics.scale.x : 1);
+                    }
+                }
+            }
+        });
+    }
+
+    /**
+     * 🌟 Karma Çoklu Seçim: 3D öge sürüklenirken seçili 2D ögeleri ve Saber Neon çizgilerini
+     * anlık olarak tam senkronize taşı (Sıfır gecikme - 120 FPS GPU render).
+     */
+    function moveHybrid2DElements(dx2d, dy2d) {
+        if (!Array.isArray(window.selectedElements) || window.selectedElements.length === 0) return;
+        let hasSaberMoved = false;
+
+        window.selectedElements.forEach(sEl => {
+            if (!sEl || (sEl.dataset && sEl.dataset.locked === 'true')) return;
+            const curL = parseFloat(sEl.style.left) || sEl.offsetLeft || 0;
+            const curT = parseFloat(sEl.style.top) || sEl.offsetTop || 0;
+            const newL = curL + dx2d;
+            const newT = curT + dy2d;
+            sEl.style.left = newL + 'px';
+            sEl.style.top = newT + 'px';
+            sEl.style.bottom = 'auto';
+            sEl.style.right = 'auto';
+
+            sEl._hybridTotalDx = (sEl._hybridTotalDx || 0) + dx2d;
+            sEl._hybridTotalDy = (sEl._hybridTotalDy || 0) + dy2d;
+
+            if (sEl.classList.contains('editable-draw')) {
+                sEl.dataset.baseLeft = newL;
+                sEl.dataset.baseTop = newT;
+                const pObj = sEl._dragPObj || ((typeof window.findDrawPathForElement === 'function')
+                    ? window.findDrawPathForElement(sEl)
+                    : ((typeof drawPaths !== 'undefined' && Array.isArray(drawPaths))
+                        ? drawPaths.find(p => p.el === sEl || (sEl.dataset && p.id === sEl.dataset.pathId) || (sEl.dataset && sEl.dataset.pathIndex !== undefined && drawPaths[parseInt(sEl.dataset.pathIndex)] === p))
+                        : null));
+
+                if (pObj && pObj.hasSaber) {
+                    if (!pObj.saberRef && typeof window.applySaberToPath === 'function') {
+                        const pIdx = (typeof drawPaths !== 'undefined') ? drawPaths.indexOf(pObj) : -1;
+                        if (pIdx >= 0) pObj.saberRef = window.applySaberToPath(pIdx, pObj.saberOptions || window.saberState);
+                    }
+                    if (pObj.saberRef && window.SaberEngine && typeof window.SaberEngine.setSaberTransform === 'function') {
+                        const startX = (sEl.dataset.dragStartX !== undefined && !isNaN(parseFloat(sEl.dataset.dragStartX)))
+                            ? parseFloat(sEl.dataset.dragStartX)
+                            : (parseFloat(sEl.dataset.baseLeft) || 0);
+                        const startY = (sEl.dataset.dragStartY !== undefined && !isNaN(parseFloat(sEl.dataset.dragStartY)))
+                            ? parseFloat(sEl.dataset.dragStartY)
+                            : (parseFloat(sEl.dataset.baseTop) || 0);
+
+                        const totalDx = newL - startX;
+                        const totalDy = newT - startY;
+
+                        const rot = (pObj.rotation !== undefined) ? pObj.rotation : (parseFloat(sEl.dataset.rotation) || 0);
+                        const baseW = parseFloat(sEl.dataset.baseWidth) || sEl.offsetWidth || 0;
+                        const baseH = parseFloat(sEl.dataset.baseHeight) || sEl.offsetHeight || 0;
+                        const origCx = startX + baseW / 2;
+                        const origCy = startY + baseH / 2;
+
+                        const startSaberScale = (sEl._dragStartSaberScale !== undefined) ? sEl._dragStartSaberScale : (pObj.saberRef.scale || 1);
+                        const startSaberX = (sEl._dragStartSaberX !== undefined) ? sEl._dragStartSaberX : ((pObj.saberRef.dx !== undefined) ? pObj.saberRef.dx : 0);
+                        const startSaberY = (sEl._dragStartSaberY !== undefined) ? sEl._dragStartSaberY : ((pObj.saberRef.dy !== undefined) ? pObj.saberRef.dy : 0);
+
+                        window.SaberEngine.setSaberTransform(
+                            pObj.saberRef,
+                            startSaberScale,
+                            startSaberX + totalDx,
+                            startSaberY + totalDy,
+                            false,
+                            rot,
+                            origCx,
+                            origCy
+                        );
+                        hasSaberMoved = true;
+                    }
+                }
+            } else if (sEl.classList.contains('tb-image-frame')) {
+                if (window.Template3DFrame && typeof window.Template3DFrame.applyTransform === 'function') {
+                    window.Template3DFrame.applyTransform(sEl);
+                    if (typeof window.Template3DFrame.updateGizmoPosition === 'function') {
+                        window.Template3DFrame.updateGizmoPosition(sEl);
+                    }
+                }
+            }
+        });
+
+        if (window.SaberEngine && typeof window.SaberEngine.updateTextSaberPositions === 'function') {
+            window.SaberEngine.updateTextSaberPositions();
+        }
+        if (hasSaberMoved && window.SaberEngine && typeof window.SaberEngine.getApp === 'function') {
+            const sApp = window.SaberEngine.getApp();
+            if (sApp && sApp.renderer && sApp.stage && (!sApp.ticker || !sApp.ticker.started)) {
+                try { sApp.renderer.render(sApp.stage); } catch(e) {}
+            }
+        }
+    }
+
+    /**
+     * 🌟 Karma Çoklu Seçim: Sürükleme bittiğinde çizim geometrisi noktalarını (points) kalıcı güncelle
+     * ve Saber / Canvas katmanlarını kusursuz şekilde mühürle.
+     */
+    function finishHybrid2DDrag() {
+        if (!Array.isArray(window.selectedElements) || window.selectedElements.length === 0) return;
+        let redrawNeeded = false;
+        let photoRefUpdated = false;
+        const currentRef = typeof window.getCurrentPhotoState === 'function' ? window.getCurrentPhotoState() : null;
+
+        window.selectedElements.forEach(sEl => {
+            if (!sEl) return;
+
+            if (sEl.classList.contains('editable-draw')) {
+                const pObj = (typeof window.findDrawPathForElement === 'function')
+                    ? window.findDrawPathForElement(sEl)
+                    : ((typeof drawPaths !== 'undefined' && Array.isArray(drawPaths))
+                        ? drawPaths.find(p => p.el === sEl || (sEl.dataset && p.id === sEl.dataset.pathId) || (sEl.dataset && sEl.dataset.pathIndex !== undefined && drawPaths[parseInt(sEl.dataset.pathIndex)] === p))
+                        : null);
+
+                const startDragX = (sEl.dataset.dragStartX !== undefined && !isNaN(parseFloat(sEl.dataset.dragStartX)))
+                    ? parseFloat(sEl.dataset.dragStartX)
+                    : (parseFloat(sEl.dataset.baseLeft) || 0);
+                const startDragY = (sEl.dataset.dragStartY !== undefined && !isNaN(parseFloat(sEl.dataset.dragStartY)))
+                    ? parseFloat(sEl.dataset.dragStartY)
+                    : (parseFloat(sEl.dataset.baseTop) || 0);
+                const curL = parseFloat(sEl.style.left) || 0;
+                const curT = parseFloat(sEl.style.top) || 0;
+                const screenDeltaL = curL - startDragX;
+                const screenDeltaT = curT - startDragY;
+
+                if (pObj && (screenDeltaL !== 0 || screenDeltaT !== 0)) {
+                    if (pObj.points && Array.isArray(pObj.points)) {
+                        pObj.points.forEach(pt => {
+                            pt.x += screenDeltaL;
+                            pt.y += screenDeltaT;
+                            if (pt.cpIn) { pt.cpIn.x += screenDeltaL; pt.cpIn.y += screenDeltaT; }
+                            if (pt.cpOut) { pt.cpOut.x += screenDeltaL; pt.cpOut.y += screenDeltaT; }
+                        });
+                    }
+                    if (typeof pObj.x1 !== 'undefined') {
+                        pObj.x1 += screenDeltaL;
+                        pObj.y1 += screenDeltaT;
+                        pObj.x2 += screenDeltaL;
+                        pObj.y2 += screenDeltaT;
+                    }
+                    if (currentRef) {
+                        pObj.photoRef = currentRef;
+                        photoRefUpdated = true;
+                    }
+                    sEl.dataset.baseLeft = curL;
+                    sEl.dataset.baseTop = curT;
+                    sEl.dataset.dragStartX = curL;
+                    sEl.dataset.dragStartY = curT;
+
+                    const pIdx = (typeof drawPaths !== 'undefined') ? drawPaths.indexOf(pObj) : -1;
+                    if (pObj.hasSaber && typeof window.applySaberToPath === 'function' && pIdx >= 0) {
+                        window.applySaberToPath(pIdx, pObj.saberOptions || window.saberState);
+                    }
+                    redrawNeeded = true;
+                }
+
+                if (typeof window.showVertexHandles === 'function' && (document.querySelector('.draw-vertex-handle') || sEl.classList.contains('el-selected') || window.selectedEl === sEl)) {
+                    window.showVertexHandles(sEl);
+                }
+
+                delete sEl._dragStartSaberX;
+                delete sEl._dragStartSaberY;
+                delete sEl._dragStartSaberScale;
+                delete sEl._dragPObj;
+                delete sEl._hybridTotalDx;
+                delete sEl._hybridTotalDy;
+            }
+        });
+
+        if (photoRefUpdated && typeof updateDrawHistory === 'function') {
+            updateDrawHistory();
+        }
+        if (redrawNeeded && typeof redrawAll === 'function') {
+            redrawAll();
+        }
+        if (window.SaberEngine && typeof window.SaberEngine.getApp === 'function') {
+            const sApp = window.SaberEngine.getApp();
+            if (sApp && sApp.renderer && sApp.stage) {
+                try { sApp.renderer.render(sApp.stage); } catch(e) {}
+            }
         }
     }
 
@@ -5311,6 +5544,7 @@
                 lastClientY = e.clientY;
                 rawPosX = (state.posX || 0);
                 rawPosY = (state.posY || 0);
+                initHybrid2DDragStart();
                 try { centerMove.setPointerCapture(e.pointerId); } catch(ex){}
                 e.stopPropagation();
                 e.preventDefault();
@@ -5351,8 +5585,12 @@
                     if (window.SmartGuides) window.SmartGuides.clear();
                 }
 
-                updateContentTransform();
-                updateGizmoPositions();
+                const actEl = getActiveElement();
+                if (actEl) {
+                    actEl.posX = state.posX;
+                    actEl.posY = state.posY;
+                }
+                updatePlaneTransform(actEl);
                 if (window.ThreeDGrouping && typeof window.ThreeDGrouping.propagateDragDelta === 'function') {
                     window.ThreeDGrouping.propagateDragDelta(getActiveElement(), deltaPosX, deltaPosY);
                 } else if (window.ThreeDGrouping && typeof window.ThreeDGrouping.updateSelectionVisuals === 'function') {
@@ -5363,19 +5601,7 @@
                 if (Array.isArray(window.selectedElements) && window.selectedElements.length > 0) {
                     const dx2d = screenDx / sf;
                     const dy2d = screenDy / sf;
-                    window.selectedElements.forEach(sEl => {
-                        const curL = parseFloat(sEl.style.left) || sEl.offsetLeft || 0;
-                        const curT = parseFloat(sEl.style.top) || sEl.offsetTop || 0;
-                        sEl.style.left = (curL + dx2d) + 'px';
-                        sEl.style.top = (curT + dy2d) + 'px';
-                        if (sEl.classList.contains('editable-draw')) {
-                            sEl.dataset.baseLeft = curL + dx2d;
-                            sEl.dataset.baseTop = curT + dy2d;
-                        }
-                    });
-                    if (window.SaberEngine && typeof window.SaberEngine.updateTextSaberPositions === 'function') {
-                        window.SaberEngine.updateTextSaberPositions();
-                    }
+                    moveHybrid2DElements(dx2d, dy2d);
                 }
 
                 notifyExternalUpdates(false);
@@ -5390,6 +5616,10 @@
                 if (window.SmartGuides && typeof window.SmartGuides.clear === 'function') {
                     window.SmartGuides.clear();
                 }
+                finishHybrid2DDrag();
+                hideGizmoHud();
+                syncControlsUI();
+                notifyExternalUpdates(true);
                 hideGizmoHud();
                 syncControlsUI();
                 notifyExternalUpdates(true);
@@ -5424,6 +5654,7 @@
                 origPosX = (state.posX || 0);
                 dragDirX = { ...axisScreenDirs.x };
                 dragPpuX = Math.max(0.1, axisPixelsPerUnit.x);
+                initHybrid2DDragStart();
                 try { tipX.setPointerCapture(e.pointerId); } catch(ex){}
                 e.stopPropagation();
                 e.preventDefault();
@@ -5442,7 +5673,11 @@
                 const deltaX = newPosX - (state.posX || 0);
                 if (deltaX === 0) return;
                 state.posX = newPosX;
-                updateContentTransform();
+                const actElX = getActiveElement();
+                if (actElX) {
+                    actElX.posX = state.posX;
+                }
+                updatePlaneTransform(actElX);
                 notifyExternalUpdates(false);
                 requestRender();
                 showGizmoHud(`📐 X Konumu: ${Math.round(state.posX)}px`, e.clientX, e.clientY);
@@ -5451,10 +5686,12 @@
                 } else if (window.ThreeDGrouping && typeof window.ThreeDGrouping.updateSelectionVisuals === 'function') {
                     window.ThreeDGrouping.updateSelectionVisuals();
                 }
+                moveHybrid2DElements(deltaX, 0);
             };
             const onUp = (e) => {
                 if (!isDragging) return;
                 isDragging = false;
+                finishHybrid2DDrag();
                 hideGizmoHud();
                 syncControlsUI();
                 notifyExternalUpdates(true);
@@ -5486,6 +5723,7 @@
                 origPosY = (state.posY || 0);
                 dragDirY = { ...axisScreenDirs.y };
                 dragPpuY = Math.max(0.1, axisPixelsPerUnit.y);
+                initHybrid2DDragStart();
                 try { tipY.setPointerCapture(e.pointerId); } catch(ex){}
                 e.stopPropagation();
                 e.preventDefault();
@@ -5504,7 +5742,11 @@
                 const deltaY = newPosY - (state.posY || 0);
                 if (deltaY === 0) return;
                 state.posY = newPosY;
-                updateContentTransform();
+                const actElY = getActiveElement();
+                if (actElY) {
+                    actElY.posY = state.posY;
+                }
+                updatePlaneTransform(actElY);
                 notifyExternalUpdates(false);
                 requestRender();
                 showGizmoHud(`📐 Y Konumu: ${Math.round(state.posY)}px`, e.clientX, e.clientY);
@@ -5513,10 +5755,12 @@
                 } else if (window.ThreeDGrouping && typeof window.ThreeDGrouping.updateSelectionVisuals === 'function') {
                     window.ThreeDGrouping.updateSelectionVisuals();
                 }
+                moveHybrid2DElements(0, -deltaY);
             };
             const onUp = (e) => {
                 if (!isDragging) return;
                 isDragging = false;
+                finishHybrid2DDrag();
                 hideGizmoHud();
                 syncControlsUI();
                 notifyExternalUpdates(true);
@@ -6150,15 +6394,25 @@
             state.dockTarget = 'item';
             const keep2D = !!(options.keep2DSelection || options.keep2D);
             if (!keep2D) {
-                // 🎯 2D seçimleri kaldır ki sadece tıklanan 3D öge aktif kalsın
-                document.querySelectorAll('.el-selected').forEach(e => e.classList.remove('el-selected'));
-                document.querySelectorAll('.text-handle, .text-rotate-handle, .text-resize-handle, .callout-controls, .callout-resizer, .callout-rotator, .callout-select-border, .vertex-handle').forEach(h => {
-                    if (h.classList.contains('text-handle')) h.remove();
-                    else h.style.display = 'none';
-                });
-                if (typeof window.hideVertexHandles === 'function') window.hideVertexHandles();
-                window.selectedEl = null;
-                window.selectedElements = [];
+                // 🎯 2D seçimleri tamamen kaldır ki sadece tıklanan 3D öge aktif kalsın
+                if (typeof window.deselect2DElements === 'function') {
+                    window.deselect2DElements();
+                } else if (typeof deselectAll === 'function') {
+                    deselectAll('3d');
+                } else {
+                    document.querySelectorAll('.el-selected, .multi-selected').forEach(e => e.classList.remove('el-selected', 'multi-selected'));
+                    document.querySelectorAll('.text-handle, .text-rotate-handle, .text-resize-handle, .callout-controls, .callout-resizer, .callout-rotator, .callout-select-border, .vertex-handle').forEach(h => {
+                        if (h.classList.contains('text-handle')) h.remove();
+                        else h.style.display = 'none';
+                    });
+                    document.querySelectorAll('.vertex-handles-container').forEach(c => {
+                        if (c.parentElement) c.parentElement.dataset.hasHandles = 'false';
+                        c.remove();
+                    });
+                    if (typeof window.hideVertexHandles === 'function') window.hideVertexHandles();
+                    window.selectedEl = null;
+                    window.selectedElements = [];
+                }
 
                 // 🎯 Tuval altındaki ana dock'a 3D ögenin seçildiğini bildir (Çoğalt, Kilit, En Öne, Sil)
                 if (window.DockContextManager && typeof window.DockContextManager.on3DElementSelected === 'function') {
@@ -6462,6 +6716,21 @@
             }
 
             if (hitEl) {
+                const isMultiKey = !!(e && (e.ctrlKey || e.shiftKey));
+                const currentMulti = (window.ThreeDGrouping && typeof window.ThreeDGrouping.getSelected3DElements === 'function')
+                    ? window.ThreeDGrouping.getSelected3DElements()
+                    : [];
+                const isHitInMulti = currentMulti.length > 1 && currentMulti.some(m => m && String(m.id) === String(hitEl.id));
+
+                if (isMultiKey) {
+                    if (window.ThreeDGrouping && typeof window.ThreeDGrouping.toggleSelect3DElement === 'function') {
+                        window.ThreeDGrouping.toggleSelect3DElement(hitEl);
+                    }
+                } else if (!hitEl.groupId && !isHitInMulti) {
+                    if (window.ThreeDGrouping && typeof window.ThreeDGrouping.clearSelection === 'function') {
+                        window.ThreeDGrouping.clearSelection();
+                    }
+                }
                 if (hitEl.groupId) {
                     const groupMembers = elements.filter(e => e.groupId === hitEl.groupId);
                     if (groupMembers.length > 1 && window.ThreeDGrouping && typeof window.ThreeDGrouping.setSelected3DElements === 'function') {
@@ -6475,9 +6744,7 @@
                 }
                 // 🌟 Ögeye tıklandığında Gizmo'yu aktif yap ve seçimi tazele
                 state.gizmoActive = true;
-                const isHybridMulti = Array.isArray(window.selectedElements) && window.selectedElements.length > 0;
-                const isMultiKey = e.ctrlKey || e.shiftKey;
-                setSelected(true, { silent: true, keep2DSelection: isHybridMulti || isMultiKey });
+                setSelected(true, { silent: true, keep2DSelection: isMultiKey || isHitInMulti });
                 updateDock3DControlsState();
             }
 
@@ -6498,6 +6765,7 @@
             cvs.style.cursor = (dragMode === 'move') ? 'default' : 'crosshair';
             cvs.setPointerCapture(e.pointerId);
             if (dragMode === 'move') {
+                initHybrid2DDragStart();
                 showGizmoHud(`📍 Konum: X: ${Math.round(state.posX)}, Y: ${Math.round(state.posY)}`, e.clientX, e.clientY);
             }
             e.stopPropagation();
@@ -6560,7 +6828,12 @@
                     if (window.SmartGuides) window.SmartGuides.clear();
                 }
 
-                updateContentTransform();
+                const actElCanvas = getActiveElement();
+                if (actElCanvas) {
+                    actElCanvas.posX = state.posX;
+                    actElCanvas.posY = state.posY;
+                }
+                updatePlaneTransform(actElCanvas);
                 showGizmoHud(`📍 Konum: X: ${Math.round(state.posX)}, Y: ${Math.round(state.posY)}`, e.clientX, e.clientY);
 
                 // 🌟 Çoklu seçim veya Grup içindeki kardeşlere delta aktarımı (Birlikte Hareket)
@@ -6575,19 +6848,7 @@
                     const sf = (typeof window.getGlobalScale === 'function') ? window.getGlobalScale() : 1.0;
                     const dx2d = screenDx / sf;
                     const dy2d = screenDy / sf;
-                    window.selectedElements.forEach(sEl => {
-                        const curL = parseFloat(sEl.style.left) || sEl.offsetLeft || 0;
-                        const curT = parseFloat(sEl.style.top) || sEl.offsetTop || 0;
-                        sEl.style.left = (curL + dx2d) + 'px';
-                        sEl.style.top = (curT + dy2d) + 'px';
-                        if (sEl.classList.contains('editable-draw')) {
-                            sEl.dataset.baseLeft = curL + dx2d;
-                            sEl.dataset.baseTop = curT + dy2d;
-                        }
-                    });
-                    if (window.SaberEngine && typeof window.SaberEngine.updateTextSaberPositions === 'function') {
-                        window.SaberEngine.updateTextSaberPositions();
-                    }
+                    moveHybrid2DElements(dx2d, dy2d);
                 }
             }
             notifyExternalUpdates(false);
@@ -6599,6 +6860,20 @@
             isPointerDown = false;
             if (window.SmartGuides && typeof window.SmartGuides.clear === 'function') {
                 window.SmartGuides.clear();
+            }
+            if (dragMode === 'move') {
+                finishHybrid2DDrag();
+            }
+            if (window.ThreeDGrouping && typeof window.ThreeDGrouping.getSelected3DElements === 'function') {
+                const multi = window.ThreeDGrouping.getSelected3DElements();
+                if (multi && multi.length > 1) {
+                    multi.forEach(m => {
+                        if (m) {
+                            if (typeof m.posX === 'number') m.posX = Math.round(m.posX);
+                            if (typeof m.posY === 'number') m.posY = Math.round(m.posY);
+                        }
+                    });
+                }
             }
             hideGizmoHud();
             try { cvs.releasePointerCapture(e.pointerId); } catch(ex){}
@@ -6765,9 +7040,24 @@
 
                 const hitEl = check3DHit(e.clientX, e.clientY);
                 if (hitEl) {
-                    if (!state.selected || getActiveElement() !== hitEl) {
+                    const isMultiKey = !!(e && (e.ctrlKey || e.shiftKey));
+                    const currentMulti = (window.ThreeDGrouping && typeof window.ThreeDGrouping.getSelected3DElements === 'function')
+                        ? window.ThreeDGrouping.getSelected3DElements()
+                        : [];
+                    const isHitInMulti = currentMulti.length > 1 && currentMulti.some(m => m && String(m.id) === String(hitEl.id));
+
+                    if (!state.selected || getActiveElement() !== hitEl || isHitInMulti) {
                         e.stopPropagation();
                         e.preventDefault();
+                        if (isMultiKey) {
+                            if (window.ThreeDGrouping && typeof window.ThreeDGrouping.toggleSelect3DElement === 'function') {
+                                window.ThreeDGrouping.toggleSelect3DElement(hitEl);
+                            }
+                        } else if (!hitEl.groupId && !isHitInMulti) {
+                            if (window.ThreeDGrouping && typeof window.ThreeDGrouping.clearSelection === 'function') {
+                                window.ThreeDGrouping.clearSelection();
+                            }
+                        }
                         if (hitEl.groupId) {
                             const groupMembers = elements.filter(e => e.groupId === hitEl.groupId);
                             if (groupMembers.length > 1 && window.ThreeDGrouping && typeof window.ThreeDGrouping.setSelected3DElements === 'function') {
@@ -6775,9 +7065,7 @@
                             }
                         }
                         setActiveElement(hitEl);
-                        const isHybridMulti = Array.isArray(window.selectedElements) && window.selectedElements.length > 0;
-                        const isMultiKey = e.ctrlKey || e.shiftKey;
-                        setSelected(true, { autoLockPhoto: true, keep2DSelection: isHybridMulti || isMultiKey });
+                        setSelected(true, { autoLockPhoto: true, keep2DSelection: isMultiKey || isHitInMulti });
                         // İlk tıklamada bırakmadan hemen taşımaya başla
                         if (!hitEl.locked) {
                             isPointerDown = true;
@@ -7189,8 +7477,12 @@
         }
 
         syncActiveElementFromState();
+        updatePlaneTransform(el);
         updateContentTransform(el);
         updateGizmoPositions();
+        if (window.ThreeDGrouping && typeof window.ThreeDGrouping.updateSelectionVisuals === 'function') {
+            window.ThreeDGrouping.updateSelectionVisuals();
+        }
         syncControlsUI();
         requestRender();
         if (typeof window.recordHistory === 'function') {
@@ -7343,6 +7635,14 @@
         const el = targetEl || getActiveElement();
         if (!el) return;
 
+        // 🌟 Eğer birden fazla 3D öge seçiliyse grup halinde sayfada konumlandır
+        if (window.ThreeDGrouping && typeof window.ThreeDGrouping.getSelected3DElements === 'function') {
+            const groupList = window.ThreeDGrouping.getSelected3DElements();
+            if (groupList.length > 1 && groupList.includes(el) && window.ThreeDAlign && typeof window.ThreeDAlign.positionElementsOnPage === 'function') {
+                return window.ThreeDAlign.positionElementsOnPage(groupList, posKey);
+            }
+        }
+
         // 🧠 Kamera Frustum ve Görünür Alan Hesabı (Three.js Dünya Koordinatları)
         const fov = (camera && camera.fov) ? camera.fov : 45;
         const aspect = (camera && camera.aspect) ? camera.aspect : (16 / 9);
@@ -7399,16 +7699,19 @@
                     if (sib !== el) {
                         sib.posX = (sib.posX || 0) + deltaX;
                         sib.posY = (sib.posY || 0) + deltaY;
+                        updatePlaneTransform(sib);
                         updateContentTransform(sib);
                     }
                 });
-                window.ThreeDGrouping.updateSelectionVisuals();
             }
         }
 
-        updateContentTransform(el);
         updatePlaneTransform(el);
+        updateContentTransform(el);
         updateGizmoPositions();
+        if (window.ThreeDGrouping && typeof window.ThreeDGrouping.updateSelectionVisuals === 'function') {
+            window.ThreeDGrouping.updateSelectionVisuals();
+        }
         syncControlsUI();
         notifyExternalUpdates();
         requestRender();
@@ -7744,15 +8047,17 @@
             });
         }
 
-        const bindItem = (id, fn) => {
+        const bindItem = (id, fn, autoClose = false) => {
             const btn = menu.querySelector(id);
             if (btn) {
                 btn.addEventListener('click', (e) => {
                     e.preventDefault();
                     e.stopPropagation();
-                    closeMenu();
+                    if (autoClose) {
+                        closeMenu();
+                    }
                     setTimeout(() => {
-                        try { fn(); } catch(err) { console.error('3D Context action error:', err); }
+                        try { fn(e); } catch(err) { console.error('3D Context action error:', err); }
                     }, 10);
                 });
             }
@@ -7772,6 +8077,7 @@
         bindItem('#acm3d-orient-flat', () => {
             state.orientation = 'flat';
             el.orientation = 'flat';
+            updatePlaneTransform(el);
             updateContentTransform(el);
             syncControlsUI();
             notifyExternalUpdates();
@@ -7780,6 +8086,7 @@
         bindItem('#acm3d-orient-stand', () => {
             state.orientation = 'standing';
             el.orientation = 'standing';
+            updatePlaneTransform(el);
             updateContentTransform(el);
             syncControlsUI();
             notifyExternalUpdates();
@@ -7869,32 +8176,44 @@
             autoCenterActiveElement('base');
         });
         bindItem('#acm3d-scale-up', () => {
-            const oldSc = el.planeScale || 1.0;
-            const sc = Math.min(3.0, parseFloat((oldSc * 1.15).toFixed(2)));
-            el.planeScale = sc;
-            state.planeScale = sc;
-            if (window.ThreeDGrouping && typeof window.ThreeDGrouping.propagateScaleDelta === 'function') {
-                window.ThreeDGrouping.propagateScaleDelta(el, sc, oldSc);
+            const hasMultiple = (window.selectedElements && window.selectedElements.length > 0) ||
+                                (window.ThreeDGrouping && typeof window.ThreeDGrouping.getSelected3DElements === 'function' && window.ThreeDGrouping.getSelected3DElements().length > 1);
+            if (hasMultiple && typeof window.multiSelectScale === 'function') {
+                window.multiSelectScale(1.15);
+            } else {
+                const oldSc = el.planeScale || 1.0;
+                const sc = Math.min(3.0, parseFloat((oldSc * 1.15).toFixed(2)));
+                el.planeScale = sc;
+                state.planeScale = sc;
+                if (window.ThreeDGrouping && typeof window.ThreeDGrouping.propagateScaleDelta === 'function') {
+                    window.ThreeDGrouping.propagateScaleDelta(el, sc, oldSc);
+                }
+                updatePlaneTransform(el);
+                updateGizmoPositions();
+                syncControlsUI();
+                notifyExternalUpdates();
+                requestRender();
             }
-            updatePlaneTransform(el);
-            updateGizmoPositions();
-            syncControlsUI();
-            notifyExternalUpdates();
-            requestRender();
         });
         bindItem('#acm3d-scale-down', () => {
-            const oldSc = el.planeScale || 1.0;
-            const sc = Math.max(0.2, parseFloat((oldSc * 0.85).toFixed(2)));
-            el.planeScale = sc;
-            state.planeScale = sc;
-            if (window.ThreeDGrouping && typeof window.ThreeDGrouping.propagateScaleDelta === 'function') {
-                window.ThreeDGrouping.propagateScaleDelta(el, sc, oldSc);
+            const hasMultiple = (window.selectedElements && window.selectedElements.length > 0) ||
+                                (window.ThreeDGrouping && typeof window.ThreeDGrouping.getSelected3DElements === 'function' && window.ThreeDGrouping.getSelected3DElements().length > 1);
+            if (hasMultiple && typeof window.multiSelectScale === 'function') {
+                window.multiSelectScale(0.85);
+            } else {
+                const oldSc = el.planeScale || 1.0;
+                const sc = Math.max(0.2, parseFloat((oldSc * 0.85).toFixed(2)));
+                el.planeScale = sc;
+                state.planeScale = sc;
+                if (window.ThreeDGrouping && typeof window.ThreeDGrouping.propagateScaleDelta === 'function') {
+                    window.ThreeDGrouping.propagateScaleDelta(el, sc, oldSc);
+                }
+                updatePlaneTransform(el);
+                updateGizmoPositions();
+                syncControlsUI();
+                notifyExternalUpdates();
+                requestRender();
             }
-            updatePlaneTransform(el);
-            updateGizmoPositions();
-            syncControlsUI();
-            notifyExternalUpdates();
-            requestRender();
         });
 
         // Hızlı Araçlar
@@ -7916,7 +8235,7 @@
 
         // Çoğalt & Sil
         bindItem('#acm3d-duplicate', () => duplicate3DElement(el));
-        bindItem('#acm3d-delete', () => delete3DElement(el.id));
+        bindItem('#acm3d-delete', () => delete3DElement(el.id), true);
     }
 
     /**
@@ -9970,8 +10289,32 @@
         if (mode === 'silhouette') {
             el.isRound = false;
             state.isRound = false;
-            el.sideColor = autoGenerateSideColor(el.frontColor);
+            const isFenceEl = !!(el.isFence || (el.tags && el.tags.includes('çit')));
+            if (!el.sideColor || !el._userHasChangedColor) {
+                el.sideColor = isFenceEl ? (el.sideColor || '#14532d') : autoGenerateSideColor(el.frontColor);
+            }
             state.sideColor = el.sideColor;
+
+            // Tel çit panelleri silüet modunda şeffaf alfa dokusu ile panel kart geometrisi kullanır
+            if (isFenceEl) {
+                el.isExactSilhouette = false;
+                state.isExactSilhouette = false;
+                recreateContentMeshes(el);
+                syncControlsUI();
+                requestRender();
+                return;
+            }
+
+            // Eğer silüet konturu önceden çıkarılmışsa beklemeden anında uygula
+            if (el.cachedSilhouette && el.cachedSilhouette.shape) {
+                el.isExactSilhouette = true;
+                state.isExactSilhouette = true;
+                recreateContentMeshes(el);
+                syncControlsUI();
+                requestRender();
+                return;
+            }
+
             if (el.sourceSvg) {
                 const svgDims = parseSvgDimensions(el.sourceSvg);
                 extractSvgSilhouetteShape(el.sourceSvg, svgDims.targetW, svgDims.targetH, { forceSilhouette: true }).then(res => {
@@ -9979,10 +10322,21 @@
                         el.cachedSilhouette = res;
                         el.isExactSilhouette = true;
                         state.isExactSilhouette = true;
-                        recreateContentMeshes(el);
-                        syncControlsUI();
-                        requestRender();
+                    } else {
+                        // Fallback: Silüet konturu yoksa rozet/kart dış sınırlarını koru, asla boş bırakma
+                        el.isExactSilhouette = false;
+                        state.isExactSilhouette = false;
                     }
+                    recreateContentMeshes(el);
+                    syncControlsUI();
+                    requestRender();
+                }).catch(err => {
+                    console.warn('[3D] Silüet kontur çıkarımında hata:', err);
+                    el.isExactSilhouette = false;
+                    state.isExactSilhouette = false;
+                    recreateContentMeshes(el);
+                    syncControlsUI();
+                    requestRender();
                 });
                 return;
             }
@@ -10000,7 +10354,7 @@
                 const c = new THREE.Color(el.frontColor);
                 if ((0.299 * c.r + 0.587 * c.g + 0.114 * c.b) < 0.45) isDark = true;
             } catch(e){}
-            if (!el.badgeBgColor || (isDark && (el.badgeBgColor === '#0f172a' || el.badgeBgColor === '#001d3d'))) {
+            if (!el.badgeBgColor || (isDark && (el.badgeBgColor === '#0f172a' || el.badgeBgColor === '#001d3d' || el.badgeBgColor === '#0d1b2e' || el.badgeBgColor === '#0a0e27'))) {
                 el.badgeBgColor = '#ffffff';
                 state.badgeBgColor = '#ffffff';
                 el.sideColor = '#94a3b8';
@@ -10143,6 +10497,12 @@
         if (bMainText) {
             bMainText.addEventListener('input', (e) => {
                 state.text = e.target.value;
+                state._userHasChangedText = true;
+                const el = getActiveElement();
+                if (el) {
+                    el.text = state.text;
+                    el._userHasChangedText = true;
+                }
                 const origText = panel.querySelector('#threeDTextInput');
                 if (origText) origText.value = state.text;
                 recreateContentMeshes();
@@ -10153,6 +10513,12 @@
         if (bSubText) {
             bSubText.addEventListener('input', (e) => {
                 state.badgeSubtext = e.target.value;
+                state._userHasChangedText = true;
+                const el = getActiveElement();
+                if (el) {
+                    el.badgeSubtext = state.badgeSubtext;
+                    el._userHasChangedText = true;
+                }
                 recreateContentMeshes();
             });
         }
@@ -10392,8 +10758,12 @@
         if (subMainIn) {
             subMainIn.addEventListener('input', (e) => {
                 state.text = e.target.value;
+                state._userHasChangedText = true;
                 const el = getActiveElement();
-                if (el) el.text = state.text;
+                if (el) {
+                    el.text = state.text;
+                    el._userHasChangedText = true;
+                }
                 const origText = panel.querySelector('#threeDTextInput');
                 if (origText) origText.value = state.text;
                 const bMain = panel.querySelector('#threeDBadgeMainText');
@@ -10407,9 +10777,11 @@
         if (subSubIn) {
             subSubIn.addEventListener('input', (e) => {
                 state.badgeSubtext = e.target.value;
+                state._userHasChangedText = true;
                 const el = getActiveElement();
                 if (el) {
                     el.badgeSubtext = state.badgeSubtext;
+                    el._userHasChangedText = true;
                     const hasSvgText = !!(el.sourceSvg && el.sourceSvg.includes('<text'));
                     if (!hasSvgText && !el.text && state.badgeSubtext.trim() && el.elementType === 'element_3d') {
                         el.show3DText = true;
@@ -10668,9 +11040,11 @@
             headerTextInput.addEventListener('input', (e) => {
                 const val = e.target.value;
                 state.text = val;
+                state._userHasChangedText = true;
                 const el = getActiveElement();
                 if (el) {
                     el.text = val;
+                    el._userHasChangedText = true;
                     if (val.trim()) el.name = val;
                     // Eğer ögenin SVG içeriğinde <text> yoksa (villa, bina, çit, ağaç vb.)
                     // metin girildiğinde 3D metin modunu otomatik aç, silindiğinde kapat:
@@ -10697,6 +11071,12 @@
         const textInput = panel.querySelector('#threeDTextInput');
         textInput.addEventListener('input', (e) => {
             state.text = e.target.value;
+            state._userHasChangedText = true;
+            const el = getActiveElement();
+            if (el) {
+                el.text = state.text;
+                el._userHasChangedText = true;
+            }
             recreateContentMeshes();
         });
 
@@ -12894,7 +13274,8 @@
         } else {
             primaryColor = safeHexColor(primaryColor, '#38bdf8');
             let bgColCandidate = el.dataset?.storedBgHex || root.dataset?.storedBgHex || el.dataset?.coBgColor || root.dataset?.coBgColor || '';
-            if (!bgColCandidate || bgColCandidate === '#0f172a') {
+            const isDefaultBg = !bgColCandidate || bgColCandidate === '#0f172a' || bgColCandidate === '#0d1b2e' || bgColCandidate === '#0a0e27' || bgColCandidate === '#162035' || bgColCandidate === '#1a2744';
+            if (isDefaultBg) {
                 let isDarkIcon = false;
                 try {
                     const c = new THREE.Color(primaryColor);
@@ -12950,21 +13331,33 @@
         }
 
         // 5. Tip Tespiti
-        const itemName = (meta && meta.itemName ? meta.itemName : (el.dataset.name || root.dataset.name || '')).toLowerCase();
+        const itemName = (meta && meta.itemName ? meta.itemName : (el.dataset.name || el.dataset.itemName || root.dataset.name || root.dataset.itemName || '')).toLowerCase();
+        const itemCategory = (meta && meta.catTitle ? meta.catTitle : (el.dataset.category || root.dataset.category || '')).toLowerCase();
+
         const isPin = (meta && meta.isPin) || 
+                      el.dataset?.isPin === 'true' || root.dataset?.isPin === 'true' ||
                       classList.includes('pin') || classList.includes('konum') || classList.includes('marker') ||
-                      itemName.includes('pin') || itemName.includes('konum') ||
+                      itemName.includes('pin') || itemName.includes('konum') || itemName.includes('marker') ||
+                      itemCategory.includes('pin') || itemCategory.includes('konum') ||
                       (rawSvg && (
                           (rawSvg.includes('190') && rawSvg.includes('80')) ||
                           /M\s*80\s*15\s*C/i.test(rawSvg) ||
                           /M\s*60\s*10\s*C/i.test(rawSvg) ||
                           /M\s*90\s*15\s*C/i.test(rawSvg) ||
-                          /M\s*60\s*20\s*C/i.test(rawSvg)
+                          /M\s*60\s*20\s*C/i.test(rawSvg) ||
+                          /pin|marker|konum/i.test(rawSvg)
                       ));
 
         const isArrow = (meta && meta.isArrow) ||
-                        classList.includes('arrow') || classList.includes('yön') || itemName.includes('ok') || itemName.includes('arrow') ||
-                        (rawSvg && /M\s*0\s*50|arrow/i.test(rawSvg));
+                        el.dataset?.isArrow === 'true' || root.dataset?.isArrow === 'true' ||
+                        classList.includes('arrow') || classList.includes('yön') || classList.includes('ok') ||
+                        itemName.includes('ok') || itemName.includes('arrow') || itemName.includes('yön') ||
+                        itemCategory.includes('ok') || itemCategory.includes('arrow') || itemCategory.includes('yön') ||
+                        (rawSvg && (
+                            /arrSh|neonArr|arrow|\b(ok|yön)\b/i.test(rawSvg) ||
+                            /M\s*0\s*50|L\s*50\s*256|L\s*60\s*274|points=["'][^"']*276/i.test(rawSvg) ||
+                            /M\s*32\s*0|M\s*38\s*0|M\s*35\s*10/i.test(rawSvg)
+                        ));
 
         const isFramedBox = (meta && (meta.isFramed || meta.isBox || meta.elementType === 'badge_card')) ||
                             (el.dataset && (el.dataset.label === 'Özel Kutu' || el.dataset.label === 'Çerçeveli Metin' || el.dataset.label === 'Çerçeveli Yazı')) ||
@@ -13036,41 +13429,54 @@
             elements[autoDefIdx].isAutoDefault = false;
         }
 
+        const isCalloutBadge = classList.includes('callout-wrap') || 
+                               classList.includes('svg-callout') || 
+                               classList.includes('callout-item') || 
+                               classList.includes('custom-graphic-badge') ||
+                               classList.includes('badge') ||
+                               classList.includes('rozet');
+        const hasSvgText = !!(rawSvg && /<text\b/i.test(rawSvg));
+        const svgDims = parseSvgDimensions(rawSvg || '');
+        const hasSvgCircle = !!(rawSvg && (/<circle\b/i.test(rawSvg) || /r="[\d.]+"/i.test(rawSvg)));
+        const isCircleBadge = isRound || (hasSvgCircle && Math.abs(svgDims.vbW - svgDims.vbH) <= 25);
+
         let cachedSilhouette = null;
         let isSilhouette = false;
-        let shapeMode = (meta && meta.shapeMode) || (isPureIcon ? 'silhouette' : (isNeon ? 'card' : (isFramedBox ? 'card' : 'auto')));
-        const hasSvgText = !!(rawSvg && /<text\b/i.test(rawSvg));
+        let shapeMode = (meta && meta.shapeMode);
 
-        if (elemType === 'element_3d' && rawSvg) {
+        if (!shapeMode) {
             if (isShape) {
                 shapeMode = (shapeType === 'circle') ? 'coin' : ((shapeType === 'rectangle') ? 'card' : 'silhouette');
                 isSilhouette = (shapeType !== 'circle' && shapeType !== 'rectangle');
-            } else if (hasSvgText) {
-                // Sadece metin içeren rozet plaketleri kart/plaket olarak kalır
-                shapeMode = isRound ? 'coin' : 'card';
+            } else if (isPureIcon || isArrow || isPin) {
+                // Ok, pin, ikon ve yalın grafikler her zaman katı silüet (yalın 3D) açılır (asla plaket/karta hapsedilmez)
+                shapeMode = 'silhouette';
+                isSilhouette = true;
+            } else if ((hasSvgText || hasRealText) && isCalloutBadge) {
+                // Sadece gerçek metin içeren rozet, damga ve etiketler Daire Rozet veya Kart Plaket açılır
+                shapeMode = isCircleBadge ? 'coin' : 'card';
+                isSilhouette = false;
+            } else if (isNeon || isFramedBox) {
+                shapeMode = 'card';
+                isSilhouette = false;
+            } else if (!hasSvgText && !hasRealText) {
+                // Metinsiz tüm grafik, ok, ikon ve semboller yalın katı silüet açılır
+                shapeMode = 'silhouette';
+                isSilhouette = true;
             } else {
-                // 🌟 Ögeler, vektörler ve ikonlar varsayılan olarak KATI SİLÜET olarak açılır (asla yapay daire/plaket konmaz)
-                try {
-                    const svgDims = parseSvgDimensions(rawSvg);
-                    cachedSilhouette = await extractSvgSilhouetteShape(rawSvg, svgDims.targetW, svgDims.targetH, {
-                        forceSilhouette: true
-                    });
-                    if (cachedSilhouette && cachedSilhouette.shape) {
-                        isSilhouette = true;
-                        shapeMode = 'silhouette';
-                    } else if (isPureIcon) {
-                        isSilhouette = true;
-                        shapeMode = 'silhouette';
-                    } else {
-                        shapeMode = isRound ? 'coin' : 'card';
-                    }
-                } catch(e) {
-                    if (isPureIcon) {
-                        isSilhouette = true;
-                        shapeMode = 'silhouette';
-                    }
-                }
+                shapeMode = isCircleBadge ? 'coin' : 'card';
+                isSilhouette = false;
             }
+        } else {
+            isSilhouette = (shapeMode === 'silhouette');
+        }
+
+        if (elemType === 'element_3d' && rawSvg && isSilhouette) {
+            try {
+                cachedSilhouette = await extractSvgSilhouetteShape(rawSvg, svgDims.targetW, svgDims.targetH, {
+                    forceSilhouette: true
+                });
+            } catch(e) {}
         }
 
         // 🌟 Yan Renk / Kalınlık Kontrastı:
@@ -13119,6 +13525,7 @@
             text: finalMainText,
             textSize: normal3DTextSize,
             badgeSubtext: finalSubText,
+            _userHasChangedText: false,
             show3DText: isShape ? false : (isNeon ? !!(finalMainText || finalSubText) : false),
             text3DColor: primaryColor || (isNeon ? '#93c5fd' : '#ffffff'),
             text3DXOffset: 0,
@@ -13246,6 +13653,7 @@
         const itemName = options.name || options.title || options.itemName || ('3D Öge ' + count);
         const isPin = !!options.isPin;
         const isArrow = !!options.isArrow;
+        const isPureIcon = !!(options.isIcon || (options.catTitle && options.catTitle.includes('ikon')) || (options.name && options.name.includes('İkon')));
         let elemType = options.elementType;
         if (!elemType) {
             if (rawSvg && rawSvg.includes('<svg') && !isPin && (!isArrow || options.isCallout)) elemType = 'element_3d';
@@ -13300,7 +13708,8 @@
             primaryColor = safeHexColor(primaryColor, '#38bdf8');
         }
 
-        if (!bgCol) {
+        const isDefaultBg = !bgCol || bgCol === '#0f172a' || bgCol === '#0d1b2e' || bgCol === '#0a0e27' || bgCol === '#162035' || bgCol === '#1a2744';
+        if (isDefaultBg) {
             let isDarkIcon = false;
             try {
                 const c = new THREE.Color(primaryColor);
@@ -13326,8 +13735,22 @@
             { x: -60, y: -80 }
         ];
         const step = elements.length % offsets.length;
-        let initX = (options.posX !== undefined) ? options.posX : (elements.length > 0 ? offsets[step].x : 0);
-        let initY = (options.posY !== undefined) ? options.posY : (elements.length > 0 ? offsets[step].y : 0);
+        let initX = options.posX;
+        let initY = options.posY;
+        if (initX === undefined || initY === undefined) {
+            const currentActive = getActiveElement();
+            if (currentActive && elements.length > 0) {
+                const offsetX = (elements.length % 2 === 1) ? 140 : -140;
+                initX = (currentActive.posX || 0) + offsetX;
+                initY = (currentActive.posY || 0);
+            } else if (elements.length > 0) {
+                initX = offsets[step].x;
+                initY = offsets[step].y;
+            } else {
+                initX = 0;
+                initY = 0;
+            }
+        }
 
         let orientation = options.orientation || 'standing';
         let planePitch = options.planePitch !== undefined ? options.planePitch : (state && typeof state.planePitch === 'number' ? state.planePitch : 0);
@@ -13342,9 +13765,8 @@
             elements[autoDefIdx].isAutoDefault = false;
         }
 
-        let cachedSilhouette = null;
-        let isSilhouette = false;
-        const isPureIcon = !!(options.isIcon || (options.catTitle && options.catTitle.includes('ikon')) || (options.name && options.name.includes('İkon')));
+        let cachedSilhouette = options.cachedSilhouette || null;
+        let isSilhouette = !!(options.isExactSilhouette || (cachedSilhouette && cachedSilhouette.shape));
         let shapeMode = options.shapeMode || (elemType === 'badge_card' ? 'card' : (isPureIcon ? 'silhouette' : 'auto'));
         const hasSvgText = !!(rawSvg && /<text\b/i.test(rawSvg));
 
@@ -13352,29 +13774,37 @@
             if (hasSvgText && !options.shapeMode) {
                 if (shapeMode === 'auto') {
                     const svgDims = parseSvgDimensions(rawSvg);
-                    const isRoundOrSquare = Math.abs(svgDims.vbW - svgDims.vbH) <= 8 || options.isRound;
-                    shapeMode = isRoundOrSquare ? (options.isRound ? 'coin' : 'card') : 'card';
+                    const hasSvgCircle = !!(rawSvg && (/<circle\b/i.test(rawSvg) || /r="[\d.]+"/i.test(rawSvg)));
+                    const isCircleBadge = options.isRound || (hasSvgCircle && Math.abs(svgDims.vbW - svgDims.vbH) <= 25);
+                    shapeMode = isCircleBadge ? 'coin' : 'card';
                 }
             } else if (shapeMode !== 'coin' && shapeMode !== 'card') {
-                try {
-                    const svgDims = parseSvgDimensions(rawSvg);
-                    cachedSilhouette = await extractSvgSilhouetteShape(rawSvg, svgDims.targetW, svgDims.targetH, {
-                        forceSilhouette: true
-                    });
-                    if (cachedSilhouette && cachedSilhouette.shape) {
-                        isSilhouette = true;
-                        shapeMode = 'silhouette';
-                    } else if (isPureIcon || options.shapeMode === 'silhouette') {
-                        isSilhouette = true;
-                        shapeMode = 'silhouette';
-                    } else if (shapeMode === 'auto') {
-                        shapeMode = (Math.abs(svgDims.targetW - svgDims.targetH) > 10) ? 'card' : (options.isRound ? 'coin' : 'card');
-                    }
-                } catch(e) {
-                    console.warn('[ThreeDEngine] Silüet analizi hatası:', e);
-                    if (isPureIcon || options.shapeMode === 'silhouette') {
-                        isSilhouette = true;
-                        shapeMode = 'silhouette';
+                if (cachedSilhouette && cachedSilhouette.shape) {
+                    isSilhouette = true;
+                    shapeMode = 'silhouette';
+                } else {
+                    try {
+                        const svgDims = parseSvgDimensions(rawSvg);
+                        cachedSilhouette = await extractSvgSilhouetteShape(rawSvg, svgDims.targetW, svgDims.targetH, {
+                            forceSilhouette: true
+                        });
+                        if (cachedSilhouette && cachedSilhouette.shape) {
+                            isSilhouette = true;
+                            shapeMode = 'silhouette';
+                        } else if (isPureIcon || options.shapeMode === 'silhouette') {
+                            isSilhouette = true;
+                            shapeMode = 'silhouette';
+                        } else if (shapeMode === 'auto') {
+                            const hasSvgCircle = !!(rawSvg && (/<circle\b/i.test(rawSvg) || /r="[\d.]+"/i.test(rawSvg)));
+                            const isCircleBadge = options.isRound || (hasSvgCircle && Math.abs(svgDims.vbW - svgDims.vbH) <= 25);
+                            shapeMode = (Math.abs(svgDims.targetW - svgDims.targetH) > 10) ? 'card' : (isCircleBadge ? 'coin' : 'card');
+                        }
+                    } catch(e) {
+                        console.warn('[ThreeDEngine] Silüet analizi hatası:', e);
+                        if (isPureIcon || options.shapeMode === 'silhouette') {
+                            isSilhouette = true;
+                            shapeMode = 'silhouette';
+                        }
                     }
                 }
             }
@@ -13414,6 +13844,7 @@
             isExactSilhouette: isSilhouette,
             text: text,
             badgeSubtext: subtext,
+            _userHasChangedText: false,
             show3DText: (options.show3DText !== undefined) ? !!options.show3DText : (elemType === 'badge_card' || elemType === 'text' ? false : (!!(text || subtext))),
             text3DOffset: options.text3DOffset !== undefined ? options.text3DOffset : -25,
             text3DXOffset: options.text3DXOffset !== undefined ? options.text3DXOffset : 0,
@@ -13500,7 +13931,7 @@
         // Binalar, evler ve peyzaj ögeleri için gerçekçi mimari 3D derinlik:
         let itemDepth = item.depth;
         if (!itemDepth) {
-            if (isFenceItem) itemDepth = 3;
+            if (isFenceItem) itemDepth = 8;
             else if (item.category === 'buildings') itemDepth = 65;
             else if (item.category === 'landscape') itemDepth = 20;
             else itemDepth = 30;
@@ -13611,7 +14042,7 @@
 
         let itemDepth = item.depth;
         if (!itemDepth) {
-            if (isFenceItem) itemDepth = 3;
+            if (isFenceItem) itemDepth = 8;
             else if (item.category === 'buildings') itemDepth = 65;
             else if (item.category === 'landscape') itemDepth = 20;
             else itemDepth = 30;

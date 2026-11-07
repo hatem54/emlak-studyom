@@ -9,10 +9,29 @@ console.log('🎬 Zoom modülü v4 başlıyor...');
 
 
 // ========== YARDIMCI: Zoom yapılabilir eleman bul ==========
+function _isStrictUIOrHandle(target) {
+    if (!target || !target.closest) return false;
+    // 1. Arayüz kontrolleri, butonlar, paneller ve dock
+    if (target.closest('button, input, select, textarea, .ui-panel, .panel, .mobile-panel, .color-picker, .swal2-container, #canvasBottomDock, #threeDStudioPanel, .dock-format-popover')) {
+        return true;
+    }
+    // 2. Etkileşimli tutamaçlar, sil butonları, boyutlandırıcılar
+    if (target.closest('.vertex-handle, .text-handle, .text-rotate-handle, .text-resize-handle, .callout-controls, .callout-resizer, .callout-rotator, .callout-lock-btn, .cbtn-del, .arrow-heads-group, .draw-handle')) {
+        return true;
+    }
+    // 3. O anda SEÇİLİ olan bir öge (Kullanıcı seçili ögeyi taşımak istiyor olabilir)
+    if (target.closest('.el-selected, [data-selected="true"]')) {
+        return true;
+    }
+    return false;
+}
+
 function _getZoomTarget(target) {
     if (!target) return null;
 
-    // 1. Öncelikli Kontrol: Tıklanan öge doğrudan veya kapsayıcı olarak bir .photo-panel ise O SPESİFİK PANİELİ HEDEFLE
+    var pl = document.getElementById('photo-layer') || document.querySelector('.photo-panel');
+
+    // 1. Öncelikli Kontrol: Tıklanan öge doğrudan veya kapsayıcı olarak bir .photo-panel ise O SPESİFİK PANELİ HEDEFLE
     if (target.closest) {
         var clickedPanel = target.closest('.photo-panel');
         if (clickedPanel) {
@@ -21,7 +40,7 @@ function _getZoomTarget(target) {
 
             // Fotoğraf kilidi serbest bırakıldığında ("Serbest" modu) tuvaldeki tıklamalar doğrudan bu paneli pan yapsın
             if (!window.isPhotoLocked || document.body.classList.contains('photo-unlocked')) {
-                if (!target.closest('.editable-draw, .draggable, .canvas-el, .cvi-item, .added-icon, .callout-wrap, .svg-callout, .co-neon-block, .vertex-handle, .text-handle, .text-rotate-handle, .text-resize-handle, .callout-controls, .callout-resizer, .callout-rotator, .arrow-heads-group, .color-picker, .ui-panel, button, input, select, textarea')) {
+                if (!_isStrictUIOrHandle(target)) {
                     return clickedPanel;
                 }
             }
@@ -32,20 +51,19 @@ function _getZoomTarget(target) {
             }
         }
     }
-
-    var pl = document.getElementById('photo-layer') || document.querySelector('.photo-panel');
     
-    // Space tuşuna basılıyken tuval alanı üzerindeki herhangi bir tıklama (SVG, ikon, metin, çizim vb.) doğrudan fotoğrafı pan yapsın
+    // Space tuşuna basılıyken tuval alanı üzerindeki herhangi bir tıklama doğrudan fotoğrafı pan yapsın
     if (window.spaceBarPressed) {
-        if (target === pl || (target.closest && target.closest('#canvas-container, .preview-area, .canvas-wrapper, #maskInteractiveSvg, #draw-layer, #photo-layer, .photo-panel'))) {
+        if (target === pl || (target.closest && target.closest('#canvas-container, .preview-area, .canvas-wrapper, #maskInteractiveSvg, #draw-layer, #photo-layer, .photo-panel, #three-d-layer, #saber-layer'))) {
             return pl;
         }
     }
 
-    // Fotoğraf kilidi serbest bırakıldığında ("Serbest" modu) tuvaldeki tıklamalar doğrudan fotoğrafı pan yapsın (etkileşimli kontrol elemanları hariç)
+    // Fotoğraf kilidi serbest bırakıldığında ("Serbest" modu):
+    // Tuval üzerinde çizimler, dolgular veya seçili olmayan ögeler olsa dahi fotoğrafı rahatça pan yap
     if (!window.isPhotoLocked || document.body.classList.contains('photo-unlocked')) {
-        if (!target.closest || !target.closest('.editable-draw, .draggable, .canvas-el, .cvi-item, .added-icon, .callout-wrap, .svg-callout, .co-neon-block, .vertex-handle, .text-handle, .text-rotate-handle, .text-resize-handle, .callout-controls, .callout-resizer, .callout-rotator, .arrow-heads-group, .color-picker, .ui-panel, button, input, select, textarea')) {
-            if (target === pl || (target.closest && target.closest('#canvas-container, .preview-area, .canvas-wrapper, #maskInteractiveSvg, #draw-layer, #photo-layer, .photo-panel'))) {
+        if (!_isStrictUIOrHandle(target)) {
+            if (target === pl || (target.closest && target.closest('#canvas-container, .preview-area, .canvas-wrapper, #maskInteractiveSvg, #draw-layer, #photo-layer, .photo-panel, #three-d-layer, #saber-layer, .editable-draw'))) {
                 return pl;
             }
         }
@@ -145,6 +163,10 @@ window.addEventListener('blur', () => {
     }
 });
 
+var _photoWheelRAF = null;
+var _photoWheelTarget = null;
+var _photoWheelDebounceTimer = null;
+
 // ========== TEKERLEK - ZOOM (Ctrl veya Space ile veya Boşta) ==========
 document.addEventListener('wheel', function(e){
     // Modallar, uydu haritası veya harici paneller üzerinde ana görsel zoom'unu kesinlikle engelle
@@ -171,17 +193,40 @@ document.addEventListener('wheel', function(e){
     e.stopPropagation();
     _preparePhoto(el);
     
+    window._isPhotoZooming = true;
+    _photoWheelTarget = el;
+    
     var s = parseFloat(el.dataset.zpScale) || 1;
     var step = (s > 2) ? 0.2 : 0.1;
     s = e.deltaY < 0 ? s + step : s - step;
     if(s < 0.3) s = 0.3;
     if(s > 8.0) s = 8.0;
     
-    el.dataset.zpScale = s;
-    _applyPhotoTransform(el);
+    el.dataset.zpScale = Math.round(s * 100) / 100;
+    
+    if (!_photoWheelRAF) {
+        _photoWheelRAF = requestAnimationFrame(function(){
+            _photoWheelRAF = null;
+            if (_photoWheelTarget) {
+                _applyPhotoTransform(_photoWheelTarget, { isInteractiveZoom: true });
+                if (window.CloneStamp && window.CloneStamp.isActive) window.CloneStamp.renderSvg();
+                if (window.PhotoMasksManager && window.PhotoMasksManager.isGuidesVisible) window.PhotoMasksManager.renderSvg();
+            }
+        });
+    }
 
-    if (window.CloneStamp && window.CloneStamp.isActive) window.CloneStamp.renderSvg();
-    if (window.PhotoMasksManager && window.PhotoMasksManager.isGuidesVisible) window.PhotoMasksManager.renderSvg();
+    clearTimeout(_photoWheelDebounceTimer);
+    _photoWheelDebounceTimer = setTimeout(function(){
+        window._isPhotoZooming = false;
+        if (_photoWheelTarget) {
+            _applyPhotoTransform(_photoWheelTarget);
+            if (typeof window.savePhotoFramingForCurrentFormat === 'function') {
+                window.savePhotoFramingForCurrentFormat(_photoWheelTarget);
+            }
+        } else if (typeof window.requestPhotoRepaint === 'function') {
+            window.requestPhotoRepaint();
+        }
+    }, 140);
 }, { passive: false, capture: true });
 
 // ========== SÜRÜKLEME (PAN) & ÇİFT TIK SIFIRLAMA ==========
@@ -257,7 +302,8 @@ document.addEventListener('mousedown', function(e){
     if(!el) return;
     
     const isModifierPressed = e.ctrlKey || e.altKey || e.metaKey;
-    const canPanWithLeftClick = (typeof drawMode === 'undefined' || drawMode === 'off' || drawMode === null) && !isModifierPressed;
+    const isPhotoUnlocked = (!window.isPhotoLocked || document.body.classList.contains('photo-unlocked'));
+    const canPanWithLeftClick = (isPhotoUnlocked || typeof drawMode === 'undefined' || drawMode === 'off' || drawMode === null) && !isModifierPressed;
     
     if(e.button === 0 && !window.spaceBarPressed && !canPanWithLeftClick) return;
     if(e.button !== 0 && e.button !== 1) return;
@@ -350,7 +396,7 @@ function _onPhotoPointerMove(e) {
 
         _dragEl.dataset.zpX = x;
         _dragEl.dataset.zpY = y;
-        _applyPhotoTransform(_dragEl);
+        _applyPhotoTransform(_dragEl, { isInteractiveZoom: true });
 
         if (window.CloneStamp && window.CloneStamp.isActive) {
             window.CloneStamp.renderSvg();
@@ -384,6 +430,9 @@ function _onPhotoPointerUp(e) {
 
     if (wasMoved && elToBake) {
         _applyPhotoTransform(elToBake);
+        if (typeof window.savePhotoFramingForCurrentFormat === 'function') {
+            window.savePhotoFramingForCurrentFormat(elToBake);
+        }
         if (window.CloneStamp && window.CloneStamp.isActive) {
             window.CloneStamp.renderSvg();
         }
@@ -474,8 +523,9 @@ document.addEventListener('touchmove', function(e){
         if(s < 0.3) s = 0.3;
         if(s > 5) s = 5;
         
-        el.dataset.zpScale = s;
-        _applyPhotoTransform(el);
+        window._isPhotoZooming = true;
+        el.dataset.zpScale = Math.round(s * 100) / 100;
+        _applyPhotoTransform(el, { isInteractiveZoom: true });
     } else if(e.touches.length === 1 && _dragEl) {
         if (!_panMoved) {
             var dist = Math.hypot(e.touches[0].clientX - _dsx, e.touches[0].clientY - _dsy);
@@ -498,7 +548,7 @@ document.addEventListener('touchmove', function(e){
 
         _dragEl.dataset.zpX = x;
         _dragEl.dataset.zpY = y;
-        _applyPhotoTransform(_dragEl);
+        _applyPhotoTransform(_dragEl, { isInteractiveZoom: true });
     }
 }, {passive: false});
 
@@ -521,6 +571,9 @@ document.addEventListener('touchend', function(e){
 
         if (wasMoved && elToBake) {
             _applyPhotoTransform(elToBake);
+            if (typeof window.savePhotoFramingForCurrentFormat === 'function') {
+                window.savePhotoFramingForCurrentFormat(elToBake);
+            }
         } else if (!wasMoved && e.changedTouches && e.changedTouches[0]) {
             var ct = e.changedTouches[0];
             var now = Date.now();

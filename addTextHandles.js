@@ -67,6 +67,9 @@ window.addTextHandles = function(el) {
                     const rotVal = document.getElementById('elRotateVal');
                     if (rotVal) rotVal.textContent = newRotation + '°';
                 }
+                if (el.classList.contains('custom-graphic-badge') && window.CustomBadges && typeof window.CustomBadges._setSliderVal === 'function') {
+                    window.CustomBadges._setSliderVal('cbgRotateSlider', 'cbgRotateVal', newRotation, '°');
+                }
 
                 // ⚡ SABER NEON ANLIK DÖNDÜRME SENKRONİZASYONU (Sıfır Gecikme)
                 if (window.SaberEngine && typeof window.SaberEngine.updateTextSaberPositions === 'function') {
@@ -123,7 +126,13 @@ window.addTextHandles = function(el) {
             isDeleting = true;
             el.style.opacity = '0';
             setTimeout(() => {
-                if (el.id === 'elLogo' || el.classList.contains('sh-logo')) {
+                if (el.classList.contains('custom-graphic-badge')) {
+                    if (window.CustomBadges && typeof window.CustomBadges.deleteSelectedBadge === 'function') {
+                        window.CustomBadges.deleteSelectedBadge();
+                    } else {
+                        el.remove();
+                    }
+                } else if (el.id === 'elLogo' || el.classList.contains('sh-logo')) {
                     if (typeof clearLogoImage === 'function') {
                         clearLogoImage();
                     } else {
@@ -237,6 +246,16 @@ window.addTextHandles = function(el) {
                         el.style.width = Math.max(30, startW + dx) + 'px';
                         el.style.height = Math.max(10, startH + dy) + 'px';
                     }
+                } else if (el.classList.contains('custom-graphic-badge')) {
+                    let aspect = parseFloat(el.dataset.aspectRatio) || 1.0;
+                    if (!aspect || isNaN(aspect) || aspect <= 0) aspect = 1.0;
+                    const newW = Math.max(20, Math.min(1920, Math.round(startW * ratio)));
+                    const newH = Math.max(10, Math.round(newW / aspect));
+                    el.style.width = newW + 'px';
+                    el.style.height = newH + 'px';
+                    if (window.CustomBadges && typeof window.CustomBadges._setSliderVal === 'function') {
+                        window.CustomBadges._setSliderVal('cbgSizeSlider', 'cbgSizeVal', newW, 'px');
+                    }
                 } else if (el.id === 'elLogo' || el.classList.contains('sh-logo') || el.querySelector('img') || el.tagName === 'IMG') {
                     const newW = Math.max(30, Math.round(startW * ratio));
                     el.style.width = newW + 'px';
@@ -255,7 +274,13 @@ window.addTextHandles = function(el) {
                 if (window.selectedElements && window.selectedElements.length > 1 && window.selectedElements.includes(el)) {
                     window.selectedElements.forEach(sEl => {
                         if (sEl !== el) {
-                            if (sEl.id === 'elLogo' || sEl.classList.contains('sh-logo') || sEl.querySelector('img') || sEl.tagName === 'IMG') {
+                            if (sEl.classList.contains('custom-graphic-badge')) {
+                                let sAspect = parseFloat(sEl.dataset.aspectRatio) || 1.0;
+                                if (!sAspect || isNaN(sAspect) || sAspect <= 0) sAspect = 1.0;
+                                const newSW = Math.max(20, Math.min(1920, Math.round((sEl._handleStartW || sEl.offsetWidth) * ratio)));
+                                sEl.style.width = newSW + 'px';
+                                sEl.style.height = Math.max(10, Math.round(newSW / sAspect)) + 'px';
+                            } else if (sEl.id === 'elLogo' || sEl.classList.contains('sh-logo') || sEl.querySelector('img') || sEl.tagName === 'IMG') {
                                 const newSW = Math.max(20, Math.round((sEl._handleStartW || sEl.offsetWidth) * ratio));
                                 sEl.style.width = newSW + 'px';
                                 sEl.style.height = 'auto';

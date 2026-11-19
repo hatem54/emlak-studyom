@@ -127,6 +127,17 @@
 
                 if (!isConfirmed || !name) return;
                 presetName = name.trim();
+            } else if (window.AppDialog && typeof window.AppDialog.prompt === 'function') {
+                const res = await window.AppDialog.prompt({
+                    title: 'Hazır Ayar Kaydet',
+                    message: 'Mevcut filtre ve ton ayarlarınız için bir isim girin:',
+                    defaultValue: 'Benim Ayarım',
+                    icon: 'fa-sliders',
+                    confirmText: 'Kaydet',
+                    cancelText: 'Vazgeç'
+                });
+                if (!res || !res.trim()) return;
+                presetName = res.trim();
             } else {
                 const res = prompt('Hazır ayarınız için bir isim girin:', 'Benim Ayarım');
                 if (!res || !res.trim()) return;

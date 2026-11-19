@@ -112,18 +112,24 @@
 
             // 4. Metrekare: '145 m²', '1.250 m2', '500m²'
             text = text.replace(/([\d\.\,]+)\s*(m²|m2|metrekare)/gi, function(match, numStr) {
-                const cleanNum = parseInt(numStr.replace(/\./g, '').replace(/,/g, ''));
+                const _parts = String(numStr).split(',');
+                const cleanNum = parseInt(_parts[0].replace(/\./g, ''));
+                const _decDigits = (_parts[1] || '').replace(/\D/g, '');
+                const _dec = (_decDigits && parseInt(_decDigits) > 0) ? (' virgül ' + self.numberToTurkishWords(parseInt(_decDigits))) : '';
                 if (!isNaN(cleanNum)) {
-                    return self.numberToTurkishWords(cleanNum) + ' metrekare';
+                    return self.numberToTurkishWords(cleanNum) + _dec + ' metrekare';
                 }
                 return match;
             });
 
             // 5. Fiyat: '18.500.000 TL', '9.250.000 ₺'
             text = text.replace(/([\d\.\,]+)\s*(TL|tl|₺|lira|Türk Lirası)/gi, function(match, numStr) {
-                const cleanNum = parseInt(numStr.replace(/\./g, '').replace(/,/g, ''));
+                const _parts = String(numStr).split(',');
+                const cleanNum = parseInt(_parts[0].replace(/\./g, ''));
+                const _decDigits = (_parts[1] || '').replace(/\D/g, '');
+                const _dec = (_decDigits && parseInt(_decDigits) > 0) ? (' virgül ' + self.numberToTurkishWords(parseInt(_decDigits))) : '';
                 if (!isNaN(cleanNum)) {
-                    return self.numberToTurkishWords(cleanNum) + ' Türk lirası';
+                    return self.numberToTurkishWords(cleanNum) + _dec + ' Türk lirası';
                 }
                 return match;
             });
@@ -219,9 +225,9 @@
             }
             const customKey = localStorage.getItem(STORAGE_KEY_CUSTOM_TTS_KEY);
             if (customKey && customKey.trim()) return customKey.trim();
-            if (typeof window.GOOGLE_MAPS_3D_KEY === 'string' && window.GOOGLE_MAPS_3D_KEY.trim()) {
-                return window.GOOGLE_MAPS_3D_KEY.trim();
-            }
+            // 🛡️ Güvenlik: Sayfa kaynağında herkese açık duran harita anahtarına (GOOGLE_MAPS_3D_KEY) ASLA düşülmez.
+            // Aksi halde o anahtarda TTS izni açık kalmak zorunda kalır ve kopyalanıp faturaya yazdırılabilir.
+            // Anahtar yoksa synthesizeGoogleNeural hata verir ve akış otomatik olarak Standart TTS motoruna geçer.
             return '';
         },
 
@@ -482,7 +488,7 @@
                         </span>
                     `;
                 }
-            } else if (result.streamUrl) {
+            } else if (result.streamUrl && !result.isSpeechSynthesis) {
                 if (player) {
                     player.src = result.streamUrl;
                     player.style.display = 'block';
@@ -540,20 +546,21 @@
                 }
 
                 this.currentAudioBlob = null;
-                this.currentBlobUrl = result.streamUrl;
+                // Tarayıcı yerel sesi dosyaya kaydedilemez: indir butonu bozuk sayfa açmasın, pasif kalsın
+                this.currentBlobUrl = null;
 
                 if (downloadBtn) {
-                    downloadBtn.disabled = false;
-                    downloadBtn.classList.remove('disabled');
-                    downloadBtn.style.opacity = '1';
-                    downloadBtn.style.cursor = 'pointer';
-                    downloadBtn.setAttribute('title', 'Seslendirmeyi MP3 Olarak İndir');
+                    downloadBtn.disabled = true;
+                    downloadBtn.classList.add('disabled');
+                    downloadBtn.style.opacity = '0.5';
+                    downloadBtn.style.cursor = 'not-allowed';
+                    downloadBtn.setAttribute('title', 'Standart ses motorunda MP3 indirme desteklenmez');
                 }
 
                 if (statusIndicator) {
                     statusIndicator.innerHTML = `
                         <span style="color:#10b981;">
-                            <i class="fa-solid fa-circle-check"></i> Seslendirme hazır (${engineLabel}). MP3 olarak indirebilirsiniz.
+                            <i class="fa-solid fa-circle-check"></i> Seslendirme çalınıyor (${engineLabel}).
                         </span>
                     `;
                 }
@@ -749,27 +756,47 @@ ${currentText}`;
         /**
          * Admin için özel Google TTS API anahtarı yapılandırma penceresi
          */
-        openAdminKeyModal: function() {
+        openAdminKeyModal: async function() {
             if (!this.isAdmin()) {
-                alert('Bu ayar sadece Admin yetkisine sahip kullanıcılar içindir.');
+                if (typeof window.showAppToast === 'function') {
+                    window.showAppToast('Bu ayar sadece Admin yetkisine sahip kullanıcılar içindir', 'warning');
+                } else {
+                    alert('Bu ayar sadece Admin yetkisine sahip kullanıcılar içindir.');
+                }
                 return;
             }
 
             const current = localStorage.getItem(STORAGE_KEY_CUSTOM_TTS_KEY) || '';
-            const newKey = prompt(
-                '🔑 Özel Google Cloud Text-to-Speech API Anahtarı:\n\n' +
-                '(Boş bırakırsanız varsayılan sistem anahtarı kullanılır)\n\n' +
-                'Mevcut Anahtar: ' + (current ? current.slice(0, 8) + '...' : 'Varsayılan Sistem Anahtarı'),
-                current
-            );
+            let newKey = null;
+            if (window.AppDialog && typeof window.AppDialog.prompt === 'function') {
+                newKey = await window.AppDialog.prompt({
+                    title: 'Google TTS API Anahtarı',
+                    message: 'Özel Google Cloud Text-to-Speech API anahtarınızı girin.',
+                    defaultValue: current,
+                    placeholder: 'AIzaSy...',
+                    icon: 'fa-key',
+                    confirmText: 'Kaydet',
+                    cancelText: 'Vazgeç'
+                });
+            } else {
+                newKey = prompt('Özel Google Cloud Text-to-Speech API Anahtarı:', current);
+            }
 
             if (newKey !== null) {
                 if (newKey.trim()) {
                     localStorage.setItem(STORAGE_KEY_CUSTOM_TTS_KEY, newKey.trim());
-                    alert('✅ Özel Google TTS API anahtarı kaydedildi!');
+                    if (typeof window.showAppToast === 'function') {
+                        window.showAppToast('Özel Google TTS API anahtarı kaydedildi', 'success');
+                    } else {
+                        alert('Özel Google TTS API anahtarı kaydedildi');
+                    }
                 } else {
                     localStorage.removeItem(STORAGE_KEY_CUSTOM_TTS_KEY);
-                    alert('ℹ️ Özel anahtar kaldırıldı, varsayılan sistem anahtarı kullanılacak.');
+                    if (typeof window.showAppToast === 'function') {
+                        window.showAppToast('Özel anahtar kaldırıldı, standart ses motoru devrede', 'info');
+                    } else {
+                        alert('Özel anahtar kaldırıldı');
+                    }
                 }
                 this.updateQuotaUI();
             }

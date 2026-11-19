@@ -541,25 +541,38 @@
             return result;
         },
 
+        _getTargetBadges: function() {
+            const isBadge = (e) => e && e.classList && e.classList.contains('custom-graphic-badge') && document.body.contains(e);
+            if (typeof window.getMultiSelectTargets === 'function') {
+                const list = window.getMultiSelectTargets(isBadge, isBadge(this.selectedBadgeEl) ? this.selectedBadgeEl : null);
+                if (list.length) return list;
+            }
+            return isBadge(this.selectedBadgeEl) ? [this.selectedBadgeEl] : [];
+        },
+
         /**
          * Bir Rozet Elemanındaki Tek Bir Rengi Değiştir
          */
         recolorSingleColor: function(badgeEl, oldColor, newColor) {
-            if (!badgeEl) badgeEl = this.selectedBadgeEl;
-            if (!badgeEl) return;
+            const targets = (!badgeEl || badgeEl === this.selectedBadgeEl)
+                ? this._getTargetBadges()
+                : [badgeEl];
+            if (!targets.length) return;
 
-            const curUrl = badgeEl.dataset.badgeDataUrl;
-            const svgText = this.decodeSvgText(curUrl);
-            if (!svgText) return;
+            targets.forEach(el => {
+                const curUrl = el.dataset.badgeDataUrl;
+                const svgText = this.decodeSvgText(curUrl);
+                if (!svgText) return;
 
-            const updatedSvg = this.replaceSvgColor(svgText, oldColor, newColor);
-            const newDataUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(updatedSvg);
+                const updatedSvg = this.replaceSvgColor(svgText, oldColor, newColor);
+                const newDataUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(updatedSvg);
 
-            badgeEl.dataset.badgeDataUrl = newDataUrl;
-            const img = badgeEl.querySelector('.custom-badge-img');
-            if (img) img.src = newDataUrl;
+                el.dataset.badgeDataUrl = newDataUrl;
+                const img = el.querySelector('.custom-badge-img');
+                if (img) img.src = newDataUrl;
+            });
 
-            this.renderColorSwapperUI(badgeEl);
+            this.renderColorSwapperUI(this.selectedBadgeEl || targets[0]);
             if (typeof window.requestAutoSave === 'function') window.requestAutoSave();
             if (typeof window.recordHistory === 'function') window.recordHistory('Rozet Rengi Değiştirildi');
         },
@@ -609,8 +622,8 @@
          * Hızlı Hazır Renk Teması Uygula
          */
         applyQuickTheme: function(themeKey) {
-            const el = this.selectedBadgeEl;
-            if (!el) return;
+            const targets = this._getTargetBadges();
+            if (!targets.length) return;
 
             const themes = {
                 gold: { acCol: '#eab308', txtCol: '#ffffff' },
@@ -622,7 +635,7 @@
 
             const t = themes[themeKey];
             if (t) {
-                this.recolorSvgBadge(el, t);
+                targets.forEach(el => this.recolorSvgBadge(el, t));
             }
         },
 
@@ -673,47 +686,38 @@
          * Panelden Gelen Değerleri Seçili Rozete Uygula
          */
         updateSelectedBadge: function() {
-            const el = this.selectedBadgeEl;
-            if (!el || !document.body.contains(el)) return;
+            const targets = this._getTargetBadges();
+            if (!targets.length) return;
 
-            // Boyut
             const sizeSlider = document.getElementById('cbgSizeSlider');
-            if (sizeSlider) {
-                const targetW = Math.max(20, Math.min(1920, parseInt(sizeSlider.value) || 180));
-                let aspect = parseFloat(el.dataset.aspectRatio);
-                if (!aspect || isNaN(aspect) || aspect <= 0) aspect = 1.0;
-                const targetH = Math.max(10, Math.round(targetW / aspect));
-                el.style.width = targetW + 'px';
-                el.style.height = targetH + 'px';
-            }
-
-            // Opaklık
             const opSlider = document.getElementById('cbgOpacitySlider');
-            if (opSlider) el.dataset.opacity = opSlider.value;
-
-            // Döndürme
             const rotSlider = document.getElementById('cbgRotateSlider');
-            if (rotSlider) el.dataset.rotation = rotSlider.value;
-
-            // Kenar payı
             const marginSlider = document.getElementById('cbgMarginSlider');
-            if (marginSlider) el.dataset.margin = marginSlider.value;
-
-            // Gölge
             const shSlider = document.getElementById('cbgShadowSlider');
-            if (shSlider) el.dataset.shadow = shSlider.value;
-
-            // Neon
             const neonPow = document.getElementById('cbgNeonPowerSlider');
-            if (neonPow) el.dataset.neonSize = neonPow.value;
-
             const neonCol = document.getElementById('cbgNeonColorInput');
-            if (neonCol) el.dataset.neonColor = neonCol.value;
-
             const neonInt = document.getElementById('cbgNeonIntensitySlider');
-            if (neonInt) el.dataset.neonIntensity = neonInt.value;
 
-            this.applyBadgeStyles(el);
+            targets.forEach(el => {
+                if (sizeSlider) {
+                    const targetW = Math.max(20, Math.min(1920, parseInt(sizeSlider.value) || 180));
+                    let aspect = parseFloat(el.dataset.aspectRatio);
+                    if (!aspect || isNaN(aspect) || aspect <= 0) aspect = 1.0;
+                    const targetH = Math.max(10, Math.round(targetW / aspect));
+                    el.style.width = targetW + 'px';
+                    el.style.height = targetH + 'px';
+                }
+                if (opSlider) el.dataset.opacity = opSlider.value;
+                if (rotSlider) el.dataset.rotation = rotSlider.value;
+                if (marginSlider) el.dataset.margin = marginSlider.value;
+                if (shSlider) el.dataset.shadow = shSlider.value;
+                if (neonPow) el.dataset.neonSize = neonPow.value;
+                if (neonCol) el.dataset.neonColor = neonCol.value;
+                if (neonInt) el.dataset.neonIntensity = neonInt.value;
+
+                this.applyBadgeStyles(el);
+            });
+
             if (typeof window.requestAutoSave === 'function') window.requestAutoSave();
         },
 
@@ -774,18 +778,23 @@
          * Neon Efektini Aç / Kapat
          */
         toggleNeon: function() {
-            const el = this.selectedBadgeEl;
-            if (!el) return;
+            const targets = this._getTargetBadges();
+            if (!targets.length) return;
 
-            const currentlyActive = el.dataset.neon === 'true';
-            el.dataset.neon = currentlyActive ? 'false' : 'true';
+            const primary = this.selectedBadgeEl || targets[0];
+            const currentlyActive = primary.dataset.neon === 'true';
+            const nextState = !currentlyActive;
+
+            targets.forEach(el => {
+                el.dataset.neon = nextState ? 'true' : 'false';
+                this.applyBadgeStyles(el);
+            });
 
             const neonBox = document.getElementById('cbgNeonControls');
             const neonBtn = document.getElementById('btnToggleCbgNeonText');
-            if (neonBox) neonBox.style.display = !currentlyActive ? 'flex' : 'none';
-            if (neonBtn) neonBtn.textContent = !currentlyActive ? 'Neon Kapat' : 'Neon Aç';
+            if (neonBox) neonBox.style.display = nextState ? 'flex' : 'none';
+            if (neonBtn) neonBtn.textContent = nextState ? 'Neon Kapat' : 'Neon Aç';
 
-            this.applyBadgeStyles(el);
             if (typeof window.recordHistory === 'function') window.recordHistory('Rozet Neon Değiştirildi');
         },
 
@@ -793,51 +802,54 @@
          * 9-Nokta Akıllı Çıpa Hizalama
          */
         anchorSelectedBadge: function(posKey) {
-            const el = this.selectedBadgeEl;
+            const targets = this._getTargetBadges();
             const container = document.getElementById('canvas-container') || document.getElementById('workArea');
-            if (!el || !container) return;
+            if (!targets.length || !container) return;
 
             const cW = container.offsetWidth || 1920;
             const cH = container.offsetHeight || 1080;
-            const bW = el.offsetWidth || 180;
-            const bH = el.offsetHeight || 180;
-            const m = parseInt(el.dataset.margin || 24);
 
-            let newX = m;
-            let newY = m;
+            targets.forEach(el => {
+                const bW = el.offsetWidth || 180;
+                const bH = el.offsetHeight || 180;
+                const m = parseInt(el.dataset.margin || 24);
 
-            switch (posKey) {
-                case 'top-left':
-                    newX = m; newY = m;
-                    break;
-                case 'top-center':
-                    newX = Math.round((cW - bW) / 2); newY = m;
-                    break;
-                case 'top-right':
-                    newX = cW - bW - m; newY = m;
-                    break;
-                case 'middle-left':
-                    newX = m; newY = Math.round((cH - bH) / 2);
-                    break;
-                case 'center':
-                    newX = Math.round((cW - bW) / 2); newY = Math.round((cH - bH) / 2);
-                    break;
-                case 'middle-right':
-                    newX = cW - bW - m; newY = Math.round((cH - bH) / 2);
-                    break;
-                case 'bottom-left':
-                    newX = m; newY = cH - bH - m;
-                    break;
-                case 'bottom-center':
-                    newX = Math.round((cW - bW) / 2); newY = cH - bH - m;
-                    break;
-                case 'bottom-right':
-                    newX = cW - bW - m; newY = cH - bH - m;
-                    break;
-            }
+                let newX = m;
+                let newY = m;
 
-            el.style.left = `${Math.max(0, newX)}px`;
-            el.style.top = `${Math.max(0, newY)}px`;
+                switch (posKey) {
+                    case 'top-left':
+                        newX = m; newY = m;
+                        break;
+                    case 'top-center':
+                        newX = Math.round((cW - bW) / 2); newY = m;
+                        break;
+                    case 'top-right':
+                        newX = cW - bW - m; newY = m;
+                        break;
+                    case 'middle-left':
+                        newX = m; newY = Math.round((cH - bH) / 2);
+                        break;
+                    case 'center':
+                        newX = Math.round((cW - bW) / 2); newY = Math.round((cH - bH) / 2);
+                        break;
+                    case 'middle-right':
+                        newX = cW - bW - m; newY = Math.round((cH - bH) / 2);
+                        break;
+                    case 'bottom-left':
+                        newX = m; newY = cH - bH - m;
+                        break;
+                    case 'bottom-center':
+                        newX = Math.round((cW - bW) / 2); newY = cH - bH - m;
+                        break;
+                    case 'bottom-right':
+                        newX = cW - bW - m; newY = cH - bH - m;
+                        break;
+                }
+
+                el.style.left = `${Math.max(0, newX)}px`;
+                el.style.top = `${Math.max(0, newY)}px`;
+            });
 
             // Aktif buton görselini güncelle
             document.querySelectorAll('.custom-badge-anchor-btn').forEach(btn => {
@@ -851,11 +863,15 @@
          * Yatay Aynala (Flip)
          */
         flipHorizontal: function() {
-            const el = this.selectedBadgeEl;
-            if (!el) return;
-            const isFlipped = el.dataset.flippedH === 'true';
-            el.dataset.flippedH = isFlipped ? 'false' : 'true';
-            this.applyBadgeStyles(el);
+            const targets = this._getTargetBadges();
+            if (!targets.length) return;
+            const primary = this.selectedBadgeEl || targets[0];
+            const isFlipped = primary.dataset.flippedH === 'true';
+            const nextVal = isFlipped ? 'false' : 'true';
+            targets.forEach(el => {
+                el.dataset.flippedH = nextVal;
+                this.applyBadgeStyles(el);
+            });
             if (typeof window.recordHistory === 'function') window.recordHistory('Rozet Aynalandı');
         },
 
@@ -863,25 +879,30 @@
          * Açı ve Boyutu Sıfırla
          */
         resetToDefault: function() {
-            const el = this.selectedBadgeEl;
-            if (!el) return;
+            const targets = this._getTargetBadges();
+            if (!targets.length) return;
 
-            el.dataset.rotation = '0';
-            el.dataset.scale = '1';
-            el.dataset.flippedH = 'false';
-            el.dataset.opacity = '100';
-            el.dataset.shadow = '0';
-            el.style.width = '180px';
-            let aspect = parseFloat(el.dataset.aspectRatio) || 1.0;
-            if (!aspect || isNaN(aspect) || aspect <= 0) aspect = 1.0;
-            el.style.height = Math.round(180 / aspect) + 'px';
-            el.style.transform = 'rotate(0deg) scale(1)';
+            targets.forEach(el => {
+                el.dataset.rotation = '0';
+                el.dataset.scale = '1';
+                el.dataset.flippedH = 'false';
+                el.dataset.opacity = '100';
+                el.dataset.shadow = '0';
+                el.style.width = '180px';
+                let aspect = parseFloat(el.dataset.aspectRatio) || 1.0;
+                if (!aspect || isNaN(aspect) || aspect <= 0) aspect = 1.0;
+                el.style.height = Math.round(180 / aspect) + 'px';
+                el.style.transform = 'rotate(0deg) scale(1)';
 
-            const content = el.querySelector('.custom-badge-content');
-            if (content) content.style.transform = 'scaleX(1)';
+                const content = el.querySelector('.custom-badge-content');
+                if (content) content.style.transform = 'scaleX(1)';
 
-            this.applyBadgeStyles(el);
-            this.selectBadge(el);
+                this.applyBadgeStyles(el);
+            });
+
+            if (targets.length === 1) {
+                this.selectBadge(targets[0]);
+            }
             if (typeof window.recordHistory === 'function') window.recordHistory('Rozet Sıfırlandı');
         },
 
@@ -889,9 +910,11 @@
          * Katman Sırası: En Öne Al
          */
         bringToFront: function() {
-            const el = this.selectedBadgeEl;
-            if (!el || !el.parentElement) return;
-            el.parentElement.appendChild(el);
+            const targets = this._getTargetBadges();
+            if (!targets.length) return;
+            targets.forEach(el => {
+                if (el.parentElement) el.parentElement.appendChild(el);
+            });
             if (typeof window.renderLayers === 'function') window.renderLayers();
             if (typeof window.recordHistory === 'function') window.recordHistory('Rozet Öne Alındı');
         },
@@ -900,9 +923,14 @@
          * Katman Sırası: En Arkaya Gönder
          */
         sendToBack: function() {
-            const el = this.selectedBadgeEl;
-            if (!el || !el.parentElement || !el.parentElement.firstChild) return;
-            el.parentElement.insertBefore(el, el.parentElement.firstChild);
+            const targets = this._getTargetBadges();
+            if (!targets.length) return;
+            for (let i = targets.length - 1; i >= 0; i--) {
+                const el = targets[i];
+                if (el.parentElement && el.parentElement.firstChild) {
+                    el.parentElement.insertBefore(el, el.parentElement.firstChild);
+                }
+            }
             if (typeof window.renderLayers === 'function') window.renderLayers();
             if (typeof window.recordHistory === 'function') window.recordHistory('Rozet Arkaya Gönderildi');
         },
@@ -911,11 +939,14 @@
          * Katmanı Kilitle / Kilidi Aç
          */
         toggleLock: function() {
-            const el = this.selectedBadgeEl;
-            if (!el) return;
-            const isLocked = el.dataset.locked === 'true';
-            el.dataset.locked = isLocked ? 'false' : 'true';
-            el.style.pointerEvents = isLocked ? 'auto' : 'none';
+            const targets = this._getTargetBadges();
+            if (!targets.length) return;
+            const primary = this.selectedBadgeEl || targets[0];
+            const nextLocked = !(primary.dataset.locked === 'true');
+            targets.forEach(el => {
+                el.dataset.locked = nextLocked ? 'true' : 'false';
+                el.style.pointerEvents = nextLocked ? 'none' : 'auto';
+            });
             if (typeof window.renderLayers === 'function') window.renderLayers();
         },
 
@@ -923,33 +954,35 @@
          * Seçili Rozeti Çoğalt
          */
         duplicateBadge: function() {
-            const el = this.selectedBadgeEl;
-            if (!el) return;
+            const targets = this._getTargetBadges();
+            if (!targets.length) return;
 
-            const badgeData = {
-                id: 'cbg_' + Date.now(),
-                name: (el.dataset.label || 'Rozet') + ' (Kopya)',
-                dataUrl: el.dataset.badgeDataUrl,
-                naturalW: parseInt(el.dataset.naturalW || 200),
-                naturalH: parseInt(el.dataset.naturalH || 200)
-            };
+            targets.forEach((el, idx) => {
+                const badgeData = {
+                    id: 'cbg_' + Date.now() + '_' + idx,
+                    name: (el.dataset.label || 'Rozet') + ' (Kopya)',
+                    dataUrl: el.dataset.badgeDataUrl,
+                    naturalW: parseInt(el.dataset.naturalW || 200),
+                    naturalH: parseInt(el.dataset.naturalH || 200)
+                };
 
-            const curLeft = parseInt(el.style.left) || 50;
-            const curTop = parseInt(el.style.top) || 50;
+                const curLeft = parseInt(el.style.left) || 50;
+                const curTop = parseInt(el.style.top) || 50;
 
-            this.addToCanvas(badgeData, {
-                left: curLeft + 24,
-                top: curTop + 24,
-                scale: el.dataset.scale,
-                rotation: el.dataset.rotation,
-                opacity: el.dataset.opacity,
-                shadow: el.dataset.shadow,
-                margin: el.dataset.margin,
-                neon: el.dataset.neon === 'true',
-                neonColor: el.dataset.neonColor,
-                neonSize: el.dataset.neonSize,
-                neonIntensity: el.dataset.neonIntensity,
-                flippedH: el.dataset.flippedH === 'true'
+                this.addToCanvas(badgeData, {
+                    left: curLeft + 24,
+                    top: curTop + 24,
+                    scale: el.dataset.scale,
+                    rotation: el.dataset.rotation,
+                    opacity: el.dataset.opacity,
+                    shadow: el.dataset.shadow,
+                    margin: el.dataset.margin,
+                    neon: el.dataset.neon === 'true',
+                    neonColor: el.dataset.neonColor,
+                    neonSize: el.dataset.neonSize,
+                    neonIntensity: el.dataset.neonIntensity,
+                    flippedH: el.dataset.flippedH === 'true'
+                });
             });
         },
 
@@ -957,15 +990,17 @@
          * Seçili Rozeti Tuvalden Sil
          */
         deleteSelectedBadge: function() {
-            const el = this.selectedBadgeEl;
-            if (!el) return;
+            const targets = this._getTargetBadges();
+            if (!targets.length) return;
 
-            el.remove();
+            targets.forEach(el => el.remove());
             this.selectedBadgeEl = null;
+            if (window.selectedElements) window.selectedElements = [];
 
             const panel = document.getElementById('customBadgeSettingsPanel');
             if (panel) panel.style.display = 'none';
 
+            if (typeof window.updateMultiSelectUI === 'function') window.updateMultiSelectUI();
             if (typeof window.renderLayers === 'function') window.renderLayers();
             if (typeof window.requestAutoSave === 'function') window.requestAutoSave();
             if (typeof window.recordHistory === 'function') window.recordHistory('Rozet Silindi');

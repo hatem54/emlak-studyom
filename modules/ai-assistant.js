@@ -405,7 +405,21 @@
 
     window.openGeminiApiKeyPrompt = async function() {
         const currentKey = window.getGeminiApiKey();
-        const key = prompt('🔑 Google Gemini API Anahtarınızı Yapıştırın (aistudio.google.com adresinden ücretsiz alınabilir):', currentKey);
+        let key = null;
+        if (window.AppDialog && typeof window.AppDialog.prompt === 'function') {
+            key = await window.AppDialog.prompt({
+                title: 'Google Gemini API Anahtarı',
+                message: 'aistudio.google.com adresinden aldığınız API anahtarını yapıştırın.',
+                defaultValue: currentKey,
+                placeholder: 'AIzaSy...',
+                icon: 'fa-key',
+                confirmText: 'Kaydet',
+                cancelText: 'Vazgeç'
+            });
+        } else {
+            key = prompt('Google Gemini API Anahtarınızı Yapıştırın:', currentKey);
+        }
+
         if (key !== null) {
             const cleanKey = key.trim();
             if (cleanKey) {
@@ -413,13 +427,25 @@
                 // Anında canlı test yap
                 const testResult = await window.testGeminiApiKey(cleanKey);
                 if (testResult.success) {
-                    alert('🎉 Harika! Canlı Google Gemini 1.5 Flash bağlantısı başarıyla kuruldu.\n\nArtık hem "🤖 Metni Süz" hem de "Akıllı Danışman" doğrudan gerçek Gemini AI ile çalışacak!');
+                    if (typeof window.showAppToast === 'function') {
+                        window.showAppToast('Google Gemini bağlantısı başarıyla kuruldu', 'success');
+                    } else {
+                        alert('Google Gemini bağlantısı başarıyla kuruldu');
+                    }
                 } else {
-                    alert('⚠️ API Anahtarı kaydedildi ancak test yanıtında uyarı alındı:\n' + testResult.message + '\n\nLütfen aistudio.google.com üzerinden anahtarın aktif olduğunu kontrol edin.');
+                    if (typeof window.showAppToast === 'function') {
+                        window.showAppToast('API Anahtarı kaydedildi: ' + testResult.message, 'warning');
+                    } else {
+                        alert('API Anahtarı kaydedildi: ' + testResult.message);
+                    }
                 }
             } else {
                 window.setGeminiApiKey('');
-                alert('ℹ️ Gemini API Anahtarı temizlendi. Sistem yerel doğal dil motoruyla çalışmaya devam edecek.');
+                if (typeof window.showAppToast === 'function') {
+                    window.showAppToast('Gemini API Anahtarı temizlendi', 'info');
+                } else {
+                    alert('Gemini API Anahtarı temizlendi');
+                }
             }
         }
     };

@@ -8,11 +8,11 @@
 
 | Alan | Değer |
 |---|---|
-| Son güncelleme | 2026-10-21 16:05 – Yenileme (Refresh) & Açılış Gecikmesi İyileştirmesi Tamamlandı |
+| Son güncelleme | 2026-11-12 08:08 – iPhone heic2any Idle/On-Demand Geçişi & Mobil Uydu Toast'ı Tamamlandı |
 | Aktif görev | — (Sistem kararlı ve optimize) |
 | Yarım kalan görev | Yok |
-| Son ölçüm | Eager yerel JS: Kararlı \| Yapay Gecikme: 0ms (-500ms) \| CDN Sürüm Kilitli \| Unload Çifte Kayıt Korumalı |
-| Notlar | 3 Ekim'deki Proxy LazyLoader denemesinin neden geri alındığı (rollback) ve hangi modüllerin bilerek eager bırakıldığı dokümante edildi. initialAppLoader yapay 500ms gecikmesi kaldırıldı, CDN sürümleri sabitlendi, İkon & Neon havuzu inşası idle callback'e alındı, AutoSave unload kalkanı eklendi. sw.js cache: v226-20261021-refresh-perf. |
+| Son ölçüm | Eager CDN JS: -1.3 MB (heic2any idle/on-demand'e alındı) \| Mobil uydu toast aktif \| sw.js v306 |
+| Notlar | 1.3 MB boyutundaki heic2any kütüphanesi <head> bloklayıcı listeden çıkarıldı, core/utils.js üzerinden sayfa açıldıktan sonra rölantide veya ilk HEIC görseli seçildiğinde dinamik yüklenecek şekilde optimize edildi. Açılış ilk boyaması 1.3 MB hafifletildi. sw.js cache: emlak-studiom-v306-20261112-heic-idle-perf. |
 
 ### Durum İşaretleri
 - `[ ]` başlanmadı

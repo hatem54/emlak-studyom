@@ -903,6 +903,24 @@
         window.uploadedImgUrl = newDataUrl;
         if (typeof uploadedImgUrl !== 'undefined') uploadedImgUrl = newDataUrl;
 
+        // Görsel Havuzu (PhotoStaging) aktif öğesini de güncelle: silgi/klonlama emeği
+        // başka fotoğrafa geçince, format değişince veya ZIP/PDF indirmede kaybolmasın.
+        try {
+            const psa = window.PhotoStagingArchive;
+            if (psa && Array.isArray(psa.items) && psa.activeItemId) {
+                const act = psa.items.find(x => x.id === psa.activeItemId);
+                if (act) {
+                    act.dataUrl = newDataUrl;
+                    act.rawOriginalDataUrl = newDataUrl;
+                    if (act.watermarkBaked) {
+                        // Yeni kaynakta logo yok; dışa aktarmada yeniden basılsın
+                        act.watermarkBaked = false;
+                        act.preWatermarkDataUrl = null;
+                    }
+                }
+            }
+        } catch (e) { console.warn('Görsel havuzu senkronizasyonu atlandı:', e); }
+
         const pl = document.getElementById('photo-layer');
         if (pl) {
             pl.dataset.savedBg = "url('" + newDataUrl + "')";

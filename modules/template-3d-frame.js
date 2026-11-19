@@ -25,8 +25,9 @@
             const roll = parseFloat(frame.dataset.rotation) || 0;
             const perspective = parseFloat(frame.dataset.perspective) || 1000;
             const elevation = parseFloat(frame.dataset.elevation) || 0;
+            const depth = parseFloat(frame.dataset.depth) || 0;
 
-            const is3D = (pitch !== 0 || yaw !== 0 || elevation !== 0);
+            const is3D = (pitch !== 0 || yaw !== 0 || elevation !== 0 || depth > 0);
 
             if (is3D || roll !== 0) {
                 frame.style.transform = `perspective(${perspective}px) rotateX(${pitch}deg) rotateY(${yaw}deg) rotateZ(${roll}deg) translateZ(${elevation}px)`;
@@ -37,43 +38,476 @@
                 frame.style.transformStyle = 'flat';
             }
 
-            // 3D Dinamik Zemin Gölgesi
+            // 3D Kalınlık / Derinlik (Arkaya Doğru Extrusion)
+            this.updateExtrusion(frame);
+
+            // 3D Dinamik Zemin Gölgesi (Gölge Slider'ı ile Tam Senkronize)
             if (is3D) {
-                const radY = (yaw * Math.PI) / 180;
-                const radX = (pitch * Math.PI) / 180;
-                const shX = Math.round(-Math.sin(radY) * (elevation + 24) * 0.85);
-                const shY = Math.round(Math.sin(radX) * (elevation + 24) * 0.85 + (elevation * 0.45) + 10);
-                const blur = Math.round(16 + (elevation * 0.55) + (Math.abs(pitch) + Math.abs(yaw)) * 0.25);
-                const opacity = Math.min(0.55, 0.26 + (elevation * 0.002)).toFixed(2);
+                const userSh = (frame.dataset.shadow !== undefined) ? parseFloat(frame.dataset.shadow) : 12;
+                const ext = frame.querySelector('.tb-frame-extrusion');
+                const backCap = ext ? ext.querySelector('.tb-depth-back') : null;
+                const groundSh = ext ? ext.querySelector('.tb-ground-shadow') : null;
+                if (groundSh) groundSh.remove(); // 🌟 Beyaz delik/halka yaratan içi boş div tamamen kaldırılır
 
-                const hasShape = (frame.dataset.shape && frame.dataset.shape !== 'none');
-                const isPolygon = (frame.dataset.isPolygon === 'true');
-
-                if (hasShape || isPolygon) {
-                    frame.style.filter = `drop-shadow(${shX}px ${shY}px ${blur}px rgba(0,0,0,${opacity}))`;
+                if (userSh <= 0) {
                     frame.style.boxShadow = 'none';
-                } else {
-                    frame.style.boxShadow = `${shX}px ${shY}px ${blur}px rgba(0,0,0,${opacity})`;
                     frame.style.filter = 'none';
+                    if (backCap) backCap.style.boxShadow = 'none';
+                } else {
+                    const absElev = Math.abs(elevation);
+                    const contactBlur = Math.round(userSh * 0.4 + 4);
+                    const contactSpread = Math.round(userSh * 0.1 + 1);
+                    const contactAlpha = Math.min(0.75, (0.30 + userSh * 0.015)).toFixed(2);
+
+                    const diffuseY = Math.round(userSh * 0.65 + absElev * 0.4 + 4);
+                    const diffuseBlur = Math.round(userSh * 1.6 + absElev * 0.6 + 14);
+                    const diffuseSpread = Math.round(userSh * 0.2);
+                    const diffuseAlpha = Math.min(0.65, (0.18 + userSh * 0.008)).toFixed(2);
+
+                    // 1. Arka Kapak 3D Zemin Gölgesi (Katı gövdeden çıktığı için asla beyaz boşluk veya delik bırakmaz)
+                    if (backCap && !(backCap.parentElement && backCap.parentElement.classList.contains('tb-depth-back-wrap'))) {
+                        backCap.style.boxShadow = `0 2px ${contactBlur}px ${contactSpread}px rgba(0,0,0,${contactAlpha}), 0 ${diffuseY}px ${diffuseBlur}px ${diffuseSpread}px rgba(0,0,0,${diffuseAlpha})`;
+                    }
+
+                    // 2. Ana Gövde
+                    const hasShape = (frame.dataset.shape && frame.dataset.shape !== 'none');
+                    const isPolygon = (frame.dataset.isPolygon === 'true');
+
+                    if (depth > 0) {
+                        // 3D kalınlık varken tüm gölge tb-depth-back katı arka kapağından sızar; ana gövdeye 2D gölge verilmez
+                        frame.style.boxShadow = 'none';
+                        frame.style.filter = 'none';
+                    } else if (hasShape || isPolygon) {
+                        frame.style.filter = `drop-shadow(0 ${diffuseY}px ${diffuseBlur}px rgba(0,0,0,${diffuseAlpha}))`;
+                        frame.style.boxShadow = 'none';
+                    } else {
+                        frame.style.boxShadow = `0 ${diffuseY}px ${diffuseBlur}px rgba(0,0,0,${diffuseAlpha})`;
+                        frame.style.filter = 'none';
+                    }
                 }
             } else {
-                // 3D eğim yoksa standart TemplateBuilder gölgesine izin ver
-                if (!frame.dataset.shadow || parseInt(frame.dataset.shadow) === 0) {
+                // 3D eğim yoksa standart 2D TemplateBuilder gölgesini uygula
+                frame.style.filter = 'none';
+                const userSh = (frame.dataset.shadow !== undefined) ? parseFloat(frame.dataset.shadow) : 12;
+                if (userSh > 0) {
+                    frame.style.boxShadow = `0 ${Math.round(userSh * 0.6)}px ${userSh * 2}px rgba(0,0,0,0.35)`;
+                } else {
                     frame.style.boxShadow = 'none';
                 }
             }
         },
 
         /**
-         * Paneldeki Değer Değişikliğini Seçili Çerçeveye Aktar
+         * Çerçevenin Poligon / Çokgen Köşe Noktalarını Döndürür ([{x, y}, ...], 0-100 yüzdelik)
          */
-        updateProp: function(prop, val) {
-            const frame = (window.TemplateBuilder && window.TemplateBuilder.selectedFrame) 
-                ? window.TemplateBuilder.selectedFrame 
-                : document.querySelector('.tb-image-frame.selected');
-            if (!frame) return;
+        getPolygonPoints: function(frame) {
+            if (!frame) return null;
+            const shape = frame.dataset.shape;
 
-            frame.dataset[prop] = val;
+            // 1. Hazır kütüphane poligon şekli varsa daima viewBox'a göre 0-100%'e normalize ederek kullan
+            if (shape && shape !== 'none') {
+                const list = (window.TemplateBuilder && window.TemplateBuilder.shapes)
+                    || (typeof window !== 'undefined' && window.TemplateShapesData)
+                    || [];
+                const sDef = list.find(s => s.id === shape);
+                if (sDef && sDef.polygon) {
+                    if (window.TemplateBuilder && typeof window.TemplateBuilder.normalizeShapePolygonPoints === 'function') {
+                        const pts = window.TemplateBuilder.normalizeShapePolygonPoints(sDef);
+                        if (pts && pts.length >= 3) return pts;
+                    }
+                    const vbParts = (sDef.viewBox || '0 0 100 100').trim().split(/[\s,]+/).map(Number);
+                    const vbX = Number.isFinite(vbParts[0]) ? vbParts[0] : 0;
+                    const vbY = Number.isFinite(vbParts[1]) ? vbParts[1] : 0;
+                    const vbW = (Number.isFinite(vbParts[2]) && vbParts[2] > 0) ? vbParts[2] : 100;
+                    const vbH = (Number.isFinite(vbParts[3]) && vbParts[3] > 0) ? vbParts[3] : 100;
+                    const pts = sDef.polygon.trim().split(/\s+/).map(pair => {
+                        const parts = pair.split(',');
+                        const rawX = parseFloat(parts[0]);
+                        const rawY = parseFloat(parts[1]);
+                        if (isNaN(rawX) || isNaN(rawY)) return null;
+                        return {
+                            x: parseFloat((((rawX - vbX) / vbW) * 100).toFixed(4)),
+                            y: parseFloat((((rawY - vbY) / vbH) * 100).toFixed(4))
+                        };
+                    }).filter(Boolean);
+                    if (pts.length >= 3) return pts;
+                }
+            }
+
+            // 2. Serbest çokgen / dataset.polygonPoints varsa
+            if (frame.dataset.polygonPoints) {
+                try {
+                    const parsed = typeof frame.dataset.polygonPoints === 'string'
+                        ? JSON.parse(frame.dataset.polygonPoints)
+                        : frame.dataset.polygonPoints;
+                    if (Array.isArray(parsed) && parsed.length >= 3) {
+                        return parsed.map(p => ({ x: parseFloat(p.x), y: parseFloat(p.y) }));
+                    }
+                } catch(e) {}
+            }
+
+            // 3. dataset.polygonClip stringi varsa (örn: polygon(50% 2%, 96% 26%, ...))
+            if (frame.dataset.polygonClip) {
+                const match = frame.dataset.polygonClip.match(/polygon\((.+)\)/);
+                if (match && match[1]) {
+                    const pairs = match[1].split(',').map(s => s.trim().replace(/%/g, ''));
+                    const pts = pairs.map(str => {
+                        const parts = str.trim().split(/\s+/);
+                        return { x: parseFloat(parts[0]), y: parseFloat(parts[1]) };
+                    }).filter(p => !isNaN(p.x) && !isNaN(p.y));
+                    if (pts.length >= 3) return pts;
+                }
+            }
+
+            // 4. Altıgen (polygon-hexagon) standart köşe noktaları (kütüphane yüklenmediyse yedek)
+            if (shape === 'polygon-hexagon') {
+                return [
+                    { x: 50, y: 2 },
+                    { x: 96, y: 26 },
+                    { x: 96, y: 74 },
+                    { x: 50, y: 98 },
+                    { x: 4, y: 74 },
+                    { x: 4, y: 26 }
+                ];
+            }
+
+            return null;
+        },
+
+        /**
+         * Şekil kütüphanesinden şekil tanımını döndürür
+         */
+        getShapeDef: function(shapeId) {
+            if (!shapeId || shapeId === 'none') return null;
+            const list = (window.TemplateBuilder && window.TemplateBuilder.shapes)
+                || (typeof window !== 'undefined' && window.TemplateShapesData)
+                || [];
+            return list.find(s => s.id === shapeId) || null;
+        },
+
+        /**
+         * SVG path şeklinin kapalı alt yollarını 0-100% koordinatlı poligon halkalarına örnekler
+         */
+        getShapePathLoops: function(sDef) {
+            if (!sDef || !sDef.path || typeof document === 'undefined') return [];
+            const vbParts = (sDef.viewBox || '0 0 100 100').trim().split(/[\s,]+/).map(Number);
+            const vbX = Number.isFinite(vbParts[0]) ? vbParts[0] : 0;
+            const vbY = Number.isFinite(vbParts[1]) ? vbParts[1] : 0;
+            const vbW = (Number.isFinite(vbParts[2]) && vbParts[2] > 0) ? vbParts[2] : 100;
+            const vbH = (Number.isFinite(vbParts[3]) && vbParts[3] > 0) ? vbParts[3] : 100;
+
+            if (!this._scratchSvgPath) {
+                this._scratchSvgPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            }
+            const pathEl = this._scratchSvgPath;
+            const subpaths = sDef.path.trim().split(/(?=[Mm])/).map(s => s.trim()).filter(Boolean);
+            const loops = [];
+
+            for (const sub of subpaths) {
+                if (!/[Zz]\s*$/.test(sub)) continue;
+                try {
+                    pathEl.setAttribute('d', sub);
+                    const totalLen = pathEl.getTotalLength();
+                    if (!Number.isFinite(totalLen) || totalLen <= 1) continue;
+                    const segCount = Math.min(72, Math.max(24, Math.round(totalLen / 8)));
+                    const pts = [];
+                    for (let i = 0; i < segCount; i++) {
+                        const pt = pathEl.getPointAtLength((i / segCount) * totalLen);
+                        const nx = Math.max(0, Math.min(100, ((pt.x - vbX) / vbW) * 100));
+                        const ny = Math.max(0, Math.min(100, ((pt.y - vbY) / vbH) * 100));
+                        pts.push({ x: nx, y: ny });
+                    }
+                    if (pts.length >= 3) loops.push(pts);
+                } catch (e) {}
+            }
+            return loops;
+        },
+
+        /**
+         * Çokgen / eğrisel şekil halkaları için gerçek 3D yanal duvar panellerini üretir
+         */
+        buildExtrusionWallsHtml: function(loops, totalW, totalH, depth, depthColor) {
+            if (!Array.isArray(loops) || loops.length === 0) return '';
+            const cx = totalW / 2;
+            const cy = totalH / 2;
+            const halfDepth = (depth / 2).toFixed(2);
+            let html = '';
+
+            for (const loop of loops) {
+                const N = loop.length;
+                for (let i = 0; i < N; i++) {
+                    const p1 = loop[i];
+                    const p2 = loop[(i + 1) % N];
+
+                    const x1 = (p1.x / 100) * totalW - cx;
+                    const y1 = (p1.y / 100) * totalH - cy;
+                    const x2 = (p2.x / 100) * totalW - cx;
+                    const y2 = (p2.y / 100) * totalH - cy;
+
+                    const dx = x2 - x1;
+                    const dy = y2 - y1;
+                    const edgeLen = Math.hypot(dx, dy);
+                    if (edgeLen < 0.5) continue;
+
+                    const mx = (x1 + x2) / 2;
+                    const my = (y1 + y2) / 2;
+                    const thetaDeg = Math.atan2(dy, dx) * (180 / Math.PI);
+
+                    // Saat yönünde dış normal: (dy, -dx)
+                    const nx = dy / edgeLen;
+                    const ny = -dx / edgeLen;
+                    const lightDot = nx * (-0.707) + ny * (-0.707);
+                    const light = Math.max(0.45, Math.min(1.30, 0.85 + 0.40 * lightDot)).toFixed(2);
+
+                    const wallW = (edgeLen + 1.8).toFixed(2);
+                    const halfWallW = (parseFloat(wallW) / 2).toFixed(2);
+
+                    html += `<div class="tb-polygon-wall" style="position:absolute; left:50%; top:50%; width:${wallW}px; height:${depth}px; margin-left:-${halfWallW}px; margin-top:-${halfDepth}px; background-color:${depthColor}; filter:brightness(${light}); transform:translate3d(${mx.toFixed(1)}px, ${my.toFixed(1)}px, -${halfDepth}px) rotateZ(${thetaDeg.toFixed(2)}deg) rotateX(90deg); transform-origin:center center; pointer-events:none; box-sizing:border-box; backface-visibility:visible !important;"></div>`;
+                }
+            }
+            return html;
+        },
+
+        /**
+         * 3D Çerçeve Kalınlığı / Gerçek 3D Extrusion Geometrisi (Silindirik Madalyon / Çokgen Prizma / Yaratıcı Şekil / Katı Kutu)
+         */
+        updateExtrusion: function(frame) {
+            if (!frame) return;
+            const depth = parseFloat(frame.dataset.depth) || 0;
+            let ext = frame.querySelector('.tb-frame-extrusion');
+
+            if (depth <= 0) {
+                if (ext) ext.remove();
+                frame.classList.remove('has-3d-depth');
+                const clip = frame.querySelector('.tb-frame-clip');
+                if (clip) {
+                    clip.style.transform = '';
+                    clip.style.background = '';
+                }
+                const inner = frame.querySelector('.tb-frame-inner');
+                if (inner && !frame.classList.contains('has-image')) {
+                    inner.style.background = '';
+                }
+                return;
+            }
+
+            frame.classList.add('has-3d-depth');
+
+            if (!ext) {
+                ext = document.createElement('div');
+                ext.className = 'tb-frame-extrusion';
+                ext.style.position = 'absolute';
+                ext.style.pointerEvents = 'none';
+                ext.style.transformStyle = 'preserve-3d';
+                ext.style.zIndex = '0';
+                frame.insertBefore(ext, frame.firstChild);
+            }
+
+            const bw = parseFloat(frame.dataset.borderWidth) || 0;
+            ext.style.top = (-bw) + 'px';
+            ext.style.left = (-bw) + 'px';
+            ext.style.right = (-bw) + 'px';
+            ext.style.bottom = (-bw) + 'px';
+
+            const frameW = frame.offsetWidth || parseFloat(frame.style.width) || 300;
+            const frameH = frame.offsetHeight || parseFloat(frame.style.height) || 300;
+            const isCircle = frame.dataset.isCircle === 'true';
+            const polyPoints = this.getPolygonPoints(frame);
+            const isPolygon = !!(polyPoints && polyPoints.length >= 3);
+            const shapeId = frame.dataset.shape || 'none';
+            const shapeDef = (!isCircle && !isPolygon) ? this.getShapeDef(shapeId) : null;
+            const isPathShape = !!(shapeDef && shapeDef.path);
+            const depthColor = frame.dataset.depthColor || '#334155';
+            const userSh = (frame.dataset.shadow !== undefined) ? parseFloat(frame.dataset.shadow) : 12;
+            const elevation = parseFloat(frame.dataset.elevation) || 0;
+            const absElev = Math.abs(elevation);
+            const yaw = parseFloat(frame.dataset.yaw) || 0;
+            const pitch = parseFloat(frame.dataset.pitch) || 0;
+
+            let html = '';
+
+            // 🌟 3D Organik Zemin ve Temas Gölgesi (Katı Arka Kapak tb-depth-back Üzerinde İki Katmanlı Zengin Gölge)
+            // İçi boş ayrı div kullanılmaz; böylece ürün kenarı ile gölge arasında asla beyaz halka/delik oluşmaz.
+            const contactBlur = Math.round(userSh * 0.4 + 4);
+            const contactSpread = Math.round(userSh * 0.1 + 1);
+            const contactAlpha = Math.min(0.75, (0.30 + userSh * 0.015)).toFixed(2);
+
+            const diffuseY = Math.round(userSh * 0.65 + absElev * 0.4 + 4);
+            const diffuseBlur = Math.round(userSh * 1.6 + absElev * 0.6 + 14);
+            const diffuseSpread = Math.round(userSh * 0.2);
+            const diffuseAlpha = Math.min(0.65, (0.18 + userSh * 0.008)).toFixed(2);
+
+            const backShadow = userSh > 0 
+                ? `0 2px ${contactBlur}px ${contactSpread}px rgba(0,0,0,${contactAlpha}), 0 ${diffuseY}px ${diffuseBlur}px ${diffuseSpread}px rgba(0,0,0,${diffuseAlpha})`
+                : 'none';
+
+            if (isCircle) {
+                // 🪙 GERÇEK 3D SİLİNDİRİK MADALYON / PARA GÖVDESİ (36 Yanal Çeper Paneli)
+                ext.style.borderRadius = '50%';
+                ext.style.clipPath = 'none';
+                ext.style.webkitClipPath = 'none';
+                const totalW = Math.min(frameW, frameH) + bw * 2;
+                const radius = totalW / 2;
+                const N = 36;
+                const dDeg = 360 / N;
+                const chord = 2 * radius * Math.sin(Math.PI / N);
+                const stripW = (chord + 2.5).toFixed(2); // 2.5px mikro-bindirme ile paneller arası sıfır boşluk / ışık sızıntısı
+                const halfStrip = (parseFloat(stripW) / 2).toFixed(2);
+                const halfDepth = (depth / 2).toFixed(2);
+
+                for (let i = 0; i < N; i++) {
+                    const deg = i * dDeg;
+                    const rad = deg * (Math.PI / 180);
+                    // Daire çeperindeki kesin (x, y) koordinatları
+                    const x = radius * Math.sin(rad);
+                    const y = -radius * Math.cos(rad);
+                    // Doğal 3D ışıklandırma gradyanı
+                    const light = Math.max(0.48, Math.min(1.28, 0.85 + 0.38 * Math.cos(rad + 0.6))).toFixed(2);
+                    html += `<div class="tb-cylinder-strip" style="position:absolute; left:50%; top:50%; width:${stripW}px; height:${depth}px; margin-left:-${halfStrip}px; margin-top:-${halfDepth}px; background-color:${depthColor}; filter:brightness(${light}); transform:translate3d(${x.toFixed(1)}px, ${y.toFixed(1)}px, -${halfDepth}px) rotateZ(${deg}deg) rotateX(90deg); transform-origin:center center; pointer-events:none; box-sizing:border-box; backface-visibility:visible !important;"></div>`;
+                }
+
+                // 🧱 Silindirik Katı İç Dolgu (Solid Infill Slices)
+                const sliceStep = depth <= 20 ? 2 : (depth <= 50 ? 3 : (depth <= 100 ? 4 : (depth <= 200 ? 7 : (depth <= 350 ? 11 : 16))));
+                const sliceCount = Math.max(1, Math.round(depth / sliceStep));
+                for (let s = 1; s < sliceCount; s++) {
+                    const z = -(s * sliceStep).toFixed(1);
+                    html += `<div class="tb-depth-slice" style="position:absolute; inset:0; border-radius:50%; background-color:${depthColor}; transform:translateZ(${z}px); pointer-events:none; backface-visibility:visible !important;"></div>`;
+                }
+
+                // Madalyon Arka Kapağı (Z = -depth)
+                html += `<div class="tb-depth-back" style="position:absolute; inset:0; border-radius:50%; background-color:${depthColor}; filter:brightness(0.60); transform:translateZ(-${depth}px); pointer-events:none; box-shadow:${backShadow}; backface-visibility:visible !important;"></div>`;
+
+                // Ön Yüz Katı Taban & Kenar Kabartması
+                html += `<div class="tb-depth-front" style="position:absolute; inset:0; border-radius:50%; background-color:${depthColor}; transform:translateZ(0px); pointer-events:none; backface-visibility:visible !important;"></div>`;
+                html += `<div class="tb-depth-bezel" style="position:absolute; inset:0; border-radius:50%; border:2px solid ${depthColor}; filter:brightness(1.15); pointer-events:none; transform:translateZ(1px); box-sizing:border-box;"></div>`;
+
+            } else if (isPolygon) {
+                // 🛑 GERÇEK 3D ÇOKGEN PRİZMASI (ALTIGEN / POLYGON PRISM - N Adet 3D Yanal Duvar Paneli)
+                ext.style.borderRadius = '0px';
+                ext.style.clipPath = 'none';
+                ext.style.webkitClipPath = 'none';
+
+                const totalW = frameW + bw * 2;
+                const totalH = frameH + bw * 2;
+                const clipStr = `polygon(${polyPoints.map(p => `${p.x}% ${p.y}%`).join(', ')})`;
+
+                // 1. Çokgenin her bir kenarı için gerçek 3D yanal duvar panelleri
+                html += this.buildExtrusionWallsHtml([polyPoints], totalW, totalH, depth, depthColor);
+
+                // 2. 🧱 Çokgen Katı İç Dolgu Dilimleri (Solid Infill Slices)
+                const sliceStep = depth <= 20 ? 2 : (depth <= 50 ? 3 : (depth <= 100 ? 4 : (depth <= 200 ? 7 : (depth <= 350 ? 11 : 16))));
+                const sliceCount = Math.max(1, Math.round(depth / sliceStep));
+                for (let s = 1; s < sliceCount; s++) {
+                    const z = -(s * sliceStep).toFixed(1);
+                    html += `<div class="tb-depth-slice" style="position:absolute; inset:0; clip-path:${clipStr}; -webkit-clip-path:${clipStr}; background-color:${depthColor}; transform:translateZ(${z}px); pointer-events:none; backface-visibility:visible !important;"></div>`;
+                }
+
+                // 3. Çokgen Katı Arka Kapağı ve Organik Zemin Gölgesi (wrap filtresi ile)
+                const polyDropShadow = userSh > 0
+                    ? `drop-shadow(0 2px ${contactBlur}px rgba(0,0,0,${contactAlpha})) drop-shadow(0 ${diffuseY}px ${diffuseBlur}px rgba(0,0,0,${diffuseAlpha}))`
+                    : 'none';
+                html += `<div class="tb-depth-back-wrap" style="position:absolute; inset:0; transform:translateZ(-${depth}px); filter:${polyDropShadow}; pointer-events:none;"><div class="tb-depth-back" style="position:absolute; inset:0; clip-path:${clipStr}; -webkit-clip-path:${clipStr}; background-color:${depthColor}; filter:brightness(0.60); backface-visibility:visible !important;"></div></div>`;
+
+                // 4. Ön Yüz Katı Kapak & Kenar Çerçevesi
+                html += `<div class="tb-depth-front" style="position:absolute; inset:0; clip-path:${clipStr}; -webkit-clip-path:${clipStr}; background-color:${depthColor}; transform:translateZ(0px); pointer-events:none; backface-visibility:visible !important;"></div>`;
+
+            } else if (isPathShape) {
+                // 🎨 YARATICI SVG PATH ŞEKİL 3D EXTRUSION (Bulut, Fırça, Sıvı, Yırtık Kağıt, Kemer, Rozet vb.)
+                ext.style.borderRadius = '0px';
+                ext.style.clipPath = 'none';
+                ext.style.webkitClipPath = 'none';
+
+                const totalW = frameW + bw * 2;
+                const totalH = frameH + bw * 2;
+                const vbStr = shapeDef.viewBox || '0 0 100 100';
+                const extrudePath = (shapeDef.id === 'frame-polaroid')
+                    ? 'M 0,0 L 100,0 L 100,125 L 0,125 Z'
+                    : ((shapeDef.id === 'frame-film') ? 'M 0,0 L 120,0 L 120,90 L 0,90 Z' : shapeDef.path);
+                const extrudeDef = (extrudePath === shapeDef.path) ? shapeDef : Object.assign({}, shapeDef, { path: extrudePath });
+                const svgMask = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${vbStr}" preserveAspectRatio="none"><path d="${extrudePath}" fill="#000"/></svg>`;
+                const maskUrl = `url("data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgMask)}")`;
+                const maskStyle = `-webkit-mask-image:${maskUrl}; mask-image:${maskUrl}; -webkit-mask-size:100% 100%; mask-size:100% 100%; -webkit-mask-repeat:no-repeat; mask-repeat:no-repeat; -webkit-mask-position:center; mask-position:center;`;
+
+                // 1. Örneklenen çevre boyunca 3D yanal duvar panelleri (dikdörtgen köşe taşması olmadan)
+                const loops = this.getShapePathLoops(extrudeDef);
+                html += this.buildExtrusionWallsHtml(loops, totalW, totalH, depth, depthColor);
+
+                // 2. Şekle maskelenmiş katı dolgu katmanları
+                const sliceStep = loops.length > 0
+                    ? (depth <= 20 ? 3 : (depth <= 50 ? 5 : (depth <= 100 ? 8 : (depth <= 200 ? 12 : 18))))
+                    : (depth <= 20 ? 2 : (depth <= 50 ? 3 : (depth <= 100 ? 4 : 8)));
+                const sliceCount = Math.max(1, Math.round(depth / sliceStep));
+                for (let s = 1; s < sliceCount; s++) {
+                    const z = -(s * sliceStep).toFixed(1);
+                    html += `<div class="tb-depth-slice" style="position:absolute; inset:0; ${maskStyle} background-color:${depthColor}; transform:translateZ(${z}px); pointer-events:none; backface-visibility:visible !important;"></div>`;
+                }
+
+                // 3. Şekil siluetine uygun arka kapak + zemin gölgesi
+                const shapeDropShadow = userSh > 0
+                    ? `drop-shadow(0 2px ${contactBlur}px rgba(0,0,0,${contactAlpha})) drop-shadow(0 ${diffuseY}px ${diffuseBlur}px rgba(0,0,0,${diffuseAlpha}))`
+                    : 'none';
+                html += `<div class="tb-depth-back-wrap" style="position:absolute; inset:0; transform:translateZ(-${depth}px); filter:${shapeDropShadow}; pointer-events:none;"><div class="tb-depth-back" style="position:absolute; inset:0; ${maskStyle} background-color:${depthColor}; filter:brightness(0.60); backface-visibility:visible !important;"></div></div>`;
+
+                // 4. Ön yüz şekil tabanı
+                html += `<div class="tb-depth-front" style="position:absolute; inset:0; ${maskStyle} background-color:${depthColor}; transform:translateZ(0px); pointer-events:none; backface-visibility:visible !important;"></div>`;
+
+            } else {
+                // 📦 GERÇEK 4 DUVARLI + KATI DOLGULU PRİZMATİK 3D KUTU GÖVDESİ (Dikdörtgen / Kare)
+                const rad = (frame.dataset.radius || 0) + 'px';
+                ext.style.borderRadius = rad;
+                ext.style.clipPath = 'none';
+                ext.style.webkitClipPath = 'none';
+
+                // 1. Dış 4 Duvar (Top, Bottom, Left, Right - Continuous Walls)
+                // Üst Duvar (Işıklı)
+                html += `<div class="tb-wall-top" style="position:absolute; left:0; top:0; width:100%; height:${depth}px; transform-origin:top center; transform:rotateX(-90deg); filter:brightness(1.20); background-color:${depthColor}; pointer-events:none; backface-visibility:visible !important;"></div>`;
+                // Alt Duvar (Gölgeli)
+                html += `<div class="tb-wall-bottom" style="position:absolute; left:0; bottom:0; width:100%; height:${depth}px; transform-origin:bottom center; transform:rotateX(90deg); filter:brightness(0.55); background-color:${depthColor}; pointer-events:none; backface-visibility:visible !important;"></div>`;
+                // Sol Duvar
+                html += `<div class="tb-wall-left" style="position:absolute; left:0; top:0; width:${depth}px; height:100%; transform-origin:center left; transform:rotateY(90deg); filter:brightness(0.95); background-color:${depthColor}; pointer-events:none; backface-visibility:visible !important;"></div>`;
+                // Sağ Duvar
+                html += `<div class="tb-wall-right" style="position:absolute; right:0; top:0; width:${depth}px; height:100%; transform-origin:center right; transform:rotateY(-90deg); filter:brightness(0.70); background-color:${depthColor}; pointer-events:none; backface-visibility:visible !important;"></div>`;
+
+                // 2. 🧱 KATI DOLGU KATMANLARI (Solid Infill Slices - Asla İçi Boş veya Delik Görünmez, Köşe Kavislerini 3D Besler)
+                const sliceStep = depth <= 20 ? 2 : (depth <= 50 ? 3 : (depth <= 100 ? 4 : (depth <= 200 ? 7 : (depth <= 350 ? 11 : 16))));
+                const sliceCount = Math.max(1, Math.round(depth / sliceStep));
+                for (let s = 1; s < sliceCount; s++) {
+                    const z = -(s * sliceStep).toFixed(1);
+                    html += `<div class="tb-depth-slice" style="position:absolute; inset:0; border-radius:${rad}; background-color:${depthColor}; transform:translateZ(${z}px); pointer-events:none; backface-visibility:visible !important;"></div>`;
+                }
+
+                // 3. Arka Kapak (Z = -depth)
+                html += `<div class="tb-depth-back" style="position:absolute; inset:0; border-radius:${rad}; background-color:${depthColor}; filter:brightness(0.60); transform:translateZ(-${depth}px); pointer-events:none; box-shadow:${backShadow}; backface-visibility:visible !important;"></div>`;
+
+                // 4. Ön Yüz Katı Kapak & Kenar Çerçevesi
+                html += `<div class="tb-depth-front" style="position:absolute; inset:0; border-radius:${rad}; background-color:${depthColor}; transform:translateZ(0px); pointer-events:none; backface-visibility:visible !important;"></div>`;
+                html += `<div class="tb-depth-front-bezel" style="position:absolute; inset:0; border-radius:${rad}; border:2px solid ${depthColor}; filter:brightness(1.15); pointer-events:none; transform:translateZ(1px); box-sizing:border-box;"></div>`;
+            }
+
+            ext.innerHTML = html;
+        },
+
+        getTargetFrames: function(explicitFrame) {
+            if (explicitFrame && explicitFrame.parentNode) return [explicitFrame];
+            if (window.TemplateBuilder && typeof window.TemplateBuilder.getTargetFrames === 'function') {
+                return window.TemplateBuilder.getTargetFrames();
+            }
+            const frame = (window.TemplateBuilder && window.TemplateBuilder.selectedFrame)
+                ? window.TemplateBuilder.selectedFrame
+                : document.querySelector('.tb-image-frame.selected');
+            return frame ? [frame] : [];
+        },
+
+        /**
+         * Paneldeki Değer Değişikliğini Seçili Tüm Çerçevelere Aktar
+         */
+        updateProp: function(prop, val, explicitFrame) {
+            const frames = this.getTargetFrames(explicitFrame);
+            if (frames.length === 0) return;
+
+            const primary = (window.TemplateBuilder && window.TemplateBuilder.selectedFrame && frames.includes(window.TemplateBuilder.selectedFrame))
+                ? window.TemplateBuilder.selectedFrame
+                : frames[frames.length - 1];
 
             // Yan panel sayı göstergelerini güncelle
             const pitchVal = document.getElementById('tbFramePitchVal');
@@ -85,9 +519,25 @@
             if (prop === 'yaw' && yawVal) yawVal.textContent = val + '°';
             if (prop === 'perspective' && perspVal) perspVal.textContent = val + 'px';
             if (prop === 'elevation' && elevVal) elevVal.textContent = val + 'px';
+            const depthVal = document.getElementById('tbFrameDepthVal');
+            const depthColorInput = document.getElementById('tbFrameDepthColor');
+            if (prop === 'depth') {
+                const depthInput = document.getElementById('tbFrameDepth');
+                if (depthInput && parseFloat(val) > parseFloat(depthInput.max)) {
+                    depthInput.max = Math.max(parseFloat(val), 600);
+                }
+                if (depthVal) depthVal.textContent = val + 'px';
+            }
+            if (prop === 'depthColor' && depthColorInput) depthColorInput.value = val;
 
-            this.applyTransform(frame);
-            this.updateGizmoPosition(frame);
+            frames.forEach(frame => {
+                frame.dataset[prop] = val;
+                if (prop === 'depth' && !frame.dataset.depthColor) {
+                    frame.dataset.depthColor = '#334155';
+                }
+                this.applyTransform(frame);
+            });
+            this.updateGizmoPosition(primary);
         },
 
         /**
@@ -102,6 +552,9 @@
             const perspVal = document.getElementById('tbFramePerspectiveVal');
             const elevInput = document.getElementById('tbFrameElevation');
             const elevVal = document.getElementById('tbFrameElevationVal');
+            const depthInput = document.getElementById('tbFrameDepth');
+            const depthVal = document.getElementById('tbFrameDepthVal');
+            const depthColorInput = document.getElementById('tbFrameDepthColor');
 
             if (!frame) {
                 if (pitchInput) pitchInput.value = 0;
@@ -112,6 +565,8 @@
                 if (perspVal) perspVal.textContent = '1000px';
                 if (elevInput) elevInput.value = 0;
                 if (elevVal) elevVal.textContent = '0px';
+                if (depthInput) depthInput.value = 0;
+                if (depthVal) depthVal.textContent = '0px';
                 return;
             }
 
@@ -119,6 +574,8 @@
             const yaw = frame.dataset.yaw || 0;
             const perspective = frame.dataset.perspective || 1000;
             const elevation = frame.dataset.elevation || 0;
+            const depth = frame.dataset.depth || 0;
+            const depthColor = frame.dataset.depthColor || '#334155';
 
             if (pitchInput) pitchInput.value = pitch;
             if (pitchVal) pitchVal.textContent = pitch + '°';
@@ -128,25 +585,38 @@
             if (perspVal) perspVal.textContent = perspective + 'px';
             if (elevInput) elevInput.value = elevation;
             if (elevVal) elevVal.textContent = elevation + 'px';
+            if (depthInput) {
+                if (parseFloat(depth) > parseFloat(depthInput.max)) {
+                    depthInput.max = Math.max(parseFloat(depth), 600);
+                }
+                depthInput.value = depth;
+            }
+            if (depthVal) depthVal.textContent = depth + 'px';
+            if (depthColorInput) depthColorInput.value = depthColor;
         },
 
         /**
          * 3D Açıları Sıfırla (Düz 2D Konuma Getir)
          */
-        reset3DTransform: function() {
-            const frame = (window.TemplateBuilder && window.TemplateBuilder.selectedFrame) 
-                ? window.TemplateBuilder.selectedFrame 
-                : document.querySelector('.tb-image-frame.selected');
-            if (!frame) return;
+        reset3DTransform: function(explicitFrame) {
+            const frames = this.getTargetFrames(explicitFrame);
+            if (frames.length === 0) return;
 
-            frame.dataset.pitch = 0;
-            frame.dataset.yaw = 0;
-            frame.dataset.elevation = 0;
-            frame.dataset.perspective = 1000;
+            const primary = (window.TemplateBuilder && window.TemplateBuilder.selectedFrame && frames.includes(window.TemplateBuilder.selectedFrame))
+                ? window.TemplateBuilder.selectedFrame
+                : frames[frames.length - 1];
 
-            this.syncPanel(frame);
-            this.applyTransform(frame);
-            this.updateGizmoPosition(frame);
+            frames.forEach(frame => {
+                frame.dataset.pitch = 0;
+                frame.dataset.yaw = 0;
+                frame.dataset.elevation = 0;
+                frame.dataset.perspective = 1000;
+                frame.dataset.depth = 0;
+                this.applyTransform(frame);
+            });
+
+            this.syncPanel(primary);
+            this.updateGizmoPosition(primary);
             if (typeof window.recordHistory === 'function') {
                 window.recordHistory('3D Açıları Sıfırlandı');
             }
@@ -155,36 +625,56 @@
         /**
          * Hazır 3D Açı Şablonunu Uygula
          */
-        applyPreset: function(presetKey) {
-            const frame = (window.TemplateBuilder && window.TemplateBuilder.selectedFrame) 
-                ? window.TemplateBuilder.selectedFrame 
-                : document.querySelector('.tb-image-frame.selected');
-            if (!frame) return;
+        applyPreset: function(presetKey, explicitFrame) {
+            const frames = this.getTargetFrames(explicitFrame);
+            if (frames.length === 0) return;
+
+            const primary = (window.TemplateBuilder && window.TemplateBuilder.selectedFrame && frames.includes(window.TemplateBuilder.selectedFrame))
+                ? window.TemplateBuilder.selectedFrame
+                : frames[frames.length - 1];
 
             const presets = {
-                flat:      { pitch: 0,   yaw: 0,   roll: 0,  elevation: 0 },
-                isoLeft:   { pitch: 26,  yaw: -32, roll: 6,  elevation: 16 },
-                isoRight:  { pitch: 26,  yaw: 32,  roll: -6, elevation: 16 },
-                floor:     { pitch: 52,  yaw: 0,   roll: 0,  elevation: 8 },
-                wallLeft:  { pitch: 0,   yaw: 32,  roll: 0,  elevation: 12 },
-                wallRight: { pitch: 0,   yaw: -32, roll: 0,  elevation: 12 }
+                flat:         { pitch: 0,   yaw: 0,   roll: 0,  elevation: 0 },
+                isoLeft:      { pitch: 26,  yaw: -32, roll: 6,  elevation: 16 },
+                'iso-left':   { pitch: 26,  yaw: -32, roll: 6,  elevation: 16 },
+                isoRight:     { pitch: 26,  yaw: 32,  roll: -6, elevation: 16 },
+                'iso-right':  { pitch: 26,  yaw: 32,  roll: -6, elevation: 16 },
+                floor:        { pitch: 52,  yaw: 0,   roll: 0,  elevation: 8 },
+                wallLeft:     { pitch: 0,   yaw: 32,  roll: 0,  elevation: 12 },
+                'wall-left':  { pitch: 0,   yaw: 32,  roll: 0,  elevation: 12 },
+                wallRight:    { pitch: 0,   yaw: -32, roll: 0,  elevation: 12 },
+                'wall-right': { pitch: 0,   yaw: -32, roll: 0,  elevation: 12 }
             };
 
             const p = presets[presetKey] || presets.flat;
-            frame.dataset.pitch = p.pitch;
-            frame.dataset.yaw = p.yaw;
-            frame.dataset.elevation = p.elevation;
+            frames.forEach(frame => {
+                frame.dataset.pitch = p.pitch;
+                frame.dataset.yaw = p.yaw;
+                frame.dataset.elevation = p.elevation;
+                if (presetKey !== 'flat') {
+                    if ((parseFloat(frame.dataset.depth) || 0) <= 0) {
+                        frame.dataset.depth = 25;
+                    }
+                    if (!frame.dataset.perspective) {
+                        frame.dataset.perspective = 1200;
+                    }
+                    frame.dataset.has3D = 'true';
+                }
+                if (p.roll !== undefined) {
+                    frame.dataset.rotation = p.roll;
+                }
+                this.applyTransform(frame);
+            });
+
             if (p.roll !== undefined) {
-                frame.dataset.rotation = p.roll;
                 const rotInput = document.getElementById('tbFrameRotation');
                 const rotVal = document.getElementById('tbFrameRotationVal');
                 if (rotInput) rotInput.value = p.roll;
                 if (rotVal) rotVal.textContent = p.roll + '°';
             }
 
-            this.syncPanel(frame);
-            this.applyTransform(frame);
-            this.updateGizmoPosition(frame);
+            this.syncPanel(primary);
+            this.updateGizmoPosition(primary);
             if (typeof window.recordHistory === 'function') {
                 window.recordHistory('3D Hazır Ayar Uygulandı');
             }
@@ -228,8 +718,10 @@
             if (!target) return;
 
             if (this.isGizmoActive() && this.activeGizmoFrame === target) {
+                target._gizmoDismissed = true;
                 this.hideGizmo();
             } else {
+                delete target._gizmoDismissed;
                 this.showGizmo(target);
             }
         },
@@ -239,6 +731,8 @@
          */
         showGizmo: function(frame) {
             if (!frame) return;
+
+            delete frame._gizmoDismissed;
 
             const cContainer = document.getElementById('canvas-container');
             if (!cContainer) return;
@@ -348,41 +842,25 @@
             const arcR = localRadius * 1.15;
             const baseLen = localRadius * 1.45;
 
-            const rx = (pitch * Math.PI) / 180;
-            const ry = (yaw * Math.PI) / 180;
-            const rz = (roll * Math.PI) / 180;
-
             // Oblique Axonometric 3D Projection (smooth, continuous, no snapping or jumps)
             // Z depth points at a natural isometric 135° down-left direction
             const cosA = -0.7071;
             const sinA = 0.7071;
             const sz = 0.75; // Depth scale factor
 
+            // 🎯 Kararlı Ekran/Düzlem Koordinat Sistemi (Screen / View Space 3D Gizmo):
+            // Gizmo eksenleri ve yayları çerçevenin kendi 2D/3D dönüş açılarından (özellikle yuvarlak rozet
+            // döndürme ve roll açılarından) etkilenmez; tuval düzleminde daima kararlı, dik ve sabit kalır.
+            // Böylece rozet dönerken gizmo fırıldak gibi dönmez, tüm tutamaçlar (Eğim, Yatay, Yatır, X, Y, Z)
+            // daima ergonomik, temiz ve tahmin edilebilir standart yerlerinde kalır.
             const projectLocal = (vx, vy, vz) => {
-                // 1. Roll around Z
-                const x1 = vx * Math.cos(rz) - vy * Math.sin(rz);
-                const y1 = vx * Math.sin(rz) + vy * Math.cos(rz);
-                const z1 = vz;
-
-                // 2. Yaw around Y
-                const x2 = x1 * Math.cos(ry) + z1 * Math.sin(ry);
-                const y2 = y1;
-                const z2 = -x1 * Math.sin(ry) + z1 * Math.cos(ry);
-
-                // 3. Pitch around X
-                const x3 = x2;
-                const y3 = y2 * Math.cos(rx) - z2 * Math.sin(rx);
-                const z3 = y2 * Math.sin(rx) + z2 * Math.cos(rx);
-
-                // 4. Smooth continuous axonometric depth projection
-                // (vy is UP in local 3D, so -y3 in screen coords; Z projects along down-left depth)
-                const xProj = x3 + z3 * sz * cosA;
-                const yProj = -y3 + z3 * sz * sinA;
+                const xProj = vx + vz * sz * cosA;
+                const yProj = -vy + vz * sz * sinA;
 
                 return {
                     x: cx + xProj,
                     y: cy + yProj,
-                    z: z3
+                    z: vz
                 };
             };
 
@@ -525,6 +1003,7 @@
                     e.preventDefault();
                     e.stopPropagation();
                     e.stopImmediatePropagation();
+                    if (frame) frame._gizmoDismissed = true;
                     self.hideGizmo();
                 });
             }
@@ -695,7 +1174,7 @@
                     if (!isDragging) return;
                     const sf = getSf();
                     const dy = (e.clientY - startClientY) / sf;
-                    const newPitch = Math.max(-60, Math.min(60, Math.round(origPitch - dy * 0.75)));
+                    const newPitch = Math.max(-360, Math.min(360, Math.round(origPitch - dy * 0.75)));
                     frame.dataset.pitch = newPitch;
                     self.syncPanel(frame);
                     self.applyTransform(frame);
@@ -740,7 +1219,7 @@
                     if (!isDragging) return;
                     const sf = getSf();
                     const dx = (e.clientX - startClientX) / sf;
-                    const newYaw = Math.max(-60, Math.min(60, Math.round(origYaw + dx * 0.75)));
+                    const newYaw = Math.max(-360, Math.min(360, Math.round(origYaw + dx * 0.75)));
                     frame.dataset.yaw = newYaw;
                     self.syncPanel(frame);
                     self.applyTransform(frame);
@@ -774,9 +1253,20 @@
                     if (e.button !== 0 && e.type === 'pointerdown') return;
                     isDragging = true;
                     self.isInteracting = true;
-                    const fRect = frame.getBoundingClientRect();
-                    originScreenX = fRect.left + fRect.width / 2;
-                    originScreenY = fRect.top + fRect.height / 2;
+                    const frameLeft = parseFloat(frame.style.left) || frame.offsetLeft || 0;
+                    const frameTop = parseFloat(frame.style.top) || frame.offsetTop || 0;
+                    const frameW = frame.offsetWidth || 300;
+                    const frameH = frame.offsetHeight || 300;
+                    const sf = getSf();
+                    if (cContainer) {
+                        const cRect = cContainer.getBoundingClientRect();
+                        originScreenX = cRect.left + (frameLeft + frameW / 2) * sf;
+                        originScreenY = cRect.top + (frameTop + frameH / 2) * sf;
+                    } else {
+                        const fRect = frame.getBoundingClientRect();
+                        originScreenX = fRect.left + fRect.width / 2;
+                        originScreenY = fRect.top + fRect.height / 2;
+                    }
                     prevAngle = Math.atan2(e.clientY - originScreenY, e.clientX - originScreenX);
                     accumRoll = parseFloat(frame.dataset.rotation) || 0;
                     try { el.setPointerCapture(e.pointerId); } catch(ex){}
@@ -795,8 +1285,8 @@
 
                     accumRoll += diff * (180 / Math.PI);
                     let newRoll = Math.round(accumRoll);
-                    while (newRoll > 180) newRoll -= 360;
-                    while (newRoll < -180) newRoll += 360;
+                    while (newRoll > 360) newRoll -= 360;
+                    while (newRoll < -360) newRoll += 360;
 
                     frame.dataset.rotation = newRoll;
                     const rotInput = document.getElementById('tbFrameRotation');
@@ -878,7 +1368,8 @@
             if (!frame) return;
 
             const btn3D = frame.querySelector('.tb-btn-3d');
-            if (btn3D) {
+            if (btn3D && btn3D.dataset.tb3dBound !== 'true') {
+                btn3D.dataset.tb3dBound = 'true';
                 btn3D.addEventListener('click', (e) => {
                     e.preventDefault();
                     e.stopPropagation();
@@ -896,9 +1387,10 @@
             const yaw = parseFloat(frame.dataset.yaw) || 0;
             const roll = parseFloat(frame.dataset.rotation) || 0;
             const elevation = parseFloat(frame.dataset.elevation) || 0;
+            const depth = parseFloat(frame.dataset.depth) || 0;
 
-            // 3D açı yoksa özel Three.js renderına gerek yok
-            if (pitch === 0 && yaw === 0 && elevation === 0) return null;
+            // 3D açı ve kalınlık yoksa özel Three.js renderına gerek yok
+            if (pitch === 0 && yaw === 0 && elevation === 0 && depth === 0) return null;
 
             const frameW = frame.offsetWidth || 300;
             const frameH = frame.offsetHeight || 300;
@@ -910,8 +1402,11 @@
             const srcCtx = srcCanvas.getContext('2d');
             if (!srcCtx) return null;
 
+            const preExportCanvas = frame.querySelector('.tb-frame-export-canvas');
             const img = frame.querySelector('.tb-frame-img');
-            if (img && img.complete && img.naturalWidth) {
+            if (preExportCanvas && preExportCanvas.width > 0 && preExportCanvas.height > 0) {
+                srcCtx.drawImage(preExportCanvas, 0, 0, srcCanvas.width, srcCanvas.height);
+            } else if (img && img.complete && img.naturalWidth) {
                 const zoom = parseFloat(frame.dataset.imgZoom) || 1.0;
                 const panX = (parseFloat(frame.dataset.imgPanX) || 0) * supersample;
                 const panY = (parseFloat(frame.dataset.imgPanY) || 0) * supersample;
@@ -925,22 +1420,47 @@
                 const drawY = (srcCanvas.height - drawH) / 2 + panY;
 
                 // Çokgen veya şekil maskesini 2D canvasa uygula
-                if (frame.dataset.isPolygon === 'true' && frame.dataset.polygonPoints) {
-                    try {
-                        const pts = JSON.parse(frame.dataset.polygonPoints);
-                        srcCtx.beginPath();
-                        pts.forEach((pt, idx) => {
-                            const px = (parseFloat(pt.x) / 100) * srcCanvas.width;
-                            const py = (parseFloat(pt.y) / 100) * srcCanvas.height;
-                            if (idx === 0) srcCtx.moveTo(px, py);
-                            else srcCtx.lineTo(px, py);
-                        });
-                        srcCtx.closePath();
-                        srcCtx.clip();
-                    } catch(e){}
+                const polyPts = this.getPolygonPoints(frame);
+                if (polyPts && polyPts.length >= 3) {
+                    srcCtx.beginPath();
+                    polyPts.forEach((pt, idx) => {
+                        const px = (pt.x / 100) * srcCanvas.width;
+                        const py = (pt.y / 100) * srcCanvas.height;
+                        if (idx === 0) srcCtx.moveTo(px, py);
+                        else srcCtx.lineTo(px, py);
+                    });
+                    srcCtx.closePath();
+                    srcCtx.clip();
+                } else if (frame.dataset.isCircle === 'true') {
+                    srcCtx.beginPath();
+                    srcCtx.arc(srcCanvas.width / 2, srcCanvas.height / 2, Math.min(srcCanvas.width, srcCanvas.height) / 2, 0, Math.PI * 2);
+                    srcCtx.closePath();
+                    srcCtx.clip();
                 }
 
                 srcCtx.drawImage(img, drawX, drawY, drawW, drawH);
+            } else {
+                // Görsel henüz yüklenmemişse boş çerçeve ön yüzünü çiz
+                const polyPts = this.getPolygonPoints(frame);
+                srcCtx.fillStyle = '#f8fafc';
+                if (polyPts && polyPts.length >= 3) {
+                    srcCtx.beginPath();
+                    polyPts.forEach((pt, idx) => {
+                        const px = (pt.x / 100) * srcCanvas.width;
+                        const py = (pt.y / 100) * srcCanvas.height;
+                        if (idx === 0) srcCtx.moveTo(px, py);
+                        else srcCtx.lineTo(px, py);
+                    });
+                    srcCtx.closePath();
+                    srcCtx.fill();
+                } else if (frame.dataset.isCircle === 'true') {
+                    srcCtx.beginPath();
+                    srcCtx.arc(srcCanvas.width / 2, srcCanvas.height / 2, Math.min(srcCanvas.width, srcCanvas.height) / 2, 0, Math.PI * 2);
+                    srcCtx.closePath();
+                    srcCtx.fill();
+                } else {
+                    srcCtx.fillRect(0, 0, srcCanvas.width, srcCanvas.height);
+                }
             }
 
             // 2. Three.js mevcutsa 3D perspektif projection renderı yap
@@ -962,18 +1482,85 @@
                     texture.generateMipmaps = true;
                     texture.minFilter = THREE.LinearMipmapLinearFilter;
 
+                    const meshGroup = new THREE.Group();
+
                     const planeGeo = new THREE.PlaneGeometry(frameW * supersample, frameH * supersample);
-                    const planeMat = new THREE.MeshBasicMaterial({ map: texture, transparent: true, side: THREE.DoubleSide });
+                    const planeMat = new THREE.MeshBasicMaterial({ map: texture, transparent: true, side: THREE.FrontSide });
                     const mesh = new THREE.Mesh(planeGeo, planeMat);
+                    mesh.position.z = 0.5;
+                    meshGroup.add(mesh);
+
+                    // 3D Kalınlık (Extrusion) Geometrisi
+                    let depthGeo = null;
+                    let depthMat = null;
+                    if (depth > 0) {
+                        const depthScaled = depth * supersample;
+                        const depthColorHex = frame.dataset.depthColor || frame.dataset.borderColor || '#334155';
+                        const isCircle = frame.dataset.isCircle === 'true';
+                        const shapeId = frame.dataset.shape || 'none';
+                        const shapeDef = (!isCircle) ? this.getShapeDef(shapeId) : null;
+                        let polyPts = this.getPolygonPoints(frame);
+                        if ((!polyPts || polyPts.length < 3) && shapeDef && shapeDef.path) {
+                            const extrudePath = (shapeDef.id === 'frame-polaroid')
+                                ? 'M 0,0 L 100,0 L 100,125 L 0,125 Z'
+                                : ((shapeDef.id === 'frame-film') ? 'M 0,0 L 120,0 L 120,90 L 0,90 Z' : shapeDef.path);
+                            const extrudeDef = (extrudePath === shapeDef.path) ? shapeDef : Object.assign({}, shapeDef, { path: extrudePath });
+                            const loops = this.getShapePathLoops(extrudeDef);
+                            if (loops && loops.length > 0) polyPts = loops[0];
+                        }
+
+                        if (isCircle) {
+                            const radius = (frameW * supersample) / 2;
+                            depthGeo = new THREE.CylinderGeometry(radius, radius, depthScaled, 64, 1, false);
+                            depthGeo.rotateX(Math.PI / 2);
+                            depthMat = new THREE.MeshStandardMaterial({ color: depthColorHex, roughness: 0.45, metalness: 0.15 });
+                            const cylMesh = new THREE.Mesh(depthGeo, depthMat);
+                            cylMesh.position.z = -depthScaled / 2;
+                            meshGroup.add(cylMesh);
+                        } else if (polyPts && polyPts.length >= 3) {
+                            const shape2D = new THREE.Shape();
+                            const w = frameW * supersample;
+                            const h = frameH * supersample;
+                            polyPts.forEach((pt, idx) => {
+                                const sx = (pt.x / 100) * w - w / 2;
+                                const sy = -((pt.y / 100) * h - h / 2);
+                                if (idx === 0) shape2D.moveTo(sx, sy);
+                                else shape2D.lineTo(sx, sy);
+                            });
+                            shape2D.closePath();
+
+                            const extrudeSettings = {
+                                steps: 1,
+                                depth: depthScaled,
+                                bevelEnabled: false
+                            };
+                            depthGeo = new THREE.ExtrudeGeometry(shape2D, extrudeSettings);
+                            depthGeo.translate(0, 0, -depthScaled);
+                            depthMat = new THREE.MeshStandardMaterial({ color: depthColorHex, roughness: 0.45, metalness: 0.15 });
+                            const polyMesh = new THREE.Mesh(depthGeo, depthMat);
+                            meshGroup.add(polyMesh);
+                        } else {
+                            depthGeo = new THREE.BoxGeometry(frameW * supersample, frameH * supersample, depthScaled);
+                            depthMat = new THREE.MeshStandardMaterial({ color: depthColorHex, roughness: 0.45, metalness: 0.15 });
+                            const boxMesh = new THREE.Mesh(depthGeo, depthMat);
+                            boxMesh.position.z = -depthScaled / 2;
+                            meshGroup.add(boxMesh);
+                        }
+
+                        scene.add(new THREE.AmbientLight(0xffffff, 0.75));
+                        const dirLight = new THREE.DirectionalLight(0xffffff, 0.65);
+                        dirLight.position.set(1, 1, 2);
+                        scene.add(dirLight);
+                    }
 
                     // Açıları Three.js uzayına aktar
-                    mesh.rotation.order = 'ZYX';
-                    mesh.rotation.x = THREE.MathUtils.degToRad(-pitch);
-                    mesh.rotation.y = THREE.MathUtils.degToRad(yaw);
-                    mesh.rotation.z = THREE.MathUtils.degToRad(-roll);
-                    mesh.position.z = elevation * supersample;
+                    meshGroup.rotation.order = 'ZYX';
+                    meshGroup.rotation.x = THREE.MathUtils.degToRad(-pitch);
+                    meshGroup.rotation.y = THREE.MathUtils.degToRad(yaw);
+                    meshGroup.rotation.z = THREE.MathUtils.degToRad(-roll);
+                    meshGroup.position.z = elevation * supersample;
 
-                    scene.add(mesh);
+                    scene.add(meshGroup);
                     renderer.render(scene, camera);
 
                     const resCanvas = document.createElement('canvas');
@@ -987,6 +1574,8 @@
                     renderer.dispose();
                     planeGeo.dispose();
                     planeMat.dispose();
+                    if (depthGeo) depthGeo.dispose();
+                    if (depthMat) depthMat.dispose();
                     texture.dispose();
 
                     return resCanvas;
@@ -1003,7 +1592,7 @@
 
     // 3D slider kontrolleri bırakıldığında geçmiş kaydet
     const bind3DSliderHistory = () => {
-        ['tbFramePitch', 'tbFrameYaw', 'tbFrameElevation', 'tbFramePerspective'].forEach(id => {
+        ['tbFramePitch', 'tbFrameYaw', 'tbFrameElevation', 'tbFramePerspective', 'tbFrameDepth'].forEach(id => {
             const el = document.getElementById(id);
             if (el) {
                 el.addEventListener('change', () => {
@@ -1013,6 +1602,90 @@
                 });
             }
         });
+
+        // 3D Kalınlık Değer Rozetine Tıklayarak Serbest Rakam Girişi (Limitsiz Özel Kalınlık - Tıkla-Yaz)
+        const depthValBadge = document.getElementById('tbFrameDepthVal');
+        if (depthValBadge && depthValBadge.dataset.boundClick !== 'true') {
+            depthValBadge.dataset.boundClick = 'true';
+            depthValBadge.style.cursor = 'pointer';
+            depthValBadge.title = 'Özel 3D kalınlık girmek için tıklayın';
+            depthValBadge.addEventListener('click', (e) => {
+                if (depthValBadge.querySelector('input')) return; // Zaten düzenleme modunda
+                e.stopPropagation();
+
+                const sel = (window.TemplateBuilder && window.TemplateBuilder.selectedFrame)
+                    || document.querySelector('.tb-image-frame.selected');
+                const cur = sel ? (parseFloat(sel.dataset.depth) || 0) : (parseFloat(depthValBadge.textContent) || 0);
+
+                const origText = depthValBadge.textContent;
+                const isDark = document.documentElement.getAttribute('data-theme') === 'dark' || 
+                               (document.body && document.body.getAttribute('data-theme') === 'dark');
+
+                const input = document.createElement('input');
+                input.type = 'number';
+                input.min = '0';
+                input.max = '2000';
+                input.value = cur;
+                input.style.cssText = `
+                    width: 48px;
+                    height: 18px;
+                    padding: 0 2px;
+                    font-family: inherit;
+                    font-size: 11px;
+                    font-weight: 700;
+                    text-align: center;
+                    border: 1px solid #0284c7;
+                    border-radius: 4px;
+                    background: ${isDark ? '#1e293b' : '#ffffff'};
+                    color: ${isDark ? '#f8fafc' : '#0f172a'};
+                    outline: none;
+                    box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.25);
+                    box-sizing: border-box;
+                `;
+
+                depthValBadge.innerHTML = '';
+                depthValBadge.appendChild(input);
+                input.focus();
+                input.select();
+
+                let committed = false;
+                const commit = () => {
+                    if (committed) return;
+                    committed = true;
+                    const val = parseFloat(input.value);
+                    if (!isNaN(val)) {
+                        const num = Math.max(0, Math.round(val));
+                        const slider = document.getElementById('tbFrameDepth');
+                        if (slider && num > parseFloat(slider.max)) {
+                            slider.max = Math.max(num, 600);
+                        }
+                        if (slider) slider.value = num;
+                        Template3DFrame.updateProp('depth', num);
+                        depthValBadge.textContent = num + 'px';
+                    } else {
+                        depthValBadge.textContent = origText;
+                    }
+                };
+
+                const cancel = () => {
+                    if (committed) return;
+                    committed = true;
+                    depthValBadge.textContent = origText;
+                };
+
+                input.addEventListener('keydown', (ke) => {
+                    if (ke.key === 'Enter') {
+                        ke.preventDefault();
+                        commit();
+                    } else if (ke.key === 'Escape') {
+                        ke.preventDefault();
+                        cancel();
+                    }
+                });
+
+                input.addEventListener('blur', commit);
+            });
+        }
     };
 
     if (document.readyState === 'loading') {

@@ -117,6 +117,9 @@ BEGIN
         used_at = NOW()
     WHERE id = v_code_row.id;
 
+    -- Tetikleyiciye yalnızca bu işlem süresince lisans planı güncelleme yetkisi ver
+    PERFORM set_config('app.redeeming_license', 'on', true);
+
     -- Kullanıcı profilini Pro yap ve süresini uzat
     UPDATE public.profiles
     SET subscription_plan = 'pro',
@@ -170,12 +173,15 @@ SECURITY DEFINER
 AS $$
 BEGIN
     -- Eğer işlemi yapan admin değilse, rol, abonelik ve yasaklama alanlarını eski değerde kilitle
+    -- (Yalnızca redeem_license_code RPC'si işlem-içi GUC ile abonelik alanını güncelleyebilir)
     IF NOT public.is_admin() THEN
         NEW.role := OLD.role;
-        NEW.subscription_plan := OLD.subscription_plan;
-        NEW.subscription_expires_at := OLD.subscription_expires_at;
         NEW.is_banned := OLD.is_banned;
         NEW.banned_reason := OLD.banned_reason;
+        IF current_setting('app.redeeming_license', true) IS DISTINCT FROM 'on' THEN
+            NEW.subscription_plan := OLD.subscription_plan;
+            NEW.subscription_expires_at := OLD.subscription_expires_at;
+        END IF;
     END IF;
     RETURN NEW;
 END;
@@ -271,3 +277,177 @@ CREATE POLICY "Admins can view and manage error logs" ON public.error_logs
 
 
 
+
+-- ========================================================
+-- 8. 🛡️ YAYIN ÖNCESİ SERTLEŞTİRME (11 Kasım 2026)
+-- Bu bölüm tek başına, defalarca çalıştırılabilir (idempotent).
+-- Supabase → SQL Editor → bu bölümü yapıştır → Run.
+-- ========================================================
+
+-- 8.1. error_logs: alan uzunluk sınırları (mevcut kayıtları kontrol etmez: NOT VALID)
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'error_logs_len_chk') THEN
+        ALTER TABLE public.error_logs ADD CONSTRAINT error_logs_len_chk CHECK (
+            length(message) <= 1000
+            AND (stack IS NULL OR length(stack) <= 3000)
+            AND (source IS NULL OR length(source) <= 500)
+            AND (user_agent IS NULL OR length(user_agent) <= 500)
+            AND (url IS NULL OR length(url) <= 500)
+            AND (user_email IS NULL OR length(user_email) <= 320)
+        ) NOT VALID;
+    END IF;
+END $$;
+
+-- 8.2. error_logs: kötüye kullanım / sel koruması + 90 gün otomatik temizlik
+-- Kural aşılırsa kayıt SESSİZCE atlanır (istemciye hata dönmez, uygulama etkilenmez).
+CREATE OR REPLACE FUNCTION public.error_logs_guard()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    v_recent_min INTEGER;
+    v_recent_day INTEGER;
+    v_total_est  BIGINT;
+BEGIN
+    -- a) Aynı tarayıcıdan aynı mesaj son 1 dakikada geldiyse atla (tekilleştirme)
+    IF EXISTS (
+        SELECT 1 FROM public.error_logs
+        WHERE created_at > NOW() - INTERVAL '1 minute'
+          AND message = NEW.message
+          AND COALESCE(user_agent, '') = COALESCE(NEW.user_agent, '')
+    ) THEN
+        RETURN NULL;
+    END IF;
+
+    -- b) Tüm sistemde dakikada en fazla 60 kayıt
+    SELECT COUNT(*) INTO v_recent_min FROM public.error_logs WHERE created_at > NOW() - INTERVAL '1 minute';
+    IF v_recent_min >= 60 THEN
+        RETURN NULL;
+    END IF;
+
+    -- c) Günde en fazla 5.000 kayıt
+    SELECT COUNT(*) INTO v_recent_day FROM public.error_logs WHERE created_at > NOW() - INTERVAL '1 day';
+    IF v_recent_day >= 5000 THEN
+        RETURN NULL;
+    END IF;
+
+    -- d) Tabloda toplam ~50.000 kayıt tavanı (hızlı tahmini sayım)
+    SELECT reltuples::BIGINT INTO v_total_est FROM pg_class WHERE oid = 'public.error_logs'::regclass;
+    IF v_total_est >= 50000 THEN
+        RETURN NULL;
+    END IF;
+
+    -- e) Ara sıra (yaklaşık her 200 kayıtta bir) 90 günden eski kayıtları temizle
+    IF random() < 0.005 THEN
+        DELETE FROM public.error_logs WHERE created_at < NOW() - INTERVAL '90 days';
+    END IF;
+
+    RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_error_logs_guard ON public.error_logs;
+CREATE TRIGGER trg_error_logs_guard
+    BEFORE INSERT ON public.error_logs
+    FOR EACH ROW EXECUTE FUNCTION public.error_logs_guard();
+
+-- 8.3. feedback (geri bildirim) tablosu: yoksa oluştur, RLS'yi AÇ
+CREATE TABLE IF NOT EXISTS public.feedback (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+    user_email TEXT,
+    message TEXT NOT NULL,
+    rating INTEGER,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE public.feedback ENABLE ROW LEVEL SECURITY;
+
+DO $$
+BEGIN
+    DROP POLICY IF EXISTS "Anyone can insert feedback" ON public.feedback;
+    DROP POLICY IF EXISTS "Admins can manage feedback" ON public.feedback;
+END $$;
+
+-- Herkes (giriş yapmamış ziyaretçi dahil) geri bildirim GÖNDEREBİLİR
+CREATE POLICY "Anyone can insert feedback" ON public.feedback
+    FOR INSERT
+    TO public
+    WITH CHECK (true);
+
+-- Sadece admin OKUYABİLİR / DÜZENLEYEBİLİR / SİLEBİLİR
+CREATE POLICY "Admins can manage feedback" ON public.feedback
+    FOR ALL
+    TO authenticated
+    USING (public.is_admin());
+
+-- feedback: puan 1-5 ve mesaj uzunluğu sınırı (sütunlar varsa; mevcut kayıtları kontrol etmez)
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='feedback' AND column_name='rating')
+       AND NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'feedback_rating_chk') THEN
+        ALTER TABLE public.feedback ADD CONSTRAINT feedback_rating_chk CHECK (rating IS NULL OR rating BETWEEN 1 AND 5) NOT VALID;
+    END IF;
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='feedback' AND column_name='message')
+       AND NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'feedback_message_len_chk') THEN
+        ALTER TABLE public.feedback ADD CONSTRAINT feedback_message_len_chk CHECK (length(message) <= 5000) NOT VALID;
+    END IF;
+END $$;
+
+-- 8.4. Fonksiyonları güvenli hale getirme ve search_path sabitleme (Supabase Security Advisor)
+CREATE OR REPLACE FUNCTION public.is_admin()
+RETURNS BOOLEAN
+LANGUAGE sql
+SECURITY DEFINER
+STABLE
+SET search_path = public
+AS $$
+    SELECT EXISTS (
+        SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin'
+    );
+$$;
+
+-- Hassas alan koruma fonksiyonu (rol ve plan sahteciliğini engeller)
+CREATE OR REPLACE FUNCTION public.protect_profile_roles()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+    IF NOT public.is_admin() THEN
+        NEW.role := OLD.role;
+        NEW.is_banned := OLD.is_banned;
+        NEW.banned_reason := OLD.banned_reason;
+        IF current_setting('app.redeeming_license', true) IS DISTINCT FROM 'on' THEN
+            NEW.subscription_plan := OLD.subscription_plan;
+            NEW.subscription_expires_at := OLD.subscription_expires_at;
+        END IF;
+    END IF;
+    RETURN NEW;
+END;
+$$;
+
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='profiles') THEN
+        DROP TRIGGER IF EXISTS trg_protect_profile_roles ON public.profiles;
+        CREATE TRIGGER trg_protect_profile_roles
+            BEFORE UPDATE ON public.profiles
+            FOR EACH ROW EXECUTE FUNCTION public.protect_profile_roles();
+    END IF;
+END $$;
+
+-- Varsa diğer fonksiyonların search_path değerini güvenliğe al (yoksa hata vermez)
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM pg_proc WHERE proname = 'redeem_license_code') THEN
+        EXECUTE 'ALTER FUNCTION public.redeem_license_code(TEXT) SET search_path = public';
+    END IF;
+    IF EXISTS (SELECT 1 FROM pg_proc WHERE proname = 'handle_new_user_profile') THEN
+        EXECUTE 'ALTER FUNCTION public.handle_new_user_profile() SET search_path = public';
+    END IF;
+END $$;

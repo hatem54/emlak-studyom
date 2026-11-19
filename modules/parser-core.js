@@ -470,13 +470,14 @@
     function parseRooms(text, tableMap) {
         let tVal = tableMap['oda sayısı'] || tableMap['oda'] || tableMap['oda + salon sayısı'];
         if (tVal) {
-            let m = tVal.match(/(\d+)\s*[\+\,]\s*(\d+)/);
+            let m = tVal.match(/\b(\d{1,2})\s*[\+\,]\s*(\d)\b/);
             if (m) return `${m[1]}+${m[2]}`;
             if (/stüdyo|1\+0/i.test(tVal)) return '1+0';
             return tVal.trim();
         }
 
-        let mText = text.match(/(\d+)\s*[\+\,]\s*(\d+)/);
+        // Serbest metinde ondalık virgülü (örn: "2,5 milyon") yanlışlıkla oda sanma; yalnızca '+' biçimini yakala
+        let mText = text.match(/\b(\d{1,2})\s*\+\s*(\d)\b/);
         if (mText) return `${mText[1]}+${mText[2]}`;
         if (/stüdyo|1\+0/i.test(text)) return '1+0';
         return '';
@@ -1474,13 +1475,12 @@
 
             if (isOnline && rawText.length > 15) {
                 try {
-                    const controller = new AbortController();
-                    const timeoutId = setTimeout(() => controller.abort(), 20000);
-
                     const directApiKey = (typeof window.getGeminiApiKey === 'function') ? window.getGeminiApiKey() : '';
                     const workerUrl = 'https://small-lab-3110.emlakstudyomtr.workers.dev';
 
                     if (directApiKey && directApiKey.length > 20) {
+                        const gController = new AbortController();
+                        const gTimeoutId = setTimeout(() => gController.abort(), 14000);
                         try {
                             const prompt = `Aşağıdaki Türkçe emlak ilan metnini analiz et ve SADECE JSON formatında şu anahtarları içeren bir nesne döndür:
 {
@@ -1504,14 +1504,13 @@ ${rawText}`;
                             const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${directApiKey}`;
                             const gRes = await fetch(geminiUrl, {
                                 method: 'POST',
-                                signal: controller.signal,
+                                signal: gController.signal,
                                 headers: { 'Content-Type': 'application/json' },
                                 body: JSON.stringify({
                                     contents: [{ parts: [{ text: prompt }] }],
                                     generationConfig: { temperature: 0.2, maxOutputTokens: 2000 }
                                 })
                             });
-                            clearTimeout(timeoutId);
                             if (gRes.ok) {
                                 const gData = await gRes.json();
                                 let rawAiJson = gData.candidates?.[0]?.content?.parts?.[0]?.text || '';
@@ -1521,22 +1520,25 @@ ${rawText}`;
                                 }
                             }
                         } catch (gErr) {
-                            // Direct key hatası durumunda sessizce yerel sonuçlar geçerlidir
+                            // Direct key hatası durumunda Worker veya yerel sonuçlar devralır
+                        } finally {
+                            clearTimeout(gTimeoutId);
                         }
                     }
 
                     if (!ai) {
+                        const wController = new AbortController();
+                        const wTimeoutId = setTimeout(() => wController.abort(), 18000);
                         try {
                             const wRes = await fetch(workerUrl, {
                                 method: 'POST',
-                                signal: controller.signal,
+                                signal: wController.signal,
                                 headers: { 
                                     'Content-Type': 'application/json',
                                     'X-Emlak-Client': 'emlak-studiom-v7'
                                 },
                                 body: JSON.stringify({ action: 'parse', text: rawText })
                             });
-                            clearTimeout(timeoutId);
                             if (wRes.ok) {
                                 const wData = await wRes.json();
                                 if (wData && wData.success && wData.data) {
@@ -1552,6 +1554,8 @@ ${rawText}`;
                             }
                         } catch (wErr) {
                             // Worker hatası durumunda anlık yerel sonuçlar zaten uygulanmıştır
+                        } finally {
+                            clearTimeout(wTimeoutId);
                         }
                     }
                 } catch (aiErr) {

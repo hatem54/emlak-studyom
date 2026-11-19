@@ -9,11 +9,11 @@
     <link rel="icon" type="image/png" href="assets/logo/favicon.png">
     <link rel="shortcut icon" href="assets/logo/favicon.ico">
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.26.25/dist/sweetalert2.all.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet" integrity="sha384-iw3OoTErCYJJB9mCa8LNS2hbsQ7M3C0EpIsO/H5+EGAkPGc6rk+V8i04oW/K5xq0" crossorigin="anonymous">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.26.25/dist/sweetalert2.all.min.js" integrity="sha384-nLoOnA/BDh8A/jxqtckg4DumuCGOBYUnNJLZdQz/zfYNp3wcjGSoWTAzgko06G/2" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js" integrity="sha384-Rj26LVGvoeRVR6+mwQmFfcR3QOBEwT+ZmuCWpuiqeTzJpCs0ER4ITAWGb4Hiy3Ok" crossorigin="anonymous"></script>
     <script src="js/supabase-client.js" defer></script>
-    <script src="js/presence.js?v=20260819-1" defer></script>
+    <script src="js/presence.js?v=20261111-1" defer></script>
     <script src="js/subscription.js?v=20260819-1" defer></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Plus Jakarta Sans', sans-serif; }
@@ -444,14 +444,16 @@
         <div class="section" id="sectionErrorLogs">
             <div class="section-header">
                 <div class="section-title"><i class="fa-solid fa-shield-virus" style="color:#ef4444;"></i> Canlı Hata & Arıza Kayıtları</div>
-                <div style="display:flex; gap:10px; align-items:center;">
+                <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
                     <select id="errorFilterLevel" onchange="filterErrorLogs()" style="padding:6px 12px; border-radius:8px; border:1px solid #334155; background:var(--card-bg, #1e293b); color:var(--text-primary, #f8fafc); font-size:12px;">
                         <option value="ALL">Tüm Hatalar</option>
-                        <option value="UNRESOLVED" selected>Sadece Çözülmemişler</option>
+                        <option value="UNRESOLVED" selected>Sadece Açık Hatalar</option>
                         <option value="RESOLVED">Çözülenler</option>
                     </select>
-                    <button class="btn btn-secondary" onclick="loadErrorLogs()" style="padding:6px 12px; font-size:12px;"><i class="fa-solid fa-arrows-rotate"></i> Yenile</button>
-                    <button class="btn btn-secondary" onclick="clearAllResolvedErrors()" style="padding:6px 12px; font-size:12px; color:#ef4444;"><i class="fa-solid fa-trash-can"></i> Çözülenleri Temizle</button>
+                    <button class="btn btn-secondary" onclick="loadErrorLogs()" style="padding:6px 12px; font-size:12px;" title="Hata listesini yenile"><i class="fa-solid fa-arrows-rotate"></i> Yenile</button>
+                    <button class="btn btn-secondary" onclick="markAllErrorsResolved()" style="padding:6px 12px; font-size:12px; color:#10b981;" title="Listedeki tüm açık hataları çözüldü olarak işaretle"><i class="fa-solid fa-check-double"></i> Tümünü Kapat</button>
+                    <button class="btn btn-secondary" onclick="clearAllResolvedErrors()" style="padding:6px 12px; font-size:12px; color:#f59e0b;" title="Çözüldü olarak işaretlenen kayıtları sil"><i class="fa-solid fa-broom"></i> Çözülenleri Sil</button>
+                    <button class="btn btn-secondary" onclick="clearAllErrors()" style="padding:6px 12px; font-size:12px; color:#ef4444;" title="Açık ve kapalı tüm hata kayıtlarını kalıcı olarak sil"><i class="fa-solid fa-trash-can"></i> Tümünü Sil</button>
                 </div>
             </div>
             <div class="table-wrap">
@@ -486,6 +488,7 @@
         function initAdminTheme() {
             const savedTheme = localStorage.getItem('emlak_admin_theme') || 'dark';
             document.documentElement.setAttribute('data-theme', savedTheme);
+            document.body.classList.toggle('light-theme', savedTheme === 'light');
             updateAdminThemeBtn(savedTheme);
         }
 
@@ -493,6 +496,7 @@
             const current = document.documentElement.getAttribute('data-theme') || 'dark';
             const next = current === 'light' ? 'dark' : 'light';
             document.documentElement.setAttribute('data-theme', next);
+            document.body.classList.toggle('light-theme', next === 'light');
             localStorage.setItem('emlak_admin_theme', next);
             updateAdminThemeBtn(next);
         }
@@ -817,9 +821,10 @@
                 const user = ALL_USERS.find(u => u.id === userId);
                 if (!user) return;
 
+                const safeUserEmail = escapeHtml(user.email || '-');
                 const actionText = makePro 
-                    ? `<b>${user.email}</b> kullanıcısını doğrudan <b>SÜRESİZ PRO ABONE</b> yapmak istiyor musunuz?` 
-                    : `<b>${user.email}</b> kullanıcısının Pro aboneliğini <b>KAPATIP</b> Demo moda geçirmek istiyor musunuz?`;
+                    ? `<b>${safeUserEmail}</b> kullanıcısını doğrudan <b>SÜRESİZ PRO ABONE</b> yapmak istiyor musunuz?` 
+                    : `<b>${safeUserEmail}</b> kullanıcısının Pro aboneliğini <b>KAPATIP</b> Demo moda geçirmek istiyor musunuz?`;
 
                 const res = await Swal.fire({
                     title: makePro ? '♾️ Süresiz Pro Yap' : '❌ Kapat (Demo)',
@@ -1058,9 +1063,9 @@
                 }
 
                 tbody.innerHTML = feedbacks.map(f => {
-                    const stars = f.rating ? '⭐'.repeat(f.rating) : '-';
+                    const stars = f.rating ? '⭐'.repeat(Math.max(0, Math.min(5, parseInt(f.rating, 10) || 0))) : '-';
                     const date = f.created_at ? new Date(f.created_at).toLocaleString('tr-TR') : '-';
-                    const safeEmail = escapeHtml(f.email) || 'Anonim';
+                    const safeEmail = escapeHtml(f.user_email || f.email) || 'Anonim';
                     const safeMsg = escapeHtml(f.message) || '-';
                     return `
                         <tr>
@@ -1168,7 +1173,7 @@
                         <td>
                             <div style="display:flex; gap:6px;">
                                 <button class="btn btn-secondary" onclick="viewErrorDetails('${logId}')" style="padding:4px 8px; font-size:11px;" title="Detayları İncele"><i class="fa-solid fa-eye"></i> Detay</button>
-                                ${!isResolved ? `<button class="btn btn-primary" onclick="markErrorResolved('${logId}')" style="padding:4px 8px; font-size:11px; background:#10b981; border-color:#059669;" title="Çözüldü Olarak İşaretle"><i class="fa-solid fa-check"></i> Çözüldü</button>` : ''}
+                                ${!isResolved ? `<button class="btn btn-primary" onclick="markErrorResolved('${logId}')" style="padding:4px 8px; font-size:11px; background:#10b981; border-color:#059669;" title="Bu hatayı çözüldü olarak işaretle"><i class="fa-solid fa-check"></i> Çözüldü Yap</button>` : ''}
                             </div>
                         </td>
                     </tr>
@@ -1205,47 +1210,143 @@
             });
         }
 
+        function updateErrorStatBadge() {
+            const unresolvedCount = ALL_ERROR_LOGS.filter(l => !l.is_resolved).length;
+            const statEl = document.getElementById('statErrors');
+            if (statEl) {
+                statEl.textContent = unresolvedCount;
+                statEl.style.color = unresolvedCount > 0 ? '#ef4444' : '#10b981';
+            }
+        }
+
         async function markErrorResolved(id) {
             try {
                 if (!window.supabaseClient) return;
-                const { error } = await window.supabaseClient
+                const { data, error } = await window.supabaseClient
                     .from('error_logs')
                     .update({ is_resolved: true })
-                    .eq('id', id);
+                    .eq('id', id)
+                    .select('id');
 
                 if (error) throw error;
+                if (!data || data.length === 0) {
+                    throw new Error('Kayıt güncellenemedi. Admin oturumunuzu ve Supabase RLS yetkilerini kontrol edin.');
+                }
                 const target = ALL_ERROR_LOGS.find(l => l.id === id);
                 if (target) target.is_resolved = true;
                 filterErrorLogs();
-                const unresolvedCount = ALL_ERROR_LOGS.filter(l => !l.is_resolved).length;
-                const statEl = document.getElementById('statErrors');
-                if (statEl) {
-                    statEl.textContent = unresolvedCount;
-                    statEl.style.color = unresolvedCount > 0 ? '#ef4444' : '#10b981';
-                }
+                updateErrorStatBadge();
             } catch (e) {
                 console.error('Hata durumu güncellenemedi:', e);
                 Swal.fire({ icon: 'error', title: 'İşlem Başarısız', text: e.message });
             }
         }
 
-        async function clearAllResolvedErrors() {
-            if (!confirm('Çözülmüş olarak işaretlenen tüm hata kayıtlarını kalıcı olarak silmek istediğinize emin misiniz?')) {
+        async function markAllErrorsResolved() {
+            const openCount = ALL_ERROR_LOGS.filter(l => !l.is_resolved).length;
+            if (openCount === 0) {
+                Swal.fire({ icon: 'info', title: 'Açık Hata Yok', text: 'Tüm kayıtlar zaten çözüldü olarak işaretli.', timer: 1800, showConfirmButton: false });
+                return;
+            }
+            if (!confirm(`${openCount} adet açık hata kaydını "Çözüldü" olarak işaretlemek istediğinize emin misiniz?`)) {
                 return;
             }
             try {
                 if (!window.supabaseClient) return;
-                const { error } = await window.supabaseClient
+                const { data, error } = await window.supabaseClient
                     .from('error_logs')
-                    .delete()
-                    .eq('is_resolved', true);
+                    .update({ is_resolved: true })
+                    .eq('is_resolved', false)
+                    .select('id');
 
                 if (error) throw error;
+                if (!data || data.length === 0) {
+                    throw new Error('Kayıtlar güncellenemedi. Admin hesabıyla giriş yaptığınızdan emin olun.');
+                }
+                ALL_ERROR_LOGS.forEach(l => { l.is_resolved = true; });
+                filterErrorLogs();
+                updateErrorStatBadge();
+                Swal.fire({ icon: 'success', title: 'Tamamlandı', text: `${data.length} adet açık hata çözüldü olarak işaretlendi.`, timer: 1600, showConfirmButton: false });
+            } catch (e) {
+                console.error('Toplu güncelleme hatası:', e);
+                Swal.fire({ icon: 'error', title: 'İşlem Başarısız', text: e.message });
+            }
+        }
+
+        async function clearAllResolvedErrors() {
+            const resolvedCount = ALL_ERROR_LOGS.filter(l => l.is_resolved).length;
+            if (resolvedCount === 0) {
+                if (ALL_ERROR_LOGS.length === 0) {
+                    Swal.fire({ icon: 'info', title: 'Liste Boş', text: 'Silinecek hata kaydı yok.', timer: 1600, showConfirmButton: false });
+                    return;
+                }
+                const res = await Swal.fire({
+                    icon: 'info',
+                    title: 'Çözülen Kayıt Yok (Hepsi Açık)',
+                    html: `Listedeki <b>${ALL_ERROR_LOGS.length}</b> hata kaydının tamamı şu an <b>"Açık"</b> durumda.<br><br>Hepsini şimdi doğrudan silmek ister misiniz?`,
+                    showCancelButton: true,
+                    confirmButtonText: 'Evet, Tümünü Sil',
+                    cancelButtonText: 'Vazgeç',
+                    confirmButtonColor: '#ef4444',
+                    background: 'var(--card-bg, #1e293b)',
+                    color: 'var(--text-primary, #f8fafc)'
+                });
+                if (res.isConfirmed) {
+                    return clearAllErrors(true);
+                }
+                return;
+            }
+            if (!confirm(`Çözülmüş olarak işaretlenen ${resolvedCount} adet hata kaydını kalıcı olarak silmek istediğinize emin misiniz?`)) {
+                return;
+            }
+            try {
+                if (!window.supabaseClient) return;
+                const { data, error } = await window.supabaseClient
+                    .from('error_logs')
+                    .delete()
+                    .eq('is_resolved', true)
+                    .select('id');
+
+                if (error) throw error;
+                if (!data || data.length === 0) {
+                    throw new Error('Kayıtlar silinemedi. Supabase yetki (RLS) ayarlarını kontrol edin.');
+                }
                 ALL_ERROR_LOGS = ALL_ERROR_LOGS.filter(l => !l.is_resolved);
                 filterErrorLogs();
-                Swal.fire({ icon: 'success', title: 'Temizlendi', text: 'Çözülen arıza kayıtları temizlendi.', timer: 1500, showConfirmButton: false });
+                updateErrorStatBadge();
+                Swal.fire({ icon: 'success', title: 'Temizlendi', text: `${data.length} adet çözülen arıza kaydı silindi.`, timer: 1600, showConfirmButton: false });
             } catch (e) {
                 console.error('Kayıtlar silinemedi:', e);
+                Swal.fire({ icon: 'error', title: 'Hata', text: e.message });
+            }
+        }
+
+        async function clearAllErrors(skipConfirm = false) {
+            if (!ALL_ERROR_LOGS || ALL_ERROR_LOGS.length === 0) {
+                Swal.fire({ icon: 'info', title: 'Liste Boş', text: 'Silinecek hata kaydı bulunmuyor.', timer: 1500, showConfirmButton: false });
+                return;
+            }
+            if (!skipConfirm && !confirm(`Açık ve kapalı TÜM hata kayıtlarını (${ALL_ERROR_LOGS.length} adet) kalıcı olarak silmek istediğinize emin misiniz?`)) {
+                return;
+            }
+            try {
+                if (!window.supabaseClient) return;
+                const { data, error } = await window.supabaseClient
+                    .from('error_logs')
+                    .delete()
+                    .not('id', 'is', null)
+                    .select('id');
+
+                if (error) throw error;
+                if (!data || data.length === 0) {
+                    throw new Error('Kayıtlar silinemedi. Supabase RLS yönetim yetkisini kontrol edin.');
+                }
+                ALL_ERROR_LOGS = [];
+                filterErrorLogs();
+                updateErrorStatBadge();
+                Swal.fire({ icon: 'success', title: 'Tamamen Temizlendi', text: `${data.length} adet hata kaydı kalıcı olarak silindi.`, timer: 1600, showConfirmButton: false });
+            } catch (e) {
+                console.error('Tüm kayıtlar silinemedi:', e);
                 Swal.fire({ icon: 'error', title: 'Hata', text: e.message });
             }
         }

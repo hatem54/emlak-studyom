@@ -905,7 +905,11 @@
             const isCurrentlyPng = item.dataUrl.startsWith('data:image/png');
 
             // Aktif filigran durumu kontrolü
-            const shouldApplyLogo = !item.watermarkBaked && this.hasActiveWatermark();
+            // Not: applyToCanvas aktif öğenin dataUrl'sini ham kaynakla değiştirebilir; bu yüzden
+            // "damgalı veri hâlâ duruyor mu" ayrıca kontrol edilir (aksi halde logo kaybolurdu).
+            const logoActive = this.hasActiveWatermark();
+            const bakedIntact = !!(item.watermarkBaked && item.dataUrl && item.dataUrl !== (item.rawOriginalDataUrl || item.originalDataUrl));
+            let shouldApplyLogo = logoActive && !bakedIntact;
 
             // Fotoğraf ayarları kontrolü (filtreler, ışık, renk, netleştirme vb.)
             let adj = item.photoAdjustments || null;
@@ -942,6 +946,8 @@
             }
 
             // Temiz tuval üzerinden asenkron re-encode (ham orijinal kaynağı koru)
+            // Ham kaynaktan çizildiği için logo aktifse her zaman yeniden basılmalı (damgalı olsa bile)
+            shouldApplyLogo = logoActive;
             const rawExportUrl = item.rawOriginalDataUrl || item.originalDataUrl || item.dataUrl;
             const img = await this.loadImageAsync(rawExportUrl);
 
@@ -3029,15 +3035,32 @@
                 const pageW = 210;
                 const pageH = 297;
 
-                // Emlak Detayları
-                const titleVal = document.getElementById('title')?.value || 'Özel Emlak Portföyü';
-                const adaVal = document.getElementById('ada')?.value || targets[0]?.parcelMeta?.ada || '-';
-                const parselVal = document.getElementById('parsel')?.value || targets[0]?.parcelMeta?.parsel || '-';
-                const priceVal = document.getElementById('price')?.value || '';
-                const detailsVal = document.getElementById('details')?.value || '';
-                const districtVal = document.getElementById('district')?.value || '';
-                const cityVal = document.getElementById('city')?.value || '';
-                const locationStr = [districtVal, cityVal].filter(Boolean).join(' / ') || 'Türkiye';
+                // Emlak Detayları (form alanları dinamik ID'lerle okunur; seslendirme modülüyle aynı yedek zinciri)
+                const _pdfPick = (ids) => {
+                    for (const id of ids) {
+                        const el = document.getElementById(id);
+                        if (!el) continue;
+                        const v = (el.value !== undefined ? el.value : el.textContent) || '';
+                        if (String(v).trim()) return String(v).trim();
+                    }
+                    return '';
+                };
+                const _trAscii = (s) => String(s || '').replace(/[\u0100-\uffff]/g, c => ({ 'ğ':'g','Ğ':'G','ı':'i','İ':'I','ö':'o','Ö':'O','ü':'u','Ü':'U','ş':'s','Ş':'S','ç':'c','Ç':'C','₺':'TL' }[c] || ''));
+                const _imgFmt = (url) => {
+                    const m = /^data:image\/(png|jpe?g|webp)/i.exec(String(url || ''));
+                    if (!m) return 'JPEG';
+                    const t = m[1].toLowerCase();
+                    return t === 'png' ? 'PNG' : (t === 'webp' ? 'WEBP' : 'JPEG');
+                };
+                const _adaParsel = _pdfPick(['c_adaParsel', 'adaParselInput']).split(/[\/,|]/);
+                const titleVal = _pdfPick(['titleInput', 'canvaTitle', 'statusInput', 'elBadge']) || 'Özel Emlak Portföyü';
+                const adaVal = _pdfPick(['f_ada', 'adaInput']) || (_adaParsel[0] || '').replace(/\D+/g, '') || targets[0]?.parcelMeta?.ada || '-';
+                const parselVal = _pdfPick(['f_parsel', 'parselInput']) || (_adaParsel[1] || '').replace(/\D+/g, '') || targets[0]?.parcelMeta?.parsel || '-';
+                const priceVal = _trAscii(_pdfPick(['priceInput', 'elPrice']));
+                const detailsVal = _pdfPick(['descInput']);
+                const districtVal = _pdfPick(['locationInput', 'f_konum', 'locSelect']);
+                const cityVal = '';
+                const locationStr = _trAscii([districtVal, cityVal].filter(Boolean).join(' / ') || 'Turkiye');
                 const logoUrl = this.getCurrentLogoUrl();
 
                 // ------------------ SAYFA 1: KAPAK & ANA GÖRSEL ------------------
@@ -3052,12 +3075,37 @@
                 doc.setFontSize(8.5);
                 doc.setFont('helvetica', 'normal');
                 doc.setTextColor(148, 163, 184);
-                doc.text('PROFESYONEL PORTFOY SUNUM BROSURO', 14, 19);
+                doc.text('PROFESYONEL PORTFOY SUNUM BROSURU', 14, 19);
 
-                // Logo varsa sağ üste koy
+                const _addPdfImageContain = async (dataUrl, boxX, boxY, boxW, boxH) => {
+                    if (!dataUrl) return;
+                    let iw = boxW, ih = boxH;
+                    try {
+                        await new Promise((resolve) => {
+                            const im = new Image();
+                            im.onload = () => {
+                                if (im.naturalWidth > 0 && im.naturalHeight > 0) {
+                                    iw = im.naturalWidth;
+                                    ih = im.naturalHeight;
+                                }
+                                resolve();
+                            };
+                            im.onerror = resolve;
+                            im.src = dataUrl;
+                        });
+                    } catch (_) {}
+                    const ratio = Math.min(boxW / iw, boxH / ih);
+                    const dw = iw * ratio;
+                    const dh = ih * ratio;
+                    const dx = boxX + (boxW - dw) / 2;
+                    const dy = boxY + (boxH - dh) / 2;
+                    doc.addImage(dataUrl, _imgFmt(dataUrl), dx, dy, dw, dh);
+                };
+
+                // Logo varsa sağ üste oranını koruyarak koy
                 if (logoUrl) {
                     try {
-                        doc.addImage(logoUrl, 'PNG', pageW - 38, 4, 24, 18);
+                        await _addPdfImageContain(logoUrl, pageW - 38, 4, 24, 18);
                     } catch(eLogo){}
                 }
 
@@ -3096,10 +3144,12 @@
                 doc.text(locationStr, 75, 58);
                 doc.text(new Date().toLocaleDateString('tr-TR'), 150, 58);
 
-                // Ana Hero Görseli (İlk Çekim / Tepe Açısı)
+                // Ana Hero Görseli (Oran korunarak ortalanır)
                 if (targets[0] && targets[0].dataUrl) {
                     try {
-                        doc.addImage(targets[0].dataUrl, 'JPEG', 14, 68, pageW - 28, 110);
+                        doc.setFillColor(248, 250, 252);
+                        doc.rect(14, 68, pageW - 28, 110, 'F');
+                        await _addPdfImageContain(targets[0].dataUrl, 14, 68, pageW - 28, 110);
                         doc.setDrawColor(203, 213, 225);
                         doc.rect(14, 68, pageW - 28, 110, 'S');
                     } catch(eImg){}
@@ -3119,58 +3169,63 @@
                 const splitText = doc.splitTextToSize(cleanDetails, pageW - 28);
                 doc.text(splitText.slice(0, 8), 14, 198);
 
+                const remainingPhotos = targets.slice(1);
+                const extraPagesCount = Math.ceil(remainingPhotos.length / 4);
+                const totalPages = 1 + extraPagesCount;
+
                 // Sayfa 1 Altbilgi
                 doc.setDrawColor(226, 232, 240);
                 doc.line(14, pageH - 14, pageW - 14, pageH - 14);
                 doc.setFontSize(8);
                 doc.setTextColor(148, 163, 184);
-                doc.text('Emlak Studyom Proje Ciktisi • Sayfa 1 / ' + (targets.length > 1 ? '2' : '1'), 14, pageH - 8);
+                doc.text(`Emlak Studyom Proje Ciktisi • Sayfa 1 / ${totalPages}`, 14, pageH - 8);
 
-                // ------------------ SAYFA 2: ÇOKLU AÇILAR & 3B DRONE ÇEKİMLERİ ------------------
-                if (targets.length > 1) {
+                // ------------------ SAYFA 2+: TÜM SEÇİLİ GÖRSELLER (4'LÜ IZGARALAR HALİNDE) ------------------
+                const gridCoords = [
+                    { x: 14, y: 28, w: 86, h: 56 },
+                    { x: 110, y: 28, w: 86, h: 56 },
+                    { x: 14, y: 92, w: 86, h: 56 },
+                    { x: 110, y: 92, w: 86, h: 56 }
+                ];
+
+                for (let pg = 0; pg < extraPagesCount; pg++) {
                     doc.addPage();
+                    const pageNo = pg + 2;
 
-                    // Üst Başlık
                     doc.setFillColor(15, 23, 42);
                     doc.rect(0, 0, pageW, 20, 'F');
                     doc.setTextColor(255, 255, 255);
                     doc.setFontSize(11);
                     doc.setFont('helvetica', 'bold');
-                    doc.text('3B DRONE VE CEVRE ACI DETAYLARI', 14, 13);
+                    doc.text(extraPagesCount > 1 ? `PORTFOY GORSELLERI (${pg + 1}/${extraPagesCount})` : '3B DRONE VE CEVRE ACI DETAYLARI', 14, 13);
 
-                    // 4'lü Görsel Izgarası (2x2)
-                    const subPhotos = targets.slice(1, 5);
-                    const gridCoords = [
-                        { x: 14, y: 28, w: 86, h: 56 },
-                        { x: 110, y: 28, w: 86, h: 56 },
-                        { x: 14, y: 92, w: 86, h: 56 },
-                        { x: 110, y: 92, w: 86, h: 56 }
-                    ];
-
-                    subPhotos.forEach((photo, pIdx) => {
+                    const chunk = remainingPhotos.slice(pg * 4, pg * 4 + 4);
+                    for (let pIdx = 0; pIdx < chunk.length; pIdx++) {
+                        const photo = chunk[pIdx];
                         const coord = gridCoords[pIdx];
-                        if (coord && photo.dataUrl) {
+                        if (coord && photo && photo.dataUrl) {
                             try {
-                                doc.addImage(photo.dataUrl, 'JPEG', coord.x, coord.y, coord.w, coord.h);
+                                doc.setFillColor(248, 250, 252);
+                                doc.rect(coord.x, coord.y, coord.w, coord.h, 'F');
+                                await _addPdfImageContain(photo.dataUrl, coord.x, coord.y, coord.w, coord.h - 6);
                                 doc.setDrawColor(203, 213, 225);
                                 doc.rect(coord.x, coord.y, coord.w, coord.h, 'S');
 
-                                // Açı Etiketi
                                 doc.setFillColor(15, 23, 42);
                                 doc.rect(coord.x, coord.y + coord.h - 6, coord.w, 6, 'F');
                                 doc.setTextColor(255, 255, 255);
                                 doc.setFontSize(7.5);
-                                doc.text((photo.title || `Aci ${pIdx + 1}`).substring(0, 30), coord.x + 3, coord.y + coord.h - 2);
+                                const globalNum = pg * 4 + pIdx + 1;
+                                doc.text(_trAscii(photo.title || `Gorsel ${globalNum}`).substring(0, 30), coord.x + 3, coord.y + coord.h - 2);
                             } catch(eSub){}
                         }
-                    });
+                    }
 
-                    // Sayfa 2 Altbilgi
                     doc.setDrawColor(226, 232, 240);
                     doc.line(14, pageH - 14, pageW - 14, pageH - 14);
                     doc.setFontSize(8);
                     doc.setTextColor(148, 163, 184);
-                    doc.text('Emlak Studyom Proje Ciktisi • Sayfa 2 / 2', 14, pageH - 8);
+                    doc.text(`Emlak Studyom Proje Ciktisi • Sayfa ${pageNo} / ${totalPages}`, 14, pageH - 8);
                 }
 
                 // PDF Kaydet

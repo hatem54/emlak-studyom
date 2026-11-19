@@ -1641,9 +1641,26 @@ document.addEventListener('keydown', function(e){
 });
 
 // ==================== SIFIRLA ====================
-function _kolajSifirla(){
-    if(!_kolajAktif){ alert('⚠️ Önce şablon seç'); return; }
-    if(!confirm('🔄 Tüm değişiklikler silinecek. Devam?')) return;
+async function _kolajSifirla(){
+    if(!_kolajAktif){
+        if (typeof window.showAppToast === 'function') window.showAppToast('Önce şablon seçin', 'warning');
+        else alert('Önce şablon seçin');
+        return;
+    }
+    let confirmed = false;
+    if (window.AppDialog && typeof window.AppDialog.confirm === 'function') {
+        confirmed = await window.AppDialog.confirm({
+            title: 'Kolajı Sıfırla',
+            message: 'Tüm değişiklikler sıfırlanacak. Devam etmek istiyor musunuz?',
+            icon: 'fa-rotate-left',
+            confirmText: 'Sıfırla',
+            cancelText: 'Vazgeç',
+            danger: true
+        });
+    } else {
+        confirmed = confirm('Tüm değişiklikler silinecek. Devam etmek istiyor musunuz?');
+    }
+    if (!confirmed) return;
     var s = KOLAJ_SABLONLARI.find(function(x){ return x.id === _kolajAktif; });
     if(s){
         _cerceveSecimKaldir();

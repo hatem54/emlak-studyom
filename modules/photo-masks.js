@@ -1714,6 +1714,22 @@
             }));
         }
 
+        _readScaledMaskData(maskCanvas, targetW, targetH) {
+            if (!maskCanvas) return null;
+            if (maskCanvas.width === targetW && maskCanvas.height === targetH) {
+                return maskCanvas.getContext('2d').getImageData(0, 0, targetW, targetH).data;
+            }
+            if (!this._scaleTempCanvas) this._scaleTempCanvas = document.createElement('canvas');
+            if (this._scaleTempCanvas.width !== targetW || this._scaleTempCanvas.height !== targetH) {
+                this._scaleTempCanvas.width = targetW;
+                this._scaleTempCanvas.height = targetH;
+            }
+            const sCtx = this._scaleTempCanvas.getContext('2d');
+            sCtx.clearRect(0, 0, targetW, targetH);
+            sCtx.drawImage(maskCanvas, 0, 0, targetW, targetH);
+            return sCtx.getImageData(0, 0, targetW, targetH).data;
+        }
+
         getCompositeAiBuffer() {
             const activeAi = this.masks.filter(m => m.active && (m.type.startsWith('ai_') || m.type === 'brush') && m.aiMaskCanvas);
             if (activeAi.length === 0) return null;
@@ -1723,9 +1739,8 @@
             const buffer = new Uint8Array(w * h * 4);
 
             for (let k = 0; k < Math.min(4, activeAi.length); k++) {
-                const maskCanvas = activeAi[k].aiMaskCanvas;
-                const mCtx = maskCanvas.getContext('2d');
-                const mData = mCtx.getImageData(0, 0, w, h).data;
+                const mData = this._readScaledMaskData(activeAi[k].aiMaskCanvas, w, h);
+                if (!mData) continue;
                 for (let i = 0; i < w * h; i++) {
                     buffer[i * 4 + k] = mData[i * 4 + 3];
                 }
@@ -1762,9 +1777,8 @@
             const hasPerson = activeAi.some(m => m.type === 'ai_person');
 
             for (let k = 0; k < Math.min(4, activeAi.length); k++) {
-                const maskCanvas = activeAi[k].aiMaskCanvas;
-                const mCtx = maskCanvas.getContext('2d');
-                const mData = mCtx.getImageData(0, 0, w, h).data;
+                const mData = this._readScaledMaskData(activeAi[k].aiMaskCanvas, w, h);
+                if (!mData) continue;
                 for (let i = 0; i < w * h; i++) {
                     d[i * 4 + k] = mData[i * 4 + 3];
                 }
@@ -1906,9 +1920,8 @@
             if (e.button !== undefined && e.button !== 0) return;
             if (window.spaceBarPressed) return; // Space basılıyken pan yapılır, maske çizilmez!
 
-            // Klonlama damgası aktifse tüm tuval tıklamasını klonlama motoruna yönlendir
+            // Klonlama damgası aktifse kendisi doğrudan svgEl olayını işler; maske katmanı araya girmez
             if (window.CloneStamp && window.CloneStamp.isActive) {
-                window.CloneStamp.handlePointerDown(e);
                 return;
             }
 
@@ -2551,15 +2564,30 @@
         // ====================================================================
         getState() {
             return {
-                masks: this.masks.map(m => ({
-                    id: m.id,
-                    type: m.type,
-                    name: m.name,
-                    active: m.active,
-                    showOverlay: m.showOverlay,
-                    showPin: m.showPin !== undefined ? m.showPin : true,
-                    settings: { ...m.settings }
-                })),
+                masks: this.masks.map(m => {
+                    let aiMaskDataUrl = null;
+                    let rawMaskDataUrl = null;
+                    try {
+                        if (m.aiMaskCanvas && m.aiMaskCanvas.width > 0 && m.aiMaskCanvas.height > 0) {
+                            aiMaskDataUrl = m.aiMaskCanvas.toDataURL('image/png');
+                        }
+                        if (m.rawMaskCanvas && m.rawMaskCanvas.width > 0 && m.rawMaskCanvas.height > 0) {
+                            rawMaskDataUrl = m.rawMaskCanvas.toDataURL('image/png');
+                        }
+                    } catch (_) {}
+                    return {
+                        id: m.id,
+                        type: m.type,
+                        aiType: m.aiType,
+                        name: m.name,
+                        active: m.active,
+                        showOverlay: m.showOverlay,
+                        showPin: m.showPin !== undefined ? m.showPin : true,
+                        settings: { ...m.settings },
+                        aiMaskDataUrl,
+                        rawMaskDataUrl
+                    };
+                }),
                 selectedMaskId: this.selectedMaskId,
                 radial: this.radial,
                 linear: this.linear,
@@ -2567,13 +2595,36 @@
             };
         }
 
+        _restoreMaskCanvasFromDataUrl(dataUrl, assignFn) {
+            if (!dataUrl || typeof dataUrl !== 'string') return;
+            const img = new Image();
+            img.onload = () => {
+                const c = document.createElement('canvas');
+                c.width = img.naturalWidth || img.width || 1;
+                c.height = img.naturalHeight || img.height || 1;
+                c.getContext('2d').drawImage(img, 0, 0);
+                assignFn(c);
+                this.notifyChange();
+            };
+            img.src = dataUrl;
+        }
+
         setState(state) {
             if (!state) return;
             if (state.masks && Array.isArray(state.masks)) {
-                this.masks = state.masks.map(m => ({
-                    ...m,
-                    settings: { ...m.settings }
-                }));
+                this.masks = state.masks.map(m => {
+                    const cloned = {
+                        ...m,
+                        settings: { ...m.settings }
+                    };
+                    if (m.aiMaskDataUrl && !cloned.aiMaskCanvas) {
+                        this._restoreMaskCanvasFromDataUrl(m.aiMaskDataUrl, (c) => { cloned.aiMaskCanvas = c; });
+                    }
+                    if (m.rawMaskDataUrl && !cloned.rawMaskCanvas) {
+                        this._restoreMaskCanvasFromDataUrl(m.rawMaskDataUrl, (c) => { cloned.rawMaskCanvas = c; });
+                    }
+                    return cloned;
+                });
                 this.selectedMaskId = state.selectedMaskId || (this.masks[0] ? this.masks[0].id : null);
             } else {
                 if (state.radial) {

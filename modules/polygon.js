@@ -220,7 +220,7 @@ document.addEventListener('mousedown', e => {
     if(typeof drawMode !== 'undefined' && drawMode !== 'off') return;
     
     // Kaydırma (Pan), Space-pan, Görsel Sürükleme veya Serbest modda mavi seçim kutusunu engelle
-    if (window.spaceBarPressed || window._isPhotoDragging || window.isPhotoLocked === false || document.body.classList.contains('photo-unlocked') || e.altKey || document.querySelector('.tb-image-frame.tb-pan-mode')) {
+    if (window.spaceBarPressed || window._isPhotoDragging || window._isThreeDDragging || document.querySelector('.dragging') || window.isPhotoLocked === false || document.body.classList.contains('photo-unlocked') || e.altKey || document.querySelector('.tb-image-frame.tb-pan-mode')) {
         return;
     }
 
@@ -387,11 +387,20 @@ const handleMarqueeEnd = function(e) {
             
             if(selectedAny && lastEl) {
                 if(typeof window.selectedEl !== 'undefined') window.selectedEl = lastEl;
+                if (window.TemplateBuilder && Array.isArray(window.selectedElements)) {
+                    const selectedFrames = window.selectedElements.filter(f => f && f.classList && f.classList.contains('tb-image-frame'));
+                    const primaryFrame = selectedFrames.length > 0 ? selectedFrames[selectedFrames.length - 1] : null;
+                    window.TemplateBuilder.selectedFrame = primaryFrame;
+                    if (primaryFrame && typeof window.TemplateBuilder.syncSettingsPanelWithFrame === 'function') {
+                        window.TemplateBuilder.syncSettingsPanelWithFrame(primaryFrame);
+                    }
+                }
                 if (typeof window.saveDrawEdit === 'function' && typeof editingDrawIndex !== 'undefined' && editingDrawIndex >= 0) {
                     try { window.saveDrawEdit(); } catch(e) {}
                 }
                 if(typeof updateGroupUI === 'function') updateGroupUI();
                 if(typeof window.updateMultiSelectUI === 'function') window.updateMultiSelectUI();
+                if(typeof window.updateDockContextUI === 'function') window.updateDockContextUI(lastEl);
                 if(typeof updateDrawHistory === 'function') updateDrawHistory();
                 if(typeof renderLayers === 'function') renderLayers();
                 
@@ -477,6 +486,11 @@ const handleMarqueeEnd = function(e) {
                 '#threeDGizmoOverlay, #threeDCornerPinOverlay, #threeDCanvasBadge, #dock3DStepperPopover, ' +
                 '.three-d-context-menu, #threeDTextureSectionHost, .three-d-section, #threeDTextureSection'
             )) {
+                return;
+            }
+
+            // 🛡️ Sürükleme aktifken veya az önce bittiyse window capture mouseup seçimi düşürmesin
+            if (window._isThreeDDragging || (window._justFinishedThreeDDragUntil && Date.now() < window._justFinishedThreeDDragUntil) || document.querySelector('.dragging')) {
                 return;
             }
 

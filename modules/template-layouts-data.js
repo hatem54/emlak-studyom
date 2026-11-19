@@ -2965,7 +2965,7 @@
         "h": 0.9,
         "radius": 0,
         "shadow": 16,
-        "shape": "window-rounded",
+        "shape": "arch-window",
         "blend": "none"
       },
       {
@@ -3023,7 +3023,7 @@
         "h": 0.9,
         "radius": 0,
         "shadow": 16,
-        "shape": "arch-oriental",
+        "shape": "arch-horseshoe",
         "blend": "none"
       },
       {
@@ -3379,7 +3379,7 @@
         "h": 0.9,
         "radius": 0,
         "shadow": 20,
-        "shape": "shield-heraldic",
+        "shape": "shield-medieval",
         "blend": "none"
       },
       {
@@ -3717,7 +3717,7 @@
         "h": 0.86,
         "radius": 0,
         "shadow": 16,
-        "shape": "parallelogram-right",
+        "shape": "polygon-parallelogram",
         "blend": "none"
       },
       {
@@ -3727,7 +3727,7 @@
         "h": 0.86,
         "radius": 0,
         "shadow": 16,
-        "shape": "parallelogram-right",
+        "shape": "polygon-parallelogram",
         "blend": "none"
       }
     ],

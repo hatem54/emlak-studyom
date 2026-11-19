@@ -52,9 +52,11 @@
             const nativeW = (photoCanvas && photoCanvas.width > 0) ? photoCanvas.width : (drawCanvas ? drawCanvas.width : 1920);
             const nativeH = (photoCanvas && photoCanvas.height > 0) ? photoCanvas.height : (drawCanvas ? drawCanvas.height : 1080);
 
-            // Geçici Ultra-HD Çözünürlükte Render
-            const curW = canvasEl.width;
-            const curH = canvasEl.height;
+            // Geçici Ultra-HD Çözünürlükte Render (HiDPI: pixelRatio geçici 1'e çekilir, katlanma önlenir)
+            const prevPR = (typeof renderer.getPixelRatio === 'function') ? renderer.getPixelRatio() : 1;
+            const curW = Math.round(canvasEl.width / prevPR);
+            const curH = Math.round(canvasEl.height / prevPR);
+            if (typeof renderer.setPixelRatio === 'function') renderer.setPixelRatio(1);
             renderer.setSize(nativeW, nativeH, false);
             camera.aspect = nativeW / nativeH;
             camera.updateProjectionMatrix();
@@ -68,6 +70,7 @@
             }
 
             // Boyutları orijinal durumuna geri getir
+            if (typeof renderer.setPixelRatio === 'function') renderer.setPixelRatio(prevPR);
             renderer.setSize(curW, curH, false);
             camera.aspect = curW / curH;
             camera.updateProjectionMatrix();
@@ -147,13 +150,15 @@
                 if (e.planeGroup) e.planeGroup.visible = (e.visible !== false);
             });
 
-            const curW = canvasEl.width;
-            const curH = canvasEl.height;
+            const prevPR = (typeof renderer.getPixelRatio === 'function') ? renderer.getPixelRatio() : 1;
+            const curW = Math.round(canvasEl.width / prevPR);
+            const curH = Math.round(canvasEl.height / prevPR);
             const curAspect = camera.aspect;
 
-            const outW = targetW || curW;
-            const outH = targetH || curH;
+            const outW = targetW || canvasEl.width;
+            const outH = targetH || canvasEl.height;
 
+            if (typeof renderer.setPixelRatio === 'function') renderer.setPixelRatio(1);
             renderer.setSize(outW, outH, false);
             camera.aspect = outW / outH;
             camera.updateProjectionMatrix();
@@ -162,6 +167,7 @@
             return {
                 canvas: canvasEl,
                 restore: () => {
+                    if (typeof renderer.setPixelRatio === 'function') renderer.setPixelRatio(prevPR);
                     renderer.setSize(curW, curH, false);
                     camera.aspect = curAspect;
                     camera.updateProjectionMatrix();

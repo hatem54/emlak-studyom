@@ -456,12 +456,16 @@
      * Seçili Ögeyi En Öne Getir
      */
     window.bringToFrontSelected = function() {
+        const hasMulti2D = window.selectedElements && window.selectedElements.length > 1;
+        const is3DSel = window.ThreeDEngine && typeof window.ThreeDEngine.isSelected === 'function' && window.ThreeDEngine.isSelected();
+        if (hasMulti2D && typeof window.multiSelectBringToFront === 'function') {
+            window.multiSelectBringToFront();
+            return;
+        }
         // 🌟 3D Öge Seçiliyse: 3D ögeyi en öne getir
-        if (window.ThreeDEngine && typeof window.ThreeDEngine.isSelected === 'function' && window.ThreeDEngine.isSelected()) {
-            if (typeof window.ThreeDEngine.bringElementToFront === 'function') {
-                window.ThreeDEngine.bringElementToFront();
-                return;
-            }
+        if (is3DSel && typeof window.ThreeDEngine.bringElementToFront === 'function') {
+            window.ThreeDEngine.bringElementToFront();
+            return;
         }
         // 2D Eleman Seçiliyse: 2D ögeyi en öne getir
         const el = DockContextManager.selectedElement || document.querySelector('.el-selected') || window.selectedEl || (window.selectedElements && window.selectedElements[0]);
@@ -481,15 +485,16 @@
      * Seçili Ögeyi En Arkaya Gönder
      */
     window.sendToBackSelected = function() {
+        const hasMulti2D = window.selectedElements && window.selectedElements.length > 1;
+        if (hasMulti2D && typeof window.multiSelectSendToBack === 'function') {
+            window.multiSelectSendToBack();
+            return;
+        }
         if (window.ThreeDEngine && typeof window.ThreeDEngine.isSelected === 'function' && window.ThreeDEngine.isSelected()) {
             if (typeof window.ThreeDEngine.sendElementToBack === 'function') {
                 window.ThreeDEngine.sendElementToBack();
                 return;
             }
-        }
-        if (typeof window.multiSelectSendToBack === 'function' && window.selectedElements && window.selectedElements.length > 1) {
-            window.multiSelectSendToBack();
-            return;
         }
         const el = DockContextManager.selectedElement || document.querySelector('.el-selected') || window.selectedEl || (window.selectedElements && window.selectedElements[0]);
         if (!el) return;
@@ -539,8 +544,8 @@
             }
         }
 
-        // 2. 🌟 Tekil 3D Öge Seçiliyse Sil
-        if (window.ThreeDEngine && typeof window.ThreeDEngine.isSelected === 'function' && window.ThreeDEngine.isSelected()) {
+        // 2. 🌟 Tekil 3D Öge Seçiliyse Sil (Çoklu 3D silindiyse yeni otomatik seçilen ögeyi hemen silme)
+        else if (window.ThreeDEngine && typeof window.ThreeDEngine.isSelected === 'function' && window.ThreeDEngine.isSelected()) {
             const activeEl = window.ThreeDEngine.getActiveElement ? window.ThreeDEngine.getActiveElement() : null;
             if (activeEl && !activeEl.locked) {
                 if (typeof window.ThreeDEngine.deleteElement === 'function') {
@@ -794,16 +799,22 @@
     window.resetSelectedElementAngles = function() {
         // 1. 3D Öge Seçiliyse:
         if (window.ThreeDEngine && typeof window.ThreeDEngine.isSelected === 'function' && window.ThreeDEngine.isSelected()) {
-            const el = window.ThreeDEngine.getActiveElement ? window.ThreeDEngine.getActiveElement() : null;
-            if (el) {
-                el.orientation = 'flat';
-                el.planePitch = 0;
-                el.planeYaw = 0;
-                el.planeRoll = 0;
-                el.planeLocalRot = 0;
-                el.planeElevation = 0;
-                el.itemPitch = 0;
-                el.itemRoll = 0;
+            const targets3D = (typeof window.getSelected3DTargets === 'function')
+                ? window.getSelected3DTargets()
+                : (window.ThreeDEngine.getActiveElement && window.ThreeDEngine.getActiveElement() ? [window.ThreeDEngine.getActiveElement()] : []);
+            if (targets3D.length > 0) {
+                targets3D.forEach(el => {
+                    el.orientation = 'flat';
+                    el.planePitch = 0;
+                    el.planeYaw = 0;
+                    el.planeRoll = 0;
+                    el.planeLocalRot = 0;
+                    el.planeElevation = 0;
+                    el.itemPitch = 0;
+                    el.itemRoll = 0;
+                    if (typeof window.ThreeDEngine.updatePlaneTransform === 'function') window.ThreeDEngine.updatePlaneTransform(el);
+                    if (typeof window.ThreeDEngine.updateContentTransform === 'function') window.ThreeDEngine.updateContentTransform(el);
+                });
                 if (window.ThreeDEngine.state) {
                     window.ThreeDEngine.state.orientation = 'flat';
                     window.ThreeDEngine.state.planePitch = 0;
@@ -814,8 +825,6 @@
                     window.ThreeDEngine.state.itemPitch = 0;
                     window.ThreeDEngine.state.itemRoll = 0;
                 }
-                if (typeof window.ThreeDEngine.updatePlaneTransform === 'function') window.ThreeDEngine.updatePlaneTransform(el);
-                if (typeof window.ThreeDEngine.updateContentTransform === 'function') window.ThreeDEngine.updateContentTransform(el);
                 if (typeof window.ThreeDEngine.updateGizmoPositions === 'function') window.ThreeDEngine.updateGizmoPositions();
                 if (typeof window.ThreeDEngine.syncControlsUI === 'function') window.ThreeDEngine.syncControlsUI();
                 if (typeof window.ThreeDEngine.requestRender === 'function') window.ThreeDEngine.requestRender();
@@ -826,12 +835,17 @@
         }
 
         // 2. 2D Öge Seçiliyse:
-        const el = DockContextManager.selectedElement || document.querySelector('.el-selected') || window.selectedEl || (window.selectedElements && window.selectedElements[0]);
-        if (el) {
-            el.setAttribute('data-rotation', '0');
-            el.dataset.rotation = '0';
-            const currentScale = el.dataset.scale || 1;
-            el.style.transform = `rotate(0deg) scale(${currentScale})`;
+        const fallback = DockContextManager.selectedElement || document.querySelector('.el-selected') || window.selectedEl;
+        const targets = (window.selectedElements && window.selectedElements.length > 1)
+            ? window.selectedElements.filter(Boolean)
+            : (fallback ? [fallback] : []);
+        if (targets.length > 0) {
+            targets.forEach(el => {
+                el.setAttribute('data-rotation', '0');
+                el.dataset.rotation = '0';
+                const currentScale = el.dataset.scale || 1;
+                el.style.transform = `rotate(0deg) scale(${currentScale})`;
+            });
             const rotSlider = document.getElementById('elRotate');
             const rotVal = document.getElementById('elRotateVal');
             if (rotSlider) rotSlider.value = 0;
@@ -851,22 +865,35 @@
 
         // 1. 3D Öge Seçiliyse:
         if (window.ThreeDEngine && typeof window.ThreeDEngine.isSelected === 'function' && window.ThreeDEngine.isSelected()) {
-            const el = window.ThreeDEngine.getActiveElement ? window.ThreeDEngine.getActiveElement() : null;
-            if (el) {
-                const cur = el.planeLocalRot || 0;
-                let next = Math.round(cur / deg) * deg + deg;
-                while (next > 180) next -= 360;
-                while (next < -180) next += 360;
-                let deltaYaw = next - cur;
-                while (deltaYaw > 180) deltaYaw -= 360;
-                while (deltaYaw < -180) deltaYaw += 360;
+            const targets3D = (typeof window.getSelected3DTargets === 'function')
+                ? window.getSelected3DTargets()
+                : (window.ThreeDEngine.getActiveElement && window.ThreeDEngine.getActiveElement() ? [window.ThreeDEngine.getActiveElement()] : []);
+            if (targets3D.length > 0) {
+                const activeEl = (window.ThreeDEngine.getActiveElement ? window.ThreeDEngine.getActiveElement() : null) || targets3D[0];
+                let primaryNext = 0;
+                let primaryDelta = 0;
 
-                el.planeLocalRot = next;
+                targets3D.forEach(el => {
+                    const cur = el.planeLocalRot || 0;
+                    let next = Math.round(cur / deg) * deg + deg;
+                    while (next > 180) next -= 360;
+                    while (next < -180) next += 360;
+                    let deltaYaw = next - cur;
+                    while (deltaYaw > 180) deltaYaw -= 360;
+                    while (deltaYaw < -180) deltaYaw += 360;
+
+                    el.planeLocalRot = next;
+                    if (el === activeEl) {
+                        primaryNext = next;
+                        primaryDelta = deltaYaw;
+                    }
+                    if (typeof window.ThreeDEngine.updateContentTransform === 'function') {
+                        window.ThreeDEngine.updateContentTransform(el);
+                    }
+                });
+
                 if (window.ThreeDEngine.state) {
-                    window.ThreeDEngine.state.planeLocalRot = next;
-                }
-                if (typeof window.ThreeDEngine.updateContentTransform === 'function') {
-                    window.ThreeDEngine.updateContentTransform(el);
+                    window.ThreeDEngine.state.planeLocalRot = primaryNext;
                 }
                 if (typeof window.ThreeDEngine.updateGizmoPositions === 'function') {
                     window.ThreeDEngine.updateGizmoPositions();
@@ -880,27 +907,34 @@
                 if (typeof window.ThreeDEngine.requestRender === 'function') {
                     window.ThreeDEngine.requestRender();
                 }
-                if (window.ThreeDGrouping && typeof window.ThreeDGrouping.propagateRotationDelta === 'function' && deltaYaw !== 0) {
-                    window.ThreeDGrouping.propagateRotationDelta(el, deltaYaw, 0, 0, 'item');
+                if (targets3D.length === 1 && window.ThreeDGrouping && typeof window.ThreeDGrouping.propagateRotationDelta === 'function' && primaryDelta !== 0) {
+                    window.ThreeDGrouping.propagateRotationDelta(activeEl, primaryDelta, 0, 0, 'item');
                 }
                 return;
             }
         }
 
         // 2. 2D Öge veya Callout Seçiliyse:
-        const el = DockContextManager.selectedElement || document.querySelector('.el-selected') || window.selectedEl || (window.selectedElements && window.selectedElements[0]);
-        if (el) {
-            let curAngle = parseFloat(el.getAttribute('data-rotation') || el.dataset.rotation || '0') || 0;
-            let nextAngle = (deg === 0) ? 0 : ((curAngle + deg) % 360);
-            if (nextAngle < 0) nextAngle += 360;
-            el.setAttribute('data-rotation', nextAngle);
-            el.dataset.rotation = nextAngle;
-            const currentScale = el.dataset.scale || 1;
-            el.style.transform = `rotate(${nextAngle}deg) scale(${currentScale})`;
+        const fallback = DockContextManager.selectedElement || document.querySelector('.el-selected') || window.selectedEl;
+        const targets = (window.selectedElements && window.selectedElements.length > 1)
+            ? window.selectedElements.filter(Boolean)
+            : (fallback ? [fallback] : []);
+        if (targets.length > 0) {
+            let lastAngle = 0;
+            targets.forEach((el, idx) => {
+                let curAngle = parseFloat(el.getAttribute('data-rotation') || el.dataset.rotation || '0') || 0;
+                let nextAngle = (deg === 0) ? 0 : ((curAngle + deg) % 360);
+                if (nextAngle < 0) nextAngle += 360;
+                el.setAttribute('data-rotation', nextAngle);
+                el.dataset.rotation = nextAngle;
+                const currentScale = el.dataset.scale || 1;
+                el.style.transform = `rotate(${nextAngle}deg) scale(${currentScale})`;
+                if (idx === 0) lastAngle = nextAngle;
+            });
             const rotSlider = document.getElementById('elRotate');
             const rotVal = document.getElementById('elRotateVal');
-            if (rotSlider) rotSlider.value = nextAngle;
-            if (rotVal) rotVal.textContent = nextAngle + '°';
+            if (rotSlider) rotSlider.value = lastAngle;
+            if (rotVal) rotVal.textContent = lastAngle + '°';
             if (typeof window.recordHistory === 'function') window.recordHistory('Öge Döndürüldü');
         }
     };
@@ -911,14 +945,19 @@
     window.flipSelectedElementHorizontal = function() {
         // 1. 3D Öge Seçiliyse:
         if (window.ThreeDEngine && typeof window.ThreeDEngine.isSelected === 'function' && window.ThreeDEngine.isSelected()) {
-            const el = window.ThreeDEngine.getActiveElement ? window.ThreeDEngine.getActiveElement() : null;
-            if (el) {
-                el.planeYaw = ((el.planeYaw || 0) + 180) % 360;
+            const targets3D = (typeof window.getSelected3DTargets === 'function')
+                ? window.getSelected3DTargets()
+                : (window.ThreeDEngine.getActiveElement && window.ThreeDEngine.getActiveElement() ? [window.ThreeDEngine.getActiveElement()] : []);
+            if (targets3D.length > 0) {
+                const activeEl = (window.ThreeDEngine.getActiveElement ? window.ThreeDEngine.getActiveElement() : null) || targets3D[0];
+                targets3D.forEach(el => {
+                    el.planeYaw = ((el.planeYaw || 0) + 180) % 360;
+                    if (typeof window.ThreeDEngine.updatePlaneTransform === 'function') {
+                        window.ThreeDEngine.updatePlaneTransform(el);
+                    }
+                });
                 if (window.ThreeDEngine.state) {
-                    window.ThreeDEngine.state.planeYaw = el.planeYaw;
-                }
-                if (typeof window.ThreeDEngine.updatePlaneTransform === 'function') {
-                    window.ThreeDEngine.updatePlaneTransform(el);
+                    window.ThreeDEngine.state.planeYaw = activeEl.planeYaw;
                 }
                 if (typeof window.ThreeDEngine.syncControlsUI === 'function') {
                     window.ThreeDEngine.syncControlsUI();
@@ -931,12 +970,18 @@
         }
 
         // 2. 2D Öge Seçiliyse:
-        const el = DockContextManager.selectedElement || document.querySelector('.el-selected') || window.selectedEl || (window.selectedElements && window.selectedElements[0]);
-        if (el) {
-            const isFlipped = el.getAttribute('data-flipped-h') === 'true';
-            el.setAttribute('data-flipped-h', !isFlipped ? 'true' : 'false');
-            const curScaleX = !isFlipped ? -1 : 1;
-            el.style.transform = (el.style.transform || '').replace(/scaleX\([^)]*\)/g, '').trim() + ` scaleX(${curScaleX})`;
+        const fallback = DockContextManager.selectedElement || document.querySelector('.el-selected') || window.selectedEl;
+        const targets = (window.selectedElements && window.selectedElements.length > 1)
+            ? window.selectedElements.filter(Boolean)
+            : (fallback ? [fallback] : []);
+        if (targets.length > 0) {
+            const primaryFlipped = targets[0].getAttribute('data-flipped-h') === 'true';
+            const nextVal = !primaryFlipped;
+            const curScaleX = nextVal ? -1 : 1;
+            targets.forEach(el => {
+                el.setAttribute('data-flipped-h', nextVal ? 'true' : 'false');
+                el.style.transform = (el.style.transform || '').replace(/scaleX\([^)]*\)/g, '').trim() + ` scaleX(${curScaleX})`;
+            });
             if (typeof window.recordHistory === 'function') window.recordHistory('Öge Yatay Çevrildi');
         }
     };
@@ -999,18 +1044,23 @@
         }
 
         // 2. 2D Öge veya Callout Seçiliyse:
-        const el = DockContextManager.selectedElement || document.querySelector('.el-selected') || window.selectedEl || (window.selectedElements && window.selectedElements[0]);
-        if (el) {
-            el.setAttribute('data-rotation', '0');
-            el.dataset.rotation = '0';
-            el.setAttribute('data-scale', '1');
-            el.dataset.scale = '1';
-            el.setAttribute('data-flipped-h', 'false');
-            el.style.transform = 'rotate(0deg) scale(1)';
+        const fallback = DockContextManager.selectedElement || document.querySelector('.el-selected') || window.selectedEl;
+        const targets = (window.selectedElements && window.selectedElements.length > 1)
+            ? window.selectedElements.filter(Boolean)
+            : (fallback ? [fallback] : []);
+        if (targets.length > 0) {
+            targets.forEach(el => {
+                el.setAttribute('data-rotation', '0');
+                el.dataset.rotation = '0';
+                el.setAttribute('data-scale', '1');
+                el.dataset.scale = '1';
+                el.setAttribute('data-flipped-h', 'false');
+                el.style.transform = 'rotate(0deg) scale(1)';
 
-            if (el.dataset.defaultFont) {
-                el.style.fontSize = el.dataset.defaultFont + 'px';
-            }
+                if (el.dataset.defaultFont) {
+                    el.style.fontSize = el.dataset.defaultFont + 'px';
+                }
+            });
 
             const rotSlider = document.getElementById('elRotate');
             const rotVal = document.getElementById('elRotateVal');
@@ -1026,6 +1076,66 @@
             if (typeof window.showToast === 'function') {
                 window.showToast('Öge varsayılan açı ve boyutuna sıfırlandı.', 'info');
             }
+        }
+    };
+
+    /**
+     * Seçili Ögeleri (veya Seçim Yoksa Tüm Tuvali) Ekrana Ortala ve Taşanları İçeri Al
+     */
+    window.centerSelectedOnCanvas = function() {
+        const engine = window.ThreeDEngine;
+        const grouping = window.ThreeDGrouping;
+        const has3D = !!(engine && typeof engine.getElements === 'function' && engine.getElements().length > 0);
+        const sel3D = (grouping && typeof grouping.getSelected3DElements === 'function')
+            ? grouping.getSelected3DElements().slice()
+            : [];
+        const sel2D = Array.isArray(window.selectedElements) ? window.selectedElements.filter(Boolean) : [];
+        const active3DEl = (engine && typeof engine.isSelected === 'function' && engine.isSelected() && typeof engine.getActiveElement === 'function')
+            ? engine.getActiveElement()
+            : null;
+
+        let acted = false;
+
+        if (has3D) {
+            const targets3D = sel3D.length > 0
+                ? sel3D
+                : (active3DEl ? [active3DEl] : (sel2D.length === 0 ? engine.getElements().filter(e => e && e.visible !== false) : []));
+            if (targets3D.length > 0) {
+                if (typeof engine.clampElementsToViewport === 'function') {
+                    engine.clampElementsToViewport(targets3D);
+                }
+                if (targets3D.length === 1 && typeof engine.centerOnScreen === 'function') {
+                    engine.centerOnScreen();
+                } else if (window.ThreeDAlign && typeof window.ThreeDAlign.centerInPage === 'function') {
+                    window.ThreeDAlign.centerInPage(targets3D, 'both');
+                }
+                if (typeof engine.clampElementsToViewport === 'function') {
+                    engine.clampElementsToViewport(targets3D);
+                }
+                acted = true;
+            }
+        }
+
+        if (sel2D.length > 0) {
+            if (typeof window.multiSelectPositionOnPage === 'function') {
+                window.multiSelectPositionOnPage('center');
+                acted = true;
+            }
+        } else if (!acted && typeof window.multiSelectCenterOnPage === 'function') {
+            window.multiSelectCenterOnPage('both');
+            acted = true;
+        }
+
+        if (window.TemplateBuilder && window.TemplateBuilder.selectedFrame && window.Template3DFrame) {
+            if (typeof window.Template3DFrame.updateGizmoPosition === 'function') {
+                window.Template3DFrame.updateGizmoPosition(window.TemplateBuilder.selectedFrame);
+            }
+        }
+        if (grouping && typeof grouping.updateSelectionVisuals === 'function') {
+            grouping.updateSelectionVisuals();
+        }
+        if (acted && typeof window.recordHistory === 'function') {
+            window.recordHistory('Ekrana Ortalandı');
         }
     };
 
@@ -1165,6 +1275,16 @@
                 return;
             } else if (el.classList.contains('tb-image-frame')) {
                 if (typeof switchTab === 'function') switchTab('create-template');
+                if (window.TemplateBuilder && typeof window.TemplateBuilder.selectFrame === 'function') {
+                    window.TemplateBuilder.selectFrame(el);
+                }
+                const sec = document.getElementById('tbFrameSettingsSection');
+                if (sec) {
+                    sec.style.display = 'block';
+                    if (typeof sec.scrollIntoView === 'function') {
+                        sec.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    }
+                }
                 return;
             } else {
                 // 2D Metin / Yazı / Kutu Ögesi: Akıllı Akordiyon Yönetimi

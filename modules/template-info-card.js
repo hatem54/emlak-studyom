@@ -144,8 +144,20 @@
                 if (typeof window.enableInlineEdit === 'function') {
                     window.enableInlineEdit(el);
                 } else {
-                    el.addEventListener('dblclick', function() {
-                        const newText = prompt('Yeni metni girin:', this.textContent.trim());
+                    el.addEventListener('dblclick', async function() {
+                        let newText = null;
+                        if (window.AppDialog && typeof window.AppDialog.prompt === 'function') {
+                            newText = await window.AppDialog.prompt({
+                                title: 'Metni Düzenle',
+                                message: 'Yeni metni girin:',
+                                defaultValue: this.textContent.trim(),
+                                icon: 'fa-pen-to-square',
+                                confirmText: 'Kaydet',
+                                cancelText: 'Vazgeç'
+                            });
+                        } else {
+                            newText = prompt('Yeni metni girin:', this.textContent.trim());
+                        }
                         if (newText !== null && newText.trim() !== '') {
                             this.textContent = newText.trim();
                         }
@@ -254,6 +266,18 @@
                     item.el.style.height = item.height + 'px';
                 });
             }
+
+            if (this.savedFrameSnapshots) {
+                this.savedFrameSnapshots.forEach(item => {
+                    if (!item.el || !item.el.parentNode) return;
+                    if (window.TemplateBuilder && typeof window.TemplateBuilder.applyImageZoomPan === 'function') {
+                        window.TemplateBuilder.applyImageZoomPan(item.el);
+                    }
+                    if (window.Template3DFrame && (parseFloat(item.el.dataset.depth) || 0) > 0 && typeof window.Template3DFrame.updateExtrusion === 'function') {
+                        window.Template3DFrame.updateExtrusion(item.el);
+                    }
+                });
+            }
         },
 
         /**
@@ -271,6 +295,12 @@
                         item.el.style.top = item.top + 'px';
                         item.el.style.width = item.width + 'px';
                         item.el.style.height = item.height + 'px';
+                        if (window.TemplateBuilder && typeof window.TemplateBuilder.applyImageZoomPan === 'function') {
+                            window.TemplateBuilder.applyImageZoomPan(item.el);
+                        }
+                        if (window.Template3DFrame && (parseFloat(item.el.dataset.depth) || 0) > 0 && typeof window.Template3DFrame.updateExtrusion === 'function') {
+                            window.Template3DFrame.updateExtrusion(item.el);
+                        }
                     }
                 });
                 this.savedFrameSnapshots = null;

@@ -641,106 +641,157 @@
         });
     }
 
+    function _getNeonTargets(targetEl) {
+        if (window.ThreeDEngine && typeof window.ThreeDEngine.isActive === 'function' && window.ThreeDEngine.isActive()) {
+            // 3D kontrolü kendi dalında yapılır
+        }
+        if (window.selectedElements && window.selectedElements.length > 1) {
+            if (!targetEl || window.selectedElements.includes(targetEl)) {
+                return window.selectedElements.filter(Boolean);
+            }
+        }
+        const single = targetEl ||
+            (typeof selectedEl !== 'undefined' ? selectedEl : null) ||
+            (typeof selectedCalloutEl !== 'undefined' ? selectedCalloutEl : null) ||
+            document.querySelector('#canvas-container .canvas-el.selected, #canvas-container .callout-wrap.selected, #canvas-container .callout-wrap[data-saber-active="true"], #canvas-container .neon-text-el');
+        return single ? [single] : [];
+    }
+
     /**
      * 2. Mevcut 2D Metinde / Rozette Neonu Aç / Kapat
      */
     function toggleTextNeon(targetEl) {
-        const el = targetEl || (typeof selectedEl !== 'undefined' ? selectedEl : null) || (typeof selectedCalloutEl !== 'undefined' ? selectedCalloutEl : null);
-        if (!el) return;
+        const targets = _getNeonTargets(targetEl).filter(el => el && el.classList && !el.classList.contains('three-d-layer') && (!el.closest || !el.closest('#threeDContainer')));
+        if (!targets.length) return;
 
-        // 3D kontrolü: 3D nesne veya 3D modu ise neon uygulanmaz
+        // 3D kontrolü: 3D modu ise neon uygulanmaz
         if (window.ThreeDEngine && typeof window.ThreeDEngine.isActive === 'function' && window.ThreeDEngine.isActive()) return;
-        if (el.classList.contains('three-d-layer') || el.closest('#threeDContainer')) return;
 
-        // Rozet / Callout nesnesi kontrolü
-        if (isCalloutOrBadgeElement(el)) {
-            const wrap = getBadgeWrapper(el);
-            const isNeonOn = wrap.dataset.saberActive === 'true' || wrap.classList.contains('neon-badge-active') || wrap.classList.contains('neon-text-active');
-            if (isNeonOn) {
-                applyNeonToBadge(wrap, 0);
-                const tgIn = document.getElementById('neonTextGlowSize');
-                if (tgIn) { tgIn.value = 0; const v = document.getElementById('neonTextGlowSizeVal'); if (v) v.textContent = 'Kapalı'; }
-                updateNeonUIStatus(false);
-            } else {
-                const glowColInput = document.getElementById('neonTextGlowColor');
-                const coreColInput = document.getElementById('neonTextCoreColor');
-                const glowCol = glowColInput ? glowColInput.value : '#00f0ff';
-                const coreCol = coreColInput ? coreColInput.value : '#ffffff';
-                applyNeonToBadge(wrap, 35, 3.0, glowCol, coreCol, 'fully-lit');
-                const tgIn = document.getElementById('neonTextGlowSize');
-                if (tgIn) { tgIn.value = 35; const v = document.getElementById('neonTextGlowSizeVal'); if (v) v.textContent = '35'; }
-                updateNeonUIStatus(true, 'fully-lit');
+        const primaryEl = targets[0];
+        const primaryWrap = isCalloutOrBadgeElement(primaryEl) ? getBadgeWrapper(primaryEl) : primaryEl;
+        const primaryNeonOn = primaryWrap.dataset.saberActive === 'true' ||
+                              primaryWrap.classList.contains('neon-badge-active') ||
+                              primaryWrap.classList.contains('neon-box-active') ||
+                              primaryWrap.classList.contains('neon-text-active');
+        const turnOn = !primaryNeonOn;
+
+        const glowColInput = document.getElementById('neonTextGlowColor');
+        const coreColInput = document.getElementById('neonTextCoreColor');
+        const glowCol = glowColInput ? glowColInput.value : '#00f0ff';
+        const coreCol = coreColInput ? coreColInput.value : '#ffffff';
+
+        let lastPreset = 'fully-lit';
+        let anyDetails = false;
+
+        targets.forEach((el, idx) => {
+            if (isCalloutOrBadgeElement(el)) {
+                const wrap = getBadgeWrapper(el);
+                if (!turnOn) {
+                    applyNeonToBadge(wrap, 0);
+                } else {
+                    applyNeonToBadge(wrap, 35, 3.0, glowCol, coreCol, 'fully-lit');
+                }
+                return;
             }
-            return;
-        }
 
-        const isDetailsContainer = (el.id === 'elDetails' || el.dataset?.layerUid === 'ui_details' || (el.classList && el.classList.contains('sh-box')) || !!(el.querySelector && el.querySelector('#infoLineText')));
-        const isNeonOn = el.dataset.saberActive === 'true' || el.classList.contains('neon-box-active') || el.classList.contains('neon-text-active');
-        if (isNeonOn) {
-            // Neonu Kapat
-            el.dataset.saberActive = 'false';
-            if (window.SaberEngine && typeof window.SaberEngine.removeTextSaber === 'function') {
-                window.SaberEngine.removeTextSaber(el.id || el.dataset.saberElId || 'elDetails');
-                const app = window.SaberEngine.getApp();
-                if (app && app.renderer && app.stage) {
-                    try { app.renderer.render(app.stage); } catch(e) {}
+            const isDetailsContainer = (el.id === 'elDetails' || el.dataset?.layerUid === 'ui_details' || (el.classList && el.classList.contains('sh-box')) || !!(el.querySelector && el.querySelector('#infoLineText')));
+            if (isDetailsContainer) anyDetails = true;
+
+            if (!turnOn) {
+                el.dataset.saberActive = 'false';
+                if (window.SaberEngine && typeof window.SaberEngine.removeTextSaber === 'function') {
+                    window.SaberEngine.removeTextSaber(el.id || el.dataset.saberElId || 'elDetails');
+                }
+
+                if (isDetailsContainer) {
+                    el.dataset.neonBoxGlow = 0;
+                    el.dataset.neonTextGlow = 0;
+                    el.dataset.neonFrame = 'false';
+                    el.dataset.neonText = 'false';
+                    applyNeonBoxAndTextGlow(el, 0, 0);
+                    delete el.dataset.storedBorder;
+                    delete el.dataset.storedBorderColor;
+                    delete el.dataset.storedBoxShadow;
+                    delete el.dataset.storedBackground;
+                    delete el.dataset.storedTextColor;
+                    delete el.dataset.storedTextShadow;
+                } else {
+                    el.classList.remove('neon-box-active', 'neon-text-active');
+                    el.style.color = el.dataset.storedTextColor || '#ffffff';
+                    el.style.textShadow = el.dataset.storedTextShadow || '';
+                    el.style.webkitTextStroke = '';
+                }
+            } else {
+                el.dataset.saberActive = 'true';
+                if (!el.id) el.id = 'neon_text_' + Date.now() + '_' + idx;
+
+                const preset = el.dataset.neonPreset || 'fully-lit';
+                lastPreset = preset;
+                const isFullNeon = (preset === 'full-neon');
+
+                if (isDetailsContainer) {
+                    el.dataset.neonBoxGlow = 35;
+                    el.dataset.neonTextGlow = 35;
+                    el.dataset.neonCoreColor = coreCol;
+                    el.dataset.neonFrame = 'true';
+                    el.dataset.neonText = 'true';
+                    applyNeonBoxAndTextGlow(el, 35, 35, glowCol, coreCol);
+                } else {
+                    if (el.style.color && el.style.color !== 'transparent') {
+                        el.dataset.storedTextColor = el.style.color;
+                    }
+                    if (el.style.textShadow && el.style.textShadow !== 'none') {
+                        el.dataset.storedTextShadow = el.style.textShadow;
+                    }
+                    el.style.color = 'transparent';
+                    el.style.textShadow = 'none';
+                    el.style.webkitTextStroke = 'none';
+
+                    const opts = {
+                        preset: preset,
+                        glowColor: glowCol,
+                        coreColor: isFullNeon ? glowCol : coreCol,
+                        coreSize: 0,
+                        glowSize: 35,
+                        intensity: 3.0,
+                        flickerAmount: (preset === 'electric' ? 0.15 : (preset === 'fire' ? 0.2 : 0.02))
+                    };
+                    el.dataset.saberOpts = JSON.stringify(opts);
+
+                    if (window.SaberEngine && typeof window.SaberEngine.addTextSaber === 'function') {
+                        window.SaberEngine.addTextSaber(el.id, el, opts);
+                    }
                 }
             }
+        });
 
-            if (isDetailsContainer) {
-                el.dataset.neonBoxGlow = 0;
-                el.dataset.neonTextGlow = 0;
-                el.dataset.neonFrame = 'false';
-                el.dataset.neonText = 'false';
+        if (window.SaberEngine) {
+            if (turnOn && typeof window.SaberEngine.updateTextSaberPositions === 'function') {
+                window.SaberEngine.updateTextSaberPositions();
+            }
+            const app = window.SaberEngine.getApp();
+            if (app && app.renderer && app.stage) {
+                try { app.renderer.render(app.stage); } catch(e) {}
+            }
+        }
 
+        if (!turnOn) {
+            if (anyDetails) {
                 const bgIn = document.getElementById('neonBoxGlow');
                 if (bgIn) { bgIn.value = 0; const v = document.getElementById('neonBoxGlowVal'); if (v) v.textContent = 'Kapalı'; }
-                const tgIn = document.getElementById('neonTextGlowSize');
-                if (tgIn) { tgIn.value = 0; const v = document.getElementById('neonTextGlowSizeVal'); if (v) v.textContent = 'Kapalı'; }
                 const sbgIn = document.getElementById('textSaberBoxGlow');
                 if (sbgIn) { sbgIn.value = 0; const v = document.getElementById('textSaberBoxGlowVal'); if (v) v.textContent = 'Kapalı'; }
                 const stgIn = document.getElementById('textSaberGlowSize');
                 if (stgIn) { stgIn.value = 0; const v = document.getElementById('textSaberGlowSizeVal'); if (v) v.textContent = 'Kapalı'; }
-
-                applyNeonBoxAndTextGlow(el, 0, 0);
-
-                delete el.dataset.storedBorder;
-                delete el.dataset.storedBorderColor;
-                delete el.dataset.storedBoxShadow;
-                delete el.dataset.storedBackground;
-                delete el.dataset.storedTextColor;
-                delete el.dataset.storedTextShadow;
-            } else {
-                el.classList.remove('neon-box-active', 'neon-text-active');
-                el.style.color = el.dataset.storedTextColor || '#ffffff';
-                el.style.textShadow = el.dataset.storedTextShadow || '';
-                el.style.webkitTextStroke = '';
             }
-
+            const tgIn = document.getElementById('neonTextGlowSize');
+            if (tgIn) { tgIn.value = 0; const v = document.getElementById('neonTextGlowSizeVal'); if (v) v.textContent = 'Kapalı'; }
             if (document.getElementById('elTextSaber')) {
                 document.getElementById('elTextSaber').checked = false;
             }
             updateNeonUIStatus(false);
         } else {
-            // Neonu Aç
-            el.dataset.saberActive = 'true';
-            if (!el.id) el.id = 'neon_text_' + Date.now();
-
-            const preset = el.dataset.neonPreset || 'fully-lit';
-            const colorInput = document.getElementById('neonTextGlowColor');
-            const glowCol = colorInput ? colorInput.value : '#00f0ff';
-            const coreColorInput = document.getElementById('neonTextCoreColor');
-            const coreCol = coreColorInput ? coreColorInput.value : '#ffffff';
-            const isFullNeon = (preset === 'full-neon');
-
-            if (isDetailsContainer) {
-                // Kompozit Detay Çerçevesi: Çerçeve ve yazı bağımsız bayrakları
-                el.dataset.neonBoxGlow = 35;
-                el.dataset.neonTextGlow = 35;
-                el.dataset.neonCoreColor = coreCol;
-                el.dataset.neonFrame = 'true';
-                el.dataset.neonText = 'true';
-
+            if (anyDetails) {
                 const boxGroup = document.getElementById('groupNeonBoxGlow');
                 if (boxGroup) boxGroup.style.display = 'block';
                 const saberBoxRow = document.getElementById('saberBoxGlowRow');
@@ -750,42 +801,13 @@
 
                 const bgIn = document.getElementById('neonBoxGlow');
                 if (bgIn) { bgIn.value = 35; const v = document.getElementById('neonBoxGlowVal'); if (v) v.textContent = '35'; }
-                const tgIn = document.getElementById('neonTextGlowSize');
-                if (tgIn) { tgIn.value = 35; const v = document.getElementById('neonTextGlowSizeVal'); if (v) v.textContent = '35'; }
                 const sbgIn = document.getElementById('textSaberBoxGlow');
                 if (sbgIn) { sbgIn.value = 35; const v = document.getElementById('textSaberBoxGlowVal'); if (v) v.textContent = '35'; }
                 const stgIn = document.getElementById('textSaberGlowSize');
                 if (stgIn) { stgIn.value = 35; const v = document.getElementById('textSaberGlowSizeVal'); if (v) v.textContent = '35'; }
-
-                applyNeonBoxAndTextGlow(el, 35, 35, glowCol, coreCol);
-            } else {
-                if (el.style.color && el.style.color !== 'transparent') {
-                    el.dataset.storedTextColor = el.style.color;
-                }
-                if (el.style.textShadow && el.style.textShadow !== 'none') {
-                    el.dataset.storedTextShadow = el.style.textShadow;
-                }
-                el.style.color = 'transparent';
-                el.style.textShadow = 'none';
-                el.style.webkitTextStroke = 'none';
-
-                const opts = {
-                    preset: preset,
-                    glowColor: glowCol,
-                    coreColor: isFullNeon ? glowCol : coreCol,
-                    coreSize: 0,
-                    glowSize: 35,
-                    intensity: 3.0,
-                    flickerAmount: (preset === 'electric' ? 0.15 : (preset === 'fire' ? 0.2 : 0.02))
-                };
-                el.dataset.saberOpts = JSON.stringify(opts);
-
-                if (window.SaberEngine && typeof window.SaberEngine.addTextSaber === 'function') {
-                    window.SaberEngine.addTextSaber(el.id, el, opts);
-                    window.SaberEngine.updateTextSaberPositions();
-                }
             }
-
+            const tgIn = document.getElementById('neonTextGlowSize');
+            if (tgIn) { tgIn.value = 35; const v = document.getElementById('neonTextGlowSizeVal'); if (v) v.textContent = '35'; }
             if (document.getElementById('elTextSaber')) {
                 document.getElementById('elTextSaber').checked = true;
             }
@@ -794,13 +816,13 @@
                 switchTab('font');
                 const noSelMsg = document.getElementById('noSelMsg');
                 if (noSelMsg) noSelMsg.style.display = 'none';
-                if (typeof loadElSettings === 'function') loadElSettings(el);
+                if (typeof loadElSettings === 'function') loadElSettings(primaryEl);
                 const neonPanel = document.getElementById('neonTextControlPanel');
                 if (neonPanel) {
                     setTimeout(() => neonPanel.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
                 }
             }
-            updateNeonUIStatus(true, preset);
+            updateNeonUIStatus(true, lastPreset);
         }
     }
 
@@ -808,7 +830,7 @@
      * 3. Hazır Neon Efekti Presetini Seç (Saf Neon, Tam Neon, Alev, Dönme, Elektrik, Kıvılcım, Gökkuşağı)
      */
     function selectNeonPreset(presetKey, targetEl, applyToEl = true) {
-        const el = targetEl || (typeof selectedEl !== 'undefined' ? selectedEl : null) || (typeof selectedCalloutEl !== 'undefined' ? selectedCalloutEl : null) || document.querySelector('#canvas-container .canvas-el.selected, #canvas-container .callout-wrap.selected, #canvas-container .callout-wrap[data-saber-active="true"], #canvas-container .neon-text-el');
+        const targets = _getNeonTargets(targetEl);
 
         // UI Butonunu aktif yap
         const grid = document.getElementById('tabFontNeonPresets');
@@ -822,10 +844,7 @@
             });
         }
 
-        if (!el || !applyToEl) return;
-
-        const isBadge = isCalloutOrBadgeElement(el);
-        const isDetailsContainer = (el.id === 'elDetails' || el.dataset?.layerUid === 'ui_details' || (el.classList && el.classList.contains('sh-box')) || !!(el.querySelector && el.querySelector('#infoLineText')));
+        if (!targets.length || !applyToEl) return;
 
         const glowColInput = document.getElementById('neonTextGlowColor');
         const coreColInput = document.getElementById('neonTextCoreColor');
@@ -884,39 +903,66 @@
             if (valEl) valEl.textContent = curSize;
         }
 
-        // Rozet / Callout nesnesi kontrolü
-        if (isBadge) {
-            applyNeonToBadge(el, curSize, curInt, curGlow, curCore, presetKey);
-            updateNeonUIStatus(true, presetKey);
-            return;
-        }
+        let anyBadge = false;
+        let anyDetails = false;
+        let anyTextSaber = false;
 
-        // Metinde neon kapalıysa aç
-        if (el.dataset.saberActive !== 'true') {
-            el.dataset.saberActive = 'true';
-            if (!el.id) el.id = 'neon_text_' + Date.now();
-            if (!isDetailsContainer) {
-                if (el.style.color && el.style.color !== 'transparent') {
-                    el.dataset.storedTextColor = el.style.color;
-                }
-                if (el.style.textShadow && el.style.textShadow !== 'none') {
-                    el.dataset.storedTextShadow = el.style.textShadow;
-                }
-                el.style.color = 'transparent';
-                el.style.textShadow = 'none';
-                el.style.webkitTextStroke = 'none';
+        targets.forEach((el, idx) => {
+            if (isCalloutOrBadgeElement(el)) {
+                anyBadge = true;
+                applyNeonToBadge(el, curSize, curInt, curGlow, curCore, presetKey);
+                return;
             }
-        }
 
-        el.dataset.neonPreset = presetKey;
+            const isDetailsContainer = (el.id === 'elDetails' || el.dataset?.layerUid === 'ui_details' || (el.classList && el.classList.contains('sh-box')) || !!(el.querySelector && el.querySelector('#infoLineText')));
 
-        if (isDetailsContainer) {
-            el.dataset.saberActive = 'true';
-            el.dataset.neonFrame = 'true';
-            el.dataset.neonText = 'true';
-            el.dataset.neonBoxGlow = curSize;
-            el.dataset.neonTextGlow = curSize;
+            if (el.dataset.saberActive !== 'true') {
+                el.dataset.saberActive = 'true';
+                if (!el.id) el.id = 'neon_text_' + Date.now() + '_' + idx;
+                if (!isDetailsContainer) {
+                    if (el.style.color && el.style.color !== 'transparent') {
+                        el.dataset.storedTextColor = el.style.color;
+                    }
+                    if (el.style.textShadow && el.style.textShadow !== 'none') {
+                        el.dataset.storedTextShadow = el.style.textShadow;
+                    }
+                    el.style.color = 'transparent';
+                    el.style.textShadow = 'none';
+                    el.style.webkitTextStroke = 'none';
+                }
+            }
 
+            el.dataset.neonPreset = presetKey;
+
+            if (isDetailsContainer) {
+                anyDetails = true;
+                el.dataset.saberActive = 'true';
+                el.dataset.neonFrame = 'true';
+                el.dataset.neonText = 'true';
+                el.dataset.neonBoxGlow = curSize;
+                el.dataset.neonTextGlow = curSize;
+                applyNeonBoxAndTextGlow(el, curSize, curSize, curGlow, curCore);
+                return;
+            }
+
+            anyTextSaber = true;
+            const opts = {
+                preset: presetKey,
+                glowColor: curGlow,
+                coreColor: curCore,
+                coreSize: 0,
+                glowSize: curSize,
+                intensity: curInt,
+                flickerAmount: (presetKey === 'electric' ? 0.15 : (presetKey === 'fire' ? 0.2 : 0.02))
+            };
+            el.dataset.saberOpts = JSON.stringify(opts);
+
+            if (window.SaberEngine && typeof window.SaberEngine.addTextSaber === 'function') {
+                window.SaberEngine.addTextSaber(el.id, el, opts);
+            }
+        });
+
+        if (anyDetails) {
             const bgIn = document.getElementById('neonBoxGlow');
             if (bgIn) { bgIn.value = curSize; const v = document.getElementById('neonBoxGlowVal'); if (v) v.textContent = curSize; }
             const tgIn = document.getElementById('neonTextGlowSize');
@@ -925,26 +971,12 @@
             if (sbgIn) { sbgIn.value = curSize; const v = document.getElementById('textSaberBoxGlowVal'); if (v) v.textContent = curSize; }
             const stgIn = document.getElementById('textSaberGlowSize');
             if (stgIn) { stgIn.value = curSize; const v = document.getElementById('textSaberGlowSizeVal'); if (v) v.textContent = curSize; }
-
-            applyNeonBoxAndTextGlow(el, curSize, curSize, curGlow, curCore);
-            return;
         }
 
-        const opts = {
-            preset: presetKey,
-            glowColor: curGlow,
-            coreColor: curCore,
-            coreSize: 0,
-            glowSize: curSize,
-            intensity: curInt,
-            flickerAmount: (presetKey === 'electric' ? 0.15 : (presetKey === 'fire' ? 0.2 : 0.02))
-        };
-        el.dataset.saberOpts = JSON.stringify(opts);
-
-        if (window.SaberEngine && typeof window.SaberEngine.addTextSaber === 'function') {
-            window.SaberEngine.addTextSaber(el.id, el, opts);
-            window.SaberEngine.updateTextSaberPositions();
-
+        if (anyTextSaber && window.SaberEngine) {
+            if (typeof window.SaberEngine.updateTextSaberPositions === 'function') {
+                window.SaberEngine.updateTextSaberPositions();
+            }
             const app = window.SaberEngine.getApp();
             if (app) {
                 const isAnimatedPreset = ['fire', 'vortex', 'electric', 'sparks', 'rainbow'].includes(presetKey);
@@ -960,6 +992,10 @@
                     }
                 }
             }
+        }
+
+        if (anyBadge) {
+            updateNeonUIStatus(true, presetKey);
         }
     }
 
@@ -999,10 +1035,8 @@
     }
 
     function _doUpdateNeonTextParams() {
-        const el = (typeof selectedEl !== 'undefined' ? selectedEl : null) || 
-                   (typeof selectedCalloutEl !== 'undefined' ? selectedCalloutEl : null) ||
-                   document.querySelector('#canvas-container .canvas-el.selected, #canvas-container .callout-wrap.selected, #canvas-container .callout-wrap[data-saber-active="true"]');
-        if (!el) return;
+        const targets = _getNeonTargets();
+        if (!targets.length) return;
 
         const glowColInput = document.getElementById('neonTextGlowColor');
         const coreColInput = document.getElementById('neonTextCoreColor');
@@ -1010,32 +1044,60 @@
         const glowSizeInput = document.getElementById('neonTextGlowSize');
         const boxGlowInput = document.getElementById('neonBoxGlow');
 
-        let glowCol = glowColInput ? glowColInput.value : '#00f0ff';
-        let coreCol = coreColInput ? coreColInput.value : '#ffffff';
-
-        const isBadge = isCalloutOrBadgeElement(el);
-        const wrap = isBadge ? getBadgeWrapper(el) : null;
-        const currentPreset = isBadge ? (wrap?.dataset.neonPreset || 'fully-lit') : (el.dataset.neonPreset || 'fully-lit');
-
-        const isFullNeon = (currentPreset === 'full-neon');
-        if (isFullNeon) {
-            coreCol = glowCol;
-            if (coreColInput) coreColInput.value = glowCol;
-        }
-
+        const rawGlowCol = glowColInput ? glowColInput.value : '#00f0ff';
+        const rawCoreCol = coreColInput ? coreColInput.value : '#ffffff';
         const intensity = intInput ? parseFloat(intInput.value) : 3.0;
         const textGlow = glowSizeInput ? parseInt(glowSizeInput.value) : 35;
         const boxGlow = boxGlowInput ? parseInt(boxGlowInput.value) : 35;
 
-        // Rozet / Callout nesnesi kontrolü (Doğrudan GPU filtreleri ile render)
-        if (isBadge) {
-            applyNeonToBadge(el, textGlow, intensity, glowCol, coreCol, currentPreset);
-            return;
+        let anyDetails = false;
+        let anyTextSaber = false;
+        let lastCoreCol = rawCoreCol;
+
+        targets.forEach((el, idx) => {
+            const isBadge = isCalloutOrBadgeElement(el);
+            const wrap = isBadge ? getBadgeWrapper(el) : null;
+            const currentPreset = isBadge ? (wrap?.dataset.neonPreset || 'fully-lit') : (el.dataset.neonPreset || 'fully-lit');
+
+            const isFullNeon = (currentPreset === 'full-neon');
+            const glowCol = rawGlowCol;
+            const coreCol = isFullNeon ? glowCol : rawCoreCol;
+            if (isFullNeon) lastCoreCol = coreCol;
+
+            if (isBadge) {
+                applyNeonToBadge(el, textGlow, intensity, glowCol, coreCol, currentPreset);
+                return;
+            }
+
+            const isDetailsContainer = (el.id === 'elDetails' || el.dataset?.layerUid === 'ui_details' || (el.classList && el.classList.contains('sh-box')) || !!(el.querySelector && el.querySelector('#infoLineText')));
+            if (isDetailsContainer) {
+                anyDetails = true;
+                applyNeonBoxAndTextGlow(el, boxGlow, textGlow, glowCol, coreCol);
+                return;
+            }
+
+            anyTextSaber = true;
+            if (!el.id) el.id = 'neon_text_' + Date.now() + '_' + idx;
+            const opts = {
+                preset: currentPreset,
+                glowColor: glowCol,
+                coreColor: coreCol,
+                coreSize: 0,
+                glowSize: textGlow,
+                intensity: intensity
+            };
+            el.dataset.saberOpts = JSON.stringify(opts);
+
+            if (window.SaberEngine && typeof window.SaberEngine.addTextSaber === 'function') {
+                window.SaberEngine.addTextSaber(el.id || el.dataset.saberElId, el, opts);
+            }
+        });
+
+        if (lastCoreCol !== rawCoreCol && coreColInput) {
+            coreColInput.value = lastCoreCol;
         }
 
-        const isDetailsContainer = (el.id === 'elDetails' || el.dataset?.layerUid === 'ui_details' || (el.classList && el.classList.contains('sh-box')) || !!(el.querySelector && el.querySelector('#infoLineText')));
-        if (isDetailsContainer) {
-            // Eleman Ayarları (#elSettings) alanındaki sliderları senkronize et
+        if (anyDetails) {
             const sBoxIn = document.getElementById('textSaberBoxGlow');
             if (sBoxIn) {
                 sBoxIn.value = boxGlow;
@@ -1049,28 +1111,15 @@
                 if (stv) stv.textContent = (textGlow === 0 ? 'Kapalı' : textGlow);
             }
             const sColIn = document.getElementById('textSaberCustomGlow');
-            if (sColIn && glowCol.startsWith('#')) sColIn.value = glowCol;
+            if (sColIn && rawGlowCol.startsWith('#')) sColIn.value = rawGlowCol;
             const sCoreIn = document.getElementById('textSaberCustomCore');
-            if (sCoreIn && coreCol.startsWith('#')) sCoreIn.value = coreCol;
-
-            applyNeonBoxAndTextGlow(el, boxGlow, textGlow, glowCol, coreCol);
-            return;
+            if (sCoreIn && lastCoreCol.startsWith('#')) sCoreIn.value = lastCoreCol;
         }
 
-        // Serbest 2D Metin Nesnesi (PixiJS Saber)
-        const opts = {
-            preset: currentPreset,
-            glowColor: glowCol,
-            coreColor: coreCol,
-            coreSize: 0,
-            glowSize: textGlow,
-            intensity: intensity
-        };
-        el.dataset.saberOpts = JSON.stringify(opts);
-
-        if (window.SaberEngine && typeof window.SaberEngine.addTextSaber === 'function') {
-            window.SaberEngine.addTextSaber(el.id || el.dataset.saberElId, el, opts);
-            window.SaberEngine.updateTextSaberPositions();
+        if (anyTextSaber && window.SaberEngine) {
+            if (typeof window.SaberEngine.updateTextSaberPositions === 'function') {
+                window.SaberEngine.updateTextSaberPositions();
+            }
             const app = window.SaberEngine.getApp();
             if (app && app.renderer && app.stage && (!app.ticker || !app.ticker.started)) {
                 try { app.renderer.render(app.stage); } catch(e) {}
@@ -1082,8 +1131,8 @@
      * 5. Alternatif Tipografi Stilleri (Lüks Altın, Metalik Krom, Çift Kontur, Cyberpunk, 3D Gölge)
      */
     function applyTypographyStyle(styleKey, targetEl) {
-        const el = targetEl || (typeof selectedEl !== 'undefined' ? selectedEl : null) || (typeof selectedCalloutEl !== 'undefined' ? selectedCalloutEl : null);
-        if (!el) return;
+        const targets = _getNeonTargets(targetEl);
+        if (!targets.length) return;
 
         // UI Butonunu aktif yap
         const grid = document.getElementById('tabFontTypoPresets');
@@ -1097,70 +1146,77 @@
             });
         }
 
-        // Rozet / Callout nesnesi kontrolü
-        if (isCalloutOrBadgeElement(el)) {
-            applyTypographyToBadge(el, styleKey);
-            if (typeof updateDrawHistory === 'function') updateDrawHistory();
-            return;
-        }
-
-        // Önceki tipografi stillerini temizle
-        el.classList.remove('typo-gold', 'typo-chrome', 'typo-sticker', 'typo-cyberpunk', 'typo-shadow3d');
-
-        if (styleKey === 'clean') {
-            // Efekti Sıfırla
-            if (el.dataset.saberActive === 'true') {
-                toggleTextNeon(el);
+        let saberNeedsRender = false;
+        targets.forEach(el => {
+            if (isCalloutOrBadgeElement(el)) {
+                applyTypographyToBadge(el, styleKey);
+                return;
             }
-            el.style.textShadow = 'none';
-            el.style.webkitTextStroke = '0px transparent';
-            el.style.color = el.dataset.storedTextColor || '#ffffff';
-            el.style.background = 'transparent';
-            if (typeof updateDrawHistory === 'function') updateDrawHistory();
-            return;
-        }
 
-        // CSS tabanlı tipografi stilleri için Saber neonunu kapat (çakışmayı önle)
-        if (el.dataset.saberActive === 'true') {
-            el.dataset.saberActive = 'false';
-            if (window.SaberEngine && typeof window.SaberEngine.removeTextSaber === 'function') {
-                window.SaberEngine.removeTextSaber(el.id || el.dataset.saberElId);
-                const app = window.SaberEngine.getApp();
-                if (app && app.renderer && app.stage) {
-                    try { app.renderer.render(app.stage); } catch(e) {}
+            el.classList.remove('typo-gold', 'typo-chrome', 'typo-sticker', 'typo-cyberpunk', 'typo-shadow3d');
+
+            if (styleKey === 'clean') {
+                if (el.dataset.saberActive === 'true') {
+                    el.dataset.saberActive = 'false';
+                    if (window.SaberEngine && typeof window.SaberEngine.removeTextSaber === 'function') {
+                        window.SaberEngine.removeTextSaber(el.id || el.dataset.saberElId || 'elDetails');
+                        saberNeedsRender = true;
+                    }
+                    el.classList.remove('neon-box-active', 'neon-text-active');
+                }
+                el.style.textShadow = 'none';
+                el.style.webkitTextStroke = '0px transparent';
+                el.style.color = el.dataset.storedTextColor || '#ffffff';
+                el.style.background = 'transparent';
+                return;
+            }
+
+            if (el.dataset.saberActive === 'true') {
+                el.dataset.saberActive = 'false';
+                if (window.SaberEngine && typeof window.SaberEngine.removeTextSaber === 'function') {
+                    window.SaberEngine.removeTextSaber(el.id || el.dataset.saberElId);
+                    saberNeedsRender = true;
                 }
             }
-        }
 
-        el.classList.add('typo-' + styleKey);
-        el.dataset.typographyStyle = styleKey;
+            el.classList.add('typo-' + styleKey);
+            el.dataset.typographyStyle = styleKey;
 
-        if (styleKey === 'gold') {
-            el.style.color = '#fffbeb';
-            el.style.fontFamily = "'Montserrat', sans-serif";
-            el.style.fontWeight = '800';
-            el.style.textShadow = '0 0 12px rgba(251,191,36,0.95), 0 2px 5px rgba(180,83,9,0.9), 0 0 26px rgba(245,158,11,0.6)';
-        } else if (styleKey === 'chrome') {
-            el.style.color = '#f8fafc';
-            el.style.fontFamily = "'Space Grotesk', sans-serif";
-            el.style.fontWeight = '700';
-            el.style.textShadow = '0 1px 0 #cbd5e1, 0 2px 0 #94a3b8, 0 3px 0 #64748b, 0 5px 12px rgba(0,0,0,0.85)';
-        } else if (styleKey === 'sticker') {
-            el.style.color = '#fef08a';
-            el.style.fontFamily = "'Archivo Black', sans-serif";
-            el.style.fontWeight = '900';
-            el.style.textShadow = '-2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000, 2px 2px 0 #000, 0 5px 12px rgba(0,0,0,0.85)';
-        } else if (styleKey === 'cyberpunk') {
-            el.style.color = '#ff2a85';
-            el.style.fontFamily = "'Space Grotesk', sans-serif";
-            el.style.fontWeight = '800';
-            el.style.textShadow = '0 0 8px #ff2a85, 0 0 16px #ff2a85, 0 0 28px #00f0ff, 0 0 42px #00f0ff';
-        } else if (styleKey === 'shadow3d') {
-            el.style.color = '#ffffff';
-            el.style.fontFamily = "'Archivo Black', sans-serif";
-            el.style.fontWeight = '900';
-            el.style.textShadow = '1px 1px 0 #0f172a, 2px 2px 0 #0f172a, 3px 3px 0 #0f172a, 4px 4px 0 #0f172a, 5px 5px 0 #0f172a, 6px 6px 14px rgba(0,0,0,0.75)';
+            if (styleKey === 'gold') {
+                el.style.color = '#fffbeb';
+                el.style.fontFamily = "'Montserrat', sans-serif";
+                el.style.fontWeight = '800';
+                el.style.textShadow = '0 0 12px rgba(251,191,36,0.95), 0 2px 5px rgba(180,83,9,0.9), 0 0 26px rgba(245,158,11,0.6)';
+            } else if (styleKey === 'chrome') {
+                el.style.color = '#f8fafc';
+                el.style.fontFamily = "'Space Grotesk', sans-serif";
+                el.style.fontWeight = '700';
+                el.style.textShadow = '0 1px 0 #cbd5e1, 0 2px 0 #94a3b8, 0 3px 0 #64748b, 0 5px 12px rgba(0,0,0,0.85)';
+            } else if (styleKey === 'sticker') {
+                el.style.color = '#fef08a';
+                el.style.fontFamily = "'Archivo Black', sans-serif";
+                el.style.fontWeight = '900';
+                el.style.textShadow = '-2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000, 2px 2px 0 #000, 0 5px 12px rgba(0,0,0,0.85)';
+            } else if (styleKey === 'cyberpunk') {
+                el.style.color = '#ff2a85';
+                el.style.fontFamily = "'Space Grotesk', sans-serif";
+                el.style.fontWeight = '800';
+                el.style.textShadow = '0 0 8px #ff2a85, 0 0 16px #ff2a85, 0 0 28px #00f0ff, 0 0 42px #00f0ff';
+            } else if (styleKey === 'shadow3d') {
+                el.style.color = '#ffffff';
+                el.style.fontFamily = "'Archivo Black', sans-serif";
+                el.style.fontWeight = '900';
+                el.style.textShadow = '1px 1px 0 #0f172a, 2px 2px 0 #0f172a, 3px 3px 0 #0f172a, 4px 4px 0 #0f172a, 5px 5px 0 #0f172a, 6px 6px 14px rgba(0,0,0,0.75)';
+            }
+        });
+
+        if (saberNeedsRender && window.SaberEngine) {
+            const app = window.SaberEngine.getApp();
+            if (app && app.renderer && app.stage) {
+                try { app.renderer.render(app.stage); } catch(e) {}
+            }
         }
+        if (styleKey === 'clean') updateNeonUIStatus(false);
 
         if (typeof updateDrawHistory === 'function') updateDrawHistory();
     }

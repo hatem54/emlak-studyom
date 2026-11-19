@@ -617,113 +617,129 @@
         return fallback;
     }
 
+    function _getTarget3DElements(explicitEl) {
+        if (explicitEl) return [explicitEl];
+        if (typeof window.getSelected3DTargets === 'function') {
+            const list = window.getSelected3DTargets();
+            if (list.length) return list;
+        }
+        if (window.ThreeDGrouping && typeof window.ThreeDGrouping.getSelected3DElements === 'function') {
+            const sel = window.ThreeDGrouping.getSelected3DElements();
+            if (sel && sel.length > 0) return sel;
+        }
+        const active = window.ThreeDEngine ? window.ThreeDEngine.getActiveElement() : null;
+        return active ? [active] : [];
+    }
+
     /**
      * Doku Uygulama Fonksiyonu
      */
     function applyTexture(element, textureId, slot = currentTargetSlot, customParams = {}) {
-        const el = element || (window.ThreeDEngine ? window.ThreeDEngine.getActiveElement() : null);
-        if (!el || !window.THREE) return;
+        const targets = _getTarget3DElements(element);
+        if (!targets.length || !window.THREE) return;
 
         const def = TEXTURE_CATALOG.find(t => t.id === textureId);
         if (!def) return;
 
-        if (!el._textureConfigs) el._textureConfigs = {};
-
         const params = Object.assign({}, defaultParams, customParams);
         const tex = (def.gen !== 'color') ? getThreeTexture(def, params.repeat) : null;
 
-        // Slot bazlı hedef belirleme
-        const targetMeshes = getMeshesForSlot(el, slot);
+        targets.forEach(el => {
+            if (!el._textureConfigs) el._textureConfigs = {};
 
-        targetMeshes.forEach(mesh => {
-            if (!mesh) return;
+            // Slot bazlı hedef belirleme
+            const targetMeshes = getMeshesForSlot(el, slot);
 
-            // Çoklu materyal (Array) desteği: Extruded Mesh'lerde [0: Ön/Arka, 1: Yan Kalınlık]
-            if (Array.isArray(mesh.material)) {
-                if (slot === 'face' || slot === 'all') {
-                    if (mesh.material[0] && mesh.material[0].dispose) mesh.material[0].dispose();
-                    mesh.material[0] = createPbrMaterial(def, tex, params);
-                    mesh.material[0].needsUpdate = true;
+            targetMeshes.forEach(mesh => {
+                if (!mesh) return;
+
+                // Çoklu materyal (Array) desteği: Extruded Mesh'lerde [0: Ön/Arka, 1: Yan Kalınlık]
+                if (Array.isArray(mesh.material)) {
+                    if (slot === 'face' || slot === 'all') {
+                        if (mesh.material[0] && mesh.material[0].dispose) mesh.material[0].dispose();
+                        mesh.material[0] = createPbrMaterial(def, tex, params);
+                        mesh.material[0].needsUpdate = true;
+                    }
+                    if (slot === 'frame' || slot === 'all') {
+                        if (mesh.material[1] && mesh.material[1].dispose) mesh.material[1].dispose();
+                        mesh.material[1] = createPbrMaterial(def, tex, params);
+                        mesh.material[1].needsUpdate = true;
+                    }
+                } else {
+                    if (mesh.material && mesh.material.dispose) mesh.material.dispose();
+                    mesh.material = createPbrMaterial(def, tex, params);
+                    mesh.material.needsUpdate = true;
                 }
-                if (slot === 'frame' || slot === 'all') {
-                    if (mesh.material[1] && mesh.material[1].dispose) mesh.material[1].dispose();
-                    mesh.material[1] = createPbrMaterial(def, tex, params);
-                    mesh.material[1].needsUpdate = true;
+            });
+
+            // Konfigürasyonu element üzerinde sakla (akıllı slot ayrımı ile çakışmayı önle)
+            if (slot === 'all') {
+                delete el._textureConfigs.face;
+                delete el._textureConfigs.frame;
+                el._textureConfigs.all = {
+                    textureId: def.id,
+                    params: params
+                };
+            } else if (slot === 'frame') {
+                if (el._textureConfigs.all) {
+                    el._textureConfigs.face = Object.assign({}, el._textureConfigs.all);
+                    delete el._textureConfigs.all;
                 }
+                el._textureConfigs.frame = {
+                    textureId: def.id,
+                    params: params
+                };
+            } else if (slot === 'face') {
+                if (el._textureConfigs.all) {
+                    el._textureConfigs.frame = Object.assign({}, el._textureConfigs.all);
+                    delete el._textureConfigs.all;
+                }
+                el._textureConfigs.face = {
+                    textureId: def.id,
+                    params: params
+                };
             } else {
-                if (mesh.material && mesh.material.dispose) mesh.material.dispose();
-                mesh.material = createPbrMaterial(def, tex, params);
-                mesh.material.needsUpdate = true;
+                el._textureConfigs[slot] = {
+                    textureId: def.id,
+                    params: params
+                };
+            }
+
+            // 🎯 İki Bölüm Akıllı Senkronizasyon: Doku seçildiğinde renk kutularını dokunun ana rengine güncelle
+            if (slot === 'frame' || slot === 'all') {
+                const sideHex = safeHex(def.base || '#cbd5e1', '#cbd5e1');
+                el.sideColor = sideHex;
+                el.badgeSideColor = sideHex;
+                if (window.ThreeDEngine && window.ThreeDEngine.state) {
+                    const activeEl = window.ThreeDEngine.getActiveElement ? window.ThreeDEngine.getActiveElement() : null;
+                    if (el === activeEl) {
+                        window.ThreeDEngine.state.sideColor = sideHex;
+                        window.ThreeDEngine.state.badgeSideColor = sideHex;
+                    }
+                }
+                const sideInp = document.getElementById('threeDSideColor');
+                if (sideInp) sideInp.value = sideHex;
+                const exSideInp = document.getElementById('threeDExactSideColor');
+                if (exSideInp) exSideInp.value = sideHex;
+                const bSideInp = document.getElementById('threeDBadgeSideColor');
+                if (bSideInp) bSideInp.value = sideHex;
+            }
+
+            if (slot === 'face' || slot === 'all') {
+                const faceHex = safeHex(def.base || '#ffffff', '#ffffff');
+                el.frontColor = faceHex;
+                if (window.ThreeDEngine && window.ThreeDEngine.state) {
+                    const activeEl = window.ThreeDEngine.getActiveElement ? window.ThreeDEngine.getActiveElement() : null;
+                    if (el === activeEl) {
+                        window.ThreeDEngine.state.frontColor = faceHex;
+                    }
+                }
+                const frontInp = document.getElementById('threeDFrontColor');
+                if (frontInp) frontInp.value = faceHex;
+                const bTextInp = document.getElementById('threeDBadgeTextColor');
+                if (bTextInp) bTextInp.value = faceHex;
             }
         });
-
-        // Konfigürasyonu element üzerinde sakla (akıllı slot ayrımı ile çakışmayı önle)
-        if (slot === 'all') {
-            delete el._textureConfigs.face;
-            delete el._textureConfigs.frame;
-            el._textureConfigs.all = {
-                textureId: def.id,
-                params: params
-            };
-        } else if (slot === 'frame') {
-            if (el._textureConfigs.all) {
-                el._textureConfigs.face = Object.assign({}, el._textureConfigs.all);
-                delete el._textureConfigs.all;
-            }
-            el._textureConfigs.frame = {
-                textureId: def.id,
-                params: params
-            };
-        } else if (slot === 'face') {
-            if (el._textureConfigs.all) {
-                el._textureConfigs.frame = Object.assign({}, el._textureConfigs.all);
-                delete el._textureConfigs.all;
-            }
-            el._textureConfigs.face = {
-                textureId: def.id,
-                params: params
-            };
-        } else {
-            el._textureConfigs[slot] = {
-                textureId: def.id,
-                params: params
-            };
-        }
-
-        // 🎯 İki Bölüm Akıllı Senkronizasyon: Doku seçildiğinde renk kutularını dokunun ana rengine güncelle
-        if (slot === 'frame' || slot === 'all') {
-            const sideHex = safeHex(def.base || '#cbd5e1', '#cbd5e1');
-            el.sideColor = sideHex;
-            el.badgeSideColor = sideHex;
-            if (window.ThreeDEngine && window.ThreeDEngine.state) {
-                const activeEl = window.ThreeDEngine.getActiveElement ? window.ThreeDEngine.getActiveElement() : null;
-                if (el === activeEl) {
-                    window.ThreeDEngine.state.sideColor = sideHex;
-                    window.ThreeDEngine.state.badgeSideColor = sideHex;
-                }
-            }
-            const sideInp = document.getElementById('threeDSideColor');
-            if (sideInp) sideInp.value = sideHex;
-            const exSideInp = document.getElementById('threeDExactSideColor');
-            if (exSideInp) exSideInp.value = sideHex;
-            const bSideInp = document.getElementById('threeDBadgeSideColor');
-            if (bSideInp) bSideInp.value = sideHex;
-        }
-
-        if (slot === 'face' || slot === 'all') {
-            const faceHex = safeHex(def.base || '#ffffff', '#ffffff');
-            el.frontColor = faceHex;
-            if (window.ThreeDEngine && window.ThreeDEngine.state) {
-                const activeEl = window.ThreeDEngine.getActiveElement ? window.ThreeDEngine.getActiveElement() : null;
-                if (el === activeEl) {
-                    window.ThreeDEngine.state.frontColor = faceHex;
-                }
-            }
-            const frontInp = document.getElementById('threeDFrontColor');
-            if (frontInp) frontInp.value = faceHex;
-            const bTextInp = document.getElementById('threeDBadgeTextColor');
-            if (bTextInp) bTextInp.value = faceHex;
-        }
 
         if (window.ThreeDEngine && window.ThreeDEngine.requestRender) {
             window.ThreeDEngine.requestRender();
@@ -838,29 +854,34 @@
      * Dokuyu Kaldır ve Standart Düz Renge Geri Dön
      */
     function removeTexture(element, slot = currentTargetSlot) {
-        const el = element || (window.ThreeDEngine ? window.ThreeDEngine.getActiveElement() : null);
-        if (!el) return;
+        const targets = _getTarget3DElements(element);
+        if (!targets.length) return;
 
-        if (el._textureConfigs) {
-            if (slot === 'all') {
-                el._textureConfigs = {};
-            } else {
-                if (el._textureConfigs.all) {
-                    const prev = el._textureConfigs.all;
-                    if (slot === 'frame') {
-                        el._textureConfigs.face = Object.assign({}, prev);
-                    } else if (slot === 'face') {
-                        el._textureConfigs.frame = Object.assign({}, prev);
+        targets.forEach(el => {
+            if (el._textureConfigs) {
+                if (slot === 'all') {
+                    el._textureConfigs = {};
+                } else {
+                    if (el._textureConfigs.all) {
+                        const prev = el._textureConfigs.all;
+                        if (slot === 'frame') {
+                            el._textureConfigs.face = Object.assign({}, prev);
+                        } else if (slot === 'face') {
+                            el._textureConfigs.frame = Object.assign({}, prev);
+                        }
+                        delete el._textureConfigs.all;
                     }
-                    delete el._textureConfigs.all;
+                    delete el._textureConfigs[slot];
                 }
-                delete el._textureConfigs[slot];
             }
-        }
 
-        // Elementin orijinal meshlerini yeniden kur
-        if (window.ThreeDEngine && window.ThreeDEngine.recreateContentMeshes) {
-            window.ThreeDEngine.recreateContentMeshes(el);
+            // Elementin orijinal meshlerini yeniden kur
+            if (window.ThreeDEngine && window.ThreeDEngine.recreateContentMeshes) {
+                window.ThreeDEngine.recreateContentMeshes(el);
+            }
+        });
+
+        if (window.ThreeDEngine && window.ThreeDEngine.requestRender) {
             window.ThreeDEngine.requestRender();
         }
 
@@ -1232,18 +1253,21 @@
     }
 
     function updateActiveParams(patch) {
-        const el = window.ThreeDEngine ? window.ThreeDEngine.getActiveElement() : null;
-        if (!el || !el._textureConfigs) return;
+        const targets = _getTarget3DElements(null);
+        if (!targets.length) return;
 
-        let targetSlot = currentTargetSlot;
-        if (!el._textureConfigs[targetSlot] && el._textureConfigs.all) {
-            targetSlot = 'all';
-        }
-        if (!el._textureConfigs[targetSlot]) return;
+        targets.forEach(el => {
+            if (!el._textureConfigs) return;
+            let targetSlot = currentTargetSlot;
+            if (!el._textureConfigs[targetSlot] && el._textureConfigs.all) {
+                targetSlot = 'all';
+            }
+            if (!el._textureConfigs[targetSlot]) return;
 
-        const currentCfg = el._textureConfigs[targetSlot];
-        const newParams = Object.assign({}, currentCfg.params || {}, patch);
-        applyTexture(el, currentCfg.textureId, targetSlot, newParams);
+            const currentCfg = el._textureConfigs[targetSlot];
+            const newParams = Object.assign({}, currentCfg.params || {}, patch);
+            applyTexture(el, currentCfg.textureId, targetSlot, newParams);
+        });
     }
 
     function syncUI() {

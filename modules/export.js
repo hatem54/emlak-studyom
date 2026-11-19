@@ -30,7 +30,8 @@ function isExportIgnoredElement(el) {
     if (el.id === 'photo-layer') return true;
     if (el.id === 'saber-layer') return true;
     if (el.id === 'three-d-layer') return true;
-    if (el.id === 'threeDGizmoOverlay' || el.id === 'threeDCornerPinOverlay' || el.id === 'threeDCanvasBadge') return true;
+    if (el.id === 'threeDGizmoOverlay' || el.id === 'tb3DGizmoOverlay' || el.id === 'tbPolygonDrawOverlay' || el.id === 'tbPolygonHud' || el.id === 'threeDCornerPinOverlay' || el.id === 'threeDCanvasBadge') return true;
+    if (el.classList && (el.classList.contains('tb-3d-gizmo') || el.classList.contains('tb-polygon-draw-overlay'))) return true;
     if (window.isExportingVideo && (el.id === 'draw-layer' || el.id === 'drawCanvas')) return true;
     if (el.id === 'export-loading-overlay') return true;
     if (el.id === 'app-custom-context-menu' || el.id === 'native-context-menu' || el.id === 'native-context-overlay') return true;
@@ -43,7 +44,7 @@ function isExportIgnoredElement(el) {
 
     // Şeffaf PNG dışa aktarma modunda fotoğraf ve arka plan overlaylerini yoksay
     if (window.isExportingTransparent) {
-        if (el.id === 'photo-layer' || (el.classList && el.classList.contains('photo-panel')) || (el.classList && el.classList.contains('cvr-bg-wrap')) || (el.classList && el.classList.contains('cvr-bg-img')) || (el.classList && el.classList.contains('kolaj-cell-img'))) return true;
+        if (el.id === 'photo-layer' || (el.classList && el.classList.contains('photo-panel')) || (el.classList && el.classList.contains('cvr-bg-wrap')) || (el.classList && el.classList.contains('cvr-bg-img')) || (el.classList && el.classList.contains('kolaj-cell-img')) || (el.classList && el.classList.contains('kolaj-foto'))) return true;
         if (el.id === 'shadow-overlay' || el.id === 'highlight-overlay' || el.id === 'vignette-layer' || el.id === 'canva-render-layer') return true;
     }
 
@@ -118,7 +119,7 @@ function sanitizeExportClone(clonedDoc) {
             const origW = origContainer ? (parseInt(origContainer.style.width) || origContainer.offsetWidth || 1920) : 1920;
             const origH = origContainer ? (parseInt(origContainer.style.height) || origContainer.offsetHeight || 1080) : 1080;
             const origBgImg = origContainer ? (origContainer.style.backgroundImage || '') : '';
-            if (origBgImg && origBgImg !== 'none' && origBgImg.includes('gradient')) {
+            if (!window.isExportingTransparent && origBgImg && origBgImg !== 'none' && origBgImg.includes('gradient')) {
                 clonedContainer.style.setProperty('background-image', origBgImg, 'important');
                 clonedContainer.style.setProperty('background-color', 'transparent', 'important');
             } else {
@@ -201,7 +202,7 @@ function sanitizeExportClone(clonedDoc) {
         // 2. Gizli veya kapalı tüm şablon, overlay ve arayüz kontrol elemanlarını klondan tamamen kaldır
         const hiddenSelectors = [
             '#download-overlay-mask', '#export-loading-overlay', '#canvasBottomDock',
-            '#threeDGizmoOverlay', '#threeDCornerPinOverlay', '#threeDCanvasBadge',
+            '#threeDGizmoOverlay', '#tb3DGizmoOverlay', '.tb-3d-gizmo', '#tbPolygonDrawOverlay', '#tbPolygonHud', '#threeDCornerPinOverlay', '#threeDCanvasBadge',
             '#shadow-overlay', '#highlight-overlay', '#vignette-layer', '#mask-layer', '#maskInteractiveSvg',
             '#canva-render-layer', '#app-custom-context-menu', '#native-context-menu', '#native-context-overlay',
             '#elBadge', '#elPrice', '#elDetails', '#elLogo',
@@ -333,8 +334,15 @@ function sanitizeExportClone(clonedDoc) {
 
                         // Standart şablon öğeleri (elBadge, elPrice, elDetails) ve tuval elemanlarında
                         // html2canvas'ın kirli koyu siyah leke/hale basmasını engellemek için
-                        // gölgeleri tamamen temizle. Öğelerin kendi parlak renkleri ve altın çerçeveleri jilet gibi net kalsın.
-                        node.style.boxShadow = 'none';
+                        // gölgeleri tamamen temizle (Şablon oluştur çerçeve gölgeleri ve rozetleri hariç).
+                        const isTbShadowKept = node.classList && (
+                            node.classList.contains('tb-image-frame') ||
+                            node.classList.contains('tb-depth-back') ||
+                            node.classList.contains('tb-layout-text')
+                        );
+                        if (!isTbShadowKept) {
+                            node.style.boxShadow = 'none';
+                        }
                     }
                 }
             }
@@ -1240,7 +1248,9 @@ async function prepareTemplateFramesForExport() {
         const isPolygon = (frame.dataset.isPolygon === 'true');
         const pitch = parseFloat(frame.dataset.pitch) || 0;
         const yaw = parseFloat(frame.dataset.yaw) || 0;
-        const is3D = (pitch !== 0 || yaw !== 0);
+        const depth = parseFloat(frame.dataset.depth) || 0;
+        const elevation = parseFloat(frame.dataset.elevation) || 0;
+        const is3D = (pitch !== 0 || yaw !== 0 || depth > 0 || elevation !== 0);
 
         if (!hasShape && !hasBlend && !isPolygon && !is3D) continue;
 
@@ -1322,17 +1332,17 @@ async function prepareTemplateFramesForExport() {
         if (hasBlend) {
             cCtx.globalCompositeOperation = 'destination-in';
             let grad = null;
-            if (blend === 'fade-bottom') {
+            if (blend === 'bottom' || blend === 'fade-bottom') {
                 grad = cCtx.createLinearGradient(0, 0, 0, exportCanvas.height);
                 grad.addColorStop(0, 'rgba(0,0,0,1)');
                 grad.addColorStop(0.55, 'rgba(0,0,0,0.85)');
                 grad.addColorStop(1, 'rgba(0,0,0,0)');
-            } else if (blend === 'fade-right') {
+            } else if (blend === 'right' || blend === 'fade-right') {
                 grad = cCtx.createLinearGradient(0, 0, exportCanvas.width, 0);
                 grad.addColorStop(0, 'rgba(0,0,0,1)');
                 grad.addColorStop(0.55, 'rgba(0,0,0,0.85)');
                 grad.addColorStop(1, 'rgba(0,0,0,0)');
-            } else if (blend === 'fade-left') {
+            } else if (blend === 'left' || blend === 'fade-left') {
                 grad = cCtx.createLinearGradient(exportCanvas.width, 0, 0, 0);
                 grad.addColorStop(0, 'rgba(0,0,0,1)');
                 grad.addColorStop(0.55, 'rgba(0,0,0,0.85)');
@@ -1371,6 +1381,12 @@ async function prepareTemplateFramesForExport() {
                     canvas3D.style.pointerEvents = 'none';
                     canvas3D.style.zIndex = '5';
                     const origTransform = frame.style.transform;
+                    const extEl = frame.querySelector('.tb-frame-extrusion');
+                    const contourEl = frame.querySelector('.tb-shape-contour-svg');
+                    const prevExtDisp = extEl ? extEl.style.display : '';
+                    const prevContourDisp = contourEl ? contourEl.style.display : '';
+                    if (extEl) extEl.style.display = 'none';
+                    if (contourEl) contourEl.style.display = 'none';
                     frame.style.transform = 'none';
                     frame.appendChild(canvas3D);
                     exportCanvas.style.display = 'none';
@@ -1378,6 +1394,8 @@ async function prepareTemplateFramesForExport() {
                     cleanups.push(() => {
                         canvas3D.remove();
                         frame.style.transform = origTransform;
+                        if (extEl) extEl.style.display = prevExtDisp;
+                        if (contourEl) contourEl.style.display = prevContourDisp;
                         exportCanvas.style.display = '';
                     });
                 }
@@ -1740,17 +1758,23 @@ async function saveImage(customBaseName, options = {}){
             
             const renderCanvas = panel.querySelector('.photo-render-canvas');
             const pl = document.getElementById('photo-layer');
-            const plInner = pl ? pl.querySelector('.photo-inner') : null;
+            const plInner = pl ? (pl.querySelector('.photo-inner-zoom') || pl.querySelector('.photo-inner')) : null;
             if (renderCanvas && renderCanvas.width > 0 && pl && plInner && typeof window.drawPhotoToTargetCanvas === 'function') {
                 const tempCanvas = document.createElement('canvas');
                 tempCanvas.width = w;
                 tempCanvas.height = h;
-                const pScale = parseFloat(pl.dataset.scale || 1);
-                const pPanX = parseFloat(pl.dataset.panX || 0);
-                const pPanY = parseFloat(pl.dataset.panY || 0);
+                const pScale = parseFloat(pl.dataset.zpScale || pl.dataset.scale || 1);
+                const pPanX = parseFloat(pl.dataset.zpX || pl.dataset.panX || 0);
+                const pPanY = parseFloat(pl.dataset.zpY || pl.dataset.panY || 0);
                 const pSlX = parseFloat(pl.dataset.sliderX || 50);
                 const pSlY = parseFloat(pl.dataset.sliderY || 50);
-                window.drawPhotoToTargetCanvas(pl, plInner, tempCanvas, pScale, pPanX, pPanY, pSlX, pSlY);
+                const prevExpScale = window.exportingScale;
+                window.exportingScale = outputScale;
+                try {
+                    window.drawPhotoToTargetCanvas(pl, plInner, tempCanvas, pScale, pPanX, pPanY, pSlX, pSlY);
+                } finally {
+                    window.exportingScale = prevExpScale;
+                }
                 ctx.drawImage(tempCanvas, 0, 0, w, h);
             } else if (renderCanvas && renderCanvas.width > 0) {
                 ctx.drawImage(renderCanvas, 0, 0, w, h);
@@ -1758,7 +1782,9 @@ async function saveImage(customBaseName, options = {}){
                 const natW = (panel && panel.dataset.naturalW) ? parseFloat(panel.dataset.naturalW) : (window.uploadedImgW || masterImgObj.naturalWidth || masterImgObj.width || 1920);
                 const natH = (panel && panel.dataset.naturalH) ? parseFloat(panel.dataset.naturalH) : (window.uploadedImgH || masterImgObj.naturalHeight || masterImgObj.height || 1080);
                 const fitMode = window.photoFitMode || 'cover';
-                if (fitMode === 'contain') {
+                if (fitMode === 'stretch') {
+                    ctx.drawImage(masterImgObj, 0, 0, w, h);
+                } else if (fitMode === 'contain') {
                     const ratio = Math.min(w / natW, h / natH);
                     const dw = natW * ratio;
                     const dh = natH * ratio;
@@ -2390,6 +2416,7 @@ async function startBatchExport(options){
             }
         }
 
+        const origUploadedImgUrl = (typeof uploadedImgUrl !== 'undefined' && uploadedImgUrl) ? uploadedImgUrl : (window.uploadedImgUrl || null);
         let preBatchAdjustments = null;
         if (typeof window.capturePhotoAdjustments === 'function') {
             preBatchAdjustments = window.capturePhotoAdjustments();
@@ -2439,6 +2466,11 @@ async function startBatchExport(options){
         
         await new Promise(r => setTimeout(r, 200));
 
+        let cleanupBatchFrames = null;
+        if (typeof prepareTemplateFramesForExport === 'function') {
+            try { cleanupBatchFrames = await prepareTemplateFramesForExport(); } catch(_) {}
+        }
+
         let masterImgObj = new Image();
         masterImgObj.crossOrigin = 'anonymous';
         await new Promise(r => { masterImgObj.onload = r; masterImgObj.onerror = r; masterImgObj.src = url; });
@@ -2454,15 +2486,20 @@ async function startBatchExport(options){
             outputScale = parseFloat(scaleVal1) || 1.5;
         }
         
-        if (typeof window.isMobileDevice === 'function' && window.isMobileDevice()) {
-            const maxMobileScale = 2.5;
-            if (outputScale > maxMobileScale) {
-                outputScale = maxMobileScale;
-            }
+        const isBatchMobile = (typeof window.isMobileDevice === 'function' && window.isMobileDevice()) ||
+                              (typeof window !== 'undefined' && (window.innerWidth <= 768 || /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)));
+        if (isBatchMobile) {
+            const maxMobileScale = 2.0;
+            if (outputScale > maxMobileScale) outputScale = maxMobileScale;
         }
 
-        const targetW = Math.round(format.w * outputScale);
-        const targetH = Math.round(format.h * outputScale);
+        let targetW = Math.round(format.w * outputScale);
+        let targetH = Math.round(format.h * outputScale);
+        if (isBatchMobile && (targetW * targetH) > 14000000) {
+            const downF = Math.sqrt(14000000 / (targetW * targetH));
+            targetW = Math.round(targetW * downF);
+            targetH = Math.round(targetH * downF);
+        }
         let finalCanvas = document.createElement('canvas');
         finalCanvas.width = targetW;
         finalCanvas.height = targetH;
@@ -2582,12 +2619,32 @@ async function startBatchExport(options){
                 }
 
                 const renderCanvas = panel.querySelector('.photo-render-canvas');
-                if (renderCanvas && renderCanvas.width > 0) {
+                const plInner = panel.querySelector('.photo-inner-zoom') || panel.querySelector('.photo-inner');
+                if (renderCanvas && renderCanvas.width > 0 && plInner && typeof window.drawPhotoToTargetCanvas === 'function') {
+                    const tempCanvas = document.createElement('canvas');
+                    tempCanvas.width = w;
+                    tempCanvas.height = h;
+                    const pScale = parseFloat(panel.dataset.zpScale || panel.dataset.scale || 1);
+                    const pPanX = parseFloat(panel.dataset.zpX || panel.dataset.panX || 0);
+                    const pPanY = parseFloat(panel.dataset.zpY || panel.dataset.panY || 0);
+                    const pSlX = parseFloat(panel.dataset.sliderX || 50);
+                    const pSlY = parseFloat(panel.dataset.sliderY || 50);
+                    const prevExpScale = window.exportingScale;
+                    window.exportingScale = outputScale;
+                    try {
+                        window.drawPhotoToTargetCanvas(panel, plInner, tempCanvas, pScale, pPanX, pPanY, pSlX, pSlY);
+                    } finally {
+                        window.exportingScale = prevExpScale;
+                    }
+                    ctx.drawImage(tempCanvas, 0, 0, w, h);
+                } else if (renderCanvas && renderCanvas.width > 0) {
                     ctx.drawImage(renderCanvas, 0, 0, w, h);
                 } else {
                     const natW = (panel && panel.dataset.naturalW) ? parseFloat(panel.dataset.naturalW) : (window.uploadedImgW || masterImgObj.naturalWidth || masterImgObj.width || 1920);
                     const natH = (panel && panel.dataset.naturalH) ? parseFloat(panel.dataset.naturalH) : (window.uploadedImgH || masterImgObj.naturalHeight || masterImgObj.height || 1080);
-                    if (fitMode === 'contain') {
+                    if (fitMode === 'stretch') {
+                        ctx.drawImage(masterImgObj, 0, 0, w, h);
+                    } else if (fitMode === 'contain') {
                         const ratio = Math.min(w / natW, h / natH);
                         const dw = natW * ratio;
                         const dh = natH * ratio;
@@ -2624,6 +2681,7 @@ async function startBatchExport(options){
 
             // 2. İçerik Katmanlarını (2D DOM, 3D WebGL ve PixiJS Saber) gerçek z-index derinlik sırasına göre bas
             const overlay = document.createElement('div');
+            overlay.id = 'download-overlay-mask';
             overlay.style.position = 'fixed';
             overlay.style.top = '0';
             overlay.style.left = '0';
@@ -2738,12 +2796,26 @@ async function startBatchExport(options){
             document.body.removeChild(a);
         }
         
+        if (typeof cleanupBatchFrames === 'function') {
+            try { cleanupBatchFrames(); } catch(_) {}
+            cleanupBatchFrames = null;
+        }
         // Memory leak temizligi
         finalCanvas = null;
         ctx = null;
         masterImgObj = null;
     } // for loop end
     } finally {
+        if (origUploadedImgUrl) {
+            if (typeof uploadedImgUrl !== 'undefined') uploadedImgUrl = origUploadedImgUrl;
+            window.uploadedImgUrl = origUploadedImgUrl;
+            const pLayer = document.getElementById('photo-layer');
+            if (pLayer) {
+                pLayer.style.backgroundImage = "url('" + origUploadedImgUrl + "')";
+                if (typeof _applyPhotoTransform === 'function') _applyPhotoTransform(pLayer);
+            }
+            if (typeof trackImageSize === 'function') trackImageSize(origUploadedImgUrl);
+        }
         if (preBatchAdjustments && typeof window.restorePhotoAdjustments === 'function') {
             window.restorePhotoAdjustments(preBatchAdjustments);
             if (typeof applyPhotoFilters === 'function') applyPhotoFilters();
@@ -3237,6 +3309,38 @@ window.interactiveBatchAutoRemaining = interactiveBatchAutoRemaining;
 window.cancelInteractiveBatch = cancelInteractiveBatch;
 
 async function shareImage(platform) {
+    // 1. Tercih edilen yol: Tam dışa aktarma hattı (fotoğraf, 3D, neon, şablon çerçeveleri ve demo filigranı dahil).
+    //    Eski yöntem fotoğraf katmanını dışarıda bıraktığı için siyah/fotoğrafsız görsel paylaşılıyordu.
+    try {
+        if (typeof saveImage === 'function') {
+            const res = await saveImage('emlak_tasarimi', { returnBlob: true, fileType: 'jpg' });
+            if (res && res.blob) {
+                const isJpg = (res.mime === 'image/jpeg');
+                const file = new File([res.blob], 'emlak_tasarimi.' + (isJpg ? 'jpg' : 'png'), { type: res.mime || 'image/png' });
+                if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+                    try {
+                        await navigator.share({ title: 'Emlak Tasarımı', text: 'Yeni emlak tasarımına göz atın!', files: [file] });
+                    } catch (err) { console.log('Share API iptal veya hata:', err); }
+                } else {
+                    // Doğrudan paylaşım desteklenmiyorsa görseli indir ve kullanıcıyı bilgilendir
+                    const url = URL.createObjectURL(res.blob);
+                    const a = document.createElement('a');
+                    a.href = url; a.download = file.name;
+                    document.body.appendChild(a); a.click(); a.remove();
+                    setTimeout(() => URL.revokeObjectURL(url), 4000);
+                    const msg = 'Tarayıcınız doğrudan paylaşımı desteklemiyor. Görsel indirildi, ' + platform + ' üzerinden manuel paylaşabilirsiniz.';
+                    if (typeof window.showAppToast === 'function') window.showAppToast(msg, 'info', 4500); else alert(msg);
+                }
+                return;
+            }
+            // Dışa aktarma meşgul veya yetki kontrolüne takıldıysa (demo kilidi vb.) yedek yola geçme
+            return;
+        }
+    } catch (e) {
+        console.warn('Paylaşım için tam dışa aktarma başarısız, yedek yönteme geçiliyor:', e);
+    }
+
+    // 2. Yedek yol (eski yöntem)
     if(!window.html2canvas) return alert('html2canvas yüklenmedi!');
     await ensureFontsLoaded();
     try {
@@ -3454,6 +3558,25 @@ async function saveProject() {
             if (el.closest('.callout-wrap') || el.closest('.co-neon-block') || el.closest('.callout-wrapper')) return;
             if (el.classList.contains('normal-el') || el.classList.contains('canva-generated') || el.classList.contains('canva-panel')) return;
             if (el.classList.contains('editable-draw')) return;
+
+            if (el.tagName && el.tagName.toLowerCase() === 'img') {
+                const left = parseFloat(el.style.left) || 0;
+                const top = parseFloat(el.style.top) || 0;
+                customItems.push({
+                    kind: 'qr',
+                    src: el.src,
+                    left: left,
+                    top: top,
+                    xPercent: canvasW > 0 ? (left / canvasW) : 0,
+                    yPercent: canvasH > 0 ? (top / canvasH) : 0,
+                    width: el.style.width || '150px',
+                    height: el.style.height || 'auto',
+                    zIndex: el.style.zIndex || '50',
+                    rotation: parseFloat(el.dataset.rotation) || 0,
+                    dataset: Object.assign({}, el.dataset)
+                });
+                return;
+            }
             
             const isBadge = el.dataset.label && (el.dataset.label.startsWith('Rozet:') || el.dataset.label.includes('Çerçeveli'));
             const isBox = (el.dataset.label === 'Özel Kutu');
@@ -3619,6 +3742,31 @@ async function saveProject() {
         state.smartMatchedCallouts = window.smartMatchedCallouts || [];
         state.photoCurves = (window.PhotoCurvesManager && typeof window.PhotoCurvesManager.getState === 'function') ? window.PhotoCurvesManager.getState() : null;
         state.photoMasks = (window.PhotoMasksManager && typeof window.PhotoMasksManager.getState === 'function') ? window.PhotoMasksManager.getState() : null;
+        const ccSave = document.getElementById('canvas-container');
+        state.canvasBgColor = ccSave ? ccSave.style.backgroundColor : '';
+        state.canvasBgImage = ccSave ? ccSave.style.backgroundImage : '';
+        if (window.TemplateBuilder && typeof window.TemplateBuilder.captureFrames === 'function') {
+            state.templateFrames = window.TemplateBuilder.captureFrames();
+        } else {
+            const tbArr = [];
+            document.querySelectorAll('.tb-image-frame').forEach(f => {
+                const img = f.querySelector('.tb-frame-img');
+                tbArr.push({
+                    id: f.id || '',
+                    frameId: f.dataset.frameId || '',
+                    dataset: Object.assign({}, f.dataset),
+                    style: {
+                        width: f.style.width || (f.offsetWidth + 'px'),
+                        height: f.style.height || (f.offsetHeight + 'px'),
+                        left: f.style.left || (f.offsetLeft + 'px'),
+                        top: f.style.top || (f.offsetTop + 'px'),
+                        zIndex: f.style.zIndex || '50'
+                    },
+                    imgSrc: f.dataset.imgSrc || (img && img.src ? img.src : null)
+                });
+            });
+            state.templateFrames = tbArr;
+        }
 
         // JSON olarak indir
         const jsonString = JSON.stringify(state);
@@ -3921,6 +4069,10 @@ window.loadProjectFromFile = function(file) {
                         if (item.whiteSpace) el.style.whiteSpace = item.whiteSpace;
                         if (item.lineHeight) el.style.lineHeight = item.lineHeight;
                         if (item.letterSpacing) el.style.letterSpacing = item.letterSpacing;
+                        if (item.rotation) {
+                            el.dataset.rotation = item.rotation;
+                            el.style.transform = `rotate(${item.rotation}deg)`;
+                        }
                         el.style.zIndex = '9999';
                         el.style.display = 'block';
                         el.style.boxSizing = 'border-box';
@@ -3980,7 +4132,30 @@ window.loadProjectFromFile = function(file) {
                             } else if (item.isNeon && typeof window.rebindNeonCallout === 'function') {
                                 window.rebindNeonCallout(wrap);
                             }
-                        } else if (item.kind === 'custom-badge' && window.CustomBadges && typeof window.CustomBadges.addToCanvas === 'function') {
+                        }
+                    } else if (item.kind === 'qr' && item.src) {
+                        const renderLayer = document.getElementById('canvas-container') || uiLayer;
+                        if (renderLayer) {
+                            const qrImg = document.createElement('img');
+                            qrImg.src = item.src;
+                            qrImg.className = 'draggable canvas-el';
+                            qrImg.style.position = 'absolute';
+                            qrImg.style.left = (typeof item.left !== 'undefined' ? item.left : Math.round(item.xPercent * targetCanvasW)) + 'px';
+                            qrImg.style.top = (typeof item.top !== 'undefined' ? item.top : Math.round(item.yPercent * targetCanvasH)) + 'px';
+                            qrImg.style.width = item.width || '150px';
+                            qrImg.style.height = item.height || 'auto';
+                            qrImg.style.aspectRatio = '1 / 1';
+                            qrImg.style.zIndex = item.zIndex || '50';
+                            qrImg.style.cursor = 'grab';
+                            qrImg.style.objectFit = 'contain';
+                            if (item.rotation) qrImg.style.transform = `rotate(${item.rotation}deg)`;
+                            if (item.dataset) Object.keys(item.dataset).forEach(k => { qrImg.dataset[k] = item.dataset[k]; });
+                            if (!qrImg.dataset.type) qrImg.dataset.type = 'qr';
+                            renderLayer.appendChild(qrImg);
+                            if (typeof makeDraggable === 'function') makeDraggable(qrImg);
+                            else if (typeof bindDrag === 'function') bindDrag(qrImg);
+                        }
+                    } else if (item.kind === 'custom-badge' && window.CustomBadges && typeof window.CustomBadges.addToCanvas === 'function') {
                             const posX = typeof item.left !== 'undefined' ? item.left : Math.round(item.xPercent * targetCanvasW);
                             const posY = typeof item.top !== 'undefined' ? item.top : Math.round(item.yPercent * targetCanvasH);
                             window.CustomBadges.addToCanvas({
@@ -4005,7 +4180,6 @@ window.loadProjectFromFile = function(file) {
                                 neonIntensity: item.neonIntensity,
                                 flippedH: item.flippedH
                             });
-                        }
                     }
                 });
             } else if (state.customElements && Array.isArray(state.customElements)) {
@@ -4056,6 +4230,22 @@ window.loadProjectFromFile = function(file) {
             // 🌟 3D Düzlem & Metin Katmanını Geri Yükle
             if (state.threeDData && window.ThreeDEngine && typeof window.ThreeDEngine.restoreData === 'function') {
                 await window.ThreeDEngine.restoreData(state.threeDData);
+            }
+
+            // Tuval arka planı, Eğriler, Maskeler ve Şablon Çerçeveleri
+            const ccLoad = document.getElementById('canvas-container');
+            if (ccLoad) {
+                if (state.canvasBgColor) ccLoad.style.setProperty('background-color', state.canvasBgColor, 'important');
+                if (state.canvasBgImage && state.canvasBgImage !== 'none') ccLoad.style.setProperty('background-image', state.canvasBgImage, 'important');
+            }
+            if (state.photoCurves && window.PhotoCurvesManager && typeof window.PhotoCurvesManager.setState === 'function') {
+                window.PhotoCurvesManager.setState(state.photoCurves);
+            }
+            if (state.photoMasks && window.PhotoMasksManager && typeof window.PhotoMasksManager.setState === 'function') {
+                window.PhotoMasksManager.setState(state.photoMasks);
+            }
+            if (state.templateFrames && Array.isArray(state.templateFrames) && state.templateFrames.length > 0 && window.TemplateBuilder && typeof window.TemplateBuilder.restoreFrames === 'function') {
+                window.TemplateBuilder.restoreFrames(state.templateFrames);
             }
 
             // Renk paleti ve font ayarları

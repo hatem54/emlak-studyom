@@ -7,7 +7,7 @@ function initFeedbackSystem() {
         <div class="modal" style="max-width: 400px; width:90%; text-align:left; background: #0f172a; padding: 25px; border-radius: 12px; border: 1px solid #334155; position:relative; box-shadow: 0 10px 25px rgba(0,0,0,0.5); z-index: 100001;">
             <button type="button" class="modal-close" onclick="window.closeFeedbackModal()" style="position:absolute; right:15px; top:15px; background:none; border:none; color:#94a3b8; font-size:20px; cursor:pointer;">&times;</button>
             <h2 style="margin-bottom: 10px; color:white; font-size:22px; display:flex; align-items:center; gap:8px;">💬 Bize Ulaşın</h2>
-            <p style="font-size: 13px; color: #94a3b8; margin-bottom: 20px;">Sorularınız, önerileriniz veya karşılaştığınız sorunlar için bize mesaj gönderin. Veya <a href="mailto:iletisim@emlakstudyom.com" style="color:#60a5fa; text-decoration:underline;">doğrudan e-posta</a> atın.</p>
+            <p style="font-size: 13px; color: #94a3b8; margin-bottom: 20px;">Sorularınız, önerileriniz veya karşılaştığınız sorunlar için bize mesaj gönderin. Veya <a href="mailto:emlakstudyomtr@gmail.com" style="color:#60a5fa; text-decoration:underline;">doğrudan e-posta</a> atın.</p>
             
             <form id="feedbackForm" onsubmit="window.submitFeedback(event)">
                 <div class="form-group" style="margin-bottom:15px;">

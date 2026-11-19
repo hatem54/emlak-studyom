@@ -447,7 +447,7 @@ const HelpAssistant = {
                 • EmlakStüdyom yaptığınız tüm çizim, 3D nesne ve şablon düzenlemelerini anlık olarak tarayıcınızın yerel hafızasına kaydeder.<br>
                 • Sayfayı yenilediğinizde veya yanlışlıkla kapattığınızda üst menüdeki <b>'Çalışmayı Geri Yükle'</b> butonuna basarak tüm çalışmanızı eksiksiz kurtarabilirsiniz.`;
                 const actionBtns = [
-                    { label: "Çalışmayı Geri Yükle", onClick: () => { if(typeof window.restoreAutoSaveDraft === 'function') window.restoreAutoSaveDraft(); } }
+                    { label: "Çalışmayı Geri Yükle", onClick: () => { if(typeof window.restoreLastAutoSave === 'function') window.restoreLastAutoSave(); } }
                 ];
                 this.addSystemMessage(answer, ["İşlem Sırası Nasıl Olmalı?", "Çıktı nasıl alınır?"], actionBtns);
                 return;

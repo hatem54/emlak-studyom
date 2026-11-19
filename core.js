@@ -470,11 +470,13 @@ function duplicateSelected(){
             return;
         }
     }
-    // 2. 2D Öge Seçiliyse: 2D ögeyi çoğalt
-    const target = window.selectedEl || (window.selectedElements && window.selectedElements[0]) || (typeof selectedEl !== 'undefined' ? selectedEl : null) || document.querySelector('.el-selected');
-    if (!target) return;
-    const rootEl = target.closest('.callout-wrap, .draggable, .canvas-el, .added-icon, [data-layer-uid]') || target;
-    window.selectedElements = [rootEl];
+    // 2. 2D Öge Seçiliyse: 2D ögeyi (veya çoklu seçimi) çoğalt
+    if (!window.selectedElements || window.selectedElements.length === 0) {
+        const target = window.selectedEl || (typeof selectedEl !== 'undefined' ? selectedEl : null) || document.querySelector('.el-selected');
+        if (!target) return;
+        const rootEl = target.closest('.callout-wrap, .draggable, .canvas-el, .added-icon, [data-layer-uid]') || target;
+        window.selectedElements = [rootEl];
+    }
     if (typeof window.multiSelectDuplicate === 'function') {
         window.multiSelectDuplicate();
     }

@@ -153,7 +153,12 @@ function switchTab(name){
     
     if (name === 'batch') {
         if (window.CarouselManager && typeof window.CarouselManager.syncFromStaging === 'function') {
-            window.CarouselManager.syncFromStaging(true);
+            if (!Array.isArray(window.CarouselManager.pages) || window.CarouselManager.pages.length === 0) {
+                window.CarouselManager.syncFromStaging(true);
+            } else {
+                const batchCounter = document.getElementById('carouselBatchCountText');
+                if (batchCounter) batchCounter.textContent = `${window.CarouselManager.pages.length} Sayfa Mevcut`;
+            }
         }
     }
 

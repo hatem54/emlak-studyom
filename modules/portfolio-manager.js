@@ -141,13 +141,20 @@
                 window.TemplateBuilder.setCanvasRatio(p.ratio || '1:1');
             }
 
-            // 2. Tuval Arka Planını Ayarla
+            // 2. Tuval Arka Planını Ayarla (kullanıcı özel renk seçmemişse şablonun kendi arka planını uygula)
             const isGrad = p.bg && (p.bg.includes('gradient') || p.bg.includes('linear') || p.bg.includes('radial'));
             if (window.TemplateBuilder && typeof window.TemplateBuilder.setCanvasBackground === 'function') {
-                window.TemplateBuilder.setCanvasBackground(isGrad ? 'gradient' : 'color', p.bg, true);
+                if (window.TemplateBuilder.userChosenBg) {
+                    window.TemplateBuilder.setCanvasBackground(window.TemplateBuilder.userChosenBg.type, window.TemplateBuilder.userChosenBg.value, false);
+                } else {
+                    window.TemplateBuilder.setCanvasBackground(isGrad ? 'gradient' : 'color', p.bg, false);
+                }
             }
 
-            // 3. Mevcut Çerçeveleri ve Özel Başlıkları Temizle
+            // 3. Mevcut Çerçeveleri, Bilgi Kartını ve Özel Başlıkları Temizle
+            const activeCard = document.getElementById('tb-active-info-card');
+            if (activeCard) activeCard.remove();
+            if (window.TemplateInfoCard) window.TemplateInfoCard.savedFrameSnapshots = null;
             document.querySelectorAll('.tb-image-frame, .tb-portfolio-text, .tb-layout-text').forEach(el => el.remove());
 
             const cW = parseFloat(cContainer.style.width) || cContainer.offsetWidth || 1920;

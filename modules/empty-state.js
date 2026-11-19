@@ -98,8 +98,8 @@
                     if (f.name.toLowerCase().endsWith('.json') || f.type === 'application/json') {
                         if (typeof window.loadProjectFromFile === 'function') window.loadProjectFromFile(f);
                         else if (typeof loadProjectFile === 'function') loadProjectFile(f);
-                    } else if (f.type.startsWith('image/')) {
-                        const allImages = Array.from(e.dataTransfer.files).filter(fl => fl.type && fl.type.startsWith('image/'));
+                    } else if ((f.type && f.type.startsWith('image/')) || /\.(heic|heif|jpg|jpeg|png|webp|gif|bmp|avif)$/i.test(f.name)) {
+                        const allImages = Array.from(e.dataTransfer.files).filter(fl => (fl.type && fl.type.startsWith('image/')) || /\.(heic|heif|jpg|jpeg|png|webp|gif|bmp|avif)$/i.test(fl.name));
                         if (allImages.length > 1 && window.PhotoStagingArchive && typeof window.PhotoStagingArchive.processUploadedFiles === 'function') {
                             window.PhotoStagingArchive.processUploadedFiles(allImages, false);
                         } else if (typeof window.loadPhotoFile === 'function') {

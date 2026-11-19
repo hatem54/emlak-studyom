@@ -317,14 +317,26 @@
         return tplObj;
     };
 
-    window.promptExportJsonTemplate = function() {
-        const tplName = prompt('Oluşturulacak şablon için bir isim girin:', 'Yeni Lüks Portföy');
-        if (!tplName) return;
+    window.promptExportJsonTemplate = async function() {
+        let tplName = null;
+        if (window.AppDialog && typeof window.AppDialog.prompt === 'function') {
+            tplName = await window.AppDialog.prompt({
+                title: 'Şablonu Dışa Aktar',
+                message: 'Oluşturulacak şablon için bir isim girin:',
+                defaultValue: 'Yeni Lüks Portföy',
+                icon: 'fa-file-export',
+                confirmText: 'Dışa Aktar',
+                cancelText: 'Vazgeç'
+            });
+        } else {
+            tplName = prompt('Oluşturulacak şablon için bir isim girin:', 'Yeni Lüks Portföy');
+        }
+        if (!tplName || !tplName.trim()) return;
         const curFmtVal = document.getElementById('previewFormat')?.value || '16:9';
         const curFmt = curFmtVal.includes('1:1') ? '1:1' :
                        curFmtVal.includes('4:5') ? '4:5' :
                        curFmtVal.includes('9:16') ? '9:16' : '16:9';
-        window.exportCurrentCanvasAsJsonTemplate(tplName, curFmt, 'konut');
+        window.exportCurrentCanvasAsJsonTemplate(tplName.trim(), curFmt, 'konut');
     };
 
     /**

@@ -298,27 +298,13 @@
                     width: w,
                     height: h,
                     label: 'Çokgen Çerçeve',
-                    radius: 0
+                    radius: 0,
+                    isPolygon: 'true',
+                    polygonClip: clipPathVal,
+                    polygonPoints: JSON.stringify(normPoints)
                 });
 
                 if (frame) {
-                    frame.dataset.isPolygon = 'true';
-                    frame.dataset.polygonClip = clipPathVal;
-                    frame.dataset.polygonPoints = JSON.stringify(normPoints);
-
-                    const clip = frame.querySelector('.tb-frame-clip') || frame;
-                    clip.style.clipPath = clipPathVal;
-                    clip.style.webkitClipPath = clipPathVal;
-                    clip.style.borderRadius = '0px';
-                    frame.style.borderRadius = '0px';
-                    frame.style.border = 'none';
-
-                    // 3D Dönüşüm dinleyicilerini bağla
-                    if (window.Template3DFrame && typeof window.Template3DFrame.bindInteractiveTilt === 'function') {
-                        window.Template3DFrame.bindInteractiveTilt(frame);
-                    }
-
-                    // Çerçeveyi seç
                     window.TemplateBuilder.selectFrame(frame);
                 }
             }

@@ -236,6 +236,10 @@ function applyPixelAdjustments() {
     const hv = document.getElementById('highlightsCtrl') ? +document.getElementById('highlightsCtrl').value : 0;
     const bl = document.getElementById('blacksCtrl') ? +document.getElementById('blacksCtrl').value : 0;
     const wh = document.getElementById('whitesCtrl') ? +document.getElementById('whitesCtrl').value : 0;
+    const tmp = document.getElementById('tempCtrl') ? +document.getElementById('tempCtrl').value : 0;
+    const tnt = document.getElementById('tintCtrl') ? +document.getElementById('tintCtrl').value : 0;
+    const vbr = document.getElementById('vibranceCtrl') ? +document.getElementById('vibranceCtrl').value : 0;
+    const shp = document.getElementById('sharpnessCtrl') ? +document.getElementById('sharpnessCtrl').value : 0;
     
     // UI values update
     if(document.getElementById('shadowsVal')) document.getElementById('shadowsVal').textContent = sv;

@@ -364,6 +364,7 @@
         }
         const box = new THREE.Box3();
         if (el.contentGroup) {
+            el.contentGroup.updateMatrixWorld(true);
             el.contentGroup.traverse(ch => {
                 if (ch.isMesh && ch.geometry && ch !== el.shadowPlane && ch.type !== 'GridHelper') {
                     if (!ch.geometry.boundingBox) ch.geometry.computeBoundingBox();
@@ -684,9 +685,17 @@
         let out = '';
         for (let i = 0; i < text.length; i++) {
             const ch = text[i];
-            const rep = (map[ch] !== undefined) ? map[ch] : ch;
+            // Önce fontun kendisinde gerçek glif (Türkçe harfler dahil) varsa doğrudan kullan; yoksa güvenli eşlemeye düş
+            const hasNativeGlyph = !!(font && font.data && font.data.glyphs && font.data.glyphs[ch]);
+            const rep = hasNativeGlyph ? ch : ((map[ch] !== undefined) ? map[ch] : ch);
             if (font && font.data && font.data.glyphs) {
-                if (font.data.glyphs[rep]) {
+                if (rep.length > 1) {
+                    // Çok karakterli karşılık (örn. ₺ -> TL): her harfi ayrı kontrol et
+                    for (let k = 0; k < rep.length; k++) {
+                        const rc = rep[k];
+                        out += font.data.glyphs[rc] ? rc : (font.data.glyphs[rc.toUpperCase()] ? rc.toUpperCase() : ' ');
+                    }
+                } else if (font.data.glyphs[rep]) {
                     out += rep;
                 } else if (font.data.glyphs[rep.toUpperCase()]) {
                     out += rep.toUpperCase();
@@ -741,8 +750,13 @@
             attachCanvasEvents(canvasEl);
         }
 
-        canvasEl.width = w;
-        canvasEl.height = h;
+        const targetW = Math.max(1, Math.round(w));
+        const targetH = Math.max(1, Math.round(h));
+        const sizeChanged = (canvasEl.width !== targetW || canvasEl.height !== targetH);
+        if (sizeChanged) {
+            canvasEl.width = targetW;
+            canvasEl.height = targetH;
+        }
 
         if (!renderer) {
             renderer = new THREE.WebGLRenderer({
@@ -751,12 +765,12 @@
                 antialias: true,
                 preserveDrawingBuffer: true
             });
-            renderer.setSize(w, h, false);
+            renderer.setSize(targetW, targetH, false);
             renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
             renderer.shadowMap.enabled = true;
             renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-        } else {
-            renderer.setSize(w, h, false);
+        } else if (sizeChanged) {
+            renderer.setSize(targetW, targetH, false);
         }
 
         // Sahne & Kamera (Yalnızca ilk kez oluştur)
@@ -2182,15 +2196,15 @@
         // 🌟 Kontur Önceliği 0: Katı Silüet (Silhouette) Kontrolü (Serbest ikonlar, binalar, evler, ağaçlar vb.)
         // Eğer silüet modu istendiyse, hazır silüet varsa veya emlak mimari ögesiyse, daima gerçek silüeti kullan!
         // (Binaların ve evlerin geniş cephe/duvar rect'leri asla rozet/kart dikdörtgenine dönüştürülmez!)
-        if (!shape && !isFenceEl && (shapeMode === 'silhouette' || isEstateItem || (options.cachedSilhouette && options.cachedSilhouette.shape))) {
-            if (options.cachedSilhouette && options.cachedSilhouette.shape) {
+        if (!shape && !isFenceEl && (shapeMode === 'silhouette' || isEstateItem || (options.cachedSilhouette && options.cachedSilhouette.shape && typeof options.cachedSilhouette.shape.extractPoints === 'function'))) {
+            if (options.cachedSilhouette && options.cachedSilhouette.shape && typeof options.cachedSilhouette.shape.extractPoints === 'function') {
                 shape = options.cachedSilhouette.shape;
                 isExactSilhouette = true;
             } else {
                 const cacheKey = rawSvg.length + '_' + rawSvg.slice(0, 120) + '_' + Math.round(targetW) + '_' + Math.round(targetH);
                 if (svgSilhouetteCache.has(cacheKey)) {
                     const cached = svgSilhouetteCache.get(cacheKey);
-                    if (cached && cached.shape) {
+                    if (cached && cached.shape && typeof cached.shape.extractPoints === 'function') {
                         shape = cached.shape;
                         isExactSilhouette = true;
                     }
@@ -5018,17 +5032,13 @@
         const el = getActiveElement();
         if (!el || !el.contentGroup || !el.planeGroup) return;
 
-        // 🌟 Birlikte Düzenle (All) modunda veya çoklu seçimde tek ortak grup merkezi (Centroid Pivot):
+        // 🌟 Yalnızca gerçek birleşik gruplarda (groupId) ortak grup merkezi kullan;
+        // gruplanmamış geçici çoklu seçimlerde gizmo her zaman aktif ögenin (el) üzerinde kalır (boşlukta yüzmez).
         let groupCenter = null;
         let groupMembers = [];
         const isGroupAll = (state.groupEditMode === 'all');
         if (isGroupAll && el.groupId) {
             groupMembers = elements.filter(m => m && m.groupId === el.groupId && !m.attachedTo);
-        } else if (window.ThreeDGrouping && typeof window.ThreeDGrouping.getSelected3DElements === 'function') {
-            const multi = window.ThreeDGrouping.getSelected3DElements();
-            if (multi.length > 1 && multi.some(m => m && m.id === el.id)) {
-                groupMembers = multi.filter(m => m && !m.attachedTo);
-            }
         }
         if (groupMembers.length > 1) {
             let sumX = 0, sumY = 0, sumZ = 0;
@@ -5125,13 +5135,17 @@
                     const hX = Math.abs(bb.max.x - bb.min.x) / 2;
                     const hY = Math.abs(bb.max.y - bb.min.y) / 2;
                     const hZ = Math.abs(bb.max.z - bb.min.z) / 2;
-                    localRadius = Math.max(30, hX, hY, hZ);
+                    const maxDim = Math.max(hX, hY, hZ);
+                    localRadius = Math.max(30, Math.min(maxDim, Math.max(hY, hZ) * 2.4 + 35));
                 } else {
                     const bbox = new THREE.Box3().setFromObject(contentGroup);
                     if (!bbox.isEmpty()) {
                         const sz = new THREE.Vector3();
                         bbox.getSize(sz);
-                        localRadius = Math.max(30, Math.max(sz.x, sz.y, sz.z) / (curScale * 2));
+                        const hX = sz.x / (curScale * 2);
+                        const hY = sz.y / (curScale * 2);
+                        const hZ = sz.z / (curScale * 2);
+                        localRadius = Math.max(30, Math.min(Math.max(hX, hY, hZ), Math.max(hY, hZ) * 2.4 + 35));
                     }
                 }
             } catch (ex) {
@@ -5143,10 +5157,15 @@
         let baseLen = localRadius * 1.38 * userDistMultiplier;
 
         const minScreenArmPx = 82 * effectiveGizmoScale;
+        const maxScreenArmPx = 155 * effectiveGizmoScale * userDistMultiplier;
         const currentScreenArmPx = baseLen * curScale * avgPixelsPerUnit;
         if (currentScreenArmPx < minScreenArmPx) {
             const boost = minScreenArmPx / Math.max(0.001, currentScreenArmPx);
             baseLen *= boost;
+            arcR = baseLen * 0.82;
+        } else if (currentScreenArmPx > maxScreenArmPx) {
+            const shrink = maxScreenArmPx / Math.max(0.001, currentScreenArmPx);
+            baseLen *= shrink;
             arcR = baseLen * 0.82;
         }
 
@@ -5322,8 +5341,23 @@
         if (!Array.isArray(window.selectedElements) || window.selectedElements.length === 0) return;
         window.selectedElements.forEach(sEl => {
             if (!sEl) return;
-            const curL = parseFloat(sEl.style.left) || sEl.offsetLeft || 0;
-            const curT = parseFloat(sEl.style.top) || sEl.offsetTop || 0;
+            const cs = window.getComputedStyle(sEl);
+            const parsedL = parseFloat(sEl.style.left);
+            const parsedT = parseFloat(sEl.style.top);
+            const curL = (sEl.style.left && !String(sEl.style.left).includes('%') && !isNaN(parsedL))
+                ? parsedL
+                : (parseFloat(cs.left) || sEl.offsetLeft || 0);
+            const curT = (sEl.style.top && !String(sEl.style.top).includes('%') && !isNaN(parsedT))
+                ? parsedT
+                : (parseFloat(cs.top) || sEl.offsetTop || 0);
+            if (sEl.style.right && sEl.style.right !== 'auto') {
+                sEl.style.left = curL + 'px';
+                sEl.style.right = 'auto';
+            }
+            if (sEl.style.bottom && sEl.style.bottom !== 'auto') {
+                sEl.style.top = curT + 'px';
+                sEl.style.bottom = 'auto';
+            }
             sEl.dataset.dragStartX = curL;
             sEl.dataset.dragStartY = curT;
             sEl._hybridTotalDx = 0;
@@ -5361,17 +5395,18 @@
 
         window.selectedElements.forEach(sEl => {
             if (!sEl || (sEl.dataset && sEl.dataset.locked === 'true')) return;
-            const curL = parseFloat(sEl.style.left) || sEl.offsetLeft || 0;
-            const curT = parseFloat(sEl.style.top) || sEl.offsetTop || 0;
-            const newL = curL + dx2d;
-            const newT = curT + dy2d;
+            const startL = parseFloat(sEl.dataset.dragStartX);
+            const startT = parseFloat(sEl.dataset.dragStartY);
+            const baseL = !isNaN(startL) ? startL : (parseFloat(window.getComputedStyle(sEl).left) || sEl.offsetLeft || 0);
+            const baseT = !isNaN(startT) ? startT : (parseFloat(window.getComputedStyle(sEl).top) || sEl.offsetTop || 0);
+            sEl._hybridTotalDx = (sEl._hybridTotalDx || 0) + dx2d;
+            sEl._hybridTotalDy = (sEl._hybridTotalDy || 0) + dy2d;
+            const newL = baseL + sEl._hybridTotalDx;
+            const newT = baseT + sEl._hybridTotalDy;
             sEl.style.left = newL + 'px';
             sEl.style.top = newT + 'px';
             sEl.style.bottom = 'auto';
             sEl.style.right = 'auto';
-
-            sEl._hybridTotalDx = (sEl._hybridTotalDx || 0) + dx2d;
-            sEl._hybridTotalDy = (sEl._hybridTotalDy || 0) + dy2d;
 
             if (sEl.classList.contains('editable-draw')) {
                 sEl.dataset.baseLeft = newL;
@@ -6670,24 +6705,27 @@
                 lastCvsDownY = e.clientY;
             }
 
-            // 🎯 3D üzeri 2D öge tıklama koruması: Sadece gerçekten görünür bir 2D öğe varsa 3D seçimini bırak ve 2D ögeyi seç
-            try {
-                const elementsAtPoint = document.elementsFromPoint(e.clientX, e.clientY);
-                let target2D = null;
-                if (elementsAtPoint) {
-                    for (const node of elementsAtPoint) {
-                        if (node === cvs || (node.closest && node.closest('#three-d-layer, #threeDCanvas'))) continue;
-                        const c = node.closest && node.closest('.callout-wrap, .callout-item, .co-neon-block, .neon-text-el, .canvas-icon, .draggable, .added-icon, .svg-icon, .icon-wrapper, .cvi-item, .editable-draw, .canvas-el, .cvi-badge-box, .tb-image-frame, [data-layer-uid]');
-                        if (c) {
-                            const style = window.getComputedStyle(c);
-                            if (style && style.display !== 'none' && style.visibility !== 'hidden') {
-                                target2D = c;
-                                break;
-                            }
-                        }
-                    }
-                }
+            if (window.spaceBarPressed || (e.type === 'pointerdown' && e.button === 1)) return; // Space veya orta tık tuval pan'e aittir
+            const hitEl = check3DHit(e.clientX, e.clientY) || getSelected3DHitInBounds(e.clientX, e.clientY);
+            const isRotateModifier = (e.altKey || e.shiftKey);
+            if (!hitEl && !isRotateModifier) {
+                // 🎯 3D hit yoksa arkadaki görünür 2D ögeyi kontrol et (ör. .tb-image-frame)
+                const target2D = findVisible2DAtPoint(e.clientX, e.clientY);
                 if (target2D) {
+                    const has3D = state.selected || (window.ThreeDGrouping && typeof window.ThreeDGrouping.getSelected3DElements === 'function' && window.ThreeDGrouping.getSelected3DElements().length > 0);
+                    if (is2DElementAlreadySelected(target2D) && has3D) {
+                        // 🌟 Karma çoklu seçim korunarak sürüklemeyi başlat
+                        const sel3D = (window.ThreeDGrouping && typeof window.ThreeDGrouping.getSelected3DElements === 'function') ? window.ThreeDGrouping.getSelected3DElements() : [];
+                        const act = getActiveElement();
+                        if ((!act || act.locked) && sel3D.length > 0) {
+                            const unlocked = sel3D.find(m => m && !m.locked);
+                            if (unlocked) setActiveElement(unlocked);
+                        }
+                        beginHybridCanvasDrag(e);
+                        e.stopPropagation();
+                        e.preventDefault();
+                        return;
+                    }
                     setSelected(false, { silent: true });
                     if (gridHelper) gridHelper.visible = false;
                     requestRender();
@@ -6698,12 +6736,6 @@
                     e.preventDefault();
                     return;
                 }
-            } catch(ex){}
-
-            if (window.spaceBarPressed || (e.type === 'pointerdown' && e.button === 1)) return; // Space veya orta tık tuval pan'e aittir
-            const hitEl = check3DHit(e.clientX, e.clientY);
-            const isRotateModifier = (e.altKey || e.shiftKey);
-            if (!hitEl && !isRotateModifier) {
                 // Boş alana tıklandı: 3D seçimini, çoklu seçimi ve tutamaçları bırak, görsel serbest kalsın!
                 setSelected(false, { silent: true });
                 if (gridHelper) gridHelper.visible = false;
@@ -6720,7 +6752,9 @@
                 const currentMulti = (window.ThreeDGrouping && typeof window.ThreeDGrouping.getSelected3DElements === 'function')
                     ? window.ThreeDGrouping.getSelected3DElements()
                     : [];
-                const isHitInMulti = currentMulti.length > 1 && currentMulti.some(m => m && String(m.id) === String(hitEl.id));
+                const has2DSelection = Array.isArray(window.selectedElements) && window.selectedElements.length > 0;
+                const isHitInMulti = currentMulti.some(m => m && String(m.id) === String(hitEl.id));
+                const keep2D = isMultiKey || (isHitInMulti && (currentMulti.length > 1 || has2DSelection)) || (state.selected && getActiveElement() === hitEl && has2DSelection);
 
                 if (isMultiKey) {
                     if (window.ThreeDGrouping && typeof window.ThreeDGrouping.toggleSelect3DElement === 'function') {
@@ -6744,7 +6778,7 @@
                 }
                 // 🌟 Ögeye tıklandığında Gizmo'yu aktif yap ve seçimi tazele
                 state.gizmoActive = true;
-                setSelected(true, { silent: true, keep2DSelection: isMultiKey || isHitInMulti });
+                setSelected(true, { silent: true, keep2DSelection: keep2D });
                 updateDock3DControlsState();
             }
 
@@ -6957,6 +6991,86 @@
             }
         });
 
+        // 🎯 Seçili 3D/2D Karma Hit ve Ortak Sürükleme Yardımcıları
+        function getSelected3DHitInBounds(clientX, clientY) {
+            const multiSel = (window.ThreeDGrouping && typeof window.ThreeDGrouping.getSelected3DElements === 'function')
+                ? window.ThreeDGrouping.getSelected3DElements()
+                : [];
+            const active3D = getActiveElement();
+            if (!state.selected && multiSel.length === 0) return null;
+
+            const selectedIds = new Set();
+            multiSel.forEach(m => { if (m && m.id !== undefined) selectedIds.add(String(m.id)); });
+            if (state.selected && active3D && active3D.id !== undefined) selectedIds.add(String(active3D.id));
+            if (selectedIds.size === 0) return null;
+
+            const boundsList = getElementsScreenBounds();
+            let bestEl = null;
+            let bestArea = Infinity;
+            boundsList.forEach(item => {
+                if (!item || !item.el || item.el.visible === false || !selectedIds.has(String(item.el.id))) return;
+                const r = item.rect;
+                if (!r) return;
+                if (clientX >= r.left - 4 && clientX <= r.right + 4 && clientY >= r.top - 4 && clientY <= r.bottom + 4) {
+                    const area = Math.max(1, (r.right - r.left) * (r.bottom - r.top));
+                    if (area < bestArea) {
+                        bestArea = area;
+                        bestEl = item.el;
+                    }
+                }
+            });
+            return bestEl;
+        }
+
+        function findVisible2DAtPoint(clientX, clientY) {
+            try {
+                const elementsAtPoint = document.elementsFromPoint(clientX, clientY);
+                if (!elementsAtPoint) return null;
+                for (const node of elementsAtPoint) {
+                    if (!node || node === cvs || (node.closest && node.closest('#three-d-layer, #threeDCanvas'))) continue;
+                    const c = node.closest && node.closest('.callout-wrap, .callout-item, .co-neon-block, .neon-text-el, .canvas-icon, .draggable, .added-icon, .svg-icon, .icon-wrapper, .cvi-item, .editable-draw, .canvas-el, .cvi-badge-box, .tb-image-frame, [data-layer-uid]');
+                    if (c) {
+                        const style = window.getComputedStyle(c);
+                        if (style && style.display !== 'none' && style.visibility !== 'hidden') {
+                            return c;
+                        }
+                    }
+                }
+            } catch (ex) {}
+            return null;
+        }
+
+        function is2DElementAlreadySelected(el2d) {
+            if (!el2d) return false;
+            if (el2d.classList && el2d.classList.contains('el-selected')) return true;
+            return Array.isArray(window.selectedElements) && window.selectedElements.some(s =>
+                s === el2d || (s && s.contains && (s.contains(el2d) || el2d.contains(s)))
+            );
+        }
+
+        function beginHybridCanvasDrag(e, hudText) {
+            const actEl = getActiveElement();
+            if (!state.selected && actEl) {
+                setSelected(true, { silent: true, keep2DSelection: true });
+            }
+            isPointerDown = true;
+            hasMoved = false;
+            dragStart.x = e.clientX;
+            dragStart.y = e.clientY;
+            rawDragPos.x = (actEl && typeof actEl.posX === 'number') ? actEl.posX : (state.posX || 0);
+            rawDragPos.y = (actEl && typeof actEl.posY === 'number') ? actEl.posY : (state.posY || 0);
+            state.posX = rawDragPos.x;
+            state.posY = rawDragPos.y;
+            dragMode = 'move';
+            window._isThreeDDragging = true;
+            initHybrid2DDragStart();
+            cvs.style.cursor = 'default';
+            try { cvs.setPointerCapture(e.pointerId); } catch (ex) {}
+            if (hudText) {
+                showGizmoHud(hudText, e.clientX, e.clientY);
+            }
+        }
+
         // 🎯 Tuval Konteyneri Dinleyicileri (Seçim kapalıyken tıklamayla doğrudan seçme & Hover cursor)
         const container = document.getElementById('canvas-container');
         if (container && !container._threeDContainerEventsAttached) {
@@ -6970,8 +7084,25 @@
                     return;
                 }
                 // 2D Elemana tıklandıysa (Callout, İkon, Yazı, Çizim vb.) capture'da engelleme, 2D menünün açılmasına izin ver!
-                if (e.target.closest && e.target.closest('.callout-wrap, .callout-item, .co-neon-block, .canvas-icon, .draggable, .added-icon, .cvi-item, .editable-draw, .canvas-el, .cvi-badge-box, [data-layer-uid]')) {
+                if (e.target.closest && e.target.closest('.callout-wrap, .callout-item, .co-neon-block, .canvas-icon, .draggable, .added-icon, .cvi-item, .editable-draw, .canvas-el, .cvi-badge-box, .tb-image-frame, [data-layer-uid]')) {
                     return;
+                }
+                const hit3DCtx = check3DHit(e.clientX, e.clientY);
+                if (!hit3DCtx) {
+                    const under2D = findVisible2DAtPoint(e.clientX, e.clientY);
+                    if (under2D && typeof window.openObjectContextMenu === 'function') {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        const isFrame = under2D.classList && under2D.classList.contains('tb-image-frame');
+                        if (isFrame && window.TemplateBuilder) {
+                            window.TemplateBuilder.selectedFrame = under2D;
+                            if (typeof window.TemplateBuilder.syncSettingsPanelWithFrame === 'function') {
+                                window.TemplateBuilder.syncSettingsPanelWithFrame(under2D);
+                            }
+                        }
+                        window.openObjectContextMenu(under2D, !isFrame, e.clientX, e.clientY);
+                        return;
+                    }
                 }
 
                 // 🌟 ÇOKLU SEÇİM KONTROLÜ: Eğer 3D ögelerden birden fazlası seçilmişse (pencere/marquee ile), çoklu seçim menüsünü aç!
@@ -7013,20 +7144,19 @@
             container.addEventListener('pointerdown', (e) => {
                 if (!state.active) return;
                 if (e.button !== 0) return; // Yalnızca sol tık
+                if (window.spaceBarPressed) return;
 
-                // Panel, gizmo, stepper popover veya dock kontrollerine tıklandıysa dokunma
+                // Panel, gizmo, dock kontrolleri veya popover tıklamalarına dokunma
                 if (e.target && e.target.closest && e.target.closest('#threeDStudioPanel, .three-d-panel, #threeDGizmoOverlay, #threeDCornerPinOverlay, #threeDCanvasBadge, #threeDDockControls, .dock-3d-controls, .three-d-context-menu, #dock3DStepperPopover')) {
                     return;
                 }
 
-                // 2D öğeye tıklandıysa: Eğer 3D seçiliyse seçimi bırak ki 2D öge seçilebilsin!
+                // 2D öğeye doğrudan tıklandıysa (ör. #three-d-layer üstündeki 2D katman)
                 const is2DTarget = e.target && e.target.closest && e.target.closest('.callout-wrap, .callout-item, .co-neon-block, .neon-text-el, .canvas-icon, .draggable, .added-icon, .svg-icon, .icon-wrapper, .cvi-item, .editable-draw, .canvas-el, .cvi-badge-box, .tb-image-frame, [data-layer-uid]');
                 if (is2DTarget) {
-                    // 🌟 Karma Seçim Koruması: Tıklanan 2D öge zaten seçiliyse ve 3D de seçiliyse seçimi düşürme!
-                    const isAlreadySelected = (Array.isArray(window.selectedElements) && window.selectedElements.some(s => s === is2DTarget || (s && (s.contains(is2DTarget) || is2DTarget.contains(s))))) || is2DTarget.classList.contains('el-selected');
                     const has3D = state.selected || (window.ThreeDGrouping && typeof window.ThreeDGrouping.getSelected3DElements === 'function' && window.ThreeDGrouping.getSelected3DElements().length > 0);
                     const isMultiKey = e.ctrlKey || e.shiftKey;
-                    if ((isAlreadySelected || isMultiKey) && has3D) {
+                    if ((is2DElementAlreadySelected(is2DTarget) || isMultiKey) && has3D) {
                         return;
                     }
 
@@ -7035,16 +7165,21 @@
                         if (gridHelper) gridHelper.visible = false;
                         requestRender();
                     }
+                    if (!isMultiKey && window.ThreeDGrouping && typeof window.ThreeDGrouping.clearSelection === 'function') {
+                        window.ThreeDGrouping.clearSelection();
+                    }
                     return;
                 }
 
-                const hitEl = check3DHit(e.clientX, e.clientY);
+                const hitEl = check3DHit(e.clientX, e.clientY) || getSelected3DHitInBounds(e.clientX, e.clientY);
                 if (hitEl) {
                     const isMultiKey = !!(e && (e.ctrlKey || e.shiftKey));
                     const currentMulti = (window.ThreeDGrouping && typeof window.ThreeDGrouping.getSelected3DElements === 'function')
                         ? window.ThreeDGrouping.getSelected3DElements()
                         : [];
-                    const isHitInMulti = currentMulti.length > 1 && currentMulti.some(m => m && String(m.id) === String(hitEl.id));
+                    const has2DSelection = Array.isArray(window.selectedElements) && window.selectedElements.length > 0;
+                    const isHitInMulti = currentMulti.some(m => m && String(m.id) === String(hitEl.id));
+                    const keep2D = isMultiKey || (isHitInMulti && (currentMulti.length > 1 || has2DSelection)) || (state.selected && getActiveElement() === hitEl && has2DSelection);
 
                     if (!state.selected || getActiveElement() !== hitEl || isHitInMulti) {
                         e.stopPropagation();
@@ -7065,21 +7200,53 @@
                             }
                         }
                         setActiveElement(hitEl);
-                        setSelected(true, { autoLockPhoto: true, keep2DSelection: isMultiKey || isHitInMulti });
-                        // İlk tıklamada bırakmadan hemen taşımaya başla
+                        setSelected(true, { autoLockPhoto: true, keep2DSelection: keep2D });
                         if (!hitEl.locked) {
-                            isPointerDown = true;
-                            dragStart.x = e.clientX;
-                            dragStart.y = e.clientY;
-                            dragMode = 'move';
-                            cvs.style.cursor = 'default';
-                            try { cvs.setPointerCapture(e.pointerId); } catch(ex){}
-                            showGizmoHud(`📍 Konum: X: ${Math.round(state.posX)}, Y: ${Math.round(state.posY)}`, e.clientX, e.clientY);
+                            beginHybridCanvasDrag(e, `📍 Konum: X: ${Math.round(state.posX)}, Y: ${Math.round(state.posY)}`);
                         } else {
                             showGizmoHud('🔒 3D Öge Kilitli', e.clientX, e.clientY);
                         }
+                    } else if (!hitEl.locked) {
+                        window._isThreeDDragging = true;
                     }
-                } else if (state.selected) {
+                    return;
+                }
+
+                // 🎯 3D hit yoksa, #threeDCanvas altındaki 2D ögeyi kontrol et (ör. .tb-image-frame z-index: 50 < 54)
+                const target2D = findVisible2DAtPoint(e.clientX, e.clientY);
+                if (target2D) {
+                    const currentMulti = (window.ThreeDGrouping && typeof window.ThreeDGrouping.getSelected3DElements === 'function')
+                        ? window.ThreeDGrouping.getSelected3DElements()
+                        : [];
+                    const has3D = state.selected || currentMulti.length > 0;
+                    if (is2DElementAlreadySelected(target2D) && has3D) {
+                        const act = getActiveElement();
+                        if ((!act || act.locked) && currentMulti.length > 0) {
+                            const unlocked = currentMulti.find(m => m && !m.locked);
+                            if (unlocked) setActiveElement(unlocked);
+                        }
+                        beginHybridCanvasDrag(e);
+                        e.stopPropagation();
+                        e.preventDefault();
+                        return;
+                    }
+                    if (state.selected) {
+                        setSelected(false, { silent: true });
+                        if (gridHelper) gridHelper.visible = false;
+                        requestRender();
+                    }
+                    if (!e.ctrlKey && !e.shiftKey && window.ThreeDGrouping && typeof window.ThreeDGrouping.clearSelection === 'function') {
+                        window.ThreeDGrouping.clearSelection();
+                    }
+                    if (typeof selectElement === 'function') {
+                        selectElement(target2D, !!(e.ctrlKey || e.shiftKey));
+                    }
+                    e.stopPropagation();
+                    e.preventDefault();
+                    return;
+                }
+
+                if ((state.selected || (window.ThreeDGrouping && window.ThreeDGrouping.getSelected3DElements && window.ThreeDGrouping.getSelected3DElements().length > 0)) && !e.altKey && !e.shiftKey && !e.ctrlKey) {
                     // 🎯 Boş alana tıklandı: 3D seçimini ve referans ızgarasını (grid) hemen kapat!
                     setSelected(false, { silent: true });
                     if (gridHelper) gridHelper.visible = false;
@@ -7090,6 +7257,16 @@
                     if (typeof deselectAll === 'function') deselectAll();
                 }
             }, true);
+
+            if (!window._threeDGlobalPointerUpGuardAttached) {
+                window._threeDGlobalPointerUpGuardAttached = true;
+                window.addEventListener('pointerup', () => {
+                    if (window._isThreeDDragging) {
+                        window._isThreeDDragging = false;
+                        window._justFinishedThreeDDragUntil = Date.now() + 300;
+                    }
+                }, true);
+            }
 
             // 🎯 Tuval konteynerinde 3D ögeye çift tıklandığında paneli aç
             container.addEventListener('dblclick', (e) => {
@@ -7145,6 +7322,9 @@
                     if (tag === 'INPUT' || tag === 'TEXTAREA' || (document.activeElement && document.activeElement.isContentEditable)) {
                         return;
                     }
+                    if (document.querySelector('.swal2-container, #cropModal[style*="flex"], #satelliteMapModal.active, #satelliteMapModal[style*="flex"], #omniSearchModal.active, #recentToolsModal.active, .sat-modal-overlay[style*="flex"]')) {
+                        return;
+                    }
                     e.preventDefault();
                     if (window.ThreeDGrouping && typeof window.ThreeDGrouping.getSelected3DElements === 'function' && window.ThreeDGrouping.getSelected3DElements().length > 1) {
                         window.ThreeDGrouping.deleteSelectedElements();
@@ -7164,8 +7344,8 @@
             previewArea.addEventListener('pointerdown', (e) => {
                 if (!state.active || !state.selected) return;
                 if (e.button !== 0) return;
-                // Panel, gizmo, dock kontrolleri veya popover tıklamalarını koru
-                if (e.target.closest('#threeDStudioPanel, .three-d-panel, #threeDGizmoOverlay, #threeDCornerPinOverlay, #threeDCanvasBadge, #threeDDockControls, .dock-3d-controls, #dock3DStepperPopover, .three-d-context-menu')) {
+                // Panel, gizmo, dock kontrolleri, tuval içi veya popover tıklamalarını koru
+                if (e.target.closest('#canvas-container, #threeDStudioPanel, .three-d-panel, #threeDGizmoOverlay, #threeDCornerPinOverlay, #threeDCanvasBadge, #threeDDockControls, .dock-3d-controls, #dock3DStepperPopover, .three-d-context-menu')) {
                     return;
                 }
                 const hitEl = check3DHit(e.clientX, e.clientY);
@@ -7744,48 +7924,97 @@
         requestRender();
     }
 
-    function bring3DElementForward(targetEl) {
-        const el = targetEl || getActiveElement();
-        if (!el) return;
-        const idx = elements.indexOf(el);
-        if (idx >= 0 && idx < elements.length - 1) {
-            const temp = elements[idx];
-            elements[idx] = elements[idx + 1];
-            elements[idx + 1] = temp;
-            update3DLayersOrder();
+    function getMultiSelected3DTargets(explicitEl) {
+        if (explicitEl) return [explicitEl];
+        if (typeof window.getSelected3DTargets === 'function') {
+            const list = window.getSelected3DTargets();
+            if (list && list.length > 0) return list;
         }
+        if (window.ThreeDGrouping && typeof window.ThreeDGrouping.getSelected3DElements === 'function') {
+            const sel = window.ThreeDGrouping.getSelected3DElements();
+            if (sel && sel.length > 0) return sel;
+        }
+        const active = getActiveElement();
+        return active ? [active] : [];
+    }
+
+    function expandWithGroupTargets(baseTargets) {
+        const out = [];
+        const addUnique = (item) => {
+            if (item && !out.includes(item)) out.push(item);
+        };
+        baseTargets.forEach(addUnique);
+        if (state.groupEditMode === 'all') {
+            baseTargets.forEach(el => {
+                if (el.groupId) {
+                    elements.forEach(m => { if (m && m.groupId === el.groupId) addUnique(m); });
+                }
+                const pair = getSurfacePair(el);
+                if (pair) {
+                    addUnique(pair.baseEl);
+                    addUnique(pair.childEl);
+                }
+            });
+        }
+        return out;
+    }
+
+    function bring3DElementForward(targetEl) {
+        const targets = getMultiSelected3DTargets(targetEl);
+        if (!targets.length) return;
+        const set = new Set(targets);
+        let moved = false;
+        for (let i = elements.length - 2; i >= 0; i--) {
+            if (set.has(elements[i]) && !set.has(elements[i + 1])) {
+                const tmp = elements[i];
+                elements[i] = elements[i + 1];
+                elements[i + 1] = tmp;
+                moved = true;
+            }
+        }
+        if (moved) update3DLayersOrder();
     }
 
     function send3DElementBackward(targetEl) {
-        const el = targetEl || getActiveElement();
-        if (!el) return;
-        const idx = elements.indexOf(el);
-        if (idx > 0) {
-            const temp = elements[idx];
-            elements[idx] = elements[idx - 1];
-            elements[idx - 1] = temp;
-            update3DLayersOrder();
+        const targets = getMultiSelected3DTargets(targetEl);
+        if (!targets.length) return;
+        const set = new Set(targets);
+        let moved = false;
+        for (let i = 1; i < elements.length; i++) {
+            if (set.has(elements[i]) && !set.has(elements[i - 1])) {
+                const tmp = elements[i];
+                elements[i] = elements[i - 1];
+                elements[i - 1] = tmp;
+                moved = true;
+            }
         }
+        if (moved) update3DLayersOrder();
     }
 
     function bring3DElementToFront(targetEl) {
-        const el = targetEl || getActiveElement();
-        if (!el) return;
-        const idx = elements.indexOf(el);
-        if (idx >= 0 && idx < elements.length - 1) {
-            elements.splice(idx, 1);
-            elements.push(el);
+        const targets = getMultiSelected3DTargets(targetEl);
+        if (!targets.length) return;
+        const set = new Set(targets);
+        const stay = [];
+        const move = [];
+        elements.forEach(item => (set.has(item) ? move : stay).push(item));
+        if (move.length > 0 && stay.length > 0) {
+            elements.length = 0;
+            elements.push(...stay, ...move);
             update3DLayersOrder();
         }
     }
 
     function send3DElementToBack(targetEl) {
-        const el = targetEl || getActiveElement();
-        if (!el) return;
-        const idx = elements.indexOf(el);
-        if (idx > 0) {
-            elements.splice(idx, 1);
-            elements.unshift(el);
+        const targets = getMultiSelected3DTargets(targetEl);
+        if (!targets.length) return;
+        const set = new Set(targets);
+        const stay = [];
+        const move = [];
+        elements.forEach(item => (set.has(item) ? move : stay).push(item));
+        if (move.length > 0 && stay.length > 0) {
+            elements.length = 0;
+            elements.push(...move, ...stay);
             update3DLayersOrder();
         }
     }
@@ -8116,15 +8345,22 @@
         });
 
         // 9 Yön Konumlandırma
-        bindItem('#acm3d-pos-top-left', () => align3DElement(el, 'top-left'));
-        bindItem('#acm3d-pos-top-center', () => align3DElement(el, 'top-center'));
-        bindItem('#acm3d-pos-top-right', () => align3DElement(el, 'top-right'));
-        bindItem('#acm3d-pos-middle-left', () => align3DElement(el, 'middle-left'));
-        bindItem('#acm3d-pos-center', () => align3DElement(el, 'center'));
-        bindItem('#acm3d-pos-middle-right', () => align3DElement(el, 'middle-right'));
-        bindItem('#acm3d-pos-bottom-left', () => align3DElement(el, 'bottom-left'));
-        bindItem('#acm3d-pos-bottom-center', () => align3DElement(el, 'bottom-center'));
-        bindItem('#acm3d-pos-bottom-right', () => align3DElement(el, 'bottom-right'));
+        const trigger3DPos = (pk) => {
+            if (Array.isArray(window.selectedElements) && window.selectedElements.length > 0 && typeof window.multiSelectPositionOnPage === 'function') {
+                window.multiSelectPositionOnPage(pk);
+            } else {
+                align3DElement(el, pk);
+            }
+        };
+        bindItem('#acm3d-pos-top-left', () => trigger3DPos('top-left'));
+        bindItem('#acm3d-pos-top-center', () => trigger3DPos('top-center'));
+        bindItem('#acm3d-pos-top-right', () => trigger3DPos('top-right'));
+        bindItem('#acm3d-pos-middle-left', () => trigger3DPos('middle-left'));
+        bindItem('#acm3d-pos-center', () => trigger3DPos('center'));
+        bindItem('#acm3d-pos-middle-right', () => trigger3DPos('middle-right'));
+        bindItem('#acm3d-pos-bottom-left', () => trigger3DPos('bottom-left'));
+        bindItem('#acm3d-pos-bottom-center', () => trigger3DPos('bottom-center'));
+        bindItem('#acm3d-pos-bottom-right', () => trigger3DPos('bottom-right'));
 
         // Boyut & Döndürme
         bindItem('#acm3d-rot-cw', () => {
@@ -8712,24 +8948,33 @@
             if (depthInput) depthInput.value = state.depth;
         }
         const isGroupAll = (state.groupEditMode === 'all');
-        const activeEl = targetEl || getActiveElement();
-        if (activeEl) activeEl.depth = newDepth;
-
-        const groupMembers = (isGroupAll && activeEl && activeEl.groupId) ? elements.filter(e => e.groupId === activeEl.groupId) : null;
-        if (groupMembers && groupMembers.length > 1) {
-            groupMembers.forEach(mem => {
+        const baseTargets = getMultiSelected3DTargets(targetEl);
+        if (baseTargets.length > 1) {
+            const allTargets = expandWithGroupTargets(baseTargets);
+            allTargets.forEach(mem => {
                 mem.depth = state.depth;
                 recreateContentMeshes(mem);
             });
         } else {
-            const pair = getSurfacePair();
-            if (isGroupAll && pair) {
-                pair.baseEl.depth = state.depth;
-                pair.childEl.depth = Math.max(1, Math.round(state.depth * 0.6));
-                recreateContentMeshes(pair.baseEl);
-                recreateContentMeshes(pair.childEl);
+            const activeEl = targetEl || getActiveElement();
+            if (activeEl) activeEl.depth = newDepth;
+
+            const groupMembers = (isGroupAll && activeEl && activeEl.groupId) ? elements.filter(e => e.groupId === activeEl.groupId) : null;
+            if (groupMembers && groupMembers.length > 1) {
+                groupMembers.forEach(mem => {
+                    mem.depth = state.depth;
+                    recreateContentMeshes(mem);
+                });
             } else {
-                recreateContentMeshes(activeEl);
+                const pair = getSurfacePair();
+                if (isGroupAll && pair) {
+                    pair.baseEl.depth = state.depth;
+                    pair.childEl.depth = Math.max(1, Math.round(state.depth * 0.6));
+                    recreateContentMeshes(pair.baseEl);
+                    recreateContentMeshes(pair.childEl);
+                } else {
+                    recreateContentMeshes(activeEl);
+                }
             }
         }
         syncControlsUI();
@@ -8743,8 +8988,8 @@
             unit: '°',
             smallStep: 1,
             largeStep: 5,
-            min: () => (state.dockTarget === 'sun' ? 5 : -90),
-            max: () => (state.dockTarget === 'sun' ? 85 : 90),
+            min: () => (state.dockTarget === 'sun' ? 5 : -360),
+            max: () => (state.dockTarget === 'sun' ? 85 : 360),
             get: () => {
                 if (state.dockTarget === 'sun') {
                     const rXZ = Math.sqrt(state.sunPosX * state.sunPosX + state.sunPosZ * state.sunPosZ);
@@ -8769,7 +9014,7 @@
                     requestRender();
                     return;
                 }
-                val = Math.max(-90, Math.min(90, val));
+                val = Math.max(-360, Math.min(360, val));
                 const oldVal = state.itemPitch || 0;
                 const deltaPitch = val - oldVal;
                 state.itemPitch = val;
@@ -8801,8 +9046,8 @@
             unit: '°',
             smallStep: 1,
             largeStep: 5,
-            min: -180,
-            max: 180,
+            min: -360,
+            max: 360,
             get: () => {
                 if (state.dockTarget === 'sun') {
                     let az = Math.round(Math.atan2(state.sunPosX, state.sunPosZ) * 180 / Math.PI);
@@ -8813,9 +9058,9 @@
                 return Math.round(state.planeLocalRot || 0);
             },
             set: (val) => {
-                while (val > 180) val -= 360;
-                while (val < -180) val += 360;
                 if (state.dockTarget === 'sun') {
+                    while (val > 180) val -= 360;
+                    while (val < -180) val += 360;
                     const rXZ = Math.max(50, Math.sqrt(state.sunPosX * state.sunPosX + state.sunPosZ * state.sunPosZ));
                     const rad = val * Math.PI / 180;
                     state.sunPosX = Math.round(rXZ * Math.sin(rad));
@@ -8827,6 +9072,7 @@
                     requestRender();
                     return;
                 }
+                val = Math.max(-360, Math.min(360, val));
                 const oldVal = state.planeLocalRot || 0;
                 let deltaYaw = val - oldVal;
                 while (deltaYaw > 180) deltaYaw -= 360;
@@ -8857,8 +9103,8 @@
             unit: '°',
             smallStep: 1,
             largeStep: 5,
-            min: -90,
-            max: 90,
+            min: () => (state.dockTarget === 'sun' ? -90 : -360),
+            max: () => (state.dockTarget === 'sun' ? 90 : 360),
             get: () => {
                 if (state.dockTarget === 'sun') {
                     let tilt = Math.round(Math.atan2(state.sunPosX, Math.max(1, state.sunPosY)) * 180 / Math.PI);
@@ -8867,7 +9113,7 @@
                 return Math.round(state.itemRoll || 0);
             },
             set: (val) => {
-                val = Math.max(-90, Math.min(90, val));
+                val = state.dockTarget === 'sun' ? Math.max(-90, Math.min(90, val)) : Math.max(-360, Math.min(360, val));
                 if (state.dockTarget === 'sun') {
                     const rXY = Math.max(50, Math.sqrt(state.sunPosX * state.sunPosX + state.sunPosY * state.sunPosY));
                     const rad = val * Math.PI / 180;
@@ -8910,7 +9156,7 @@
             smallStep: () => (state.dockTarget === 'sun' ? 20 : 1),
             largeStep: () => (state.dockTarget === 'sun' ? 100 : 5),
             min: () => (state.dockTarget === 'sun' ? -1200 : 1),
-            max: () => (state.dockTarget === 'sun' ? 1200 : 200),
+            max: () => (state.dockTarget === 'sun' ? 1200 : 500),
             get: () => {
                 if (state.dockTarget === 'sun') {
                     return Math.round(state.sunPosZ || 450);
@@ -8927,7 +9173,7 @@
                     requestRender();
                     return;
                 }
-                val = Math.max(1, Math.min(200, val));
+                val = Math.max(1, Math.min(500, val));
                 const el = getActiveElement();
                 applyDepthChange(val, el);
                 if (window.ThreeDGrouping && typeof window.ThreeDGrouping.updateSelectionVisuals === 'function') {
@@ -9796,7 +10042,7 @@
                                 <span class="three-d-label" style="width:auto;">Kabartma Yüksekliği:</span>
                                 <span id="threeDBadgeEmbossDepthVal" class="three-d-val" style="color:#0ea5e9; font-weight:700;">${state.embossDepth || 12}px</span>
                             </div>
-                            <input type="range" id="threeDBadgeEmbossDepthInput" min="2" max="40" step="1" value="${state.embossDepth || 12}" class="three-d-slider-range" style="width:100%;" title="3D kabartmanın rozet yüzeyinden öne çıkma mesafesi">
+                            <input type="range" id="threeDBadgeEmbossDepthInput" min="2" max="150" step="1" value="${state.embossDepth || 12}" class="three-d-slider-range" style="width:100%;" title="3D kabartmanın rozet yüzeyinden öne çıkma mesafesi">
                         </div>
 
                         <!-- Öge Boyutu -->
@@ -9928,7 +10174,7 @@
                                     <span>Yazı Kalınlığı:</span>
                                     <span id="threeDTextDepthVal">${state.text3DDepth || 8}px</span>
                                 </div>
-                                <input type="range" id="threeDTextDepthSlider" min="2" max="30" step="1" value="${state.text3DDepth || 8}" class="three-d-slider-range" style="width:100%;">
+                                <input type="range" id="threeDTextDepthSlider" min="2" max="100" step="1" value="${state.text3DDepth || 8}" class="three-d-slider-range" style="width:100%;">
                             </div>
                         </div>
 
@@ -10067,7 +10313,7 @@
                                 <button type="button" class="three-d-step-btn" id="threeDDepthIncBtn" title="Kalınlığı Artır">+</button>
                             </div>
                         </div>
-                        <input type="range" id="threeDDepthInput" class="three-d-slider-range" min="1" max="80" value="${state.depth}">
+                        <input type="range" id="threeDDepthInput" class="three-d-slider-range" min="1" max="400" value="${state.depth}">
                     </div>
 
                     <!-- 🌟 2.5 Dikey Yükseklik (Taban Çizgisinden Yukarı Uzatma) -->
@@ -10306,7 +10552,7 @@
             }
 
             // Eğer silüet konturu önceden çıkarılmışsa beklemeden anında uygula
-            if (el.cachedSilhouette && el.cachedSilhouette.shape) {
+            if (el.cachedSilhouette && el.cachedSilhouette.shape && typeof el.cachedSilhouette.shape.extractPoints === 'function') {
                 el.isExactSilhouette = true;
                 state.isExactSilhouette = true;
                 recreateContentMeshes(el);
@@ -11104,7 +11350,85 @@
         const depthIncBtn = panel.querySelector('#threeDDepthIncBtn');
         if (depthIncBtn) {
             depthIncBtn.addEventListener('click', () => {
-                applyDepthChange(Math.min(80, (parseInt(state.depth, 10) || 15) + 1));
+                applyDepthChange(Math.min(400, (parseInt(state.depth, 10) || 15) + 1));
+            });
+        }
+
+        const depthValBadge = panel.querySelector('#threeDDepthVal');
+        if (depthValBadge && depthValBadge.dataset.boundClick !== 'true') {
+            depthValBadge.dataset.boundClick = 'true';
+            depthValBadge.style.cursor = 'pointer';
+            depthValBadge.title = 'Özel 3D kalınlık girmek için tıklayın';
+            depthValBadge.addEventListener('click', (e) => {
+                if (depthValBadge.querySelector('input')) return;
+                e.stopPropagation();
+
+                const cur = parseInt(state.depth, 10) || 16;
+                const origText = depthValBadge.textContent;
+                const isDark = document.documentElement.getAttribute('data-theme') === 'dark' || 
+                               (document.body && document.body.getAttribute('data-theme') === 'dark');
+
+                const input = document.createElement('input');
+                input.type = 'number';
+                input.min = '1';
+                input.max = '2000';
+                input.value = cur;
+                input.style.cssText = `
+                    width: 48px;
+                    height: 18px;
+                    padding: 0 2px;
+                    font-family: inherit;
+                    font-size: 11px;
+                    font-weight: 700;
+                    text-align: center;
+                    border: 1px solid #0284c7;
+                    border-radius: 4px;
+                    background: ${isDark ? '#1e293b' : '#ffffff'};
+                    color: ${isDark ? '#f8fafc' : '#0f172a'};
+                    outline: none;
+                    box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.25);
+                    box-sizing: border-box;
+                `;
+
+                depthValBadge.innerHTML = '';
+                depthValBadge.appendChild(input);
+                input.focus();
+                input.select();
+
+                let committed = false;
+                const commit = () => {
+                    if (committed) return;
+                    committed = true;
+                    const val = parseInt(input.value, 10);
+                    if (!isNaN(val)) {
+                        const num = Math.max(1, val);
+                        if (depthInput && num > parseInt(depthInput.max, 10)) {
+                            depthInput.max = Math.max(num, 400);
+                        }
+                        applyDepthChange(num);
+                        depthValBadge.textContent = num + 'px';
+                    } else {
+                        depthValBadge.textContent = origText;
+                    }
+                };
+
+                const cancel = () => {
+                    if (committed) return;
+                    committed = true;
+                    depthValBadge.textContent = origText;
+                };
+
+                input.addEventListener('keydown', (ke) => {
+                    if (ke.key === 'Enter') {
+                        ke.preventDefault();
+                        commit();
+                    } else if (ke.key === 'Escape') {
+                        ke.preventDefault();
+                        cancel();
+                    }
+                });
+
+                input.addEventListener('blur', commit);
             });
         }
 
@@ -11445,31 +11769,19 @@
             frontColor.addEventListener('input', (e) => {
                 const val = e.target.value;
                 state.frontColor = val;
-                const el = getActiveElement();
-                const isGroupAll = (state.groupEditMode === 'all');
-                const pair = getSurfacePair();
-                if (isGroupAll && pair) {
-                    pair.baseEl.frontColor = val;
-                    pair.baseEl._userHasChangedColor = true;
-                    pair.childEl.frontColor = val;
-                    pair.childEl._userHasChangedColor = true;
+                const targets = expandWithGroupTargets(getMultiSelected3DTargets());
+                targets.forEach(t => {
+                    t.frontColor = val;
+                    t._userHasChangedColor = true;
                     if (state.text3DMode !== 'separate') {
-                        pair.childEl.text3DColor = val;
-                        const tc = panel.querySelector('#threeDTextColorPicker');
-                        if (tc) tc.value = val;
+                        t.text3DColor = val;
                     }
-                    updateElementColorsFast(pair.baseEl, { onlyFront: true });
-                    updateElementColorsFast(pair.childEl, { onlyFront: true });
-                } else if (el) {
-                    el.frontColor = val;
-                    el._userHasChangedColor = true;
-                    if (state.text3DMode !== 'separate') {
-                        state.text3DColor = val;
-                        el.text3DColor = val;
-                        const tc = panel.querySelector('#threeDTextColorPicker');
-                        if (tc) tc.value = val;
-                    }
-                    updateElementColorsFast(el, { onlyFront: true });
+                    updateElementColorsFast(t, { onlyFront: true });
+                });
+                if (targets.length && state.text3DMode !== 'separate') {
+                    state.text3DColor = val;
+                    const tc = panel.querySelector('#threeDTextColorPicker');
+                    if (tc) tc.value = val;
                 }
             });
         }
@@ -11477,17 +11789,20 @@
         const plaketBgColor = panel.querySelector('#threeDPlaketBgColor');
         if (plaketBgColor) {
             plaketBgColor.addEventListener('input', (e) => {
-                state.badgeBgColor = e.target.value;
-                const el = getActiveElement();
-                const isGroupAll = (state.groupEditMode === 'all');
-                const pair = getSurfacePair();
-                const target = (isGroupAll && pair) ? pair.baseEl : el;
-                if (target) {
-                    target.badgeBgColor = e.target.value;
+                const val = e.target.value;
+                state.badgeBgColor = val;
+                const multiSel = getMultiSelected3DTargets();
+                const targets = (multiSel.length > 1)
+                    ? multiSel
+                    : ((state.groupEditMode === 'all' && getSurfacePair()) ? [getSurfacePair().baseEl] : multiSel);
+                targets.forEach(target => {
+                    target.badgeBgColor = val;
                     target._userHasChangedColor = true;
-                    const exBg = panel.querySelector('#threeDExactBadgeBgColor');
-                    if (exBg) exBg.value = e.target.value;
                     updateElementColorsFast(target);
+                });
+                if (targets.length) {
+                    const exBg = panel.querySelector('#threeDExactBadgeBgColor');
+                    if (exBg) exBg.value = val;
                 }
             });
         }
@@ -11497,21 +11812,12 @@
             sideColor.addEventListener('input', (e) => {
                 const val = e.target.value;
                 state.sideColor = val;
-                const el = getActiveElement();
-                const isGroupAll = (state.groupEditMode === 'all');
-                const pair = getSurfacePair();
-                if (isGroupAll && pair) {
-                    pair.baseEl.sideColor = val;
-                    pair.baseEl.badgeSideColor = val;
-                    pair.childEl.sideColor = val;
-                    pair.childEl.badgeSideColor = val;
-                    updateElementColorsFast(pair.baseEl, { onlySide: true });
-                    updateElementColorsFast(pair.childEl, { onlySide: true });
-                } else if (el) {
-                    el.sideColor = val;
-                    el.badgeSideColor = val;
-                    updateElementColorsFast(el, { onlySide: true });
-                }
+                const targets = expandWithGroupTargets(getMultiSelected3DTargets());
+                targets.forEach(t => {
+                    t.sideColor = val;
+                    t.badgeSideColor = val;
+                    updateElementColorsFast(t, { onlySide: true });
+                });
             });
         }
 
@@ -11519,37 +11825,22 @@
             chip.addEventListener('click', () => {
                 if (chip.hasAttribute('data-neon')) return;
                 const isReset = (chip.getAttribute('data-reset') === 'true');
-                const el = getActiveElement();
-                const isGroupAll = (state.groupEditMode === 'all');
-                const pair = getSurfacePair();
+                const targets = expandWithGroupTargets(getMultiSelected3DTargets());
+                if (!targets.length) return;
 
                 if (isReset) {
-                    if (isGroupAll && pair) {
-                        pair.baseEl._userHasChangedColor = false;
-                        pair.baseEl.frontColor = pair.baseEl._originalFrontColor || '#ffffff';
-                        pair.baseEl.sideColor = pair.baseEl._originalSideColor || '#334155';
-                        pair.baseEl.badgeSideColor = pair.baseEl.sideColor;
-                        pair.childEl._userHasChangedColor = false;
-                        pair.childEl.frontColor = pair.childEl._originalFrontColor || '#ffffff';
-                        pair.childEl.sideColor = pair.childEl._originalSideColor || '#334155';
-                        pair.childEl.badgeSideColor = pair.childEl.sideColor;
-                        state.frontColor = pair.baseEl.frontColor;
-                        state.sideColor = pair.baseEl.sideColor;
-                        if (frontColor) frontColor.value = safeHexColor(state.frontColor, '#ffffff');
-                        if (sideColor) sideColor.value = safeHexColor(state.sideColor, '#334155');
-                        updateElementColorsFast(pair.baseEl);
-                        updateElementColorsFast(pair.childEl);
-                    } else if (el) {
-                        el._userHasChangedColor = false;
-                        el.frontColor = el._originalFrontColor || '#ffffff';
-                        el.sideColor = el._originalSideColor || '#334155';
-                        el.badgeSideColor = el.sideColor;
-                        state.frontColor = el.frontColor;
-                        state.sideColor = el.sideColor;
-                        if (frontColor) frontColor.value = safeHexColor(state.frontColor, '#ffffff');
-                        if (sideColor) sideColor.value = safeHexColor(state.sideColor, '#334155');
-                        updateElementColorsFast(el);
-                    }
+                    targets.forEach(t => {
+                        t._userHasChangedColor = false;
+                        t.frontColor = t._originalFrontColor || '#ffffff';
+                        t.sideColor = t._originalSideColor || '#334155';
+                        t.badgeSideColor = t.sideColor;
+                        updateElementColorsFast(t);
+                    });
+                    const activeEl = getActiveElement() || targets[0];
+                    state.frontColor = activeEl.frontColor;
+                    state.sideColor = activeEl.sideColor;
+                    if (frontColor) frontColor.value = safeHexColor(state.frontColor, '#ffffff');
+                    if (sideColor) sideColor.value = safeHexColor(state.sideColor, '#334155');
                     return;
                 }
 
@@ -11557,34 +11848,20 @@
                 state.sideColor = chip.getAttribute('data-side');
                 if (frontColor) frontColor.value = state.frontColor;
                 if (sideColor) sideColor.value = state.sideColor;
-                if (isGroupAll && pair) {
-                    pair.baseEl.frontColor = state.frontColor;
-                    pair.baseEl.sideColor = state.sideColor;
-                    pair.baseEl.badgeSideColor = state.sideColor;
-                    pair.baseEl._userHasChangedColor = true;
-                    pair.childEl.frontColor = state.frontColor;
-                    pair.childEl.sideColor = state.sideColor;
-                    pair.childEl.badgeSideColor = state.sideColor;
-                    pair.childEl._userHasChangedColor = true;
+                targets.forEach(t => {
+                    t.frontColor = state.frontColor;
+                    t.sideColor = state.sideColor;
+                    t.badgeSideColor = state.sideColor;
+                    t._userHasChangedColor = true;
                     if (state.text3DMode !== 'separate') {
-                        pair.childEl.text3DColor = state.frontColor;
-                        const tc = panel.querySelector('#threeDTextColorPicker');
-                        if (tc) tc.value = state.frontColor;
+                        t.text3DColor = state.frontColor;
                     }
-                    updateElementColorsFast(pair.baseEl);
-                    updateElementColorsFast(pair.childEl);
-                } else if (el) {
-                    el.frontColor = state.frontColor;
-                    el.sideColor = state.sideColor;
-                    el.badgeSideColor = state.sideColor;
-                    el._userHasChangedColor = true;
-                    if (state.text3DMode !== 'separate') {
-                        state.text3DColor = state.frontColor;
-                        el.text3DColor = state.frontColor;
-                        const tc = panel.querySelector('#threeDTextColorPicker');
-                        if (tc) tc.value = state.frontColor;
-                    }
-                    updateElementColorsFast(el);
+                    updateElementColorsFast(t);
+                });
+                if (state.text3DMode !== 'separate') {
+                    state.text3DColor = state.frontColor;
+                    const tc = panel.querySelector('#threeDTextColorPicker');
+                    if (tc) tc.value = state.frontColor;
                 }
             });
         });
@@ -11595,11 +11872,10 @@
             neonColorInput.addEventListener('input', (e) => {
                 const val = e.target.value;
                 state.neonColor = val;
-                const el = getActiveElement();
-                if (el) {
+                expandWithGroupTargets(getMultiSelected3DTargets()).forEach(el => {
                     el.neonColor = val;
                     updateNeonEffect(el);
-                }
+                });
             });
         }
 
@@ -11610,11 +11886,10 @@
                 state.neonColor = nColor;
                 const ncInput = panel.querySelector('#threeDNeonColor');
                 if (ncInput) ncInput.value = nColor;
-                const el = getActiveElement();
-                if (el) {
+                expandWithGroupTargets(getMultiSelected3DTargets()).forEach(el => {
                     el.neonColor = nColor;
                     updateNeonEffect(el);
-                }
+                });
             });
         });
 
@@ -11624,20 +11899,23 @@
                 const presetKey = btn.getAttribute('data-preset');
                 if (!presetKey) return;
                 state.neonPreset = presetKey;
-                const el = getActiveElement();
-                if (el) {
+                const targets = expandWithGroupTargets(getMultiSelected3DTargets());
+                let autoOpenedFront = false;
+                targets.forEach(el => {
                     el.neonPreset = presetKey;
-                    // Eğer parlaklık 0 ise, otomatik olarak 80% seviyesinde aç
                     const curInt = el.neonFrontIntensity !== undefined ? el.neonFrontIntensity : (state.neonFrontIntensity || 0);
                     if (curInt === 0) {
-                        state.neonFrontIntensity = 80;
                         el.neonFrontIntensity = 80;
-                        const frontIn = panel.querySelector('#threeDNeonFrontInput');
-                        if (frontIn) frontIn.value = 80;
-                        const frontValEl = panel.querySelector('#threeDNeonFrontVal');
-                        if (frontValEl) frontValEl.textContent = '80%';
+                        autoOpenedFront = true;
                     }
                     updateNeonEffect(el);
+                });
+                if (autoOpenedFront) {
+                    state.neonFrontIntensity = 80;
+                    const frontIn = panel.querySelector('#threeDNeonFrontInput');
+                    if (frontIn) frontIn.value = 80;
+                    const frontValEl = panel.querySelector('#threeDNeonFrontVal');
+                    if (frontValEl) frontValEl.textContent = '80%';
                 }
                 panel.querySelectorAll('.neon-preset-btn').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
@@ -11652,11 +11930,10 @@
                 state.neonFrontIntensity = val;
                 const valEl = panel.querySelector('#threeDNeonFrontVal');
                 if (valEl) valEl.textContent = val + '%';
-                const el = getActiveElement();
-                if (el) {
+                expandWithGroupTargets(getMultiSelected3DTargets()).forEach(el => {
                     el.neonFrontIntensity = val;
                     updateNeonEffect(el);
-                }
+                });
             });
         }
 
@@ -11668,12 +11945,11 @@
                 state.neonEdgeGlow = (val > 0);
                 const valEl = panel.querySelector('#threeDNeonEdgeVal');
                 if (valEl) valEl.textContent = val + '%';
-                const el = getActiveElement();
-                if (el) {
+                expandWithGroupTargets(getMultiSelected3DTargets()).forEach(el => {
                     el.neonEdgeIntensity = val;
                     el.neonEdgeGlow = (val > 0);
                     updateNeonEffect(el);
-                }
+                });
             });
         }
 
@@ -11682,18 +11958,10 @@
             gradCheck.addEventListener('change', (e) => {
                 const val = !!e.target.checked;
                 state.useGradient = val;
-                const el = getActiveElement();
-                const isGroupAll = (state.groupEditMode === 'all');
-                const pair = getSurfacePair();
-                if (isGroupAll && pair) {
-                    pair.baseEl.useGradient = val;
-                    pair.childEl.useGradient = val;
-                    updateElementColorsFast(pair.baseEl);
-                    updateElementColorsFast(pair.childEl);
-                } else if (el) {
+                expandWithGroupTargets(getMultiSelected3DTargets()).forEach(el => {
                     el.useGradient = val;
                     updateElementColorsFast(el);
-                }
+                });
                 requestRender();
             });
         }
@@ -12421,26 +12689,86 @@
     }
 
     /**
+     * 🎯 3D Ögelerin Görünür Tuval Alanı Dışına Kaçmasını Önle (Viewport Bounds Clamp)
+     */
+    function clampElementsToViewport(targetList, opts = {}) {
+        const list = (Array.isArray(targetList) && targetList.length > 0)
+            ? targetList
+            : (elements || []);
+        if (!list.length) return;
+        const container = document.getElementById('canvas-container');
+        const cRect = container ? container.getBoundingClientRect() : null;
+        const fov = (camera && camera.fov) ? camera.fov : 45;
+        const camZ = (camera && camera.position && typeof camera.position.z === 'number') ? camera.position.z : 850;
+        const aspect = (cRect && cRect.width > 0 && cRect.height > 0)
+            ? (cRect.width / cRect.height)
+            : ((camera && camera.aspect) ? camera.aspect : 16 / 9);
+        let changed = false;
+        list.forEach(el => {
+            if (!el) return;
+            const dist = Math.max(300, camZ - (el.posZ || 0));
+            const halfH = dist * Math.tan((fov * Math.PI / 180) / 2);
+            const halfW = halfH * aspect;
+            let halfElW = 45, halfElH = 25;
+            try {
+                const lBox = getElementLocalBoundingBox(el);
+                if (lBox && !lBox.isEmpty()) {
+                    const sc = el.planeScale || 1.0;
+                    halfElW = Math.min(halfW * 0.85, ((lBox.max.x - lBox.min.x) * sc) / 2);
+                    halfElH = Math.min(halfH * 0.85, ((lBox.max.y - lBox.min.y) * sc) / 2);
+                }
+            } catch (e) {}
+            const maxSafeX = Math.max(0, halfW - halfElW - 12);
+            const maxSafeY = Math.max(0, halfH - halfElH - 12);
+            const clampedX = Math.round(Math.max(-maxSafeX, Math.min(maxSafeX, el.posX || 0)));
+            const clampedY = Math.round(Math.max(-maxSafeY, Math.min(maxSafeY, el.posY || 0)));
+            if (clampedX !== el.posX || clampedY !== el.posY) {
+                el.posX = clampedX;
+                el.posY = clampedY;
+                if (el === getActiveElement()) {
+                    state.posX = clampedX;
+                    state.posY = clampedY;
+                }
+                updatePlaneTransform(el);
+                updateContentTransform(el);
+                changed = true;
+            }
+        });
+        if (changed && !opts.silent) {
+            if (gizmoOverlayEl) updateGizmoPositions();
+            if (cornerPinOverlayEl && state.cornerPinActive) updateCornerPinOverlay();
+            if (window.ThreeDGrouping && typeof window.ThreeDGrouping.updateSelectionVisuals === 'function') {
+                window.ThreeDGrouping.updateSelectionVisuals();
+            }
+            syncControlsUI();
+            requestRender();
+        }
+    }
+
+    /**
      * 🎯 3D Ögeyi Tuvalin Tam Ortasına Hizala
      */
     function centerOnScreen() {
-        const el = getActiveElement();
+        const targets = getMultiSelected3DTargets();
         state.posX = 0;
         state.posY = 0;
         state.posZ = 0;
         state.planeElevation = 0;
         state.planeLocalRot = 0;
 
-        if (el) {
+        targets.forEach(el => {
             el.posX = 0;
             el.posY = 0;
             el.posZ = 0;
             el.planeElevation = 0;
             el.planeLocalRot = 0;
+            updatePlaneTransform(el);
+            updateContentTransform(el);
+        });
+        if (!targets.length) {
+            updatePlaneTransform();
+            updateContentTransform();
         }
-
-        updatePlaneTransform();
-        updateContentTransform();
         if (cornerPinOverlayEl && state.cornerPinActive) updateCornerPinOverlay();
         if (gizmoOverlayEl) updateGizmoPositions();
         syncControlsUI();
@@ -12500,10 +12828,30 @@
         }
 
         setSelected(true, { silent: true, autoLockPhoto: false });
-        updatePlaneTransform();
-        updateContentTransform();
-        updateLighting();
-        recreateContentMeshes();
+        const targets = getMultiSelected3DTargets();
+        if (targets.length > 1) {
+            targets.forEach(el => {
+                el.posX = 0; el.posY = 0; el.posZ = 0;
+                el.planeElevation = 0; el.planeLocalRot = 0;
+                el.itemPitch = 0; el.itemRoll = 0;
+                el.planeScale = 1.0;
+                el.orientation = 'flat';
+                el.planePitch = 0; el.planeYaw = 0; el.planeRoll = 0;
+                el.depth = 16;
+                el.bevelEnabled = true;
+                el.bevelThickness = 2;
+                el.bevelSize = 1.5;
+                updatePlaneTransform(el);
+                updateContentTransform(el);
+                recreateContentMeshes(el);
+            });
+            updateLighting();
+        } else {
+            updatePlaneTransform();
+            updateContentTransform();
+            updateLighting();
+            recreateContentMeshes();
+        }
         syncControlsUI();
         requestRender();
         notifyExternalUpdates();
@@ -12590,6 +12938,9 @@
             itemPitch: el.itemPitch || 0,
             itemRoll: el.itemRoll || 0,
             planeScale: el.planeScale,
+            scaleX: el.scaleX !== undefined ? el.scaleX : 1.0,
+            scaleY: el.scaleY !== undefined ? el.scaleY : 1.0,
+            scaleZ: el.scaleZ !== undefined ? el.scaleZ : 1.0,
             shadowOpacity: el.shadowOpacity,
             shadowSoftness: el.shadowSoftness,
             posX: el.posX,
@@ -12603,9 +12954,13 @@
             sourceSvgOriginal: el.sourceSvgOriginal || el.sourceSvg || null,
             sourceItemName: el.sourceItemName,
             shapeMode: el.shapeMode,
-            cachedSilhouette: el.cachedSilhouette,
+            cachedSilhouette: null, // THREE.Shape metotları JSON'da kaybolur; geri yüklemede taze çıkarılır
             isExactSilhouette: el.isExactSilhouette,
             isRound: !!el.isRound,
+            isFence: !!el.isFence,
+            isBaseAligned: !!el.isBaseAligned,
+            estateItemId: el.estateItemId || null,
+            tags: Array.isArray(el.tags) ? el.tags.slice() : null,
             isAutoDefault: !!el.isAutoDefault,
             layerIndex: (typeof el.layerIndex === 'number') ? el.layerIndex : elements.indexOf(el),
             show3DText: el.show3DText,
@@ -12783,22 +13138,44 @@
         await openStudio(true, false, false);
 
         isBatchRestoring = true;
-        // Sahnedeki eski ögeleri temizle
+        // Sahnedeki eski ögeleri GPU belleğiyle birlikte temizle
+        const disposeRestoredMesh = (m) => {
+            if (!m) return;
+            if (m.geometry) m.geometry.dispose();
+            if (m.material) {
+                const mats = Array.isArray(m.material) ? m.material : [m.material];
+                mats.forEach(mat => {
+                    if (mat && mat.map) mat.map.dispose();
+                    if (mat) mat.dispose();
+                });
+            }
+        };
         elements.forEach(el => {
-            if (el.planeGroup && scene) scene.remove(el.planeGroup);
+            if (el.planeGroup) {
+                el.planeGroup.traverse(ch => { if (ch && ch.isMesh) disposeRestoredMesh(ch); });
+                if (scene) scene.remove(el.planeGroup);
+            }
         });
         elements.length = 0;
         activeElementId = null;
 
-        // Tüm kayıtlı 3D ögeleri sırayla oluştur ve dönüştür
+        // Tüm kayıtlı 3D ögeleri sırayla oluştur ve dönüştür (bozuk kayıt tüm geri yüklemeyi çökertmesin)
         data.elementsData.forEach(elData => {
-            const restoredEl = createDefaultElement(elData);
-            Object.assign(restoredEl, elData);
-            initElementThreeObjects(restoredEl);
-            elements.push(restoredEl);
-            recreateContentMeshes(restoredEl);
-            updatePlaneTransform(restoredEl);
-            updateContentTransform(restoredEl);
+            try {
+                const safeData = Object.assign({}, elData);
+                if (safeData.cachedSilhouette && (!safeData.cachedSilhouette.shape || typeof safeData.cachedSilhouette.shape.extractPoints !== 'function')) {
+                    safeData.cachedSilhouette = null;
+                }
+                const restoredEl = createDefaultElement(safeData);
+                Object.assign(restoredEl, safeData);
+                initElementThreeObjects(restoredEl);
+                elements.push(restoredEl);
+                recreateContentMeshes(restoredEl);
+                updatePlaneTransform(restoredEl);
+                updateContentTransform(restoredEl);
+            } catch (elRestoreErr) {
+                console.warn('[3D] Tekil öge geri yükleme atlandı:', elRestoreErr);
+            }
         });
 
         isBatchRestoring = false;
@@ -13121,24 +13498,174 @@
         }
     }
 
+    function _applyFrame3DActivation(frames) {
+        const list = (Array.isArray(frames) ? frames : [frames]).filter(Boolean);
+        if (!list.length) return false;
+        const primaryFrame = list[0];
+
+        if (list.length === 1 && window.TemplateBuilder && typeof window.TemplateBuilder.selectFrame === 'function') {
+            window.TemplateBuilder.selectFrame(primaryFrame);
+        } else if (window.TemplateBuilder) {
+            window.TemplateBuilder.selectedFrame = primaryFrame;
+        }
+        if (typeof switchTab === 'function') switchTab('create-template');
+
+        list.forEach(frameEl => {
+            const curDepth = parseFloat(frameEl.dataset.depth) || 0;
+            const curPitch = parseFloat(frameEl.dataset.pitch) || 0;
+            const curYaw = parseFloat(frameEl.dataset.yaw) || 0;
+            if (curDepth <= 0) {
+                frameEl.dataset.depth = 25;
+            }
+            if (curPitch === 0 && curYaw === 0) {
+                frameEl.dataset.pitch = -12;
+                frameEl.dataset.yaw = 20;
+                frameEl.dataset.perspective = 1200;
+            }
+            frameEl.dataset.has3D = 'true';
+            if (window.Template3DFrame) {
+                window.Template3DFrame.applyTransform(frameEl);
+            }
+        });
+
+        if (window.Template3DFrame) {
+            window.Template3DFrame.showGizmo(primaryFrame);
+            window.Template3DFrame.syncPanel(primaryFrame);
+        }
+        const sec = document.getElementById('tbFrameSettingsSection');
+        if (sec) {
+            sec.style.display = 'block';
+            const p3d = document.getElementById('tbFrameDepth');
+            if (p3d && typeof p3d.scrollIntoView === 'function') {
+                p3d.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            } else if (typeof sec.scrollIntoView === 'function') {
+                sec.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+        }
+        if (typeof window.recordHistory === 'function') {
+            window.recordHistory(list.length > 1 ? `${list.length} Çerçeve 3D Düzleme Dönüştürüldü` : 'Çerçeve 3D Düzleme Dönüştürüldü');
+        }
+        return true;
+    }
+
     /**
      * 15. 2D Rozet / İğne / İkonu 3D'ye Dönüştürme Köprüsü (2D-to-3D Bridge)
      */
     async function convert2DBadgeTo3D(badgeEl, meta = {}) {
         // Eğer doğrudan veri objesi verilmişse doğrudan add3DElementFromData'ya aktar
-        if (badgeEl && typeof badgeEl === 'object' && !badgeEl.nodeType && (badgeEl.svg || badgeEl.rawSvg || badgeEl.name || badgeEl.itemName)) {
+        if (badgeEl && typeof badgeEl === 'object' && !Array.isArray(badgeEl) && !badgeEl.nodeType && (badgeEl.svg || badgeEl.rawSvg || badgeEl.name || badgeEl.itemName)) {
             return add3DElementFromData(Object.assign({}, badgeEl, meta));
         }
 
+        // Çoklu seçim tespiti (Dizi verilmişse veya window.selectedElements birden fazla öge içeriyorsa)
+        if (!meta._singleBatchItem) {
+            let batchTargets = null;
+            if (Array.isArray(badgeEl)) {
+                batchTargets = badgeEl.filter(t => t && t.nodeType && document.body.contains(t));
+            } else if (Array.isArray(window.selectedElements) && window.selectedElements.length > 1) {
+                const matchesSelection = !badgeEl || window.selectedElements.some(s =>
+                    s === badgeEl ||
+                    (s && s.contains && badgeEl.nodeType && s.contains(badgeEl)) ||
+                    (badgeEl && badgeEl.contains && s.nodeType && badgeEl.contains(s))
+                );
+                if (matchesSelection) {
+                    batchTargets = window.selectedElements.filter(t => t && t.nodeType && document.body.contains(t));
+                }
+            }
+
+            if (batchTargets && batchTargets.length > 1) {
+                const uniqueTargets = Array.from(new Set(batchTargets));
+                const frameTargets = uniqueTargets.filter(t => (t.classList && t.classList.contains('tb-image-frame')) || (t.closest && t.closest('.tb-image-frame')));
+                const otherTargets = uniqueTargets.filter(t => !frameTargets.includes(t));
+
+                let resolvedFrames = [];
+                if (frameTargets.length > 0) {
+                    resolvedFrames = Array.from(new Set(frameTargets.map(t => (t.classList && t.classList.contains('tb-image-frame')) ? t : t.closest('.tb-image-frame')).filter(Boolean)));
+                    _applyFrame3DActivation(resolvedFrames);
+                }
+
+                if (otherTargets.length > 0) {
+                    const created3DEls = [];
+                    try {
+                        if (!state.active || !state.loaded || !scene || !renderer) {
+                            await openStudio(true, false, false);
+                        }
+                        for (const item of otherTargets) {
+                            const itemMeta = Object.assign({}, meta, {
+                                _singleBatchItem: true,
+                                _batchMode: true,
+                                _createdCollector: created3DEls
+                            });
+                            await convert2DBadgeTo3D(item, itemMeta);
+                        }
+                    } catch (batchErr) {
+                        console.error('[ThreeDEngine] Toplu 3D dönüşüm hatası:', batchErr);
+                    }
+
+                    if (Array.isArray(window.selectedElements)) {
+                        window.selectedElements = resolvedFrames.length > 0 ? resolvedFrames.slice() : [];
+                    }
+                    if (resolvedFrames.length > 0) {
+                        resolvedFrames.forEach(f => f.classList.add('selected', 'el-selected'));
+                        if (window.TemplateBuilder) {
+                            window.TemplateBuilder.selectedFrame = resolvedFrames[0];
+                        }
+                    }
+                    if (created3DEls.length > 1 && window.ThreeDGrouping && typeof window.ThreeDGrouping.setSelected3DElements === 'function') {
+                        window.ThreeDGrouping.setSelected3DElements(created3DEls, { keep2DSelection: resolvedFrames.length > 0 });
+                    } else if (created3DEls.length === 1) {
+                        setActiveElement(created3DEls[0], { select: true });
+                    }
+                    setSelected(true, { silent: true, openPanel: false, keep2DSelection: resolvedFrames.length > 0 });
+                    const p2d = document.getElementById('threeDStudioPanel');
+                    if (p2d) {
+                        p2d.style.display = 'none';
+                        document.body.classList.remove('three-d-panel-open');
+                    }
+                    syncControlsUI();
+                    updateDock3DControlsState();
+                    if (window.DockContextManager && typeof window.DockContextManager.on3DElementSelected === 'function') {
+                        window.DockContextManager.on3DElementSelected(getActiveElement());
+                    }
+                    if (typeof window.updateMultiSelectUI === 'function') {
+                        window.updateMultiSelectUI();
+                    }
+
+                    update3DLayersOrder();
+                    if (renderer && scene && camera) {
+                        try { renderer.render(scene, camera); } catch (e) {}
+                    }
+                    requestRender();
+                    if (typeof window.renderLayers === 'function') window.renderLayers();
+                    if (typeof window.recordHistory === 'function') window.recordHistory(`${created3DEls.length} Öge 3D Yapıldı`, true);
+                    if (typeof window.requestAutoSave === 'function') window.requestAutoSave();
+                    if (typeof window.showToast === 'function' && created3DEls.length > 0) {
+                        window.showToast(`✨ ${created3DEls.length} öge 3D olarak dönüştürüldü! (Tuvalde toplam ${elements.length} adet 3D öge)`, 'success');
+                    }
+                } else if (typeof window.updateMultiSelectUI === 'function') {
+                    window.updateMultiSelectUI();
+                }
+                return true;
+            }
+            if (batchTargets && batchTargets.length === 1) {
+                badgeEl = batchTargets[0];
+            }
+        }
+
         const el = badgeEl || (typeof window.selectedCalloutEl !== 'undefined' ? window.selectedCalloutEl : (typeof selectedCalloutEl !== 'undefined' ? selectedCalloutEl : (typeof window.selectedEl !== 'undefined' ? window.selectedEl : null)));
-        if (!el) {
+        if (!el || typeof el.closest !== 'function') {
             if (typeof window.showToast === 'function') {
                 window.showToast('⚠️ Lütfen önce tuvalde dönüştürmek istediğiniz rozet veya ikonu seçin.', 'warning');
             }
             return false;
         }
 
-        const root = el.closest('.shape-el, .callout-wrap, .callout-wrapper, .draggable, .added-icon, .canvas-el') || el;
+        const root = el.closest('.shape-el, .callout-wrap, .callout-wrapper, .draggable, .added-icon, .canvas-el, .tb-image-frame') || el;
+        const frameEl = (el && el.closest && el.closest('.tb-image-frame')) || (root && root.closest && root.closest('.tb-image-frame')) || (el && el.classList && el.classList.contains('tb-image-frame') ? el : null);
+        if (frameEl) {
+            return _applyFrame3DActivation([frameEl]);
+        }
+
         const classList = ((el.className || '') + ' ' + (root.className || '')).toLowerCase();
 
         // 🌟 2D Şekil Tespiti (Ekstra Araçlar -> Şekiller: Dikdörtgen, Daire, Yıldız, Üçgen, Çizgi, Kalp, Ok vb.)
@@ -13193,20 +13720,35 @@
         const svgNode = allCandidateSvgs.length > 0 ? allCandidateSvgs[0] : null;
         let rawSvg = shapeGeneratedSvg || (meta && (meta.rawSvg || meta.svg)) || (svgNode ? svgNode.outerHTML : '');
 
-        // 1. Pozisyon Tespiti: 2D elemanın tuvaldeki fiziksel merkez koordinatını hesapla
+        // 1. Pozisyon Tespiti: 2D elemanın tuvaldeki merkez ve oranını Three.js kamera düzlemine 1:1 aktar
         const container = document.getElementById('canvas-container');
         let initX = 0, initY = 0;
-        if (container && root) {
+        let sourceNormW = 0, sourceNormH = 0;
+        let viewHalfW = 352, viewHalfH = 352;
+        if (container) {
             const cRect = container.getBoundingClientRect();
-            const rRect = root.getBoundingClientRect();
-            if (rRect.width > 0 && rRect.height > 0 && cRect.width > 0) {
-                const rCenterX = rRect.left + rRect.width / 2;
-                const rCenterY = rRect.top + rRect.height / 2;
-                const cCenterX = cRect.left + cRect.width / 2;
-                const cCenterY = cRect.top + cRect.height / 2;
-                const sf = (typeof window.scaleFactor === 'number' && window.scaleFactor > 0) ? window.scaleFactor : 1.0;
-                initX = Math.round((rCenterX - cCenterX) / sf);
-                initY = Math.round(-(rCenterY - cCenterY) / sf);
+            const fov = (camera && camera.fov) ? camera.fov : 45;
+            const camZ = (camera && camera.position && typeof camera.position.z === 'number') ? camera.position.z : 850;
+            viewHalfH = camZ * Math.tan((fov * Math.PI / 180) / 2);
+            const aspect = (cRect.width > 0 && cRect.height > 0)
+                ? (cRect.width / cRect.height)
+                : ((camera && camera.aspect) ? camera.aspect : 16 / 9);
+            viewHalfW = viewHalfH * aspect;
+
+            if (root) {
+                const rRect = root.getBoundingClientRect();
+                if (rRect.width > 0 && rRect.height > 0 && cRect.width > 0 && cRect.height > 0) {
+                    const rCenterX = rRect.left + rRect.width / 2;
+                    const rCenterY = rRect.top + rRect.height / 2;
+                    const cCenterX = cRect.left + cRect.width / 2;
+                    const cCenterY = cRect.top + cRect.height / 2;
+                    const normX = (rCenterX - cCenterX) / (cRect.width / 2);
+                    const normY = -(rCenterY - cCenterY) / (cRect.height / 2);
+                    sourceNormW = rRect.width / cRect.width;
+                    sourceNormH = rRect.height / cRect.height;
+                    initX = Math.round(Math.max(-viewHalfW * 0.90, Math.min(viewHalfW * 0.90, normX * viewHalfW)));
+                    initY = Math.round(Math.max(-viewHalfH * 0.90, Math.min(viewHalfH * 0.90, normY * viewHalfH)));
+                }
             }
         }
         if (initX === 0 && initY === 0 && elements.length > 0) {
@@ -13294,6 +13836,7 @@
             const textNodes = (el.querySelectorAll ? el : root).querySelectorAll('text, span, .co-text, p, h1, h2, h3, h4');
             const texts = [];
             textNodes.forEach(t => {
+                if (t.closest && t.closest('.tb-frame-placeholder, .tb-floating-tools, .tb-frame-actions, .text-handle, .callout-controls')) return;
                 const s = t.textContent.trim();
                 if (s && s.length > 0) texts.push(s);
             });
@@ -13311,7 +13854,7 @@
                 let directText = '';
                 try {
                     const clone = (el || root).cloneNode(true);
-                    clone.querySelectorAll('.text-handle, .text-resize-handle, .text-rotate-handle, .callout-controls, .callout-resizer, .callout-rotator, .callout-lock-btn, .cbtn-del, [class*="handle"]').forEach(h => h.remove());
+                    clone.querySelectorAll('.text-handle, .text-resize-handle, .text-rotate-handle, .callout-controls, .callout-resizer, .callout-rotator, .callout-lock-btn, .cbtn-del, .tb-frame-placeholder, .tb-floating-tools, .tb-frame-actions, [class*="handle"]').forEach(h => h.remove());
                     directText = (clone.innerText || clone.textContent || '').trim();
                 } catch(e) {
                     directText = (el.innerText || el.textContent || root.innerText || root.textContent || '').trim();
@@ -13359,11 +13902,20 @@
                             /M\s*32\s*0|M\s*38\s*0|M\s*35\s*10/i.test(rawSvg)
                         ));
 
-        const isFramedBox = (meta && (meta.isFramed || meta.isBox || meta.elementType === 'badge_card')) ||
-                            (el.dataset && (el.dataset.label === 'Özel Kutu' || el.dataset.label === 'Çerçeveli Metin' || el.dataset.label === 'Çerçeveli Yazı')) ||
-                            (root.dataset && (root.dataset.label === 'Özel Kutu' || root.dataset.label === 'Çerçeveli Metin' || root.dataset.label === 'Çerçeveli Yazı')) ||
-                            (parseFloat(el.dataset?.storedBorderWidth || root.dataset?.storedBorderWidth || '0') > 0) ||
-                            (el.style && el.style.border && el.style.border !== 'none' && !el.style.border.startsWith('0px') && !el.style.border.startsWith('none'));
+        const isPlainTextItem = !rawSvg && (
+            classList.includes('tb-layout-text') ||
+            classList.includes('editable-text') ||
+            classList.includes('custom-text-el') ||
+            ['elBadge', 'elPrice', 'elDetails'].includes(el.id) ||
+            ['elBadge', 'elPrice', 'elDetails'].includes(root.id)
+        );
+        const isFramedBox = !isPlainTextItem && (
+            (meta && (meta.isFramed || meta.isBox || meta.elementType === 'badge_card')) ||
+            (el.dataset && (el.dataset.label === 'Özel Kutu' || el.dataset.label === 'Çerçeveli Metin' || el.dataset.label === 'Çerçeveli Yazı')) ||
+            (root.dataset && (root.dataset.label === 'Özel Kutu' || root.dataset.label === 'Çerçeveli Metin' || root.dataset.label === 'Çerçeveli Yazı')) ||
+            (parseFloat(el.dataset?.storedBorderWidth || root.dataset?.storedBorderWidth || '0') > 0) ||
+            (el.style && el.style.border && el.style.border !== 'none' && !el.style.border.startsWith('0px') && !el.style.border.startsWith('none'))
+        );
 
         const isPureIcon = classList.includes('added-icon') || classList.includes('is-svg-icon') || classList.includes('canvas-icon');
         if (isPureIcon) {
@@ -13562,11 +14114,14 @@
         if (shapeSettingsPanelEl) shapeSettingsPanelEl.style.display = 'none';
         if (typeof window.selectedCalloutEl !== 'undefined') window.selectedCalloutEl = null;
         if (typeof window.selectedEl !== 'undefined') window.selectedEl = null;
-        if (Array.isArray(window.selectedElements)) window.selectedElements = [];
+        if (!meta._batchMode && Array.isArray(window.selectedElements)) window.selectedElements = [];
 
         // 🌟 Önce yeni ögeyi koleksiyona ekle ki initScene boş zannedip varsayılan metin oluşturmasın!
         elements.push(newEl);
         activeElementId = newEl.id;
+        if (Array.isArray(meta._createdCollector)) {
+            meta._createdCollector.push(newEl);
+        }
 
         if (isShape) {
             state.elementType = 'element_3d';
@@ -13575,9 +14130,11 @@
             state.show3DText = false;
         }
 
-        await openStudio(true, false, false);
+        if (!meta._batchMode || !state.active || !state.loaded || !scene || !renderer) {
+            await openStudio(true, false, false);
+        }
         initElementThreeObjects(newEl);
-        setActiveElement(newEl);
+        setActiveElement(newEl, { select: !meta._batchMode });
         if (isShape) {
             newEl.elementType = 'element_3d';
             newEl.text = '';
@@ -13589,34 +14146,67 @@
             state.show3DText = false;
         }
         recreateContentMeshes(newEl);
-        syncControlsUI();
-        update3DLayersOrder();
-        setSelected(true, { silent: true, openPanel: false });
-        const p2d = document.getElementById('threeDStudioPanel');
-        if (p2d) {
-            p2d.style.display = 'none';
-            document.body.classList.remove('three-d-panel-open');
-        }
-        updateDock3DControlsState();
-        if (window.DockManager && typeof window.DockManager.setContext === 'function') {
-            window.DockManager.setContext('3d');
-        }
+        try {
+            const cNow = container ? container.getBoundingClientRect() : null;
+            const fovNow = (camera && camera.fov) ? camera.fov : 45;
+            const camZNow = (camera && camera.position && typeof camera.position.z === 'number') ? camera.position.z : 850;
+            viewHalfH = camZNow * Math.tan((fovNow * Math.PI / 180) / 2);
+            const aspectNow = (cNow && cNow.width > 0 && cNow.height > 0)
+                ? (cNow.width / cNow.height)
+                : ((camera && camera.aspect) ? camera.aspect : 16 / 9);
+            viewHalfW = viewHalfH * aspectNow;
 
-        // 🌟 İlk kareyi anında senkron olarak tuvale boya (0ms gecikme garantisi)
-        if (renderer && scene && camera) {
-            try {
-                renderer.render(scene, camera);
-            } catch (e) {}
-        }
-        requestRender();
+            const lBox = getElementLocalBoundingBox(newEl);
+            if (lBox && !lBox.isEmpty()) {
+                const meshW = Math.max(1, lBox.max.x - lBox.min.x);
+                const meshH = Math.max(1, lBox.max.y - lBox.min.y);
+                const maxFitScale = Math.min((viewHalfW * 1.65) / meshW, (viewHalfH * 1.50) / meshH);
+                let nextScale = newEl.planeScale || 1.0;
+                if (sourceNormW > 0 && sourceNormH > 0) {
+                    const targetWorldW = sourceNormW * (viewHalfW * 2);
+                    const targetWorldH = sourceNormH * (viewHalfH * 2);
+                    const exactScale = Math.min(targetWorldW / meshW, targetWorldH / meshH);
+                    nextScale = Math.max(0.32, Math.min(1.45, exactScale, maxFitScale));
+                } else {
+                    nextScale = Math.max(0.32, Math.min(1.45, maxFitScale));
+                }
+                newEl.planeScale = Number(nextScale.toFixed(3));
+                state.planeScale = newEl.planeScale;
+                updatePlaneTransform(newEl);
+                updateContentTransform(newEl);
+            }
+        } catch (e) {}
+        clampElementsToViewport([newEl], { silent: !!meta._batchMode });
+        if (!meta._batchMode) {
+            syncControlsUI();
+            update3DLayersOrder();
+            setSelected(true, { silent: true, openPanel: false });
+            const p2d = document.getElementById('threeDStudioPanel');
+            if (p2d) {
+                p2d.style.display = 'none';
+                document.body.classList.remove('three-d-panel-open');
+            }
+            updateDock3DControlsState();
+            if (window.DockContextManager && typeof window.DockContextManager.on3DElementSelected === 'function') {
+                window.DockContextManager.on3DElementSelected(getActiveElement());
+            }
 
-        if (typeof window.renderLayers === 'function') window.renderLayers();
-        if (typeof window.recordHistory === 'function') window.recordHistory('Yeni 3D Öge Eklendi', true);
-        if (typeof window.requestAutoSave === 'function') window.requestAutoSave();
+            // 🌟 İlk kareyi anında senkron olarak tuvale boya (0ms gecikme garantisi)
+            if (renderer && scene && camera) {
+                try {
+                    renderer.render(scene, camera);
+                } catch (e) {}
+            }
+            requestRender();
 
-        if (typeof window.showToast === 'function') {
-            const toastIcon = isPin ? '📍' : (isArrow ? '🏹' : '✨');
-            window.showToast(`${toastIcon} "${newEl.sourceItemName}" 3D olarak eklendi! (Tuvalde toplam ${elements.length} adet 3D öge)`, 'success');
+            if (typeof window.renderLayers === 'function') window.renderLayers();
+            if (typeof window.recordHistory === 'function') window.recordHistory('Yeni 3D Öge Eklendi', true);
+            if (typeof window.requestAutoSave === 'function') window.requestAutoSave();
+
+            if (typeof window.showToast === 'function') {
+                const toastIcon = isPin ? '📍' : (isArrow ? '🏹' : '✨');
+                window.showToast(`${toastIcon} "${newEl.sourceItemName}" 3D olarak eklendi! (Tuvalde toplam ${elements.length} adet 3D öge)`, 'success');
+            }
         }
         return true;
     }
@@ -13779,7 +14369,7 @@
                     shapeMode = isCircleBadge ? 'coin' : 'card';
                 }
             } else if (shapeMode !== 'coin' && shapeMode !== 'card') {
-                if (cachedSilhouette && cachedSilhouette.shape) {
+                if (cachedSilhouette && cachedSilhouette.shape && typeof cachedSilhouette.shape.extractPoints === 'function') {
                     isSilhouette = true;
                     shapeMode = 'silhouette';
                 } else {
@@ -13788,7 +14378,7 @@
                         cachedSilhouette = await extractSvgSilhouetteShape(rawSvg, svgDims.targetW, svgDims.targetH, {
                             forceSilhouette: true
                         });
-                        if (cachedSilhouette && cachedSilhouette.shape) {
+                        if (cachedSilhouette && cachedSilhouette.shape && typeof cachedSilhouette.shape.extractPoints === 'function') {
                             isSilhouette = true;
                             shapeMode = 'silhouette';
                         } else if (isPureIcon || options.shapeMode === 'silhouette') {
@@ -13887,6 +14477,7 @@
         elements.push(newEl);
         setActiveElement(newEl);
         recreateContentMeshes(newEl);
+        clampElementsToViewport([newEl], { silent: true });
         syncControlsUI();
         update3DLayersOrder();
         state.gizmoActive = true;
@@ -14629,6 +15220,7 @@
         toggleElementVisibility: toggleElementVisibility,
         resetToDefaults: resetToDefaults,
         centerOnScreen: centerOnScreen,
+        clampElementsToViewport: clampElementsToViewport,
         setSelected: setSelected,
         toggleSelection: toggleSelection,
         isSelected: () => !!state.selected,
@@ -14661,7 +15253,14 @@
         getActiveElement: getActiveElement,
         updateElementSelectorUI: updateElementSelectorUI,
         setShapeMode: setElementShapeMode,
-        setBadgeBgColor: (c) => { state.badgeBgColor = c; const el = getActiveElement(); if (el) el.badgeBgColor = c; updateElementColorsFast(el); syncControlsUI(); },
+        setBadgeBgColor: (c) => {
+            state.badgeBgColor = c;
+            expandWithGroupTargets(getMultiSelected3DTargets()).forEach(el => {
+                el.badgeBgColor = c;
+                updateElementColorsFast(el);
+            });
+            syncControlsUI();
+        },
         setBadgeSubtext: (s) => { state.badgeSubtext = s; recreateContentMeshes(); syncControlsUI(); },
         setSelectedIcon: (id) => { state.selectedIconId = id; recreateContentMeshes(); syncControlsUI(); },
         openContextMenu: open3DElementContextMenu,
@@ -14681,59 +15280,34 @@
         setElementType: (t) => { state.elementType = t; recreateContentMeshes(); syncControlsUI(); },
         setText: (t) => { state.text = t; recreateContentMeshes(); },
         setSize: (s) => { state.textSize = parseInt(s) || 36; recreateContentMeshes(); },
-        setDepth: (d) => { state.depth = parseInt(d) || 16; recreateContentMeshes(); },
+        setDepth: (d) => { applyDepthChange(parseInt(d) || 16); },
         setBevel: (b) => { state.bevelEnabled = !!b; recreateContentMeshes(); },
         setFrontColor: (c) => {
             state.frontColor = c;
-            const el = getActiveElement();
-            const isGroupAll = (state.groupEditMode === 'all');
-            const pair = getSurfacePair();
-            if (isGroupAll && pair) {
-                pair.baseEl.frontColor = c;
-                pair.childEl.frontColor = c;
-                if (state.text3DMode !== 'separate') {
-                    pair.childEl.text3DColor = c;
-                }
-                updateElementColorsFast(pair.baseEl, { onlyFront: true });
-                updateElementColorsFast(pair.childEl, { onlyFront: true });
-            } else if (el) {
+            expandWithGroupTargets(getMultiSelected3DTargets()).forEach(el => {
                 el.frontColor = c;
+                el._userHasChangedColor = true;
                 if (state.text3DMode !== 'separate') {
                     el.text3DColor = c;
                 }
                 updateElementColorsFast(el, { onlyFront: true });
-            }
+            });
         },
         setSideColor: (c) => {
             state.sideColor = c;
-            const el = getActiveElement();
-            const isGroupAll = (state.groupEditMode === 'all');
-            const pair = getSurfacePair();
-            if (isGroupAll && pair) {
-                pair.baseEl.sideColor = c;
-                pair.childEl.sideColor = c;
-                updateElementColorsFast(pair.baseEl, { onlySide: true });
-                updateElementColorsFast(pair.childEl, { onlySide: true });
-            } else if (el) {
+            expandWithGroupTargets(getMultiSelected3DTargets()).forEach(el => {
                 el.sideColor = c;
+                el.badgeSideColor = c;
                 updateElementColorsFast(el, { onlySide: true });
-            }
+            });
         },
         setUseGradient: (val) => {
             const b = !!val;
             state.useGradient = b;
-            const el = getActiveElement();
-            const isGroupAll = (state.groupEditMode === 'all');
-            const pair = getSurfacePair();
-            if (isGroupAll && pair) {
-                pair.baseEl.useGradient = b;
-                pair.childEl.useGradient = b;
-                updateElementColorsFast(pair.baseEl);
-                updateElementColorsFast(pair.childEl);
-            } else if (el) {
+            expandWithGroupTargets(getMultiSelected3DTargets()).forEach(el => {
                 el.useGradient = b;
                 updateElementColorsFast(el);
-            }
+            });
             syncControlsUI();
             requestRender();
         },
@@ -14784,42 +15358,38 @@
         },
         setNeonColor: (c) => {
             state.neonColor = c;
-            const el = getActiveElement();
-            if (el) {
+            expandWithGroupTargets(getMultiSelected3DTargets()).forEach(el => {
                 el.neonColor = c;
                 updateNeonEffect(el);
-            }
+            });
             syncControlsUI();
         },
         setNeonFrontIntensity: (val) => {
             const num = parseInt(val, 10) || 0;
             state.neonFrontIntensity = num;
-            const el = getActiveElement();
-            if (el) {
+            expandWithGroupTargets(getMultiSelected3DTargets()).forEach(el => {
                 el.neonFrontIntensity = num;
                 updateNeonEffect(el);
-            }
+            });
             syncControlsUI();
         },
         setNeonEdgeIntensity: (val) => {
             const num = parseInt(val, 10) || 0;
             state.neonEdgeIntensity = num;
             state.neonEdgeGlow = (num > 0);
-            const el = getActiveElement();
-            if (el) {
+            expandWithGroupTargets(getMultiSelected3DTargets()).forEach(el => {
                 el.neonEdgeIntensity = num;
                 el.neonEdgeGlow = (num > 0);
                 updateNeonEffect(el);
-            }
+            });
             syncControlsUI();
         },
         setNeonPreset: (p) => {
             state.neonPreset = p || 'fully-lit';
-            const el = getActiveElement();
-            if (el) {
+            expandWithGroupTargets(getMultiSelected3DTargets()).forEach(el => {
                 el.neonPreset = state.neonPreset;
                 updateNeonEffect(el);
-            }
+            });
             syncControlsUI();
         }
     };

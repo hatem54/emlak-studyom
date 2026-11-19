@@ -229,8 +229,11 @@ async function performAutoSave() {
         const hasKolaj = kolajWrap && kolajWrap.children.length > 0;
         const canvaLayer = document.getElementById('canva-render-layer');
         const hasCanva = canvaLayer && canvaLayer.children.length > 0 && canvaLayer.style.display !== 'none';
+        const hasFrames = !!document.querySelector('.tb-image-frame');
+        const hasCustomEls = !!document.querySelector('#canvas-container > .callout-wrap, #canvas-container > .co-neon-block, #canvas-container > .custom-graphic-badge, #canvas-container > .canvas-el, #ui-layer > .added-icon, #ui-layer > .canvas-el, #tb-active-info-card');
+        const has3D = !!(window.ThreeDEngine && typeof window.ThreeDEngine.getDataToSave === 'function' && (() => { const d = window.ThreeDEngine.getDataToSave(); return d && d.elementsData && d.elementsData.length > 0; })());
         
-        if (!hasPhoto && !isCanvaModeActive && !hasDrawings && !hasInputs && !hasKolaj && !hasCanva) return; // Nothing meaningful to save
+        if (!hasPhoto && !isCanvaModeActive && !hasDrawings && !hasInputs && !hasKolaj && !hasCanva && !hasFrames && !hasCustomEls && !has3D) return; // Nothing meaningful to save
         
         const activeUploadedImgUrl = typeof uploadedImgUrl !== 'undefined' ? uploadedImgUrl : window.uploadedImgUrl;
         const state = {
@@ -249,6 +252,7 @@ async function performAutoSave() {
             lastAppliedPalette: window.lastAppliedPalette ? Object.assign({}, window.lastAppliedPalette) : null,
             currentFont: typeof currentFont !== 'undefined' ? currentFont : (window.currentFont || localStorage.getItem('emlakstudiom_currentFont') || ''),
             canvasBgColor: (document.getElementById('canvasBgColor') && document.getElementById('canvasBgColor').value) || (document.getElementById('canvas-container') ? document.getElementById('canvas-container').style.backgroundColor : '') || localStorage.getItem('emlakstudiom_canvasBgColor') || '',
+            canvasBgImage: (document.getElementById('canvas-container') ? document.getElementById('canvas-container').style.backgroundImage : '') || '',
             uploadedImgW: typeof uploadedImgW !== 'undefined' ? uploadedImgW : window.uploadedImgW, 
             uploadedImgH: typeof uploadedImgH !== 'undefined' ? uploadedImgH : window.uploadedImgH,
             drawMode: typeof drawMode !== 'undefined' ? drawMode : window.drawMode, 
@@ -297,6 +301,7 @@ async function performAutoSave() {
         state.smartBadges = window.smartBadges || [];
         state.smartMatchedCallouts = window.smartMatchedCallouts || [];
         state.photoCurves = (window.PhotoCurvesManager && typeof window.PhotoCurvesManager.getState === 'function') ? window.PhotoCurvesManager.getState() : null;
+        state.photoMasks = (window.PhotoMasksManager && typeof window.PhotoMasksManager.getState === 'function') ? window.PhotoMasksManager.getState() : null;
         // 🌟 Şablon Öğelerinin Tam Durumu (Konum, Metin, HTML, Stil ve Görünürlük)
         const curBadge = document.getElementById('elBadge');
         const curPrice = document.getElementById('elPrice');
@@ -370,13 +375,34 @@ async function performAutoSave() {
             });
         });
 
-        // B. Metinler, Rozetler & Çerçeveli Kartlar
-        document.querySelectorAll('#ui-layer .canvas-el.draggable, #photo-layer .canvas-el.draggable').forEach(el => {
-            if (['elBadge', 'elPrice', 'elDetails', 'elLogo', 'badge', 'price', 'details', 'logo_overlay'].includes(el.id)) return;
+        // B. Metinler, Rozetler, Çerçeveli Kartlar & QR Kodlar
+        document.querySelectorAll('#ui-layer .canvas-el.draggable, #photo-layer .canvas-el.draggable, #canvas-container > .canvas-el.draggable').forEach(el => {
+            if (['elBadge', 'elPrice', 'elDetails', 'elLogo', 'badge', 'price', 'details', 'logo_overlay', 'tb-active-info-card'].includes(el.id)) return;
             if (el.classList.contains('added-icon') || el.classList.contains('is-svg-icon')) return;
+            if (el.classList.contains('custom-graphic-badge') || (el.closest && el.closest('.custom-graphic-badge'))) return;
             if (el.closest('.callout-wrap') || el.closest('.co-neon-block') || el.closest('.callout-wrapper')) return;
             if (el.classList.contains('normal-el') || el.classList.contains('canva-generated') || el.classList.contains('canva-panel')) return;
             if (el.classList.contains('editable-draw')) return;
+            if (el.classList.contains('tb-image-frame')) return; // Şablon çerçeveleri state.tbFrames ile tam olarak kaydedilir
+
+            if (el.tagName && el.tagName.toLowerCase() === 'img') {
+                const left = parseFloat(el.style.left) || 0;
+                const top = parseFloat(el.style.top) || 0;
+                customItems.push({
+                    kind: 'qr',
+                    src: el.src,
+                    left: left,
+                    top: top,
+                    xPercent: canvasW > 0 ? (left / canvasW) : 0,
+                    yPercent: canvasH > 0 ? (top / canvasH) : 0,
+                    width: el.style.width || '150px',
+                    height: el.style.height || 'auto',
+                    zIndex: el.style.zIndex || '50',
+                    rotation: parseFloat(el.dataset.rotation) || 0,
+                    dataset: Object.assign({}, el.dataset)
+                });
+                return;
+            }
             
             const isBadge = el.dataset.label && (el.dataset.label.startsWith('Rozet:') || el.dataset.label.includes('Çerçeveli'));
             const isBox = (el.dataset.label === 'Özel Kutu');
@@ -477,7 +503,56 @@ async function performAutoSave() {
             });
         });
 
+        // D2. Özel Rozetler & Logolar (.custom-graphic-badge)
+        document.querySelectorAll('#canvas-container .custom-graphic-badge, #workArea .custom-graphic-badge').forEach(wrap => {
+            const left = parseFloat(wrap.style.left) || 0;
+            const top = parseFloat(wrap.style.top) || 0;
+            customItems.push({
+                kind: 'custom-badge',
+                badgeDataUrl: wrap.dataset.badgeDataUrl,
+                label: wrap.dataset.label || 'Özel Rozet',
+                left: left,
+                top: top,
+                xPercent: canvasW > 0 ? (left / canvasW) : 0,
+                yPercent: canvasH > 0 ? (top / canvasH) : 0,
+                width: parseFloat(wrap.style.width) || wrap.offsetWidth,
+                height: parseFloat(wrap.style.height) || wrap.offsetHeight,
+                scale: parseFloat(wrap.dataset.scale) || 1.0,
+                rotation: parseFloat(wrap.dataset.rotation) || 0,
+                opacity: wrap.dataset.opacity || '100',
+                shadow: wrap.dataset.shadow || '0',
+                margin: wrap.dataset.margin || '24',
+                neon: wrap.dataset.neon === 'true',
+                neonColor: wrap.dataset.neonColor || '#00f0ff',
+                neonSize: wrap.dataset.neonSize || 25,
+                neonIntensity: wrap.dataset.neonIntensity || 2.5,
+                flippedH: wrap.dataset.flippedH === 'true',
+                naturalW: wrap.dataset.naturalW,
+                naturalH: wrap.dataset.naturalH,
+                aspectRatio: wrap.dataset.aspectRatio,
+                dataset: Object.assign({}, wrap.dataset)
+            });
+        });
+
         state.customItems = customItems;
+
+        // E. Şablon Düzenle Çerçeveleri (TemplateBuilder .tb-image-frame: fotoğraf, zoom/pan, 3D ayarları)
+        // Geri al sistemindeki captureTemplateFrames() (modules/state.js) ile aynı formatta kaydedilir.
+        if (typeof captureTemplateFrames === 'function') {
+            try {
+                state.tbFrames = captureTemplateFrames().map(f => {
+                    // Fotoğraf hem imgSrc hem dataset.imgSrc içinde var; veritabanında tek kopya tutulur
+                    if (f.dataset && f.dataset.imgSrc && f.imgSrc) {
+                        const ds = Object.assign({}, f.dataset);
+                        delete ds.imgSrc;
+                        return Object.assign({}, f, { dataset: ds });
+                    }
+                    return f;
+                });
+            } catch (tbErr) {
+                console.warn('[AutoSave] Şablon çerçeveleri yakalanamadı:', tbErr);
+            }
+        }
 
         // 3D Stüdyo Katmanı Verileri
         if (window.ThreeDEngine && typeof window.ThreeDEngine.getDataToSave === 'function') {
@@ -490,14 +565,29 @@ async function performAutoSave() {
             uLen: state.uploadedImgUrl ? state.uploadedImgUrl.length : 0,
             uTail: state.uploadedImgUrl ? state.uploadedImgUrl.slice(-64) : '',
             lLen: state.logoImgUrl ? state.logoImgUrl.length : 0,
-            dp: state.drawPaths ? state.drawPaths.length : 0,
+            dp: (function(paths) {
+                // Çizimlerin sadece ADEDİ değil, içeriği (nokta, renk, kalınlık, konum) de imzaya girer.
+                // Aksi halde var olan bir çizim taşındığında / düzenlendiğinde kayıt atlanıyordu.
+                if (!paths || !paths.length) return 0;
+                try {
+                    return JSON.stringify(paths, (k, v) => {
+                        if (k === 'saberRef' || k === 'el' || k === 'graphics' || k === 'particleContainer' || k === 'branchContainer' || k === '_dragEl' || k === 'photoRef') return undefined;
+                        if (typeof v === 'function' || (typeof Element !== 'undefined' && v instanceof Element)) return undefined;
+                        if (typeof v === 'string' && v.length > 4096) return '#len:' + v.length + ':' + v.slice(-48);
+                        return v;
+                    });
+                } catch (e) {
+                    return 'dp:' + paths.length + ':' + Date.now(); // seri hale getirilemezse güvenli taraf: kaydet
+                }
+            })(state.drawPaths),
             ci: state.customItems,
             te: state.templateElements,
             inp: state.inputs,
             kh: state.kolajHtml ? state.kolajHtml.length : 0,
             ch: state.canvaHtml ? state.canvaHtml.length : 0,
             td: state.threeDData,
-            pc: state.photoCurves
+            pc: state.photoCurves,
+            tbf: state.tbFrames ? ((typeof _historySig === 'function') ? _historySig(state.tbFrames) : JSON.stringify(state.tbFrames.map(f => [f.id, f.style, (f.imgSrc || '').length]))) : ''
         });
         if (window._lastAutoSaveSignature === currentSignature) {
             return;
@@ -664,6 +754,15 @@ async function applyRestoredState(state) {
             if(pl) pl.style.backgroundImage = "none";
         }
 
+        const ccImgEl = document.getElementById('canvas-container');
+        if (ccImgEl) {
+            if (state.canvasBgImage && state.canvasBgImage !== 'none') {
+                ccImgEl.style.setProperty('background-image', state.canvasBgImage, 'important');
+            } else {
+                ccImgEl.style.removeProperty('background-image');
+            }
+        }
+
         // Tuval Arka Plan Rengini Geri Yükle (Fotoğraf yokken seçilen renk)
         const bgColorToRestore = state.canvasBgColor || (state.inputs && state.inputs['canvasBgColor']) || localStorage.getItem('emlakstudiom_canvasBgColor') || '';
         if (bgColorToRestore) {
@@ -799,6 +898,22 @@ async function applyRestoredState(state) {
             window.TemplateFrame.apply(state.templateFrame);
         }
 
+        // 6.3. Şablon Düzenle Çerçevelerini Geri Yükle (fotoğraf, zoom/pan, 3D ayarları dahil)
+        if (Array.isArray(state.tbFrames) && window.TemplateBuilder && typeof window.TemplateBuilder.restoreFrameFromSnapshot === 'function') {
+            try {
+                document.querySelectorAll('.tb-image-frame').forEach(f => f.remove());
+                state.tbFrames.forEach(fData => {
+                    try {
+                        window.TemplateBuilder.restoreFrameFromSnapshot(fData);
+                    } catch (oneErr) {
+                        console.warn('[AutoSave] Bir şablon çerçevesi geri yüklenemedi:', oneErr);
+                    }
+                });
+            } catch (tbRestoreErr) {
+                console.warn('[AutoSave] Şablon çerçeveleri geri yüklenemedi:', tbRestoreErr);
+            }
+        }
+
         // 6.1. Global Font Ayarını Geri Yükle
         const fontToRestore = state.currentFont || localStorage.getItem('emlakstudiom_currentFont') || '';
         if (fontToRestore) {
@@ -896,6 +1011,11 @@ async function applyRestoredState(state) {
                     if (item.whiteSpace) el.style.whiteSpace = item.whiteSpace;
                     if (item.lineHeight) el.style.lineHeight = item.lineHeight;
                     if (item.letterSpacing) el.style.letterSpacing = item.letterSpacing;
+                    if (item.rotation) {
+                        el.dataset.rotation = item.rotation;
+                        el.style.transform = `rotate(${item.rotation}deg)`;
+                    }
+                    if (el.dataset.saberActive === 'true') el.classList.add('neon-text-el');
                     el.style.zIndex = '9999';
                     el.style.display = 'block';
                     el.style.boxSizing = 'border-box';
@@ -905,6 +1025,7 @@ async function applyRestoredState(state) {
                     if (uiLayer) uiLayer.appendChild(el);
                     if (typeof bindDrag === 'function') bindDrag(el);
                     if (typeof enableInlineEdit === 'function') enableInlineEdit(el);
+                    if (typeof window.addTextHandles === 'function') window.addTextHandles(el);
                     el.addEventListener('dblclick', () => {
                         if (typeof switchTab === 'function') switchTab('element');
                     });
@@ -955,6 +1076,51 @@ async function applyRestoredState(state) {
                             window.rebindNeonCallout(wrap);
                         }
                     }
+                } else if (item.kind === 'qr' && item.src) {
+                    const renderLayer = document.getElementById('canvas-container') || uiLayer;
+                    if (renderLayer) {
+                        const qrImg = document.createElement('img');
+                        qrImg.src = item.src;
+                        qrImg.className = 'draggable canvas-el';
+                        qrImg.style.position = 'absolute';
+                        qrImg.style.left = (typeof item.left !== 'undefined' ? item.left : Math.round(item.xPercent * targetCanvasW)) + 'px';
+                        qrImg.style.top = (typeof item.top !== 'undefined' ? item.top : Math.round(item.yPercent * targetCanvasH)) + 'px';
+                        qrImg.style.width = item.width || '150px';
+                        qrImg.style.height = item.height || 'auto';
+                        qrImg.style.aspectRatio = '1 / 1';
+                        qrImg.style.zIndex = item.zIndex || '50';
+                        qrImg.style.cursor = 'grab';
+                        qrImg.style.objectFit = 'contain';
+                        if (item.rotation) qrImg.style.transform = `rotate(${item.rotation}deg)`;
+                        if (item.dataset) Object.keys(item.dataset).forEach(k => { qrImg.dataset[k] = item.dataset[k]; });
+                        if (!qrImg.dataset.type) qrImg.dataset.type = 'qr';
+                        renderLayer.appendChild(qrImg);
+                        if (typeof makeDraggable === 'function') makeDraggable(qrImg);
+                        else if (typeof bindDrag === 'function') bindDrag(qrImg);
+                    }
+                } else if (item.kind === 'custom-badge' && window.CustomBadges && typeof window.CustomBadges.addToCanvas === 'function') {
+                    window.CustomBadges.addToCanvas({
+                        id: item.dataset?.id || ('cbg_' + Date.now()),
+                        name: item.label || 'Özel Rozet',
+                        dataUrl: item.badgeDataUrl,
+                        naturalW: item.naturalW,
+                        naturalH: item.naturalH,
+                        aspect: item.aspectRatio
+                    }, {
+                        left: typeof item.left !== 'undefined' ? item.left : Math.round(item.xPercent * targetCanvasW),
+                        top: typeof item.top !== 'undefined' ? item.top : Math.round(item.yPercent * targetCanvasH),
+                        width: item.width,
+                        scale: item.scale,
+                        rotation: item.rotation,
+                        opacity: item.opacity,
+                        shadow: item.shadow,
+                        margin: item.margin,
+                        neon: item.neon,
+                        neonColor: item.neonColor,
+                        neonSize: item.neonSize,
+                        neonIntensity: item.neonIntensity,
+                        flippedH: item.flippedH
+                    });
                 }
             });
         }
@@ -1015,7 +1181,7 @@ async function applyRestoredState(state) {
 
             if (te.badge && curBadge) {
                 if (te.badge.style) curBadge.setAttribute('style', te.badge.style);
-                if (te.badge.html) curBadge.innerHTML = te.badge.html;
+                if (te.badge.html) curBadge.innerHTML = sanitizeRestoredHtml(te.badge.html);
                 else if (te.badge.text) curBadge.innerText = te.badge.text;
                 curBadge.style.visibility = (te.badge.visible !== false) ? 'visible' : 'hidden';
                 curBadge.style.display = (te.badge.visible !== false) ? 'block' : 'none';
@@ -1023,7 +1189,7 @@ async function applyRestoredState(state) {
             }
             if (te.price && curPrice) {
                 if (te.price.style) curPrice.setAttribute('style', te.price.style);
-                if (te.price.html) curPrice.innerHTML = te.price.html;
+                if (te.price.html) curPrice.innerHTML = sanitizeRestoredHtml(te.price.html);
                 else if (te.price.text) curPrice.innerText = te.price.text;
                 curPrice.style.visibility = (te.price.visible !== false) ? 'visible' : 'hidden';
                 curPrice.style.display = (te.price.visible !== false) ? 'block' : 'none';
@@ -1031,13 +1197,13 @@ async function applyRestoredState(state) {
             }
             if (te.details && curDetails) {
                 if (te.details.style) curDetails.setAttribute('style', te.details.style);
-                if (te.details.html) curDetails.innerHTML = te.details.html;
+                if (te.details.html) curDetails.innerHTML = sanitizeRestoredHtml(te.details.html);
                 curDetails.style.visibility = (te.details.visible !== false) ? 'visible' : 'hidden';
                 curDetails.style.display = (te.details.visible !== false) ? 'block' : 'none';
                 if (typeof bindDrag === 'function') bindDrag(curDetails);
             }
             if (te.infoLineHtml && curInfoLine) {
-                curInfoLine.innerHTML = te.infoLineHtml;
+                curInfoLine.innerHTML = sanitizeRestoredHtml(te.infoLineHtml);
                 curInfoLine.style.visibility = 'visible';
                 curInfoLine.style.display = 'block';
             }
@@ -1165,9 +1331,16 @@ async function bootAutoSave() {
         const savedData = await loadStateFromDB();
         
         if (savedData && savedData.state && savedData.timestamp > Date.now() - 24 * 60 * 60 * 1000) {
-            // Kullanıcıyı açılışta pop-up ile rahatsız etmeden arka planda taslağı sakla
             window._lastAutoSavedDraft = savedData;
-            console.log('[AutoSave] Kayıtlı son taslak hazır:', new Date(savedData.timestamp).toLocaleTimeString());
+            // Açılışta rahatsız edici tam ekran penceresi açma: son taslağı sessizce Proje Geçmişi'ne yedekle.
+            // Kullanıcı isterse yan paneldeki "Proje Geçmişi" bölümünden geri dönebilir.
+            try {
+                const hist = await getHistoryFromDB();
+                const newestTs = (hist && hist.length > 0) ? hist[0].timestamp : 0;
+                if (!newestTs || Math.abs(savedData.timestamp - newestTs) > 60000) {
+                    await saveHistoryToDB(savedData.state);
+                }
+            } catch (_) {}
         }
         startAutoSaveTimer();
     } catch(err) {
@@ -1238,6 +1411,7 @@ function formatTimestamp(ts) {
     }
 }
 
+window.renderProjectHistory = function() { return renderProjectHistory(); };
 async function renderProjectHistory() {
     const container = document.getElementById('projectHistoryContainer');
     if (!container) return;
@@ -1254,31 +1428,47 @@ async function renderProjectHistory() {
         container.innerHTML = '';
         history.forEach((record, index) => {
             const btn = document.createElement('button');
-            btn.className = 'btn-action';
-            if (index === 0) {
-                btn.style.background = 'linear-gradient(135deg, #3b82f6, #2563eb)';
-            } else {
-                btn.style.background = '#1e293b';
-                btn.style.border = '1px solid #334155';
-            }
-            btn.style.color = '#fff';
+            btn.type = 'button';
+            btn.className = 'btn-action' + (index === 0 ? ' btn-blue' : '');
             btn.style.textAlign = 'left';
             btn.style.padding = '8px 12px';
             btn.style.display = 'flex';
             btn.style.justifyContent = 'space-between';
             btn.style.alignItems = 'center';
+            btn.style.width = '100%';
+            btn.style.marginBottom = '4px';
             
             const dateStr = formatTimestamp(record.timestamp);
-            btn.innerHTML = '<span>⏳ ' + dateStr + '</span> <span style="font-size:10px; color:#cbd5e1;">Geri Dön</span>';
+            btn.innerHTML = '<span><i class="fa-solid fa-clock-rotate-left"></i> ' + dateStr + '</span> <span style="font-size:10px; opacity:0.8;">Geri Yükle</span>';
             
             btn.onclick = async () => {
-                if(confirm(dateStr + ' tarihli projeye geri dönmek istediğinize emin misiniz? Mevcut değişiklikleriniz kaybolabilir.')) {
+                let confirmed = false;
+                if (window.AppDialog && typeof window.AppDialog.confirm === 'function') {
+                    confirmed = await window.AppDialog.confirm({
+                        title: 'Projeyi Geri Yükle',
+                        message: dateStr + ' tarihli projeye geri dönmek istediğinize emin misiniz? Mevcut değişiklikleriniz kaybolabilir.',
+                        icon: 'fa-clock-rotate-left',
+                        confirmText: 'Geri Yükle',
+                        cancelText: 'Vazgeç'
+                    });
+                } else {
+                    confirmed = confirm(dateStr + ' tarihli projeye geri dönmek istediğinize emin misiniz? Mevcut değişiklikleriniz kaybolabilir.');
+                }
+                if (confirmed) {
                     try {
                         const state = await loadHistoryStateFromDB(record.id);
                         await applyRestoredState(state.state);
-                        alert('Proje geçmişten başarıyla yüklendi!');
+                        if (typeof window.showAppToast === 'function') {
+                            window.showAppToast('Proje geçmişten başarıyla yüklendi', 'success');
+                        } else {
+                            alert('Proje geçmişten başarıyla yüklendi');
+                        }
                     } catch(e) {
-                        alert('Hata: Kayıt yüklenemedi! ' + e);
+                        if (typeof window.showAppToast === 'function') {
+                            window.showAppToast('Kayıt yüklenemedi: ' + e, 'error');
+                        } else {
+                            alert('Hata: Kayıt yüklenemedi: ' + e);
+                        }
                     }
                 }
             };

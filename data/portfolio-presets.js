@@ -93,7 +93,7 @@
             bg: 'linear-gradient(135deg, #1e1b4b 0%, #0f172a 50%, #064e3b 100%)',
             previewColor: '#14b8a6',
             frames: [
-                { x: 0.08, y: 0.18, w: 0.84, h: 0.60, radius: 0, shadow: 16, shape: 'cloud', blend: 'none' }
+                { x: 0.08, y: 0.18, w: 0.84, h: 0.60, radius: 0, shadow: 16, shape: 'cloud-fluffy', blend: 'none' }
             ],
             texts: [
                 { type: 'badge', text: '🌲 DOĞA İÇİNDE YAŞAM', x: 0.08, y: 0.05, fontSize: 13, color: '#2dd4bf', bg: 'rgba(45, 212, 191, 0.15)' },

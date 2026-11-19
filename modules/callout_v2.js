@@ -546,6 +546,11 @@ function addSVGCalloutToCanvas(item) {
     wrap.addEventListener('touchstart', selectWrap, {passive: true});
     
     function handleOutsideClick(e){
+        if (!wrap.isConnected) {
+            document.removeEventListener('mousedown', handleOutsideClick);
+            document.removeEventListener('touchstart', handleOutsideClick);
+            return;
+        }
         if(e.target.closest('#tab-callout')) return;
         if(!wrap.contains(e.target)){
             controls.style.display = 'none';
@@ -609,7 +614,9 @@ function addSVGCalloutToCanvas(item) {
     let isDragging = false, dsx, dsy, dix, diy;
       let isInnerDragging = false, innerTarget = null, innerStartX, innerStartY, innerStartTx = 0, innerStartTy = 0;
 
+      let didMoveCallout = false;
       const wrapMove = function(e){
+          if (isLocked()) return;
           const globalScale = typeof window.getGlobalScale === 'function' ? window.getGlobalScale() : ((typeof scaleFactor !== 'undefined' ? scaleFactor : 1) * (window.pinchScale || 1));
           if (isInnerDragging && innerTarget) {
               let scale = parseFloat(el.dataset.scale) || 1;
@@ -620,13 +627,16 @@ function addSVGCalloutToCanvas(item) {
               innerTarget.dataset.tx = newTx;
               innerTarget.dataset.ty = newTy;
               innerTarget.style.transform = `translate(${newTx}px, ${newTy}px)`;
+              didMoveCallout = true;
               return;
           }
           if(!isDragging) return;
           wrap.style.left = (dix + (e.clientX - dsx) / globalScale) + 'px';
           wrap.style.top = (diy + (e.clientY - dsy) / globalScale) + 'px';
+          didMoveCallout = true;
       };
       const wrapUp = function(){
+          const wasMoving = isDragging || isInnerDragging;
           isDragging = false;
           if (isInnerDragging) {
               isInnerDragging = false;
@@ -634,10 +644,15 @@ function addSVGCalloutToCanvas(item) {
           }
           document.removeEventListener('mousemove', wrapMove);
           document.removeEventListener('mouseup', wrapUp);
+          if (wasMoving && didMoveCallout) {
+              didMoveCallout = false;
+              if (typeof window.recordHistory === 'function') window.recordHistory('Callout Taşındı');
+          }
       };
       
       wrap.addEventListener('mousedown', function(e){
-          if(e.button !== 0) return;
+          if(e.button !== 0 || isLocked()) return;
+          didMoveCallout = false;
           if(e.target.closest('.callout-controls')) return;
           if(e.target.closest('.callout-resizer')) return;
           if(e.target.closest('.callout-rotator')) return;
@@ -2475,6 +2490,11 @@ function addNeonToCanvas(n) {
     el.addEventListener('touchstart', selectNeon, {passive: true});
 
     function handleNeonOutside(e) {
+        if (!el.isConnected) {
+            document.removeEventListener('mousedown', handleNeonOutside);
+            document.removeEventListener('touchstart', handleNeonOutside);
+            return;
+        }
         if (e.target.closest('#tab-callout')) return;
         if (!el.contains(e.target)) {
             controls.style.display = 'none';
@@ -2783,112 +2803,130 @@ function renderCalloutFromDataset(el) {
     }
 }
 
+function _getTargetCallouts() {
+    const isCallout = (e) => e && e.classList && (
+        e.classList.contains('callout-wrap') ||
+        e.classList.contains('callout-item') ||
+        e.classList.contains('svg-callout') ||
+        e.classList.contains('co-neon-block')
+    );
+    const fallback = (typeof selectedCalloutEl !== 'undefined' && selectedCalloutEl) ? selectedCalloutEl : (window.selectedEl || null);
+    if (typeof window.getMultiSelectTargets === 'function') {
+        const list = window.getMultiSelectTargets(isCallout, isCallout(fallback) ? fallback : null);
+        if (list.length) return list;
+    }
+    return fallback ? [fallback] : [];
+}
+
 function applyCalloutSettings() {
-    const el = (typeof selectedCalloutEl !== 'undefined' && selectedCalloutEl) ? selectedCalloutEl : (window.selectedEl || null);
-    if (!el) return;
-    const wrap = el.closest('.callout-wrap') || (el.classList.contains('callout-wrap') ? el : null);
+    const targets = _getTargetCallouts();
+    if (!targets.length) return;
 
     const iconColor = document.getElementById('coIconColor')?.value || '#93c5fd';
     const textColor = document.getElementById('coTextColor')?.value || '#ffffff';
     const bgColor = document.getElementById('coBgColor')?.value || '#0d1b2e';
-
-    // Genişlik ve Uzunluk Güncellemesi
     const coW = parseInt(document.getElementById('coWidth')?.value);
     const coH = parseInt(document.getElementById('coHeight')?.value);
-    if (!isNaN(coW) && coW > 0 && !isNaN(coH) && coH > 0) {
-        if (wrap) {
-            wrap.style.width = coW + 'px';
-            wrap.style.height = coH + 'px';
-            wrap.dataset.customW = coW;
-            wrap.dataset.customH = coH;
-            const innerItem = wrap.querySelector('.callout-item');
-            if (innerItem) {
-                innerItem.style.width = '100%';
-                innerItem.style.height = '100%';
+    const labelRaw = document.getElementById('coLabelText')?.value;
+
+    targets.forEach(el => {
+        const wrap = el.closest('.callout-wrap') || (el.classList.contains('callout-wrap') ? el : null);
+        const neonBlock = el.classList.contains('co-neon-block') ? el : (el.querySelector ? el.querySelector('.co-neon-block') : null);
+
+        // Genişlik ve Uzunluk Güncellemesi
+        if (!isNaN(coW) && coW > 0 && !isNaN(coH) && coH > 0) {
+            if (wrap) {
+                wrap.style.width = coW + 'px';
+                wrap.style.height = coH + 'px';
+                wrap.dataset.customW = coW;
+                wrap.dataset.customH = coH;
+                const innerItem = wrap.querySelector('.callout-item');
+                if (innerItem) {
+                    innerItem.style.width = '100%';
+                    innerItem.style.height = '100%';
+                }
+                const svg = wrap.querySelector('svg');
+                if (svg) {
+                    svg.setAttribute('preserveAspectRatio', 'none');
+                }
+            } else if (el.classList.contains('co-neon-block')) {
+                el.style.width = coW + 'px';
+                el.style.height = coH + 'px';
+                el.dataset.customW = coW;
+                el.dataset.customH = coH;
             }
-            const svg = wrap.querySelector('svg');
-            if (svg) {
-                svg.setAttribute('preserveAspectRatio', 'none');
-            }
-        } else if (el.classList.contains('co-neon-block')) {
-            el.style.width = coW + 'px';
-            el.style.height = coH + 'px';
-            el.dataset.customW = coW;
-            el.dataset.customH = coH;
         }
-    }
 
-    if (el.classList.contains('co-neon-block')) {
-        const bgOpacity = parseInt(document.getElementById('coBgOpacity')?.value || 0);
-        const iconSize = parseInt(document.getElementById('coIconSize')?.value || 64);
-        const textSize = parseInt(document.getElementById('coTextSize')?.value || 14);
-        const glowPct = parseInt(document.getElementById('coGlow')?.value || 80);
-        const radius = parseInt(document.getElementById('coRadius')?.value || 12);
-        const padding = parseInt(document.getElementById('coPadding')?.value || 10);
-        const labelRaw = document.getElementById('coLabelText')?.value || '';
+        if (neonBlock) {
+            const bgOpacity = parseInt(document.getElementById('coBgOpacity')?.value || 0);
+            const iconSize = parseInt(document.getElementById('coIconSize')?.value || 64);
+            const textSize = parseInt(document.getElementById('coTextSize')?.value || 14);
+            const glowPct = parseInt(document.getElementById('coGlow')?.value || 80);
+            const radius = parseInt(document.getElementById('coRadius')?.value || 12);
+            const padding = parseInt(document.getElementById('coPadding')?.value || 10);
 
-        el.dataset.coIconColor = iconColor;
-        el.dataset.coTextColor = textColor;
-        el.dataset.coBgColor = bgColor;
-        el.dataset.coBgOpacity = bgOpacity;
-        el.dataset.coIconSize = iconSize;
-        el.dataset.coTextSize = textSize;
-        el.dataset.coGlow = glowPct;
-        el.dataset.coRadius = radius;
-        el.dataset.coPadding = padding;
-        el.dataset.coLabel = labelRaw;
+            neonBlock.dataset.coIconColor = iconColor;
+            neonBlock.dataset.coTextColor = textColor;
+            neonBlock.dataset.coBgColor = bgColor;
+            neonBlock.dataset.coBgOpacity = bgOpacity;
+            neonBlock.dataset.coIconSize = iconSize;
+            neonBlock.dataset.coTextSize = textSize;
+            neonBlock.dataset.coGlow = glowPct;
+            neonBlock.dataset.coRadius = radius;
+            neonBlock.dataset.coPadding = padding;
+            if (targets.length === 1 || el === selectedCalloutEl) {
+                neonBlock.dataset.coLabel = labelRaw || '';
+            }
 
-        renderCalloutFromDataset(el);
-    } else {
-        const svg = el.querySelector('svg');
-        if (svg) {
-            const labelRaw = document.getElementById('coLabelText')?.value;
-            if (labelRaw !== undefined && labelRaw !== null) {
-                const textNodes = Array.from(svg.querySelectorAll('text, tspan'));
-                const trimmed = labelRaw.trim();
-                if (trimmed === '') {
-                    // Metin tamamen silindiğinde boş rozet/balon bırakabilmek için tüm SVG metin içeriklerini temizle
-                    textNodes.forEach(tn => { tn.textContent = ''; });
-                } else {
-                    const lines = labelRaw.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-                    if (lines.length === 1 && textNodes.length > 1) {
-                        // Tek satır girildiyse ana metne ata, üst başlığı temizle
-                        textNodes.forEach((tn, idx) => {
-                            tn.textContent = (idx === textNodes.length - 1) ? lines[0] : '';
-                        });
+            renderCalloutFromDataset(neonBlock);
+        } else {
+            const svg = el.querySelector('svg');
+            if (svg) {
+                // Çoklu seçimde her rozetin kendi metnini ezme (yalnızca tek seçimde metin uygula)
+                if (targets.length === 1 && labelRaw !== undefined && labelRaw !== null) {
+                    const textNodes = Array.from(svg.querySelectorAll('text, tspan'));
+                    const trimmed = labelRaw.trim();
+                    if (trimmed === '') {
+                        textNodes.forEach(tn => { tn.textContent = ''; });
                     } else {
-                        // Çok satır girildiyse sırasıyla metin etiketlerine dağıt
-                        textNodes.forEach((tn, idx) => {
-                            tn.textContent = idx < lines.length ? lines[idx] : '';
-                        });
+                        const lines = labelRaw.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+                        if (lines.length === 1 && textNodes.length > 1) {
+                            textNodes.forEach((tn, idx) => {
+                                tn.textContent = (idx === textNodes.length - 1) ? lines[0] : '';
+                            });
+                        } else {
+                            textNodes.forEach((tn, idx) => {
+                                tn.textContent = idx < lines.length ? lines[idx] : '';
+                            });
+                        }
+                    }
+                }
+
+                svg.querySelectorAll('text, tspan').forEach(t => {
+                    if (t.getAttribute('fill') && t.getAttribute('fill') !== 'none') t.setAttribute('fill', textColor);
+                });
+                svg.querySelectorAll('rect, circle, polygon, path').forEach(bg => {
+                    const fill = bg.getAttribute('fill');
+                    if (fill && fill !== 'none' && !fill.includes('url(#')) bg.setAttribute('fill', bgColor);
+                });
+                svg.querySelectorAll('[stroke]').forEach(s => {
+                    const stroke = s.getAttribute('stroke');
+                    if (stroke && stroke !== 'none' && !stroke.includes('url(#')) s.setAttribute('stroke', iconColor);
+                });
+
+                // Rozette neon aktifse metin veya renk değişiminde neonu canlı tazele
+                const wrapForNeon = el.closest('.callout-wrap') || el;
+                if (wrapForNeon && (wrapForNeon.dataset.neonActive === 'true' || wrapForNeon.classList.contains('neon-badge-active'))) {
+                    const glowCol = wrapForNeon.dataset.neonGlowColor || (document.getElementById('coNeonGlowColor') ? document.getElementById('coNeonGlowColor').value : '#00f0ff');
+                    const glowSize = (wrapForNeon.dataset.neonTextGlow !== undefined && wrapForNeon.dataset.neonTextGlow !== null) ? parseInt(wrapForNeon.dataset.neonTextGlow) : 35;
+                    const intensity = wrapForNeon.dataset.neonIntensity ? parseFloat(wrapForNeon.dataset.neonIntensity) : 3.0;
+                    if (typeof window.applyNeonToBadge === 'function') {
+                        window.applyNeonToBadge(wrapForNeon, glowSize, intensity, glowCol, textColor);
                     }
                 }
             }
-
-            svg.querySelectorAll('text, tspan').forEach(t => {
-                if (t.getAttribute('fill') && t.getAttribute('fill') !== 'none') t.setAttribute('fill', textColor);
-            });
-            svg.querySelectorAll('rect, circle, polygon, path').forEach(bg => {
-                const fill = bg.getAttribute('fill');
-                if (fill && fill !== 'none' && !fill.includes('url(#')) bg.setAttribute('fill', bgColor);
-            });
-            svg.querySelectorAll('[stroke]').forEach(s => {
-                const stroke = s.getAttribute('stroke');
-                if (stroke && stroke !== 'none' && !stroke.includes('url(#')) s.setAttribute('stroke', iconColor);
-            });
-
-            // Rozette neon aktifse metin veya renk değişiminde neonu canlı tazele
-            const wrapForNeon = el.closest('.callout-wrap') || el;
-            if (wrapForNeon && (wrapForNeon.dataset.neonActive === 'true' || wrapForNeon.classList.contains('neon-badge-active'))) {
-                const glowCol = wrapForNeon.dataset.neonGlowColor || (document.getElementById('coNeonGlowColor') ? document.getElementById('coNeonGlowColor').value : '#00f0ff');
-                const glowSize = (wrapForNeon.dataset.neonTextGlow !== undefined && wrapForNeon.dataset.neonTextGlow !== null) ? parseInt(wrapForNeon.dataset.neonTextGlow) : 35;
-                const intensity = wrapForNeon.dataset.neonIntensity ? parseFloat(wrapForNeon.dataset.neonIntensity) : 3.0;
-                if (typeof window.applyNeonToBadge === 'function') {
-                    window.applyNeonToBadge(wrapForNeon, glowSize, intensity, glowCol, textColor);
-                }
-            }
         }
-    }
+    });
     if (typeof requestAutoSave === 'function') requestAutoSave();
 }
 
@@ -2965,63 +3003,69 @@ function resetCalloutSetting(type) {
 window.resetCalloutSetting = resetCalloutSetting;
 
 function deleteSelectedCallout() {
-    if (!selectedCalloutEl) return;
-    const idx = typeof allIcons !== 'undefined' ? allIcons.indexOf(selectedCalloutEl) : -1;
-    if (idx > -1) allIcons.splice(idx, 1);
-    
-    const wrap = selectedCalloutEl.closest('.callout-wrap');
-    const elToRemove = selectedCalloutEl;
-    
-    // Ghost clickleri absürbe etmek için DOM'dan silinmeyi kısa bir süre geciktiriyoruz.
-    // Ancak kullanıcıya anında silinmiş gibi gösteriyoruz.
-    if (wrap) {
-        wrap.style.opacity = '0';
-        wrap.style.pointerEvents = 'none';
-        setTimeout(() => wrap.remove(), 150);
-    } else {
+    const targets = _getTargetCallouts();
+    if (!targets.length) return;
+
+    targets.forEach(t => {
+        const idx = typeof allIcons !== 'undefined' ? allIcons.indexOf(t) : -1;
+        if (idx > -1) allIcons.splice(idx, 1);
+
+        const wrap = t.closest ? t.closest('.callout-wrap') : null;
+        const elToRemove = wrap || t;
+        if (typeof allIcons !== 'undefined') {
+            const wIdx = allIcons.indexOf(elToRemove);
+            if (wIdx > -1) allIcons.splice(wIdx, 1);
+        }
+
+        // Ghost clickleri absürbe etmek için DOM'dan silinmeyi kısa bir süre geciktiriyoruz.
         elToRemove.style.opacity = '0';
         elToRemove.style.pointerEvents = 'none';
         setTimeout(() => elToRemove.remove(), 150);
-    }
-    
+    });
+
+    if (window.selectedElements) window.selectedElements = [];
     selectedCalloutEl = null;
     closeCalloutPanel();
+    if (typeof window.updateMultiSelectUI === 'function') window.updateMultiSelectUI();
     if (typeof window.recordHistory === 'function') window.recordHistory('Callout silindi');
     if (typeof window.renderLayers === 'function') window.renderLayers();
 }
 
 
 function resetCalloutToDefault() {
-    if (!selectedCalloutEl) return;
-    
-    const d = selectedCalloutEl.dataset;
-    const isNeon = selectedCalloutEl.classList.contains('co-neon-block');
-    
-    if (isNeon) {
-        document.getElementById('coIconColor').value = '#93c5fd';
-        document.getElementById('coTextColor').value = '#ffffff';
-        document.getElementById('coBgColor').value = '#0d1b2e';
-        document.getElementById('coBgOpacity').value = '0';
-        document.getElementById('coIconSize').value = '64';
-        document.getElementById('coTextSize').value = '14';
-        document.getElementById('coGlow').value = '45';
-        document.getElementById('coRadius').value = '12';
-        document.getElementById('coPadding').value = '10';
-        applyCalloutSettings();
-    } else if (d.originalSvg) {
-        const rawSvg = decodeURIComponent(d.originalSvg);
-        selectedCalloutEl.innerHTML = (window.DOMPurify && typeof window.DOMPurify.sanitize === 'function') ? window.DOMPurify.sanitize(rawSvg) : rawSvg;
+    const targets = _getTargetCallouts();
+    if (!targets.length) return;
 
-        // Remove style overrides if any exist natively on SVG (handled by innerHTML)
-        // Reset scale/rotation optionally? Usually we just want to reset colors.
-        // We'll keep scale/rotation but reset colors.
-        
-        // Update UI Panel by re-triggering selectCalloutEl logic
+    const primary = targets[0];
+    const hasNeon = targets.some(t => t.classList.contains('co-neon-block') || (t.querySelector && t.querySelector('.co-neon-block')));
+    if (hasNeon) {
+        if (document.getElementById('coIconColor')) document.getElementById('coIconColor').value = '#93c5fd';
+        if (document.getElementById('coTextColor')) document.getElementById('coTextColor').value = '#ffffff';
+        if (document.getElementById('coBgColor')) document.getElementById('coBgColor').value = '#0d1b2e';
+        if (document.getElementById('coBgOpacity')) document.getElementById('coBgOpacity').value = '0';
+        if (document.getElementById('coIconSize')) document.getElementById('coIconSize').value = '64';
+        if (document.getElementById('coTextSize')) document.getElementById('coTextSize').value = '14';
+        if (document.getElementById('coGlow')) document.getElementById('coGlow').value = '45';
+        if (document.getElementById('coRadius')) document.getElementById('coRadius').value = '12';
+        if (document.getElementById('coPadding')) document.getElementById('coPadding').value = '10';
+        applyCalloutSettings();
+    }
+
+    targets.forEach(t => {
+        if (t.classList.contains('co-neon-block')) return;
+        const svgHost = t.dataset.originalSvg ? t : (t.querySelector ? t.querySelector('[data-original-svg]') : null);
+        if (svgHost && svgHost.dataset.originalSvg) {
+            const rawSvg = decodeURIComponent(svgHost.dataset.originalSvg);
+            svgHost.innerHTML = (window.DOMPurify && typeof window.DOMPurify.sanitize === 'function') ? window.DOMPurify.sanitize(rawSvg) : rawSvg;
+        }
+    });
+
+    const primarySvgHost = primary.dataset.originalSvg ? primary : (primary.querySelector ? primary.querySelector('[data-original-svg]') : primary);
+    if (primarySvgHost && !primary.classList.contains('co-neon-block')) {
         const tc = document.getElementById('coTextColor');
         const bc = document.getElementById('coBgColor');
         const ic = document.getElementById('coIconColor');
-        
-        const svg = selectedCalloutEl.querySelector('svg');
+        const svg = primarySvgHost.querySelector('svg');
         if (svg) {
             const textEl = svg.querySelector('text, tspan');
             if (textEl && tc) {
@@ -3085,42 +3129,50 @@ function initCalloutSliderResetListeners() {
 
 // ==================== ROZET NEON ENTEGRASYONU ====================
 window.toggleCalloutNeon = function() {
-    const el = (typeof selectedCalloutEl !== 'undefined' && selectedCalloutEl) ? selectedCalloutEl : (window.selectedEl || null);
-    if (!el) return;
-    const wrap = (typeof getBadgeWrapper === 'function' ? getBadgeWrapper(el) : null) || (el.closest && el.closest('.callout-wrap')) || el;
+    const targets = _getTargetCallouts();
+    if (!targets.length) return;
 
-    const isCurrentlyNeon = wrap.dataset.neonActive === 'true' || (wrap.dataset.neonTextGlow && parseInt(wrap.dataset.neonTextGlow) > 0) || (wrap.dataset.neonBoxGlow && parseInt(wrap.dataset.neonBoxGlow) > 0) || wrap.classList.contains('neon-badge-active');
+    const getWrap = (el) => (typeof getBadgeWrapper === 'function' ? getBadgeWrapper(el) : null) || (el.closest && el.closest('.callout-wrap')) || el;
+    const primaryWrap = getWrap(targets[0]);
+
+    const isCurrentlyNeon = primaryWrap.dataset.neonActive === 'true' || (primaryWrap.dataset.neonTextGlow && parseInt(primaryWrap.dataset.neonTextGlow) > 0) || (primaryWrap.dataset.neonBoxGlow && parseInt(primaryWrap.dataset.neonBoxGlow) > 0) || primaryWrap.classList.contains('neon-badge-active');
     const newNeonState = !isCurrentlyNeon;
-    wrap.dataset.neonActive = newNeonState ? 'true' : 'false';
 
-    if (newNeonState) {
-        const glowCol = document.getElementById('coNeonGlowColor')?.value || '#00f0ff';
-        const boxGlow = parseInt(document.getElementById('coNeonBoxGlow')?.value || 35);
-        const glowSize = parseInt(document.getElementById('coNeonGlowSize')?.value || 35);
-        const intensity = parseFloat(document.getElementById('coNeonIntensity')?.value || 3.0);
-        const coreCol = document.getElementById('coTextColor')?.value || '#ffffff';
-        if (typeof window.applyNeonToBadge === 'function') {
-            window.applyNeonToBadge(wrap, glowSize, intensity, glowCol, coreCol, 'fully-lit', boxGlow);
+    const glowCol = document.getElementById('coNeonGlowColor')?.value || '#00f0ff';
+    const boxGlow = parseInt(document.getElementById('coNeonBoxGlow')?.value || 35);
+    const glowSize = parseInt(document.getElementById('coNeonGlowSize')?.value || 35);
+    const intensity = parseFloat(document.getElementById('coNeonIntensity')?.value || 3.0);
+    const coreCol = document.getElementById('coTextColor')?.value || '#ffffff';
+
+    targets.forEach(el => {
+        const wrap = getWrap(el);
+        wrap.dataset.neonActive = newNeonState ? 'true' : 'false';
+        if (newNeonState) {
+            if (typeof window.applyNeonToBadge === 'function') {
+                window.applyNeonToBadge(wrap, glowSize, intensity, glowCol, coreCol, 'fully-lit', boxGlow);
+            }
+        } else {
+            if (typeof window.applyNeonToBadge === 'function') {
+                window.applyNeonToBadge(wrap, 0, 0, '#000000', null, 'off', 0);
+            }
         }
-    } else {
-        if (typeof window.applyNeonToBadge === 'function') {
-            window.applyNeonToBadge(wrap, 0, 0, '#000000', null, 'off', 0);
-        }
-    }
+    });
+
     if (typeof window.syncCalloutNeonUI === 'function') {
-        window.syncCalloutNeonUI(wrap);
+        window.syncCalloutNeonUI(primaryWrap);
     }
     if (typeof window.syncNeonTextUI === 'function') {
-        window.syncNeonTextUI(wrap);
+        window.syncNeonTextUI(primaryWrap);
     }
     if (typeof requestAutoSave === 'function') requestAutoSave();
 };
 
 let _calloutNeonRaf = null;
 window.applyCalloutNeonSettings = function() {
-    const el = (typeof selectedCalloutEl !== 'undefined' && selectedCalloutEl) ? selectedCalloutEl : (window.selectedEl || null);
-    if (!el) return;
-    const wrap = (typeof getBadgeWrapper === 'function' ? getBadgeWrapper(el) : null) || (el.closest && el.closest('.callout-wrap')) || el;
+    const targets = _getTargetCallouts();
+    if (!targets.length) return;
+
+    const getWrap = (el) => (typeof getBadgeWrapper === 'function' ? getBadgeWrapper(el) : null) || (el.closest && el.closest('.callout-wrap')) || el;
 
     const glowCol = document.getElementById('coNeonGlowColor')?.value || '#00f0ff';
     const boxGlow = parseInt(document.getElementById('coNeonBoxGlow')?.value || 0);
@@ -3128,17 +3180,23 @@ window.applyCalloutNeonSettings = function() {
     const intensity = parseFloat(document.getElementById('coNeonIntensity')?.value || 3.0);
     const coreCol = document.getElementById('coTextColor')?.value || '#ffffff';
 
-    wrap.dataset.neonActive = (glowSize > 0 || boxGlow > 0) ? 'true' : 'false';
-    wrap.dataset.neonGlowColor = glowCol;
-    wrap.dataset.neonBoxGlow = boxGlow;
-    wrap.dataset.neonGlowSize = glowSize;
-    wrap.dataset.neonTextGlow = glowSize;
-    wrap.dataset.neonIntensity = intensity;
+    const wraps = targets.map(el => {
+        const wrap = getWrap(el);
+        wrap.dataset.neonActive = (glowSize > 0 || boxGlow > 0) ? 'true' : 'false';
+        wrap.dataset.neonGlowColor = glowCol;
+        wrap.dataset.neonBoxGlow = boxGlow;
+        wrap.dataset.neonGlowSize = glowSize;
+        wrap.dataset.neonTextGlow = glowSize;
+        wrap.dataset.neonIntensity = intensity;
+        return wrap;
+    });
 
     if (_calloutNeonRaf) cancelAnimationFrame(_calloutNeonRaf);
     _calloutNeonRaf = requestAnimationFrame(() => {
         if (typeof window.applyNeonToBadge === 'function') {
-            window.applyNeonToBadge(wrap, glowSize, intensity, glowCol, coreCol, 'fully-lit', boxGlow);
+            wraps.forEach(wrap => {
+                window.applyNeonToBadge(wrap, glowSize, intensity, glowCol, coreCol, 'fully-lit', boxGlow);
+            });
         }
         _calloutNeonRaf = null;
     });

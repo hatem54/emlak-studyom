@@ -136,7 +136,6 @@ function closeVideoToast() {
 window.closeVideoToast = closeVideoToast;
 
 function getBestSupportedVideoMime() {
-    // Canvas kaydı için saf video codec'leri (mp4a ses codec'i ASLA eklenmez)
     const candidates = [
         'video/mp4;codecs=avc1',
         'video/mp4',
@@ -147,19 +146,25 @@ function getBestSupportedVideoMime() {
     const testCanvas = document.createElement('canvas');
     testCanvas.width = 16; testCanvas.height = 16;
     const testStream = testCanvas.captureStream ? testCanvas.captureStream(10) : null;
-    if (testStream && typeof MediaRecorder !== 'undefined') {
-        for (const type of candidates) {
-            try {
-                if (MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(type)) {
-                    const testRec = new MediaRecorder(testStream, { mimeType: type });
-                    if (testRec && testRec.state === 'inactive') {
-                        return type;
+    try {
+        if (testStream && typeof MediaRecorder !== 'undefined') {
+            for (const type of candidates) {
+                try {
+                    if (MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(type)) {
+                        const testRec = new MediaRecorder(testStream, { mimeType: type });
+                        if (testRec && testRec.state === 'inactive') {
+                            return type;
+                        }
                     }
-                }
-            } catch(e) {}
+                } catch(e) {}
+            }
+        }
+    } finally {
+        if (testStream) {
+            try { testStream.getTracks().forEach(t => t.stop()); } catch(_) {}
         }
     }
-    return 'video/webm';
+    return null;
 }
 
 // ══════════════════════════════════════════════
@@ -340,25 +345,22 @@ async function exportAnimatedVideo(options = {}) {
         }
     }
 
-    // 3. Çizim katmanını (draw-layer) doğrudan bas
-    const drawCanvas = document.getElementById('draw-layer') || document.getElementById('drawCanvas');
-    if (drawCanvas && drawCanvas.width > 0) {
-        try {
-            baseCtx.drawImage(drawCanvas, 0, 0, targetW, targetH);
-        } catch(e) {}
-    }
-
-    // Çizimleri ve dolguları video temel tuvaline bas
+    // 3. Çizim katmanı: Vektör redrawAllToContext yoksa raster draw-layer'a düş (çift çizimi önler)
     if (typeof window.redrawAllToContext === 'function') {
         const hasSaberActive = !!(window.SaberEngine && typeof window.SaberEngine.getApp === 'function');
         window.redrawAllToContext(baseCtx, outputScale, { skipNeonStrokes: hasSaberActive });
+    } else {
+        const drawCanvas = document.getElementById('draw-layer') || document.getElementById('drawCanvas');
+        if (drawCanvas && drawCanvas.width > 0) {
+            try { baseCtx.drawImage(drawCanvas, 0, 0, targetW, targetH); } catch(e) {}
+        }
     }
 
     // 3D WebGL Katmanı (#three-d-layer)
     draw3DLayerToContext(baseCtx, targetW, targetH);
 
     // 4. Şablon, metinler ve rozetler (Sadece varsa html2canvas çalıştır)
-    const hasTemplates = !!canvasEl.querySelector('#canva-render-layer > *');
+    const hasTemplates = !!canvasEl.querySelector('#canva-render-layer > *') || !!canvasEl.querySelector('.tb-image-frame');
     const hasBadges = Array.from(canvasEl.querySelectorAll('#ui-layer .canvas-el')).some(el => {
         return el.style.display !== 'none' && el.style.visibility !== 'hidden' && el.style.opacity !== '0';
     });
@@ -372,36 +374,37 @@ async function exportAnimatedVideo(options = {}) {
     const needsHtml2Canvas = hasTemplates || hasBadges || hasCallouts || hasLogo;
 
     if (needsHtml2Canvas) {
+        const savedBg = canvasEl.style.backgroundColor;
         try {
-            const savedBg = canvasEl.style.backgroundColor;
             canvasEl.style.setProperty('background-color', 'transparent', 'important');
 
+            const h2cScale = Math.min(2, Math.max(1, outputScale));
             const h2cPromise = html2canvas(canvasEl, {
                 width: currentW,
                 height: currentH,
-                scale: 1,
+                scale: h2cScale,
                 useCORS: true,
                 allowTaint: false,
-                imageTimeout: 1500,
+                imageTimeout: 4000,
                 logging: false,
                 backgroundColor: null,
                 ignoreElements: (el) => isExportIgnoredElement(el),
                 onclone: (clonedDoc) => sanitizeExportClone(clonedDoc)
             });
-            const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('html2canvas-timeout')), 2000));
+            const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('html2canvas-timeout')), 6000));
             const capturedCanvas = await Promise.race([h2cPromise, timeoutPromise]);
-
-            if (savedBg) {
-                canvasEl.style.setProperty('background-color', savedBg, 'important');
-            } else {
-                canvasEl.style.removeProperty('background-color');
-            }
 
             if (capturedCanvas) {
                 baseCtx.drawImage(capturedCanvas, 0, 0, targetW, targetH);
             }
         } catch(h2cErr) {
             console.warn("Hızlı sahne yakalama fallback:", h2cErr.message || h2cErr);
+        } finally {
+            if (savedBg) {
+                canvasEl.style.setProperty('background-color', savedBg, 'important');
+            } else {
+                canvasEl.style.removeProperty('background-color');
+            }
         }
     }
 
@@ -450,17 +453,13 @@ async function exportAnimatedVideo(options = {}) {
     const stream = recCanvas.captureStream(30);
     let recorder;
     try {
-        recorder = new MediaRecorder(stream, {
-            mimeType: chosenMime,
-            videoBitsPerSecond: videoBitrate
-        });
+        const recOpts = chosenMime ? { mimeType: chosenMime, videoBitsPerSecond: videoBitrate } : { videoBitsPerSecond: videoBitrate };
+        recorder = new MediaRecorder(stream, recOpts);
     } catch(recInitErr) {
         console.warn("Seçilen yüksek bitrate ile başlatılamadı, alternatif deneniyor:", recInitErr);
         try {
-            recorder = new MediaRecorder(stream, {
-                mimeType: chosenMime,
-                videoBitsPerSecond: 12000000 // 12 Mbps
-            });
+            const fallbackOpts = chosenMime ? { mimeType: chosenMime, videoBitsPerSecond: 12000000 } : { videoBitsPerSecond: 12000000 };
+            recorder = new MediaRecorder(stream, fallbackOpts);
         } catch(e2) {
             recorder = new MediaRecorder(stream);
         }
@@ -469,10 +468,6 @@ async function exportAnimatedVideo(options = {}) {
     const chunks = [];
     recorder.ondataavailable = (e) => {
         if (e.data && e.data.size > 0) chunks.push(e.data);
-    };
-    recorder.onerror = (e) => {
-        console.error("MediaRecorder hata verdi:", e);
-        finishVideoToastError("Video kaydı sırasında bir hata oluştu.");
     };
 
     // 6. ANİMASYON DÖNGÜSÜ VE KAYIT
@@ -501,13 +496,23 @@ async function exportAnimatedVideo(options = {}) {
             if (saberApp && saberApp.ticker && !wasTickerStarted) {
                 saberApp.ticker.stop();
             }
+            if (stream) {
+                try { stream.getTracks().forEach(t => t.stop()); } catch(_) {}
+            }
+        };
+
+        recorder.onerror = (e) => {
+            console.error("MediaRecorder hata verdi:", e);
+            cleanup();
+            finishVideoToastError("Video kaydı sırasında bir hata oluştu.");
+            resolve();
         };
 
         recorder.onstop = () => {
             cleanup();
 
             try {
-                const actualMime = recorder.mimeType || chosenMime;
+                const actualMime = recorder.mimeType || chosenMime || 'video/webm';
                 const blob = new Blob(chunks, { type: actualMime });
                 console.log(`🎬 Video kaydı tamamlandı! Boyut: ${(blob.size / 1024).toFixed(1)} KB, MIME: ${actualMime}, Parça: ${chunks.length}`);
 

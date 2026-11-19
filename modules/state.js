@@ -145,11 +145,13 @@ function captureCustomElements() {
 
         elements.push({
             id: el.id || ('el_' + Math.random().toString(36).substr(2, 9)),
+            tagName: el.tagName ? el.tagName.toLowerCase() : 'div',
+            src: (el.tagName && el.tagName.toLowerCase() === 'img') ? (el.getAttribute('src') || el.src || '') : undefined,
             parentId: parentId,
             className: el.className.replace(/\b(selected|active|dragging|el-selected|multi-selected)\b/g, '').trim(),
             style: el.getAttribute('style') || '',
             dataset: datasetObj,
-            innerHTML: clone.innerHTML
+            innerHTML: (el.tagName && el.tagName.toLowerCase() === 'img') ? '' : clone.innerHTML
         });
     });
 
@@ -468,16 +470,21 @@ async function applySnapshot(state) {
                 if (!parent) parent = document.getElementById('ui-layer') || document.getElementById('canvas-container');
                 if (!parent) return;
 
-                const el = document.createElement('div');
+                const tag = (data.tagName && data.tagName.toLowerCase() === 'img') ? 'img' : 'div';
+                const el = document.createElement(tag);
                 if (data.id) el.id = data.id;
                 // Seçim sınıflarından arındırılmış temiz sınıf listesi
                 el.className = (data.className || '').replace(/\b(selected|active|dragging|el-selected|multi-selected)\b/g, '').trim();
-                
-                // Güvenlik (XSS): Geri yüklenen HTML içeriğini temizle
-                if (window.DOMPurify && typeof window.DOMPurify.sanitize === 'function') {
-                    el.innerHTML = window.DOMPurify.sanitize(data.innerHTML);
+
+                if (tag === 'img') {
+                    if (data.src) el.src = data.src;
                 } else {
-                    el.innerHTML = data.innerHTML;
+                    // Güvenlik (XSS): Geri yüklenen HTML içeriğini temizle
+                    if (window.DOMPurify && typeof window.DOMPurify.sanitize === 'function') {
+                        el.innerHTML = window.DOMPurify.sanitize(data.innerHTML || '');
+                    } else {
+                        el.innerHTML = data.innerHTML || '';
+                    }
                 }
 
                 // Varsa snapshot içindeki artık tutamaçları temizle ki yeni tutamaçlar taze dinleyicilerle eklenebilsin
@@ -642,6 +649,23 @@ async function applySnapshot(state) {
     }
 }
 
+// 🧠 Performans: Geçmiş karşılaştırmasında çok büyük metinleri (base64 fotoğraflar, dev HTML) tamamen
+// seri hale getirmek yerine kısa bir parmak izine indirger. Her işlemde onlarca MB'lık JSON.stringify yapılmasını önler.
+function _historySigReplacer(key, value) {
+    if (typeof value === 'string' && value.length > 4096) {
+        const mid = Math.floor(value.length / 2);
+        return '#sig:' + value.length + ':' + value.slice(64, 96) + ':' + value.slice(mid, mid + 32) + ':' + value.slice(-64);
+    }
+    return value;
+}
+function _historySig(obj) {
+    try {
+        return JSON.stringify(obj === undefined ? null : obj, _historySigReplacer);
+    } catch (e) {
+        return String(Math.random()); // Seri hale getirilemeyen durumda farklı say (güvenli taraf: adım kaydedilir)
+    }
+}
+
 // Global Geçmiş Kaydetme Fonksiyonu (Debounced / Immediate & Duplicate Korumalı)
 window.recordHistory = function(desc = '', immediate = false) {
     if (window.isHistoryRestoring) return;
@@ -654,20 +678,20 @@ window.recordHistory = function(desc = '', immediate = false) {
         // Önceki durumla aynıysa gereksiz adım ekleme (Tüm sekmeler ve motorlar için tam kontrol)
         const lastSnap = window.undoStack[window.undoStack.length - 1];
         if (lastSnap) {
-            const sameDraw = JSON.stringify(lastSnap.drawPaths) === JSON.stringify(snap.drawPaths);
-            const sameCustom = JSON.stringify(lastSnap.customElements) === JSON.stringify(snap.customElements);
-            const sameFrames = JSON.stringify(lastSnap.templateFrames || []) === JSON.stringify(snap.templateFrames || []);
-            const sameStd = JSON.stringify(lastSnap.standardElements) === JSON.stringify(snap.standardElements);
+            const sameDraw = _historySig(lastSnap.drawPaths) === _historySig(snap.drawPaths);
+            const sameCustom = _historySig(lastSnap.customElements) === _historySig(snap.customElements);
+            const sameFrames = _historySig(lastSnap.templateFrames || []) === _historySig(snap.templateFrames || []);
+            const sameStd = _historySig(lastSnap.standardElements) === _historySig(snap.standardElements);
             const samePhoto = (lastSnap.photoImgUrl === snap.photoImgUrl);
-            const sameStaging = JSON.stringify(lastSnap.stagingState || null) === JSON.stringify(snap.stagingState || null);
-            const sameThreeD = JSON.stringify(lastSnap.threeDData || null) === JSON.stringify(snap.threeDData || null);
+            const sameStaging = _historySig(lastSnap.stagingState || null) === _historySig(snap.stagingState || null);
+            const sameThreeD = _historySig(lastSnap.threeDData || null) === _historySig(snap.threeDData || null);
             const sameCanva = (lastSnap.canvaHtml === snap.canvaHtml);
-            const sameKolaj = JSON.stringify(lastSnap.kolajState || null) === JSON.stringify(snap.kolajState || null);
+            const sameKolaj = _historySig(lastSnap.kolajState || null) === _historySig(snap.kolajState || null);
             const sameBgColor = ((lastSnap.canvasBgColor || '') === (snap.canvasBgColor || ''));
             const sameBgImage = ((lastSnap.canvasBgImage || '') === (snap.canvasBgImage || ''));
-            const samePalette = JSON.stringify(lastSnap.lastAppliedPalette || null) === JSON.stringify(snap.lastAppliedPalette || null);
-            const samePhotoAdj = JSON.stringify(lastSnap.photoAdjustments || null) === JSON.stringify(snap.photoAdjustments || null);
-            const sameFraming = JSON.stringify(lastSnap.formatFramingState || null) === JSON.stringify(snap.formatFramingState || null);
+            const samePalette = _historySig(lastSnap.lastAppliedPalette || null) === _historySig(snap.lastAppliedPalette || null);
+            const samePhotoAdj = _historySig(lastSnap.photoAdjustments || null) === _historySig(snap.photoAdjustments || null);
+            const sameFraming = _historySig(lastSnap.formatFramingState || null) === _historySig(snap.formatFramingState || null);
 
             if (sameDraw && sameCustom && sameFrames && sameStd && samePhoto && sameStaging && sameThreeD && sameCanva && sameKolaj && sameBgColor && sameBgImage && samePalette && samePhotoAdj && sameFraming) {
                 return;

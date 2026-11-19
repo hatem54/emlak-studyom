@@ -226,17 +226,25 @@ function openObjectContextMenu(targetElement, isText, clientX, clientY) {
     const existing = document.getElementById('app-custom-context-menu');
     if (existing) existing.remove();
 
+    // 🖼️ Şablon Fotoğraf Çerçevesi Tespiti (Round / Rect / Polygon frame)
+    const imageFrameEl = targetElement.closest('.tb-image-frame') || (targetElement.classList && targetElement.classList.contains('tb-image-frame') ? targetElement : null);
+    const isImageFrame = !!imageFrameEl;
+    if (isImageFrame) {
+        targetElement = imageFrameEl;
+    }
+
     const isLocked = targetElement.dataset.locked === 'true' || targetElement.classList.contains('locked-el');
-    const isCallout = (typeof isCalloutOrBadgeElement === 'function' && isCalloutOrBadgeElement(targetElement)) ||
+    const isCallout = !isImageFrame && ((typeof isCalloutOrBadgeElement === 'function' && isCalloutOrBadgeElement(targetElement)) ||
         (typeof window.isCalloutOrBadgeElement === 'function' && window.isCalloutOrBadgeElement(targetElement)) ||
         (targetElement.closest && (targetElement.closest('.callout-wrap') || targetElement.closest('.callout-item') || targetElement.closest('.svg-callout') || targetElement.closest('.co-neon-block'))) ||
-        (targetElement.classList && (targetElement.classList.contains('callout-wrap') || targetElement.classList.contains('callout-item') || targetElement.classList.contains('co-neon-block') || targetElement.classList.contains('svg-callout')));
+        (targetElement.classList && (targetElement.classList.contains('callout-wrap') || targetElement.classList.contains('callout-item') || targetElement.classList.contains('co-neon-block') || targetElement.classList.contains('svg-callout'))));
     
     // Label belirle
     let label = targetElement.dataset.label || 'Öğe';
-    const isShape = targetElement.classList.contains('shape-el') || !!(targetElement.dataset && targetElement.dataset.shapeType);
-    const isDetailsBox = (targetElement.id === 'elDetails' || !!targetElement.querySelector('#infoLineText'));
-    if (targetElement.classList.contains('added-icon')) label = 'İkon';
+    const isShape = !isImageFrame && (targetElement.classList.contains('shape-el') || !!(targetElement.dataset && targetElement.dataset.shapeType));
+    const isDetailsBox = !isImageFrame && (targetElement.id === 'elDetails' || !!targetElement.querySelector('#infoLineText'));
+    if (isImageFrame) label = 'Fotoğraf Çerçevesi';
+    else if (targetElement.classList.contains('added-icon')) label = 'İkon';
     else if (isCallout) label = 'Rozet';
     else if (isShape) label = 'Şekil';
     else if (isDetailsBox) label = 'Detay Çerçevesi';
@@ -268,21 +276,79 @@ function openObjectContextMenu(targetElement, isText, clientX, clientY) {
     `;
 
     // 🌟 3D MOTORU İŞLEMLERİ (SAĞ TIK MENÜSÜ EN BAŞINDA)
-    html += `
-        <button class="app-context-item item-3d" id="acm-convert-3d">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2.2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
-            <span>3D'ye Dönüştür</span>
-        </button>
-        <button class="app-context-item item-fence-3d" id="acm-convert-fence-3d">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2.2"><path d="M4 4v16M8 4v16M12 4v16M16 4v16M20 4v16M2 8h20M2 16h20"/></svg>
-            <span>3D Çit & Duvar Yap</span>
-        </button>
-        <button class="app-context-item item-sun" id="acm-add-sun">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2.2"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
-            <span>3D Güneş & Işık</span>
-        </button>
-        <div class="acm-divider"></div>
-    `;
+    if (isImageFrame) {
+        const hasImg = targetElement.classList.contains('has-image');
+        const isFrame3D = (parseFloat(targetElement.dataset.pitch) || 0) !== 0 ||
+                          (parseFloat(targetElement.dataset.yaw) || 0) !== 0 ||
+                          (parseFloat(targetElement.dataset.depth) || 0) > 0;
+
+        html += `
+            <button class="app-context-item item-3d" id="acm-convert-3d">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2.2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+                <span>3D'ye Dönüştür</span>
+            </button>
+        `;
+
+        if (isFrame3D) {
+            html += `
+                <button class="app-context-item" id="acm-frame-reset-3d">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2.2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+                    <span>3D'yi Sıfırla</span>
+                </button>
+            `;
+        }
+
+        html += `
+            <button class="app-context-item" id="acm-frame-upload">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0ea5e9" stroke-width="2.2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                <span>${hasImg ? 'Fotoğrafı Değiştir' : 'Fotoğraf Ekle'}</span>
+            </button>
+        `;
+
+        if (hasImg) {
+            html += `
+                <button class="app-context-item" id="acm-frame-pan">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.2"><polyline points="5 9 2 12 5 15"/><polyline points="9 5 12 2 15 5"/><polyline points="15 19 12 22 9 19"/><polyline points="19 9 22 12 19 15"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="12" y1="2" x2="12" y2="22"/></svg>
+                    <span>Fotoğrafı Kaydır</span>
+                </button>
+                <button class="app-context-item" id="acm-frame-remove-img">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f43f5e" stroke-width="2.2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                    <span>Fotoğrafı Kaldır</span>
+                </button>
+            `;
+        }
+
+        const curBlend = targetElement.dataset.blendMode || 'none';
+        const isBlendOn = curBlend !== 'none';
+        html += `
+            <button class="app-context-item" id="acm-frame-reset-pos">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2.2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+                <span>Yerini Sıfırla</span>
+            </button>
+            <button class="app-context-item" id="acm-frame-blend">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#a855f7" stroke-width="2.2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                <span>${isBlendOn ? 'Degradeyi Kaldır' : 'Degrade Ekle'}</span>
+            </button>
+        `;
+
+        html += `<div class="acm-divider"></div>`;
+    } else {
+        html += `
+            <button class="app-context-item item-3d" id="acm-convert-3d">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2.2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+                <span>3D'ye Dönüştür</span>
+            </button>
+            <button class="app-context-item item-fence-3d" id="acm-convert-fence-3d">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2.2"><path d="M4 4v16M8 4v16M12 4v16M16 4v16M20 4v16M2 8h20M2 16h20"/></svg>
+                <span>3D Çit & Duvar Yap</span>
+            </button>
+            <button class="app-context-item item-sun" id="acm-add-sun">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2.2"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+                <span>3D Güneş & Işık</span>
+            </button>
+            <div class="acm-divider"></div>
+        `;
+    }
 
     // 📐 Şekil Ayarları Düzenleme
     if (isShape) {
@@ -305,7 +371,7 @@ function openObjectContextMenu(targetElement, isText, clientX, clientY) {
     }
 
     // Metni Düzenle (Eğer tekil metin düzenlenebilir ise)
-    if (!isShape && !isDetailsBox && (isText || targetElement.classList.contains('canvas-el') || targetElement.querySelector('.callout-text, .co-neon-text, text, tspan'))) {
+    if (!isImageFrame && !isShape && !isDetailsBox && (isText || targetElement.classList.contains('canvas-el') || targetElement.querySelector('.callout-text, .co-neon-text, text, tspan'))) {
         html += `
             <button class="app-context-item item-edit" id="acm-edit">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
@@ -326,7 +392,7 @@ function openObjectContextMenu(targetElement, isText, clientX, clientY) {
 
     // Metin veya Detay Çerçevesi için Neon Efekti Ekle / Kapat (3D modunda veya 3D nesnelerde ASLA görünmez)
     const is3DActive = (window.ThreeDEngine && typeof window.ThreeDEngine.isActive === 'function' && window.ThreeDEngine.isActive()) || targetElement.classList.contains('three-d-layer') || !!targetElement.closest('#threeDContainer');
-    const is2DText = !is3DActive && !isShape && (isDetailsBox || isText || targetElement.classList.contains('canvas-el') || targetElement.querySelector('.callout-text, .co-neon-text, text, tspan'));
+    const is2DText = !isImageFrame && !is3DActive && !isShape && (isDetailsBox || isText || targetElement.classList.contains('canvas-el') || targetElement.querySelector('.callout-text, .co-neon-text, text, tspan'));
 
     if (is2DText) {
         const isNeonOn = targetElement.dataset.saberActive === 'true' || targetElement.classList.contains('neon-box-active');
@@ -547,6 +613,34 @@ function openObjectContextMenu(targetElement, isText, clientX, clientY) {
         return targetElement;
     };
 
+    const getSelected3DList = () => {
+        if (typeof window.getSelected3DTargets === 'function') {
+            return window.getSelected3DTargets() || [];
+        }
+        if (window.ThreeDGrouping && typeof window.ThreeDGrouping.getSelected3DElements === 'function') {
+            return window.ThreeDGrouping.getSelected3DElements() || [];
+        }
+        return [];
+    };
+
+    const hasActiveMultiSelection = () => {
+        const c2d = Array.isArray(window.selectedElements) ? window.selectedElements.filter(el => el && el.parentNode).length : 0;
+        const c3d = getSelected3DList().length;
+        return (c2d + c3d) > 1;
+    };
+
+    const ensureActionSelection = () => {
+        targetElement = getCurrentTarget();
+        if (!hasActiveMultiSelection()) {
+            if (targetElement && targetElement.parentNode) {
+                const gid = targetElement.dataset ? targetElement.dataset.groupId : null;
+                window.selectedElements = gid ? Array.from(document.querySelectorAll(`[data-group-id="${gid}"]`)) : [targetElement];
+            }
+        } else if (targetElement && targetElement.parentNode && Array.isArray(window.selectedElements) && !window.selectedElements.includes(targetElement)) {
+            window.selectedElements.push(targetElement);
+        }
+    };
+
     const bindBtn = (id, fn, autoClose = false) => {
         const btn = menu.querySelector(id);
         if (btn) {
@@ -584,14 +678,193 @@ function openObjectContextMenu(targetElement, isText, clientX, clientY) {
     // 🌟 3D & GÜNEŞ İŞLEMLERİ
     bindBtn('#acm-convert-3d', () => {
         targetElement = getCurrentTarget();
+        const rawEl = targetElement || window.selectedCalloutEl || window.selectedEl;
+
+        if (window.selectedElements && window.selectedElements.length > 1 && window.ThreeDEngine && typeof window.ThreeDEngine.convert2DBadgeTo3D === 'function') {
+            const isPartOfMulti = !rawEl || window.selectedElements.some(s =>
+                s === rawEl ||
+                (s && s.contains && rawEl.nodeType && s.contains(rawEl)) ||
+                (rawEl && rawEl.contains && s.nodeType && rawEl.contains(s))
+            );
+            if (isPartOfMulti) {
+                window.ThreeDEngine.convert2DBadgeTo3D(window.selectedElements.slice());
+                return;
+            }
+        }
+
+        const frameEl = rawEl ? (rawEl.closest('.tb-image-frame') || (rawEl.classList && rawEl.classList.contains('tb-image-frame') ? rawEl : null)) : null;
+
+        if (frameEl) {
+            // 🎯 Şablon Fotoğraf Çerçevesini 3D Düzlem & Kalınlığa geçir
+            if (window.TemplateBuilder && typeof window.TemplateBuilder.selectFrame === 'function') {
+                window.TemplateBuilder.selectFrame(frameEl);
+            }
+            if (typeof switchTab === 'function') {
+                switchTab('create-template');
+            }
+
+            const curDepth = parseFloat(frameEl.dataset.depth) || 0;
+            const curPitch = parseFloat(frameEl.dataset.pitch) || 0;
+            const curYaw = parseFloat(frameEl.dataset.yaw) || 0;
+
+            if (curDepth <= 0) {
+                frameEl.dataset.depth = 25;
+            }
+            if (curPitch === 0 && curYaw === 0) {
+                frameEl.dataset.pitch = -12;
+                frameEl.dataset.yaw = 20;
+                frameEl.dataset.perspective = 1200;
+            }
+            frameEl.dataset.has3D = 'true';
+
+            if (window.Template3DFrame) {
+                window.Template3DFrame.applyTransform(frameEl);
+                window.Template3DFrame.showGizmo(frameEl);
+                window.Template3DFrame.syncPanel(frameEl);
+            }
+
+            const sec = document.getElementById('tbFrameSettingsSection');
+            if (sec) {
+                sec.style.display = 'block';
+                const p3d = document.getElementById('tbFrameDepth');
+                if (p3d && typeof p3d.scrollIntoView === 'function') {
+                    p3d.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                } else if (typeof sec.scrollIntoView === 'function') {
+                    sec.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }
+            }
+
+            if (typeof window.recordHistory === 'function') {
+                window.recordHistory('Çerçeve 3D Düzleme Dönüştürüldü');
+            }
+            return;
+        }
+
         if (window.ThreeDEngine && typeof window.ThreeDEngine.convert2DBadgeTo3D === 'function') {
-            const rawEl = targetElement || window.selectedCalloutEl || window.selectedEl;
             const elToConvert = rawEl ? (rawEl.closest('.shape-el, .callout-wrap, .callout-wrapper, .draggable, .added-icon, .canvas-el') || rawEl) : null;
             const isPureIcon = elToConvert && (elToConvert.classList.contains('added-icon') || elToConvert.classList.contains('is-svg-icon') || elToConvert.classList.contains('canvas-icon'));
             const isArrowOrPin = elToConvert && (elToConvert.classList.contains('arrow') || elToConvert.classList.contains('pin') || elToConvert.dataset?.isArrow === 'true' || elToConvert.dataset?.isPin === 'true');
             window.ThreeDEngine.convert2DBadgeTo3D(elToConvert, (isPureIcon || isArrowOrPin) ? { shapeMode: 'silhouette' } : {});
         }
+    }, true);
+
+    bindBtn('#acm-frame-reset-3d', () => {
+        targetElement = getCurrentTarget();
+        const frame = targetElement ? (targetElement.closest('.tb-image-frame') || targetElement) : null;
+        if (frame && window.Template3DFrame) {
+            if (!hasActiveMultiSelection() && window.TemplateBuilder && typeof window.TemplateBuilder.selectFrame === 'function') {
+                window.TemplateBuilder.selectFrame(frame);
+            }
+            window.Template3DFrame.reset3DTransform(frame);
+        }
+        if (hasActiveMultiSelection()) {
+            const sel3D = getSelected3DList();
+            if (sel3D.length > 0 && window.ThreeDEngine) {
+                sel3D.forEach(el3d => {
+                    if (!el3d) return;
+                    el3d.orientation = 'flat';
+                    el3d.planePitch = 0;
+                    el3d.planeYaw = 0;
+                    el3d.planeRoll = 0;
+                    el3d.planeLocalRot = 0;
+                    el3d.planeElevation = 0;
+                    el3d.itemPitch = 0;
+                    el3d.itemRoll = 0;
+                    if (typeof window.ThreeDEngine.updatePlaneTransform === 'function') window.ThreeDEngine.updatePlaneTransform(el3d);
+                    if (typeof window.ThreeDEngine.updateContentTransform === 'function') window.ThreeDEngine.updateContentTransform(el3d);
+                });
+                if (typeof window.ThreeDEngine.updateGizmoPositions === 'function') window.ThreeDEngine.updateGizmoPositions();
+                if (typeof window.ThreeDEngine.syncControlsUI === 'function') window.ThreeDEngine.syncControlsUI();
+                if (typeof window.ThreeDEngine.requestRender === 'function') window.ThreeDEngine.requestRender();
+                if (window.ThreeDGrouping && typeof window.ThreeDGrouping.updateSelectionVisuals === 'function') {
+                    window.ThreeDGrouping.updateSelectionVisuals();
+                }
+            }
+        }
     });
+
+    bindBtn('#acm-frame-upload', () => {
+        targetElement = getCurrentTarget();
+        const frame = targetElement ? (targetElement.closest('.tb-image-frame') || targetElement) : null;
+        if (frame) {
+            const fi = frame.querySelector('input[type="file"]');
+            if (fi) fi.click();
+        }
+    });
+
+    bindBtn('#acm-frame-pan', () => {
+        targetElement = getCurrentTarget();
+        const frame = targetElement ? (targetElement.closest('.tb-image-frame') || targetElement) : null;
+        if (frame && window.TemplateBuilder && typeof window.TemplateBuilder.toggleImagePanMode === 'function') {
+            window.TemplateBuilder.toggleImagePanMode(frame);
+        }
+    });
+
+    bindBtn('#acm-frame-remove-img', () => {
+        targetElement = getCurrentTarget();
+        const frame = targetElement ? (targetElement.closest('.tb-image-frame') || targetElement) : null;
+        const frames = (window.selectedElements && window.selectedElements.length > 1)
+            ? window.selectedElements.filter(e => e && e.classList && e.classList.contains('tb-image-frame'))
+            : (frame ? [frame] : []);
+        if (frames.length > 0) {
+            frames.forEach(fr => {
+                delete fr.dataset.imgSrc;
+                delete fr.dataset.imgZoom;
+                delete fr.dataset.imgPanX;
+                delete fr.dataset.imgPanY;
+                fr.classList.remove('has-image');
+                const img = fr.querySelector('.tb-frame-img');
+                if (img) img.remove();
+                const placeholder = fr.querySelector('.tb-frame-placeholder');
+                if (placeholder) placeholder.style.display = 'flex';
+                if (window.TemplateBuilder && typeof window.TemplateBuilder.applyFrameStyling === 'function') {
+                    window.TemplateBuilder.applyFrameStyling(fr);
+                }
+            });
+            if (typeof window.recordHistory === 'function') {
+                window.recordHistory('Çerçeveden Fotoğraf Kaldırıldı');
+            }
+        }
+    });
+
+    bindBtn('#acm-frame-reset-pos', () => {
+        targetElement = getCurrentTarget();
+        const frame = targetElement ? (targetElement.closest('.tb-image-frame') || targetElement) : null;
+        if (window.TemplateBuilder && typeof window.TemplateBuilder.resetFramePlacement === 'function') {
+            if (hasActiveMultiSelection()) {
+                window.TemplateBuilder.resetSelectedFramePlacement();
+            } else if (frame) {
+                window.TemplateBuilder.resetFramePlacement(frame);
+            }
+        }
+    });
+
+    bindBtn('#acm-frame-blend', () => {
+        targetElement = getCurrentTarget();
+        const frame = targetElement ? (targetElement.closest('.tb-image-frame') || targetElement) : null;
+        if (frame && window.TemplateBuilder) {
+            if (!hasActiveMultiSelection()) {
+                window.TemplateBuilder.selectFrame(frame);
+            } else {
+                window.TemplateBuilder.selectedFrame = frame;
+            }
+            if (typeof switchTab === 'function') switchTab('create-template');
+            const cur = frame.dataset.blendMode || 'none';
+            const next = cur === 'none' ? 'bottom' : 'none';
+            window.TemplateBuilder.setFrameBlend(next);
+            const sec = document.getElementById('tbFrameSettingsSection');
+            if (sec) {
+                sec.style.display = 'block';
+                const acc = document.getElementById('tbBlendAccordion');
+                if (acc) {
+                    acc.open = (next !== 'none');
+                    if (typeof acc.scrollIntoView === 'function') {
+                        acc.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    }
+                }
+            }
+        }
+    }, { autoClose: true });
 
     bindBtn('#acm-convert-fence-3d', () => {
         targetElement = getCurrentTarget();
@@ -622,7 +895,21 @@ function openObjectContextMenu(targetElement, isText, clientX, clientY) {
 
     // Event Handlers
     bindBtn('#acm-delete', () => {
+        if (hasActiveMultiSelection() && typeof window.multiSelectDelete === 'function') {
+            ensureActionSelection();
+            window.multiSelectDelete();
+            return;
+        }
         targetElement = getCurrentTarget();
+        if (!targetElement) return;
+        if (targetElement.classList.contains('tb-image-frame')) {
+            if (window.Template3DFrame && window.Template3DFrame.activeGizmoFrame === targetElement) {
+                window.Template3DFrame.hideGizmo();
+            }
+            if (window.TemplateBuilder && window.TemplateBuilder.selectedFrame === targetElement) {
+                window.TemplateBuilder.deselectFrame();
+            }
+        }
         if (targetElement.classList.contains('editable-draw') && typeof drawPaths !== 'undefined') {
             const idx = drawPaths.findIndex(p => p.el === targetElement || (p.id && targetElement.dataset && p.id === targetElement.dataset.pathId));
             if (idx > -1 && typeof window.deleteDrawItem === 'function') {
@@ -643,7 +930,7 @@ function openObjectContextMenu(targetElement, isText, clientX, clientY) {
 
     bindBtn('#acm-single-ungroup', () => {
         targetElement = getCurrentTarget();
-        if (targetElement.dataset.groupId) {
+        if (targetElement && targetElement.dataset.groupId) {
             const groupId = targetElement.dataset.groupId;
             document.querySelectorAll('.canvas-el, .draggable, .callout-wrap, .added-icon, .canva-el').forEach(el => {
                 if (el.dataset.groupId === groupId) {
@@ -659,7 +946,11 @@ function openObjectContextMenu(targetElement, isText, clientX, clientY) {
     bindBtn('#acm-lock', () => {
         targetElement = getCurrentTarget();
         let isNowLocked = false;
-        if (targetElement.classList.contains('editable-draw') && typeof drawPaths !== 'undefined') {
+        if (hasActiveMultiSelection() && typeof window.multiSelectToggleLock === 'function') {
+            ensureActionSelection();
+            window.multiSelectToggleLock();
+            isNowLocked = targetElement ? (targetElement.dataset.locked === 'true' || targetElement.classList.contains('locked-el')) : false;
+        } else if (targetElement && targetElement.classList.contains('editable-draw') && typeof drawPaths !== 'undefined') {
             const idx = drawPaths.findIndex(p => p.el === targetElement || (p.id && targetElement.dataset && p.id === targetElement.dataset.pathId));
             if (idx > -1) {
                 if (typeof window.layerToggleLock === 'function') {
@@ -667,7 +958,7 @@ function openObjectContextMenu(targetElement, isText, clientX, clientY) {
                     isNowLocked = drawPaths[idx] ? !!drawPaths[idx].locked : false;
                 }
             }
-        } else {
+        } else if (targetElement) {
             if (!targetElement.dataset.layerUid) {
                 targetElement.dataset.layerUid = 'layer_' + Math.random().toString(36).substr(2, 9);
             }
@@ -687,6 +978,9 @@ function openObjectContextMenu(targetElement, isText, clientX, clientY) {
                     isNowLocked = true;
                 }
             }
+        }
+        if (isNowLocked && targetElement && targetElement.classList && targetElement.classList.contains('tb-image-frame') && window.Template3DFrame && window.Template3DFrame.activeGizmoFrame === targetElement) {
+            window.Template3DFrame.hideGizmo();
         }
         if (typeof renderLayers === 'function') renderLayers();
 
@@ -708,6 +1002,14 @@ function openObjectContextMenu(targetElement, isText, clientX, clientY) {
     });
 
     bindBtn('#acm-front', () => {
+        if (hasActiveMultiSelection() && typeof window.multiSelectBringToFront === 'function') {
+            ensureActionSelection();
+            window.multiSelectBringToFront();
+            return;
+        }
+        if (targetElement && targetElement.classList.contains('tb-image-frame')) {
+            targetElement.style.zIndex = '310';
+        }
         if (targetElement.classList.contains('editable-draw') && typeof drawPaths !== 'undefined') {
             const idx = drawPaths.findIndex(p => p.el === targetElement || (p.id && targetElement.dataset && p.id === targetElement.dataset.pathId));
             if (idx > -1) {
@@ -749,6 +1051,14 @@ function openObjectContextMenu(targetElement, isText, clientX, clientY) {
     });
 
     bindBtn('#acm-back', () => {
+        if (hasActiveMultiSelection() && typeof window.multiSelectSendToBack === 'function') {
+            ensureActionSelection();
+            window.multiSelectSendToBack();
+            return;
+        }
+        if (targetElement && targetElement.classList.contains('tb-image-frame')) {
+            targetElement.style.zIndex = '45';
+        }
         if (targetElement.classList.contains('editable-draw') && typeof drawPaths !== 'undefined') {
             const idx = drawPaths.findIndex(p => p.el === targetElement || (p.id && targetElement.dataset && p.id === targetElement.dataset.pathId));
             if (idx > -1) {
@@ -799,16 +1109,59 @@ function openObjectContextMenu(targetElement, isText, clientX, clientY) {
     });
 
     bindBtn('#acm-single-rot-cw', () => {
-        if (!window.selectedElements || !window.selectedElements.includes(targetElement)) {
-            const gid = targetElement.dataset.groupId;
-            window.selectedElements = gid ? Array.from(document.querySelectorAll(`[data-group-id="${gid}"]`)) : [targetElement];
-        }
+        ensureActionSelection();
         if (window.multiSelectRotate) window.multiSelectRotate(90);
     });
 
     bindBtn('#acm-single-rot-reset', () => {
-        const targets = (window.selectedElements && window.selectedElements.length > 0) ? window.selectedElements : [targetElement];
+        ensureActionSelection();
+        const sel3D = getSelected3DList();
+        if (sel3D.length > 0 && window.ThreeDEngine) {
+            sel3D.forEach(el3d => {
+                if (!el3d) return;
+                el3d.orientation = 'flat';
+                el3d.planePitch = 0;
+                el3d.planeYaw = 0;
+                el3d.planeRoll = 0;
+                el3d.planeLocalRot = 0;
+                el3d.planeElevation = 0;
+                el3d.itemPitch = 0;
+                el3d.itemRoll = 0;
+                if (typeof window.ThreeDEngine.updatePlaneTransform === 'function') window.ThreeDEngine.updatePlaneTransform(el3d);
+                if (typeof window.ThreeDEngine.updateContentTransform === 'function') window.ThreeDEngine.updateContentTransform(el3d);
+            });
+            if (window.ThreeDEngine.state) {
+                window.ThreeDEngine.state.orientation = 'flat';
+                window.ThreeDEngine.state.planePitch = 0;
+                window.ThreeDEngine.state.planeYaw = 0;
+                window.ThreeDEngine.state.planeRoll = 0;
+                window.ThreeDEngine.state.planeLocalRot = 0;
+                window.ThreeDEngine.state.planeElevation = 0;
+                window.ThreeDEngine.state.itemPitch = 0;
+                window.ThreeDEngine.state.itemRoll = 0;
+            }
+            if (typeof window.ThreeDEngine.updateGizmoPositions === 'function') window.ThreeDEngine.updateGizmoPositions();
+            if (typeof window.ThreeDEngine.syncControlsUI === 'function') window.ThreeDEngine.syncControlsUI();
+            if (typeof window.ThreeDEngine.requestRender === 'function') window.ThreeDEngine.requestRender();
+            if (window.ThreeDGrouping && typeof window.ThreeDGrouping.updateSelectionVisuals === 'function') {
+                window.ThreeDGrouping.updateSelectionVisuals();
+            }
+        }
+        const targets = (window.selectedElements && window.selectedElements.length > 0) ? window.selectedElements : (targetElement ? [targetElement] : []);
         targets.forEach(el => {
+            if (!el || !el.classList) return;
+            if (el.classList.contains('tb-image-frame')) {
+                if (window.Template3DFrame) {
+                    window.Template3DFrame.reset3DTransform(el);
+                } else {
+                    el.dataset.pitch = '0';
+                    el.dataset.yaw = '0';
+                    el.dataset.rotation = '0';
+                    el.dataset.depth = '0';
+                    el.style.transform = 'none';
+                }
+                return;
+            }
             el.dataset.rotation = '0';
             const curScale = el.dataset.scale || 1;
             el.style.transform = `rotate(0deg) scale(${curScale})`;
@@ -835,6 +1188,14 @@ function openObjectContextMenu(targetElement, isText, clientX, clientY) {
     });
 
     bindBtn('#acm-step-forward', () => {
+        const sel3D = getSelected3DList();
+        if (sel3D.length > 0 && window.ThreeDEngine && typeof window.ThreeDEngine.bringElementForward === 'function') {
+            window.ThreeDEngine.bringElementForward();
+        }
+        if (targetElement && targetElement.classList && targetElement.classList.contains('tb-image-frame')) {
+            const curZ = parseInt(targetElement.style.zIndex, 10) || 50;
+            targetElement.style.zIndex = String(Math.min(320, curZ + 10));
+        }
         if (targetElement.classList.contains('editable-draw') && typeof drawPaths !== 'undefined') {
             const idx = drawPaths.findIndex(p => p.el === targetElement || (p.id && targetElement.dataset && p.id === targetElement.dataset.pathId));
             if (idx > -1 && idx < drawPaths.length - 1) {
@@ -867,6 +1228,14 @@ function openObjectContextMenu(targetElement, isText, clientX, clientY) {
     });
 
     bindBtn('#acm-step-backward', () => {
+        const sel3D = getSelected3DList();
+        if (sel3D.length > 0 && window.ThreeDEngine && typeof window.ThreeDEngine.sendElementBackward === 'function') {
+            window.ThreeDEngine.sendElementBackward();
+        }
+        if (targetElement && targetElement.classList && targetElement.classList.contains('tb-image-frame')) {
+            const curZ = parseInt(targetElement.style.zIndex, 10) || 50;
+            targetElement.style.zIndex = String(Math.max(20, curZ - 10));
+        }
         if (targetElement.classList.contains('editable-draw') && typeof drawPaths !== 'undefined') {
             const idx = drawPaths.findIndex(p => p.el === targetElement || (p.id && targetElement.dataset && p.id === targetElement.dataset.pathId));
             if (idx > 0) {
@@ -899,18 +1268,12 @@ function openObjectContextMenu(targetElement, isText, clientX, clientY) {
     });
 
     bindBtn('#acm-single-scale-up', () => {
-        if (!window.selectedElements || !window.selectedElements.includes(targetElement)) {
-            const gid = targetElement.dataset.groupId;
-            window.selectedElements = gid ? Array.from(document.querySelectorAll(`[data-group-id="${gid}"]`)) : [targetElement];
-        }
+        ensureActionSelection();
         if (window.multiSelectScale) window.multiSelectScale(1.15);
     });
 
     bindBtn('#acm-single-scale-down', () => {
-        if (!window.selectedElements || !window.selectedElements.includes(targetElement)) {
-            const gid = targetElement.dataset.groupId;
-            window.selectedElements = gid ? Array.from(document.querySelectorAll(`[data-group-id="${gid}"]`)) : [targetElement];
-        }
+        ensureActionSelection();
         if (window.multiSelectScale) window.multiSelectScale(0.85);
     });
 
@@ -936,10 +1299,22 @@ function openObjectContextMenu(targetElement, isText, clientX, clientY) {
         }
     });
 
-    bindBtn('#acm-edit', () => {
+    bindBtn('#acm-edit', async () => {
         const textEl = targetElement.querySelector('.callout-text, .co-neon-text, text, tspan, span, div') || targetElement;
         const curVal = textEl.innerText || textEl.textContent || '';
-        const newT = prompt('Metni düzenleyin:', curVal);
+        let newT = null;
+        if (window.AppDialog && typeof window.AppDialog.prompt === 'function') {
+            newT = await window.AppDialog.prompt({
+                title: 'Metni Düzenle',
+                message: 'Yeni metni girin:',
+                defaultValue: curVal,
+                icon: 'fa-pen-to-square',
+                confirmText: 'Güncelle',
+                cancelText: 'Vazgeç'
+            });
+        } else {
+            newT = prompt('Metni düzenleyin:', curVal);
+        }
         if (newT !== null && newT !== undefined) {
             if (textEl.tagName && ['text', 'tspan'].includes(textEl.tagName.toLowerCase())) {
                 textEl.textContent = newT;
@@ -1006,7 +1381,10 @@ function openObjectContextMenu(targetElement, isText, clientX, clientY) {
 
     const bindPos = (id, posName) => {
         bindBtn(id, () => {
-            window.selectedElements = [targetElement];
+            ensureActionSelection();
+            menu.querySelectorAll('.acm-grid-btns .acm-grid-btn').forEach(b => b.classList.remove('active'));
+            const activeBtn = menu.querySelector(id);
+            if (activeBtn) activeBtn.classList.add('active');
             if (window.multiSelectPositionOnPage) window.multiSelectPositionOnPage(posName);
         });
     };
@@ -1022,7 +1400,18 @@ function openObjectContextMenu(targetElement, isText, clientX, clientY) {
     bindPos('#acm-single-bottom-right', 'bottom-right');
 
     bindBtn('#acm-single-duplicate', () => {
+        if (hasActiveMultiSelection() && typeof window.multiSelectDuplicate === 'function') {
+            ensureActionSelection();
+            window.multiSelectDuplicate();
+            return;
+        }
         targetElement = getCurrentTarget();
+        if (targetElement.classList.contains('tb-image-frame')) {
+            if (window.TemplateBuilder && typeof window.TemplateBuilder.duplicateFrame === 'function') {
+                window.TemplateBuilder.duplicateFrame(targetElement);
+            }
+            return;
+        }
         let cloned = null;
         if (targetElement.classList.contains('editable-draw') || (targetElement.closest && targetElement.closest('.editable-draw'))) {
             const drawEl = targetElement.classList.contains('editable-draw') ? targetElement : targetElement.closest('.editable-draw');
@@ -1042,7 +1431,6 @@ function openObjectContextMenu(targetElement, isText, clientX, clientY) {
     });
 
     bindBtn('#acm-select-all', () => {
-        closeMenu();
         if (typeof window.selectAllCanvasElements === 'function') {
             window.selectAllCanvasElements();
         }
@@ -1056,6 +1444,8 @@ function openMultiSelectContextMenu(clientX, clientY) {
     const count3D = (window.ThreeDGrouping && typeof window.ThreeDGrouping.getSelected3DElements === 'function') ? window.ThreeDGrouping.getSelected3DElements().length : 0;
     const count = count2D + count3D;
     if (count < 2) return;
+
+    const allFramesSelected = count3D === 0 && count2D >= 2 && window.selectedElements.every(el => el && el.classList && el.classList.contains('tb-image-frame'));
 
     // Varsa önceki açık menüyü kapat
     const existing = document.getElementById('app-custom-context-menu');
@@ -1175,6 +1565,11 @@ function openMultiSelectContextMenu(clientX, clientY) {
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2"><polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5 12 2"></polygon></svg>
             <span>Çokgene Çevir</span>
         </button>
+        ${count2D >= 2 ? `
+        <button class="app-context-item" id="acm-multi-to-3d">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+            <span>3D'ye Dönüştür</span>
+        </button>` : ''}
         <button class="app-context-item item-front" id="acm-multi-front">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#00d2ff" stroke-width="2"><polyline points="17 11 12 6 7 11"/><polyline points="17 18 12 13 7 18"/></svg>
             <span>En Öne Getir</span>
@@ -1208,6 +1603,25 @@ function openMultiSelectContextMenu(clientX, clientY) {
             <span>Toplu Sil</span>
         </button>
     `;
+
+    if (allFramesSelected) {
+        html += `
+        <div class="acm-divider"></div>
+        <div class="acm-section-label">ÇERÇEVE İŞLEMLERİ</div>
+        <button class="app-context-item" id="acm-multi-frame-blend">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#a855f7" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M3 14h18"/></svg>
+            <span>Degrade Geçiş</span>
+        </button>
+        <button class="app-context-item" id="acm-multi-frame-iso">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/></svg>
+            <span>3D İzometrik</span>
+        </button>
+        <button class="app-context-item" id="acm-multi-frame-reset3d">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><polyline points="3 3 3 8 8 8"/></svg>
+            <span>3D Sıfırla</span>
+        </button>
+        `;
+    }
 
     menu.innerHTML = html;
     document.body.appendChild(menu);
@@ -1365,6 +1779,11 @@ function openMultiSelectContextMenu(clientX, clientY) {
     bindBtn('#acm-multi-group', () => { if (window.groupSelected) window.groupSelected(); });
     bindBtn('#acm-multi-ungroup', () => { if (window.ungroupSelected) window.ungroupSelected(); });
     bindBtn('#acm-multi-convert-polygon', () => { if (window.createPolygonFromSelectedLines) window.createPolygonFromSelectedLines(); });
+    bindBtn('#acm-multi-to-3d', () => {
+        if (window.ThreeDEngine && typeof window.ThreeDEngine.convert2DBadgeTo3D === 'function' && Array.isArray(window.selectedElements) && window.selectedElements.length > 0) {
+            window.ThreeDEngine.convert2DBadgeTo3D(window.selectedElements.slice());
+        }
+    }, true);
     bindBtn('#acm-multi-front', () => { if (window.multiSelectBringToFront) window.multiSelectBringToFront(); });
     bindBtn('#acm-multi-back', () => { if (window.multiSelectSendToBack) window.multiSelectSendToBack(); });
     bindBtn('#acm-multi-rot-cw', () => { if (window.multiSelectRotate) window.multiSelectRotate(90); });
@@ -1373,6 +1792,24 @@ function openMultiSelectContextMenu(clientX, clientY) {
     bindBtn('#acm-multi-lock', () => { if (window.multiSelectToggleLock) window.multiSelectToggleLock(); });
     bindBtn('#acm-multi-duplicate', () => { if (window.multiSelectDuplicate) window.multiSelectDuplicate(); });
     bindBtn('#acm-multi-delete', () => { if (window.multiSelectDelete) window.multiSelectDelete(); }, true);
+
+    if (allFramesSelected) {
+        bindBtn('#acm-multi-frame-blend', () => {
+            if (window.TemplateBuilder && typeof window.TemplateBuilder.toggleSelectedFrameBlend === 'function') {
+                window.TemplateBuilder.toggleSelectedFrameBlend();
+            }
+        });
+        bindBtn('#acm-multi-frame-iso', () => {
+            if (window.Template3DFrame && typeof window.Template3DFrame.applyPreset === 'function') {
+                window.Template3DFrame.applyPreset('isoLeft');
+            }
+        });
+        bindBtn('#acm-multi-frame-reset3d', () => {
+            if (window.Template3DFrame && typeof window.Template3DFrame.reset3DTransform === 'function') {
+                window.Template3DFrame.reset3DTransform();
+            }
+        });
+    }
 }
 
 // 🌟 Rozetler veya İkonlar kütüphanesindeki bir öğeye sağ tıklandığında açılan 3D Hızlı Seçenek Menüsü
@@ -1541,7 +1978,7 @@ document.addEventListener('contextmenu', function(e) {
 
     // 🎯 1. ÖNCELİK: Tuval üzerindeki 2D Öğeler (Callout, İkon, Metin, Çizim vb.)
     // Doğrudan tuvaldeki bir 2D öğeye veya tutamaçlarına sağ tıklandıysa, 2D sağ tık menüsünü aç!
-    let callout = e.target.closest && e.target.closest('.callout-wrap, .callout-item, .co-neon-block, .canvas-icon, .draggable, .added-icon, .cvi-item, .editable-draw, .canvas-el, .cvi-badge-box, [data-layer-uid], .editable-text, .custom-text-el, .custom-text-box, .kolaj-cerceve:not(.kolaj-foto)');
+    let callout = e.target.closest && e.target.closest('.callout-wrap, .callout-item, .co-neon-block, .canvas-icon, .draggable, .added-icon, .cvi-item, .editable-draw, .canvas-el, .cvi-badge-box, [data-layer-uid], .editable-text, .custom-text-el, .custom-text-box, .tb-image-frame, .kolaj-cerceve:not(.kolaj-foto)');
     if (!callout && window.selectedEl && (window.selectedEl === e.target || window.selectedEl.contains(e.target))) {
         callout = window.selectedEl;
     }
@@ -1550,7 +1987,11 @@ document.addEventListener('contextmenu', function(e) {
     }
 
     // Çoklu seçim varken sağ tıklandıysa: Yalnızca seçili ögelerden birine sağ tıklandıysa çoklu seçim menüsünü aç
-    if (window.selectedElements && window.selectedElements.length > 1) {
+    const count2DNow = (window.selectedElements && Array.isArray(window.selectedElements)) ? window.selectedElements.length : 0;
+    const count3DNow = (window.ThreeDGrouping && typeof window.ThreeDGrouping.getSelected3DElements === 'function') ? window.ThreeDGrouping.getSelected3DElements().length : 0;
+    const isMultiSelectionActive = (count2DNow + count3DNow) > 1;
+
+    if (count2DNow > 1) {
         const clickedEl = callout || (e.target.closest && e.target.closest('.callout-item, .callout-wrap, .co-neon-block, .canvas-icon, .draggable, .added-icon, .cvi-item, .editable-draw, .canvas-el, .cvi-badge-box, [data-layer-uid], .editable-text, .custom-text-el, .custom-text-box, .tb-image-frame'));
         const isOneOfSelected = (clickedEl && window.selectedElements.some(sel => sel === clickedEl || sel.contains(clickedEl) || clickedEl.contains(sel))) ||
                                 window.selectedElements.some(sel => sel.contains(e.target));
@@ -1563,13 +2004,27 @@ document.addEventListener('contextmenu', function(e) {
 
     if (callout) {
         // En üst seviyedeki taşınabilir ana kapsayıcıyı al
-        const topEl = callout.closest('.callout-wrap, .draggable, .canvas-el, .added-icon, [data-layer-uid], .editable-draw, .canva-el, .cvi-item, [data-path-id], [data-path-index], .editable-text, .kolaj-cerceve') || callout;
+        const topEl = callout.closest('.callout-wrap, .draggable, .canvas-el, .added-icon, [data-layer-uid], .editable-draw, .canva-el, .cvi-item, [data-path-id], [data-path-index], .editable-text, .tb-image-frame, .kolaj-cerceve') || callout;
         callout = topEl;
         e.preventDefault();
-        if (typeof selectElement === 'function') {
+        const isFrame = callout.classList.contains('tb-image-frame') || (callout.closest && callout.closest('.tb-image-frame'));
+        const isCalloutInSelected = Array.isArray(window.selectedElements) && window.selectedElements.some(sel => sel === callout || (sel && sel.contains && sel.contains(callout)));
+        if (isFrame) {
+            const frame = callout.classList.contains('tb-image-frame') ? callout : callout.closest('.tb-image-frame');
+            if (isMultiSelectionActive && isCalloutInSelected) {
+                if (window.TemplateBuilder) {
+                    window.TemplateBuilder.selectedFrame = frame;
+                    if (typeof window.TemplateBuilder.syncSettingsPanelWithFrame === 'function') {
+                        window.TemplateBuilder.syncSettingsPanelWithFrame(frame);
+                    }
+                }
+            } else if (window.TemplateBuilder && typeof window.TemplateBuilder.selectFrame === 'function') {
+                window.TemplateBuilder.selectFrame(frame);
+            }
+        } else if (!(isMultiSelectionActive && isCalloutInSelected) && typeof selectElement === 'function') {
             selectElement(callout, false, true, false);
         }
-        const isText = (callout.classList.contains('callout-item') && !callout.classList.contains('callout-wrap')) || callout.classList.contains('editable-text') || callout.classList.contains('canvas-el') || callout.classList.contains('custom-text-el');
+        const isText = !isFrame && ((callout.classList.contains('callout-item') && !callout.classList.contains('callout-wrap')) || callout.classList.contains('editable-text') || callout.classList.contains('canvas-el') || callout.classList.contains('custom-text-el'));
         openObjectContextMenu(callout, isText, e.clientX, e.clientY);
         return;
     }
@@ -1681,6 +2136,11 @@ document.addEventListener('dblclick', function(e) {
             window._kolajFotoSifirla(kolajFoto);
             return;
         }
+    }
+
+    // Eğer şablon görsel çerçevesi ise dblclick olayını template-builder yönetir (pan/crop veya dosya yükleme)
+    if (e.target.closest && e.target.closest('.tb-image-frame')) {
+        return;
     }
 
     const target = e.target.closest('.callout-wrap, .callout-item, .co-neon-block, .added-icon, .svg-icon, .icon-wrapper, .canvas-el, .draggable, .editable-text, .shape-el, .editable-draw, .kolaj-cerceve:not(.kolaj-foto)');

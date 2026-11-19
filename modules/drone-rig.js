@@ -391,6 +391,10 @@
                     if (typeof window.showAppToast === 'function') {
                         window.showAppToast(`${capturedResults.length} açılı drone çekimi tamamlandı.`, 'success', 3500);
                     }
+                } else if (!this.isAborted && capturedResults.length === 0) {
+                    if (typeof window.showAppToast === 'function') {
+                        window.showAppToast('3D harita görüntüleri yakalanamadı. Lütfen haritanın yüklenmesini bekleyip tekrar deneyin.', 'warning', 4500);
+                    }
                 }
             }
         },
@@ -409,6 +413,7 @@
             let map3d = null;
             const startWait = Date.now();
             while (Date.now() - startWait < 12000) {
+                if (this.isAborted) return;
                 map3d = sat.map3dElement || document.querySelector('gmp-map-3d') || document.getElementById('sat3dMapHost')?.querySelector('gmp-map-3d');
                 if (map3d && map3d.isConnected) {
                     sat.map3dElement = map3d;

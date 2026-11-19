@@ -124,11 +124,34 @@
         panelContainer.insertBefore(multiPanel, panelContainer.firstChild);
     }
 
+    window.getMultiSelectTargets = function(filterFn, fallbackEl) {
+        const list = Array.isArray(window.selectedElements) ? window.selectedElements : [];
+        let matched = list.filter(el => el && el.parentNode && (!filterFn || filterFn(el)));
+        if (matched.length === 0 && fallbackEl && fallbackEl.parentNode && (!filterFn || filterFn(fallbackEl))) {
+            matched = [fallbackEl];
+        }
+        return Array.from(new Set(matched));
+    };
+
+    window.getSelected3DTargets = function() {
+        const sel3D = (window.ThreeDGrouping && typeof window.ThreeDGrouping.getSelected3DElements === 'function')
+            ? window.ThreeDGrouping.getSelected3DElements()
+            : [];
+        if (Array.isArray(sel3D) && sel3D.length > 0) return sel3D.filter(Boolean);
+        const active = (window.ThreeDEngine && typeof window.ThreeDEngine.getActiveElement === 'function')
+            ? window.ThreeDEngine.getActiveElement()
+            : null;
+        return active ? [active] : [];
+    };
+
     window.updateMultiSelectUI = function() {
         if (!multiPanel) initMultiSelectUI();
         if (!multiPanel) return;
 
-        const count2D = (window.selectedElements && window.selectedElements.length) || 0;
+        const list2D = Array.isArray(window.selectedElements)
+            ? window.selectedElements.filter(el => el && el.parentNode)
+            : [];
+        const count2D = list2D.length;
         const sel3D = (window.ThreeDGrouping && typeof window.ThreeDGrouping.getSelected3DElements === 'function')
             ? window.ThreeDGrouping.getSelected3DElements()
             : [];
@@ -137,8 +160,32 @@
 
         const drawPanel = document.getElementById('drawEditPanel');
         const drawTitle = document.getElementById('drawEditAccordionTitle');
-        const selectedDrawings = (window.selectedElements || []).filter(el => el && el.classList && el.classList.contains('editable-draw'));
+        const selectedDrawings = list2D.filter(el => el.classList && el.classList.contains('editable-draw'));
         const drawCount = selectedDrawings.length;
+
+        const selectedFrames = list2D.filter(el => el.classList && el.classList.contains('tb-image-frame'));
+        const selectedShapes = list2D.filter(el => el.classList && el.classList.contains('shape-el'));
+        const selectedIcons = list2D.filter(el => el.classList && (el.classList.contains('added-icon') || el.classList.contains('is-svg-icon') || el.classList.contains('canvas-icon')));
+        const selectedCallouts = list2D.filter(el => el.classList && (el.classList.contains('callout-wrap') || el.classList.contains('callout-item') || el.classList.contains('svg-callout') || el.classList.contains('co-neon-block')));
+        const selectedCustomBadges = list2D.filter(el => el.classList && el.classList.contains('custom-graphic-badge'));
+
+        const all2DAreFrames = count2D > 0 && count3D === 0 && selectedFrames.length === count2D;
+        const all2DAreShapes = count2D > 0 && count3D === 0 && selectedShapes.length === count2D;
+        const all2DAreIcons = count2D > 0 && count3D === 0 && selectedIcons.length === count2D;
+        const all2DAreCallouts = count2D > 0 && count3D === 0 && selectedCallouts.length === count2D;
+        const all2DAreCustomBadges = count2D > 0 && count3D === 0 && selectedCustomBadges.length === count2D;
+
+        // 🎨 Çerçeve çoklu seçiminde TemplateBuilder.selectedFrame'i ana çerçeveyle senkronize tut
+        if (all2DAreFrames && window.TemplateBuilder) {
+            const primaryFrame = selectedFrames[selectedFrames.length - 1];
+            window.TemplateBuilder.selectedFrame = primaryFrame;
+            if (typeof window.TemplateBuilder.syncSettingsPanelWithFrame === 'function') {
+                window.TemplateBuilder.syncSettingsPanelWithFrame(primaryFrame);
+            }
+            if (typeof window.TemplateBuilder.updateDockControls === 'function') {
+                window.TemplateBuilder.updateDockControls(true);
+            }
+        }
 
         if (totalCount > 1) {
             multiPanel.style.display = 'block';
@@ -160,17 +207,32 @@
             if (gapDisplay) gapDisplay.innerText = gapVal + 'px';
             if (typeof updateGroupUI === 'function') updateGroupUI();
 
-            // 🎨 Tekil Öge Ayar Akordiyonlarını Gizle (Panel Binişmesini ve Kalabalığı Önler)
+            // 🎨 Tekil / Karma Öge Ayar Panellerini Akıllı Koordinasyonla Yönet
             const elSettings = document.getElementById('elSettings');
             if (elSettings) { elSettings.style.display = 'none'; elSettings.open = false; }
             const accDetails = document.getElementById('accordionDetailsEdit');
             if (accDetails) { accDetails.style.display = 'none'; accDetails.open = false; }
+
             const coPanel = document.getElementById('calloutSettingsPanel');
-            if (coPanel) { coPanel.style.display = 'none'; coPanel.open = false; }
+            if (coPanel && !all2DAreCallouts) { coPanel.style.display = 'none'; coPanel.open = false; }
+
             const cbgPanel = document.getElementById('customBadgeSettingsPanel');
-            if (cbgPanel) { cbgPanel.style.display = 'none'; }
+            if (cbgPanel && !all2DAreCustomBadges) { cbgPanel.style.display = 'none'; }
+
             const shapePanel = document.getElementById('shapeSettingsPanel');
-            if (shapePanel) { shapePanel.style.display = 'none'; }
+            if (shapePanel) {
+                shapePanel.style.display = all2DAreShapes ? 'block' : 'none';
+            }
+
+            const iconPanel = document.getElementById('iconSettingsPanel');
+            if (iconPanel) {
+                iconPanel.style.display = all2DAreIcons ? 'block' : 'none';
+            }
+
+            const tbFrameSection = document.getElementById('tbFrameSettingsSection');
+            if (tbFrameSection) {
+                tbFrameSection.style.display = all2DAreFrames ? 'block' : 'none';
+            }
 
             // 🎨 Çizim & Neon Ayarları Akordiyonu ile Koordinasyon:
             // Toplu çizim varsa sol paneldeki çizim ayarları da görünür yapılır, ancak kullanıcıyı boğmamak için varsayılan KAPALI gelir
@@ -522,9 +584,11 @@
 
     // Sayfada / Tuvalde 9 Yön ve Ortaya Konumlandırma
     window.multiSelectPositionOnPage = function(pos) {
-        const sel3D = (window.ThreeDGrouping && typeof window.ThreeDGrouping.getSelected3DElements === 'function')
-            ? window.ThreeDGrouping.getSelected3DElements()
-            : [];
+        const sel3D = (typeof window.getSelected3DTargets === 'function')
+            ? window.getSelected3DTargets()
+            : ((window.ThreeDGrouping && typeof window.ThreeDGrouping.getSelected3DElements === 'function')
+                ? window.ThreeDGrouping.getSelected3DElements()
+                : []);
         const has3D = sel3D && sel3D.length > 0;
 
         // 🌟 3D Ögeleri Sayfada Konumlandır
@@ -532,7 +596,7 @@
             if (window.ThreeDAlign && typeof window.ThreeDAlign.positionElementsOnPage === 'function') {
                 window.ThreeDAlign.positionElementsOnPage(sel3D, pos);
             } else if (window.ThreeDEngine && typeof window.ThreeDEngine.alignElement === 'function') {
-                window.ThreeDEngine.alignElement(null, pos);
+                window.ThreeDEngine.alignElement(sel3D[0] || null, pos);
             }
         }
 
@@ -554,8 +618,12 @@
         let minT = Infinity, maxB = -Infinity;
 
         const items = elements.map(el => {
-            const l = parseFloat(el.style.left) || parseFloat(el.dataset.baseLeft) || el.offsetLeft || 0;
-            const t = parseFloat(el.style.top) || parseFloat(el.dataset.baseTop) || el.offsetTop || 0;
+            const pL = parseFloat(el.style.left);
+            const pT = parseFloat(el.style.top);
+            const bL = parseFloat(el.dataset.baseLeft);
+            const bT = parseFloat(el.dataset.baseTop);
+            const l = !isNaN(pL) ? pL : (!isNaN(bL) ? bL : (el.offsetLeft || 0));
+            const t = !isNaN(pT) ? pT : (!isNaN(bT) ? bT : (el.offsetTop || 0));
             const w = el.offsetWidth || parseFloat(el.style.width) || parseFloat(el.dataset.baseWidth) || 50;
             const h = el.offsetHeight || parseFloat(el.style.height) || parseFloat(el.dataset.baseHeight) || 50;
             if (l < minL) minL = l;
@@ -564,6 +632,31 @@
             if (t + h > maxB) maxB = t + h;
             return { el, l, t, w, h };
         });
+
+        // 🌟 Dağınık çoklu 2D ögelerde (gruplanmamış) Üst/Alt/Merkez seçildiğinde aşırı dikey boşluğu daralt
+        const isVertPos = pos.includes('top') || pos.includes('bottom') || pos === 'center' || pos === 'vertical-center';
+        const has2DGroup = items.some(it => it.el && it.el.dataset && it.el.dataset.groupId);
+        if (items.length > 1 && isVertPos && !has2DGroup && (maxB - minT) > (cH - margin * 2) * 0.6) {
+            const sorted = items.slice().sort((a, b) => a.t - b.t);
+            const maxGap2D = Math.round(24 * formatRatio);
+            let shifted = false;
+            for (let i = 1; i < sorted.length; i++) {
+                const prev = sorted[i - 1];
+                const curr = sorted[i];
+                const gapVal = curr.t - (prev.t + prev.h);
+                if (gapVal > maxGap2D) {
+                    curr.t = prev.t + prev.h + maxGap2D;
+                    shifted = true;
+                }
+            }
+            if (shifted) {
+                minT = Infinity; maxB = -Infinity;
+                items.forEach(it => {
+                    if (it.t < minT) minT = it.t;
+                    if (it.t + it.h > maxB) maxB = it.t + it.h;
+                });
+            }
+        }
 
         const groupW = maxR - minL;
         const groupH = maxB - minT;
@@ -742,15 +835,17 @@
     };
 
     window.multiSelectDuplicate = function() {
-        // 🌟 3D Ögeler Seçiliyse: ThreeDGrouping çoğaltma motorunu çalıştır
+        // 🌟 3D Ögeler Seçiliyse: ThreeDGrouping çoğaltma motorunu çalıştır (Karma seçimde de birlikte çoğaltır)
         const sel3D = (window.ThreeDGrouping && typeof window.ThreeDGrouping.getSelected3DElements === 'function')
             ? window.ThreeDGrouping.getSelected3DElements()
             : [];
-        if ((!window.selectedElements || window.selectedElements.length === 0) && sel3D && sel3D.length > 0) {
+        if (sel3D && sel3D.length > 0) {
             if (typeof window.ThreeDGrouping.duplicateSelectedElements === 'function') {
                 window.ThreeDGrouping.duplicateSelectedElements();
             }
-            return;
+            if (!window.selectedElements || window.selectedElements.length === 0) {
+                return;
+            }
         }
 
         if (!window.selectedElements || window.selectedElements.length === 0) {
@@ -761,11 +856,16 @@
         let newElements = [];
         const targets = Array.from(new Set(window.selectedElements
             .filter(el => el && el.parentNode)
-            .map(el => el.closest('.callout-wrap, .draggable, .canvas-el, .added-icon, [data-layer-uid]') || el)
+            .map(el => (typeof el.closest === 'function' ? el.closest('.callout-wrap, .draggable, .canvas-el, .added-icon, [data-layer-uid]') : null) || el)
             .filter(el => el && el.parentNode)
         ));
         if (targets.length === 0) return;
         targets.forEach(el => {
+            if (el.classList.contains('tb-image-frame') && window.TemplateBuilder && typeof window.TemplateBuilder.duplicateFrame === 'function') {
+                const clonedFrame = window.TemplateBuilder.duplicateFrame(el);
+                if (clonedFrame) newElements.push(clonedFrame);
+                return;
+            }
             // 🌟 2D Çizim Elemanları İçin Özel Çoğaltma Motoru (WebGL Saber & Noktalar Dahil)
             if (el.classList.contains('editable-draw') || (el.closest && el.closest('.editable-draw'))) {
                 const drawEl = el.classList.contains('editable-draw') ? el : el.closest('.editable-draw');
@@ -870,20 +970,24 @@
     };
 
     window.multiSelectDelete = function() {
-        // 🌟 3D Ögeler Seçiliyse: ThreeDGrouping silme motorunu çalıştır
+        // 🌟 3D Ögeler Seçiliyse: ThreeDGrouping silme motorunu çalıştır (Karma seçimde 2D ile birlikte silinir)
         const sel3D = (window.ThreeDGrouping && typeof window.ThreeDGrouping.getSelected3DElements === 'function')
             ? window.ThreeDGrouping.getSelected3DElements()
             : [];
-        if ((!window.selectedElements || window.selectedElements.length === 0) && sel3D && sel3D.length > 0) {
+        const has2D = Array.isArray(window.selectedElements) && window.selectedElements.length > 0;
+        const saved2D = has2D ? window.selectedElements.slice() : [];
+
+        if (sel3D && sel3D.length > 0) {
             if (typeof window.ThreeDGrouping.deleteSelectedElements === 'function') {
                 window.ThreeDGrouping.deleteSelectedElements();
             }
-            return;
+            if (!has2D) return;
         }
 
-        if (!window.selectedElements || window.selectedElements.length === 0) return;
+        const raw2DList = saved2D.length > 0 ? saved2D : (window.selectedElements || []);
+        if (!raw2DList || raw2DList.length === 0) return;
         
-        let toDelete = [...window.selectedElements].filter(el => el.dataset.locked !== 'true');
+        let toDelete = [...raw2DList].filter(el => el && el.dataset && el.dataset.locked !== 'true');
         if (toDelete.length === 0) {
             if (typeof window.showToast === 'function') {
                 window.showToast('Kilitli öğeler silinemez', 'warning');
@@ -898,6 +1002,14 @@
         if (typeof deselectAll === 'function') deselectAll();
         
         toDelete.forEach(el => {
+            if (el.classList && el.classList.contains('tb-image-frame')) {
+                if (window.Template3DFrame && window.Template3DFrame.activeGizmoFrame === el) {
+                    window.Template3DFrame.hideGizmo();
+                }
+                if (window.TemplateBuilder && window.TemplateBuilder.selectedFrame === el) {
+                    window.TemplateBuilder.deselectFrame();
+                }
+            }
             if (window.SaberEngine && typeof window.SaberEngine.removeTextSaber === 'function') {
                 window.SaberEngine.removeTextSaber(el);
             }
@@ -926,73 +1038,98 @@
     };
 
     window.multiSelectChangeColor = function(color) {
-        if (!window.selectedElements) return;
-        window.selectedElements.forEach(el => {
-            if (el.classList.contains('editable-text') || el.classList.contains('canvas-el') || el.classList.contains('cvi-item')) {
-                el.style.color = color;
-            }
-            if (el.classList.contains('shape-el')) {
-                const svg = el.querySelector('svg');
-                if (svg) {
-                    const shapes = svg.querySelectorAll('path, polygon, rect, ellipse, line, circle, polyline');
-                    shapes.forEach(shape => {
-                        if (shape.hasAttribute('fill') && shape.getAttribute('fill') !== 'none') {
-                            shape.setAttribute('fill', color);
-                        }
-                        if (shape.hasAttribute('stroke') && shape.getAttribute('stroke') !== 'none') {
-                            shape.setAttribute('stroke', color);
-                        }
+        if (Array.isArray(window.selectedElements)) {
+            window.selectedElements.forEach(el => {
+                if (!el || !el.classList) return;
+                if (el.classList.contains('editable-text') || el.classList.contains('canvas-el') || el.classList.contains('cvi-item')) {
+                    el.style.color = color;
+                }
+                if (el.classList.contains('shape-el')) {
+                    el.dataset.bgColor = color;
+                    el.style.setProperty('--shape-bg', color);
+                    const inner = el.querySelector('.shape-inner');
+                    if (inner && inner.style.backgroundColor && inner.style.backgroundColor !== 'transparent') {
+                        inner.style.backgroundColor = color;
+                    }
+                    const svg = el.querySelector('svg');
+                    if (svg) {
+                        const shapes = svg.querySelectorAll('path, polygon, rect, ellipse, line, circle, polyline');
+                        shapes.forEach(shape => {
+                            if (shape.hasAttribute('fill') && shape.getAttribute('fill') !== 'none') {
+                                shape.setAttribute('fill', color);
+                            }
+                            if (shape.hasAttribute('stroke') && shape.getAttribute('stroke') !== 'none') {
+                                shape.setAttribute('stroke', color);
+                            }
+                        });
+                    }
+                }
+                if (el.classList.contains('added-icon') || el.classList.contains('is-svg-icon') || el.classList.contains('canvas-icon')) {
+                    el.style.color = color;
+                    el.querySelectorAll('svg path, svg circle, svg rect, svg polygon, svg line, svg polyline').forEach(p => {
+                        const s = p.getAttribute('stroke');
+                        if (s && s !== 'none' && !s.startsWith('url(')) p.setAttribute('stroke', 'currentColor');
+                        const f = p.getAttribute('fill');
+                        if (f && f !== 'none' && f !== 'transparent' && !f.startsWith('url(')) p.setAttribute('fill', 'currentColor');
                     });
                 }
-            }
-            if (el.classList.contains('callout-wrap') || el.classList.contains('callout-item')) {
-                const item = el.classList.contains('callout-item') ? el : el.querySelector('.callout-item');
-                if (item) {
-                    item.style.color = color;
-                    item.dataset.coTextColor = color;
+                if (el.classList.contains('tb-image-frame')) {
+                    el.dataset.borderColor = color;
+                    if (parseFloat(el.dataset.borderWidth) > 0 && window.TemplateBuilder && typeof window.TemplateBuilder.applyFrameStyling === 'function') {
+                        window.TemplateBuilder.applyFrameStyling(el);
+                    }
                 }
-            }
-            if (el.classList.contains('editable-draw')) {
-                if (typeof drawPaths !== 'undefined') {
-                    const pIdx = drawPaths.findIndex(p => p.el === el || (p.id && el.dataset && p.id === el.dataset.pathId));
-                    if (pIdx > -1) {
-                        const p = drawPaths[pIdx];
-                        p.color = color;
-                        if (p.hasSaber || p.saber) {
-                            const glowInt = parseInt(color.replace('#', ''), 16) || 0x00CEC9;
-                            p.saberOptions = p.saberOptions || {};
-                            p.saberOptions.glowColor = glowInt;
-                            if (window.applySaberToPath) {
-                                window.applySaberToPath(pIdx, p.saberOptions);
-                            }
-                        } else {
-                            if (typeof updateSinglePathSvg === 'function') {
+                if (el.classList.contains('custom-graphic-badge') && window.CustomBadges && typeof window.CustomBadges.recolorSingleColor === 'function') {
+                    const prev = window.CustomBadges.selectedBadgeEl;
+                    window.CustomBadges.selectedBadgeEl = el;
+                    window.CustomBadges.recolorSingleColor(color);
+                    window.CustomBadges.selectedBadgeEl = prev;
+                }
+                if (el.classList.contains('callout-wrap') || el.classList.contains('callout-item')) {
+                    const item = el.classList.contains('callout-item') ? el : el.querySelector('.callout-item');
+                    if (item) {
+                        item.style.color = color;
+                        item.dataset.coTextColor = color;
+                    }
+                }
+                if (el.classList.contains('editable-draw')) {
+                    if (typeof drawPaths !== 'undefined') {
+                        const pIdx = drawPaths.findIndex(p => p.el === el || (p.id && el.dataset && p.id === el.dataset.pathId));
+                        if (pIdx > -1) {
+                            const p = drawPaths[pIdx];
+                            p.color = color;
+                            if (p.hasSaber || p.saber) {
+                                const glowInt = parseInt(color.replace('#', ''), 16) || 0x00CEC9;
+                                p.saberOptions = p.saberOptions || {};
+                                p.saberOptions.glowColor = glowInt;
+                                if (window.applySaberToPath) {
+                                    window.applySaberToPath(pIdx, p.saberOptions);
+                                }
+                            } else if (typeof updateSinglePathSvg === 'function') {
                                 updateSinglePathSvg(p);
                             }
                         }
                     }
+                    const svg = el.querySelector('svg');
+                    if (svg) {
+                        const shapes = svg.querySelectorAll('path, polygon, rect, ellipse, line, circle, polyline');
+                        shapes.forEach(shape => {
+                            if (shape.hasAttribute('stroke') && shape.getAttribute('stroke') !== 'none') {
+                                shape.setAttribute('stroke', color);
+                            }
+                        });
+                    }
                 }
-                const svg = el.querySelector('svg');
-                if (svg) {
-                    const shapes = svg.querySelectorAll('path, polygon, rect, ellipse, line, circle, polyline');
-                    shapes.forEach(shape => {
-                        if(shape.hasAttribute('stroke') && shape.getAttribute('stroke') !== 'none') {
-                            shape.setAttribute('stroke', color);
-                        }
-                    });
-                }
-            }
-        });
+            });
+        }
 
         // 🌟 Seçili 3D ögelerin de rengini güncelle
         if (window.ThreeDGrouping && typeof window.ThreeDGrouping.getSelected3DElements === 'function') {
             const multi3D = window.ThreeDGrouping.getSelected3DElements();
-            if (multi3D && multi3D.length > 0) {
-                multi3D.forEach(item => {
-                    if (item && window.ThreeDEngine && typeof window.ThreeDEngine.setElementColor === 'function') {
-                        window.ThreeDEngine.setElementColor(item, color);
-                    }
-                });
+            if (multi3D && multi3D.length > 0 && window.ThreeDEngine) {
+                if (typeof window.ThreeDEngine.setFrontColor === 'function') {
+                    window.ThreeDEngine.setFrontColor(color);
+                }
             }
         }
         if (typeof redrawAll === 'function') redrawAll();
@@ -1000,21 +1137,21 @@
     };
 
     window.multiSelectBringToFront = function() {
-        const sel3D = (window.ThreeDGrouping && typeof window.ThreeDGrouping.getSelected3DElements === 'function')
-            ? window.ThreeDGrouping.getSelected3DElements()
-            : [];
-        if ((!window.selectedElements || window.selectedElements.length === 0) && sel3D && sel3D.length > 0) {
-            sel3D.forEach(el => {
-                if (window.ThreeDEngine && typeof window.ThreeDEngine.bringElementToFront === 'function') {
-                    window.ThreeDEngine.bringElementToFront(el);
-                }
-            });
-            return;
+        const sel3D = (typeof window.getSelected3DTargets === 'function')
+            ? window.getSelected3DTargets()
+            : ((window.ThreeDGrouping && typeof window.ThreeDGrouping.getSelected3DElements === 'function')
+                ? window.ThreeDGrouping.getSelected3DElements()
+                : []);
+        if (sel3D && sel3D.length > 0 && window.ThreeDEngine && typeof window.ThreeDEngine.bringElementToFront === 'function') {
+            sel3D.forEach(el => window.ThreeDEngine.bringElementToFront(el));
         }
 
         const elements = getValidMultiSelectElements(window.selectedElements);
         if (!elements.length) return;
         elements.forEach(el => {
+            if (el.classList && el.classList.contains('tb-image-frame')) {
+                el.style.zIndex = '310';
+            }
             const parent = el.parentNode;
             if (parent) {
                 parent.appendChild(el);
@@ -1050,21 +1187,21 @@
     };
 
     window.multiSelectSendToBack = function() {
-        const sel3D = (window.ThreeDGrouping && typeof window.ThreeDGrouping.getSelected3DElements === 'function')
-            ? window.ThreeDGrouping.getSelected3DElements()
-            : [];
-        if ((!window.selectedElements || window.selectedElements.length === 0) && sel3D && sel3D.length > 0) {
-            sel3D.forEach(el => {
-                if (window.ThreeDEngine && typeof window.ThreeDEngine.sendElementToBack === 'function') {
-                    window.ThreeDEngine.sendElementToBack(el);
-                }
-            });
-            return;
+        const sel3D = (typeof window.getSelected3DTargets === 'function')
+            ? window.getSelected3DTargets()
+            : ((window.ThreeDGrouping && typeof window.ThreeDGrouping.getSelected3DElements === 'function')
+                ? window.ThreeDGrouping.getSelected3DElements()
+                : []);
+        if (sel3D && sel3D.length > 0 && window.ThreeDEngine && typeof window.ThreeDEngine.sendElementToBack === 'function') {
+            [...sel3D].reverse().forEach(el => window.ThreeDEngine.sendElementToBack(el));
         }
 
         const elements = getValidMultiSelectElements(window.selectedElements);
         if (!elements.length) return;
         [...elements].reverse().forEach(el => {
+            if (el.classList && el.classList.contains('tb-image-frame')) {
+                el.style.zIndex = '45';
+            }
             const parent = el.parentNode;
             if (parent && parent.firstChild) {
                 parent.insertBefore(el, parent.firstChild);
@@ -1103,10 +1240,9 @@
         const sel3D = (window.ThreeDGrouping && typeof window.ThreeDGrouping.getSelected3DElements === 'function')
             ? window.ThreeDGrouping.getSelected3DElements()
             : [];
-        if ((!window.selectedElements || window.selectedElements.length === 0) && sel3D && sel3D.length > 0) {
-            const anyUnlocked = sel3D.some(el => !el.locked);
-            sel3D.forEach(el => { el.locked = anyUnlocked; });
-            return;
+        if (sel3D && sel3D.length > 0) {
+            const any3DUnlocked = sel3D.some(el => !el.locked);
+            sel3D.forEach(el => { el.locked = any3DUnlocked; });
         }
 
         const elements = getValidMultiSelectElements(window.selectedElements);
@@ -1126,10 +1262,12 @@
     };
 
     window.multiSelectRotate = function(deltaDeg = 90) {
-        const sel3D = (window.ThreeDGrouping && typeof window.ThreeDGrouping.getSelected3DElements === 'function')
-            ? window.ThreeDGrouping.getSelected3DElements()
-            : [];
-        if ((!window.selectedElements || window.selectedElements.length === 0) && sel3D && sel3D.length > 0) {
+        const sel3D = (typeof window.getSelected3DTargets === 'function')
+            ? window.getSelected3DTargets()
+            : ((window.ThreeDGrouping && typeof window.ThreeDGrouping.getSelected3DElements === 'function')
+                ? window.ThreeDGrouping.getSelected3DElements()
+                : []);
+        if (sel3D && sel3D.length > 0) {
             sel3D.forEach(el => {
                 const cur = el.planeLocalRot || 0;
                 let next = Math.round(cur / 90) * 90 + deltaDeg;
@@ -1149,7 +1287,6 @@
             if (window.ThreeDGrouping && typeof window.ThreeDGrouping.updateSelectionVisuals === 'function') {
                 window.ThreeDGrouping.updateSelectionVisuals();
             }
-            return;
         }
 
         const targets = getValidMultiSelectElements(window.selectedElements);
@@ -1161,6 +1298,12 @@
             else if (newRot < -180) newRot += 360;
             newRot = Math.round(newRot);
             el.dataset.rotation = newRot;
+            if (el.classList.contains('tb-image-frame')) {
+                if (window.Template3DFrame) {
+                    window.Template3DFrame.applyTransform(el);
+                }
+                return;
+            }
             const curScale = el.dataset.scale || 1;
             el.style.transform = `rotate(${newRot}deg) scale(${curScale})`;
             if (el.classList.contains('editable-draw') && typeof drawPaths !== 'undefined') {
@@ -1240,6 +1383,15 @@
             if (el.querySelector('img') || el.tagName === 'IMG') {
                 el.style.width = newW + 'px';
                 el.style.height = 'auto';
+            } else if (el.classList.contains('tb-image-frame')) {
+                el.style.width = newW + 'px';
+                el.style.height = newH + 'px';
+                if (window.Template3DFrame) {
+                    window.Template3DFrame.applyTransform(el);
+                    if (window.Template3DFrame.isGizmoActive() && window.Template3DFrame.activeGizmoFrame === el) {
+                        window.Template3DFrame.updateGizmoPosition(el);
+                    }
+                }
             } else if (el.classList.contains('editable-text') || el.classList.contains('canvas-el') || el.classList.contains('brand-element')) {
                 const curFs = parseFloat(window.getComputedStyle(el).fontSize) || 16;
                 el.style.fontSize = Math.max(8, Math.round(curFs * factor)) + 'px';

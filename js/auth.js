@@ -144,7 +144,16 @@ async function handleRegister(event) {
     });
     
     if (error) throw error;
-    
+
+    // Supabase e-posta onayı açıkken mevcut e-posta ile tekrar kayıt denemelerinde hata döndürmez, identities boş gelir
+    if (data && data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+      showToast('Bu e-posta adresi zaten kayıtlı! Giriş yapabilir veya şifrenizi sıfırlayabilirsiniz.', 'warning');
+      setTimeout(() => {
+        if (typeof openModal === 'function') openModal('login');
+      }, 900);
+      return;
+    }
+
     showEmailVerificationModal(email);
     
   } catch (error) {
@@ -463,8 +472,8 @@ window.addEventListener('DOMContentLoaded', async () => {
       if (event === 'PASSWORD_RECOVERY') {
         openModal('reset');
       } else if (event === 'SIGNED_IN' && session && session.user) {
-        // Sadece OAuth dönüşünde hash varsa çalış
-        if (window.location.hash && (window.location.hash.includes('access_token') || window.location.hash.includes('id_token'))) {
+        // Sadece OAuth dönüşünde hash varsa çalış (şifre sıfırlama linkini yakalama)
+        if (window.location.hash && (window.location.hash.includes('access_token') || window.location.hash.includes('id_token')) && !window.location.hash.includes('type=recovery')) {
           const authIntent = localStorage.getItem('emlak_auth_intent');
           localStorage.removeItem('emlak_auth_intent');
           

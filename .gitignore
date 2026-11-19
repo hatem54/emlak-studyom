@@ -8,3 +8,14 @@ _backup_*/
 Thumbs.db
 assets/admin-callouts/
 scratch/
+
+# Yayına gitmemesi gerekenler (11 Kasım 2026 denetimi)
+assets_backup/
+*_debug.png
+quad_*.png
+frame_crop.png
+left_gap_crop.png
+monitor_crop.png
+shadow_vis.png
+test_blur_shadow.png
+white_mask.png

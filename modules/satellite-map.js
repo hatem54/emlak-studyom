@@ -54,6 +54,9 @@
     if (!window.openSatelliteMapModal) {
         window.openSatelliteMapModal = async function(prefer3D = false) {
             if (window.innerWidth <= 768) {
+                if (typeof window.showAppToast === 'function') {
+                    window.showAppToast('ℹ️ Uydu ve kadastro haritası bilgisayar veya tablette kullanılabilir.', 'warning');
+                }
                 return;
             }
             if (typeof window.showAppLoading === 'function') {

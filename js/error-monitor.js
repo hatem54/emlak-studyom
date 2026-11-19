@@ -82,7 +82,9 @@
             if (typeof window.hideExportLoading === 'function') {
                 window.hideExportLoading();
             }
-            if (window.isExportingNow) {
+            const errStack = (errorContext && errorContext.stack) || '';
+            const isExportRelated = !errorContext || !errorContext.isUnhandledRejection || /export|html2canvas|canvas|three/i.test(errStack);
+            if (window.isExportingNow && isExportRelated) {
                 window.isExportingNow = false;
             }
 
@@ -133,8 +135,8 @@
             colno = extra.colno || extra.columnNumber || colno;
         }
 
-        // Önemsiz tarayıcı eklentisi (extension) veya video yükleme iptallerini filtrele
-        if (source.includes('chrome-extension://') || source.includes('moz-extension://') || message.includes('ResizeObserver loop limit exceeded')) {
+        // Önemsiz tarayıcı eklentisi (extension), ResizeObserver veya çevrimdışı ServiceWorker uyarılarını filtrele
+        if (source.includes('chrome-extension://') || source.includes('moz-extension://') || message.includes('ResizeObserver loop limit exceeded') || message.includes('ResizeObserver loop completed') || message.includes('Failed to update a ServiceWorker')) {
             return;
         }
 
@@ -144,6 +146,7 @@
             source,
             lineno,
             colno,
+            isUnhandledRejection: !!(extra && extra.isUnhandledRejection),
             device: dev,
             timestamp: Date.now()
         };
@@ -174,7 +177,8 @@
         processError(reason, {
             filename: window.location.pathname,
             lineno: 0,
-            colno: 0
+            colno: 0,
+            isUnhandledRejection: true
         });
     });
 

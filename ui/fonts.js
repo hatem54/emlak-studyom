@@ -399,36 +399,37 @@ function applyFontSettings(){
 }
 
 function applyElFont(){
-    if(!selectedEl)return;
+    const targets = (window.selectedElements && window.selectedElements.length > 0)
+        ? window.selectedElements.filter(Boolean)
+        : (selectedEl ? [selectedEl] : []);
+    if(targets.length === 0)return;
     if(window._loadingElSettings)return;
     const ff=$('elFontFamily').value,fw=$('elFontWeight2').value,fs=$('elFontStyle2').value,ls=$('elLetterSp').value;
     $('elLetterSpVal').textContent=ls;
 
-    const isParcelBadge = selectedEl.classList.contains('parcel-badge-callout') ||
-                          selectedEl.dataset.parcelBadge === 'true' ||
-                          selectedEl.dataset.isParcelBadge === 'true' ||
-                          (selectedEl.closest && selectedEl.closest('.parcel-badge-callout')) ||
-                          (selectedEl.querySelector && selectedEl.querySelector('.parcel-badge-callout')) ||
-                          (selectedEl.querySelector && selectedEl.querySelector('svg text') && (selectedEl.textContent.includes('Ada') || selectedEl.textContent.includes('Parsel')));
+    targets.forEach(el => {
+        const isParcelBadge = el.classList.contains('parcel-badge-callout') ||
+                              el.dataset.parcelBadge === 'true' ||
+                              el.dataset.isParcelBadge === 'true' ||
+                              (el.closest && el.closest('.parcel-badge-callout')) ||
+                              (el.querySelector && el.querySelector('.parcel-badge-callout')) ||
+                              (el.querySelector && el.querySelector('svg text') && (el.textContent.includes('Ada') || el.textContent.includes('Parsel')));
 
-    if (isParcelBadge) {
-        const badgeWrap = selectedEl.closest('.parcel-badge-callout') || 
-                          (selectedEl.classList.contains('parcel-badge-callout') ? selectedEl : selectedEl.closest('.callout-wrapper') || selectedEl);
-        if (ff || fw || fs || parseInt(ls) !== 0) {
-            badgeWrap.dataset.customFont = '1';
-            if (typeof window.updateParcelBadgeFont === 'function') {
-                window.updateParcelBadgeFont(badgeWrap, { fontFamily: ff || currentFont, fontWeight: fw, fontStyle: fs, letterSpacing: ls });
+        if (isParcelBadge) {
+            const badgeWrap = (el.closest && el.closest('.parcel-badge-callout')) || 
+                              (el.classList && el.classList.contains('parcel-badge-callout') ? el : (el.closest && el.closest('.callout-wrapper')) || el);
+            if (ff || fw || fs || parseInt(ls) !== 0) {
+                badgeWrap.dataset.customFont = '1';
+                if (typeof window.updateParcelBadgeFont === 'function') {
+                    window.updateParcelBadgeFont(badgeWrap, { fontFamily: ff || currentFont, fontWeight: fw, fontStyle: fs, letterSpacing: ls });
+                }
+            } else {
+                delete badgeWrap.dataset.customFont;
+                if (typeof window.updateParcelBadgeFont === 'function') {
+                    window.updateParcelBadgeFont(badgeWrap, { fontFamily: currentFont });
+                }
             }
-        } else {
-            delete badgeWrap.dataset.customFont;
-            if (typeof window.updateParcelBadgeFont === 'function') {
-                window.updateParcelBadgeFont(badgeWrap, { fontFamily: currentFont });
-            }
-        }
-    } else {
-        // Kullanıcı standart şablon veya herhangi bir öğe seçiliyken Element sekmesinden font değiştirdiğinde:
-        // Haritadan gelen ada/parsel rozeti de bu fonta otomatik uyum sağlar (eğer özel kilitlenmemişse)
-        if (ff && typeof window.updateParcelBadgeFont === 'function') {
+        } else if (ff && typeof window.updateParcelBadgeFont === 'function' && el === targets[targets.length - 1]) {
             const badges = document.querySelectorAll('.parcel-badge-callout, [data-parcel-badge="true"]');
             badges.forEach(b => {
                 if (!b.dataset.customFont) {
@@ -436,36 +437,36 @@ function applyElFont(){
                 }
             });
         }
-    }
 
-    if(ff||fw||fs||parseInt(ls)!==0){
-        selectedEl.dataset.customFont='1';
-        if(ff)selectedEl.style.fontFamily=ff;
-        if(fw){selectedEl.style.fontWeight=fw;if($('elWeightSlider'))$('elWeightSlider').value=fw;if($('elWeightVal'))$('elWeightVal').textContent=fw}
-        if(fs)selectedEl.style.fontStyle=fs;
-        selectedEl.style.letterSpacing=ls+'px';
-        if (selectedEl.dataset.saberActive === 'true' || selectedEl.classList.contains('neon-text-el')) {
-            selectedEl.style.color = 'transparent';
-            selectedEl.style.textShadow = 'none';
-            selectedEl.style.webkitTextStroke = 'none';
-        }
-        if(selectedEl.id === 'elDetails') {
-            const il = document.getElementById('infoLineText');
-            if (il) {
-                if(ff) il.style.fontFamily = ff;
-                if(fw) il.style.fontWeight = fw;
-                if(fs) il.style.fontStyle = fs;
-                il.style.letterSpacing = ls + 'px';
+        if(ff||fw||fs||parseInt(ls)!==0){
+            el.dataset.customFont='1';
+            if(ff)el.style.fontFamily=ff;
+            if(fw){el.style.fontWeight=fw;if($('elWeightSlider'))$('elWeightSlider').value=fw;if($('elWeightVal'))$('elWeightVal').textContent=fw}
+            if(fs)el.style.fontStyle=fs;
+            el.style.letterSpacing=ls+'px';
+            if (el.dataset.saberActive === 'true' || el.classList.contains('neon-text-el')) {
+                el.style.color = 'transparent';
+                el.style.textShadow = 'none';
+                el.style.webkitTextStroke = 'none';
             }
+            if(el.id === 'elDetails') {
+                const il = document.getElementById('infoLineText');
+                if (il) {
+                    if(ff) il.style.fontFamily = ff;
+                    if(fw) il.style.fontWeight = fw;
+                    if(fs) il.style.fontStyle = fs;
+                    il.style.letterSpacing = ls + 'px';
+                }
+            }
+        }else{
+            delete el.dataset.customFont;
+            if(el.id === 'elDetails') {
+                const il = document.getElementById('infoLineText');
+                if (il) delete il.dataset.customFont;
+            }
+            applyFontSettings();
         }
-    }else{
-        delete selectedEl.dataset.customFont;
-        if(selectedEl.id === 'elDetails') {
-            const il = document.getElementById('infoLineText');
-            if (il) delete il.dataset.customFont;
-        }
-        applyFontSettings();
-    }
+    });
 
     if (window.SaberEngine && typeof window.SaberEngine.updateTextSaberPositions === 'function') {
         window.SaberEngine.updateTextSaberPositions();
@@ -477,48 +478,53 @@ function applyElFont(){
 }
 
 function applyElWeight(){
-    if(!selectedEl)return;
+    const targets = (window.selectedElements && window.selectedElements.length > 0)
+        ? window.selectedElements.filter(Boolean)
+        : (selectedEl ? [selectedEl] : []);
+    if(targets.length === 0)return;
     if(window._loadingElSettings)return;
     const w = parseInt(document.getElementById('elWeightSlider').value);
     document.getElementById('elWeightVal').textContent=w;
 
-    const isParcelBadge = selectedEl.classList.contains('parcel-badge-callout') ||
-                          selectedEl.dataset.parcelBadge === 'true' ||
-                          selectedEl.dataset.isParcelBadge === 'true' ||
-                          (selectedEl.closest && selectedEl.closest('.parcel-badge-callout'));
-    if (isParcelBadge && typeof window.updateParcelBadgeFont === 'function') {
-        const badgeWrap = selectedEl.closest('.parcel-badge-callout') || selectedEl;
-        badgeWrap.dataset.customFont = '1';
-        window.updateParcelBadgeFont(badgeWrap, { fontWeight: w });
-    }
-    
-    const isNeon = selectedEl.dataset.saberActive === 'true' || selectedEl.classList.contains('neon-text-el');
+    targets.forEach(el => {
+        const isParcelBadge = el.classList.contains('parcel-badge-callout') ||
+                              el.dataset.parcelBadge === 'true' ||
+                              el.dataset.isParcelBadge === 'true' ||
+                              (el.closest && el.closest('.parcel-badge-callout'));
+        if (isParcelBadge && typeof window.updateParcelBadgeFont === 'function') {
+            const badgeWrap = (el.closest && el.closest('.parcel-badge-callout')) || el;
+            badgeWrap.dataset.customFont = '1';
+            window.updateParcelBadgeFont(badgeWrap, { fontWeight: w });
+        }
 
-    if (w <= 900) {
-        selectedEl.style.fontWeight = w;
-        if (isNeon) {
-            selectedEl.style.color = 'transparent';
-            selectedEl.style.textShadow = 'none';
-            selectedEl.style.webkitTextStroke = 'none';
+        const isNeon = el.dataset.saberActive === 'true' || el.classList.contains('neon-text-el');
+
+        if (w <= 900) {
+            el.style.fontWeight = w;
+            if (isNeon) {
+                el.style.color = 'transparent';
+                el.style.textShadow = 'none';
+                el.style.webkitTextStroke = 'none';
+            } else {
+                const tsw = parseInt(el.dataset.storedTextStrokeWidth) || 0;
+                const tsc = el.dataset.storedTextStrokeColor || '#000000';
+                el.style.webkitTextStroke = tsw > 0 ? tsw + 'px ' + tsc : '';
+            }
         } else {
-            const tsw = parseInt(selectedEl.dataset.storedTextStrokeWidth) || 0;
-            const tsc = selectedEl.dataset.storedTextStrokeColor || '#000000';
-            selectedEl.style.webkitTextStroke = tsw > 0 ? tsw + 'px ' + tsc : '';
+            el.style.fontWeight = '900';
+            if (isNeon) {
+                el.style.color = 'transparent';
+                el.style.textShadow = 'none';
+                el.style.webkitTextStroke = 'none';
+            } else {
+                let strokeW = ((w - 900) / 100); 
+                const color = el.style.color || '#000000';
+                el.style.webkitTextStroke = strokeW + 'px ' + color;
+            }
         }
-    } else {
-        selectedEl.style.fontWeight = '900';
-        if (isNeon) {
-            selectedEl.style.color = 'transparent';
-            selectedEl.style.textShadow = 'none';
-            selectedEl.style.webkitTextStroke = 'none';
-        } else {
-            let strokeW = ((w - 900) / 100); 
-            const color = selectedEl.style.color || '#000000';
-            selectedEl.style.webkitTextStroke = strokeW + 'px ' + color;
-        }
-    }
-    
-    selectedEl.dataset.customFont='1';
+
+        el.dataset.customFont='1';
+    });
     if(document.getElementById('elFontWeight2')) document.getElementById('elFontWeight2').value=w;
 
     if (window.SaberEngine && typeof window.SaberEngine.updateTextSaberPositions === 'function') {
@@ -540,7 +546,7 @@ function loadElFont(el){
                           (el.querySelector && el.querySelector('svg text') && (el.textContent.includes('Ada') || el.textContent.includes('Parsel')));
 
     if (isParcelBadge) {
-        const badgeWrap = el.closest('.parcel-badge-callout') || (el.classList.contains('parcel-badge-callout') ? el : el.closest('.callout-wrapper') || el);
+        const badgeWrap = (el.closest && el.closest('.parcel-badge-callout')) || (el.classList && el.classList.contains('parcel-badge-callout') ? el : (el.closest && el.closest('.callout-wrapper')) || el);
         const svg = badgeWrap.querySelector('svg');
         const textNode = svg ? svg.querySelector('text') : null;
         const currentFam = (textNode && (textNode.style.fontFamily || textNode.getAttribute('font-family'))) || badgeWrap.dataset.fontFamily || '';

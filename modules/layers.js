@@ -259,13 +259,14 @@ window.layerSelect = function(uid, event, isDoubleClick = false) {
             if (drawPaths[drawIndex].hidden) return; // Gizliyse seçme
             if (drawPaths[drawIndex].locked) return; // Kilitliyse seçme
         }
-        if (typeof window.startDrawEdit === 'function') {
+        const isDrawMulti = Boolean(event && (event.shiftKey || event.ctrlKey || event.metaKey));
+        if (!isDrawMulti && typeof window.startDrawEdit === 'function') {
             window.startDrawEdit(drawIndex, true);
-        } else if (typeof editingDrawIndex !== 'undefined') {
+        } else if (!isDrawMulti && typeof editingDrawIndex !== 'undefined') {
             editingDrawIndex = drawIndex;
         }
         if (typeof drawPaths !== 'undefined' && drawPaths[drawIndex] && drawPaths[drawIndex].el) {
-            if (typeof window.selectElement === 'function') window.selectElement(drawPaths[drawIndex].el, false, true);
+            if (typeof window.selectElement === 'function') window.selectElement(drawPaths[drawIndex].el, isDrawMulti, true);
         }
         if (typeof updateDrawHistory === 'function') updateDrawHistory();
         window.renderLayers();
@@ -901,11 +902,6 @@ window.layerDrop = function(e, targetUid) {
                     origSwitch(tabName);
                 } catch(e) {
                     console.error("origSwitch error:", e);
-                    const errDiv = document.createElement('div');
-                    errDiv.style.position = 'fixed'; errDiv.style.top = '100px'; errDiv.style.left = '10px';
-                    errDiv.style.background = 'orange'; errDiv.style.color = 'black'; errDiv.style.zIndex = '999999';
-                    errDiv.innerText = "SWITCHTAB ERROR: " + e.stack;
-                    document.body.appendChild(errDiv);
                 }
                 if (tabName === 'layers') {
                     window.renderLayers();

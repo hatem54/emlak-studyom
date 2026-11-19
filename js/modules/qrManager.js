@@ -102,8 +102,7 @@ function addQRElementToCanvas(dataUrl) {
     }
 
     // Geçmişe kaydet
-    if (typeof window.undoStack !== 'undefined') {
-        // undo history trigger
-        // DOM observer in canvas.js will catch this automatically
+    if (typeof window.recordHistory === 'function') {
+        window.recordHistory('QR Kod Eklendi');
     }
 }

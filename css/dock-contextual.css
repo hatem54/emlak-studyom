@@ -109,13 +109,20 @@
     border-radius: 5px !important;
 }
 
-/* İkon Standartları */
+/* İkon Standartları (Tema Duyarlı Kontrast) */
+body[data-theme="light"] #canvasBottomDock .dock-btn .dock-icon,
+body[data-theme="light"] #canvasBottomDock .dock-btn i,
+body[data-theme="light"] .canvas-bottom-dock .dock-btn .dock-icon,
+body[data-theme="light"] .canvas-bottom-dock .dock-btn i {
+    color: #475569 !important;
+}
+
 #canvasBottomDock .dock-btn .dock-icon,
 #canvasBottomDock .dock-btn i,
 .canvas-bottom-dock .dock-btn .dock-icon,
 .canvas-bottom-dock .dock-btn i {
     font-size: 10.5px !important;
-    color: #475569 !important;
+    color: #cbd5e1 !important;
     display: inline-flex !important;
     align-items: center !important;
     justify-content: center !important;
@@ -218,7 +225,7 @@ body[data-theme="light"] .dock-contextual-slot .dock-btn.btn-red:hover {
 }
 
 /* 6. Responsive Güvenlik & Dar Ekran Desteği (Asla Taşmama ve Sığma Garantisi) */
-@media (max-width: 1366px) {
+@media (max-width: 1540px) {
     #canvasBottomDock,
     .canvas-bottom-dock {
         gap: 2px !important;

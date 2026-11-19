@@ -134,7 +134,34 @@
     }
 
     // 🖥️ Modal: Lisans Kodu Giriş Penceresi
-    function openRedeemCodeModal() {
+    async function openRedeemCodeModal() {
+        if (window.AppDialog && typeof window.AppDialog.prompt === 'function') {
+            const code = await window.AppDialog.prompt({
+                title: 'Lisans Kodu Girin',
+                message: 'Promosyon veya lisans kodunuzu girin:',
+                placeholder: 'XXXX-XXXX-XXXX',
+                icon: 'fa-key',
+                confirmText: 'Etkinleştir',
+                cancelText: 'Vazgeç'
+            });
+            if (code && code.trim()) {
+                redeemLicenseCode(code.trim()).then(res => {
+                    if (typeof window.showAppToast === 'function') {
+                        window.showAppToast(res.message, res.success ? 'success' : 'warning');
+                    } else {
+                        alert(res.message);
+                    }
+                    if (res.success && typeof window.checkUserMode === 'function') window.checkUserMode();
+                }).catch(err => {
+                    if (typeof window.showAppToast === 'function') {
+                        window.showAppToast('Hata: ' + (err.message || err), 'error');
+                    } else {
+                        alert('Hata: ' + (err.message || err));
+                    }
+                });
+            }
+            return;
+        }
         if (typeof Swal === 'undefined') {
             const code = prompt('Lütfen Promosyon / Lisans Kodunuzu girin:');
             if (code) {

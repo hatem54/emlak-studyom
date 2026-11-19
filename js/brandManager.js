@@ -260,6 +260,7 @@ window.renderBrandList = function() {
         document.getElementById('brandSearchInput').remove();
     }
     
+    const escBrandHtml = (v) => String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
     brands.forEach(b => {
         const item = document.createElement('div');
         item.className = 'brand-item';
@@ -272,15 +273,20 @@ window.renderBrandList = function() {
         item.style.alignItems = 'center';
         item.style.marginBottom = '8px';
         item.style.boxShadow = '0 1px 2px rgba(0,0,0,0.04)';
-        
+
+        const safeId = escBrandHtml(b.id);
+        const safeName = escBrandHtml(b.name);
+        const safeColor = /^#[0-9a-fA-F]{3,8}$|^rgb/.test(String(b.color1 || '')) ? String(b.color1) : '#0f172a';
+        const safeLogo = (typeof b.logo === 'string' && /^(data:image\/|https?:\/\/|assets\/)/.test(b.logo)) ? escBrandHtml(b.logo) : '';
+
         item.innerHTML = `
-            <div style="display:flex; align-items:center; gap:10px; flex:1; cursor:pointer;" onclick="applyBrand('${b.id}')" title="Tuvale Uygula">
-                ${b.logo ? `<img src="${b.logo}" style="width:30px; height:30px; border-radius:4px; object-fit:contain; border:1px solid #e2e8f0; background:#fff;">` : `<div style="width:30px; height:30px; border-radius:4px; background:${b.color1}; border:1px solid #cbd5e1"></div>`}
-                <div style="font-size:12px; font-weight:700; color:#0f172a;">${b.name}</div>
+            <div style="display:flex; align-items:center; gap:10px; flex:1; cursor:pointer;" onclick="applyBrand('${safeId}')" title="Tuvale Uygula">
+                ${safeLogo ? `<img src="${safeLogo}" style="width:30px; height:30px; border-radius:4px; object-fit:contain; border:1px solid #e2e8f0; background:#fff;">` : `<div style="width:30px; height:30px; border-radius:4px; background:${safeColor}; border:1px solid #cbd5e1"></div>`}
+                <div style="font-size:12px; font-weight:700; color:#0f172a;">${safeName}</div>
             </div>
             <div style="display:flex; gap:6px;">
-                <button type="button" onclick="showBrandForm('${b.id}')" style="background:transparent; border:none; color:#2563eb; cursor:pointer; font-size:11.5px; font-weight:600; padding:2px 4px;">Düzenle</button>
-                <button type="button" onclick="deleteBrand('${b.id}')" style="background:transparent; border:none; color:#dc2626; cursor:pointer; font-size:11.5px; font-weight:600; padding:2px 4px;">Sil</button>
+                <button type="button" onclick="showBrandForm('${safeId}')" style="background:transparent; border:none; color:#2563eb; cursor:pointer; font-size:11.5px; font-weight:600; padding:2px 4px;">Düzenle</button>
+                <button type="button" onclick="deleteBrand('${safeId}')" style="background:transparent; border:none; color:#dc2626; cursor:pointer; font-size:11.5px; font-weight:600; padding:2px 4px;">Sil</button>
             </div>
         `;
         list.appendChild(item);

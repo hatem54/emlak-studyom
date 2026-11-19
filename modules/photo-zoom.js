@@ -104,6 +104,7 @@ function _isPhotoLocked(ignoreSpace = false) {
     if (typeof polyMarqueeBox !== 'undefined' && polyMarqueeBox) return true;
     if (document.querySelector('.poly-marquee-box')) return true;
     if (window.PhotoMasksManager && window.PhotoMasksManager.isGuidesVisible) return true;
+    if (window.CloneStamp && window.CloneStamp.isActive) return true;
     return false;
 }
 
@@ -553,6 +554,7 @@ document.addEventListener('touchmove', function(e){
 }, {passive: false});
 
 document.addEventListener('touchend', function(e){
+    window._isPhotoZooming = false;
     if(e.touches.length < 2) {
         _initialPinchDist = null;
         _initialPinchScale = null;
@@ -575,6 +577,7 @@ document.addEventListener('touchend', function(e){
                 window.savePhotoFramingForCurrentFormat(elToBake);
             }
         } else if (!wasMoved && e.changedTouches && e.changedTouches[0]) {
+            if (_isPhotoLocked()) return;
             var ct = e.changedTouches[0];
             var now = Date.now();
             var timeDiff = now - _lastTouchEndTime;
@@ -626,8 +629,11 @@ document.addEventListener('dblclick', function(e){
         return; // İşlemi burada kes, foto zoom sıfırlamasına gitme
     }
 
-    // Çizim modundaysa fotoğrafı sıfırlama (Çift tık çizimi bitirir, fotoğrafı değil)
+    // Çizim/maske/klonlama modundaysa veya fotoğraf kilitliyse çift tık fotoğrafı sıfırlamasın
     if (typeof drawMode !== 'undefined' && drawMode !== 'off' && drawMode !== null) return;
+    if (window.CloneStamp && window.CloneStamp.isActive) return;
+    if (window.PhotoMasksManager && window.PhotoMasksManager.isGuidesVisible) return;
+    if (_isPhotoLocked(true)) return;
 
     // Etkileşimli kontrol elemanları üzerinde çift tıklandıysa fotoğrafı sıfırlama
     if (e.target.closest && e.target.closest('.canvas-el, .cvi-item, .added-icon, .vertex-handle, .text-handle, .callout-resizer, .callout-rotator, .callout-controls, .draggable, .editable-draw, .editable-text, .tb-frame-handle, .tb-floating-btn, button, input, select, textarea, .panel, .modal-overlay, .app-context-menu')) {

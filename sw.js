@@ -1,4 +1,4 @@
-const CACHE_NAME = 'emlak-studiom-v292-fix-frame-swap-collision';
+﻿const CACHE_NAME = 'emlak-studiom-v320-20261119-tr3d-pdf-quiet-autosave';
 const CORE_ASSETS = [
   './core/utils.js',
   './app.html',

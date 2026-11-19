@@ -131,8 +131,8 @@
                 }
             });
 
-            // Yan panel kaydırıcıları (slider) bırakıldığında (change) geçmişe kaydet
-            ['tbFrameRadius', 'tbFrameBorderWidth', 'tbFrameShadow', 'tbFrameZoom', 'tbFramePanX', 'tbFramePanY', 'tbFrameRotation'].forEach(id => {
+            // Yan panel kaydırıcıları (slider) ve renk seçicileri bırakıldığında (change) geçmişe kaydet
+            ['tbFrameRadius', 'tbFrameBorderWidth', 'tbFrameBorderColor', 'tbFrameShadow', 'tbFrameZoom', 'tbFramePanX', 'tbFramePanY', 'tbFrameRotation', 'tbFrameDepthColor'].forEach(id => {
                 const el = document.getElementById(id);
                 if (el) {
                     el.addEventListener('change', () => {
@@ -453,6 +453,32 @@
         },
 
         /**
+         * Altıgen Görsel Çerçevesi Ekle (1:1 Dikey Altıgen)
+         */
+        createHexagonFrame: function() {
+            const cContainer = document.getElementById('canvas-container');
+            const cH = cContainer ? (parseFloat(cContainer.style.height) || cContainer.offsetHeight || 1080) : 1080;
+            const size = Math.min(Math.round(cH * 0.45), 450);
+            return this.createImageFrame({
+                width: size,
+                height: size,
+                radius: 0,
+                shape: 'polygon-hexagon',
+                label: 'Altıgen',
+                isPolygon: 'true',
+                polygonClip: 'polygon(50% 2%, 96% 26%, 96% 74%, 50% 98%, 4% 74%, 4% 26%)',
+                polygonPoints: [
+                    { x: 50, y: 2 },
+                    { x: 96, y: 26 },
+                    { x: 96, y: 74 },
+                    { x: 50, y: 98 },
+                    { x: 4, y: 74 },
+                    { x: 4, y: 26 }
+                ]
+            });
+        },
+
+        /**
          * 2. AŞAMA: Akıllı Görsel Çerçevesi Ekle (Image Frame / Photo Holder)
          */
         createImageFrame: function(opts = {}) {
@@ -466,11 +492,13 @@
             const cW = parseFloat(cContainer.style.width) || cContainer.offsetWidth || 1920;
             const cH = parseFloat(cContainer.style.height) || cContainer.offsetHeight || 1080;
 
-            const isCirc = (opts.isCircle === 'true' || opts.isCircle === true);
+            const isCirc = (opts.isCircle === 'true' || opts.isCircle === true || (parseInt(opts.radius) >= 300));
             const defW = opts.width || Math.min(Math.round(cW * 0.45), 600);
             const defH = opts.height || (isCirc ? defW : Math.min(Math.round(cH * 0.45), 450));
-            const defX = opts.x !== undefined ? opts.x : Math.max(32, Math.round((cW - defW) / 2));
-            const defY = opts.y !== undefined ? opts.y : Math.max(32, Math.round((cH - defH) / 2));
+            const finalW = isCirc ? Math.min(defW, defH) : defW;
+            const finalH = isCirc ? Math.min(defW, defH) : defH;
+            const defX = opts.x !== undefined ? opts.x : Math.max(32, Math.round((cW - finalW) / 2));
+            const defY = opts.y !== undefined ? opts.y : Math.max(32, Math.round((cH - finalH) / 2));
 
             const frame = document.createElement('div');
             frame.className = 'draggable canvas-el tb-image-frame';
@@ -485,23 +513,47 @@
             frame.dataset.shape = opts.shape || 'none';
             frame.dataset.rotation = opts.rotation || 0;
             frame.dataset.effect = opts.effect || 'none';
-            frame.dataset.imgZoom = 1.0;
-            frame.dataset.imgPanX = 0;
-            frame.dataset.imgPanY = 0;
+            frame.dataset.imgZoom = opts.imgZoom !== undefined ? opts.imgZoom : 1.0;
+            frame.dataset.imgPanX = opts.imgPanX !== undefined ? opts.imgPanX : 0;
+            frame.dataset.imgPanY = opts.imgPanY !== undefined ? opts.imgPanY : 0;
             frame.dataset.pitch = opts.pitch !== undefined ? opts.pitch : 0;
             frame.dataset.yaw = opts.yaw !== undefined ? opts.yaw : 0;
             frame.dataset.elevation = opts.elevation !== undefined ? opts.elevation : 0;
             frame.dataset.perspective = opts.perspective !== undefined ? opts.perspective : 1000;
+            frame.dataset.depth = opts.depth !== undefined ? opts.depth : 0;
+            frame.dataset.depthColor = opts.depthColor || '#334155';
             frame.dataset.isPolygon = opts.isPolygon || (opts.polygonClip ? 'true' : 'false');
             frame.dataset.polygonClip = opts.polygonClip || '';
             frame.dataset.polygonPoints = opts.polygonPoints ? (typeof opts.polygonPoints === 'string' ? opts.polygonPoints : JSON.stringify(opts.polygonPoints)) : '';
+            if (frame.dataset.shape && frame.dataset.shape !== 'none' && !frame.dataset.polygonClip) {
+                const shapeList = this.shapes || (typeof window !== 'undefined' && window.TemplateShapesData) || [];
+                const shapeDef = shapeList.find(s => s.id === frame.dataset.shape);
+                const normPts = this.normalizeShapePolygonPoints(shapeDef);
+                if (normPts) {
+                    frame.dataset.isPolygon = 'true';
+                    frame.dataset.polygonPoints = JSON.stringify(normPts);
+                    frame.dataset.polygonClip = `polygon(${normPts.map(p => `${p.x}% ${p.y}%`).join(', ')})`;
+                }
+            }
 
-            frame.style.width = defW + 'px';
-            frame.style.height = defH + 'px';
+            frame.style.width = finalW + 'px';
+            frame.style.height = finalH + 'px';
             frame.style.left = defX + 'px';
             frame.style.top = defY + 'px';
             frame.style.borderRadius = isCirc ? '50%' : (frame.dataset.radius + 'px');
             frame.style.zIndex = '50';
+
+            // İlk konum, boyut ve açı yedeğini sakla (Yerini Sıfırla butonu için)
+            frame.dataset.origLeft = String(defX);
+            frame.dataset.origTop = String(defY);
+            frame.dataset.origWidth = String(finalW);
+            frame.dataset.origHeight = String(finalH);
+            frame.dataset.origRotation = String(frame.dataset.rotation || 0);
+            frame.dataset.origPitch = String(frame.dataset.pitch || 0);
+            frame.dataset.origYaw = String(frame.dataset.yaw || 0);
+            frame.dataset.origElevation = String(frame.dataset.elevation || 0);
+            frame.dataset.origDepth = String(frame.dataset.depth || 0);
+            frame.dataset.origPerspective = String(frame.dataset.perspective || 1000);
 
             // 1. İç Kırpma Konteyneri (Fotoğraf, maske ve placeholder burada yer alır)
             const clip = document.createElement('div');
@@ -537,8 +589,11 @@
             tools.className = 'tb-frame-floating-tools';
             tools.innerHTML = `
                 <button type="button" class="tb-floating-btn tb-btn-replace" title="Fotoğrafı Değiştir"><i class="fa-solid fa-camera"></i></button>
+                <button type="button" class="tb-floating-btn tb-btn-zoom-out" title="Fotoğrafı Uzaklaştır"><i class="fa-solid fa-magnifying-glass-minus"></i></button>
+                <button type="button" class="tb-floating-btn tb-btn-zoom-in" title="Fotoğrafı Yakınlaştır"><i class="fa-solid fa-magnifying-glass-plus"></i></button>
                 <button type="button" class="tb-floating-btn tb-btn-pan" title="Fotoğrafın Odak Noktasını Kaydır"><i class="fa-solid fa-arrows-up-down-left-right"></i></button>
-                <button type="button" class="tb-floating-btn tb-btn-3d" title="3D Düzlemde Eğ (Sürükleyin)"><i class="fa-solid fa-cube"></i></button>
+                <button type="button" class="tb-floating-btn tb-btn-3d" title="3D Düzlemde Eğ"><i class="fa-solid fa-cube"></i></button>
+                <button type="button" class="tb-floating-btn tb-btn-reset-pos" title="Çerçeveyi Eski Yerine Sıfırla"><i class="fa-solid fa-rotate-left"></i></button>
                 <button type="button" class="tb-floating-btn tb-btn-swap" draggable="true" title="Görseli Başka Çerçeveye Sürükle veya Değiştir"><i class="fa-solid fa-arrows-rotate"></i></button>
                 <button type="button" class="tb-floating-btn tb-btn-dup" title="Çerçeveyi Çoğalt"><i class="fa-solid fa-clone"></i></button>
                 <button type="button" class="tb-floating-btn tb-btn-del" title="Çerçeveyi Sil" style="background:#dc2626;"><i class="fa-solid fa-trash-can"></i></button>
@@ -566,6 +621,7 @@
 
             // Otomatik seç
             this.selectFrame(frame);
+            frame._readyForImageClick = false;
 
             if (opts.imgUrl) {
                 this.loadPhotoIntoFrame(frame, opts.imgUrl);
@@ -606,6 +662,10 @@
                 if (data.style.top) frame.style.top = data.style.top;
                 frame.style.zIndex = data.style.zIndex || '50';
             }
+            if (frame.dataset.origLeft === undefined && frame.style.left) frame.dataset.origLeft = String(parseFloat(frame.style.left) || 0);
+            if (frame.dataset.origTop === undefined && frame.style.top) frame.dataset.origTop = String(parseFloat(frame.style.top) || 0);
+            if (frame.dataset.origWidth === undefined && frame.style.width) frame.dataset.origWidth = String(parseFloat(frame.style.width) || 300);
+            if (frame.dataset.origHeight === undefined && frame.style.height) frame.dataset.origHeight = String(parseFloat(frame.style.height) || 300);
 
             // 1. İç Kırpma Konteyneri
             const clip = document.createElement('div');
@@ -641,8 +701,11 @@
             tools.className = 'tb-frame-floating-tools';
             tools.innerHTML = `
                 <button type="button" class="tb-floating-btn tb-btn-replace" title="Fotoğrafı Değiştir"><i class="fa-solid fa-camera"></i></button>
+                <button type="button" class="tb-floating-btn tb-btn-zoom-out" title="Fotoğrafı Uzaklaştır"><i class="fa-solid fa-magnifying-glass-minus"></i></button>
+                <button type="button" class="tb-floating-btn tb-btn-zoom-in" title="Fotoğrafı Yakınlaştır"><i class="fa-solid fa-magnifying-glass-plus"></i></button>
                 <button type="button" class="tb-floating-btn tb-btn-pan" title="Fotoğrafın Odak Noktasını Kaydır"><i class="fa-solid fa-arrows-up-down-left-right"></i></button>
                 <button type="button" class="tb-floating-btn tb-btn-3d" title="3D Düzlemde Eğ"><i class="fa-solid fa-cube"></i></button>
+                <button type="button" class="tb-floating-btn tb-btn-reset-pos" title="Çerçeveyi Eski Yerine Sıfırla"><i class="fa-solid fa-rotate-left"></i></button>
                 <button type="button" class="tb-floating-btn tb-btn-swap" draggable="true" title="Görseli Başka Çerçeveye Sürükle veya Değiştir"><i class="fa-solid fa-arrows-rotate"></i></button>
                 <button type="button" class="tb-floating-btn tb-btn-dup" title="Çerçeveyi Çoğalt"><i class="fa-solid fa-clone"></i></button>
                 <button type="button" class="tb-floating-btn tb-btn-del" title="Çerçeveyi Sil" style="background:#dc2626;"><i class="fa-solid fa-trash-can"></i></button>
@@ -669,8 +732,32 @@
             if (data.isSelected) {
                 this.selectFrame(frame);
             }
+            frame._readyForImageClick = false;
 
             return frame;
+        },
+
+        /**
+         * Şekil poligon köşelerini viewBox (örn. 0 0 100 90) değerine göre 0-100% koordinatına normalize et
+         */
+        normalizeShapePolygonPoints: function(sDef) {
+            if (!sDef || !sDef.polygon) return null;
+            const vbParts = (sDef.viewBox || '0 0 100 100').trim().split(/[\s,]+/).map(Number);
+            const vbX = Number.isFinite(vbParts[0]) ? vbParts[0] : 0;
+            const vbY = Number.isFinite(vbParts[1]) ? vbParts[1] : 0;
+            const vbW = (Number.isFinite(vbParts[2]) && vbParts[2] > 0) ? vbParts[2] : 100;
+            const vbH = (Number.isFinite(vbParts[3]) && vbParts[3] > 0) ? vbParts[3] : 100;
+            const pts = sDef.polygon.trim().split(/\s+/).map(pair => {
+                const parts = pair.split(',');
+                const rawX = parseFloat(parts[0]);
+                const rawY = parseFloat(parts[1]);
+                if (isNaN(rawX) || isNaN(rawY)) return null;
+                return {
+                    x: parseFloat((((rawX - vbX) / vbW) * 100).toFixed(4)),
+                    y: parseFloat((((rawY - vbY) / vbH) * 100).toFixed(4))
+                };
+            }).filter(Boolean);
+            return pts.length >= 3 ? pts : null;
         },
 
         /**
@@ -707,6 +794,10 @@
                 frame.style.transform = 'none';
             }
 
+            // Üst sınıra yakınsa butonları alta al
+            const fTop = parseFloat(frame.style.top) || frame.offsetTop || 0;
+            frame.classList.toggle('tools-below', fTop < 42);
+
             // Önceki maske ve efekt sınıflarını temizle
             clip.classList.remove('fade-bottom', 'fade-right', 'fade-left');
             inner.classList.remove('fade-bottom', 'fade-right', 'fade-left');
@@ -728,16 +819,44 @@
                 clip.style.webkitClipPath = 'none';
             }
 
-            // 2. Yaratıcı Şekil Maskesi Uygula (SVG Mask)
-            if (hasShape) {
-                clip.classList.add('shape-' + shape);
+            // 2. Yaratıcı Şekil Maskesi veya Serbest Çokgen Uygula (SVG Mask & Native ClipPath)
+            if (hasShape || isPolygon) {
+                if (hasShape) {
+                    clip.classList.add('shape-' + shape);
+                }
+                frame.classList.add('has-shape');
                 frame.style.borderRadius = '0px';
                 frame.style.border = 'none';
                 frame.style.boxShadow = 'none';
                 inner.style.border = 'none';
+                inner.style.borderRadius = '0px';
+                clip.style.borderRadius = '0px';
+                if (!frame.classList.contains('has-image')) {
+                    inner.style.background = 'transparent';
+                }
+
+                // Poligon şekillerinde native CSS clipPath ile ekstra net kırpma (viewBox 0-100% normalize)
+                const list = this.shapes || (typeof window !== 'undefined' && window.TemplateShapesData) || [];
+                const sDef = hasShape ? list.find(s => s.id === shape) : null;
+                const normPts = this.normalizeShapePolygonPoints(sDef);
+                if (normPts) {
+                    const clipVal = `polygon(${normPts.map(p => `${p.x}% ${p.y}%`).join(', ')})`;
+                    clip.style.clipPath = clipVal;
+                    clip.style.webkitClipPath = clipVal;
+                    frame.dataset.isPolygon = 'true';
+                    frame.dataset.polygonPoints = JSON.stringify(normPts);
+                    frame.dataset.polygonClip = clipVal;
+                } else if (!isPolygon) {
+                    clip.style.clipPath = 'none';
+                    clip.style.webkitClipPath = 'none';
+                }
 
                 // ORGANİK / ŞEKİL KONTUR GÖLGESİ (SVG Silhouette Drop-Shadow & Glow)
-                if (effect === 'gold') {
+                const depthVal = parseFloat(frame.dataset.depth) || 0;
+                if (depthVal > 0) {
+                    // 3D derinlikte preserve-3d bağlamını bozmamak için frame üzerinde filter 'none' olmalıdır
+                    frame.style.filter = 'none';
+                } else if (effect === 'gold') {
                     frame.style.filter = 'drop-shadow(0 0 14px rgba(245, 158, 11, 0.75)) drop-shadow(0 8px 18px rgba(0,0,0,0.5))';
                 } else if (effect === 'neon') {
                     frame.style.filter = 'drop-shadow(0 0 16px rgba(6, 182, 212, 0.8)) drop-shadow(0 8px 18px rgba(0,0,0,0.5))';
@@ -786,10 +905,19 @@
                         inner.style.border = 'none';
                     }
 
-                    if (parseInt(sh) > 0) {
-                        frame.style.boxShadow = `0 ${Math.round(sh * 0.6)}px ${sh * 2}px rgba(0,0,0,0.35)`;
+                    const has3D = (parseFloat(frame.dataset.pitch) || 0) !== 0 ||
+                                  (parseFloat(frame.dataset.yaw) || 0) !== 0 ||
+                                  (parseFloat(frame.dataset.elevation) || 0) !== 0 ||
+                                  (parseFloat(frame.dataset.depth) || 0) !== 0;
+
+                    if (has3D && window.Template3DFrame && typeof window.Template3DFrame.applyTransform === 'function') {
+                        window.Template3DFrame.applyTransform(frame);
                     } else {
-                        frame.style.boxShadow = 'none';
+                        if (parseInt(sh) > 0) {
+                            frame.style.boxShadow = `0 ${Math.round(sh * 0.6)}px ${sh * 2}px rgba(0,0,0,0.35)`;
+                        } else {
+                            frame.style.boxShadow = 'none';
+                        }
                     }
                 }
             }
@@ -801,6 +929,158 @@
                     clip.classList.add('fade-' + blend);
                 }
             }
+
+            // 4. Şekil veya Çokgen İçin Vektör Hat Güncellemesi
+            this.updateShapeContour(frame);
+        },
+
+        /**
+         * Yaratıcı Şekil ve Çokgen Çerçeveler İçin Dinamik Vektör Hat (SVG Contour & Selection Border)
+         */
+        updateShapeContour: function(frame) {
+            if (!frame) return;
+            const shape = frame.dataset.shape || 'none';
+            const hasShape = (shape && shape !== 'none');
+            const isPolygon = (frame.dataset.isPolygon === 'true');
+            const hasImage = frame.classList.contains('has-image');
+            const isSelected = frame.classList.contains('selected') || frame.classList.contains('el-selected');
+            const bw = parseInt(frame.dataset.borderWidth) || 0;
+            const bc = frame.dataset.borderColor || '#ffffff';
+
+            let contourSvg = frame.querySelector('.tb-shape-contour-svg');
+
+            if (!hasShape && !isPolygon) {
+                if (contourSvg) contourSvg.remove();
+                frame.classList.remove('has-shape');
+                return;
+            }
+
+            frame.classList.add('has-shape');
+
+            if (!contourSvg) {
+                contourSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+                contourSvg.setAttribute('class', 'tb-shape-contour-svg');
+                contourSvg.style.position = 'absolute';
+                contourSvg.style.inset = '0';
+                contourSvg.style.width = '100%';
+                contourSvg.style.height = '100%';
+                contourSvg.style.pointerEvents = 'none';
+                contourSvg.style.zIndex = '45';
+                contourSvg.style.overflow = 'visible';
+                frame.appendChild(contourSvg);
+            }
+
+            let shapeDef = null;
+            if (hasShape) {
+                const list = this.shapes || (typeof window !== 'undefined' && window.TemplateShapesData) || [];
+                shapeDef = list.find(s => s.id === shape);
+            }
+
+            let strokeColor = 'none';
+            let strokeW = 0;
+            let strokeDash = 'none';
+            let fillColor = 'none';
+
+            if (!hasImage) {
+                // Görsel Yokken: Boş durum için belirgin mavi kesik çizgili hat + hafif mavi transparan dolgu
+                strokeColor = isSelected ? '#0284c7' : 'rgba(2, 132, 199, 0.75)';
+                strokeW = isSelected ? 2.5 : 2;
+                strokeDash = isSelected ? 'none' : '6 4';
+                fillColor = 'rgba(2, 132, 199, 0.05)';
+            } else {
+                // Görsel Varken: Kullanıcı kenarlık vermişse veya seçiliyse
+                if (bw > 0) {
+                    strokeColor = bc;
+                    strokeW = bw;
+                } else if (isSelected) {
+                    strokeColor = '#0284c7';
+                    strokeW = 2.5;
+                }
+            }
+
+            contourSvg.innerHTML = '';
+
+            if (isPolygon) {
+                let ptsStr = '';
+                try {
+                    const rawPts = frame.dataset.polygonPoints;
+                    if (rawPts) {
+                        const parsed = JSON.parse(rawPts);
+                        if (Array.isArray(parsed)) {
+                            ptsStr = parsed.map(p => `${p.x},${p.y}`).join(' ');
+                        }
+                    }
+                } catch (e) {}
+
+                if (!ptsStr && frame.dataset.polygonClip) {
+                    const m = frame.dataset.polygonClip.match(/polygon\((.+)\)/);
+                    if (m && m[1]) {
+                        ptsStr = m[1].split(',').map(s => s.trim().replace(/%/g, '').replace(/\s+/g, ',')).join(' ');
+                    }
+                }
+
+                if (ptsStr) {
+                    contourSvg.setAttribute('viewBox', '0 0 100 100');
+                    contourSvg.setAttribute('preserveAspectRatio', 'none');
+                    const poly = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+                    poly.setAttribute('points', ptsStr);
+                    poly.setAttribute('fill', fillColor);
+                    poly.setAttribute('stroke', strokeColor);
+                    poly.setAttribute('stroke-width', strokeW);
+                    if (strokeDash !== 'none') poly.setAttribute('stroke-dasharray', strokeDash);
+                    poly.setAttribute('vector-effect', 'non-scaling-stroke');
+                    contourSvg.appendChild(poly);
+                }
+            } else if (shapeDef) {
+                const vb = shapeDef.viewBox || '0 0 100 100';
+                contourSvg.setAttribute('viewBox', vb);
+                contourSvg.setAttribute('preserveAspectRatio', 'none');
+
+                if (shapeDef.polygon) {
+                    const poly = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+                    poly.setAttribute('points', shapeDef.polygon);
+                    poly.setAttribute('fill', fillColor);
+                    poly.setAttribute('stroke', strokeColor);
+                    poly.setAttribute('stroke-width', strokeW);
+                    if (strokeDash !== 'none') poly.setAttribute('stroke-dasharray', strokeDash);
+                    poly.setAttribute('vector-effect', 'non-scaling-stroke');
+                    contourSvg.appendChild(poly);
+                } else if (shapeDef.id === 'frame-polaroid' || shapeDef.id === 'frame-film') {
+                    // Polaroid & Sinema Şeridi: İç fotoğraf penceresi + dış kart çerçevesi (Kenarlık Rengi kart dolgusunu boyar)
+                    const isFilm = shapeDef.id === 'frame-film';
+                    const defaultMatColor = isFilm ? '#1e293b' : '#ffffff';
+                    const hasCustomColor = bc && bc.trim() && bc.trim().toLowerCase() !== '#ffffff';
+                    const matColor = isFilm ? (hasCustomColor ? bc.trim() : defaultMatColor) : ((bc && bc.trim()) ? bc.trim() : '#ffffff');
+                    const isWhiteMat = /^#f{3,6}$/i.test(matColor) || matColor.toLowerCase() === 'white';
+                    const winD = isFilm ? 'M 8,14 L 112,14 L 112,76 L 8,76 Z' : 'M 8,8 L 92,8 L 92,92 L 8,92 Z';
+
+                    const winPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                    winPath.setAttribute('d', winD);
+                    winPath.setAttribute('fill', !hasImage ? 'rgba(2, 132, 199, 0.05)' : 'none');
+                    winPath.setAttribute('stroke', !hasImage ? (isSelected ? '#0284c7' : 'rgba(2, 132, 199, 0.65)') : 'rgba(148, 163, 184, 0.45)');
+                    winPath.setAttribute('stroke-width', !hasImage ? 1.5 : 1);
+                    if (!hasImage) winPath.setAttribute('stroke-dasharray', '5 4');
+                    winPath.setAttribute('vector-effect', 'non-scaling-stroke');
+                    contourSvg.appendChild(winPath);
+
+                    const matPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                    matPath.setAttribute('d', shapeDef.path);
+                    matPath.setAttribute('fill', matColor);
+                    matPath.setAttribute('stroke', bw > 0 ? matColor : (isSelected ? '#0284c7' : (isWhiteMat ? '#cbd5e1' : 'rgba(0,0,0,0.18)')));
+                    matPath.setAttribute('stroke-width', bw > 0 ? bw : (isSelected ? 2 : 1.5));
+                    matPath.setAttribute('vector-effect', 'non-scaling-stroke');
+                    contourSvg.appendChild(matPath);
+                } else if (shapeDef.path) {
+                    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                    path.setAttribute('d', shapeDef.path);
+                    path.setAttribute('fill', fillColor);
+                    path.setAttribute('stroke', strokeColor);
+                    path.setAttribute('stroke-width', strokeW);
+                    if (strokeDash !== 'none') path.setAttribute('stroke-dasharray', strokeDash);
+                    path.setAttribute('vector-effect', 'non-scaling-stroke');
+                    contourSvg.appendChild(path);
+                }
+            }
         },
 
         /**
@@ -809,7 +1089,6 @@
         bindFrameEvents: function(frame) {
             const placeholder = frame.querySelector('.tb-frame-placeholder');
             const fileInput = frame.querySelector('.tb-frame-file-input');
-            let wasAlreadySelected = false;
 
             // 0. Çift Tıklama ile Fotoğraf Pan / Odak Modunu Aç
             frame.addEventListener('dblclick', (e) => {
@@ -823,8 +1102,19 @@
             // 1. Tıklayarak Seçme, Pan / Odak Sürükleme ve Çerçeveler Arası Akıllı Takas
             frame.addEventListener('mousedown', (e) => {
                 if (e.target.closest('.tb-frame-handle') || e.target.closest('.tb-floating-btn') || e.target.closest('.tb-frame-floating-tools')) return;
-                wasAlreadySelected = (this.selectedFrame === frame);
-                this.selectFrame(frame);
+                const isMultiKey = e.ctrlKey || e.shiftKey;
+                const count3D = (window.ThreeDGrouping && typeof window.ThreeDGrouping.getSelected3DElements === 'function')
+                    ? window.ThreeDGrouping.getSelected3DElements().length
+                    : 0;
+                const isAlreadyInMulti = Array.isArray(window.selectedElements) && (window.selectedElements.length + count3D > 1) && window.selectedElements.includes(frame);
+                if (e.button === 0 && !isMultiKey && !isAlreadyInMulti) {
+                    this.selectFrame(frame);
+                } else if (isAlreadyInMulti) {
+                    this.selectedFrame = frame;
+                    if (typeof this.syncSettingsPanelWithFrame === 'function') {
+                        this.syncSettingsPanelWithFrame(frame);
+                    }
+                }
 
                 // Pan Modu VEYA Alt Tuşu basılıysa: Fotoğrafı çerçeve içinde kaydır
                 if (frame.classList.contains('has-image') && (e.altKey || frame.classList.contains('tb-pan-mode'))) {
@@ -847,21 +1137,26 @@
                         frame.dataset.imgPanX = newX;
                         frame.dataset.imgPanY = newY;
 
+                        this.applyImageZoomPan(frame);
+
+                        const clampedX = Math.round(parseFloat(frame.dataset.imgPanX) || 0);
+                        const clampedY = Math.round(parseFloat(frame.dataset.imgPanY) || 0);
                         const pxInput = document.getElementById('tbFramePanX');
                         const pxVal = document.getElementById('tbFramePanXVal');
                         const pyInput = document.getElementById('tbFramePanY');
                         const pyVal = document.getElementById('tbFramePanYVal');
-                        if (pxInput) pxInput.value = newX;
-                        if (pxVal) pxVal.textContent = newX + 'px';
-                        if (pyInput) pyInput.value = newY;
-                        if (pyVal) pyVal.textContent = newY + 'px';
-
-                        this.applyImageZoomPan(frame);
+                        if (pxInput) pxInput.value = clampedX;
+                        if (pxVal) pxVal.textContent = clampedX + 'px';
+                        if (pyInput) pyInput.value = clampedY;
+                        if (pyVal) pyVal.textContent = clampedY + 'px';
                     };
 
                     const onPanUp = () => {
                         document.removeEventListener('mousemove', onPanMove);
                         document.removeEventListener('mouseup', onPanUp);
+                        if (typeof window.recordHistory === 'function') {
+                            window.recordHistory('Fotoğraf Konumu Kaydırıldı');
+                        }
                     };
 
                     document.addEventListener('mousemove', onPanMove);
@@ -870,9 +1165,17 @@
                 }
             });
 
-            // Fare Tekerleği ile Çerçeve İçi Zoom (Alt veya Pan Modunda)
+            frame.addEventListener('click', (e) => {
+                if (e.target.closest('.tb-frame-handle') || e.target.closest('.tb-floating-btn') || e.target.closest('.tb-frame-floating-tools')) return;
+                if (!frame._justDragged && !frame.classList.contains('dragging')) {
+                    // İlk tıklama ile seçim tamamlandığında, sonraki doğrudan tıklama görsel açmaya hazır olsun
+                    frame._readyForImageClick = true;
+                }
+            });
+
+            // Fare Tekerleği ile Çerçeve İçi Zoom (Alt, Pan Modunda veya Seçili Durumda)
             frame.addEventListener('wheel', (e) => {
-                if (frame.classList.contains('has-image') && (e.altKey || frame.classList.contains('tb-pan-mode'))) {
+                if (frame.classList.contains('has-image') && (e.altKey || frame.classList.contains('tb-pan-mode') || this.selectedFrame === frame)) {
                     e.preventDefault();
                     e.stopPropagation();
                     let curZoom = parseFloat(frame.dataset.imgZoom) || 1.0;
@@ -884,18 +1187,62 @@
                     if (zoomInput) zoomInput.value = Math.round(curZoom * 100);
                     if (zoomVal) zoomVal.textContent = Math.round(curZoom * 100) + '%';
                     this.applyImageZoomPan(frame);
+                    clearTimeout(this._wheelZoomHistoryTimer);
+                    this._wheelZoomHistoryTimer = setTimeout(() => {
+                        if (typeof window.recordHistory === 'function') {
+                            window.recordHistory('Fotoğraf Yakınlaştırıldı');
+                        }
+                    }, 350);
                 }
             }, { passive: false });
 
-            // 2. Dosya Seçme Girişi (İlk tıklama çerçeveyi aktif yapar, ikinci tıklama dosya penceresini açar)
+            // 2. Dosya Seçme Girişi (1. Tıklama: Öge Seçimi | 2. Direkt Tıklama: Görsel Açma | Taşıma/Sürüklemede: Asla Açılmaz)
             if (placeholder && fileInput) {
+                let pDownX = 0;
+                let pDownY = 0;
+                let pDownTime = 0;
+                let wasReadyForImage = false;
+
+                placeholder.addEventListener('mousedown', (e) => {
+                    pDownX = e.clientX;
+                    pDownY = e.clientY;
+                    pDownTime = Date.now();
+                    // Fare basıldığı anda bu çerçeve zaten seçili ve 2. tıklamaya hazır mıydı?
+                    wasReadyForImage = (this.selectedFrame === frame && frame._readyForImageClick === true);
+                });
+
+                placeholder.addEventListener('touchstart', (e) => {
+                    if (e.touches && e.touches[0]) {
+                        pDownX = e.touches[0].clientX;
+                        pDownY = e.touches[0].clientY;
+                        pDownTime = Date.now();
+                        wasReadyForImage = (this.selectedFrame === frame && frame._readyForImageClick === true);
+                    }
+                }, { passive: true });
+
                 placeholder.addEventListener('click', (e) => {
                     e.stopPropagation();
-                    if (!wasAlreadySelected) {
-                        // İlk tıklamada çerçeve zaten seçildi; hemen dosya penceresi açılmasın
-                        wasAlreadySelected = true;
+
+                    // 1. Sürükleme / Taşıma kontrolü:
+                    // Çerçeve taşındıysa, sürükleniyorsa veya imleç hareket ettiyse dosya penceresini ASLA açma
+                    if (frame._justDragged || frame.classList.contains('dragging')) {
                         return;
                     }
+                    const dist = Math.hypot(e.clientX - pDownX, e.clientY - pDownY);
+                    const elapsed = pDownTime > 0 ? (Date.now() - pDownTime) : 0;
+                    if (dist > 6 || elapsed > 600) {
+                        return; // Taşıma, sürükleme veya uzun basış; direkt tıklama değil
+                    }
+
+                    // 2. İlk Tıklama Kontrolü (1. Tıklama = Sadece Öge Seçimi):
+                    // Eğer fare basıldığı anda çerçeve 2. tıklamaya hazır değil idiyse, bu 1. tıklamadır;
+                    // yalnızca öge seçimini doğrular ve sonraki tıklama için hazırlar.
+                    if (!wasReadyForImage) {
+                        frame._readyForImageClick = true;
+                        return;
+                    }
+
+                    // 3. İkinci Direkt Tıklama (2. Direkt Tıklama = Görsel Seçme Penceresini Aç):
                     fileInput.click();
                 });
 
@@ -982,6 +1329,24 @@
                 });
             }
 
+            const btnZoomOut = frame.querySelector('.tb-btn-zoom-out');
+            if (btnZoomOut) {
+                btnZoomOut.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.selectFrame(frame);
+                    this.zoomOut();
+                });
+            }
+
+            const btnZoomIn = frame.querySelector('.tb-btn-zoom-in');
+            if (btnZoomIn) {
+                btnZoomIn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.selectFrame(frame);
+                    this.zoomIn();
+                });
+            }
+
             const btnSwap = frame.querySelector('.tb-btn-swap');
             if (btnSwap) {
                 btnSwap.addEventListener('dragstart', (e) => {
@@ -1011,6 +1376,78 @@
                 });
             }
 
+            const btn3D = frame.querySelector('.tb-btn-3d');
+            if (btn3D) {
+                btn3D.dataset.tb3dBound = 'true';
+                btn3D.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const isPartOfMulti = Array.isArray(window.selectedElements) && window.selectedElements.length > 1 && window.selectedElements.includes(frame);
+                    if (isPartOfMulti) {
+                        const targets = window.selectedElements.slice();
+                        const hasNonFrame = targets.some(t => t && t.classList && !t.classList.contains('tb-image-frame'));
+                        if (hasNonFrame && window.ThreeDEngine && typeof window.ThreeDEngine.convert2DBadgeTo3D === 'function') {
+                            window.ThreeDEngine.convert2DBadgeTo3D(targets);
+                            return;
+                        }
+                        const frames = targets.filter(t => t && t.classList && t.classList.contains('tb-image-frame'));
+                        const wasGizmoActive = window.Template3DFrame && window.Template3DFrame.isGizmoActive() && window.Template3DFrame.activeGizmoFrame === frame;
+                        this.selectedFrame = frame;
+                        frames.forEach(f => {
+                            delete f._gizmoDismissed;
+                            const curDepth = parseFloat(f.dataset.depth) || 0;
+                            const curPitch = parseFloat(f.dataset.pitch) || 0;
+                            const curYaw = parseFloat(f.dataset.yaw) || 0;
+                            if (curDepth <= 0) f.dataset.depth = 25;
+                            if (curPitch === 0 && curYaw === 0) {
+                                f.dataset.pitch = -12;
+                                f.dataset.yaw = 20;
+                                f.dataset.perspective = 1200;
+                            }
+                            f.dataset.has3D = 'true';
+                            if (window.Template3DFrame) window.Template3DFrame.applyTransform(f);
+                        });
+                        if (window.Template3DFrame) {
+                            window.Template3DFrame.syncPanel(frame);
+                            if (wasGizmoActive) {
+                                frame._gizmoDismissed = true;
+                                window.Template3DFrame.hideGizmo();
+                            } else {
+                                window.Template3DFrame.showGizmo(frame);
+                            }
+                        }
+                        return;
+                    }
+
+                    const wasGizmoActive = window.Template3DFrame && window.Template3DFrame.isGizmoActive() && window.Template3DFrame.activeGizmoFrame === frame;
+                    delete frame._gizmoDismissed;
+                    this.selectFrame(frame, { skipGizmoAutoOpen: true });
+                    const curDepth = parseFloat(frame.dataset.depth) || 0;
+                    const curPitch = parseFloat(frame.dataset.pitch) || 0;
+                    const curYaw = parseFloat(frame.dataset.yaw) || 0;
+                    if (curDepth <= 0) {
+                        frame.dataset.depth = 25;
+                    }
+                    if (curPitch === 0 && curYaw === 0) {
+                        frame.dataset.pitch = -12;
+                        frame.dataset.yaw = 20;
+                        frame.dataset.perspective = 1200;
+                    }
+                    frame.dataset.has3D = 'true';
+                    if (window.Template3DFrame) {
+                        window.Template3DFrame.applyTransform(frame);
+                        window.Template3DFrame.syncPanel(frame);
+                    }
+                    if (window.Template3DFrame) {
+                        if (wasGizmoActive) {
+                            frame._gizmoDismissed = true;
+                            window.Template3DFrame.hideGizmo();
+                        } else {
+                            window.Template3DFrame.showGizmo(frame);
+                        }
+                    }
+                });
+            }
+
             const btnDup = frame.querySelector('.tb-btn-dup');
             if (btnDup) {
                 btnDup.addEventListener('click', (e) => {
@@ -1024,6 +1461,14 @@
                 btnDel.addEventListener('click', (e) => {
                     e.stopPropagation();
                     this.deleteFrame(frame);
+                });
+            }
+
+            const btnResetPos = frame.querySelector('.tb-btn-reset-pos');
+            if (btnResetPos) {
+                btnResetPos.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.resetFramePlacement(frame);
                 });
             }
 
@@ -1134,8 +1579,13 @@
 
                 this.applyImageZoomPan(frame);
                 this.syncSettingsPanelWithFrame(frame);
-                if (window.Template3DFrame && typeof window.Template3DFrame.updateGizmoPosition === 'function') {
-                    window.Template3DFrame.updateGizmoPosition(frame);
+                if (window.Template3DFrame) {
+                    if ((parseFloat(frame.dataset.depth) || 0) > 0 && typeof window.Template3DFrame.updateExtrusion === 'function') {
+                        window.Template3DFrame.updateExtrusion(frame);
+                    }
+                    if (typeof window.Template3DFrame.updateGizmoPosition === 'function') {
+                        window.Template3DFrame.updateGizmoPosition(frame);
+                    }
                 }
             };
 
@@ -1156,9 +1606,67 @@
         },
 
         /**
+         * 🧠 Bellek Koruması: Çerçeve fotoğrafını makul çözünürlüğe indirir (uzun kenar en fazla 3200 px).
+         * - Yalnızca File veya büyük data: URL'ler işlenir; http URL'ler ve küçük görseller aynen döner.
+         * - Bir kez optimize edilen görsel tekrar sıkıştırılmaz (geri al / ileri al sırasında kalite kaybı olmaz).
+         * - PNG / WEBP / GIF kaynaklar şeffaflık korunsun diye PNG, diğerleri JPEG 0.92 olarak kodlanır.
+         */
+        _FRAME_IMG_MAX_SIDE: 3200,
+        _FRAME_IMG_STRING_THRESHOLD: 3500000,
+        _optimizedFrameSrcKeys: new Set(),
+
+        _frameSrcKey: function(src) {
+            if (typeof src !== 'string') return '';
+            return src.length + ':' + src.slice(-48);
+        },
+
+        _optimizeFrameImageSrc: function(src, mimeHint) {
+            return new Promise((resolve) => {
+                if (typeof src !== 'string' || !src.startsWith('data:image/')) return resolve(src);
+                if (src.length < this._FRAME_IMG_STRING_THRESHOLD) return resolve(src);
+                if (this._optimizedFrameSrcKeys.has(this._frameSrcKey(src))) return resolve(src);
+
+                const probe = new Image();
+                probe.onload = () => {
+                    try {
+                        const w = probe.naturalWidth || probe.width;
+                        const h = probe.naturalHeight || probe.height;
+                        const maxSide = Math.max(w, h);
+                        if (!w || !h || maxSide <= this._FRAME_IMG_MAX_SIDE) {
+                            this._optimizedFrameSrcKeys.add(this._frameSrcKey(src));
+                            return resolve(src);
+                        }
+                        const ratio = this._FRAME_IMG_MAX_SIDE / maxSide;
+                        const canvas = document.createElement('canvas');
+                        canvas.width = Math.round(w * ratio);
+                        canvas.height = Math.round(h * ratio);
+                        const ctx = canvas.getContext('2d');
+                        ctx.imageSmoothingEnabled = true;
+                        ctx.imageSmoothingQuality = 'high';
+                        ctx.drawImage(probe, 0, 0, canvas.width, canvas.height);
+
+                        const mime = (mimeHint || src.slice(5, src.indexOf(';'))).toLowerCase();
+                        const keepAlpha = /png|webp|gif/.test(mime);
+                        const out = keepAlpha ? canvas.toDataURL('image/png') : canvas.toDataURL('image/jpeg', 0.92);
+                        canvas.width = canvas.height = 0; // GPU / bellek tahliyesi
+                        this._optimizedFrameSrcKeys.add(this._frameSrcKey(out));
+                        resolve(out);
+                    } catch (err) {
+                        console.warn('[TemplateBuilder] Görsel optimize edilemedi, orijinal kullanılıyor:', err);
+                        resolve(src);
+                    }
+                };
+                probe.onerror = () => resolve(src);
+                probe.src = src;
+            });
+        },
+
+        /**
          * Çerçevenin İçine Fotoğraf Yükle
          */
         loadPhotoIntoFrame: function(frame, fileOrUrl) {
+            // Geri al / ileri al geri yüklemesi sırasında çağrıldıysa yeni geçmiş adımı yazılmamalı
+            const calledDuringRestore = !!window.isHistoryRestoring;
             const applyImg = (dataUrl) => {
                 const clip = frame.querySelector('.tb-frame-clip') || frame;
                 const inner = clip.querySelector('.tb-frame-inner') || clip;
@@ -1169,10 +1677,26 @@
                     inner.insertBefore(img, inner.firstChild);
                 }
 
-                img.onload = () => {
+                const finalizeImageLoad = () => {
                     this.applyFrameStyling(frame);
                     this.applyImageZoomPan(frame);
                     this.syncSettingsPanelWithFrame(frame);
+
+                    if (window.Template3DFrame) {
+                        if (typeof window.Template3DFrame.applyTransform === 'function') {
+                            window.Template3DFrame.applyTransform(frame);
+                        }
+                        if (typeof window.Template3DFrame.syncPanel === 'function') {
+                            window.Template3DFrame.syncPanel(frame);
+                        }
+                        if (typeof window.Template3DFrame.updateGizmoPosition === 'function') {
+                            window.Template3DFrame.updateGizmoPosition(frame);
+                        }
+                    }
+                };
+
+                img.onload = () => {
+                    finalizeImageLoad();
                 };
                 img.src = dataUrl;
                 frame.dataset.imgSrc = dataUrl;
@@ -1182,22 +1706,31 @@
                 if (placeholder) placeholder.style.display = 'none';
 
                 if (img.complete && img.naturalWidth > 0) {
-                    this.applyFrameStyling(frame);
-                    this.applyImageZoomPan(frame);
-                    this.syncSettingsPanelWithFrame(frame);
+                    finalizeImageLoad();
                 }
                 this.selectFrame(frame);
 
-                if (typeof window.recordHistory === 'function') {
+                if (!calledDuringRestore && !window.isHistoryRestoring && typeof window.recordHistory === 'function') {
                     window.recordHistory('Çerçeveye Fotoğraf Yüklendi');
                 }
             };
 
             if (typeof fileOrUrl === 'string') {
-                applyImg(fileOrUrl);
+                const key = this._frameSrcKey(fileOrUrl);
+                if (!fileOrUrl.startsWith('data:image/') || fileOrUrl.length < this._FRAME_IMG_STRING_THRESHOLD || this._optimizedFrameSrcKeys.has(key)) {
+                    applyImg(fileOrUrl); // Küçük / uzak / zaten optimize görsel: eskisi gibi anında uygula
+                } else {
+                    this._optimizeFrameImageSrc(fileOrUrl).then(applyImg);
+                }
             } else if (fileOrUrl instanceof File) {
                 const reader = new FileReader();
-                reader.onload = (e) => applyImg(e.target.result);
+                const mimeHint = fileOrUrl.type || '';
+                reader.onload = (e) => {
+                    this._optimizeFrameImageSrc(e.target.result, mimeHint).then(applyImg);
+                };
+                reader.onerror = () => {
+                    if (typeof window.showAppToast === 'function') window.showAppToast('Fotoğraf okunamadı.', 'error');
+                };
                 reader.readAsDataURL(fileOrUrl);
             }
         },
@@ -1270,10 +1803,26 @@
                     img.className = 'tb-frame-img';
                     inner.insertBefore(img, inner.firstChild);
                 }
-                img.onload = () => {
+                const finalizeSwapImage = () => {
                     this.applyFrameStyling(frame);
                     this.applyImageZoomPan(frame);
                     this.syncSettingsPanelWithFrame(frame);
+
+                    if (window.Template3DFrame) {
+                        if (typeof window.Template3DFrame.applyTransform === 'function') {
+                            window.Template3DFrame.applyTransform(frame);
+                        }
+                        if (typeof window.Template3DFrame.syncPanel === 'function') {
+                            window.Template3DFrame.syncPanel(frame);
+                        }
+                        if (typeof window.Template3DFrame.updateGizmoPosition === 'function') {
+                            window.Template3DFrame.updateGizmoPosition(frame);
+                        }
+                    }
+                };
+
+                img.onload = () => {
+                    finalizeSwapImage();
                 };
                 img.src = data.src;
                 img.style.display = 'block';
@@ -1281,9 +1830,7 @@
                 if (placeholder) placeholder.style.display = 'none';
 
                 if (img.complete && img.naturalWidth > 0) {
-                    this.applyFrameStyling(frame);
-                    this.applyImageZoomPan(frame);
-                    this.syncSettingsPanelWithFrame(frame);
+                    finalizeSwapImage();
                 }
             } else {
                 delete frame.dataset.imgSrc;
@@ -1363,14 +1910,15 @@
 
                 img.style.width = imgW + 'px';
                 img.style.height = imgH + 'px';
-                img.style.minWidth = '100%';
-                img.style.minHeight = '100%';
+                img.style.minWidth = '0';
+                img.style.minHeight = '0';
                 img.style.maxWidth = 'none';
                 img.style.maxHeight = 'none';
                 img.style.objectFit = 'fill';
 
-                const maxPanX = Math.max(0, (imgW - frameW) / 2);
-                const maxPanY = Math.max(0, (imgH - frameH) / 2);
+                // Arka boşluk görünse dahi fotoğrafın istenilen kısmının çerçeve merkezine rahatça ortalanabilmesi için serbest kaydırma sınırı
+                const maxPanX = Math.max(Math.round(frameW * 0.95), Math.round(imgW * 0.95), 500);
+                const maxPanY = Math.max(Math.round(frameH * 0.95), Math.round(imgH * 0.95), 500);
 
                 if (panX > maxPanX) panX = maxPanX;
                 if (panX < -maxPanX) panX = -maxPanX;
@@ -1409,13 +1957,30 @@
         /**
          * Çerçeve Seçimi
          */
-        selectFrame: function(frame) {
+        selectFrame: function(frame, opts) {
             document.querySelectorAll('.tb-image-frame').forEach(f => {
                 f.classList.remove('selected', 'el-selected');
+                if (f !== frame) {
+                    f._readyForImageClick = false;
+                    if (f.classList.contains('tb-pan-mode')) {
+                        f.classList.remove('tb-pan-mode');
+                        const ind = f.querySelector('.tb-pan-indicator');
+                        if (ind) ind.remove();
+                    }
+                    if (f.classList.contains('has-shape') || (f.dataset.shape && f.dataset.shape !== 'none') || f.dataset.isPolygon === 'true') {
+                        this.updateShapeContour(f);
+                    }
+                }
             });
+            if (this.selectedFrame !== frame && frame) {
+                frame._readyForImageClick = false;
+            }
             this.selectedFrame = frame;
             if (frame) {
                 frame.classList.add('selected', 'el-selected');
+                this.updateShapeContour(frame);
+                const fTop = parseFloat(frame.style.top) || frame.offsetTop || 0;
+                frame.classList.toggle('tools-below', fTop < 42);
                 window.selectedEl = frame;
                 window.selectedElements = [frame];
                 if (typeof selectedEl !== 'undefined') selectedEl = frame;
@@ -1423,8 +1988,13 @@
                 this.applyImageZoomPan(frame);
                 this.syncSettingsPanelWithFrame(frame);
 
-                if (window.Template3DFrame && typeof window.Template3DFrame.syncPanel === 'function') {
-                    window.Template3DFrame.syncPanel(frame);
+                if (window.Template3DFrame) {
+                    if (typeof window.Template3DFrame.applyTransform === 'function') {
+                        window.Template3DFrame.applyTransform(frame);
+                    }
+                    if (typeof window.Template3DFrame.syncPanel === 'function') {
+                        window.Template3DFrame.syncPanel(frame);
+                    }
                 }
 
                 const settingsPanel = document.getElementById('tbFrameSettingsSection');
@@ -1437,8 +2007,18 @@
                     }, 60);
                 }
 
-                if (window.Template3DFrame && typeof window.Template3DFrame.isGizmoActive === 'function' && window.Template3DFrame.isGizmoActive()) {
-                    window.Template3DFrame.showGizmo(frame);
+                // 3D Gizmo Otomatik Yönetimi: 3D öge seçildiğinde veya zaten aktifse Gizmo'yu aç
+                const has3D = (parseFloat(frame.dataset.pitch) || 0) !== 0 ||
+                              (parseFloat(frame.dataset.yaw) || 0) !== 0 ||
+                              (parseFloat(frame.dataset.elevation) || 0) !== 0 ||
+                              (parseFloat(frame.dataset.depth) || 0) !== 0 ||
+                              frame.dataset.has3D === 'true';
+
+                if (window.Template3DFrame && typeof window.Template3DFrame.showGizmo === 'function') {
+                    const shouldOpenGizmo = (opts && opts.skipGizmoAutoOpen) ? false : (has3D && !frame._gizmoDismissed);
+                    if (shouldOpenGizmo || (window.Template3DFrame.isGizmoActive && window.Template3DFrame.isGizmoActive())) {
+                        window.Template3DFrame.showGizmo(frame);
+                    }
                 }
 
                 this.updateDockControls(true);
@@ -1446,6 +2026,9 @@
                     window.DockContextManager.onElementSelected(frame);
                 }
             } else {
+                document.querySelectorAll('.tb-image-frame').forEach(f => {
+                    delete f._gizmoDismissed;
+                });
                 if (window.selectedEl && window.selectedEl.classList && window.selectedEl.classList.contains('tb-image-frame')) {
                     window.selectedEl = null;
                     window.selectedElements = [];
@@ -1453,6 +2036,7 @@
                 }
                 const settingsPanel = document.getElementById('tbFrameSettingsSection');
                 if (settingsPanel) settingsPanel.style.display = 'none';
+                this._lastSelectedFrameForAccordion = null;
 
                 if (window.Template3DFrame && typeof window.Template3DFrame.syncPanel === 'function') {
                     window.Template3DFrame.syncPanel(null);
@@ -1478,8 +2062,12 @@
         deselectFrame: function() {
             document.querySelectorAll('.tb-image-frame').forEach(f => {
                 f.classList.remove('selected', 'el-selected');
+                f._readyForImageClick = false;
                 if (f.classList.contains('tb-pan-mode')) {
                     this.toggleImagePanMode(f, false);
+                }
+                if (f.classList.contains('has-shape') || (f.dataset.shape && f.dataset.shape !== 'none') || f.dataset.isPolygon === 'true') {
+                    this.updateShapeContour(f);
                 }
             });
             this.selectFrame(null);
@@ -1533,8 +2121,8 @@
                 const fCoverScale = Math.max(fFrameW / fNatW, fFrameH / fNatH) * zoom;
                 const fImgW = Math.round(fNatW * fCoverScale);
                 const fImgH = Math.round(fNatH * fCoverScale);
-                const fMaxPanX = Math.max(0, (fImgW - fFrameW) / 2);
-                const fMaxPanY = Math.max(0, (fImgH - fFrameH) / 2);
+                const fMaxPanX = Math.max(Math.round(fFrameW * 0.95), Math.round(fImgW * 0.95), 500);
+                const fMaxPanY = Math.max(Math.round(fFrameH * 0.95), Math.round(fImgH * 0.95), 500);
                 if (panXInput) {
                     panXInput.min = -Math.round(fMaxPanX);
                     panXInput.max = Math.round(fMaxPanX);
@@ -1542,6 +2130,17 @@
                 if (pyInput) {
                     pyInput.min = -Math.round(fMaxPanY);
                     pyInput.max = Math.round(fMaxPanY);
+                }
+            } else {
+                const fMaxPanX = Math.max(Math.round(fFrameW * 0.95), 500);
+                const fMaxPanY = Math.max(Math.round(fFrameH * 0.95), 500);
+                if (panXInput) {
+                    panXInput.min = -fMaxPanX;
+                    panXInput.max = fMaxPanX;
+                }
+                if (pyInput) {
+                    pyInput.min = -fMaxPanY;
+                    pyInput.max = fMaxPanY;
                 }
             }
 
@@ -1555,11 +2154,31 @@
             if (rotInput) rotInput.value = frame.dataset.rotation || 0;
             if (rotVal) rotVal.textContent = (frame.dataset.rotation || 0) + '°';
 
-            // Degrade butonlarının aktifliğini güncelle
+            const depthInput = document.getElementById('tbFrameDepth');
+            const depthVal = document.getElementById('tbFrameDepthVal');
+            const depthColorInput = document.getElementById('tbFrameDepthColor');
+            if (depthInput) depthInput.value = frame.dataset.depth || 0;
+            if (depthVal) depthVal.textContent = (frame.dataset.depth || 0) + 'px';
+            if (depthColorInput) depthColorInput.value = frame.dataset.depthColor || '#334155';
+
+            // Degrade butonlarının aktifliğini ve akordiyon durumunu güncelle
             const curBlend = frame.dataset.blendMode || 'none';
             document.querySelectorAll('.tb-blend-btn').forEach(btn => {
                 btn.classList.toggle('active', btn.dataset.blend === curBlend);
             });
+            const blendAcc = document.getElementById('tbBlendAccordion');
+            const blendBadge = document.getElementById('tbBlendBadge');
+            if (blendBadge) {
+                blendBadge.textContent = curBlend === 'bottom' ? 'Aşağı' : (curBlend === 'right' ? 'Sağa' : '');
+            }
+            if (blendAcc) {
+                if (curBlend !== 'none') {
+                    blendAcc.open = true;
+                } else if (this._lastSelectedFrameForAccordion !== frame) {
+                    blendAcc.open = false;
+                }
+            }
+            this._lastSelectedFrameForAccordion = frame;
 
             // Şekil kartlarının ve etiketinin aktifliğini güncelle
             const curShape = frame.dataset.shape || 'none';
@@ -1580,20 +2199,50 @@
                     shapeLabel.textContent = found ? found.name : curShape;
                 }
             }
+
+            if (window.Template3DFrame && typeof window.Template3DFrame.syncPanel === 'function') {
+                window.Template3DFrame.syncPanel(frame);
+            }
+        },
+
+        /**
+         * Aktif veya Çoklu Seçili Tüm Çerçeveleri Döner
+         */
+        getTargetFrames: function(explicitFrame) {
+            if (explicitFrame && explicitFrame.parentNode) return [explicitFrame];
+            const list = Array.isArray(window.selectedElements)
+                ? window.selectedElements.filter(el => el && el.parentNode && el.classList && el.classList.contains('tb-image-frame'))
+                : [];
+            if (list.length > 0) return Array.from(new Set(list));
+            return (this.selectedFrame && this.selectedFrame.parentNode) ? [this.selectedFrame] : [];
         },
 
         /**
          * Pürüzsüz Degrade Geçiş Modunu Ayarla (Fade to Background)
          */
         setFrameBlend: function(mode) {
-            if (!this.selectedFrame) return;
-            this.selectedFrame.dataset.blendMode = mode;
-            this.applyFrameStyling(this.selectedFrame);
+            const frames = this.getTargetFrames();
+            if (frames.length === 0) return;
+            const primary = this.selectedFrame && frames.includes(this.selectedFrame) ? this.selectedFrame : frames[frames.length - 1];
+            this.selectedFrame = primary;
+
+            frames.forEach(frame => {
+                frame.dataset.blendMode = mode;
+                this.applyFrameStyling(frame);
+            });
 
             document.querySelectorAll('.tb-blend-btn').forEach(btn => {
                 btn.classList.toggle('active', btn.dataset.blend === mode);
             });
-            this.syncSettingsPanelWithFrame(this.selectedFrame);
+            const blendAcc = document.getElementById('tbBlendAccordion');
+            const blendBadge = document.getElementById('tbBlendBadge');
+            if (blendAcc && mode !== 'none') {
+                blendAcc.open = true;
+            }
+            if (blendBadge) {
+                blendBadge.textContent = mode === 'bottom' ? 'Aşağı' : (mode === 'right' ? 'Sağa' : '');
+            }
+            this.syncSettingsPanelWithFrame(primary);
             this.updateDockControls(true);
             if (typeof window.recordHistory === 'function') {
                 window.recordHistory('Çerçeve Geçişi Değiştirildi');
@@ -1604,19 +2253,49 @@
          * Yaratıcı Vektör Maske Şekli Ayarla (Bulut, Fırça, Kemer, Yırtık, vb.)
          */
         setFrameShape: function(shapeId) {
-            if (!this.selectedFrame) return;
-            this.selectedFrame.dataset.shape = shapeId;
-            if (shapeId === 'none') {
-                this.selectedFrame.dataset.isPolygon = 'false';
-                this.selectedFrame.dataset.polygonClip = '';
-                this.selectedFrame.dataset.isCircle = 'false';
-                this.selectedFrame.dataset.radius = 12;
-                const clip = this.selectedFrame.querySelector('.tb-frame-clip') || this.selectedFrame;
-                clip.style.clipPath = 'none';
-                clip.style.webkitClipPath = 'none';
-            }
-            this.applyFrameStyling(this.selectedFrame);
-            this.syncSettingsPanelWithFrame(this.selectedFrame);
+            const frames = this.getTargetFrames();
+            if (frames.length === 0) return;
+            const primary = this.selectedFrame && frames.includes(this.selectedFrame) ? this.selectedFrame : frames[frames.length - 1];
+            this.selectedFrame = primary;
+
+            const list = this.shapes || (typeof window !== 'undefined' && window.TemplateShapesData) || [];
+            const sDef = list.find(s => s.id === shapeId);
+
+            frames.forEach(frame => {
+                frame.dataset.shape = shapeId;
+                if (shapeId === 'none') {
+                    frame.dataset.isPolygon = 'false';
+                    frame.dataset.polygonClip = '';
+                    frame.dataset.polygonPoints = '';
+                    frame.dataset.isCircle = 'false';
+                    frame.dataset.radius = 12;
+                    const clip = frame.querySelector('.tb-frame-clip') || frame;
+                    clip.style.clipPath = 'none';
+                    clip.style.webkitClipPath = 'none';
+                } else {
+                    frame.dataset.isCircle = 'false';
+                    const polyPts = this.normalizeShapePolygonPoints(sDef);
+                    if (polyPts) {
+                        frame.dataset.isPolygon = 'true';
+                        frame.dataset.polygonPoints = JSON.stringify(polyPts);
+                        frame.dataset.polygonClip = `polygon(${polyPts.map(p => `${p.x}% ${p.y}%`).join(', ')})`;
+                    } else if (shapeId === 'polygon-hexagon') {
+                        frame.dataset.isPolygon = 'true';
+                        frame.dataset.polygonPoints = JSON.stringify([
+                            { x: 50, y: 2 }, { x: 96, y: 26 }, { x: 96, y: 74 },
+                            { x: 50, y: 98 }, { x: 4, y: 74 }, { x: 4, y: 26 }
+                        ]);
+                        frame.dataset.polygonClip = 'polygon(50% 2%, 96% 26%, 96% 74%, 50% 98%, 4% 74%, 4% 26%)';
+                    } else {
+                        frame.dataset.isPolygon = 'false';
+                        frame.dataset.polygonPoints = '';
+                        frame.dataset.polygonClip = '';
+                    }
+                }
+                this.applyFrameStyling(frame);
+            });
+
+            this.syncSettingsPanelWithFrame(primary);
             this.updateDockControls(true);
             if (typeof window.recordHistory === 'function') {
                 window.recordHistory('Çerçeve Şekli Değiştirildi');
@@ -1624,29 +2303,36 @@
         },
 
         /**
-         * Seçili Çerçeveyi Kareye ve Tam Daireye Eşitle
+         * Seçili Çerçeveleri Kareye ve Tam Daireye Eşitle
          */
         makeSelectedFrameCircle: function() {
-            if (!this.selectedFrame) return;
-            const frame = this.selectedFrame;
-            const w = frame.offsetWidth || parseFloat(frame.style.width) || 400;
-            const h = frame.offsetHeight || parseFloat(frame.style.height) || 400;
-            const s = Math.min(w, h);
-            frame.style.width = s + 'px';
-            frame.style.height = s + 'px';
-            frame.dataset.isCircle = 'true';
-            frame.dataset.radius = 999;
-            frame.dataset.shape = 'none';
-            frame.dataset.isPolygon = 'false';
-            frame.dataset.polygonClip = '';
-            const clip = frame.querySelector('.tb-frame-clip') || frame;
-            clip.style.clipPath = 'none';
-            clip.style.webkitClipPath = 'none';
-            this.applyFrameStyling(frame);
-            this.syncSettingsPanelWithFrame(frame);
+            const frames = this.getTargetFrames();
+            if (frames.length === 0) return;
+            const primary = this.selectedFrame && frames.includes(this.selectedFrame) ? this.selectedFrame : frames[frames.length - 1];
+            this.selectedFrame = primary;
+
+            frames.forEach(frame => {
+                const w = frame.offsetWidth || parseFloat(frame.style.width) || 400;
+                const h = frame.offsetHeight || parseFloat(frame.style.height) || 400;
+                const s = Math.min(w, h);
+                frame.style.width = s + 'px';
+                frame.style.height = s + 'px';
+                frame.dataset.isCircle = 'true';
+                frame.dataset.radius = 999;
+                frame.dataset.shape = 'none';
+                frame.dataset.isPolygon = 'false';
+                frame.dataset.polygonClip = '';
+                frame.dataset.polygonPoints = '';
+                const clip = frame.querySelector('.tb-frame-clip') || frame;
+                clip.style.clipPath = 'none';
+                clip.style.webkitClipPath = 'none';
+                this.applyFrameStyling(frame);
+            });
+
+            this.syncSettingsPanelWithFrame(primary);
             this.updateDockControls(true);
             if (window.Template3DFrame && typeof window.Template3DFrame.updateGizmoPosition === 'function') {
-                window.Template3DFrame.updateGizmoPosition(frame);
+                window.Template3DFrame.updateGizmoPosition(primary);
             }
             if (typeof window.recordHistory === 'function') {
                 window.recordHistory('Çerçeve Tam Daire Yapıldı');
@@ -1654,11 +2340,60 @@
         },
 
         /**
+         * Seçili Çerçeveleri Kareye ve Altıgene Eşitle
+         */
+        makeSelectedFrameHexagon: function() {
+            const frames = this.getTargetFrames();
+            if (frames.length === 0) return;
+            const primary = this.selectedFrame && frames.includes(this.selectedFrame) ? this.selectedFrame : frames[frames.length - 1];
+            this.selectedFrame = primary;
+
+            const hexPoints = JSON.stringify([
+                { x: 50, y: 2 },
+                { x: 96, y: 26 },
+                { x: 96, y: 74 },
+                { x: 50, y: 98 },
+                { x: 4, y: 74 },
+                { x: 4, y: 26 }
+            ]);
+            const hexClip = 'polygon(50% 2%, 96% 26%, 96% 74%, 50% 98%, 4% 74%, 4% 26%)';
+
+            frames.forEach(frame => {
+                const w = frame.offsetWidth || parseFloat(frame.style.width) || 400;
+                const h = frame.offsetHeight || parseFloat(frame.style.height) || 400;
+                const s = Math.min(w, h);
+                frame.style.width = s + 'px';
+                frame.style.height = s + 'px';
+                frame.dataset.isCircle = 'false';
+                frame.dataset.shape = 'polygon-hexagon';
+                frame.dataset.radius = 0;
+                frame.dataset.isPolygon = 'true';
+                frame.dataset.polygonClip = hexClip;
+                frame.dataset.polygonPoints = hexPoints;
+                const clip = frame.querySelector('.tb-frame-clip') || frame;
+                clip.style.clipPath = hexClip;
+                clip.style.webkitClipPath = hexClip;
+                this.applyFrameStyling(frame);
+            });
+
+            this.syncSettingsPanelWithFrame(primary);
+            this.updateDockControls(true);
+            if (window.Template3DFrame && typeof window.Template3DFrame.updateGizmoPosition === 'function') {
+                window.Template3DFrame.updateGizmoPosition(primary);
+            }
+            if (typeof window.recordHistory === 'function') {
+                window.recordHistory('Çerçeve Altıgen Yapıldı');
+            }
+        },
+
+        /**
          * Şekil Kartına Tıklandığında: Seçili çerçeve varsa şeklini değiştir, yoksa yeni şekilli çerçeve aç
          */
         applyShapeOrNew: function(shapeId) {
-            if (this.selectedFrame) {
-                const curShape = this.selectedFrame.dataset.shape || 'none';
+            const frames = this.getTargetFrames();
+            if (frames.length > 0) {
+                const primary = this.selectedFrame && frames.includes(this.selectedFrame) ? this.selectedFrame : frames[frames.length - 1];
+                const curShape = primary.dataset.shape || 'none';
                 if (curShape === shapeId) {
                     this.setFrameShape('none');
                 } else {
@@ -1762,7 +2497,9 @@
          * Tuval Altı Dock İçin Döngüsel Şekil Değiştirici
          */
         cycleFrameShape: function() {
-            if (!this.selectedFrame) return;
+            const frames = this.getTargetFrames();
+            if (frames.length === 0) return;
+            const primary = this.selectedFrame && frames.includes(this.selectedFrame) ? this.selectedFrame : frames[frames.length - 1];
             const cycleList = [
                 'none', 
                 'cloud-fluffy', 
@@ -1781,7 +2518,7 @@
                 'frame-stamp', 
                 'nature-leaf'
             ];
-            const curShape = this.selectedFrame.dataset.shape || 'none';
+            const curShape = primary.dataset.shape || 'none';
             const curIdx = cycleList.indexOf(curShape);
             const nextIdx = (curIdx + 1) % cycleList.length;
             this.setFrameShape(cycleList[nextIdx]);
@@ -1791,111 +2528,269 @@
          * Yan Panelden Seçili Çerçeve Özelliğini Güncelle
          */
         updateSelectedFrameProp: function(prop, val) {
-            if (!this.selectedFrame) return;
-            const frame = this.selectedFrame;
+            const frames = this.getTargetFrames();
+            if (frames.length === 0) return;
+            const primary = this.selectedFrame && frames.includes(this.selectedFrame) ? this.selectedFrame : frames[frames.length - 1];
 
-            if (prop === 'radius') {
-                const num = parseInt(val) || 0;
-                if (num >= 300) {
-                    frame.dataset.isCircle = 'true';
-                    frame.dataset.radius = 999;
-                    const v = document.getElementById('tbFrameRadiusVal');
-                    if (v) v.textContent = 'Tam Daire';
+            if (prop === 'depth' || prop === 'depthColor') {
+                if (window.Template3DFrame && typeof window.Template3DFrame.updateProp === 'function') {
+                    window.Template3DFrame.updateProp(prop, val);
                 } else {
-                    frame.dataset.isCircle = 'false';
-                    frame.dataset.radius = num;
-                    const v = document.getElementById('tbFrameRadiusVal');
-                    if (v) v.textContent = num + 'px';
+                    frames.forEach(f => { f.dataset[prop] = val; });
                 }
-                const shapeLabel = document.getElementById('tbCurrentShapeLabel');
-                if (shapeLabel && (!frame.dataset.shape || frame.dataset.shape === 'none') && frame.dataset.isPolygon !== 'true') {
-                    shapeLabel.textContent = frame.dataset.isCircle === 'true' ? 'Tam Daire' : 'Standart Kutu';
-                }
-            } else if (prop === 'borderWidth') {
-                frame.dataset.borderWidth = val;
-                const v = document.getElementById('tbFrameBorderWidthVal');
-                if (v) v.textContent = val + 'px';
-            } else if (prop === 'borderColor') {
-                frame.dataset.borderColor = val;
-            } else if (prop === 'shadow') {
-                frame.dataset.shadow = val;
-                const v = document.getElementById('tbFrameShadowVal');
-                if (v) v.textContent = val + 'px';
-            } else if (prop === 'rotation') {
-                frame.dataset.rotation = val;
-                const v = document.getElementById('tbFrameRotationVal');
-                if (v) v.textContent = val + '°';
-            } else if (prop === 'zoom') {
-                const z = (parseInt(val) || 100) / 100;
-                frame.dataset.imgZoom = z;
-                const v = document.getElementById('tbFrameZoomVal');
-                if (v) v.textContent = val + '%';
-                this.applyImageZoomPan(frame);
-                return;
-            } else if (prop === 'panX') {
-                frame.dataset.imgPanX = parseInt(val) || 0;
-                const v = document.getElementById('tbFramePanXVal');
-                if (v) v.textContent = (parseInt(val) || 0) + 'px';
-                this.applyImageZoomPan(frame);
-                return;
-            } else if (prop === 'panY') {
-                frame.dataset.imgPanY = parseInt(val) || 0;
-                const v = document.getElementById('tbFramePanYVal');
-                if (v) v.textContent = (parseInt(val) || 0) + 'px';
-                this.applyImageZoomPan(frame);
                 return;
             }
 
-            this.applyFrameStyling(frame);
+            if (prop === 'radius') {
+                const num = parseInt(val) || 0;
+                const v = document.getElementById('tbFrameRadiusVal');
+                if (v) v.textContent = num >= 300 ? 'Tam Daire' : (num + 'px');
+                const shapeLabel = document.getElementById('tbCurrentShapeLabel');
+                if (shapeLabel && (!primary.dataset.shape || primary.dataset.shape === 'none') && primary.dataset.isPolygon !== 'true') {
+                    shapeLabel.textContent = num >= 300 ? 'Tam Daire' : 'Standart Kutu';
+                }
+                frames.forEach(frame => {
+                    if (num >= 300) {
+                        frame.dataset.isCircle = 'true';
+                        frame.dataset.radius = 999;
+                    } else {
+                        frame.dataset.isCircle = 'false';
+                        frame.dataset.radius = num;
+                    }
+                    this.applyFrameStyling(frame);
+                });
+                return;
+            } else if (prop === 'borderWidth') {
+                const v = document.getElementById('tbFrameBorderWidthVal');
+                if (v) v.textContent = val + 'px';
+                frames.forEach(frame => {
+                    frame.dataset.borderWidth = val;
+                    this.applyFrameStyling(frame);
+                });
+                return;
+            } else if (prop === 'borderColor') {
+                let updatedWidth = false;
+                frames.forEach(frame => {
+                    frame.dataset.borderColor = val;
+                    const isCardFrame = (frame.dataset.shape === 'frame-polaroid' || frame.dataset.shape === 'frame-film');
+                    if (!isCardFrame && (parseInt(frame.dataset.borderWidth) || 0) <= 0) {
+                        frame.dataset.borderWidth = 4;
+                        updatedWidth = true;
+                    }
+                    this.applyFrameStyling(frame);
+                });
+                if (updatedWidth) {
+                    const primaryBw = parseInt(primary.dataset.borderWidth) || 4;
+                    const bwInput = document.getElementById('tbFrameBorderWidth');
+                    const bwVal = document.getElementById('tbFrameBorderWidthVal');
+                    if (bwInput) bwInput.value = primaryBw;
+                    if (bwVal) bwVal.textContent = primaryBw + 'px';
+                }
+                return;
+            } else if (prop === 'shadow') {
+                const v = document.getElementById('tbFrameShadowVal');
+                if (v) v.textContent = val + 'px';
+                frames.forEach(frame => {
+                    frame.dataset.shadow = val;
+                    const has3D = (parseFloat(frame.dataset.pitch) || 0) !== 0 ||
+                                  (parseFloat(frame.dataset.yaw) || 0) !== 0 ||
+                                  (parseFloat(frame.dataset.elevation) || 0) !== 0 ||
+                                  (parseFloat(frame.dataset.depth) || 0) !== 0;
+                    if (has3D && window.Template3DFrame && typeof window.Template3DFrame.applyTransform === 'function') {
+                        window.Template3DFrame.applyTransform(frame);
+                    } else {
+                        this.applyFrameStyling(frame);
+                    }
+                });
+                return;
+            } else if (prop === 'rotation') {
+                const v = document.getElementById('tbFrameRotationVal');
+                if (v) v.textContent = val + '°';
+                frames.forEach(frame => {
+                    frame.dataset.rotation = val;
+                    this.applyFrameStyling(frame);
+                });
+                return;
+            } else if (prop === 'zoom') {
+                const z = (parseInt(val) || 100) / 100;
+                const v = document.getElementById('tbFrameZoomVal');
+                if (v) v.textContent = val + '%';
+                frames.forEach(frame => {
+                    frame.dataset.imgZoom = z;
+                    this.applyImageZoomPan(frame);
+                });
+                return;
+            } else if (prop === 'panX') {
+                const num = parseInt(val) || 0;
+                const v = document.getElementById('tbFramePanXVal');
+                if (v) v.textContent = num + 'px';
+                frames.forEach(frame => {
+                    frame.dataset.imgPanX = num;
+                    this.applyImageZoomPan(frame);
+                });
+                return;
+            } else if (prop === 'panY') {
+                const num = parseInt(val) || 0;
+                const v = document.getElementById('tbFramePanYVal');
+                if (v) v.textContent = num + 'px';
+                frames.forEach(frame => {
+                    frame.dataset.imgPanY = num;
+                    this.applyImageZoomPan(frame);
+                });
+                return;
+            }
         },
 
         /**
          * Çerçeve İçi Fotoğraf Konumunu Sıfırla (Ortala)
          */
         resetImagePan: function() {
-            if (!this.selectedFrame) return;
-            this.selectedFrame.dataset.imgPanX = 0;
-            this.selectedFrame.dataset.imgPanY = 0;
-            this.syncSettingsPanelWithFrame(this.selectedFrame);
-            this.applyImageZoomPan(this.selectedFrame);
+            const frames = this.getTargetFrames();
+            if (frames.length === 0) return;
+            const primary = this.selectedFrame && frames.includes(this.selectedFrame) ? this.selectedFrame : frames[frames.length - 1];
+            frames.forEach(frame => {
+                frame.dataset.imgPanX = '0';
+                frame.dataset.imgPanY = '0';
+                this.applyImageZoomPan(frame);
+            });
+            this.syncSettingsPanelWithFrame(primary);
+            if (typeof window.recordHistory === 'function') {
+                window.recordHistory('Çerçeve Fotoğrafı Ortalandı');
+            }
+        },
+
+        /**
+         * Çerçeveyi İlk Şablon / Oluşturma Konum ve Boyutuna Sıfırlar
+         */
+        resetFramePlacement: function(targetFrame) {
+            const frames = targetFrame ? [targetFrame] : this.getTargetFrames();
+            if (!frames || frames.length === 0) return;
+            const cContainer = document.getElementById('canvas-container');
+            const cW = cContainer ? (parseFloat(cContainer.style.width) || cContainer.offsetWidth || 1920) : 1920;
+            const cH = cContainer ? (parseFloat(cContainer.style.height) || cContainer.offsetHeight || 1080) : 1080;
+
+            frames.forEach(frame => {
+                if (!frame) return;
+                const curW = frame.offsetWidth || parseFloat(frame.style.width) || Math.min(Math.round(cW * 0.45), 600);
+                const curH = frame.offsetHeight || parseFloat(frame.style.height) || Math.min(Math.round(cH * 0.45), 450);
+                const origL = (frame.dataset.origLeft !== undefined) ? parseFloat(frame.dataset.origLeft) : Math.max(32, Math.round((cW - curW) / 2));
+                const origT = (frame.dataset.origTop !== undefined) ? parseFloat(frame.dataset.origTop) : Math.max(32, Math.round((cH - curH) / 2));
+                const origW = (frame.dataset.origWidth !== undefined) ? parseFloat(frame.dataset.origWidth) : curW;
+                const origH = (frame.dataset.origHeight !== undefined) ? parseFloat(frame.dataset.origHeight) : curH;
+
+                delete frame.dataset.dragStartX;
+                delete frame.dataset.dragStartY;
+                delete frame.dataset.scale;
+                frame.style.margin = '';
+                frame.style.transformOrigin = 'center center';
+                frame.style.left = Math.round(origL) + 'px';
+                frame.style.top = Math.round(origT) + 'px';
+                frame.style.width = Math.round(origW) + 'px';
+                frame.style.height = Math.round(origH) + 'px';
+                frame.style.right = 'auto';
+                frame.style.bottom = 'auto';
+
+                frame.dataset.rotation = frame.dataset.origRotation !== undefined ? frame.dataset.origRotation : '0';
+                frame.dataset.pitch = frame.dataset.origPitch !== undefined ? frame.dataset.origPitch : '0';
+                frame.dataset.yaw = frame.dataset.origYaw !== undefined ? frame.dataset.origYaw : '0';
+                frame.dataset.elevation = frame.dataset.origElevation !== undefined ? frame.dataset.origElevation : '0';
+                frame.dataset.depth = frame.dataset.origDepth !== undefined ? frame.dataset.origDepth : '0';
+                frame.dataset.perspective = frame.dataset.origPerspective !== undefined ? frame.dataset.origPerspective : '1000';
+
+                const is3DOrig = (parseFloat(frame.dataset.pitch) || 0) !== 0 ||
+                                 (parseFloat(frame.dataset.yaw) || 0) !== 0 ||
+                                 (parseFloat(frame.dataset.elevation) || 0) !== 0 ||
+                                 (parseFloat(frame.dataset.depth) || 0) > 0;
+                frame.dataset.has3D = is3DOrig ? 'true' : 'false';
+
+                frame.dataset.imgZoom = '1';
+                frame.dataset.imgPanX = '0';
+                frame.dataset.imgPanY = '0';
+
+                this.applyFrameStyling(frame);
+                this.applyImageZoomPan(frame);
+                if (window.Template3DFrame && typeof window.Template3DFrame.applyTransform === 'function') {
+                    window.Template3DFrame.applyTransform(frame);
+                }
+            });
+
+            const primary = this.selectedFrame && frames.includes(this.selectedFrame) ? this.selectedFrame : frames[frames.length - 1];
+            if (primary) {
+                this.syncSettingsPanelWithFrame(primary);
+                if (window.Template3DFrame) {
+                    if (typeof window.Template3DFrame.syncPanel === 'function') window.Template3DFrame.syncPanel(primary);
+                    if (typeof window.Template3DFrame.isGizmoActive === 'function' && window.Template3DFrame.isGizmoActive()) {
+                        window.Template3DFrame.updateGizmoPosition(primary);
+                    }
+                }
+            }
+            if (typeof window.recordHistory === 'function') {
+                window.recordHistory('Çerçeve Eski Yerine Sıfırlandı');
+            }
+        },
+
+        resetSelectedFramePlacement: function() {
+            this.resetFramePlacement(null);
         },
 
         /**
          * Seçili Çerçeveye Hızlı Efekt Uygula (Altın, Neon, Polaroid, Sıfırla)
          */
         setFrameEffect: function(effect) {
-            if (!this.selectedFrame) return;
-            const frame = this.selectedFrame;
-            frame.dataset.effect = effect;
-            if (effect === 'gold') {
-                frame.dataset.borderColor = '#f59e0b';
-                frame.dataset.borderWidth = '3';
-                frame.dataset.shadow = '20';
-            } else if (effect === 'neon') {
-                frame.dataset.borderColor = '#06b6d4';
-                frame.dataset.borderWidth = '2';
-                frame.dataset.shadow = '24';
-            } else if (effect === 'polaroid') {
-                frame.dataset.borderColor = '#ffffff';
-                frame.dataset.borderWidth = '8';
-                frame.dataset.shadow = '18';
-                frame.dataset.rotation = '-3';
-            } else if (effect === 'none') {
-                frame.dataset.borderColor = '#ffffff';
-                frame.dataset.borderWidth = '0';
-                frame.dataset.shadow = '10';
-                frame.dataset.rotation = '0';
+            const frames = this.getTargetFrames();
+            if (frames.length === 0) return;
+            const primary = this.selectedFrame && frames.includes(this.selectedFrame) ? this.selectedFrame : frames[frames.length - 1];
+            frames.forEach(frame => {
+                frame.dataset.effect = effect;
+                if (effect === 'gold') {
+                    frame.dataset.borderColor = '#f59e0b';
+                    frame.dataset.borderWidth = '3';
+                    frame.dataset.shadow = '20';
+                } else if (effect === 'neon') {
+                    frame.dataset.borderColor = '#06b6d4';
+                    frame.dataset.borderWidth = '2';
+                    frame.dataset.shadow = '24';
+                } else if (effect === 'polaroid') {
+                    frame.dataset.borderColor = '#ffffff';
+                    frame.dataset.borderWidth = '8';
+                    frame.dataset.shadow = '18';
+                    frame.dataset.rotation = '-3';
+                } else if (effect === 'none') {
+                    frame.dataset.borderColor = '#ffffff';
+                    frame.dataset.borderWidth = '0';
+                    frame.dataset.shadow = '10';
+                    frame.dataset.rotation = '0';
+                }
+                this.applyFrameStyling(frame);
+            });
+            this.syncSettingsPanelWithFrame(primary);
+            if (typeof window.recordHistory === 'function') {
+                window.recordHistory('Çerçeve Efekti Uygulandı');
             }
-            this.applyFrameStyling(frame);
-            this.syncSettingsPanelWithFrame(frame);
         },
 
         /**
-         * Seçili Çerçeveyi Çoğalt
+         * Seçili Çerçeveleri Çoğalt
          */
         duplicateSelectedFrame: function() {
-            if (!this.selectedFrame) return;
-            this.duplicateFrame(this.selectedFrame);
+            const frames = this.getTargetFrames();
+            if (frames.length === 0) return;
+            const clones = [];
+            frames.forEach(f => {
+                const cloned = this.duplicateFrame(f);
+                if (cloned) clones.push(cloned);
+            });
+            if (clones.length > 1) {
+                if (typeof deselectAll === 'function') deselectAll();
+                window.selectedElements = clones;
+                clones.forEach(c => c.classList.add('selected', 'el-selected'));
+                const last = clones[clones.length - 1];
+                this.selectedFrame = last;
+                window.selectedEl = last;
+                if (typeof window.updateMultiSelectUI === 'function') window.updateMultiSelectUI();
+            } else if (clones.length === 1) {
+                this.selectFrame(clones[0]);
+            }
         },
 
         duplicateFrame: function(frame) {
@@ -1904,11 +2799,15 @@
             const x = (parseFloat(frame.style.left) || frame.offsetLeft) + 30;
             const y = (parseFloat(frame.style.top) || frame.offsetTop) + 30;
 
-            this.createImageFrame({
+            return this.createImageFrame({
                 width: w,
                 height: h,
                 x: x,
                 y: y,
+                isCircle: frame.dataset.isCircle,
+                isPolygon: frame.dataset.isPolygon,
+                polygonClip: frame.dataset.polygonClip,
+                polygonPoints: frame.dataset.polygonPoints,
                 radius: frame.dataset.radius,
                 borderWidth: frame.dataset.borderWidth,
                 borderColor: frame.dataset.borderColor,
@@ -1917,16 +2816,37 @@
                 effect: frame.dataset.effect,
                 blend: frame.dataset.blendMode,
                 shape: frame.dataset.shape || 'none',
+                pitch: frame.dataset.pitch || 0,
+                yaw: frame.dataset.yaw || 0,
+                elevation: frame.dataset.elevation || 0,
+                perspective: frame.dataset.perspective || 1000,
+                depth: frame.dataset.depth || 0,
+                depthColor: frame.dataset.depthColor || '',
+                imgZoom: frame.dataset.imgZoom,
+                imgPanX: frame.dataset.imgPanX,
+                imgPanY: frame.dataset.imgPanY,
                 imgUrl: frame.dataset.imgSrc
             });
         },
 
         /**
-         * Seçili Çerçeveyi Sil
+         * Seçili Çerçeveleri Sil
          */
         deleteSelectedFrame: function() {
-            if (!this.selectedFrame) return;
-            this.deleteFrame(this.selectedFrame);
+            const frames = this.getTargetFrames();
+            if (frames.length === 0) return;
+            frames.forEach(f => {
+                if (Array.isArray(window.selectedElements)) {
+                    const idx = window.selectedElements.indexOf(f);
+                    if (idx > -1) window.selectedElements.splice(idx, 1);
+                }
+                if (this.selectedFrame === f) this.selectedFrame = null;
+                f.remove();
+            });
+            this.deselectFrame();
+            if (typeof window.updateMultiSelectUI === 'function') window.updateMultiSelectUI();
+            if (typeof window.renderLayers === 'function') window.renderLayers();
+            if (typeof window.recordHistory === 'function') window.recordHistory('Çerçeve Silindi');
         },
 
         deleteFrame: function(frame) {
@@ -2223,7 +3143,9 @@
         uploadMultiplePhotos: function() {
             const frames = document.querySelectorAll('.tb-image-frame');
             if (frames.length === 0) {
-                alert('Lütfen önce bir hazır düzen veya görsel çerçevesi ekleyin.');
+                if (typeof window.showAppToast === 'function') {
+                    window.showAppToast('Lütfen önce bir hazır düzen veya görsel çerçevesi ekleyin.', 'warning');
+                }
                 return;
             }
 
@@ -2289,11 +3211,16 @@
             }
             // Eğer portföy vitrini şablonu ise PortfolioManager üzerinden çalıştır
             if (layoutKey && layoutKey.startsWith('preset_') && window.PortfolioManager && typeof window.PortfolioManager.applyPreset === 'function') {
+                this.activePrebuiltLayoutKey = layoutKey;
                 window.PortfolioManager.applyPreset(layoutKey);
                 return;
             }
+            this.activePrebuiltLayoutKey = layoutKey || null;
 
-            // Önceki görsel çerçevelerini ve hazır düzen/portföy yazılarını temizle
+            // Önceki görsel çerçevelerini, bilgi kartını ve hazır düzen/portföy yazılarını temizle
+            const activeCard = document.getElementById('tb-active-info-card');
+            if (activeCard) activeCard.remove();
+            if (window.TemplateInfoCard) window.TemplateInfoCard.savedFrameSnapshots = null;
             document.querySelectorAll('.tb-image-frame').forEach(f => f.remove());
             document.querySelectorAll('.tb-layout-text, .tb-portfolio-text').forEach(t => t.remove());
 
@@ -2331,6 +3258,7 @@
                             y: frameY,
                             width: frameW,
                             height: frameH,
+                            isCircle: f.isCircle || (f.radius >= 300),
                             radius: f.radius !== undefined ? f.radius : 12,
                             shadow: f.shadow !== undefined ? f.shadow : 10,
                             blend: f.blend || 'none',
@@ -2338,7 +3266,8 @@
                             rotation: f.rotation || 0,
                             borderWidth: f.borderWidth || 0,
                             borderColor: f.borderColor || '#ffffff',
-                            label: `Fotoğraf ${idx + 1}`
+                            label: `Fotoğraf ${idx + 1}`,
+                            skipHistory: true
                         });
                     });
                 }
@@ -2350,6 +3279,9 @@
                 }
 
                 this.deselectFrame();
+                if (typeof window.recordHistory === 'function') {
+                    window.recordHistory('Hazır Şablon Uygulandı');
+                }
                 return;
             }
 
@@ -2366,9 +3298,9 @@
                 const rightW = totalW - leftW;
                 const rightH = Math.round((cH - (pad * 2) - gap) / 2);
 
-                this.createImageFrame({ x: pad, y: pad, width: leftW, height: cH - (pad * 2), radius: 14 });
-                this.createImageFrame({ x: pad + leftW + gap, y: pad, width: rightW, height: rightH, radius: 14 });
-                this.createImageFrame({ x: pad + leftW + gap, y: pad, width: rightW, height: rightH, radius: 14 });
+                this.createImageFrame({ x: pad, y: pad, width: leftW, height: cH - (pad * 2), radius: 14, skipHistory: true });
+                this.createImageFrame({ x: pad + leftW + gap, y: pad, width: rightW, height: rightH, radius: 14, skipHistory: true });
+                this.createImageFrame({ x: pad + leftW + gap, y: pad + rightH + gap, width: rightW, height: rightH, radius: 14 });
 
             } else if (layoutKey === 'two_horizontal') {
                 const itemH = Math.round((cH - (pad * 2) - gap) / 2);
@@ -2483,8 +3415,22 @@
             if (typeof window.renderLayers === 'function') window.renderLayers();
         },
 
-        saveCurrentTemplate: function(name) {
-            const templateName = name || prompt('Şablonunuza bir isim verin:', 'Özel Portföy Şablonum');
+        saveCurrentTemplate: async function(name) {
+            let templateName = name;
+            if (!templateName) {
+                if (window.AppDialog && typeof window.AppDialog.prompt === 'function') {
+                    templateName = await window.AppDialog.prompt({
+                        title: 'Şablonu Kaydet',
+                        message: 'Şablonunuza bir isim verin:',
+                        defaultValue: 'Özel Portföy Şablonum',
+                        icon: 'fa-layer-group',
+                        confirmText: 'Kaydet',
+                        cancelText: 'Vazgeç'
+                    });
+                } else {
+                    templateName = prompt('Şablonunuza bir isim verin:', 'Özel Portföy Şablonum');
+                }
+            }
             if (!templateName || !templateName.trim()) return;
 
             const cContainer = document.getElementById('canvas-container');
@@ -2498,16 +3444,32 @@
                     height: f.offsetHeight,
                     left: parseFloat(f.style.left) || f.offsetLeft,
                     top: parseFloat(f.style.top) || f.offsetTop,
+                    isCircle: f.dataset.isCircle,
+                    isPolygon: f.dataset.isPolygon,
+                    polygonClip: f.dataset.polygonClip,
+                    polygonPoints: f.dataset.polygonPoints,
                     radius: f.dataset.radius,
                     borderWidth: f.dataset.borderWidth,
                     borderColor: f.dataset.borderColor,
                     shadow: f.dataset.shadow,
+                    rotation: f.dataset.rotation,
+                    effect: f.dataset.effect,
                     blend: f.dataset.blendMode || 'none',
                     shape: f.dataset.shape || 'none',
+                    pitch: f.dataset.pitch || 0,
+                    yaw: f.dataset.yaw || 0,
+                    elevation: f.dataset.elevation || 0,
+                    perspective: f.dataset.perspective || 1000,
+                    depth: f.dataset.depth || 0,
+                    depthColor: f.dataset.depthColor || '',
+                    imgZoom: f.dataset.imgZoom,
+                    imgPanX: f.dataset.imgPanX,
+                    imgPanY: f.dataset.imgPanY,
                     imgUrl: f.dataset.imgSrc || ''
                 });
             });
 
+            const rawBgImg = cContainer.style.backgroundImage || '';
             const templateObj = {
                 id: 'tpl_' + Date.now(),
                 name: templateName.trim(),
@@ -2516,7 +3478,7 @@
                 width: cW,
                 height: cH,
                 bgColor: cContainer.style.backgroundColor || '',
-                bgImage: cContainer.style.backgroundImage || '',
+                bgImage: (rawBgImg && rawBgImg !== 'none') ? rawBgImg : '',
                 frames: framesData
             };
 
@@ -2524,14 +3486,17 @@
             const saveResult = this.persistCustomTemplates();
             this.renderSavedTemplatesList();
 
+            const notify = (msg, type) => {
+                if (typeof window.showAppToast === 'function') window.showAppToast(msg, type);
+            };
             if (saveResult === true) {
-                alert('Tebrikler! "' + templateName + '" şablonunuz başarıyla kaydedildi.');
+                notify('"' + templateName + '" şablonunuz başarıyla kaydedildi.', 'success');
             } else if (saveResult === 'lightweight') {
-                alert('"' + templateName + '" şablonunuzun yerleşim düzeni kaydedildi (Tarayıcı hafıza kotası nedeniyle yüksek boyutlu çerçeve görselleri şablona dahil edilmedi).');
+                notify('"' + templateName + '" yerleşim düzeni kaydedildi.', 'info');
             } else {
                 this.customTemplates.shift();
                 this.renderSavedTemplatesList();
-                alert('Tarayıcı depolama alanı (localStorage) dolu olduğu için şablon kaydedilemedi. Lütfen kullanmadığınız eski özel şablonları silip tekrar deneyin.');
+                notify('Tarayıcı depolama alanı dolu olduğu için şablon kaydedilemedi.', 'error');
             }
         },
 
@@ -2603,8 +3568,11 @@
             if (!tpl) return;
 
             this.setCanvasRatio(tpl.ratio, tpl.width, tpl.height);
-            if (tpl.bgColor) this.setCanvasBackground('color', tpl.bgColor);
-            if (tpl.bgImage) this.setCanvasBackground('gradient', tpl.bgImage);
+            if (tpl.bgImage && tpl.bgImage !== 'none') {
+                this.setCanvasBackground('gradient', tpl.bgImage);
+            } else if (tpl.bgColor) {
+                this.setCanvasBackground('color', tpl.bgColor);
+            }
 
             document.querySelectorAll('.tb-image-frame').forEach(f => f.remove());
 
@@ -2614,17 +3582,36 @@
                     height: f.height,
                     x: f.left,
                     y: f.top,
+                    isCircle: f.isCircle,
+                    isPolygon: f.isPolygon,
+                    polygonClip: f.polygonClip,
+                    polygonPoints: f.polygonPoints,
                     radius: f.radius,
                     borderWidth: f.borderWidth,
                     borderColor: f.borderColor,
                     shadow: f.shadow,
+                    rotation: f.rotation,
+                    effect: f.effect,
                     blend: f.blend || 'none',
                     shape: f.shape || 'none',
-                    imgUrl: f.imgUrl
+                    pitch: f.pitch,
+                    yaw: f.yaw,
+                    elevation: f.elevation,
+                    perspective: f.perspective,
+                    depth: f.depth,
+                    depthColor: f.depthColor,
+                    imgZoom: f.imgZoom,
+                    imgPanX: f.imgPanX,
+                    imgPanY: f.imgPanY,
+                    imgUrl: f.imgUrl,
+                    skipHistory: true
                 });
             });
 
             this.deselectFrame();
+            if (typeof window.recordHistory === 'function') {
+                window.recordHistory('Özel Şablon Uygulandı');
+            }
         },
 
         deleteCustomTemplate: function(idx) {
@@ -2640,43 +3627,24 @@
             const dockGroup = document.getElementById('dockGroup_create-template');
             if (!dockGroup) return;
 
-            if (hasSelectedFrame && this.selectedFrame) {
-                const curBlend = this.selectedFrame.dataset.blendMode || 'none';
-                const isBlendActive = curBlend !== 'none';
-                const curShape = this.selectedFrame.dataset.shape || 'none';
-                const isShapeActive = curShape !== 'none';
+            const frames = this.getTargetFrames();
+            const primary = (this.selectedFrame && frames.includes(this.selectedFrame))
+                ? this.selectedFrame
+                : (frames.length > 0 ? frames[frames.length - 1] : null);
+
+            if (hasSelectedFrame && primary) {
                 dockGroup.innerHTML = `
                     <button type="button" class="dock-btn" onclick="TemplateBuilder.triggerSelectedFrameUpload()" title="Fotoğraf Yükle veya Değiştir">
                         <span class="dock-icon"><i class="fa-solid fa-camera"></i></span>
                         <span class="dock-label">Foto</span>
                     </button>
-                    <button type="button" class="dock-btn" onclick="TemplateBuilder.addInfoCard('bottom')" title="Alta Bilgi Kartı Ekle">
-                        <span class="dock-icon"><i class="fa-solid fa-id-card"></i></span>
-                        <span class="dock-label">Kart</span>
-                    </button>
-                    <button type="button" class="dock-btn ${isShapeActive ? 'lock-active' : ''}" onclick="TemplateBuilder.cycleFrameShape()" title="Yaratıcı Şekli Değiştir">
-                        <span class="dock-icon"><i class="fa-solid fa-shapes"></i></span>
-                        <span class="dock-label">Şekil</span>
-                    </button>
-                    <button type="button" class="dock-btn ${isBlendActive ? 'lock-active' : ''}" onclick="TemplateBuilder.toggleSelectedFrameBlend()" title="Zemine Eriyen Degrade Geçiş">
-                        <span class="dock-icon"><i class="fa-solid fa-wand-magic-sparkles"></i></span>
-                        <span class="dock-label">Degrade</span>
-                    </button>
-                    <button type="button" class="dock-btn" onclick="TemplateBuilder.cycleSelectedFrameRadius()" title="Köşe Kavisini Değiştir">
-                        <span class="dock-icon"><i class="fa-solid fa-border-all"></i></span>
-                        <span class="dock-label">Kavis</span>
-                    </button>
-                    <button type="button" class="dock-btn" onclick="if(window.Template3DFrame) Template3DFrame.applyPreset('isoLeft')" title="3D İzometrik Açı Uygula">
+                    <button type="button" class="dock-btn" onclick="if(window.selectedElements && window.selectedElements.length > 1 && window.selectedElements.some(el => el && el.classList && !el.classList.contains('tb-image-frame')) && window.ThreeDEngine) { ThreeDEngine.convert2DBadgeTo3D(window.selectedElements.slice()); } else if(window.Template3DFrame) { Template3DFrame.applyPreset('isoLeft'); }" title="3D İzometrik Açı Uygula">
                         <span class="dock-icon"><i class="fa-solid fa-cube"></i></span>
                         <span class="dock-label">3D</span>
                     </button>
-                    <button type="button" class="dock-btn" onclick="TemplateBuilder.zoomSelectedFrame(15)" title="Fotoğrafı Yakınlaştır">
-                        <span class="dock-icon"><i class="fa-solid fa-magnifying-glass-plus"></i></span>
-                        <span class="dock-label">Büyüt</span>
-                    </button>
-                    <button type="button" class="dock-btn ${this.selectedFrame.classList.contains('tb-pan-mode') ? 'lock-active' : ''}" onclick="TemplateBuilder.toggleImagePanMode(TemplateBuilder.selectedFrame)" title="Fotoğrafın Odak Noktasını Kaydır">
-                        <span class="dock-icon"><i class="fa-solid fa-arrows-up-down-left-right"></i></span>
-                        <span class="dock-label">Kaydır</span>
+                    <button type="button" class="dock-btn" onclick="TemplateBuilder.resetSelectedFramePlacement()" title="Çerçeveyi Eski Yerine ve Boyutuna Sıfırla">
+                        <span class="dock-icon"><i class="fa-solid fa-rotate-left"></i></span>
+                        <span class="dock-label">Yerini Sıfırla</span>
                     </button>
                     <button type="button" class="dock-btn" onclick="TemplateBuilder.duplicateSelectedFrame()" title="Çerçeveyi Çoğalt">
                         <span class="dock-icon"><i class="fa-solid fa-clone"></i></span>
@@ -2689,10 +3657,6 @@
                 `;
             } else {
                 dockGroup.innerHTML = `
-                    <button type="button" class="dock-btn" onclick="if(window.CarouselManager) CarouselManager.toggleBar()" title="Çoklu Gönderi Albüm Şeridini Aç veya Kapat">
-                        <span class="dock-icon"><i class="fa-solid fa-film"></i></span>
-                        <span class="dock-label">Çoklu Gönderi</span>
-                    </button>
                     <button type="button" class="dock-btn" onclick="TemplateBuilder.createImageFrame()" title="Yeni Görsel Çerçevesi Ekle">
                         <span class="dock-icon"><i class="fa-solid fa-image"></i></span>
                         <span class="dock-label">Çerçeve</span>
@@ -2700,18 +3664,6 @@
                     <button type="button" class="dock-btn dock-snap-btn" onclick="if(typeof window.toggleSmartGuides === 'function') window.toggleSmartGuides()" title="Akıllı Manyetik Hizalamayı Aç veya Kapat">
                         <span class="dock-icon"><i class="fa-solid fa-magnet"></i></span>
                         <span class="dock-label">Hizalama</span>
-                    </button>
-                    <button type="button" class="dock-btn" onclick="TemplateBuilder.uploadMultiplePhotos()" title="Tüm Çerçevelere Sırayla Fotoğraf Yükle">
-                        <span class="dock-icon"><i class="fa-solid fa-images"></i></span>
-                        <span class="dock-label">Toplu Görsel</span>
-                    </button>
-                    <button type="button" class="dock-btn" onclick="TemplateBuilder.addInfoCard('bottom')" title="Alta Bilgi Kartı Ekle">
-                        <span class="dock-icon"><i class="fa-solid fa-id-card"></i></span>
-                        <span class="dock-label">Kart</span>
-                    </button>
-                    <button type="button" class="dock-btn" onclick="if(window.TemplatePolygonFrame) TemplatePolygonFrame.startDrawing()" title="Serbest Çokgen Çerçeve Çiz">
-                        <span class="dock-icon"><i class="fa-solid fa-draw-polygon"></i></span>
-                        <span class="dock-label">Çokgen</span>
                     </button>
                     <button type="button" class="dock-btn" onclick="TemplateBuilder.createTextFrame('heading')" title="Başlık Yazısı Ekle">
                         <span class="dock-icon"><i class="fa-solid fa-font"></i></span>
@@ -2726,21 +3678,27 @@
         },
 
         triggerSelectedFrameUpload: function() {
-            if (!this.selectedFrame) return;
-            const input = this.selectedFrame.querySelector('.tb-frame-file-input');
+            const frames = this.getTargetFrames();
+            const primary = this.selectedFrame && frames.includes(this.selectedFrame) ? this.selectedFrame : frames[frames.length - 1];
+            if (!primary) return;
+            const input = primary.querySelector('.tb-frame-file-input');
             if (input) input.click();
         },
 
         toggleSelectedFrameBlend: function() {
-            if (!this.selectedFrame) return;
-            const cur = this.selectedFrame.dataset.blendMode || 'none';
+            const frames = this.getTargetFrames();
+            if (frames.length === 0) return;
+            const primary = this.selectedFrame && frames.includes(this.selectedFrame) ? this.selectedFrame : frames[frames.length - 1];
+            const cur = primary.dataset.blendMode || 'none';
             const next = cur === 'none' ? 'bottom' : (cur === 'bottom' ? 'right' : 'none');
             this.setFrameBlend(next);
         },
 
         cycleSelectedFrameRadius: function() {
-            if (!this.selectedFrame) return;
-            const cur = parseInt(this.selectedFrame.dataset.radius) || 0;
+            const frames = this.getTargetFrames();
+            if (frames.length === 0) return;
+            const primary = this.selectedFrame && frames.includes(this.selectedFrame) ? this.selectedFrame : frames[frames.length - 1];
+            const cur = parseInt(primary.dataset.radius) || 0;
             let next = 16;
             if (cur === 16) next = 36;
             else if (cur === 36) next = 999;
@@ -2751,11 +3709,40 @@
         },
 
         zoomSelectedFrame: function(deltaPercent) {
-            if (!this.selectedFrame) return;
-            const curZoom = parseFloat(this.selectedFrame.dataset.imgZoom) || 1.0;
-            let newZoom = Math.min(2.5, Math.max(1.0, curZoom + (deltaPercent / 100)));
-            if (curZoom >= 2.45) newZoom = 1.0; // döngüsel sıfırlama
-            this.updateSelectedFrameProp('zoom', Math.round(newZoom * 100));
+            const frames = this.getTargetFrames();
+            if (frames.length === 0) return;
+            const primary = this.selectedFrame && frames.includes(this.selectedFrame) ? this.selectedFrame : frames[frames.length - 1];
+            const curZoom = parseFloat(primary.dataset.imgZoom) || 1.0;
+            const targetPercent = Math.round(Math.min(3.0, Math.max(0.2, curZoom + (deltaPercent / 100))) * 100);
+            frames.forEach(frame => {
+                const fCur = parseFloat(frame.dataset.imgZoom) || 1.0;
+                const fNew = Math.min(3.0, Math.max(0.2, fCur + (deltaPercent / 100)));
+                frame.dataset.imgZoom = fNew;
+                this.applyImageZoomPan(frame);
+            });
+            const v = document.getElementById('tbFrameZoomVal');
+            if (v) v.textContent = targetPercent + '%';
+            const zoomInput = document.getElementById('tbFrameZoom');
+            if (zoomInput) zoomInput.value = targetPercent;
+        },
+
+        zoomIn: function() {
+            this.zoomSelectedFrame(15);
+            if (typeof window.recordHistory === 'function') window.recordHistory('Fotoğraf Yakınlaştırıldı');
+        },
+
+        zoomOut: function() {
+            this.zoomSelectedFrame(-15);
+            if (typeof window.recordHistory === 'function') window.recordHistory('Fotoğraf Uzaklaştırıldı');
+        },
+
+        zoomReset: function() {
+            const frames = this.getTargetFrames();
+            if (frames.length === 0) return;
+            this.updateSelectedFrameProp('zoom', 100);
+            const zoomInput = document.getElementById('tbFrameZoom');
+            if (zoomInput) zoomInput.value = 100;
+            if (typeof window.recordHistory === 'function') window.recordHistory('Yakınlaştırma Sıfırlandı');
         }
     };
 

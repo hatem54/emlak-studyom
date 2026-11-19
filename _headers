@@ -1,0 +1,21 @@
+# Emlak Stüdyom - HTTP Güvenlik Başlıkları
+# Cloudflare Pages ve Netlify bu dosyayı otomatik okur. GitHub Pages yok sayar (zararsızdır).
+#
+# - X-Frame-Options: Başka sitelerin sayfalarımızı görünmez iframe içinde açıp kullanıcıyı
+#   kandırmasını (clickjacking) engeller. Uygulama kendi sayfalarını iframe ile açmıyor (tarandı).
+# - X-Content-Type-Options: Tarayıcının dosya türünü tahmin edip yanlış çalıştırmasını engeller.
+# - Referrer-Policy: Dış sitelere sadece alan adı gönderilir (Google anahtarının site kısıtlaması çalışmaya devam eder).
+# - Strict-Transport-Security: Siteye her zaman HTTPS ile bağlanılır.
+# - Content-Security-Policy bilinçli olarak EKLENMEDİ: 11 CDN ve 500+ satır içi onclick olduğu için
+#   zorunlu CSP uygulamayı bozar. Önce Report-Only modda denenmelidir.
+
+/*
+  X-Frame-Options: SAMEORIGIN
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Strict-Transport-Security: max-age=31536000
+
+/admin.html
+  X-Frame-Options: DENY
+  X-Robots-Tag: noindex, nofollow
+  Cache-Control: no-store

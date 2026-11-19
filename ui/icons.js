@@ -446,31 +446,42 @@ function addIcon(ch){
     if (typeof requestAutoSave === 'function') requestAutoSave();
 }
 
-window._iconsDeleteSelected = function(){
-    if(!selectedEl)return;
-    const ai=allIcons.indexOf(selectedEl);
-    const ci=typeof canvaOverlays !== 'undefined' ? canvaOverlays.indexOf(selectedEl) : -1;
-    if(ai>-1){
-        allIcons.splice(ai,1);
-        selectedEl.remove();
-        const countEl = document.getElementById('iconCount');
-        if (countEl) countEl.textContent=allIcons.length;
-        if (typeof window.recordHistory === 'function') window.recordHistory('İkon silindi');
-        if (typeof requestAutoSave === 'function') requestAutoSave();
-    }else if(ci>-1){
-        canvaOverlays.splice(ci,1);
-        selectedEl.remove();
-        if (typeof window.recordHistory === 'function') window.recordHistory('Öğe silindi');
-        if (typeof requestAutoSave === 'function') requestAutoSave();
-    }else{
-        if (window.SaberEngine && typeof window.SaberEngine.removeTextSaber === 'function') {
-            window.SaberEngine.removeTextSaber(selectedEl);
-        }
-        document.querySelectorAll('.text-handle').forEach(h => h.remove());
-        selectedEl.remove();
-        if (typeof window.recordHistory === 'function') window.recordHistory('Öğe silindi');
-        if (typeof requestAutoSave === 'function') requestAutoSave();
+function _getTargetIcons() {
+    const filter = el => el && el.classList && (el.classList.contains('added-icon') || el.classList.contains('is-svg-icon') || el.classList.contains('canvas-icon'));
+    const fallback = window.selectedEl || (typeof selectedEl !== 'undefined' ? selectedEl : null) || document.querySelector('.added-icon.el-selected, .is-svg-icon.el-selected');
+    if (typeof window.getMultiSelectTargets === 'function') {
+        const res = window.getMultiSelectTargets(filter, fallback);
+        if (res.length > 0) return res;
     }
+    const list = (Array.isArray(window.selectedElements) && window.selectedElements.length > 0) ? window.selectedElements.filter(filter) : [];
+    if (list.length > 0) return list;
+    return fallback ? [fallback] : [];
+}
+
+window._iconsDeleteSelected = function(){
+    const targets = _getTargetIcons();
+    if (targets.length === 0) return;
+    targets.forEach(t => {
+        const ai = allIcons.indexOf(t);
+        const ci = typeof canvaOverlays !== 'undefined' ? canvaOverlays.indexOf(t) : -1;
+        if (ai > -1) {
+            allIcons.splice(ai, 1);
+            t.remove();
+        } else if (ci > -1) {
+            canvaOverlays.splice(ci, 1);
+            t.remove();
+        } else {
+            if (window.SaberEngine && typeof window.SaberEngine.removeTextSaber === 'function') {
+                window.SaberEngine.removeTextSaber(t);
+            }
+            t.remove();
+        }
+    });
+    document.querySelectorAll('.text-handle').forEach(h => h.remove());
+    const countEl = document.getElementById('iconCount');
+    if (countEl) countEl.textContent = allIcons.length;
+    if (typeof window.recordHistory === 'function') window.recordHistory('İkon silindi');
+    if (typeof requestAutoSave === 'function') requestAutoSave();
     deselectAll();
 };
 
@@ -578,99 +589,93 @@ window.loadIconSettings = function(el) {
 };
 
 window.applyIconSettings = function() {
-    const el = window.selectedEl || (typeof selectedEl !== 'undefined' ? selectedEl : null) || document.querySelector('.added-icon.el-selected, .is-svg-icon.el-selected');
-    if (!el) return;
+    const targets = _getTargetIcons();
+    if (targets.length === 0) return;
 
-    // 1. İkon Boyutu
     const sizeSlider = document.getElementById('iconSizeSlider');
-    if (sizeSlider) {
-        const fs = parseInt(sizeSlider.value) || 60;
-        el.style.fontSize = fs + 'px';
-        el.dataset.defaultFont = fs.toString();
-    }
-
-    // 2. İkon Rengi
     const colorPicker = document.getElementById('iconColorPicker');
-    if (colorPicker) {
-        const hex = colorPicker.value || '#000000';
-        el.style.color = hex;
-        const svgs = el.querySelectorAll('svg');
-        svgs.forEach(svg => {
-            const paths = svg.querySelectorAll('path, circle, rect, polygon, line, polyline');
-            paths.forEach(p => {
-                const s = p.getAttribute('stroke');
-                if (s && s !== 'none' && !s.startsWith('url(')) p.setAttribute('stroke', 'currentColor');
-                const f = p.getAttribute('fill');
-                if (f && f !== 'none' && f !== 'transparent' && !f.startsWith('url(')) p.setAttribute('fill', 'currentColor');
-            });
-        });
-    }
-
-    // 3. Arka Plan & Köşe Yuvarlama
     const bgPicker = document.getElementById('iconBgColorPicker');
     const bgOpSlider = document.getElementById('iconBgOpacitySlider');
     const radSlider = document.getElementById('iconRadiusSlider');
+    const rotSlider = document.getElementById('iconRotationSlider');
+    const opSlider = document.getElementById('iconOpacitySlider');
+    const shSlider = document.getElementById('iconShadowSlider');
+
+    const fs = sizeSlider ? (parseInt(sizeSlider.value) || 60) : null;
+    const hex = colorPicker ? (colorPicker.value || '#000000') : null;
     const bgHex = bgPicker ? bgPicker.value : '#ffffff';
     const bgOp = bgOpSlider ? parseInt(bgOpSlider.value) : 0;
     const radius = radSlider ? parseInt(radSlider.value) : 0;
+    const rot = rotSlider ? (parseInt(rotSlider.value) || 0) : null;
+    const op = opSlider ? (parseInt(opSlider.value) || 100) : null;
+    const sh = shSlider ? (parseInt(shSlider.value) || 0) : null;
 
-    el.dataset.storedBgHex = bgHex;
-    el.dataset.storedBgOpacity = bgOp.toString();
+    targets.forEach(el => {
+        if (fs !== null) {
+            el.style.fontSize = fs + 'px';
+            el.dataset.defaultFont = fs.toString();
+        }
+        if (hex !== null) {
+            el.style.color = hex;
+            el.querySelectorAll('svg').forEach(svg => {
+                svg.querySelectorAll('path, circle, rect, polygon, line, polyline').forEach(p => {
+                    const s = p.getAttribute('stroke');
+                    if (s && s !== 'none' && !s.startsWith('url(')) p.setAttribute('stroke', 'currentColor');
+                    const f = p.getAttribute('fill');
+                    if (f && f !== 'none' && f !== 'transparent' && !f.startsWith('url(')) p.setAttribute('fill', 'currentColor');
+                });
+            });
+        }
 
-    if (bgOp > 0) {
-        const r = parseInt(bgHex.slice(1, 3), 16) || 0;
-        const g = parseInt(bgHex.slice(3, 5), 16) || 0;
-        const b = parseInt(bgHex.slice(5, 7), 16) || 0;
-        el.style.background = `rgba(${r}, ${g}, ${b}, ${bgOp / 100})`;
-        el.style.padding = '0.28em';
-    } else {
-        el.style.background = 'transparent';
-        el.style.padding = '0';
-    }
-    el.style.borderRadius = radius + '%';
+        el.dataset.storedBgHex = bgHex;
+        el.dataset.storedBgOpacity = bgOp.toString();
+        if (bgOp > 0) {
+            const r = parseInt(bgHex.slice(1, 3), 16) || 0;
+            const g = parseInt(bgHex.slice(3, 5), 16) || 0;
+            const b = parseInt(bgHex.slice(5, 7), 16) || 0;
+            el.style.background = `rgba(${r}, ${g}, ${b}, ${bgOp / 100})`;
+            el.style.padding = '0.28em';
+        } else {
+            el.style.background = 'transparent';
+            el.style.padding = '0';
+        }
+        el.style.borderRadius = radius + '%';
 
-    // 4. Döndürme
-    const rotSlider = document.getElementById('iconRotationSlider');
-    if (rotSlider) {
-        const rot = parseInt(rotSlider.value) || 0;
-        el.dataset.rotation = rot.toString();
-        const currentScale = el.dataset.scale || 1;
-        el.style.transform = 'rotate(' + rot + 'deg) scale(' + currentScale + ')';
-    }
-
-    // 5. Opaklık
-    const opSlider = document.getElementById('iconOpacitySlider');
-    if (opSlider) {
-        const op = parseInt(opSlider.value) || 100;
-        el.style.opacity = (op / 100).toString();
-    }
-
-    // 6. Gölge (Neon aktif değilse)
-    const shSlider = document.getElementById('iconShadowSlider');
-    if (shSlider) {
-        const sh = parseInt(shSlider.value) || 0;
-        el.dataset.shadowVal = sh.toString();
-        if (el.dataset.neonActive !== 'true') {
-            if (bgOp > 0) {
-                el.style.boxShadow = sh > 0 ? `0 ${sh}px ${sh * 2}px rgba(0,0,0,0.5)` : 'none';
-                el.style.filter = 'none';
-            } else {
-                el.style.boxShadow = 'none';
-                el.style.filter = sh > 0 ? `drop-shadow(0 ${sh}px ${sh}px rgba(0,0,0,0.5))` : 'none';
+        if (rot !== null) {
+            el.dataset.rotation = rot.toString();
+            const currentScale = el.dataset.scale || 1;
+            el.style.transform = 'rotate(' + rot + 'deg) scale(' + currentScale + ')';
+        }
+        if (op !== null) {
+            el.style.opacity = (op / 100).toString();
+        }
+        if (sh !== null) {
+            el.dataset.shadowVal = sh.toString();
+            if (el.dataset.neonActive !== 'true') {
+                if (bgOp > 0) {
+                    el.style.boxShadow = sh > 0 ? `0 ${sh}px ${sh * 2}px rgba(0,0,0,0.5)` : 'none';
+                    el.style.filter = 'none';
+                } else {
+                    el.style.boxShadow = 'none';
+                    el.style.filter = sh > 0 ? `drop-shadow(0 ${sh}px ${sh}px rgba(0,0,0,0.5))` : 'none';
+                }
             }
         }
-    }
+    });
 
     if (typeof requestAutoSave === 'function') requestAutoSave();
 };
 
 window.toggleIconNeon = function() {
-    const el = window.selectedEl || (typeof selectedEl !== 'undefined' ? selectedEl : null) || document.querySelector('.added-icon.el-selected, .is-svg-icon.el-selected');
-    if (!el) return;
+    const targets = _getTargetIcons();
+    if (targets.length === 0) return;
+    const primary = targets[targets.length - 1];
 
-    const isCurrentlyNeon = el.dataset.neonActive === 'true' || (parseInt(el.dataset.neonGlowSize || 0) > 0);
+    const isCurrentlyNeon = primary.dataset.neonActive === 'true' || (parseInt(primary.dataset.neonGlowSize || 0) > 0);
     const newNeonState = !isCurrentlyNeon;
-    el.dataset.neonActive = newNeonState ? 'true' : 'false';
+    targets.forEach(el => {
+        el.dataset.neonActive = newNeonState ? 'true' : 'false';
+    });
 
     if (newNeonState) {
         const glowCol = document.getElementById('iconNeonGlowColor')?.value || '#00f0ff';
@@ -681,41 +686,43 @@ window.toggleIconNeon = function() {
         window.applyIconNeonSettings(0, 0, '#000000');
     }
 
-    window.syncIconNeonUI(el);
+    window.syncIconNeonUI(primary);
     if (typeof requestAutoSave === 'function') requestAutoSave();
 };
 
 window.applyIconNeonSettings = function(overrideSize, overrideIntensity, overrideGlow) {
-    const el = window.selectedEl || (typeof selectedEl !== 'undefined' ? selectedEl : null) || document.querySelector('.added-icon.el-selected, .is-svg-icon.el-selected');
-    if (!el) return;
+    const targets = _getTargetIcons();
+    if (targets.length === 0) return;
 
     const glowCol = overrideGlow !== undefined ? overrideGlow : (document.getElementById('iconNeonGlowColor')?.value || '#00f0ff');
     const glowSize = overrideSize !== undefined ? overrideSize : parseInt(document.getElementById('iconNeonGlowSize')?.value || 35);
     const intensity = overrideIntensity !== undefined ? overrideIntensity : parseFloat(document.getElementById('iconNeonIntensity')?.value || 3.0);
 
-    el.dataset.neonActive = (glowSize > 0) ? 'true' : 'false';
-    el.dataset.neonGlowColor = glowCol;
-    el.dataset.neonGlowSize = glowSize.toString();
-    el.dataset.neonIntensity = intensity.toString();
+    targets.forEach(el => {
+        el.dataset.neonActive = (glowSize > 0) ? 'true' : 'false';
+        el.dataset.neonGlowColor = glowCol;
+        el.dataset.neonGlowSize = glowSize.toString();
+        el.dataset.neonIntensity = intensity.toString();
 
-    if (glowSize > 0) {
-        const normInt = Math.max(0.5, Math.min(8.0, intensity));
-        const glow1 = Math.max(1, Math.round(glowSize * 0.2 * normInt));
-        const glow2 = Math.max(2, Math.round(glowSize * 0.5 * normInt));
-        const glow3 = Math.max(4, Math.round(glowSize * 1.0 * normInt));
-        el.style.filter = `drop-shadow(0 0 ${glow1}px ${glowCol}) drop-shadow(0 0 ${glow2}px ${glowCol}) drop-shadow(0 0 ${glow3}px ${glowCol})`;
-        el.style.boxShadow = 'none';
-    } else {
-        const sh = parseInt(el.dataset.shadowVal) || 0;
-        const bgOp = parseInt(el.dataset.storedBgOpacity) || 0;
-        if (bgOp > 0) {
-            el.style.boxShadow = sh > 0 ? `0 ${sh}px ${sh * 2}px rgba(0,0,0,0.5)` : 'none';
-            el.style.filter = 'none';
-        } else {
+        if (glowSize > 0) {
+            const normInt = Math.max(0.5, Math.min(8.0, intensity));
+            const glow1 = Math.max(1, Math.round(glowSize * 0.2 * normInt));
+            const glow2 = Math.max(2, Math.round(glowSize * 0.5 * normInt));
+            const glow3 = Math.max(4, Math.round(glowSize * 1.0 * normInt));
+            el.style.filter = `drop-shadow(0 0 ${glow1}px ${glowCol}) drop-shadow(0 0 ${glow2}px ${glowCol}) drop-shadow(0 0 ${glow3}px ${glowCol})`;
             el.style.boxShadow = 'none';
-            el.style.filter = sh > 0 ? `drop-shadow(0 ${sh}px ${sh}px rgba(0,0,0,0.5))` : 'none';
+        } else {
+            const sh = parseInt(el.dataset.shadowVal) || 0;
+            const bgOp = parseInt(el.dataset.storedBgOpacity) || 0;
+            if (bgOp > 0) {
+                el.style.boxShadow = sh > 0 ? `0 ${sh}px ${sh * 2}px rgba(0,0,0,0.5)` : 'none';
+                el.style.filter = 'none';
+            } else {
+                el.style.boxShadow = 'none';
+                el.style.filter = sh > 0 ? `drop-shadow(0 ${sh}px ${sh}px rgba(0,0,0,0.5))` : 'none';
+            }
         }
-    }
+    });
     if (typeof requestAutoSave === 'function') requestAutoSave();
 };
 
@@ -823,12 +830,13 @@ window.resetIconSetting = function(type) {
 };
 
 window.resetIconToDefault = function() {
-    const el = window.selectedEl || (typeof selectedEl !== 'undefined' ? selectedEl : null) || document.querySelector('.added-icon.el-selected, .is-svg-icon.el-selected');
-    if (!el) return;
+    const targets = _getTargetIcons();
+    if (targets.length === 0) return;
 
     ['size', 'color', 'bgColor', 'bgOpacity', 'radius', 'rotation', 'opacity', 'shadow'].forEach(t => window.resetIconSetting(t));
-    if (el.dataset.neonActive === 'true') {
-        window.toggleIconNeon();
+    if (targets.some(el => el.dataset.neonActive === 'true')) {
+        window.applyIconNeonSettings(0, 0, '#000000');
+        window.syncIconNeonUI(targets[targets.length - 1]);
     }
     if (typeof window.recordHistory === 'function') window.recordHistory('İkon varsayılana sıfırlandı');
 };

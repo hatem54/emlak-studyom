@@ -19,13 +19,15 @@
             else if (path.includes('admin.html')) pageName = 'admin';
 
             const isMobile = window.innerWidth <= 768;
-            const userEmail = window.CURRENT_USER?.email || 'Misafir Ziyaretçi';
-            const userId = window.CURRENT_USER?.id || 'anon_' + Math.random().toString(36).substring(2, 9);
+            // 🛡️ KVKK: Presence durumu kanaldaki TÜM istemcilere yayınlanır.
+            // Bu yüzden e-posta veya gerçek kullanıcı kimliği (UUID) asla yayınlanmaz;
+            // her sekme için rastgele anonim bir anahtar kullanılır. Admin paneli yalnızca sayıları kullanır.
+            const anonKey = 'v_' + Math.random().toString(36).substring(2, 11);
 
             presenceChannel = window.supabaseClient.channel('estudio-presence', {
                 config: {
                     presence: {
-                        key: userId
+                        key: anonKey
                     }
                 }
             });
@@ -41,8 +43,6 @@
                 .subscribe(async (status) => {
                     if (status === 'SUBSCRIBED') {
                         await presenceChannel.track({
-                            user_id: userId,
-                            email: userEmail,
                             page: pageName,
                             device: isMobile ? 'mobile' : 'desktop',
                             online_at: new Date().toISOString()

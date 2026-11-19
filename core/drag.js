@@ -199,7 +199,7 @@ function bindDrag(el){
         const rect = el.getBoundingClientRect();
         const c = e.touches ? e.touches[0] : e;
         
-        const isCallout = el.classList.contains('callout-wrap') || el.classList.contains('svg-callout') || el.classList.contains('co-neon-block') || el.classList.contains('editable-draw');
+        const isCallout = el.classList.contains('callout-wrap') || el.classList.contains('svg-callout') || el.classList.contains('co-neon-block') || el.classList.contains('editable-draw') || el.classList.contains('tb-image-frame');
         
         if (!isCallout && (c.clientX >= rect.right - 20 && c.clientY >= rect.bottom - 20)) {
             resizing = true;
@@ -508,17 +508,18 @@ function bindDrag(el){
                 el.dataset.baseTop = newT;
             }
             if (el.classList.contains('tb-image-frame')) {
+                el.classList.toggle('tools-below', (parseFloat(el.style.top) || el.offsetTop || 0) < 42);
                 if (window.Template3DFrame && typeof window.Template3DFrame.applyTransform === 'function') {
                     window.Template3DFrame.applyTransform(el);
                     if (typeof window.Template3DFrame.updateGizmoPosition === 'function') {
                         window.Template3DFrame.updateGizmoPosition(el);
                     }
                 }
+            } else {
+                const rot = el.dataset.rotation || 0;
+                const scale = el.dataset.scale || 1;
+                el.style.transform = `rotate(${rot}deg) scale(${scale})`;
             }
-
-            const rot = el.dataset.rotation || 0;
-            const scale = el.dataset.scale || 1;
-            el.style.transform = `rotate(${rot}deg) scale(${scale})`;
             
             const selectedOtherTargets = (window.selectedElements && window.selectedElements.length > 1 && window.selectedElements.includes(el))
                 ? window.selectedElements
@@ -680,6 +681,7 @@ function bindDrag(el){
                 el.style.bottom = 'auto';
                 el.style.right = 'auto';
                 if (el.classList.contains('tb-image-frame')) {
+                    el.classList.toggle('tools-below', (parseFloat(el.style.top) || el.offsetTop || 0) < 42);
                     if (window.Template3DFrame && typeof window.Template3DFrame.applyTransform === 'function') {
                         window.Template3DFrame.applyTransform(el);
                         if (typeof window.Template3DFrame.updateGizmoPosition === 'function') {
@@ -727,6 +729,22 @@ function bindDrag(el){
             window.SaberEngine.updateTextSaberPositions();
         }
         const clickDuration=Date.now()-downTime;
+        if (moved) {
+            el._justDragged = true;
+            setTimeout(() => { delete el._justDragged; }, 150);
+
+            // Sürükleme (drag) bir tıklama eylemi değildir; drag sonrasında browser'ın üretebileceği
+            // yapay 'click' olayını yakalayıp yutalım ki alt bileşenler (input, placeholder vb.) yanlışlıkla tetiklenmesin
+            const blockResidualClick = (ev) => {
+                ev.stopPropagation();
+                ev.stopImmediatePropagation();
+                ev.preventDefault();
+            };
+            window.addEventListener('click', blockResidualClick, { capture: true, once: true });
+            setTimeout(() => {
+                window.removeEventListener('click', blockResidualClick, { capture: true });
+            }, 100);
+        }
         if(!moved && (typeof drawMode === 'undefined' || drawMode==='off' || drawMode === null)) {
             try {
                 if (multiSelectKey && wasSelected) {
@@ -1020,6 +1038,18 @@ function selectElement(el, isMulti = false, noTabSwitch = false, openSettings = 
             if (window.selectedElements.length === 0) {
                 deselectAll();
             } else {
+                if (window.TemplateBuilder) {
+                    const lastFrame = (selectedEl && selectedEl.classList && selectedEl.classList.contains('tb-image-frame'))
+                        ? selectedEl
+                        : [...window.selectedElements].reverse().find(f => f && f.classList && f.classList.contains('tb-image-frame')) || null;
+                    window.TemplateBuilder.selectedFrame = lastFrame;
+                    if (lastFrame && typeof window.TemplateBuilder.syncSettingsPanelWithFrame === 'function') {
+                        window.TemplateBuilder.syncSettingsPanelWithFrame(lastFrame);
+                    }
+                    if (typeof window.TemplateBuilder.updateDockControls === 'function') {
+                        window.TemplateBuilder.updateDockControls(!!lastFrame);
+                    }
+                }
                 if (typeof updateGroupUI === 'function') updateGroupUI();
                 if (typeof window.updateMultiSelectUI === 'function') window.updateMultiSelectUI();
                 if (typeof window.updateDockContextUI === 'function') window.updateDockContextUI(selectedEl);
@@ -1188,14 +1218,15 @@ function selectElement(el, isMulti = false, noTabSwitch = false, openSettings = 
         el.classList.contains('canvas-icon')
     );
 
+    const isMultiSelectionNow = Array.isArray(window.selectedElements) && window.selectedElements.length > 1;
     if(document.getElementById('noSelMsg')) document.getElementById('noSelMsg').style.display='none';
     if(accDetails) {
-        accDetails.style.display = (isCalloutEl || isIconEl || isCustomBadge) ? 'none' : 'block';
-        accDetails.open = (openSettings === 'details');
+        accDetails.style.display = (isMultiSelectionNow || isCalloutEl || isIconEl || isCustomBadge) ? 'none' : 'block';
+        accDetails.open = !isMultiSelectionNow && (openSettings === 'details');
     }
     if(elSettings) {
-        elSettings.style.display = (isCalloutEl || isIconEl || isCustomBadge) ? 'none' : 'block';
-        elSettings.open = (openSettings === true);
+        elSettings.style.display = (isMultiSelectionNow || isCalloutEl || isIconEl || isCustomBadge) ? 'none' : 'block';
+        elSettings.open = !isMultiSelectionNow && (openSettings === true);
     }
     if(isIconEl && typeof window.loadIconSettings === 'function') {
         window.loadIconSettings(el);

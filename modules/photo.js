@@ -378,9 +378,10 @@ window.getWebGLPhotoOptions = function(targetAdj) {
     const aiMaskCanvas = pmm && typeof pmm.getCompositeAiCanvas === 'function' ? pmm.getCompositeAiCanvas() : (pmm?.aiMaskCanvas || null);
     const aiMaskBuffer = pmm && typeof pmm.getCompositeAiBuffer === 'function' ? pmm.getCompositeAiBuffer() : (pmm?.aiMaskBuffer || null);
 
-    const showMaskOverlay = targetAdj ? false : (pmm ? (pmm.showOverlay !== undefined ? pmm.showOverlay : true) : true);
-    const showRadialOverlay = targetAdj ? false : (pmm ? (radialMask.showOverlay !== undefined ? radialMask.showOverlay : (!!showMaskOverlay && pmm.activeMaskType === 'radial')) : true);
-    const showLinearOverlay = targetAdj ? false : (pmm ? (linearMask.showOverlay !== undefined ? linearMask.showOverlay : (!!showMaskOverlay && pmm.activeMaskType === 'linear')) : true);
+    const _isExportingOverlayHide = !!(window.isExportingNow || window.isExportingVideo);
+    const showMaskOverlay = (targetAdj || _isExportingOverlayHide) ? false : (pmm ? (pmm.showOverlay !== undefined ? pmm.showOverlay : true) : true);
+    const showRadialOverlay = (targetAdj || _isExportingOverlayHide) ? false : (pmm ? (radialMask.showOverlay !== undefined ? radialMask.showOverlay : (!!showMaskOverlay && pmm.activeMaskType === 'radial')) : true);
+    const showLinearOverlay = (targetAdj || _isExportingOverlayHide) ? false : (pmm ? (linearMask.showOverlay !== undefined ? linearMask.showOverlay : (!!showMaskOverlay && pmm.activeMaskType === 'linear')) : true);
     const activeMaskType = targetAdj ? null : (pmm ? (pmm.activeTool || pmm.activeMaskType) : null);
 
     return {
@@ -789,6 +790,20 @@ function hasActiveWebGLFilters(opts) {
     if (opts.radialMasks && opts.radialMasks.some(m => m.active)) return true;
     if (opts.linearMasks && opts.linearMasks.some(m => m.active)) return true;
     if (opts.aiMasks && opts.aiMasks.some(m => m.active)) return true;
+    // Ton Eğrisi: eğri düz çizgi (varsayılan) değilse WebGL yolu zorunludur (LUT yalnızca GPU'da uygulanır)
+    try {
+        const pcm = window.PhotoCurvesManager;
+        const cs = pcm ? (pcm.curves || (typeof pcm.getState === 'function' ? pcm.getState() : null)) : null;
+        if (cs) {
+            for (const ch of ['rgb', 'r', 'g', 'b']) {
+                const pts = cs[ch];
+                if (!Array.isArray(pts)) continue;
+                if (pts.length !== 2) return true;
+                const endMax = (pts[1][0] > 1.5) ? 255 : 1;
+                if (pts[0][0] !== 0 || pts[0][1] !== 0 || pts[1][0] !== endMax || pts[1][1] !== endMax) return true;
+            }
+        }
+    } catch (e) {}
     return false;
 }
 window.hasActiveWebGLFilters = hasActiveWebGLFilters;
@@ -970,7 +985,8 @@ function _drawToNativeCanvas(el, inner, canvas, scale, panX, panY, sliderX, slid
             // ⚡ FİLTRELER AKTİFKEN: Sadece filtreler değiştiğinde WebGL render et;
             // Fotoğrafı taşırken (pan/zoom) her karede WebGL render çalıştırma, önbellekten çiz (0.2ms)!
             try {
-                if (window._photoFilterDirty || !el._cachedGlCanvas || el._cachedGlCanvas.width !== drawW || el._cachedGlCanvas.height !== drawH) {
+                const imgKey = (img && img.src) ? img.src : '';
+                if (window._photoFilterDirty || !el._cachedGlCanvas || el._cachedGlSrc !== imgKey || el._cachedGlCanvas.width !== drawW || el._cachedGlCanvas.height !== drawH) {
                     window.WebGLPhotoEngine.uploadImage(img);
                     const glCanvas = window.WebGLPhotoEngine.render(drawW, drawH, opts);
                     if (glCanvas) {
@@ -990,6 +1006,7 @@ function _drawToNativeCanvas(el, inner, canvas, scale, panX, panY, sliderX, slid
                         }
                         cCtx.drawImage(glCanvas, 0, 0, drawW, drawH);
                         cCtx.filter = 'none';
+                        el._cachedGlSrc = imgKey;
                         window._photoFilterDirty = false;
                     }
                 }
@@ -1340,7 +1357,9 @@ window.isPhotoAdjustmentsModified = function(adj) {
             const pts = adj.curves[ch];
             if (Array.isArray(pts)) {
                 if (pts.length !== 2) return true;
-                if (pts[0][0] !== 0 || pts[0][1] !== 0 || pts[1][0] !== 255 || pts[1][1] !== 255) return true;
+                // Eğri noktaları 0..1 aralığında saklanır (eski kayıtlar 0..255 olabilir)
+                const endMax = (pts[1][0] > 1.5) ? 255 : 1;
+                if (pts[0][0] !== 0 || pts[0][1] !== 0 || pts[1][0] !== endMax || pts[1][1] !== endMax) return true;
             }
         }
     }

@@ -83,18 +83,39 @@
             const targets = (typeof psa.getSelectedItems === 'function') ? psa.getSelectedItems() : [];
             const itemsToUse = (targets && targets.length > 0) ? targets : psa.items;
 
-            this.pages = itemsToUse.map((it, idx) => ({
-                id: 'page_staging_' + (it.key || 'snap') + '_' + Date.now() + '_' + idx,
-                title: it.title || `Sayfa ${idx + 1}`,
-                stagingItemId: it.id,
-                snapshot: {
-                    photoImgUrl: it.dataUrl,
-                    uploadedImgUrl: it.dataUrl,
-                    activeLayout: window.activeLayout || '',
-                    timestamp: Date.now()
-                },
-                thumb: it.thumbUrl || it.dataUrl
-            }));
+            // Mevcut düzenlenmiş sayfaların snapshot ve özel başlıklarını koru
+            const prevByStagingId = new Map();
+            const customStandalonePages = [];
+            (this.pages || []).forEach(p => {
+                if (p && p.stagingItemId) prevByStagingId.set(p.stagingItemId, p);
+                else if (p && p.snapshot) customStandalonePages.push(p);
+            });
+
+            const synced = itemsToUse.map((it, idx) => {
+                const existing = prevByStagingId.get(it.id);
+                if (existing) {
+                    existing.thumb = it.thumbUrl || it.dataUrl || existing.thumb;
+                    if (existing.snapshot && !existing.snapshot._carouselEdited) {
+                        existing.snapshot.photoImgUrl = it.dataUrl;
+                        existing.snapshot.uploadedImgUrl = it.dataUrl;
+                    }
+                    return existing;
+                }
+                return {
+                    id: 'page_staging_' + (it.key || 'snap') + '_' + Date.now() + '_' + idx,
+                    title: it.title || `Sayfa ${idx + 1}`,
+                    stagingItemId: it.id,
+                    snapshot: {
+                        photoImgUrl: it.dataUrl,
+                        uploadedImgUrl: it.dataUrl,
+                        activeLayout: window.activeLayout || '',
+                        timestamp: Date.now()
+                    },
+                    thumb: it.thumbUrl || it.dataUrl
+                };
+            });
+
+            this.pages = synced.concat(customStandalonePages);
 
             this.isVisible = true;
             if (this.activePageIndex >= this.pages.length) {
@@ -365,9 +386,21 @@
                 title.className = 'carousel-slide-title';
                 title.title = 'İsmi düzenlemek için tıkla';
                 title.innerHTML = `<span>${page.title}</span><i class="fa-solid fa-pen" style="font-size:7px; opacity:0.8;"></i>`;
-                title.onclick = (e) => {
+                title.onclick = async (e) => {
                     e.stopPropagation();
-                    const newT = prompt('Sayfa Adı:', page.title);
+                    let newT = null;
+                    if (window.AppDialog && typeof window.AppDialog.prompt === 'function') {
+                        newT = await window.AppDialog.prompt({
+                            title: 'Sayfa Başlığı',
+                            message: 'Sayfa için yeni bir başlık girin:',
+                            defaultValue: page.title,
+                            icon: 'fa-pen',
+                            confirmText: 'Kaydet',
+                            cancelText: 'Vazgeç'
+                        });
+                    } else {
+                        newT = prompt('Sayfa Adı:', page.title);
+                    }
                     if (newT !== null && newT.trim()) {
                         this.editPageTitle(idx, newT.trim());
                     }
@@ -440,8 +473,19 @@
             if (this.pages.length === 0) return;
 
             // 1. Mevcut sayfayı kaydet
-            if (typeof window.captureFullState === 'function') {
-                this.pages[this.activePageIndex].snapshot = window.captureFullState();
+            if (typeof window.captureFullState === 'function' && this.pages[this.activePageIndex]) {
+                const snap = window.captureFullState();
+                snap._carouselEdited = true;
+                this.pages[this.activePageIndex].snapshot = snap;
+            }
+
+            if (typeof window.validateExportAllowed === 'function') {
+                const check = window.validateExportAllowed();
+                if (!check.allowed) {
+                    if (typeof showProUpgradeToast === 'function') showProUpgradeToast(check.message);
+                    else alert(check.message || 'Pro özellik gereklidir.');
+                    return;
+                }
             }
 
             const origIndex = this.activePageIndex;
@@ -508,61 +552,71 @@
             try {
                 for (let i = 0; i < this.pages.length; i++) {
                     const page = this.pages[i];
+                    this.activePageIndex = i;
                     progressModal.innerHTML = `<i class="fa-solid fa-spinner fa-spin" style="color:#0ea5e9;"></i> <span>Sayfa ${i + 1} / ${this.pages.length}: ${page.title} işleniyor...</span>`;
 
-                    // Sayfayı tuvale yükle
-                    if (page.stagingItemId && window.PhotoStagingArchive) {
+                    // Sayfayı tuvale yükle (özel düzenleme varsa tam snapshot öncelikli)
+                    if (page.snapshot && page.snapshot._carouselEdited && typeof window.applySnapshot === 'function') {
+                        await window.applySnapshot(page.snapshot);
+                    } else if (page.stagingItemId && window.PhotoStagingArchive) {
                         window.PhotoStagingArchive.applyToCanvas(page.stagingItemId, true);
                     } else if (page.snapshot && typeof window.applySnapshot === 'function') {
-                        window.applySnapshot(page.snapshot);
+                        await window.applySnapshot(page.snapshot);
                     }
 
-                    // Render tamamlanması için mikro gecikme
-                    await new Promise(r => setTimeout(r, 220));
+                    // Render tamamlanması için bekleme
+                    await new Promise(r => setTimeout(r, 260));
 
-                    // Seçim tutamaçlarını ve gizmo'yu gizle
-                    if (typeof window.deselectAll === 'function') window.deselectAll();
-                    if (window.Template3DFrame && typeof window.Template3DFrame.hideGizmo === 'function') {
-                        window.Template3DFrame.hideGizmo();
-                    }
-                    document.querySelectorAll('.tb-frame-controls, .tb-frame-resizer, .tb-frame-handle, .tb-frame-poly-vertex, .tb-frame-selected, .el-selected').forEach(el => {
-                        el.classList.remove('tb-frame-selected', 'el-selected');
-                    });
+                    const cleanTitle = (page.title || `Sayfa_${i + 1}`).replace(/[^a-zA-Z0-9çÇğĞıİöÖşŞüÜ_-]/g, '_');
+                    const fileName = `Sayfa_${i + 1}_${cleanTitle}.${ext}`;
+                    let blob = null;
 
-                    const cContainer = document.getElementById('canvas-container');
-                    if (cContainer && window.html2canvas) {
-                        const canvas = await window.html2canvas(cContainer, {
-                            scale: outputScale,
-                            useCORS: true,
-                            backgroundColor: isJpg ? '#ffffff' : null,
-                            logging: false
+                    if (typeof window.saveImage === 'function') {
+                        const res = await window.saveImage(`Sayfa_${i + 1}_${cleanTitle}`, {
+                            returnBlob: true,
+                            skipDownload: true,
+                            silentLoading: true,
+                            fileType: isJpg ? 'jpg' : 'png'
                         });
+                        if (res && res.blob) blob = res.blob;
+                    }
 
-                        const cleanTitle = (page.title || `Sayfa_${i + 1}`).replace(/[^a-zA-Z0-9çÇğĞıİöÖşŞüÜ_-]/g, '_');
-                        const fileName = `Sayfa_${i + 1}_${cleanTitle}.${ext}`;
+                    if (!blob) {
+                        const cContainer = document.getElementById('canvas-container');
+                        if (cContainer && window.html2canvas) {
+                            const prevTransform = cContainer.style.transform;
+                            cContainer.style.transform = 'none';
+                            try {
+                                const canvas = await window.html2canvas(cContainer, {
+                                    scale: outputScale,
+                                    useCORS: true,
+                                    backgroundColor: isJpg ? '#ffffff' : null,
+                                    logging: false
+                                });
+                                blob = await new Promise(res => canvas.toBlob(res, mimeType, quality));
+                            } finally {
+                                cContainer.style.transform = prevTransform;
+                            }
+                        }
+                    }
 
+                    if (blob) {
                         if (mode === 'folder' && dirHandle) {
-                            // 1. Doğrudan seçilen klasöre kaydet
-                            const blob = await new Promise(res => canvas.toBlob(res, mimeType, quality));
                             const fileHandle = await dirHandle.getFileHandle(fileName, { create: true });
                             const writable = await fileHandle.createWritable();
                             await writable.write(blob);
                             await writable.close();
-
                         } else if (mode === 'zip' && zip) {
-                            // 2. ZIP arşivine ekle
-                            const dataUrl = canvas.toDataURL(mimeType, quality);
-                            const base64Data = dataUrl.replace(/^data:image\/[a-z]+;base64,/, '');
-                            zip.file(fileName, base64Data, { base64: true });
-
+                            zip.file(fileName, blob);
                         } else {
-                            // 3. Ayrı dosyalar (individual) olarak doğrudan indir
+                            const dlUrl = URL.createObjectURL(blob);
                             const a = document.createElement('a');
                             a.download = fileName;
-                            a.href = canvas.toDataURL(mimeType, quality);
+                            a.href = dlUrl;
                             document.body.appendChild(a);
                             a.click();
                             a.remove();
+                            setTimeout(() => { try { URL.revokeObjectURL(dlUrl); } catch(_){} }, 5000);
                             await new Promise(r => setTimeout(r, 450));
                         }
                     }
@@ -571,12 +625,14 @@
                 if (mode === 'zip' && zip) {
                     progressModal.innerHTML = '<i class="fa-solid fa-spinner fa-spin" style="color:#10b981;"></i> <span>ZIP arşivi paketleniyor...</span>';
                     const content = await zip.generateAsync({ type: 'blob' });
+                    const zipUrl = URL.createObjectURL(content);
                     const a = document.createElement('a');
                     a.download = 'Emlak_Studyom_Coklu_Gonderi_Albumu.zip';
-                    a.href = URL.createObjectURL(content);
+                    a.href = zipUrl;
                     document.body.appendChild(a);
                     a.click();
                     a.remove();
+                    setTimeout(() => { try { URL.revokeObjectURL(zipUrl); } catch(_){} }, 120000);
                 }
 
                 let successMsg = 'Tüm albüm başarıyla indirildi!';
@@ -596,8 +652,17 @@
                 progressModal.innerHTML = '<i class="fa-solid fa-triangle-exclamation" style="color:#ef4444;"></i> <span>Dışa aktarma sırasında hata oluştu.</span>';
                 setTimeout(() => { progressModal.style.display = 'none'; }, 3000);
             } finally {
-                // Orijinal sayfayı geri yükle
-                this.switchPage(origIndex);
+                // Orijinal sayfayı mutlaka geri yükle (activePageIndex aynı kalsa bile zorla uygula)
+                const origPage = this.pages[origIndex];
+                this.activePageIndex = origIndex;
+                if (origPage) {
+                    if (origPage.snapshot && typeof window.applySnapshot === 'function') {
+                        try { await window.applySnapshot(origPage.snapshot); } catch(_) {}
+                    } else if (origPage.stagingItemId && window.PhotoStagingArchive) {
+                        window.PhotoStagingArchive.applyToCanvas(origPage.stagingItemId, true);
+                    }
+                }
+                this.renderFilmstrip();
             }
         },
 

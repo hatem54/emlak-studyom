@@ -1211,7 +1211,9 @@
                             window.ThreeDAlign.alignElements(selected3DElements, dir);
                             this.updateSelectionVisuals();
                         }
-                        closeMenu();
+                        if (Array.isArray(window.selectedElements) && window.selectedElements.length >= 2 && typeof window.multiSelectAlign === 'function') {
+                            window.multiSelectAlign(dir);
+                        }
                     });
                 }
             });
@@ -1224,7 +1226,6 @@
                         window.ThreeDAlign.distributeElements(selected3DElements, 'horizontal');
                         this.updateSelectionVisuals();
                     }
-                    closeMenu();
                 });
             }
             const distV = menu.querySelector('#acm3d-distribute-v');
@@ -1234,7 +1235,6 @@
                         window.ThreeDAlign.distributeElements(selected3DElements, 'vertical');
                         this.updateSelectionVisuals();
                     }
-                    closeMenu();
                 });
             }
 
@@ -1259,7 +1259,6 @@
                         window.ThreeDAlign.matchAngles(selected3DElements);
                         this.updateSelectionVisuals();
                     }
-                    closeMenu();
                 });
             }
             const matchSz = menu.querySelector('#acm3d-match-sizes');
@@ -1269,7 +1268,6 @@
                         window.ThreeDAlign.matchSizes(selected3DElements);
                         this.updateSelectionVisuals();
                     }
-                    closeMenu();
                 });
             }
 
@@ -1283,11 +1281,13 @@
                 const btn = menu.querySelector('#acm3d-multi-pos-' + pk);
                 if (btn) {
                     btn.addEventListener('click', () => {
-                        if (window.ThreeDAlign && typeof window.ThreeDAlign.positionElementsOnPage === 'function') {
+                        if (Array.isArray(window.selectedElements) && window.selectedElements.length > 0 && typeof window.multiSelectPositionOnPage === 'function') {
+                            window.multiSelectPositionOnPage(pk);
+                            this.updateSelectionVisuals();
+                        } else if (window.ThreeDAlign && typeof window.ThreeDAlign.positionElementsOnPage === 'function') {
                             window.ThreeDAlign.positionElementsOnPage(selected3DElements, pk);
                             this.updateSelectionVisuals();
                         }
-                        closeMenu();
                     });
                 }
             });
@@ -1296,11 +1296,13 @@
             const centerBtn = menu.querySelector('#acm3d-multi-center');
             if (centerBtn) {
                 centerBtn.addEventListener('click', () => {
-                    if (window.ThreeDAlign) {
+                    if (Array.isArray(window.selectedElements) && window.selectedElements.length > 0 && typeof window.multiSelectCenterOnPage === 'function') {
+                        window.multiSelectCenterOnPage('both');
+                        this.updateSelectionVisuals();
+                    } else if (window.ThreeDAlign) {
                         window.ThreeDAlign.centerInPage(selected3DElements, 'both');
                         this.updateSelectionVisuals();
                     }
-                    closeMenu();
                 });
             }
             const groundBtn = menu.querySelector('#acm3d-multi-ground');
@@ -1310,7 +1312,6 @@
                         window.ThreeDAlign.groundElements(selected3DElements);
                         this.updateSelectionVisuals();
                     }
-                    closeMenu();
                 });
             }
 
@@ -1318,8 +1319,12 @@
             const lockBtn = menu.querySelector('#acm3d-multi-lock');
             if (lockBtn) {
                 lockBtn.addEventListener('click', () => {
-                    const anyUnlocked = selected3DElements.some(el => !el.locked);
-                    selected3DElements.forEach(el => { el.locked = anyUnlocked; });
+                    if (Array.isArray(window.selectedElements) && window.selectedElements.length > 0 && typeof window.multiSelectToggleLock === 'function') {
+                        window.multiSelectToggleLock();
+                    } else {
+                        const anyUnlocked = selected3DElements.some(el => !el.locked);
+                        selected3DElements.forEach(el => { el.locked = anyUnlocked; });
+                    }
                     closeMenu();
                 });
             }
@@ -1328,7 +1333,11 @@
             const dupBtn = menu.querySelector('#acm3d-multi-duplicate');
             if (dupBtn) {
                 dupBtn.addEventListener('click', () => {
-                    this.duplicateSelectedElements();
+                    if (Array.isArray(window.selectedElements) && window.selectedElements.length > 0 && typeof window.multiSelectDuplicate === 'function') {
+                        window.multiSelectDuplicate();
+                    } else {
+                        this.duplicateSelectedElements();
+                    }
                     closeMenu();
                 });
             }
@@ -1337,7 +1346,11 @@
             const delBtn = menu.querySelector('#acm3d-multi-delete');
             if (delBtn) {
                 delBtn.addEventListener('click', () => {
-                    this.deleteSelectedElements();
+                    if (Array.isArray(window.selectedElements) && window.selectedElements.length > 0 && typeof window.multiSelectDelete === 'function') {
+                        window.multiSelectDelete();
+                    } else {
+                        this.deleteSelectedElements();
+                    }
                     closeMenu();
                 });
             }
@@ -1357,9 +1370,16 @@
             return;
         }
 
-        // 🌟 Karma Seçim Koruması: Eğer tıklanan nokta seçili bir 2D öge üzerindeyse seçimi düşürme!
+        // 🌟 Karma Seçim Koruması: Eğer tıklanan nokta seçili bir 2D öge üzerindeyse veya 3D sürükleme başladıysa seçimi düşürme!
+        if (window._isThreeDDragging) return;
         if (e.target && ((e.target.closest && e.target.closest('.el-selected')) || (Array.isArray(window.selectedElements) && window.selectedElements.some(el => el === e.target || (el && (el.contains(e.target) || e.target.contains(el))))))) {
             return;
+        }
+        if (typeof document.elementsFromPoint === 'function' && Array.isArray(window.selectedElements) && window.selectedElements.length > 0) {
+            const hits = document.elementsFromPoint(e.clientX, e.clientY);
+            if (hits && hits.some(node => node && window.selectedElements.some(sel => sel === node || (sel && sel.contains && sel.contains(node))))) {
+                return;
+            }
         }
         // Eğer tıklanan nokta seçili 3D nesnelerden birinin üzerindeyse seçimi düşürme
         if (window.ThreeDEngine && typeof window.ThreeDEngine.checkHit === 'function') {

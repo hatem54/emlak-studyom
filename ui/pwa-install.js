@@ -3,6 +3,10 @@ let deferredPrompt;
 
 // 1. Tooltip logic for first-time visitors (only if PWA is not already installed)
 window.addEventListener('load', () => {
+    // Masaüstü tarayıcılarda mobil "Ana Ekrana Ekle" ipucunu gösterme
+    const isMobileUa = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '') || (window.innerWidth <= 900 && ('ontouchstart' in window));
+    if (!isMobileUa) return;
+
     // Check if the user is already in standalone mode (PWA installed)
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone;
     
@@ -109,7 +113,9 @@ if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
         navigator.serviceWorker.register('./sw.js?v=20260915-100')
             .then(registration => {
-                registration.update();
+                if (registration && typeof registration.update === 'function') {
+                    registration.update().catch(() => {});
+                }
                 console.log('SW registered: ', registration);
             })
             .catch(registrationError => {

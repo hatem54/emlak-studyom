@@ -39,6 +39,26 @@
             }
         })();
     </script>
+    <style id="criticalThemeBootStyle">
+        html[data-theme="light"], html[data-theme="light"] body {
+            background: #f1f5f9 !important;
+            background-color: #f1f5f9 !important;
+            color: #0f172a !important;
+        }
+        html[data-theme="light"] #initialAppLoader {
+            position: fixed;
+            inset: 0;
+            background-color: #f8fafc;
+            z-index: 999999999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        html[data-theme="dark"], html[data-theme="dark"] body {
+            background: #0A0A1A !important;
+            color: #E0E0FF !important;
+        }
+    </style>
 
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
@@ -56,8 +76,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <link rel="stylesheet" href="styles.css?v=20261009-10">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha384-t1nt8BQoYMLFN5p42tRAtuAAFQaCQODekUVeKKZrEnEyp4H2R0RHFz0KWpmj7i8g" crossorigin="anonymous">
+    <link rel="stylesheet" href="styles.css?v=20261113-1">
     <link rel="stylesheet" href="css/callouts.css?v=20260916-116">
     <link rel="stylesheet" href="css/satellite-map.css?v=20260928-3">
     <link rel="stylesheet" href="css/three-d.css?v=20260925-5">
@@ -69,7 +89,7 @@
     <link rel="stylesheet" href="css/dock-contextual.css?v=20260925-3">
     <link rel="stylesheet" href="css/canvas-tools.css?v=20260924-1">
     <link rel="stylesheet" href="css/empty-state.css?v=20260929-1">
-    <link rel="stylesheet" href="css/template-builder.css?v=20260929-1">
+    <link rel="stylesheet" href="css/template-builder.css?v=20261113-1">
     <link rel="stylesheet" href="css/template-shapes.css?v=20260929-1">
     <link rel="stylesheet" href="css/template-info-card.css?v=20260929-1">
     <link rel="stylesheet" href="css/template-cards.css?v=20261005-1">
@@ -82,32 +102,32 @@
     <link rel="stylesheet" href="css/bezier-curves.css?v=20261002-1">
     <link rel="stylesheet" href="css/template-frame.css?v=20261011-1">
     <link rel="stylesheet" href="css/custom-badges.css?v=20261025-1">
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"  integrity="sha384-sHL9NAb7lN7rfvG5lfHpm643Xkcjzp4jFvuavGOndn6pjVqS6ny56CAt3nsEVT4H" crossorigin="anonymous"/>
     <!-- ⚡ SABER EFFECT ENGINE - PixiJS + Filters -->
-    <script src="https://cdn.jsdelivr.net/npm/pixi.js@7.4.0/dist/pixi.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/pixi.js@7.4.0/dist/pixi.min.js" integrity="sha384-pPWmvdGRNGnZTV+2wREKMY8UdtUhl4WnpgJIWXMxEH6FZjzltG67i2t5kJzrHDvZ" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/pixi-filters@5.2.1/dist/browser/pixi-filters.min.js"></script>
-    <script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+    <script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js" integrity="sha384-hJnF5AwidE18GSWTAGHv3ByzzvfNZ1Tcx5y1UUV3WkauuMCEzBJBMSwSt/PUPXnM" crossorigin="anonymous"></script>
     <!-- DOMPurify for XSS Protection -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js" integrity="sha384-cwS6YdhLI7XS60eoDiC+egV0qHp8zI+Cms46R0nbn8JrmoAzV9uFL60etMZhAnSu" crossorigin="anonymous"></script>
     <!-- Central Security & Input Guard -->
     <script src="modules/security-guard.js?v=20261017-1"></script>
     <!-- SweetAlert2 -->
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.26.25/dist/sweetalert2.all.min.js"></script>
-    <!-- heic2any (Apple iPhone HEIC/HEIF Image Converter) -->
-    <script src="https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.26.25/dist/sweetalert2.all.min.js" integrity="sha384-nLoOnA/BDh8A/jxqtckg4DumuCGOBYUnNJLZdQz/zfYNp3wcjGSoWTAzgko06G/2" crossorigin="anonymous"></script>
+    <!-- heic2any: Açılış hızlandırması için arka plan rölanti (idle) / ihtiyaç anında (on-demand) yüklenir -->
     <!-- HTML2Canvas -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" integrity="sha384-ZZ1pncU3bQe8y31yfZdMFdSpttDoPmOZg2wguVK9almUodir1PghgT0eY7Mrty8H" crossorigin="anonymous"></script>
     <!-- Supabase JS Library -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js" integrity="sha384-Rj26LVGvoeRVR6+mwQmFfcR3QOBEwT+ZmuCWpuiqeTzJpCs0ER4ITAWGb4Hiy3Ok" crossorigin="anonymous"></script>
     <script src="js/supabase-client.js" defer></script>
     <script src="js/error-monitor.js?v=20261013-1" defer></script>
     <script src="js/subscription.js?v=20260819-1" defer></script>
-    <script src="js/presence.js?v=20260819-1" defer></script>
-    <script src="js/mode-manager.js?v=20260819-14" defer></script>
+    <script src="js/presence.js?v=20261111-1" defer></script>
+    <script src="js/mode-manager.js?v=20261111-1" defer></script>
     <script src="js/saber-animation.js?v=20260913-39" defer></script>
 </head>
 <body>
     <script>
+        (function(){ try { var t = document.documentElement.getAttribute('data-theme'); if (t && document.body) document.body.setAttribute('data-theme', t); } catch(e) {} })();
         window.isInitialLoad = true; 
         window.userHasManuallyChangedFormat = false;
     </script>
@@ -2339,7 +2359,7 @@
             <input type="number" id="tbCustomW" placeholder="1920" style="flex:1; height:32px; padding:0 8px; font-size:11.5px; border-radius:6px; border:1px solid rgba(226,232,240,0.8); background:var(--dark-3, #ffffff); color:var(--text, #0f172a);">
             <span style="font-size:11px; color:var(--text-muted, #64748b);">×</span>
             <input type="number" id="tbCustomH" placeholder="1080" style="flex:1; height:32px; padding:0 8px; font-size:11.5px; border-radius:6px; border:1px solid rgba(226,232,240,0.8); background:var(--dark-3, #ffffff); color:var(--text, #0f172a);">
-            <button type="button" class="btn-action" style="padding:0 12px; height:32px; font-size:11.5px;" onclick="TemplateBuilder.setCanvasRatio('custom', document.getElementById('tbCustomW').value, document.getElementById('tbCustomH').value)">Uygula</button>
+            <button type="button" class="btn-action" style="padding:0 12px; height:32px; font-size:11.5px; margin:0 !important;" onclick="TemplateBuilder.setCanvasRatio('custom', document.getElementById('tbCustomW').value, document.getElementById('tbCustomH').value)">Uygula</button>
         </div>
 
         <!-- 2. ARKA PLAN RENGİ & DOKU -->
@@ -2348,7 +2368,7 @@
         <!-- Hızlı Renk Seçimi & Palet Açma Butonu -->
         <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
             <input type="color" id="tbCanvasBgColor" value="#0f172a" style="width:34px; height:34px; min-width:34px; max-width:34px; border:1px solid #cbd5e1; border-radius:8px; padding:2px; cursor:pointer; background:var(--dark-3, #ffffff); flex-shrink:0; box-sizing:border-box;" oninput="TemplateBuilder.setCanvasBackground('color', this.value, true)" title="Özel Renk Seç">
-            <button type="button" class="btn-action" style="flex:1; height:34px; display:flex; align-items:center; justify-content:center; gap:6px; font-size:11.5px; white-space:nowrap; padding:0 12px;" id="tbToggleBgPaletteBtn" onclick="TemplateBuilder.toggleBgPalette()" title="Hazır Renk ve Gradyan Paletini Aç">
+            <button type="button" class="btn-action" style="flex:1; height:34px; display:flex; align-items:center; justify-content:center; gap:6px; font-size:11.5px; white-space:nowrap; padding:0 12px; margin:0 !important;" id="tbToggleBgPaletteBtn" onclick="TemplateBuilder.toggleBgPalette()" title="Hazır Renk ve Gradyan Paletini Aç">
                 <i class="fa-solid fa-swatchbook"></i> Hazır Renkler
             </button>
         </div>
@@ -2380,8 +2400,8 @@
             <button type="button" class="btn-action" onclick="TemplateBuilder.createImageFrame()" title="Kare veya Dikdörtgen Çerçeve">
                 <i class="fa-solid fa-image"></i> Çerçeve
             </button>
-            <button type="button" class="btn-action" onclick="TemplateBuilder.createImageFrame({ blend: 'bottom' })" title="Altı Zemine Eriyen Degrade Çerçeve">
-                <i class="fa-solid fa-wand-magic-sparkles"></i> Degrade
+            <button type="button" class="btn-action" onclick="TemplateBuilder.createHexagonFrame()" title="Altıgen Çerçeve">
+                <i class="fa-solid fa-shapes"></i> Altıgen
             </button>
             <button type="button" class="btn-action" onclick="TemplateBuilder.createCircleFrame()" title="Tam Daire Çerçeve">
                 <i class="fa-solid fa-circle"></i> Yuvarlak
@@ -2522,7 +2542,7 @@
                 <option value="ocean-turquoise">Okyanus Turkuaz</option>
                 <option value="minimal-mono">Monokrom Minimal</option>
             </select>
-            <button type="button" class="btn-action btn-red" style="padding:0 10px; height:30px; font-size:11px;" onclick="TemplateBuilder.removeInfoCard()" title="Bilgi kartını kaldırıp çerçeveleri orijinal boyutuna döndürür">
+            <button type="button" class="btn-action btn-red" style="padding:0 10px; height:30px; font-size:11px; margin:0 !important; white-space:nowrap;" onclick="TemplateBuilder.removeInfoCard()" title="Bilgi kartını kaldırıp çerçeveleri orijinal boyutuna döndürür">
                 <i class="fa-solid fa-trash-can"></i> Kartı Kaldır
             </button>
         </div>
@@ -2531,7 +2551,7 @@
         <div style="display:flex; align-items:center; gap:6px; margin-bottom:6px;">
             <input type="color" id="tbInfoCardBgColor" value="#0f172a" style="width:28px; height:28px; border:none; border-radius:6px; cursor:pointer;" oninput="TemplateBuilder.setInfoCardBg(this.value)" title="Kart Rengi">
             <span style="font-size:11px; font-weight:600; color:var(--text, #0f172a);">Özel Kart Rengi</span>
-            <button type="button" class="btn-action" style="margin-left:auto; padding:0 8px; height:28px; font-size:10px;" onclick="TemplateBuilder.resetInfoCardBg()" title="Seçili Temanın Varsayılan Rengine Dön">Temaya Dön</button>
+            <button type="button" class="btn-action" style="margin:0 0 0 auto !important; padding:0 8px; height:28px; font-size:10px; white-space:nowrap;" onclick="TemplateBuilder.resetInfoCardBg()" title="Seçili Temanın Varsayılan Rengine Dön">Temaya Dön</button>
         </div>
 
         <!-- Hızlı Kart Renk Çipleri -->
@@ -2548,34 +2568,51 @@
 
         <!-- 6. SEÇİLİ ÇERÇEVE AYARLARI (DYNAMIC INSPECTOR) -->
         <div id="tbFrameSettingsSection" style="display:none; margin-bottom:14px; border-top:1px solid rgba(226,232,240,0.8); padding-top:10px;">
-            <div class="section-title"><i class="fa-solid fa-sliders" style="color:#0284c7; margin-right:6px;"></i>Çerçeve Ayarları</div>
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:6px; margin-bottom:8px;">
+                <div class="section-title" style="margin:0;"><i class="fa-solid fa-sliders" style="color:#0284c7; margin-right:6px;"></i>Çerçeve Ayarları</div>
+                <button type="button" class="btn-action" style="flex:0 0 auto; width:auto; padding:2px 8px; height:26px; font-size:10.5px; margin:0 !important; white-space:nowrap;" onclick="TemplateBuilder.resetSelectedFramePlacement()" title="Çerçeveyi İlk Konum ve Boyutuna Sıfırlar">
+                    <i class="fa-solid fa-rotate-left"></i> Yerini Sıfırla
+                </button>
+            </div>
             
-            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
-                <div style="display:flex; align-items:center; gap:6px;">
-                    <span style="font-size:11px; font-weight:700; color:var(--text, #0f172a);">Şekil:</span>
-                    <span id="tbCurrentShapeLabel" style="font-size:11px; font-weight:700; color:#0284c7;">Standart Kutu</span>
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:6px; margin-bottom:8px;">
+                <div style="display:flex; align-items:center; gap:5px; min-width:0;">
+                    <span style="font-size:11px; font-weight:700; color:var(--text, #0f172a); white-space:nowrap;">Şekil:</span>
+                    <span id="tbCurrentShapeLabel" style="font-size:11px; font-weight:700; color:#0284c7; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Standart Kutu</span>
                 </div>
-                <div style="display:flex; gap:4px;">
-                    <button type="button" class="btn-action" style="padding:2px 8px; font-size:10.5px;" onclick="TemplateBuilder.makeSelectedFrameCircle()" title="Kare Boyutlandır ve Tam Daire Yap">Tam Daire</button>
-                    <button type="button" class="btn-action" style="padding:2px 8px; font-size:10.5px;" onclick="TemplateBuilder.setFrameShape('none')" title="Şekli Kaldır ve Kutu Yap">Kutu</button>
+                <div style="display:flex; gap:4px; flex-shrink:0;">
+                    <button type="button" class="btn-action" style="padding:2px 8px; font-size:10.5px; white-space:nowrap; margin:0 !important; height:26px;" onclick="TemplateBuilder.makeSelectedFrameCircle()" title="Kare Boyutlandır ve Tam Daire Yap">Tam Daire</button>
+                    <button type="button" class="btn-action" style="padding:2px 8px; font-size:10.5px; white-space:nowrap; margin:0 !important; height:26px;" onclick="TemplateBuilder.makeSelectedFrameHexagon()" title="Kare Boyutlandır ve Altıgen Yap">Altıgen</button>
+                    <button type="button" class="btn-action" style="padding:2px 8px; font-size:10.5px; white-space:nowrap; margin:0 !important; height:26px;" onclick="TemplateBuilder.setFrameShape('none')" title="Şekli Kaldır ve Kutu Yap">Kutu</button>
                 </div>
             </div>
 
-            <div style="font-size:11px; font-weight:700; color:var(--text, #0f172a); margin-bottom:6px;">Zemine Geçiş Stili</div>
-            <div class="tb-blend-grid">
-                <div class="tb-blend-btn active" data-blend="none" onclick="TemplateBuilder.setFrameBlend('none')">
-                    <i class="fa-solid fa-border-all"></i>
-                    <span>Kutu</span>
+            <details class="tb-accordion" id="tbBlendAccordion" style="margin-top:8px; margin-bottom:8px;">
+                <summary class="tb-accordion-summary">
+                    <span style="display:flex; align-items:center; gap:6px;">
+                        <i class="fa-solid fa-wand-magic-sparkles" style="color:#0284c7;"></i>
+                        <span>Degrade ve Geçiş</span>
+                        <span id="tbBlendBadge" style="font-size:9.5px; font-weight:700; color:#0284c7; margin-left:4px;"></span>
+                    </span>
+                    <i class="fa-solid fa-chevron-down tb-accordion-arrow"></i>
+                </summary>
+                <div class="tb-accordion-content">
+                    <div class="tb-blend-grid">
+                        <div class="tb-blend-btn active" data-blend="none" onclick="TemplateBuilder.setFrameBlend('none')">
+                            <i class="fa-solid fa-border-all"></i>
+                            <span>Normal</span>
+                        </div>
+                        <div class="tb-blend-btn" data-blend="bottom" onclick="TemplateBuilder.setFrameBlend('bottom')">
+                            <i class="fa-solid fa-arrow-down"></i>
+                            <span>Aşağı Degrade</span>
+                        </div>
+                        <div class="tb-blend-btn" data-blend="right" onclick="TemplateBuilder.setFrameBlend('right')">
+                            <i class="fa-solid fa-arrow-right"></i>
+                            <span>Sağa Degrade</span>
+                        </div>
+                    </div>
                 </div>
-                <div class="tb-blend-btn" data-blend="bottom" onclick="TemplateBuilder.setFrameBlend('bottom')">
-                    <i class="fa-solid fa-arrow-down"></i>
-                    <span>Aşağı Degrade</span>
-                </div>
-                <div class="tb-blend-btn" data-blend="right" onclick="TemplateBuilder.setFrameBlend('right')">
-                    <i class="fa-solid fa-arrow-right"></i>
-                    <span>Sağa Degrade</span>
-                </div>
-            </div>
+            </details>
             
             <div class="slider-group">
                 <label><span>Köşe Kavisi</span><span id="tbFrameRadiusVal">12px</span></label>
@@ -2590,47 +2627,54 @@
                 <span style="font-size:11px; color:var(--text, #0f172a);">Kenarlık Rengi</span>
             </div>
             <div class="slider-group">
-                <label><span>Gölge</span><span id="tbFrameShadowVal">10px</span></label>
-                <input type="range" id="tbFrameShadow" min="0" max="40" value="10" oninput="TemplateBuilder.updateSelectedFrameProp('shadow', this.value)">
+                <label><span>Gölge</span><span id="tbFrameShadowVal">12px</span></label>
+                <input type="range" id="tbFrameShadow" min="0" max="80" value="12" oninput="TemplateBuilder.updateSelectedFrameProp('shadow', this.value)">
             </div>
             <div class="slider-group">
                 <label><span>Açı / Döndürme</span><span id="tbFrameRotationVal">0°</span></label>
-                <input type="range" id="tbFrameRotation" min="-45" max="45" value="0" oninput="TemplateBuilder.updateSelectedFrameProp('rotation', this.value)">
+                <input type="range" id="tbFrameRotation" min="-360" max="360" value="0" oninput="TemplateBuilder.updateSelectedFrameProp('rotation', this.value)">
             </div>
             <div class="slider-group">
-                <label><span>Fotoğraf Yakınlaştırma</span><span id="tbFrameZoomVal">100%</span></label>
-                <input type="range" id="tbFrameZoom" min="100" max="250" value="100" oninput="TemplateBuilder.updateSelectedFrameProp('zoom', this.value)">
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;">
+                    <label style="margin:0;"><span>Fotoğraf Yakınlaştırma</span><span id="tbFrameZoomVal">100%</span></label>
+                    <div style="display:flex; gap:3px;">
+                        <button type="button" class="btn-action" style="padding:1px 6px; font-size:10px; height:20px; margin:0 !important;" onclick="TemplateBuilder.zoomOut()" title="Fotoğrafı Uzaklaştır"><i class="fa-solid fa-magnifying-glass-minus"></i></button>
+                        <button type="button" class="btn-action" style="padding:1px 6px; font-size:10px; height:20px; margin:0 !important;" onclick="TemplateBuilder.zoomReset()" title="Yakınlaştırmayı Sıfırla"><i class="fa-solid fa-rotate-left"></i></button>
+                        <button type="button" class="btn-action" style="padding:1px 6px; font-size:10px; height:20px; margin:0 !important;" onclick="TemplateBuilder.zoomIn()" title="Fotoğrafı Yakınlaştır"><i class="fa-solid fa-magnifying-glass-plus"></i></button>
+                    </div>
+                </div>
+                <input type="range" id="tbFrameZoom" min="20" max="300" step="5" value="100" oninput="TemplateBuilder.updateSelectedFrameProp('zoom', this.value)">
             </div>
             
-            <div style="font-size:11px; font-weight:700; color:var(--text, #0f172a); margin:12px 0 6px 0; display:flex; align-items:center; justify-content:space-between; border-top:1px solid rgba(226,232,240,0.8); padding-top:8px;">
-                <span><i class="fa-solid fa-arrows-up-down-left-right" style="color:#0284c7; margin-right:5px;"></i>Fotoğraf Konumu</span>
-                <button type="button" class="btn-action" style="padding:2px 8px; font-size:10.5px;" onclick="TemplateBuilder.resetImagePan()" title="Fotoğrafı Çerçeve İçinde Ortala">Ortala</button>
+            <div style="font-size:11px; font-weight:700; color:var(--text, #0f172a); margin:12px 0 6px 0; display:flex; align-items:center; justify-content:space-between; gap:6px; border-top:1px solid rgba(226,232,240,0.8); padding-top:8px;">
+                <span style="white-space:nowrap;"><i class="fa-solid fa-arrows-up-down-left-right" style="color:#0284c7; margin-right:5px;"></i>Fotoğraf Konumu</span>
+                <button type="button" class="btn-action" style="flex:0 0 auto; width:auto; padding:2px 10px; font-size:10.5px; white-space:nowrap; margin:0 !important; height:26px;" onclick="TemplateBuilder.resetImagePan()" title="Fotoğrafı Çerçeve İçinde Ortala">Ortala</button>
             </div>
             <div class="slider-group">
                 <label><span>Yatay Kaydırma</span><span id="tbFramePanXVal">0px</span></label>
-                <input type="range" id="tbFramePanX" min="-500" max="500" value="0" oninput="TemplateBuilder.updateSelectedFrameProp('panX', this.value)">
+                <input type="range" id="tbFramePanX" min="-800" max="800" value="0" oninput="TemplateBuilder.updateSelectedFrameProp('panX', this.value)">
             </div>
             <div class="slider-group">
                 <label><span>Dikey Kaydırma</span><span id="tbFramePanYVal">0px</span></label>
-                <input type="range" id="tbFramePanY" min="-500" max="500" value="0" oninput="TemplateBuilder.updateSelectedFrameProp('panY', this.value)">
+                <input type="range" id="tbFramePanY" min="-800" max="800" value="0" oninput="TemplateBuilder.updateSelectedFrameProp('panY', this.value)">
             </div>
 
             <!-- 3D Düzlem & Perspektif -->
-            <div style="font-size:11px; font-weight:700; color:var(--text, #0f172a); margin:12px 0 6px 0; display:flex; align-items:center; justify-content:space-between; border-top:1px solid rgba(226,232,240,0.8); padding-top:8px;">
-                <span><i class="fa-solid fa-cube" style="color:#6366f1; margin-right:5px;"></i>3D Düzlem &amp; Perspektif</span>
-                <div style="display:flex; gap:4px;">
-                    <button type="button" class="btn-action" id="tbBtn3DGizmo" style="padding:2px 8px; font-size:10.5px;" onclick="Template3DFrame.toggleGizmo()" title="Tuval Üzerinde 3D Gizmo Aç veya Kapat">3D Gizmo</button>
-                    <button type="button" class="btn-action" style="padding:2px 8px; font-size:10.5px;" onclick="Template3DFrame.reset3DTransform()" title="3D Açıları Sıfırla">Sıfırla</button>
+            <div style="font-size:11px; font-weight:700; color:var(--text, #0f172a); margin:12px 0 6px 0; display:flex; align-items:center; justify-content:space-between; gap:6px; border-top:1px solid rgba(226,232,240,0.8); padding-top:8px;">
+                <span style="white-space:nowrap;"><i class="fa-solid fa-cube" style="color:#6366f1; margin-right:5px;"></i>3D Düzlem &amp; Perspektif</span>
+                <div style="display:flex; gap:4px; flex-shrink:0;">
+                    <button type="button" class="btn-action" id="tbBtn3DGizmo" style="padding:2px 8px; font-size:10.5px; white-space:nowrap; margin:0 !important; height:26px;" onclick="Template3DFrame.toggleGizmo()" title="Tuval Üzerinde 3D Gizmo Aç veya Kapat">3D Gizmo</button>
+                    <button type="button" class="btn-action" style="padding:2px 8px; font-size:10.5px; white-space:nowrap; margin:0 !important; height:26px;" onclick="Template3DFrame.reset3DTransform()" title="3D Açıları Sıfırla">Sıfırla</button>
                 </div>
             </div>
             
             <div class="slider-group">
                 <label><span>Öne / Arkaya Eğim</span><span id="tbFramePitchVal">0°</span></label>
-                <input type="range" id="tbFramePitch" min="-60" max="60" value="0" oninput="Template3DFrame.updateProp('pitch', this.value)">
+                <input type="range" id="tbFramePitch" min="-360" max="360" value="0" oninput="Template3DFrame.updateProp('pitch', this.value)">
             </div>
             <div class="slider-group">
                 <label><span>Sağa / Sola Dönüş</span><span id="tbFrameYawVal">0°</span></label>
-                <input type="range" id="tbFrameYaw" min="-60" max="60" value="0" oninput="Template3DFrame.updateProp('yaw', this.value)">
+                <input type="range" id="tbFrameYaw" min="-360" max="360" value="0" oninput="Template3DFrame.updateProp('yaw', this.value)">
             </div>
             <div class="slider-group">
                 <label><span>Perspektif Derinliği</span><span id="tbFramePerspectiveVal">1000px</span></label>
@@ -2638,7 +2682,17 @@
             </div>
             <div class="slider-group">
                 <label><span>Z-Yükseklik</span><span id="tbFrameElevationVal">0px</span></label>
-                <input type="range" id="tbFrameElevation" min="0" max="100" value="0" oninput="Template3DFrame.updateProp('elevation', this.value)">
+                <input type="range" id="tbFrameElevation" min="-500" max="800" step="5" value="0" oninput="Template3DFrame.updateProp('elevation', this.value)">
+            </div>
+            <div class="slider-group">
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;">
+                    <label style="margin:0;"><span>3D Kalınlık</span><span id="tbFrameDepthVal">0px</span></label>
+                    <div style="display:flex; align-items:center; gap:6px;">
+                        <span style="font-size:10px; color:var(--text-muted, #64748b);">Kenar Rengi:</span>
+                        <input type="color" id="tbFrameDepthColor" value="#334155" oninput="Template3DFrame.updateProp('depthColor', this.value)" title="3D Kalınlık Kenar Rengi" style="width:20px; height:20px; border:1px solid #cbd5e1; border-radius:4px; padding:0; cursor:pointer; background:none;">
+                    </div>
+                </div>
+                <input type="range" id="tbFrameDepth" min="0" max="600" step="1" value="0" oninput="Template3DFrame.updateProp('depth', this.value)">
             </div>
 
             <div style="font-size:10.5px; font-weight:700; color:var(--text-muted, #64748b); margin:6px 0 4px 0;">Hazır 3D Açılar</div>
@@ -2694,8 +2748,8 @@
 
         <!-- 7. ŞABLONU KAYDET & KÜTÜPHANEM -->
         <div class="section-title"><i class="fa-solid fa-floppy-disk" style="color:#0284c7; margin-right:6px;"></i>Şablonu Kaydet</div>
-        <button type="button" class="btn-action" style="width:100%; justify-content:center; margin-bottom:8px; font-weight:700;" onclick="TemplateBuilder.saveCurrentTemplate()">
-            <i class="fa-solid fa-floppy-disk"></i> Bu Düzeni Şablon Olarak Kaydet
+        <button type="button" class="btn-action" style="width:100%; justify-content:center; margin-bottom:8px; font-weight:700;" onclick="TemplateBuilder.saveCurrentTemplate()" title="Mevcut çerçeve ve arka plan düzenini özel şablon olarak kaydeder">
+            <i class="fa-solid fa-floppy-disk"></i> Şablon Kaydet
         </button>
         
         <div style="font-size:11px; font-weight:700; color:var(--text, #0f172a); margin-top:10px;">Kayıtlı Şablonlarım</div>
@@ -3148,7 +3202,7 @@
         </div>
     </div>
 
-      <div class="section-title" style="cursor:pointer; display:flex; justify-content:space-between; align-items:center;" onclick="const acc = document.getElementById('historyAccordion'); const icon = this.querySelector('i'); if(acc.style.display === 'none'){acc.style.display='block'; icon.style.transform='rotate(180deg)';}else{acc.style.display='none'; icon.style.transform='rotate(0deg)';}">
+      <div class="section-title" style="cursor:pointer; display:flex; justify-content:space-between; align-items:center;" onclick="const acc = document.getElementById('historyAccordion'); const icon = this.querySelector('i.fa-chevron-down'); if(acc.style.display === 'none'){acc.style.display='block'; if(icon) icon.style.transform='rotate(180deg)'; if(typeof window.renderProjectHistory === 'function') window.renderProjectHistory();}else{acc.style.display='none'; if(icon) icon.style.transform='rotate(0deg)';}">
         <span><i class="fa-solid fa-clock-rotate-left" style="color:#f59e0b; margin-right:6px;"></i>Proje Geçmişi</span>
         <i class="fa-solid fa-chevron-down" style="transition: transform 0.3s; transform: rotate(0deg);"></i>
     </div>
@@ -3495,6 +3549,15 @@
             <span class="dock-label" id="dockLockText">Sabit</span>
         </button>
 
+        <button type="button" id="dockGlobalSelectAllBtn" class="dock-btn" onclick="if(typeof window.selectAllCanvasElements==='function') window.selectAllCanvasElements();" title="Tuvaldeki tüm ögeleri seç (Ctrl+A)">
+            <span class="dock-icon"><i class="fa-solid fa-object-group"></i></span>
+            <span class="dock-label">Tümünü Seç</span>
+        </button>
+        <button type="button" id="dockGlobalCenterBtn" class="dock-btn" onclick="if(typeof window.centerSelectedOnCanvas==='function') window.centerSelectedOnCanvas();" title="Seçili ögeleri ekrana ortala ve taşanları içeri al">
+            <span class="dock-icon"><i class="fa-solid fa-crosshairs"></i></span>
+            <span class="dock-label">Ekrana Ortala</span>
+        </button>
+
         <div class="dock-divider"></div>
 
         <!-- ⚡ DİNAMİK KONTEKST BUTONLARI (Aktif Sekme & Araca Göre Değişen Akıllı Kısayollar) -->
@@ -3663,10 +3726,6 @@
                     <span class="dock-icon"><i class="fa-solid fa-palette"></i></span>
                     <span class="dock-label">Renkler</span>
                 </button>
-                <button type="button" class="dock-btn" onclick="if(typeof CarouselManager!=='undefined') CarouselManager.toggleBar();" title="Çoklu Gönderi Albüm Şeridini Aç veya Kapat">
-                    <span class="dock-icon"><i class="fa-solid fa-film"></i></span>
-                    <span class="dock-label">Çoklu Gönderi</span>
-                </button>
             </div>
 
             <!-- 9. ROZETLER TABI (callout) -->
@@ -3711,17 +3770,9 @@
 
             <!-- 11. ELEMENT / SEÇİLİ ÖGE TABI (element) -->
             <div id="dockGroup_element" class="dock-context-group">
-                <button type="button" class="dock-btn btn-accent" onclick="if(typeof window.openSelectedElementSettings==='function') window.openSelectedElementSettings(); else if(typeof switchTab==='function') switchTab('font');" title="Öge Ayarları ve Metin Düzenleme">
-                    <span class="dock-icon"><i class="fa-solid fa-sliders"></i></span>
-                    <span class="dock-label">Ayarlar</span>
-                </button>
-                <button type="button" class="dock-btn" onclick="if(typeof window.rotateSelectedElement==='function')window.rotateSelectedElement(event && event.shiftKey ? -15 : 15);" oncontextmenu="event.preventDefault(); if(typeof window.rotateSelectedElement==='function')window.rotateSelectedElement(-15);" title="Sol Tık: 15° Döndür | Shift+Tık veya Sağ Tık: -15° Ters Döndür">
+                <button type="button" class="dock-btn" onclick="if(typeof window.rotateSelectedElement==='function')window.rotateSelectedElement(event && event.shiftKey ? -15 : 15);" oncontextmenu="event.preventDefault(); if(typeof window.rotateSelectedElement==='function')window.rotateSelectedElement(-15);" title="Sol Tık: 15° Döndür | Sağ Tık: -15° Ters Döndür">
                     <span class="dock-icon"><i class="fa-solid fa-rotate-right"></i></span>
                     <span class="dock-label">Döndür</span>
-                </button>
-                <button type="button" class="dock-btn" onclick="if(typeof window.flipSelectedElementHorizontal==='function')window.flipSelectedElementHorizontal();" title="Ögeyi Yatay Çevir veya Aynala">
-                    <span class="dock-icon"><i class="fa-solid fa-arrows-left-right"></i></span>
-                    <span class="dock-label">Aynala</span>
                 </button>
                 <button type="button" class="dock-btn" onclick="if(typeof window.toggleLockSelected==='function')window.toggleLockSelected();" title="Ögeyi Kilitle veya Kilidi Aç">
                     <span class="dock-icon"><i class="fa-solid fa-lock-open" id="dockElLockIcon"></i></span>
@@ -3731,13 +3782,9 @@
                     <span class="dock-icon"><i class="fa-solid fa-clone"></i></span>
                     <span class="dock-label">Çoğalt</span>
                 </button>
-                <button type="button" class="dock-btn dock-snap-btn" onclick="window.toggleSmartGuides()" title="Akıllı Manyetik Hizalamayı Aç veya Kapat">
-                    <span class="dock-icon"><i class="fa-solid fa-magnet"></i></span>
-                    <span class="dock-label">Hizalama</span>
-                </button>
                 <button type="button" class="dock-btn" onclick="if(typeof window.resetSelectedElementToDefault==='function')window.resetSelectedElementToDefault();" title="Seçili ögenin açı ve boyutunu varsayılana sıfırla">
                     <span class="dock-icon"><i class="fa-solid fa-arrow-rotate-left"></i></span>
-                    <span class="dock-label">Ögeyi Sıfırla</span>
+                    <span class="dock-label">Sıfırla</span>
                 </button>
                 <button type="button" class="dock-btn" onclick="if(typeof deleteSelected==='function')deleteSelected();" title="Seçili Ögeyi Sil">
                     <span class="dock-icon"><i class="fa-solid fa-trash-can" style="color:#ef4444;"></i></span>
@@ -3771,33 +3818,21 @@
 
             <!-- 13. ÇIKTI TABI KISAYOLLARI (batch) -->
             <div id="dockGroup_batch" class="dock-context-group">
-                <button type="button" class="dock-btn" onclick="CarouselManager.toggleBar()" title="Çoklu Gönderi Albüm Şeridini Aç veya Kapat">
-                    <span class="dock-icon"><i class="fa-solid fa-film"></i></span>
-                    <span class="dock-label">Çoklu Gönderi</span>
-                </button>
-                <button type="button" class="dock-btn" onclick="if(typeof CarouselManager!=='undefined'){ CarouselManager.addPage(); CarouselManager.toggleBar(true); }" title="Yeni Albüm Sayfası Ekle">
-                    <span class="dock-icon"><i class="fa-solid fa-file-circle-plus"></i></span>
-                    <span class="dock-label">Sayfa Ekle</span>
-                </button>
                 <button type="button" class="dock-btn pc-only" onclick="if(typeof window.exportTransparentPNG==='function') window.exportTransparentPNG(); else if(typeof saveImage==='function') saveImage(null, { fileType: 'png_transparent' });" title="Arka planı saydam şeffaf PNG olarak indir">
                     <span class="dock-icon"><i class="fa-solid fa-file-image"></i></span>
                     <span class="dock-label">Şeffaf</span>
                 </button>
-                <button type="button" class="dock-btn" onclick="if(typeof loadProject==='function')loadProject();" title="Bilgisayardan Şablon / Proje Dosyası Aç (.json)">
+                <button type="button" class="dock-btn" onclick="if(typeof loadProject==='function')loadProject();" title="Bilgisayardan Şablon veya Proje Dosyası Aç">
                     <span class="dock-icon"><i class="fa-solid fa-folder-open"></i></span>
                     <span class="dock-label">Şablon Aç</span>
                 </button>
-                <button type="button" class="dock-btn" onclick="if(typeof saveProject==='function')saveProject();" title="Mevcut Tasarımı Şablon / Proje Dosyası Olarak Kaydet (.json)">
+                <button type="button" class="dock-btn" onclick="if(typeof saveProject==='function')saveProject();" title="Mevcut Tasarımı Şablon veya Proje Dosyası Olarak Kaydet">
                     <span class="dock-icon"><i class="fa-solid fa-floppy-disk"></i></span>
                     <span class="dock-label">Kaydet</span>
                 </button>
                 <button type="button" class="dock-btn" onclick="if(typeof openBatchExportSection==='function')openBatchExportSection();" title="Çoklu Görsel Yükleme ve Toplu Çıktı Bölümünü Aç">
                     <span class="dock-icon"><i class="fa-solid fa-images"></i></span>
                     <span class="dock-label">Toplu Çıktı</span>
-                </button>
-                <button type="button" class="dock-btn" onclick="window.resetEntireWorkspace()" title="Tüm çalışmayı ve tuvali sıfırla">
-                    <span class="dock-icon"><i class="fa-solid fa-trash-can"></i></span>
-                    <span class="dock-label">Tuvali Temizle</span>
                 </button>
             </div>
 
@@ -3819,10 +3854,6 @@
 
             <!-- 15. ŞABLON OLUŞTUR KISAYOLLARI (create-template) -->
             <div id="dockGroup_create-template" class="dock-context-group">
-                <button type="button" class="dock-btn" onclick="CarouselManager.toggleBar()" title="Çoklu Gönderi Albüm Şeridini Aç veya Kapat">
-                    <span class="dock-icon"><i class="fa-solid fa-film"></i></span>
-                    <span class="dock-label">Çoklu Gönderi</span>
-                </button>
                 <button type="button" class="dock-btn" onclick="TemplateBuilder.createImageFrame()" title="Yeni Görsel Çerçevesi Ekle">
                     <span class="dock-icon"><i class="fa-solid fa-image"></i></span>
                     <span class="dock-label">Çerçeve</span>
@@ -3831,21 +3862,9 @@
                     <span class="dock-icon"><i class="fa-solid fa-magnet"></i></span>
                     <span class="dock-label">Hizalama</span>
                 </button>
-                <button type="button" class="dock-btn" onclick="TemplateBuilder.uploadMultiplePhotos()" title="Tüm Çerçevelere Sırayla Fotoğraf Yükle">
-                    <span class="dock-icon"><i class="fa-solid fa-images"></i></span>
-                    <span class="dock-label">Toplu Görsel</span>
-                </button>
-                <button type="button" class="dock-btn" onclick="TemplateBuilder.addInfoCard('bottom')" title="Alta Bilgi Kartı Ekle">
-                    <span class="dock-icon"><i class="fa-solid fa-id-card"></i></span>
-                    <span class="dock-label">Bilgi Kartı</span>
-                </button>
                 <button type="button" class="dock-btn" onclick="TemplateBuilder.createTextFrame('heading')" title="Başlık Yazısı Ekle">
                     <span class="dock-icon"><i class="fa-solid fa-font"></i></span>
                     <span class="dock-label">Yazı</span>
-                </button>
-                <button type="button" class="dock-btn" onclick="TemplateBuilder.createTextFrame('price_badge')" title="Fiyat Rozeti Ekle">
-                    <span class="dock-icon"><i class="fa-solid fa-tag"></i></span>
-                    <span class="dock-label">Fiyat</span>
                 </button>
                 <button type="button" class="dock-btn" onclick="TemplateBuilder.saveCurrentTemplate()" title="Mevcut Düzeni Şablon Olarak Kaydet">
                     <span class="dock-icon"><i class="fa-solid fa-floppy-disk"></i></span>
@@ -3857,7 +3876,7 @@
             <div id="dockGroup_staging" class="dock-context-group">
                 <button type="button" class="dock-btn btn-accent" onclick="if(window.PhotoStagingArchive) PhotoStagingArchive.applySelectedToCanvas();" title="Seçilen görseli tuvale aktar">
                     <span class="dock-icon"><i class="fa-solid fa-arrow-up-right-from-square"></i></span>
-                    <span class="dock-label">Tuvale Aktar</span>
+                    <span class="dock-label">Aktar</span>
                 </button>
                 <button type="button" id="dockStagingBatchDownloadBtn" class="dock-btn" onclick="if(window.PhotoStagingArchive) PhotoStagingArchive.downloadSelectedZip();" title="Seçilen görselleri toplu ZIP olarak indir">
                     <span class="dock-icon"><i class="fa-solid fa-file-zipper"></i></span>
@@ -3869,15 +3888,11 @@
                 </button>
                 <button type="button" class="dock-btn" onclick="if(window.PhotoStagingArchive) PhotoStagingArchive.generatePortfolioPdf();" title="A4 PDF sunum broşürü oluştur">
                     <span class="dock-icon"><i class="fa-solid fa-file-pdf"></i></span>
-                    <span class="dock-label">PDF Portföy</span>
+                    <span class="dock-label">PDF</span>
                 </button>
                 <button type="button" class="dock-btn" onclick="if(window.PhotoStagingArchive) PhotoStagingArchive.toggleAiTray();" title="Yapay zeka netleştirme ayarını aç">
                     <span class="dock-icon"><i class="fa-solid fa-wand-magic-sparkles"></i></span>
                     <span class="dock-label">Netleştir</span>
-                </button>
-                <button type="button" class="dock-btn" onclick="if(window.PhotoStagingArchive) PhotoStagingArchive.clearAllPool();" title="Görsel havuzunu ve tuvali tamamen temizler">
-                    <span class="dock-icon"><i class="fa-solid fa-broom"></i></span>
-                    <span class="dock-label">Havuzu Boşalt</span>
                 </button>
             </div>
 
@@ -3907,14 +3922,6 @@
                     <span class="dock-icon"><i class="fa-solid fa-cube"></i></span>
                     <span class="dock-label">3D Panel</span>
                 </button>
-                <button type="button" class="dock-btn" onclick="if(typeof window.rotateSelectedElement==='function')window.rotateSelectedElement(event && event.shiftKey ? -15 : 15);" oncontextmenu="event.preventDefault(); if(typeof window.rotateSelectedElement==='function')window.rotateSelectedElement(-15);" title="Sol Tık: 15° Döndür | Shift+Tık veya Sağ Tık: -15° Ters Döndür">
-                    <span class="dock-icon"><i class="fa-solid fa-rotate-right"></i></span>
-                    <span class="dock-label">Döndür</span>
-                </button>
-                <button type="button" class="dock-btn" onclick="if(typeof window.flipSelectedElementHorizontal==='function')window.flipSelectedElementHorizontal();" title="3D Ögeyi Yatay Çevir">
-                    <span class="dock-icon"><i class="fa-solid fa-arrows-left-right"></i></span>
-                    <span class="dock-label">Aynala</span>
-                </button>
                 <button type="button" class="dock-btn" onclick="if(typeof window.toggleLockSelected==='function')window.toggleLockSelected();" title="3D Ögeyi Kilitle veya Kilidi Aç">
                     <span class="dock-icon"><i class="fa-solid fa-lock-open" id="dock3DElLockIcon"></i></span>
                     <span class="dock-label" id="dock3DElLockLabel">Serbest</span>
@@ -3923,13 +3930,9 @@
                     <span class="dock-icon"><i class="fa-solid fa-clone"></i></span>
                     <span class="dock-label">Çoğalt</span>
                 </button>
-                <button type="button" class="dock-btn" onclick="if(typeof window.bringToFrontSelected==='function')window.bringToFrontSelected();" title="3D Ögeyi En Öne Getir">
-                    <span class="dock-icon"><i class="fa-solid fa-layer-group"></i></span>
-                    <span class="dock-label">Öne</span>
-                </button>
                 <button type="button" class="dock-btn" onclick="if(typeof window.resetSelectedElementToDefault==='function')window.resetSelectedElementToDefault();" title="Seçili 3D ögenin açı ve boyutunu varsayılana sıfırla">
                     <span class="dock-icon"><i class="fa-solid fa-arrow-rotate-left"></i></span>
-                    <span class="dock-label">Ögeyi Sıfırla</span>
+                    <span class="dock-label">Sıfırla</span>
                 </button>
                 <button type="button" class="dock-btn" onclick="if(typeof window.deleteSelected==='function')window.deleteSelected();" title="Seçili 3D Ögeyi Sil">
                     <span class="dock-icon"><i class="fa-solid fa-trash-can" style="color:#ef4444;"></i></span>
@@ -4220,8 +4223,8 @@
 <script src="js/fonts.config.js?v=1"></script>
 <script src="js/filter.config.js?v=1"></script>
 <script src="config.js?v=20261005-1"></script>
-<script src="core/utils.js?v=20260913-32"></script>
-<script src="modules/state.js?v=20261009-1"></script>
+<script src="core/utils.js?v=20261113-1"></script>
+<script src="modules/state.js?v=20261111-1"></script>
 <script src="core/drag.js?v=20261009-10"></script>
 <script src="modules/canvas-core.js?v=20260924-4"></script>
 <script src="addTextHandles.js?v=20260822-2"></script>
@@ -4255,7 +4258,7 @@
 <script src="js/formConfig.js"></script>
 <script src="modules/parser-core.js?v=20260924-4"></script>
 <script src="modules/smart-suggestions.js?v=20260908-1"></script>
-<script src="modules/voiceover-studio.js?v=20260906-5"></script>
+<script src="modules/voiceover-studio.js?v=20261111-1"></script>
 <script src="modules/ai-assistant.js?v=20260905-2"></script>
 <script src="modules/ai-vision.js?v=20260905-2"></script>
 <script src="modules/photo-zoom.js?v=20260924-1"></script>
@@ -4268,7 +4271,7 @@
 <script src="modules/templates-core.js?v=20260924-4"></script>
 <script src="modules/template-frame.js?v=20261013-neon3"></script>
 <script src="modules/multi-select.js?v=20260925-1"></script>
-<script src="modules/events.js?v=20261009-10"></script>
+<script src="modules/events.js?v=20261112-2"></script>
 <script src="js/templateManager.js?v=20260904-1"></script>
 <script src="templates_json/core.js?v=20260924-4"></script>
     <script src="templates_json/templates_16_9.js?v=20260904-1"></script>
@@ -4287,16 +4290,16 @@
     <script src="tpl_portfoy/portfoy.js?v=20260822-3"></script>
     <script src="tpl_kalip/kalip.js?v=20260905-1"></script>
     <script src="tpl_ozel/ozel.js?v=20260904-1"></script>
-    <script src="js/brandManager.js?v=20260822-4"></script><script src="js/autoSave.js?v=20260915-89"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="js/brandManager.js?v=20260822-4"></script><script src="js/autoSave.js?v=20261113-1"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" integrity="sha384-3zSEDfvllQohrq0PHL1fOXJuC/jSOO34H46t6UQfobFOmxE5BpjjaIJY5F2/bMnU" crossorigin="anonymous"></script>
     <script src="js/modules/qrManager.js?v=1785302098411"></script>
-    <script src="main.js?v=20260928-1"></script>
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="main.js?v=20261113-1"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha384-cxOPjt7s7Iz04uaHJceBmS+qpjv2JkIHNVcuOrM+YHwZOmJGBXI00mdUXEq65HTH" crossorigin="anonymous"></script>
     <script src="modules/ai-enhancer.js?v=20260910-14"></script>
-    <script src="modules/satellite-core.js?v=20260928-6"></script>
+    <script src="modules/satellite-core.js?v=20261112-1"></script>
     <script src="modules/satellite-cadastre.js?v=20260918-4"></script>
     <script src="modules/satellite-measure.js?v=20260928-3"></script>
-    <script src="modules/satellite-map.js?v=20260918-90"></script>
+    <script src="modules/satellite-map.js?v=20261112-1"></script>
     <!-- 🌟 3D MOTORU IDLE PRELOAD (Sayfa açılışını hızlandırmak için tuval çizildikten sonra boşta yüklenir) -->
     <script>
     (function() {
@@ -4307,7 +4310,7 @@
                 const scripts = [
                     'assets/fonts/helvetiker_bold.js',
                     'modules/estate-3d-library.js?v=20260928-2',
-                    'modules/three-d-engine.js?v=20260928-4',
+                    'modules/three-d-engine.js?v=20261113-2',
                     'modules/three-d-textures.js?v=20260928-4',
                     'modules/three-d-align.js?v=20260925-2',
                     'modules/three-d-grouping.js?v=20260926-3',
@@ -4364,14 +4367,14 @@
     <script src="modules/template-layouts-data.js?v=20260929-1"></script>
     <script src="data/portfolio-presets.js?v=20260930-1"></script>
     <script src="modules/template-info-card.js?v=20260929-1"></script>
-    <script src="modules/template-builder.js?v=20260929-1"></script>
-    <script src="modules/template-3d-frame.js?v=20260930-1"></script>
+    <script src="modules/template-builder.js?v=20261113-2"></script>
+    <script src="modules/template-3d-frame.js?v=20261113-3"></script>
     <script src="modules/template-polygon-frame.js?v=20260930-1"></script>
     <script src="modules/portfolio-manager.js?v=20260930-1"></script>
     <!-- JSZip (Çoklu Format ve Albüm Arşivleme) -->
     <script src="js/jszip.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="modules/carousel-manager.js?v=20260930-1"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" integrity="sha384-JcnsjUPPylna1s1fvi1u12X5qjY5OL56iySh75FdtrwhO/SWXgMjoVqcKyIIWOLk" crossorigin="anonymous"></script>
+    <script src="modules/carousel-manager.js?v=20261113-1"></script>
     <script src="modules/drone-rig.js?v=20260930-1"></script>
     <script src="modules/photo-staging.js?v=20260930-1"></script>
 

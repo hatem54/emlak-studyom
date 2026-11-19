@@ -12,12 +12,20 @@
         let halfH = 40;
         try {
             const curScale = (el.planeScale !== undefined && el.planeScale !== null) ? el.planeScale : 1.0;
+            const scaleX = curScale * (el.scaleX !== undefined ? el.scaleX : 1.0);
+            const scaleY = curScale * (el.scaleY !== undefined ? el.scaleY : 1.0) * (el.heightScale !== undefined ? el.heightScale : 1.0);
             const m = el.badgeMesh || el.iconMesh || el.textMesh;
             if (m && m.geometry) {
                 if (!m.geometry.boundingBox) m.geometry.computeBoundingBox();
                 const bb = m.geometry.boundingBox;
-                halfW = Math.max(20, ((bb.max.x - bb.min.x) / 2) * curScale);
-                halfH = Math.max(15, ((bb.max.y - bb.min.y) / 2) * curScale);
+                halfW = Math.max(20, ((bb.max.x - bb.min.x) / 2) * scaleX);
+                halfH = Math.max(15, ((bb.max.y - bb.min.y) / 2) * scaleY);
+            } else if (el.contentGroup && typeof THREE !== 'undefined') {
+                const box = new THREE.Box3().setFromObject(el.contentGroup);
+                if (!box.isEmpty()) {
+                    halfW = Math.max(20, (box.max.x - box.min.x) / 2);
+                    halfH = Math.max(15, (box.max.y - box.min.y) / 2);
+                }
             }
         } catch (e) {}
         return { halfW, halfH };
@@ -495,15 +503,52 @@
                 if (t > maxT) maxT = t;
             });
 
+            const marginX = 35;
+            const marginY = 30;
+            const availH = Math.max(120, (halfFrustumH - marginY) * 2);
+
+            // 🌟 Eğer gruplanmamış çoklu ögeler sayfanın üstünden altına kadar dağınık duruyorsa
+            // ve kullanıcı Üst/Alt/Merkez yönlerinden birini seçtiyse, aradaki aşırı boşluğu daralt ki
+            // ögeler sadece sağa-sola kaymak yerine gerçekten hedef köşeye/bölgeye toplansın!
+            const isVerticalTarget = posKey.includes('top') || posKey.includes('bottom') || posKey === 'center' || posKey === 'vertical-center';
+            const hasExplicitGroup = elements.some(el => el && el.groupId);
+            if (elements.length > 1 && isVerticalTarget && !hasExplicitGroup && (maxT - minB) > availH * 0.58) {
+                const sortedByY = elements.slice().sort((a, b) => (b.posY || 0) - (a.posY || 0)); // Üstten (+Y) alta (-Y)
+                const maxAllowedGap = 22;
+                for (let i = 1; i < sortedByY.length; i++) {
+                    const prev = sortedByY[i - 1];
+                    const curr = sortedByY[i];
+                    const prevDims = getElementHalfDims(prev);
+                    const currDims = getElementHalfDims(curr);
+                    const prevBottom = (prev.posY || 0) - prevDims.halfH;
+                    const currTop = (curr.posY || 0) + currDims.halfH;
+                    const currentGap = prevBottom - currTop;
+                    if (currentGap > maxAllowedGap) {
+                        curr.posY = Math.round(prevBottom - maxAllowedGap - currDims.halfH);
+                    }
+                }
+                minL = Infinity; maxR = -Infinity;
+                minB = Infinity; maxT = -Infinity;
+                elements.forEach(el => {
+                    const dims = getElementHalfDims(el);
+                    const l = (el.posX || 0) - dims.halfW;
+                    const r = (el.posX || 0) + dims.halfW;
+                    const b = (el.posY || 0) - dims.halfH;
+                    const t = (el.posY || 0) + dims.halfH;
+                    if (l < minL) minL = l;
+                    if (r > maxR) maxR = r;
+                    if (b < minB) minB = b;
+                    if (t > maxT) maxT = t;
+                });
+            }
+
             const groupW = maxR - minL;
             const groupH = maxT - minB;
             const groupCenterX = (minL + maxR) / 2;
             const groupCenterY = (minB + maxT) / 2;
 
-            const marginX = 35;
-            const marginY = 30;
-            const xSpan = Math.max(80, Math.round(halfFrustumW - (groupW / 2) - marginX));
-            const ySpan = Math.max(60, Math.round(halfFrustumH - (groupH / 2) - marginY));
+            const xSpan = Math.max(0, Math.round(halfFrustumW - (groupW / 2) - marginX));
+            const ySpan = Math.max(0, Math.round(halfFrustumH - (groupH / 2) - marginY));
 
             let targetCenterX = 0;
             let targetCenterY = 0;

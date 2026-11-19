@@ -1,0 +1,21 @@
+# Emlak Stüdyom - Yayında Erişilmemesi Gereken Yollar
+# Cloudflare Pages ve Netlify bu dosyayı otomatik okur. GitHub Pages bu dosyayı yok sayar (zararsızdır).
+# Dosyalar SİLİNMEZ; sadece tarayıcıdan erişilmek istendiğinde ana sayfaya yönlendirilir (302).
+# Not: Cloudflare Pages _redirects içinde 404 durum kodunu desteklemez, bu yüzden 302 kullanılır.
+
+/docs/*                              /  302
+/archive/*                           /  302
+/assets_backup/*                     /  302
+/scratch/*                           /  302
+/node_modules/*                      /  302
+/.agents/*                           /  302
+/supabase_schema.sql                 /  302
+/AGENTS.md                           /  302
+/GEMINI.md                           /  302
+/README.md                           /  302
+/UI_DESIGN_SYSTEM.md                 /  302
+/SISTEM_DURUMU_VE_TAMAMLANANLAR.md   /  302
+/PRODUCTION_AUDIT_REPORT.md          /  302
+/update.ps1                          /  302
+/package.json                        /  302
+/package-lock.json                   /  302

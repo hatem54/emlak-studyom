@@ -2154,8 +2154,26 @@
 
             for (const cand of candidates) {
                 try {
+                    // 🛡️ Nominatim kullanım politikası: saniyede en fazla 1 istek. Adaylar arasında bekle;
+                    // aksi halde aynı ofis IP'sinden gelen aramalar 429 alır veya geçici engellenir.
+                    const sinceLast = Date.now() - (SatelliteMapModule._lastNominatimAt || 0);
+                    if (sinceLast < 1100) {
+                        await new Promise(r => setTimeout(r, 1100 - sinceLast));
+                    }
+                    SatelliteMapModule._lastNominatimAt = Date.now();
                     const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(cand)}&countrycodes=tr&limit=1`;
-                    const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+                    const geoCtrl = new AbortController();
+                    const geoTimeout = setTimeout(() => geoCtrl.abort(), 6000);
+                    let res;
+                    try {
+                        res = await fetch(url, { signal: geoCtrl.signal, headers: { 'Accept': 'application/json' } });
+                    } finally {
+                        clearTimeout(geoTimeout);
+                    }
+                    if (res.status === 429) {
+                        console.warn('[Geocoding] Nominatim istek sınırı (429). Kalan adaylar atlanıyor.');
+                        break;
+                    }
                     const data = await res.json();
                     if (data && data.length > 0) {
                         const disp = data[0].display_name;
@@ -3300,6 +3318,27 @@
             return canvas;
         },
 
+        _isCanvasVisualEmpty: function(cvs) {
+            try {
+                if (!cvs || !cvs.width || !cvs.height) return true;
+                const s = document.createElement('canvas');
+                s.width = 16; s.height = 16;
+                const sc = s.getContext('2d');
+                sc.drawImage(cvs, 0, 0, 16, 16);
+                const d = sc.getImageData(0, 0, 16, 16).data;
+                let hasVisibleNonBlack = false;
+                for (let i = 0; i < d.length; i += 4) {
+                    if (d[i + 3] > 10 && (d[i] > 6 || d[i + 1] > 6 || d[i + 2] > 6)) {
+                        hasVisibleNonBlack = true;
+                        break;
+                    }
+                }
+                return !hasVisibleNonBlack;
+            } catch (_) {
+                return false;
+            }
+        },
+
         captureMapToCanvas: async function(targetW, targetH) {
             let offCanvas = null;
             try {
@@ -3370,6 +3409,11 @@
                     ctx.imageSmoothingEnabled = true;
                     ctx.imageSmoothingQuality = 'high';
                     ctx.drawImage(canvas, srcX, srcY, srcW, srcH, 0, 0, targetW, targetH);
+
+                    if (this._isCanvasVisualEmpty && this._isCanvasVisualEmpty(offCanvas)) {
+                        console.warn('[Satellite3D] Çekilen 3D kare boş/siyah geldi, atlanıyor.');
+                        return null;
+                    }
 
                     let finalCanvas = offCanvas;
                     if (this.aiEnhanceEnabled) {
@@ -3519,6 +3563,9 @@
                         ctx.imageSmoothingEnabled = true;
                         ctx.imageSmoothingQuality = 'high';
                         ctx.drawImage(canvas, srcX, srcY, srcW, srcH, 0, 0, targetW, targetH);
+                        if (this._isCanvasVisualEmpty && this._isCanvasVisualEmpty(offCanvas)) {
+                            throw new Error('3D harita dokusu henüz hazır değil, lütfen birkaç saniye bekleyip tekrar deneyin.');
+                        }
 
                         if (this.markerEnabled) {
                             const ctx3d = offCanvas.getContext('2d');
@@ -5068,6 +5115,9 @@
 
     window.openSatelliteMapModal = function(prefer3D = false) {
         if (window.innerWidth <= 768) {
+            if (typeof window.showAppToast === 'function') {
+                window.showAppToast('ℹ️ Uydu ve kadastro haritası bilgisayar veya tablette kullanılabilir.', 'warning');
+            }
             return;
         }
         SatelliteMapModule.openModal(prefer3D);

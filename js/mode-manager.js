@@ -16,16 +16,26 @@ async function checkUserMode() {
       window.location.protocol === 'file:'
   ));
 
-  // 1. KULLANICI AÇIKÇA "ÜCRETSİZ DENE" DEDİYSE -> ZORLA DEMO MODU (FİLİGRANLI)
+  // 1. KULLANICI AÇIKÇA "ÜCRETSİZ DENE" DEDİYSE -> OTURUM YOKSA DEMO MODU (FİLİGRANLI)
   if (isExplicitDemo) {
-      APP_MODE = 'demo';
-      window.IS_ADMIN = false;
-      CURRENT_USER = null;
-      window.IS_GUEST_DEMO = true;
-      console.log('🟡 Kullanıcı tercihi: Ücretsiz Demo Modu devrede (Filigranlı çıktı)');
-      updateModeUI();
-      applyModeRestrictions();
-      return 'demo';
+      let hasActiveSession = false;
+      if (!isLocalDev && window.supabaseClient && window.supabaseClient.auth) {
+          try {
+              const { data: { session } } = await window.supabaseClient.auth.getSession();
+              if (session && session.user) hasActiveSession = true;
+          } catch (_) {}
+      }
+      if (!hasActiveSession) {
+          APP_MODE = 'demo';
+          window.APP_MODE = APP_MODE;
+          window.IS_ADMIN = false;
+          CURRENT_USER = null;
+          window.IS_GUEST_DEMO = true;
+          console.log('🟡 Kullanıcı tercihi: Ücretsiz Demo Modu devrede (Filigranlı çıktı)');
+          updateModeUI();
+          applyModeRestrictions();
+          return 'demo';
+      }
   }
 
   // 2. OTURUM KONTROLÜ
@@ -280,7 +290,8 @@ function updateModeUI() {
       z-index: 99998; box-shadow: 0 4px 12px rgba(0,0,0,0.2);
       display: flex; align-items: center; gap: 8px;
     `;
-    const userName = currentUser?.user_metadata?.full_name || currentUser?.email || 'Kullanıcı';
+    const rawUserName = currentUser?.user_metadata?.full_name || currentUser?.email || 'Kullanıcı';
+    const userName = String(rawUserName).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
     
     if (window.IS_ADMIN) {
       bannerDiv.style.background = 'linear-gradient(135deg, #8b5cf6, #6d28d9)';
@@ -301,11 +312,51 @@ function updateModeUI() {
   }
 }
 
+let _saberLockInterval = null;
+let _templateLockObserver = null;
+const _proBlockedClickHandler = (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  showProUpgradeToast();
+  return false;
+};
+
+function removeModeRestrictions() {
+  if (_saberLockInterval) {
+    clearInterval(_saberLockInterval);
+    _saberLockInterval = null;
+  }
+  if (_templateLockObserver) {
+    _templateLockObserver.disconnect();
+    _templateLockObserver = null;
+  }
+  document.querySelectorAll('.pro-overlay, .pro-lock').forEach(el => el.remove());
+  document.querySelectorAll('[data-pro-locked="true"]').forEach(el => {
+    el.disabled = false;
+    delete el.dataset.proLocked;
+    el.removeEventListener('click', _proBlockedClickHandler, true);
+  });
+  document.querySelectorAll('.template-btn[data-pro-btn-locked="true"]').forEach(btn => {
+    btn.style.opacity = '';
+    delete btn.dataset.proBtnLocked;
+    btn.removeEventListener('click', _proBlockedClickHandler, true);
+  });
+}
+
 function applyModeRestrictions() {
-  if (APP_MODE === 'pro') return;
+  if (APP_MODE === 'pro') {
+    removeModeRestrictions();
+    setTimeout(() => {
+      if (typeof window.updateExportScaleDisplay === 'function') {
+        window.updateExportScaleDisplay();
+      }
+    }, 300);
+    return;
+  }
   
   // Saber kilitlerini periyodik uygula (element dinamik gelir)
   const lockSaberElements = () => {
+      if (APP_MODE === 'pro') return;
       // Tüm Saber ile ilgili checkbox'ları bul (id veya class ile)
       const findSaberInputs = () => {
           const inputs = [];
@@ -344,18 +395,14 @@ function applyModeRestrictions() {
               }
               
               // Tıklamayı engelle ve toast göster
-              el.addEventListener('click', (e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  showProUpgradeToast();
-                  return false;
-              }, true);
+              el.addEventListener('click', _proBlockedClickHandler, true);
           }
       });
   };
 
   lockSaberElements();
-  setInterval(lockSaberElements, 2000); // Her 2 saniyede kontrol et
+  if (_saberLockInterval) clearInterval(_saberLockInterval);
+  _saberLockInterval = setInterval(lockSaberElements, 2000); // Her 2 saniyede kontrol et
   
   setTimeout(() => {
     if (typeof window.updateExportScaleDisplay === 'function') {
@@ -452,12 +499,8 @@ function observeTemplateGrid() {
             lock.style.pointerEvents = 'none'; // Kilit etiketinin tıklamayı engellememesi için
             btn.appendChild(lock);
             
-            // Tıklamayı engelle
-            btn.addEventListener('click', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                showProUpgradeToast();
-            }, true);
+            btn.dataset.proBtnLocked = 'true';
+            btn.addEventListener('click', _proBlockedClickHandler, true);
         }
     });
   };
@@ -465,10 +508,11 @@ function observeTemplateGrid() {
   lockAllTemplates();
   
   // Body'de değişiklik olduğunda kilitleri tekrar uygula (dinamik yükleme için)
-  const observer = new MutationObserver(() => {
-    lockAllTemplates();
+  if (_templateLockObserver) _templateLockObserver.disconnect();
+  _templateLockObserver = new MutationObserver(() => {
+    if (APP_MODE !== 'pro') lockAllTemplates();
   });
-  observer.observe(document.body, { childList: true, subtree: true });
+  _templateLockObserver.observe(document.body, { childList: true, subtree: true });
 }
 
 function showProUpgradeToast() {
@@ -642,10 +686,44 @@ function addWatermark(canvas) {
 async function handleLogout() {
   try {
     localStorage.removeItem('emlak_admin_access');
+    // 🛡️ Ortak bilgisayar (emlak ofisi) hijyeni: kullanıcının kendi girdiği kişisel API anahtarları,
+    // marka şablonları, özel şablonlar ve son harita konumu çıkışta silinir.
+    [
+      'emlakstudiom_gemini_api_key',
+      'GOOGLE_MAPS_3D_KEY',
+      'emlak_tts_api_key',
+      'canvaBrandTemplates',
+      'emlakstudiom_custom_templates',
+      'emlak_sat_last_location',
+      'emlak_remember_me'
+    ].forEach(k => {
+      try { localStorage.removeItem(k); } catch (e) {}
+    });
+    try { sessionStorage.removeItem('emlak_tab_session'); } catch (e) {}
     window._suppressBeforeUnload = true;
     if (typeof window.deleteStateFromDB === 'function') {
       try { await window.deleteStateFromDB(); } catch (dbErr) {}
     }
+    try {
+      await new Promise((resolve) => {
+        const req = indexedDB.open('CanvaAutoSaveDB');
+        req.onsuccess = (ev) => {
+          try {
+            const db = ev.target.result;
+            if (db.objectStoreNames.contains('autosave_store')) {
+              const tx = db.transaction(['autosave_store'], 'readwrite');
+              tx.objectStore('autosave_store').clear();
+              tx.oncomplete = () => { db.close(); resolve(); };
+              tx.onerror = () => { db.close(); resolve(); };
+            } else {
+              db.close();
+              resolve();
+            }
+          } catch (_) { resolve(); }
+        };
+        req.onerror = () => resolve();
+      });
+    } catch (idbErr) {}
     if (window.supabaseClient && window.supabaseClient.auth) {
       await window.supabaseClient.auth.signOut();
     }

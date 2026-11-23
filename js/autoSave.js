@@ -794,8 +794,12 @@ async function applyRestoredState(state) {
             if (_cc && _cc.lastChild !== elLogo) {
                 _cc.appendChild(elLogo);
             }
-            if (document.getElementById('clearLogoBtn')) document.getElementById('clearLogoBtn').style.display = 'flex';
-            if (document.getElementById('logoUploadBtnText')) document.getElementById('logoUploadBtnText').innerText = 'Logoyu Değiştir';
+            if (typeof window.syncLogoUI === 'function') {
+                window.syncLogoUI(state.logoImgUrl);
+            } else {
+                if (document.getElementById('clearLogoBtn')) document.getElementById('clearLogoBtn').style.display = 'flex';
+                if (document.getElementById('logoUploadBtnText')) document.getElementById('logoUploadBtnText').innerText = 'Logo Değiştir';
+            }
         }
 
         // 6. Şablon Durumu (Kolaj vs Canva vs Standart)

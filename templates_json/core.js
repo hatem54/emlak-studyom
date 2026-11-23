@@ -300,14 +300,8 @@
         // Panoya Kopyala
         if (navigator.clipboard) {
             navigator.clipboard.writeText(jsonCode).then(() => {
-                if (typeof Swal !== 'undefined') {
-                    Swal.fire({
-                        icon: 'success',
-                        title: '📋 Şablon Kodu Panoya Kopyalandı!',
-                        text: 'templates_json/custom_templates.js dosyasına yapıştırarak yeni şablonunuzu ekleyebilirsiniz.',
-                        background: '#1e293b',
-                        color: '#fff'
-                    });
+                if (typeof window.showAppToast === 'function') {
+                    window.showAppToast('Şablon kodu panoya kopyalandı.', 'success', 2600);
                 } else {
                     alert('Şablon kodu panoya kopyalandı!');
                 }

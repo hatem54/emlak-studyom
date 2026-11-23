@@ -1470,7 +1470,7 @@
                             <span class="sat-float-sub">${locStr ? locStr : alanStr}</span>
                         </div>
                         <div class="sat-float-actions-group">
-                            <button type="button" class="sat-float-btn sat-float-neon-btn ${this.parcelNeonEnabled ? 'active' : ''}" onclick="window.toggleSatelliteParcelNeon(event)" title="⚡ Saber Neon Efektini Aç/Kapat" id="satFloatNeonBtn"><i class="fas fa-bolt"></i></button>
+                            <button type="button" class="sat-float-btn sat-float-neon-btn ${this.parcelNeonEnabled ? 'active' : ''}" onclick="window.toggleSatelliteParcelNeon(event)" title="Saber Neon Efektini Aç veya Kapat" id="satFloatNeonBtn"><i class="fas fa-bolt"></i></button>
                             <button type="button" class="sat-float-btn" onclick="window.toggleParcelColorPicker(event)" title="Renk & Stil Ayarları" id="satFloatColorBtn"><i class="fas fa-palette"></i></button>
                             <button type="button" class="sat-float-btn" onclick="window.zoomToCurrentParcel()" title="Parseli Ortala"><i class="fas fa-crosshairs"></i></button>
                             <button type="button" class="sat-float-btn remove" onclick="window.clearSatelliteParcel()" title="Parseli Kaldır"><i class="fas fa-times"></i></button>

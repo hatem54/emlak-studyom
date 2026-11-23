@@ -377,7 +377,7 @@
         }
 
         // Tüm switchleri senkronize et
-        document.querySelectorAll('#drawSnapToggle, #tbSnapToggle').forEach(el => {
+        document.querySelectorAll('#drawSnapToggle').forEach(el => {
             el.checked = window.isSmartGuidesEnabled;
         });
 
@@ -398,7 +398,7 @@
 
     // DOM yüklendiğinde butonları ve switchleri senkronize et
     function syncAllSnapControls() {
-        document.querySelectorAll('#drawSnapToggle, #tbSnapToggle').forEach(el => {
+        document.querySelectorAll('#drawSnapToggle').forEach(el => {
             el.checked = !!window.isSmartGuidesEnabled;
         });
         document.querySelectorAll('.dock-snap-btn').forEach(btn => {

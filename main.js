@@ -405,7 +405,7 @@ window.syncLogoUI = function(logoUrl) {
     // 1. Sol panel Araçlar sekmesindeki buton metni
     const mainBtnText = document.getElementById('logoUploadBtnText');
     if (mainBtnText) {
-        mainBtnText.innerText = isCustom ? 'Logo Değiştir' : 'Logo Seç';
+        mainBtnText.innerText = isCustom ? 'Logo Değiştir' : 'Firma Logosu Seç';
     }
     
     // 2. Sol panel Araçlar sekmesindeki sil butonu
@@ -417,7 +417,7 @@ window.syncLogoUI = function(logoUrl) {
     // 3. Staging Havuz paneli buton metni
     const stagingBtnText = document.getElementById('stagingLogoUploadBtnText');
     if (stagingBtnText) {
-        stagingBtnText.innerText = isCustom ? 'Logo Değiştir' : 'Logo Seç';
+        stagingBtnText.innerText = isCustom ? 'Logo Değiştir' : 'Firma Logosu Seç';
     }
     
     // 4. Staging Havuz paneli sil butonu
@@ -655,7 +655,7 @@ window.clearLogoImage = function() {
         window.syncLogoUI(null);
     } else {
         if ($('clearLogoBtn')) $('clearLogoBtn').style.display = 'none';
-        if (document.getElementById('logoUploadBtnText')) document.getElementById('logoUploadBtnText').innerText = 'Logo Seç';
+        if (document.getElementById('logoUploadBtnText')) document.getElementById('logoUploadBtnText').innerText = 'Firma Logosu Seç';
     }
     if (typeof deselectAll === 'function') deselectAll();
     if (typeof window.renderLayers === 'function') window.renderLayers();
@@ -4070,7 +4070,7 @@ window.deleteSelectedShape = function() {
     if (typeof saveState === 'function') saveState();
 };
 
-window.convertSelectedShapeTo3D = function() {
+window.convertSelectedShapeTo3D = function(extraMeta) {
     const rawTargets = _getTargetShapeElements();
     const fallbackRaw = window.selectedEl || document.querySelector('.shape-el.el-selected, .shape-el.selected, .canvas-el.selected');
     const fallbackEl = fallbackRaw ? (fallbackRaw.closest('.shape-el') || fallbackRaw) : null;
@@ -4082,7 +4082,7 @@ window.convertSelectedShapeTo3D = function() {
         return;
     }
     if (window.ThreeDEngine && typeof window.ThreeDEngine.convert2DBadgeTo3D === 'function') {
-        window.ThreeDEngine.convert2DBadgeTo3D(targets);
+        window.ThreeDEngine.convert2DBadgeTo3D(targets, extraMeta || {});
     }
 };
 

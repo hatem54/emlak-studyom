@@ -236,17 +236,17 @@ window.syncTextBgTransparentUI = function() {
     if (!btn || !cb) return;
     if (cb.checked) {
         btn.classList.add('active');
-        btn.style.background = '#e0f2fe';
-        btn.style.color = '#0284c7';
-        btn.style.borderColor = '#0284c7';
-        btn.style.borderWidth = '1.5px';
+        btn.style.background = '';
+        btn.style.color = '';
+        btn.style.borderColor = '';
+        btn.style.borderWidth = '';
         btn.title = 'Şeffaf zemin aktif (Kaldırmak için tıkla)';
     } else {
         btn.classList.remove('active');
-        btn.style.background = '#ffffff';
-        btn.style.color = '#94a3b8';
-        btn.style.borderColor = '#cbd5e1';
-        btn.style.borderWidth = '1px';
+        btn.style.background = '';
+        btn.style.color = '';
+        btn.style.borderColor = '';
+        btn.style.borderWidth = '';
         btn.title = 'Zemini şeffaf yap';
     }
 };

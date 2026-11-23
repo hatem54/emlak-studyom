@@ -437,7 +437,7 @@
                                         <!-- ⚡ Saber Neon Çizim Efekti -->
                                         <div class="sat-drawer-group sat-drawer-neon-card" id="satDrawerNeonCard">
                                             <div class="sat-drawer-label-row">
-                                                <label><i class="fas fa-bolt" style="color:#00CEC9;"></i> <b>⚡ Saber Neon Efekti:</b></label>
+                                                <label><i class="fas fa-bolt" style="color:#00CEC9;"></i> <b>Saber Neon Efekti:</b></label>
                                                 <button type="button" id="satDrawerNeonToggleBtn" class="sat-pill-toggle-btn" onclick="window.toggleSatelliteParcelNeon()" title="Neon Efektini Aç/Kapat">
                                                     <span id="satDrawerNeonToggleText">Kapalı</span>
                                                 </button>

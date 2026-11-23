@@ -1,20 +1,30 @@
 /**
  * error-monitor.js — EmlakStüdyom Canlı Hata Takip & Akıllı Çökme Kalkanı (Auto-Recover)
- * 
- * 1. Tarayıcıda oluşan tüm unhandled runtime hatalarını ve promise rejection'ları yakalar.
- * 2. Cihaz bilgisi (ekran, tarayıcı, URL) ile birlikte sessizce Supabase error_logs tablosuna kaydeder.
- * 3. Kritik tuval hatalarında acil durum kaydı (Emergency Auto-Save) tetikleyerek veri kaybını önler.
- * 4. Yükleme ekranının sonsuza kadar donmasını engeller.
- * 5. Sunucuyu korumak için dakikada maksimum 5 hata sınırlandırması (throttling) uygular.
+ *
+ * 1. Tarayıcıda oluşan tüm unhandled runtime hatalarını, promise rejection'ları,
+ *    try/catch console.error kayıtlarını ve kullanıcıya gösterilen hata bildirimlerini yakalar.
+ * 2. Erken açılışta supabaseClient henüz hazır değilse hataları kuyrukta bekletip hazır olduğunda iletir.
+ * 3. Cihaz bilgisi (ekran, tarayıcı, URL) ile birlikte sessizce Supabase error_logs tablosuna kaydeder.
+ * 4. Kritik (yakalanmamış) tuval hatalarında acil durum kaydı (Auto-Recover) tetikler.
+ * 5. Tekrar önleme (dedup) ve dakika başı hız sınırı (throttling) uygular.
  */
 
 (function() {
     'use strict';
 
-    const MAX_ERRORS_PER_MINUTE = 5;
+    const MAX_ERRORS_PER_MINUTE = 12;
+    const DEDUP_WINDOW_MS = 5000;
+    const MAX_PENDING_QUEUE = 20;
+
     let errorCountThisMinute = 0;
     let minuteResetTimer = null;
+    let flushTimer = null;
+    let flushAttempts = 0;
+    let isHandlingConsoleError = false;
+
     const sessionErrors = [];
+    const pendingQueue = [];
+    const recentSignatures = new Map();
 
     function resetThrottle() {
         errorCountThisMinute = 0;
@@ -22,7 +32,7 @@
 
     function getDeviceInfo() {
         return {
-            userAgent: navigator.userAgent || 'Bilinmiyor',
+            userAgent: (typeof navigator !== 'undefined' && navigator.userAgent) ? navigator.userAgent : 'Bilinmiyor',
             screenWidth: window.innerWidth || (window.screen ? window.screen.width : 0),
             screenHeight: window.innerHeight || (window.screen ? window.screen.height : 0),
             url: window.location.href,
@@ -30,9 +40,98 @@
         };
     }
 
-    async function sendErrorToSupabase(errorData) {
+    function isNoiseMessage(msg, src) {
+        const m = String(msg || '');
+        const s = String(src || '');
+        if (s.includes('chrome-extension://') || s.includes('moz-extension://')) return true;
+        if (m.includes('ResizeObserver loop limit exceeded') || m.includes('ResizeObserver loop completed')) return true;
+        if (m.includes('Failed to update a ServiceWorker')) return true;
+        if (m.includes('[ErrorMonitor]')) return true;
+        if (m === 'AbortError' || m.startsWith('AbortError:')) return true;
+        return false;
+    }
+
+    function extractCallerFromStack(stackStr) {
+        if (!stackStr) return { source: '', lineno: 0, colno: 0 };
+        const lines = String(stackStr).split('\n');
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+            if (line.includes('error-monitor.js') || line.includes('core/utils.js')) continue;
+            const match = line.match(/(https?:\/\/[^\s)]+|\/[^\s):]+\.js[^\s):]*):(\d+):(\d+)/i)
+                || line.match(/([^\s(/)]+\.js(?:\?[^\s):]*)?):(\d+):(\d+)/i);
+            if (match) {
+                return {
+                    source: match[1],
+                    lineno: parseInt(match[2], 10) || 0,
+                    colno: parseInt(match[3], 10) || 0
+                };
+            }
+        }
+        return { source: '', lineno: 0, colno: 0 };
+    }
+
+    function buildPayload(errorData) {
+        const currentUser = window.CURRENT_USER;
+        return {
+            message: (errorData.message || 'Bilinmeyen Hata').slice(0, 1000),
+            stack: (errorData.stack || '').slice(0, 3000),
+            source: (errorData.source || window.location.href).slice(0, 500),
+            lineno: errorData.lineno || 0,
+            colno: errorData.colno || 0,
+            user_id: currentUser ? currentUser.id : null,
+            user_email: currentUser ? currentUser.email : null,
+            user_agent: (errorData.device && errorData.device.userAgent ? errorData.device.userAgent : 'Bilinmiyor').slice(0, 500),
+            screen_width: errorData.device ? errorData.device.screenWidth : 0,
+            screen_height: errorData.device ? errorData.device.screenHeight : 0,
+            url: (errorData.device && errorData.device.url ? errorData.device.url : window.location.href).slice(0, 500),
+            is_resolved: false
+        };
+    }
+
+    function enqueuePending(errorData) {
+        if (pendingQueue.length >= MAX_PENDING_QUEUE) {
+            pendingQueue.shift();
+        }
+        pendingQueue.push(errorData);
+        scheduleFlush();
+    }
+
+    function scheduleFlush() {
+        if (flushTimer || pendingQueue.length === 0) return;
+        flushAttempts = 0;
+        flushTimer = setInterval(() => {
+            flushAttempts++;
+            const client = window.supabaseClient;
+            if (client && typeof client.from === 'function') {
+                clearInterval(flushTimer);
+                flushTimer = null;
+                flushPendingErrors();
+                return;
+            }
+            if (flushAttempts >= 25) {
+                clearInterval(flushTimer);
+                flushTimer = null;
+            }
+        }, 1000);
+    }
+
+    async function flushPendingErrors() {
+        const client = window.supabaseClient;
+        if (!client || typeof client.from !== 'function' || pendingQueue.length === 0) return;
+        const batch = pendingQueue.splice(0, pendingQueue.length);
+        for (let i = 0; i < batch.length; i++) {
+            await sendErrorToSupabase(batch[i], true);
+        }
+    }
+
+    async function sendErrorToSupabase(errorData, fromQueue) {
         if (errorCountThisMinute >= MAX_ERRORS_PER_MINUTE) {
-            console.warn('[ErrorMonitor] Hata bildirim limiti aşıldı, bu istek atlanıyor.');
+            return;
+        }
+
+        const client = window.supabaseClient;
+        if (!client || typeof client.from !== 'function') {
+            if (!fromQueue) enqueuePending(errorData);
             return;
         }
 
@@ -41,41 +140,24 @@
         }
         errorCountThisMinute++;
 
-        const client = window.supabaseClient;
-        if (!client || typeof client.from !== 'function') {
-            return;
-        }
-
         try {
-            const currentUser = window.CURRENT_USER;
-            const payload = {
-                message: (errorData.message || 'Bilinmeyen Hata').slice(0, 1000),
-                stack: (errorData.stack || '').slice(0, 3000),
-                source: (errorData.source || errorData.filename || window.location.href).slice(0, 500),
-                lineno: errorData.lineno || errorData.lineNumber || 0,
-                colno: errorData.colno || errorData.columnNumber || 0,
-                user_id: currentUser ? currentUser.id : null,
-                user_email: currentUser ? currentUser.email : null,
-                user_agent: errorData.device.userAgent.slice(0, 500),
-                screen_width: errorData.device.screenWidth,
-                screen_height: errorData.device.screenHeight,
-                url: errorData.device.url.slice(0, 500),
-                is_resolved: false
-            };
-
+            const payload = buildPayload(errorData);
             await client.from('error_logs').insert([payload]);
         } catch (e) {
-            // Hata kaydı gönderilemezse sessizce geçilir, kullanıcı deneyimi asla bölünmez
-            console.warn('[ErrorMonitor] Supabase loglama hatası:', e);
+            // Hata kaydı gönderilemezse kullanıcı deneyimi asla bölünmez
+            if (typeof console !== 'undefined' && console.warn) {
+                console.warn('[ErrorMonitor] Supabase loglama hatası:', e);
+            }
         }
     }
 
     /**
      * 🛡️ AKILLI ÇÖKME VE VERİ KURTARMA KALKANI (AUTO-RECOVER)
+     * Yalnızca yakalanmamış (silent: false) hatalarda çalışır; try/catch içinde
+     * kontrollü yakalanan hatalarda mükerrer toast veya müdahale üretmez.
      */
     function triggerAutoRecover(errorContext) {
         try {
-            // 1. Ekranı kilitleyen asenkron yükleyicileri hemen kapat
             if (typeof window.hideAppLoading === 'function') {
                 window.hideAppLoading(0, true);
             }
@@ -88,14 +170,12 @@
                 window.isExportingNow = false;
             }
 
-            // 2. Tuvalde açık olan çalışmayı derhal IndexedDB'ye acil kaydet
             if (typeof window.performAutoSave === 'function') {
                 window.performAutoSave().catch(() => {});
             } else if (typeof window.requestAutoSave === 'function') {
                 window.requestAutoSave();
             }
 
-            // 3. Kullanıcıya nazikçe bildir (Sadece kritik durumlarda ve 1 kez)
             if (!window._hasShownCrashRecoveryNotice && typeof window.showAppToast === 'function') {
                 window._hasShownCrashRecoveryNotice = true;
                 window.showAppToast('Küçük bir teknik aksilik engellendi. Çalışmanız güvenle hafızaya alındı.', 'info');
@@ -104,7 +184,9 @@
                 }, 10000);
             }
         } catch (recoverErr) {
-            console.warn('[ErrorMonitor] Auto-recover hatası:', recoverErr);
+            if (typeof console !== 'undefined' && console.warn) {
+                console.warn('[ErrorMonitor] Auto-recover hatası:', recoverErr);
+            }
         }
     }
 
@@ -133,33 +215,52 @@
             source = extra.source || extra.filename || source;
             lineno = extra.lineno || extra.lineNumber || lineno;
             colno = extra.colno || extra.columnNumber || colno;
+            if (!stack && extra.stack) stack = extra.stack;
         }
 
-        // Önemsiz tarayıcı eklentisi (extension), ResizeObserver veya çevrimdışı ServiceWorker uyarılarını filtrele
-        if (source.includes('chrome-extension://') || source.includes('moz-extension://') || message.includes('ResizeObserver loop limit exceeded') || message.includes('ResizeObserver loop completed') || message.includes('Failed to update a ServiceWorker')) {
+        if (isNoiseMessage(message, source)) {
             return;
+        }
+
+        // Kısa süreli aynı hata tekrarını engelle (console.error + showAppToast çakışması vb.)
+        const now = Date.now();
+        const sig = String(message).slice(0, 160).trim();
+        const lastSeen = recentSignatures.get(sig);
+        if (lastSeen && (now - lastSeen) < DEDUP_WINDOW_MS) {
+            return;
+        }
+        recentSignatures.set(sig, now);
+        if (recentSignatures.size > 40) {
+            const firstKey = recentSignatures.keys().next().value;
+            recentSignatures.delete(firstKey);
         }
 
         const errorRecord = {
             message,
             stack,
-            source,
+            source: source || dev.path || window.location.pathname,
             lineno,
             colno,
             isUnhandledRejection: !!(extra && extra.isUnhandledRejection),
             device: dev,
-            timestamp: Date.now()
+            timestamp: now
         };
 
         sessionErrors.push(errorRecord);
-        if (sessionErrors.length > 20) sessionErrors.shift();
+        if (sessionErrors.length > 30) sessionErrors.shift();
         try {
             sessionStorage.setItem('emlak_last_error', JSON.stringify(errorRecord));
-        } catch(e) {}
+        } catch (e) {}
 
-        // Otomatik kurtarma ve veritabanı gönderimi
-        triggerAutoRecover(errorRecord);
-        sendErrorToSupabase(errorRecord);
+        const isSilent = !!(extra && extra.silent);
+        if (!isSilent) {
+            triggerAutoRecover(errorRecord);
+        }
+
+        if (pendingQueue.length > 0 && window.supabaseClient && typeof window.supabaseClient.from === 'function') {
+            flushPendingErrors();
+        }
+        sendErrorToSupabase(errorRecord, false);
     }
 
     // 1. Standart window.onerror
@@ -167,29 +268,96 @@
         processError(event.error || event.message, {
             filename: event.filename,
             lineno: event.lineno,
-            colno: event.colno
+            colno: event.colno,
+            silent: false
         });
     });
 
     // 2. Unhandled Promise Rejections (Fetch, WebWorker, Canvas async hataları)
     window.addEventListener('unhandledrejection', function(event) {
-        const reason = event.reason;
-        processError(reason, {
+        processError(event.reason, {
             filename: window.location.pathname,
             lineno: 0,
             colno: 0,
-            isUnhandledRejection: true
+            isUnhandledRejection: true,
+            silent: false
         });
     });
 
+    // 3. try/catch Bloklarındaki console.error Çağrılarını Yakala (Sessiz Raporlama)
+    if (typeof console !== 'undefined' && typeof console.error === 'function') {
+        const origConsoleError = console.error.bind(console);
+        console.error = function() {
+            origConsoleError.apply(console, arguments);
+            if (isHandlingConsoleError) return;
+            isHandlingConsoleError = true;
+            try {
+                let errObj = null;
+                const parts = [];
+                for (let i = 0; i < arguments.length; i++) {
+                    const arg = arguments[i];
+                    if (arg instanceof Error) {
+                        if (!errObj) errObj = arg;
+                        parts.push(arg.message || String(arg));
+                    } else if (typeof arg === 'string') {
+                        parts.push(arg);
+                    } else if (arg && typeof arg === 'object') {
+                        try {
+                            if (arg.message) parts.push(String(arg.message));
+                            else parts.push(JSON.stringify(arg));
+                        } catch (_) {
+                            parts.push(String(arg));
+                        }
+                    } else if (arg !== undefined && arg !== null) {
+                        parts.push(String(arg));
+                    }
+                }
+
+                const combinedMsg = parts.join(' ').trim();
+                const stackStr = (errObj && errObj.stack) ? errObj.stack : (new Error(combinedMsg || 'console.error').stack || '');
+                const caller = extractCallerFromStack(stackStr);
+
+                if (combinedMsg) {
+                    processError(combinedMsg, {
+                        source: caller.source || 'console.error',
+                        lineno: caller.lineno,
+                        colno: caller.colno,
+                        stack: stackStr,
+                        silent: true
+                    });
+                }
+            } catch (_) {
+                // Hata yakalayıcı kendi içinde asla hata fırlatmaz
+            } finally {
+                isHandlingConsoleError = false;
+            }
+        };
+    }
+
+    // Sayfa yüklendikten sonra bekleyen erken hataları gönder
+    window.addEventListener('load', function() {
+        setTimeout(() => { flushPendingErrors(); }, 1500);
+    });
+
     // Global Dışa Aktarılan Yardımcılar
-    window.reportManualError = function(err, context) {
-        processError(err, { source: context || 'manual' });
+    window.reportManualError = function(err, context, options) {
+        const opts = options || {};
+        const stackStr = (err instanceof Error && err.stack) ? err.stack : (new Error().stack || '');
+        const caller = extractCallerFromStack(stackStr);
+        processError(err, {
+            source: context ? (context + (caller.source ? ' (' + caller.source + ')' : '')) : (caller.source || 'manual'),
+            lineno: caller.lineno,
+            colno: caller.colno,
+            stack: stackStr,
+            silent: opts.silent !== false
+        });
     };
 
     window.getSessionErrorLogs = function() {
         return sessionErrors;
     };
 
-    console.log('🛡️ [EmlakStüdyom] Akıllı Hata Takip & Çökme Kalkanı (Auto-Recover) Devrede.');
+    if (typeof console !== 'undefined' && console.log) {
+        console.log('🛡️ [EmlakStüdyom] Tam Kapsamlı Hata Takip & Çökme Kalkanı Devrede.');
+    }
 })();

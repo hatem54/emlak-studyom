@@ -39,7 +39,7 @@
             // İçerik yapısı (İkon, Mesaj, Kapatma Butonu)
             toast.innerHTML = `
                 <div style="color: #ff4d4d; font-size: 20px;">
-                    <i class="fas fa-exclamation-circle" style="font-style:normal;">⚠</i>
+                    <i class="fas fa-exclamation-circle"></i>
                 </div>
                 <div style="flex: 1; font-weight: 500;">
                     ${msg || 'Bir sorun oluştu. Lütfen sayfayı yenileyin.'}

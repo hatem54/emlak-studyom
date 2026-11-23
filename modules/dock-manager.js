@@ -697,19 +697,22 @@
     };
 
     /**
-     * Toplu Çıktı Bölümünü Aç ve Odakla
+     * Toplu Çıktı Bölümünü Aç ve Odakla (Görseller sekmesindeki birleşik Toplu Çıktı panelini açar)
      */
     window.openBatchExportSection = function() {
-        if (typeof window.switchTab === 'function') {
-            window.switchTab('batch');
+        if (window.PhotoStagingArchive) {
+            window.PhotoStagingArchive.switchToStagingTab();
+            if (typeof window.PhotoStagingArchive.openBatchExportTray === 'function') {
+                window.PhotoStagingArchive.openBatchExportTray();
+            }
+            const tray = document.getElementById('stagingBatchExportTray');
+            if (tray) {
+                tray.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+            return;
         }
-        const acc = document.getElementById('batchAccordion');
-        if (acc) {
-            acc.style.display = 'block';
-            const sec = acc.previousElementSibling;
-            const icon = sec ? sec.querySelector('i') : null;
-            if (icon) icon.style.transform = 'rotate(180deg)';
-            acc.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        if (typeof window.switchTab === 'function') {
+            window.switchTab('staging');
         }
     };
 

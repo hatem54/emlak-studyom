@@ -8,7 +8,8 @@ window.generateQRCode = function() {
     
     const url = urlInput.value.trim();
     if (!url) {
-        alert("Lütfen bir bağlantı adresi girin.");
+        if (typeof window.showAppToast === 'function') window.showAppToast('Lütfen bir bağlantı adresi girin.', 'warning', 3000);
+        else alert("Lütfen bir bağlantı adresi girin.");
         return;
     }
 
@@ -43,7 +44,8 @@ window.generateQRCode = function() {
         }
 
         if (!qrDataUrl) {
-            alert("QR Kod oluşturulamadı. Lütfen tekrar deneyin.");
+            if (typeof window.showAppToast === 'function') window.showAppToast('QR Kod oluşturulamadı. Lütfen tekrar deneyin.', 'error', 3500);
+            else alert("QR Kod oluşturulamadı. Lütfen tekrar deneyin.");
             return;
         }
 
@@ -53,9 +55,9 @@ window.generateQRCode = function() {
         // Inputu temizle
         urlInput.value = '';
         
-        // Tasarım sekmesine geçir
+        // Tasarım / Yazı & Font sekmesine geçir
         if (typeof switchTab === 'function') {
-            switchTab('element');
+            switchTab('font');
         }
 
     }, 50);

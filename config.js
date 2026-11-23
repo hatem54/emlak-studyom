@@ -302,9 +302,9 @@ const EXPORT_FORMATS={
 
 // Kadraj (Fit) modları
 const FIT_MODES={
-    'cover':'📐 Doldur (Kırpma olabilir)',
-    'contain':'🔲 Sığdır (Boşluk kalabilir)',
-    'stretch':'↔️ Ger (Deforme olabilir)'
+    'cover':'Doldur',
+    'contain':'Sığdır',
+    'stretch':'Ger'
 };
 
 // ========== CALLOUT ŞABLONLARI - GENİŞ (100+) ==========

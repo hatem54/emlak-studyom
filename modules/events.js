@@ -283,6 +283,10 @@ function openObjectContextMenu(targetElement, isText, clientX, clientY) {
                           (parseFloat(targetElement.dataset.depth) || 0) > 0;
 
         html += `
+            <button class="app-context-item item-3d" id="acm-frame-gizmo">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2.2"><path d="M12 2v20M2 12h20M12 2l3 3M12 2L9 5M22 12l-3-3M22 12l-3 3M12 22l3-3M12 22l-3-3M2 12l3-3M2 12l3 3"/></svg>
+                <span>3D Gizmo</span>
+            </button>
             <button class="app-context-item item-3d" id="acm-convert-3d">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2.2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
                 <span>3D'ye Dönüştür</span>
@@ -334,6 +338,10 @@ function openObjectContextMenu(targetElement, isText, clientX, clientY) {
         html += `<div class="acm-divider"></div>`;
     } else {
         html += `
+            <button class="app-context-item item-3d" id="acm-gizmo-3d">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2.2"><path d="M12 2v20M2 12h20M12 2l3 3M12 2L9 5M22 12l-3-3M22 12l-3 3M12 22l3-3M12 22l-3-3M2 12l3-3M2 12l3 3"/></svg>
+                <span>3D Gizmo</span>
+            </button>
             <button class="app-context-item item-3d" id="acm-convert-3d">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2.2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
                 <span>3D'ye Dönüştür</span>
@@ -475,6 +483,10 @@ function openObjectContextMenu(targetElement, isText, clientX, clientY) {
             <button class="acm-grid-btn" id="acm-front" title="En Üst Katmana Getir"><span style="font-size:11px;">En Öne</span></button>
             <button class="acm-grid-btn" id="acm-back" title="En Alt Katmana Gönder"><span style="font-size:11px;">En Arkaya</span></button>
         </div>
+        <button class="app-context-item" id="acm-mirror-opposite">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#0284c7" stroke-width="2.2"><path d="M12 3v18"/><path d="M8 7l-5 5 5 5"/><path d="M16 7l5 5-5 5"/></svg>
+            <span>Karşıya Aynala</span>
+        </button>
         <button class="app-context-item" id="acm-single-duplicate">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#818cf8" stroke-width="2.2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
             <span>Çoğalt</span>
@@ -676,9 +688,10 @@ function openObjectContextMenu(targetElement, isText, clientX, clientY) {
     });
 
     // 🌟 3D & GÜNEŞ İŞLEMLERİ
-    bindBtn('#acm-convert-3d', () => {
+    const runContext3D = (flatOnly) => {
         targetElement = getCurrentTarget();
         const rawEl = targetElement || window.selectedCalloutEl || window.selectedEl;
+        const extraMeta = flatOnly ? { flat3D: true, depth: 0, forceGizmo: true, showPanel: false } : {};
 
         if (window.selectedElements && window.selectedElements.length > 1 && window.ThreeDEngine && typeof window.ThreeDEngine.convert2DBadgeTo3D === 'function') {
             const isPartOfMulti = !rawEl || window.selectedElements.some(s =>
@@ -687,7 +700,7 @@ function openObjectContextMenu(targetElement, isText, clientX, clientY) {
                 (rawEl && rawEl.contains && s.nodeType && rawEl.contains(s))
             );
             if (isPartOfMulti) {
-                window.ThreeDEngine.convert2DBadgeTo3D(window.selectedElements.slice());
+                window.ThreeDEngine.convert2DBadgeTo3D(window.selectedElements.slice(), extraMeta);
                 return;
             }
         }
@@ -695,12 +708,18 @@ function openObjectContextMenu(targetElement, isText, clientX, clientY) {
         const frameEl = rawEl ? (rawEl.closest('.tb-image-frame') || (rawEl.classList && rawEl.classList.contains('tb-image-frame') ? rawEl : null)) : null;
 
         if (frameEl) {
-            // 🎯 Şablon Fotoğraf Çerçevesini 3D Düzlem & Kalınlığa geçir
             if (window.TemplateBuilder && typeof window.TemplateBuilder.selectFrame === 'function') {
-                window.TemplateBuilder.selectFrame(frameEl);
+                window.TemplateBuilder.selectFrame(frameEl, { skipGizmoAutoOpen: true, skipScroll: true });
             }
             if (typeof switchTab === 'function') {
                 switchTab('create-template');
+            }
+            if (flatOnly) {
+                if (window.Template3DFrame) {
+                    window.Template3DFrame.syncPanel(frameEl);
+                    window.Template3DFrame.toggleGizmo(frameEl);
+                }
+                return;
             }
 
             const curDepth = parseFloat(frameEl.dataset.depth) || 0;
@@ -744,9 +763,14 @@ function openObjectContextMenu(targetElement, isText, clientX, clientY) {
             const elToConvert = rawEl ? (rawEl.closest('.shape-el, .callout-wrap, .callout-wrapper, .draggable, .added-icon, .canvas-el') || rawEl) : null;
             const isPureIcon = elToConvert && (elToConvert.classList.contains('added-icon') || elToConvert.classList.contains('is-svg-icon') || elToConvert.classList.contains('canvas-icon'));
             const isArrowOrPin = elToConvert && (elToConvert.classList.contains('arrow') || elToConvert.classList.contains('pin') || elToConvert.dataset?.isArrow === 'true' || elToConvert.dataset?.isPin === 'true');
-            window.ThreeDEngine.convert2DBadgeTo3D(elToConvert, (isPureIcon || isArrowOrPin) ? { shapeMode: 'silhouette' } : {});
+            const meta = Object.assign((isPureIcon || isArrowOrPin) ? { shapeMode: 'silhouette' } : {}, extraMeta);
+            window.ThreeDEngine.convert2DBadgeTo3D(elToConvert, meta);
         }
-    }, true);
+    };
+
+    bindBtn('#acm-frame-gizmo', () => runContext3D(true), true);
+    bindBtn('#acm-gizmo-3d', () => runContext3D(true), true);
+    bindBtn('#acm-convert-3d', () => runContext3D(false), true);
 
     bindBtn('#acm-frame-reset-3d', () => {
         targetElement = getCurrentTarget();
@@ -1399,6 +1423,12 @@ function openObjectContextMenu(targetElement, isText, clientX, clientY) {
     bindPos('#acm-single-bottom-center', 'bottom-center');
     bindPos('#acm-single-bottom-right', 'bottom-right');
 
+    bindBtn('#acm-mirror-opposite', () => {
+        if (window.MirrorAdapter && typeof window.MirrorAdapter.mirrorSelection === 'function') {
+            window.MirrorAdapter.mirrorSelection({ axis: 'x' });
+        }
+    }, true);
+
     bindBtn('#acm-single-duplicate', () => {
         if (hasActiveMultiSelection() && typeof window.multiSelectDuplicate === 'function') {
             ensureActionSelection();
@@ -1566,6 +1596,10 @@ function openMultiSelectContextMenu(clientX, clientY) {
             <span>Çokgene Çevir</span>
         </button>
         ${count2D >= 2 ? `
+        <button class="app-context-item" id="acm-multi-to-3d-gizmo">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2"><path d="M12 2v20M2 12h20M12 2l3 3M12 2L9 5M22 12l-3-3M22 12l-3 3"/></svg>
+            <span>3D Gizmo</span>
+        </button>
         <button class="app-context-item" id="acm-multi-to-3d">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
             <span>3D'ye Dönüştür</span>
@@ -1594,6 +1628,10 @@ function openMultiSelectContextMenu(clientX, clientY) {
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
             <span>Kilitle / Kilidi Aç</span>
         </button>
+        <button class="app-context-item" id="acm-multi-mirror-opposite">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#0284c7" stroke-width="2"><path d="M12 3v18"/><path d="M8 7l-5 5 5 5"/><path d="M16 7l5 5-5 5"/></svg>
+            <span>Karşıya Aynala</span>
+        </button>
         <button class="app-context-item" id="acm-multi-duplicate">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#818cf8" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
             <span>Toplu Çoğalt</span>
@@ -1611,6 +1649,10 @@ function openMultiSelectContextMenu(clientX, clientY) {
         <button class="app-context-item" id="acm-multi-frame-blend">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#a855f7" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M3 14h18"/></svg>
             <span>Degrade Geçiş</span>
+        </button>
+        <button class="app-context-item" id="acm-multi-frame-gizmo">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2"><path d="M12 2v20M2 12h20"/></svg>
+            <span>3D Gizmo</span>
         </button>
         <button class="app-context-item" id="acm-multi-frame-iso">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/></svg>
@@ -1779,6 +1821,11 @@ function openMultiSelectContextMenu(clientX, clientY) {
     bindBtn('#acm-multi-group', () => { if (window.groupSelected) window.groupSelected(); });
     bindBtn('#acm-multi-ungroup', () => { if (window.ungroupSelected) window.ungroupSelected(); });
     bindBtn('#acm-multi-convert-polygon', () => { if (window.createPolygonFromSelectedLines) window.createPolygonFromSelectedLines(); });
+    bindBtn('#acm-multi-to-3d-gizmo', () => {
+        if (window.ThreeDEngine && typeof window.ThreeDEngine.convert2DBadgeTo3D === 'function' && Array.isArray(window.selectedElements) && window.selectedElements.length > 0) {
+            window.ThreeDEngine.convert2DBadgeTo3D(window.selectedElements.slice(), { flat3D: true, depth: 0, forceGizmo: true, showPanel: false });
+        }
+    }, true);
     bindBtn('#acm-multi-to-3d', () => {
         if (window.ThreeDEngine && typeof window.ThreeDEngine.convert2DBadgeTo3D === 'function' && Array.isArray(window.selectedElements) && window.selectedElements.length > 0) {
             window.ThreeDEngine.convert2DBadgeTo3D(window.selectedElements.slice());
@@ -1790,6 +1837,11 @@ function openMultiSelectContextMenu(clientX, clientY) {
     bindBtn('#acm-multi-scale-up', () => { if (window.multiSelectScale) window.multiSelectScale(1.15); });
     bindBtn('#acm-multi-scale-down', () => { if (window.multiSelectScale) window.multiSelectScale(0.85); });
     bindBtn('#acm-multi-lock', () => { if (window.multiSelectToggleLock) window.multiSelectToggleLock(); });
+    bindBtn('#acm-multi-mirror-opposite', () => {
+        if (window.MirrorAdapter && typeof window.MirrorAdapter.mirrorSelection === 'function') {
+            window.MirrorAdapter.mirrorSelection({ axis: 'x' });
+        }
+    }, true);
     bindBtn('#acm-multi-duplicate', () => { if (window.multiSelectDuplicate) window.multiSelectDuplicate(); });
     bindBtn('#acm-multi-delete', () => { if (window.multiSelectDelete) window.multiSelectDelete(); }, true);
 
@@ -1799,6 +1851,11 @@ function openMultiSelectContextMenu(clientX, clientY) {
                 window.TemplateBuilder.toggleSelectedFrameBlend();
             }
         });
+        bindBtn('#acm-multi-frame-gizmo', () => {
+            if (window.Template3DFrame && typeof window.Template3DFrame.toggleGizmo === 'function') {
+                window.Template3DFrame.toggleGizmo();
+            }
+        }, true);
         bindBtn('#acm-multi-frame-iso', () => {
             if (window.Template3DFrame && typeof window.Template3DFrame.applyPreset === 'function') {
                 window.Template3DFrame.applyPreset('isoLeft');

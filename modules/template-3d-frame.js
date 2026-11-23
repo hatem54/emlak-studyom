@@ -708,6 +708,8 @@
             }
             const sideBtn = document.getElementById('tbBtn3DGizmo');
             if (sideBtn) sideBtn.classList.remove('active');
+            const dockBtn = document.getElementById('tbDockBtn3DGizmo');
+            if (dockBtn) dockBtn.classList.remove('active');
         },
 
         /**
@@ -801,6 +803,8 @@
 
             const sideBtn = document.getElementById('tbBtn3DGizmo');
             if (sideBtn) sideBtn.classList.add('active');
+            const dockBtn = document.getElementById('tbDockBtn3DGizmo');
+            if (dockBtn) dockBtn.classList.add('active');
 
             this.attachGizmoEvents(overlay, frame);
             this.updateGizmoPosition(frame);
@@ -1392,6 +1396,30 @@
             // 3D açı ve kalınlık yoksa özel Three.js renderına gerek yok
             if (pitch === 0 && yaw === 0 && elevation === 0 && depth === 0) return null;
 
+            // Three.js henüz yüklenmemişse yerel vendor veya CDN üzerinden yükle
+            if (!window.THREE) {
+                if (!window._tbThreeLoadPromise) {
+                    window._tbThreeLoadPromise = (async () => {
+                        const loadLib = (src) => new Promise((resolve, reject) => {
+                            const s = document.createElement('script');
+                            s.src = src;
+                            s.onload = () => window.THREE ? resolve(window.THREE) : reject(new Error('THREE yok'));
+                            s.onerror = reject;
+                            document.head.appendChild(s);
+                        });
+                        try {
+                            await loadLib('./assets/vendor/three.min.js');
+                        } catch (e1) {
+                            try {
+                                await loadLib('https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js');
+                            } catch (e2) {}
+                        }
+                        return window.THREE || null;
+                    })();
+                }
+                await window._tbThreeLoadPromise;
+            }
+
             const frameW = frame.offsetWidth || 300;
             const frameH = frame.offsetHeight || 300;
 
@@ -1438,7 +1466,15 @@
                     srcCtx.clip();
                 }
 
-                srcCtx.drawImage(img, drawX, drawY, drawW, drawH);
+                if (frame.dataset.imgFlipX === 'true') {
+                    srcCtx.save();
+                    srcCtx.translate(drawX + drawW / 2, drawY + drawH / 2);
+                    srcCtx.scale(-1, 1);
+                    srcCtx.drawImage(img, -drawW / 2, -drawH / 2, drawW, drawH);
+                    srcCtx.restore();
+                } else {
+                    srcCtx.drawImage(img, drawX, drawY, drawW, drawH);
+                }
             } else {
                 // Görsel henüz yüklenmemişse boş çerçeve ön yüzünü çiz
                 const polyPts = this.getPolygonPoints(frame);
@@ -1475,17 +1511,22 @@
                     renderer.setClearColor(0x000000, 0);
 
                     const scene = new THREE.Scene();
-                    const camera = new THREE.PerspectiveCamera(45, outW / outH, 1, 5000);
-                    camera.position.z = 1000;
+                    const perspPx = Math.max(400, parseFloat(frame.dataset.perspective) || 1000);
+                    const camZ = perspPx * supersample;
+                    const visibleWorldH = frameH * supersample * 1.5;
+                    const fovDeg = 2 * Math.atan((visibleWorldH / 2) / camZ) * (180 / Math.PI);
+                    const camera = new THREE.PerspectiveCamera(fovDeg, outW / outH, 1, camZ * 10);
+                    camera.position.z = camZ;
 
                     const texture = new THREE.CanvasTexture(srcCanvas);
-                    texture.generateMipmaps = true;
-                    texture.minFilter = THREE.LinearMipmapLinearFilter;
+                    texture.generateMipmaps = false;
+                    texture.minFilter = THREE.LinearFilter;
+                    texture.magFilter = THREE.LinearFilter;
 
                     const meshGroup = new THREE.Group();
 
                     const planeGeo = new THREE.PlaneGeometry(frameW * supersample, frameH * supersample);
-                    const planeMat = new THREE.MeshBasicMaterial({ map: texture, transparent: true, side: THREE.FrontSide });
+                    const planeMat = new THREE.MeshBasicMaterial({ map: texture, transparent: true, side: THREE.DoubleSide });
                     const mesh = new THREE.Mesh(planeGeo, planeMat);
                     mesh.position.z = 0.5;
                     meshGroup.add(mesh);
@@ -1558,7 +1599,7 @@
                     meshGroup.rotation.x = THREE.MathUtils.degToRad(-pitch);
                     meshGroup.rotation.y = THREE.MathUtils.degToRad(yaw);
                     meshGroup.rotation.z = THREE.MathUtils.degToRad(-roll);
-                    meshGroup.position.z = elevation * supersample;
+                    meshGroup.position.z = Math.min(camZ - 120, elevation * supersample);
 
                     scene.add(meshGroup);
                     renderer.render(scene, camera);
@@ -1568,7 +1609,17 @@
                     resCanvas.height = outH;
                     const resCtx = resCanvas.getContext('2d');
                     if (resCtx) {
-                        resCtx.drawImage(renderer.domElement, 0, 0);
+                        const userSh = (frame.dataset.shadow !== undefined) ? parseFloat(frame.dataset.shadow) : 12;
+                        if (userSh > 0 && depth <= 0) {
+                            resCtx.save();
+                            resCtx.shadowColor = 'rgba(0, 0, 0, 0.32)';
+                            resCtx.shadowBlur = Math.round(userSh * supersample * 1.4);
+                            resCtx.shadowOffsetY = Math.round(userSh * supersample * 0.5);
+                            resCtx.drawImage(renderer.domElement, 0, 0);
+                            resCtx.restore();
+                        } else {
+                            resCtx.drawImage(renderer.domElement, 0, 0);
+                        }
                     }
 
                     renderer.dispose();

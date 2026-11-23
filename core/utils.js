@@ -244,6 +244,9 @@ window.showAppToast = function(message, type = 'info', durationMs = 2800) {
         } else if (type === 'error') {
             iconHtml = '<i class="fa-solid fa-circle-exclamation" style="color: #ef4444; font-size: 15px; flex-shrink: 0;"></i>';
             accentBorder = '#ef4444';
+            if (typeof window.reportManualError === 'function') {
+                try { window.reportManualError(String(message || 'Uygulama Hatası'), 'showAppToast', { silent: true }); } catch(_) {}
+            }
         } else if (type === 'warning') {
             iconHtml = '<i class="fa-solid fa-triangle-exclamation" style="color: #f59e0b; font-size: 15px; flex-shrink: 0;"></i>';
             accentBorder = '#f59e0b';

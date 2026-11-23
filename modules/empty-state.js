@@ -185,7 +185,7 @@
                     if (!target) return;
                     if (target.matches(
                         '#tbCanvasBgColor, #canvasBgColor, #exportBgColor, #tbInfoCardBgColor, ' +
-                        '#tbCustomW, #tbCustomH, #globalTextBg, #elBgColor, #previewFormat, #exportFormat, #tbInfoCardTheme, #tbSnapToggle'
+                        '#tbCustomW, #tbCustomH, #globalTextBg, #elBgColor, #previewFormat, #exportFormat, #tbInfoCardTheme'
                     ) || target.closest('#tab-create-template')) {
                         this.dismiss();
                     }

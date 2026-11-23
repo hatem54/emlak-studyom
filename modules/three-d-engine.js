@@ -1078,6 +1078,19 @@
         };
     }
 
+    function normalizeShapeGeometryUVs(geo, bounds) {
+        if (!geo || !geo.attributes || !geo.attributes.position || !bounds) return;
+        const pos = geo.attributes.position;
+        const w = (bounds.maxX - bounds.minX) || 1;
+        const h = (bounds.maxY - bounds.minY) || 1;
+        const uvArr = new Float32Array(pos.count * 2);
+        for (let i = 0; i < pos.count; i++) {
+            uvArr[i * 2] = (pos.getX(i) - bounds.minX) / w;
+            uvArr[i * 2 + 1] = (pos.getY(i) - bounds.minY) / h;
+        }
+        geo.setAttribute('uv', new THREE.BufferAttribute(uvArr, 2));
+    }
+
     function getIconSvgById(iconId) {
         if (!iconId || iconId === 'none') return null;
         if (typeof iconId === 'string' && iconId.trim().startsWith('<svg')) {
@@ -1950,11 +1963,12 @@
         const isShape = !!(options && options.isShape);
         const useGradient = !!(options && options.useGradient);
         const isEstate = !!(options && options.isEstate);
+        const hasTransparentBg = (bgColor === 'transparent' || bgColor === 'none' || !!(options && options.transparentBg));
 
         // 🌟 1. Anında Senkron Taban Rengi: Katı silüet veya şekillerde asla yabancı beyaz kenar oluşmasın!
         const baseColor = isExactSilhouette
             ? (iconColor || '#38bdf8')
-            : (isShape ? (iconColor || '#38bdf8') : ((bgColor && bgColor !== 'transparent' && bgColor !== 'none') ? bgColor : '#ffffff'));
+            : (isShape ? (iconColor || '#38bdf8') : (hasTransparentBg ? 'transparent' : (bgColor || '#ffffff')));
 
         function getFillStyle() {
             if (useGradient && baseColor && baseColor !== 'transparent') {
@@ -1974,9 +1988,9 @@
             return baseColor;
         }
 
-        // 🌟 Rozet ve kartlarda zemin çizilir; silüet ve emlak/çit ögelerinde arka plan daima şeffaf kalır!
+        // 🌟 Rozet ve kartlarda zemin çizilir; silüet, şeffaf zeminli düzlem ve emlak/çit ögelerinde arka plan daima şeffaf kalır!
         // Eğer var olan doku yeniden kullanılıyorsa, önceki görseli img.onload anına kadar temizleme!
-        if (!existingTex && !isEstate && !isExactSilhouette) {
+        if (!existingTex && !isEstate && !isExactSilhouette && !hasTransparentBg) {
             ctx.save();
             ctx.fillStyle = getFillStyle();
             if (isRound) {
@@ -2048,7 +2062,7 @@
             // Zemin Doldurma: Emlak/çit ögeleri hariç rozet/kart zemininde içi asla boş/şeffaf kalmaz.
             // Katı silüetlerde ise arka plan şeffaf bırakılır (kutu/kare gölge ve kare zemin oluşması önlenir),
             // ancak daire rozet ise daima dairesel zemin doldurulur.
-            if (!isEstate) {
+            if (!isEstate && !hasTransparentBg) {
                 ctx.save();
                 ctx.fillStyle = getFillStyle();
                 const isCircleShape = isRound || (options && (options.isRound || options.isCircle));
@@ -3764,6 +3778,12 @@
             metalness: Math.max(0.1, el.metalness - 0.1)
         });
 
+        const parsedDepth = (el && el.depth !== undefined && el.depth !== null) ? parseFloat(el.depth) : 16;
+        const isFlatDepth = Number.isFinite(parsedDepth) && parsedDepth <= 0;
+        if (isFlatDepth) {
+            frontMat.side = THREE.DoubleSide;
+        }
+
         const extrudeOpts = {
             depth: Math.max(1, el.depth),
             bevelEnabled: !!el.bevelEnabled,
@@ -3776,15 +3796,19 @@
         const type = (el && el.elementType) ? String(el.elementType) : 'text';
 
         if (type === 'pin' || type === 'combo_pin') {
-            const pinGeo = new THREE.ExtrudeGeometry(createPinShape(), extrudeOpts);
+            const pinGeo = isFlatDepth
+                ? new THREE.ShapeGeometry(createPinShape(), 24)
+                : new THREE.ExtrudeGeometry(createPinShape(), extrudeOpts);
             pinGeo.center();
-            el.iconMesh = new THREE.Mesh(pinGeo, [frontMat, sideMat]);
+            el.iconMesh = new THREE.Mesh(pinGeo, isFlatDepth ? frontMat : [frontMat, sideMat]);
             el.iconMesh.castShadow = true;
             cGroup.add(el.iconMesh);
         } else if (type === 'arrow' || type === 'combo_arrow') {
-            const arrowGeo = new THREE.ExtrudeGeometry(createArrowShape(), extrudeOpts);
+            const arrowGeo = isFlatDepth
+                ? new THREE.ShapeGeometry(createArrowShape(), 16)
+                : new THREE.ExtrudeGeometry(createArrowShape(), extrudeOpts);
             arrowGeo.center();
-            el.iconMesh = new THREE.Mesh(arrowGeo, [frontMat, sideMat]);
+            el.iconMesh = new THREE.Mesh(arrowGeo, isFlatDepth ? frontMat : [frontMat, sideMat]);
             el.iconMesh.castShadow = true;
             cGroup.add(el.iconMesh);
         }
@@ -3792,21 +3816,30 @@
         if ((type === 'text' || type === 'combo_pin' || type === 'combo_arrow') && loadedFont) {
             const rawText = (el.text || '').trim() || 'METİN';
             const textString = sanitizeTextForFont(rawText, loadedFont) || 'METIN';
-            const textGeo = new THREE.TextGeometry(textString, {
-                font: loadedFont,
-                size: el.textSize,
-                height: Math.max(1, el.depth),
-                curveSegments: 8,
-                bevelEnabled: !!el.bevelEnabled,
-                bevelThickness: el.bevelThickness,
-                bevelSize: el.bevelSize,
-                bevelOffset: 0,
-                bevelSegments: 3
-            });
+            let textGeo = null;
+            if (isFlatDepth && typeof loadedFont.generateShapes === 'function') {
+                const flatShapes = loadedFont.generateShapes(textString, el.textSize);
+                if (flatShapes && flatShapes.length > 0) {
+                    textGeo = new THREE.ShapeGeometry(flatShapes, 8);
+                }
+            }
+            if (!textGeo) {
+                textGeo = new THREE.TextGeometry(textString, {
+                    font: loadedFont,
+                    size: el.textSize,
+                    height: isFlatDepth ? 0.01 : Math.max(1, el.depth),
+                    curveSegments: 8,
+                    bevelEnabled: isFlatDepth ? false : !!el.bevelEnabled,
+                    bevelThickness: el.bevelThickness,
+                    bevelSize: el.bevelSize,
+                    bevelOffset: 0,
+                    bevelSegments: 3
+                });
+            }
             textGeo.center();
             normalizeTextMeshUVs(textGeo);
 
-            el.textMesh = new THREE.Mesh(textGeo, [frontMat, sideMat]);
+            el.textMesh = new THREE.Mesh(textGeo, isFlatDepth ? frontMat : [frontMat, sideMat]);
             el.textMesh.castShadow = true;
             cGroup.add(el.textMesh);
 
@@ -3854,11 +3887,12 @@
                         useGradient: !!el.useGradient, 
                         isShape: !!(el.isShape || el.isSurfaceBase),
                         isEstate: isEstateItem,
-                        forceRecolor: !!el._userHasChangedColor
+                        forceRecolor: !!el._userHasChangedColor,
+                        transparentBg: (el.badgeBgColor === 'transparent')
                     }
                 );
 
-                const isSolidMonochromeSilhouette = isExactSilhouette && !isEstateItem && !isFenceItem && !el.isMultiColorSvg && !el.useGradient && !el.text && !el.badgeSubtext && !(/<text\b|<linearGradient\b/i.test(svgToRender));
+                const isSolidMonochromeSilhouette = !isPurePlane && isExactSilhouette && !isEstateItem && !isFenceItem && !el.isMultiColorSvg && !el.useGradient && !el.text && !el.badgeSubtext && !(/<text\b|<linearGradient\b/i.test(svgToRender));
                 const badgeFrontMat = isSolidMonochromeSilhouette
                     ? new THREE.MeshStandardMaterial({
                         color: new THREE.Color(el.frontColor || '#ffffff'),
@@ -4030,33 +4064,40 @@
             const bounds = getShapeBounds(shape);
             const uvGen = getNormalizedUVGenerator(bounds.minX, bounds.maxX, bounds.minY, bounds.maxY);
 
-            const badgeDepth = Math.max(1, el.depth || 16);
-            const badgeExtrudeOpts = {
-                depth: badgeDepth,
-                bevelEnabled: !!el.bevelEnabled,
-                bevelThickness: el.bevelThickness,
-                bevelSize: el.bevelSize,
-                bevelSegments: 3,
-                curveSegments: 16,
-                UVGenerator: uvGen
-            };
+            const badgeDepth = isFlatDepth ? 0 : Math.max(1, el.depth || 16);
+            let badgeGeo;
+            if (isFlatDepth) {
+                badgeGeo = new THREE.ShapeGeometry(shape, 24);
+                normalizeShapeGeometryUVs(badgeGeo, bounds);
+                badgeGeo.center();
+            } else {
+                const badgeExtrudeOpts = {
+                    depth: badgeDepth,
+                    bevelEnabled: !!el.bevelEnabled,
+                    bevelThickness: el.bevelThickness,
+                    bevelSize: el.bevelSize,
+                    bevelSegments: 3,
+                    curveSegments: 16,
+                    UVGenerator: uvGen
+                };
 
-            const badgeGeo = new THREE.ExtrudeGeometry(shape, badgeExtrudeOpts);
-            badgeGeo.center();
+                badgeGeo = new THREE.ExtrudeGeometry(shape, badgeExtrudeOpts);
+                badgeGeo.center();
 
-            // 🌟 Kapak Malzeme İndeksleri:
-            // start: lidGroup.start -> Z = -depth/2 (ARKA KAPAK) -> materialIndex: 1 (badgeSideMat)
-            // start: lidGroup.start + halfLid -> Z = +depth/2 (ÖN KAPAK, KAMERAYA BAKAN YÜZ) -> materialIndex: 0 (badgeFrontMat)
-            if (badgeGeo.groups && badgeGeo.groups.length >= 2) {
-                const lidGroup = badgeGeo.groups[0];
-                const halfLid = Math.floor(lidGroup.count / 2);
-                badgeGeo.groups[0] = { start: lidGroup.start, count: halfLid, materialIndex: 1 };
-                badgeGeo.groups.splice(1, 0, { start: lidGroup.start + halfLid, count: lidGroup.count - halfLid, materialIndex: 0 });
+                // 🌟 Kapak Malzeme İndeksleri:
+                // start: lidGroup.start -> Z = -depth/2 (ARKA KAPAK) -> materialIndex: 1 (badgeSideMat)
+                // start: lidGroup.start + halfLid -> Z = +depth/2 (ÖN KAPAK, KAMERAYA BAKAN YÜZ) -> materialIndex: 0 (badgeFrontMat)
+                if (badgeGeo.groups && badgeGeo.groups.length >= 2) {
+                    const lidGroup = badgeGeo.groups[0];
+                    const halfLid = Math.floor(lidGroup.count / 2);
+                    badgeGeo.groups[0] = { start: lidGroup.start, count: halfLid, materialIndex: 1 };
+                    badgeGeo.groups.splice(1, 0, { start: lidGroup.start + halfLid, count: lidGroup.count - halfLid, materialIndex: 0 });
+                }
             }
 
             const elementSvg = el.sourceSvg || (el.selectedIconId && el.selectedIconId !== 'none' ? getIconSvgById(el.selectedIconId) : null) || el.customIconSvg;
             const hasElement = !!elementSvg;
-            const elementMode = el.badgeElementMode || 'emboss';
+            const elementMode = isFlatDepth ? 'flat' : (el.badgeElementMode || 'emboss');
             const hasText = !el.show3DText && !!((el.text || '').trim() || (el.badgeSubtext || '').trim());
 
             const badgeTex = createBadgeTexture(
@@ -4083,7 +4124,8 @@
             const badgeFrontMat = new THREE.MeshStandardMaterial({
                 map: badgeTex,
                 roughness: el.roughness !== undefined ? el.roughness : 0.45,
-                metalness: el.metalness !== undefined ? el.metalness : 0.15
+                metalness: el.metalness !== undefined ? el.metalness : 0.15,
+                side: isFlatDepth ? THREE.DoubleSide : THREE.FrontSide
             });
 
             const badgeSideColorHex = el.badgeSideColor || '#cbd5e1';
@@ -4094,14 +4136,14 @@
                 side: THREE.DoubleSide
             });
 
-            el.badgeMesh = new THREE.Mesh(badgeGeo, [badgeFrontMat, badgeSideMat]);
+            el.badgeMesh = new THREE.Mesh(badgeGeo, isFlatDepth ? badgeFrontMat : [badgeFrontMat, badgeSideMat]);
             el.badgeMesh.castShadow = true;
             const hasAttCard = elements.some(e => e && e.attachedTo === el.id);
             el.badgeMesh.receiveShadow = hasAttCard || (elementMode === 'emboss');
             cGroup.add(el.badgeMesh);
 
             // 🌟 3D Kabartma / Emboss Mesh
-            if (elementMode === 'emboss' && hasElement) {
+            if (!isFlatDepth && elementMode === 'emboss' && hasElement) {
                 createBadgeReliefMesh(el, type, badgeDepth, cGroup, badgeW, badgeH, hasText);
             }
         }
@@ -4448,7 +4490,8 @@
         } catch (e) {}
 
         const scale = (el.planeScale !== undefined && el.planeScale !== null) ? el.planeScale : (state.planeScale || 1.0);
-        const halfDepth = (Math.max(1, el.depth) / 2 + (el.bevelEnabled ? (el.bevelThickness || 2) : 0)) * scale;
+        const effD = Math.max(0, parseFloat(el.depth !== undefined ? el.depth : 16) || 0);
+        const halfDepth = (effD / 2 + ((el.bevelEnabled && effD > 0) ? (el.bevelThickness || 2) : 0)) * scale;
         const isBaseAligned = !!(el.isBaseAligned || el.isFence || el.estateItemId);
         
         // 🌟 Taban hizalı çit/duvar/binalarda taban tam Y=0'da olduğu için zemin kaldırması sadece yarım derinliktir
@@ -7809,6 +7852,69 @@
     }
 
     /**
+     * 10.3B. 3D Ögeyi Silmeden Tam Karşısına Simetrik Aynalama
+     */
+    function mirror3DElement(targetEl, opts = {}) {
+        const src = targetEl || getActiveElement();
+        if (!src) return null;
+        const axis = (opts && opts.axis === 'y') ? 'y' : 'x';
+
+        let nextPosX = src.posX || 0;
+        let nextPosY = src.posY || 0;
+        let nextYaw = src.planeYaw || 0;
+        let nextLocalRot = src.planeLocalRot || 0;
+        let nextRoll = src.itemRoll || 0;
+        let nextPitch = src.planePitch || 0;
+        let nextItemPitch = src.itemPitch || 0;
+
+        if (axis === 'y') {
+            nextPosY = -nextPosY;
+            if (Math.abs(nextPosY - (src.posY || 0)) < 15) nextPosY += 40;
+            nextPitch = -nextPitch;
+            nextItemPitch = -nextItemPitch;
+            nextRoll = -nextRoll;
+        } else {
+            nextPosX = -nextPosX;
+            if (Math.abs(nextPosX - (src.posX || 0)) < 15) nextPosX += 40;
+            nextYaw = -nextYaw;
+            nextLocalRot = -nextLocalRot;
+            nextRoll = -nextRoll;
+        }
+
+        const newElProps = Object.assign({}, src, {
+            id: 'el_3d_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
+            name: (src.name || '3D Öge') + ' Karşı',
+            posX: nextPosX,
+            posY: nextPosY,
+            planeYaw: nextYaw,
+            planeLocalRot: nextLocalRot,
+            itemRoll: nextRoll,
+            planePitch: nextPitch,
+            itemPitch: nextItemPitch,
+            groupId: null,
+            locked: false,
+            planeGroup: null,
+            contentGroup: null,
+            shadowPlane: null,
+            textMesh: null,
+            iconMesh: null,
+            badgeMesh: null,
+            reliefMesh: null
+        });
+        const newEl = createDefaultElement(newElProps);
+        elements.push(newEl);
+        activeElementId = newEl.id;
+        initElementThreeObjects(newEl);
+        setActiveElement(newEl);
+        recreateContentMeshes(newEl);
+        setSelected(true, { silent: true, openPanel: false });
+        syncControlsUI();
+        update3DLayersOrder();
+        requestRender();
+        return newEl;
+    }
+
+    /**
      * 10.4. 3D Ögeyi Sayfada 9 Yöne Konumlandırma / Hizalama
      */
     function align3DElement(targetEl, posKey) {
@@ -8168,6 +8274,10 @@
                 <button class="acm-grid-btn" id="acm3d-front" title="En Üst Katmana Getir"><span style="font-size:11px;">En Öne</span></button>
                 <button class="acm-grid-btn" id="acm3d-back" title="En Alt Katmana Gönder"><span style="font-size:11px;">En Arkaya</span></button>
             </div>
+            <button class="app-context-item" id="acm3d-mirror-opposite">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#0284c7" stroke-width="2.2"><path d="M12 3v18"/><path d="M8 7l-5 5 5 5"/><path d="M16 7l5 5-5 5"/></svg>
+                <span>Karşıya Aynala</span>
+            </button>
             <button class="app-context-item" id="acm3d-duplicate">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#818cf8" stroke-width="2.2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
                 <span>Çoğalt</span>
@@ -8469,7 +8579,15 @@
         bindItem('#acm3d-front', () => bring3DElementToFront(el));
         bindItem('#acm3d-back', () => send3DElementToBack(el));
 
-        // Çoğalt & Sil
+        // Çoğalt, Aynala & Sil
+        bindItem('#acm3d-mirror-opposite', () => {
+            if (window.MirrorAdapter && typeof window.MirrorAdapter.mirrorSelection === 'function') {
+                window.MirrorAdapter.mirrorSelection({ axis: 'x' });
+            } else {
+                mirror3DElement(el, { axis: 'x' });
+                if (typeof window.recordHistory === 'function') window.recordHistory('Karşıya Aynalandı', true);
+            }
+        }, true);
         bindItem('#acm3d-duplicate', () => duplicate3DElement(el));
         bindItem('#acm3d-delete', () => delete3DElement(el.id), true);
     }
@@ -9155,13 +9273,13 @@
             unit: 'px',
             smallStep: () => (state.dockTarget === 'sun' ? 20 : 1),
             largeStep: () => (state.dockTarget === 'sun' ? 100 : 5),
-            min: () => (state.dockTarget === 'sun' ? -1200 : 1),
+            min: () => (state.dockTarget === 'sun' ? -1200 : 0),
             max: () => (state.dockTarget === 'sun' ? 1200 : 500),
             get: () => {
                 if (state.dockTarget === 'sun') {
                     return Math.round(state.sunPosZ || 450);
                 }
-                return Math.round(state.depth || 16);
+                return Math.round(state.depth !== undefined ? state.depth : 16);
             },
             set: (val) => {
                 if (state.dockTarget === 'sun') {
@@ -9173,7 +9291,7 @@
                     requestRender();
                     return;
                 }
-                val = Math.max(1, Math.min(500, val));
+                val = Math.max(0, Math.min(500, val));
                 const el = getActiveElement();
                 applyDepthChange(val, el);
                 if (window.ThreeDGrouping && typeof window.ThreeDGrouping.updateSelectionVisuals === 'function') {
@@ -10288,6 +10406,7 @@
                     <div style="display:flex; gap:6px; margin-bottom:12px;">
                         <button type="button" id="threeDAutoCenterBtn" class="three-d-preset-btn" style="flex:1;" title="Modelin geometrik merkezini pivot noktasına hizalar"><i class="fas fa-crosshairs"></i> Modeli Merkezle</button>
                         <button type="button" id="threeDAlignBaseBtn" class="three-d-preset-btn" style="flex:1;" title="Modelin tabanını zemin düzlemine oturtur"><i class="fas fa-arrows-down-to-line"></i> Tabana Oturt</button>
+                        <button type="button" id="threeDMirrorOppositeBtn" class="three-d-preset-btn" style="flex:1;" title="Silmeden tam karşısına içeri bakacak şekilde aynalar"><i class="fa-solid fa-arrows-left-right"></i> Karşıya Aynala</button>
                     </div>
 
                     <!-- 🌟 1. 3D Öge Boyutu -->
@@ -10313,7 +10432,7 @@
                                 <button type="button" class="three-d-step-btn" id="threeDDepthIncBtn" title="Kalınlığı Artır">+</button>
                             </div>
                         </div>
-                        <input type="range" id="threeDDepthInput" class="three-d-slider-range" min="1" max="400" value="${state.depth}">
+                        <input type="range" id="threeDDepthInput" class="three-d-slider-range" min="0" max="400" value="${state.depth}">
                     </div>
 
                     <!-- 🌟 2.5 Dikey Yükseklik (Taban Çizgisinden Yukarı Uzatma) -->
@@ -11336,21 +11455,24 @@
         const depthInput = panel.querySelector('#threeDDepthInput');
         if (depthInput) {
             depthInput.addEventListener('input', (e) => {
-                applyDepthChange(parseInt(e.target.value) || 16);
+                const parsedDepth = parseInt(e.target.value, 10);
+                applyDepthChange(isNaN(parsedDepth) ? 16 : Math.max(0, parsedDepth));
             });
         }
 
         const depthDecBtn = panel.querySelector('#threeDDepthDecBtn');
         if (depthDecBtn) {
             depthDecBtn.addEventListener('click', () => {
-                applyDepthChange(Math.max(1, (parseInt(state.depth, 10) || 15) - 1));
+                const curDepth = parseInt(state.depth, 10);
+                applyDepthChange(Math.max(0, (isNaN(curDepth) ? 15 : curDepth) - 1));
             });
         }
 
         const depthIncBtn = panel.querySelector('#threeDDepthIncBtn');
         if (depthIncBtn) {
             depthIncBtn.addEventListener('click', () => {
-                applyDepthChange(Math.min(400, (parseInt(state.depth, 10) || 15) + 1));
+                const curDepth = parseInt(state.depth, 10);
+                applyDepthChange(Math.min(400, (isNaN(curDepth) ? 15 : curDepth) + 1));
             });
         }
 
@@ -11363,16 +11485,17 @@
                 if (depthValBadge.querySelector('input')) return;
                 e.stopPropagation();
 
-                const cur = parseInt(state.depth, 10) || 16;
+                const cur = parseInt(state.depth, 10);
+                const curSafe = isNaN(cur) ? 16 : cur;
                 const origText = depthValBadge.textContent;
                 const isDark = document.documentElement.getAttribute('data-theme') === 'dark' || 
                                (document.body && document.body.getAttribute('data-theme') === 'dark');
 
                 const input = document.createElement('input');
                 input.type = 'number';
-                input.min = '1';
+                input.min = '0';
                 input.max = '2000';
-                input.value = cur;
+                input.value = curSafe;
                 input.style.cssText = `
                     width: 48px;
                     height: 18px;
@@ -11401,7 +11524,7 @@
                     committed = true;
                     const val = parseInt(input.value, 10);
                     if (!isNaN(val)) {
-                        const num = Math.max(1, val);
+                        const num = Math.max(0, val);
                         if (depthInput && num > parseInt(depthInput.max, 10)) {
                             depthInput.max = Math.max(num, 400);
                         }
@@ -11742,6 +11865,17 @@
         if (alignBaseBtn) {
             alignBaseBtn.addEventListener('click', () => {
                 autoCenterActiveElement('base');
+            });
+        }
+        const mirrorOppositeBtn = panel.querySelector('#threeDMirrorOppositeBtn');
+        if (mirrorOppositeBtn) {
+            mirrorOppositeBtn.addEventListener('click', () => {
+                if (window.MirrorAdapter && typeof window.MirrorAdapter.mirrorSelection === 'function') {
+                    window.MirrorAdapter.mirrorSelection({ axis: 'x' });
+                } else {
+                    mirror3DElement(getActiveElement(), { axis: 'x' });
+                    if (typeof window.recordHistory === 'function') window.recordHistory('Karşıya Aynalandı', true);
+                }
             });
         }
 
@@ -13498,35 +13632,38 @@
         }
     }
 
-    function _applyFrame3DActivation(frames) {
+    function _applyFrame3DActivation(frames, meta = {}) {
         const list = (Array.isArray(frames) ? frames : [frames]).filter(Boolean);
         if (!list.length) return false;
         const primaryFrame = list[0];
+        const isFlat = !!(meta && meta.flat3D);
 
         if (list.length === 1 && window.TemplateBuilder && typeof window.TemplateBuilder.selectFrame === 'function') {
-            window.TemplateBuilder.selectFrame(primaryFrame);
+            window.TemplateBuilder.selectFrame(primaryFrame, { skipGizmoAutoOpen: true, skipScroll: true });
         } else if (window.TemplateBuilder) {
             window.TemplateBuilder.selectedFrame = primaryFrame;
         }
         if (typeof switchTab === 'function') switchTab('create-template');
 
-        list.forEach(frameEl => {
-            const curDepth = parseFloat(frameEl.dataset.depth) || 0;
-            const curPitch = parseFloat(frameEl.dataset.pitch) || 0;
-            const curYaw = parseFloat(frameEl.dataset.yaw) || 0;
-            if (curDepth <= 0) {
-                frameEl.dataset.depth = 25;
-            }
-            if (curPitch === 0 && curYaw === 0) {
-                frameEl.dataset.pitch = -12;
-                frameEl.dataset.yaw = 20;
-                frameEl.dataset.perspective = 1200;
-            }
-            frameEl.dataset.has3D = 'true';
-            if (window.Template3DFrame) {
-                window.Template3DFrame.applyTransform(frameEl);
-            }
-        });
+        if (!isFlat) {
+            list.forEach(frameEl => {
+                const curDepth = parseFloat(frameEl.dataset.depth) || 0;
+                const curPitch = parseFloat(frameEl.dataset.pitch) || 0;
+                const curYaw = parseFloat(frameEl.dataset.yaw) || 0;
+                if (curDepth <= 0) {
+                    frameEl.dataset.depth = 25;
+                }
+                if (curPitch === 0 && curYaw === 0) {
+                    frameEl.dataset.pitch = -12;
+                    frameEl.dataset.yaw = 20;
+                    frameEl.dataset.perspective = 1200;
+                }
+                frameEl.dataset.has3D = 'true';
+                if (window.Template3DFrame) {
+                    window.Template3DFrame.applyTransform(frameEl);
+                }
+            });
+        }
 
         if (window.Template3DFrame) {
             window.Template3DFrame.showGizmo(primaryFrame);
@@ -13581,7 +13718,7 @@
                 let resolvedFrames = [];
                 if (frameTargets.length > 0) {
                     resolvedFrames = Array.from(new Set(frameTargets.map(t => (t.classList && t.classList.contains('tb-image-frame')) ? t : t.closest('.tb-image-frame')).filter(Boolean)));
-                    _applyFrame3DActivation(resolvedFrames);
+                    _applyFrame3DActivation(resolvedFrames, meta);
                 }
 
                 if (otherTargets.length > 0) {
@@ -13616,7 +13753,13 @@
                     } else if (created3DEls.length === 1) {
                         setActiveElement(created3DEls[0], { select: true });
                     }
+                    if (meta && (meta.forceGizmo || meta.flat3D)) {
+                        state.gizmoActive = true;
+                    }
                     setSelected(true, { silent: true, openPanel: false, keep2DSelection: resolvedFrames.length > 0 });
+                    if (meta && (meta.forceGizmo || meta.flat3D)) {
+                        toggleGizmoMode(true);
+                    }
                     const p2d = document.getElementById('threeDStudioPanel');
                     if (p2d) {
                         p2d.style.display = 'none';
@@ -13663,7 +13806,7 @@
         const root = el.closest('.shape-el, .callout-wrap, .callout-wrapper, .draggable, .added-icon, .canvas-el, .tb-image-frame') || el;
         const frameEl = (el && el.closest && el.closest('.tb-image-frame')) || (root && root.closest && root.closest('.tb-image-frame')) || (el && el.classList && el.classList.contains('tb-image-frame') ? el : null);
         if (frameEl) {
-            return _applyFrame3DActivation([frameEl]);
+            return _applyFrame3DActivation([frameEl], meta);
         }
 
         const classList = ((el.className || '') + ' ' + (root.className || '')).toLowerCase();
@@ -13816,8 +13959,17 @@
         } else {
             primaryColor = safeHexColor(primaryColor, '#38bdf8');
             let bgColCandidate = el.dataset?.storedBgHex || root.dataset?.storedBgHex || el.dataset?.coBgColor || root.dataset?.coBgColor || '';
+            let domBgCol = '';
+            try {
+                const csBg = window.getComputedStyle ? window.getComputedStyle(root).backgroundColor : '';
+                if (csBg && csBg !== 'rgba(0, 0, 0, 0)' && csBg !== 'transparent') {
+                    domBgCol = csBg;
+                }
+            } catch(e) {}
             const isDefaultBg = !bgColCandidate || bgColCandidate === '#0f172a' || bgColCandidate === '#0d1b2e' || bgColCandidate === '#0a0e27' || bgColCandidate === '#162035' || bgColCandidate === '#1a2744';
-            if (isDefaultBg) {
+            if (meta && meta.flat3D && rawSvg && rawSvg.includes('<svg') && !bgColCandidate && !domBgCol) {
+                bgCol = 'transparent';
+            } else if (isDefaultBg) {
                 let isDarkIcon = false;
                 try {
                     const c = new THREE.Color(primaryColor);
@@ -14059,6 +14211,9 @@
         // doğrudan aktarılmamalıdır; 3D sahnede devasa olmaması için standart boyuta (36) sabitlenir.
         const normal3DTextSize = 36;
 
+        const isFlatMode = !!(meta && (meta.flat3D || (meta.depth !== undefined && parseFloat(meta.depth) <= 0)));
+        const resolvedDepth = isFlatMode ? 0 : ((meta && meta.depth !== undefined) ? Math.max(0, parseFloat(meta.depth) || 0) : (isShape ? 16 : (isSilhouette ? 20 : 16)));
+
         const newEl = createDefaultElement({
             name: displayName,
             sourceItemName: displayName,
@@ -14085,10 +14240,10 @@
             badgeBgColor: isShape ? primaryColor : (isNeon ? (bgCol || '#0d1b2e') : bgCol),
             sideColor: isNeon ? '#1e3a8a' : initialSideColor,
             isRound: isShape ? (shapeType === 'circle') : (shapeMode === 'coin'),
-            depth: isShape ? 16 : (isSilhouette ? 20 : 16),
-            bevelEnabled: true,
-            bevelThickness: 2,
-            bevelSize: 1.5,
+            depth: resolvedDepth,
+            bevelEnabled: resolvedDepth > 0,
+            bevelThickness: resolvedDepth > 0 ? 2 : 0,
+            bevelSize: resolvedDepth > 0 ? 1.5 : 0,
             orientation: orientation,
             planePitch: planePitch,
             planeYaw: planeYaw,
@@ -14180,7 +14335,13 @@
         if (!meta._batchMode) {
             syncControlsUI();
             update3DLayersOrder();
+            if (meta && (meta.forceGizmo || meta.flat3D)) {
+                state.gizmoActive = true;
+            }
             setSelected(true, { silent: true, openPanel: false });
+            if (meta && (meta.forceGizmo || meta.flat3D)) {
+                toggleGizmoMode(true);
+            }
             const p2d = document.getElementById('threeDStudioPanel');
             if (p2d) {
                 p2d.style.display = 'none';
@@ -15271,6 +15432,7 @@
         sendElementToBack: send3DElementToBack,
         duplicateElement: duplicate3DElement,
         duplicate3DElement: duplicate3DElement,
+        mirrorElement: mirror3DElement,
         deleteElement: delete3DElement,
         delete3DElement: delete3DElement,
         alignElement: align3DElement,

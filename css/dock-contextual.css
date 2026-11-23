@@ -129,6 +129,27 @@ body[data-theme="light"] .canvas-bottom-dock .dock-btn i {
     line-height: 1 !important;
 }
 
+#canvasBottomDock .dock-btn.dock-btn-danger,
+body[data-theme="light"] #canvasBottomDock .dock-btn.dock-btn-danger {
+    background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%) !important;
+    border-color: #ef4444 !important;
+    color: #ffffff !important;
+}
+
+#canvasBottomDock .dock-btn.dock-btn-danger:hover,
+body[data-theme="light"] #canvasBottomDock .dock-btn.dock-btn-danger:hover {
+    background: linear-gradient(135deg, #b91c1c 0%, #dc2626 100%) !important;
+    border-color: #f87171 !important;
+    color: #ffffff !important;
+}
+
+#canvasBottomDock .dock-btn.dock-btn-danger .dock-icon,
+#canvasBottomDock .dock-btn.dock-btn-danger i,
+body[data-theme="light"] #canvasBottomDock .dock-btn.dock-btn-danger .dock-icon,
+body[data-theme="light"] #canvasBottomDock .dock-btn.dock-btn-danger i {
+    color: #ffffff !important;
+}
+
 #canvasBottomDock .dock-icon-btn,
 .canvas-bottom-dock .dock-icon-btn {
     display: inline-flex !important;

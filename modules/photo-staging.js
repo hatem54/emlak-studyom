@@ -30,6 +30,8 @@
         watermarkTrayOpen: false,
         formatTrayOpen: false,
         aiTrayOpen: false,
+        batchExportTrayOpen: false,
+        carouselTrayOpen: false,
         aiIntensity: 0.35,
         exportQuality: (() => {
             try {
@@ -98,6 +100,9 @@
             // Sürükle-bırak olaylarını kur
             this.initDropzoneListeners();
             this.syncCanvasCarouselBadge();
+            if (window.StagingExportTrays && typeof window.StagingExportTrays.hydrateAfterRender === 'function') {
+                window.StagingExportTrays.hydrateAfterRender();
+            }
         },
 
         /**
@@ -669,7 +674,7 @@
          */
         downloadSingle: async function(id) {
             const item = this.items.find(it => it.id === id);
-            if (!item || !item.dataUrl) return;
+            if (!item || !(item.rawOriginalDataUrl || item.originalDataUrl || item.dataUrl || item.src)) return;
 
             if (this.activeItemId === id) {
                 this.syncActiveItemAdjustments();
@@ -679,6 +684,19 @@
             const parsel = item.parcelMeta?.parsel ? `Parsel_${item.parcelMeta.parsel}` : '';
             const tag = (ada || parsel) ? `_${ada}_${parsel}` : '';
             const cleanTitle = (item.title || 'gorsel').replace(/[^a-zA-Z0-9çğıöşüÇĞİÖŞÜ_-]/g, '_');
+
+            if (typeof window.startBatchExport === 'function') {
+                return window.startBatchExport({
+                    mode: 'files',
+                    files: [{
+                        name: `${cleanTitle}${tag}.png`,
+                        dataUrl: item.rawOriginalDataUrl || item.originalDataUrl || item.dataUrl || item.src,
+                        photoAdjustments: item.photoAdjustments || null,
+                        aiIntensity: item.aiIntensity !== undefined ? item.aiIntensity : 0,
+                        item: item
+                    }]
+                });
+            }
 
             const qKey = this.exportQuality || 'ultra';
             const res = await this.getItemExportBlobAsync(item, qKey);
@@ -1257,6 +1275,8 @@
             if (this.watermarkTrayOpen) {
                 this.formatTrayOpen = false;
                 this.aiTrayOpen = false;
+                this.batchExportTrayOpen = false;
+                this.carouselTrayOpen = false;
             }
             this.renderPanel();
         },
@@ -1273,6 +1293,8 @@
             if (this.formatTrayOpen) {
                 this.watermarkTrayOpen = false;
                 this.aiTrayOpen = false;
+                this.batchExportTrayOpen = false;
+                this.carouselTrayOpen = false;
             }
             this.renderPanel();
         },
@@ -1289,6 +1311,8 @@
             if (this.aiTrayOpen) {
                 this.watermarkTrayOpen = false;
                 this.formatTrayOpen = false;
+                this.batchExportTrayOpen = false;
+                this.carouselTrayOpen = false;
                 this.previewAiIntensityLive(Math.round((this.aiIntensity || 0.35) * 100));
             } else {
                 window._photoFilterDirty = true;
@@ -1303,6 +1327,49 @@
             if (dockCompareBtn) {
                 dockCompareBtn.classList.toggle('active', this.isCompareOpen);
             }
+        },
+
+        /**
+         * Toplu Çıktı Panelini Açar / Kapatır
+         */
+        toggleBatchExportTray: function() {
+            this.batchExportTrayOpen = !this.batchExportTrayOpen;
+            if (this.batchExportTrayOpen) {
+                this.carouselTrayOpen = false;
+                this.watermarkTrayOpen = false;
+                this.formatTrayOpen = false;
+                this.aiTrayOpen = false;
+            }
+            this.renderPanel();
+        },
+
+        openBatchExportTray: function() {
+            this.batchExportTrayOpen = true;
+            this.carouselTrayOpen = false;
+            this.watermarkTrayOpen = false;
+            this.formatTrayOpen = false;
+            this.aiTrayOpen = false;
+            this.renderPanel();
+        },
+
+        /**
+         * Çoklu Gönderi & Albüm Çıktısı Panelini Açar / Kapatır
+         */
+        toggleCarouselTray: async function() {
+            if ((!window.CarouselManager || window.CarouselManager._isProxy) && window.LazyLoader) {
+                await window.LazyLoader.load('carousel', { label: 'Karusel Yöneticisi' });
+            }
+            this.carouselTrayOpen = !this.carouselTrayOpen;
+            if (this.carouselTrayOpen) {
+                this.batchExportTrayOpen = false;
+                this.watermarkTrayOpen = false;
+                this.formatTrayOpen = false;
+                this.aiTrayOpen = false;
+                if (window.CarouselManager && typeof window.CarouselManager.syncFromStaging === 'function') {
+                    window.CarouselManager.syncFromStaging(true);
+                }
+            }
+            this.renderPanel();
         },
 
         setAiIntensity: function(val) {
@@ -3375,17 +3442,24 @@
          */
         setCompareMode: function(mode) {
             let m = mode || 'toggle';
-            if (m === 'split-vertical') m = 'side-by-side';
-            if (m === 'split-slider') m = 'slider';
+            if (m === 'split-vertical' || m === 'split-horizontal') m = 'side-by-side';
+            if (m === 'split-slider' || m === 'overlay') m = 'slider';
             this.compareMode = m;
 
-            // 1. Paneldeki Mod Butonlarını Güncelle
+            // 1. Paneldeki Mod Butonlarını Güncelle (Görseller ve Fotoğraf sekmeleri)
             const btnToggle = document.getElementById('btnStagingModeToggle');
             const btnSide = document.getElementById('btnStagingModeSideBySide');
             const btnSlider = document.getElementById('btnStagingModeSlider');
             if (btnToggle) btnToggle.classList.toggle('active', this.compareMode === 'toggle');
             if (btnSide) btnSide.classList.toggle('active', this.compareMode === 'side-by-side');
             if (btnSlider) btnSlider.classList.toggle('active', this.compareMode === 'slider');
+
+            const pToggle = document.getElementById('btnPhotoModeToggle');
+            const pSide = document.getElementById('btnPhotoModeSide');
+            const pSlider = document.getElementById('btnPhotoModeSlider');
+            if (pToggle) pToggle.classList.toggle('active', this.compareMode === 'toggle');
+            if (pSide) pSide.classList.toggle('active', this.compareMode === 'side-by-side');
+            if (pSlider) pSlider.classList.toggle('active', this.compareMode === 'slider');
 
             // 2. Katman Üst Çubuğundaki Butonları Güncelle
             const ovlToggle = document.getElementById('ovlCompareToggle');
@@ -3479,6 +3553,15 @@
                     dockBtn.innerHTML = '<span class="dock-icon"><i class="fa-solid fa-code-compare"></i></span><span class="dock-label">Öncesi / Sonrası</span>';
                     dockBtn.title = 'Öncesi ve Sonrası Karşılaştırma';
                 }
+            }
+
+            // Fotoğraf sekmesi ana karşılaştırma butonu
+            const photoCompareBtn = document.getElementById('btnBeforeAfter');
+            if (photoCompareBtn) {
+                photoCompareBtn.classList.toggle('active', isShowing || !!this.isCompareOpen);
+                photoCompareBtn.innerHTML = isShowing
+                    ? '<i class="fa-solid fa-eye"></i> Sonrası'
+                    : '<i class="fa-solid fa-code-compare"></i> Öncesi / Sonrası';
             }
 
             // Panel içi buton
@@ -4648,19 +4731,23 @@
                     </div>
                 </div>
 
-                <!-- Havuz Henüz Boşken de Erişilebilir Hızlı Araç Çubuğu (Logo & Format) -->
+                <!-- Havuz Henüz Boşken de Erişilebilir Hızlı Araç Çubuğu (Logo, Format & Toplu Çıktı) -->
                 ${total === 0 ? `
                     <div class="staging-prep-bar" style="display:flex; gap:6px; margin-bottom:10px;">
-                        <button type="button" class="btn-action staging-batch-btn ${this.watermarkTrayOpen ? 'active' : ''}" onclick="PhotoStagingArchive.toggleWatermarkTray()" style="flex:1; height:34px;" title="Fotoğraflara eklenecek firma logosunu ve filigran ayarlarını önceden belirleyin">
-                            <i class="fa-solid fa-shield-halved"></i> Filigran &amp; Logo
+                        <button type="button" class="btn-action staging-batch-btn ${this.batchExportTrayOpen ? 'active' : ''}" onclick="PhotoStagingArchive.toggleBatchExportTray()" style="flex:1 1 0; min-width:0; height:34px; margin:0; white-space:nowrap;" title="Toplu çıktı boyut, kalite ve hazır ayarlarını görüntüleyin">
+                            <i class="fa-solid fa-boxes-stacked"></i> Toplu Çıktı
                         </button>
-                        <button type="button" class="btn-action staging-batch-btn ${this.formatTrayOpen ? 'active' : ''}" onclick="PhotoStagingArchive.toggleFormatTray()" style="flex:1; height:34px;" title="Varsayılan tuval formatını (16:9, 1:1, 9:16) seçin">
-                            <i class="fa-solid fa-crop-simple"></i> Format &amp; Kadraj
+                        <button type="button" class="btn-action staging-batch-btn ${this.watermarkTrayOpen ? 'active' : ''}" onclick="PhotoStagingArchive.toggleWatermarkTray()" style="flex:1 1 0; min-width:0; height:34px; margin:0; white-space:nowrap;" title="Fotoğraflara eklenecek firma logosunu ve filigran ayarlarını önceden belirleyin">
+                            <i class="fa-solid fa-shield-halved"></i> Filigran
+                        </button>
+                        <button type="button" class="btn-action staging-batch-btn ${this.formatTrayOpen ? 'active' : ''}" onclick="PhotoStagingArchive.toggleFormatTray()" style="flex:1 1 0; min-width:0; height:34px; margin:0; white-space:nowrap;" title="Varsayılan tuval formatını seçin">
+                            <i class="fa-solid fa-crop-simple"></i> Format
                         </button>
                     </div>
 
-                    ${(this.watermarkTrayOpen || this.formatTrayOpen) ? `
+                    ${(this.batchExportTrayOpen || this.watermarkTrayOpen || this.formatTrayOpen) ? `
                         <div class="staging-batch-toolbar" style="margin-bottom:10px; padding:8px;">
+                            ${this.batchExportTrayOpen && window.StagingExportTrays ? window.StagingExportTrays.renderTraysHtml(this) : ''}
                             ${this.watermarkTrayOpen ? `
                                 <!-- 🛡️ FİLİGRAN & LOGO AYAR PANELİ (Boş Havuzdayken Açık) -->
                                 <div class="staging-sub-tray is-open" id="stagingWatermarkTray">
@@ -4675,18 +4762,18 @@
                                         </div>
                                         <input type="file" id="stagingWatermarkLogoInput" accept="image/*" style="display:none;" onchange="PhotoStagingArchive.handleWatermarkLogoUpload(event)">
                                         ${isLogoOnCanvas ? `
-                                            <button type="button" id="stagingLogoUploadBtn" class="btn-action staging-tray-btn" onclick="PhotoStagingArchive.triggerWatermarkLogoInput()" title="Kendi logonuzu seçin veya değiştirin">
-                                                <i class="fa-solid fa-arrow-up-from-bracket"></i> <span id="stagingLogoUploadBtnText">${hasCustomLogo ? 'Logo Değiştir' : 'Logo Seç'}</span>
+                                            <button type="button" id="stagingLogoUploadBtn" class="btn-action staging-tray-btn" onclick="PhotoStagingArchive.triggerWatermarkLogoInput()" title="Kendi firma logonuzu seçin veya değiştirin">
+                                                <i class="fa-solid fa-arrow-up-from-bracket"></i> <span id="stagingLogoUploadBtnText">${hasCustomLogo ? 'Logo Değiştir' : 'Firma Logosu Seç'}</span>
                                             </button>
-                                            <button type="button" id="stagingLogoRemoveBtn" class="btn-action staging-tray-btn staging-tray-btn-danger" onclick="PhotoStagingArchive.removeLogoFromCanvas()" title="Logoyu tuvalden kaldırır">
+                                            <button type="button" id="stagingLogoRemoveBtn" class="btn-action staging-tray-btn staging-tray-btn-danger" onclick="PhotoStagingArchive.removeLogoFromCanvas()" title="Firma logosunu tuvalden kaldırır">
                                                 <i class="fa-solid fa-trash-can"></i> Logoyu Kaldır
                                             </button>
                                         ` : `
-                                            <button type="button" id="stagingLogoAddBtn" class="btn-action staging-tray-btn" onclick="PhotoStagingArchive.addLogoToCanvas()" title="Logoyu tuvale yerleştirir">
+                                            <button type="button" id="stagingLogoAddBtn" class="btn-action staging-tray-btn" onclick="PhotoStagingArchive.addLogoToCanvas()" title="Firma logosunu tuvale yerleştirir">
                                                 <i class="fa-solid fa-stamp"></i> Logo Ekle
                                             </button>
-                                            <button type="button" id="stagingLogoUploadBtn" class="btn-action staging-tray-btn" onclick="PhotoStagingArchive.triggerWatermarkLogoInput()" title="Kendi logonuzu seçin">
-                                                <i class="fa-solid fa-arrow-up-from-bracket"></i> <span id="stagingLogoUploadBtnText">Logo Seç</span>
+                                            <button type="button" id="stagingLogoUploadBtn" class="btn-action staging-tray-btn" onclick="PhotoStagingArchive.triggerWatermarkLogoInput()" title="Kendi firma logonuzu seçin">
+                                                <i class="fa-solid fa-arrow-up-from-bracket"></i> <span id="stagingLogoUploadBtnText">Firma Logosu Seç</span>
                                             </button>
                                         `}
                                     </div>
@@ -4750,16 +4837,16 @@
                 ${total > 0 ? `
                     <div class="staging-filter-pills">
                         <button type="button" class="staging-pill ${this.currentFilter === 'all' ? 'is-active' : ''}" onclick="PhotoStagingArchive.setFilter('all')">
-                            Tümü (${total})
+                            Tümü · ${total}
                         </button>
                         <button type="button" class="staging-pill ${this.currentFilter === 'drone' ? 'is-active' : ''}" onclick="PhotoStagingArchive.setFilter('drone')">
-                            3B Drone (${droneCount})
+                            3B Drone · ${droneCount}
                         </button>
                         <button type="button" class="staging-pill ${this.currentFilter === 'satellite' ? 'is-active' : ''}" onclick="PhotoStagingArchive.setFilter('satellite')">
-                            Uydu (${satCount})
+                            Uydu · ${satCount}
                         </button>
                         <button type="button" class="staging-pill ${this.currentFilter === 'upload' ? 'is-active' : ''}" onclick="PhotoStagingArchive.setFilter('upload')">
-                            Yüklenenler (${uploadCount})
+                            Yüklenenler · ${uploadCount}
                         </button>
                     </div>
                 ` : ''}
@@ -4774,21 +4861,18 @@
                             </label>
                             <span id="stagingSelectedCount" class="staging-selected-count">${selCount} / ${filteredList.length} Seçili</span>
                         </div>
-                        <div class="staging-quality-row">
-                            <span class="staging-quality-label"><i class="fa-solid fa-sliders"></i> Kalite</span>
-                            <select class="staging-tray-select staging-quality-select" id="stagingExportQualitySelect" onchange="PhotoStagingArchive.setExportQuality(this.value)" title="Toplu indirme ve damgalama için çıktı kalitesi">
-                                <option value="ultra" ${(this.exportQuality === 'ultra' || !this.exportQuality) ? 'selected' : ''}>Ultra Netlik JPG %98</option>
-                                <option value="high" ${this.exportQuality === 'high' ? 'selected' : ''}>Yüksek Kalite JPG %96</option>
-                                <option value="web" ${this.exportQuality === 'web' ? 'selected' : ''}>Web ve Portallar JPG %92</option>
-                                <option value="lossless" ${this.exportQuality === 'lossless' ? 'selected' : ''}>Kayıpsız PNG</option>
-                            </select>
-                        </div>
                         <div class="staging-batch-actions-grid">
+                            <button type="button" class="btn-action staging-batch-btn ${this.batchExportTrayOpen ? 'active' : ''}" onclick="PhotoStagingArchive.toggleBatchExportTray()" title="Seçili görselleri fotoğraf havuzu veya şablonlu tasarım olarak toplu indirin">
+                                <i class="fa-solid fa-boxes-stacked"></i> Toplu Çıktı
+                            </button>
+                            <button type="button" id="stagingCarouselBtn" class="btn-action staging-batch-btn ${(this.carouselTrayOpen || (window.CarouselManager && window.CarouselManager.isVisible)) ? 'active' : ''}" onclick="PhotoStagingArchive.toggleCarouselTray()" title="Çoklu Gönderi albümü oluşturun ve tüm sayfaları tek seferde dışa aktarın">
+                                <i class="fa-solid fa-layer-group"></i> Çoklu Gönderi
+                            </button>
                             <button type="button" class="btn-action staging-batch-btn" onclick="PhotoStagingArchive.applySelectedToCanvas()" title="Seçilen görseli tuvale aktarır">
                                 <i class="fa-solid fa-arrow-up-right-from-square"></i> Tuvale Aktar
                             </button>
-                            <button type="button" id="stagingBatchDownloadBtn" class="btn-action staging-batch-btn" onclick="PhotoStagingArchive.downloadSelectedZip()" title="Seçilen görselleri tek ZIP olarak indirir">
-                                ${this.isExportingZip ? '<i class="fa-solid fa-circle-notch fa-spin"></i> İndiriliyor' : '<i class="fa-solid fa-file-zipper"></i> Toplu İndir'}
+                            <button type="button" class="btn-action staging-batch-btn" onclick="PhotoStagingArchive.generatePortfolioPdf()" title="Görseller ve emlak detaylarıyla A4 PDF sunum broşürü indirin">
+                                <i class="fa-solid fa-file-pdf"></i> PDF Portföy
                             </button>
                             <button type="button" class="btn-action staging-batch-btn ${this.watermarkTrayOpen ? 'active' : ''}" onclick="PhotoStagingArchive.toggleWatermarkTray()" title="Görsellere firma logosu ve filigran damgalayın">
                                 <i class="fa-solid fa-shield-halved"></i> Filigran &amp; Logo
@@ -4796,17 +4880,11 @@
                             <button type="button" class="btn-action staging-batch-btn ${this.formatTrayOpen ? 'active' : ''}" onclick="PhotoStagingArchive.toggleFormatTray()" title="Görselleri 1:1, 9:16 veya 16:9 boyutlarına dönüştürün">
                                 <i class="fa-solid fa-crop-simple"></i> Format &amp; Kadraj
                             </button>
-                            <button type="button" class="btn-action staging-batch-btn" onclick="PhotoStagingArchive.generatePortfolioPdf()" title="Görseller ve emlak detaylarıyla A4 PDF sunum broşürü indirin">
-                                <i class="fa-solid fa-file-pdf"></i> PDF Portföy
+                            <button type="button" class="btn-action staging-batch-btn ${this.aiTrayOpen ? 'active' : ''}" onclick="PhotoStagingArchive.toggleAiTray()" title="Yapay zeka netleştirme ayarını açar">
+                                <i class="fa-solid fa-wand-magic-sparkles"></i> AI Netleştir
                             </button>
                             <button type="button" id="stagingCompareBtn" class="btn-action staging-batch-btn ${(this.isCompareOpen || window.isShowingBefore) ? 'active' : ''}" onclick="PhotoStagingArchive.triggerCompareAction()" title="Orijinal ve düzenlenen görseli karşılaştırın">
                                 <i class="fa-solid ${window.isShowingBefore ? 'fa-eye' : 'fa-code-compare'}"></i> ${window.isShowingBefore ? 'Sonrası' : 'Öncesi / Sonrası'}
-                            </button>
-                            <button type="button" id="stagingCarouselBtn" class="btn-action staging-batch-btn ${window.CarouselManager && window.CarouselManager.isVisible ? 'active' : ''}" onclick="PhotoStagingArchive.toggleCarousel()" title="Çoklu Gönderi: Seçilen fotoğrafları Instagram ve sosyal medya için çok sayfalı kaydırmalı albüme dönüştürür. Açmak veya kapatmak için tıklayın.">
-                                <i class="fa-solid fa-layer-group"></i> Çoklu Gönderi
-                            </button>
-                            <button type="button" class="btn-action staging-batch-btn ${this.aiTrayOpen ? 'active' : ''}" onclick="PhotoStagingArchive.toggleAiTray()" title="Yapay zeka netleştirme ayarını açar">
-                                <i class="fa-solid fa-wand-magic-sparkles"></i> AI Netleştir
                             </button>
                             <button type="button" class="btn-action staging-batch-btn" onclick="PhotoStagingArchive.applyCurrentAdjustmentsToAll()" title="Mevcut fotoğraf ayarlarını havuzdaki tüm görsellere uygular">
                                 <i class="fa-solid fa-clone"></i> Tümüne Uygula
@@ -4814,10 +4892,12 @@
                             <button type="button" class="btn-action staging-batch-btn staging-btn-danger" onclick="PhotoStagingArchive.deleteSelected()" title="Seçilen görselleri havuzdan siler">
                                 <i class="fa-solid fa-trash-can"></i> Seçilenleri Sil
                             </button>
-                            <button type="button" class="btn-action staging-batch-btn staging-btn-danger" onclick="PhotoStagingArchive.clearAllPool()" title="Görsel havuzunu ve tuvali tamamen temizler">
+                            <button type="button" class="btn-action staging-batch-btn staging-btn-danger" style="grid-column: span 2;" onclick="PhotoStagingArchive.clearAllPool()" title="Görsel havuzunu ve tuvali tamamen temizler">
                                 <i class="fa-solid fa-broom"></i> Havuzu Boşalt
                             </button>
                         </div>
+
+                        ${window.StagingExportTrays ? window.StagingExportTrays.renderTraysHtml(this) : ''}
 
                         <!-- 🛡️ FİLİGRAN & LOGO AYAR PANELİ (Açılır) -->
                         <div class="staging-sub-tray ${this.watermarkTrayOpen ? 'is-open' : ''}" id="stagingWatermarkTray">
@@ -4833,18 +4913,18 @@
                                 </div>
                                 <input type="file" id="stagingWatermarkLogoInput" accept="image/*" style="display:none;" onchange="PhotoStagingArchive.handleWatermarkLogoUpload(event)">
                                 ${isLogoOnCanvas ? `
-                                    <button type="button" id="stagingLogoUploadBtn" class="btn-action staging-tray-btn" onclick="PhotoStagingArchive.triggerWatermarkLogoInput()" title="Kendi logonuzu seçin veya değiştirin">
-                                        <i class="fa-solid fa-arrow-up-from-bracket"></i> <span id="stagingLogoUploadBtnText">${hasCustomLogo ? 'Logo Değiştir' : 'Logo Seç'}</span>
+                                    <button type="button" id="stagingLogoUploadBtn" class="btn-action staging-tray-btn" onclick="PhotoStagingArchive.triggerWatermarkLogoInput()" title="Kendi firma logonuzu seçin veya değiştirin">
+                                        <i class="fa-solid fa-arrow-up-from-bracket"></i> <span id="stagingLogoUploadBtnText">${hasCustomLogo ? 'Logo Değiştir' : 'Firma Logosu Seç'}</span>
                                     </button>
-                                    <button type="button" id="stagingLogoRemoveBtn" class="btn-action staging-tray-btn staging-tray-btn-danger" onclick="PhotoStagingArchive.removeLogoFromCanvas()" title="Logoyu tuvalden kaldırır">
+                                    <button type="button" id="stagingLogoRemoveBtn" class="btn-action staging-tray-btn staging-tray-btn-danger" onclick="PhotoStagingArchive.removeLogoFromCanvas()" title="Firma logosunu tuvalden kaldırır">
                                         <i class="fa-solid fa-trash-can"></i> Logoyu Kaldır
                                     </button>
                                 ` : `
-                                    <button type="button" id="stagingLogoAddBtn" class="btn-action staging-tray-btn" onclick="PhotoStagingArchive.addLogoToCanvas()" title="Logoyu tuvale yerleştirir">
+                                    <button type="button" id="stagingLogoAddBtn" class="btn-action staging-tray-btn" onclick="PhotoStagingArchive.addLogoToCanvas()" title="Firma logosunu tuvale yerleştirir">
                                         <i class="fa-solid fa-stamp"></i> Logo Ekle
                                     </button>
-                                    <button type="button" id="stagingLogoUploadBtn" class="btn-action staging-tray-btn" onclick="PhotoStagingArchive.triggerWatermarkLogoInput()" title="Kendi logonuzu seçin">
-                                        <i class="fa-solid fa-arrow-up-from-bracket"></i> <span id="stagingLogoUploadBtnText">Logo Seç</span>
+                                    <button type="button" id="stagingLogoUploadBtn" class="btn-action staging-tray-btn" onclick="PhotoStagingArchive.triggerWatermarkLogoInput()" title="Kendi firma logonuzu seçin">
+                                        <i class="fa-solid fa-arrow-up-from-bracket"></i> <span id="stagingLogoUploadBtnText">Firma Logosu Seç</span>
                                     </button>
                                 `}
                             </div>
@@ -4969,6 +5049,9 @@
 
             this.initDropzoneListeners();
             this.syncCanvasCarouselBadge();
+            if (window.StagingExportTrays && typeof window.StagingExportTrays.hydrateAfterRender === 'function') {
+                window.StagingExportTrays.hydrateAfterRender();
+            }
         },
 
         /**
@@ -5041,10 +5124,10 @@
                             <div style="margin-bottom:6px;"><i class="fa-solid fa-images" style="font-size:18px; color:#94a3b8;"></i></div>
                             <div>Görsel havuzu henüz boş.</div>
                             <div style="margin-top:8px; display:flex; justify-content:center; gap:6px;">
-                                <button type="button" class="btn-action" style="font-size:11px; height:26px; padding:0 8px;" onclick="document.getElementById('imageInput').click()">
+                                <button type="button" class="btn-action" style="width:auto; flex:1 1 0; min-width:0; height:28px; font-size:11px; padding:0 8px; margin:0; white-space:nowrap;" onclick="document.getElementById('imageInput').click()">
                                     <i class="fa-solid fa-plus"></i> Görsel Ekle
                                 </button>
-                                <button type="button" class="btn-action" style="font-size:11px; height:26px; padding:0 8px;" onclick="PhotoStagingArchive.switchToStagingTab()">
+                                <button type="button" class="btn-action" style="width:auto; flex:1 1 0; min-width:0; height:28px; font-size:11px; padding:0 8px; margin:0; white-space:nowrap;" onclick="PhotoStagingArchive.switchToStagingTab()">
                                     <i class="fa-solid fa-crosshairs"></i> Harita &amp; Drone
                                 </button>
                             </div>
@@ -5053,14 +5136,14 @@
                 } else {
                     statusContainer.innerHTML = `
                         <div style="border:1px solid #cbd5e1; border-radius:8px; padding:8px 10px; background:#f8fafc; margin-bottom:10px; display:flex; align-items:center; justify-content:space-between; gap:8px;">
-                            <div style="display:flex; align-items:center; gap:8px; min-width:0;">
+                            <div style="display:flex; align-items:center; gap:8px; flex:1 1 auto; min-width:0;">
                                 <i class="fa-solid fa-boxes-stacked" style="color:#0284c7; font-size:15px; flex-shrink:0;"></i>
-                                <div style="min-width:0;">
+                                <div style="flex:1 1 auto; min-width:0;">
                                     <div style="font-size:11.5px; font-weight:700; color:#0f172a; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Görsel Havuzu Hazır</div>
-                                    <div style="font-size:10.5px; color:#64748b;">${total} görsel dışa aktarılmaya hazır</div>
+                                    <div style="font-size:10.5px; color:#64748b; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${total} görsel dışa aktarılmaya hazır</div>
                                 </div>
                             </div>
-                            <button type="button" class="btn-action" style="height:26px; font-size:10.5px; padding:0 8px; flex-shrink:0;" onclick="PhotoStagingArchive.switchToStagingTab()" title="Görseller sekmesinde havuzu düzenle">
+                            <button type="button" class="btn-action" style="width:auto; flex:0 0 auto; height:26px; font-size:10.5px; padding:0 10px; margin:0; white-space:nowrap;" onclick="PhotoStagingArchive.switchToStagingTab()" title="Görseller sekmesinde havuzu düzenle">
                                 <i class="fa-solid fa-pen-to-square"></i> Düzenle
                             </button>
                         </div>

@@ -27,7 +27,7 @@
     padding: 1px 5px;
     font-size: 9.5px;
     font-weight: 700;
-    background: #0284c7;
+    background: #334155;
     color: #ffffff;
     border-radius: 10px;
     line-height: 1.2;
@@ -36,7 +36,7 @@
 }
 
 body[data-theme="dark"] .tab-badge-pill {
-    background: #38bdf8;
+    background: #94a3b8;
     color: #0f172a;
 }
 
@@ -51,16 +51,18 @@ body[data-theme="dark"] .tab-badge-pill {
 .staging-panel-counter {
     font-size: 11px;
     font-weight: 700;
-    color: #0284c7;
-    background: rgba(2, 132, 199, 0.1);
+    color: #334155;
+    background: #f1f5f9;
+    border: 1px solid #cbd5e1;
     padding: 2px 7px;
     border-radius: 6px;
-    font-family: 'Space Grotesk', 'Inter', sans-serif;
+    font-family: 'ClassicAmpersand', 'Space Grotesk', sans-serif;
 }
 
 body[data-theme="dark"] .staging-panel-counter {
-    background: rgba(56, 189, 248, 0.15);
-    color: #38bdf8;
+    background: rgba(51, 65, 85, 0.75);
+    border-color: #475569;
+    color: #e2e8f0;
 }
 
 /* Fotoğraf Yükleme / Sürükle-Bırak Alanı (Dropzone) */
@@ -76,8 +78,8 @@ body[data-theme="dark"] .staging-panel-counter {
 
 .staging-upload-dropzone:hover,
 .staging-upload-dropzone.is-dragover {
-    border-color: #0284c7;
-    background: rgba(2, 132, 199, 0.06);
+    border-color: #475569;
+    background: #f1f5f9;
 }
 
 body[data-theme="dark"] .staging-upload-dropzone {
@@ -87,8 +89,8 @@ body[data-theme="dark"] .staging-upload-dropzone {
 
 body[data-theme="dark"] .staging-upload-dropzone:hover,
 body[data-theme="dark"] .staging-upload-dropzone.is-dragover {
-    border-color: #38bdf8;
-    background: rgba(56, 189, 248, 0.1);
+    border-color: #94a3b8;
+    background: rgba(51, 65, 85, 0.65);
 }
 
 .staging-dropzone-content {
@@ -100,12 +102,12 @@ body[data-theme="dark"] .staging-upload-dropzone.is-dragover {
 
 .staging-drop-icon {
     font-size: 20px;
-    color: #0284c7;
+    color: #334155;
     flex-shrink: 0;
 }
 
 body[data-theme="dark"] .staging-drop-icon {
-    color: #38bdf8;
+    color: #cbd5e1;
 }
 
 .staging-drop-texts {
@@ -119,7 +121,7 @@ body[data-theme="dark"] .staging-drop-icon {
     font-size: 11.5px;
     font-weight: 700;
     color: #1e293b;
-    font-family: 'Space Grotesk', 'Inter', sans-serif;
+    font-family: 'ClassicAmpersand', 'Space Grotesk', sans-serif;
 }
 
 body[data-theme="dark"] .staging-drop-main {
@@ -156,7 +158,7 @@ body[data-theme="dark"] .staging-batch-toolbar {
     justify-content: space-between;
     font-size: 11px;
     font-weight: 600;
-    color: #475569;
+    color: #1e293b;
     padding: 2px 2px;
 }
 
@@ -173,17 +175,17 @@ body[data-theme="dark"] .staging-select-all-row {
 
 .staging-select-all-label input[type="checkbox"] {
     cursor: pointer;
-    accent-color: #0284c7;
+    accent-color: #334155;
 }
 
 .staging-selected-count {
     font-size: 10.5px;
     font-weight: 700;
-    color: #0284c7;
+    color: #334155;
 }
 
 body[data-theme="dark"] .staging-selected-count {
-    color: #38bdf8;
+    color: #cbd5e1;
 }
 
 /* Dışa Aktarma Kalitesi Seçici Satırı */
@@ -199,13 +201,13 @@ body[data-theme="dark"] .staging-selected-count {
 
 .staging-quality-label {
     font-size: 11px;
-    font-weight: 700;
-    color: #475569;
+    font-weight: 600;
+    color: #1e293b;
     display: inline-flex;
     align-items: center;
     gap: 5px;
     white-space: nowrap;
-    font-family: 'Space Grotesk', 'Inter', sans-serif;
+    font-family: 'ClassicAmpersand', 'Space Grotesk', sans-serif;
     flex-shrink: 0;
 }
 
@@ -229,6 +231,8 @@ body[data-theme="dark"] .staging-quality-label {
 .staging-batch-btn {
     height: 30px !important;
     padding: 0 6px !important;
+    margin: 0 !important;
+    white-space: nowrap !important;
     font-size: 11px !important;
     font-weight: 700 !important;
     display: inline-flex !important;

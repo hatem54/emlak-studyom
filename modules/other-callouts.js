@@ -600,20 +600,20 @@
             if (!container) return;
 
             const categories = [
-                { id: 'all', label: '🔥 Tümü' },
-                { id: 'houses', label: '🏡 Ev & Villa' },
-                { id: 'deeds', label: '🔑 Tapu & Anahtar' },
-                { id: 'stamps', label: '🏷️ Fırsat & Satış' },
-                { id: 'facilities', label: '🏊 Tesis & Peyzaj' },
-                { id: 'location', label: '📍 Konum & Ulaşım' },
-                { id: 'commercial', label: '🏢 Ticari & Sanayi' },
-                { id: 'interior', label: '🛋️ İç Mekan' }
+                { id: 'all', icon: 'fa-layer-group', label: 'Tümü' },
+                { id: 'houses', icon: 'fa-house', label: 'Ev & Villa' },
+                { id: 'deeds', icon: 'fa-key', label: 'Tapu & Anahtar' },
+                { id: 'stamps', icon: 'fa-tag', label: 'Fırsat & Satış' },
+                { id: 'facilities', icon: 'fa-water-ladder', label: 'Tesis & Peyzaj' },
+                { id: 'location', icon: 'fa-location-dot', label: 'Konum & Ulaşım' },
+                { id: 'commercial', icon: 'fa-building', label: 'Ticari & Sanayi' },
+                { id: 'interior', icon: 'fa-couch', label: 'İç Mekan' }
             ];
 
             let html = '';
             categories.forEach(cat => {
                 const isActive = (this.activeCategory === cat.id);
-                html += '<button type="button" class="other-callout-pill ' + (isActive ? 'active' : '') + '" data-cat="' + cat.id + '" onclick="window.OtherCalloutsManager && window.OtherCalloutsManager.setCategory(\'' + cat.id + '\')">' + cat.label + '</button>';
+                html += '<button type="button" class="other-callout-pill ' + (isActive ? 'active' : '') + '" data-cat="' + cat.id + '" onclick="window.OtherCalloutsManager && window.OtherCalloutsManager.setCategory(\'' + cat.id + '\')"><i class="fa-solid ' + cat.icon + '" style="margin-right:4px;font-size:10px;"></i>' + cat.label + '</button>';
             });
             container.innerHTML = html;
         }
@@ -798,7 +798,7 @@
                 if (this.activeSearchId === searchId) {
                     if (statusEl) {
                         if (this.apiResults.length > 0) {
-                            statusEl.innerHTML = '✨ <b>' + this.apiResults.length + '</b> farklı küresel vektör ögesi bulundu';
+                            statusEl.innerHTML = '<i class="fa-solid fa-magnifying-glass" style="margin-right:4px;"></i><b>' + this.apiResults.length + '</b> farklı küresel vektör ögesi bulundu';
                         } else {
                             statusEl.style.display = 'none';
                         }

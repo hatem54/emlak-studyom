@@ -306,7 +306,7 @@
             const presets = this.getAllPresets();
             if (!presets.length) {
                 container.innerHTML = `
-                    <div style="font-size: 11px; color: #94a3b8; text-align: center; padding: 10px 6px; background: rgba(15, 23, 42, 0.5); border-radius: 6px; border: 1px dashed #334155;">
+                    <div style="font-size: 11px; color: var(--text-muted, #64748b); text-align: center; padding: 10px 8px; border-radius: 6px; border: 1px dashed #cbd5e1; line-height: 1.5;">
                         Henüz kayıtlı hazır ayarınız yok.<br>Filtreleri ayarlayıp <b>"Hazır Ayar Kaydet"</b> butonuna basabilirsiniz.
                     </div>
                 `;
@@ -314,8 +314,8 @@
             }
 
             let html = `
-                <div style="font-size: 11px; font-weight: 700; color: #cbd5e1; margin-bottom: 6px; display: flex; align-items: center; justify-content: space-between;">
-                    <span>📁 Özel Hazır Ayarlarım (${presets.length})</span>
+                <div style="font-size: 11px; font-weight: 700; color: var(--text, #1e293b); margin-bottom: 6px; display: flex; align-items: center; justify-content: space-between;">
+                    <span><i class="fa-solid fa-folder-open" style="color:#0284c7; margin-right:5px;"></i>Özel Hazır Ayarlarım • ${presets.length}</span>
                 </div>
                 <div style="display: flex; flex-direction: column; gap: 4px; max-height: 200px; overflow-y: auto; padding-right: 2px;">
             `;
@@ -323,20 +323,20 @@
             presets.forEach(p => {
                 const dateStr = new Date(p.createdAt).toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit' });
                 html += `
-                    <div style="display: flex; align-items: center; justify-content: space-between; background: #1e293b; border: 1px solid #334155; border-radius: 6px; padding: 6px 10px; transition: background 0.15s;" class="custom-preset-row">
-                        <div style="display: flex; align-items: center; gap: 8px; cursor: pointer; flex: 1; overflow: hidden;" onclick="CustomPresetsManager.applyPreset('${p.id}')">
-                            <span style="font-size: 13px;">🎨</span>
+                    <div style="display: flex; align-items: center; justify-content: space-between; border: 1px solid #cbd5e1; border-radius: 6px; padding: 6px 10px;" class="custom-preset-row">
+                        <div style="display: flex; align-items: center; gap: 8px; cursor: pointer; flex: 1 1 auto; min-width: 0; overflow: hidden;" onclick="CustomPresetsManager.applyPreset('${p.id}')">
+                            <i class="fa-solid fa-sliders" style="color:#0284c7; font-size: 12px; flex-shrink: 0;"></i>
                             <div style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                                <div style="font-size: 12px; font-weight: 600; color: #f8fafc;">${escapeHtml(p.name)}</div>
-                                <div style="font-size: 10px; color: #94a3b8;">${dateStr}</div>
+                                <div style="font-size: 12px; font-weight: 600; color: var(--text, #0f172a);">${escapeHtml(p.name)}</div>
+                                <div style="font-size: 10px; color: var(--text-muted, #64748b);">${dateStr}</div>
                             </div>
                         </div>
-                        <div style="display: flex; gap: 4px; align-items: center;">
-                            <button title="Uygula" onclick="CustomPresetsManager.applyPreset('${p.id}')" style="background: #3b82f6; color: white; border: none; border-radius: 4px; padding: 4px 8px; font-size: 11px; cursor: pointer;">
+                        <div style="display: flex; gap: 4px; align-items: center; flex: 0 0 auto;">
+                            <button type="button" class="btn-action" title="Uygula" onclick="CustomPresetsManager.applyPreset('${p.id}')" style="width: auto; flex: 0 0 auto; height: 26px; padding: 0 10px; font-size: 11px; margin: 0; white-space: nowrap;">
                                 Uygula
                             </button>
-                            <button title="Sil" onclick="CustomPresetsManager.deletePreset('${p.id}')" style="background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 4px; padding: 4px 6px; font-size: 11px; cursor: pointer;">
-                                <i class="fa-solid fa-trash-can"></i>
+                            <button type="button" class="btn-action" title="Sil" onclick="CustomPresetsManager.deletePreset('${p.id}')" style="width: 26px; flex: 0 0 26px; height: 26px; padding: 0; margin: 0; font-size: 11px; color: #ef4444;">
+                                <i class="fa-solid fa-trash-can" style="color:#ef4444;"></i>
                             </button>
                         </div>
                     </div>

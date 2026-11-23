@@ -94,15 +94,11 @@ async function checkUserMode() {
                           if (result.isConfirmed && result.value) {
                               try {
                                   await window.supabaseClient.auth.updateUser({ password: result.value });
-                                  Swal.fire({
-                                      icon: 'success',
-                                      title: 'Şifreniz Tanımlandı!',
-                                      text: 'Artık hem Google ile hem de e-posta ve şifrenizle giriş yapabilirsiniz.',
-                                      timer: 2500,
-                                      showConfirmButton: false,
-                                      background: '#1e293b',
-                                      color: '#fff'
-                                  });
+                                  if (typeof window.showAppToast === 'function') {
+                                      window.showAppToast('Şifreniz tanımlandı. Artık e-posta ve şifrenizle de giriş yapabilirsiniz.', 'success', 2800);
+                                  } else if (typeof showToast === 'function') {
+                                      showToast('Şifreniz tanımlandı.', 'success');
+                                  }
                               } catch(err) {
                                   console.error('Şifre belirleme hatası:', err);
                               }

@@ -35,12 +35,12 @@ h2 .vb{background:var(--gradient-1);color:#fff;font-size:9px;padding:2px 8px;bor
     background: rgba(255,255,255,0.05);
     color: var(--text-muted);
     font-family: 'ClassicAmpersand', 'Space Grotesk', sans-serif;
-    font-size: 12px;
+    font-size: 11.5px;
     font-weight: 600;
-    letter-spacing: 0.3px;
+    letter-spacing: 0.2px;
     border-radius: 8px;
     cursor: pointer;
-    transition: all 0.3s ease;
+    transition: all 0.25s ease;
     min-width: 70px;
     display: flex;
     align-items: center;
@@ -49,24 +49,25 @@ h2 .vb{background:var(--gradient-1);color:#fff;font-size:9px;padding:2px 8px;bor
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 .tab-btn.active {
-    background: var(--gradient-1);
-    color: #ffffff;
-    border: none;
-    box-shadow: 0 4px 15px rgba(108, 92, 231, 0.4);
-    transform: translateY(-2px);
+    background: linear-gradient(180deg, rgba(51, 65, 85, 0.95) 0%, rgba(30, 41, 59, 0.95) 100%);
+    color: #f8fafc;
+    border: 1px solid #94a3b8;
+    font-weight: 600;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+    transform: translateY(-1px);
 }
 .tab-btn:hover:not(.active) {
-    background: rgba(108, 92, 231, 0.1);
-    border-color: var(--primary);
+    background: rgba(51, 65, 85, 0.45);
+    border-color: #64748b;
     color: #ffffff;
     transform: translateY(-1px);
 }
 .dynamic-field{display:none}.dynamic-field.show{display:block}
-.section-title{font-size:11px;color:var(--primary);font-family:'ClassicAmpersand','Space Grotesk',sans-serif;font-weight:700;margin:10px 0 5px;padding-bottom:3px;border-bottom:1px solid rgba(108,92,231,.2)}
+.section-title{font-size:12px;color:#f1f5f9;font-family:'ClassicAmpersand','Space Grotesk',sans-serif;font-weight:700;margin:10px 0 6px;padding-bottom:4px;border-bottom:1px solid #334155}
 .input-group{margin-bottom:7px}
-.input-group label{display:block;margin-bottom:2px;font-family:'ClassicAmpersand','Space Grotesk',sans-serif;font-weight:600;color:var(--text-muted);font-size:10px;text-transform:uppercase;letter-spacing:.4px}
-.input-group input,.input-group select,.input-group textarea{width:100%;padding:6px 9px;background:var(--dark-3);border:1px solid rgba(108,92,231,.2);color:var(--text);font-family:'Inter',sans-serif;border-radius:5px;font-size:12px;transition:all .2s}
-.input-group input:focus,.input-group textarea:focus,.input-group select:focus{border-color:var(--primary);box-shadow:0 0 0 2px rgba(108,92,231,.2);outline:0}
+.input-group label{display:block;margin-bottom:3px;font-family:'ClassicAmpersand','Space Grotesk',sans-serif;font-weight:600;color:#cbd5e1;font-size:11px;letter-spacing:.15px}
+.input-group input,.input-group select,.input-group textarea{width:100%;padding:6px 9px;background:var(--dark-3);border:1px solid rgba(148,163,184,.25);color:var(--text);font-family:'Inter',sans-serif;border-radius:5px;font-size:12px;transition:all .2s}
+.input-group input:focus,.input-group textarea:focus,.input-group select:focus{border-color:#64748b;box-shadow:0 0 0 2px rgba(100,116,139,.25);outline:0}
 /* 🤖 Smart Parser (Metni Süz) Alanı */
 .ai-box { display: flex; flex-direction: column; gap: 8px; width: 100%; margin-bottom: 15px; box-sizing: border-box; }
 .ai-box textarea, #aiText { width: 100% !important; min-height: 110px; padding: 10px 12px; background: var(--dark-3); border: 1px solid rgba(108,92,231,.25); color: var(--text); font-family: 'Inter', sans-serif; border-radius: 8px; font-size: 12.5px; line-height: 1.5; resize: vertical; box-sizing: border-box !important; display: block !important; transition: all .2s ease; }
@@ -74,7 +75,7 @@ h2 .vb{background:var(--gradient-1);color:#fff;font-size:9px;padding:2px 8px;bor
 .ai-box .btn-ai { padding: 10px 14px !important; font-family: 'ClassicAmpersand', 'Space Grotesk', sans-serif !important; font-size: 13px !important; font-weight: 700 !important; border-radius: 8px !important; cursor: pointer !important; display: flex !important; align-items: center !important; justify-content: center !important; gap: 8px !important; margin-top: 2px !important; margin-bottom: 6px !important; box-sizing: border-box !important; }
 .row-2{display:flex;gap:5px}.row-2>*{flex:1}
 .slider-group{margin-bottom:5px}
-.slider-group label{display:flex;justify-content:space-between;font-size:10px;font-family:'ClassicAmpersand','Space Grotesk',sans-serif;color:var(--text-muted);margin-bottom:1px;font-weight:600}
+.slider-group label{display:flex;justify-content:space-between;font-size:11px;font-family:'ClassicAmpersand','Space Grotesk',sans-serif;color:#cbd5e1;margin-bottom:2px;font-weight:600}
 .slider-group input[type=range]{width:100%;accent-color:#94a3b8;cursor:pointer;height:5px}
 /* 🎚️ Evrensel Modern Gri Slider Sistemi */
 input[type="range"]{accent-color:#94a3b8}
@@ -84,7 +85,7 @@ body[data-theme="light"] input[type="range"]{accent-color:#475569 !important}
 html[data-theme="light"] input[type="range"]:hover,
 body[data-theme="light"] input[type="range"]:hover{accent-color:#1e293b !important}
 .color-row{display:flex;gap:5px;align-items:center;margin-bottom:5px}
-.color-row label{font-size:10px;font-family:'ClassicAmpersand','Space Grotesk',sans-serif;color:var(--text-muted);flex:1;font-weight:600}
+.color-row label{font-size:11px;font-family:'ClassicAmpersand','Space Grotesk',sans-serif;color:#cbd5e1;flex:1;font-weight:600}
 .color-row input[type=color]{width:34px;height:24px;border:1px solid rgba(108,92,231,.2);border-radius:4px;cursor:pointer;background:0 0;padding:1px}
 .template-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:3px;margin-bottom:8px}
 .template-btn{padding:6px 3px;border:1px solid rgba(108,92,231,.2);background:var(--dark-3);color:var(--text-muted);font-family:'ClassicAmpersand','Space Grotesk',sans-serif;font-size:10px;font-weight:700;border-radius:5px;cursor:pointer;transition:.2s;text-align:center}
@@ -313,15 +314,15 @@ html[data-theme="light"] #tab-shapes .btn-action:not(.btn-red):not(.btn-blue),
 body[data-theme="light"] #tab-shapes .btn-action:not(.btn-red):not(.btn-blue) {
     background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%) !important;
     border: 1px solid #cbd5e1 !important;
-    color: #0f172a !important;
+    color: #1e293b !important;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
 }
 html[data-theme="light"] #tab-shapes .btn-action:not(.btn-red):not(.btn-blue):hover,
 body[data-theme="light"] #tab-shapes .btn-action:not(.btn-red):not(.btn-blue):hover {
-    background: #f0f9ff !important;
-    border-color: #38bdf8 !important;
-    color: #0284c7 !important;
-    box-shadow: 0 3px 8px rgba(2, 132, 199, 0.15) !important;
+    background: #f8fafc !important;
+    border-color: #94a3b8 !important;
+    color: #0f172a !important;
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.06) !important;
     transform: translateY(-1.5px) !important;
 }
 
@@ -332,16 +333,16 @@ body[data-theme="light"] #tab-shapes .btn-action:not(.btn-red):not(.btn-blue):ho
 }
 #tab-settings .btn-action:hover {
     transform: translateY(-1.5px) !important;
-    box-shadow: 0 4px 12px rgba(108, 92, 231, 0.25), 0 1px 3px rgba(0, 0, 0, 0.2) !important;
-    border-color: #a855f7 !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2), 0 1px 3px rgba(0, 0, 0, 0.2) !important;
+    border-color: #94a3b8 !important;
     color: #ffffff !important;
 }
 
 /* ⚙️ Açık Temada Ekstra Araçlar Sekmesi: Tüm Butonlar Standart ve Boş (Outline) */
 html[data-theme="light"] #tab-settings .btn-action,
 body[data-theme="light"] #tab-settings .btn-action {
-    background: #ffffff !important;
-    color: #0f172a !important;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%) !important;
+    color: #1e293b !important;
     border: 1px solid #cbd5e1 !important;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
 }
@@ -908,11 +909,11 @@ svg, .callout-svg-container svg, .is-svg-icon svg, .draw-svg-item, #drawCanvas {
 ============================================================ */
 .accordion-container { display: flex; flex-direction: column; gap: 8px; }
 .accordion-item { background: #1e293b; border: 1px solid #334155; border-radius: 8px; overflow: hidden; }
-.accordion-header { padding: 12px 16px; background: #0f172a; color: #f8fafc; font-weight: 600; cursor: pointer; display: flex; justify-content: space-between; align-items: center; user-select: none; transition: background 0.2s; }
-.accordion-header:hover { background: #1e293b; }
-.accordion-header .arrow { transition: transform 0.3s; }
+.accordion-header { padding: 10px 12px; background: #1e293b; color: #e2e8f0; font-size: 12.5px; font-weight: 700; border-left: 3.5px solid #64748b; cursor: pointer; display: flex; justify-content: space-between; align-items: center; user-select: none; transition: background 0.2s; }
+.accordion-header:hover { background: #334155; }
+.accordion-header .arrow { font-size: 12px; transition: transform 0.25s ease; }
 .accordion-item.active .accordion-header .arrow { transform: rotate(180deg); }
-.accordion-content { display: none; padding: 16px; border-top: 1px solid #334155; }
+.accordion-content { display: none; padding: 12px; border-top: 1px solid #334155; }
 .accordion-item.active .accordion-content { display: block; }
 
 @keyframes pulse-green { 0% { box-shadow: 0 0 0 0 rgba(16,185,129,0.7); } 70% { box-shadow: 0 0 0 10px rgba(16,185,129,0); } 100% { box-shadow: 0 0 0 0 rgba(16,185,129,0); } }
@@ -2760,23 +2761,27 @@ body.photo-unlocked.space-pan-dragging {
 }
 
 
-.tab-btn.btn-tab-reset {
-    background: linear-gradient(135deg, #8b5cf6, #7c3aed) !important;
-    border: 1px solid #a855f7 !important;
+.tab-btn.btn-tab-reset,
+body[data-theme="light"] .tab-btn.btn-tab-reset:not(.active),
+html[data-theme="light"] .tab-btn.btn-tab-reset:not(.active) {
+    background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%) !important;
+    border: 1px solid #ef4444 !important;
     color: #ffffff !important;
     font-weight: 700 !important;
-    box-shadow: 0 0 12px rgba(139, 92, 246, 0.35) !important;
+    box-shadow: 0 2px 8px rgba(220, 38, 38, 0.28) !important;
 }
 
 .tab-btn.btn-tab-reset:hover,
-.tab-btn.btn-tab-reset:active {
-    background: linear-gradient(135deg, #9333ea, #6d28d9) !important;
+.tab-btn.btn-tab-reset:active,
+body[data-theme="light"] .tab-btn.btn-tab-reset:hover:not(.active),
+html[data-theme="light"] .tab-btn.btn-tab-reset:hover:not(.active) {
+    background: linear-gradient(135deg, #b91c1c 0%, #dc2626 100%) !important;
     color: #ffffff !important;
-    border-color: #c084fc !important;
-    box-shadow: 0 0 16px rgba(147, 51, 234, 0.5) !important;
+    border-color: #f87171 !important;
+    box-shadow: 0 4px 12px rgba(220, 38, 38, 0.42) !important;
 }
 
-/* 🖥️ PC Masaüstünde sol ana sekme menüsünden kaldır (Yalnızca mobilde görünsün) */
+/* 🖥️ Eski sekme sıfırlama kuralı: buton tuval altı dock'a taşındı */
 @media (min-width: 769px) {
     .tab-btn.btn-tab-reset {
         display: none !important;
@@ -3636,8 +3641,9 @@ body[data-theme="light"] .tabs {
 
 body[data-theme="light"] .tab-btn:not(.active) {
     background: #ffffff !important;
-    color: #475569 !important;
+    color: #334155 !important;
     border-color: #e2e8f0 !important;
+    font-weight: 600 !important;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03) !important;
 }
 
@@ -3647,13 +3653,13 @@ body[data-theme="light"] .tab-btn:hover:not(.active) {
     border-color: #cbd5e1 !important;
 }
 
-/* Aktif Sekme Butonu: Seçenek 2 (Mat Çelik / Antrasit Gri Dolgu + Koyu Yazı) */
+/* Aktif Sekme Butonu: Antrasit Gri Çerçeve + Açık Çelik Dolgu + Koyu Yazı */
 body[data-theme="light"] .tab-btn.active {
     background: linear-gradient(180deg, #f1f5f9 0%, #e2e8f0 100%) !important;
     color: #0f172a !important;
-    border: 1.5px solid #94a3b8 !important;
-    font-weight: 700 !important;
-    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.08), 0 2px 5px rgba(0, 0, 0, 0.04) !important;
+    border: 1.5px solid #475569 !important;
+    font-weight: 600 !important;
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.06), 0 1px 3px rgba(0, 0, 0, 0.04) !important;
     transform: translateY(-1px) !important;
 }
 
@@ -3687,47 +3693,13 @@ body[data-theme="light"] .btn-ai:hover {
     transform: translateY(-1px) !important;
 }
 
-body[data-theme="light"] #searchButtonsContainer .btn-action:first-child i {
-    color: #8b5cf6 !important;
-}
-
-body[data-theme="light"] #searchButtonsContainer .btn-action:last-child i {
-    color: #f59e0b !important;
-}
-
-body[data-theme="light"] .pro-upload-container .btn-action:first-child i {
-    color: #0284c7 !important;
-}
-
-body[data-theme="light"] .pro-upload-container div:nth-child(2) .btn-action i {
-    color: #6366f1 !important;
-}
-
-body[data-theme="light"] .pro-upload-container .sat-map-launch-row .btn-action i {
-    color: #0891b2 !important;
-}
-
-body[data-theme="light"] .btn-ai i {
-    color: #ec4899 !important;
-}
-
 /* AI Aksiyon Butonları Eşitleme (Metni Süz & Görselden Oku) */
 #aiActionButtonsRow .btn-action {
-    font-family: 'ClassicAmpersand', 'Inter', sans-serif !important;
-    font-size: 12px !important;
-    font-weight: 600 !important;
+    font-family: 'ClassicAmpersand', 'Space Grotesk', sans-serif !important;
+    font-size: 11.5px !important;
+    font-weight: 700 !important;
     letter-spacing: 0.2px !important;
     height: 38px !important;
-}
-
-body[data-theme="light"] #aiActionButtonsRow #btnSmartParse i {
-    color: #7c3aed !important;
-    font-size: 13px !important;
-}
-
-body[data-theme="light"] #aiActionButtonsRow #btnSmartOcr i {
-    color: #0284c7 !important;
-    font-size: 13px !important;
 }
 
 /* ============================================================
@@ -3746,14 +3718,14 @@ body[data-theme="light"] #aiActionButtonsRow #btnSmartOcr i {
     cursor: pointer;
     color: #e2e8f0;
     font-weight: 700;
-    font-size: 12.5px;
+    font-size: 12px;
     list-style: none;
     display: flex;
     justify-content: space-between;
     align-items: center;
     background: #1e293b;
     user-select: none;
-    border-left: 3.5px solid #0284c7;
+    border-left: 3.5px solid #64748b;
     transition: background 0.2s ease;
 }
 .hsl-accordion summary::-webkit-details-marker {
@@ -3792,9 +3764,10 @@ body[data-theme="light"] #aiActionButtonsRow #btnSmartOcr i {
 .cat-header {
     background: #1e293b;
     color: #e2e8f0;
-    padding: 9px 12px;
+    padding: 10px 12px;
+    font-family: 'ClassicAmpersand', 'Space Grotesk', sans-serif;
     font-weight: 700;
-    font-size: 13px;
+    font-size: 12px;
     cursor: pointer;
     display: flex;
     justify-content: space-between;
@@ -3814,7 +3787,7 @@ body[data-theme="light"] #aiActionButtonsRow #btnSmartOcr i {
 .cat-item {
     padding: 8px 14px 8px 28px;
     color: #cbd5e1;
-    font-size: 12.5px;
+    font-size: 12px;
     cursor: pointer;
     border-top: 1px solid #1e293b;
     transition: background 0.2s, color 0.2s;
@@ -3825,9 +3798,9 @@ body[data-theme="light"] #aiActionButtonsRow #btnSmartOcr i {
     color: #ffffff;
 }
 .cat-item.active {
-    background: #0284c7;
+    background: #334155;
     color: #ffffff;
-    border-color: #0284c7;
+    border-color: #64748b;
     font-weight: 700;
 }
 .cat-item::before {
@@ -3854,7 +3827,7 @@ body[data-theme="light"] .hsl-accordion {
 body[data-theme="light"] .hsl-accordion summary {
     background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%) !important;
     color: #1e293b !important;
-    border-left: 3.5px solid #ec4899 !important;
+    border-left: 3.5px solid #334155 !important;
 }
 
 body[data-theme="light"] .hsl-accordion > div {
@@ -3863,7 +3836,7 @@ body[data-theme="light"] .hsl-accordion > div {
 
 body[data-theme="light"] #multi-select-panel summary,
 body[data-theme="light"] #drawEditPanel summary {
-    border-left: 3.5px solid #0284c7 !important;
+    border-left: 3.5px solid #334155 !important;
 }
 
 /* İlana Özel Hazır Öğeler Başlığı */
@@ -3874,7 +3847,7 @@ body[data-theme="light"] .smart-suggestions-wrapper {
 
 body[data-theme="light"] .smart-suggestions-header {
     background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%) !important;
-    border-left: 3.5px solid #f59e0b !important;
+    border-left: 3.5px solid #334155 !important;
     border-bottom: none !important;
 }
 
@@ -3892,7 +3865,7 @@ body[data-theme="light"] .smart-badge-count {
     border: 1px solid #cbd5e1 !important;
 }
 
-/* 4. Emlak Kategorileri (Konutlar, Ticari vb. Sol Renk Şeritleri) */
+/* 4. Emlak Kategorileri (Konutlar, Ticari vb. Sol Antrasit Şerit) */
 body[data-theme="light"] .cat-group {
     border: 1px solid #e2e8f0 !important;
     border-radius: 8px !important;
@@ -3903,18 +3876,14 @@ body[data-theme="light"] .cat-group {
 body[data-theme="light"] .cat-header {
     background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%) !important;
     color: #1e293b !important;
-    border-left: 3.5px solid #6366f1 !important;
+    border-left: 3.5px solid #334155 !important;
 }
 
-body[data-theme="light"] .cat-group:nth-child(1) .cat-header { border-left-color: #3b82f6 !important; }
-body[data-theme="light"] .cat-group:nth-child(2) .cat-header { border-left-color: #8b5cf6 !important; }
-body[data-theme="light"] .cat-group:nth-child(3) .cat-header { border-left-color: #10b981 !important; }
-body[data-theme="light"] .cat-group:nth-child(4) .cat-header { border-left-color: #f59e0b !important; }
-body[data-theme="light"] .cat-group:nth-child(5) .cat-header { border-left-color: #eab308 !important; }
+body[data-theme="light"] .cat-group:nth-child(n) .cat-header { border-left-color: #334155 !important; }
 
 body[data-theme="light"] .cat-header:hover {
     background: #f8fafc !important;
-    color: var(--primary) !important;
+    color: #0f172a !important;
 }
 
 body[data-theme="light"] .cat-body {
@@ -3977,14 +3946,14 @@ body[data-theme="light"] #aiText:focus,
 html[data-theme="light"] .custom-badge-inputs input:focus,
 body[data-theme="light"] .custom-badge-inputs input:focus {
     background: #ffffff !important;
-    border-color: var(--primary) !important;
-    box-shadow: 0 0 0 3px rgba(108, 92, 231, 0.15) !important;
+    border-color: #475569 !important;
+    box-shadow: 0 0 0 2px rgba(71, 85, 105, 0.16) !important;
 }
 
 body[data-theme="light"] .input-group label,
 body[data-theme="light"] .slider-group label,
 body[data-theme="light"] .color-row label {
-    color: #475569 !important;
+    color: #1e293b !important;
 }
 
 body[data-theme="light"] .section-title {
@@ -4284,6 +4253,14 @@ body[data-theme="light"] .draw-mode-btn.active {
 }
 
 /* Çizim & Araç Kutuları */
+body[data-theme="dark"] #arrowSettingsContainer,
+body[data-theme="dark"] #polyInfo {
+    background: var(--dark-2, #1a1a2e) !important;
+    border: 1px solid rgba(71, 85, 105, 0.8) !important;
+    color: #e2e8f0 !important;
+    border-radius: 8px !important;
+}
+
 body[data-theme="light"] .snap-toggle-container,
 body[data-theme="light"] #arrowSettingsContainer,
 body[data-theme="light"] #polyInfo {
@@ -4303,9 +4280,9 @@ body[data-theme="light"] #arrowSettingsContainer label {
    ========================================================================== */
 body[data-theme="light"] .saber-accordion {
     background: #ffffff !important;
-    border: 1.5px solid #cbd5e1 !important;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05) !important;
-    border-radius: 10px !important;
+    border: 1px solid #e2e8f0 !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02) !important;
+    border-radius: 8px !important;
 }
 
 body[data-theme="light"] .saber-accordion:hover {
@@ -4313,35 +4290,72 @@ body[data-theme="light"] .saber-accordion:hover {
 }
 
 body[data-theme="light"] .saber-accordion-header {
-    background: #f8fafc !important;
-    border-bottom: 1.5px solid transparent !important;
-    color: #0f172a !important;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%) !important;
+    border-left: 3.5px solid #334155 !important;
+    border-bottom: 1px solid transparent !important;
+    color: #1e293b !important;
+    padding: 10px 12px !important;
+    font-size: 12px !important;
+    font-weight: 700 !important;
 }
 
 body[data-theme="light"] .saber-accordion-header:hover {
-    background: #f1f5f9 !important;
+    background: #f8fafc !important;
 }
 
 body[data-theme="light"] .saber-accordion.open .saber-accordion-header {
-    background: #f1f5f9 !important;
-    border-bottom: 1.5px solid #cbd5e1 !important;
-    color: #0891b2 !important;
+    background: #f8fafc !important;
+    border-bottom: 1px solid #e2e8f0 !important;
+    color: #0f172a !important;
 }
 
 body[data-theme="light"] .saber-accordion-icon {
-    color: #0891b2 !important;
+    color: #334155 !important;
 }
 
 body[data-theme="light"] .saber-accordion-title {
+    color: inherit !important;
+    font-size: 12px !important;
+    font-weight: 700 !important;
+}
+
+body[data-theme="light"] .arrow-picker-popover {
+    background: #ffffff !important;
+    border: 1px solid #cbd5e1 !important;
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.16) !important;
+}
+
+body[data-theme="light"] .arrow-picker-header {
+    border-bottom-color: #e2e8f0 !important;
+}
+
+body[data-theme="light"] .arrow-picker-title {
     color: #0f172a !important;
-    font-weight: 800 !important;
+}
+
+body[data-theme="light"] .arrow-style-card {
+    background: #f8fafc !important;
+    border-color: #cbd5e1 !important;
+    color: #334155 !important;
+}
+
+body[data-theme="light"] .arrow-style-card:hover {
+    background: #f1f5f9 !important;
+    border-color: #475569 !important;
+    color: #0f172a !important;
+}
+
+body[data-theme="light"] .arrow-style-card.active {
+    background: #f1f5f9 !important;
+    border-color: #334155 !important;
+    color: #0f172a !important;
 }
 
 body[data-theme="light"] .saber-accordion-badge {
-    background: #ecfeff !important;
-    border: 1px solid #a5f3fc !important;
-    color: #0891b2 !important;
-    font-weight: 800 !important;
+    background: #f1f5f9 !important;
+    border: 1px solid #cbd5e1 !important;
+    color: #334155 !important;
+    font-weight: 700 !important;
 }
 
 body[data-theme="light"] .saber-accordion-content {
@@ -4353,8 +4367,8 @@ body[data-theme="light"] .saber-header {
 }
 
 body[data-theme="light"] .saber-toggle-label {
-    color: #0f172a !important;
-    font-weight: 700 !important;
+    color: #1e293b !important;
+    font-weight: 600 !important;
 }
 
 body[data-theme="light"] .saber-toggle-slider {
@@ -4363,43 +4377,43 @@ body[data-theme="light"] .saber-toggle-slider {
 }
 
 body[data-theme="light"] .saber-toggle input:checked + .saber-toggle-slider {
-    background: linear-gradient(135deg, #6366f1, #06b6d4) !important;
-    border-color: #06b6d4 !important;
-    box-shadow: 0 0 10px rgba(6, 182, 212, 0.4) !important;
+    background: #334155 !important;
+    border-color: #1e293b !important;
+    box-shadow: 0 0 6px rgba(51, 65, 85, 0.3) !important;
 }
 
 body[data-theme="light"] .saber-section-title {
-    color: #0891b2 !important;
-    border-bottom: 1.5px solid #e2e8f0 !important;
+    color: #0f172a !important;
+    border-bottom: 1px solid #cbd5e1 !important;
 }
 
 body[data-theme="light"] .saber-preset-item {
     background: #ffffff !important;
-    border: 1.5px solid #cbd5e1 !important;
+    border: 1px solid #cbd5e1 !important;
     color: #0f172a !important;
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
 }
 
 body[data-theme="light"] .saber-preset-item:hover {
-    background: #f1f5f9 !important;
+    background: #f8fafc !important;
     border-color: #94a3b8 !important;
 }
 
 body[data-theme="light"] .saber-preset-item.active {
-    background: #ecfeff !important;
-    border: 2px solid #06b6d4 !important;
-    box-shadow: 0 0 0 2px rgba(6, 182, 212, 0.25), 0 2px 6px rgba(6, 182, 212, 0.15) !important;
-    color: #0e7490 !important;
+    background: #f1f5f9 !important;
+    border: 1.5px solid #334155 !important;
+    box-shadow: 0 0 0 1px #334155 !important;
+    color: #0f172a !important;
 }
 
 body[data-theme="light"] .saber-preset-name {
     color: #334155 !important;
-    font-weight: 700 !important;
+    font-weight: 600 !important;
 }
 
 body[data-theme="light"] .saber-preset-item.active .saber-preset-name {
-    color: #0e7490 !important;
-    font-weight: 800 !important;
+    color: #0f172a !important;
+    font-weight: 700 !important;
 }
 
 body[data-theme="light"] .saber-color-item {
@@ -4413,34 +4427,34 @@ body[data-theme="light"] .saber-color-item:hover {
 
 body[data-theme="light"] .saber-color-item.active {
     border: 2.5px solid #0f172a !important;
-    box-shadow: 0 0 0 2.5px #06b6d4, 0 2px 6px rgba(0, 0, 0, 0.15) !important;
+    box-shadow: 0 0 0 2px #475569, 0 2px 6px rgba(0, 0, 0, 0.15) !important;
 }
 
 body[data-theme="light"] .saber-custom-color {
     background: #f8fafc !important;
-    border: 1.5px solid #e2e8f0 !important;
+    border: 1px solid #e2e8f0 !important;
 }
 
 body[data-theme="light"] .saber-custom-color label {
-    color: #0f172a !important;
+    color: #1e293b !important;
     font-weight: 600 !important;
 }
 
 body[data-theme="light"] .saber-custom-color input[type="color"] {
-    border: 1.5px solid #cbd5e1 !important;
+    border: 1px solid #cbd5e1 !important;
     background: #ffffff !important;
 }
 
 body[data-theme="light"] .saber-slider-row label {
-    color: #0f172a !important;
+    color: #1e293b !important;
     font-weight: 600 !important;
 }
 
 body[data-theme="light"] .saber-slider-row span {
-    background: #ffffff !important;
-    border: 1.5px solid #cbd5e1 !important;
-    color: #0891b2 !important;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+    background: #f1f5f9 !important;
+    border: 1px solid #cbd5e1 !important;
+    color: #0f172a !important;
+    box-shadow: none !important;
 }
 
 html[data-theme="light"] .saber-slider-row input[type="range"],
@@ -4450,12 +4464,12 @@ body[data-theme="light"] .saber-slider-row input[type="range"] {
 
 body[data-theme="light"] .saber-toggles-card {
     background: #f8fafc !important;
-    border: 1.5px solid #e2e8f0 !important;
+    border: 1px solid #e2e8f0 !important;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
 }
 
 body[data-theme="light"] .saber-toggle-label-text {
-    color: #0f172a !important;
+    color: #1e293b !important;
     font-weight: 600 !important;
 }
 
@@ -4465,46 +4479,46 @@ body[data-theme="light"] .switch-toggle .toggle-slider {
 }
 
 body[data-theme="light"] .switch-toggle input:checked + .toggle-slider {
-    background: linear-gradient(135deg, #0284c7, #38bdf8);
-    border-color: #0284c7;
+    background: #334155;
+    border-color: #1e293b;
 }
 
 body[data-theme="light"] .saber-btn-primary {
-    background: #f0f9ff !important;
-    border: 1.5px solid #bae6fd !important;
-    color: #0284c7 !important;
+    background: #f8fafc !important;
+    border: 1px solid #cbd5e1 !important;
+    color: #1e293b !important;
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
 }
 
 body[data-theme="light"] .saber-btn-primary:hover {
-    background: #e0f2fe !important;
-    border-color: #7dd3fc !important;
-    color: #0369a1 !important;
+    background: #f1f5f9 !important;
+    border-color: #475569 !important;
+    color: #0f172a !important;
 }
 
 body[data-theme="light"] .saber-btn-danger {
     background: #fff1f2 !important;
-    border: 1.5px solid #fecdd3 !important;
-    color: #e11d48 !important;
+    border: 1px solid #fecdd3 !important;
+    color: #dc2626 !important;
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
 }
 
 body[data-theme="light"] .saber-btn-danger:hover {
     background: #ffe4e6 !important;
     border-color: #fda4af !important;
-    color: #be123c !important;
+    color: #b91c1c !important;
 }
 
 body[data-theme="light"] .saber-info {
-    background: #f0fdfa !important;
-    border: 1.5px solid #99f6e4 !important;
-    color: #0f766e !important;
+    background: #f8fafc !important;
+    border: 1px solid #cbd5e1 !important;
+    color: #334155 !important;
 }
 
 /* Çizim Düzenleme Paneli (.sep-*) Açık Tema */
 body[data-theme="light"] .sep-preset {
     background: #ffffff !important;
-    border: 1.5px solid #cbd5e1 !important;
+    border: 1px solid #cbd5e1 !important;
     color: #0f172a !important;
 }
 
@@ -4514,10 +4528,10 @@ body[data-theme="light"] .sep-preset:hover {
 }
 
 body[data-theme="light"] .sep-preset.active {
-    background: #ecfeff !important;
-    border: 2px solid #06b6d4 !important;
-    color: #0891b2 !important;
-    box-shadow: 0 0 0 2px rgba(6, 182, 212, 0.25) !important;
+    background: #f1f5f9 !important;
+    border: 1.5px solid #334155 !important;
+    color: #0f172a !important;
+    box-shadow: 0 0 0 1px #334155 !important;
 }
 
 body[data-theme="light"] .sep-color {
@@ -4526,17 +4540,17 @@ body[data-theme="light"] .sep-color {
 
 body[data-theme="light"] .sep-color.active {
     border: 2.5px solid #0f172a !important;
-    box-shadow: 0 0 0 2px #06b6d4 !important;
+    box-shadow: 0 0 0 2px #475569 !important;
 }
 
 body[data-theme="light"] .sep-slider-row label {
-    color: #0f172a !important;
+    color: #1e293b !important;
 }
 
 body[data-theme="light"] .sep-slider-row span {
-    background: #ffffff !important;
-    border: 1.5px solid #cbd5e1 !important;
-    color: #0891b2 !important;
+    background: #f1f5f9 !important;
+    border: 1px solid #cbd5e1 !important;
+    color: #0f172a !important;
 }
 
 /* 8. Admin Butonları & Rozetleri (Mor yerine Açık Tema Çelik Gri) */
@@ -4589,11 +4603,27 @@ body[data-theme="light"] .help-assistant-fab:hover i {
 }
 
 /* 10. Şablonlar (Canva / Hazır Şablon Akordiyonları & Kartları) */
+#tab-canva .hsl-accordion {
+    margin-bottom: 8px;
+}
+
+#template-accordion-container #tplStandardAccordion {
+    margin-bottom: 0 !important;
+}
+
+#tab-canva .hsl-accordion summary,
+body[data-theme="light"] #tab-canva .hsl-accordion summary {
+    border-left: 3.5px solid #334155 !important;
+    padding: 10px 12px !important;
+    font-size: 12px !important;
+    font-weight: 700 !important;
+}
+
 body[data-theme="light"] #template-accordion-container .accordion-item {
     background: #ffffff !important;
     border: 1px solid #e2e8f0 !important;
     border-radius: 8px !important;
-    margin-bottom: 8px !important;
+    margin-bottom: 0 !important;
     overflow: hidden !important;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02) !important;
 }
@@ -4601,9 +4631,10 @@ body[data-theme="light"] #template-accordion-container .accordion-item {
 body[data-theme="light"] #template-accordion-container .accordion-header {
     background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%) !important;
     color: #1e293b !important;
-    border-left: 3.5px solid #8b5cf6 !important;
-    padding: 12px 14px !important;
+    border-left: 3.5px solid #334155 !important;
+    padding: 10px 12px !important;
     cursor: pointer !important;
+    font-size: 12px !important;
     font-weight: 700 !important;
     display: flex !important;
     justify-content: space-between !important;
@@ -4611,13 +4642,14 @@ body[data-theme="light"] #template-accordion-container .accordion-header {
     transition: background 0.2s !important;
 }
 
-body[data-theme="light"] #template-accordion-container .accordion-header:hover {
+body[data-theme="light"] #template-accordion-container .accordion-header:hover,
+body[data-theme="light"] #tab-canva .hsl-accordion summary:hover {
     background: #f8fafc !important;
     color: #0f172a !important;
 }
 
 body[data-theme="light"] #template-accordion-container .accordion-content {
-    background: #f8fafc !important;
+    background: #ffffff !important;
     border-top: 1px solid #e2e8f0 !important;
     padding: 10px !important;
 }
@@ -4625,17 +4657,142 @@ body[data-theme="light"] #template-accordion-container .accordion-content {
 body[data-theme="light"] #btnToggleTemplateTab {
     background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%) !important;
     border: 1px solid #cbd5e1 !important;
-    color: #0284c7 !important;
+    color: #1e293b !important;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
 }
 
 body[data-theme="light"] #btnToggleTemplateTab:hover {
     background: #f8fafc !important;
     border-color: #94a3b8 !important;
-    color: #0369a1 !important;
+    color: #0f172a !important;
 }
 
 /* 11. Rozetler (Callout Akordiyonları & Kartları) */
+#calloutAccordion {
+    background: transparent !important;
+    border: none !important;
+    padding: 0 !important;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+#calloutAccordion .accordion-header {
+    background: #1e293b;
+    color: #e2e8f0;
+    border: 1px solid #334155;
+    border-left: 3.5px solid #64748b;
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: background 0.2s;
+}
+
+#calloutAccordion .accordion-header:hover {
+    background: #334155;
+}
+
+#calloutAccordion .accordion-header .arrow {
+    font-size: 12px;
+    transition: transform 0.25s ease;
+}
+
+#calloutAccordion .accordion-header.active .arrow {
+    transform: rotate(180deg);
+}
+
+#calloutAccordion .accordion-body {
+    padding: 10px;
+    background: var(--dark-3, #1e293b);
+    border: 1px solid var(--border, #334155);
+    border-radius: 8px;
+}
+
+#calloutAccordion .callout-neon-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+}
+
+#calloutAccordion .callout-svg-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+}
+
+#calloutAccordion .neon-callout-card {
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 8px;
+    padding: 10px 4px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+#calloutAccordion .neon-callout-card:hover {
+    border-color: #38bdf8;
+    background: #334155;
+}
+
+#calloutAccordion .neon-callout-icon-ring {
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(56, 189, 248, 0.12);
+    border: 1.5px solid rgba(56, 189, 248, 0.4);
+    border-radius: 50%;
+}
+
+#calloutAccordion .neon-callout-icon-ring i {
+    font-size: 16px;
+    color: #38bdf8;
+}
+
+#calloutAccordion .neon-callout-label {
+    text-align: center;
+    font-size: 9.5px;
+    font-weight: 700;
+    color: #e2e8f0;
+    line-height: 1.2;
+}
+
+#calloutAccordion .callout-svg-btn {
+    padding: 10px;
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 8px;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.2s;
+    overflow: hidden;
+}
+
+#calloutAccordion .callout-svg-btn:hover {
+    border-color: #38bdf8;
+}
+
+#calloutAccordion .callout-svg-preview {
+    transform: scale(0.85);
+    transform-origin: center;
+    pointer-events: none;
+}
+
+#calloutAccordion .callout-svg-name {
+    font-size: 11px;
+    margin-top: 5px;
+    color: #e2e8f0;
+    font-weight: 600;
+}
+
 body[data-theme="light"] #calloutAccordion {
     background: transparent !important;
     border: none !important;
@@ -4646,9 +4803,10 @@ body[data-theme="light"] #calloutAccordion .accordion-header {
     background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%) !important;
     color: #1e293b !important;
     border: 1px solid #e2e8f0 !important;
-    border-left: 3.5px solid #0284c7 !important;
+    border-left: 3.5px solid #334155 !important;
     border-radius: 8px !important;
-    margin-bottom: 6px !important;
+    padding: 10px 12px !important;
+    font-size: 12px !important;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02) !important;
     font-weight: 700 !important;
 }
@@ -4662,10 +4820,11 @@ body[data-theme="light"] #calloutAccordion .accordion-body {
     background: #f8fafc !important;
     border: 1px solid #e2e8f0 !important;
     border-radius: 8px !important;
-    margin-bottom: 10px !important;
     padding: 10px !important;
 }
 
+body[data-theme="light"] #calloutAccordion .neon-callout-card,
+body[data-theme="light"] #calloutAccordion .callout-svg-btn,
 body[data-theme="light"] #calloutAccordion .accordion-body > div {
     background: #ffffff !important;
     border: 1px solid #cbd5e1 !important;
@@ -4673,6 +4832,21 @@ body[data-theme="light"] #calloutAccordion .accordion-body > div {
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03) !important;
 }
 
+body[data-theme="light"] #calloutAccordion .neon-callout-icon-ring {
+    background: #f1f5f9 !important;
+    border-color: #cbd5e1 !important;
+}
+
+body[data-theme="light"] #calloutAccordion .neon-callout-icon-ring i {
+    color: #334155 !important;
+}
+
+body[data-theme="light"] #calloutAccordion .callout-svg-btn svg {
+    filter: drop-shadow(0 1px 2px rgba(15, 23, 42, 0.45));
+}
+
+body[data-theme="light"] #calloutAccordion .neon-callout-card:hover,
+body[data-theme="light"] #calloutAccordion .callout-svg-btn:hover,
 body[data-theme="light"] #calloutAccordion .accordion-body > div:hover {
     background: #f8fafc !important;
     border-color: #94a3b8 !important;
@@ -4684,16 +4858,13 @@ body[data-theme="light"] #calloutAccordion .accordion-body div {
     color: #0f172a !important;
 }
 
-body[data-theme="light"] #calloutSettingsPanel {
-    background: #ffffff !important;
-    border: 1px solid #e2e8f0 !important;
-    border-radius: 8px !important;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02) !important;
+body[data-theme="light"] #calloutSettingsPanel summary {
+    border-left: 3.5px solid #334155 !important;
+    color: #1e293b !important;
 }
 
-body[data-theme="light"] #calloutSettingsPanel summary {
-    color: #0284c7 !important;
-    font-weight: 700 !important;
+body[data-theme="light"] #tab-draw .hsl-accordion summary {
+    border-left: 3.5px solid #334155 !important;
 }
 
 body[data-theme="light"] #calloutSettingsPanel textarea {
@@ -4715,8 +4886,9 @@ body[data-theme="light"] #iconCategoryList > div {
 body[data-theme="light"] #iconCategoryList .cat-btn {
     background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%) !important;
     color: #1e293b !important;
-    border-left: 3.5px solid #10b981 !important;
-    padding: 12px 14px !important;
+    border-left: 3.5px solid #334155 !important;
+    padding: 10px 12px !important;
+    font-size: 12px !important;
     font-weight: 700 !important;
     display: flex !important;
     justify-content: space-between !important;
@@ -4733,6 +4905,39 @@ body[data-theme="light"] #iconCategoryList .cat-body {
     background: #f8fafc !important;
     border-top: 1px solid #e2e8f0 !important;
     padding: 10px !important;
+}
+
+body[data-theme="light"] #iconSettingsPanel summary {
+    border-left: 3.5px solid #334155 !important;
+}
+
+#cloneModeHintText {
+    background: rgba(2, 132, 199, 0.08);
+    border: 1px solid rgba(2, 132, 199, 0.25);
+    color: var(--text-muted, #475569);
+    border-radius: 6px;
+}
+
+#detailsAdvancedTextSettings .text-color-tile {
+    background: rgba(148, 163, 184, 0.12);
+    border: 1px solid var(--border, #cbd5e1);
+    border-radius: 6px;
+}
+
+#detailsAdvancedTextSettings .text-color-tile label {
+    color: var(--text, #334155);
+}
+
+#btnBgTransparent.active {
+    background: #f1f5f9 !important;
+    color: #0f172a !important;
+    border-color: #334155 !important;
+}
+
+.tb-action-grid-2 .btn-action,
+.tb-action-grid-3 .btn-action {
+    margin: 0 !important;
+    white-space: nowrap !important;
 }
 
 body[data-theme="light"] #lucideSearchResults {
@@ -6352,15 +6557,20 @@ body[data-theme="light"] .voice-studio-input::placeholder {
 }
 
 body[data-theme="light"] .voice-studio-input:focus {
-    border-color: #7c3aed !important;
-    box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.15) !important;
+    border-color: #0284c7 !important;
+    box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.15) !important;
 }
 
 body[data-theme="light"] .voice-studio-btn-refine {
-    background: #7c3aed !important;
-    border: 1.5px solid #6d28d9 !important;
-    color: #ffffff !important;
-    font-weight: 800 !important;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%) !important;
+    border: 1px solid #cbd5e1 !important;
+    color: #1e293b !important;
+    font-weight: 700 !important;
+}
+
+body[data-theme="light"] .voice-studio-btn-refine:hover {
+    background: #f1f5f9 !important;
+    border-color: #94a3b8 !important;
 }
 
 body[data-theme="light"] .voice-studio-select {
@@ -6848,19 +7058,20 @@ html[data-theme="light"] .other-callout-toast {
 /* Açık Tema: Fotoğraf Sekmesindeki Tüm Slider ve Başlıkları Güçlendirme (Asla Silik Kalmaz, Şık Antrasit Gri) */
 body[data-theme="light"] .slider-group label,
 html[data-theme="light"] .slider-group label {
-    color: #0f172a !important;
-    font-weight: 700 !important;
+    color: #1e293b !important;
+    font-weight: 600 !important;
     font-size: 11px !important;
 }
 body[data-theme="light"] .slider-group label span:first-child,
 html[data-theme="light"] .slider-group label span:first-child {
-    color: #0f172a !important;
-    font-weight: 700 !important;
+    color: #1e293b !important;
+    font-weight: 600 !important;
 }
 body[data-theme="light"] .slider-group label span:last-child,
 html[data-theme="light"] .slider-group label span:last-child {
     color: #0f172a !important;
-    font-weight: 800 !important;
+    font-weight: 700 !important;
+    font-size: 10.5px !important;
     background: #f1f5f9 !important;
     border: 1px solid #cbd5e1 !important;
     padding: 1px 6px !important;
@@ -6883,9 +7094,9 @@ html[data-theme="light"] .slider-group input[type="range"]:hover {
 body[data-theme="light"] .section-title,
 html[data-theme="light"] .section-title {
     color: #0f172a !important;
-    font-weight: 800 !important;
+    font-weight: 700 !important;
     font-size: 12px !important;
-    border-bottom: 1.5px solid #cbd5e1 !important;
+    border-bottom: 1px solid #cbd5e1 !important;
 }
 
 
@@ -6999,9 +7210,9 @@ body[data-theme="light"] .photo-layer-tab:hover {
     color: #0f172a !important;
 }
 body[data-theme="light"] .photo-layer-tab.active {
-    background: #eff6ff !important;
-    border-color: #3b82f6 !important;
-    color: #1d4ed8 !important;
+    background: #f1f5f9 !important;
+    border-color: #334155 !important;
+    color: #0f172a !important;
     font-weight: 700 !important;
 }
 .photo-layer-tab .tab-close {
@@ -7049,4 +7260,253 @@ body[data-theme="light"] .smart-desc-section label {
 body[data-theme="light"] .smart-dynamic-form-wrap,
 body[data-theme="light"] .smart-custom-form-wrap {
     border-top-color: #e2e8f0 !important;
+}
+
+/* ==========================================================================
+   🎯 TÜM SEKMELER TEK TİP YAPI: İKON, BAŞLIK, ETİKET & AKORDİYON BİRLİĞİ
+   ========================================================================== */
+html body .panel #mainTabs .tab-btn,
+html body .panel #mainTabs .tab-btn.active {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+    font-size: 11.5px !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.1px !important;
+}
+
+html body .panel .btn-action {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+    font-size: 12px !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.1px !important;
+}
+
+html body .panel .info-text {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+    font-style: normal !important;
+    font-size: 11px !important;
+    font-weight: 400 !important;
+}
+
+html[data-theme="light"] body .panel .info-text,
+html body[data-theme="light"] .panel .info-text {
+    color: #475569 !important;
+}
+
+html[data-theme="dark"] body .panel .info-text,
+html body[data-theme="dark"] .panel .info-text {
+    color: #94a3b8 !important;
+}
+
+html[data-theme="light"] body .panel .input-group input,
+html body[data-theme="light"] .panel .input-group input,
+html body[data-theme="light"] .panel .input-group select,
+html body[data-theme="light"] .panel .input-group textarea,
+html body[data-theme="light"] .panel .dynamic-field input,
+html body[data-theme="light"] .panel .dynamic-field select {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+    font-size: 12px !important;
+    font-weight: 500 !important;
+    color: #1e293b !important;
+}
+
+html[data-theme="dark"] body .panel .input-group input,
+html body[data-theme="dark"] .panel .input-group input,
+html body[data-theme="dark"] .panel .input-group select,
+html body[data-theme="dark"] .panel .input-group textarea,
+html body[data-theme="dark"] .panel .dynamic-field input,
+html body[data-theme="dark"] .panel .dynamic-field select {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+    font-size: 12px !important;
+    font-weight: 500 !important;
+    color: #f1f5f9 !important;
+}
+
+html[data-theme="light"] body .panel .btn-action:not(.smart-outline-tab-btn),
+html body[data-theme="light"] .panel .btn-action:not(.smart-outline-tab-btn),
+html body[data-theme="light"] .panel #tab-shapes .btn-action:not(.btn-red):not(.btn-blue),
+html body[data-theme="light"] .panel #tab-settings .btn-action {
+    color: #1e293b !important;
+}
+
+html[data-theme="light"] body .panel .btn-action:not(.smart-outline-tab-btn):hover,
+html body[data-theme="light"] .panel .btn-action:not(.smart-outline-tab-btn):hover {
+    color: #0f172a !important;
+}
+
+html[data-theme="dark"] body .panel .btn-action:not(.smart-outline-tab-btn),
+html body[data-theme="dark"] .panel .btn-action:not(.smart-outline-tab-btn) {
+    color: #f1f5f9 !important;
+}
+
+html[data-theme="dark"] body .panel .btn-action:not(.smart-outline-tab-btn):hover,
+html body[data-theme="dark"] .panel .btn-action:not(.smart-outline-tab-btn):hover {
+    color: #ffffff !important;
+}
+
+html body .panel .section-title,
+html body .panel .saber-section-title,
+html body .panel .smart-section-header {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+    font-size: 12px !important;
+    font-weight: 600 !important;
+    text-transform: none !important;
+    letter-spacing: 0.1px !important;
+}
+
+html[data-theme="light"] body .panel .section-title,
+html body[data-theme="light"] .panel .section-title,
+html body[data-theme="light"] .panel .saber-section-title,
+html body[data-theme="light"] .panel .smart-section-header,
+html body[data-theme="light"] .panel .smart-section-header.blue {
+    color: #1e293b !important;
+    border-bottom: 1px solid #cbd5e1 !important;
+}
+
+html[data-theme="dark"] body .panel .section-title,
+html body[data-theme="dark"] .panel .section-title,
+html body[data-theme="dark"] .panel .saber-section-title,
+html body[data-theme="dark"] .panel .smart-section-header,
+html body[data-theme="dark"] .panel .smart-section-header.blue {
+    color: #f1f5f9 !important;
+    border-bottom: 1px solid #334155 !important;
+}
+
+/* Tüm Form, Slider, Renk & Kontrol Etiketleri Tek Tip */
+html body .panel .input-group label,
+html body .panel .slider-group label,
+html body .panel .slider-group label span:first-child,
+html body .panel .color-row label,
+html body .panel .select-row label,
+html body .panel .snap-toggle-label,
+html body .panel .staging-quality-label,
+html body .panel .staging-select-all-row,
+html body .panel .mask-checkbox-label,
+html body .panel .saber-slider-row label,
+html body .panel .sep-slider-row label,
+html body .panel .saber-toggle-label,
+html body .panel .saber-toggle-label-text,
+html body .panel .saber-custom-color label {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    text-transform: none !important;
+    letter-spacing: 0.1px !important;
+}
+
+html[data-theme="light"] body .panel .input-group label,
+html body[data-theme="light"] .panel .input-group label,
+html body[data-theme="light"] .panel .slider-group label,
+html body[data-theme="light"] .panel .slider-group label span:first-child,
+html body[data-theme="light"] .panel .color-row label,
+html body[data-theme="light"] .panel .select-row label,
+html body[data-theme="light"] .panel .snap-toggle-label,
+html body[data-theme="light"] .panel .staging-quality-label,
+html body[data-theme="light"] .panel .staging-select-all-row,
+html body[data-theme="light"] .panel .mask-checkbox-label {
+    color: #334155 !important;
+}
+
+html[data-theme="dark"] body .panel .input-group label,
+html body[data-theme="dark"] .panel .input-group label,
+html body[data-theme="dark"] .panel .slider-group label,
+html body[data-theme="dark"] .panel .slider-group label span:first-child,
+html body[data-theme="dark"] .panel .color-row label,
+html body[data-theme="dark"] .panel .select-row label,
+html body[data-theme="dark"] .panel .snap-toggle-label,
+html body[data-theme="dark"] .panel .staging-quality-label,
+html body[data-theme="dark"] .panel .staging-select-all-row,
+html body[data-theme="dark"] .panel .mask-checkbox-label {
+    color: #cbd5e1 !important;
+}
+
+/* Tüm Akordiyon Başlıkları Tek Tip (Butonlarla Birebir Aynı Font, Boyut, Kalınlık & Renk) */
+html body .panel .hsl-accordion summary,
+html body .panel #photoMasksAccordion summary,
+html body .panel #tab-canva .hsl-accordion summary,
+html body .panel .tb-accordion-summary,
+html body .panel .accordion-header,
+html body .panel #template-accordion-container .accordion-header,
+html body .panel #calloutAccordion .accordion-header,
+html body .panel .cat-header,
+html body .panel #iconCategoryList .cat-btn,
+html body .panel .saber-accordion-header,
+html body .panel .saber-accordion-title,
+html body .panel .smart-suggestions-header,
+html body .panel .advanced-font-summary {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+    font-size: 12px !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.1px !important;
+}
+
+html body .panel .hsl-accordion summary,
+html body .panel #photoMasksAccordion summary,
+html body .panel #tab-canva .hsl-accordion summary,
+html body .panel .tb-accordion-summary,
+html body .panel #template-accordion-container .accordion-header,
+html body .panel #calloutAccordion .accordion-header,
+html body .panel #iconCategoryList .cat-btn,
+html body .panel .saber-accordion-header,
+html body .panel .cat-header,
+html body .panel .smart-suggestions-header {
+    padding: 10px 12px !important;
+}
+
+html[data-theme="light"] body .panel .hsl-accordion summary,
+html body[data-theme="light"] .panel .hsl-accordion summary,
+html body[data-theme="light"] .panel #photoMasksAccordion summary,
+html body[data-theme="light"] .panel #tab-canva .hsl-accordion summary,
+html body[data-theme="light"] .panel .tb-accordion-summary,
+html body[data-theme="light"] .panel #template-accordion-container .accordion-header,
+html body[data-theme="light"] .panel #calloutAccordion .accordion-header,
+html body[data-theme="light"] .panel #iconCategoryList .cat-btn,
+html body[data-theme="light"] .panel .saber-accordion-header,
+html body[data-theme="light"] .panel .cat-header,
+html body[data-theme="light"] .panel .smart-suggestions-header,
+html body[data-theme="light"] .panel .advanced-font-summary {
+    color: #1e293b !important;
+    border-left: 3.5px solid #334155 !important;
+}
+
+/* Açık Tema İkonları: Tüm Sekmelerde Tek Tip Antrasit Gri */
+html[data-theme="light"] body .panel i.fa-solid:not(.fa-trash-can):not(.fa-trash-alt):not(.fa-trash-arrow-up):not(.fa-check):not(.fa-circle-check):not(.fa-minus),
+html body[data-theme="light"] .panel i.fa-solid:not(.fa-trash-can):not(.fa-trash-alt):not(.fa-trash-arrow-up):not(.fa-check):not(.fa-circle-check):not(.fa-minus),
+html body[data-theme="light"] .panel i.fas:not(.fa-trash-can):not(.fa-trash-alt):not(.fa-trash-arrow-up):not(.fa-check):not(.fa-circle-check):not(.fa-minus),
+html body[data-theme="light"] .panel i.fa-regular:not(.fa-circle-check) {
+    color: #334155 !important;
+}
+
+/* Ton Eğrisi RGB Kanal Noktaları Korunur */
+html body .panel #toneCurvesAccordion .curve-channel-btn[data-channel="rgb"] i { color: #94a3b8 !important; }
+html body .panel #toneCurvesAccordion .curve-channel-btn[data-channel="r"] i { color: #ef4444 !important; }
+html body .panel #toneCurvesAccordion .curve-channel-btn[data-channel="g"] i { color: #22c55e !important; }
+html body .panel #toneCurvesAccordion .curve-channel-btn[data-channel="b"] i { color: #3b82f6 !important; }
+
+.panel .hsl-accordion {
+    margin-bottom: 8px;
+}
+
+html body[data-theme="light"] .panel input[type="checkbox"] {
+    accent-color: #334155;
+}
+
+html body[data-theme="light"] .panel .btn-red i,
+html body[data-theme="light"] .panel .staging-tray-btn-danger i,
+html body[data-theme="light"] .panel .staging-btn-danger i,
+html body[data-theme="light"] .panel .fa-trash-can,
+html body[data-theme="light"] .panel .fa-trash-alt,
+html body[data-theme="light"] .panel .fa-trash-arrow-up {
+    color: #dc2626 !important;
+}
+
+/* Koyu Tema İkonları: Tüm Sekmelerde Tek Tip Açık Gri */
+html[data-theme="dark"] body .panel i.fa-solid:not(.fa-trash-can):not(.fa-trash-alt):not(.fa-trash-arrow-up):not(.fa-check):not(.fa-circle-check):not(.fa-minus),
+html body[data-theme="dark"] .panel i.fa-solid:not(.fa-trash-can):not(.fa-trash-alt):not(.fa-trash-arrow-up):not(.fa-check):not(.fa-circle-check):not(.fa-minus),
+html body[data-theme="dark"] .panel i.fas:not(.fa-trash-can):not(.fa-trash-alt):not(.fa-trash-arrow-up):not(.fa-check):not(.fa-circle-check):not(.fa-minus),
+html body[data-theme="dark"] .panel i.fa-regular:not(.fa-circle-check) {
+    color: #cbd5e1 !important;
+}
+
+html body[data-theme="dark"] .panel input[type="checkbox"] {
+    accent-color: #94a3b8;
 }

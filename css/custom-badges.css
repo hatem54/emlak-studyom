@@ -60,8 +60,8 @@ body[data-theme="dark"] .custom-graphic-badge.el-selected {
 }
 
 .custom-badge-dropzone:hover {
-    border-color: #0284c7;
-    background: #f0f9ff;
+    border-color: #475569;
+    background: #f1f5f9;
 }
 
 body[data-theme="dark"] .custom-badge-dropzone {
@@ -70,14 +70,18 @@ body[data-theme="dark"] .custom-badge-dropzone {
 }
 
 body[data-theme="dark"] .custom-badge-dropzone:hover {
-    border-color: #38bdf8;
-    background: rgba(56, 189, 248, 0.08);
+    border-color: #94a3b8;
+    background: rgba(51, 65, 85, 0.65);
 }
 
 .custom-badge-drop-icon {
     font-size: 22px;
-    color: #0284c7;
+    color: #334155;
     margin-bottom: 4px;
+}
+
+body[data-theme="dark"] .custom-badge-drop-icon {
+    color: #cbd5e1;
 }
 
 .custom-badge-drop-title {
@@ -128,7 +132,7 @@ body[data-theme="dark"] .custom-badge-drop-title {
 }
 
 .custom-badge-thumb-card:hover {
-    border-color: #0284c7;
+    border-color: #475569;
     transform: translateY(-1px);
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
 }
@@ -139,7 +143,7 @@ body[data-theme="dark"] .custom-badge-thumb-card {
 }
 
 body[data-theme="dark"] .custom-badge-thumb-card:hover {
-    border-color: #38bdf8;
+    border-color: #94a3b8;
 }
 
 .custom-badge-thumb-img {
@@ -279,16 +283,17 @@ body[data-theme="dark"] .custom-badge-panel-title {
 }
 
 .custom-badge-anchor-btn:hover {
-    border-color: #0284c7;
-    background: #f0f9ff;
-    color: #0284c7;
+    border-color: #475569;
+    background: #f8fafc;
+    color: #0f172a;
 }
 
 .custom-badge-anchor-btn.active {
-    border-color: #0284c7;
-    background: #e0f2fe;
-    color: #0284c7;
+    border-color: #334155;
+    background: #f1f5f9;
+    color: #0f172a;
     font-weight: 700;
+    box-shadow: 0 0 0 1px #334155;
 }
 
 body[data-theme="dark"] .custom-badge-anchor-btn {
@@ -298,15 +303,16 @@ body[data-theme="dark"] .custom-badge-anchor-btn {
 }
 
 body[data-theme="dark"] .custom-badge-anchor-btn:hover {
-    border-color: #38bdf8;
-    background: #0f172a;
-    color: #38bdf8;
+    border-color: #94a3b8;
+    background: #334155;
+    color: #f8fafc;
 }
 
 body[data-theme="dark"] .custom-badge-anchor-btn.active {
-    border-color: #38bdf8;
-    background: rgba(56, 189, 248, 0.15);
-    color: #38bdf8;
+    border-color: #cbd5e1;
+    background: rgba(51, 65, 85, 0.85);
+    color: #f8fafc;
+    box-shadow: 0 0 0 1px #cbd5e1;
 }
 
 /* 7. Rozet Renk Paleti ve Renk Değiştirici */

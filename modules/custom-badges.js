@@ -372,7 +372,7 @@
             if (panel) {
                 panel.style.display = 'block';
                 const title = document.getElementById('cbgPanelTitleText');
-                if (title) title.innerHTML = '<i class="fa-solid fa-sliders" style="color:#0284c7; margin-right:4px;"></i>' + (badgeEl.dataset.label || 'Özel Rozet / Logo');
+                if (title) title.innerHTML = '<i class="fa-solid fa-sliders" style="color:#0284c7; margin-right:4px;"></i>' + (badgeEl.dataset.label || 'Özel Rozet');
 
                 // Kaydet buton durumunu senkronize et
                 this.updatePanelSaveBtnState();
@@ -1104,7 +1104,7 @@
             if (!grid) return;
 
             if (this.savedBadges.length === 0) {
-                grid.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:10px; font-size:11px; color:#94a3b8;">Henüz yüklenmiş rozet veya logo yok.</div>';
+                grid.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:10px; font-size:11px; color:#94a3b8;">Henüz yüklenmiş özel rozet yok.</div>';
                 return;
             }
 

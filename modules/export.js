@@ -826,108 +826,101 @@ function switchPreviewFormat(){
             }
             
             if (window.isRestoringState !== true) {
-                customItems.forEach(el => {
-                    // Skip standard template elements and canva panels
-                    if (el.id === 'elBadge' || el.id === 'elPrice' || el.id === 'elDetails' || el.id === 'elLogo' || 
-                        el.classList.contains('normal-el') || el.classList.contains('canva-generated') || el.classList.contains('canva-panel')) return;
+                if (!isTemplateMode && window.FormatLayoutAdapter && typeof window.FormatLayoutAdapter.adaptForFormat === 'function') {
+                    window.FormatLayoutAdapter.adaptForFormat(oldW, oldH, newW, newH);
+                } else {
+                    customItems.forEach(el => {
+                        // Skip standard template elements and canva panels
+                        if (el.id === 'elBadge' || el.id === 'elPrice' || el.id === 'elDetails' || el.id === 'elLogo' || 
+                            el.classList.contains('normal-el') || el.classList.contains('canva-generated') || el.classList.contains('canva-panel')) return;
 
-                    const isWrap = el.classList.contains('callout-wrap') || el.classList.contains('co-neon-block') || el.classList.contains('svg-callout');
-                    
-                    el.style.maxWidth = 'none';
-                    if (isWrap) {
-                        el.style.whiteSpace = 'nowrap';
-                    }
-                    
-                    void el.offsetHeight;
-                    
-                    if (isTemplateMode) {
-                        if (tParams) {
+                        const isWrap = el.classList.contains('callout-wrap') || el.classList.contains('co-neon-block') || el.classList.contains('svg-callout');
+                        
+                        el.style.maxWidth = 'none';
+                        if (isWrap) {
+                            el.style.whiteSpace = 'nowrap';
+                        }
+                        
+                        void el.offsetHeight;
+                        
+                        if (isTemplateMode) {
+                            if (tParams) {
+                                const oldLeft = parseFloat(el.style.left || 0);
+                                const oldTop = parseFloat(el.style.top || 0);
+                                
+                                if (isWrap) {
+                                    const W = parseFloat(el.style.width) || el.offsetWidth || 0;
+                                    const H = parseFloat(el.style.height) || el.offsetHeight || 0;
+                                    
+                                    const cx_old = oldLeft + W / 2;
+                                    const cy_old = oldTop + H / 2;
+                                    
+                                    const cx_new = cx_old * tParams.scale + tParams.dx;
+                                    const cy_new = cy_old * tParams.scale + tParams.dy;
+                                    
+                                    el.style.left = (cx_new - W / 2) + 'px';
+                                    el.style.top = (cy_new - H / 2) + 'px';
+                                    
+                                    const currentScale = parseFloat(el.dataset.scale) || 1;
+                                    const newScale = currentScale * tParams.scale;
+                                    el.dataset.scale = newScale;
+                                    const rot = el.dataset.rotation || 0;
+                                    el.style.transform = `rotate(${rot}deg) scale(${newScale})`;
+                                } else {
+                                    el.style.left = (oldLeft * tParams.scale + tParams.dx) + 'px';
+                                    el.style.top = (oldTop * tParams.scale + tParams.dy) + 'px';
+                                    
+                                    if (el.style.width) el.style.width = (parseFloat(el.style.width) * tParams.scale) + 'px';
+                                    if (el.style.height) el.style.height = (parseFloat(el.style.height) * tParams.scale) + 'px';
+                                    if (el.style.fontSize) el.style.fontSize = (parseFloat(el.style.fontSize) * tParams.scale) + 'px';
+                                    if (el.style.padding) el.style.padding = (parseFloat(el.style.padding) * tParams.scale) + 'px';
+                                }
+                            }
+                        } else {
                             const oldLeft = parseFloat(el.style.left || 0);
                             const oldTop = parseFloat(el.style.top || 0);
+                            const W = parseFloat(el.style.width) || el.offsetWidth || 0;
+                            const H = parseFloat(el.style.height) || el.offsetHeight || 0;
                             
                             if (isWrap) {
-                                const W = parseFloat(el.style.width) || el.offsetWidth || 0;
-                                const H = parseFloat(el.style.height) || el.offsetHeight || 0;
-                                
                                 const cx_old = oldLeft + W / 2;
                                 const cy_old = oldTop + H / 2;
-                                
-                                const cx_new = cx_old * tParams.scale + tParams.dx;
-                                const cy_new = cy_old * tParams.scale + tParams.dy;
-                                
-                                el.style.left = (cx_new - W / 2) + 'px';
-                                el.style.top = (cy_new - H / 2) + 'px';
-                                
-                                const currentScale = parseFloat(el.dataset.scale) || 1;
-                                const newScale = currentScale * tParams.scale;
+                                const percX = cx_old / oldW;
+                                const percY = cy_old / oldH;
+                                el.style.left = (percX * newW - W / 2) + 'px';
+                                el.style.top = (percY * newH - H / 2) + 'px';
+                            } else {
+                                el.style.left = ((oldLeft / oldW) * newW) + 'px';
+                                el.style.top = ((oldTop / oldH) * newH) + 'px';
+                            }
+                            if (!el.dataset.origCanvasW) {
+                                el.dataset.origCanvasW = oldW;
+                                el.dataset.origCanvasH = oldH;
+                            }
+                            const origW = parseFloat(el.dataset.origCanvasW) || 1920;
+                            const origH = parseFloat(el.dataset.origCanvasH) || 1080;
+                            const oldFormatScale = Math.min(oldW / origW, oldH / origH);
+                            const newFormatScale = Math.min(newW / origW, newH / origH);
+                            const incrementalScale = oldFormatScale > 0 ? (newFormatScale / oldFormatScale) : 1;
+                            if (isWrap) {
+                                let userScale = parseFloat(el.dataset.userScale);
+                                if (isNaN(userScale) || userScale <= 0) {
+                                    userScale = 1;
+                                    el.dataset.userScale = 1;
+                                }
+                                const newScale = userScale * newFormatScale;
                                 el.dataset.scale = newScale;
                                 const rot = el.dataset.rotation || 0;
                                 el.style.transform = `rotate(${rot}deg) scale(${newScale})`;
                             } else {
-                                el.style.left = (oldLeft * tParams.scale + tParams.dx) + 'px';
-                                el.style.top = (oldTop * tParams.scale + tParams.dy) + 'px';
-                                
-                                if (el.style.width) el.style.width = (parseFloat(el.style.width) * tParams.scale) + 'px';
-                                if (el.style.height) el.style.height = (parseFloat(el.style.height) * tParams.scale) + 'px';
-                                if (el.style.fontSize) el.style.fontSize = (parseFloat(el.style.fontSize) * tParams.scale) + 'px';
-                                if (el.style.padding) el.style.padding = (parseFloat(el.style.padding) * tParams.scale) + 'px';
+                                if (el.style.width) el.style.width = (parseFloat(el.style.width) * incrementalScale) + 'px';
+                                if (el.style.height) el.style.height = (parseFloat(el.style.height) * incrementalScale) + 'px';
+                                if (el.style.fontSize) el.style.fontSize = (parseFloat(el.style.fontSize) * incrementalScale) + 'px';
+                                if (el.style.padding) el.style.padding = (parseFloat(el.style.padding) * incrementalScale) + 'px';
                             }
                         }
-                    } else {
-                        const oldLeft = parseFloat(el.style.left || 0);
-                        const oldTop = parseFloat(el.style.top || 0);
-                        const W = parseFloat(el.style.width) || el.offsetWidth || 0;
-                        const H = parseFloat(el.style.height) || el.offsetHeight || 0;
-                        
-                        if (isWrap) {
-                            const cx_old = oldLeft + W / 2;
-                            const cy_old = oldTop + H / 2;
-                            
-                            const percX = cx_old / oldW;
-                            const percY = cy_old / oldH;
-                            
-                            const cx_new = percX * newW;
-                            const cy_new = percY * newH;
-                            
-                            el.style.left = (cx_new - W / 2) + 'px';
-                            el.style.top = (cy_new - H / 2) + 'px';
-                        } else {
-                            const percX = oldLeft / oldW;
-                            const percY = oldTop / oldH;
-                            
-                            el.style.left = (percX * newW) + 'px';
-                            el.style.top = (percY * newH) + 'px';
-                        }
-                        
-                        if (!el.dataset.origCanvasW) {
-                            el.dataset.origCanvasW = oldW;
-                            el.dataset.origCanvasH = oldH;
-                        }
-                        const origW = parseFloat(el.dataset.origCanvasW) || 1920;
-                        const origH = parseFloat(el.dataset.origCanvasH) || 1080;
-                        
-                        const oldFormatScale = Math.min(oldW / origW, oldH / origH);
-                        const newFormatScale = Math.min(newW / origW, newH / origH);
-                        const incrementalScale = oldFormatScale > 0 ? (newFormatScale / oldFormatScale) : 1;
-                        
-                        if (isWrap) {
-                            let userScale = parseFloat(el.dataset.userScale);
-                            if (isNaN(userScale) || userScale <= 0) {
-                                userScale = 1;
-                                el.dataset.userScale = 1;
-                            }
-                            const newScale = userScale * newFormatScale;
-                            el.dataset.scale = newScale;
-                            const rot = el.dataset.rotation || 0;
-                            el.style.transform = `rotate(${rot}deg) scale(${newScale})`;
-                        } else {
-                            if (el.style.width) el.style.width = (parseFloat(el.style.width) * incrementalScale) + 'px';
-                            if (el.style.height) el.style.height = (parseFloat(el.style.height) * incrementalScale) + 'px';
-                            if (el.style.fontSize) el.style.fontSize = (parseFloat(el.style.fontSize) * incrementalScale) + 'px';
-                            if (el.style.padding) el.style.padding = (parseFloat(el.style.padding) * incrementalScale) + 'px';
-                        }
-                    }
-                });
+                    });
+                }
             }
         } catch (err) {
             console.error("Format transform error:", err);
@@ -1008,8 +1001,69 @@ function updateExportScaleDisplay() {
 
     const existingBadge = document.getElementById('exportResolutionBadge');
     if (existingBadge) existingBadge.remove();
+    syncSubExportDefaults();
 }
 
+function syncSubExportDefaults(force) {
+    if (window._isSubExportRunning) return;
+    const expFmt = document.getElementById('exportFormat');
+    const expType = document.getElementById('exportFileType');
+    const expScale = document.getElementById('exportScale');
+
+    const origFmtSpec = (typeof EXPORT_FORMATS !== 'undefined') ? EXPORT_FORMATS['Orijinal Görsel Boyutu'] : null;
+    if (origFmtSpec) {
+        const origLabel = 'Orijinal Görsel Boyutu — ' + origFmtSpec.w + 'x' + origFmtSpec.h;
+        ['batchExportFormat', 'carouselExportFormat'].forEach(id => {
+            const sel = document.getElementById(id);
+            if (!sel) return;
+            const opt = Array.from(sel.options).find(o => o.value === 'Orijinal Görsel Boyutu');
+            if (opt) opt.textContent = origLabel;
+        });
+    }
+
+    if (expFmt && expFmt.value) {
+        ['batchExportFormat', 'carouselExportFormat'].forEach(id => {
+            const sel = document.getElementById(id);
+            if (!sel) return;
+            if (force || sel.dataset.manualOverride !== 'true') {
+                if (Array.from(sel.options).some(o => o.value === expFmt.value)) {
+                    sel.value = expFmt.value;
+                }
+            }
+        });
+    }
+
+    if (expType && expType.value) {
+        const safeType = (expType.value === 'mp4' || expType.value === 'video') ? 'jpg' : expType.value;
+        ['batchExportFileType', 'carouselExportFileType'].forEach(id => {
+            const sel = document.getElementById(id);
+            if (!sel) return;
+            if (force || sel.dataset.manualOverride !== 'true') {
+                if (Array.from(sel.options).some(o => o.value === safeType)) {
+                    sel.value = safeType;
+                }
+            }
+        });
+    }
+
+    if (expScale && expScale.value) {
+        ['batchExportScale', 'carouselExportScale'].forEach(id => {
+            const sel = document.getElementById(id);
+            if (!sel) return;
+            if (force || sel.dataset.manualOverride !== 'true') {
+                if (Array.from(sel.options).some(o => o.value === expScale.value)) {
+                    sel.value = expScale.value;
+                }
+            }
+        });
+    }
+
+    if (window.StagingExportTrays && typeof window.StagingExportTrays.syncFromGlobal === 'function') {
+        window.StagingExportTrays.syncFromGlobal(force);
+    }
+}
+
+window.syncSubExportDefaults = syncSubExportDefaults;
 window.updateExportScaleDisplay = updateExportScaleDisplay;
 
 function buildExportFormats(){
@@ -1017,9 +1071,15 @@ function buildExportFormats(){
     if(!sel1||!sel2)return;
     sel1.innerHTML='';
     sel2.innerHTML='';
+    const batchFmtSel = document.getElementById('batchExportFormat');
+    const carouselFmtSel = document.getElementById('carouselExportFormat');
+    if (batchFmtSel) batchFmtSel.innerHTML = '';
+    if (carouselFmtSel) carouselFmtSel.innerHTML = '';
+
     Object.keys(EXPORT_FORMATS).forEach(name=>{
         const f=EXPORT_FORMATS[name];
-        const label=f.icon+' '+name+' — '+f.w+'x'+f.h;
+        const cleanName = name.replace(/\s*\([^)]*\)/g, '').trim();
+        const label = cleanName + ' — ' + f.w + 'x' + f.h;
         const opt1=document.createElement('option');
         opt1.value=name;
         opt1.textContent=label;
@@ -1028,8 +1088,23 @@ function buildExportFormats(){
         opt2.value=name;
         opt2.textContent=label;
         sel2.appendChild(opt2);
+
+        const subLabel = cleanName + ' — ' + f.w + 'x' + f.h;
+        if (batchFmtSel) {
+            const oB = document.createElement('option');
+            oB.value = name;
+            oB.textContent = subLabel;
+            batchFmtSel.appendChild(oB);
+        }
+        if (carouselFmtSel) {
+            const oC = document.createElement('option');
+            oC.value = name;
+            oC.textContent = subLabel;
+            carouselFmtSel.appendChild(oC);
+        }
     });
     updateExportScaleDisplay();
+    syncSubExportDefaults(true);
 }
 
 
@@ -1251,8 +1326,10 @@ async function prepareTemplateFramesForExport() {
         const depth = parseFloat(frame.dataset.depth) || 0;
         const elevation = parseFloat(frame.dataset.elevation) || 0;
         const is3D = (pitch !== 0 || yaw !== 0 || depth > 0 || elevation !== 0);
+        const hasPhotoFilters = !!(frame.dataset.photoFilters && frame.dataset.photoFilters.trim());
+        const hasImgFlip = (frame.dataset.imgFlipX === 'true');
 
-        if (!hasShape && !hasBlend && !isPolygon && !is3D) continue;
+        if (!hasShape && !hasBlend && !isPolygon && !is3D && !hasPhotoFilters && !hasImgFlip) continue;
 
         const frameW = frame.offsetWidth || 300;
         const frameH = frame.offsetHeight || 300;
@@ -1285,7 +1362,82 @@ async function prepareTemplateFramesForExport() {
         const drawX = ((frameW * supersample) - drawW) / 2 + panX;
         const drawY = ((frameH * supersample) - drawH) / 2 + panY;
 
-        cCtx.drawImage(img, drawX, drawY, drawW, drawH);
+        let drawSource = img;
+        if (hasPhotoFilters && window.FramePhotoFilters && typeof window.renderPhotoWithAdjustments === 'function') {
+            try {
+                const frameFilters = window.FramePhotoFilters.getFrameFilters(frame);
+                const processed = window.renderPhotoWithAdjustments(img, { filters: frameFilters });
+                if (processed) drawSource = processed;
+            } catch (fltErr) {
+                console.warn('[Export] Çerçeve fotoğraf filtresi uygulanamadı:', fltErr);
+            }
+        }
+
+        if (hasImgFlip) {
+            cCtx.save();
+            cCtx.translate(drawX + drawW / 2, drawY + drawH / 2);
+            cCtx.scale(-1, 1);
+            cCtx.drawImage(drawSource, -drawW / 2, -drawH / 2, drawW, drawH);
+            cCtx.restore();
+        } else {
+            cCtx.drawImage(drawSource, drawX, drawY, drawW, drawH);
+        }
+
+        // Köşe yuvarlama / tam daire kırpması ve kenarlık (özellikle 3D eğimli çerçeve dokusu için)
+        const isCircleFrame = (frame.dataset.isCircle === 'true');
+        const frameRadius = (parseFloat(frame.dataset.radius) || 0) * supersample;
+        const frameBorderW = (parseFloat(frame.dataset.borderWidth) || 0) * supersample;
+        const frameBorderCol = frame.dataset.borderColor || '#ffffff';
+        if (!isPolygon && !hasShape && (isCircleFrame || frameRadius > 0 || frameBorderW > 0)) {
+            const w = exportCanvas.width;
+            const h = exportCanvas.height;
+            cCtx.save();
+            cCtx.globalCompositeOperation = 'destination-in';
+            cCtx.beginPath();
+            if (isCircleFrame) {
+                cCtx.arc(w / 2, h / 2, Math.min(w, h) / 2, 0, Math.PI * 2);
+            } else {
+                const r = Math.min(frameRadius, w / 2, h / 2);
+                cCtx.moveTo(r, 0);
+                cCtx.lineTo(w - r, 0);
+                cCtx.quadraticCurveTo(w, 0, w, r);
+                cCtx.lineTo(w, h - r);
+                cCtx.quadraticCurveTo(w, h, w - r, h);
+                cCtx.lineTo(r, h);
+                cCtx.quadraticCurveTo(0, h, 0, h - r);
+                cCtx.lineTo(0, r);
+                cCtx.quadraticCurveTo(0, 0, r, 0);
+            }
+            cCtx.closePath();
+            cCtx.fillStyle = '#000000';
+            cCtx.fill();
+            cCtx.restore();
+
+            if (is3D && frameBorderW > 0 && !hasBlend) {
+                cCtx.save();
+                cCtx.beginPath();
+                if (isCircleFrame) {
+                    cCtx.arc(w / 2, h / 2, Math.min(w, h) / 2 - frameBorderW / 2, 0, Math.PI * 2);
+                } else {
+                    const r = Math.max(0, Math.min(frameRadius, w / 2, h / 2) - frameBorderW / 2);
+                    const ins = frameBorderW / 2;
+                    cCtx.moveTo(ins + r, ins);
+                    cCtx.lineTo(w - ins - r, ins);
+                    cCtx.quadraticCurveTo(w - ins, ins, w - ins, ins + r);
+                    cCtx.lineTo(w - ins, h - ins - r);
+                    cCtx.quadraticCurveTo(w - ins, h - ins, w - ins - r, h - ins);
+                    cCtx.lineTo(ins + r, h - ins);
+                    cCtx.quadraticCurveTo(ins, h - ins, ins, h - ins - r);
+                    cCtx.lineTo(ins, ins + r);
+                    cCtx.quadraticCurveTo(ins, ins, ins + r, ins);
+                }
+                cCtx.closePath();
+                cCtx.lineWidth = frameBorderW;
+                cCtx.strokeStyle = frameBorderCol;
+                cCtx.stroke();
+                cCtx.restore();
+            }
+        }
 
         // Serbest Çokgen Kırpması
         if (isPolygon && frame.dataset.polygonPoints) {
@@ -1331,22 +1483,45 @@ async function prepareTemplateFramesForExport() {
 
         if (hasBlend) {
             cCtx.globalCompositeOperation = 'destination-in';
+            const blendPct = Math.max(10, Math.min(95, parseFloat(frame.dataset.blendAmount) || 55)) / 100;
+            const solidStop = Math.max(0.0, Math.min(0.85, 1.0 - blendPct));
             let grad = null;
             if (blend === 'bottom' || blend === 'fade-bottom') {
                 grad = cCtx.createLinearGradient(0, 0, 0, exportCanvas.height);
                 grad.addColorStop(0, 'rgba(0,0,0,1)');
-                grad.addColorStop(0.55, 'rgba(0,0,0,0.85)');
+                grad.addColorStop(solidStop, 'rgba(0,0,0,0.92)');
+                grad.addColorStop(1, 'rgba(0,0,0,0)');
+            } else if (blend === 'top' || blend === 'fade-top') {
+                grad = cCtx.createLinearGradient(0, exportCanvas.height, 0, 0);
+                grad.addColorStop(0, 'rgba(0,0,0,1)');
+                grad.addColorStop(solidStop, 'rgba(0,0,0,0.92)');
                 grad.addColorStop(1, 'rgba(0,0,0,0)');
             } else if (blend === 'right' || blend === 'fade-right') {
                 grad = cCtx.createLinearGradient(0, 0, exportCanvas.width, 0);
                 grad.addColorStop(0, 'rgba(0,0,0,1)');
-                grad.addColorStop(0.55, 'rgba(0,0,0,0.85)');
+                grad.addColorStop(solidStop, 'rgba(0,0,0,0.92)');
                 grad.addColorStop(1, 'rgba(0,0,0,0)');
             } else if (blend === 'left' || blend === 'fade-left') {
                 grad = cCtx.createLinearGradient(exportCanvas.width, 0, 0, 0);
                 grad.addColorStop(0, 'rgba(0,0,0,1)');
-                grad.addColorStop(0.55, 'rgba(0,0,0,0.85)');
+                grad.addColorStop(solidStop, 'rgba(0,0,0,0.92)');
                 grad.addColorStop(1, 'rgba(0,0,0,0)');
+            } else if (blend === 'radial' || blend === 'fade-radial') {
+                const w = exportCanvas.width;
+                const h = exportCanvas.height;
+                const maxDim = Math.max(w, h) || 1;
+                const rx = w / 2;
+                const ry = h / 2;
+                cCtx.save();
+                cCtx.translate(rx, ry);
+                cCtx.scale(w / maxDim, h / maxDim);
+                const rGrad = cCtx.createRadialGradient(0, 0, (maxDim / 2) * solidStop, 0, 0, maxDim / 2);
+                rGrad.addColorStop(0, 'rgba(0,0,0,1)');
+                rGrad.addColorStop(1, 'rgba(0,0,0,0)');
+                cCtx.fillStyle = rGrad;
+                cCtx.fillRect(-maxDim, -maxDim, maxDim * 2, maxDim * 2);
+                cCtx.restore();
+                grad = null;
             }
             if (grad) {
                 cCtx.fillStyle = grad;
@@ -1358,12 +1533,16 @@ async function prepareTemplateFramesForExport() {
         const clip = frame.querySelector('.tb-frame-clip') || frame;
         const inner = clip.querySelector('.tb-frame-inner') || clip;
         inner.appendChild(exportCanvas);
+        const renderCanvasEl = frame.querySelector('.tb-frame-render-canvas');
+        const prevRenderDisplay = renderCanvasEl ? renderCanvasEl.style.display : '';
+        if (renderCanvasEl) renderCanvasEl.style.display = 'none';
         const prevDisplay = img.style.display;
         img.style.display = 'none';
 
         cleanups.push(() => {
             exportCanvas.remove();
             img.style.display = prevDisplay;
+            if (renderCanvasEl) renderCanvasEl.style.display = prevRenderDisplay;
         });
 
         // 3D Çerçeve Export Fırınlama (Three.js WebGL Offscreen)
@@ -1381,19 +1560,31 @@ async function prepareTemplateFramesForExport() {
                     canvas3D.style.pointerEvents = 'none';
                     canvas3D.style.zIndex = '5';
                     const origTransform = frame.style.transform;
+                    const origBoxShadow = frame.style.boxShadow;
+                    const origBorder = frame.style.border;
+                    const origOutline = frame.style.outline;
                     const extEl = frame.querySelector('.tb-frame-extrusion');
                     const contourEl = frame.querySelector('.tb-shape-contour-svg');
                     const prevExtDisp = extEl ? extEl.style.display : '';
                     const prevContourDisp = contourEl ? contourEl.style.display : '';
+                    const prevClipVis = clip ? clip.style.visibility : '';
                     if (extEl) extEl.style.display = 'none';
                     if (contourEl) contourEl.style.display = 'none';
+                    if (clip) clip.style.visibility = 'hidden';
                     frame.style.transform = 'none';
+                    frame.style.boxShadow = 'none';
+                    frame.style.border = 'none';
+                    frame.style.outline = 'none';
                     frame.appendChild(canvas3D);
                     exportCanvas.style.display = 'none';
 
                     cleanups.push(() => {
                         canvas3D.remove();
                         frame.style.transform = origTransform;
+                        frame.style.boxShadow = origBoxShadow;
+                        frame.style.border = origBorder;
+                        frame.style.outline = origOutline;
+                        if (clip) clip.style.visibility = prevClipVis;
                         if (extEl) extEl.style.display = prevExtDisp;
                         if (contourEl) contourEl.style.display = prevContourDisp;
                         exportCanvas.style.display = '';
@@ -1499,18 +1690,21 @@ async function saveImage(customBaseName, options = {}){
         await new Promise(r => setTimeout(r, 150));
     }
 
-    const wz=drawCanvas.style.zIndex,wp=drawCanvas.style.pointerEvents;
-    drawCanvas.style.zIndex='50';
-    drawCanvas.style.pointerEvents='none';
+    const wz = (typeof drawCanvas !== 'undefined' && drawCanvas) ? drawCanvas.style.zIndex : '5';
+    const wp = (typeof drawCanvas !== 'undefined' && drawCanvas) ? drawCanvas.style.pointerEvents : 'none';
+    if (typeof drawCanvas !== 'undefined' && drawCanvas) {
+        drawCanvas.style.zIndex='50';
+        drawCanvas.style.pointerEvents='none';
+    }
     
     const isForceOriginal = !!(options && options.forceOriginal);
-    const formatName = isForceOriginal ? 'Orijinal Görsel Boyutu' : ((options && options.format) ? options.format : (exportFormat ? exportFormat.value : '16:9 Full HD'));
+    const formatName = isForceOriginal ? 'Orijinal Görsel Boyutu' : ((options && options.format && options.format !== 'inherit') ? options.format : (exportFormat ? exportFormat.value : '16:9 Full HD'));
     const isOriginal = isForceOriginal || (formatName === 'Orijinal Görsel Boyutu');
     const format = EXPORT_FORMATS[formatName] || {w:1920,h:1080};
-    const fitMode = exportFitMode ? exportFitMode.value : 'cover';
+    const fitMode = (options && options.fitMode) ? options.fitMode : (exportFitMode ? exportFitMode.value : 'cover');
     const bgColor = exportBgColor ? exportBgColor.value : '#ffffff';
     let outputScale = 1.5;
-    const scaleVal1 = exportScale ? exportScale.value : '1.5';
+    const scaleVal1 = (options && options.scale !== undefined && options.scale !== null && options.scale !== 'inherit') ? String(options.scale) : (exportScale ? exportScale.value : '1.5');
 
     let safeMasterImage = (typeof uploadedImgUrl !== 'undefined' ? uploadedImgUrl : null) || (typeof masterImageBase64 !== 'undefined' ? masterImageBase64 : null);
     if (!safeMasterImage) {
@@ -1542,16 +1736,23 @@ async function saveImage(customBaseName, options = {}){
         const natW = (typeof uploadedImgW !== 'undefined' && uploadedImgW > 0) ? uploadedImgW : (masterImgObj ? (masterImgObj.naturalWidth || masterImgObj.width) : currentW);
         const natH = (typeof uploadedImgH !== 'undefined' && uploadedImgH > 0) ? uploadedImgH : (masterImgObj ? (masterImgObj.naturalHeight || masterImgObj.height) : currentH);
         const natRatio = (natW && natH) ? (natW / natH) : canvasRatio;
+        const explicitScale = (options && options.scale !== undefined && options.scale !== null && options.scale !== 'inherit') ? options.scale : null;
 
         if (natW && natH && Math.abs(canvasRatio - natRatio) < 0.05 && natW >= currentW && natH >= currentH) {
-            // Tuval ve fotoğraf aynı orandaysa tam fotoğraf çözünürlüğünde dışa aktar!
-            targetW = Math.round(natW);
-            targetH = Math.round(natH);
+            if (explicitScale && explicitScale !== 'original' && !isNaN(parseFloat(explicitScale))) {
+                const sMult = Math.max(0.25, parseFloat(explicitScale));
+                targetW = Math.round(natW * sMult);
+                targetH = Math.round(natH * sMult);
+            } else {
+                // Tuval ve fotoğraf aynı orandaysa tam fotoğraf çözünürlüğünde dışa aktar!
+                targetW = Math.round(natW);
+                targetH = Math.round(natH);
+            }
             outputScale = targetW / currentW;
         } else {
             // Tuval en-boy oranını %100 koruyarak seçili ölçekte aktar
             const baseScale = (scaleVal1 === 'original') ? 1 : (parseFloat(scaleVal1) || 1.5);
-            outputScale = Math.max(1, baseScale);
+            outputScale = explicitScale ? Math.max(0.25, baseScale) : Math.max(1, baseScale);
             targetW = Math.round(currentW * outputScale);
             targetH = Math.round(currentH * outputScale);
         }
@@ -1720,7 +1921,7 @@ async function saveImage(customBaseName, options = {}){
         canvasEl.style.top = oldTop;
         canvasEl.style.margin = oldMargin;
         canvasEl.style.zIndex = oldZIndex;
-        document.body.removeChild(overlay);
+        if (overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay);
         if (typeof resizeCanvas === 'function') { resizeCanvas(); if (typeof window.healSvgElementIds === 'function') window.healSvgElementIds(); }
 
         // --- UI RESTORE ---
@@ -1781,7 +1982,7 @@ async function saveImage(customBaseName, options = {}){
             } else {
                 const natW = (panel && panel.dataset.naturalW) ? parseFloat(panel.dataset.naturalW) : (window.uploadedImgW || masterImgObj.naturalWidth || masterImgObj.width || 1920);
                 const natH = (panel && panel.dataset.naturalH) ? parseFloat(panel.dataset.naturalH) : (window.uploadedImgH || masterImgObj.naturalHeight || masterImgObj.height || 1080);
-                const fitMode = window.photoFitMode || 'cover';
+                const fitMode = (options && options.fitMode) ? options.fitMode : (window.photoFitMode || 'cover');
                 if (fitMode === 'stretch') {
                     ctx.drawImage(masterImgObj, 0, 0, w, h);
                 } else if (fitMode === 'contain') {
@@ -1885,15 +2086,17 @@ async function saveImage(customBaseName, options = {}){
         if(oldBg) { canvasEl.style.setProperty('background-color', oldBg, 'important'); } else { canvasEl.style.removeProperty('background-color'); }
         canvasEl.style.transform = oldTransform;
         canvasEl.style.transition = oldTransition;
-        document.body.removeChild(overlay);
+        if (overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay);
         resizeCanvas();
 
         // --- UI RESTORE ---
         document.querySelectorAll('.photo-panel, #photo-layer').forEach(p => { if (typeof _applyPhotoTransform === 'function') _applyPhotoTransform(p); });
     }
 
-        drawCanvas.style.zIndex=wz;
-        drawCanvas.style.pointerEvents=wp;
+        if (typeof drawCanvas !== 'undefined' && drawCanvas) {
+            drawCanvas.style.zIndex=wz;
+            drawCanvas.style.pointerEvents=wp;
+        }
 
         // DEMO FILIGRAN / WATERMARK
         if (typeof window.addWatermark === 'function') {
@@ -1903,9 +2106,13 @@ async function saveImage(customBaseName, options = {}){
         // DOM'un güncellenmesine ve UI'ın nefes almasına izin ver (Thread kilidini geçici olarak çöz)
         await new Promise(r => setTimeout(r, 100));
 
+        const customJpgQ = (options && typeof options.jpgQuality === 'number' && !isNaN(options.jpgQuality))
+            ? Math.min(1, Math.max(0.1, options.jpgQuality))
+            : null;
+
         if (options && options.returnBlob) {
             const mime = (rawFileType === 'jpg') ? 'image/jpeg' : 'image/png';
-            const q = (rawFileType === 'jpg') ? 0.95 : undefined;
+            const q = (rawFileType === 'jpg') ? (customJpgQ !== null ? customJpgQ : 0.95) : undefined;
             let blob = await new Promise(resolve => {
                 try {
                     finalCanvas.toBlob(b => resolve(b), mime, q);
@@ -1916,12 +2123,32 @@ async function saveImage(customBaseName, options = {}){
             if (!blob) {
                 try {
                     const dataUrl = finalCanvas.toDataURL(mime, q);
-                    const bin = atob(dataUrl.split(',')[1]);
-                    const u8 = new Uint8Array(bin.length);
-                    for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
-                    blob = new Blob([u8], { type: mime });
+                    if (dataUrl && dataUrl.includes(',')) {
+                        const bin = atob(dataUrl.split(',')[1]);
+                        const u8 = new Uint8Array(bin.length);
+                        for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+                        blob = new Blob([u8], { type: mime });
+                    }
                 } catch(e) {
                     console.error("Canvas to blob conversion fallback failed:", e);
+                }
+            }
+            if (!blob && (finalCanvas.width > 3840 || finalCanvas.height > 3840)) {
+                try {
+                    const ratio = Math.min(3840 / finalCanvas.width, 3840 / finalCanvas.height);
+                    const safeCvs = document.createElement('canvas');
+                    safeCvs.width = Math.max(1, Math.round(finalCanvas.width * ratio));
+                    safeCvs.height = Math.max(1, Math.round(finalCanvas.height * ratio));
+                    const sCtx = safeCvs.getContext('2d');
+                    if (sCtx) {
+                        sCtx.imageSmoothingEnabled = true;
+                        sCtx.imageSmoothingQuality = 'high';
+                        sCtx.drawImage(finalCanvas, 0, 0, safeCvs.width, safeCvs.height);
+                        blob = await new Promise(res => safeCvs.toBlob(res, mime, q));
+                        if (blob) return { blob, width: safeCvs.width, height: safeCvs.height, mime };
+                    }
+                } catch(safeErr) {
+                    console.error("Safe downscale blob fallback failed:", safeErr);
                 }
             }
             return { blob, width: targetW, height: targetH, mime };
@@ -1937,7 +2164,7 @@ async function saveImage(customBaseName, options = {}){
 
         if (rawFileType === 'jpg') {
             downloadMime = 'image/jpeg';
-            downloadQuality = 0.98;
+            downloadQuality = (customJpgQ !== null) ? customJpgQ : 0.98;
             a.download = basePrefix + '-' + fmtSafe + '-' + targetW + 'x' + targetH + '.jpg';
         } else if (rawFileType === 'png_transparent') {
             downloadMime = 'image/png';
@@ -2077,6 +2304,9 @@ window.exportMultiFormat = async function(mode = 'zip') {
     showExportLoading('Çoklu Format Dağıtımı...', 'Tasarımınız 1:1, 9:16 ve 16:9 boyutlarına otomatik uyarlanıyor...');
 
     const generatedFiles = [];
+    const multiFormatSnapshot = (window.FormatLayoutAdapter && typeof window.FormatLayoutAdapter.captureWorkspaceLayout === 'function')
+        ? window.FormatLayoutAdapter.captureWorkspaceLayout()
+        : null;
 
     try {
         for (let i = 0; i < formats.length; i++) {
@@ -2084,6 +2314,11 @@ window.exportMultiFormat = async function(mode = 'zip') {
             
             // Olası kilit durumlarını sıfırla
             window.isExportingNow = false;
+
+            // Her format dönüşümünü kümülatif kayma olmadan temiz başlangıç düzeninden hesapla
+            if (multiFormatSnapshot && i > 0 && window.FormatLayoutAdapter && typeof window.FormatLayoutAdapter.restoreWorkspaceLayout === 'function') {
+                window.FormatLayoutAdapter.restoreWorkspaceLayout(multiFormatSnapshot);
+            }
 
             const hasCustomFraming = !!(window._formatFramingState && window._formatFramingState[fmt.key] && window._formatFramingState[fmt.key].userAdjusted);
 
@@ -2154,7 +2389,6 @@ window.exportMultiFormat = async function(mode = 'zip') {
             const dateStr = new Date().toISOString().slice(0, 10);
             const zipFileName = `Emlak_Studyom_Coklu_Format_Paketi_${dateStr}.zip`;
             const zipUrl = URL.createObjectURL(zipBlob);
-            const sizeMb = (zipBlob.size / (1024 * 1024)).toFixed(1);
 
             // Otomatik indirmeyi tetikle
             const a = document.createElement('a');
@@ -2169,31 +2403,6 @@ window.exportMultiFormat = async function(mode = 'zip') {
             setTimeout(() => {
                 try { URL.revokeObjectURL(zipUrl); } catch(e){}
             }, 120000);
-
-            // Kullanıcıya hem indirme bildirimi hem de tarayıcı engellemesine karşı tek tıkla doğrudan indirme butonu sun
-            if (typeof Swal !== 'undefined') {
-                Swal.fire({
-                    icon: 'success',
-                    title: 'Çoklu Format Paketi Hazır',
-                    html: `
-                        <div style="font-size:13px; color:#cbd5e1; text-align:left; line-height:1.6; margin-bottom:14px; background:rgba(15,23,42,0.6); padding:12px; border-radius:8px; border:1px solid rgba(255,255,255,0.08);">
-                            <div style="font-weight:700; color:#38bdf8; margin-bottom:6px;">Paket İçeriği (${sizeMb} MB):</div>
-                            <div>• <strong>01_Instagram_Kare_Post_1x1.${ext}</strong> (1080x1080)</div>
-                            <div>• <strong>02_Hikaye_Reels_9x16.${ext}</strong> (1080x1920)</div>
-                            <div>• <strong>03_Sahibinden_Web_16x9.${ext}</strong> (1920x1080)</div>
-                        </div>
-                        <div style="margin-top:10px;">
-                            <a href="${zipUrl}" download="${zipFileName}" class="btn-action btn-green" style="display:inline-flex; align-items:center; justify-content:center; gap:8px; width:100%; height:38px; text-decoration:none; font-weight:700; border-radius:6px; box-sizing:border-box; color:#fff;">
-                                <i class="fa-solid fa-file-zipper"></i> ZIP Paketini İndir
-                            </a>
-                        </div>
-                    `,
-                    background: '#1e293b',
-                    color: '#fff',
-                    showConfirmButton: false,
-                    showCloseButton: true
-                });
-            }
         } else {
             // ZIP oluşturulamadıysa dosyaları sırayla doğrudan indir
             showExportLoading('Dosyalar İndiriliyor...', 'Formatlar sırayla kaydediliyor...');
@@ -2211,16 +2420,8 @@ window.exportMultiFormat = async function(mode = 'zip') {
                 await new Promise(r => setTimeout(r, 400));
             }
 
-            if (typeof Swal !== 'undefined') {
-                Swal.fire({
-                    icon: 'success',
-                    title: 'Formatlar İndirildi',
-                    text: `${generatedFiles.length} format başarıyla bilgisayarınıza kaydedildi.`,
-                    background: '#1e293b',
-                    color: '#fff',
-                    timer: 3500,
-                    showConfirmButton: false
-                });
+            if (typeof window.showAppToast === 'function') {
+                window.showAppToast(`${generatedFiles.length} format başarıyla indirildi.`, 'success', 3000);
             }
         }
     } catch (err) {
@@ -2248,6 +2449,11 @@ window.exportMultiFormat = async function(mode = 'zip') {
         if (typeof switchPreviewFormat === 'function') {
             switchPreviewFormat();
         }
+        if (multiFormatSnapshot && window.FormatLayoutAdapter && typeof window.FormatLayoutAdapter.restoreWorkspaceLayout === 'function') {
+            window.FormatLayoutAdapter.restoreWorkspaceLayout(multiFormatSnapshot);
+            if (typeof resizeCanvas === 'function') resizeCanvas();
+            if (typeof redrawAll === 'function') redrawAll();
+        }
         if (typeof window.restorePhotoFramingForFormat === 'function') {
             window.restorePhotoFramingForFormat(originalExportFormat);
         }
@@ -2268,11 +2474,14 @@ function renderBatchList(){
     // Eğer PhotoStagingArchive havuzunda görseller varsa öncelikli olarak onları listele
     let files = [];
     if (window.PhotoStagingArchive && window.PhotoStagingArchive.items && window.PhotoStagingArchive.items.length > 0) {
-        files = window.PhotoStagingArchive.items.map((it, i) => ({
-            name: (it.title || ('foto_' + (i + 1))) + '.png',
-            size: it.dataUrl ? Math.round(it.dataUrl.length * 0.75) : 102400,
-            thumbUrl: it.thumbUrl || it.dataUrl
-        }));
+        files = window.PhotoStagingArchive.items.map((it, i) => {
+            const rawUrl = it.rawOriginalDataUrl || it.originalDataUrl || it.dataUrl || it.src || '';
+            return {
+                name: (it.title || ('foto_' + (i + 1))) + '.png',
+                size: rawUrl ? Math.round(rawUrl.length * 0.75) : 102400,
+                thumbUrl: it.thumbUrl || it.rawOriginalThumbUrl || rawUrl
+            };
+        });
     } else if (typeof batchFiles !== 'undefined' && batchFiles && batchFiles.length) {
         files = batchFiles;
     }
@@ -2314,9 +2523,13 @@ async function startBatchExport(options){
             if (typeof window.PhotoStagingArchive.syncActiveItemAdjustments === 'function') {
                 window.PhotoStagingArchive.syncActiveItemAdjustments();
             }
-            activeBatchFiles = window.PhotoStagingArchive.items.map((it, i) => ({
+            const selectedPool = (typeof window.PhotoStagingArchive.getSelectedItems === 'function')
+                ? window.PhotoStagingArchive.getSelectedItems()
+                : [];
+            const sourcePool = (selectedPool && selectedPool.length > 0) ? selectedPool : window.PhotoStagingArchive.items;
+            activeBatchFiles = sourcePool.map((it, i) => ({
                 name: (it.title || ('foto_' + (i + 1))) + '.png',
-                dataUrl: it.dataUrl,
+                dataUrl: it.rawOriginalDataUrl || it.originalDataUrl || it.dataUrl || it.src,
                 photoAdjustments: it.photoAdjustments || null,
                 aiIntensity: it.aiIntensity !== undefined ? it.aiIntensity : 0,
                 item: it
@@ -2325,7 +2538,7 @@ async function startBatchExport(options){
             activeBatchFiles = window.batchFiles || [];
         }
     }
-    if(!activeBatchFiles || !activeBatchFiles.length){
+    if (!activeBatchFiles || !activeBatchFiles.length) {
         if (typeof Swal !== 'undefined') {
             Swal.fire({
                 icon: 'info',
@@ -2347,7 +2560,7 @@ async function startBatchExport(options){
             if (typeof Swal !== 'undefined') {
                 Swal.fire({
                     icon: 'warning',
-                    title: check.title || '🔒 Pro Özellik Kullanımı',
+                    title: check.title || 'Pro Özellik Kullanımı',
                     html: `<div style="font-size:14px; line-height:1.6; color:#cbd5e1; text-align:left; margin-top:8px;">${check.message}</div>`,
                     background: '#1e293b',
                     color: '#fff',
@@ -2357,7 +2570,7 @@ async function startBatchExport(options){
             } else if (typeof showProUpgradeToast === 'function') {
                 showProUpgradeToast(check.message);
             } else {
-                alert('🔒 ' + check.message);
+                alert(check.message);
             }
             return;
         }
@@ -2365,498 +2578,434 @@ async function startBatchExport(options){
 
     await ensureFontsLoaded();
 
+    let mode = (options && options.mode) ? options.mode : 'files';
+    let dirHandle = null;
+    if (mode === 'folder') {
+        if ('showDirectoryPicker' in window) {
+            try {
+                dirHandle = await window.showDirectoryPicker({ mode: 'readwrite', startIn: 'pictures' });
+            } catch (err) {
+                if (err && err.name === 'AbortError') return;
+                console.warn('showDirectoryPicker error:', err);
+            }
+        }
+        if (!dirHandle) mode = 'files';
+    }
+    let zip = null;
+    if (mode === 'zip') {
+        if (typeof window.JSZip === 'undefined' && window.LazyLoader && typeof window.LazyLoader.load === 'function') {
+            try { await window.LazyLoader.load('zip', { label: 'ZIP Kütüphanesi' }); } catch(_) {}
+        }
+        if (typeof window.JSZip === 'undefined') {
+            await new Promise((resolve) => {
+                const s = document.createElement('script');
+                s.src = 'js/jszip.min.js';
+                s.onload = resolve;
+                s.onerror = () => {
+                    const cdnScript = document.createElement('script');
+                    cdnScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
+                    cdnScript.onload = resolve;
+                    cdnScript.onerror = resolve;
+                    document.head.appendChild(cdnScript);
+                };
+                document.head.appendChild(s);
+            }).catch(() => {});
+        }
+        if (typeof window.JSZip !== 'undefined') {
+            zip = new window.JSZip();
+        } else {
+            mode = 'files';
+            if (typeof window.showAppToast === 'function') {
+                window.showAppToast('ZIP motoru yüklenemedi, görseller ayrı ayrı indiriliyor.', 'warning', 3000);
+            }
+        }
+    }
+
+    const batchProgressEl = document.getElementById('batchProgress');
+    const batchStatusEl = document.getElementById('batchStatus');
+    const batchPercentEl = document.getElementById('batchPercent');
+    const batchBarEl = document.getElementById('batchBar');
 
     var _wasTplHiddenBatch = window.isTemplateHidden;
     if (_wasTplHiddenBatch && typeof window.toggleTemplateVisibility === 'function') {
         window.toggleTemplateVisibility(false);
     }
-    
-    batchProgress.style.display='block';
-    if(drawMode!=='off')setDrawMode('off');
-    
-    const wz = drawCanvas ? drawCanvas.style.zIndex : '5';
-    const wp = drawCanvas ? drawCanvas.style.pointerEvents : 'none';
+
+    if (batchProgressEl) batchProgressEl.style.display = 'block';
+    if (typeof drawMode !== 'undefined' && drawMode !== 'off' && typeof setDrawMode === 'function') {
+        setDrawMode('off');
+    }
+
+    const wz = (typeof drawCanvas !== 'undefined' && drawCanvas) ? drawCanvas.style.zIndex : '5';
+    const wp = (typeof drawCanvas !== 'undefined' && drawCanvas) ? drawCanvas.style.pointerEvents : 'none';
+    const prevSuppressLoading = !!window._suppressFormatLoading;
+    window._suppressFormatLoading = true;
+    window._isSubExportRunning = true;
+
+    const expFmtEl = document.getElementById('exportFormat');
+    const prevFmtEl = document.getElementById('previewFormat');
+    const expFitEl = document.getElementById('exportFitMode');
+    const expTypeEl = document.getElementById('exportFileType');
+    const expScaleEl = document.getElementById('exportScale');
+
+    const batchFmtEl = document.getElementById('batchExportFormat');
+    const batchTypeEl = document.getElementById('batchExportFileType');
+    const batchScaleEl = document.getElementById('batchExportScale');
+    const batchJpgEl = document.getElementById('batchJpgQualitySlider');
+
+    const originalExportFormat = expFmtEl ? expFmtEl.value : '16:9 Full HD (YouTube/Banner)';
+    const originalPreviewFormat = prevFmtEl ? prevFmtEl.value : originalExportFormat;
+    const origOriginalFormatSpec = (typeof EXPORT_FORMATS !== 'undefined' && EXPORT_FORMATS['Orijinal Görsel Boyutu'])
+        ? { ...EXPORT_FORMATS['Orijinal Görsel Boyutu'] }
+        : null;
+    const layoutSnapshot = (window.FormatLayoutAdapter && typeof window.FormatLayoutAdapter.captureWorkspaceLayout === 'function')
+        ? window.FormatLayoutAdapter.captureWorkspaceLayout()
+        : null;
+
+    const origUploadedImgUrl = (typeof uploadedImgUrl !== 'undefined' && uploadedImgUrl) ? uploadedImgUrl : (window.uploadedImgUrl || null);
+    const origUploadedImgW = (typeof uploadedImgW !== 'undefined') ? uploadedImgW : (window.uploadedImgW || 1920);
+    const origUploadedImgH = (typeof uploadedImgH !== 'undefined') ? uploadedImgH : (window.uploadedImgH || 1080);
+    const origGlobalNativeImg = window._globalNativeImg || null;
+    let preBatchAdjustments = null;
+    if (typeof window.capturePhotoAdjustments === 'function') {
+        preBatchAdjustments = window.capturePhotoAdjustments();
+    }
+
+    let exportedCount = 0;
 
     try {
         document.body.classList.add('is-exporting');
-        if(typeof deselectAll === 'function') deselectAll();
-        document.querySelectorAll('.el-selected').forEach(e=>e.classList.remove('el-selected'));
-        document.querySelectorAll('.text-handle').forEach(h=>h.remove());
+        if (typeof deselectAll === 'function') deselectAll();
+        document.querySelectorAll('.el-selected').forEach(e => e.classList.remove('el-selected'));
+        document.querySelectorAll('.text-handle').forEach(h => h.remove());
         document.querySelectorAll('.callout-controls, .callout-resizer, .callout-rotator, .callout-select-border, .callout-lock-btn, .cbtn-del, .callout-handle-width, .callout-handle-length, .draw-handle, .vertex-handle').forEach(c => c.style.display = 'none');
         const existingBatchCtx = document.getElementById('app-custom-context-menu');
         if (existingBatchCtx) existingBatchCtx.remove();
-        
-        if (drawCanvas) {
-            drawCanvas.style.zIndex='50';
-            drawCanvas.style.pointerEvents='none';
+
+        const trayState = (window.StagingExportTrays && window.StagingExportTrays.state) ? window.StagingExportTrays.state : null;
+        const formatName = (batchFmtEl && batchFmtEl.value && batchFmtEl.value !== 'inherit')
+            ? batchFmtEl.value
+            : ((trayState && trayState.batchFormat) ? trayState.batchFormat : originalExportFormat);
+        const fitMode = expFitEl ? expFitEl.value : 'cover';
+        const scaleVal1 = (batchScaleEl && batchScaleEl.value && batchScaleEl.value !== 'inherit')
+            ? batchScaleEl.value
+            : ((trayState && trayState.batchScale) ? trayState.batchScale : (expScaleEl ? expScaleEl.value : '1.5'));
+        let rawBatchFileType = (batchTypeEl && batchTypeEl.value && batchTypeEl.value !== 'inherit')
+            ? batchTypeEl.value
+            : ((trayState && trayState.batchFileType) ? trayState.batchFileType : (expTypeEl ? expTypeEl.value : 'jpg'));
+        if (rawBatchFileType === 'mp4' || rawBatchFileType === 'video') {
+            rawBatchFileType = 'jpg';
+            if (typeof window.showAppToast === 'function') {
+                window.showAppToast('Toplu görsel çıktısı için dosya tipi JPG olarak kullanıldı.', 'info', 2500);
+            }
         }
-        
-        const formatName=exportFormat?exportFormat.value:'16:9 Full HD';
-        const format=EXPORT_FORMATS[formatName]||{w:1920,h:1080};
-        const fitMode=exportFitMode?exportFitMode.value:'cover';
-        const bgColor=exportBgColor?exportBgColor.value:'#ffffff';
-        const scaleVal1 = exportScale?exportScale.value:'1.5';
-        const rawBatchFileType = document.getElementById('exportFileType') ? document.getElementById('exportFileType').value : 'jpg';
-        const isBatchTransparent = (rawBatchFileType === 'png_transparent');
-        if (isBatchTransparent) {
-            window.isExportingTransparent = true;
-        }
-        const currentW=parseInt(canvasEl.style.width)||1920;
-        const currentH=parseInt(canvasEl.style.height)||1080;
+        const jpgQuality = batchJpgEl
+            ? (Math.min(100, Math.max(60, parseInt(batchJpgEl.value, 10) || 95)) / 100)
+            : ((trayState && trayState.batchJpgQuality) ? (trayState.batchJpgQuality / 100) : 0.95);
 
         const startIndex = (options && typeof options.startIndex === 'number') ? options.startIndex : 0;
-        const selectedPresetId = (options && options.presetId) ? options.presetId : (document.getElementById('batchPresetSelect') ? document.getElementById('batchPresetSelect').value : 'current');
-        const prefixInput = document.getElementById('batchPrefixInput') ? document.getElementById('batchPrefixInput').value.trim() : '';
+        const selectedPresetId = (options && options.presetId)
+            ? options.presetId
+            : (document.getElementById('batchPresetSelect') ? document.getElementById('batchPresetSelect').value : ((trayState && trayState.batchPreset) || 'current'));
+        const prefixInput = document.getElementById('batchPrefixInput')
+            ? document.getElementById('batchPrefixInput').value.trim()
+            : ((trayState && trayState.batchPrefix) ? trayState.batchPrefix.trim() : '');
 
         if (selectedPresetId && selectedPresetId !== 'current') {
-            if (window.CustomPresetsManager) {
+            if (window.CustomPresetsManager && typeof window.CustomPresetsManager.applyPreset === 'function') {
                 window.CustomPresetsManager.applyPreset(selectedPresetId);
             } else if (typeof applyPreset === 'function') {
                 applyPreset(selectedPresetId);
             }
         }
 
-        const origUploadedImgUrl = (typeof uploadedImgUrl !== 'undefined' && uploadedImgUrl) ? uploadedImgUrl : (window.uploadedImgUrl || null);
-        let preBatchAdjustments = null;
-        if (typeof window.capturePhotoAdjustments === 'function') {
-            preBatchAdjustments = window.capturePhotoAdjustments();
-        }
+        const totalToProcess = Math.max(1, activeBatchFiles.length - startIndex);
+        const zipFolder = zip ? zip.folder('EmlakStudyom_Toplu_Cikti') : null;
 
-        for(let i = startIndex; i < activeBatchFiles.length; i++){
-        const rawBaseName = activeBatchFiles[i].name.replace(/\.[^/.]+$/, "");
-        const batchName = (prefixInput ? prefixInput : '') + rawBaseName;
+        for (let i = startIndex; i < activeBatchFiles.length; i++) {
+            const batchFile = activeBatchFiles[i] || {};
+            const displayFileName = batchFile.name || ('foto_' + (i + 1) + '.png');
+            const rawBaseName = displayFileName.replace(/\.[^/.]+$/, '').replace(/[\\/:*?"<>|]/g, '_') || ('foto_' + (i + 1));
+            const batchName = (prefixInput ? prefixInput.replace(/[\\/:*?"<>|]/g, '_') : '') + rawBaseName;
 
-        batchStatus.textContent=activeBatchFiles[i].name;
-        batchPercent.textContent=Math.round(((i + 1) / activeBatchFiles.length) * 100)+'%';
-        batchBar.style.width=Math.round(((i + 1) / activeBatchFiles.length) * 100)+'%';
-        
-        const url=await readFileUrl(activeBatchFiles[i]);
-        if(typeof uploadedImgUrl !== 'undefined') uploadedImgUrl=url; 
-        if(typeof trackImageSize==='function') trackImageSize(url);
-        
-        const pLayer = document.getElementById('photo-layer');
-        if (pLayer) pLayer.style.backgroundImage="url('"+url+"')";
-        
-        if(typeof isCanvaMode !== 'undefined' && isCanvaMode && typeof refreshActiveCanvaTemplate === 'function') refreshActiveCanvaTemplate();
-        else if(typeof isCanvaMode !== 'undefined' && isCanvaMode) buildCanvaRender();
-        
-        // Görsele ait bağımsız fotoğraf ayarları varsa uygula, yoksa varsayılana sıfırla
-        if (activeBatchFiles[i].photoAdjustments && typeof window.restorePhotoAdjustments === 'function') {
-            window.restorePhotoAdjustments(activeBatchFiles[i].photoAdjustments);
-        } else if (typeof window.resetPhotoAdjustmentsToDefault === 'function') {
-            window.resetPhotoAdjustmentsToDefault(activeBatchFiles[i].item || null);
-        }
-        if (typeof applyPhotoFilters === 'function') applyPhotoFilters();
+            const pct = Math.round((((i - startIndex) + 1) / totalToProcess) * 100);
+            if (batchStatusEl) batchStatusEl.textContent = displayFileName;
+            if (batchPercentEl) batchPercentEl.textContent = pct + '%';
+            if (batchBarEl) batchBarEl.style.width = pct + '%';
 
-        // Gorsel panele yerlestirildikten sonra hazirla
-        let needsPrep = false;
-        document.querySelectorAll('.photo-panel, #photo-layer').forEach(p => {
-            if (!p.querySelector('.photo-render-canvas') && p.style.backgroundImage && p.style.backgroundImage !== 'none') {
-                if (typeof _preparePhoto === 'function') {
+            const url = await readFileUrl(batchFile);
+            const masterImgObj = new Image();
+            if (!url.startsWith('data:') && !url.startsWith('blob:')) {
+                masterImgObj.crossOrigin = 'anonymous';
+            }
+            const imgLoaded = await new Promise((resolve) => {
+                masterImgObj.onload = () => resolve(true);
+                masterImgObj.onerror = () => resolve(false);
+                masterImgObj.src = url;
+            });
+            if (!imgLoaded || !(masterImgObj.naturalWidth || masterImgObj.width)) {
+                throw new Error(`"${displayFileName}" görseli yüklenemedi.`);
+            }
+
+            const natW = masterImgObj.naturalWidth || masterImgObj.width || 1920;
+            const natH = masterImgObj.naturalHeight || masterImgObj.height || 1080;
+
+            if (typeof uploadedImgUrl !== 'undefined') uploadedImgUrl = url;
+            window.uploadedImgUrl = url;
+            if (typeof uploadedImgW !== 'undefined') uploadedImgW = natW;
+            window.uploadedImgW = natW;
+            if (typeof uploadedImgH !== 'undefined') uploadedImgH = natH;
+            window.uploadedImgH = natH;
+            window._globalNativeImg = masterImgObj;
+            window._globalNativeImgSrc = url;
+            window._photoFilterDirty = true;
+
+            if (layoutSnapshot && i > startIndex && window.FormatLayoutAdapter && typeof window.FormatLayoutAdapter.restoreWorkspaceLayout === 'function') {
+                window.FormatLayoutAdapter.restoreWorkspaceLayout(layoutSnapshot);
+            }
+
+            if (formatName === 'Orijinal Görsel Boyutu' && typeof autoAdjustFormat === 'function') {
+                autoAdjustFormat(natW, natH);
+            } else if (formatName && prevFmtEl && prevFmtEl.value !== formatName) {
+                if (expFmtEl) expFmtEl.value = formatName;
+                prevFmtEl.value = formatName;
+                if (typeof switchPreviewFormat === 'function') switchPreviewFormat();
+            }
+
+            const pLayer = document.getElementById('photo-layer');
+            if (pLayer) {
+                pLayer.dataset.naturalW = natW;
+                pLayer.dataset.naturalH = natH;
+            }
+
+            document.querySelectorAll('.photo-panel, #photo-layer').forEach(p => {
+                p._nativeImg = masterImgObj;
+                p._nativeImgSrc = url;
+                p.dataset.savedBg = "url('" + url + "')";
+                delete p._cachedGlCanvas;
+                delete p.dataset.zpScale;
+                delete p.dataset.zpX;
+                delete p.dataset.zpY;
+
+                let inner = p.querySelector('.photo-inner-zoom');
+                if (!inner && typeof _preparePhoto === 'function') {
                     _preparePhoto(p);
-                    needsPrep = true;
+                    inner = p.querySelector('.photo-inner-zoom');
+                }
+                if (inner) {
+                    inner.style.backgroundImage = "url('" + url + "')";
+                }
+                p.style.backgroundImage = 'none';
+            });
+
+            if (typeof isCanvaMode !== 'undefined' && isCanvaMode) {
+                if (typeof refreshActiveCanvaTemplate === 'function') refreshActiveCanvaTemplate();
+                else if (typeof buildCanvaRender === 'function') buildCanvaRender();
+            }
+
+            if (batchFile.photoAdjustments && typeof window.restorePhotoAdjustments === 'function') {
+                window.restorePhotoAdjustments(batchFile.photoAdjustments);
+            } else if (typeof window.resetPhotoAdjustmentsToDefault === 'function') {
+                window.resetPhotoAdjustmentsToDefault(batchFile.item || null);
+            }
+            if (batchFile.aiIntensity !== undefined && batchFile.aiIntensity > 0.05 && window.PhotoStagingArchive) {
+                if (typeof window.PhotoStagingArchive.setAiIntensity === 'function') {
+                    window.PhotoStagingArchive.setAiIntensity(Math.round(batchFile.aiIntensity * 100));
+                }
+            } else if (window.PhotoStagingArchive && !batchFile.photoAdjustments) {
+                window.PhotoStagingArchive.aiIntensity = 0;
+            }
+            if (selectedPresetId && selectedPresetId !== 'current') {
+                if (window.CustomPresetsManager && typeof window.CustomPresetsManager.applyPreset === 'function') {
+                    window.CustomPresetsManager.applyPreset(selectedPresetId);
+                } else if (typeof applyPreset === 'function') {
+                    applyPreset(selectedPresetId);
                 }
             }
-        });
-        
-        // Her iterasyonda photo-render-canvas'i yeniden cizmeye zorluyoruz (cunku arkaplan degisti)
-        document.querySelectorAll('.photo-panel, #photo-layer').forEach(p => {
-            if (typeof _applyPhotoTransform === 'function') _applyPhotoTransform(p);
-        });
-        
-        await new Promise(r => setTimeout(r, 200));
+            if (typeof applyPhotoFilters === 'function') applyPhotoFilters();
 
-        let cleanupBatchFrames = null;
-        if (typeof prepareTemplateFramesForExport === 'function') {
-            try { cleanupBatchFrames = await prepareTemplateFramesForExport(); } catch(_) {}
-        }
+            document.querySelectorAll('.photo-panel, #photo-layer').forEach(p => {
+                if (typeof _applyPhotoTransform === 'function') _applyPhotoTransform(p);
+            });
 
-        let masterImgObj = new Image();
-        masterImgObj.crossOrigin = 'anonymous';
-        await new Promise(r => { masterImgObj.onload = r; masterImgObj.onerror = r; masterImgObj.src = url; });
+            await new Promise(r => setTimeout(r, 160));
 
-        let outputScale = 1.5;
-        if (scaleVal1 === 'original') {
-            if (masterImgObj.width > 0) {
-                outputScale = Math.min(masterImgObj.width / currentW, masterImgObj.height / currentH);
+            // saveImage güvenli tek kaynak render motorunu kullan
+            window.isExportingNow = false;
+            const res = await saveImage(batchName, {
+                returnBlob: true,
+                skipDownload: true,
+                silentLoading: true,
+                format: formatName,
+                scale: scaleVal1,
+                fileType: rawBatchFileType,
+                jpgQuality: jpgQuality,
+                fitMode: fitMode
+            });
+
+            if (!res || !res.blob) {
+                throw new Error(`"${displayFileName}" dışa aktarılamadı.`);
+            }
+
+            const fmtSafe = formatName.replace(/[^a-z0-9]/gi, '-').toLowerCase();
+            const ext = (rawBatchFileType === 'jpg') ? 'jpg' : 'png';
+            const suffix = (rawBatchFileType === 'png_transparent') ? '-seffaf' : '';
+            const outFileName = `${String(i + 1).padStart(2, '0')}_${batchName}-${fmtSafe}-${res.width}x${res.height}${suffix}.${ext}`;
+
+            if (mode === 'folder' && dirHandle) {
+                const fh = await dirHandle.getFileHandle(outFileName, { create: true });
+                const wr = await fh.createWritable();
+                await wr.write(res.blob);
+                await wr.close();
+            } else if (mode === 'zip' && zipFolder) {
+                const ab = await res.blob.arrayBuffer();
+                zipFolder.file(outFileName, ab);
             } else {
-                outputScale = 1;
-            }
-        } else {
-            outputScale = parseFloat(scaleVal1) || 1.5;
-        }
-        
-        const isBatchMobile = (typeof window.isMobileDevice === 'function' && window.isMobileDevice()) ||
-                              (typeof window !== 'undefined' && (window.innerWidth <= 768 || /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)));
-        if (isBatchMobile) {
-            const maxMobileScale = 2.0;
-            if (outputScale > maxMobileScale) outputScale = maxMobileScale;
-        }
-
-        let targetW = Math.round(format.w * outputScale);
-        let targetH = Math.round(format.h * outputScale);
-        if (isBatchMobile && (targetW * targetH) > 14000000) {
-            const downF = Math.sqrt(14000000 / (targetW * targetH));
-            targetW = Math.round(targetW * downF);
-            targetH = Math.round(targetH * downF);
-        }
-        let finalCanvas = document.createElement('canvas');
-        finalCanvas.width = targetW;
-        finalCanvas.height = targetH;
-        let ctx = finalCanvas.getContext('2d');
-        ctx.imageSmoothingEnabled = true;
-        ctx.imageSmoothingQuality = 'high';
-
-        const cvrBase = document.querySelector('.cvr-base');
-        const hasKolaj = !!document.getElementById('kolaj-wrapper');
-        const isTemplateMode = !!cvrBase || !!document.querySelector('.photo-panel') || hasKolaj;
-
-        if (isTemplateMode) {
-            // ==========================================
-              // SABLONLU MOD - 3 KATMANLI (SANDWICH) RENDER
-              // ==========================================
-              
-              canvasEl.style.transition='none';
-              canvasEl.style.transform='none';
-              
-              const overlay = document.createElement('div');
-              overlay.id = 'download-overlay-mask';
-              overlay.style.position = 'fixed';
-              overlay.style.top = '0';
-              overlay.style.left = '0';
-              overlay.style.width = '100vw';
-              overlay.style.height = '100vh';
-              overlay.style.backgroundColor = 'transparent';
-              overlay.style.zIndex = '9999990';
-              overlay.style.pointerEvents = 'none';
-              document.body.appendChild(overlay);
-
-              const oldPosition = canvasEl.style.position;
-              const oldLeft = canvasEl.style.left;
-              const oldTop = canvasEl.style.top;
-              const oldMargin = canvasEl.style.margin;
-              const oldZIndex = canvasEl.style.zIndex;
-
-              canvasEl.style.position = 'fixed';
-              canvasEl.style.left = '0px';
-              canvasEl.style.top = '0px';
-              canvasEl.style.margin = '0px';
-              canvasEl.style.zIndex = '9999998';
-
-              try {
-                  // --- SINGLE PASS RENDER ---
-                    let reqScaleX = targetW / currentW;
-                    let reqScaleY = targetH / currentH;
-                    let supersamplingScale = Math.max(outputScale, (window.devicePixelRatio || 3), reqScaleX, reqScaleY);
-                    const MAX_DIM = 5000;
-                    if (currentW * supersamplingScale > MAX_DIM) supersamplingScale = MAX_DIM / currentW;
-                    if (currentH * supersamplingScale > MAX_DIM) supersamplingScale = MAX_DIM / currentH;
-                    if ((currentW * currentH * supersamplingScale * supersamplingScale) > 16000000) supersamplingScale = Math.sqrt(16000000 / (currentW * currentH));
-                    supersamplingScale = Math.floor(supersamplingScale * 10) / 10;
-                    const finalHtml2Canvas = await html2canvas(canvasEl, {
-                        width: currentW,
-                        height: currentH,
-                        scale: supersamplingScale,
-                        useCORS: true,
-                        allowTaint: false,
-                        imageTimeout: 0,
-                        logging: false,
-                        backgroundColor: null,
-                        ignoreElements: (el) => isExportIgnoredElement(el),
-                        onclone: (clonedDoc) => sanitizeExportClone(clonedDoc)
-                    });
-                    ctx.drawImage(finalHtml2Canvas, 0, 0, targetW, targetH);
-                  
-                  
-
-              } catch (e) {
-                  console.error("Sandwich Render Error:", e);
-              }
-
-              canvasEl.style.position = oldPosition;
-              canvasEl.style.left = oldLeft;
-              canvasEl.style.top = oldTop;
-              canvasEl.style.margin = oldMargin;
-              canvasEl.style.zIndex = oldZIndex;
-              document.body.removeChild(overlay);
-            resizeCanvas();
-        // --- UI RESTORE ---
-        document.querySelectorAll('.photo-panel, #photo-layer').forEach(p => { if (typeof _applyPhotoTransform === 'function') _applyPhotoTransform(p); });
-
-        // Çizimleri ve dolguları export canvasına bas
-        if (typeof window.redrawAllToContext === 'function') {
-            const hasSaberActive = !!(window.SaberEngine && typeof window.SaberEngine.getApp === 'function');
-            window.redrawAllToContext(ctx, outputScale, { skipNeonStrokes: hasSaberActive });
-        }
-
-        // 3D WebGL Katmanını ve PixiJS Saber katmanını gerçek z-index derinlik sırasına göre bas
-        draw3DAndSaberToContext(ctx, targetW, targetH, outputScale, currentW, currentH);
-        } else {
-            // SABLONSUZ MOD
-            let customBg = window.getComputedStyle(canvasEl).backgroundColor;
-            if (!isBatchTransparent && customBg && customBg !== 'rgba(0, 0, 0, 0)' && customBg !== 'transparent') {
-                ctx.fillStyle = customBg;
-                ctx.fillRect(0, 0, targetW, targetH);
-            }
-
-            if (!isBatchTransparent && masterImgObj && masterImgObj.width > 0) {
-                const panel = document.getElementById('photo-layer');
-            if (panel) {
-                const w = targetW;
-                const h = targetH;
-                
-                ctx.save();
-                ctx.beginPath();
-                ctx.rect(0, 0, w, h);
-                ctx.clip();
-                
-                // Faz 3: CSS Filter Korunmasi
-                const style = window.getComputedStyle(panel);
-                let filter = style.filter;
-                if (filter && filter !== 'none') {
-                    filter = filter.replace(/drop-shadow\([^)]+\)/g, '').trim();
-                    if (filter !== '') ctx.filter = filter;
-                }
-
-                const renderCanvas = panel.querySelector('.photo-render-canvas');
-                const plInner = panel.querySelector('.photo-inner-zoom') || panel.querySelector('.photo-inner');
-                if (renderCanvas && renderCanvas.width > 0 && plInner && typeof window.drawPhotoToTargetCanvas === 'function') {
-                    const tempCanvas = document.createElement('canvas');
-                    tempCanvas.width = w;
-                    tempCanvas.height = h;
-                    const pScale = parseFloat(panel.dataset.zpScale || panel.dataset.scale || 1);
-                    const pPanX = parseFloat(panel.dataset.zpX || panel.dataset.panX || 0);
-                    const pPanY = parseFloat(panel.dataset.zpY || panel.dataset.panY || 0);
-                    const pSlX = parseFloat(panel.dataset.sliderX || 50);
-                    const pSlY = parseFloat(panel.dataset.sliderY || 50);
-                    const prevExpScale = window.exportingScale;
-                    window.exportingScale = outputScale;
-                    try {
-                        window.drawPhotoToTargetCanvas(panel, plInner, tempCanvas, pScale, pPanX, pPanY, pSlX, pSlY);
-                    } finally {
-                        window.exportingScale = prevExpScale;
-                    }
-                    ctx.drawImage(tempCanvas, 0, 0, w, h);
-                } else if (renderCanvas && renderCanvas.width > 0) {
-                    ctx.drawImage(renderCanvas, 0, 0, w, h);
-                } else {
-                    const natW = (panel && panel.dataset.naturalW) ? parseFloat(panel.dataset.naturalW) : (window.uploadedImgW || masterImgObj.naturalWidth || masterImgObj.width || 1920);
-                    const natH = (panel && panel.dataset.naturalH) ? parseFloat(panel.dataset.naturalH) : (window.uploadedImgH || masterImgObj.naturalHeight || masterImgObj.height || 1080);
-                    if (fitMode === 'stretch') {
-                        ctx.drawImage(masterImgObj, 0, 0, w, h);
-                    } else if (fitMode === 'contain') {
-                        const ratio = Math.min(w / natW, h / natH);
-                        const dw = natW * ratio;
-                        const dh = natH * ratio;
-                        const dx = (w - dw) / 2;
-                        const dy = (h - dh) / 2;
-                        ctx.drawImage(masterImgObj, dx, dy, dw, dh);
-                    } else {
-                        const imgRatio = natW / natH;
-                        const panelRatio = w / h;
-                        let dw = w;
-                        let dh = h;
-                        let dx = 0;
-                        let dy = 0;
-                        if (imgRatio > panelRatio) {
-                            dw = h * imgRatio;
-                            dx = (w - dw) / 2;
-                        } else {
-                            dh = w / imgRatio;
-                            dy = (h - dh) / 2;
-                        }
-                        ctx.drawImage(masterImgObj, dx, dy, dw, dh);
-                    }
-                }
-                ctx.filter = 'none'; // Sifirla
-                ctx.restore();
-            }
-            } // Close masterImgObj condition
-
-            // Çizimleri ve dolguları export canvasına bas (html2canvas öncesi z-index uyumu)
-            if (typeof window.redrawAllToContext === 'function') {
-                const hasSaberActive = !!(window.SaberEngine && typeof window.SaberEngine.getApp === 'function');
-                window.redrawAllToContext(ctx, outputScale, { skipNeonStrokes: hasSaberActive });
-            }
-
-            // 2. İçerik Katmanlarını (2D DOM, 3D WebGL ve PixiJS Saber) gerçek z-index derinlik sırasına göre bas
-            const overlay = document.createElement('div');
-            overlay.id = 'download-overlay-mask';
-            overlay.style.position = 'fixed';
-            overlay.style.top = '0';
-            overlay.style.left = '0';
-            overlay.style.width = '100vw';
-            overlay.style.height = '100vh';
-            overlay.style.backgroundColor = '#0f172a';
-            overlay.style.zIndex = '9999999';
-            overlay.style.display = 'flex';
-            overlay.style.alignItems = 'center';
-            overlay.style.justifyContent = 'center';
-            document.body.appendChild(overlay);
-
-            const oldPosition = canvasEl.style.position;
-            const oldLeft = canvasEl.style.left;
-            const oldTop = canvasEl.style.top;
-            const oldMargin = canvasEl.style.margin;
-            const oldZIndex = canvasEl.style.zIndex;
-            const oldBg = canvasEl.style.backgroundColor;
-            const oldTransform = canvasEl.style.transform;
-            const oldTransition = canvasEl.style.transition;
-
-            canvasEl.style.position = 'fixed';
-            canvasEl.style.left = '0px';
-            canvasEl.style.top = '0px';
-            canvasEl.style.margin = '0px';
-            canvasEl.style.zIndex = '9999998';
-            canvasEl.style.setProperty('background-color', 'transparent', 'important');
-            canvasEl.style.transform = 'none';
-            canvasEl.style.transition = 'none';
-
-            try {
-                let reqScaleX = targetW / currentW;
-                let reqScaleY = targetH / currentH;
-                let supersamplingScale = Math.max(outputScale, (window.devicePixelRatio || 3), reqScaleX, reqScaleY);
-                const MAX_DIM = 5000;
-                if (currentW * supersamplingScale > MAX_DIM) supersamplingScale = MAX_DIM / currentW;
-                if (currentH * supersamplingScale > MAX_DIM) supersamplingScale = MAX_DIM / currentH;
-                if ((currentW * currentH * supersamplingScale * supersamplingScale) > 16000000) supersamplingScale = Math.sqrt(16000000 / (currentW * currentH));
-                supersamplingScale = Math.floor(supersamplingScale * 10) / 10;
-
-                await compositeContentLayersInZOrder({
-                    targetCtx: ctx,
-                    canvasEl,
-                    targetW,
-                    targetH,
-                    outputScale,
-                    currentW,
-                    currentH,
-                    supersamplingScale,
-                    isTransparent: !!isBatchTransparent,
-                    bgColor: null,
-                    isTemplateMode: false
-                });
-            } catch (e) {
-                console.error("Non-template Batch Composite Render Error:", e);
-            }
-
-            canvasEl.style.position = oldPosition;
-            canvasEl.style.left = oldLeft;
-            canvasEl.style.top = oldTop;
-            canvasEl.style.margin = oldMargin;
-            canvasEl.style.zIndex = oldZIndex;
-            if(oldBg) { canvasEl.style.setProperty('background-color', oldBg, 'important'); } else { canvasEl.style.removeProperty('background-color'); }
-            canvasEl.style.transform = oldTransform;
-            canvasEl.style.transition = oldTransition;
-            document.body.removeChild(overlay);
-            resizeCanvas();
-
-            // --- UI RESTORE ---
-            document.querySelectorAll('.photo-panel, #photo-layer').forEach(p => { if (typeof _applyPhotoTransform === 'function') _applyPhotoTransform(p); });
-        }
-
-        // DEMO FILIGRAN / WATERMARK
-        if (typeof window.addWatermark === 'function') {
-            await window.addWatermark(finalCanvas);
-        }
-
-        // INDIRME
-        const a = document.createElement('a');
-        const fmtSafe = formatName.replace(/[^a-z0-9]/gi, '-').toLowerCase();
-        let bMime = 'image/png';
-        let bQuality = undefined;
-
-        if (rawBatchFileType === 'jpg') {
-            bMime = 'image/jpeg';
-            bQuality = 0.98;
-            a.download = batchName + '-' + fmtSafe + '-' + targetW + 'x' + targetH + '.jpg';
-        } else if (rawBatchFileType === 'png_transparent') {
-            bMime = 'image/png';
-            a.download = batchName + '-' + fmtSafe + '-' + targetW + 'x' + targetH + '-seffaf.png';
-        } else {
-            bMime = 'image/png';
-            a.download = batchName + '-' + fmtSafe + '-' + targetW + 'x' + targetH + '.png';
-        }
-
-        if (typeof finalCanvas.toBlob === 'function') {
-            const blob = await new Promise(resolve => finalCanvas.toBlob(resolve, bMime, bQuality));
-            if (blob) {
-                const bUrl = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                const bUrl = URL.createObjectURL(res.blob);
+                a.download = outFileName;
                 a.href = bUrl;
                 document.body.appendChild(a);
                 a.click();
                 setTimeout(() => {
-                    URL.revokeObjectURL(bUrl);
+                    try { URL.revokeObjectURL(bUrl); } catch(_) {}
                     if (a.parentNode) a.parentNode.removeChild(a);
-                }, 1200);
+                }, 4000);
+                await new Promise(r => setTimeout(r, 380));
             }
-        } else {
-            a.href = finalCanvas.toDataURL(bMime, bQuality);
+            exportedCount++;
+        }
+
+        if (mode === 'zip' && zip && exportedCount > 0) {
+            if (batchStatusEl) batchStatusEl.textContent = 'ZIP arşivi hazırlanıyor...';
+            const content = await zip.generateAsync({
+                type: 'blob',
+                compression: 'DEFLATE',
+                compressionOptions: { level: 6 }
+            });
+            const a = document.createElement('a');
+            const zipUrl = URL.createObjectURL(content);
+            a.href = zipUrl;
+            a.download = `EmlakStudyom_Toplu_Cikti_${Date.now()}.zip`;
             document.body.appendChild(a);
             a.click();
-            document.body.removeChild(a);
+            setTimeout(() => {
+                try { URL.revokeObjectURL(zipUrl); } catch(_) {}
+                if (a.parentNode) a.parentNode.removeChild(a);
+            }, 60000);
         }
-        
-        if (typeof cleanupBatchFrames === 'function') {
-            try { cleanupBatchFrames(); } catch(_) {}
-            cleanupBatchFrames = null;
+
+        if (batchStatusEl) batchStatusEl.textContent = 'Tamamlandı';
+        if (batchPercentEl) batchPercentEl.textContent = '100%';
+        if (batchBarEl) batchBarEl.style.width = '100%';
+
+        if (typeof window.showAppToast === 'function' && exportedCount > 0) {
+            const msg = (mode === 'folder')
+                ? `${exportedCount} adet görsel seçilen klasöre kaydedildi.`
+                : ((mode === 'zip')
+                    ? `${exportedCount} adet görsel ZIP arşivi olarak indirildi.`
+                    : `${exportedCount} adet görsel başarıyla indirildi.`);
+            window.showAppToast(msg, 'success', 3000);
         }
-        // Memory leak temizligi
-        finalCanvas = null;
-        ctx = null;
-        masterImgObj = null;
-    } // for loop end
+    } catch (err) {
+        console.error('Toplu Çıktı Hatası:', err);
+        if (batchStatusEl) batchStatusEl.textContent = 'Hata oluştu';
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                icon: 'error',
+                title: 'Toplu Çıktı Hatası',
+                text: 'İşlem sırasında bir hata oluştu: ' + (err && err.message ? err.message : err),
+                confirmButtonText: 'Tamam',
+                confirmButtonColor: '#0284c7'
+            });
+        } else if (typeof window.showAppToast === 'function') {
+            window.showAppToast('Toplu çıktı hatası: ' + (err && err.message ? err.message : err), 'error', 4000);
+        } else {
+            alert('Toplu çıktı hatası: ' + (err && err.message ? err.message : err));
+        }
     } finally {
+        if (origOriginalFormatSpec && typeof EXPORT_FORMATS !== 'undefined' && EXPORT_FORMATS['Orijinal Görsel Boyutu']) {
+            EXPORT_FORMATS['Orijinal Görsel Boyutu'].w = origOriginalFormatSpec.w;
+            EXPORT_FORMATS['Orijinal Görsel Boyutu'].h = origOriginalFormatSpec.h;
+        }
+        if (layoutSnapshot && window.FormatLayoutAdapter && typeof window.FormatLayoutAdapter.restoreWorkspaceLayout === 'function') {
+            try { window.FormatLayoutAdapter.restoreWorkspaceLayout(layoutSnapshot); } catch(_) {}
+        }
+        if (expFmtEl && expFmtEl.value !== originalExportFormat) expFmtEl.value = originalExportFormat;
+        if (prevFmtEl && prevFmtEl.value !== originalPreviewFormat) {
+            prevFmtEl.value = originalPreviewFormat;
+            if (typeof switchPreviewFormat === 'function') {
+                try { switchPreviewFormat(); } catch(_) {}
+            }
+        }
         if (origUploadedImgUrl) {
             if (typeof uploadedImgUrl !== 'undefined') uploadedImgUrl = origUploadedImgUrl;
             window.uploadedImgUrl = origUploadedImgUrl;
+            if (typeof uploadedImgW !== 'undefined') uploadedImgW = origUploadedImgW;
+            window.uploadedImgW = origUploadedImgW;
+            if (typeof uploadedImgH !== 'undefined') uploadedImgH = origUploadedImgH;
+            window.uploadedImgH = origUploadedImgH;
+            window._globalNativeImg = origGlobalNativeImg;
+            window._globalNativeImgSrc = origUploadedImgUrl;
+            window._photoFilterDirty = true;
+
             const pLayer = document.getElementById('photo-layer');
             if (pLayer) {
-                pLayer.style.backgroundImage = "url('" + origUploadedImgUrl + "')";
-                if (typeof _applyPhotoTransform === 'function') _applyPhotoTransform(pLayer);
+                pLayer.dataset.naturalW = origUploadedImgW;
+                pLayer.dataset.naturalH = origUploadedImgH;
             }
+            document.querySelectorAll('.photo-panel, #photo-layer').forEach(p => {
+                if (origGlobalNativeImg) p._nativeImg = origGlobalNativeImg;
+                p._nativeImgSrc = origUploadedImgUrl;
+                p.dataset.savedBg = "url('" + origUploadedImgUrl + "')";
+                delete p._cachedGlCanvas;
+                const inner = p.querySelector('.photo-inner-zoom');
+                if (inner) inner.style.backgroundImage = "url('" + origUploadedImgUrl + "')";
+                p.style.backgroundImage = 'none';
+                if (typeof _applyPhotoTransform === 'function') _applyPhotoTransform(p);
+            });
             if (typeof trackImageSize === 'function') trackImageSize(origUploadedImgUrl);
         }
         if (preBatchAdjustments && typeof window.restorePhotoAdjustments === 'function') {
             window.restorePhotoAdjustments(preBatchAdjustments);
             if (typeof applyPhotoFilters === 'function') applyPhotoFilters();
         }
+        if (typeof isCanvaMode !== 'undefined' && isCanvaMode && typeof refreshActiveCanvaTemplate === 'function') {
+            try { refreshActiveCanvaTemplate(); } catch(_) {}
+        }
 
+        window._isSubExportRunning = false;
+        window._suppressFormatLoading = prevSuppressLoading;
+        window.isExportingNow = false;
         window.isExportingTransparent = false;
-        drawCanvas.style.zIndex = wz;
-        drawCanvas.style.pointerEvents = wp;
-        
+        if (typeof drawCanvas !== 'undefined' && drawCanvas) {
+            drawCanvas.style.zIndex = wz;
+            drawCanvas.style.pointerEvents = wp;
+        }
         document.body.classList.remove('is-exporting');
         if (typeof _wasTplHiddenBatch !== 'undefined' && _wasTplHiddenBatch && typeof window.toggleTemplateVisibility === 'function') {
             window.toggleTemplateVisibility(true);
         }
-        if (batchProgress) batchProgress.style.display = 'none';
-    }
-
-    batchProgress.style.display='none';
-    batchStatus.textContent='Tamamlandı';
-    batchPercent.textContent='100%';
-    batchBar.style.width='100%';
-
-    if (typeof Swal !== 'undefined') {
-        Swal.fire({
-            icon: 'success',
-            title: 'Toplu İndirme Tamamlandı',
-            text: `${activeBatchFiles.length - startIndex} adet fotoğraf başarıyla işlendi ve indirildi.`,
-            background: '#1e293b',
-            color: '#fff',
-            timer: 2500
-        });
+        if (batchProgressEl) batchProgressEl.style.display = 'none';
     }
 }
 
 function readFileUrl(f){
     if (typeof f === 'string') return Promise.resolve(f);
-    if (f && f.dataUrl) return Promise.resolve(f.dataUrl);
-    return new Promise(r=>{
-        const fr=new FileReader();
-        fr.onload=e=>r(e.target.result);
-        fr.readAsDataURL(f);
-    });
+    const directUrl = f && (
+        f.dataUrl || f.rawOriginalDataUrl || f.originalDataUrl || f.src ||
+        (f.item && (f.item.rawOriginalDataUrl || f.item.originalDataUrl || f.item.dataUrl || f.item.src))
+    );
+    if (directUrl) return Promise.resolve(directUrl);
+    if (typeof Blob !== 'undefined' && f instanceof Blob) {
+        return new Promise((resolve, reject) => {
+            const fr = new FileReader();
+            fr.onload = e => resolve(e.target.result);
+            fr.onerror = () => reject(new Error('Görsel dosyası okunamadı.'));
+            fr.readAsDataURL(f);
+        });
+    }
+    return Promise.reject(new Error('Görsel verisi bulunamadı.'));
 }
 
 // ====================================================================
@@ -2876,9 +3025,16 @@ window.interactiveBatchState = {
 async function startInteractiveBatchExport() {
     let allFiles = (typeof batchFiles !== 'undefined' && batchFiles && batchFiles.length) ? batchFiles : (window.batchFiles || []);
     if ((!allFiles || !allFiles.length) && window.PhotoStagingArchive && window.PhotoStagingArchive.items && window.PhotoStagingArchive.items.length > 0) {
-        allFiles = window.PhotoStagingArchive.items.map((it, idx) => ({
+        const selectedPool = (typeof window.PhotoStagingArchive.getSelectedItems === 'function')
+            ? window.PhotoStagingArchive.getSelectedItems()
+            : [];
+        const sourcePool = (selectedPool && selectedPool.length > 0) ? selectedPool : window.PhotoStagingArchive.items;
+        allFiles = sourcePool.map((it, idx) => ({
             name: (it.title || ('foto_' + (idx + 1))) + '.png',
-            dataUrl: it.dataUrl
+            dataUrl: it.rawOriginalDataUrl || it.originalDataUrl || it.dataUrl || it.src,
+            photoAdjustments: it.photoAdjustments || null,
+            aiIntensity: it.aiIntensity !== undefined ? it.aiIntensity : 0,
+            item: it
         }));
     } else if ((!allFiles || !allFiles.length) && document.getElementById('batchInput') && document.getElementById('batchInput').files.length > 0) {
         allFiles = Array.from(document.getElementById('batchInput').files).filter(f => !window.validateImageUpload || window.validateImageUpload(f));
@@ -2993,7 +3149,7 @@ function updateInteractiveBatchHudContent() {
 
     hud.innerHTML = `
         <div style="display: flex; align-items: center; gap: 10px;">
-            <div style="background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; font-weight: 800; font-size: 13px; padding: 4px 10px; border-radius: 20px; display: flex; align-items: center; gap: 6px; white-space: nowrap;">
+            <div style="background: linear-gradient(135deg, #0284c7 0%, #38bdf8 100%); color: white; font-weight: 800; font-size: 13px; padding: 4px 10px; border-radius: 20px; display: flex; align-items: center; gap: 6px; white-space: nowrap;">
                 <i class="fa-solid fa-layer-group"></i> <span>${currentNum} / ${total}</span>
             </div>
             <div style="max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
@@ -3009,7 +3165,7 @@ function updateInteractiveBatchHudContent() {
             <button type="button" class="hud-btn-skip" onclick="interactiveBatchNext(false)" style="background: #334155; color: #cbd5e1; border: 1px solid #475569; font-weight: 600; font-size: 12px; padding: 7px 11px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 5px;">
                 <i class="fa-solid fa-forward-step"></i> Resmi Atla
             </button>
-            <button type="button" class="hud-btn-auto" onclick="interactiveBatchAutoRemaining()" style="background: linear-gradient(135deg, #3b82f6, #6366f1); color: white; border: none; font-weight: 600; font-size: 12px; padding: 7px 12px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 5px;">
+            <button type="button" class="hud-btn-auto" onclick="interactiveBatchAutoRemaining()" style="background: linear-gradient(135deg, #0284c7 0%, #38bdf8 100%); color: white; border: none; font-weight: 600; font-size: 12px; padding: 7px 12px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 5px;">
                 <i class="fa-solid fa-bolt"></i> Kalanları İndir
             </button>
             <button type="button" class="hud-btn-cancel" onclick="cancelInteractiveBatch(true)" style="background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); font-size: 12px; padding: 7px 10px; border-radius: 6px; cursor: pointer;" title="İptal Et">
@@ -3043,15 +3199,8 @@ async function loadInteractiveBatchStep(index) {
     if (!state || !state.active) return;
 
     if (index >= state.files.length) {
-        if (typeof Swal !== 'undefined') {
-            Swal.fire({
-                icon: 'success',
-                title: 'Toplu Düzenleme Tamamlandı',
-                text: `${state.files.length} adet fotoğraf başarıyla işlendi.`,
-                background: '#1e293b',
-                color: '#fff',
-                confirmButtonColor: '#6366f1'
-            });
+        if (typeof window.showAppToast === 'function') {
+            window.showAppToast(`${state.files.length} adet fotoğraf işlendi.`, 'success', 2800);
         }
         await cancelInteractiveBatch(false);
         return;

@@ -1020,7 +1020,7 @@ window.syncQuickDetailsAccordion = function(el) {
             </div>
             <div class="input-group" style="margin-bottom:8px;">
                 <label style="font-size:10.5px; font-weight:700;">Metin İçeriği</label>
-                <textarea id="quickEditTextContent" rows="3" style="width:100%; min-height:60px; padding:8px 10px; border-radius:6px; font-size:12.5px; line-height:1.4; resize:vertical; background:var(--dark-2, #0f172a); color:#fff; border:1px solid #334155;" placeholder="Metin yazın..." oninput="window.applyQuickTextContent(this.value)">${currentText}</textarea>
+                <textarea id="quickEditTextContent" rows="3" style="width:100%; min-height:60px; padding:8px 10px; border-radius:6px; font-size:12.5px; line-height:1.4; resize:vertical; background:var(--dark-3, #ffffff); color:var(--text, #0f172a); border:1px solid var(--border, #cbd5e1);" placeholder="Metin yazın..." oninput="window.applyQuickTextContent(this.value)">${currentText}</textarea>
             </div>
         `;
     }

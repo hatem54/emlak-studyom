@@ -65,9 +65,9 @@
 
             // Kullanıcı daha önce bir oran seçmediyse varsayılan 16:9 yap, seçtiyse o oranı koru
             if (!this.currentRatio) {
-                this.setCanvasRatio('16:9');
+                this.setCanvasRatio('16:9', null, null, { skipAdapt: true });
             } else {
-                this.setCanvasRatio(this.currentRatio);
+                this.setCanvasRatio(this.currentRatio, this.customW, this.customH, { skipAdapt: true });
             }
 
             // Varsayılan tuval arka planı BEYAZ kalsın; sadece kullanıcı paletten veya seçiciden tıklarsa değişsin
@@ -144,13 +144,239 @@
             });
         },
 
+        isRatioLocked: false,
+        lockedAspect: 16 / 9,
+        autoAdaptContent: true,
+        customW: 1920,
+        customH: 1080,
+
+        /**
+         * En-Boy oran kilidini aç/kapat
+         */
+        toggleRatioLock: function() {
+            this.isRatioLocked = !this.isRatioLocked;
+            const wEl = document.getElementById('tbCustomW');
+            const hEl = document.getElementById('tbCustomH');
+            const curW = (wEl && parseInt(wEl.value, 10)) || window.uploadedImgW || 1920;
+            const curH = (hEl && parseInt(hEl.value, 10)) || window.uploadedImgH || 1080;
+            if (curW > 0 && curH > 0) {
+                this.lockedAspect = curW / curH;
+            }
+
+            const btn = document.getElementById('tbRatioLockBtn');
+            if (btn) {
+                btn.classList.toggle('active', this.isRatioLocked);
+                btn.innerHTML = this.isRatioLocked
+                    ? '<i class="fa-solid fa-link"></i>'
+                    : '<i class="fa-solid fa-link-slash"></i>';
+            }
+        },
+
+        /**
+         * Oran kilidi açıkken bir kutu değişince diğer kutuyu orantılı hesaplar
+         */
+        onCustomDimInput: function(changedAxis) {
+            if (!this.isRatioLocked || !this.lockedAspect) return;
+            const wEl = document.getElementById('tbCustomW');
+            const hEl = document.getElementById('tbCustomH');
+            if (!wEl || !hEl) return;
+
+            if (changedAxis === 'w') {
+                const wVal = parseInt(wEl.value, 10);
+                if (Number.isFinite(wVal) && wVal > 0) {
+                    const nextH = Math.min(4096, Math.max(320, Math.round(wVal / this.lockedAspect)));
+                    hEl.value = nextH;
+                }
+            } else if (changedAxis === 'h') {
+                const hVal = parseInt(hEl.value, 10);
+                if (Number.isFinite(hVal) && hVal > 0) {
+                    const nextW = Math.min(4096, Math.max(320, Math.round(hVal * this.lockedAspect)));
+                    wEl.value = nextW;
+                }
+            }
+        },
+
+        /**
+         * Genişlik ve yüksekliği yer değiştir (Yatay <-> Dikey)
+         */
+        swapCanvasDimensions: function() {
+            const wEl = document.getElementById('tbCustomW');
+            const hEl = document.getElementById('tbCustomH');
+            const curW = Math.min(4096, Math.max(320, parseInt(wEl?.value, 10) || window.uploadedImgW || 1920));
+            const curH = Math.min(4096, Math.max(320, parseInt(hEl?.value, 10) || window.uploadedImgH || 1080));
+            if (this.isRatioLocked && curH > 0) {
+                this.lockedAspect = curH / curW;
+            }
+            const nextKey = (curH === 1920 && curW === 1080) ? '16:9'
+                          : (curH === 1080 && curW === 1920) ? '9:16'
+                          : (curH === 1080 && curW === 1080) ? '1:1'
+                          : 'custom';
+            this.setCanvasRatio(nextKey, curH, curW);
+        },
+
+        /**
+         * Hazır emlak/baskı ölçüsü seçilince uygula
+         */
+        applyPresetSize: function(sizeStr) {
+            if (!sizeStr || !sizeStr.includes('x')) return;
+            const [wStr, hStr] = sizeStr.split('x');
+            const w = parseInt(wStr, 10);
+            const h = parseInt(hStr, 10);
+            if (!w || !h) return;
+            if (this.isRatioLocked) {
+                this.lockedAspect = w / h;
+            }
+            const key = (w === 1920 && h === 1080) ? '16:9'
+                      : (w === 1080 && h === 1920) ? '9:16'
+                      : (w === 1080 && h === 1080) ? '1:1'
+                      : (w === 1080 && h === 1350) ? '4:5'
+                      : 'custom';
+            this.setCanvasRatio(key, w, h);
+        },
+
+        /**
+         * Tuval ölçüsü değişince içeriği orantılı sığdırma seçeneğini aç/kapat
+         */
+        toggleAutoAdaptContent: function() {
+            this.autoAdaptContent = !this.autoAdaptContent;
+            const btn = document.getElementById('tbAutoAdaptBtn');
+            if (btn) {
+                btn.classList.toggle('active', this.autoAdaptContent);
+            }
+        },
+
+        /**
+         * Tuval boyutu değiştiğinde mevcut çerçeve, yazı, rozet, ikon ve çizimleri yeni ölçüye uyarlar
+         */
+        adaptCanvasContent: function(oldW, oldH, newW, newH) {
+            if (!oldW || !oldH || !newW || !newH || (oldW === newW && oldH === newH)) return;
+            const s = Math.min(newW / oldW, newH / oldH);
+            const dx = (newW - oldW * s) / 2;
+            const dy = (newH - oldH * s) / 2;
+
+            // 1. Şablon Oluşturucu Çerçeveleri (.tb-image-frame)
+            document.querySelectorAll('.tb-image-frame').forEach(frame => {
+                const l = parseFloat(frame.style.left) || 0;
+                const t = parseFloat(frame.style.top) || 0;
+                const w = parseFloat(frame.style.width) || frame.offsetWidth || 300;
+                const h = parseFloat(frame.style.height) || frame.offsetHeight || 200;
+                frame.style.left = Math.round(l * s + dx) + 'px';
+                frame.style.top = Math.round(t * s + dy) + 'px';
+                frame.style.width = Math.max(40, Math.round(w * s)) + 'px';
+                frame.style.height = Math.max(40, Math.round(h * s)) + 'px';
+            });
+
+            // 2. Callout, Şekil, Metin, İkon, Rozet, QR ve Bilgi Kartı
+            const selectors = '#canvas-container > .draggable, #canvas-container > .callout-wrap, #canvas-container > .co-neon-block, #canvas-container > .shape-el, #canvas-container > .custom-graphic-badge, #ui-layer > .draggable, #ui-layer > .canvas-el, #ui-layer > .added-icon, #tb-active-info-card';
+            const seen = new Set();
+            document.querySelectorAll(selectors).forEach(el => {
+                if (seen.has(el)) return;
+                seen.add(el);
+                if (el.classList.contains('normal-el') || el.classList.contains('canva-generated') || el.classList.contains('canva-panel') || el.classList.contains('tb-image-frame') || el.classList.contains('editable-draw')) return;
+
+                const isWrap = el.classList.contains('callout-wrap') || el.classList.contains('co-neon-block') || el.classList.contains('svg-callout');
+                const oldL = parseFloat(el.style.left);
+                const oldT = parseFloat(el.style.top);
+
+                if (!isNaN(oldL) && !isNaN(oldT)) {
+                    if (isWrap) {
+                        const w = parseFloat(el.style.width) || el.offsetWidth || 0;
+                        const h = parseFloat(el.style.height) || el.offsetHeight || 0;
+                        const cxNew = (oldL + w / 2) * s + dx;
+                        const cyNew = (oldT + h / 2) * s + dy;
+                        el.style.left = Math.round(cxNew - w / 2) + 'px';
+                        el.style.top = Math.round(cyNew - h / 2) + 'px';
+                        const curScale = parseFloat(el.dataset.scale) || 1;
+                        const nextScale = curScale * s;
+                        el.dataset.scale = nextScale;
+                        const rot = parseFloat(el.dataset.rotation) || 0;
+                        el.style.transform = `rotate(${rot}deg) scale(${nextScale})`;
+                    } else {
+                        el.style.left = Math.round(oldL * s + dx) + 'px';
+                        el.style.top = Math.round(oldT * s + dy) + 'px';
+                        if (el.style.width && el.style.width.endsWith('px')) {
+                            el.style.width = Math.max(16, Math.round(parseFloat(el.style.width) * s)) + 'px';
+                        }
+                        if (el.style.height && el.style.height.endsWith('px') && el.style.height !== 'auto') {
+                            el.style.height = Math.max(16, Math.round(parseFloat(el.style.height) * s)) + 'px';
+                        }
+                        if (el.style.fontSize && el.style.fontSize.endsWith('px')) {
+                            el.style.fontSize = Math.max(8, Math.round(parseFloat(el.style.fontSize) * s)) + 'px';
+                        }
+                    }
+                }
+            });
+
+            // 3. Serbest Çizimler (drawPaths)
+            if (typeof drawPaths !== 'undefined' && Array.isArray(drawPaths) && drawPaths.length > 0) {
+                drawPaths.forEach(p => {
+                    if (p.points && Array.isArray(p.points)) {
+                        p.points.forEach(pt => {
+                            pt.x = pt.x * s + dx;
+                            pt.y = pt.y * s + dy;
+                            if (pt.cpIn) { pt.cpIn.x = pt.cpIn.x * s + dx; pt.cpIn.y = pt.cpIn.y * s + dy; }
+                            if (pt.cpOut) { pt.cpOut.x = pt.cpOut.x * s + dx; pt.cpOut.y = pt.cpOut.y * s + dy; }
+                        });
+                    }
+                    if (typeof p.x1 !== 'undefined') {
+                        p.x1 = p.x1 * s + dx; p.y1 = p.y1 * s + dy;
+                        p.x2 = p.x2 * s + dx; p.y2 = p.y2 * s + dy;
+                    }
+                    if (p.width) p.width = Math.max(1, Math.round(p.width * s));
+                });
+            }
+
+            // 4. Seçim kutusu tutamaçlarını güncelle
+            if (typeof window.hideVertexHandles === 'function') window.hideVertexHandles();
+        },
+
+        /**
+         * Özel ölçü giriş kutularını doğrular, tek taraf boşsa varsayılanı (1920 / 1080) kullanır ve uygular
+         */
+        applyCustomSize: function() {
+            const wEl = document.getElementById('tbCustomW');
+            const hEl = document.getElementById('tbCustomH');
+            const rawW = wEl ? String(wEl.value || '').trim() : '';
+            const rawH = hEl ? String(hEl.value || '').trim() : '';
+
+            if (!rawW && !rawH) {
+                if (typeof window.showAppToast === 'function') {
+                    window.showAppToast('Lütfen en az bir ölçü (genişlik veya yükseklik) girin.', 'info', 2500);
+                }
+                return;
+            }
+
+            const wVal = rawW ? parseInt(rawW, 10) : 1920;
+            const hVal = rawH ? parseInt(rawH, 10) : 1080;
+            this.setCanvasRatio('custom', wVal, hVal);
+        },
+
+        /**
+         * Tuval boyutunu varsayılan 16:9 (1920 x 1080) ölçüsüne sıfırlar
+         */
+        resetCanvasSize: function() {
+            const presetSel = document.getElementById('tbEmlakPresetSelect');
+            if (presetSel) presetSel.value = '';
+            if (this.isRatioLocked) {
+                this.lockedAspect = 16 / 9;
+            }
+            this.setCanvasRatio('16:9');
+        },
+
         /**
          * 1. AŞAMA: Tuval En-Boy Oranı & Boyutu Ayarla
          */
-        setCanvasRatio: function(ratioKey, customW, customH) {
+        setCanvasRatio: function(ratioKey, customW, customH, opts) {
+            const cContainerPrev = document.getElementById('canvas-container');
+            const oldW = (cContainerPrev && parseInt(cContainerPrev.style.width, 10)) || window.uploadedImgW || 1920;
+            const oldH = (cContainerPrev && parseInt(cContainerPrev.style.height, 10)) || window.uploadedImgH || 1080;
+
+            const MIN_DIM = 320;
+            const MAX_DIM = 4096;
             let targetW = 1920;
             let targetH = 1080;
             let formatName = '16:9 Full HD (YouTube/Banner)';
+            let wasClamped = false;
 
             if (ratioKey === '1:1') {
                 targetW = 1080; targetH = 1080;
@@ -164,10 +390,40 @@
             } else if (ratioKey === '16:9') {
                 targetW = 1920; targetH = 1080;
                 formatName = '16:9 Full HD (YouTube/Banner)';
-            } else if (ratioKey === 'custom' && customW && customH) {
-                targetW = parseInt(customW) || 1920;
-                targetH = parseInt(customH) || 1080;
+            } else if (ratioKey === 'custom') {
+                const parsedW = parseInt(customW, 10);
+                const parsedH = parseInt(customH, 10);
+                const rawW = (Number.isFinite(parsedW) && parsedW > 0) ? parsedW : 1920;
+                const rawH = (Number.isFinite(parsedH) && parsedH > 0) ? parsedH : 1080;
+
+                targetW = Math.min(MAX_DIM, Math.max(MIN_DIM, rawW));
+                targetH = Math.min(MAX_DIM, Math.max(MIN_DIM, rawH));
+                wasClamped = (targetW !== rawW || targetH !== rawH);
                 formatName = 'Özel Boyut';
+            }
+
+            this.customW = targetW;
+            this.customH = targetH;
+            if (this.isRatioLocked && targetH > 0 && ratioKey !== 'custom') {
+                this.lockedAspect = targetW / targetH;
+            }
+
+            // Girdi kutularını güncel/güvenli değerle senkronize et
+            const customWEl = document.getElementById('tbCustomW');
+            const customHEl = document.getElementById('tbCustomH');
+            if (customWEl) customWEl.value = targetW;
+            if (customHEl) customHEl.value = targetH;
+
+            // Hazır emlak dropdown senkronizasyonu
+            const presetSel = document.getElementById('tbEmlakPresetSelect');
+            if (presetSel) {
+                const matchVal = `${targetW}x${targetH}`;
+                const hasOpt = Array.from(presetSel.options).some(o => o.value === matchVal);
+                presetSel.value = hasOpt ? matchVal : '';
+            }
+
+            if (wasClamped && typeof window.showAppToast === 'function') {
+                window.showAppToast(`Ölçü güvenli sınır olan ${MIN_DIM}–${MAX_DIM} px aralığına uyarlandı (${targetW}×${targetH}).`, 'warning', 3000);
             }
 
             this.currentRatio = ratioKey;
@@ -231,8 +487,14 @@
             }
 
             // 6. Varsa aktif bilgi kartını yeni tuval boyutuna uyarla
+            if (this.autoAdaptContent && (!opts || !opts.skipAdapt) && (oldW !== targetW || oldH !== targetH)) {
+                this.adaptCanvasContent(oldW, oldH, targetW, targetH);
+            }
             if (window.TemplateInfoCard && typeof window.TemplateInfoCard.repositionCard === 'function') {
                 window.TemplateInfoCard.repositionCard(targetW, targetH);
+            }
+            if (typeof window.applyPhotoPos === 'function') {
+                window.applyPhotoPos();
             }
 
             // 7. Tuvali önizleme alanına otomatik sığdır
@@ -510,12 +772,16 @@
             frame.dataset.borderColor = opts.borderColor || '#ffffff';
             frame.dataset.shadow = opts.shadow !== undefined ? opts.shadow : (opts.blend ? 0 : 12);
             frame.dataset.blendMode = opts.blend || 'none';
+            frame.dataset.blendAmount = opts.blendAmount !== undefined ? opts.blendAmount : 55;
+            frame.dataset.opacity = opts.opacity !== undefined ? opts.opacity : 100;
             frame.dataset.shape = opts.shape || 'none';
             frame.dataset.rotation = opts.rotation || 0;
             frame.dataset.effect = opts.effect || 'none';
             frame.dataset.imgZoom = opts.imgZoom !== undefined ? opts.imgZoom : 1.0;
             frame.dataset.imgPanX = opts.imgPanX !== undefined ? opts.imgPanX : 0;
             frame.dataset.imgPanY = opts.imgPanY !== undefined ? opts.imgPanY : 0;
+            if (opts.imgFlipX === true || opts.imgFlipX === 'true') frame.dataset.imgFlipX = 'true';
+            if (opts.photoFilters) frame.dataset.photoFilters = opts.photoFilters;
             frame.dataset.pitch = opts.pitch !== undefined ? opts.pitch : 0;
             frame.dataset.yaw = opts.yaw !== undefined ? opts.yaw : 0;
             frame.dataset.elevation = opts.elevation !== undefined ? opts.elevation : 0;
@@ -592,11 +858,11 @@
                 <button type="button" class="tb-floating-btn tb-btn-zoom-out" title="Fotoğrafı Uzaklaştır"><i class="fa-solid fa-magnifying-glass-minus"></i></button>
                 <button type="button" class="tb-floating-btn tb-btn-zoom-in" title="Fotoğrafı Yakınlaştır"><i class="fa-solid fa-magnifying-glass-plus"></i></button>
                 <button type="button" class="tb-floating-btn tb-btn-pan" title="Fotoğrafın Odak Noktasını Kaydır"><i class="fa-solid fa-arrows-up-down-left-right"></i></button>
-                <button type="button" class="tb-floating-btn tb-btn-3d" title="3D Düzlemde Eğ"><i class="fa-solid fa-cube"></i></button>
+                <button type="button" class="tb-floating-btn tb-btn-3d" title="3D Gizmo Aç veya Kapat"><i class="fa-solid fa-cube"></i></button>
                 <button type="button" class="tb-floating-btn tb-btn-reset-pos" title="Çerçeveyi Eski Yerine Sıfırla"><i class="fa-solid fa-rotate-left"></i></button>
-                <button type="button" class="tb-floating-btn tb-btn-swap" draggable="true" title="Görseli Başka Çerçeveye Sürükle veya Değiştir"><i class="fa-solid fa-arrows-rotate"></i></button>
+                <button type="button" class="tb-floating-btn tb-btn-swap" title="Görseli Başka Çerçeveye Aktar veya Yer Değiştir"><i class="fa-solid fa-arrows-rotate"></i></button>
                 <button type="button" class="tb-floating-btn tb-btn-dup" title="Çerçeveyi Çoğalt"><i class="fa-solid fa-clone"></i></button>
-                <button type="button" class="tb-floating-btn tb-btn-del" title="Çerçeveyi Sil" style="background:#dc2626;"><i class="fa-solid fa-trash-can"></i></button>
+                <button type="button" class="tb-floating-btn tb-btn-del" title="Çerçeveyi Sil"><i class="fa-solid fa-trash-can"></i></button>
             `;
             tools.addEventListener('mousedown', (e) => e.stopPropagation());
             tools.addEventListener('pointerdown', (e) => e.stopPropagation());
@@ -619,8 +885,8 @@
                 window.renderLayers();
             }
 
-            // Otomatik seç
-            this.selectFrame(frame);
+            // Otomatik seç (ilk eklemede yan paneli aşağı kaydırma)
+            this.selectFrame(frame, { skipScroll: true });
             frame._readyForImageClick = false;
 
             if (opts.imgUrl) {
@@ -704,11 +970,11 @@
                 <button type="button" class="tb-floating-btn tb-btn-zoom-out" title="Fotoğrafı Uzaklaştır"><i class="fa-solid fa-magnifying-glass-minus"></i></button>
                 <button type="button" class="tb-floating-btn tb-btn-zoom-in" title="Fotoğrafı Yakınlaştır"><i class="fa-solid fa-magnifying-glass-plus"></i></button>
                 <button type="button" class="tb-floating-btn tb-btn-pan" title="Fotoğrafın Odak Noktasını Kaydır"><i class="fa-solid fa-arrows-up-down-left-right"></i></button>
-                <button type="button" class="tb-floating-btn tb-btn-3d" title="3D Düzlemde Eğ"><i class="fa-solid fa-cube"></i></button>
+                <button type="button" class="tb-floating-btn tb-btn-3d" title="3D Gizmo Aç veya Kapat"><i class="fa-solid fa-cube"></i></button>
                 <button type="button" class="tb-floating-btn tb-btn-reset-pos" title="Çerçeveyi Eski Yerine Sıfırla"><i class="fa-solid fa-rotate-left"></i></button>
-                <button type="button" class="tb-floating-btn tb-btn-swap" draggable="true" title="Görseli Başka Çerçeveye Sürükle veya Değiştir"><i class="fa-solid fa-arrows-rotate"></i></button>
+                <button type="button" class="tb-floating-btn tb-btn-swap" title="Görseli Başka Çerçeveye Aktar veya Yer Değiştir"><i class="fa-solid fa-arrows-rotate"></i></button>
                 <button type="button" class="tb-floating-btn tb-btn-dup" title="Çerçeveyi Çoğalt"><i class="fa-solid fa-clone"></i></button>
-                <button type="button" class="tb-floating-btn tb-btn-del" title="Çerçeveyi Sil" style="background:#dc2626;"><i class="fa-solid fa-trash-can"></i></button>
+                <button type="button" class="tb-floating-btn tb-btn-del" title="Çerçeveyi Sil"><i class="fa-solid fa-trash-can"></i></button>
             `;
             tools.addEventListener('mousedown', (e) => e.stopPropagation());
             tools.addEventListener('pointerdown', (e) => e.stopPropagation());
@@ -730,7 +996,7 @@
             }
 
             if (data.isSelected) {
-                this.selectFrame(frame);
+                this.selectFrame(frame, { skipScroll: true });
             }
             frame._readyForImageClick = false;
 
@@ -798,9 +1064,18 @@
             const fTop = parseFloat(frame.style.top) || frame.offsetTop || 0;
             frame.classList.toggle('tools-below', fTop < 42);
 
+            // Çerçeve genel opaklığını uygula (10..100%)
+            const opPct = frame.dataset.opacity !== undefined ? parseFloat(frame.dataset.opacity) : 100;
+            const safeOp = Number.isFinite(opPct) ? Math.max(0.1, Math.min(1, opPct / 100)) : 1;
+            frame.style.opacity = String(safeOp);
+
             // Önceki maske ve efekt sınıflarını temizle
-            clip.classList.remove('fade-bottom', 'fade-right', 'fade-left');
-            inner.classList.remove('fade-bottom', 'fade-right', 'fade-left');
+            clip.classList.remove('fade-bottom', 'fade-top', 'fade-right', 'fade-left', 'fade-radial');
+            inner.classList.remove('fade-bottom', 'fade-top', 'fade-right', 'fade-left', 'fade-radial');
+            inner.style.removeProperty('mask-image');
+            inner.style.removeProperty('-webkit-mask-image');
+            clip.style.removeProperty('mask-image');
+            clip.style.removeProperty('-webkit-mask-image');
             clip.className = clip.className.replace(/\bshape-[a-z0-9-]+\b/g, '').trim();
 
             const hasShape = shape && shape !== 'none';
@@ -924,9 +1199,28 @@
 
             // 3. Pürüzsüz Degrade Geçiş Maskesi Uygula (Fade to Background)
             if (hasBlend) {
-                inner.classList.add('fade-' + blend);
-                if (!hasShape) {
-                    clip.classList.add('fade-' + blend);
+                const rawAmount = parseFloat(frame.dataset.blendAmount);
+                const blendPct = Number.isFinite(rawAmount) ? Math.max(10, Math.min(95, rawAmount)) : 55;
+                const solidStop = Math.max(0, 100 - blendPct);
+                let maskGrad = '';
+                if (blend === 'bottom') {
+                    maskGrad = `linear-gradient(to bottom, rgba(0,0,0,1) ${solidStop}%, rgba(0,0,0,0) 100%)`;
+                } else if (blend === 'top') {
+                    maskGrad = `linear-gradient(to top, rgba(0,0,0,1) ${solidStop}%, rgba(0,0,0,0) 100%)`;
+                } else if (blend === 'right') {
+                    maskGrad = `linear-gradient(to right, rgba(0,0,0,1) ${solidStop}%, rgba(0,0,0,0) 100%)`;
+                } else if (blend === 'left') {
+                    maskGrad = `linear-gradient(to left, rgba(0,0,0,1) ${solidStop}%, rgba(0,0,0,0) 100%)`;
+                } else if (blend === 'radial') {
+                    maskGrad = `radial-gradient(ellipse at center, rgba(0,0,0,1) ${solidStop}%, rgba(0,0,0,0) 100%)`;
+                }
+                if (maskGrad) {
+                    inner.style.setProperty('mask-image', maskGrad, 'important');
+                    inner.style.setProperty('-webkit-mask-image', maskGrad, 'important');
+                    if (!hasShape && !isPolygon) {
+                        clip.style.setProperty('mask-image', maskGrad, 'important');
+                        clip.style.setProperty('-webkit-mask-image', maskGrad, 'important');
+                    }
                 }
             }
 
@@ -1090,11 +1384,20 @@
             const placeholder = frame.querySelector('.tb-frame-placeholder');
             const fileInput = frame.querySelector('.tb-frame-file-input');
 
-            // 0. Çift Tıklama ile Fotoğraf Pan / Odak Modunu Aç
+            // 0. Çift Tıklama: Pan modunda kaydırma varsa önce merkeze sıfırla, değilse Pan modunu aç/kapat
             frame.addEventListener('dblclick', (e) => {
                 if (e.target.closest('.tb-frame-handle') || e.target.closest('.tb-floating-btn')) return;
                 if (frame.classList.contains('has-image')) {
                     e.stopPropagation();
+                    if (frame.classList.contains('tb-pan-mode')) {
+                        const curPanX = parseFloat(frame.dataset.imgPanX) || 0;
+                        const curPanY = parseFloat(frame.dataset.imgPanY) || 0;
+                        if (curPanX !== 0 || curPanY !== 0) {
+                            this.selectFrame(frame, { skipScroll: true });
+                            this.resetImagePan();
+                            return;
+                        }
+                    }
                     this.toggleImagePanMode(frame);
                 }
             });
@@ -1108,7 +1411,7 @@
                     : 0;
                 const isAlreadyInMulti = Array.isArray(window.selectedElements) && (window.selectedElements.length + count3D > 1) && window.selectedElements.includes(frame);
                 if (e.button === 0 && !isMultiKey && !isAlreadyInMulti) {
-                    this.selectFrame(frame);
+                    this.selectFrame(frame, { skipScroll: true });
                 } else if (isAlreadyInMulti) {
                     this.selectedFrame = frame;
                     if (typeof this.syncSettingsPanelWithFrame === 'function') {
@@ -1265,11 +1568,14 @@
                 if (this.draggedFrame && this.draggedFrame !== frame) {
                     e.dataTransfer.dropEffect = 'move';
                     frame.classList.add('tb-swap-target-hover');
+                    const isTargetFilled = frame.classList.contains('has-image') && !!frame.dataset.imgSrc;
                     let badge = frame.querySelector('.tb-swap-badge');
                     if (!badge) {
                         badge = document.createElement('div');
                         badge.className = 'tb-swap-badge';
-                        badge.innerHTML = '<i class="fa-solid fa-arrows-rotate"></i> Yer Değiştir';
+                        badge.innerHTML = isTargetFilled
+                            ? '<i class="fa-solid fa-arrows-rotate"></i> Yer Değiştir'
+                            : '<i class="fa-solid fa-arrow-right"></i> Buraya Aktar';
                         frame.appendChild(badge);
                     }
                 } else {
@@ -1349,22 +1655,131 @@
 
             const btnSwap = frame.querySelector('.tb-btn-swap');
             if (btnSwap) {
-                btnSwap.addEventListener('dragstart', (e) => {
-                    this.draggedFrame = frame;
-                    e.dataTransfer.setData('text/plain', 'tb-swap');
-                    e.dataTransfer.effectAllowed = 'move';
-                    document.querySelectorAll('.tb-image-frame').forEach(f => {
-                        if (f !== frame) f.classList.add('tb-can-swap');
-                    });
-                });
+                const startPointerSwap = (downEvt) => {
+                    if (downEvt.type === 'mousedown' && downEvt.button !== 0) return;
+                    downEvt.preventDefault();
+                    downEvt.stopPropagation();
+                    downEvt.stopImmediatePropagation();
 
-                btnSwap.addEventListener('dragend', () => {
-                    this.draggedFrame = null;
-                    document.querySelectorAll('.tb-image-frame').forEach(f => {
-                        f.classList.remove('tb-can-swap', 'tb-swap-target-hover');
-                        const b = f.querySelector('.tb-swap-badge');
-                        if (b) b.remove();
-                    });
+                    const downPt = downEvt.touches && downEvt.touches[0] ? downEvt.touches[0] : downEvt;
+                    const startX = downPt.clientX;
+                    const startY = downPt.clientY;
+                    let isDraggingSwap = false;
+                    let ghostEl = null;
+                    let hoveredTarget = null;
+
+                    const srcHasImg = frame.classList.contains('has-image') && !!frame.dataset.imgSrc;
+                    const getTargets = () => {
+                        const all = Array.from(document.querySelectorAll('.tb-image-frame')).filter(f => f !== frame);
+                        return srcHasImg ? all : all.filter(f => f.classList.contains('has-image') && !!f.dataset.imgSrc);
+                    };
+
+                    const findTargetAtPoint = (cx, cy) => {
+                        if (typeof document.elementsFromPoint !== 'function') return null;
+                        const hits = document.elementsFromPoint(cx, cy);
+                        for (const node of hits) {
+                            const f = node && node.closest ? node.closest('.tb-image-frame') : null;
+                            if (f && f !== frame && f.classList.contains('tb-can-swap')) {
+                                return f;
+                            }
+                        }
+                        return null;
+                    };
+
+                    const onMove = (moveEvt) => {
+                        const pt = moveEvt.touches && moveEvt.touches[0] ? moveEvt.touches[0] : moveEvt;
+                        const dist = Math.hypot(pt.clientX - startX, pt.clientY - startY);
+
+                        if (!isDraggingSwap && dist > 6) {
+                            isDraggingSwap = true;
+                            this.cancelSwapTargetMode();
+                            const targets = getTargets();
+                            if (targets.length === 0) return;
+                            frame.classList.add('tb-swap-source');
+                            btnSwap.classList.add('active');
+                            targets.forEach(t => {
+                                t.classList.add('tb-can-swap');
+                                this._setFrameSwapBadge(t);
+                            });
+
+                            ghostEl = document.createElement('div');
+                            ghostEl.className = 'tb-swap-ghost';
+                            if (srcHasImg && frame.dataset.imgSrc) {
+                                const imgEl = document.createElement('img');
+                                imgEl.src = frame.dataset.imgSrc;
+                                ghostEl.appendChild(imgEl);
+                            } else {
+                                ghostEl.innerHTML = '<i class="fa-solid fa-arrows-rotate"></i>';
+                            }
+                            document.body.appendChild(ghostEl);
+                        }
+
+                        if (isDraggingSwap && ghostEl) {
+                            if (moveEvt.cancelable) moveEvt.preventDefault();
+                            ghostEl.style.left = pt.clientX + 'px';
+                            ghostEl.style.top = pt.clientY + 'px';
+
+                            const hit = findTargetAtPoint(pt.clientX, pt.clientY);
+                            if (hoveredTarget && hoveredTarget !== hit) {
+                                hoveredTarget.classList.remove('tb-swap-target-hover');
+                            }
+                            hoveredTarget = hit;
+                            if (hoveredTarget) {
+                                hoveredTarget.classList.add('tb-swap-target-hover');
+                            }
+                        }
+                    };
+
+                    const cleanupDrag = () => {
+                        document.removeEventListener('mousemove', onMove);
+                        document.removeEventListener('mouseup', onUp);
+                        document.removeEventListener('touchmove', onMove);
+                        document.removeEventListener('touchend', onUp);
+                        document.removeEventListener('touchcancel', onCancel);
+                        if (ghostEl && ghostEl.parentNode) ghostEl.parentNode.removeChild(ghostEl);
+                        ghostEl = null;
+                    };
+
+                    const clearVisuals = () => {
+                        btnSwap.classList.remove('active');
+                        document.querySelectorAll('.tb-image-frame').forEach(f => {
+                            f.classList.remove('tb-swap-source', 'tb-can-swap', 'tb-swap-target-hover');
+                            const b = f.querySelector('.tb-swap-badge');
+                            if (b) b.remove();
+                        });
+                    };
+
+                    const onCancel = () => {
+                        cleanupDrag();
+                        clearVisuals();
+                    };
+
+                    const onUp = (upEvt) => {
+                        cleanupDrag();
+                        if (isDraggingSwap) {
+                            const pt = (upEvt.changedTouches && upEvt.changedTouches[0]) ? upEvt.changedTouches[0] : upEvt;
+                            const dropTarget = findTargetAtPoint(pt.clientX, pt.clientY) || hoveredTarget;
+                            clearVisuals();
+                            if (dropTarget && dropTarget !== frame) {
+                                this.swapFrameImages(frame, dropTarget);
+                            }
+                        } else {
+                            this.handleSwapButtonClick(frame);
+                        }
+                    };
+
+                    document.addEventListener('mousemove', onMove);
+                    document.addEventListener('mouseup', onUp);
+                    document.addEventListener('touchmove', onMove, { passive: false });
+                    document.addEventListener('touchend', onUp);
+                    document.addEventListener('touchcancel', onCancel);
+                };
+
+                btnSwap.addEventListener('mousedown', startPointerSwap);
+                btnSwap.addEventListener('touchstart', startPointerSwap, { passive: false });
+                btnSwap.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
                 });
             }
 
@@ -1386,65 +1801,25 @@
                         const targets = window.selectedElements.slice();
                         const hasNonFrame = targets.some(t => t && t.classList && !t.classList.contains('tb-image-frame'));
                         if (hasNonFrame && window.ThreeDEngine && typeof window.ThreeDEngine.convert2DBadgeTo3D === 'function') {
-                            window.ThreeDEngine.convert2DBadgeTo3D(targets);
+                            window.ThreeDEngine.convert2DBadgeTo3D(targets, { flat3D: true, depth: 0, forceGizmo: true, showPanel: false });
                             return;
                         }
-                        const frames = targets.filter(t => t && t.classList && t.classList.contains('tb-image-frame'));
-                        const wasGizmoActive = window.Template3DFrame && window.Template3DFrame.isGizmoActive() && window.Template3DFrame.activeGizmoFrame === frame;
                         this.selectedFrame = frame;
-                        frames.forEach(f => {
-                            delete f._gizmoDismissed;
-                            const curDepth = parseFloat(f.dataset.depth) || 0;
-                            const curPitch = parseFloat(f.dataset.pitch) || 0;
-                            const curYaw = parseFloat(f.dataset.yaw) || 0;
-                            if (curDepth <= 0) f.dataset.depth = 25;
-                            if (curPitch === 0 && curYaw === 0) {
-                                f.dataset.pitch = -12;
-                                f.dataset.yaw = 20;
-                                f.dataset.perspective = 1200;
-                            }
-                            f.dataset.has3D = 'true';
-                            if (window.Template3DFrame) window.Template3DFrame.applyTransform(f);
-                        });
                         if (window.Template3DFrame) {
                             window.Template3DFrame.syncPanel(frame);
-                            if (wasGizmoActive) {
-                                frame._gizmoDismissed = true;
-                                window.Template3DFrame.hideGizmo();
-                            } else {
-                                window.Template3DFrame.showGizmo(frame);
-                            }
+                            window.Template3DFrame.toggleGizmo(frame);
                         }
+                        this.updateDockControls(true);
                         return;
                     }
 
-                    const wasGizmoActive = window.Template3DFrame && window.Template3DFrame.isGizmoActive() && window.Template3DFrame.activeGizmoFrame === frame;
-                    delete frame._gizmoDismissed;
-                    this.selectFrame(frame, { skipGizmoAutoOpen: true });
-                    const curDepth = parseFloat(frame.dataset.depth) || 0;
-                    const curPitch = parseFloat(frame.dataset.pitch) || 0;
-                    const curYaw = parseFloat(frame.dataset.yaw) || 0;
-                    if (curDepth <= 0) {
-                        frame.dataset.depth = 25;
-                    }
-                    if (curPitch === 0 && curYaw === 0) {
-                        frame.dataset.pitch = -12;
-                        frame.dataset.yaw = 20;
-                        frame.dataset.perspective = 1200;
-                    }
-                    frame.dataset.has3D = 'true';
+                    // Çerçeveye kalınlık veya otomatik eğim vermeden doğrudan 3D Gizmo'yu aç/kapat
+                    this.selectFrame(frame, { skipGizmoAutoOpen: true, skipScroll: true });
                     if (window.Template3DFrame) {
-                        window.Template3DFrame.applyTransform(frame);
                         window.Template3DFrame.syncPanel(frame);
+                        window.Template3DFrame.toggleGizmo(frame);
                     }
-                    if (window.Template3DFrame) {
-                        if (wasGizmoActive) {
-                            frame._gizmoDismissed = true;
-                            window.Template3DFrame.hideGizmo();
-                        } else {
-                            window.Template3DFrame.showGizmo(frame);
-                        }
-                    }
+                    this.updateDockControls(true);
                 });
             }
 
@@ -1681,6 +2056,9 @@
                     this.applyFrameStyling(frame);
                     this.applyImageZoomPan(frame);
                     this.syncSettingsPanelWithFrame(frame);
+                    if (window.FramePhotoFilters && typeof window.FramePhotoFilters.renderFrameNow === 'function') {
+                        window.FramePhotoFilters.renderFrameNow(frame);
+                    }
 
                     if (window.Template3DFrame) {
                         if (typeof window.Template3DFrame.applyTransform === 'function') {
@@ -1736,7 +2114,145 @@
         },
 
         /**
-         * İki Çerçeve Arasında Görselleri ve Ayarlarını Takas Et (Swap Images)
+         * Görsel Aktar / Yer Değiştir Buton Tıklaması
+         */
+        handleSwapButtonClick: function(frame) {
+            if (!frame) return;
+            if (this._swapSourceFrame === frame) {
+                this.cancelSwapTargetMode();
+                return;
+            }
+            this.cancelSwapTargetMode();
+
+            const allFrames = Array.from(document.querySelectorAll('.tb-image-frame'));
+            const otherFrames = allFrames.filter(f => f !== frame);
+            if (otherFrames.length === 0) {
+                if (typeof window.showAppToast === 'function') {
+                    window.showAppToast('Önce görseli aktaracağınız ikinci bir çerçeve ekleyin.', 'info', 2500);
+                }
+                return;
+            }
+
+            const srcHasImg = frame.classList.contains('has-image') && !!frame.dataset.imgSrc;
+            const validTargets = srcHasImg
+                ? otherFrames
+                : otherFrames.filter(f => f.classList.contains('has-image') && !!f.dataset.imgSrc);
+
+            if (validTargets.length === 0) {
+                if (typeof window.showAppToast === 'function') {
+                    window.showAppToast('Önce çerçeveye bir fotoğraf yükleyin.', 'info', 2500);
+                }
+                return;
+            }
+
+            // İki çerçeve veya tek geçerli hedef varsa tek tıkla anında aktar / yer değiştir
+            if (validTargets.length === 1) {
+                this.swapFrameImages(frame, validTargets[0]);
+                return;
+            }
+
+            this.startSwapTargetMode(frame, validTargets);
+        },
+
+        _setFrameSwapBadge: function(targetFrame) {
+            if (!targetFrame) return;
+            const isTargetFilled = targetFrame.classList.contains('has-image') && !!targetFrame.dataset.imgSrc;
+            let badge = targetFrame.querySelector('.tb-swap-badge');
+            if (!badge) {
+                badge = document.createElement('div');
+                badge.className = 'tb-swap-badge';
+                targetFrame.appendChild(badge);
+            }
+            badge.innerHTML = isTargetFilled
+                ? '<i class="fa-solid fa-arrows-rotate"></i> Yer Değiştir'
+                : '<i class="fa-solid fa-arrow-right"></i> Buraya Aktar';
+        },
+
+        startSwapTargetMode: function(sourceFrame, validTargets) {
+            this.cancelSwapTargetMode();
+            this._swapSourceFrame = sourceFrame;
+            sourceFrame.classList.add('tb-swap-source');
+            const srcBtn = sourceFrame.querySelector('.tb-btn-swap');
+            if (srcBtn) srcBtn.classList.add('active');
+
+            (validTargets || []).forEach(f => {
+                f.classList.add('tb-can-swap');
+                this._setFrameSwapBadge(f);
+            });
+
+            const onHoverMove = (e) => {
+                if (!this._swapSourceFrame) return;
+                const hit = e.target && e.target.closest ? e.target.closest('.tb-image-frame') : null;
+                document.querySelectorAll('.tb-image-frame.tb-swap-target-hover').forEach(f => {
+                    if (f !== hit) f.classList.remove('tb-swap-target-hover');
+                });
+                if (hit && hit !== this._swapSourceFrame && hit.classList.contains('tb-can-swap')) {
+                    hit.classList.add('tb-swap-target-hover');
+                }
+            };
+
+            const blockDragOnTarget = (e) => {
+                if (!this._swapSourceFrame) return;
+                if (e.target && e.target.closest && e.target.closest('.tb-btn-swap') === srcBtn) return;
+                const targetFrame = e.target && e.target.closest ? e.target.closest('.tb-image-frame') : null;
+                if (targetFrame && targetFrame !== this._swapSourceFrame && targetFrame.classList.contains('tb-can-swap')) {
+                    e.preventDefault();
+                    e.stopImmediatePropagation();
+                } else if (!targetFrame) {
+                    this.cancelSwapTargetMode();
+                }
+            };
+
+            const onCaptureClick = (e) => {
+                if (!this._swapSourceFrame) return;
+                if (e.target && e.target.closest && e.target.closest('.tb-btn-swap') === srcBtn) return;
+                const targetFrame = e.target && e.target.closest ? e.target.closest('.tb-image-frame') : null;
+                if (targetFrame && targetFrame !== this._swapSourceFrame && targetFrame.classList.contains('tb-can-swap')) {
+                    e.preventDefault();
+                    e.stopImmediatePropagation();
+                    const src = this._swapSourceFrame;
+                    this.cancelSwapTargetMode();
+                    this.swapFrameImages(src, targetFrame);
+                    return;
+                }
+                this.cancelSwapTargetMode();
+            };
+
+            const onKeyDown = (e) => {
+                if (e.key === 'Escape') {
+                    this.cancelSwapTargetMode();
+                }
+            };
+
+            this._swapHandlers = { onHoverMove, blockDragOnTarget, onCaptureClick, onKeyDown };
+            document.addEventListener('mousemove', onHoverMove);
+            document.addEventListener('pointerdown', blockDragOnTarget, true);
+            document.addEventListener('mousedown', blockDragOnTarget, true);
+            document.addEventListener('click', onCaptureClick, true);
+            document.addEventListener('keydown', onKeyDown);
+        },
+
+        cancelSwapTargetMode: function() {
+            this._swapSourceFrame = null;
+            if (this._swapHandlers) {
+                const { onHoverMove, blockDragOnTarget, onCaptureClick, onKeyDown } = this._swapHandlers;
+                document.removeEventListener('mousemove', onHoverMove);
+                document.removeEventListener('pointerdown', blockDragOnTarget, true);
+                document.removeEventListener('mousedown', blockDragOnTarget, true);
+                document.removeEventListener('click', onCaptureClick, true);
+                document.removeEventListener('keydown', onKeyDown);
+                this._swapHandlers = null;
+            }
+            document.querySelectorAll('.tb-btn-swap.active').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tb-image-frame').forEach(f => {
+                f.classList.remove('tb-swap-source', 'tb-can-swap', 'tb-swap-target-hover');
+                const b = f.querySelector('.tb-swap-badge');
+                if (b) b.remove();
+            });
+        },
+
+        /**
+         * İki Çerçeve Arasında Görselleri Aktar veya Yer Değiştir
          */
         swapFrameImages: function(frameA, frameB) {
             if (!frameA || !frameB || frameA === frameB) return;
@@ -1753,7 +2269,8 @@
                 src: frameA.dataset.imgSrc || '',
                 zoom: frameA.dataset.imgZoom || '1.0',
                 panX: frameA.dataset.imgPanX || '0',
-                panY: frameA.dataset.imgPanY || '0'
+                panY: frameA.dataset.imgPanY || '0',
+                photoFilters: frameA.dataset.photoFilters || ''
             };
 
             // B çerçevenin görsel verilerini sakla
@@ -1762,7 +2279,8 @@
                 src: frameB.dataset.imgSrc || '',
                 zoom: frameB.dataset.imgZoom || '1.0',
                 panX: frameB.dataset.imgPanX || '0',
-                panY: frameB.dataset.imgPanY || '0'
+                panY: frameB.dataset.imgPanY || '0',
+                photoFilters: frameB.dataset.photoFilters || ''
             };
 
             // Verileri çapraz olarak uygula
@@ -1775,10 +2293,10 @@
                 setTimeout(() => f.classList.remove('tb-swap-pop'), 400);
             });
 
-            this.selectFrame(frameB);
+            this.selectFrame(hasImgA ? frameB : frameA, { skipScroll: true });
 
             if (typeof window.recordHistory === 'function') {
-                window.recordHistory('Çerçeve Görselleri Yer Değiştirildi');
+                window.recordHistory((hasImgA && hasImgB) ? 'Çerçeve Görselleri Yer Değiştirildi' : 'Çerçeve Görseli Aktarıldı');
             }
         },
 
@@ -1796,6 +2314,8 @@
                 frame.dataset.imgZoom = data.zoom;
                 frame.dataset.imgPanX = data.panX;
                 frame.dataset.imgPanY = data.panY;
+                if (data.photoFilters) frame.dataset.photoFilters = data.photoFilters;
+                else delete frame.dataset.photoFilters;
                 frame.classList.add('has-image');
 
                 if (!img) {
@@ -1807,6 +2327,9 @@
                     this.applyFrameStyling(frame);
                     this.applyImageZoomPan(frame);
                     this.syncSettingsPanelWithFrame(frame);
+                    if (window.FramePhotoFilters && typeof window.FramePhotoFilters.renderFrameNow === 'function') {
+                        window.FramePhotoFilters.renderFrameNow(frame);
+                    }
 
                     if (window.Template3DFrame) {
                         if (typeof window.Template3DFrame.applyTransform === 'function') {
@@ -1834,14 +2357,21 @@
                 }
             } else {
                 delete frame.dataset.imgSrc;
+                delete frame.dataset.photoFilters;
                 frame.dataset.imgZoom = '1.0';
                 frame.dataset.imgPanX = '0';
                 frame.dataset.imgPanY = '0';
                 frame.classList.remove('has-image');
 
+                if (window.FramePhotoFilters && typeof window.FramePhotoFilters.removeRenderCanvas === 'function') {
+                    window.FramePhotoFilters.removeRenderCanvas(frame);
+                }
                 if (img) img.remove();
                 if (placeholder) placeholder.style.display = 'flex';
                 this.applyFrameStyling(frame);
+                if (window.Template3DFrame && typeof window.Template3DFrame.applyTransform === 'function') {
+                    window.Template3DFrame.applyTransform(frame);
+                }
             }
         },
 
@@ -1916,6 +2446,12 @@
                 img.style.maxHeight = 'none';
                 img.style.objectFit = 'fill';
 
+                const renderCvs = frame.querySelector('.tb-frame-render-canvas');
+                if (renderCvs) {
+                    renderCvs.style.width = imgW + 'px';
+                    renderCvs.style.height = imgH + 'px';
+                }
+
                 // Arka boşluk görünse dahi fotoğrafın istenilen kısmının çerçeve merkezine rahatça ortalanabilmesi için serbest kaydırma sınırı
                 const maxPanX = Math.max(Math.round(frameW * 0.95), Math.round(imgW * 0.95), 500);
                 const maxPanY = Math.max(Math.round(frameH * 0.95), Math.round(imgH * 0.95), 500);
@@ -1951,7 +2487,11 @@
                 if (pyVal) pyVal.textContent = Math.round(panY) + 'px';
             }
 
-            img.style.transform = 'translate(calc(-50% + ' + panX + 'px), calc(-50% + ' + panY + 'px))';
+            const flipPart = (frame.dataset.imgFlipX === 'true') ? ' scaleX(-1)' : '';
+            const panTransform = 'translate(calc(-50% + ' + panX + 'px), calc(-50% + ' + panY + 'px))' + flipPart;
+            img.style.transform = panTransform;
+            const renderCvsTransform = frame.querySelector('.tb-frame-render-canvas');
+            if (renderCvsTransform) renderCvsTransform.style.transform = panTransform;
         },
 
         /**
@@ -2001,10 +2541,12 @@
                 if (settingsPanel) {
                     settingsPanel.style.display = 'block';
 
-                    // Kullanıcı isteği: Çerçeve seçilince panel otomatik olarak Çerçeve Ayarları bölümüne kaysın
-                    setTimeout(() => {
-                        settingsPanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                    }, 60);
+                    // Yalnızca tuvaldeki çerçeveye tıklandığında ayarlara kaydır (ilk eklemede değil)
+                    if (!opts || !opts.skipScroll) {
+                        setTimeout(() => {
+                            settingsPanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                        }, 60);
+                    }
                 }
 
                 // 3D Gizmo Otomatik Yönetimi: 3D öge seçildiğinde veya zaten aktifse Gizmo'yu aç
@@ -2101,6 +2643,12 @@
             if (shInput) shInput.value = frame.dataset.shadow || 0;
             if (shVal) shVal.textContent = (frame.dataset.shadow || 0) + 'px';
 
+            const opValNum = frame.dataset.opacity !== undefined ? Math.round(parseFloat(frame.dataset.opacity)) : 100;
+            const opInput = document.getElementById('tbFrameOpacity');
+            const opValEl = document.getElementById('tbFrameOpacityVal');
+            if (opInput) opInput.value = opValNum;
+            if (opValEl) opValEl.textContent = opValNum + '%';
+
             const zoom = parseFloat(frame.dataset.imgZoom) || 1.0;
             if (zoomInput) zoomInput.value = Math.round(zoom * 100);
             if (zoomVal) zoomVal.textContent = Math.round(zoom * 100) + '%';
@@ -2161,15 +2709,25 @@
             if (depthVal) depthVal.textContent = (frame.dataset.depth || 0) + 'px';
             if (depthColorInput) depthColorInput.value = frame.dataset.depthColor || '#334155';
 
-            // Degrade butonlarının aktifliğini ve akordiyon durumunu güncelle
+            if (window.FramePhotoFilters && typeof window.FramePhotoFilters.syncPanel === 'function') {
+                window.FramePhotoFilters.syncPanel(frame);
+            }
+
+            // Degrade butonlarının aktifliğini, yoğunluğunu ve akordiyon durumunu güncelle
             const curBlend = frame.dataset.blendMode || 'none';
+            const blendNames = { bottom: 'Aşağı', top: 'Yukarı', right: 'Sağa', left: 'Sola', radial: 'Oval', none: '' };
             document.querySelectorAll('.tb-blend-btn').forEach(btn => {
                 btn.classList.toggle('active', btn.dataset.blend === curBlend);
             });
+            const blendAmountNum = frame.dataset.blendAmount !== undefined ? Math.round(parseFloat(frame.dataset.blendAmount)) : 55;
+            const blendAmountInput = document.getElementById('tbFrameBlendAmount');
+            const blendAmountVal = document.getElementById('tbFrameBlendAmountVal');
+            if (blendAmountInput) blendAmountInput.value = blendAmountNum;
+            if (blendAmountVal) blendAmountVal.textContent = blendAmountNum + '%';
             const blendAcc = document.getElementById('tbBlendAccordion');
             const blendBadge = document.getElementById('tbBlendBadge');
             if (blendBadge) {
-                blendBadge.textContent = curBlend === 'bottom' ? 'Aşağı' : (curBlend === 'right' ? 'Sağa' : '');
+                blendBadge.textContent = blendNames[curBlend] || '';
             }
             if (blendAcc) {
                 if (curBlend !== 'none') {
@@ -2202,6 +2760,9 @@
 
             if (window.Template3DFrame && typeof window.Template3DFrame.syncPanel === 'function') {
                 window.Template3DFrame.syncPanel(frame);
+            }
+            if (window.MirrorAdapter && typeof window.MirrorAdapter.syncUI === 'function') {
+                window.MirrorAdapter.syncUI(frame);
             }
         },
 
@@ -2240,13 +2801,48 @@
                 blendAcc.open = true;
             }
             if (blendBadge) {
-                blendBadge.textContent = mode === 'bottom' ? 'Aşağı' : (mode === 'right' ? 'Sağa' : '');
+                const blendNames = { bottom: 'Aşağı', top: 'Yukarı', right: 'Sağa', left: 'Sola', radial: 'Oval', none: '' };
+                blendBadge.textContent = blendNames[mode] || '';
             }
             this.syncSettingsPanelWithFrame(primary);
             this.updateDockControls(true);
             if (typeof window.recordHistory === 'function') {
                 window.recordHistory('Çerçeve Geçişi Değiştirildi');
             }
+        },
+
+        setFrameBlendAmount: function(val) {
+            const frames = this.getTargetFrames();
+            const num = Math.max(10, Math.min(95, Math.round(parseFloat(val) || 55)));
+            const vEl = document.getElementById('tbFrameBlendAmountVal');
+            if (vEl) vEl.textContent = num + '%';
+            if (frames.length === 0) return;
+
+            frames.forEach(frame => {
+                frame.dataset.blendAmount = String(num);
+                if (!frame.dataset.blendMode || frame.dataset.blendMode === 'none') {
+                    frame.dataset.blendMode = 'bottom';
+                }
+                this.applyFrameStyling(frame);
+            });
+
+            const primary = this.selectedFrame && frames.includes(this.selectedFrame) ? this.selectedFrame : frames[frames.length - 1];
+            const curBlend = (primary && primary.dataset.blendMode) || 'bottom';
+            document.querySelectorAll('.tb-blend-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.blend === curBlend);
+            });
+            const blendBadge = document.getElementById('tbBlendBadge');
+            if (blendBadge) {
+                const blendNames = { bottom: 'Aşağı', top: 'Yukarı', right: 'Sağa', left: 'Sola', radial: 'Oval', none: '' };
+                blendBadge.textContent = blendNames[curBlend] || '';
+            }
+
+            if (this._blendHistoryTimer) clearTimeout(this._blendHistoryTimer);
+            this._blendHistoryTimer = setTimeout(() => {
+                if (typeof window.recordHistory === 'function') {
+                    window.recordHistory('Çerçeve Geçiş Yoğunluğu Değiştirildi');
+                }
+            }, 400);
         },
 
         /**
@@ -2603,6 +3199,15 @@
                     }
                 });
                 return;
+            } else if (prop === 'opacity') {
+                const num = Math.max(10, Math.min(100, Math.round(parseFloat(val) || 100)));
+                const v = document.getElementById('tbFrameOpacityVal');
+                if (v) v.textContent = num + '%';
+                frames.forEach(frame => {
+                    frame.dataset.opacity = String(num);
+                    this.applyFrameStyling(frame);
+                });
+                return;
             } else if (prop === 'rotation') {
                 const v = document.getElementById('tbFrameRotationVal');
                 if (v) v.textContent = val + '°';
@@ -2789,7 +3394,7 @@
                 window.selectedEl = last;
                 if (typeof window.updateMultiSelectUI === 'function') window.updateMultiSelectUI();
             } else if (clones.length === 1) {
-                this.selectFrame(clones[0]);
+                this.selectFrame(clones[0], { skipScroll: true });
             }
         },
 
@@ -2815,6 +3420,8 @@
                 rotation: frame.dataset.rotation,
                 effect: frame.dataset.effect,
                 blend: frame.dataset.blendMode,
+                blendAmount: frame.dataset.blendAmount,
+                opacity: frame.dataset.opacity,
                 shape: frame.dataset.shape || 'none',
                 pitch: frame.dataset.pitch || 0,
                 yaw: frame.dataset.yaw || 0,
@@ -2825,6 +3432,8 @@
                 imgZoom: frame.dataset.imgZoom,
                 imgPanX: frame.dataset.imgPanX,
                 imgPanY: frame.dataset.imgPanY,
+                imgFlipX: frame.dataset.imgFlipX || '',
+                photoFilters: frame.dataset.photoFilters || '',
                 imgUrl: frame.dataset.imgSrc
             });
         },
@@ -3129,7 +3738,7 @@
             }
 
             if (startFrame) {
-                this.selectFrame(startFrame);
+                this.selectFrame(startFrame, { skipScroll: true });
             }
 
             if (typeof window.recordHistory === 'function') {
@@ -3455,6 +4064,8 @@
                     rotation: f.dataset.rotation,
                     effect: f.dataset.effect,
                     blend: f.dataset.blendMode || 'none',
+                    blendAmount: f.dataset.blendAmount,
+                    opacity: f.dataset.opacity,
                     shape: f.dataset.shape || 'none',
                     pitch: f.dataset.pitch || 0,
                     yaw: f.dataset.yaw || 0,
@@ -3465,6 +4076,8 @@
                     imgZoom: f.dataset.imgZoom,
                     imgPanX: f.dataset.imgPanX,
                     imgPanY: f.dataset.imgPanY,
+                    imgFlipX: f.dataset.imgFlipX || '',
+                    photoFilters: f.dataset.photoFilters || '',
                     imgUrl: f.dataset.imgSrc || ''
                 });
             });
@@ -3593,6 +4206,8 @@
                     rotation: f.rotation,
                     effect: f.effect,
                     blend: f.blend || 'none',
+                    blendAmount: f.blendAmount,
+                    opacity: f.opacity,
                     shape: f.shape || 'none',
                     pitch: f.pitch,
                     yaw: f.yaw,
@@ -3603,6 +4218,8 @@
                     imgZoom: f.imgZoom,
                     imgPanX: f.imgPanX,
                     imgPanY: f.imgPanY,
+                    imgFlipX: f.imgFlipX || '',
+                    photoFilters: f.photoFilters || '',
                     imgUrl: f.imgUrl,
                     skipHistory: true
                 });
@@ -3633,14 +4250,15 @@
                 : (frames.length > 0 ? frames[frames.length - 1] : null);
 
             if (hasSelectedFrame && primary) {
+                const isGizmoOn = !!(window.Template3DFrame && window.Template3DFrame.isGizmoActive && window.Template3DFrame.isGizmoActive() && window.Template3DFrame.activeGizmoFrame === primary);
                 dockGroup.innerHTML = `
                     <button type="button" class="dock-btn" onclick="TemplateBuilder.triggerSelectedFrameUpload()" title="Fotoğraf Yükle veya Değiştir">
                         <span class="dock-icon"><i class="fa-solid fa-camera"></i></span>
                         <span class="dock-label">Foto</span>
                     </button>
-                    <button type="button" class="dock-btn" onclick="if(window.selectedElements && window.selectedElements.length > 1 && window.selectedElements.some(el => el && el.classList && !el.classList.contains('tb-image-frame')) && window.ThreeDEngine) { ThreeDEngine.convert2DBadgeTo3D(window.selectedElements.slice()); } else if(window.Template3DFrame) { Template3DFrame.applyPreset('isoLeft'); }" title="3D İzometrik Açı Uygula">
+                    <button type="button" id="tbDockBtn3DGizmo" class="dock-btn${isGizmoOn ? ' active' : ''}" onclick="if(window.selectedElements && window.selectedElements.length > 1 && window.selectedElements.some(el => el && el.classList && !el.classList.contains('tb-image-frame')) && window.ThreeDEngine) { ThreeDEngine.convert2DBadgeTo3D(window.selectedElements.slice(), { flat3D: true, depth: 0, forceGizmo: true, showPanel: false }); } else if(window.Template3DFrame) { Template3DFrame.toggleGizmo(); }" title="Kalınlık vermeden 3D Gizmo aç veya kapat">
                         <span class="dock-icon"><i class="fa-solid fa-cube"></i></span>
-                        <span class="dock-label">3D</span>
+                        <span class="dock-label">3D Gizmo</span>
                     </button>
                     <button type="button" class="dock-btn" onclick="TemplateBuilder.resetSelectedFramePlacement()" title="Çerçeveyi Eski Yerine ve Boyutuna Sıfırla">
                         <span class="dock-icon"><i class="fa-solid fa-rotate-left"></i></span>

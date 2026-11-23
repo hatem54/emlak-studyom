@@ -800,7 +800,7 @@
 
 /* 6. Akordiyon İçi Bilgi Düzenleyici */
 .tpl-info-accordion .accordion-header {
-    border-left: 3.5px solid #0284c7 !important;
+    border-left: 3.5px solid #334155 !important;
 }
 
 .tpl-info-accordion .input-group {
@@ -808,9 +808,10 @@
 }
 
 .tpl-info-accordion .input-group label {
-    font-size: 10px !important;
-    font-weight: 700 !important;
-    color: #475569 !important;
+    font-family: 'ClassicAmpersand', 'Space Grotesk', sans-serif !important;
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    color: #1e293b !important;
     margin-bottom: 3px !important;
     display: block !important;
 }
@@ -831,7 +832,7 @@
 
 .tpl-info-accordion .input-group input:focus,
 .tpl-info-accordion .input-group textarea:focus {
-    border-color: #0284c7 !important;
+    border-color: #475569 !important;
     outline: none !important;
 }
 

@@ -23,28 +23,55 @@ function renderCalloutPanel(){
     const acc = document.getElementById('calloutAccordion');
     if (!acc) return;
     acc.innerHTML = '';
-    acc.style.background = '#0d1b2e';
-    acc.style.border = '1px solid rgba(255,255,255,0.1)';
-    acc.style.padding = '5px';
-    
-    // 🌟 1. 3D EMLAK & ÇİT ÖGELERİ (Diğer Akordiyonlarla Birebir Aynı Yapıda ve Yan Yana)
+
+    const resetCalloutAccordions = () => {
+        acc.querySelectorAll('.accordion-body').forEach(b => b.style.display = 'none');
+        acc.querySelectorAll('.accordion-header').forEach(h => h.classList.remove('active'));
+    };
+
+    const stripLeadingEmoji = (str) => String(str || '')
+        .replace(/^[\u{1F300}-\u{1FAFF}\u{2300}-\u{27BF}\u{2B00}-\u{2BFF}\uFE0F\u200D\s]+/gu, '')
+        .trim();
+
+    const catIconMap = {
+        fiyat: 'fa-turkish-lira-sign',
+        metrekare: 'fa-ruler-combined',
+        oda: 'fa-bed',
+        konum: 'fa-location-dot',
+        arsa: 'fa-tree',
+        ozellik: 'fa-star',
+        luks: 'fa-gem',
+        numarali: 'fa-list-ol',
+        ok: 'fa-arrow-right-long',
+        kurdele: 'fa-ribbon',
+        kat: 'fa-building',
+        anahtar: 'fa-key',
+        iletisim: 'fa-phone',
+        video: 'fa-video',
+        randevu: 'fa-calendar-check',
+        tarim: 'fa-seedling',
+        ticari: 'fa-building',
+        acil: 'fa-bolt',
+        imza: 'fa-award'
+    };
+
+    // 1. 3D EMLAK & ÇİT ÖGELERİ
     const estateHeader = document.createElement('div');
     estateHeader.className = 'accordion-header';
-    estateHeader.style.cssText = 'padding:10px; cursor:pointer; border-radius:5px; margin-bottom:5px; font-weight:bold; display:flex; justify-content:space-between; align-items:center; transition:background 0.2s;';
     estateHeader.innerHTML = `
-        <span style="display:flex; align-items:center; gap:6px;">
+        <span style="display:flex; align-items:center; gap:7px;">
             <i class="fa-solid fa-cube" style="color:#0284c7;"></i>
-            <span>3D Emlak & Çit Ögeleri</span>
+            <span>3D Emlak &amp; Çit Ögeleri</span>
         </span>
-        <span class="icon-toggle">▼</span>
+        <i class="fa-solid fa-chevron-down arrow" style="font-size:12px;"></i>
     `;
 
     const estateBody = document.createElement('div');
     estateBody.className = 'accordion-body';
     estateBody.id = 'estate3DShowcaseSection';
-    estateBody.style.cssText = 'display:none; padding:10px; border-radius:5px; margin-bottom:10px;';
+    estateBody.style.display = 'none';
     estateBody.innerHTML = `
-        <p style="font-size:10.5px; color:#64748b; margin-bottom:8px; line-height:1.4;">
+        <p style="font-size:10.5px; color:var(--text-muted, #64748b); margin-bottom:8px; line-height:1.4;">
             Tıkladığınız öge doğrudan 3D sahneye ayakta yerleşir; yükseklik, açı ve boyutunu anında ayarlayabilirsiniz.
         </p>
 
@@ -63,21 +90,20 @@ function renderCalloutPanel(){
         </div>
 
         <!-- Dışarıdan 3D GLB/GLTF Yükleme Butonu -->
-        <div style="margin-top:8px; padding-top:8px; border-top:1px dashed #cbd5e1; display:flex; gap:6px;">
-            <button type="button" class="btn-action" onclick="document.getElementById('estate3DGltfInput').click();" style="flex:1; padding:5px; font-size:11px; font-weight:600; justify-content:center; gap:6px;" title="Bilgisayarınızdan .glb veya .gltf 3D modeli yükleyin">
+        <div style="margin-top:8px; padding-top:8px; border-top:1px dashed rgba(148,163,184,0.4); display:flex; gap:6px;">
+            <button type="button" class="btn-action" onclick="document.getElementById('callout3DGltfInput').click();" style="flex:1; margin:0; padding:6px 8px; font-size:11px; font-weight:700; justify-content:center; gap:6px; white-space:nowrap;" title="Bilgisayarınızdan .glb veya .gltf 3D modeli yükleyin">
                 <i class="fa-solid fa-file-arrow-up"></i> 3D Model Yükle
             </button>
-            <input type="file" id="estate3DGltfInput" accept=".glb,.gltf" style="display:none;" onchange="if(window.ThreeDEngine && window.ThreeDEngine.loadGLBFile) window.ThreeDEngine.loadGLBFile(this.files[0]); this.value='';">
+            <input type="file" id="callout3DGltfInput" accept=".glb,.gltf" style="display:none;" onchange="if(window.ThreeDEngine && window.ThreeDEngine.loadGLBFile) window.ThreeDEngine.loadGLBFile(this.files[0]); this.value='';">
         </div>
     `;
 
     estateHeader.onclick = () => {
         const isOpen = estateBody.style.display === 'block';
-        document.querySelectorAll('#calloutAccordion .accordion-body').forEach(b => b.style.display = 'none');
-        document.querySelectorAll('#calloutAccordion .accordion-header .icon-toggle').forEach(i => i.textContent = '▼');
+        resetCalloutAccordions();
         if (!isOpen) {
             estateBody.style.display = 'block';
-            estateHeader.querySelector('.icon-toggle').textContent = '▲';
+            estateHeader.classList.add('active');
             if (window.Estate3DLibrary && typeof window.Estate3DLibrary.initShowcase === 'function') {
                 window.Estate3DLibrary.initShowcase();
             }
@@ -91,24 +117,23 @@ function renderCalloutPanel(){
         window.Estate3DLibrary.initShowcase();
     }
 
-    // 🌟 2. ÖGELER & VEKTÖRLER (3D Emlak & Çit Ögeleri Altında Birebir Aynı Akordiyon Yapısında)
+    // 2. ÖGELER & VEKTÖRLER
     const otherHeader = document.createElement('div');
     otherHeader.className = 'accordion-header';
-    otherHeader.style.cssText = 'padding:10px; cursor:pointer; border-radius:5px; margin-bottom:5px; font-weight:bold; display:flex; justify-content:space-between; align-items:center; transition:background 0.2s;';
     otherHeader.innerHTML = `
-        <span style="display:flex; align-items:center; gap:6px;">
+        <span style="display:flex; align-items:center; gap:7px;">
             <i class="fa-solid fa-shapes" style="color:#0284c7;"></i>
-            <span>Ögeler & Vektörler</span>
+            <span>Ögeler &amp; Vektörler</span>
         </span>
-        <span class="icon-toggle">▼</span>
+        <i class="fa-solid fa-chevron-down arrow" style="font-size:12px;"></i>
     `;
 
     const otherBody = document.createElement('div');
     otherBody.className = 'accordion-body';
     otherBody.id = 'otherCalloutsSection';
-    otherBody.style.cssText = 'display:none; padding:10px; border-radius:5px; margin-bottom:10px;';
+    otherBody.style.display = 'none';
     otherBody.innerHTML = `
-        <p style="font-size:10.5px; color:#64748b; margin-bottom:8px; line-height:1.4;">
+        <p style="font-size:10.5px; color:var(--text-muted, #64748b); margin-bottom:8px; line-height:1.4;">
             Zengin renkli emlak, peyzaj ve mimari illüstrasyonlar. Tıklayarak tuvale ekleyin.
         </p>
 
@@ -131,11 +156,10 @@ function renderCalloutPanel(){
 
     otherHeader.onclick = () => {
         const isOpen = otherBody.style.display === 'block';
-        document.querySelectorAll('#calloutAccordion .accordion-body').forEach(b => b.style.display = 'none');
-        document.querySelectorAll('#calloutAccordion .accordion-header .icon-toggle').forEach(i => i.textContent = '▼');
+        resetCalloutAccordions();
         if (!isOpen) {
             otherBody.style.display = 'block';
-            otherHeader.querySelector('.icon-toggle').textContent = '▲';
+            otherHeader.classList.add('active');
             if (window.OtherCalloutsManager && typeof window.OtherCalloutsManager.init === 'function') {
                 window.OtherCalloutsManager.init();
             }
@@ -149,65 +173,39 @@ function renderCalloutPanel(){
         window.OtherCalloutsManager.init();
     }
 
+    // 3. MAVİ NEON İKONLAR
     if(typeof NEON_CALLOUTS !== 'undefined') {
         const header = document.createElement('div');
         header.className = 'accordion-header';
-        header.style.cssText = 'padding:10px; background:#1a2744; color:#93c5fd; cursor:pointer; border-radius:5px; margin-bottom:5px; font-weight:bold; display:flex; justify-content:space-between; align-items:center; transition:background 0.2s; border: 1px solid rgba(147,197,253,0.2);';
-        header.innerHTML = `<span>✨ Mavi Neon İkonlar</span><span class="icon-toggle">▼</span>`;
+        header.innerHTML = `<span style="display:flex; align-items:center; gap:7px;"><i class="fa-solid fa-bolt" style="color:#0284c7;"></i><span>Mavi Neon İkonlar</span></span><i class="fa-solid fa-chevron-down arrow" style="font-size:12px;"></i>`;
         
         const body = document.createElement('div');
-        body.className = 'accordion-body';
-        body.style.cssText = 'display:none; padding:10px; background:#0d1b2e; border-radius:5px; margin-bottom:10px; grid-template-columns:repeat(3, 1fr); gap:8px; border: 1px solid rgba(255,255,255,0.05);';
+        body.className = 'accordion-body callout-neon-grid';
+        body.style.display = 'none';
         
-        NEON_CALLOUTS.forEach((n, idx) => {
+        NEON_CALLOUTS.forEach((n) => {
             const card = document.createElement('div');
-            card.style.cssText = `
-                background: linear-gradient(145deg, #0d1b2e, #1a2744);
-                border: 1px solid rgba(96,165,250,0.25);
-                border-radius: 10px;
-                padding: 10px 4px;
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                gap: 6px;
-                cursor: pointer;
-                transition: all 0.2s ease;
-                position: relative;
-                overflow: hidden;
-            `;
+            card.className = 'neon-callout-card';
 
             const lines = n.text.split('\n');
             card.innerHTML = `
-                <div style="width:36px; height:36px; display:flex; align-items:center; justify-content:center;
-                    background: rgba(96,165,250,0.08); border: 1.5px solid rgba(96,165,250,0.4);
-                    border-radius:50%; position:relative;">
-                    <i class="${n.icon}" style="font-size:16px; color:#93c5fd;
-                        filter: drop-shadow(0 0 6px rgba(147,197,253,0.8));"></i>
+                <div class="neon-callout-icon-ring">
+                    <i class="${n.icon}"></i>
                 </div>
-                <div style="text-align:center; font-size:8px; font-weight:800; color:#e2e8f0;
-                    letter-spacing:0.5px; line-height:1.2; text-transform:uppercase;">
+                <div class="neon-callout-label">
                     ${lines.join('<br>')}
                 </div>
             `;
-            card.addEventListener('mouseenter', () => {
-                card.style.background = 'linear-gradient(145deg, #162035, #1e3160)';
-                card.style.borderColor = 'rgba(96,165,250,0.6)';
-            });
-            card.addEventListener('mouseleave', () => {
-                card.style.background = 'linear-gradient(145deg, #0d1b2e, #1a2744)';
-                card.style.borderColor = 'rgba(96,165,250,0.25)';
-            });
             card.onclick = () => addNeonToCanvas(n);
             body.appendChild(card);
         });
         
         header.onclick = () => {
             const isOpen = body.style.display === 'grid';
-            document.querySelectorAll('.accordion-body').forEach(b => b.style.display = 'none');
-            document.querySelectorAll('.accordion-header .icon-toggle').forEach(i => i.textContent = '▼');
+            resetCalloutAccordions();
             if(!isOpen) {
                 body.style.display = 'grid';
-                header.querySelector('.icon-toggle').textContent = '▲';
+                header.classList.add('active');
             }
         };
         
@@ -219,28 +217,24 @@ function renderCalloutPanel(){
 
     Object.keys(CALLOUT_LIBRARY).forEach(catKey => {
         const cat = CALLOUT_LIBRARY[catKey];
+        const cleanTitle = stripLeadingEmoji(cat.title) || catKey;
+        const iconCls = catIconMap[catKey] || 'fa-tag';
         
         const header = document.createElement('div');
         header.className = 'accordion-header';
-        header.style.cssText = 'padding:10px; background:#162035; color:#f8fafc; cursor:pointer; border-radius:5px; margin-bottom:5px; font-weight:bold; display:flex; justify-content:space-between; align-items:center; transition:background 0.2s; border: 1px solid rgba(255,255,255,0.05);';
-        header.innerHTML = `<span>${cat.title}</span><span class="icon-toggle">▼</span>`;
+        header.innerHTML = `<span style="display:flex; align-items:center; gap:7px;"><i class="fa-solid ${iconCls}" style="color:#0284c7;"></i><span>${cleanTitle}</span></span><i class="fa-solid fa-chevron-down arrow" style="font-size:12px;"></i>`;
         
         const body = document.createElement('div');
-        body.className = 'accordion-body';
-        body.style.cssText = 'display:none; padding:10px; background:#0d1b2e; border-radius:5px; margin-bottom:10px; grid-template-columns:1fr; gap:10px; border: 1px solid rgba(255,255,255,0.05);';
+        body.className = 'accordion-body callout-svg-grid';
+        body.style.display = 'none';
         
         if(cat.items && cat.items.length > 0) {
             cat.items.forEach(item => {
                 const btn = document.createElement('div');
                 btn.className = 'callout-svg-btn';
-                btn.style.cssText = 'padding:10px; background:#1a2744; border:1px solid #334155; border-radius:8px; cursor:pointer; text-align:center; transition:all 0.2s; overflow:hidden;';
+                btn.innerHTML = `<div class="callout-svg-preview">${item.svg}</div><div class="callout-svg-name">${item.name}</div>`;
                 
-                btn.innerHTML = `<div style="transform:scale(0.8); transform-origin:center; pointer-events:none;">${item.svg}</div><div style="font-size:11px; margin-top:5px; color:#cbd5e1; font-weight:600;">${item.name}</div>`;
-                
-                btn.addEventListener('mouseenter', () => { btn.style.borderColor = '#3b82f6'; btn.style.boxShadow = '0 2px 8px rgba(59,130,246,0.2)'; });
-                btn.addEventListener('mouseleave', () => { btn.style.borderColor = '#334155'; btn.style.boxShadow = 'none'; });
-                
-                const itemWithCat = Object.assign({}, item, { category: cat.key || cat.title || '' });
+                const itemWithCat = Object.assign({}, item, { category: cat.key || cleanTitle || '' });
                 btn.onclick = () => addSVGCalloutToCanvas(itemWithCat);
                 body.appendChild(btn);
             });
@@ -248,11 +242,10 @@ function renderCalloutPanel(){
         
         header.onclick = () => {
             const isOpen = body.style.display === 'grid';
-            document.querySelectorAll('.accordion-body').forEach(b => b.style.display = 'none');
-            document.querySelectorAll('.accordion-header .icon-toggle').forEach(i => i.textContent = '▼');
+            resetCalloutAccordions();
             if(!isOpen) {
                 body.style.display = 'grid';
-                header.querySelector('.icon-toggle').textContent = '▲';
+                header.classList.add('active');
             }
         };
         

@@ -1,7 +1,11 @@
-﻿const CACHE_NAME = 'emlak-studiom-v320-20261119-tr3d-pdf-quiet-autosave';
+﻿const CACHE_NAME = 'emlak-studiom-v357-20261123-inter-uniform-sidebar';
 const CORE_ASSETS = [
   './core/utils.js',
   './app.html',
+  './modules/format-layout-adapter.js',
+  './modules/frame-photo-filters.js',
+  './modules/mirror-adapter.js',
+  './modules/staging-export-trays.js',
   './js/jszip.min.js',
   './styles.css',
   './css/callouts.css',

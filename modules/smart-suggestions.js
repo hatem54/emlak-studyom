@@ -1057,12 +1057,12 @@ window.renderSmartSuggestionsUI = function() {
 
     let html = '';
 
-    // Bölüm 1: 🌟 İLAN BİLGİLERİYLE DOLDURULMUŞ GRAFİK ROZETLER (CALLOUT)
+    // Bölüm 1: İLAN BİLGİLERİYLE DOLDURULMUŞ GRAFİK ROZETLER (CALLOUT)
     if (window.smartMatchedCallouts && window.smartMatchedCallouts.length > 0) {
         html += `
             <div class="smart-sub-section">
                 <div class="smart-sub-title" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-                    <span class="smart-section-header">✨ İlana Özel Grafik Rozetler (${window.smartMatchedCallouts.length})</span>
+                    <span class="smart-section-header"><i class="fa-solid fa-sparkles" style="margin-right:5px;"></i>İlana Özel Grafik Rozetler · ${window.smartMatchedCallouts.length}</span>
                     <span class="smart-section-hint">Tıkla Tuvale Ekle</span>
                 </div>
                 <div class="smart-callouts-scroll" style="display:flex; gap:10px; overflow-x:auto; padding-bottom:6px;">
@@ -1070,9 +1070,9 @@ window.renderSmartSuggestionsUI = function() {
 
         window.smartMatchedCallouts.forEach((item, idx) => {
             html += `
-                <div class="smart-callout-mini-card" onclick="if(window.addSVGCalloutToCanvas) window.addSVGCalloutToCanvas(window.smartMatchedCallouts[${idx}])" title="${item.name} - Tuvale Ekle" style="min-width:125px; max-width:140px; background:rgba(15,23,42,0.6); border:1.5px solid rgba(250,204,21,0.5); border-radius:8px; padding:6px; cursor:pointer; text-align:center; transition:all 0.2s;">
+                <div class="smart-callout-mini-card" onclick="if(window.addSVGCalloutToCanvas) window.addSVGCalloutToCanvas(window.smartMatchedCallouts[${idx}])" title="${item.name} - Tuvale Ekle" style="min-width:125px; max-width:140px; border-radius:8px; padding:6px; cursor:pointer; text-align:center; transition:all 0.2s;">
                     <div class="mini-svg-wrap" style="transform:scale(0.42); transform-origin:center; height:48px; display:flex; align-items:center; justify-content:center; pointer-events:none;">${item.svg}</div>
-                    <span class="mini-card-name" style="font-size:10.5px; font-weight:700; color:#f8fafc; display:block; margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${item.name}</span>
+                    <span class="mini-card-name" style="font-size:10.5px; font-weight:700; display:block; margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${item.name}</span>
                 </div>
             `;
         });
@@ -1083,11 +1083,11 @@ window.renderSmartSuggestionsUI = function() {
         `;
     }
 
-    // Bölüm 1.5: 🎨 ŞABLONLAR SEKMESİNDEN EN UYGUN ŞABLONLAR
+    // Bölüm 1.5: ŞABLONLAR SEKMESİNDEN EN UYGUN ŞABLONLAR
     const recTemplates = window.getRecommendedCanvaTemplates(window.lastParsedData || {}, window.lastRawText || '');
     if (recTemplates && recTemplates.length > 0) {
         html += `
-            <div class="smart-sub-section" style="margin-top: 12px; border-top:1px solid rgba(255,255,255,0.06); padding-top:10px;">
+            <div class="smart-sub-section" style="margin-top: 12px; border-top:1px solid rgba(148,163,184,0.22); padding-top:10px;">
                 <div class="smart-sub-title" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
                     <span class="smart-section-header purple"><i class="fa-solid fa-wand-magic-sparkles"></i> Uyumlu Şablon Önerileri</span>
                     <span class="smart-section-hint">Tıkla & Tuvale Giydir</span>
@@ -1097,18 +1097,18 @@ window.renderSmartSuggestionsUI = function() {
 
         recTemplates.forEach((t) => {
             html += `
-                <div class="smart-tpl-rec-card" onclick="window.applyCanvaTabTemplate('${t.catId}', ${t.idx})" title="${t.name} (${t.colorLabel}) şablonunu tuvale uygula" style="border:1.5px solid #334155; border-radius:10px; padding:8px 6px; cursor:pointer; text-align:center; transition:all 0.2s; background:rgba(15,23,42,0.6); position:relative; overflow:hidden;">
+                <div class="smart-tpl-rec-card" onclick="window.applyCanvaTabTemplate('${t.catId}', ${t.idx})" title="${t.name} şablonunu tuvale uygula" style="border:1px solid #cbd5e1; border-radius:8px; padding:8px 6px; cursor:pointer; text-align:center; transition:all 0.2s; background:var(--dark-3, #ffffff); position:relative; overflow:hidden;">
                     <div style="position:absolute; top:0; left:0; right:0; height:3px; background:${t.colorGradient};"></div>
                     <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:4px; margin-top:2px;">
-                        <span style="font-size:16px;">${t.icon}</span>
-                        <span style="font-size:8px; font-weight:800; background:rgba(255,255,255,0.1); color:#cbd5e1; padding:1px 5px; border-radius:4px; text-transform:uppercase;">${t.tag}</span>
+                        <span style="font-size:15px;">${t.icon}</span>
+                        <span class="smart-tpl-tag" style="font-size:8.5px; font-weight:700; background:rgba(2,132,199,0.1); color:#0284c7; padding:1px 5px; border-radius:4px; text-transform:uppercase;">${t.tag}</span>
                     </div>
-                    <strong class="rec-tpl-name" style="font-size:11px; font-weight:700; color:#f8fafc; display:block; margin:2px 0 4px 0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${t.name}</strong>
+                    <strong class="rec-tpl-name" style="font-size:11px; font-weight:700; color:var(--text, #0f172a); display:block; margin:2px 0 4px 0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${t.name}</strong>
                     <div style="display:flex; align-items:center; justify-content:center; gap:4px; margin-bottom:6px;">
                         <span style="width:8px; height:8px; border-radius:50%; background:${t.colorGradient}; display:inline-block;"></span>
-                        <span style="font-size:9px; color:#cbd5e1;">${t.colorLabel}</span>
+                        <span style="font-size:9px; color:var(--text-muted, #64748b);">${t.colorLabel}</span>
                     </div>
-                    <button type="button" class="smart-tpl-apply-btn" style="width:100%; border:none; background:${t.colorGradient}; color:#fff; font-size:10px; font-weight:800; padding:4px 0; border-radius:6px; cursor:pointer; box-shadow:0 2px 6px rgba(0,0,0,0.3);">Uygula</button>
+                    <button type="button" class="btn-action smart-tpl-apply-btn" style="height:26px; font-size:10.5px; padding:0 8px; margin:0; white-space:nowrap;">Uygula</button>
                 </div>
             `;
         });
@@ -1119,12 +1119,12 @@ window.renderSmartSuggestionsUI = function() {
         `;
     }
 
-    // Bölüm 2: 📍 BÖLGE AVANTAJLARI & KULLANICI ONAYLI VURGULAR
+    // Bölüm 2: BÖLGE AVANTAJLARI & KULLANICI ONAYLI VURGULAR
     if (window.smartRegionalHighlights && window.smartRegionalHighlights.length > 0) {
         html += `
-            <div class="smart-sub-section" style="margin-top: 12px; border-top:1px solid rgba(255,255,255,0.06); padding-top:10px;">
+            <div class="smart-sub-section" style="margin-top: 12px; border-top:1px solid rgba(148,163,184,0.22); padding-top:10px;">
                 <div class="smart-sub-title" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-                    <span class="smart-section-header blue">📍 Bölge Özellikleri (Onaylayıp Tuvale Ekleyin)</span>
+                    <span class="smart-section-header"><i class="fa-solid fa-location-dot" style="margin-right:5px;"></i>Bölge Özellikleri</span>
                     <span class="smart-section-hint">Tek Tıkla Ekle</span>
                 </div>
                 <div style="display:flex; flex-wrap:wrap; gap:6px;">
@@ -1135,7 +1135,7 @@ window.renderSmartSuggestionsUI = function() {
             html += `
                 <button type="button" class="smart-outline-pill-btn" onclick="window.createFramedBadgeOnCanvas('${escaped}', 'blue')" title="Bu bölge vurgusunu tuvale rozet olarak ekle">
                     <span>${reg}</span>
-                    <i class="fa-solid fa-plus" style="font-size:9px; color:#38bdf8;"></i>
+                    <i class="fa-solid fa-plus" style="font-size:9px;"></i>
                 </button>
             `;
         });
@@ -1167,14 +1167,16 @@ window.switchAiMainTab = function(tabName) {
         const btn = document.getElementById("tab_" + t);
         if (btn) {
             if (t === tabName) {
-                btn.style.background = "rgba(99,102,241,0.15)";
-                btn.style.borderColor = "#6366f1";
-                btn.style.color = "#6366f1";
+                btn.style.background = "rgba(148,163,184,0.16)";
+                btn.style.borderColor = "#475569";
+                btn.style.color = "var(--text, #0f172a)";
+                btn.style.fontWeight = "700";
                 btn.classList.add("active");
             } else {
                 btn.style.background = "transparent";
-                btn.style.borderColor = "rgba(148,163,184,0.3)";
-                btn.style.color = "#94a3b8";
+                btn.style.borderColor = "rgba(148,163,184,0.35)";
+                btn.style.color = "var(--text-muted, #64748b)";
+                btn.style.fontWeight = "600";
                 btn.classList.remove("active");
             }
         }

@@ -539,7 +539,9 @@ body[data-theme="light"] #photoMasksAccordion {
 body[data-theme="light"] #photoMasksAccordion summary {
     background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%) !important;
     color: #0f172a !important;
-    border-left: 3.5px solid #f59e0b !important;
+    border-left: 3.5px solid #334155 !important;
+    padding: 10px 12px !important;
+    font-size: 12px !important;
     font-weight: 700 !important;
 }
 body[data-theme="light"] .mask-content-body {
@@ -563,6 +565,8 @@ body[data-theme="light"] .mask-tool-btn:hover,
     color: #0284c7 !important;
 }
 body[data-theme="light"] .mask-tool-btn.active,
+body[data-theme="light"] #maskToolLinearBtn.active,
+[data-theme="light"] #maskToolLinearBtn.active,
 [data-theme="light"] .mask-tool-btn.active {
     background: #f0f9ff !important;
     color: #0284c7 !important;
@@ -705,18 +709,19 @@ body[data-theme="light"] .btn-mask-delete:hover {
     transition: all 0.2s ease;
 }
 .hsl-accordion summary {
-    padding: 12px;
+    padding: 10px 12px;
     cursor: pointer;
     color: #e2e8f0;
-    font-weight: bold;
+    font-weight: 700;
+    font-size: 12px;
     list-style: none;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background: rgba(255, 255, 255, 0.02);
+    background: #1e293b;
 }
 .hsl-accordion > div {
-    padding: 12px;
+    padding: 10px;
     border-top: 1px solid #1e293b;
 }
 .hsl-dots-bar {

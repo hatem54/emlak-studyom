@@ -1687,7 +1687,8 @@ window.createArrowPickerPopover = function() {
     popover.innerHTML = `
         <div class="arrow-picker-header">
             <div class="arrow-picker-title">
-                <span>🏹 20 Profesyonel Ok Ucu</span>
+                <i class="fa-solid fa-crosshairs"></i>
+                <span>20 Profesyonel Ok Ucu</span>
             </div>
             <button type="button" class="arrow-picker-close" onclick="window.closeArrowPicker()">✕</button>
         </div>
@@ -2250,9 +2251,14 @@ function startDrawEdit(i, showPanel = true, isMulti = false){
         const currentOpts = p.saberOptions || window.saberState || {};
         
         if ($('deSaberPresets')) {
-            $('deSaberPresets').querySelectorAll('.sep-preset').forEach(el => {
-                el.classList.toggle('active', el.dataset.preset === (currentOpts.preset || 'fully-lit'));
+            let presetsHTML = '';
+            const activeKey = currentOpts.preset || 'fully-lit';
+            Object.keys(presets).forEach(key => {
+                const pr = presets[key];
+                const isAct = (key === activeKey);
+                presetsHTML += `<div class="sep-preset ${isAct ? 'active' : ''}" data-preset="${key}" onclick="setDrawEditSaberPreset('${key}')" title="${pr.name}"><span>${pr.icon || '<i class="fa-solid fa-bolt"></i>'}</span><span class="sep-preset-name">${pr.name}</span></div>`;
             });
+            $('deSaberPresets').innerHTML = presetsHTML;
         }
         
         let colorsHTML = '';
@@ -2301,7 +2307,7 @@ function startDrawEdit(i, showPanel = true, isMulti = false){
     if($('drawEditAccordionTitle')) {
         if (window.selectedElements && window.selectedElements.length > 1) {
             const dCount = window.selectedElements.filter(e => e && e.classList && e.classList.contains('editable-draw')).length;
-            $('drawEditAccordionTitle').textContent = `Toplu Çizim & Neon Ayarları (${dCount} Çizim)`;
+            $('drawEditAccordionTitle').textContent = `Toplu Çizim & Neon Ayarları · ${dCount} Çizim`;
         } else {
             $('drawEditAccordionTitle').textContent = `${typeName} #${i + 1} Ayarları`;
         }

@@ -177,6 +177,31 @@ window.showBrandForm = function(brandId = null) {
     }
 };
 
+window.useActiveCompanyLogoForBrand = function() {
+    const activeLogo = (typeof window.companyLogo === 'string' && window.companyLogo.trim())
+        ? window.companyLogo.trim()
+        : (window.PhotoStagingArchive && typeof window.PhotoStagingArchive.getCurrentLogoUrl === 'function'
+            ? window.PhotoStagingArchive.getCurrentLogoUrl()
+            : '');
+
+    if (!activeLogo) {
+        if (typeof window.showAppToast === 'function') {
+            window.showAppToast('Aktif firma logosu bulunamadı. Yukarıdan dosya seçebilir veya Görseller/Ekstra Araçlar üzerinden yükleyebilirsiniz.', 'info', 3500);
+        }
+        return;
+    }
+
+    currentLogoDataUrl = activeLogo;
+    const preview = document.getElementById('brandLogoPreview');
+    if (preview) {
+        preview.src = activeLogo;
+        preview.style.display = 'block';
+    }
+    if (typeof window.showAppToast === 'function') {
+        window.showAppToast('Aktif firma logosu marka formuna aktarıldı.', 'success', 2200);
+    }
+};
+
 window.hideBrandForm = function() {
     document.getElementById('brand-list-view').style.display = 'block';
     document.getElementById('brand-form-view').style.display = 'none';
@@ -249,10 +274,11 @@ window.renderBrandList = function() {
         searchInput.style.width = '100%';
         searchInput.style.padding = '8px';
         searchInput.style.marginBottom = '10px';
-        searchInput.style.borderRadius = '4px';
-        searchInput.style.border = '1px solid #cbd5e1';
-        searchInput.style.background = '#ffffff';
-        searchInput.style.color = '#0f172a';
+        searchInput.style.borderRadius = '6px';
+        searchInput.style.border = '1px solid var(--border, #cbd5e1)';
+        searchInput.style.background = 'var(--dark-3, #ffffff)';
+        searchInput.style.color = 'var(--text, #0f172a)';
+        searchInput.style.boxSizing = 'border-box';
         searchInput.oninput = (e) => filterBrandList(e.target.value.toLowerCase());
         
         list.parentElement.insertBefore(searchInput, list);
@@ -264,29 +290,28 @@ window.renderBrandList = function() {
     brands.forEach(b => {
         const item = document.createElement('div');
         item.className = 'brand-item';
-        item.style.background = '#ffffff';
-        item.style.border = '1px solid #cbd5e1';
-        item.style.padding = '8px 12px';
+        item.style.background = 'var(--dark-3, #ffffff)';
+        item.style.border = '1px solid var(--border, #cbd5e1)';
+        item.style.padding = '8px 10px';
         item.style.borderRadius = '8px';
         item.style.display = 'flex';
         item.style.justifyContent = 'space-between';
         item.style.alignItems = 'center';
-        item.style.marginBottom = '8px';
-        item.style.boxShadow = '0 1px 2px rgba(0,0,0,0.04)';
+        item.style.marginBottom = '6px';
 
         const safeId = escBrandHtml(b.id);
         const safeName = escBrandHtml(b.name);
-        const safeColor = /^#[0-9a-fA-F]{3,8}$|^rgb/.test(String(b.color1 || '')) ? String(b.color1) : '#0f172a';
+        const safeColor = /^#[0-9a-fA-F]{3,8}$|^rgb/.test(String(b.color1 || '')) ? String(b.color1) : '#0284c7';
         const safeLogo = (typeof b.logo === 'string' && /^(data:image\/|https?:\/\/|assets\/)/.test(b.logo)) ? escBrandHtml(b.logo) : '';
 
         item.innerHTML = `
-            <div style="display:flex; align-items:center; gap:10px; flex:1; cursor:pointer;" onclick="applyBrand('${safeId}')" title="Tuvale Uygula">
-                ${safeLogo ? `<img src="${safeLogo}" style="width:30px; height:30px; border-radius:4px; object-fit:contain; border:1px solid #e2e8f0; background:#fff;">` : `<div style="width:30px; height:30px; border-radius:4px; background:${safeColor}; border:1px solid #cbd5e1"></div>`}
-                <div style="font-size:12px; font-weight:700; color:#0f172a;">${safeName}</div>
+            <div style="display:flex; align-items:center; gap:10px; flex:1; min-width:0; cursor:pointer;" onclick="applyBrand('${safeId}')" title="Tuvale Uygula">
+                ${safeLogo ? `<img src="${safeLogo}" style="width:30px; height:30px; border-radius:4px; object-fit:contain; border:1px solid rgba(148,163,184,0.4); background:#ffffff; flex:0 0 30px;">` : `<div style="width:30px; height:30px; border-radius:4px; background:${safeColor}; border:1px solid rgba(148,163,184,0.4); flex:0 0 30px;"></div>`}
+                <div style="font-size:12px; font-weight:700; color:var(--text, #0f172a); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${safeName}</div>
             </div>
-            <div style="display:flex; gap:6px;">
-                <button type="button" onclick="showBrandForm('${safeId}')" style="background:transparent; border:none; color:#2563eb; cursor:pointer; font-size:11.5px; font-weight:600; padding:2px 4px;">Düzenle</button>
-                <button type="button" onclick="deleteBrand('${safeId}')" style="background:transparent; border:none; color:#dc2626; cursor:pointer; font-size:11.5px; font-weight:600; padding:2px 4px;">Sil</button>
+            <div style="display:flex; gap:5px; flex:0 0 auto; margin-left:6px;">
+                <button type="button" class="btn-action" onclick="showBrandForm('${safeId}')" style="width:auto; flex:0 0 auto; height:26px; padding:0 8px; margin:0 !important; font-size:10.5px; white-space:nowrap;">Düzenle</button>
+                <button type="button" class="btn-action btn-red" onclick="deleteBrand('${safeId}')" style="width:auto; flex:0 0 auto; height:26px; padding:0 8px; margin:0 !important; font-size:10.5px; white-space:nowrap;">Sil</button>
             </div>
         `;
         list.appendChild(item);

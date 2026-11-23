@@ -116,8 +116,10 @@ window.submitFeedback = async function(e) {
         const msgEl = document.getElementById('feedbackMessage');
         if (msgEl) msgEl.value = '';
         
-        if(typeof Swal !== 'undefined') {
-            Swal.fire({icon: 'success', title: 'Teşekkürler!', text: 'Mesajınız başarıyla iletildi. En kısa sürede dönüş yapacağız.', background: '#1e293b', color: '#fff'});
+        if (typeof window.showAppToast === 'function') {
+            window.showAppToast('Mesajınız başarıyla iletildi. En kısa sürede dönüş yapacağız.', 'success', 3200);
+        } else if (typeof showToast === 'function') {
+            showToast('Mesajınız başarıyla iletildi. Teşekkür ederiz!', 'success');
         } else {
             alert('Mesajınız başarıyla iletildi. Teşekkür ederiz!');
         }

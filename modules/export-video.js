@@ -74,31 +74,16 @@ function updateVideoToastProgress(pct, remainingSec) {
 }
 
 function finishVideoToastSuccess(filename, sizeMb, url) {
-    if (_videoToastBlobUrl && _videoToastBlobUrl !== url) URL.revokeObjectURL(_videoToastBlobUrl);
-    _videoToastBlobUrl = url;
-    const toast = createOrGetVideoToast();
-    toast.style.borderColor = 'rgba(16, 185, 129, 0.6)';
-    toast.style.boxShadow = '0 16px 40px rgba(0, 0, 0, 0.6), 0 0 24px rgba(16, 185, 129, 0.35)';
-    toast.innerHTML = `
-        <div style="width: 38px; height: 38px; border-radius: 50%; background: #10b981; display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 0 14px rgba(16, 185, 129, 0.5);">
-            <i class="fa-solid fa-check" style="color: #fff; font-size: 18px;"></i>
-        </div>
-        <div style="flex: 1; min-width: 0;">
-            <div style="font-size: 13px; font-weight: 700; color: #10b981; margin-bottom: 2px;">
-                Video Hazır! (${sizeMb} MB)
-            </div>
-            <div style="font-size: 11px; color: #cbd5e1; margin-bottom: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${filename}">
-                ${filename}
-            </div>
-            <a href="${url}" download="${filename}" id="toastDirectDownloadBtn" style="display: inline-flex; align-items: center; gap: 6px; background: linear-gradient(135deg, #10b981, #059669); color: #fff; font-size: 12px; font-weight: 700; padding: 6px 12px; border-radius: 6px; text-decoration: none; box-shadow: 0 2px 10px rgba(16, 185, 129, 0.4);">
-                <i class="fa-solid fa-download"></i> Hemen İndir
-            </a>
-        </div>
-        <button type="button" onclick="closeVideoToast()" style="background: none; border: none; color: #64748b; font-size: 18px; cursor: pointer; padding: 0 4px; line-height: 1;" title="Kapat">&times;</button>
-    `;
-
     if (_videoToastTimeout) clearTimeout(_videoToastTimeout);
-    _videoToastTimeout = setTimeout(closeVideoToast, 8000);
+    closeVideoToast();
+    if (url) {
+        setTimeout(() => {
+            try { URL.revokeObjectURL(url); } catch(_) {}
+        }, 15000);
+    }
+    if (typeof window.showAppToast === 'function') {
+        window.showAppToast(`Video kaydedildi ve indirildi (${sizeMb} MB).`, 'success', 3000);
+    }
 }
 
 function finishVideoToastError(message) {

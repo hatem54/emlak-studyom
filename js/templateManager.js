@@ -151,57 +151,19 @@ function initTemplateManager() {
         return;
     }
 
+    // Re-init durumda Standart Şablonlar akordiyonunu korumak için geçici dışarı al
+    const existingStdAcc = document.getElementById('tplStandardAccordion');
+    if (existingStdAcc && existingStdAcc.parentNode === container && container.parentNode) {
+        container.parentNode.insertBefore(existingStdAcc, container);
+    }
+
     container.innerHTML = '';
 
-    // 0. Şablon İlan Bilgileri (Tek Merkezli Hızlı Metin Paneli)
-    const infoItem = document.createElement('div');
-    infoItem.className = 'accordion-item tpl-info-accordion';
-    infoItem.id = 'tpl-info-item';
-
-    const infoHeader = document.createElement('div');
-    infoHeader.className = 'accordion-header';
-    infoHeader.innerHTML = `<span style="display:flex;align-items:center;gap:7px;"><i class="fa-solid fa-pen-to-square" style="color:#0284c7;"></i> Şablon İlan Bilgileri</span><span class="arrow">▼</span>`;
-
-    const infoContent = document.createElement('div');
-    infoContent.className = 'accordion-content';
-    infoContent.id = 'tpl-content-info';
-    infoContent.innerHTML = `
-        <div class="input-group">
-            <label>Ana Başlık</label>
-            <input type="text" id="canvaTitle" value="SATILIK MÜSTAKİL EV" placeholder="İlan Başlığı">
-        </div>
-        <div class="input-group">
-            <label>Fiyat</label>
-            <input type="text" id="canvaPrice" value="12.500.000 TL" placeholder="Fiyat">
-        </div>
-        <div class="input-group">
-            <label>Bölge ve Alt Başlık</label>
-            <input type="text" id="canvaSub" value="Çankaya / Ovacık • Elit Yaşam Alanı" placeholder="Konum">
-        </div>
-        <div class="input-group">
-            <label>İletişim ve Danışman</label>
-            <input type="text" id="canvaContact" value="EMLAK STÜDYOM | emlakstudyomtr@gmail.com" placeholder="İletişim">
-        </div>
-        <div class="input-group">
-            <label>İlan Özellikleri</label>
-            <textarea id="canvaFeatures" rows="3" placeholder="Özellikler">Geniş Teras Balkonlu & Manzaralı
-Lüks Donanım & Modern Tasarım
-Site İçi Kapalı Otopark
-Merkezi Konumda</textarea>
-        </div>
-    `;
-
-    infoHeader.onclick = () => {
-        const isActive = infoItem.classList.contains('active');
-        document.querySelectorAll('.accordion-item').forEach(i => i.classList.remove('active'));
-        if (!isActive) {
-            infoItem.classList.add('active');
-        }
-    };
-
+    // Şablon İlan Bilgileri input dinleyicilerini bağla (#tpl-info-item artık HTML içinde sabit)
     ['canvaTitle', 'canvaPrice', 'canvaSub', 'canvaContact', 'canvaFeatures'].forEach(id => {
-        const el = infoContent.querySelector('#' + id);
-        if (el) {
+        const el = document.getElementById(id);
+        if (el && !el.dataset.tplInfoBound) {
+            el.dataset.tplInfoBound = '1';
             el.addEventListener('input', () => {
                 if (typeof window.refreshActiveCanvaTemplate === 'function') {
                     window.refreshActiveCanvaTemplate();
@@ -210,18 +172,23 @@ Merkezi Konumda</textarea>
         }
     });
 
-    infoItem.appendChild(infoHeader);
-    infoItem.appendChild(infoContent);
-    container.appendChild(infoItem);
+    if (existingStdAcc && !existingStdAcc.dataset.accordionSyncBound) {
+        existingStdAcc.dataset.accordionSyncBound = '1';
+        existingStdAcc.addEventListener('toggle', () => {
+            if (existingStdAcc.open) {
+                container.querySelectorAll('.accordion-item').forEach(i => i.classList.remove('active'));
+            }
+        });
+    }
 
     // Kategori Akordiyonları
-    TEMPLATE_CATEGORIES.forEach((cat, index) => {
+    TEMPLATE_CATEGORIES.forEach((cat) => {
         const item = document.createElement('div');
         item.className = 'accordion-item';
         
         const header = document.createElement('div');
         header.className = 'accordion-header';
-        header.innerHTML = `<span style="display:flex;align-items:center;gap:7px;"><i class="fa-solid ${cat.icon}" style="color:${cat.color};"></i> ${cat.name}</span><span class="arrow">▼</span>`;
+        header.innerHTML = `<span style="display:flex;align-items:center;gap:7px;"><i class="fa-solid ${cat.icon}" style="color:${cat.color};"></i><span>${cat.name}</span></span><i class="fa-solid fa-chevron-down arrow" style="font-size:12px;"></i>`;
         
         const content = document.createElement('div');
         content.className = 'accordion-content';
@@ -230,6 +197,8 @@ Merkezi Konumda</textarea>
         header.onclick = () => {
             const isActive = item.classList.contains('active');
             document.querySelectorAll('.accordion-item').forEach(i => i.classList.remove('active'));
+            const stdAcc = document.getElementById('tplStandardAccordion');
+            if (stdAcc) stdAcc.open = false;
             if (!isActive) {
                 item.classList.add('active');
             }
@@ -238,6 +207,11 @@ Merkezi Konumda</textarea>
         item.appendChild(header);
         item.appendChild(content);
         container.appendChild(item);
+
+        // Favori Şablonlar'ın hemen altına Standart Şablonlar akordiyonunu yerleştir
+        if (cat.id === 'favorites' && existingStdAcc) {
+            container.appendChild(existingStdAcc);
+        }
     });
     
     const observer = new MutationObserver((mutations) => {

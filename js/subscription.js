@@ -215,14 +215,11 @@
             allowOutsideClick: () => !Swal.isLoading()
         }).then((result) => {
             if (result.isConfirmed && result.value?.success) {
-                Swal.fire({
-                    icon: 'success',
-                    title: '🎉 Tebrikler!',
-                    text: result.value.message,
-                    background: '#1e293b',
-                    color: '#ffffff',
-                    confirmButtonColor: '#3b82f6'
-                });
+                if (typeof window.showAppToast === 'function') {
+                    window.showAppToast(result.value.message, 'success', 3200);
+                } else if (typeof showToast === 'function') {
+                    showToast(result.value.message, 'success');
+                }
             }
         }).catch(err => console.error('Swal modal error:', err));
     }

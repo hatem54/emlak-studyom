@@ -395,7 +395,7 @@ window.renderLayers = function() {
         const nameStyle = isHidden ? 'text-decoration: line-through; opacity: 0.5;' : '';
 
         return `
-        <div class="layer-item" 
+        <div class="layer-item ${isSelected ? 'selected' : ''}" 
              draggable="true" 
              ondragstart="window.layerDragStart(event, '${uid}')"
              ondragover="window.layerDragOver(event)"
@@ -404,13 +404,13 @@ window.renderLayers = function() {
              style="display:flex; justify-content:space-between; align-items:center; background:${bg}; border:${border}; padding:10px 12px; border-radius:6px; cursor:grab; transition:all 0.2s; margin-bottom: 5px;" 
              onclick="window.layerSelect('${uid}', event, false)" >
             <div style="display:flex; align-items:center; gap:8px; overflow:hidden;">
-                <i class="fas fa-grip-vertical" style="color:rgba(255,255,255,0.2); font-size:10px; margin-right:4px; cursor:grab;"></i>
+                <i class="fas fa-grip-vertical layer-grip-icon" style="color:var(--text-muted, #64748b); opacity:0.55; font-size:10px; margin-right:4px; cursor:grab;"></i>
                 <i class="fas ${iconClass}" style="color:${isNeon ? '#00f0ff' : 'var(--text-muted)'}; font-size:12px;"></i>
                 <span style="font-size:13px; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; ${nameStyle}">${name}</span>
             </div>
             <div style="display:flex; gap:6px; align-items:center;" onclick="event.stopPropagation();">
-                <i class="fas fa-arrow-up" style="cursor:pointer; font-size:11px; color:#38bdf8; opacity:0.85;" onclick="window.layerMoveUp('${uid}')" title="Öne Al"></i>
-                <i class="fas fa-arrow-down" style="cursor:pointer; font-size:11px; color:#94a3b8; opacity:0.85;" onclick="window.layerMoveDown('${uid}')" title="Geriye At"></i>
+                <i class="fas fa-arrow-up" style="cursor:pointer; font-size:11px; color:#0284c7; opacity:0.9;" onclick="window.layerMoveUp('${uid}')" title="Öne Al"></i>
+                <i class="fas fa-arrow-down" style="cursor:pointer; font-size:11px; color:var(--text-muted, #64748b); opacity:0.9;" onclick="window.layerMoveDown('${uid}')" title="Geriye At"></i>
                 <i class="fas ${eyeClass}" style="cursor:pointer; font-size:12px; color:${eyeColor};" onclick="window.layerToggleVisibility('${uid}')" title="Gizle/Göster"></i>
                 <i class="fas ${lockClass}" style="cursor:pointer; font-size:12px; color:${lockColor};" onclick="window.layerToggleLock('${uid}')" title="Kilitle/Aç"></i>
                 <i class="fas fa-trash-alt" style="cursor:pointer; font-size:12px; color:#ef4444; opacity:0.75;" onmouseenter="this.style.opacity='1'" onmouseleave="this.style.opacity='0.75'" onclick="window.layerDelete('${uid}')" title="Sil"></i>
@@ -450,24 +450,24 @@ window.renderLayers = function() {
              ondragover="window.layerDragOver(event)"
              ondragleave="window.layerDragLeave(event)"
              ondrop="window.layerDrop(event, '${uid}')"
-             style="display:flex; justify-content:space-between; align-items:center; background:${bg}; border:${border}; padding:10px 12px; border-radius:6px; margin-bottom:5px; cursor:grab; box-shadow: 0 2px 10px rgba(14,165,233,0.15);"
+             style="display:flex; justify-content:space-between; align-items:center; background:${bg}; border:${border}; padding:10px 12px; border-radius:6px; margin-bottom:5px; cursor:grab; box-shadow: 0 2px 10px rgba(14,165,233,0.12);"
              onclick="if(window.ThreeDEngine) { window.ThreeDEngine.selectElement('${el.id}', { keep2DSelection: Boolean(event && (event.shiftKey || event.ctrlKey || event.metaKey)) }); window.renderLayers(); }">
             <div style="display:flex; align-items:center; gap:8px; overflow:hidden;">
-                <i class="fas fa-grip-vertical" style="color:rgba(255,255,255,0.2); font-size:10px; margin-right:4px; cursor:grab;"></i>
-                <i class="fas ${iconClass}" style="color:#0ea5e9; font-size:13px;"></i>
-                <span style="font-size:12px; font-weight:700; color:#38bdf8; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:140px;" title="${label}">${label}</span>
+                <i class="fas fa-grip-vertical layer-grip-icon" style="color:var(--text-muted, #64748b); opacity:0.55; font-size:10px; margin-right:4px; cursor:grab;"></i>
+                <i class="fas ${iconClass}" style="color:#0284c7; font-size:13px;"></i>
+                <span style="font-size:12px; font-weight:700; color:#0284c7; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:140px;" title="${label}">${label}</span>
             </div>
             <div style="display:flex; gap:6px; align-items:center;" onclick="event.stopPropagation();">
-                <i class="fas fa-arrow-up" style="cursor:pointer; font-size:11px; color:#38bdf8; opacity:0.85;" 
+                <i class="fas fa-arrow-up" style="cursor:pointer; font-size:11px; color:#0284c7; opacity:0.9;" 
                    onclick="window.layerMoveUp('${uid}')" title="Öne Al"></i>
-                <i class="fas fa-arrow-down" style="cursor:pointer; font-size:11px; color:#94a3b8; opacity:0.85;" 
+                <i class="fas fa-arrow-down" style="cursor:pointer; font-size:11px; color:var(--text-muted, #64748b); opacity:0.9;" 
                    onclick="window.layerMoveDown('${uid}')" title="Geriye At"></i>
                 <i class="fas ${eyeIcon}" style="cursor:pointer; font-size:12px; color: ${isVis ? 'var(--text-muted)' : '#ef4444'};" 
                    onclick="if(window.ThreeDEngine) { window.ThreeDEngine.toggleElementVisibility('${el.id}'); window.renderLayers(); }" title="Gizle/Göster"></i>
                 <i class="fas fa-trash-alt" style="cursor:pointer; font-size:12px; color: #ef4444; opacity:0.75;" 
                    onmouseenter="this.style.opacity='1'" onmouseleave="this.style.opacity='0.75'"
                    onclick="window.layerDelete('${uid}')" title="Sil"></i>
-                <span style="font-size:10px; font-weight:bold; color:#0ea5e9; background:rgba(14,165,233,0.15); padding:2px 6px; border-radius:4px;">3D</span>
+                <span style="font-size:10px; font-weight:bold; color:#0284c7; background:rgba(2,132,199,0.12); padding:2px 6px; border-radius:4px;">3D</span>
             </div>
         </div>`;
     };
@@ -496,21 +496,21 @@ window.renderLayers = function() {
              ondragover="window.layerDragOver(event)"
              ondragleave="window.layerDragLeave(event)"
              ondrop="window.layerDrop(event, '${uid}')"
-             style="display:flex; justify-content:space-between; align-items:center; background:${bg}; border:${border}; padding:10px 12px; border-radius:6px; margin-bottom:5px; cursor:grab; box-shadow: 0 2px 10px rgba(14,165,233,0.15);"
+             style="display:flex; justify-content:space-between; align-items:center; background:${bg}; border:${border}; padding:10px 12px; border-radius:6px; margin-bottom:5px; cursor:grab; box-shadow: 0 2px 10px rgba(14,165,233,0.12);"
              onclick="if(window.ThreeDEngine) window.ThreeDEngine.openStudio();">
             <div style="display:flex; align-items:center; gap:8px; overflow:hidden;">
-                <i class="fas fa-grip-vertical" style="color:rgba(255,255,255,0.2); font-size:10px; margin-right:4px; cursor:grab;"></i>
-                <i class="fas ${iconClass}" style="color:#0ea5e9; font-size:13px;"></i>
-                <span style="font-size:12px; font-weight:700; color:#38bdf8; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:140px;">${label}</span>
+                <i class="fas fa-grip-vertical layer-grip-icon" style="color:var(--text-muted, #64748b); opacity:0.55; font-size:10px; margin-right:4px; cursor:grab;"></i>
+                <i class="fas ${iconClass}" style="color:#0284c7; font-size:13px;"></i>
+                <span style="font-size:12px; font-weight:700; color:#0284c7; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:140px;">${label}</span>
             </div>
             <div style="display:flex; gap:6px; align-items:center;" onclick="event.stopPropagation();">
-                <i class="fas fa-arrow-up" style="cursor:pointer; font-size:11px; color:#38bdf8; opacity:0.85;" 
+                <i class="fas fa-arrow-up" style="cursor:pointer; font-size:11px; color:#0284c7; opacity:0.9;" 
                    onclick="window.layerMoveUp('${uid}')" title="Öne Al"></i>
-                <i class="fas fa-arrow-down" style="cursor:pointer; font-size:11px; color:#94a3b8; opacity:0.85;" 
+                <i class="fas fa-arrow-down" style="cursor:pointer; font-size:11px; color:var(--text-muted, #64748b); opacity:0.9;" 
                    onclick="window.layerMoveDown('${uid}')" title="Geriye At"></i>
                 <i class="fas ${eyeIcon}" style="cursor:pointer; font-size:12px; color: ${isVis ? 'var(--text-muted)' : '#ef4444'};" 
                    onclick="if(window.ThreeDEngine) { window.ThreeDEngine.toggleVisibility(); window.renderLayers(); }" title="Gizle/Göster"></i>
-                <span style="font-size:10px; font-weight:bold; color:#0ea5e9; background:rgba(14,165,233,0.15); padding:2px 6px; border-radius:4px;">3D</span>
+                <span style="font-size:10px; font-weight:bold; color:#0284c7; background:rgba(2,132,199,0.12); padding:2px 6px; border-radius:4px;">3D</span>
             </div>
         </div>`;
     };
@@ -544,7 +544,7 @@ window.renderLayers = function() {
         
         photoHtml = `
         <div class="layer-item photo-layer-item" 
-             style="display:flex; justify-content:space-between; align-items:center; background:var(--dark-3); border:1px solid rgba(108,92,231,0.2); padding:10px 12px; border-radius:6px; margin-top:4px; margin-bottom: 5px; cursor:default;" >
+             style="display:flex; justify-content:space-between; align-items:center; background:var(--dark-3); border:1px solid rgba(148,163,184,0.35); padding:10px 12px; border-radius:6px; margin-top:4px; margin-bottom: 5px; cursor:default;" >
             <div style="display:flex; align-items:center; gap:8px; overflow:hidden;">
                 <i class="fas fa-image" style="color:var(--text-muted); font-size:12px;"></i>
                 <span style="font-size:13px; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; ${nameStyle}">Ana Fotoğraf Paneli</span>
@@ -563,11 +563,12 @@ window.renderLayers = function() {
         if (paths && paths.length > 0) {
             const drawOpenAttr = isDrawDetailsOpen ? 'open' : '';
             drawHtml += `
-            <details id="draw-layers-details" ${drawOpenAttr} style="margin-top: 10px; background: var(--dark-3); border: 1px solid rgba(108,92,231,0.2); border-radius: 6px; padding: 5px;">
-                <summary style="padding: 10px; cursor: pointer; color: var(--text); font-size: 13px; font-weight: bold; display: flex; align-items: center; gap: 8px;">
-                    <i class="fas fa-palette" style="color:var(--primary);"></i> Çizimler (${paths.length})
+            <details id="draw-layers-details" class="hsl-accordion" ${drawOpenAttr} style="margin-top: 10px;">
+                <summary>
+                    <span><i class="fas fa-palette" style="color:#0284c7; margin-right:6px;"></i>Çizimler · ${paths.length}</span>
+                    <i class="fa-solid fa-chevron-down" style="font-size:12px;"></i>
                 </summary>
-                <div style="padding: 5px 10px; display: flex; flex-direction: column; gap: 5px;">
+                <div style="padding: 8px; display: flex; flex-direction: column; gap: 5px;">
             `;
             const pnames = {free:'Serbest',line:'Çizgi',arrow:'Ok',rect:'Kare',circle:'Daire',polygon:'Çokgen'};
             paths.forEach((p, idx) => {
@@ -586,7 +587,7 @@ window.renderLayers = function() {
                 }
                 
                 const bg = isSelected ? 'rgba(56,189,248, 0.2)' : 'var(--dark-3)';
-                const border = isSelected ? '1px solid #38bdf8' : '1px solid rgba(108,92,231,0.2)';
+                const border = isSelected ? '1px solid #38bdf8' : '1px solid rgba(148,163,184,0.35)';
 
                 drawHtml += `
                 <div class="layer-item ${p.locked ? 'locked' : ''} ${isSelected ? 'selected' : ''}" 
@@ -610,7 +611,7 @@ window.renderLayers = function() {
     }
 
     if (contentHtml === '' && photoHtml === '' && drawHtml === '') {
-        container.innerHTML = '<div style="padding:15px;text-align:center;color:rgba(255,255,255,0.4);font-size:12px;">Tuvalde henüz nesne yok</div>';
+        container.innerHTML = '<div style="padding:15px;text-align:center;color:var(--text-muted, #64748b);font-size:12px;">Tuvalde henüz nesne yok</div>';
     } else {
         container.innerHTML = contentHtml + photoHtml + drawHtml;
     }

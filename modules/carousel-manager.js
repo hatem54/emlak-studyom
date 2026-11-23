@@ -538,18 +538,81 @@
             progressModal.style.display = 'flex';
             progressModal.innerHTML = '<i class="fa-solid fa-spinner fa-spin" style="color:#0ea5e9;"></i> <span>Çoklu gönderi albümü hazırlanıyor...</span>';
 
-            const zip = (mode === 'zip' && window.JSZip) ? new window.JSZip() : null;
+            let zip = null;
+            if (mode === 'zip') {
+                if (typeof window.JSZip === 'undefined' && window.LazyLoader && typeof window.LazyLoader.load === 'function') {
+                    try { await window.LazyLoader.load('zip', { label: 'ZIP Kütüphanesi' }); } catch(_) {}
+                }
+                if (typeof window.JSZip === 'undefined') {
+                    await new Promise((resolve) => {
+                        const s = document.createElement('script');
+                        s.src = 'js/jszip.min.js';
+                        s.onload = resolve;
+                        s.onerror = () => {
+                            const cdnScript = document.createElement('script');
+                            cdnScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
+                            cdnScript.onload = resolve;
+                            cdnScript.onerror = resolve;
+                            document.head.appendChild(cdnScript);
+                        };
+                        document.head.appendChild(s);
+                    }).catch(() => {});
+                }
+                if (typeof window.JSZip !== 'undefined') {
+                    zip = new window.JSZip();
+                } else {
+                    mode = 'individual';
+                    if (typeof window.showAppToast === 'function') {
+                        window.showAppToast('ZIP motoru yüklenemedi, sayfalar ayrı ayrı indiriliyor.', 'warning', 3000);
+                    }
+                }
+            }
 
-            // Çıktı parametreleri (Format & Kalite)
-            const scaleVal = (document.getElementById('exportScale') ? parseFloat(document.getElementById('exportScale').value) : 2) || 2;
-            const outputScale = Math.max(scaleVal, 2);
-            const fileType = (document.getElementById('exportFileType') ? document.getElementById('exportFileType').value : 'png');
-            const isJpg = fileType === 'jpg' || fileType === 'jpeg';
+            // Çıktı parametreleri (Çoklu Gönderi özel ayarları veya genel çıktı ayarları)
+            const expFmtEl = document.getElementById('exportFormat');
+            const prevFmtEl = document.getElementById('previewFormat');
+            const cFmtEl = document.getElementById('carouselExportFormat');
+            const cTypeEl = document.getElementById('carouselExportFileType');
+            const cScaleEl = document.getElementById('carouselExportScale');
+            const cQualEl = document.getElementById('carouselJpgQualitySlider');
+
+            const trayState = (window.StagingExportTrays && window.StagingExportTrays.state) ? window.StagingExportTrays.state : null;
+            const origExportFormat = expFmtEl ? expFmtEl.value : '16:9 Full HD (YouTube/Banner)';
+            const origPreviewFormat = prevFmtEl ? prevFmtEl.value : origExportFormat;
+            const effectiveFormat = (cFmtEl && cFmtEl.value && cFmtEl.value !== 'inherit')
+                ? cFmtEl.value
+                : ((trayState && trayState.carouselFormat) ? trayState.carouselFormat : origExportFormat);
+
+            const globalScaleVal = document.getElementById('exportScale') ? document.getElementById('exportScale').value : '1.5';
+            const effectiveScale = (cScaleEl && cScaleEl.value && cScaleEl.value !== 'inherit')
+                ? cScaleEl.value
+                : ((trayState && trayState.carouselScale) ? trayState.carouselScale : (globalScaleVal || '1.5'));
+            const outputScale = (effectiveScale === 'original') ? 1 : (parseFloat(effectiveScale) || 1.5);
+
+            const globalFileType = document.getElementById('exportFileType') ? document.getElementById('exportFileType').value : 'jpg';
+            let fileType = (cTypeEl && cTypeEl.value && cTypeEl.value !== 'inherit')
+                ? cTypeEl.value
+                : ((trayState && trayState.carouselFileType) ? trayState.carouselFileType : (globalFileType || 'jpg'));
+            if (fileType === 'mp4' || fileType === 'video') fileType = 'jpg';
+
+            const jpgQuality = cQualEl
+                ? (Math.min(100, Math.max(60, parseInt(cQualEl.value, 10) || 95)) / 100)
+                : ((trayState && trayState.carouselJpgQuality) ? (trayState.carouselJpgQuality / 100) : 0.95);
+            const isJpg = (fileType === 'jpg' || fileType === 'jpeg');
             const mimeType = isJpg ? 'image/jpeg' : 'image/png';
-            const quality = isJpg ? 0.95 : undefined;
+            const quality = isJpg ? jpgQuality : undefined;
             const ext = isJpg ? 'jpg' : 'png';
+            const prevSuppressLoading = !!window._suppressFormatLoading;
+            window._suppressFormatLoading = true;
+            window._isSubExportRunning = true;
 
             try {
+                if (effectiveFormat && prevFmtEl && prevFmtEl.value !== effectiveFormat) {
+                    if (expFmtEl) expFmtEl.value = effectiveFormat;
+                    prevFmtEl.value = effectiveFormat;
+                    if (typeof switchPreviewFormat === 'function') switchPreviewFormat();
+                }
+
                 for (let i = 0; i < this.pages.length; i++) {
                     const page = this.pages[i];
                     this.activePageIndex = i;
@@ -565,18 +628,23 @@
                     }
 
                     // Render tamamlanması için bekleme
-                    await new Promise(r => setTimeout(r, 260));
+                    await new Promise(r => setTimeout(r, 320));
 
                     const cleanTitle = (page.title || `Sayfa_${i + 1}`).replace(/[^a-zA-Z0-9çÇğĞıİöÖşŞüÜ_-]/g, '_');
-                    const fileName = `Sayfa_${i + 1}_${cleanTitle}.${ext}`;
+                    const suffix = (fileType === 'png_transparent') ? '-seffaf' : '';
+                    const fileName = `Sayfa_${i + 1}_${cleanTitle}${suffix}.${ext}`;
                     let blob = null;
 
                     if (typeof window.saveImage === 'function') {
+                        window.isExportingNow = false;
                         const res = await window.saveImage(`Sayfa_${i + 1}_${cleanTitle}`, {
                             returnBlob: true,
                             skipDownload: true,
                             silentLoading: true,
-                            fileType: isJpg ? 'jpg' : 'png'
+                            format: effectiveFormat,
+                            scale: effectiveScale,
+                            fileType: fileType,
+                            jpgQuality: jpgQuality
                         });
                         if (res && res.blob) blob = res.blob;
                     }
@@ -619,6 +687,8 @@
                             setTimeout(() => { try { URL.revokeObjectURL(dlUrl); } catch(_){} }, 5000);
                             await new Promise(r => setTimeout(r, 450));
                         }
+                    } else {
+                        throw new Error(`"${page.title || ('Sayfa ' + (i + 1))}" oluşturulamadı.`);
                     }
                 }
 
@@ -649,9 +719,20 @@
 
             } catch (err) {
                 console.error("Carousel export error:", err);
-                progressModal.innerHTML = '<i class="fa-solid fa-triangle-exclamation" style="color:#ef4444;"></i> <span>Dışa aktarma sırasında hata oluştu.</span>';
-                setTimeout(() => { progressModal.style.display = 'none'; }, 3000);
+                const errDetail = (err && err.message) ? err.message : 'Bilinmeyen hata';
+                progressModal.innerHTML = `<i class="fa-solid fa-triangle-exclamation" style="color:#ef4444;"></i> <span>Dışa aktarma hatası: ${errDetail}</span>`;
+                setTimeout(() => { progressModal.style.display = 'none'; }, 4000);
             } finally {
+                window._isSubExportRunning = false;
+                window._suppressFormatLoading = prevSuppressLoading;
+                window.isExportingNow = false;
+                if (expFmtEl && expFmtEl.value !== origExportFormat) expFmtEl.value = origExportFormat;
+                if (prevFmtEl && prevFmtEl.value !== origPreviewFormat) {
+                    prevFmtEl.value = origPreviewFormat;
+                    if (typeof switchPreviewFormat === 'function') {
+                        try { switchPreviewFormat(); } catch(_) {}
+                    }
+                }
                 // Orijinal sayfayı mutlaka geri yükle (activePageIndex aynı kalsa bile zorla uygula)
                 const origPage = this.pages[origIndex];
                 this.activePageIndex = origIndex;

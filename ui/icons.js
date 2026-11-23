@@ -147,42 +147,64 @@ function buildIconCategoriesUI() {
     container.appendChild(searchResultsBody);
     
     Object.keys(window.ICON_CATEGORIES).forEach(cat=>{
+        const stripEmoji = (s) => String(s || '').replace(/^[\u{1F300}-\u{1FAFF}\u{2300}-\u{27BF}\u{2B00}-\u{2BFF}\uFE0F\u200D\s]+/gu, '').trim();
+        const iconCatFa = (name) => {
+            const n = name.toLowerCase();
+            if (n.includes('iletişim')) return 'fa-phone';
+            if (n.includes('finans') || n.includes('ödeme')) return 'fa-coins';
+            if (n.includes('ölçü') || n.includes('bilgi')) return 'fa-chart-column';
+            if (n.includes('ev tip')) return 'fa-house';
+            if (n.includes('iç mekan') || n.includes('oda')) return 'fa-couch';
+            if (n.includes('banyo') || n.includes('su')) return 'fa-shower';
+            if (n.includes('bahçe') || n.includes('doğa')) return 'fa-tree';
+            if (n.includes('ulaşım') || n.includes('otopark')) return 'fa-car';
+            if (n.includes('güvenlik')) return 'fa-shield-halved';
+            if (n.includes('sosyal') || n.includes('tesis')) return 'fa-mug-hot';
+            if (n.includes('manzara')) return 'fa-mountain-sun';
+            if (n.includes('araç')) return 'fa-wrench';
+            if (n.includes('çizgi') || n.includes('lucide')) return 'fa-icons';
+            if (n.includes('özellik') || n.includes('konfor')) return 'fa-star';
+            return 'fa-tag';
+        };
+        const cleanCatTitle = stripEmoji(cat) || cat;
+
         const wrapper = document.createElement('div');
+        wrapper.className = 'icon-cat-wrapper';
         wrapper.style.display = 'flex';
         wrapper.style.flexDirection = 'column';
         wrapper.style.gap = '0';
-        wrapper.style.borderRadius = '6px';
+        wrapper.style.borderRadius = '8px';
         wrapper.style.overflow = 'hidden';
-        wrapper.style.border = '1px solid rgba(255,255,255,0.05)';
-        wrapper.style.background = '#162035';
+        wrapper.style.border = '1px solid var(--border, #334155)';
+        wrapper.style.background = 'var(--dark-3, #1e293b)';
         
         const btn=document.createElement('div');
         btn.className='cat-btn';
-        btn.style.cssText = 'padding:14px; background:transparent; color:#f8fafc; cursor:pointer; font-weight:bold; display:flex; justify-content:space-between; align-items:center; transition:background 0.2s; width:100%; box-sizing:border-box;';
+        btn.style.cssText = 'padding:10px 12px; background:transparent; color:var(--text, #e2e8f0); cursor:pointer; font-size:12.5px; font-weight:700; border-left:3.5px solid #64748b; display:flex; justify-content:space-between; align-items:center; transition:background 0.2s; width:100%; box-sizing:border-box;';
         
         const chevron = document.createElement('i');
         chevron.className = 'fa-solid fa-chevron-down';
         chevron.style.fontSize = '12px';
-        chevron.style.color = '#94a3b8';
-        chevron.style.transition = 'transform 0.2s';
+        chevron.style.color = 'inherit';
+        chevron.style.transition = 'transform 0.25s ease';
         
-        btn.innerHTML = `<span>${cat}</span>`;
+        btn.innerHTML = `<span style="display:flex;align-items:center;gap:7px;"><i class="fa-solid ${iconCatFa(cleanCatTitle)}" style="color:#0284c7;"></i><span>${cleanCatTitle}</span></span>`;
         btn.appendChild(chevron);
         
         const body = document.createElement('div');
         body.className = 'cat-body';
         // Use auto-fill with minmax(45px, 1fr) so icons are not too big and not too small, and NO horizontal scroll!
-        body.style.cssText = 'display:none; padding:12px; background:var(--dark-3); grid-template-columns:repeat(auto-fill, minmax(45px, 1fr)); gap:8px; border-top:1px solid rgba(255,255,255,0.05);';
+        body.style.cssText = 'display:none; padding:10px; background:var(--dark-3); grid-template-columns:repeat(auto-fill, minmax(45px, 1fr)); gap:8px; border-top:1px solid var(--border, #334155);';
         
         btn.onclick = () => {
             const isClosing = (body.style.display === 'grid');
             
             // Close all
             document.querySelectorAll('#iconCategoryList .cat-body').forEach(b => b.style.display = 'none');
-            document.querySelectorAll('#iconCategoryList .cat-btn i').forEach(i => i.style.transform = 'rotate(0deg)');
+            document.querySelectorAll('#iconCategoryList .cat-btn i.fa-chevron-down').forEach(i => i.style.transform = 'rotate(0deg)');
             document.querySelectorAll('#iconCategoryList .cat-btn').forEach(b => {
                 b.style.background = 'transparent';
-                b.parentElement.style.borderColor = 'rgba(255,255,255,0.05)';
+                b.parentElement.style.borderColor = '';
             });
             
             // Hide search results when opening a category
@@ -192,8 +214,8 @@ function buildIconCategoriesUI() {
                 // Open this
                 body.style.display = 'grid';
                 chevron.style.transform = 'rotate(180deg)';
-                btn.style.background = 'rgba(108, 92, 231, 0.2)';
-                wrapper.style.borderColor = 'var(--primary)';
+                btn.style.background = 'rgba(2, 132, 199, 0.1)';
+                wrapper.style.borderColor = '#0284c7';
                 
                 if(body.innerHTML === '') {
                     renderIconsToContainer(cat, body);

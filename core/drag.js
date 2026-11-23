@@ -184,7 +184,7 @@ function bindDrag(el){
             wasSelected = false;
             if (typeof selectElement === 'function') {
                 try {
-                    selectElement(el, multiSelectKey, true);
+                    selectElement(el, multiSelectKey, true, 'auto', true);
                 } catch (selErr) {
                     console.warn('[Drag] selectElement hatası:', selErr);
                 }
@@ -997,7 +997,7 @@ function bindDrag(el){
 window.selectedElements = window.selectedElements || [];
 var selectedEl = null;
 window.selectedEl = null;
-function selectElement(el, isMulti = false, noTabSwitch = false, openSettings = 'auto'){
+function selectElement(el, isMulti = false, noTabSwitch = false, openSettings = 'auto', skipScroll = false){
     if (!el) return;
     // ⚡ 2D bir öge tekil seçildiğinde 3D seçimini ve panelini hemen kapat
     if (!isMulti && window.ThreeDEngine && typeof window.ThreeDEngine.setSelected === 'function') {
@@ -1016,7 +1016,7 @@ function selectElement(el, isMulti = false, noTabSwitch = false, openSettings = 
             el.classList.add('selected', 'el-selected');
             if (!noTabSwitch && (openSettings === true || window.isLongPressOpen) && typeof switchTab === 'function') switchTab('create-template');
             if (window.TemplateBuilder && typeof window.TemplateBuilder.selectFrame === 'function') {
-                window.TemplateBuilder.selectFrame(el);
+                window.TemplateBuilder.selectFrame(el, skipScroll ? { skipScroll: true } : undefined);
             }
             if (document.getElementById('noSelMsg')) document.getElementById('noSelMsg').style.display = 'none';
             if (document.getElementById('elSettings')) document.getElementById('elSettings').style.display = 'none';
@@ -1285,7 +1285,7 @@ function selectElement(el, isMulti = false, noTabSwitch = false, openSettings = 
             tEl.querySelectorAll('.callout-controls, .callout-resizer, .callout-rotator, .callout-lock-btn, .callout-select-border, .callout-handle-width, .callout-handle-length').forEach(c => c.remove());
         }
     });
-    if (el.classList.contains('tb-image-frame') && window.TemplateBuilder) { window.TemplateBuilder.selectFrame(el); }
+    if (el.classList.contains('tb-image-frame') && window.TemplateBuilder) { window.TemplateBuilder.selectFrame(el, skipScroll ? { skipScroll: true } : undefined); }
     if (!isMulti && window.ThreeDEngine && typeof window.ThreeDEngine.setSelected === 'function') { window.ThreeDEngine.setSelected(false, { silent: true, autoUnlockPhoto: false }); }
     if (typeof window.updateDockContextUI === 'function') window.updateDockContextUI(el);
 }
